@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "bnest-e2e",
+  "projectType": "application",
+  "root": "apps/bnest-e2e",
+  "implicitDependencies": ["bnest-app"],
+  "targets": {
+    "e2e": {
+      "command": "npm exec -- playwright test --config apps/bnest-e2e/playwright.config.mjs",
+      "cache": false
+    }
+  },
+  "tags": []
+}

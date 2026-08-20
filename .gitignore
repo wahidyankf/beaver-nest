@@ -23,6 +23,14 @@ node_modules/
 npm-debug.log*
 .nx/
 
+# Playwright test output
+/test-results/
+/playwright-report/
+/blob-report/
+/apps/bnest-e2e/test-results/
+/apps/bnest-e2e/playwright-report/
+/apps/bnest-e2e/blob-report/
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.

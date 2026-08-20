@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "bnest-app",
+  "projectType": "application",
+  "root": "apps/bnest-app",
+  "targets": {
+    "serve": {
+      "command": "mix phx.server",
+      "options": {
+        "cwd": "apps/bnest-app"
+      },
+      "continuous": true,
+      "cache": false
+    },
+    "test": {
+      "command": "mix test",
+      "options": {
+        "cwd": "apps/bnest-app"
+      }
+    }
+  },
+  "tags": []
+}
