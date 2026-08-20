@@ -2,10 +2,10 @@
   "name": "beaver-nest",
   "version": "1.0.0",
   "private": true,
-  "description": "",
+  "description": "Private Phoenix LiveView family app for Tailscale-based home hosting.",
   "main": "index.js",
   "directories": {
-    "doc": "docs"
+    "doc": "plans"
   },
   "workspaces": [
     "apps/*",
@@ -22,8 +22,8 @@
     "url": "git+https://github.com/wahidyankf/beaver-nest.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "wahidyankf",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/wahidyankf/beaver-nest/issues"
