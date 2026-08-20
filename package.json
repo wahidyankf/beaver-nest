@@ -12,8 +12,10 @@
     "libs/*"
   ],
   "scripts": {
+    "prepare": "husky",
     "start": "npm exec nx run bnest-app:serve",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm exec nx run bnest-app:test",
+    "test:e2e": "npm exec nx run bnest-e2e:e2e"
   },
   "repository": {
     "type": "git",
@@ -28,8 +30,13 @@
   },
   "homepage": "https://github.com/wahidyankf/beaver-nest#readme",
   "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
     "@playwright/test": "^1.62.1",
-    "nx": "23.1.1"
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
+    "nx": "23.1.1",
+    "prettier": "^3.9.6"
   },
   "nx": {}
 }

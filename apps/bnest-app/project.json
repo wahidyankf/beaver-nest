@@ -17,6 +17,12 @@
       "options": {
         "cwd": "apps/bnest-app"
       }
+    },
+    "format": {
+      "command": "mix format --check-formatted",
+      "options": {
+        "cwd": "apps/bnest-app"
+      }
     }
   },
   "tags": []
