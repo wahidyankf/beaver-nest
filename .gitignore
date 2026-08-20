@@ -33,6 +33,16 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Runtime data is private and must never be committed. Keep only the directory
+# placeholders so the expected layout is available after cloning.
+/data/*
+!/data/system/
+/data/system/*
+!/data/system/.gitkeep
+!/data/user/
+/data/user/*
+!/data/user/.gitkeep
+
 # Symbolication related
 app.*.symbols
 
