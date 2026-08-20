@@ -1,6 +1,6 @@
 # Initial Plan
 
-This is the plan overview. Detailed planning documents are in [`docs/plan/`](docs/plan/README.md).
+This is the plan overview. Detailed planning documents are in [the plans index](README.md).
 
 ## Problem statement
 
