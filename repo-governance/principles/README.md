@@ -16,4 +16,5 @@ Keep procedural steps in [workflows](../workflows/README.md), repository-wide ch
 ## Directory Map
 
 - [Governance continuity](governance-continuity.md) preserves rule-governed repository behavior across context compaction and handoffs.
+- [Minimal sufficiency](minimal-sufficiency.md) treats every line and mechanism as a liability and requires the smallest necessary solution.
 - [Progressive disclosure](progressive-disclosure.md) keeps entry points concise while making canonical detail easy to reach.

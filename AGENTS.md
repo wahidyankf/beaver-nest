@@ -34,6 +34,7 @@
 - Preserve rule-governed repository behavior across context compaction. Follow the [governance-continuity principle](repo-governance/principles/governance-continuity.md).
 - Split work into granular task-list items and keep their status synchronized with reality. Follow the [task-tracking convention](repo-governance/conventions/task-tracking.md).
 - Ask the user only as a last resort after exhausting safe, in-scope ways to proceed. Follow the [last-resort questions convention](repo-governance/conventions/last-resort-questions.md).
+- Make the smallest change that fully satisfies the need, and stop when required verification passes. Follow the [minimal-sufficiency principle](repo-governance/principles/minimal-sufficiency.md).
 
 ## Development
 
