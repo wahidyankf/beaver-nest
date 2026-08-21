@@ -19,9 +19,26 @@
       "outputs": ["{projectRoot}/tests/bin", "{projectRoot}/tests/obj"]
     },
     "check": {
-      "command": "dotnet run --project Badakmini.Cli.fsproj --configuration Release -- ../..",
+      "dependsOn": ["build"],
+      "executor": "nx:run-commands",
       "options": {
-        "cwd": "apps/badakmini-cli"
+        "commands": [
+          {
+            "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll governance word-budget validate --root ../..",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll governance directory-map validate --root ../..",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll md mermaid validate --root ../..",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "apps/badakmini-cli",
+        "forwardAllArgs": false,
+        "parallel": true
       }
     }
   },

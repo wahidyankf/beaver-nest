@@ -26,10 +26,16 @@ type GovernanceViolation =
     | InvalidMapEntry of readmePath: string * target: string
     | MermaidAccessibilityViolation of MermaidAccessibilityIssue
 
-type RepositoryInspection =
+type WordBudgetInspection =
     { MarkdownFiles: MarkdownFile list
-      GovernanceDirectoryCount: int
-      MermaidDiagramCount: int
+      Violations: GovernanceViolation list }
+
+type DirectoryMapInspection =
+    { DirectoryCount: int
+      Violations: GovernanceViolation list }
+
+type MermaidInspection =
+    { DiagramCount: int
       Violations: GovernanceViolation list }
 
 module Governance =
@@ -344,7 +350,7 @@ module Governance =
 
         classDefViolations @ paletteViolations
 
-    let private inspectMermaidAccessibility fullRoot =
+    let private inspectMermaidAccessibilityCore fullRoot =
         let blocks =
             enumerateOwnedMarkdown fullRoot
             |> Seq.sort
@@ -359,6 +365,13 @@ module Governance =
                   yield! validateMermaidBlock block ]
 
         blocks.Length, violations
+
+    let inspectMermaidAccessibility root =
+        let diagramCount, violations =
+            root |> Path.GetFullPath |> inspectMermaidAccessibilityCore
+
+        { DiagramCount = diagramCount
+          Violations = violations }
 
     let scanRepository root =
         let fullRoot = Path.GetFullPath root
@@ -382,6 +395,12 @@ module Governance =
 
     let findViolations files =
         files |> List.filter (fun file -> file.WordCount > wordLimit)
+
+    let inspectWordBudget root =
+        let markdownFiles = scanRepository root
+
+        { MarkdownFiles = markdownFiles
+          Violations = markdownFiles |> findViolations |> List.map WordLimitExceeded }
 
     let private governanceDirectories fullRoot =
         let governancePath = Path.Combine(fullRoot, "repo-governance")
@@ -484,24 +503,14 @@ module Governance =
                   for target in List.rev invalidTargets do
                       yield InvalidMapEntry(relativeReadme, target) ]
 
-    let inspectRepository root =
+    let inspectDirectoryMaps root =
         let fullRoot = Path.GetFullPath root
-        let markdownFiles = scanRepository fullRoot
         let directories = governanceDirectories fullRoot
-        let mermaidDiagramCount, mermaidViolations = inspectMermaidAccessibility fullRoot
 
-        let violations =
-            [ yield! markdownFiles |> findViolations |> List.map WordLimitExceeded
-
-              for directory in directories do
-                  yield! validateDirectoryMap fullRoot directory
-
-              yield! mermaidViolations ]
-
-        { MarkdownFiles = markdownFiles
-          GovernanceDirectoryCount = directories.Length
-          MermaidDiagramCount = mermaidDiagramCount
-          Violations = violations }
+        { DirectoryCount = directories.Length
+          Violations =
+            [ for directory in directories do
+                  yield! validateDirectoryMap fullRoot directory ] }
 
     let formatViolation violation =
         match violation with
