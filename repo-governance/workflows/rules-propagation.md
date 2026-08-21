@@ -1,6 +1,6 @@
 # Rules Propagation
 
-Use this workflow when adding or changing a repository [rule](../conventions/rules.md).
+This workflow automatically and mandatorily applies whenever a repository [rule](../conventions/rules.md) is created, added, updated, moved, deleted, or otherwise changed. Follow it even when the user does not explicitly name or request the workflow.
 
 ## Inputs
 

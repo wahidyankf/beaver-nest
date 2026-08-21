@@ -15,4 +15,4 @@ A rule's scope may identify people, agents, files, components, or tasks directly
 
 Every rule must have one canonical source. Its governance level and precedence are determined by that source under the repository [governance hierarchy](../README.md). Concise references at points of use must link to the canonical rule rather than restating it.
 
-Use the [rules-propagation workflow](../workflows/rules-propagation.md) to add or change a rule.
+Creating, adding, updating, moving, deleting, or otherwise changing a rule automatically invokes the [rules-propagation workflow](../workflows/rules-propagation.md), even when it is not explicitly requested.

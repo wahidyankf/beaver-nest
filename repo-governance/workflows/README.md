@@ -21,4 +21,4 @@ When composing workflows:
 
 ## Directory Map
 
-- [Rules propagation](rules-propagation.md) adds or changes repository rules while preserving hierarchy, concision, and a single canonical source.
+- [Rules propagation](rules-propagation.md) automatically governs every repository rule change while preserving hierarchy, concision, and a single canonical source.
