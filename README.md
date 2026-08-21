@@ -44,6 +44,7 @@ npm run test:e2e
 apps/bnest-app/  Phoenix LiveView application
 apps/bnest-e2e/  Playwright end-to-end tests
 data/            Ignored local system and user data placeholders
+docs/            Diátaxis-organized, non-rule documentation
 libs/            Shared workspace libraries
 plans/           Product, architecture, testing, and operations plans
 ```
@@ -64,7 +65,7 @@ Husky runs lint-staged before each commit. Prettier reformats supported staged f
 feat(app): add household dashboard
 ```
 
-Before a push, Husky runs the repository-governance and Mermaid-accessibility check only when the pushed commits change a Markdown file anywhere in the repository. Pushes without Markdown changes skip the check.
+Before a push, Husky runs governance, documentation-map, and Mermaid-accessibility checks when the pushed commits change Markdown anywhere or any content under `docs/`. Other pushes skip the check.
 
 ## License
 

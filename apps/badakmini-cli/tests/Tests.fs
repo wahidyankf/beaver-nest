@@ -46,6 +46,9 @@ let private runWordBudget root =
 let private runDirectoryMap root =
     runCli root [| "governance"; "directory-map"; "validate" |]
 
+let private runDirectoryMapFor directory root =
+    runCli root [| "governance"; "directory-map"; "validate"; "--directory"; directory |]
+
 let private runMermaid root =
     runCli root [| "md"; "mermaid"; "validate" |]
 
@@ -92,11 +95,12 @@ let ``countWords counts text rather than Markdown punctuation`` () =
     Assert.Equal(4, Governance.countWords content)
 
 [<Fact>]
-let ``scanRepository includes AGENTS and nested governance Markdown only`` () =
+let ``scanRepository excludes docs and includes governed Markdown only`` () =
     use repository = new TemporaryRepository()
     repository.Write("AGENTS.md", "agents rules")
     repository.Write("repo-governance/nested/RULES.MD", "nested rules")
     repository.Write("repo-governance/notes.txt", "not Markdown")
+    repository.Write("docs/long-form.md", words (Governance.wordLimit + 1))
     repository.Write("README.md", "outside governance")
 
     let files = Governance.scanRepository repository.Root
@@ -195,6 +199,32 @@ let ``CLI commands isolate directory-map validation`` () =
     Assert.Equal(0, runWordBudget repository.Root)
     Assert.Equal(1, runDirectoryMap repository.Root)
     Assert.Equal(0, runMermaid repository.Root)
+
+[<Fact>]
+let ``CLI directory-map accepts a complete selected docs tree`` () =
+    use repository = new TemporaryRepository()
+
+    repository.Write("docs/README.md", "# Docs\n\n## Directory Map\n\n- [Nested](nested/README.md)")
+    repository.Write("docs/nested/README.md", emptyDirectoryMap "Nested")
+
+    Assert.Equal(0, runDirectoryMapFor "docs" repository.Root)
+
+[<Fact>]
+let ``CLI directory-map requires README in every selected docs directory`` () =
+    use repository = new TemporaryRepository()
+
+    repository.Write("docs/README.md", "# Docs\n\n## Directory Map\n\n- [Nested](nested/README.md)")
+    repository.Write("docs/nested/guide.md", "# Guide")
+
+    Assert.Equal(1, runDirectoryMapFor "docs" repository.Root)
+
+[<Fact>]
+let ``CLI directory-map rejects an omitted sibling in selected docs`` () =
+    use repository = new TemporaryRepository()
+    repository.Write("docs/README.md", emptyDirectoryMap "Docs")
+    repository.Write("docs/guide.md", "# Guide")
+
+    Assert.Equal(1, runDirectoryMapFor "docs" repository.Root)
 
 [<Fact>]
 let ``CLI commands isolate Mermaid accessibility validation`` () =

@@ -39,14 +39,15 @@ module Cli =
             writeError "word-budget" $"badakmini-cli: {ex.Message}"
             2
 
-    let private runDirectoryMaps root =
+    let private runDirectoryMaps root directory =
         try
-            let inspection = Governance.inspectDirectoryMaps root
+            let inspection = Governance.inspectDirectoryMapsAt root directory
 
             if List.isEmpty inspection.Violations then
                 sprintf
-                    "Checked %d governance directory map(s); all directory-map checks passed."
+                    "Checked %d directory map(s) under %s; all directory-map checks passed."
                     inspection.DirectoryCount
+                    directory
                 |> writeOutput "directory-map"
 
                 0
@@ -92,6 +93,26 @@ module Cli =
 
         command
 
+    let private createDirectoryMapLeaf (rootOption: Option<DirectoryInfo>) =
+        let command =
+            Command("validate", "Validate README presence, sibling coverage, and directory-map links.")
+
+        let directoryOption = Option<string>("--directory")
+        directoryOption.Description <- "Repository-relative directory tree. Defaults to repo-governance."
+
+        directoryOption.DefaultValueFactory <- Func<ArgumentResult, string>(fun _ -> "repo-governance")
+
+        command.Options.Add directoryOption
+
+        command.SetAction(
+            Func<ParseResult, int>(fun parseResult ->
+                runDirectoryMaps
+                    (parseResult.GetRequiredValue(rootOption).FullName)
+                    (parseResult.GetRequiredValue directoryOption))
+        )
+
+        command
+
     let createRootCommand () =
         let root = RootCommand("Validate repository governance and Markdown conventions.")
 
@@ -116,16 +137,9 @@ module Cli =
                 runWordBudget
         )
 
-        let directoryMap =
-            Command("directory-map", "Validate governance README directory maps.")
+        let directoryMap = Command("directory-map", "Validate README directory maps.")
 
-        directoryMap.Subcommands.Add(
-            createLeaf
-                "validate"
-                "Validate README presence, sibling coverage, and directory-map links."
-                rootOption
-                runDirectoryMaps
-        )
+        directoryMap.Subcommands.Add(createDirectoryMapLeaf rootOption)
 
         governance.Subcommands.Add wordBudget
         governance.Subcommands.Add directoryMap

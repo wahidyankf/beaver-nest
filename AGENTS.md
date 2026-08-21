@@ -31,7 +31,8 @@
 
 ## Repository Governance
 
-- Automatically follow [rules propagation](repo-governance/workflows/rules-propagation.md) whenever creating, adding, updating, moving, deleting, or otherwise changing repository rules, even when the user does not mention the workflow.
+- Automatically follow [rules propagation](repo-governance/workflows/rules-propagation.md) for every repository rule change, even when not explicitly requested.
+- Use [Diátaxis for non-rule documentation](repo-governance/conventions/documentation-architecture.md).
 - Preserve rule-governed repository behavior across context compaction. Follow the [governance-continuity principle](repo-governance/principles/governance-continuity.md).
 - Split work into granular task-list items and keep their status synchronized with reality. Follow the [task-tracking convention](repo-governance/conventions/task-tracking.md).
 - Ask the user only as a last resort after exhausting safe, in-scope ways to proceed. Follow the [last-resort questions convention](repo-governance/conventions/last-resort-questions.md).

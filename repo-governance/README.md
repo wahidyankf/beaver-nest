@@ -36,4 +36,4 @@ The `badakmini-cli` application enforces this limit for root `AGENTS.md` and eve
 npm exec -- nx run badakmini-cli:check
 ```
 
-The repository's pre-push hook runs the same governance and Mermaid-accessibility check only when the pushed commits change a Markdown file anywhere in the repository. Pushes without Markdown changes skip it.
+The repository's pre-push hook runs the same governance, documentation-map, and Mermaid-accessibility checks when pushed commits change Markdown anywhere or any content under `docs/`. Other pushes skip them.

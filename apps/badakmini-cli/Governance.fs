@@ -402,14 +402,27 @@ module Governance =
         { MarkdownFiles = markdownFiles
           Violations = markdownFiles |> findViolations |> List.map WordLimitExceeded }
 
-    let private governanceDirectories fullRoot =
-        let governancePath = Path.Combine(fullRoot, "repo-governance")
+    let private mappedDirectories fullRoot relativeDirectory =
+        if String.IsNullOrWhiteSpace relativeDirectory then
+            invalidArg (nameof relativeDirectory) "Directory must be relative to the repository root."
 
-        if not (Directory.Exists governancePath) then
+        if Path.IsPathRooted relativeDirectory then
+            invalidArg (nameof relativeDirectory) "Directory must be relative to the repository root."
+
+        let directoryPath = Path.GetFullPath(Path.Combine(fullRoot, relativeDirectory))
+        let normalizedRelativePath = Path.GetRelativePath(fullRoot, directoryPath)
+
+        if
+            normalizedRelativePath = ".."
+            || normalizedRelativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+        then
+            invalidArg (nameof relativeDirectory) "Directory must be within the repository root."
+
+        if not (Directory.Exists directoryPath) then
             []
         else
-            governancePath
-            :: (Directory.EnumerateDirectories(governancePath, "*", SearchOption.AllDirectories)
+            directoryPath
+            :: (Directory.EnumerateDirectories(directoryPath, "*", SearchOption.AllDirectories)
                 |> Seq.toList)
             |> List.sort
 
@@ -503,14 +516,17 @@ module Governance =
                   for target in List.rev invalidTargets do
                       yield InvalidMapEntry(relativeReadme, target) ]
 
-    let inspectDirectoryMaps root =
+    let inspectDirectoryMapsAt root relativeDirectory =
         let fullRoot = Path.GetFullPath root
-        let directories = governanceDirectories fullRoot
+        let directories = mappedDirectories fullRoot relativeDirectory
 
         { DirectoryCount = directories.Length
           Violations =
             [ for directory in directories do
                   yield! validateDirectoryMap fullRoot directory ] }
+
+    let inspectDirectoryMaps root =
+        inspectDirectoryMapsAt root "repo-governance"
 
     let formatViolation violation =
         match violation with

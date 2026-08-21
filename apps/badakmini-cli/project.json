@@ -28,7 +28,11 @@
             "forwardAllArgs": false
           },
           {
-            "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll governance directory-map validate --root ../..",
+            "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll governance directory-map validate --root ../.. --directory repo-governance",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll governance directory-map validate --root ../.. --directory docs",
             "forwardAllArgs": false
           },
           {
