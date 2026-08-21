@@ -40,10 +40,10 @@ type MermaidInspection =
 
 module Governance =
     [<Literal>]
-    let wordLimit = 500
+    let WordLimit = 500
 
     [<Literal>]
-    let directoryMapHeading = "## Directory Map"
+    let DirectoryMapHeading = "## Directory Map"
 
     let private wordPattern =
         Regex(@"[\p{L}\p{M}\p{N}]+(?:['’_-][\p{L}\p{M}\p{N}]+)*", RegexOptions.Compiled)
@@ -68,7 +68,7 @@ module Governance =
         Regex(@"(?<name>[a-zA-Z-]+)\s*:\s*(?<value>[^,\s;]+)", RegexOptions.Compiled)
 
     [<Literal>]
-    let private paletteCommentPrefix = "%% Accessible palette:"
+    let private PaletteCommentPrefix = "%% Accessible palette:"
 
     let private fillColors =
         set [ "#0173B2"; "#DE8F05"; "#029E73"; "#CC78BC"; "#CA9161"; "#808080" ]
@@ -113,16 +113,22 @@ module Governance =
     let private isReparsePoint (path: string) =
         File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)
 
-    let rec private enumerateOwnedMarkdown directory =
+    let private enumerateOwnedMarkdown directory =
         seq {
-            yield! Directory.EnumerateFiles(directory) |> Seq.filter isMarkdown
+            let directories = Stack<string>()
+            directories.Push(directory)
 
-            for child in Directory.EnumerateDirectories(directory) do
-                if
-                    not (excludedMarkdownDirectories.Contains(Path.GetFileName child))
-                    && not (isReparsePoint child)
-                then
-                    yield! enumerateOwnedMarkdown child
+            while directories.Count > 0 do
+                let currentDirectory = directories.Pop()
+
+                yield! Directory.EnumerateFiles(currentDirectory) |> Seq.filter isMarkdown
+
+                for child in Directory.EnumerateDirectories(currentDirectory) do
+                    if
+                        not (excludedMarkdownDirectories.Contains(Path.GetFileName child))
+                        && not (isReparsePoint child)
+                    then
+                        directories.Push(child)
         }
 
     let private extractMermaidBlocks relativePath content =
@@ -299,7 +305,7 @@ module Governance =
         let paletteComments =
             block.Lines
             |> List.filter (fun (_, line) ->
-                line.TrimStart().StartsWith(paletteCommentPrefix, StringComparison.OrdinalIgnoreCase))
+                line.TrimStart().StartsWith(PaletteCommentPrefix, StringComparison.OrdinalIgnoreCase))
 
         let mutable semanticColors = Set.empty
 
@@ -314,7 +320,7 @@ module Governance =
                       semanticColors <- Set.union semanticColors colors
                       yield! violations
                   elif
-                      not (line.TrimStart().StartsWith(paletteCommentPrefix, StringComparison.OrdinalIgnoreCase))
+                      not (line.TrimStart().StartsWith(PaletteCommentPrefix, StringComparison.OrdinalIgnoreCase))
                       && containsColorOutsideClassDef line
                   then
                       yield issue block lineNumber "Mermaid custom colors must be declared with classDef" ]
@@ -394,7 +400,7 @@ module Governance =
         |> Seq.toList
 
     let findViolations files =
-        files |> List.filter (fun file -> file.WordCount > wordLimit)
+        files |> List.filter (fun file -> file.WordCount > WordLimit)
 
     let inspectWordBudget root =
         let markdownFiles = scanRepository root
@@ -429,7 +435,7 @@ module Governance =
     let private extractDirectoryMapTargets content =
         let lines = Regex.Split(content, "\r?\n")
 
-        match lines |> Array.tryFindIndex (fun line -> line.Trim() = directoryMapHeading) with
+        match lines |> Array.tryFindIndex (fun line -> line.Trim() = DirectoryMapHeading) with
         | None -> None
         | Some headingIndex ->
             lines
@@ -530,9 +536,9 @@ module Governance =
 
     let formatViolation violation =
         match violation with
-        | WordLimitExceeded file -> $"{file.Path}: {file.WordCount} words (maximum {wordLimit})"
+        | WordLimitExceeded file -> $"{file.Path}: {file.WordCount} words (maximum {WordLimit})"
         | MissingReadme directoryPath -> $"{directoryPath}: missing README.md"
-        | MissingDirectoryMap readmePath -> $"{readmePath}: missing \"{directoryMapHeading}\" section"
+        | MissingDirectoryMap readmePath -> $"{readmePath}: missing \"{DirectoryMapHeading}\" section"
         | MissingMapEntry(readmePath, siblingPath) ->
             $"{readmePath}: directory map does not include sibling: {siblingPath}"
         | InvalidMapEntry(readmePath, target) ->

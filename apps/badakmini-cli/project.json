@@ -11,12 +11,61 @@
       },
       "outputs": ["{projectRoot}/bin", "{projectRoot}/obj"]
     },
-    "test": {
+    "typecheck": {
+      "command": "badakmini_typecheck_dir=$(mktemp -d /tmp/badakmini-typecheck.XXXXXX) && trap 'rm -rf -- \"$badakmini_typecheck_dir\"' EXIT HUP INT TERM && dotnet build tests/Badakmini.Cli.Tests.fsproj --configuration Release --artifacts-path \"$badakmini_typecheck_dir\"",
+      "options": {
+        "cwd": "apps/badakmini-cli"
+      }
+    },
+    "test:unit": {
       "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Release",
       "options": {
         "cwd": "apps/badakmini-cli"
       },
       "outputs": ["{projectRoot}/tests/bin", "{projectRoot}/tests/obj"]
+    },
+    "test:quick": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p badakmini-cli -t typecheck",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p badakmini-cli -t lint",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p badakmini-cli -t test:unit",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "fantomas . --check",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet fsharplint lint Badakmini.Cli.fsproj",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet fsharplint lint tests/Badakmini.Cli.Tests.fsproj",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "apps/badakmini-cli",
+        "forwardAllArgs": false,
+        "parallel": true
+      }
     },
     "test:repo": {
       "dependsOn": ["build"],

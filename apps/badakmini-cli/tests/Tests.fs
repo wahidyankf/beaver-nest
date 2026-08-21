@@ -100,7 +100,7 @@ let ``scanRepository excludes docs and includes governed Markdown only`` () =
     repository.Write("AGENTS.md", "agents rules")
     repository.Write("repo-governance/nested/RULES.MD", "nested rules")
     repository.Write("repo-governance/notes.txt", "not Markdown")
-    repository.Write("docs/long-form.md", words (Governance.wordLimit + 1))
+    repository.Write("docs/long-form.md", words (Governance.WordLimit + 1))
     repository.Write("README.md", "outside governance")
 
     let files = Governance.scanRepository repository.Root
@@ -110,8 +110,8 @@ let ``scanRepository excludes docs and includes governed Markdown only`` () =
 [<Fact>]
 let ``findViolations allows 500 words and rejects 501`` () =
     use repository = new TemporaryRepository()
-    repository.Write("AGENTS.md", words Governance.wordLimit)
-    repository.Write("repo-governance/too-long.md", words (Governance.wordLimit + 1))
+    repository.Write("AGENTS.md", words Governance.WordLimit)
+    repository.Write("repo-governance/too-long.md", words (Governance.WordLimit + 1))
 
     let violations =
         Governance.scanRepository repository.Root |> Governance.findViolations
@@ -129,7 +129,7 @@ let ``scanRepository handles missing optional paths`` () =
 [<Fact>]
 let ``inspectWordBudget reports only governed Markdown word-limit violations`` () =
     use repository = new TemporaryRepository()
-    repository.Write("AGENTS.md", words (Governance.wordLimit + 1))
+    repository.Write("AGENTS.md", words (Governance.WordLimit + 1))
     repository.Write("repo-governance/README.md", "# Governance")
     repository.Write("docs/diagram.md", coloredMermaid "```" "flowchart LR" "#FF0000")
 
@@ -145,7 +145,7 @@ let ``inspectWordBudget reports only governed Markdown word-limit violations`` (
 [<Fact>]
 let ``inspectDirectoryMaps reports only governance directory-map violations`` () =
     use repository = new TemporaryRepository()
-    repository.Write("AGENTS.md", words (Governance.wordLimit + 1))
+    repository.Write("AGENTS.md", words (Governance.WordLimit + 1))
     repository.Write("repo-governance/README.md", "# Governance")
     repository.Write("docs/diagram.md", coloredMermaid "```" "flowchart LR" "#FF0000")
 
@@ -161,7 +161,7 @@ let ``inspectDirectoryMaps reports only governance directory-map violations`` ()
 [<Fact>]
 let ``inspectMermaidAccessibility reports only compatible Mermaid violations`` () =
     use repository = new TemporaryRepository()
-    repository.Write("AGENTS.md", words (Governance.wordLimit + 1))
+    repository.Write("AGENTS.md", words (Governance.WordLimit + 1))
     repository.Write("repo-governance/README.md", "# Governance")
     repository.Write("docs/diagram.md", coloredMermaid "```" "flowchart LR" "#FF0000")
 
@@ -185,7 +185,7 @@ let ``CLI accepts every canonical nested command path`` () =
 [<Fact>]
 let ``CLI commands isolate word-budget validation`` () =
     use repository = new TemporaryRepository()
-    repository.Write("AGENTS.md", words (Governance.wordLimit + 1))
+    repository.Write("AGENTS.md", words (Governance.WordLimit + 1))
 
     Assert.Equal(1, runWordBudget repository.Root)
     Assert.Equal(0, runDirectoryMap repository.Root)
@@ -276,7 +276,7 @@ let ``CLI leaf output carries an atomic command-category prefix`` () =
     assertLinesStartWith "[directory-map] " mapOutput
     assertLinesStartWith "[mermaid] " mermaidOutput
 
-    repository.Write("AGENTS.md", words (Governance.wordLimit + 1))
+    repository.Write("AGENTS.md", words (Governance.WordLimit + 1))
 
     let failureExit, _, failureError =
         captureConsole (fun () -> runWordBudget repository.Root)
@@ -483,7 +483,7 @@ let ``Mermaid diagnostics include the Markdown path and source line`` () =
 
     let violation =
         Governance.inspectMermaidAccessibility(repository.Root).Violations
-        |> fun violations -> Assert.Single violations
+        |> Assert.Single
         |> Governance.formatViolation
 
     Assert.StartsWith("docs/diagram.md:6:", violation)
@@ -533,7 +533,7 @@ let ``inspectDirectoryMaps requires a Directory Map section`` () =
 
     match violation with
     | MissingDirectoryMap path -> Assert.Equal("repo-governance/README.md", path)
-    | _ -> failwithf "Expected MissingDirectoryMap, got %A" violation
+    | _ -> failwithf "Expected root README MissingDirectoryMap, got %A" violation
 
 [<Fact>]
 let ``inspectDirectoryMaps rejects an omitted sibling`` () =
@@ -556,24 +556,22 @@ let ``independent inspections report an overlong README and its omitted sibling`
     use repository = new TemporaryRepository()
 
     let readme =
-        emptyDirectoryMap "Governance" + "\n\n" + words (Governance.wordLimit + 1)
+        emptyDirectoryMap "Governance" + "\n\n" + words (Governance.WordLimit + 1)
 
     repository.Write("repo-governance/README.md", readme)
 
     repository.Write("repo-governance/rules.md", "# Rules")
 
     let wordViolation =
-        Governance.inspectWordBudget(repository.Root).Violations
-        |> fun violations -> Assert.Single violations
+        Governance.inspectWordBudget(repository.Root).Violations |> Assert.Single
 
     let directoryMapViolation =
-        Governance.inspectDirectoryMaps(repository.Root).Violations
-        |> fun violations -> Assert.Single violations
+        Governance.inspectDirectoryMaps(repository.Root).Violations |> Assert.Single
 
     match wordViolation, directoryMapViolation with
     | WordLimitExceeded file, MissingMapEntry(readmePath, siblingPath) ->
         Assert.Equal("repo-governance/README.md", file.Path)
-        Assert.True(file.WordCount > Governance.wordLimit)
+        Assert.True(file.WordCount > Governance.WordLimit)
         Assert.Equal("repo-governance/README.md", readmePath)
         Assert.Equal("repo-governance/rules.md", siblingPath)
     | violations -> failwithf "Expected both violations, got %A" violations
@@ -592,7 +590,7 @@ let ``inspectDirectoryMaps rejects a nonexistent map entry`` () =
     | InvalidMapEntry(readmePath, target) ->
         Assert.Equal("repo-governance/README.md", readmePath)
         Assert.Equal("old-rules.md", target)
-    | _ -> failwithf "Expected InvalidMapEntry, got %A" violation
+    | _ -> failwithf "Expected nonexistent-target InvalidMapEntry, got %A" violation
 
 [<Fact>]
 let ``inspectDirectoryMaps rejects an existing non-sibling map entry`` () =
@@ -610,12 +608,12 @@ let ``inspectDirectoryMaps rejects an existing non-sibling map entry`` () =
     | InvalidMapEntry(readmePath, target) ->
         Assert.Equal("repo-governance/nested/README.md", readmePath)
         Assert.Equal("../README.md", target)
-    | _ -> failwithf "Expected InvalidMapEntry, got %A" violation
+    | _ -> failwithf "Expected non-sibling InvalidMapEntry, got %A" violation
 
 [<Fact>]
 let ``CLI returns failure when a governed file exceeds the limit`` () =
     use repository = new TemporaryRepository()
-    repository.Write("AGENTS.md", words (Governance.wordLimit + 1))
+    repository.Write("AGENTS.md", words (Governance.WordLimit + 1))
 
     Assert.Equal(1, runWordBudget repository.Root)
 

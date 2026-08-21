@@ -24,7 +24,7 @@ module Cli =
                 sprintf
                     "Checked %d governed Markdown file(s); all are within the %d-word limit."
                     inspection.MarkdownFiles.Length
-                    Governance.wordLimit
+                    Governance.WordLimit
                 |> writeOutput "word-budget"
 
                 0
