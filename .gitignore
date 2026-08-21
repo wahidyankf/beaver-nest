@@ -61,3 +61,7 @@ npm-debug.log*
 .nx/polygraph
 .claude/worktrees
 .claude/settings.local.json
+
+# Local Git worktrees. Keep only the directory placeholder in version control.
+/worktrees/*
+!/worktrees/.gitkeep

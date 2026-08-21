@@ -21,5 +21,6 @@ When composing workflows:
 
 ## Directory Map
 
+- [Pull-request worktree](pull-request-worktree.md) isolates pull-request tasks under `worktrees/` and removes their worktrees after completion.
 - [Red–green–refactor](red-green-refactor.md) defines the repeatable TDD cycle for application and library behavior.
 - [Rules propagation](rules-propagation.md) automatically governs every repository rule change while preserving hierarchy, concision, and a single canonical source.
