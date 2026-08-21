@@ -23,6 +23,13 @@ node_modules/
 npm-debug.log*
 .nx/
 
+# .NET / F#
+**/bin/
+**/obj/
+*.user
+.ionide/
+.fake/
+
 # Playwright test output
 /test-results/
 /playwright-report/

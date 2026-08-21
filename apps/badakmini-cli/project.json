@@ -1,0 +1,29 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "badakmini-cli",
+  "projectType": "application",
+  "root": "apps/badakmini-cli",
+  "targets": {
+    "build": {
+      "command": "dotnet build Badakmini.Cli.fsproj --configuration Release",
+      "options": {
+        "cwd": "apps/badakmini-cli"
+      },
+      "outputs": ["{projectRoot}/bin", "{projectRoot}/obj"]
+    },
+    "test": {
+      "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Release",
+      "options": {
+        "cwd": "apps/badakmini-cli"
+      },
+      "outputs": ["{projectRoot}/tests/bin", "{projectRoot}/tests/obj"]
+    },
+    "check": {
+      "command": "dotnet run --project Badakmini.Cli.fsproj --configuration Release -- ../..",
+      "options": {
+        "cwd": "apps/badakmini-cli"
+      }
+    }
+  },
+  "tags": []
+}

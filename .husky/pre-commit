@@ -1,1 +1,4 @@
+set -e
+
 npm exec -- lint-staged
+npm exec -- nx run badakmini-cli:check
