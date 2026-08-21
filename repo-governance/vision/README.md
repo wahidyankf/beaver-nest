@@ -16,3 +16,7 @@ The application must not introduce capabilities, incentives, or practices that e
 Vision is the highest authority within repository governance. No principle, convention, development standard, or workflow may contradict it. When a conflict exists, the lower-level document must change. Amend the vision only through an explicit governance change, not by adding an exception below it.
 
 Keep durable decision constraints in [principles](../principles/README.md), repository-wide choices in [conventions](../conventions/README.md), engineering standards in [development](../development/README.md), and procedures in [workflows](../workflows/README.md).
+
+## Directory Map
+
+This directory currently has no entries other than this README.

@@ -14,3 +14,8 @@ A convention should state:
 - any explicit exception.
 
 Prefer one canonical convention over repeating the same rule in several documents.
+
+## Directory Map
+
+- [Governance directory maps](directory-maps.md) keep every governance directory self-describing and navigable.
+- [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.

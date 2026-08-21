@@ -2,7 +2,9 @@
 
 This directory contains the repository's detailed rules and working agreements.
 
-## Governance Areas
+Every directory in this tree follows the [governance directory-map convention](conventions/directory-maps.md).
+
+## Directory Map
 
 - [Vision](vision/README.md) defines the future this repository exists to create.
 - [Principles](principles/README.md) contain durable constraints within that vision.
@@ -20,7 +22,7 @@ The hierarchy flows from top to bottom: a lower level cannot contradict any leve
 
 Root instruction files such as `AGENTS.md` should remain concise—no more than 500 words—and link to the relevant documents here.
 
-The `badakmini-cli` application enforces this limit for root `AGENTS.md` and every Markdown file in this directory. Run it manually with:
+The `badakmini-cli` application enforces this limit for root `AGENTS.md` and every Markdown file in this directory, along with the governance navigation requirements. Run it manually with:
 
 ```sh
 npm exec -- nx run badakmini-cli:check

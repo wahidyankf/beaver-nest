@@ -19,6 +19,6 @@ When composing workflows:
 - keep each component usable independently where practical; and
 - avoid circular workflow dependencies.
 
-## Available Workflows
+## Directory Map
 
 - [Rules propagation](rules-propagation.md) adds or changes repository rules while preserving hierarchy, concision, and a single canonical source.

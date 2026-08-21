@@ -1,6 +1,6 @@
 # Rules Propagation
 
-Use this workflow when adding or changing a rule that guides work in this repository.
+Use this workflow when adding or changing a repository [rule](../conventions/rules.md).
 
 ## Inputs
 
@@ -17,7 +17,7 @@ Use this workflow when adding or changing a rule that guides work in this reposi
 5. **Check for contradictions.** Compare the rule with every higher level in order: `vision > principles > conventions > development > workflows`. A lower rule must change if it contradicts a higher rule.
 6. **Deduplicate.** Search instruction and governance files for equivalent guidance. Keep one canonical statement in the correct governance location, merge useful unique detail, and replace other copies with concise links.
 7. **Apply [progressive disclosure](../principles/progressive-disclosure.md).** When the instruction-file limit is reached or the rule needs supporting detail, move the full content into its canonical governance document. Leave only the shortest useful directive and link at the point of use.
-8. **Verify the result.** Confirm links resolve, the rule has one canonical source, lower levels remain aligned, and no existing rule was unintentionally weakened. Run:
+8. **Verify the result.** Confirm links resolve, affected [directory maps](../conventions/directory-maps.md) list every sibling, the rule has one canonical source, lower levels remain aligned, and no existing rule was unintentionally weakened. Run:
 
    ```sh
    npm exec -- nx run badakmini-cli:check

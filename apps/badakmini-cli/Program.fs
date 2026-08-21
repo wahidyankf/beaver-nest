@@ -12,28 +12,22 @@ let private checkRepository root =
         2
     else
         try
-            let files = Governance.scanRepository root
-            let violations = Governance.findViolations files
+            let inspection = Governance.inspectRepository root
 
-            if List.isEmpty violations then
+            if List.isEmpty inspection.Violations then
                 printfn
-                    "Checked %d Markdown file(s); all are within the %d-word limit."
-                    files.Length
-                    Governance.wordLimit
+                    "Checked %d Markdown file(s) and %d governance directory map(s); all governance checks passed."
+                    inspection.MarkdownFiles.Length
+                    inspection.GovernanceDirectoryCount
 
                 0
             else
-                for violation in violations do
-                    eprintfn
-                        "%s: %d words (maximum %d)"
-                        violation.Path
-                        violation.WordCount
-                        Governance.wordLimit
+                for violation in inspection.Violations do
+                    eprintfn "%s" (Governance.formatViolation violation)
 
                 eprintfn
-                    "Found %d Markdown file(s) over the %d-word limit."
-                    violations.Length
-                    Governance.wordLimit
+                    "Found %d governance violation(s)."
+                    inspection.Violations.Length
 
                 1
         with ex ->
