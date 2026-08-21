@@ -31,4 +31,4 @@ if [ -z "$run_repository_check" ]; then
   exit 0
 fi
 
-NX_NO_CLOUD=true npm exec -- nx run badakmini-cli:check
+NX_NO_CLOUD=true npm exec -- nx run badakmini-cli:test:repo

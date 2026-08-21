@@ -21,7 +21,7 @@ This workflow automatically and mandatorily applies whenever a repository [rule]
 9. **Verify the result.** Confirm links resolve, affected [directory maps](../conventions/directory-maps.md) list every sibling, the rule has one canonical source, lower levels remain aligned, and no existing rule was unintentionally weakened. Run:
 
    ```sh
-   npm exec -- nx run badakmini-cli:check
+   npm exec -- nx run badakmini-cli:test:repo
    ```
 
 ## Outcome

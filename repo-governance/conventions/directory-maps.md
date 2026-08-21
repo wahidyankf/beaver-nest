@@ -19,5 +19,5 @@ A complete map and the 500-word limit must both be satisfied. If a complete READ
 The `badakmini-cli` check enforces README presence, map completeness, valid sibling links, and the word limit:
 
 ```sh
-npm exec -- nx run badakmini-cli:check
+npm exec -- nx run badakmini-cli:test:repo
 ```

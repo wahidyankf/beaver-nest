@@ -33,7 +33,7 @@ Root instruction files such as `AGENTS.md` should remain concise—no more than 
 The `badakmini-cli` application enforces this limit for root `AGENTS.md` and every Markdown file in this directory, along with the governance navigation requirements. Run it manually with:
 
 ```sh
-npm exec -- nx run badakmini-cli:check
+npm exec -- nx run badakmini-cli:test:repo
 ```
 
 The repository's pre-push hook runs the same governance, documentation-map, and Mermaid-accessibility checks when pushed commits change Markdown anywhere or any content under `docs/`. Other pushes skip them.

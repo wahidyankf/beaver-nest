@@ -10,13 +10,13 @@ This project owns governance inspection and its automated tests. The governance 
 
 Install the repository's npm dependencies and the .NET 10 SDK. Run tasks from the repository root:
 
-| Task                            | Command                                  |
-| ------------------------------- | ---------------------------------------- |
-| Validate repository governance  | `npm exec -- nx run badakmini-cli:check` |
-| Run the F# test suite           | `npm exec -- nx run badakmini-cli:test`  |
-| Build the release configuration | `npm exec -- nx run badakmini-cli:build` |
+| Task                            | Command                                      |
+| ------------------------------- | -------------------------------------------- |
+| Validate repository governance  | `npm exec -- nx run badakmini-cli:test:repo` |
+| Run the F# test suite           | `npm exec -- nx run badakmini-cli:test`      |
+| Build the release configuration | `npm exec -- nx run badakmini-cli:build`     |
 
-The `check` target builds once, then concurrently runs word-budget validation, directory-map validation for `repo-governance/` and `docs/`, and Mermaid validation with prefixed output. It exits nonzero if any invocation fails.
+The `test:repo` target builds once, then concurrently runs word-budget validation, directory-map validation for `repo-governance/` and `docs/`, and Mermaid validation with prefixed output. It exits nonzero if any invocation fails.
 
 ## Commands
 
@@ -35,7 +35,7 @@ dotnet run --project apps/badakmini-cli/Badakmini.Cli.fsproj -- \
   governance word-budget validate --root .
 ```
 
-There is no aggregate CLI command; use the Nx `check` target to run every validator. Exit code `0` means success or help, `1` means validation findings, and `2` means an invalid invocation, invalid root, or execution error.
+There is no aggregate CLI command; use the Nx `test:repo` target to run every validator. Exit code `0` means success or help, `1` means validation findings, and `2` means an invalid invocation, invalid root, or execution error.
 
 The word-budget leaf applies the 500-word limit only to root `AGENTS.md` and Markdown under `repo-governance/`. Markdown anywhere under `docs/` is intentionally excluded. Directory-map validation checks required READMEs, complete direct-sibling maps, and valid sibling links in each configured tree. Mermaid validation checks accessible `classDef` colors in supported diagram types. Findings include their source path and line when applicable.
 

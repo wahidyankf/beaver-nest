@@ -18,7 +18,7 @@
       },
       "outputs": ["{projectRoot}/tests/bin", "{projectRoot}/tests/obj"]
     },
-    "check": {
+    "test:repo": {
       "dependsOn": ["build"],
       "executor": "nx:run-commands",
       "options": {
