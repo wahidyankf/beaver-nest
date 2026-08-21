@@ -2,6 +2,12 @@
 
 Beaver Nest exists to help families and groups create, share, and sustain meaningful benefit in a manner compliant with Sharia and Islamic ethics.
 
+## OSE Public Relationship
+
+Beaver Nest is a constituent project of [Open Sharia Enterprise (OSE Public)](https://github.com/wahidyankf/ose-public), the broader initiative for trustworthy, Sharia-compliant products. This repository is Beaver Nest's focused implementation and governance workspace; its separate Git boundary does not separate it from OSE Public's purpose.
+
+Beaver Nest must preserve alignment with that broader purpose while applying this vision to the specific needs and protection of families, groups, and their members.
+
 ## Commitments
 
 - Serve the well-being of families, groups, and their members.
