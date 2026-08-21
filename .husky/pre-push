@@ -1,0 +1,34 @@
+set -e
+
+zero_oid=0000000000000000000000000000000000000000
+run_governance_check=
+
+governance_changes_for_range() {
+  if [ "$2" = "$zero_oid" ]; then
+    git log --format= --name-only "$1" --not --remotes -- \
+      AGENTS.md repo-governance apps/badakmini-cli .husky/pre-commit .husky/pre-push
+  else
+    git diff --name-only "$2" "$1" -- \
+      AGENTS.md repo-governance apps/badakmini-cli .husky/pre-commit .husky/pre-push
+    git log --format= --name-only "$2..$1" -- \
+      AGENTS.md repo-governance apps/badakmini-cli .husky/pre-commit .husky/pre-push
+  fi
+}
+
+while read -r _local_ref local_oid _remote_ref remote_oid; do
+  if [ "$local_oid" = "$zero_oid" ]; then
+    continue
+  fi
+
+  if [ -z "$run_governance_check" ] &&
+    [ -n "$(governance_changes_for_range "$local_oid" "$remote_oid")" ]; then
+    run_governance_check=1
+  fi
+done
+
+if [ -z "$run_governance_check" ]; then
+  echo "Skipping repository governance validation: no related changes are being pushed."
+  exit 0
+fi
+
+npm exec -- nx run badakmini-cli:check

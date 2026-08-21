@@ -28,4 +28,4 @@ The `badakmini-cli` application enforces this limit for root `AGENTS.md` and eve
 npm exec -- nx run badakmini-cli:check
 ```
 
-The repository's pre-commit hook runs the same check automatically.
+The repository's pre-push hook runs the same check when the pushed commits change governed files, the checker implementation, or the hooks controlling the check. Unrelated pushes skip it.
