@@ -12,6 +12,8 @@ Every directory in this tree follows the [governance directory-map convention](c
 - [Development](development/README.md) defines engineering standards within all higher levels.
 - [Workflows](workflows/README.md) define repeatable procedures within all higher levels and may compose other workflows.
 
+## Governance Hierarchy
+
 The precedence hierarchy is:
 
 ```mermaid
@@ -33,7 +35,7 @@ Root instruction files such as `AGENTS.md` should remain concise—no more than 
 The `badakmini-cli` application enforces this limit for root `AGENTS.md` and every Markdown file in this directory, along with the governance navigation requirements. Run it manually with:
 
 ```sh
-npm exec -- nx run badakmini-cli:test:repo
+npm exec -- nx run -p badakmini-cli -t test:repo
 ```
 
-The repository's pre-push hook runs the same governance, documentation-map, and Mermaid-accessibility checks when pushed commits change Markdown anywhere or any content under `docs/`. Other pushes skip them.
+The repository's pre-push hook follows the [push-hook verification convention](conventions/push-hook-verification.md). It runs `test:quick` for affected projects that define the target, and also runs governance, documentation-map, and Mermaid-accessibility checks when pushed commits change Markdown anywhere or any content under `docs/`.
