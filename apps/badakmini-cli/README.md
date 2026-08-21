@@ -14,7 +14,7 @@ Install the repository's npm dependencies and the .NET 10 SDK. Run tasks from th
 | ------------------------------- | ------------------------------------------------------ |
 | Validate repository governance  | `npm exec -- nx run -p badakmini-cli -t test:repo`     |
 | Run the F# unit tests           | `npm exec -- nx run -p badakmini-cli -t test:unit`     |
-| Enforce 95% line coverage       | `npm exec -- nx run -p badakmini-cli -t test:coverage` |
+| Enforce 99% line coverage       | `npm exec -- nx run -p badakmini-cli -t test:coverage` |
 | Run the quick verification      | `npm exec -- nx run -p badakmini-cli -t test:quick`    |
 | Type-check the F# projects      | `npm exec -- nx run -p badakmini-cli -t typecheck`     |
 | Build the release configuration | `npm exec -- nx run -p badakmini-cli -t build`         |
@@ -23,7 +23,7 @@ The `test:repo` target builds once, then concurrently runs word-budget validatio
 
 The `typecheck` target compiles the test project and its CLI project reference into an isolated temporary artifacts directory, then removes that directory on exit. It performs project-aware F# type checking without leaving build output behind.
 
-The `test:coverage` target uses Coverlet's MSBuild integration and fails when total line coverage is below 95%. Its ignored JSON report is written to `coverage/`.
+The `test:coverage` target uses Coverlet's MSBuild integration with Debug instrumentation and fails when total line coverage is below 99%. Debug symbols keep F# source-line attribution accurate while `test:unit` independently exercises the Release build. The ignored JSON report is written to `coverage/`.
 
 The `test:quick` target runs `typecheck`, `lint`, `test:unit`, and `test:coverage` sequentially. It stops immediately when a stage fails.
 

@@ -8,7 +8,7 @@ defmodule BnestApp.MixProject do
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       test_coverage: [
-        summary: [threshold: 95],
+        summary: [threshold: 99],
         ignore_modules: [
           BnestAppWeb.CoreComponents,
           BnestAppWeb.ErrorHTML,

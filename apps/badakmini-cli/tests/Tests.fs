@@ -285,6 +285,35 @@ let ``CLI leaf output carries an atomic command-category prefix`` () =
     assertLinesStartWith "[word-budget] " failureError
 
 [<Fact>]
+let ``CLI leaves report inspection errors with command-specific diagnostics`` () =
+    use repository = new TemporaryRepository()
+    repository.Write("AGENTS.md", "# Instructions")
+    repository.Write("repo-governance/README.md", emptyDirectoryMap "Governance")
+
+    use agentsLock =
+        new FileStream(Path.Combine(repository.Root, "AGENTS.md"), FileMode.Open, FileAccess.Read, FileShare.None)
+
+    use governanceReadmeLock =
+        new FileStream(
+            Path.Combine(repository.Root, "repo-governance", "README.md"),
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.None
+        )
+
+    let commands =
+        [ "word-budget", (fun () -> runWordBudget repository.Root)
+          "directory-map", (fun () -> runDirectoryMap repository.Root)
+          "mermaid", (fun () -> runMermaid repository.Root) ]
+
+    for category, run in commands do
+        let exitCode, output, error = captureConsole run
+
+        Assert.Equal(2, exitCode)
+        Assert.Empty output
+        assertLinesStartWith $"[{category}] " error
+
+[<Fact>]
 let ``CLI help and version requests succeed`` () =
     let invocations =
         [ [| "--help" |]
