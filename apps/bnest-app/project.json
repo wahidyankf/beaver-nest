@@ -67,6 +67,13 @@
         "cwd": "apps/bnest-app"
       }
     },
+    "test:coverage": {
+      "command": "MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover",
+      "options": {
+        "cwd": "apps/bnest-app"
+      },
+      "outputs": ["{projectRoot}/cover"]
+    },
     "test:quick": {
       "executor": "nx:run-commands",
       "options": {
@@ -81,6 +88,10 @@
           },
           {
             "command": "npm exec -- nx run -p bnest-app -t test:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app -t test:coverage",
             "forwardAllArgs": false
           }
         ],

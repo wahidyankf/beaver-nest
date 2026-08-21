@@ -16,16 +16,19 @@ mix setup
 
 Run project tasks from the repository root:
 
-| Task                             | Command                                         |
-| -------------------------------- | ----------------------------------------------- |
-| Start the development server     | `npm exec -- nx run -p bnest-app -t serve`      |
-| Run the complete quick suite     | `npm exec -- nx run -p bnest-app -t test:quick` |
-| Run ExUnit tests                 | `npm exec -- nx run -p bnest-app -t test:unit`  |
-| Run static type analysis         | `npm exec -- nx run -p bnest-app -t typecheck`  |
-| Run all linters                  | `npm exec -- nx run -p bnest-app -t lint`       |
-| Check Elixir and HEEx formatting | `npm exec -- nx run -p bnest-app -t format`     |
+| Task                             | Command                                            |
+| -------------------------------- | -------------------------------------------------- |
+| Start the development server     | `npm exec -- nx run -p bnest-app -t serve`         |
+| Run the complete quick suite     | `npm exec -- nx run -p bnest-app -t test:quick`    |
+| Run ExUnit tests                 | `npm exec -- nx run -p bnest-app -t test:unit`     |
+| Enforce 95% line coverage        | `npm exec -- nx run -p bnest-app -t test:coverage` |
+| Run static type analysis         | `npm exec -- nx run -p bnest-app -t typecheck`     |
+| Run all linters                  | `npm exec -- nx run -p bnest-app -t lint`          |
+| Check Elixir and HEEx formatting | `npm exec -- nx run -p bnest-app -t format`        |
 
-`test:quick` runs `typecheck`, `lint`, and `test:unit` sequentially and stops at the first failure. Type checking treats Elixir compiler warnings as errors, runs Dialyzer through Dialyxir, and strictly checks browser JavaScript without emitting files. Linting checks formatting, runs Credo in strict mode, runs Oxlint on browser JavaScript, and rejects unused locked dependencies without changing the lockfile.
+`test:quick` runs `typecheck`, `lint`, `test:unit`, and `test:coverage` sequentially and stops at the first failure. Coverage uses Mix's built-in line coverage and fails below 95%. Generated declarative modules outside the current runtime behavior, or whose source lines are expanded from macros and HEEx, are explicitly excluded. Current application behavior is covered through LiveView, endpoint, error-response, application, and telemetry tests.
+
+Type checking treats Elixir compiler warnings as errors, runs Dialyzer through Dialyxir, and strictly checks browser JavaScript without emitting files. Linting checks formatting, runs Credo in strict mode, runs Oxlint on browser JavaScript, and rejects unused locked dependencies without changing the lockfile.
 
 The development server is available at [http://localhost:4000](http://localhost:4000). Normal Elixir, HEEx, JavaScript, and CSS changes reload while it runs. Restart it after dependency, runtime configuration, or supervision-tree changes.
 

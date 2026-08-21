@@ -24,6 +24,17 @@
       },
       "outputs": ["{projectRoot}/tests/bin", "{projectRoot}/tests/obj"]
     },
+    "test:coverage": {
+      "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Release /p:CollectCoverage=true /p:Threshold=95 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../coverage/",
+      "options": {
+        "cwd": "apps/badakmini-cli"
+      },
+      "outputs": [
+        "{projectRoot}/coverage",
+        "{projectRoot}/tests/bin",
+        "{projectRoot}/tests/obj"
+      ]
+    },
     "test:quick": {
       "executor": "nx:run-commands",
       "options": {
@@ -38,6 +49,10 @@
           },
           {
             "command": "npm exec -- nx run -p badakmini-cli -t test:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p badakmini-cli -t test:coverage",
             "forwardAllArgs": false
           }
         ],

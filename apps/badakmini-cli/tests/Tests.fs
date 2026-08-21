@@ -375,6 +375,10 @@ let ``CLI finds the diagram type after Mermaid YAML front matter`` () =
     Assert.Equal(1, cliResult content)
 
 [<Fact>]
+let ``CLI skips Mermaid blocks without a diagram type`` () =
+    Assert.Equal(0, cliResult (mermaid "%% This block has no diagram declaration"))
+
+[<Fact>]
 let ``CLI ignores Mermaid diagrams in generated and dependency directories`` () =
     let excludedDirectories =
         [ ".git"
@@ -473,6 +477,17 @@ let ``CLI accepts accessible stroke-only classes`` () =
     Assert.Equal(0, cliResult content)
 
 [<Fact>]
+let ``CLI rejects text-only and inaccessible stroke-only classes`` () =
+    let invalidDefinitions =
+        [ "classDef textOnly color:#000000"
+          "classDef unsafeEdge stroke:#FF0000,stroke-width:2px" ]
+
+    for definition in invalidDefinitions do
+        let content = mermaid $"flowchart LR\n    A --> B\n    {definition}"
+
+        Assert.True(cliResult content = 1, $"Expected rejection:\n{content}")
+
+[<Fact>]
 let ``Mermaid diagnostics include the Markdown path and source line`` () =
     use repository = new TemporaryRepository()
 
@@ -505,6 +520,48 @@ let ``inspectDirectoryMaps accepts complete direct-sibling maps`` () =
 
     Assert.Equal(2, inspection.DirectoryCount)
     Assert.Empty(inspection.Violations)
+
+[<Fact>]
+let ``inspectDirectoryMaps requires a relative directory within the repository`` () =
+    use repository = new TemporaryRepository()
+
+    let invalidDirectories = [ ""; repository.Root; "../outside" ]
+
+    for directory in invalidDirectories do
+        Assert.Throws<ArgumentException>(fun () ->
+            Governance.inspectDirectoryMapsAt repository.Root directory |> ignore)
+        |> ignore
+
+[<Fact>]
+let ``inspectDirectoryMaps resolves sibling links before query and fragment suffixes`` () =
+    use repository = new TemporaryRepository()
+
+    repository.Write(
+        "repo-governance/README.md",
+        "# Governance\n\n## Directory Map\n\n- [Rules](rules.md?raw=1#details)"
+    )
+
+    repository.Write("repo-governance/rules.md", "# Rules")
+
+    Assert.Empty(Governance.inspectDirectoryMaps(repository.Root).Violations)
+
+[<Fact>]
+let ``inspectDirectoryMaps rejects absolute URL and malformed sibling links`` () =
+    use repository = new TemporaryRepository()
+
+    repository.Write(
+        "repo-governance/README.md",
+        "# Governance\n\n## Directory Map\n\n- [Absolute](/rules.md)\n- [URL](https://example.com/rules.md)\n- [Malformed](bad\u0000path.md)"
+    )
+
+    let violations = Governance.inspectDirectoryMaps(repository.Root).Violations
+
+    Assert.Equal(3, violations.Length)
+
+    for violation in violations do
+        match violation with
+        | InvalidMapEntry _ -> ()
+        | _ -> failwithf "Expected InvalidMapEntry, got %A" violation
 
 [<Fact>]
 let ``inspectDirectoryMaps requires README in every governance directory`` () =

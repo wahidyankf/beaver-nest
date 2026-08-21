@@ -7,6 +7,18 @@ defmodule BnestApp.MixProject do
       version: "0.1.0",
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
+      test_coverage: [
+        summary: [threshold: 95],
+        ignore_modules: [
+          BnestAppWeb.CoreComponents,
+          BnestAppWeb.ErrorHTML,
+          BnestAppWeb.Gettext,
+          BnestAppWeb.Layouts,
+          BnestAppWeb.PageController,
+          BnestAppWeb.PageHTML,
+          BnestAppWeb.Router
+        ]
+      ],
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       dialyzer: [plt_add_apps: [:ex_unit]],
