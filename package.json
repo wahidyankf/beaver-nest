@@ -14,8 +14,8 @@
   "scripts": {
     "prepare": "husky",
     "start": "npm exec nx run bnest-app:serve",
-    "test": "npm exec nx run bnest-app:test",
-    "test:e2e": "npm exec nx run bnest-e2e:e2e"
+    "test": "npm exec -- nx run -p bnest-app -t test:unit",
+    "test:e2e": "npm exec -- nx run -p bnest-e2e -t test:e2e"
   },
   "repository": {
     "type": "git",
@@ -34,12 +34,16 @@
     "@commitlint/config-conventional": "^21.2.2",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/cli": "^4.3.0",
+    "@types/node": "^26.2.0",
+    "@types/phoenix": "^1.6.7",
     "daisyui": "^5.5.20",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "nx": "23.1.1",
+    "oxlint": "^1.79.0",
     "prettier": "^3.9.6",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "typescript": "^7.0.2"
   },
   "nx": {}
 }

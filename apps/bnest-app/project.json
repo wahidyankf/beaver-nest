@@ -12,11 +12,82 @@
       "continuous": true,
       "cache": false
     },
-    "test": {
-      "command": "mix test",
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "MIX_ENV=test mix compile --warnings-as-errors --force",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "MIX_ENV=test mix dialyzer --no-compile --format short",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- tsc --project assets/tsconfig.json --noEmit",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "mix format --check-formatted",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "mix credo --strict",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- oxlint --deny correctness --deny suspicious --deny pedantic --deny perf --deny-warnings --report-unused-disable-directives assets/js",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "mix deps.unlock --check-unused",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
+    "test:unit": {
+      "command": "MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors",
       "options": {
         "cwd": "apps/bnest-app"
       }
+    },
+    "test:quick": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p bnest-app -t typecheck",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app -t lint",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app -t test:unit",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
     },
     "format": {
       "command": "mix format --check-formatted",

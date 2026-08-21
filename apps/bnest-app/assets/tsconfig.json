@@ -21,12 +21,37 @@
 // Feel free to adjust this configuration however you need.
 {
   "compilerOptions": {
-    "baseUrl": ".",
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "checkJs": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleDetection": "force",
+    "moduleResolution": "Bundler",
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "noUncheckedSideEffectImports": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "paths": {
+      "phoenix": ["../../../node_modules/@types/phoenix/index.d.ts"],
+      "phoenix-colocated/*": ["./types/phoenix_colocated.d.ts"],
+      "phoenix_html": ["./types/phoenix_html.d.ts"],
+      "phoenix_live_view": [
+        "../deps/phoenix_live_view/assets/js/types/index.d.ts"
+      ],
       "*": ["../deps/*"]
     },
     "allowJs": true,
-    "noEmit": true
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2023",
+    "types": ["node"]
   },
-  "include": ["js/**/*"]
+  "include": ["js/**/*", "types/**/*.d.ts"]
 }
