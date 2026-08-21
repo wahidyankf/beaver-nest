@@ -24,10 +24,11 @@
 
 ## Version Control
 
-- Integrate by direct push from local `main` to `origin/main` by default; use PRs only through the [integration-path convention](repo-governance/conventions/integration-path.md).
-- Make every commit thematic. Follow the [thematic-commit convention](repo-governance/conventions/thematic-commits.md).
-- Commit or push only when explicitly authorized by the user or included in a user-approved plan. Follow the [commit-authorization convention](repo-governance/conventions/commit-authorization.md).
-- Fix push-hook failures at their root cause and push normally. Use `--no-verify` only with explicit user authorization for that push. Follow the [push-hook verification convention](repo-governance/conventions/push-hook-verification.md).
+- Default to direct local-`main` pushes; use PRs only through the [integration-path convention](repo-governance/conventions/integration-path.md).
+- Make every commit [thematic](repo-governance/conventions/thematic-commits.md).
+- [Commit or push](repo-governance/conventions/commit-authorization.md) only with explicit user authorization or an approved plan.
+- Fix push-hook failures at the root and push normally. Use `--no-verify` only with explicit authorization for that push; follow [push-hook verification](repo-governance/conventions/push-hook-verification.md).
+- Space repeated GitHub status polls at least two minutes apart. Follow the [GitHub polling convention](repo-governance/conventions/github-polling.md).
 
 ## Repository Governance
 

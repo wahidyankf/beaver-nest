@@ -19,6 +19,7 @@ Prefer one canonical convention over repeating the same rule in several document
 
 - [Commit authorization](commit-authorization.md) defines when commits and pushes may be performed.
 - [Documentation architecture](documentation-architecture.md) organizes general non-rule documentation under `docs/` with Diátaxis.
+- [GitHub polling](github-polling.md) limits repeated status requests to GitHub to avoid rate-limit pressure.
 - [Governance directory maps](directory-maps.md) keep every governance directory self-describing and navigable.
 - [Integration path](integration-path.md) makes direct pushes from local `main` the default and requires isolated, disposable worktrees for pull requests.
 - [Last-resort questions](last-resort-questions.md) require exhausting safe ways to proceed before asking the user.
