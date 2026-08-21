@@ -17,6 +17,7 @@ Prefer one canonical convention over repeating the same rule in several document
 
 ## Directory Map
 
+- [Commit authorization](commit-authorization.md) defines when commits and pushes may be performed.
 - [Governance directory maps](directory-maps.md) keep every governance directory self-describing and navigable.
 - [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.
 - [Thematic commits](thematic-commits.md) keep each commit focused on one coherent purpose.
