@@ -21,4 +21,5 @@ When composing workflows:
 
 ## Directory Map
 
+- [Red–green–refactor](red-green-refactor.md) defines the repeatable TDD cycle for application and library behavior.
 - [Rules propagation](rules-propagation.md) automatically governs every repository rule change while preserving hierarchy, concision, and a single canonical source.

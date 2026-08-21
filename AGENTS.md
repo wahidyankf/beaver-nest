@@ -31,3 +31,7 @@
 
 - Automatically follow [rules propagation](repo-governance/workflows/rules-propagation.md) whenever creating, adding, updating, moving, deleting, or otherwise changing repository rules, even when the user does not mention the workflow.
 - Preserve rule-governed repository behavior across context compaction. Follow the [governance-continuity principle](repo-governance/principles/governance-continuity.md).
+
+## Development
+
+- Develop application and library behavior with test-driven development. Follow the [TDD standard](repo-governance/development/test-driven-development.md).

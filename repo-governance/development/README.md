@@ -15,4 +15,4 @@ A development standard should identify:
 
 ## Directory Map
 
-This directory currently has no entries other than this README.
+- [Test-driven development](test-driven-development.md) requires app and library behavior to be developed through red–green–refactor cycles.
