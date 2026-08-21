@@ -14,8 +14,12 @@ Every directory in this tree follows the [governance directory-map convention](c
 
 The precedence hierarchy is:
 
-```text
-vision > principles > conventions > development > workflows
+```mermaid
+flowchart TD
+    Vision --> Principles
+    Principles --> Conventions
+    Conventions --> Development
+    Development --> Workflows
 ```
 
 The hierarchy flows from top to bottom: a lower level cannot contradict any level above it. Higher levels do not need to conform to lower levels. When documents conflict, the higher level takes precedence and the lower-level document must change. Documents should link to higher-level rules rather than duplicate them.

@@ -9,6 +9,13 @@ Use this workflow for each behavior increment required by the [test-driven devel
 
 ## Cycle
 
+```mermaid
+flowchart LR
+    Red["Red<br/>Test fails for the expected reason"] --> Green["Green<br/>Minimum implementation passes"]
+    Green --> Refactor["Refactor<br/>Improve design while tests stay green"]
+    Refactor --> Red
+```
+
 1. **Red:** Write or change one test that expresses the intended behavior. Run the relevant test target through Nx and confirm it fails because the behavior is absent or incorrect. Correct the test or environment if it fails for another reason.
 2. **Green:** Implement the minimum production change needed for that test. Run the same target and confirm the new test and its surrounding tests pass.
 3. **Refactor:** Improve names, structure, duplication, and design without adding behavior. Keep tests green, running the target after each meaningful refactor.
