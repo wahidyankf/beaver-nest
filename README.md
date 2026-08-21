@@ -64,7 +64,7 @@ Husky runs lint-staged before each commit. Prettier reformats supported staged f
 feat(app): add household dashboard
 ```
 
-Before a push, Husky runs the repository-governance check when the pushed commits change `AGENTS.md`, `repo-governance/`, `apps/badakmini-cli/`, or either hook that controls the check. Pushes without changes to those paths skip the governance check.
+Before a push, Husky runs the repository-governance and Mermaid-accessibility check only when the pushed commits change a Markdown file anywhere in the repository. Pushes without Markdown changes skip the check.
 
 ## License
 

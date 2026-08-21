@@ -10,10 +10,18 @@ Use this workflow for each behavior increment required by the [test-driven devel
 ## Cycle
 
 ```mermaid
+%% Accessible palette: orange #DE8F05, teal #029E73, blue #0173B2
 flowchart LR
     Red["Red<br/>Test fails for the expected reason"] --> Green["Green<br/>Minimum implementation passes"]
     Green --> Refactor["Refactor<br/>Improve design while tests stay green"]
     Refactor --> Red
+
+    classDef redPhase fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
+    classDef greenPhase fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+    classDef refactorPhase fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+    class Red redPhase
+    class Green greenPhase
+    class Refactor refactorPhase
 ```
 
 1. **Red:** Write or change one test that expresses the intended behavior. Run the relevant test target through Nx and confirm it fails because the behavior is absent or incorrect. Correct the test or environment if it fails for another reason.

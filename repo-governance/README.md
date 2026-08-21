@@ -15,11 +15,15 @@ Every directory in this tree follows the [governance directory-map convention](c
 The precedence hierarchy is:
 
 ```mermaid
+%% Accessible palette: blue #0173B2
 flowchart TD
     Vision --> Principles
     Principles --> Conventions
     Conventions --> Development
     Development --> Workflows
+
+    classDef primary fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+    class Vision,Principles,Conventions,Development,Workflows primary
 ```
 
 The hierarchy flows from top to bottom: a lower level cannot contradict any level above it. Higher levels do not need to conform to lower levels. When documents conflict, the higher level takes precedence and the lower-level document must change. Documents should link to higher-level rules rather than duplicate them.
@@ -32,4 +36,4 @@ The `badakmini-cli` application enforces this limit for root `AGENTS.md` and eve
 npm exec -- nx run badakmini-cli:check
 ```
 
-The repository's pre-push hook runs the same check when the pushed commits change governed files, the checker implementation, or the hooks controlling the check. Unrelated pushes skip it.
+The repository's pre-push hook runs the same governance and Mermaid-accessibility check only when the pushed commits change a Markdown file anywhere in the repository. Pushes without Markdown changes skip it.

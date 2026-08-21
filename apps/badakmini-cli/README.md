@@ -1,6 +1,6 @@
 # badakmini-cli
 
-`badakmini-cli` is the F# command-line application that validates this repository's governance documents. It keeps root instructions and governance Markdown within their word limits and verifies governance directory maps. See the [governance index](../../repo-governance/README.md) for the rules it supports.
+`badakmini-cli` is the F# command-line application that validates this repository's governance documents and compatible Mermaid diagrams. It keeps governed Markdown within its word limit, verifies governance directory maps, and checks author-controlled Mermaid colors across repository-owned Markdown. See the [governance index](../../repo-governance/README.md) for the rules it supports.
 
 ## Scope
 
@@ -16,7 +16,9 @@ Install the repository's npm dependencies and the .NET 10 SDK. Run tasks from th
 | Run the F# test suite           | `npm exec -- nx run badakmini-cli:test`  |
 | Build the release configuration | `npm exec -- nx run badakmini-cli:build` |
 
-The `check` target exits nonzero and reports each violation when validation fails. It currently checks root `AGENTS.md`, Markdown under `repo-governance/`, the 500-word limit, required governance READMEs, complete direct-sibling maps, and valid sibling links.
+The `check` target exits nonzero and reports each violation with its source path and line when applicable. It checks root `AGENTS.md`, Markdown under `repo-governance/`, the 500-word limit, required governance READMEs, complete direct-sibling maps, valid sibling links, and accessible `classDef` colors in supported Mermaid types.
+
+Mermaid enforcement covers `flowchart`, `graph`, `classDiagram`, `stateDiagram`, `stateDiagram-v2`, `erDiagram`, `requirementDiagram`, and `block`. Other types are skipped because their styling syntax is incompatible, unstable, or undocumented. The scanner excludes dependencies, generated output, caches, and filesystem links.
 
 ## Structure
 

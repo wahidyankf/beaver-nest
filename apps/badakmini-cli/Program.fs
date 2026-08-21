@@ -16,18 +16,17 @@ let private checkRepository root =
 
             if List.isEmpty inspection.Violations then
                 printfn
-                    "Checked %d Markdown file(s) and %d governance directory map(s); all governance checks passed."
+                    "Checked %d governed Markdown file(s), %d governance directory map(s), and %d compatible Mermaid diagram(s); all governance checks passed."
                     inspection.MarkdownFiles.Length
                     inspection.GovernanceDirectoryCount
+                    inspection.MermaidDiagramCount
 
                 0
             else
                 for violation in inspection.Violations do
                     eprintfn "%s" (Governance.formatViolation violation)
 
-                eprintfn
-                    "Found %d governance violation(s)."
-                    inspection.Violations.Length
+                eprintfn "Found %d governance violation(s)." inspection.Violations.Length
 
                 1
         with ex ->
