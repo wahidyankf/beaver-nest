@@ -15,4 +15,5 @@ A development standard should identify:
 
 ## Directory Map
 
+- [Quality gates](quality-gates.md) standardize project checks, coverage, end-to-end verification, and Git hook safeguards.
 - [Test-driven development](test-driven-development.md) requires app and library behavior to be developed through red–green–refactor cycles.

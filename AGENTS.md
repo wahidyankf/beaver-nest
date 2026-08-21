@@ -40,6 +40,7 @@
 
 ## Development
 
-- Develop application and library behavior with test-driven development. Follow the [TDD standard](repo-governance/development/test-driven-development.md).
-- Keep a focused `README.md` at every application and library project root, and update it when a project change affects its documentation. Follow the [project-README convention](repo-governance/conventions/project-readmes.md).
-- Prefer Mermaid over ASCII art for useful Markdown visualizations. Keep Mermaid diagrams color-blind safe, contrast-compliant, and understandable without color. Follow the [Markdown-visualization convention](repo-governance/conventions/markdown-visualizations.md).
+- Keep every applicable [quality gate](repo-governance/development/quality-gates.md) green.
+- Develop app and library behavior with [TDD](repo-governance/development/test-driven-development.md).
+- Maintain every app and library [project README](repo-governance/conventions/project-readmes.md), updating it when affected.
+- Prefer accessible Mermaid for useful Markdown visuals under the [visualization convention](repo-governance/conventions/markdown-visualizations.md).
