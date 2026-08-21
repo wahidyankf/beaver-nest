@@ -25,6 +25,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Last-resort questions](last-resort-questions.md) require exhausting safe ways to proceed before asking the user.
 - [Markdown visualizations](markdown-visualizations.md) prefer useful Mermaid diagrams and require accessible color, contrast, and non-color cues.
 - [Project READMEs](project-readmes.md) make every application and library independently understandable and operable.
+- [Public repository data safety](public-repository-data-safety.md) prevents secrets and machine-local identifiers from entering public history.
 - [Push-hook verification](push-hook-verification.md) requires root-cause repair and prevents unauthorized bypass of push-time safeguards.
 - [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.
 - [Task tracking](task-tracking.md) requires granular task lists whose status stays synchronized with the work.
