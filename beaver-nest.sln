@@ -1,0 +1,60 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "apps", "apps", "{1787FE1D-075E-9E68-7218-25F1BD1BBEAB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "badakmini-cli", "badakmini-cli", "{72B01875-98E1-AB6E-7196-00063A7C3E3F}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Badakmini.Cli", "apps\badakmini-cli\Badakmini.Cli.fsproj", "{F6939B2F-D36D-4240-A489-88A6386730DB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{99341C26-6C92-8A27-EB00-E1E6513A6777}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Badakmini.Cli.Tests", "apps\badakmini-cli\tests\Badakmini.Cli.Tests.fsproj", "{19FBB38F-5617-4007-8153-D33736C30735}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Debug|x64.Build.0 = Debug|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Debug|x86.Build.0 = Debug|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Release|x64.ActiveCfg = Release|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Release|x64.Build.0 = Release|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Release|x86.ActiveCfg = Release|Any CPU
+		{F6939B2F-D36D-4240-A489-88A6386730DB}.Release|x86.Build.0 = Release|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Debug|x64.Build.0 = Debug|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Debug|x86.Build.0 = Debug|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Release|x64.ActiveCfg = Release|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Release|x64.Build.0 = Release|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Release|x86.ActiveCfg = Release|Any CPU
+		{19FBB38F-5617-4007-8153-D33736C30735}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{72B01875-98E1-AB6E-7196-00063A7C3E3F} = {1787FE1D-075E-9E68-7218-25F1BD1BBEAB}
+		{F6939B2F-D36D-4240-A489-88A6386730DB} = {72B01875-98E1-AB6E-7196-00063A7C3E3F}
+		{99341C26-6C92-8A27-EB00-E1E6513A6777} = {72B01875-98E1-AB6E-7196-00063A7C3E3F}
+		{19FBB38F-5617-4007-8153-D33736C30735} = {99341C26-6C92-8A27-EB00-E1E6513A6777}
+	EndGlobalSection
+EndGlobal
