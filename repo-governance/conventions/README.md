@@ -19,6 +19,7 @@ Prefer one canonical convention over repeating the same rule in several document
 
 - [Commit authorization](commit-authorization.md) defines when commits and pushes may be performed.
 - [Governance directory maps](directory-maps.md) keep every governance directory self-describing and navigable.
+- [Last-resort questions](last-resort-questions.md) require exhausting safe ways to proceed before asking the user.
 - [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.
 - [Task tracking](task-tracking.md) requires granular task lists whose status stays synchronized with the work.
 - [Thematic commits](thematic-commits.md) keep each commit focused on one coherent purpose.
