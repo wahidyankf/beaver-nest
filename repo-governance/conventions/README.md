@@ -20,6 +20,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Commit authorization](commit-authorization.md) defines when commits and pushes may be performed.
 - [Governance directory maps](directory-maps.md) keep every governance directory self-describing and navigable.
 - [Last-resort questions](last-resort-questions.md) require exhausting safe ways to proceed before asking the user.
+- [Project READMEs](project-readmes.md) make every application and library independently understandable and operable.
 - [Push-hook verification](push-hook-verification.md) requires root-cause repair and prevents unauthorized bypass of push-time safeguards.
 - [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.
 - [Task tracking](task-tracking.md) requires granular task lists whose status stays synchronized with the work.
