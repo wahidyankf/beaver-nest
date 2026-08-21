@@ -2,7 +2,7 @@
 
 Workflows define repeatable procedures for repository tasks. A workflow may be complete on its own or compose several smaller workflows when that keeps each procedure focused and reusable.
 
-Workflows are the lowest governance level. Every workflow must conform to repository [principles](../principles/README.md), [conventions](../conventions/README.md), and [development standards](../development/README.md). When a conflict exists, the workflow must change.
+Workflows are the lowest governance level. Every workflow must conform to the repository [vision](../vision/README.md), [principles](../principles/README.md), [conventions](../conventions/README.md), and [development standards](../development/README.md). When a conflict exists, the workflow must change.
 
 A workflow should define:
 

@@ -2,7 +2,7 @@
 
 Development governance defines how repository changes are designed, implemented, tested, reviewed, and maintained. It may cover code quality, dependencies, compatibility, security, testing, and local development practices.
 
-Development standards are subordinate to repository [principles](../principles/README.md) and [conventions](../conventions/README.md), and take precedence over [workflows](../workflows/README.md). A development standard must change if it conflicts with either higher level; a workflow must change if it conflicts with a development standard.
+Development standards are subordinate to the repository [vision](../vision/README.md), [principles](../principles/README.md), and [conventions](../conventions/README.md), and take precedence over [workflows](../workflows/README.md). A development standard must change if it conflicts with any higher level; a workflow must change if it conflicts with a development standard.
 
 When a standard requires an ordered procedure, link to a reusable workflow instead of duplicating its steps.
 

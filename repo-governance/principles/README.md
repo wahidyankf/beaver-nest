@@ -1,8 +1,8 @@
 # Principles
 
-Principles are the highest authority within repository governance. They outrank conventions, development standards, and workflows. They capture durable constraints and values that guide decisions across technologies and tools.
+Principles translate the repository [vision](../vision/README.md) into durable constraints and values that guide decisions across technologies and tools. They are subordinate to vision and outrank conventions, development standards, and workflows.
 
-No convention, development standard, or workflow may contradict a principle. When a conflict exists, follow the principle and change the lower-level document. Amend a principle only through an explicit governance change, not by adding an exception elsewhere.
+No principle may contradict the vision. No convention, development standard, or workflow may contradict a principle. When a conflict exists, change the lower-level document. Amend a principle only through an explicit governance change, not by adding an exception elsewhere.
 
 A principle should describe:
 
