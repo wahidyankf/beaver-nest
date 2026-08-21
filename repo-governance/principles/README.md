@@ -12,3 +12,7 @@ A principle should describe:
 - the consequences of following it.
 
 Keep procedural steps in [workflows](../workflows/README.md), repository-wide choices in [conventions](../conventions/README.md), and engineering standards in [development](../development/README.md).
+
+## Defined Principles
+
+- [Progressive disclosure](progressive-disclosure.md) keeps entry points concise while making canonical detail easy to reach.

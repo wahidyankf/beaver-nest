@@ -18,3 +18,7 @@ When composing workflows:
 - state the invocation order and any data passed between workflows;
 - keep each component usable independently where practical; and
 - avoid circular workflow dependencies.
+
+## Available Workflows
+
+- [Rules propagation](rules-propagation.md) adds or changes repository rules while preserving hierarchy, concision, and a single canonical source.
