@@ -33,10 +33,10 @@ Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset w
 
 ```sh
 npm test
-npm run test:e2e
+npm exec -- nx run -p bnest-e2e -t test:e2e -- apps/bnest-e2e/tests/greeting.spec.ts
 ```
 
-`npm test` runs the Phoenix test suite through Nx. `npm run test:e2e` starts the app temporarily and checks it in Chromium with Playwright.
+`npm test` runs the Phoenix test suite through Nx. Run only end-to-end cases affected by a change during development. A scheduled GitHub Actions workflow runs the complete Playwright suite at 06:00 and 18:00 WIB.
 
 ## Repository layout
 
@@ -65,7 +65,7 @@ Husky runs lint-staged before each commit. Prettier reformats supported staged f
 feat(app): add household dashboard
 ```
 
-Before a push, Husky runs governance, documentation-map, and Mermaid-accessibility checks when the pushed commits change Markdown anywhere or any content under `docs/`. Other pushes skip the check.
+Before a push, Husky runs `test:quick` for affected projects. It also runs governance, documentation-map, and Mermaid-accessibility checks when pushed commits change Markdown anywhere or any content under `docs/`. The end-to-end harness keeps browser tests out of `test:quick`; developers run affected browser cases, while GitHub Actions runs the full suite twice daily.
 
 ## License
 

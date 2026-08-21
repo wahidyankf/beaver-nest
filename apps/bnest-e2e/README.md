@@ -20,9 +20,16 @@ npm exec -- nx run -p bnest-e2e -t test:quick
 
 1. `typecheck` checks every `.ts` file with TypeScript strict mode, rejects implicit and explicit `any`, and emits no files.
 2. `lint` runs Oxlint's correctness, suspicious, pedantic, and performance rules and rejects explicit `any`.
-3. `test:e2e` runs the Playwright browser suite. There is no `test:unit` target because this project owns only end-to-end tests.
 
-Run one check with `npm exec -- nx run -p bnest-e2e -t <target>`. The `test:e2e` target uses [playwright.config.mts](playwright.config.mts), starts `bnest-app` at `http://127.0.0.1:4000`, and reuses an already-running local server outside CI. It runs the Chromium project and records a trace on the first retry.
+There is no `test:unit` target because this project owns only end-to-end tests. `test:e2e` is intentionally excluded from `test:quick` because browser tests are slow by nature.
+
+During development, follow the [end-to-end testing standard](../../repo-governance/development/end-to-end-testing.md) and run only cases plausibly affected by the change. Pass a spec path, line number, or `--grep` filter through the Nx target:
+
+```sh
+npm exec -- nx run -p bnest-e2e -t test:e2e -- apps/bnest-e2e/tests/greeting.spec.ts
+```
+
+The `test:e2e` target uses [playwright.config.mts](playwright.config.mts), starts `bnest-app` at `http://127.0.0.1:4000`, and reuses an already-running local server outside CI. It runs the Chromium project and records a trace on the first retry. The [scheduled GitHub workflow](../../.github/workflows/full-e2e.yml) runs the complete suite at 06:00 and 18:00 WIB.
 
 ## Structure
 

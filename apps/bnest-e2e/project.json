@@ -40,10 +40,6 @@
           {
             "command": "npm exec -- nx run -p bnest-e2e -t lint",
             "forwardAllArgs": false
-          },
-          {
-            "command": "npm exec -- nx run -p bnest-e2e -t test:e2e",
-            "forwardAllArgs": false
           }
         ],
         "forwardAllArgs": false,

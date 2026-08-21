@@ -8,22 +8,22 @@ Quality gates make vibe-coding, AI-assisted development, and rapid iteration sus
 
 ## Gate Contracts
 
-| Gate            | Contract                                                                                                                                                                                                                                                    |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lint`          | Reject formatting, style, suspicious-code, dependency-hygiene, and other configured static-analysis findings.                                                                                                                                               |
-| `typecheck`     | Reject compiler or static-type-analysis findings without leaving a distributable build artifact.                                                                                                                                                            |
-| `test:unit`     | Run fast, deterministic tests at the narrowest practical behavioral boundary. Omit it only where unit tests are not meaningful, such as a dedicated end-to-end harness.                                                                                     |
-| `test:coverage` | Run the covered test suite and fail below 95% total line coverage. Exclusions must be narrow, justified by generated or non-runtime code, and documented in the project README. Do not lower or game the threshold to pass.                                 |
-| `test:e2e`      | Exercise relevant user or system journeys across their real integration boundaries. Dedicated end-to-end projects must expose this target.                                                                                                                  |
-| `test:quick`    | Compose the project's fast completion gate in deterministic order. Code projects use `typecheck` → `lint` → `test:unit` → `test:coverage`; harness projects use applicable gates and may end with `test:e2e` instead of meaningless unit or coverage gates. |
-| `pre-commit`    | Run deterministic, staged-file checks selected by `lint-staged`. Keep it fast and scoped to the proposed commit.                                                                                                                                            |
-| `pre-push`      | Run affected projects' `test:quick` gates and applicable repository validation before remote integration, following the [push-hook verification convention](../conventions/push-hook-verification.md).                                                      |
+| Gate            | Contract                                                                                                                                                                                                                    |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lint`          | Reject formatting, style, suspicious-code, dependency-hygiene, and other configured static-analysis findings.                                                                                                               |
+| `typecheck`     | Reject compiler or static-type-analysis findings without leaving a distributable build artifact.                                                                                                                            |
+| `test:unit`     | Run fast, deterministic tests at the narrowest practical behavioral boundary. Omit it only where unit tests are not meaningful, such as a dedicated end-to-end harness.                                                     |
+| `test:coverage` | Run the covered test suite and fail below 95% total line coverage. Exclusions must be narrow, justified by generated or non-runtime code, and documented in the project README. Do not lower or game the threshold to pass. |
+| `test:e2e`      | Exercise relevant user or system journeys across their real integration boundaries under the [end-to-end testing standard](end-to-end-testing.md). Dedicated end-to-end projects must expose this target.                   |
+| `test:quick`    | Compose the project's fast completion gate in deterministic order. Code projects use `typecheck` → `lint` → `test:unit` → `test:coverage`; end-to-end harnesses use `typecheck` → `lint`. Never include `test:e2e`.         |
+| `pre-commit`    | Run deterministic, staged-file checks selected by `lint-staged`. Keep it fast and scoped to the proposed commit.                                                                                                            |
+| `pre-push`      | Run affected projects' `test:quick` gates and applicable repository validation before remote integration, following the [push-hook verification convention](../conventions/push-hook-verification.md).                      |
 
 ## Application
 
 - Run the narrowest relevant gate during development and keep the applicable project gates green before considering the work complete.
 - A deliberate failing test during the red phase of [TDD](test-driven-development.md) is temporary evidence, not a completed state.
-- Run `test:quick` after the final red–green–refactor cycle. Run `test:e2e` when the change affects a covered journey or when it is part of the affected project's `test:quick`.
+- Run `test:quick` after the final red–green–refactor cycle. Select `test:e2e` cases according to the [end-to-end testing standard](end-to-end-testing.md).
 - Do not duplicate tool commands outside their canonical Nx target. Aggregate gates must compose named targets.
 - Fix failures at their root cause. Do not disable, weaken, bypass, or superficially satisfy a gate to obtain a passing result.
 - Do not invent an inapplicable target merely for naming symmetry; explain legitimate omissions in the project README.

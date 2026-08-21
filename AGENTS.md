@@ -41,6 +41,7 @@
 ## Development
 
 - Keep every applicable [quality gate](repo-governance/development/quality-gates.md) green.
+- Keep `test:e2e` out of `test:quick`; run only affected end-to-end cases during development. Follow the [end-to-end testing standard](repo-governance/development/end-to-end-testing.md).
 - Develop app and library behavior with [TDD](repo-governance/development/test-driven-development.md).
 - Maintain every app and library [project README](repo-governance/conventions/project-readmes.md), updating it when affected.
 - Prefer accessible Mermaid for useful Markdown visuals under the [visualization convention](repo-governance/conventions/markdown-visualizations.md).
