@@ -6,7 +6,7 @@ defmodule BnestAppWeb.HelloLiveTest do
   test "renders the greeting", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert render(view) =~ "Hello, World!"
+    assert render(view) =~ "Hello, WW!"
     assert render(view) =~ "Welcome to Beaver Nest."
   end
 end

@@ -48,6 +48,8 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.3.0",
+  version_check: false,
+  path: Path.expand("../../../node_modules/.bin/tailwindcss", __DIR__),
   bnest_app: [
     args: ~w(
       --input=assets/css/app.css
