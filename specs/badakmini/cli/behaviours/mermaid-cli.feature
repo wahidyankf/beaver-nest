@@ -1,3 +1,4 @@
+@process_global
 Feature: Mermaid accessibility command behavior
 
   Scenario Outline: Compatible diagram types enforce class colors

@@ -1,3 +1,4 @@
+@pure
 Feature: Mermaid governance inspection
 
   Scenario: Mermaid inspection ignores other governance concerns

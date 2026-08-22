@@ -1,3 +1,4 @@
+@process_global
 Feature: badakmini-cli command contract
 
   Scenario: Every canonical nested command path succeeds

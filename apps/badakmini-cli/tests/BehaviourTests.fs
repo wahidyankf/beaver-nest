@@ -5,28 +5,18 @@ open TickSpec.Xunit
 open global.Xunit
 
 module private Resources =
-    let source = AssemblyStepDefinitionsSource(Assembly.GetExecutingAssembly())
+    let private assembly = Assembly.GetExecutingAssembly()
+    let source = AssemblyStepDefinitionsSource(assembly)
+    let private catalog = lazy (FeatureCatalog.load assembly source)
 
-    let scenarios resourceName =
-        source.ScenariosFromEmbeddedResource resourceName |> MemberData.ofScenarios
+    let scenarios boundary =
+        catalog.Value
+        |> Seq.filter (fun feature -> feature.Boundary = boundary)
+        |> Seq.collect _.Scenarios
+        |> MemberData.ofScenarios
 
-type WordBudgetBehaviours() =
-    static member Scenarios() =
-        Resources.scenarios "Badakmini.Cli.Specs.word-budget.feature"
-
-    [<Theory; MemberData("Scenarios")>]
-    member _.Scenario(scenario: XunitSerializableScenario) = Resources.source.RunScenario scenario
-
-type DirectoryMapBehaviours() =
-    static member Scenarios() =
-        Resources.scenarios "Badakmini.Cli.Specs.directory-map.feature"
-
-    [<Theory; MemberData("Scenarios")>]
-    member _.Scenario(scenario: XunitSerializableScenario) = Resources.source.RunScenario scenario
-
-type MermaidGovernanceBehaviours() =
-    static member Scenarios() =
-        Resources.scenarios "Badakmini.Cli.Specs.mermaid-governance.feature"
+type PureBehaviours() =
+    static member Scenarios() = Resources.scenarios Pure
 
     [<Theory; MemberData("Scenarios")>]
     member _.Scenario(scenario: XunitSerializableScenario) = Resources.source.RunScenario scenario
@@ -35,17 +25,8 @@ type MermaidGovernanceBehaviours() =
 type ProcessGlobalCliCollection() = class end
 
 [<Collection("Process-global CLI behaviours")>]
-type CliContractBehaviours() =
-    static member Scenarios() =
-        Resources.scenarios "Badakmini.Cli.Specs.cli-contract.feature"
-
-    [<Theory; MemberData("Scenarios")>]
-    member _.Scenario(scenario: XunitSerializableScenario) = Resources.source.RunScenario scenario
-
-[<Collection("Process-global CLI behaviours")>]
-type MermaidCliBehaviours() =
-    static member Scenarios() =
-        Resources.scenarios "Badakmini.Cli.Specs.mermaid-cli.feature"
+type ProcessGlobalBehaviours() =
+    static member Scenarios() = Resources.scenarios ProcessGlobal
 
     [<Theory; MemberData("Scenarios")>]
     member _.Scenario(scenario: XunitSerializableScenario) = Resources.source.RunScenario scenario

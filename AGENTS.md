@@ -36,14 +36,15 @@
 - Automatically follow [rules propagation](repo-governance/workflows/rules-propagation.md) for every repository rule change, even when not explicitly requested.
 - Use [Diátaxis for non-rule documentation](repo-governance/conventions/documentation-architecture.md).
 - Preserve rule-governed repository behavior across context compaction. Follow the [governance-continuity principle](repo-governance/principles/governance-continuity.md).
-- Split work into granular task-list items and keep their status synchronized with reality. Follow the [task-tracking convention](repo-governance/conventions/task-tracking.md).
-- Ask the user only as a last resort after exhausting safe, in-scope ways to proceed. Follow the [last-resort questions convention](repo-governance/conventions/last-resort-questions.md).
-- Make the smallest change that fully satisfies the need, and stop when required verification passes. Follow the [minimal-sufficiency principle](repo-governance/principles/minimal-sufficiency.md).
+- Keep a granular, synchronized [task list](repo-governance/conventions/task-tracking.md).
+- Ask questions only as a [last resort](repo-governance/conventions/last-resort-questions.md).
+- Make the [smallest sufficient change](repo-governance/principles/minimal-sufficiency.md) and stop when verification passes.
 
 ## Development
 
 - Keep every applicable [quality gate](repo-governance/development/quality-gates.md) green.
 - Keep `test:e2e` out of `test:quick`; run only affected end-to-end cases during development. Follow the [end-to-end testing standard](repo-governance/development/end-to-end-testing.md).
 - Develop app and library behavior with [TDD](repo-governance/development/test-driven-development.md).
+- Follow the [`badakmini-cli` BDD standard](repo-governance/development/behaviour-driven-development.md).
 - Maintain every app and library [project README](repo-governance/conventions/project-readmes.md), updating it when affected.
 - Prefer accessible Mermaid for useful Markdown visuals under the [visualization convention](repo-governance/conventions/markdown-visualizations.md).

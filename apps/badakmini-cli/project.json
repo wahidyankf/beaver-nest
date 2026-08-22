@@ -34,8 +34,8 @@
       },
       "outputs": ["{projectRoot}/tests/bin", "{projectRoot}/tests/obj"]
     },
-    "test:coverage": {
-      "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Debug /p:CollectCoverage=true /p:Threshold=99 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../coverage/",
+    "test:coverage:unit": {
+      "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Debug /p:CollectCoverage=true /p:Threshold=99 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../coverage/application/",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
@@ -43,6 +43,49 @@
       ],
       "options": {
         "cwd": "apps/badakmini-cli"
+      },
+      "outputs": [
+        "{projectRoot}/coverage/application",
+        "{projectRoot}/tests/bin",
+        "{projectRoot}/tests/obj"
+      ]
+    },
+    "test:coverage:behaviour": {
+      "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Debug /p:CollectCoverage=true /p:IncludeTestAssembly=true '/p:Include=[Badakmini.Cli.Tests]Badakmini.Cli.BehaviourSteps*' /p:Threshold=100 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../coverage/behaviour-steps/",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
+        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+      ],
+      "options": {
+        "cwd": "apps/badakmini-cli"
+      },
+      "outputs": [
+        "{projectRoot}/coverage/behaviour-steps",
+        "{projectRoot}/tests/bin",
+        "{projectRoot}/tests/obj"
+      ]
+    },
+    "test:coverage": {
+      "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
+        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p badakmini-cli -t test:coverage:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
       },
       "outputs": [
         "{projectRoot}/coverage",
@@ -72,7 +115,11 @@
             "forwardAllArgs": false
           },
           {
-            "command": "npm exec -- nx run -p badakmini-cli -t test:coverage",
+            "command": "npm exec -- nx run -p badakmini-cli -t test:coverage:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour",
             "forwardAllArgs": false
           }
         ],
