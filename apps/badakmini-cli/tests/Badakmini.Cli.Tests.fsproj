@@ -6,12 +6,33 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Tests.fs" />
+    <Compile Include="BehaviourSteps.fs" />
+    <Compile Include="BehaviourTests.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../../../specs/badakmini/cli/behaviours/word-budget.feature"
+                      Link="Behaviours/word-budget.feature"
+                      LogicalName="Badakmini.Cli.Specs.word-budget.feature" />
+    <EmbeddedResource Include="../../../specs/badakmini/cli/behaviours/directory-map.feature"
+                      Link="Behaviours/directory-map.feature"
+                      LogicalName="Badakmini.Cli.Specs.directory-map.feature" />
+    <EmbeddedResource Include="../../../specs/badakmini/cli/behaviours/mermaid-governance.feature"
+                      Link="Behaviours/mermaid-governance.feature"
+                      LogicalName="Badakmini.Cli.Specs.mermaid-governance.feature" />
+    <EmbeddedResource Include="../../../specs/badakmini/cli/behaviours/cli-contract.feature"
+                      Link="Behaviours/cli-contract.feature"
+                      LogicalName="Badakmini.Cli.Specs.cli-contract.feature" />
+    <EmbeddedResource Include="../../../specs/badakmini/cli/behaviours/mermaid-cli.feature"
+                      Link="Behaviours/mermaid-cli.feature"
+                      LogicalName="Badakmini.Cli.Specs.mermaid-cli.feature" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="coverlet.msbuild" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="TickSpec" Version="2.0.5" />
+    <PackageReference Include="TickSpec.Xunit" Version="2.0.4" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>

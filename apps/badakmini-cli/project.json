@@ -13,12 +13,22 @@
     },
     "typecheck": {
       "command": "badakmini_typecheck_dir=$(mktemp -d /tmp/badakmini-typecheck.XXXXXX) && trap 'rm -rf -- \"$badakmini_typecheck_dir\"' EXIT HUP INT TERM && dotnet build tests/Badakmini.Cli.Tests.fsproj --configuration Release --artifacts-path \"$badakmini_typecheck_dir\"",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
+        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+      ],
       "options": {
         "cwd": "apps/badakmini-cli"
       }
     },
     "test:unit": {
       "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Release",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
+        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+      ],
       "options": {
         "cwd": "apps/badakmini-cli"
       },
@@ -26,6 +36,11 @@
     },
     "test:coverage": {
       "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Debug /p:CollectCoverage=true /p:Threshold=99 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../coverage/",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
+        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+      ],
       "options": {
         "cwd": "apps/badakmini-cli"
       },
@@ -37,6 +52,11 @@
     },
     "test:quick": {
       "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
+        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+      ],
       "options": {
         "commands": [
           {
