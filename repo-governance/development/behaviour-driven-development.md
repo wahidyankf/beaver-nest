@@ -1,20 +1,29 @@
 # Behaviour-Driven Development
 
-`badakmini-cli` uses executable Gherkin specifications to make its observable behavior readable and enforceable. This standard applies to that project; it does not require unrelated projects to adopt Gherkin.
+Projects that adopt Gherkin keep observable behavior readable and executable in `.feature` files. This standard currently applies to `badakmini-cli` and `bnest-e2e`; it does not require unrelated projects to adopt Gherkin.
 
-## Requirements
+## Shared Requirements
 
-- Keep the canonical executable behavior and examples in `.feature` files below `specs/badakmini/cli/behaviours/`.
-- Begin new or changed CLI behavior by changing a feature scenario and confirming the expected red result under the repository [TDD standard](test-driven-development.md).
+- Keep canonical behavior, inputs, and expected results in the project's `.feature` files below `specs/`.
+- Begin new or changed behavior by changing a scenario and confirming the expected red result under the repository [TDD standard](test-driven-development.md).
 - Discover every `.feature` recursively. Adding or nesting one must not require manual project or runner registration.
-- Give every feature exactly one feature-level execution boundary: `@pure` or `@process_global`. Do not place execution-boundary tags below `Feature:`.
 - Give every scenario an explicit `When` and `Then`. Reject empty features and undefined or ambiguous steps.
-- Keep TickSpec-attributed functions as thin bindings in `BehaviourSteps.fs`; put reusable test operations and state in `BehaviourSupport.fs`.
-- Run `@process_global` scenarios serially when they mutate process-wide state. Allow `@pure` scenarios to run in parallel.
-- Require 100% line coverage of the thin binding module so implemented phrases cannot remain unused.
+- Keep bindings thin and put reusable operations or state in support modules.
+- Reject bindings unused by every feature.
 
-## Verification
+## `badakmini-cli`
 
-`test:unit` executes all discovered scenarios. `test:coverage:unit` enforces at least 99% application line coverage, while `test:coverage:behaviour` enforces 100% binding line coverage. `test:coverage` composes both for compatibility, and `test:quick` runs both named targets directly.
+- Keep features below `specs/badakmini/cli/behaviours/`.
+- Give every feature exactly one feature-level `@pure` or `@process_global` boundary and no scenario-level boundary.
+- Keep TickSpec attributes in `BehaviourSteps.fs` and reusable operations in `BehaviourSupport.fs`.
+- Run `@process_global` scenarios serially and `@pure` scenarios in parallel.
+- Execute every scenario in `test:unit` and require 100% binding line coverage in `test:coverage:behaviour`.
 
-Run all commands through Nx from the repository root. The project's [README](../../apps/badakmini-cli/README.md) contains the commands and TickSpec-specific authoring notes.
+## `bnest-e2e`
+
+- Keep English features below `specs/bnest/e2e/behaviours/` and browser bindings in `apps/bnest-e2e/tests/steps/`.
+- Make every browser journey originate from Gherkin; reject direct Playwright `.spec` journey files.
+- Use `test:behaviour:compliance` for fast structure, generation, arity, and binding-completeness checks.
+- Include compliance in `test:quick`, but keep browser execution in `test:e2e` under the [E2E standard](end-to-end-testing.md).
+
+Run all commands through Nx from the repository root. Each project README contains its adapter-specific commands and authoring notes.

@@ -41,6 +41,7 @@
     "lint-staged": "^17.3.0",
     "nx": "23.1.1",
     "oxlint": "^1.79.0",
+    "playwright-bdd": "^9.2.0",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.3.0",
     "typescript": "^7.0.2"

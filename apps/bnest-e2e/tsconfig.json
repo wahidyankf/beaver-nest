@@ -2,6 +2,7 @@
   "compilerOptions": {
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
+    "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
@@ -23,5 +24,5 @@
     "target": "ES2023",
     "types": ["node"]
   },
-  "include": ["playwright.config.mts", "tests/**/*.ts"]
+  "include": ["playwright.config.mts", "tests/**/*.ts", "tools/**/*.mts"]
 }

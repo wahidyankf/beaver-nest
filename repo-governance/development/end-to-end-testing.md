@@ -12,8 +12,10 @@ Use end-to-end tests sparingly because they are inherently slower and more expen
 For example:
 
 ```sh
-npm exec -- nx run -p bnest-e2e -t test:e2e -- apps/bnest-e2e/tests/greeting.spec.ts
+npm exec -- nx run -p bnest-e2e -t test:e2e -- --grep "A visitor opens Beaver Nest"
 ```
+
+`bnest-e2e` journeys originate from recursively discovered Gherkin features. Its fast `test:behaviour:compliance` gate belongs in `test:quick`; generated browser execution does not.
 
 ## Full Suite
 
