@@ -26,7 +26,7 @@ There is no `test:unit` or aggregate `test:coverage` target because this project
 
 ## Authoring Behaviours
 
-Every browser journey must originate in an English `.feature` file below [`specs/bnest/app/behaviours/`](../../specs/bnest/app/behaviours/). Features are discovered recursively, so adding or nesting one requires no registration. Put routes, user actions, expected content, and examples in Gherkin. Keep Playwright mechanics in thin `tests/steps/*.ts` bindings, and do not add direct `tests/**/*.spec.ts` journey files.
+Every browser journey must originate in an English `.feature` file below [`specs/apps/bnest/app/behaviours/`](../../specs/apps/bnest/app/behaviours/). Features are discovered recursively, so adding or nesting one requires no registration. Put routes, user actions, expected content, and examples in Gherkin. Keep Playwright mechanics in thin `tests/steps/*.ts` bindings, and do not add direct `tests/**/*.spec.ts` journey files.
 
 Every feature must contain a scenario, and every scenario must contain an explicit `When` and `Then`. `test:coverage:behaviour` fails for malformed features, missing or ambiguous bindings, incorrect binding arity, direct journey specs, and bindings unused by every feature.
 
@@ -40,7 +40,7 @@ The `test:e2e` target first enforces behavior coverage, then uses [playwright.co
 
 ## Structure
 
-- `specs/bnest/app/behaviours/` contains the canonical executable journeys.
+- `specs/apps/bnest/app/behaviours/` contains the canonical executable journeys.
 - `playwright.config.mts` defines BDD discovery, generated output, browser, base URL, and app server.
 - `tests/steps/` contains thin Playwright-BDD bindings.
 - `tools/` contains the fast compliance validator and its self-tests.

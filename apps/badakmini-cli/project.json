@@ -15,7 +15,7 @@
       "command": "badakmini_typecheck_dir=$(mktemp -d /tmp/badakmini-typecheck.XXXXXX) && trap 'rm -rf -- \"$badakmini_typecheck_dir\"' EXIT HUP INT TERM && dotnet build tests/unit/Badakmini.Cli.UnitTests.fsproj --configuration Release --artifacts-path \"$badakmini_typecheck_dir/unit\" && dotnet build tests/integration/Badakmini.Cli.IntegrationTests.fsproj --configuration Release --artifacts-path \"$badakmini_typecheck_dir/integration\"",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "cwd": "apps/badakmini-cli"
@@ -25,7 +25,7 @@
       "command": "dotnet test tests/unit/Badakmini.Cli.UnitTests.fsproj --configuration Release --filter 'FullyQualifiedName!~FeatureComplianceTests&FullyQualifiedName!~UnitPolicyTests'",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "cwd": "apps/badakmini-cli"
@@ -39,7 +39,7 @@
       "command": "dotnet test tests/integration/Badakmini.Cli.IntegrationTests.fsproj --configuration Release",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "cwd": "apps/badakmini-cli"
@@ -53,7 +53,7 @@
       "command": "dotnet test tests/unit/Badakmini.Cli.UnitTests.fsproj --configuration Debug --filter 'FullyQualifiedName!~FeatureComplianceTests&FullyQualifiedName!~UnitPolicyTests' /p:CollectCoverage=true '/p:ExcludeByFile=**/Runtime.fs%2c**/Program.fs' /p:Threshold=99 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../../coverage/unit-core/",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "cwd": "apps/badakmini-cli"
@@ -68,7 +68,7 @@
       "command": "dotnet test tests/integration/Badakmini.Cli.IntegrationTests.fsproj --configuration Debug /p:CollectCoverage=true /p:Threshold=99 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../../coverage/integration-application/",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "cwd": "apps/badakmini-cli"
@@ -83,7 +83,7 @@
       "executor": "nx:run-commands",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*",
         "{workspaceRoot}/apps/badakmini-cli-e2e/*.fs",
         "{workspaceRoot}/apps/badakmini-cli-e2e/*.fsproj",
         "{workspaceRoot}/apps/badakmini-cli-e2e/project.json"
@@ -120,7 +120,7 @@
       "executor": "nx:run-commands",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*",
         "{workspaceRoot}/apps/badakmini-cli-e2e/*.fs",
         "{workspaceRoot}/apps/badakmini-cli-e2e/*.fsproj",
         "{workspaceRoot}/apps/badakmini-cli-e2e/project.json"
@@ -155,7 +155,7 @@
       "executor": "nx:run-commands",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*",
         "{workspaceRoot}/apps/badakmini-cli-e2e/*.fs",
         "{workspaceRoot}/apps/badakmini-cli-e2e/*.fsproj",
         "{workspaceRoot}/apps/badakmini-cli-e2e/project.json"

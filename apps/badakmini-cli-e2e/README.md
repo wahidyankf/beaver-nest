@@ -18,7 +18,7 @@ Run from the repository root:
 
 ## Shared Specification
 
-The project recursively embeds the exact corpus below [`specs/badakmini/cli/behaviours/`](../../specs/badakmini/cli/behaviours/). Shared TickSpec bindings and the driver contract come from [`apps/badakmini-cli/tests/contract/`](../badakmini-cli/tests/contract/). The [E2E driver](E2eDriver.fs) translates internal inspection steps into stable `--format json` CLI observations; ordinary command-contract scenarios retain default text output.
+The project recursively embeds the exact corpus below [`specs/apps/badakmini/cli/behaviours/`](../../specs/apps/badakmini/cli/behaviours/). Shared TickSpec bindings and the driver contract come from [`apps/badakmini-cli/tests/contract/`](../badakmini-cli/tests/contract/). The [E2E driver](E2eDriver.fs) translates internal inspection steps into stable `--format json` CLI observations; ordinary command-contract scenarios retain default text output.
 
 The same feature, expanded scenario, and step must execute at unit, local-only integration, and process E2E levels. `test:coverage:behaviour` proves exact resource parity, one binding per step, no unused bindings, and a complete driver without running runtime scenarios.
 

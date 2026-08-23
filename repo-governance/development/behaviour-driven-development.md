@@ -23,7 +23,7 @@ A library without an integration adapter must have no owned filesystem, database
 
 ## Shared Requirements
 
-- Keep canonical behavior, inputs, and results below `specs/`.
+- Keep canonical application behavior, inputs, and results below `specs/apps/`; keep library corpora below `specs/libs/`.
 - Discover every `.feature` recursively. Adding or nesting one must not require manual project or runner registration.
 - Give every scenario an explicit `When` and `Then`. Reject empty features and undefined or ambiguous steps.
 - Keep bindings thin and put reusable operations or state in support modules.

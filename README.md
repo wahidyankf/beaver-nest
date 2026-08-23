@@ -51,7 +51,7 @@ apps/bnest-app-e2e/  Playwright end-to-end tests
 apps/badakmini-cli/  F# governance CLI with unit and integration tests
 apps/badakmini-cli-e2e/  Process end-to-end tests for the CLI
 libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
-specs/       Canonical behavior specifications shared across test levels
+specs/apps/  Canonical application behavior specifications shared across test levels
 data/        Ignored local system and user data placeholders
 docs/        Diátaxis-organized, non-rule documentation
 plans/       Product, architecture, testing, and operations plans

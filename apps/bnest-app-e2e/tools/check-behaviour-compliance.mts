@@ -4,7 +4,7 @@ import path from "node:path";
 import { findFiles, validateFeatureFiles } from "./behaviour-compliance.mts";
 
 const workspaceRoot = process.cwd();
-const featureRoot = path.join(workspaceRoot, "specs/bnest/app/behaviours");
+const featureRoot = path.join(workspaceRoot, "specs/apps/bnest/app/behaviours");
 const testsRoot = path.join(workspaceRoot, "apps/bnest-app-e2e/tests");
 const playwrightConfig = "apps/bnest-app-e2e/playwright.config.mts";
 const directSpecPattern = /\.spec\.(?:[cm]?[jt]s)$/u;

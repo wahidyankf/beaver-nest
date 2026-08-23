@@ -64,18 +64,30 @@
     },
     "test:unit": {
       "command": "BNEST_TEST_LAYER=unit MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --no-start test/unit",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+      ],
       "options": {
         "cwd": "apps/bnest-app"
       }
     },
     "test:integration": {
       "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors test/integration",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+      ],
       "options": {
         "cwd": "apps/bnest-app"
       }
     },
     "test:coverage:unit": {
       "command": "BNEST_TEST_LAYER=unit MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --no-start --cover test/unit",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+      ],
       "options": {
         "cwd": "apps/bnest-app"
       },
@@ -83,6 +95,10 @@
     },
     "test:coverage:integration": {
       "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover test/integration",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+      ],
       "options": {
         "cwd": "apps/bnest-app"
       },
@@ -90,12 +106,20 @@
     },
     "test:coverage:behaviour:app": {
       "command": "MIX_ENV=test mix run --no-start test/behaviour/verify.exs",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+      ],
       "options": {
         "cwd": "apps/bnest-app"
       }
     },
     "test:coverage:behaviour": {
       "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+      ],
       "options": {
         "commands": [
           {
@@ -113,6 +137,10 @@
     },
     "test:coverage": {
       "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+      ],
       "options": {
         "commands": [
           {
@@ -134,6 +162,10 @@
     },
     "test:quick": {
       "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+      ],
       "options": {
         "commands": [
           {

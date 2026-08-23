@@ -10,7 +10,7 @@
       "inputs": [
         "default",
         "^default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "cwd": "apps/badakmini-cli-e2e"
@@ -40,7 +40,7 @@
       "inputs": [
         "default",
         "^default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "outputs": [
         "{projectRoot}/bin",
@@ -57,7 +57,7 @@
       "inputs": [
         "default",
         "^default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "cwd": "apps/badakmini-cli-e2e"
@@ -75,7 +75,7 @@
       "inputs": [
         "default",
         "^default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "commands": [

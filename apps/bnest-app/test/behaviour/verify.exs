@@ -67,7 +67,7 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
   end
 end
 
-behaviour_root = Path.expand("../../../../specs/bnest/app/behaviours", __DIR__)
+behaviour_root = Path.expand("../../../../specs/apps/bnest/app/behaviours", __DIR__)
 steps = [Path.join(__DIR__, "steps/**/*.exs")]
 
 :ok = BnestApp.Behaviour.BoundaryPolicy.verify!()

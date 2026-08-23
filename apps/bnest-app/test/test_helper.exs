@@ -1,6 +1,6 @@
 ExUnit.start()
 
-behaviour_root = Path.expand("../../../specs/bnest/app/behaviours", __DIR__)
+behaviour_root = Path.expand("../../../specs/apps/bnest/app/behaviours", __DIR__)
 
 {case_template, support} =
   case System.get_env("BNEST_TEST_LAYER", "unit") do

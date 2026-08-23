@@ -30,7 +30,7 @@
       "cache": true,
       "inputs": [
         "{projectRoot}/**/*",
-        "{workspaceRoot}/specs/bnest/app/behaviours/**/*.feature",
+        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature",
         "{workspaceRoot}/package.json",
         "{workspaceRoot}/package-lock.json"
       ],

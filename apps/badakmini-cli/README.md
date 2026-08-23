@@ -33,7 +33,7 @@ The `test:quick` target runs `typecheck`, `lint`, `test:unit`, `test:coverage:un
 
 ## Behaviour Specifications
 
-Every `.feature` below [`specs/badakmini/cli/behaviours/`](../../specs/badakmini/cli/behaviours/) is embedded recursively into unit, integration, and process E2E assemblies. Each level runs every expanded scenario through the same [thin bindings](tests/contract/BehaviourSteps.fs) and [support vocabulary](tests/contract/BehaviourSupport.fs); only its driver changes.
+Every `.feature` below [`specs/apps/badakmini/cli/behaviours/`](../../specs/apps/badakmini/cli/behaviours/) is embedded recursively into unit, integration, and process E2E assemblies. Each level runs every expanded scenario through the same [thin bindings](tests/contract/BehaviourSteps.fs) and [support vocabulary](tests/contract/BehaviourSupport.fs); only its driver changes.
 
 The unit driver uses an in-memory filesystem and injected output only. The integration driver uses real temporary local files but its policy test rejects network APIs and endpoints, including loopback. [`badakmini-cli-e2e`](../badakmini-cli-e2e/README.md) invokes the built CLI process and observes public output. `test:coverage:behaviour` statically rejects missing disk or embedded features, empty or malformed scenarios, undefined or ambiguous steps, unused bindings, and incomplete drivers across all adapters without running slow scenarios.
 
@@ -75,5 +75,5 @@ Mermaid enforcement covers `flowchart`, `graph`, `classDiagram`, `stateDiagram`,
 - `tests/contract/` owns shared scenario state, bindings, discovery, compliance, and CLI contract tests.
 - `tests/unit/` owns the fake-only driver and unit assembly.
 - `tests/integration/` owns the real-local driver, network policy, and integration assembly.
-- `specs/badakmini/cli/behaviours/` contains the executable `.feature` specifications.
+- `specs/apps/badakmini/cli/behaviours/` contains the executable `.feature` specifications.
 - `project.json` composes the raw .NET commands as Nx targets without an Nx language plugin.

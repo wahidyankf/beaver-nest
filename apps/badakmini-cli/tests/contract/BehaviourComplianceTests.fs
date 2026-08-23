@@ -95,7 +95,7 @@ type FeatureComplianceTests() =
         let assembly = Assembly.GetExecutingAssembly()
 
         let featureRoot =
-            Path.GetFullPath(Path.Combine(__SOURCE_DIRECTORY__, "../../../../specs/badakmini/cli/behaviours"))
+            Path.GetFullPath(Path.Combine(__SOURCE_DIRECTORY__, "../../../../specs/apps/badakmini/cli/behaviours"))
 
         let diskNames =
             Directory.EnumerateFiles(featureRoot, "*.feature", SearchOption.AllDirectories)

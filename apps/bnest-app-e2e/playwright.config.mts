@@ -7,7 +7,7 @@ const port = process.env["BNEST_E2E_PORT"] ?? "4000";
 const baseURL = `http://127.0.0.1:${port}`;
 const featuresRoot = path.resolve(
   import.meta.dirname,
-  "../../specs/bnest/app/behaviours",
+  "../../specs/apps/bnest/app/behaviours",
 );
 const testDir = defineBddConfig({
   arityCheck: true,

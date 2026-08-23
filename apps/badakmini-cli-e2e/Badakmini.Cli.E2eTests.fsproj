@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="../../specs/badakmini/cli/behaviours/**/*.feature"
+    <EmbeddedResource Include="../../specs/apps/badakmini/cli/behaviours/**/*.feature"
                       Link="Behaviours/%(RecursiveDir)%(Filename)%(Extension)"
                       LogicalName="Badakmini.Cli.Specs.%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
