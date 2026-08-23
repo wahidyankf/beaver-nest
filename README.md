@@ -6,7 +6,7 @@ Beaver Nest is a private, always-available family application and a focused cons
 
 Beaver Nest is in its first implementation stage.
 
-- A Phoenix LiveView hello-world app, Nx workspace, ExUnit tests, and Playwright E2E test are ready.
+- A Phoenix LiveView hello-world app, Nx workspace, shared Gherkin unit/integration/E2E tests, and Playwright E2E harness are ready.
 - Hot reload works during local development.
 - Tailscale Serve, an always-on launch service, authentication, persistent data, backups, and document processing are planned but not yet implemented.
 
@@ -34,24 +34,27 @@ Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset w
 
 ```sh
 npm test
-npm exec -- nx run -p bnest-e2e -t test:e2e -- apps/bnest-e2e/tests/greeting.spec.ts
+npm exec -- nx run -p bnest-app -t test:integration
+npm exec -- nx run -p bnest-app -t test:coverage:behaviour
+npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "A visitor opens Beaver Nest"
 npm exec -- nx run -p badakmini-cli -t test:integration
 npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 ```
 
-`npm test` runs the Phoenix test suite through Nx. Run only affected end-to-end cases during development. Scheduled GitHub Actions jobs independently run the complete browser suite and the Badakmini integration-to-E2E sequence at 06:00 and 18:00 WIB.
+`npm test` runs the Phoenix unit suite through Nx. Bnest's unit, integration, and browser adapters consume the same recursively discovered feature corpus; `test:coverage:behaviour` statically proves that every adapter implements it completely. Run only affected end-to-end cases during development. Scheduled GitHub Actions jobs run each local integration suite before its complete E2E suite at 06:00 and 18:00 WIB.
 
 ## Repository layout
 
 ```text
 apps/bnest-app/  Phoenix LiveView application
-apps/bnest-e2e/  Playwright end-to-end tests
+apps/bnest-app-e2e/  Playwright end-to-end tests
 apps/badakmini-cli/  F# governance CLI with unit and integration tests
 apps/badakmini-cli-e2e/  Process end-to-end tests for the CLI
-data/            Ignored local system and user data placeholders
-docs/            Diátaxis-organized, non-rule documentation
-libs/            Shared workspace libraries
-plans/           Product, architecture, testing, and operations plans
+libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
+specs/       Canonical behavior specifications shared across test levels
+data/        Ignored local system and user data placeholders
+docs/        Diátaxis-organized, non-rule documentation
+plans/       Product, architecture, testing, and operations plans
 ```
 
 ## Privacy and availability

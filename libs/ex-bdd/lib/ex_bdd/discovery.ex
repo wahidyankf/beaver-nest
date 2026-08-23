@@ -1,0 +1,281 @@
+defmodule ExBdd.Discovery do
+  @moduledoc """
+  Discovers and loads feature files, step definitions, and hook modules.
+
+  The discovery algorithm proceeds in this order:
+
+  1. **Support files** are loaded first (default: `test/features/support/**/*.exs`),
+     following the same convention as Ruby ExBdd. These typically define hooks.
+  2. **Step definitions** are loaded next (default: `test/features/step_definitions/**/*.exs`).
+     Each module using `ExBdd.StepDefinition` is registered.
+  3. A **step registry** is built from all loaded step modules, mapping patterns to
+     their implementing module and metadata. Duplicate patterns raise immediately.
+  4. **Feature files** are parsed (default: `test/features/**/*.feature`
+     plus `test/features/**/*.feature.md`) using `ExBdd.Gherkin.Parser` and
+     annotated with their source file path. `.feature.md` files parse as
+     Markdown with ExBdd.Gherkin (see `ExBdd.Gherkin.Markdown`).
+
+  All default paths can be overridden via application config or opts passed to `discover/1`.
+  """
+
+  @default_features_patterns ["test/features/**/*.feature", "test/features/**/*.feature.md"]
+  @default_steps_pattern "test/features/step_definitions/**/*.exs"
+  @default_support_pattern "test/features/support/**/*.exs"
+
+  alias ExBdd.Gherkin.Parser
+
+  defmodule DiscoveryResult do
+    @moduledoc "Result struct returned by `ExBdd.Discovery.discover/1`."
+    defstruct features: [],
+              step_modules: [],
+              step_registry: %{},
+              hook_modules: [],
+              parameter_types: %{}
+
+    @typedoc """
+    Registry keys identify the pattern kind and pattern — `{:expression, source}`
+    for cucumber expressions, `{:regex, {source, opts}}` for regular
+    expressions. Regexes are keyed by source and options rather than the
+    `%Regex{}` struct because identical regexes do not compile to
+    structurally-equal `re_pattern` binaries.
+    """
+    @type registry_key :: {:expression, String.t()} | {:regex, {String.t(), term()}}
+
+    @type t :: %__MODULE__{
+            features: [ExBdd.Gherkin.Feature.t()],
+            step_modules: [module()],
+            step_registry: %{registry_key() => {module(), map()}},
+            hook_modules: [module()],
+            parameter_types: ExBdd.Expression.custom_types()
+          }
+  end
+
+  @doc """
+  Discovers all features and steps based on configuration.
+  Returns a struct containing parsed features and a registry of steps.
+  """
+  @spec discover(keyword()) :: DiscoveryResult.t()
+  def discover(opts \\ []) do
+    features_patterns = get_patterns(:features, opts)
+    steps_patterns = get_patterns(:steps, opts)
+    support_patterns = get_patterns(:support, opts)
+
+    # Load support files first (like Ruby cucumber); they define hooks and
+    # custom parameter types
+    {hook_modules, parameter_type_modules} = load_support_files(support_patterns)
+    parameter_types = build_parameter_types(parameter_type_modules)
+
+    # Discover and load step definitions
+    step_modules = load_step_definitions(steps_patterns)
+
+    # Build step registry from loaded modules
+    step_registry = build_step_registry(step_modules, parameter_types)
+
+    # Discover and parse feature files
+    features = discover_features(features_patterns)
+
+    %DiscoveryResult{
+      features: features,
+      step_modules: step_modules,
+      step_registry: step_registry,
+      hook_modules: hook_modules,
+      parameter_types: parameter_types
+    }
+  end
+
+  defp get_patterns(type, opts) do
+    # Check for custom config
+    custom_patterns = opts[type] || Application.get_env(:ex_bdd, type)
+
+    if custom_patterns do
+      List.wrap(custom_patterns)
+    else
+      # Use defaults
+      case type do
+        :features -> @default_features_patterns
+        :steps -> [@default_steps_pattern]
+        :support -> [@default_support_pattern]
+      end
+    end
+  end
+
+  defp load_support_files(patterns) do
+    modules =
+      patterns
+      |> expand_patterns()
+      |> Enum.flat_map(&loaded_modules/1)
+
+    hook_modules = Enum.filter(modules, &function_exported?(&1, :__ex_bdd_hooks__, 0))
+
+    parameter_type_modules =
+      Enum.filter(modules, &function_exported?(&1, :__ex_bdd_parameter_types__, 0))
+
+    {hook_modules, parameter_type_modules}
+  end
+
+  # Code.require_file/1 returns nil when the file was already loaded in this
+  # VM, so cache each file's modules on first load; otherwise a second
+  # discovery pass would crash on step files and silently drop hooks and
+  # parameter types. Keyed on the expanded path because require_file
+  # dedupes on the expanded path, so two spellings of one file must share
+  # a cache entry.
+  defp loaded_modules(path) do
+    cache_key = {__MODULE__, :modules, Path.expand(path)}
+
+    case Code.require_file(path) do
+      nil ->
+        # nil with no cache entry means someone other than discovery loaded
+        # the file, so its modules are unknowable here. (A concurrent
+        # discovery pass racing this one would land here too — loudly,
+        # rather than silently building an empty registry.)
+        case :persistent_term.get(cache_key, :missing) do
+          :missing ->
+            raise "#{path} was already loaded before ExBdd discovery ran, " <>
+                    "so its modules cannot be discovered (Code.require_file/1 " <>
+                    "returns nil for already-loaded files). Remove the earlier " <>
+                    "Code.require_file call and let ExBdd load step and " <>
+                    "support files itself."
+
+          modules ->
+            modules
+        end
+
+      modules ->
+        module_names = Enum.map(modules, fn {module, _} -> module end)
+        :persistent_term.put(cache_key, module_names)
+        module_names
+    end
+  end
+
+  defp build_parameter_types(modules) do
+    all_types =
+      for module <- modules,
+          {name, definition} <- module.__ex_bdd_parameter_types__(),
+          do: {name, module, definition}
+
+    Enum.reduce(all_types, %{}, &add_parameter_type/2)
+  end
+
+  defp add_parameter_type({name, module, definition}, acc) do
+    if Map.has_key?(acc, name) do
+      raise """
+      Parameter type {#{name}} is defined in more than one module
+      (#{inspect(module)} among them). Each custom parameter type may
+      only be registered once.
+      """
+    end
+
+    Map.put(acc, name, definition)
+  end
+
+  defp load_step_definitions(patterns) do
+    patterns
+    |> expand_patterns()
+    |> Enum.map(&load_step_module/1)
+    |> Enum.filter(& &1)
+  end
+
+  defp load_step_module(path) do
+    path
+    |> loaded_modules()
+    |> Enum.find(&function_exported?(&1, :__ex_bdd_steps__, 0))
+  end
+
+  defp build_step_registry(modules, parameter_types) do
+    Enum.reduce(modules, %{}, fn module, acc ->
+      steps = module.__ex_bdd_steps__()
+      add_module_steps_to_registry(acc, module, steps, parameter_types)
+    end)
+  end
+
+  @doc false
+  # Shared key derivation so every registry builder (discovery, test
+  # harnesses) produces the same shape. Identical regexes (same source and
+  # flags) produce equal keys, so duplicate detection covers them too.
+  @spec registry_key(String.t() | Regex.t()) :: DiscoveryResult.registry_key()
+  def registry_key(%Regex{} = regex), do: {:regex, {Regex.source(regex), Regex.opts(regex)}}
+  def registry_key(pattern) when is_binary(pattern), do: {:expression, pattern}
+
+  defp add_module_steps_to_registry(registry, module, steps, parameter_types) do
+    Enum.reduce(steps, registry, fn {pattern, metadata}, acc ->
+      key = registry_key(pattern)
+
+      cond do
+        not compilable_pattern?(pattern, metadata, parameter_types) ->
+          # Mirrors reference ExBdd: a definition with an undefined
+          # parameter type is excluded (with a warning) rather than aborting
+          # the run; steps that would have used it fail as undefined.
+          acc
+
+        Map.has_key?(acc, key) ->
+          duplicate_definition!(acc[key], pattern, module, metadata)
+
+        true ->
+          Map.put(acc, key, {module, metadata})
+      end
+    end)
+  end
+
+  @doc false
+  # Public so test harnesses building registries directly apply the same
+  # undefined-parameter-type semantics as discovery.
+  def compilable_pattern?(%Regex{}, _metadata, _parameter_types), do: true
+
+  def compilable_pattern?(pattern, metadata, parameter_types) do
+    # Eagerly compile (also warming the cache) so undefined parameter types
+    # surface at load time rather than mid-scenario.
+    ExBdd.Expression.compile(pattern, parameter_types)
+    true
+  rescue
+    e in ExBdd.UndefinedParameterTypeError ->
+      IO.warn(
+        "ExBdd: step definition \"#{pattern}\" " <>
+          "(#{metadata.file}:#{metadata.line}) references undefined parameter " <>
+          "type {#{e.type_name}} and will be ignored. Steps matching it will " <>
+          "be reported as undefined.",
+        []
+      )
+
+      false
+  end
+
+  defp duplicate_definition!({existing_module, existing_meta}, pattern, module, metadata) do
+    raise """
+    Duplicate step definition: '#{display_pattern(pattern)}'
+
+    First defined in:
+      #{existing_module} at #{existing_meta.file}:#{existing_meta.line}
+
+    Also defined in:
+      #{module} at #{metadata.file}:#{metadata.line}
+    """
+  end
+
+  defp display_pattern(%Regex{} = regex), do: inspect(regex)
+  defp display_pattern(pattern), do: pattern
+
+  defp discover_features(patterns) do
+    patterns
+    |> expand_patterns()
+    |> Enum.map(&parse_feature/1)
+    |> Enum.filter(& &1)
+  end
+
+  defp parse_feature(path) do
+    content = File.read!(path)
+    feature = Parser.parse(content, path)
+
+    # The raw text is kept for the `source` message (#28) — the parsed AST
+    # cannot reproduce it.
+    feature
+    |> Map.put(:file, path)
+    |> Map.put(:source, content)
+  end
+
+  defp expand_patterns(patterns) do
+    patterns
+    |> Enum.flat_map(&Path.wildcard/1)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+end

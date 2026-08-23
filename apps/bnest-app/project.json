@@ -3,6 +3,7 @@
   "name": "bnest-app",
   "projectType": "application",
   "root": "apps/bnest-app",
+  "implicitDependencies": ["ex-bdd"],
   "targets": {
     "serve": {
       "command": "mix phx.server",
@@ -62,17 +63,74 @@
       }
     },
     "test:unit": {
-      "command": "MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors",
+      "command": "BNEST_TEST_LAYER=unit MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --no-start test/unit",
       "options": {
         "cwd": "apps/bnest-app"
       }
     },
-    "test:coverage": {
-      "command": "MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover",
+    "test:integration": {
+      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors test/integration",
+      "options": {
+        "cwd": "apps/bnest-app"
+      }
+    },
+    "test:coverage:unit": {
+      "command": "BNEST_TEST_LAYER=unit MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --no-start --cover test/unit",
       "options": {
         "cwd": "apps/bnest-app"
       },
-      "outputs": ["{projectRoot}/cover"]
+      "outputs": ["{projectRoot}/cover/unit"]
+    },
+    "test:coverage:integration": {
+      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover test/integration",
+      "options": {
+        "cwd": "apps/bnest-app"
+      },
+      "outputs": ["{projectRoot}/cover/integration"]
+    },
+    "test:coverage:behaviour:app": {
+      "command": "MIX_ENV=test mix run --no-start test/behaviour/verify.exs",
+      "options": {
+        "cwd": "apps/bnest-app"
+      }
+    },
+    "test:coverage:behaviour": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p bnest-app -t test:coverage:behaviour:app",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app-e2e -t test:coverage:behaviour:e2e",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
+    "test:coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p bnest-app -t test:coverage:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app -t test:coverage:integration",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app -t test:coverage:behaviour",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
     },
     "test:quick": {
       "executor": "nx:run-commands",
@@ -91,7 +149,11 @@
             "forwardAllArgs": false
           },
           {
-            "command": "npm exec -- nx run -p bnest-app -t test:coverage",
+            "command": "npm exec -- nx run -p bnest-app -t test:coverage:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app -t test:coverage:behaviour",
             "forwardAllArgs": false
           }
         ],

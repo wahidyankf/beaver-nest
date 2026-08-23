@@ -5,20 +5,13 @@ defmodule BnestApp.MixProject do
     [
       app: :bnest_app,
       version: "0.1.0",
-      elixir: "~> 1.17",
+      elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
-      test_coverage: [
-        summary: [threshold: 99],
-        ignore_modules: [
-          BnestAppWeb.CoreComponents,
-          BnestAppWeb.ErrorHTML,
-          BnestAppWeb.Gettext,
-          BnestAppWeb.Layouts,
-          BnestAppWeb.PageController,
-          BnestAppWeb.PageHTML,
-          BnestAppWeb.Router
-        ]
+      test_ignore_filters: [
+        ~r/test\/behaviour\/steps/,
+        ~r/test\/behaviour\/support/
       ],
+      test_coverage: test_coverage(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       dialyzer: [plt_add_apps: [:ex_unit]],
@@ -45,7 +38,16 @@ defmodule BnestApp.MixProject do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(:test) do
+    [
+      "lib",
+      "test/support",
+      "test/behaviour",
+      "test/unit/support",
+      "test/integration/support"
+    ]
+  end
+
   defp elixirc_paths(_), do: ["lib"]
 
   # Specifies your project dependencies.
@@ -57,6 +59,7 @@ defmodule BnestApp.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.0"},
+      {:ex_bdd, path: "../../libs/ex-bdd", only: :test},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
@@ -85,6 +88,48 @@ defmodule BnestApp.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"}
+    ]
+  end
+
+  defp test_coverage do
+    generated_or_static = [
+      BnestAppWeb.CoreComponents,
+      BnestAppWeb.ErrorHTML,
+      BnestAppWeb.Gettext,
+      BnestAppWeb.Layouts,
+      BnestAppWeb.PageController,
+      BnestAppWeb.PageHTML,
+      BnestAppWeb.Router
+    ]
+
+    {output, layer_exclusions} =
+      case System.get_env("BNEST_TEST_LAYER") do
+        "unit" ->
+          {"cover/unit",
+           [
+             BnestApp.Application,
+             BnestApp.Behaviour.IntegrationHomePageDriver,
+             BnestAppWeb.ConnCase,
+             BnestAppWeb.Endpoint,
+             BnestAppWeb.HelloLive,
+             BnestAppWeb.Telemetry
+           ]}
+
+        "integration" ->
+          {"cover/integration",
+           [
+             BnestApp.Behaviour.UnitHomePageDriver,
+             BnestAppWeb.ErrorJSON
+           ]}
+
+        _other ->
+          {"cover", []}
+      end
+
+    [
+      output: output,
+      summary: [threshold: 99],
+      ignore_modules: generated_or_static ++ layer_exclusions
     ]
   end
 

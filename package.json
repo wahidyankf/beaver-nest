@@ -15,7 +15,7 @@
     "prepare": "husky",
     "start": "npm exec nx run bnest-app:serve",
     "test": "npm exec -- nx run -p bnest-app -t test:unit",
-    "test:e2e": "npm exec -- nx run -p bnest-e2e -t test:e2e"
+    "test:e2e": "npm exec -- nx run -p bnest-app-e2e -t test:e2e"
   },
   "repository": {
     "type": "git",

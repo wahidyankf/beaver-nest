@@ -1,0 +1,88 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "bnest-app-e2e",
+  "projectType": "application",
+  "root": "apps/bnest-app-e2e",
+  "implicitDependencies": ["bnest-app"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- tsc --project apps/bnest-app-e2e/tsconfig.json --noEmit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- oxlint --deny typescript/no-explicit-any --deny-warnings apps/bnest-app-e2e",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
+    "lint": {
+      "command": "npm exec -- oxlint --deny correctness --deny suspicious --deny pedantic --deny perf --deny typescript/no-explicit-any --deny-warnings --report-unused-disable-directives apps/bnest-app-e2e"
+    },
+    "test:coverage:behaviour:e2e": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/*",
+        "{workspaceRoot}/specs/bnest/app/behaviours/**/*.feature",
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/package-lock.json"
+      ],
+      "outputs": ["{projectRoot}/.features-gen"],
+      "options": {
+        "commands": [
+          {
+            "command": "node --test apps/bnest-app-e2e/tools/behaviour-compliance.test.mts",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node apps/bnest-app-e2e/tools/check-behaviour-compliance.mts",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
+    "test:coverage:behaviour": {
+      "command": "npm exec -- nx run -p bnest-app -t test:coverage:behaviour",
+      "cache": false
+    },
+    "test:e2e": {
+      "command": "npm exec -- playwright test --config apps/bnest-app-e2e/playwright.config.mts",
+      "dependsOn": ["test:coverage:behaviour"],
+      "cache": false
+    },
+    "test:quick": {
+      "dependsOn": [
+        {
+          "projects": ["bnest-app"],
+          "target": "test:quick"
+        }
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p bnest-app-e2e -t typecheck",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app-e2e -t lint",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    }
+  },
+  "tags": []
+}

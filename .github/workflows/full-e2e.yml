@@ -42,8 +42,8 @@ jobs:
       - name: Run process end-to-end suite
         run: npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 
-  test:
-    name: Playwright full suite
+  bnest-test-symphony:
+    name: Bnest test symphony
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -70,8 +70,11 @@ jobs:
         run: mix deps.get
         working-directory: apps/bnest-app
 
+      - name: Run local integration suite
+        run: npm exec -- nx run -p bnest-app -t test:coverage:integration
+
       - name: Install Chromium and system dependencies
         run: npm exec -- playwright install --with-deps chromium
 
       - name: Run complete end-to-end suite
-        run: npm exec -- nx run -p bnest-e2e -t test:e2e -- --workers=1
+        run: npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1

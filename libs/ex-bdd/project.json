@@ -1,0 +1,83 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "ex-bdd",
+  "projectType": "library",
+  "root": "libs/ex-bdd",
+  "targets": {
+    "format": {
+      "command": "mix format --check-formatted",
+      "options": {
+        "cwd": "libs/ex-bdd"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "mix format --check-formatted",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "mix credo --strict",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "mix deps.unlock --check-unused",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "libs/ex-bdd",
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
+    "typecheck": {
+      "command": "MIX_ENV=test mix compile --warnings-as-errors --force",
+      "options": {
+        "cwd": "libs/ex-bdd"
+      },
+      "cache": false
+    },
+    "test:unit": {
+      "command": "MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors",
+      "options": {
+        "cwd": "libs/ex-bdd"
+      }
+    },
+    "test:coverage": {
+      "command": "MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover",
+      "options": {
+        "cwd": "libs/ex-bdd"
+      },
+      "outputs": ["{projectRoot}/cover"]
+    },
+    "test:quick": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p ex-bdd -t typecheck",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p ex-bdd -t lint",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p ex-bdd -t test:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p ex-bdd -t test:coverage",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    }
+  },
+  "tags": []
+}

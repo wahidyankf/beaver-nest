@@ -1,2 +1,7 @@
 # Third-party Phoenix assets are kept verbatim from their upstream source.
 apps/bnest-app/assets/vendor/
+
+# Gherkin Markdown and Cucumber conformance fixtures are parser inputs whose
+# whitespace and payload bytes are test data, not prose formatting targets.
+**/*.feature.md
+libs/ex-bdd/test/fixtures/cck/

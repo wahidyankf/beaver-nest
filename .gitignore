@@ -35,10 +35,10 @@ npm-debug.log*
 /test-results/
 /playwright-report/
 /blob-report/
-/apps/bnest-e2e/test-results/
-/apps/bnest-e2e/playwright-report/
-/apps/bnest-e2e/blob-report/
-/apps/bnest-e2e/.features-gen/
+/apps/bnest-app-e2e/test-results/
+/apps/bnest-app-e2e/playwright-report/
+/apps/bnest-app-e2e/blob-report/
+/apps/bnest-app-e2e/.features-gen/
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line

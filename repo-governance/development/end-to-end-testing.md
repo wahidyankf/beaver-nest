@@ -12,13 +12,13 @@ Use end-to-end tests sparingly because they are inherently slower and more expen
 For example:
 
 ```sh
-npm exec -- nx run -p bnest-e2e -t test:e2e -- --grep "A visitor opens Beaver Nest"
+npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "A visitor opens Beaver Nest"
 ```
 
-`bnest-e2e` drives the browser from recursively discovered Gherkin. `badakmini-cli-e2e` launches the built CLI as a child process and observes only public commands, exit codes, stdout, stderr, and local filesystem effects. Both keep fast `test:coverage:behaviour` in `test:quick` and runtime E2E outside it.
+`bnest-app-e2e` drives the browser from the same recursively discovered Gherkin used by Bnest unit and local-only integration tests. `badakmini-cli-e2e` launches the built CLI as a child process and observes only public commands, exit codes, stdout, stderr, and local filesystem effects. Both keep fast `test:coverage:behaviour` in `test:quick` and runtime E2E outside it.
 
 ## Full Suite
 
-The complete suites run in [GitHub Actions](../../.github/workflows/full-e2e.yml) every day at 06:00 and 18:00 in `Asia/Jakarta` (WIB). The Badakmini job runs its network-free local integration coverage before process E2E; the browser job remains independent. Manual dispatch supports exceptional broad validation or recovery, but routine development must use affected cases.
+The complete suites run in [GitHub Actions](../../.github/workflows/full-e2e.yml) every day at 06:00 and 18:00 in `Asia/Jakarta` (WIB). Each job runs its network-free local integration coverage before its E2E suite. Manual dispatch supports exceptional broad validation or recovery, but routine development must use affected cases.
 
 Keep the scheduled workflow pointed at the canonical `test:e2e` Nx target without case filters. Treat a scheduled failure as a real quality-gate failure: reproduce it, identify the root cause, fix the earliest responsible layer, and rerun the relevant verification without weakening or bypassing the test.
