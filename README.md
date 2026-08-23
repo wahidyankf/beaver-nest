@@ -16,6 +16,7 @@ Prerequisites:
 
 - Node.js and npm
 - Elixir and Erlang/OTP, including Mix
+- .NET 10 SDK
 - CMake, when a Phoenix dependency must compile from source
 
 Install dependencies and start the development server:
@@ -34,15 +35,19 @@ Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset w
 ```sh
 npm test
 npm exec -- nx run -p bnest-e2e -t test:e2e -- apps/bnest-e2e/tests/greeting.spec.ts
+npm exec -- nx run -p badakmini-cli -t test:integration
+npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 ```
 
-`npm test` runs the Phoenix test suite through Nx. Run only end-to-end cases affected by a change during development. A scheduled GitHub Actions workflow runs the complete Playwright suite at 06:00 and 18:00 WIB.
+`npm test` runs the Phoenix test suite through Nx. Run only affected end-to-end cases during development. Scheduled GitHub Actions jobs independently run the complete browser suite and the Badakmini integration-to-E2E sequence at 06:00 and 18:00 WIB.
 
 ## Repository layout
 
 ```text
 apps/bnest-app/  Phoenix LiveView application
 apps/bnest-e2e/  Playwright end-to-end tests
+apps/badakmini-cli/  F# governance CLI with unit and integration tests
+apps/badakmini-cli-e2e/  Process end-to-end tests for the CLI
 data/            Ignored local system and user data placeholders
 docs/            Diátaxis-organized, non-rule documentation
 libs/            Shared workspace libraries

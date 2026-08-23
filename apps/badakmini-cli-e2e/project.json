@@ -1,0 +1,95 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "badakmini-cli-e2e",
+  "projectType": "application",
+  "root": "apps/badakmini-cli-e2e",
+  "implicitDependencies": ["badakmini-cli"],
+  "targets": {
+    "typecheck": {
+      "command": "badakmini_e2e_typecheck_dir=$(mktemp -d /tmp/badakmini-e2e-typecheck.XXXXXX) && trap 'rm -rf -- \"$badakmini_e2e_typecheck_dir\"' EXIT HUP INT TERM && dotnet build Badakmini.Cli.E2eTests.fsproj --configuration Release --artifacts-path \"$badakmini_e2e_typecheck_dir\"",
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+      ],
+      "options": {
+        "cwd": "apps/badakmini-cli-e2e"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "inputs": ["default", "^default"],
+      "options": {
+        "commands": [
+          {
+            "command": "fantomas . --check",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet fsharplint lint Badakmini.Cli.E2eTests.fsproj",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "apps/badakmini-cli-e2e",
+        "forwardAllArgs": false,
+        "parallel": true
+      }
+    },
+    "test:coverage:behaviour": {
+      "command": "npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour",
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+      ],
+      "outputs": [
+        "{projectRoot}/bin",
+        "{projectRoot}/obj",
+        "{workspaceRoot}/apps/badakmini-cli/tests/unit/bin",
+        "{workspaceRoot}/apps/badakmini-cli/tests/unit/obj",
+        "{workspaceRoot}/apps/badakmini-cli/tests/integration/bin",
+        "{workspaceRoot}/apps/badakmini-cli/tests/integration/obj"
+      ]
+    },
+    "test:e2e": {
+      "dependsOn": ["^build", "test:coverage:behaviour"],
+      "command": "dotnet test Badakmini.Cli.E2eTests.fsproj --configuration Release",
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+      ],
+      "options": {
+        "cwd": "apps/badakmini-cli-e2e"
+      },
+      "outputs": ["{projectRoot}/bin", "{projectRoot}/obj"]
+    },
+    "test:quick": {
+      "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p badakmini-cli-e2e -t typecheck",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p badakmini-cli-e2e -t lint",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p badakmini-cli-e2e -t test:coverage:behaviour",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    }
+  },
+  "tags": []
+}

@@ -1,0 +1,33 @@
+# badakmini-cli-e2e
+
+This Nx app owns process-level end-to-end tests for `badakmini-cli`. It launches the built release DLL with `dotnet`, uses isolated temporary repositories, and observes only public commands, exit codes, stdout, stderr, and filesystem effects.
+
+## Tasks
+
+Run from the repository root:
+
+| Task                         | Command                                                              |
+| ---------------------------- | -------------------------------------------------------------------- |
+| Check behavior completeness  | `npm exec -- nx run -p badakmini-cli-e2e -t test:coverage:behaviour` |
+| Run process E2E scenarios    | `npm exec -- nx run -p badakmini-cli-e2e -t test:e2e`                |
+| Run fast harness checks      | `npm exec -- nx run -p badakmini-cli-e2e -t test:quick`              |
+| Type-check the test assembly | `npm exec -- nx run -p badakmini-cli-e2e -t typecheck`               |
+| Lint and format-check F#     | `npm exec -- nx run -p badakmini-cli-e2e -t lint`                    |
+
+`test:e2e` builds `badakmini-cli`, checks behavior completeness across unit, integration, and E2E adapters, then executes every canonical scenario. `test:quick` never launches the CLI process; it runs type checking, linting, and static behavior completeness only.
+
+## Shared Specification
+
+The project recursively embeds the exact corpus below [`specs/badakmini/cli/behaviours/`](../../specs/badakmini/cli/behaviours/). Shared TickSpec bindings and the driver contract come from [`apps/badakmini-cli/tests/contract/`](../badakmini-cli/tests/contract/). The [E2E driver](E2eDriver.fs) translates internal inspection steps into stable `--format json` CLI observations; ordinary command-contract scenarios retain default text output.
+
+The same feature, expanded scenario, and step must execute at unit, local-only integration, and process E2E levels. `test:coverage:behaviour` proves exact resource parity, one binding per step, no unused bindings, and a complete driver without running runtime scenarios.
+
+## Scheduling
+
+The independent **Badakmini test symphony** job in the [scheduled workflow](../../.github/workflows/full-e2e.yml) runs network-free integration coverage before this process E2E suite at 06:00 and 18:00 WIB. Runtime E2E remains outside `test:quick` and Git hooks.
+
+## Structure
+
+- `Badakmini.Cli.E2eTests.fsproj` embeds shared specifications and builds the test assembly.
+- `E2eDriver.fs` manages temporary repositories and child-process observations.
+- `project.json` exposes Nx typecheck, lint, behavior, quick, and E2E targets.

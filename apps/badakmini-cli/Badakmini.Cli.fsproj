@@ -10,6 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Runtime.fs" />
     <Compile Include="Governance.fs" />
     <Compile Include="Cli.fs" />
     <Compile Include="Program.fs" />

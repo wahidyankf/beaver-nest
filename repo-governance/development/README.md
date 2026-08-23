@@ -16,6 +16,6 @@ A development standard should identify:
 ## Directory Map
 
 - [Behaviour-driven development](behaviour-driven-development.md) governs executable Gherkin specifications and adapter-specific binding contracts.
-- [End-to-end testing](end-to-end-testing.md) limits slow browser tests to affected journeys during development and schedules full-suite coverage.
-- [Quality gates](quality-gates.md) standardize project checks, coverage, end-to-end verification, and Git hook safeguards.
+- [End-to-end testing](end-to-end-testing.md) limits slow public-boundary tests to affected journeys during development and schedules full-suite coverage.
+- [Quality gates](quality-gates.md) define unit, local-only integration, dedicated-app E2E, coverage, and Git hook safeguards.
 - [Test-driven development](test-driven-development.md) requires app and library behavior to be developed through red–green–refactor cycles.

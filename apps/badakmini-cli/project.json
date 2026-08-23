@@ -12,58 +12,108 @@
       "outputs": ["{projectRoot}/bin", "{projectRoot}/obj"]
     },
     "typecheck": {
-      "command": "badakmini_typecheck_dir=$(mktemp -d /tmp/badakmini-typecheck.XXXXXX) && trap 'rm -rf -- \"$badakmini_typecheck_dir\"' EXIT HUP INT TERM && dotnet build tests/Badakmini.Cli.Tests.fsproj --configuration Release --artifacts-path \"$badakmini_typecheck_dir\"",
+      "command": "badakmini_typecheck_dir=$(mktemp -d /tmp/badakmini-typecheck.XXXXXX) && trap 'rm -rf -- \"$badakmini_typecheck_dir\"' EXIT HUP INT TERM && dotnet build tests/unit/Badakmini.Cli.UnitTests.fsproj --configuration Release --artifacts-path \"$badakmini_typecheck_dir/unit\" && dotnet build tests/integration/Badakmini.Cli.IntegrationTests.fsproj --configuration Release --artifacts-path \"$badakmini_typecheck_dir/integration\"",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
-        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "cwd": "apps/badakmini-cli"
       }
     },
     "test:unit": {
-      "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Release",
+      "command": "dotnet test tests/unit/Badakmini.Cli.UnitTests.fsproj --configuration Release --filter 'FullyQualifiedName!~FeatureComplianceTests&FullyQualifiedName!~UnitPolicyTests'",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
-        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
-      ],
-      "options": {
-        "cwd": "apps/badakmini-cli"
-      },
-      "outputs": ["{projectRoot}/tests/bin", "{projectRoot}/tests/obj"]
-    },
-    "test:coverage:unit": {
-      "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Debug /p:CollectCoverage=true /p:Threshold=99 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../coverage/application/",
-      "inputs": [
-        "default",
-        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
-        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "cwd": "apps/badakmini-cli"
       },
       "outputs": [
-        "{projectRoot}/coverage/application",
-        "{projectRoot}/tests/bin",
-        "{projectRoot}/tests/obj"
+        "{projectRoot}/tests/unit/bin",
+        "{projectRoot}/tests/unit/obj"
+      ]
+    },
+    "test:integration": {
+      "command": "dotnet test tests/integration/Badakmini.Cli.IntegrationTests.fsproj --configuration Release",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+      ],
+      "options": {
+        "cwd": "apps/badakmini-cli"
+      },
+      "outputs": [
+        "{projectRoot}/tests/integration/bin",
+        "{projectRoot}/tests/integration/obj"
+      ]
+    },
+    "test:coverage:unit": {
+      "command": "dotnet test tests/unit/Badakmini.Cli.UnitTests.fsproj --configuration Debug --filter 'FullyQualifiedName!~FeatureComplianceTests&FullyQualifiedName!~UnitPolicyTests' /p:CollectCoverage=true '/p:ExcludeByFile=**/Runtime.fs%2c**/Program.fs' /p:Threshold=99 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../../coverage/unit-core/",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+      ],
+      "options": {
+        "cwd": "apps/badakmini-cli"
+      },
+      "outputs": [
+        "{projectRoot}/coverage/unit-core",
+        "{projectRoot}/tests/unit/bin",
+        "{projectRoot}/tests/unit/obj"
+      ]
+    },
+    "test:coverage:integration": {
+      "command": "dotnet test tests/integration/Badakmini.Cli.IntegrationTests.fsproj --configuration Debug /p:CollectCoverage=true /p:Threshold=99 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../../coverage/integration-application/",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*"
+      ],
+      "options": {
+        "cwd": "apps/badakmini-cli"
+      },
+      "outputs": [
+        "{projectRoot}/coverage/integration-application",
+        "{projectRoot}/tests/integration/bin",
+        "{projectRoot}/tests/integration/obj"
       ]
     },
     "test:coverage:behaviour": {
-      "command": "dotnet test tests/Badakmini.Cli.Tests.fsproj --configuration Debug /p:CollectCoverage=true /p:IncludeTestAssembly=true '/p:Include=[Badakmini.Cli.Tests]Badakmini.Cli.BehaviourSteps*' /p:Threshold=100 /p:ThresholdType=line /p:ThresholdStat=total /p:CoverletOutput=../coverage/behaviour-steps/",
+      "executor": "nx:run-commands",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
-        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+        "{workspaceRoot}/apps/badakmini-cli-e2e/*.fs",
+        "{workspaceRoot}/apps/badakmini-cli-e2e/*.fsproj",
+        "{workspaceRoot}/apps/badakmini-cli-e2e/project.json"
       ],
       "options": {
-        "cwd": "apps/badakmini-cli"
+        "commands": [
+          {
+            "command": "dotnet test tests/unit/Badakmini.Cli.UnitTests.fsproj --configuration Release --filter 'FullyQualifiedName~FeatureComplianceTests|FullyQualifiedName~UnitPolicyTests'",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet test tests/integration/Badakmini.Cli.IntegrationTests.fsproj --configuration Release --filter 'FullyQualifiedName~FeatureComplianceTests|FullyQualifiedName~IntegrationPolicyTests'",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet test ../badakmini-cli-e2e/Badakmini.Cli.E2eTests.fsproj --configuration Release --filter FullyQualifiedName~FeatureComplianceTests",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "apps/badakmini-cli",
+        "forwardAllArgs": false,
+        "parallel": false
       },
       "outputs": [
-        "{projectRoot}/coverage/behaviour-steps",
-        "{projectRoot}/tests/bin",
-        "{projectRoot}/tests/obj"
+        "{projectRoot}/tests/unit/bin",
+        "{projectRoot}/tests/unit/obj",
+        "{projectRoot}/tests/integration/bin",
+        "{projectRoot}/tests/integration/obj",
+        "{workspaceRoot}/apps/badakmini-cli-e2e/bin",
+        "{workspaceRoot}/apps/badakmini-cli-e2e/obj"
       ]
     },
     "test:coverage": {
@@ -71,12 +121,18 @@
       "inputs": [
         "default",
         "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
-        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+        "{workspaceRoot}/apps/badakmini-cli-e2e/*.fs",
+        "{workspaceRoot}/apps/badakmini-cli-e2e/*.fsproj",
+        "{workspaceRoot}/apps/badakmini-cli-e2e/project.json"
       ],
       "options": {
         "commands": [
           {
             "command": "npm exec -- nx run -p badakmini-cli -t test:coverage:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p badakmini-cli -t test:coverage:integration",
             "forwardAllArgs": false
           },
           {
@@ -89,8 +145,10 @@
       },
       "outputs": [
         "{projectRoot}/coverage",
-        "{projectRoot}/tests/bin",
-        "{projectRoot}/tests/obj"
+        "{projectRoot}/tests/unit/bin",
+        "{projectRoot}/tests/unit/obj",
+        "{projectRoot}/tests/integration/bin",
+        "{projectRoot}/tests/integration/obj"
       ]
     },
     "test:quick": {
@@ -98,7 +156,9 @@
       "inputs": [
         "default",
         "{workspaceRoot}/specs/badakmini/cli/behaviours/**/*",
-        "{workspaceRoot}/specs/badakmini/cli/fixtures/**/*"
+        "{workspaceRoot}/apps/badakmini-cli-e2e/*.fs",
+        "{workspaceRoot}/apps/badakmini-cli-e2e/*.fsproj",
+        "{workspaceRoot}/apps/badakmini-cli-e2e/project.json"
       ],
       "options": {
         "commands": [
@@ -140,7 +200,11 @@
             "forwardAllArgs": false
           },
           {
-            "command": "dotnet fsharplint lint tests/Badakmini.Cli.Tests.fsproj",
+            "command": "dotnet fsharplint lint tests/unit/Badakmini.Cli.UnitTests.fsproj",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet fsharplint lint tests/integration/Badakmini.Cli.IntegrationTests.fsproj",
             "forwardAllArgs": false
           }
         ],

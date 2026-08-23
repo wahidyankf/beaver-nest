@@ -2,6 +2,7 @@ module Badakmini.Cli.BehaviourSteps
 
 open TickSpec
 open Badakmini.Cli.BehaviourSupport
+open Badakmini.Cli.BehaviourTests
 
 [<BeforeScenario>]
 let createScenarioContext () =
@@ -231,3 +232,11 @@ let ``stderr lines start with "(.*)"`` (prefix: string) (context: ScenarioContex
 [<Then>]
 let ``stdout is empty`` (context: ScenarioContext) =
     BehaviourSupport.``stdout is empty`` context
+
+[<Then>]
+let ``stdout JSON property "(.*)" is (\d+)`` (property: string) (expected: int) (context: ScenarioContext) =
+    BehaviourSupport.``stdout JSON property "(.*)" is (\d+)`` property expected context
+
+[<Then>]
+let ``the first stdout JSON violation kind is "(.*)"`` (expected: string) (context: ScenarioContext) =
+    BehaviourSupport.``the first stdout JSON violation kind is "(.*)"`` expected context

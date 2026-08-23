@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../contract/BehaviourContract.fs" Link="Contract/BehaviourContract.fs" />
+    <Compile Include="IntegrationDriver.fs" />
+    <Compile Include="../contract/BehaviourCompliance.fs" Link="Contract/BehaviourCompliance.fs" />
+    <Compile Include="../contract/BehaviourSupport.fs" Link="Contract/BehaviourSupport.fs" />
+    <Compile Include="../contract/BehaviourSteps.fs" Link="Contract/BehaviourSteps.fs" />
+    <Compile Include="../contract/BehaviourComplianceTests.fs" Link="Contract/BehaviourComplianceTests.fs" />
+    <Compile Include="IntegrationPolicyTests.fs" />
+    <Compile Include="../contract/CliContractTests.fs" Link="Contract/CliContractTests.fs" />
+    <Compile Include="IntegrationApplicationTests.fs" />
+    <Compile Include="../contract/BehaviourTests.fs" Link="Contract/BehaviourTests.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../../../../specs/badakmini/cli/behaviours/**/*.feature"
+                      Link="Behaviours/%(RecursiveDir)%(Filename)%(Extension)"
+                      LogicalName="Badakmini.Cli.Specs.%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.msbuild" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="TickSpec" Version="2.0.5" />
+    <PackageReference Include="TickSpec.Xunit" Version="2.0.4" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../Badakmini.Cli.fsproj" />
+  </ItemGroup>
+
+</Project>

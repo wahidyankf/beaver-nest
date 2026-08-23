@@ -1,87 +1,10 @@
 module Badakmini.Cli.BehaviourSupport
 
 open System
-open System.Collections.Generic
-open System.IO
+open System.Text.Json
 open TickSpec
 open global.Xunit
-open Badakmini.Cli
-
-type ScenarioContext() =
-    let root = Path.Combine(Path.GetTempPath(), $"badakmini-cli-{Guid.NewGuid():N}")
-    let resources = ResizeArray<IDisposable>()
-    let mutable markdownFiles: MarkdownFile list = []
-    let mutable violations: GovernanceViolation list = []
-    let mutable directoryCount: int option = None
-    let mutable diagramCount: int option = None
-    let mutable wordCount: int option = None
-    let mutable exceptionRaised: exn option = None
-    let mutable exitCode: int option = None
-    let mutable standardOutput = ""
-    let mutable standardError = ""
-
-    do Directory.CreateDirectory(root) |> ignore
-
-    member _.Root = root
-
-    member _.MarkdownFiles
-        with get () = markdownFiles
-        and set value = markdownFiles <- value
-
-    member _.Violations
-        with get () = violations
-        and set value = violations <- value
-
-    member _.DirectoryCount
-        with get () = directoryCount
-        and set value = directoryCount <- value
-
-    member _.DiagramCount
-        with get () = diagramCount
-        and set value = diagramCount <- value
-
-    member _.WordCount
-        with get () = wordCount
-        and set value = wordCount <- value
-
-    member _.ExceptionRaised
-        with get () = exceptionRaised
-        and set value = exceptionRaised <- value
-
-    member _.ExitCode
-        with get () = exitCode
-        and set value = exitCode <- value
-
-    member _.StandardOutput
-        with get () = standardOutput
-        and set value = standardOutput <- value
-
-    member _.StandardError
-        with get () = standardError
-        and set value = standardError <- value
-
-    member _.Write(relativePath: string, content: string) =
-        let path = Path.Combine(root, relativePath)
-        let directory = Path.GetDirectoryName path
-
-        if not (String.IsNullOrEmpty directory) then
-            Directory.CreateDirectory(directory) |> ignore
-
-        File.WriteAllText(path, content)
-
-    member _.Lock(relativePath: string) =
-        let stream =
-            new FileStream(Path.Combine(root, relativePath), FileMode.Open, FileAccess.Read, FileShare.None)
-
-        resources.Add stream
-
-    interface IDisposable with
-        member _.Dispose() =
-            for resource in Seq.rev resources do
-                resource.Dispose()
-
-            if Directory.Exists root then
-                Directory.Delete(root, true)
+open Badakmini.Cli.BehaviourTests
 
 let private words count =
     Seq.replicate count "word" |> String.concat " "
@@ -170,43 +93,6 @@ let private cell name row =
     | Some value -> value
     | None -> failwithf "Behaviour table is missing the '%s' column." name
 
-let private violationKind =
-    function
-    | WordLimitExceeded _ -> "word limit exceeded"
-    | MissingReadme _ -> "missing README"
-    | MissingDirectoryMap _ -> "missing directory map"
-    | MissingMapEntry _ -> "missing map entry"
-    | InvalidMapEntry _ -> "invalid map entry"
-    | MermaidAccessibilityViolation _ -> "Mermaid accessibility"
-
-let private captureConsole action =
-    let originalOut = Console.Out
-    let originalError = Console.Error
-    use output = new StringWriter()
-    use error = new StringWriter()
-
-    try
-        Console.SetOut output
-        Console.SetError error
-        let result = action ()
-        result, output.ToString(), error.ToString()
-    finally
-        Console.SetOut originalOut
-        Console.SetError originalError
-
-let private setCliResult (context: ScenarioContext) action =
-    let result, output, error = captureConsole action
-    context.ExitCode <- Some result
-    context.StandardOutput <- output
-    context.StandardError <- error
-
-let private commandArguments validator =
-    match validator with
-    | "word-budget" -> [| "governance"; "word-budget"; "validate" |]
-    | "directory-map" -> [| "governance"; "directory-map"; "validate" |]
-    | "mermaid" -> [| "md"; "mermaid"; "validate" |]
-    | _ -> failwithf "Unknown validator '%s'." validator
-
 let private assertLinesStartWith prefix (text: string) =
     let lines = text.Split([| '\r'; '\n' |], StringSplitOptions.RemoveEmptyEntries)
     Assert.NotEmpty lines
@@ -214,26 +100,27 @@ let private assertLinesStartWith prefix (text: string) =
     for line in lines do
         Assert.StartsWith(prefix, line)
 
-let createScenarioContext () = new ScenarioContext()
+let createScenarioContext () =
+    new ScenarioContext(BehaviourDriverFactory.create ())
 
 let ``an empty repository`` (_: ScenarioContext) = ()
 
 let ``the repository contains:`` (table: Table) (context: ScenarioContext) =
     for row in tableRows table do
-        context.Write(cell "path" row, cell "content" row |> expandInlineMarkdown)
+        context.Driver.Write(cell "path" row, cell "content" row |> expandInlineMarkdown)
 
 let ``file "(.*)" contains (\d+) words`` (path: string) (count: int) (context: ScenarioContext) =
-    context.Write(path, words count)
+    context.Driver.Write(path, words count)
 
 let ``file "(.*)" contains this Markdown:`` (path: string) (content: string) (context: ScenarioContext) =
-    context.Write(path, expandInlineMarkdown content)
+    context.Driver.Write(path, expandInlineMarkdown content)
 
 let ``file "(.*)" has title "(.*)" and an empty directory map``
     (path: string)
     (title: string)
     (context: ScenarioContext)
     =
-    context.Write(path, emptyDirectoryMap title)
+    context.Driver.Write(path, emptyDirectoryMap title)
 
 let ``file "(.*)" has an empty "(.*)" directory map followed by (\d+) words``
     (path: string)
@@ -241,7 +128,7 @@ let ``file "(.*)" has an empty "(.*)" directory map followed by (\d+) words``
     (count: int)
     (context: ScenarioContext)
     =
-    context.Write(path, emptyDirectoryMap title + "\n\n" + words count)
+    context.Driver.Write(path, emptyDirectoryMap title + "\n\n" + words count)
 
 let ``an unsafe "(.*)" Mermaid diagram exists at "(.*)" using (.*) fences``
     (header: string)
@@ -255,97 +142,72 @@ let ``an unsafe "(.*)" Mermaid diagram exists at "(.*)" using (.*) fences``
         | "tilde" -> "~~~"
         | _ -> failwithf "Unknown Mermaid fence '%s'." fenceName
 
-    context.Write(path, coloredMermaid fence header "#FF0000")
+    context.Driver.Write(path, coloredMermaid fence header "#FF0000")
 
 let ``the repository contains Mermaid sample "(.*)" at "(.*)"``
     (sample: string)
     (path: string)
     (context: ScenarioContext)
     =
-    context.Write(path, mermaidSample sample)
+    context.Driver.Write(path, mermaidSample sample)
 
 let ``each excluded directory contains an unsafe Mermaid diagram:``
     (directories: string array)
     (context: ScenarioContext)
     =
     for directory in directories do
-        context.Write($"{directory}/diagram.md", coloredMermaid "```" "flowchart LR" "#FF0000")
+        context.Driver.Write($"{directory}/diagram.md", coloredMermaid "```" "flowchart LR" "#FF0000")
 
 let ``the governed files are exclusively locked`` (context: ScenarioContext) =
-    context.Write("AGENTS.md", "# Instructions")
-    context.Write("repo-governance/README.md", emptyDirectoryMap "Governance")
-    context.Lock "AGENTS.md"
-    context.Lock "repo-governance/README.md"
+    context.Driver.Write("AGENTS.md", "# Instructions")
+    context.Driver.Write("repo-governance/README.md", emptyDirectoryMap "Governance")
+    context.Driver.Lock "AGENTS.md"
+    context.Driver.Lock "repo-governance/README.md"
 
 let ``Markdown text containing a heading marker, Hello, can't-stop, naïve, and 42`` (context: ScenarioContext) =
-    context.Write("subject.md", "# Hello, can't-stop! naïve 42")
+    context.Driver.Write("subject.md", "# Hello, can't-stop! naïve 42")
 
 let ``I count the words in "(.*)"`` (path: string) (context: ScenarioContext) =
-    File.ReadAllText(Path.Combine(context.Root, path))
-    |> Governance.countWords
-    |> Some
-    |> fun count -> context.WordCount <- count
+    context.WordCount <- context.Driver.CountWords path |> Some
 
 let ``I scan governed Markdown`` (context: ScenarioContext) =
-    context.MarkdownFiles <- Governance.scanRepository context.Root
+    context.MarkdownPaths <- context.Driver.ScanGovernedMarkdown()
     context.Violations <- []
 
 let ``I find word-limit violations`` (context: ScenarioContext) =
-    context.MarkdownFiles <- Governance.scanRepository context.Root
-    context.Violations <- context.MarkdownFiles |> Governance.findViolations |> List.map WordLimitExceeded
+    let paths, violations = context.Driver.FindWordLimitViolations()
+    context.MarkdownPaths <- paths
+    context.Violations <- violations
 
 let ``I inspect the word budget`` (context: ScenarioContext) =
-    let inspection = Governance.inspectWordBudget context.Root
-    context.MarkdownFiles <- inspection.MarkdownFiles
-    context.Violations <- inspection.Violations
+    let paths, violations = context.Driver.InspectWordBudget()
+    context.MarkdownPaths <- paths
+    context.Violations <- violations
 
 let ``I inspect directory maps`` (context: ScenarioContext) =
-    let inspection = Governance.inspectDirectoryMaps context.Root
-    context.DirectoryCount <- Some inspection.DirectoryCount
-    context.Violations <- inspection.Violations
+    let count, violations = context.Driver.InspectDirectoryMaps()
+    context.DirectoryCount <- Some count
+    context.Violations <- violations
 
 let ``I inspect directory maps under the invalid "(.*)" location`` (location: string) (context: ScenarioContext) =
-    let directory =
-        match location with
-        | "empty path" -> ""
-        | "absolute repository root" -> context.Root
-        | "outside repository" -> "../outside"
-        | _ -> failwithf "Unknown invalid directory location '%s'." location
-
-    try
-        Governance.inspectDirectoryMapsAt context.Root directory |> ignore
-        context.ExceptionRaised <- None
-    with ex ->
-        context.ExceptionRaised <- Some ex
+    context.ArgumentErrorRaised <- context.Driver.InspectDirectoryMapsAtInvalidLocation location
 
 let ``I inspect Mermaid accessibility`` (context: ScenarioContext) =
-    let inspection = Governance.inspectMermaidAccessibility context.Root
-    context.DiagramCount <- Some inspection.DiagramCount
-    context.Violations <- inspection.Violations
+    let count, violations = context.Driver.InspectMermaidAccessibility()
+    context.DiagramCount <- Some count
+    context.Violations <- violations
 
 let ``I run the "(.*)" validator`` (validator: string) (context: ScenarioContext) =
-    let arguments =
-        Array.append (commandArguments validator) [| "--root"; context.Root |]
-
-    setCliResult context (fun () -> Program.main arguments)
+    context.CommandResult <- context.Driver.RunValidator validator |> Some
 
 let ``I run the directory-map validator for "(.*)"`` (directory: string) (context: ScenarioContext) =
-    let arguments =
-        [| "governance"
-           "directory-map"
-           "validate"
-           "--directory"
-           directory
-           "--root"
-           context.Root |]
-
-    setCliResult context (fun () -> Program.main arguments)
+    context.CommandResult <- context.Driver.RunDirectoryMapValidator directory |> Some
 
 let ``I invoke the CLI with "(.*)"`` (argumentText: string) (context: ScenarioContext) =
     let replaceArgument argument =
         match argument with
-        | "{root}" -> context.Root
-        | "{missing-root}" -> Path.Combine(context.Root, "missing")
+        | "{root}" -> context.Driver.Root
+        | "{missing-root}" -> System.IO.Path.Combine(context.Driver.Root, "missing")
         | value -> value
 
     let arguments =
@@ -354,25 +216,18 @@ let ``I invoke the CLI with "(.*)"`` (argumentText: string) (context: ScenarioCo
         else
             argumentText.Split('|') |> Array.map replaceArgument
 
-    setCliResult context (fun () -> Program.main arguments)
+    context.CommandResult <- context.Driver.InvokeCli arguments |> Some
 
 let ``I invoke the CLI from the repository directory with "(.*)"`` (argumentText: string) (context: ScenarioContext) =
-    let original = Directory.GetCurrentDirectory()
-
-    try
-        Directory.SetCurrentDirectory context.Root
-        let arguments = argumentText.Split('|')
-        setCliResult context (fun () -> Program.main arguments)
-    finally
-        Directory.SetCurrentDirectory original
+    context.CommandResult <- context.Driver.InvokeCliFromRepository(argumentText.Split('|')) |> Some
 
 let ``the word count is (\d+)`` (expected: int) (context: ScenarioContext) =
     Assert.Equal(Some expected, context.WordCount)
 
 let ``the scanned Markdown paths are:`` (expectedPaths: string array) (context: ScenarioContext) =
-    Assert.Equal<string list>(expectedPaths |> Array.toList, context.MarkdownFiles |> List.map _.Path)
+    Assert.Equal<string list>(expectedPaths |> Array.toList, context.MarkdownPaths)
 
-let ``no Markdown files are scanned`` (context: ScenarioContext) = Assert.Empty context.MarkdownFiles
+let ``no Markdown files are scanned`` (context: ScenarioContext) = Assert.Empty context.MarkdownPaths
 
 let ``there are no violations`` (context: ScenarioContext) = Assert.Empty context.Violations
 
@@ -380,82 +235,76 @@ let ``there are (\d+) violations`` (expected: int) (context: ScenarioContext) =
     Assert.Equal(expected, context.Violations.Length)
 
 let ``all violations are "(.*)"`` (expectedKind: string) (context: ScenarioContext) =
-    Assert.All(context.Violations, fun violation -> Assert.Equal(expectedKind, violationKind violation))
+    Assert.All(context.Violations, fun violation -> Assert.Equal(expectedKind, violation.Kind))
 
 let ``the only violation is a (\d+)-word limit for "(.*)"``
     (expectedCount: int)
     (expectedPath: string)
     (context: ScenarioContext)
     =
-    match Assert.Single context.Violations with
-    | WordLimitExceeded file ->
-        Assert.Equal(expectedPath, file.Path)
-        Assert.Equal(expectedCount, file.WordCount)
-    | violation -> failwithf "Expected WordLimitExceeded, got %A" violation
+    let violation = Assert.Single context.Violations
+    Assert.Equal("word limit exceeded", violation.Kind)
+    Assert.Equal(expectedPath, violation.Path)
+    Assert.Equal(Some expectedCount, violation.WordCount)
 
 let ``the only violation is a missing directory map at "(.*)"`` (expectedPath: string) (context: ScenarioContext) =
-    match Assert.Single context.Violations with
-    | MissingDirectoryMap path -> Assert.Equal(expectedPath, path)
-    | violation -> failwithf "Expected MissingDirectoryMap, got %A" violation
+    let violation = Assert.Single context.Violations
+    Assert.Equal("missing directory map", violation.Kind)
+    Assert.Equal(expectedPath, violation.Path)
 
 let ``the only violation is a missing README at "(.*)"`` (expectedPath: string) (context: ScenarioContext) =
-    match Assert.Single context.Violations with
-    | MissingReadme path -> Assert.Equal(expectedPath, path)
-    | violation -> failwithf "Expected MissingReadme, got %A" violation
+    let violation = Assert.Single context.Violations
+    Assert.Equal("missing README", violation.Kind)
+    Assert.Equal(expectedPath, violation.Path)
 
 let ``the only violation is a missing map entry from "(.*)" to "(.*)"``
     (expectedReadme: string)
     (expectedSibling: string)
     (context: ScenarioContext)
     =
-    match Assert.Single context.Violations with
-    | MissingMapEntry(readme, sibling) ->
-        Assert.Equal(expectedReadme, readme)
-        Assert.Equal(expectedSibling, sibling)
-    | violation -> failwithf "Expected MissingMapEntry, got %A" violation
+    let violation = Assert.Single context.Violations
+    Assert.Equal("missing map entry", violation.Kind)
+    Assert.Equal(expectedReadme, violation.Path)
+    Assert.Equal(Some expectedSibling, violation.RelatedPath)
 
 let ``the only violation is an invalid map entry from "(.*)" to "(.*)"``
     (expectedReadme: string)
     (expectedTarget: string)
     (context: ScenarioContext)
     =
-    match Assert.Single context.Violations with
-    | InvalidMapEntry(readme, target) ->
-        Assert.Equal(expectedReadme, readme)
-        Assert.Equal(expectedTarget, target)
-    | violation -> failwithf "Expected InvalidMapEntry, got %A" violation
+    let violation = Assert.Single context.Violations
+    Assert.Equal("invalid map entry", violation.Kind)
+    Assert.Equal(expectedReadme, violation.Path)
+    Assert.Equal(Some expectedTarget, violation.Target)
 
 let ``the violations include an overlong "(.*)" and its missing map entry for "(.*)"``
     (expectedReadme: string)
     (expectedSibling: string)
     (context: ScenarioContext)
     =
-    let wordViolation =
-        Governance.inspectWordBudget(context.Root).Violations |> Assert.Single
-
-    let mapViolation =
-        Governance.inspectDirectoryMaps(context.Root).Violations |> Assert.Single
-
-    match wordViolation, mapViolation with
-    | WordLimitExceeded file, MissingMapEntry(readme, sibling) ->
-        Assert.Equal(expectedReadme, file.Path)
-        Assert.True(file.WordCount > Governance.WordLimit)
-        Assert.Equal(expectedReadme, readme)
-        Assert.Equal(expectedSibling, sibling)
-    | violations -> failwithf "Expected both violations, got %A" violations
+    let _, wordViolations = context.Driver.InspectWordBudget()
+    let _, mapViolations = context.Driver.InspectDirectoryMaps()
+    let wordViolation = Assert.Single wordViolations
+    let mapViolation = Assert.Single mapViolations
+    Assert.Equal("word limit exceeded", wordViolation.Kind)
+    Assert.Equal(expectedReadme, wordViolation.Path)
+    Assert.True(wordViolation.WordCount |> Option.exists (fun count -> count > 500))
+    Assert.Equal("missing map entry", mapViolation.Kind)
+    Assert.Equal(expectedReadme, mapViolation.Path)
+    Assert.Equal(Some expectedSibling, mapViolation.RelatedPath)
 
 let ``the only violation is a Mermaid accessibility issue at "(.*)"``
     (expectedPath: string)
     (context: ScenarioContext)
     =
-    match Assert.Single context.Violations with
-    | MermaidAccessibilityViolation issue -> Assert.Equal(expectedPath, issue.Path)
-    | violation -> failwithf "Expected MermaidAccessibilityViolation, got %A" violation
+    let violation = Assert.Single context.Violations
+    Assert.Equal("Mermaid accessibility", violation.Kind)
+    Assert.Equal(expectedPath, violation.Path)
 
 let ``the formatted violation starts with "(.*)"`` (expectedPrefix: string) (context: ScenarioContext) =
     context.Violations
     |> Assert.Single
-    |> Governance.formatViolation
+    |> _.Diagnostic
     |> fun diagnostic -> Assert.StartsWith(expectedPrefix, diagnostic)
 
 let ``(\d+) directories were inspected`` (expected: int) (context: ScenarioContext) =
@@ -465,18 +314,28 @@ let ``(\d+) Mermaid diagrams were inspected`` (expected: int) (context: Scenario
     Assert.Equal(Some expected, context.DiagramCount)
 
 let ``an argument error is raised`` (context: ScenarioContext) =
-    match context.ExceptionRaised with
-    | Some(:? ArgumentException) -> ()
-    | Some ex -> failwithf "Expected ArgumentException, got %s" (ex.GetType().FullName)
-    | None -> failwith "Expected ArgumentException, but no exception was raised."
+    Assert.True(context.ArgumentErrorRaised, "Expected ArgumentException, but no argument error was observed.")
 
 let ``the exit code is (\d+)`` (expected: int) (context: ScenarioContext) =
-    Assert.Equal(Some expected, context.ExitCode)
+    Assert.Equal(expected, context.CommandResult.Value.ExitCode)
 
 let ``stdout lines start with "(.*)"`` (prefix: string) (context: ScenarioContext) =
-    assertLinesStartWith prefix context.StandardOutput
+    assertLinesStartWith prefix context.CommandResult.Value.StandardOutput
 
 let ``stderr lines start with "(.*)"`` (prefix: string) (context: ScenarioContext) =
-    assertLinesStartWith prefix context.StandardError
+    assertLinesStartWith prefix context.CommandResult.Value.StandardError
 
-let ``stdout is empty`` (context: ScenarioContext) = Assert.Empty context.StandardOutput
+let ``stdout is empty`` (context: ScenarioContext) =
+    Assert.Empty context.CommandResult.Value.StandardOutput
+
+let ``stdout JSON property "(.*)" is (\d+)`` (property: string) (expected: int) (context: ScenarioContext) =
+    use document = JsonDocument.Parse(context.CommandResult.Value.StandardOutput)
+    Assert.Equal(expected, document.RootElement.GetProperty(property).GetInt32())
+
+let ``the first stdout JSON violation kind is "(.*)"`` (expected: string) (context: ScenarioContext) =
+    use document = JsonDocument.Parse(context.CommandResult.Value.StandardOutput)
+
+    let violation =
+        document.RootElement.GetProperty("violations").EnumerateArray() |> Seq.head
+
+    Assert.Equal(expected, violation.GetProperty("kind").GetString())

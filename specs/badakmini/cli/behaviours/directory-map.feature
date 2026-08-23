@@ -1,4 +1,3 @@
-@pure
 Feature: Governance directory-map rules
 
   Scenario: Directory-map inspection ignores other governance concerns

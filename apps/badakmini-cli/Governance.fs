@@ -110,10 +110,23 @@ module Governance =
     let private normalizeRelativePath root path =
         Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/')
 
-    let private isReparsePoint (path: string) =
-        File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)
+    let private isReparsePoint fileSystem (path: string) =
+        fileSystem.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)
 
-    let private enumerateOwnedMarkdown directory =
+    let private enumerateFilesRecursively fileSystem directory =
+        seq {
+            let directories = Stack<string>()
+            directories.Push(directory)
+
+            while directories.Count > 0 do
+                let currentDirectory = directories.Pop()
+                yield! fileSystem.EnumerateFiles currentDirectory
+
+                for child in fileSystem.EnumerateDirectories currentDirectory do
+                    directories.Push(child)
+        }
+
+    let private enumerateDirectoriesRecursively fileSystem directory =
         seq {
             let directories = Stack<string>()
             directories.Push(directory)
@@ -121,12 +134,25 @@ module Governance =
             while directories.Count > 0 do
                 let currentDirectory = directories.Pop()
 
-                yield! Directory.EnumerateFiles(currentDirectory) |> Seq.filter isMarkdown
+                for child in fileSystem.EnumerateDirectories currentDirectory do
+                    yield child
+                    directories.Push(child)
+        }
 
-                for child in Directory.EnumerateDirectories(currentDirectory) do
+    let private enumerateOwnedMarkdown fileSystem directory =
+        seq {
+            let directories = Stack<string>()
+            directories.Push(directory)
+
+            while directories.Count > 0 do
+                let currentDirectory = directories.Pop()
+
+                yield! fileSystem.EnumerateFiles currentDirectory |> Seq.filter isMarkdown
+
+                for child in fileSystem.EnumerateDirectories currentDirectory do
                     if
                         not (excludedMarkdownDirectories.Contains(Path.GetFileName child))
-                        && not (isReparsePoint child)
+                        && not (isReparsePoint fileSystem child)
                     then
                         directories.Push(child)
         }
@@ -356,12 +382,12 @@ module Governance =
 
         classDefViolations @ paletteViolations
 
-    let private inspectMermaidAccessibilityCore fullRoot =
+    let private inspectMermaidAccessibilityCore fileSystem fullRoot =
         let blocks =
-            enumerateOwnedMarkdown fullRoot
+            enumerateOwnedMarkdown fileSystem fullRoot
             |> Seq.sort
             |> Seq.collect (fun path ->
-                File.ReadAllText(path)
+                fileSystem.ReadAllText path
                 |> extractMermaidBlocks (normalizeRelativePath fullRoot path))
             |> Seq.filter isCompatibleMermaidBlock
             |> Seq.toList
@@ -372,43 +398,64 @@ module Governance =
 
         blocks.Length, violations
 
-    let inspectMermaidAccessibility root =
+    let inspectMermaidAccessibilityWith fileSystem root =
         let diagramCount, violations =
-            root |> Path.GetFullPath |> inspectMermaidAccessibilityCore
+            root |> Path.GetFullPath |> inspectMermaidAccessibilityCore fileSystem
 
         { DiagramCount = diagramCount
           Violations = violations }
 
-    let scanRepository root =
+    let scanRepositoryWith fileSystem root =
         let fullRoot = Path.GetFullPath root
         let agentsPath = Path.Combine(fullRoot, "AGENTS.md")
         let governancePath = Path.Combine(fullRoot, "repo-governance")
 
         seq {
-            if File.Exists agentsPath then
+            if fileSystem.FileExists agentsPath then
                 yield agentsPath
 
-            if Directory.Exists governancePath then
-                yield!
-                    Directory.EnumerateFiles(governancePath, "*", SearchOption.AllDirectories)
-                    |> Seq.filter isMarkdown
+            if fileSystem.DirectoryExists governancePath then
+                yield! enumerateFilesRecursively fileSystem governancePath |> Seq.filter isMarkdown
         }
         |> Seq.map (fun path ->
             { Path = normalizeRelativePath fullRoot path
-              WordCount = File.ReadAllText(path) |> countWords })
+              WordCount = fileSystem.ReadAllText path |> countWords })
         |> Seq.sortBy _.Path
         |> Seq.toList
 
     let findViolations files =
         files |> List.filter (fun file -> file.WordCount > WordLimit)
 
-    let inspectWordBudget root =
-        let markdownFiles = scanRepository root
+    let inspectWordBudgetWith fileSystem root =
+        let markdownFiles = scanRepositoryWith fileSystem root
 
         { MarkdownFiles = markdownFiles
           Violations = markdownFiles |> findViolations |> List.map WordLimitExceeded }
 
-    let private mappedDirectories fullRoot relativeDirectory =
+    let inspectFileWordCountWith fileSystem root relativePath =
+        if String.IsNullOrWhiteSpace relativePath then
+            invalidArg (nameof relativePath) "File must be relative to the repository root."
+
+        if Path.IsPathRooted relativePath then
+            invalidArg (nameof relativePath) "File must be relative to the repository root."
+
+        let fullRoot = Path.GetFullPath root
+        let filePath = Path.GetFullPath(Path.Combine(fullRoot, relativePath))
+        let normalizedRelativePath = Path.GetRelativePath(fullRoot, filePath)
+
+        if
+            normalizedRelativePath = ".."
+            || normalizedRelativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+        then
+            invalidArg (nameof relativePath) "File must be within the repository root."
+
+        if not (fileSystem.FileExists filePath) then
+            invalidArg (nameof relativePath) $"File does not exist: {relativePath}"
+
+        { Path = normalizeRelativePath fullRoot filePath
+          WordCount = fileSystem.ReadAllText filePath |> countWords }
+
+    let private mappedDirectories fileSystem fullRoot relativeDirectory =
         if String.IsNullOrWhiteSpace relativeDirectory then
             invalidArg (nameof relativeDirectory) "Directory must be relative to the repository root."
 
@@ -424,12 +471,11 @@ module Governance =
         then
             invalidArg (nameof relativeDirectory) "Directory must be within the repository root."
 
-        if not (Directory.Exists directoryPath) then
+        if not (fileSystem.DirectoryExists directoryPath) then
             []
         else
             directoryPath
-            :: (Directory.EnumerateDirectories(directoryPath, "*", SearchOption.AllDirectories)
-                |> Seq.toList)
+            :: (enumerateDirectoriesRecursively fileSystem directoryPath |> Seq.toList)
             |> List.sort
 
     let private extractDirectoryMapTargets content =
@@ -460,7 +506,7 @@ module Governance =
     let private pathsEqual left right =
         String.Equals(Path.GetFullPath left, Path.GetFullPath right, StringComparison.Ordinal)
 
-    let private resolveMappedSibling directory siblings target =
+    let private resolveMappedSibling fileSystem directory siblings target =
         try
             let cleanTarget = cleanLinkTarget target
             let mutable absoluteUri = Unchecked.defaultof<Uri>
@@ -481,27 +527,27 @@ module Governance =
                 siblings
                 |> List.tryFind (fun sibling ->
                     pathsEqual sibling targetPath
-                    || (Directory.Exists sibling
-                        && File.Exists targetPath
+                    || (fileSystem.DirectoryExists sibling
+                        && fileSystem.FileExists targetPath
                         && pathsEqual (Path.Combine(sibling, "README.md")) targetPath))
         with
         | :? ArgumentException
         | :? NotSupportedException -> None
 
-    let private validateDirectoryMap fullRoot directory =
+    let private validateDirectoryMap fileSystem fullRoot directory =
         let readmePath = Path.Combine(directory, "README.md")
         let relativeDirectory = normalizeRelativePath fullRoot directory
 
-        if not (File.Exists readmePath) then
+        if not (fileSystem.FileExists readmePath) then
             [ MissingReadme relativeDirectory ]
         else
             let relativeReadme = normalizeRelativePath fullRoot readmePath
 
-            match File.ReadAllText(readmePath) |> extractDirectoryMapTargets with
+            match fileSystem.ReadAllText readmePath |> extractDirectoryMapTargets with
             | None -> [ MissingDirectoryMap relativeReadme ]
             | Some targets ->
                 let siblings =
-                    Directory.EnumerateFileSystemEntries(directory)
+                    fileSystem.EnumerateFileSystemEntries directory
                     |> Seq.filter (pathsEqual readmePath >> not)
                     |> Seq.sort
                     |> Seq.toList
@@ -510,7 +556,7 @@ module Governance =
                     targets
                     |> List.fold
                         (fun (mapped, invalid) target ->
-                            match resolveMappedSibling directory siblings target with
+                            match resolveMappedSibling fileSystem directory siblings target with
                             | Some sibling -> Set.add sibling mapped, invalid
                             | None -> mapped, target :: invalid)
                         (Set.empty, [])
@@ -522,17 +568,17 @@ module Governance =
                   for target in List.rev invalidTargets do
                       yield InvalidMapEntry(relativeReadme, target) ]
 
-    let inspectDirectoryMapsAt root relativeDirectory =
+    let inspectDirectoryMapsAtWith fileSystem root relativeDirectory =
         let fullRoot = Path.GetFullPath root
-        let directories = mappedDirectories fullRoot relativeDirectory
+        let directories = mappedDirectories fileSystem fullRoot relativeDirectory
 
         { DirectoryCount = directories.Length
           Violations =
             [ for directory in directories do
-                  yield! validateDirectoryMap fullRoot directory ] }
+                  yield! validateDirectoryMap fileSystem fullRoot directory ] }
 
-    let inspectDirectoryMaps root =
-        inspectDirectoryMapsAt root "repo-governance"
+    let inspectDirectoryMapsWith fileSystem root =
+        inspectDirectoryMapsAtWith fileSystem root "repo-governance"
 
     let formatViolation violation =
         match violation with

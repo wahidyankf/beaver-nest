@@ -14,6 +14,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  badakmini-test-symphony:
+    name: Badakmini test symphony
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.107"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Run local integration suite
+        run: npm exec -- nx run -p badakmini-cli -t test:coverage:integration
+
+      - name: Run process end-to-end suite
+        run: npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
+
   test:
     name: Playwright full suite
     runs-on: ubuntu-24.04

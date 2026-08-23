@@ -1,4 +1,3 @@
-@pure
 Feature: Governance word-budget rules
 
   Scenario: Markdown punctuation does not create extra words

@@ -1,4 +1,3 @@
-@process_global
 Feature: badakmini-cli command contract
 
   Scenario: Every canonical nested command path succeeds
@@ -146,3 +145,38 @@ Feature: badakmini-cli command contract
       | repo-governance/README.md | {hash} Governance |
     When I run the "directory-map" validator
     Then the exit code is 1
+
+  Scenario Outline: Output format is recursive for every validator
+    Given an empty repository
+    When I invoke the CLI with "<arguments>|--format|json"
+    Then the exit code is 0
+    And stdout lines start with "{"
+
+    Examples:
+      | arguments                                 |
+      | governance\|word-budget\|validate          |
+      | governance\|directory-map\|validate        |
+      | md\|mermaid\|validate                      |
+
+  Scenario: A file word count is observable as JSON
+    Given Markdown text containing a heading marker, Hello, can't-stop, naïve, and 42
+    When I invoke the CLI with "md|word-count|inspect|--file|subject.md|--format|json"
+    Then the exit code is 0
+    And stdout JSON property "wordCount" is 4
+
+  Scenario: JSON validation failures retain the validation exit code
+    Given file "AGENTS.md" contains 501 words
+    When I invoke the CLI with "governance|word-budget|validate|--format|json|--root|{root}"
+    Then the exit code is 1
+    And the first stdout JSON violation kind is "word-limit-exceeded"
+
+  Scenario Outline: Unsupported output formats return usage failure
+    Given an empty repository
+    When I invoke the CLI with "<arguments>|--format|xml"
+    Then the exit code is 2
+
+    Examples:
+      | arguments                                             |
+      | governance\|word-budget\|validate                      |
+      | governance\|directory-map\|validate                    |
+      | md\|word-count\|inspect\|--file\|missing.md             |

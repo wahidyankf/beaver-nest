@@ -4,143 +4,332 @@ open System
 open System.CommandLine
 open System.CommandLine.Parsing
 open System.IO
+open System.Text.Json
+open System.Text.Json.Serialization
+
+type OutputFormat =
+    | Text
+    | Json
+
+type JsonViolation =
+    { Kind: string
+      Path: string
+      RelatedPath: string
+      Target: string
+      WordCount: Nullable<int>
+      Line: Nullable<int>
+      Message: string }
 
 module Cli =
-    let private writeOutput category message =
-        Console.Out.WriteLine($"[{category}] {message}")
+    let private jsonOptions =
+        JsonSerializerOptions(
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        )
 
-    let private writeError category message =
-        Console.Error.WriteLine($"[{category}] {message}")
+    let private writeOutput runtime category message =
+        runtime.Output.WriteLine($"[{category}] {message}")
 
-    let private printViolations category violations =
+    let private writeError runtime category message =
+        runtime.Error.WriteLine($"[{category}] {message}")
+
+    let private writeJson (writer: TextWriter) value =
+        writer.WriteLine(JsonSerializer.Serialize(value, jsonOptions))
+
+    let private parseFormat (value: string) =
+        match value.ToLowerInvariant() with
+        | "text" -> Ok Text
+        | "json" -> Ok Json
+        | _ -> Error(ArgumentException("Format must be either 'text' or 'json'.", "format"))
+
+    let private jsonViolation violation =
+        let emptyText = null
+        let noNumber = Nullable<int>()
+
+        match violation with
+        | WordLimitExceeded file ->
+            { Kind = "word-limit-exceeded"
+              Path = file.Path
+              RelatedPath = emptyText
+              Target = emptyText
+              WordCount = Nullable file.WordCount
+              Line = noNumber
+              Message = Governance.formatViolation violation }
+        | MissingReadme path ->
+            { Kind = "missing-readme"
+              Path = path
+              RelatedPath = emptyText
+              Target = emptyText
+              WordCount = noNumber
+              Line = noNumber
+              Message = Governance.formatViolation violation }
+        | MissingDirectoryMap path ->
+            { Kind = "missing-directory-map"
+              Path = path
+              RelatedPath = emptyText
+              Target = emptyText
+              WordCount = noNumber
+              Line = noNumber
+              Message = Governance.formatViolation violation }
+        | MissingMapEntry(readme, sibling) ->
+            { Kind = "missing-map-entry"
+              Path = readme
+              RelatedPath = sibling
+              Target = emptyText
+              WordCount = noNumber
+              Line = noNumber
+              Message = Governance.formatViolation violation }
+        | InvalidMapEntry(readme, target) ->
+            { Kind = "invalid-map-entry"
+              Path = readme
+              RelatedPath = emptyText
+              Target = target
+              WordCount = noNumber
+              Line = noNumber
+              Message = Governance.formatViolation violation }
+        | MermaidAccessibilityViolation issue ->
+            { Kind = "mermaid-accessibility"
+              Path = issue.Path
+              RelatedPath = emptyText
+              Target = emptyText
+              WordCount = noNumber
+              Line = Nullable issue.Line
+              Message = Governance.formatViolation violation }
+
+    let private printViolations runtime category violations =
         for violation in violations do
-            Governance.formatViolation violation |> writeError category
+            Governance.formatViolation violation |> writeError runtime category
 
-    let private runWordBudget root =
+    let private operationalError runtime format command category (ex: exn) =
+        match format with
+        | Text -> writeError runtime category $"badakmini-cli: {ex.Message}"
+        | Json ->
+            writeJson
+                runtime.Error
+                {| schemaVersion = 1
+                   command = command
+                   error = ex.Message |}
+
+        2
+
+    let private runWordBudget runtime format root =
         try
-            let inspection = Governance.inspectWordBudget root
+            let inspection = Governance.inspectWordBudgetWith runtime.FileSystem root
+            let exitCode = if List.isEmpty inspection.Violations then 0 else 1
 
-            if List.isEmpty inspection.Violations then
+            match format with
+            | Json ->
+                writeJson
+                    runtime.Output
+                    {| schemaVersion = 1
+                       command = "governance word-budget validate"
+                       markdownFiles = inspection.MarkdownFiles
+                       violations = inspection.Violations |> List.map jsonViolation |}
+            | Text when exitCode = 0 ->
                 sprintf
                     "Checked %d governed Markdown file(s); all are within the %d-word limit."
                     inspection.MarkdownFiles.Length
                     Governance.WordLimit
-                |> writeOutput "word-budget"
-
-                0
-            else
-                printViolations "word-budget" inspection.Violations
+                |> writeOutput runtime "word-budget"
+            | Text ->
+                printViolations runtime "word-budget" inspection.Violations
 
                 sprintf "Found %d word-budget violation(s)." inspection.Violations.Length
-                |> writeError "word-budget"
+                |> writeError runtime "word-budget"
 
-                1
+            exitCode
         with ex ->
-            writeError "word-budget" $"badakmini-cli: {ex.Message}"
-            2
+            operationalError runtime format "governance word-budget validate" "word-budget" ex
 
-    let private runDirectoryMaps root directory =
+    let private runDirectoryMaps runtime format root directory =
         try
-            let inspection = Governance.inspectDirectoryMapsAt root directory
+            let inspection =
+                Governance.inspectDirectoryMapsAtWith runtime.FileSystem root directory
 
-            if List.isEmpty inspection.Violations then
+            let exitCode = if List.isEmpty inspection.Violations then 0 else 1
+
+            match format with
+            | Json ->
+                writeJson
+                    runtime.Output
+                    {| schemaVersion = 1
+                       command = "governance directory-map validate"
+                       directoryCount = inspection.DirectoryCount
+                       violations = inspection.Violations |> List.map jsonViolation |}
+            | Text when exitCode = 0 ->
                 sprintf
                     "Checked %d directory map(s) under %s; all directory-map checks passed."
                     inspection.DirectoryCount
                     directory
-                |> writeOutput "directory-map"
-
-                0
-            else
-                printViolations "directory-map" inspection.Violations
+                |> writeOutput runtime "directory-map"
+            | Text ->
+                printViolations runtime "directory-map" inspection.Violations
 
                 sprintf "Found %d directory-map violation(s)." inspection.Violations.Length
-                |> writeError "directory-map"
+                |> writeError runtime "directory-map"
 
-                1
+            exitCode
         with ex ->
-            writeError "directory-map" $"badakmini-cli: {ex.Message}"
-            2
+            operationalError runtime format "governance directory-map validate" "directory-map" ex
 
-    let private runMermaidAccessibility root =
+    let private runMermaidAccessibility runtime format root =
         try
-            let inspection = Governance.inspectMermaidAccessibility root
+            let inspection = Governance.inspectMermaidAccessibilityWith runtime.FileSystem root
+            let exitCode = if List.isEmpty inspection.Violations then 0 else 1
 
-            if List.isEmpty inspection.Violations then
+            match format with
+            | Json ->
+                writeJson
+                    runtime.Output
+                    {| schemaVersion = 1
+                       command = "md mermaid validate"
+                       diagramCount = inspection.DiagramCount
+                       violations = inspection.Violations |> List.map jsonViolation |}
+            | Text when exitCode = 0 ->
                 sprintf
                     "Checked %d compatible Mermaid diagram(s); all Mermaid accessibility checks passed."
                     inspection.DiagramCount
-                |> writeOutput "mermaid"
-
-                0
-            else
-                printViolations "mermaid" inspection.Violations
+                |> writeOutput runtime "mermaid"
+            | Text ->
+                printViolations runtime "mermaid" inspection.Violations
 
                 sprintf "Found %d Mermaid accessibility violation(s)." inspection.Violations.Length
-                |> writeError "mermaid"
+                |> writeError runtime "mermaid"
 
-                1
+            exitCode
         with ex ->
-            writeError "mermaid" $"badakmini-cli: {ex.Message}"
-            2
+            operationalError runtime format "md mermaid validate" "mermaid" ex
 
-    let private createLeaf name description (rootOption: Option<DirectoryInfo>) (action: string -> int) =
-        let command = Command(name, description)
+    let private runWordCount runtime format root file =
+        try
+            let result = Governance.inspectFileWordCountWith runtime.FileSystem root file
 
-        command.SetAction(
-            Func<ParseResult, int>(fun parseResult -> parseResult.GetRequiredValue(rootOption).FullName |> action)
+            match format with
+            | Json ->
+                writeJson
+                    runtime.Output
+                    {| schemaVersion = 1
+                       command = "md word-count inspect"
+                       path = result.Path
+                       wordCount = result.WordCount |}
+            | Text -> writeOutput runtime "word-count" $"{result.Path}: {result.WordCount} word(s)."
+
+            0
+        with ex ->
+            operationalError runtime format "md word-count inspect" "word-count" ex
+
+    let private requireRoot runtime root =
+        if not (runtime.FileSystem.DirectoryExists root) then
+            invalidArg "root" $"Directory does not exist: {root}"
+
+        Path.GetFullPath root
+
+    let private createLeaf
+        runtime
+        name
+        description
+        (rootOption: Option<string>)
+        (formatOption: Option<string>)
+        command
+        category
+        action
+        =
+        let leaf = Command(name, description)
+
+        leaf.SetAction(
+            Func<ParseResult, int>(fun parseResult ->
+                match parseResult.GetRequiredValue(formatOption) |> parseFormat with
+                | Error ex -> operationalError runtime Text command category ex
+                | Ok format ->
+                    try
+                        parseResult.GetRequiredValue(rootOption) |> requireRoot runtime |> action format
+                    with ex ->
+                        operationalError runtime format command category ex)
         )
 
-        command
+        leaf
 
-    let private createDirectoryMapLeaf (rootOption: Option<DirectoryInfo>) =
+    let private createDirectoryMapLeaf runtime (rootOption: Option<string>) (formatOption: Option<string>) =
         let command =
             Command("validate", "Validate README presence, sibling coverage, and directory-map links.")
 
         let directoryOption = Option<string>("--directory")
         directoryOption.Description <- "Repository-relative directory tree. Defaults to repo-governance."
-
         directoryOption.DefaultValueFactory <- Func<ArgumentResult, string>(fun _ -> "repo-governance")
-
         command.Options.Add directoryOption
 
         command.SetAction(
             Func<ParseResult, int>(fun parseResult ->
-                runDirectoryMaps
-                    (parseResult.GetRequiredValue(rootOption).FullName)
-                    (parseResult.GetRequiredValue directoryOption))
+                match parseResult.GetRequiredValue(formatOption) |> parseFormat with
+                | Error ex -> operationalError runtime Text "governance directory-map validate" "directory-map" ex
+                | Ok format ->
+                    try
+                        runDirectoryMaps
+                            runtime
+                            format
+                            (parseResult.GetRequiredValue(rootOption) |> requireRoot runtime)
+                            (parseResult.GetRequiredValue directoryOption)
+                    with ex ->
+                        operationalError runtime format "governance directory-map validate" "directory-map" ex)
         )
 
         command
 
-    let createRootCommand () =
-        let root = RootCommand("Validate repository governance and Markdown conventions.")
+    let private createWordCountLeaf runtime (rootOption: Option<string>) (formatOption: Option<string>) =
+        let command = Command("inspect", "Count words in one repository-relative file.")
+        let fileOption = Option<string>("--file")
+        fileOption.Description <- "Repository-relative file to inspect."
+        fileOption.Required <- true
+        command.Options.Add fileOption
 
-        let rootOption = Option<DirectoryInfo>("--root")
+        command.SetAction(
+            Func<ParseResult, int>(fun parseResult ->
+                match parseResult.GetRequiredValue(formatOption) |> parseFormat with
+                | Error ex -> operationalError runtime Text "md word-count inspect" "word-count" ex
+                | Ok format ->
+                    try
+                        runWordCount
+                            runtime
+                            format
+                            (parseResult.GetRequiredValue(rootOption) |> requireRoot runtime)
+                            (parseResult.GetRequiredValue fileOption)
+                    with ex ->
+                        operationalError runtime format "md word-count inspect" "word-count" ex)
+        )
+
+        command
+
+    let createRootCommandWith runtime =
+        let root = RootCommand("Validate repository governance and Markdown conventions.")
+        let rootOption = Option<string>("--root")
         rootOption.Description <- "Repository root to inspect. Defaults to the current directory."
         rootOption.Recursive <- true
-
-        rootOption.DefaultValueFactory <-
-            Func<ArgumentResult, DirectoryInfo>(fun _ -> DirectoryInfo(Directory.GetCurrentDirectory()))
-
-        rootOption.AcceptExistingOnly() |> ignore
+        rootOption.DefaultValueFactory <- Func<ArgumentResult, string>(fun _ -> runtime.FileSystem.CurrentDirectory())
         root.Options.Add rootOption
+
+        let formatOption = Option<string>("--format")
+        formatOption.Description <- "Output format: text or json. Defaults to text."
+        formatOption.Recursive <- true
+        formatOption.DefaultValueFactory <- Func<ArgumentResult, string>(fun _ -> "text")
+        root.Options.Add formatOption
 
         let governance = Command("governance", "Validate repository governance structures.")
         let wordBudget = Command("word-budget", "Validate governed Markdown word limits.")
 
         wordBudget.Subcommands.Add(
             createLeaf
+                runtime
                 "validate"
                 "Validate governed Markdown against the repository word limit."
                 rootOption
-                runWordBudget
+                formatOption
+                "governance word-budget validate"
+                "word-budget"
+                (runWordBudget runtime)
         )
 
         let directoryMap = Command("directory-map", "Validate README directory maps.")
-
-        directoryMap.Subcommands.Add(createDirectoryMapLeaf rootOption)
-
+        directoryMap.Subcommands.Add(createDirectoryMapLeaf runtime rootOption formatOption)
         governance.Subcommands.Add wordBudget
         governance.Subcommands.Add directoryMap
 
@@ -149,20 +338,30 @@ module Cli =
 
         mermaid.Subcommands.Add(
             createLeaf
+                runtime
                 "validate"
                 "Validate accessible colors in compatible Mermaid diagrams."
                 rootOption
-                runMermaidAccessibility
+                formatOption
+                "md mermaid validate"
+                "mermaid"
+                (runMermaidAccessibility runtime)
         )
 
+        let wordCount = Command("word-count", "Inspect Markdown word counts.")
+        wordCount.Subcommands.Add(createWordCountLeaf runtime rootOption formatOption)
         markdown.Subcommands.Add mermaid
+        markdown.Subcommands.Add wordCount
         root.Subcommands.Add governance
         root.Subcommands.Add markdown
         root
 
-    let invoke (args: string array) =
-        let parseResult = createRootCommand().Parse(args)
-        let invocationConfiguration = InvocationConfiguration()
+    let invokeWith runtime (args: string array) =
+        let parseResult = createRootCommandWith runtime |> _.Parse(args)
+
+        let invocationConfiguration =
+            InvocationConfiguration(Output = runtime.Output, Error = runtime.Error)
+
         let exitCode = parseResult.Invoke(invocationConfiguration)
 
         if parseResult.Errors.Count > 0 then 2 else exitCode
