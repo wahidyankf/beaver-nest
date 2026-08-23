@@ -25,7 +25,7 @@
     "lint": {
       "command": "npm exec -- oxlint --deny correctness --deny suspicious --deny pedantic --deny perf --deny typescript/no-explicit-any --deny-warnings --report-unused-disable-directives apps/bnest-e2e"
     },
-    "test:behaviour:compliance": {
+    "test:coverage:behaviour": {
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": [
@@ -52,7 +52,7 @@
     },
     "test:e2e": {
       "command": "npm exec -- playwright test --config apps/bnest-e2e/playwright.config.mts",
-      "dependsOn": ["test:behaviour:compliance"],
+      "dependsOn": ["test:coverage:behaviour"],
       "cache": false
     },
     "test:quick": {
@@ -68,7 +68,7 @@
             "forwardAllArgs": false
           },
           {
-            "command": "npm exec -- nx run -p bnest-e2e -t test:behaviour:compliance",
+            "command": "npm exec -- nx run -p bnest-e2e -t test:coverage:behaviour",
             "forwardAllArgs": false
           }
         ],

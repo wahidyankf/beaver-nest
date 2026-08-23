@@ -20,15 +20,15 @@ npm exec -- nx run -p bnest-e2e -t test:quick
 
 1. `typecheck` checks every `.ts` file with TypeScript strict mode, rejects implicit and explicit `any`, and emits no files.
 2. `lint` runs Oxlint's correctness, suspicious, pedantic, and performance rules and rejects explicit `any`.
-3. `test:behaviour:compliance` recursively validates every feature, runs the compliance self-tests, generates the Playwright tests, and rejects undefined, ambiguous, unused, or incorrectly shaped bindings and scenarios.
+3. `test:coverage:behaviour` recursively validates every feature, runs the compliance self-tests, generates the Playwright tests, and rejects undefined, ambiguous, unused, or incorrectly shaped bindings and scenarios.
 
-There is no `test:unit` or coverage target because this project owns only end-to-end tests and fast BDD compliance. `test:e2e` is intentionally excluded from `test:quick` because browser tests are slow by nature.
+There is no `test:unit` or aggregate `test:coverage` target because this project owns only end-to-end tests. `test:coverage:behaviour` measures complete feature-to-binding coverage without collecting numeric TypeScript line coverage or launching a browser. `test:e2e` is intentionally excluded from `test:quick` because browser tests are slow by nature.
 
 ## Authoring Behaviours
 
 Every browser journey must originate in an English `.feature` file below [`specs/bnest/e2e/behaviours/`](../../specs/bnest/e2e/behaviours/). Features are discovered recursively, so adding or nesting one requires no registration. Put routes, user actions, expected content, and examples in Gherkin. Keep Playwright mechanics in thin `tests/steps/*.ts` bindings, and do not add direct `tests/**/*.spec.ts` journey files.
 
-Every feature must contain a scenario, and every scenario must contain an explicit `When` and `Then`. `test:behaviour:compliance` fails for malformed features, missing or ambiguous bindings, incorrect binding arity, direct journey specs, and bindings unused by every feature.
+Every feature must contain a scenario, and every scenario must contain an explicit `When` and `Then`. `test:coverage:behaviour` fails for malformed features, missing or ambiguous bindings, incorrect binding arity, direct journey specs, and bindings unused by every feature.
 
 During development, follow the [end-to-end testing standard](../../repo-governance/development/end-to-end-testing.md) and run only cases plausibly affected by the change. Pass a scenario-title or tag `--grep` filter through the Nx target:
 
@@ -36,7 +36,7 @@ During development, follow the [end-to-end testing standard](../../repo-governan
 npm exec -- nx run -p bnest-e2e -t test:e2e -- --grep "A visitor opens Beaver Nest"
 ```
 
-The `test:e2e` target first enforces behaviour compliance, then uses [playwright.config.mts](playwright.config.mts) to start `bnest-app` at `http://127.0.0.1:4000`. It reuses an already-running local server outside CI, runs the Chromium project, and records a trace on the first retry. The [scheduled GitHub workflow](../../.github/workflows/full-e2e.yml) runs the complete suite at 06:00 and 18:00 WIB.
+The `test:e2e` target first enforces behaviour coverage, then uses [playwright.config.mts](playwright.config.mts) to start `bnest-app` at `http://127.0.0.1:4000`. It reuses an already-running local server outside CI, runs the Chromium project, and records a trace on the first retry. The [scheduled GitHub workflow](../../.github/workflows/full-e2e.yml) runs the complete suite at 06:00 and 18:00 WIB.
 
 ## Structure
 

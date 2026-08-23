@@ -25,7 +25,7 @@ The `test:repo` target builds once, then concurrently runs word-budget validatio
 
 The `typecheck` target compiles the test project and its CLI project reference into an isolated temporary artifacts directory, then removes that directory on exit. It performs project-aware F# type checking without leaving build output behind.
 
-The coverage targets use Coverlet's MSBuild integration with Debug instrumentation. `test:coverage:unit` fails when application line coverage is below 99%. `test:coverage:behaviour` includes the test assembly, isolates the thin TickSpec binding module, and fails unless every binding line is covered. `test:coverage` composes both named targets for compatibility. Debug symbols keep F# source-line attribution accurate while `test:unit` independently exercises the Release build. The ignored JSON reports are written below `coverage/application/` and `coverage/behaviour-steps/`.
+The coverage targets use Coverlet's MSBuild integration with Debug instrumentation. `test:coverage:unit` fails when application line coverage is below 99%. `test:coverage:behaviour` proves complete feature-to-binding coverage by running the structural and binding checks, including the test assembly, isolating the thin TickSpec binding module, and failing unless every binding line is covered. `test:coverage` composes both named targets for compatibility. Debug symbols keep F# source-line attribution accurate while `test:unit` independently exercises the Release build. The ignored JSON reports are written below `coverage/application/` and `coverage/behaviour-steps/`.
 
 The `test:quick` target runs `typecheck`, `lint`, `test:unit`, `test:coverage:unit`, and `test:coverage:behaviour` sequentially. It stops immediately when a stage fails.
 

@@ -15,7 +15,7 @@ For example:
 npm exec -- nx run -p bnest-e2e -t test:e2e -- --grep "A visitor opens Beaver Nest"
 ```
 
-`bnest-e2e` journeys originate from recursively discovered Gherkin features. Its fast `test:behaviour:compliance` gate belongs in `test:quick`; generated browser execution does not.
+`bnest-e2e` journeys originate from recursively discovered Gherkin features. Its fast `test:coverage:behaviour` gate belongs in `test:quick`; generated browser execution does not.
 
 ## Full Suite
 
