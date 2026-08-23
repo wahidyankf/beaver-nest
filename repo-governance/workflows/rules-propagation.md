@@ -1,24 +1,36 @@
 # Rules Propagation
 
-This workflow automatically and mandatorily applies whenever a repository [rule](../conventions/rules.md) is created, added, updated, moved, deleted, or otherwise changed. Follow it even when the user does not explicitly name or request the workflow.
+Apply this workflow automatically whenever a repository [rule](../conventions/rules.md) is created, changed, moved, or deleted, even without an explicit request.
 
 ## Inputs
 
-- the proposed rule;
-- why it is needed; and
-- the people, agents, files, or tasks it applies to.
+- the proposed rule and rationale;
+- the people, agents, files, or tasks in scope.
+
+## Idempotence Gate
+
+Before editing, compare the requested outcome with the effective rule by meaning, not wording. The existing rule is sufficient only when all are true:
+
+- the requested outcome is stated with its intended mandatory, expected, or permitted strength;
+- scope, required or prohibited actions, boundaries, and exceptions are explicit;
+- a reasonable reader need not reconcile conflicts or infer missing conditions; and
+- one correctly placed canonical source and any needed point-of-use route exist.
+
+If all pass, change no repository content. Wording, order, style, or personal preference is not a gap. Run verification read-only and report a no-op. Otherwise record each material gap and change only enough to close it.
 
 ## Procedure
 
-1. **Start at the point of use.** Draft the shortest actionable form of the rule in the relevant `AGENTS.md` or similar instruction file. Keep non-negotiable constraints visible there.
-2. **Check the entry point.** If the rule is self-contained, non-duplicative, and the instruction file remains within its limit, it may stay there. Otherwise, continue with the full details.
-3. **Keep propagation proportional.** Apply [minimal sufficiency](../principles/minimal-sufficiency.md). Add only the rules, links, and files needed to express the requirement clearly. Do not create validators, automation, abstractions, or other enforcement merely because a rule exists; require an explicit need, applicable higher rule, or concrete demonstrated risk.
-4. **Tidy before adding.** Read existing governance from top to bottom. Identify stale, misplaced, overlapping, or repeated content. Consolidate it without weakening its intent.
-5. **Choose the canonical level.** Place desired outcomes and boundaries in vision, durable constraints in principles, repository-wide choices in conventions, engineering standards in development, and repeatable procedures in workflows.
-6. **Check for contradictions.** Compare the rule with every higher level in order: `vision > principles > conventions > development > workflows`. A lower rule must change if it contradicts a higher rule.
-7. **Deduplicate.** Search instruction and governance files for equivalent guidance. Keep one canonical statement in the correct governance location, merge useful unique detail, and replace other copies with concise links.
-8. **Apply [progressive disclosure](../principles/progressive-disclosure.md).** When the instruction-file limit is reached or the rule needs supporting detail, move the full content into its canonical governance document. Leave only the shortest useful directive and link at the point of use.
-9. **Verify the result.** Confirm links resolve, affected [directory maps](../conventions/directory-maps.md) list every sibling, the rule has one canonical source, lower levels remain aligned, and no existing rule was unintentionally weakened. Run:
+Continue only when the gate identifies a material gap.
+
+1. **Start at use.** Put the shortest actionable form in the relevant `AGENTS.md` or similar instruction file. Keep non-negotiable constraints visible.
+2. **Check the entry point.** A self-contained, non-duplicative rule may stay there when the file remains within its limit; otherwise continue with canonical detail.
+3. **Stay proportional.** Apply [minimal sufficiency](../principles/minimal-sufficiency.md). Add only necessary rules, links, and files. Add enforcement only for an explicit need, higher rule, or demonstrated risk.
+4. **Tidy affected guidance.** Read governance top to bottom. Consolidate only stale, misplaced, overlapping, or repeated content directly implicated by the gap; leave unrelated and sufficient rules unchanged.
+5. **Choose the canonical level.** Put outcomes and boundaries in vision, durable constraints in principles, repository choices in conventions, engineering standards in development, and procedures in workflows.
+6. **Check hierarchy.** Compare higher levels in order: `vision > principles > conventions > development > workflows`. Change any lower-level conflict.
+7. **Deduplicate.** Search equivalent guidance. Keep one correctly placed canonical statement, merge unique detail, and replace copies with concise links.
+8. **Disclose progressively.** Follow [progressive disclosure](../principles/progressive-disclosure.md): keep the shortest useful directive and link at use; place supporting detail canonically.
+9. **Verify.** Confirm links, affected [directory maps](../conventions/directory-maps.md), canonical ownership, lower-level alignment, and preserved existing intent. Run:
 
    ```sh
    npm exec -- nx run -p badakmini-cli -t test:repo
@@ -26,4 +38,4 @@ This workflow automatically and mandatorily applies whenever a repository [rule]
 
 ## Outcome
 
-The rule is visible where it becomes relevant, detailed at the correct governance level, consistent with all higher authority, deduplicated, and within repository word limits.
+The result is either a verified no-op or the smallest patch that makes the rule visible where relevant, detailed at the correct level, consistent with higher authority, deduplicated, and within word limits. Repeating the workflow with unchanged inputs and repository state produces no diff.
