@@ -10,19 +10,19 @@ Define applicable project gates as Nx targets, invoke them through Nx with the w
 
 ## Gate Contracts
 
-| Gate                      | Contract                                                                                                                                                                           |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lint`                    | Reject configured formatting, style, suspicious-code, and dependency-hygiene findings.                                                                                             |
-| `typecheck`               | Reject compiler or static-type findings without leaving distributable artifacts.                                                                                                   |
-| `test:unit`               | Run fast deterministic tests at the unit boundary. Omit only for a dedicated end-to-end harness.                                                                                   |
-| `test:integration`        | Run tests across local real boundaries. Keep it out of `test:quick`.                                                                                                               |
-| `test:coverage`           | Compose every applicable named coverage slice. Application line coverage must remain at least 99%.                                                                                 |
-| `test:coverage:*`         | Run one documented slice. Narrow exclusions may cover generated, adapter, or non-runtime code when another slice covers it; document the scope in the project README.              |
-| `test:coverage:behaviour` | Statically prove every canonical feature, scenario, and step resolves exactly once in every adopted adapter, and every binding is used, without executing slow runtime boundaries. |
-| `test:e2e`                | Exercise relevant journeys at the public boundary under the [end-to-end standard](end-to-end-testing.md). Dedicated harnesses must expose this target.                             |
-| `test:quick`              | Run `typecheck` → `lint` → `test:unit` → fast coverage slices. Harnesses use `typecheck` → `lint`. Append behavior coverage; never run integration or E2E scenarios.               |
-| `pre-commit`              | Run deterministic staged-file checks selected by `lint-staged`.                                                                                                                    |
-| `pre-push`                | Run affected `test:quick` gates and repository validation under the [push-hook convention](../conventions/push-hook-verification.md).                                              |
+| Gate                      | Contract                                                                                                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lint`                    | Reject configured formatting, style, suspicious-code, and dependency-hygiene findings.                                                                                                          |
+| `typecheck`               | Reject compiler or static-type findings without leaving distributable artifacts.                                                                                                                |
+| `test:unit`               | Run fast deterministic tests at the unit boundary. Omit only for a dedicated end-to-end harness.                                                                                                |
+| `test:integration`        | Run tests across local real boundaries. Keep it out of `test:quick`.                                                                                                                            |
+| `test:coverage`           | Compose every applicable named coverage slice. Application line coverage must remain at least 99%.                                                                                              |
+| `test:coverage:*`         | Run one documented slice. Narrow exclusions may cover generated, adapter, or non-runtime code when another slice covers it; document the scope in the project README.                           |
+| `test:coverage:behaviour` | Statically prove every canonical feature, scenario, and step resolves exactly once in every adapter required by the [BDD standard](behaviour-driven-development.md), and every binding is used. |
+| `test:e2e`                | Exercise relevant journeys at the public boundary under the [end-to-end standard](end-to-end-testing.md). Dedicated harnesses must expose this target.                                          |
+| `test:quick`              | Run `typecheck` → `lint` → `test:unit` → fast coverage slices. Harnesses use `typecheck` → `lint`. Append required behavior coverage; never run integration or E2E scenarios.                   |
+| `pre-commit`              | Run deterministic staged-file checks selected by `lint-staged`.                                                                                                                                 |
+| `pre-push`                | Run affected `test:quick` gates and repository validation under the [push-hook convention](../conventions/push-hook-verification.md).                                                           |
 
 ## Application
 

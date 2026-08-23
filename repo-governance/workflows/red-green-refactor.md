@@ -4,6 +4,7 @@ Use this workflow for each behavior increment required by the [test-driven devel
 
 ## Prerequisites
 
+- Complete the living-documentation review required by the [BDD](../development/behaviour-driven-development.md) and [TDD](../development/test-driven-development.md) standards before inspecting or changing production code.
 - Identify the smallest observable behavior to add or change.
 - Identify the narrowest automated test target that can demonstrate it.
 

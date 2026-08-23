@@ -1,33 +1,35 @@
 # Behaviour-Driven Development
 
-Projects that adopt Gherkin keep observable behavior readable and executable in `.feature` files. This standard applies to the Badakmini CLI and Bnest test families; unrelated projects need not adopt Gherkin.
+Every application and library below `apps/` or `libs/` must keep observable behavior readable and executable in canonical Gherkin `.feature` files. Dedicated E2E harnesses implement their owning application's corpus, not a separate specification. The `libs/ex-bdd` runner is exempt.
+
+## Living Documentation
+
+Canonical Gherkin states behavioral intent first; test declarations, bindings, drivers, and implementations make it executable. Before interpreting or changing production code, read the relevant feature, scenarios, and steps, then their test code.
+
+To add, change, or delete observable behavior, edit Gherkin first, update every required test adapter, and confirm the expected red result through Nx before production code. Establish a new project's corpus and adapters before implementing its behavior.
+
+For refactors or implementation-only changes preserving observable behavior, do not alter Gherkin. Read relevant specifications and tests, establish a green baseline or characterization coverage, then keep them green. `libs/ex-bdd` starts from its tests under the [TDD standard](test-driven-development.md).
+
+## Required Layers
+
+| Project role         | Required adapters                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Application          | Unit, local-only integration, and E2E in a dedicated Nx project, all consuming the same corpus.                     |
+| Library              | Unit; add local-only integration only when the library owns a real local resource boundary. Never put E2E in a lib. |
+| Dedicated E2E app    | E2E for its owning application's corpus; it is not an independent behavior owner.                                   |
+| `libs/ex-bdd` runner | Exempt from this standard.                                                                                          |
+
+A library without an integration adapter must have no owned filesystem, database, process, or similar local integration boundary. Behavior that needs proof at a public system boundary belongs to a consuming application's E2E corpus. Document the corpus path, required adapters, targets, and any inapplicable library integration layer in the project README.
 
 ## Shared Requirements
 
-- Keep canonical behavior, inputs, and results in project `.feature` files below `specs/`.
-- Begin new or changed behavior by changing a scenario and confirming the expected red result under the repository [TDD standard](test-driven-development.md).
+- Keep canonical behavior, inputs, and results below `specs/`.
 - Discover every `.feature` recursively. Adding or nesting one must not require manual project or runner registration.
 - Give every scenario an explicit `When` and `Then`. Reject empty features and undefined or ambiguous steps.
 - Keep bindings thin and put reusable operations or state in support modules.
-- When multiple levels adopt one specification, execute every feature, expanded scenario, and step at every level. Vary only the adapter boundary.
-- Use `test:coverage:behaviour` to prove each adopted adapter embeds the exact recursive corpus, implements the complete driver contract, resolves every step exactly once, and has no unused binding. Keep this check static and fast.
+- Execute every feature, expanded scenario, and step in every required adapter. Tags must not skip a required layer; only the adapter boundary may vary.
+- Use `test:coverage:behaviour` to prove each required adapter embeds the exact recursive corpus, implements the complete driver contract, resolves every step exactly once, and has no unused binding. Deleting behavior is valid only when no stale binding remains.
+- Make each corpus an Nx input of its owner and E2E harness so pre-push affected `test:quick` runs unit scenarios and static behavior coverage; integration and E2E runtime remain outside `test:quick` under the [quality-gate](quality-gates.md) and [E2E](end-to-end-testing.md) standards.
+- Apply the [test boundaries](quality-gates.md): unit replaces system resources with doubles, integration uses isolated local resources without any network, and E2E exercises public production-like boundaries.
 
-## `badakmini-cli`
-
-- Keep features below `specs/badakmini/cli/behaviours/`.
-- Compile one shared TickSpec contract and the exact same feature resources into unit, integration, and `badakmini-cli-e2e` test assemblies. Tags must not select or skip a level.
-- Keep unit and integration adapters in distinct folders below `apps/badakmini-cli/tests/`; keep process E2E in the dedicated `apps/badakmini-cli-e2e/` project.
-- Apply the [test boundaries](quality-gates.md): unit uses fakes only, integration uses isolated local resources with no network, and E2E invokes the built CLI process through public commands and output.
-- Run all canonical scenarios in `test:unit`, `test:integration`, and `test:e2e`. Keep only unit runtime execution and static behavior completeness in `test:quick`.
-- Keep TickSpec attributes and reusable steps in the shared contract; adapter-specific mechanics belong in each driver.
-
-## Bnest application
-
-- Keep English features below `specs/bnest/app/behaviours/`, shared Elixir bindings and driver contracts in `apps/bnest-app/test/behaviour/`, distinct app adapters in their unit and integration folders, and browser bindings in `apps/bnest-app-e2e/tests/steps/`.
-- Use `ex-bdd` to compile the exact same recursive corpus and shared bindings into both ExUnit layers. Unit uses direct subjects and test doubles for system resources; integration may use real in-process Phoenix components and isolated local resources but must keep the endpoint server disabled and make no network call, including loopback.
-- Make every browser journey originate from the same Gherkin corpus; reject direct Playwright `.spec` journey files.
-- Run all canonical scenarios in `test:unit`, `test:integration`, and `test:e2e`. Tags must not select or skip a level.
-- Make public `test:coverage:behaviour` statically verify all three adapters. Require every feature, expanded scenario, and step at each level, exactly one binding per step, no unused binding, complete driver callbacks, and successful Playwright generation.
-- Include unit runtime and behavior coverage in `test:quick`; keep integration runtime and browser execution outside it under the [quality-gate](quality-gates.md) and [E2E](end-to-end-testing.md) standards.
-
-Run commands through Nx from the repository root. Project READMEs contain adapter commands and authoring notes.
+Run commands through Nx from the repository root.
