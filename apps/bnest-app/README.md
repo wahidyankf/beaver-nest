@@ -4,7 +4,7 @@
 
 ## Scope
 
-This project owns the OTP application, Phoenix endpoint and router, LiveViews, Codex process bridge, server-rendered UI, browser assets, Progressive Web App (PWA) manifest and service worker, and the unit and local-only integration adapters for Bnest's canonical Gherkin behavior. Browser-level acceptance belongs to [bnest-app-e2e](../bnest-app-e2e/README.md); the reusable Elixir BDD engine belongs to [ex-bdd](../../libs/ex-bdd/README.md).
+This project owns the OTP application, Phoenix endpoint and router, LiveViews, Codex process bridge, server-rendered UI, browser assets, Progressive Web App (PWA) manifest and service worker, and the unit and local-only integration adapters for Bnest's canonical Gherkin behavior. It includes the child-friendly `/apps/sifat-allah` revision activity. Browser-level acceptance belongs to [bnest-app-e2e](../bnest-app-e2e/README.md); the reusable Elixir BDD engine belongs to [ex-bdd](../../libs/ex-bdd/README.md).
 
 ## Setup and Development
 
@@ -51,7 +51,7 @@ Type checking treats Elixir compiler warnings as errors, runs Dialyzer through D
 
 The development server is available at [http://localhost:4000](http://localhost:4000). Normal Elixir, HEEx, JavaScript, and CSS changes reload while it runs. Dependency, runtime configuration, and supervision-tree changes require the repository's [development-server restart workflow](../../repo-governance/workflows/development-server-restart.md). The optional background Tailscale Serve route has an independent lifecycle under the [development tailnet proxy workflow](../../repo-governance/workflows/development-tailnet-proxy.md), so restarting Phoenix does not interrupt the private HTTPS configuration.
 
-The home page at `/` is the child-friendly entry point and links to `/chat`, which owns the Codex conversation UI. This separation leaves room for future activities under `/apps/` without moving the chat route again.
+The home page at `/` is the child-friendly entry point and links to `/chat`, which owns the Codex conversation UI, and `/apps/sifat-allah`, a Grade-3-friendly 20-pair revision activity. This separation leaves room for future activities under `/apps/` without moving the chat route again.
 
 ## Visual Language
 
@@ -75,7 +75,7 @@ Each connected LiveView owns one Node bridge. The bridge starts a Codex SDK thre
 
 Every chat runner uses read-only sandbox access, approval policy `never`, and disabled network and web search. Assistant message updates stream into the transcript as plain text. **Shift+Enter** submits the composer, while plain Enter remains available for multiline input.
 
-Persistence is intentionally limited to the current browser tab. The app has no database, authentication, cross-tab or cross-device history, uploads, or Markdown rendering. `data/user/` remains available for a later server-side storage design once Beaver Nest has a user/session ownership boundary; writing one global file there now would mix different visitors' conversations. The underlying Codex CLI may still create its normal account-level session artifacts outside the application.
+Chat persistence is intentionally limited to the current browser tab. The Sifat Allah activity separately stores its small, versioned learning-progress snapshot in browser `localStorage`, so it survives a reload or later visit in the same browser but does not leave that browser or device. The app has no database, authentication, cross-device history, uploads, or Markdown rendering. A future feature that needs server-side flat-file persistence must follow the repository [runtime flat-file-data convention](../../repo-governance/conventions/runtime-flat-file-data.md); in particular, `data/users/` remains unavailable to application writes until Beaver Nest has a user/session ownership boundary. The underlying Codex CLI may still create its normal account-level session artifacts outside the application.
 
 The test environment substitutes a deterministic model catalog and session, and browser tests start deterministic catalog and chat runners. These fixtures verify the complete model catalog, model-specific effort choices, effective model and effort arguments, streaming, and same-thread resume protocol, but the canonical Gherkin never requires particular model wording. A real-model smoke check should assert only discovery, protocol health, stable thread identity, and non-empty completed responses; model-quality requirements belong in representative evals with outcome-based graders.
 

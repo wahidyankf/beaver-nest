@@ -5,6 +5,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   alias BnestApp.Chat
   alias BnestApp.Codex.FixtureModels
+  alias BnestApp.SifatAllah
+  alias BnestAppWeb.SifatAllahLive
   alias Phoenix.HTML.Safe
 
   @impl true
@@ -13,6 +15,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def open(context, "/"), do: render_home(context)
+
+  def open(context, "/apps/sifat-allah") do
+    render_sifat_allah(context, sifat_state())
+  end
 
   @impl true
   def brand_logo_visible?(context) do
@@ -41,10 +47,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @impl true
   def text_visible?(context, text) do
     context.page
-    |> LazyHTML.query(".model-badge")
-    |> LazyHTML.text()
-    |> String.trim()
-    |> Kernel.==(text)
+    |> LazyHTML.query("main")
+    |> Enum.any?(fn element ->
+      element
+      |> LazyHTML.text()
+      |> String.trim()
+      |> String.contains?(text)
+    end)
   end
 
   @impl true
@@ -251,11 +260,193 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     render_chat(context, chat)
   end
 
+  def reload(%{sifat: state} = context) do
+    render_sifat_allah(context, state)
+  end
+
   @impl true
   def clear_chat(context) do
     context
     |> Map.delete(:persisted_chat)
     |> render_chat(Chat.new(context.chat.model, context.chat.reasoning_effort))
+  end
+
+  @impl true
+  def study_mode_available?(context) do
+    button_visible?(context.page, "Belajar 3 Pasangan")
+  end
+
+  @impl true
+  def quiz_mode_available?(context), do: button_visible?(context.page, "Latihan Ujian")
+
+  @impl true
+  def start_learning(context) do
+    context
+    |> render_sifat_allah(
+      context.sifat
+      |> Map.put(:mode, :study)
+      |> Map.put(:lesson_pairs, SifatAllah.lesson_pairs(context.sifat.progress))
+      |> Map.put(:lesson_index, 0)
+      |> Map.put(:feedback, nil)
+    )
+  end
+
+  @impl true
+  def swipe_study_card_left(context), do: move_lesson(context, 1)
+
+  @impl true
+  def swipe_study_card_right(context), do: move_lesson(context, -1)
+
+  @impl true
+  def return_to_mission(context) do
+    render_sifat_allah(
+      context,
+      context.sifat |> Map.put(:mode, :dashboard) |> Map.put(:feedback, nil)
+    )
+  end
+
+  @impl true
+  def study_card_shows?(context, name, meaning) do
+    card = LazyHTML.query(context.page, "[data-role=study-card]")
+    text = LazyHTML.text(card)
+    String.contains?(text, name) and String.contains?(text, meaning)
+  end
+
+  @impl true
+  def mark_current_pair_remembered(context) do
+    pair = current_pair(context.sifat)
+    progress = SifatAllah.remember(context.sifat.progress, pair.id)
+
+    context
+    |> Map.put(:persisted_sifat_allah, Jason.encode!(progress))
+    |> render_sifat_allah(
+      context.sifat
+      |> Map.put(:progress, progress)
+      |> Map.put(:feedback, %{kind: :success, text: "Hebat!"})
+    )
+  end
+
+  @impl true
+  def progress_shows?(context, progress) do
+    context.page
+    |> LazyHTML.query(".sifat-stage")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> String.contains?(progress)
+  end
+
+  @impl true
+  def start_quiz(context) do
+    context
+    |> render_sifat_allah(
+      context.sifat
+      |> Map.put(:mode, :quiz)
+      |> Map.put(:quiz_pair, SifatAllah.quiz_pair(context.sifat.progress))
+      |> Map.put(:quiz_kind, :meaning)
+      |> Map.put(:feedback, nil)
+    )
+  end
+
+  @impl true
+  def start_focused_review(context) do
+    [pair | _rest] = SifatAllah.review_pairs(context.sifat.progress)
+
+    render_sifat_allah(
+      context,
+      context.sifat
+      |> Map.put(:mode, :review)
+      |> Map.put(:review_pair, pair)
+      |> Map.put(:review_kind, :meaning)
+      |> Map.put(:feedback, nil)
+    )
+  end
+
+  @impl true
+  def swipe_quiz_question_left(context), do: move_quiz_question(context, 1)
+
+  @impl true
+  def swipe_quiz_question_right(context), do: move_quiz_question(context, -1)
+
+  @impl true
+  def next_quiz_question(context) do
+    quiz_kind = if context.sifat.quiz_kind == :meaning, do: :opposite, else: :meaning
+
+    render_sifat_allah(
+      context,
+      context.sifat
+      |> Map.put(:quiz_pair, SifatAllah.next_pair(context.sifat.quiz_pair))
+      |> Map.put(:quiz_kind, quiz_kind)
+      |> Map.put(:feedback, nil)
+    )
+  end
+
+  @impl true
+  def answer_quiz(context, answer) do
+    pair = context.sifat.quiz_pair
+    correct? = SifatAllah.correct_answer?(pair, context.sifat.quiz_kind, answer)
+    progress = SifatAllah.record_answer(context.sifat.progress, pair, correct?)
+
+    feedback =
+      if correct?,
+        do: %{kind: :success, text: "Betul!"},
+        else: %{kind: :retry, text: "Belum tepat. Nanti kita ulang lagi, ya."}
+
+    context
+    |> Map.put(:persisted_sifat_allah, Jason.encode!(progress))
+    |> render_sifat_allah(
+      context.sifat
+      |> Map.put(:progress, progress)
+      |> Map.put(:feedback, feedback)
+    )
+  end
+
+  @impl true
+  def answer_focused_review(context, answer) do
+    pair = context.sifat.review_pair
+    correct? = SifatAllah.correct_answer?(pair, context.sifat.review_kind, answer)
+    progress = SifatAllah.record_answer(context.sifat.progress, pair, correct?)
+
+    feedback =
+      if correct? do
+        %{kind: :success, text: "Mantap! #{pair.wajib} sudah kamu kuasai."}
+      else
+        %{kind: :retry, text: "Belum tepat. Coba sekali lagi, ya."}
+      end
+
+    context
+    |> Map.put(:persisted_sifat_allah, Jason.encode!(progress))
+    |> render_sifat_allah(
+      context.sifat
+      |> Map.put(:progress, progress)
+      |> Map.put(:feedback, feedback)
+    )
+  end
+
+  @impl true
+  def next_focused_review(context) do
+    case SifatAllah.next_review_pair(context.sifat.progress, context.sifat.review_pair) do
+      nil ->
+        return_to_mission(context)
+
+      pair ->
+        review_kind = review_next_kind(context.sifat.review_pair, pair, context.sifat.review_kind)
+
+        render_sifat_allah(
+          context,
+          context.sifat
+          |> Map.put(:review_pair, pair)
+          |> Map.put(:review_kind, review_kind)
+          |> Map.put(:feedback, nil)
+        )
+    end
+  end
+
+  @impl true
+  def revision_list_contains?(context, name) do
+    context.page
+    |> LazyHTML.query("[data-testid=sifat-allah-revision-list]")
+    |> LazyHTML.text()
+    |> String.contains?(name)
   end
 
   defp render_chat(context, chat) do
@@ -284,6 +475,82 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       |> LazyHTML.from_fragment()
 
     Map.put(context, :page, page)
+  end
+
+  defp render_sifat_allah(context, state) do
+    page =
+      state
+      |> SifatAllahLive.render()
+      |> Safe.to_iodata()
+      |> IO.iodata_to_binary()
+      |> LazyHTML.from_fragment()
+
+    context
+    |> Map.put(:sifat, state)
+    |> Map.put(:page, page)
+  end
+
+  defp sifat_state(overrides \\ []) do
+    Map.merge(
+      %{
+        progress: SifatAllah.progress(),
+        mode: :dashboard,
+        lesson_pairs: [],
+        lesson_index: 0,
+        quiz_pair: nil,
+        quiz_kind: :meaning,
+        review_pair: nil,
+        review_kind: :meaning,
+        feedback: nil
+      },
+      Map.new(overrides)
+    )
+  end
+
+  defp current_pair(state), do: Enum.at(state.lesson_pairs, state.lesson_index)
+
+  defp move_lesson(context, direction) do
+    lesson_index =
+      context.sifat.lesson_index
+      |> Kernel.+(direction)
+      |> max(0)
+      |> min(length(context.sifat.lesson_pairs) - 1)
+
+    render_sifat_allah(context, Map.put(context.sifat, :lesson_index, lesson_index))
+  end
+
+  defp move_quiz_question(context, 1) do
+    quiz_kind = if context.sifat.quiz_kind == :meaning, do: :opposite, else: :meaning
+
+    render_sifat_allah(
+      context,
+      context.sifat
+      |> Map.put(:quiz_pair, SifatAllah.next_pair(context.sifat.quiz_pair))
+      |> Map.put(:quiz_kind, quiz_kind)
+      |> Map.put(:feedback, nil)
+    )
+  end
+
+  defp move_quiz_question(context, -1) do
+    quiz_kind = if context.sifat.quiz_kind == :meaning, do: :opposite, else: :meaning
+
+    render_sifat_allah(
+      context,
+      context.sifat
+      |> Map.put(:quiz_pair, SifatAllah.previous_pair(context.sifat.quiz_pair))
+      |> Map.put(:quiz_kind, quiz_kind)
+      |> Map.put(:feedback, nil)
+    )
+  end
+
+  defp review_next_kind(%{id: id}, %{id: id}, kind), do: kind
+  defp review_next_kind(_current_pair, _next_pair, :meaning), do: :opposite
+  defp review_next_kind(_current_pair, _next_pair, :opposite), do: :meaning
+
+  defp button_visible?(page, label) do
+    page
+    |> LazyHTML.query("button")
+    |> Enum.any?(fn button -> button |> LazyHTML.text() |> String.contains?(label) end)
   end
 
   defp enabled?(page, selector) do

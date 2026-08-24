@@ -67,7 +67,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def text_visible?(context, text) do
-    has_element?(context.view, ".model-badge", text)
+    has_element?(context.view, "main", text)
   end
 
   @impl true
@@ -290,6 +290,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :view, view)
   end
 
+  def reload(%{conn: conn, persisted_sifat_allah: persisted_sifat_allah} = context) do
+    conn = put_connect_params(conn, %{"sifat_allah" => persisted_sifat_allah})
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+    Map.put(context, :view, view)
+  end
+
   @impl true
   def clear_chat(context) do
     context.view
@@ -298,6 +304,148 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
     %{} = await_push_event(context.view, "clear-chat-storage")
     Map.delete(context, :persisted_chat)
+  end
+
+  @impl true
+  def study_mode_available?(context) do
+    has_element?(context.view, "button", "Belajar 3 Pasangan")
+  end
+
+  @impl true
+  def quiz_mode_available?(context), do: has_element?(context.view, "button", "Latihan Ujian")
+
+  @impl true
+  def start_learning(context) do
+    context.view
+    |> element("button", "Belajar 3 Pasangan")
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def swipe_study_card_left(context) do
+    render_hook(context.view, "swipe-study", %{"direction" => "left"})
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def swipe_study_card_right(context) do
+    render_hook(context.view, "swipe-study", %{"direction" => "right"})
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def return_to_mission(context) do
+    context.view
+    |> element("button", "← Kembali ke misi")
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def study_card_shows?(context, name, meaning) do
+    has_element?(context.view, "[data-role=study-card]", name) and
+      has_element?(context.view, "[data-role=study-card]", meaning)
+  end
+
+  @impl true
+  def mark_current_pair_remembered(context) do
+    context.view
+    |> element("button", "Aku sudah ingat")
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def progress_shows?(context, progress) do
+    has_element?(context.view, ".sifat-stage", progress)
+  end
+
+  @impl true
+  def start_quiz(context) do
+    context.view
+    |> element("button", "Latihan Ujian")
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def start_focused_review(context) do
+    context.view
+    |> element("button[phx-click=start-review]")
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def swipe_quiz_question_left(context) do
+    render_hook(context.view, "swipe-quiz", %{"direction" => "left"})
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def swipe_quiz_question_right(context) do
+    render_hook(context.view, "swipe-quiz", %{"direction" => "right"})
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def next_quiz_question(context) do
+    context.view
+    |> element("button", "Soal berikutnya →")
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def answer_quiz(context, answer) do
+    context.view
+    |> element("button", answer)
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def answer_focused_review(context, answer) do
+    context.view
+    |> element("button", answer)
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def next_focused_review(context) do
+    context.view
+    |> element("button[phx-click=next-review-question]")
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def revision_list_contains?(context, name) do
+    has_element?(context.view, "[data-testid=sifat-allah-revision-list]", name)
   end
 
   defp await_push_event(view, event) do

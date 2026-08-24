@@ -19,6 +19,7 @@ defmodule BnestAppWeb.Router do
 
     get "/", PageController, :home
     live "/chat", ChatLive
+    live "/apps/sifat-allah", SifatAllahLive
   end
 
   # Other scopes may use custom stacks.

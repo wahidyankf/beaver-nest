@@ -166,4 +166,81 @@ defmodule BnestApp.Behaviour.ChatSteps do
   step "the visitor clears the chat", context do
     context.behaviour_driver.clear_chat(context)
   end
+
+  step "the study mode is available", context do
+    assert context.behaviour_driver.study_mode_available?(context)
+    context
+  end
+
+  step "the quiz mode is available", context do
+    assert context.behaviour_driver.quiz_mode_available?(context)
+    context
+  end
+
+  step "the visitor starts learning", context do
+    context.behaviour_driver.start_learning(context)
+  end
+
+  step "the visitor swipes left on the study card", context do
+    context.behaviour_driver.swipe_study_card_left(context)
+  end
+
+  step "the visitor swipes right on the study card", context do
+    context.behaviour_driver.swipe_study_card_right(context)
+  end
+
+  step "the visitor returns to the mission", context do
+    context.behaviour_driver.return_to_mission(context)
+  end
+
+  step "the study card shows {string} and {string}", %{args: [name, meaning]} = context do
+    assert context.behaviour_driver.study_card_shows?(context, name, meaning)
+    context
+  end
+
+  step "the visitor marks the current pair as remembered", context do
+    context.behaviour_driver.mark_current_pair_remembered(context)
+  end
+
+  step "the progress shows {string}", %{args: [progress]} = context do
+    assert context.behaviour_driver.progress_shows?(context, progress)
+    context
+  end
+
+  step "the visitor starts a quiz", context do
+    context.behaviour_driver.start_quiz(context)
+  end
+
+  step "the visitor starts focused review", context do
+    context.behaviour_driver.start_focused_review(context)
+  end
+
+  step "the visitor swipes left on the quiz question", context do
+    context.behaviour_driver.swipe_quiz_question_left(context)
+  end
+
+  step "the visitor swipes right on the quiz question", context do
+    context.behaviour_driver.swipe_quiz_question_right(context)
+  end
+
+  step "the visitor continues to the next quiz question", context do
+    context.behaviour_driver.next_quiz_question(context)
+  end
+
+  step "the visitor answers {string}", %{args: [answer]} = context do
+    context.behaviour_driver.answer_quiz(context, answer)
+  end
+
+  step "the visitor answers {string} in focused review", %{args: [answer]} = context do
+    context.behaviour_driver.answer_focused_review(context, answer)
+  end
+
+  step "the visitor continues focused review", context do
+    context.behaviour_driver.next_focused_review(context)
+  end
+
+  step "the revision list contains {string}", %{args: [name]} = context do
+    assert context.behaviour_driver.revision_list_contains?(context, name)
+    context
+  end
 end

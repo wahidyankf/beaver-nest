@@ -115,6 +115,7 @@ defmodule BnestApp.MixProject do
              BnestApp.Behaviour.IntegrationHomePageDriver,
              BnestAppWeb.ConnCase,
              BnestAppWeb.ChatLive,
+             BnestAppWeb.SifatAllahLive,
              BnestAppWeb.Endpoint,
              BnestAppWeb.Telemetry
            ]}
@@ -123,6 +124,7 @@ defmodule BnestApp.MixProject do
           {"cover/integration",
            [
              BnestApp.Chat,
+             BnestApp.SifatAllah,
              BnestApp.Codex.FixtureModels,
              BnestApp.Behaviour.UnitHomePageDriver,
              BnestAppWeb.ErrorJSON

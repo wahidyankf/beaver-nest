@@ -34,6 +34,7 @@ if (!csrfToken) {
 }
 
 const chatStorageKey = "bnest.chat.v1";
+const sifatAllahStorageKey = "bnest.sifat-allah.v1";
 
 const storedChat = () => {
   try {
@@ -60,10 +61,125 @@ const clearStoredChat = () => {
   }
 };
 
+const swipeThreshold = 56;
+
+/** @typedef {{ pointerId: number, x: number, y: number }} SwipeStart */
+/**
+ * @typedef {{
+ *   onPointerDown: (event: PointerEvent) => void,
+ *   onPointerUp: (event: PointerEvent) => void,
+ *   onPointerCancel: (event: PointerEvent) => void
+ * }} SifatSwipeState
+ */
+
+/** @param {EventTarget | null} target */
+const isInteractiveTarget = (target) =>
+  target instanceof Element &&
+  Boolean(target.closest("button, a, input, select, textarea, label"));
+
+/** @param {Element} element @param {PointerEvent} event */
+const releasePointerCapture = (element, event) => {
+  if (element.hasPointerCapture(event.pointerId)) {
+    element.releasePointerCapture(event.pointerId);
+  }
+};
+
+/** @param {Element} element @param {PointerEvent} event */
+const startSwipe = (element, event) => {
+  if (!event.isPrimary || isInteractiveTarget(event.target)) return null;
+
+  element.setPointerCapture(event.pointerId);
+  return { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+};
+
+/**
+ * @param {{
+ *   el: HTMLElement,
+ *   pushEvent: (event: string, payload: {direction: "left" | "right"}) => void
+ * }} hook
+ * @param {SwipeStart | null} start
+ * @param {PointerEvent} event
+ */
+const finishSwipe = (hook, start, event) => {
+  if (!start || start.pointerId !== event.pointerId) return null;
+
+  const distanceX = event.clientX - start.x;
+  const distanceY = event.clientY - start.y;
+  releasePointerCapture(hook.el, event);
+
+  if (
+    Math.abs(distanceX) < swipeThreshold ||
+    Math.abs(distanceX) <= Math.abs(distanceY)
+  ) {
+    return null;
+  }
+
+  hook.pushEvent(hook.el.dataset["swipeEvent"] ?? "swipe-study", {
+    direction: distanceX < 0 ? "left" : "right",
+  });
+
+  return null;
+};
+
+/** @type {import("phoenix_live_view").Hook<SifatSwipeState>} */
+const SifatSwipe = {
+  mounted() {
+    /** @type {SwipeStart | null} */
+    let start = null;
+
+    /** @param {PointerEvent} event */
+    this.onPointerDown = (event) => {
+      start = startSwipe(this.el, event);
+    };
+
+    /** @param {PointerEvent} event */
+    this.onPointerUp = (event) => {
+      start = finishSwipe(this, start, event);
+    };
+
+    /** @param {PointerEvent} event */
+    this.onPointerCancel = (event) => {
+      start = null;
+      releasePointerCapture(this.el, event);
+    };
+
+    this.el.addEventListener("pointerdown", this.onPointerDown);
+    this.el.addEventListener("pointerup", this.onPointerUp);
+    this.el.addEventListener("pointercancel", this.onPointerCancel);
+  },
+
+  destroyed() {
+    this.el.removeEventListener("pointerdown", this.onPointerDown);
+    this.el.removeEventListener("pointerup", this.onPointerUp);
+    this.el.removeEventListener("pointercancel", this.onPointerCancel);
+  },
+};
+
+const storedSifatAllah = () => {
+  try {
+    return window.localStorage.getItem(sifatAllahStorageKey) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+/** @param {unknown} snapshot */
+const persistSifatAllah = (snapshot) => {
+  try {
+    window.localStorage.setItem(sifatAllahStorageKey, JSON.stringify(snapshot));
+  } catch {
+    // The learning flow still works when browser storage is unavailable.
+  }
+};
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: () => ({ _csrf_token: csrfToken, chat: storedChat() }),
-  hooks: { ...colocatedHooks },
+  params: () => ({
+    _csrf_token: csrfToken,
+    chat: storedChat(),
+    sifat_allah: storedSifatAllah(),
+  }),
+  hooks: { ...colocatedHooks, SifatSwipe },
 });
 
 window.addEventListener("phx:persist-chat", (event) => {
@@ -72,6 +188,10 @@ window.addEventListener("phx:persist-chat", (event) => {
 
 window.addEventListener("phx:clear-chat-storage", () => {
   clearStoredChat();
+});
+
+window.addEventListener("phx:persist-sifat-allah", (event) => {
+  if (event instanceof CustomEvent) persistSifatAllah(event.detail);
 });
 
 window.addEventListener("keydown", (event) => {
