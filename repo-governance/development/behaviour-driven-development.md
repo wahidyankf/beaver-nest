@@ -1,35 +1,41 @@
 # Behaviour-Driven Development
 
-Every application and library below `apps/` or `libs/` must keep observable behavior readable and executable in canonical Gherkin `.feature` files. Dedicated E2E harnesses implement their owning application's corpus, not a separate specification. The `libs/ex-bdd` runner is exempt.
+Every application and library below `apps/` or `libs/` must express observable behavior in canonical Gherkin `.feature` files. Dedicated E2E harnesses implement their owning application's corpus, not an independent specification. Only the `libs/ex-bdd` runner is exempt.
 
 ## Iron Rule
 
-Canonical Gherkin states behavioral intent first; test declarations, bindings, drivers, and implementations make it executable. Before interpreting or changing production code, read the relevant feature, scenarios, and steps, then their test code.
+Read relevant features, scenarios, steps, and test code before changing production code. For every observable behavior change: update Gherkin → bind failing steps in every applicable adapter → confirm Nx red → implement production code. Never skip or reorder this sequence. Finish with no placeholder or unimplemented step; establish a new project's corpus and adapters before its behavior.
 
-For every observable application behavior change, the mandatory order is: update Gherkin → bind its steps as failing tests in every applicable adapter → confirm red through Nx → implement production code. Never skip or reorder this sequence. Finish with no placeholder or unimplemented step. Establish a new project's corpus and adapters before implementing its behavior.
-
-For refactors or implementation-only changes preserving observable behavior, do not alter Gherkin. Read relevant specifications and tests, establish a green baseline or characterization coverage, then keep them green. `libs/ex-bdd` starts from its tests under the [TDD standard](test-driven-development.md).
+For refactors or implementation-only changes, preserve Gherkin, establish a green baseline or characterization coverage, and keep it green. `libs/ex-bdd` starts from tests under the [TDD standard](test-driven-development.md).
 
 ## Required Layers
 
-| Project role         | Required adapters                                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Application          | Unit, local-only integration, and E2E in a dedicated Nx project, all consuming the same corpus.                     |
-| Library              | Unit; add local-only integration only when the library owns a real local resource boundary. Never put E2E in a lib. |
-| Dedicated E2E app    | E2E for its owning application's corpus; it is not an independent behavior owner.                                   |
-| `libs/ex-bdd` runner | Exempt from this standard.                                                                                          |
+| Project role      | Required adapters                                                                                              |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- |
+| Application       | Unit, local-only integration, and E2E in a dedicated Nx project; all use the same corpus.                      |
+| Library           | Unit; add local-only integration only when it owns a real local resource boundary. Never add E2E to a library. |
+| Dedicated E2E app | E2E for its owning application's corpus; never an independent behavior owner.                                  |
+| `libs/ex-bdd`     | Exempt.                                                                                                        |
 
-A library without an integration adapter must have no owned filesystem, database, process, or similar local integration boundary. Behavior that needs proof at a public system boundary belongs to a consuming application's E2E corpus. Document the corpus path, required adapters, targets, and any inapplicable library integration layer in the project README.
+A library without integration must own no filesystem, database, process, or similar local boundary. Public-boundary proof belongs to a consuming application's E2E corpus. Its README must state the corpus path, adapters, targets, and any inapplicable integration layer.
 
 ## Shared Requirements
 
-- Keep canonical application behavior, inputs, and results below `specs/apps/`; keep library corpora below `specs/libs/`.
-- Discover every `.feature` recursively. Adding or nesting one must not require manual project or runner registration.
-- Give every scenario an explicit `When` and `Then`. Reject empty features and undefined or ambiguous steps.
-- Keep bindings thin and put reusable operations or state in support modules.
-- Execute every feature, expanded scenario, and step in every applicable adapter. Exempt a specific adapter only when its boundary makes the step impossible, and document why. Never exempt all adapters; remove a scenario that no adapter can implement.
-- Use `test:coverage:behaviour` to prove each required adapter embeds the exact recursive corpus, implements the complete driver contract, resolves every step exactly once, and has no unused binding. Deleting behavior is valid only when no stale binding remains.
-- Make each corpus an Nx input of its owner and E2E harness so pre-push affected `test:quick` runs unit scenarios and static behavior coverage; integration and E2E runtime remain outside `test:quick` under the [quality-gate](quality-gates.md) and [E2E](end-to-end-testing.md) standards.
-- Apply the [test boundaries](quality-gates.md): unit replaces system resources with doubles, integration uses isolated local resources without any network, and E2E exercises public production-like boundaries.
+- Keep application corpora in `specs/apps/` and library corpora in `specs/libs/`; discover `.feature` files recursively without registration.
+- Every scenario needs an explicit `When` and `Then`; reject empty features and undefined or ambiguous steps.
+- Keep bindings thin and reusable operations or state in support modules.
+- Run every feature, expanded scenario, and step in each applicable adapter. Exempt only a specific adapter when its boundary makes the step impossible and document why; never exempt all adapters.
+- `test:coverage:behaviour` must prove the exact recursive corpus, complete driver contract, exactly-one step binding, and no unused binding. Deleting behavior requires removing stale bindings.
+- Make the corpus an Nx input of its owner and E2E harness. `test:quick` runs unit scenarios and static behavior coverage, never integration or E2E runtime; follow the [quality-gate](quality-gates.md) and [E2E](end-to-end-testing.md) standards.
+- Unit uses doubles; integration uses isolated local resources without network; E2E exercises public production-like boundaries.
+
+## Manual Public-Boundary Confirmation
+
+Before completing an observable feature, manually confirm each affected public boundary after automated Gherkin, unit, integration, and E2E coverage. This supplements, never replaces, those layers.
+
+- Use Playwright MCP for affected browser flows against the running application.
+- Use `curl` for affected HTTP endpoints or APIs; when both browser and HTTP/API boundaries change, test both.
+- No check is needed when neither boundary is affected; say so in the delivery report.
+- In the handoff, record each check's route or command and observed result.
 
 Run commands through Nx from the repository root.

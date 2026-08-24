@@ -27,15 +27,15 @@ flowchart LR
 
 ## Responsibilities
 
-| Component | Responsibility |
-| --- | --- |
-| Phoenix LiveView | HTML UI, real-time browser state, roles, application actions, and job status |
-| Elixir/OTP supervisor | Starts and restarts recoverable application workers |
-| Document worker | Claims jobs, invokes approved processor programs, validates output, and records result |
-| Python processor | Performs a bounded document conversion, extraction, or analysis task |
-| Postgres | Private relational data, users, permissions, document metadata, and job state |
-| Private document volume | Original uploads, staging, and accepted processor output |
-| Tailscale Serve | Private HTTPS endpoint and requester identity forwarding |
+| Component               | Responsibility                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| Phoenix LiveView        | HTML UI, real-time browser state, roles, application actions, and job status           |
+| Elixir/OTP supervisor   | Starts and restarts recoverable application workers                                    |
+| Document worker         | Claims jobs, invokes approved processor programs, validates output, and records result |
+| Python processor        | Performs a bounded document conversion, extraction, or analysis task                   |
+| Postgres                | Private relational data, users, permissions, document metadata, and job state          |
+| Private document volume | Original uploads, staging, and accepted processor output                               |
+| Tailscale Serve         | Private HTTPS endpoint and requester identity forwarding                               |
 
 ## Document-processing flow
 
@@ -66,3 +66,7 @@ sequenceDiagram
 - External programs use absolute executable paths and argument lists, never a shell command.
 - Processors run with least privilege: restricted filesystem access, resource limits, no outbound network, and a dedicated staging/output area.
 - Data volumes are outside the Git and Dropbox workspace.
+
+## Interim local flat-file storage
+
+Until the planned private Postgres volume is introduced, small activity-specific runtime state may use ignored local flat files below `data/`. This is an interim persistence mechanism, not a replacement for the planned data volume. Its layout, ownership boundaries, and safe write requirements are defined by the [runtime flat-file-data convention](../repo-governance/conventions/runtime-flat-file-data.md).

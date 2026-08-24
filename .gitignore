@@ -48,12 +48,15 @@ npm-debug.log*
 # Runtime data is private and must never be committed. Keep only the directory
 # placeholders so the expected layout is available after cloning.
 /data/*
+!/data/general/
+/data/general/*
+!/data/general/.gitkeep
 !/data/system/
 /data/system/*
 !/data/system/.gitkeep
-!/data/user/
-/data/user/*
-!/data/user/.gitkeep
+!/data/users/
+/data/users/*
+!/data/users/.gitkeep
 
 
 

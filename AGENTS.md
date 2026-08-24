@@ -24,12 +24,13 @@
 
 ## Version Control
 
-- Default to local-`main` pushes; use [integration paths](repo-governance/conventions/integration-path.md) for PRs.
+- Use local-`main` for default pushes; use [integration paths](repo-governance/conventions/integration-path.md) for PRs.
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md).
-- Never commit secrets, tailnet names, or machine-local data. See [data safety](repo-governance/conventions/public-repository-data-safety.md).
+- Never commit secrets, tailnet identifiers, or machine-local data; see [data safety](repo-governance/conventions/public-repository-data-safety.md).
+- Keep runtime flat files within `data/{general,users,system}`; follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit or push](repo-governance/conventions/commit-authorization.md) only with explicit user authorization or an approved plan.
-- Fix hook failures at root; never use `--no-verify` without explicit authorization. Follow [push-hook verification](repo-governance/conventions/push-hook-verification.md).
-- Space repeated GitHub status polls at least two minutes apart. Follow the [GitHub polling convention](repo-governance/conventions/github-polling.md).
+- Fix hooks at root; never use `--no-verify` without explicit authorization. Follow [push-hook verification](repo-governance/conventions/push-hook-verification.md).
+- Space GitHub polls two minutes apart; follow [GitHub polling](repo-governance/conventions/github-polling.md).
 
 ## Repository Governance
 
@@ -42,10 +43,10 @@
 
 ## Development
 
-- Use English for repository artifacts; see [language](repo-governance/conventions/language.md).
+- Use English for artifacts; see [language](repo-governance/conventions/language.md).
 - Separate server and proxy lifecycles; follow [restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
-- Keep every applicable [quality gate](repo-governance/development/quality-gates.md) green.
+- Keep applicable [quality gates](repo-governance/development/quality-gates.md) green.
 - Keep `test:e2e` out of `test:quick`; run only affected end-to-end cases during development. Follow the [end-to-end testing standard](repo-governance/development/end-to-end-testing.md).
-- **Application iron rule** (except `libs/ex-bdd`): canonical Gherkin → failing bindings in each applicable adapter → Nx red → implementation. No unimplemented step; exempt only incapable adapters, never all—remove all-impossible scenarios. See [BDD](repo-governance/development/behaviour-driven-development.md) and [TDD](repo-governance/development/test-driven-development.md).
-- Maintain every app and library [project README](repo-governance/conventions/project-readmes.md), updating it when affected.
+- **Application rule** (except `libs/ex-bdd`): Gherkin → failing bindings in every applicable adapter → Nx red → implementation → manual public smoke. Never leave a step unimplemented; exempt incapable adapters only. See [BDD](repo-governance/development/behaviour-driven-development.md) and [TDD](repo-governance/development/test-driven-development.md).
+- Update affected app and library [READMEs](repo-governance/conventions/project-readmes.md).
 - Prefer accessible Mermaid for useful Markdown visuals under the [visualization convention](repo-governance/conventions/markdown-visualizations.md).

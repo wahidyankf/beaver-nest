@@ -69,7 +69,7 @@ apps/badakmini-cli/  F# governance CLI with unit and integration tests
 apps/badakmini-cli-e2e/  Process end-to-end tests for the CLI
 libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
 specs/apps/  Canonical application behavior specifications shared across test levels
-data/        Ignored local system and user data placeholders
+data/        Ignored local runtime-data placeholders (general, users, system)
 docs/        Diátaxis-organized, non-rule documentation
 plans/       Product, architecture, testing, and operations plans
 ```
@@ -78,7 +78,7 @@ plans/       Product, architecture, testing, and operations plans
 
 The app is intended for private access by family devices on a Tailscale network. The development endpoint remains bound to loopback, and the independently managed Tailscale Serve proxy provides private HTTPS access without exposing Phoenix directly to the LAN or public internet.
 
-Never commit user data, documents, database files, credentials, Tailscale auth keys, or backups. The `data/` directory is intentionally ignored except for its directory placeholders.
+Never commit user data, documents, database files, credentials, Tailscale auth keys, or backups. The `data/` directory is intentionally ignored except for its directory placeholders; its layout and write rules follow the [runtime flat-file-data convention](repo-governance/conventions/runtime-flat-file-data.md).
 
 For the target architecture and operating model, see [the plans index](plans/README.md).
 

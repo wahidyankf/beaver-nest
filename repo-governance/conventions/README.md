@@ -29,5 +29,6 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Public repository data safety](public-repository-data-safety.md) prevents secrets and machine-local identifiers from entering public history.
 - [Push-hook verification](push-hook-verification.md) requires root-cause repair and prevents unauthorized bypass of push-time safeguards.
 - [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.
+- [Runtime flat-file data](runtime-flat-file-data.md) defines the private `data/` layout and safe flat-file persistence boundaries.
 - [Task tracking](task-tracking.md) requires granular task lists whose status stays synchronized with the work.
 - [Thematic commits](thematic-commits.md) keep each commit focused on one coherent purpose.
