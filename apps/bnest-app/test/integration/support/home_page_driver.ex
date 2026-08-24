@@ -41,6 +41,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def clear_chat_control_available?(context) do
+    has_element?(context.view, "[data-role=clear-chat]:not([disabled])")
+  end
+
+  @impl true
   def attempt_empty_message(context) do
     render_submit(context.view, "send", %{"chat" => %{"prompt" => "   "}})
     context
@@ -51,6 +56,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     render_submit(context.view, "send", %{"chat" => %{"prompt" => message}})
     context
   end
+
+  @impl true
+  def submit_with_shift_enter(context, message), do: send_message(context, message)
 
   @impl true
   def attempt_message_before_finished(context, message) do
@@ -70,9 +78,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def stream_codex_response(context) do
-    send(context.view.pid, {:codex, {:assistant_update, "Fixture response"}})
-    send(context.view.pid, {:codex, {:assistant_update, "Fixture response complete."}})
-    send(context.view.pid, {:codex, :turn_completed})
+    session = context.view.pid
+    send(context.view.pid, {:codex, session, {:thread_started, "fixture-thread"}})
+    send(context.view.pid, {:codex, session, {:assistant_update, "Fixture response"}})
+    send(context.view.pid, {:codex, session, {:assistant_update, "Fixture response complete."}})
+    send(context.view.pid, {:codex, session, :turn_completed})
+
+    snapshot = await_push_event(context.view, "persist-chat")
 
     streamed? =
       context.view
@@ -84,7 +96,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       |> List.first()
       |> then(&(&1 && String.to_integer(&1) >= 2))
 
-    {streamed?, context}
+    {streamed?, Map.put(context, :persisted_chat, Jason.encode!(snapshot))}
   end
 
   @impl true
@@ -98,6 +110,16 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def one_completed_codex_response_visible?(context) do
+    context.view
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("[data-role=assistant-message][data-streaming=false]")
+    |> Enum.count()
+    |> Kernel.==(1)
+  end
+
+  @impl true
   def reject_message(context, message) do
     render_submit(context.view, "send", %{"chat" => %{"prompt" => message}})
     context
@@ -105,7 +127,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def report_codex_error(context, message) do
-    send(context.view.pid, {:codex, {:error, message}})
+    send(context.view.pid, {:codex, context.view.pid, {:error, message}})
     render(context.view)
     context
   end
@@ -116,8 +138,27 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
-  def reload(%{conn: conn} = context) do
+  def reload(%{conn: conn, persisted_chat: persisted_chat} = context) do
+    conn = put_connect_params(conn, %{"chat" => persisted_chat})
     {:ok, view, _html} = live(conn, "/")
     Map.put(context, :view, view)
+  end
+
+  @impl true
+  def clear_chat(context) do
+    context.view
+    |> element("[data-role=clear-chat]")
+    |> render_click()
+
+    %{} = await_push_event(context.view, "clear-chat-storage")
+    Map.delete(context, :persisted_chat)
+  end
+
+  defp await_push_event(view, event) do
+    %{proxy: {ref, _topic, _}} = view
+
+    receive do
+      {^ref, {:push_event, ^event, payload}} -> payload
+    end
   end
 end

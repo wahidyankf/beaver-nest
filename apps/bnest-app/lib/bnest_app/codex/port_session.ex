@@ -7,7 +7,7 @@ defmodule BnestApp.Codex.PortSession do
   alias BnestApp.Codex.Settings
 
   @impl BnestApp.Codex.Session
-  def open(owner), do: GenServer.start(__MODULE__, owner)
+  def open(owner, thread_id), do: GenServer.start(__MODULE__, {owner, thread_id})
 
   @impl BnestApp.Codex.Session
   def send_prompt(session, prompt) do
@@ -22,9 +22,9 @@ defmodule BnestApp.Codex.PortSession do
   end
 
   @impl GenServer
-  def init(owner) do
+  def init({owner, thread_id}) do
     monitor = Process.monitor(owner)
-    {:ok, %{owner: owner, monitor: monitor, port: open_port()}}
+    {:ok, %{owner: owner, monitor: monitor, port: open_port(thread_id)}}
   end
 
   @impl GenServer
@@ -40,7 +40,11 @@ defmodule BnestApp.Codex.PortSession do
   end
 
   def handle_info({port, {:exit_status, status}}, %{port: port} = state) do
-    send(state.owner, {:codex, {:error, "Codex runner exited with status #{status}."}})
+    send(
+      state.owner,
+      {:codex, self(), {:error, "Codex runner exited with status #{status}."}}
+    )
+
     {:stop, :normal, %{state | port: nil}}
   end
 
@@ -60,7 +64,7 @@ defmodule BnestApp.Codex.PortSession do
 
   def terminate(_reason, _state), do: :ok
 
-  defp open_port do
+  defp open_port(thread_id) do
     config = Application.fetch_env!(:bnest_app, :codex)
     runner = System.get_env("BNEST_CODEX_RUNNER") || Keyword.fetch!(config, :runner)
     working_directory = Keyword.fetch!(config, :working_directory)
@@ -74,7 +78,13 @@ defmodule BnestApp.Codex.PortSession do
         {:line, 1_048_576},
         {:args,
          Enum.map(
-           [runner, working_directory, Settings.model(), Settings.reasoning_effort()],
+           [
+             runner,
+             working_directory,
+             Settings.model(),
+             Settings.reasoning_effort(),
+             thread_id || ""
+           ],
            &String.to_charlist/1
          )},
         {:cd, String.to_charlist(working_directory)}
@@ -91,17 +101,20 @@ defmodule BnestApp.Codex.PortSession do
 
   defp notify_owner(owner, line) do
     case Jason.decode(line) do
+      {:ok, %{"type" => "thread_started", "thread_id" => thread_id}} ->
+        send(owner, {:codex, self(), {:thread_started, thread_id}})
+
       {:ok, %{"type" => "assistant_update", "text" => text}} ->
-        send(owner, {:codex, {:assistant_update, text}})
+        send(owner, {:codex, self(), {:assistant_update, text}})
 
       {:ok, %{"type" => "turn_completed"}} ->
-        send(owner, {:codex, :turn_completed})
+        send(owner, {:codex, self(), :turn_completed})
 
       {:ok, %{"type" => "error", "message" => message}} ->
-        send(owner, {:codex, {:error, message}})
+        send(owner, {:codex, self(), {:error, message}})
 
       {:error, _reason} ->
-        send(owner, {:codex, {:error, "Codex runner returned invalid data."}})
+        send(owner, {:codex, self(), {:error, "Codex runner returned invalid data."}})
     end
   end
 end

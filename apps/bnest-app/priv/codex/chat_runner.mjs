@@ -9,6 +9,7 @@ process.stdout.on("error", (error) => {
 const workingDirectory = process.argv[2];
 const model = process.argv[3];
 const modelReasoningEffort = process.argv[4];
+const resumedThreadId = process.argv[5];
 
 if (!workingDirectory || !model || !modelReasoningEffort) {
   throw new Error(
@@ -17,7 +18,7 @@ if (!workingDirectory || !model || !modelReasoningEffort) {
 }
 
 const codex = new Codex();
-const thread = codex.startThread({
+const threadOptions = {
   model,
   modelReasoningEffort,
   sandboxMode: "read-only",
@@ -25,7 +26,10 @@ const thread = codex.startThread({
   networkAccessEnabled: false,
   webSearchMode: "disabled",
   workingDirectory,
-});
+};
+const thread = resumedThreadId
+  ? codex.resumeThread(resumedThreadId, threadOptions)
+  : codex.startThread(threadOptions);
 
 const output = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
 
@@ -34,7 +38,9 @@ const runTurn = async (prompt) => {
     const { events } = await thread.runStreamed(prompt);
 
     for await (const event of events) {
-      if (
+      if (event.type === "thread.started") {
+        output({ type: "thread_started", thread_id: event.thread_id });
+      } else if (
         (event.type === "item.started" ||
           event.type === "item.updated" ||
           event.type === "item.completed") &&

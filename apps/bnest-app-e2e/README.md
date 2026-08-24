@@ -33,12 +33,12 @@ Every feature must contain a scenario, and every scenario must contain an explic
 During development, follow the [end-to-end testing standard](../../repo-governance/development/end-to-end-testing.md) and run only cases plausibly affected by the change. Pass a scenario-title or tag `--grep` filter through the Nx target:
 
 ```sh
-npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Refresh clears a completed conversation"
+npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Reload preserves a completed conversation and Codex session"
 ```
 
 The `test:e2e` target first enforces behavior coverage, then uses [playwright.config.mts](playwright.config.mts) to start an isolated `bnest-app` at `http://127.0.0.1:4010`. Set `BNEST_E2E_PORT` to use another local port. The harness never reuses a development server because doing so could bypass its deterministic Codex runner. It runs Chromium and records a trace on the first retry. The [scheduled GitHub workflow](../../.github/workflows/full-e2e.yml) runs Bnest integration coverage before the complete browser suite at 06:00 and 18:00 WIB.
 
-Chat assertions deliberately avoid exact assistant prose. The fixture emits multiple transport updates, while the browser contract checks that a response updates incrementally, reaches completion, and remains page-scoped. Semantic model quality is outside deterministic browser acceptance.
+Chat assertions deliberately avoid exact assistant prose. The fixture emits multiple transport updates, while the browser contract checks deterministic protocol and UI outcomes: incremental completion, same-tab reload restoration, resumed thread identity, and a fresh thread after **Clear chat**. It rejects the reload continuation if no thread ID was resumed and rejects the fresh-start prompt if Clear retained that ID. Semantic model quality is outside deterministic browser acceptance and belongs in representative evals with outcome-based graders.
 
 ## Structure
 

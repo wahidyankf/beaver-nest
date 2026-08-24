@@ -46,6 +46,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def clear_chat_control_available?(context) do
+    controls = LazyHTML.query(context.page, "[data-role=clear-chat]")
+    not Enum.empty?(controls) and controls |> LazyHTML.attribute("disabled") |> Enum.empty?()
+  end
+
+  @impl true
   def attempt_empty_message(context) do
     {:error, chat} = Chat.submit(context.chat, "   ")
     render_chat(context, chat)
@@ -56,6 +62,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     {:ok, chat} = Chat.submit(context.chat, message)
     render_chat(context, chat)
   end
+
+  @impl true
+  def submit_with_shift_enter(context, message), do: send_message(context, message)
 
   @impl true
   def attempt_message_before_finished(context, message) do
@@ -79,11 +88,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def stream_codex_response(context) do
     chat =
       context.chat
+      |> Chat.put_thread_id("fixture-thread")
       |> Chat.update_assistant("Fixture response")
       |> Chat.update_assistant("Fixture response complete.")
       |> Chat.complete()
 
-    context = render_chat(context, chat)
+    {:ok, snapshot} = Chat.snapshot(chat)
+
+    context =
+      context
+      |> Map.put(:persisted_chat, Jason.encode!(snapshot))
+      |> render_chat(chat)
+
     {assistant_update_count(context) >= 2, context}
   end
 
@@ -93,6 +109,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> LazyHTML.query("[data-role=assistant-message]")
     |> Enum.count()
     |> Kernel.==(2)
+  end
+
+  @impl true
+  def one_completed_codex_response_visible?(context) do
+    context.page
+    |> LazyHTML.query("[data-role=assistant-message][data-streaming=false]")
+    |> Enum.count()
+    |> Kernel.==(1)
   end
 
   @impl true
@@ -116,7 +140,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
-  def reload(context), do: open(context, "/")
+  def reload(%{persisted_chat: encoded} = context) do
+    {:ok, snapshot} = Jason.decode(encoded)
+    {:ok, chat} = Chat.restore(snapshot)
+    render_chat(context, chat)
+  end
+
+  @impl true
+  def clear_chat(context) do
+    context
+    |> Map.delete(:persisted_chat)
+    |> render_chat(Chat.new())
+  end
 
   defp render_chat(context, chat) do
     page =

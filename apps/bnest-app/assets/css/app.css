@@ -186,6 +186,32 @@ body {
   font-weight: 700;
 }
 
+.chat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.clear-chat-button {
+  border: 1px solid var(--nest-line);
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  color: var(--nest-muted);
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.clear-chat-button:hover,
+.clear-chat-button:focus-visible {
+  border-color: var(--nest-green);
+  color: var(--nest-green);
+  outline: none;
+}
+
 .conversation {
   display: flex;
   flex: 1;

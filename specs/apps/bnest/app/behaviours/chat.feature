@@ -6,6 +6,7 @@ Feature: Beaver Nest chat
     And the page displays the text "Terra · medium"
     And the conversation is empty
     And the message composer is available
+    And the clear chat control is available
 
   Scenario: A visitor cannot send an empty message
     Given a visitor opens "/"
@@ -20,6 +21,14 @@ Feature: Beaver Nest chat
     And the message composer is unavailable
     When the visitor attempts to send "Too soon" before Codex finishes
     Then the conversation does not display the visitor message "Too soon"
+    And a Codex response appears incrementally
+    And the message composer is available
+
+  Scenario: A visitor sends a message with Shift+Enter
+    Given a visitor opens "/"
+    When the visitor submits "Keyboard message" with Shift+Enter
+    Then the conversation displays the visitor message "Keyboard message"
+    And the message composer is unavailable
     And a Codex response appears incrementally
     And the message composer is available
 
@@ -45,10 +54,26 @@ Feature: Beaver Nest chat
     Then the page displays the alert "Turn failed."
     And the message composer is available
 
-  Scenario: Refresh clears a completed conversation
+  Scenario: Reload preserves a completed conversation and Codex session
     Given a visitor opens "/"
     When the visitor sends "Temporary message"
     And a Codex response appears incrementally
     When the visitor reloads the page
+    Then the conversation displays the visitor message "Temporary message"
+    And the conversation displays one completed Codex response
+    When the visitor sends "After reload"
+    Then the conversation displays the visitor message "After reload"
+    And a Codex response appears incrementally
+    And the conversation displays a second Codex response
+
+  Scenario: A visitor clears the chat and starts a new Codex session
+    Given a visitor opens "/"
+    When the visitor sends "Old session marker"
+    And a Codex response appears incrementally
+    When the visitor clears the chat
     Then the conversation is empty
     And the message composer is available
+    When the visitor sends "Fresh start"
+    Then the conversation displays the visitor message "Fresh start"
+    And a Codex response appears incrementally
+    And the conversation does not display the visitor message "Old session marker"

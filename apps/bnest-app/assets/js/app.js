@@ -33,10 +33,62 @@ if (!csrfToken) {
   throw new Error("Missing CSRF token meta tag");
 }
 
+const chatStorageKey = "bnest.chat.v1";
+
+const storedChat = () => {
+  try {
+    return window.sessionStorage.getItem(chatStorageKey) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+/** @param {unknown} snapshot */
+const persistChat = (snapshot) => {
+  try {
+    window.sessionStorage.setItem(chatStorageKey, JSON.stringify(snapshot));
+  } catch {
+    // Storage can be unavailable in privacy-restricted browser contexts.
+  }
+};
+
+const clearStoredChat = () => {
+  try {
+    window.sessionStorage.removeItem(chatStorageKey);
+  } catch {
+    // Clearing the server-side view must still succeed when storage is unavailable.
+  }
+};
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: { _csrf_token: csrfToken },
+  params: () => ({ _csrf_token: csrfToken, chat: storedChat() }),
   hooks: { ...colocatedHooks },
+});
+
+window.addEventListener("phx:persist-chat", (event) => {
+  if (event instanceof CustomEvent) persistChat(event.detail);
+});
+
+window.addEventListener("phx:clear-chat-storage", () => {
+  clearStoredChat();
+});
+
+window.addEventListener("keydown", (event) => {
+  const composer = event.target;
+
+  if (
+    event.key !== "Enter" ||
+    !event.shiftKey ||
+    event.isComposing ||
+    !(composer instanceof HTMLTextAreaElement) ||
+    composer.dataset["role"] !== "chat-composer"
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  composer.form?.requestSubmit();
 });
 
 // Show progress bar on live navigation and form submits

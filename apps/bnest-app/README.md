@@ -50,16 +50,18 @@ The development server is available at [http://localhost:4000](http://localhost:
 
 ## Chat runtime
 
-Each connected LiveView owns one Node bridge and one in-memory Codex SDK thread. Repeated prompts on that page use the same thread. Reloading or leaving the page closes the bridge; a new page starts with no messages and never resumes the prior thread ID. The underlying Codex CLI may still create its normal account-level session artifacts outside the application.
+Each connected LiveView owns one Node bridge. The bridge starts a Codex SDK thread for a fresh chat or resumes the saved thread ID after a reload. After each completed turn, the LiveView sends a validated transcript snapshot and thread ID to the browser's same-tab `sessionStorage`; reconnect parameters restore that snapshot and resume the same Codex context. Incomplete turns are never saved. **Clear chat** closes the current bridge, removes the browser snapshot, clears the transcript, and opens a fresh thread. Events carry their bridge identity so queued updates from a cleared bridge cannot modify the new chat.
 
-The runner fixes the model to `gpt-5.6-terra` with medium reasoning effort, read-only sandbox access, approval policy `never`, and network and web search disabled. Assistant message updates stream into the transcript as plain text. The UI intentionally has no database, browser storage, authentication, uploads, Markdown rendering, or conversation history.
+The runner fixes the model to `gpt-5.6-terra` with medium reasoning effort, read-only sandbox access, approval policy `never`, and network and web search disabled. Assistant message updates stream into the transcript as plain text. **Shift+Enter** submits the composer, while plain Enter remains available for multiline input.
+
+Persistence is intentionally limited to the current browser tab. The app has no database, authentication, cross-tab or cross-device history, uploads, or Markdown rendering. `data/user/` remains available for a later server-side storage design once Beaver Nest has a user/session ownership boundary; writing one global file there now would mix different visitors' conversations. The underlying Codex CLI may still create its normal account-level session artifacts outside the application.
 
 The test environment substitutes a deterministic session, and browser tests start a deterministic Node runner. These fixtures control protocol timing and completion but the canonical Gherkin never requires particular model wording. A real-model smoke check should assert only protocol health and a non-empty completed response; model-quality requirements belong in representative evals with outcome-based graders.
 
 ## Structure
 
 - `lib/bnest_app/` contains the OTP application and domain-facing modules.
-- `lib/bnest_app/codex/` owns the SDK subprocess protocol and page-scoped session lifecycle.
+- `lib/bnest_app/codex/` owns the SDK subprocess protocol and resumable session lifecycle.
 - `lib/bnest_app_web/` contains the endpoint, router, chat LiveView, controllers, and components.
 - `priv/codex/` contains the Node runner that invokes the official Codex SDK.
 - `assets/` contains browser JavaScript, CSS, and declaration boundaries used for strict checking.

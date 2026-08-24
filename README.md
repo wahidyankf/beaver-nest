@@ -31,7 +31,7 @@ Open [http://localhost:4000](http://localhost:4000).
 
 Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset watchers update JavaScript and CSS. Configuration, dependency, and supervision changes require the [development-server restart workflow](repo-governance/workflows/development-server-restart.md).
 
-The chat uses `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. Conversation state lives only in the connected page and resets on refresh; the app does not save or resume thread IDs.
+The chat uses `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. A completed conversation and its Codex thread ID live in the current browser tab's session storage, survive reload, and disappear when the visitor chooses **Clear chat** or closes the tab. Beaver Nest does not yet provide authenticated, cross-tab, or cross-device conversation history.
 
 ## Test
 
@@ -39,7 +39,7 @@ The chat uses `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox.
 npm test
 npm exec -- nx run -p bnest-app -t test:integration
 npm exec -- nx run -p bnest-app -t test:coverage:behaviour
-npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Refresh clears a completed conversation"
+npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Reload preserves a completed conversation and Codex session"
 npm exec -- nx run -p badakmini-cli -t test:integration
 npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 ```

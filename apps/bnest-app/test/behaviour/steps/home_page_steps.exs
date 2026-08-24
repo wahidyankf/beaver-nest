@@ -32,12 +32,21 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the clear chat control is available", context do
+    assert context.behaviour_driver.clear_chat_control_available?(context)
+    context
+  end
+
   step "the visitor attempts to send an empty message", context do
     context.behaviour_driver.attempt_empty_message(context)
   end
 
   step "the visitor sends {string}", %{args: [message]} = context do
     context.behaviour_driver.send_message(context, message)
+  end
+
+  step "the visitor submits {string} with Shift+Enter", %{args: [message]} = context do
+    context.behaviour_driver.submit_with_shift_enter(context, message)
   end
 
   step "the visitor attempts to send {string} before Codex finishes",
@@ -63,6 +72,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the conversation displays one completed Codex response", context do
+    assert context.behaviour_driver.one_completed_codex_response_visible?(context)
+    context
+  end
+
   step "the conversation displays a second Codex response", context do
     assert context.behaviour_driver.second_codex_response_visible?(context)
     context
@@ -83,5 +97,9 @@ defmodule BnestApp.Behaviour.ChatSteps do
 
   step "the visitor reloads the page", context do
     context.behaviour_driver.reload(context)
+  end
+
+  step "the visitor clears the chat", context do
+    context.behaviour_driver.clear_chat(context)
   end
 end

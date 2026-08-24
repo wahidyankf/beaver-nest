@@ -34,6 +34,10 @@ Then("the message composer is unavailable", async ({ page }) => {
   await expect(page.locator(".send-button")).toBeDisabled();
 });
 
+Then("the clear chat control is available", async ({ page }) => {
+  await expect(page.getByRole("button", { name: "Clear chat" })).toBeEnabled();
+});
+
 When("the visitor attempts to send an empty message", async ({ page }) => {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
   await page.getByLabel("Message").fill("   ");
@@ -45,6 +49,16 @@ When("the visitor sends {string}", async ({ page }, message: string) => {
   await page.getByLabel("Message").fill(message);
   await page.getByRole("button", { name: "Send" }).click();
 });
+
+When(
+  "the visitor submits {string} with Shift+Enter",
+  async ({ page }, message: string) => {
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    const composer = page.getByLabel("Message");
+    await composer.fill(message);
+    await composer.press("Shift+Enter");
+  },
+);
 
 When(
   "the visitor attempts to send {string} before Codex finishes",
@@ -89,6 +103,15 @@ Then("the conversation displays a second Codex response", async ({ page }) => {
   await expect(page.locator("[data-role=assistant-message]")).toHaveCount(2);
 });
 
+Then(
+  "the conversation displays one completed Codex response",
+  async ({ page }) => {
+    await expect(
+      page.locator("[data-role=assistant-message][data-streaming=false]"),
+    ).toHaveCount(1);
+  },
+);
+
 When(
   "Codex rejects the visitor message {string}",
   async ({ page }, message: string) => {
@@ -111,4 +134,8 @@ Then(
 
 When("the visitor reloads the page", async ({ page }) => {
   await page.reload();
+});
+
+When("the visitor clears the chat", async ({ page }) => {
+  await page.getByRole("button", { name: "Clear chat" }).click();
 });
