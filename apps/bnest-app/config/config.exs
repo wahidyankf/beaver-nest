@@ -8,7 +8,11 @@
 import Config
 
 config :bnest_app,
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  codex: [
+    runner: Path.expand("../priv/codex/chat_runner.mjs", __DIR__),
+    working_directory: Path.expand("../../..", __DIR__)
+  ]
 
 # Configure the endpoint
 config :bnest_app, BnestAppWeb.Endpoint,

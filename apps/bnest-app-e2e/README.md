@@ -4,7 +4,7 @@
 
 ## Scope
 
-This project owns thin browser bindings, browser configuration, and assertions across the running application boundary. The canonical features and the unit/integration adapters are shared concerns rooted in `specs/` and `bnest-app`; component, LiveView, controller, and domain-level tests remain with `bnest-app`.
+This project owns thin browser bindings, browser configuration, and assertions across the running application boundary. Its web server injects Bnest's deterministic Codex runner so acceptance tests cover streaming and page lifecycle without a live model call. The canonical features and the unit/integration adapters are shared concerns rooted in `specs/` and `bnest-app`; component, LiveView, controller, and domain-level tests remain with `bnest-app`.
 
 ## Quality Targets
 
@@ -33,10 +33,12 @@ Every feature must contain a scenario, and every scenario must contain an explic
 During development, follow the [end-to-end testing standard](../../repo-governance/development/end-to-end-testing.md) and run only cases plausibly affected by the change. Pass a scenario-title or tag `--grep` filter through the Nx target:
 
 ```sh
-npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "A visitor opens Beaver Nest"
+npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Refresh clears a completed conversation"
 ```
 
-The `test:e2e` target first enforces behavior coverage, then uses [playwright.config.mts](playwright.config.mts) to start `bnest-app` at `http://127.0.0.1:4000`. Set `BNEST_E2E_PORT` to use another local port. The harness reuses an already-running matching server outside CI, runs Chromium, and records a trace on the first retry. The [scheduled GitHub workflow](../../.github/workflows/full-e2e.yml) runs Bnest integration coverage before the complete browser suite at 06:00 and 18:00 WIB.
+The `test:e2e` target first enforces behavior coverage, then uses [playwright.config.mts](playwright.config.mts) to start an isolated `bnest-app` at `http://127.0.0.1:4010`. Set `BNEST_E2E_PORT` to use another local port. The harness never reuses a development server because doing so could bypass its deterministic Codex runner. It runs Chromium and records a trace on the first retry. The [scheduled GitHub workflow](../../.github/workflows/full-e2e.yml) runs Bnest integration coverage before the complete browser suite at 06:00 and 18:00 WIB.
+
+Chat assertions deliberately avoid exact assistant prose. The fixture emits multiple transport updates, while the browser contract checks that a response updates incrementally, reaches completion, and remains page-scoped. Semantic model quality is outside deterministic browser acceptance.
 
 ## Structure
 

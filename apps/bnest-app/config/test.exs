@@ -1,5 +1,7 @@
 import Config
 
+config :bnest_app, :codex_session, BnestApp.Codex.FixtureSession
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :bnest_app, BnestAppWeb.Endpoint,

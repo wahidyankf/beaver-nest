@@ -106,3 +106,218 @@
 }
 
 /* This file is for your main application CSS */
+
+:root {
+  --nest-ink: #24251f;
+  --nest-muted: #77776d;
+  --nest-paper: #f8f5ee;
+  --nest-line: #ded9cd;
+  --nest-green: #355c4b;
+  --nest-green-light: #e6eee9;
+  --nest-warm: #efe8dc;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  color: var(--nest-ink);
+  background:
+    radial-gradient(circle at 20% 0%, rgb(53 92 75 / 10%), transparent 34rem),
+    var(--nest-paper);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.chat-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 2rem 1rem;
+}
+
+.chat-panel {
+  display: flex;
+  width: min(100%, 46rem);
+  min-height: min(46rem, calc(100vh - 4rem));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--nest-line);
+  border-radius: 1.25rem;
+  background: rgb(255 255 255 / 78%);
+  box-shadow: 0 1.5rem 4rem rgb(48 45 37 / 10%);
+  backdrop-filter: blur(1rem);
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.35rem 1.5rem;
+  border-bottom: 1px solid var(--nest-line);
+}
+
+.chat-header h1 {
+  margin: 0.1rem 0 0;
+  font-family: ui-serif, Georgia, serif;
+  font-size: clamp(1.65rem, 4vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.chat-kicker,
+.message-label {
+  margin: 0;
+  color: var(--nest-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.model-badge {
+  flex: none;
+  border: 1px solid #b9cbbf;
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  color: var(--nest-green);
+  background: var(--nest-green-light);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.conversation {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.9rem;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.empty-state {
+  display: grid;
+  flex: 1;
+  place-content: center;
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 0;
+  font-family: ui-serif, Georgia, serif;
+  font-size: 1.35rem;
+}
+
+.empty-state span {
+  margin-top: 0.35rem;
+  color: var(--nest-muted);
+  font-size: 0.9rem;
+}
+
+.message {
+  max-width: 86%;
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.message-visitor {
+  align-self: flex-end;
+  border-bottom-right-radius: 0.3rem;
+  background: var(--nest-green);
+  color: white;
+}
+
+.message-visitor .message-label {
+  color: rgb(255 255 255 / 65%);
+}
+
+.message-assistant {
+  align-self: flex-start;
+  border: 1px solid var(--nest-line);
+  border-bottom-left-radius: 0.3rem;
+  background: white;
+}
+
+.message-content {
+  margin: 0.25rem 0 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.chat-error {
+  margin: 0 1.5rem 0.75rem;
+  border-radius: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  color: #822b25;
+  background: #f8dfdc;
+  font-size: 0.9rem;
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem 1.5rem;
+  border-top: 1px solid var(--nest-line);
+  background: rgb(248 245 238 / 80%);
+}
+
+.composer label {
+  color: var(--nest-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.composer textarea {
+  width: 100%;
+  min-height: 5.25rem;
+  resize: vertical;
+  border: 1px solid #c9c3b7;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  outline: none;
+  background: white;
+}
+
+.composer textarea:focus {
+  border-color: var(--nest-green);
+  box-shadow: 0 0 0 3px rgb(53 92 75 / 12%);
+}
+
+.send-button {
+  min-width: 6.5rem;
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0.78rem 1rem;
+  color: white;
+  background: var(--nest-green);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.send-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (max-width: 42rem) {
+  .chat-shell {
+    display: block;
+    padding: 0;
+  }
+
+  .chat-panel {
+    min-height: 100vh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .composer {
+    grid-template-columns: 1fr;
+  }
+
+  .send-button {
+    width: 100%;
+  }
+}

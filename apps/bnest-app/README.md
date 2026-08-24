@@ -1,14 +1,14 @@
 # bnest-app
 
-`bnest-app` is the Phoenix LiveView application that serves Beaver Nest's family-facing web experience. See the [repository README](../../README.md) for the product purpose, shared setup, privacy boundaries, and repository layout.
+`bnest-app` is the Phoenix LiveView application that serves Beaver Nest's local Codex chat. See the [repository README](../../README.md) for the product purpose, shared setup, privacy boundaries, and repository layout.
 
 ## Scope
 
-This project owns the OTP application, Phoenix endpoint and router, LiveViews, server-rendered UI, browser assets, and the unit and local-only integration adapters for Bnest's canonical Gherkin behavior. Browser-level acceptance belongs to [bnest-app-e2e](../bnest-app-e2e/README.md); the reusable Elixir BDD engine belongs to [ex-bdd](../../libs/ex-bdd/README.md).
+This project owns the OTP application, Phoenix endpoint and router, LiveViews, Codex process bridge, server-rendered UI, browser assets, and the unit and local-only integration adapters for Bnest's canonical Gherkin behavior. Browser-level acceptance belongs to [bnest-app-e2e](../bnest-app-e2e/README.md); the reusable Elixir BDD engine belongs to [ex-bdd](../../libs/ex-bdd/README.md).
 
 ## Setup and Development
 
-The project requires Elixir `~> 1.18` with Erlang/OTP and Mix. From this directory, install its dependencies and assets once:
+The project requires Elixir `~> 1.18` with Erlang/OTP and Mix, Node.js 18 or newer, and Codex authentication available to the local account. From this directory, install its dependencies and assets once:
 
 ```sh
 mix setup
@@ -46,17 +46,28 @@ The unit slice excludes modules owned by integration or generated/static Phoenix
 
 Type checking treats Elixir compiler warnings as errors, runs Dialyzer through Dialyxir, and strictly checks browser JavaScript without emitting files. Linting checks formatting, runs Credo in strict mode, runs Oxlint on browser JavaScript, and rejects unused locked dependencies without changing the lockfile.
 
-The development server is available at [http://localhost:4000](http://localhost:4000). Normal Elixir, HEEx, JavaScript, and CSS changes reload while it runs. Restart it after dependency, runtime configuration, or supervision-tree changes.
+The development server is available at [http://localhost:4000](http://localhost:4000). Normal Elixir, HEEx, JavaScript, and CSS changes reload while it runs. Dependency, runtime configuration, and supervision-tree changes require the repository's [development-server restart workflow](../../repo-governance/workflows/development-server-restart.md).
+
+## Chat runtime
+
+Each connected LiveView owns one Node bridge and one in-memory Codex SDK thread. Repeated prompts on that page use the same thread. Reloading or leaving the page closes the bridge; a new page starts with no messages and never resumes the prior thread ID. The underlying Codex CLI may still create its normal account-level session artifacts outside the application.
+
+The runner fixes the model to `gpt-5.6-terra` with medium reasoning effort, read-only sandbox access, approval policy `never`, and network and web search disabled. Assistant message updates stream into the transcript as plain text. The UI intentionally has no database, browser storage, authentication, uploads, Markdown rendering, or conversation history.
+
+The test environment substitutes a deterministic session, and browser tests start a deterministic Node runner. These fixtures control protocol timing and completion but the canonical Gherkin never requires particular model wording. A real-model smoke check should assert only protocol health and a non-empty completed response; model-quality requirements belong in representative evals with outcome-based graders.
 
 ## Structure
 
 - `lib/bnest_app/` contains the OTP application and domain-facing modules.
-- `lib/bnest_app_web/` contains the endpoint, router, LiveViews, controllers, and components.
+- `lib/bnest_app/codex/` owns the SDK subprocess protocol and page-scoped session lifecycle.
+- `lib/bnest_app_web/` contains the endpoint, router, chat LiveView, controllers, and components.
+- `priv/codex/` contains the Node runner that invokes the official Codex SDK.
 - `assets/` contains browser JavaScript, CSS, and declaration boundaries used for strict checking.
 - `config/` contains compile-time and runtime environment configuration.
 - `priv/` contains static assets and translations.
 - `test/behaviour/` contains the shared driver contract, bindings, adapter hooks, and static completeness check.
 - `test/unit/` contains unit tests and the system-resource-free unit driver.
 - `test/integration/` contains local-only integration tests and the in-process Phoenix driver.
+- `test/support/codex_fixture_runner.mjs` provides deterministic browser behavior without live model calls.
 
 Deployment and production hosting are not implemented yet; follow the [repository plans](../../plans/README.md) rather than treating generated Phoenix deployment comments as the current operating model.

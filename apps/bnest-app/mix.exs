@@ -94,6 +94,7 @@ defmodule BnestApp.MixProject do
   defp test_coverage do
     generated_or_static = [
       BnestAppWeb.CoreComponents,
+      BnestApp.Codex.PortSession,
       BnestAppWeb.ErrorHTML,
       BnestAppWeb.Gettext,
       BnestAppWeb.Layouts,
@@ -108,16 +109,18 @@ defmodule BnestApp.MixProject do
           {"cover/unit",
            [
              BnestApp.Application,
+             BnestApp.Codex.FixtureSession,
              BnestApp.Behaviour.IntegrationHomePageDriver,
              BnestAppWeb.ConnCase,
+             BnestAppWeb.ChatLive,
              BnestAppWeb.Endpoint,
-             BnestAppWeb.HelloLive,
              BnestAppWeb.Telemetry
            ]}
 
         "integration" ->
           {"cover/integration",
            [
+             BnestApp.Chat,
              BnestApp.Behaviour.UnitHomePageDriver,
              BnestAppWeb.ErrorJSON
            ]}

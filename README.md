@@ -6,7 +6,7 @@ Beaver Nest is a private, always-available family application and a focused cons
 
 Beaver Nest is in its first implementation stage.
 
-- A Phoenix LiveView hello-world app, Nx workspace, shared Gherkin unit/integration/E2E tests, and Playwright E2E harness are ready.
+- A Phoenix LiveView chat streams local Codex responses through the official SDK, alongside the Nx workspace and shared Gherkin unit/integration/E2E harness.
 - Hot reload works during local development.
 - Tailscale Serve, an always-on launch service, authentication, persistent data, backups, and document processing are planned but not yet implemented.
 
@@ -15,6 +15,7 @@ Beaver Nest is in its first implementation stage.
 Prerequisites:
 
 - Node.js and npm
+- Codex authentication for the local account (`codex login`)
 - Elixir and Erlang/OTP, including Mix
 - .NET 10 SDK
 - CMake, when a Phoenix dependency must compile from source
@@ -28,7 +29,9 @@ npm start
 
 Open [http://localhost:4000](http://localhost:4000).
 
-Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset watchers update JavaScript and CSS. Restart the server after changing dependencies, runtime configuration, or application startup/supervision setup.
+Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset watchers update JavaScript and CSS. Configuration, dependency, and supervision changes require the [development-server restart workflow](repo-governance/workflows/development-server-restart.md).
+
+The chat uses `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. Conversation state lives only in the connected page and resets on refresh; the app does not save or resume thread IDs.
 
 ## Test
 
@@ -36,7 +39,7 @@ Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset w
 npm test
 npm exec -- nx run -p bnest-app -t test:integration
 npm exec -- nx run -p bnest-app -t test:coverage:behaviour
-npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "A visitor opens Beaver Nest"
+npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Refresh clears a completed conversation"
 npm exec -- nx run -p badakmini-cli -t test:integration
 npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 ```

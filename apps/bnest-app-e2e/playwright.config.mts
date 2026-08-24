@@ -3,7 +3,11 @@ import path from "node:path";
 import { defineBddConfig } from "playwright-bdd";
 
 const appDirectory = path.resolve(import.meta.dirname, "../bnest-app");
-const port = process.env["BNEST_E2E_PORT"] ?? "4000";
+const codexRunner = path.resolve(
+  appDirectory,
+  "test/support/codex_fixture_runner.mjs",
+);
+const port = process.env["BNEST_E2E_PORT"] ?? "4010";
 const baseURL = `http://127.0.0.1:${port}`;
 const featuresRoot = path.resolve(
   import.meta.dirname,
@@ -27,9 +31,9 @@ export default defineConfig({
   webServer: {
     command: "mix phx.server",
     cwd: appDirectory,
-    env: { ...process.env, PORT: port },
+    env: { ...process.env, BNEST_CODEX_RUNNER: codexRunner, PORT: port },
     url: baseURL,
-    reuseExistingServer: !process.env["CI"],
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [

@@ -17,7 +17,7 @@ defmodule BnestAppWeb.Router do
   scope "/", BnestAppWeb do
     pipe_through :browser
 
-    live "/", HelloLive
+    live "/", ChatLive
   end
 
   # Other scopes may use custom stacks.
