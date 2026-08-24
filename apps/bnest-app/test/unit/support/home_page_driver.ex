@@ -13,6 +13,22 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def brand_logo_visible?(context) do
+    context.page
+    |> LazyHTML.query("[data-role=brand-logo][src='/images/beaver-nest-logo.png']")
+    |> Enum.any?()
+  end
+
+  @impl true
+  def installable_as_app?(_context) do
+    BnestAppWeb.Pwa.install_metadata() == %{
+      manifest_path: "/manifest.webmanifest",
+      service_worker_path: "/service-worker.js",
+      icon_paths: ["/images/beaver-nest-192.png", "/images/beaver-nest-512.png"]
+    }
+  end
+
+  @impl true
   def heading_visible?(context, heading) do
     context.page
     |> LazyHTML.query("h1")

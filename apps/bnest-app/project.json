@@ -13,6 +13,18 @@
       "continuous": true,
       "cache": false
     },
+    "tailnet:up": {
+      "command": "tailscale serve --bg --yes --https=443 --set-path=/ 4000",
+      "cache": false
+    },
+    "tailnet:status": {
+      "command": "tailscale serve status",
+      "cache": false
+    },
+    "tailnet:down": {
+      "command": "tailscale serve --https=443 --set-path=/ off",
+      "cache": false
+    },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {

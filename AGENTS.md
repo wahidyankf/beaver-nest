@@ -42,7 +42,7 @@
 
 ## Development
 
-- Restart running development servers in their existing tmux panes via the [restart workflow](repo-governance/workflows/development-server-restart.md).
+- Separate server and proxy lifecycles; follow [restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep every applicable [quality gate](repo-governance/development/quality-gates.md) green.
 - Keep `test:e2e` out of `test:quick`; run only affected end-to-end cases during development. Follow the [end-to-end testing standard](repo-governance/development/end-to-end-testing.md).
 - **Application iron rule** (except `libs/ex-bdd`): canonical Gherkin → failing bindings in each applicable adapter → Nx red → implementation. Leave no step unimplemented; exempt only an incapable adapter, never all—remove all-impossible scenarios. Follow [BDD](repo-governance/development/behaviour-driven-development.md) and [TDD](repo-governance/development/test-driven-development.md).

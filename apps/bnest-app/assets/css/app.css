@@ -165,6 +165,19 @@ body {
   letter-spacing: -0.035em;
 }
 
+.brand-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-logo {
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: none;
+  object-fit: contain;
+}
+
 .chat-kicker,
 .message-label {
   margin: 0;

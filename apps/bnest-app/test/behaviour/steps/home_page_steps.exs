@@ -7,6 +7,16 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.open(context, route)
   end
 
+  step "the page displays the Beaver Nest logo", context do
+    assert context.behaviour_driver.brand_logo_visible?(context)
+    context
+  end
+
+  step "Beaver Nest is ready to install as an app", context do
+    assert context.behaviour_driver.installable_as_app?(context)
+    context
+  end
+
   step "the page displays the heading {string}", %{args: [heading]} = context do
     assert context.behaviour_driver.heading_visible?(context, heading)
     context

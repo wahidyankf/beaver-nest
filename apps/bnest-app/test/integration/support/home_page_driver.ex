@@ -16,6 +16,32 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def brand_logo_visible?(context) do
+    has_element?(context.view, "[data-role=brand-logo][src='/images/beaver-nest-logo.png']")
+  end
+
+  @impl true
+  def installable_as_app?(context) do
+    manifest_response = get(context.conn, "/manifest.webmanifest")
+
+    with 200 <- manifest_response.status,
+         {:ok, manifest} <- Jason.decode(manifest_response.resp_body),
+         "Beaver Nest" <- manifest["name"],
+         "standalone" <- manifest["display"],
+         [
+           %{"src" => "/images/beaver-nest-192.png", "sizes" => "192x192"},
+           %{"src" => "/images/beaver-nest-512.png", "sizes" => "512x512"}
+         ] <- manifest["icons"],
+         200 <- get(context.conn, "/service-worker.js").status,
+         200 <- get(context.conn, "/images/beaver-nest-192.png").status,
+         200 <- get(context.conn, "/images/beaver-nest-512.png").status do
+      true
+    else
+      _not_installable -> false
+    end
+  end
+
+  @impl true
   def heading_visible?(context, heading) do
     has_element?(context.view, "h1", heading)
   end

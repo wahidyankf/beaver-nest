@@ -129,9 +129,19 @@ defmodule BnestAppWeb.ChatLive do
     <main class="chat-shell">
       <section class="chat-panel" aria-labelledby="chat-title">
         <header class="chat-header">
-          <div>
-            <p class="chat-kicker">Local Codex chat</p>
-            <h1 id="chat-title">Beaver Nest</h1>
+          <div class="brand-identity">
+            <img
+              class="brand-logo"
+              data-role="brand-logo"
+              src="/images/beaver-nest-logo.png"
+              alt="Beaver Nest logo"
+              width="52"
+              height="52"
+            />
+            <div>
+              <p class="chat-kicker">Local Codex chat</p>
+              <h1 id="chat-title">Beaver Nest</h1>
+            </div>
           </div>
           <div class="chat-actions">
             <form

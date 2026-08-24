@@ -4,7 +4,7 @@
 
 ## Scope
 
-This project owns the OTP application, Phoenix endpoint and router, LiveViews, Codex process bridge, server-rendered UI, browser assets, and the unit and local-only integration adapters for Bnest's canonical Gherkin behavior. Browser-level acceptance belongs to [bnest-app-e2e](../bnest-app-e2e/README.md); the reusable Elixir BDD engine belongs to [ex-bdd](../../libs/ex-bdd/README.md).
+This project owns the OTP application, Phoenix endpoint and router, LiveViews, Codex process bridge, server-rendered UI, browser assets, Progressive Web App (PWA) manifest and service worker, and the unit and local-only integration adapters for Bnest's canonical Gherkin behavior. Browser-level acceptance belongs to [bnest-app-e2e](../bnest-app-e2e/README.md); the reusable Elixir BDD engine belongs to [ex-bdd](../../libs/ex-bdd/README.md).
 
 ## Setup and Development
 
@@ -19,6 +19,9 @@ Run project tasks from the repository root:
 | Task                                 | Command                                                        |
 | ------------------------------------ | -------------------------------------------------------------- |
 | Start the development server         | `npm exec -- nx run -p bnest-app -t serve`                     |
+| Enable persistent tailnet HTTPS      | `npm exec -- nx run -p bnest-app -t tailnet:up`                |
+| Inspect the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:status`            |
+| Disable the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:down`              |
 | Run the complete quick suite         | `npm exec -- nx run -p bnest-app -t test:quick`                |
 | Run unit scenarios                   | `npm exec -- nx run -p bnest-app -t test:unit`                 |
 | Run local-only integration scenarios | `npm exec -- nx run -p bnest-app -t test:integration`          |
@@ -46,7 +49,11 @@ The unit slice excludes modules owned by integration or generated/static Phoenix
 
 Type checking treats Elixir compiler warnings as errors, runs Dialyzer through Dialyxir, and strictly checks browser JavaScript without emitting files. Linting checks formatting, runs Credo in strict mode, runs Oxlint on browser JavaScript, and rejects unused locked dependencies without changing the lockfile.
 
-The development server is available at [http://localhost:4000](http://localhost:4000). Normal Elixir, HEEx, JavaScript, and CSS changes reload while it runs. Dependency, runtime configuration, and supervision-tree changes require the repository's [development-server restart workflow](../../repo-governance/workflows/development-server-restart.md).
+The development server is available at [http://localhost:4000](http://localhost:4000). Normal Elixir, HEEx, JavaScript, and CSS changes reload while it runs. Dependency, runtime configuration, and supervision-tree changes require the repository's [development-server restart workflow](../../repo-governance/workflows/development-server-restart.md). The optional background Tailscale Serve route has an independent lifecycle under the [development tailnet proxy workflow](../../repo-governance/workflows/development-tailnet-proxy.md), so restarting Phoenix does not interrupt the private HTTPS configuration.
+
+## Installable web app
+
+The root layout links a standalone PWA manifest and Beaver Nest icon sizes for Android, desktop Chromium browsers, and Apple home-screen use. Browser JavaScript registers the service worker, which keeps a cached application shell as an offline fallback while preferring the live app whenever the home host is reachable. To install on a device, use Beaver Nest's Tailscale HTTPS address: choose **Install app** in a Chromium browser or **Share → Add to Home Screen** in Safari. The installed PWA is a private web client, not a native application; Codex conversations still require the home host to be online.
 
 ## Chat runtime
 

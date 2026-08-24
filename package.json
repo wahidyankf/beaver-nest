@@ -14,6 +14,9 @@
   "scripts": {
     "prepare": "husky",
     "start": "npm exec nx run bnest-app:serve",
+    "tailnet:up": "npm exec -- nx run -p bnest-app -t tailnet:up",
+    "tailnet:status": "npm exec -- nx run -p bnest-app -t tailnet:status",
+    "tailnet:down": "npm exec -- nx run -p bnest-app -t tailnet:down",
     "test": "npm exec -- nx run -p bnest-app -t test:unit",
     "test:e2e": "npm exec -- nx run -p bnest-app-e2e -t test:e2e"
   },

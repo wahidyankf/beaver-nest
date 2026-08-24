@@ -91,6 +91,18 @@ window.addEventListener("keydown", (event) => {
   composer.form?.requestSubmit();
 });
 
+if ("serviceWorker" in navigator) {
+  window.addEventListener(
+    "load",
+    () => {
+      navigator.serviceWorker.register("/service-worker.js").catch(() => {
+        // Installation remains available when a browser disables service workers.
+      });
+    },
+    { once: true },
+  );
+}
+
 // Show progress bar on live navigation and form submits
 topbar.config({ barColors: { 0: "#29d" }, shadowColor: "rgba(0, 0, 0, .3)" });
 window.addEventListener("phx:page-loading-start", (_info) => topbar.show(300));

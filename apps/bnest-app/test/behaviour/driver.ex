@@ -2,6 +2,8 @@ defmodule BnestApp.Behaviour.Driver do
   @moduledoc false
 
   @callback open(map(), String.t()) :: map()
+  @callback brand_logo_visible?(map()) :: boolean()
+  @callback installable_as_app?(map()) :: boolean()
   @callback heading_visible?(map(), String.t()) :: boolean()
   @callback text_visible?(map(), String.t()) :: boolean()
   @callback model_selector_lists_all?(map()) :: boolean()

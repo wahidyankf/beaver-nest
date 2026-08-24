@@ -1,5 +1,10 @@
 Feature: Beaver Nest chat
 
+  Scenario: A visitor can install Beaver Nest as an app
+    When a visitor opens "/"
+    Then the page displays the Beaver Nest logo
+    And Beaver Nest is ready to install as an app
+
   Scenario: A visitor opens a fresh chat
     When a visitor opens "/"
     Then the page displays the heading "Beaver Nest"

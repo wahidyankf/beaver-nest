@@ -2,6 +2,8 @@
 
 Use this workflow when a running development server must be restarted after a configuration, dependency, runtime, or supervision-tree change.
 
+Do not stop or reconfigure an independently managed tailnet proxy during the restart; follow the [development tailnet proxy workflow](development-tailnet-proxy.md) for that lifecycle.
+
 ## Procedure
 
 1. List tmux panes and identify the existing server pane from its working directory, current process, and captured output. Do not start a replacement server in another pane.
