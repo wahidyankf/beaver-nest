@@ -6,9 +6,12 @@ Feature: Beaver Nest chat
     And the page displays the text "Terra · medium"
     And the model selector lists every available Codex model
     And the selected model is "GPT-5.6-Terra"
+    And the reasoning effort selector lists every effort supported by the selected model
+    And the selected reasoning effort is "Medium"
     And the conversation is empty
     And the message composer is available
     And the model selector is available
+    And the reasoning effort selector is available
     And the clear chat control is available
 
   Scenario: A visitor cannot send an empty message
@@ -23,11 +26,13 @@ Feature: Beaver Nest chat
     Then the conversation displays the visitor message "First message"
     And the message composer is unavailable
     And the model selector is unavailable
+    And the reasoning effort selector is unavailable
     When the visitor attempts to send "Too soon" before Codex finishes
     Then the conversation does not display the visitor message "Too soon"
     And a Codex response appears incrementally
     And the message composer is available
     And the model selector is available
+    And the reasoning effort selector is available
 
   Scenario: A visitor sends a message with Shift+Enter
     Given a visitor opens "/"
@@ -50,13 +55,36 @@ Feature: Beaver Nest chat
     Given a visitor opens "/"
     When the visitor sends "Before model switch"
     And a Codex response appears incrementally
-    When the visitor selects the model "GPT-5.6-Luna"
+    When the visitor selects the reasoning effort "High"
+    And the visitor selects the model "GPT-5.6-Luna"
     Then the selected model is "GPT-5.6-Luna"
+    And the reasoning effort selector lists every effort supported by the selected model
+    And the selected reasoning effort is "High"
     And the conversation displays the visitor message "Before model switch"
     When the visitor sends "After model switch"
     Then the conversation displays the visitor message "After model switch"
     And a Codex response appears incrementally
     And the conversation displays a second Codex response
+
+  Scenario: A visitor changes reasoning effort within one Codex conversation
+    Given a visitor opens "/"
+    When the visitor sends "Before effort switch"
+    And a Codex response appears incrementally
+    When the visitor selects the reasoning effort "High"
+    Then the selected reasoning effort is "High"
+    And the conversation displays the visitor message "Before effort switch"
+    When the visitor sends "After effort switch"
+    Then the conversation displays the visitor message "After effort switch"
+    And a Codex response appears incrementally
+    And the conversation displays a second Codex response
+
+  Scenario: A model change falls back from an unsupported reasoning effort
+    Given a visitor opens "/"
+    When the visitor selects the reasoning effort "Ultra"
+    And the visitor selects the model "GPT-5.6-Luna"
+    Then the selected model is "GPT-5.6-Luna"
+    And the reasoning effort selector lists every effort supported by the selected model
+    And the selected reasoning effort is "Medium"
 
   Scenario: The Codex session cannot accept a message
     Given a visitor opens "/"
@@ -74,10 +102,12 @@ Feature: Beaver Nest chat
   Scenario: Reload preserves a completed conversation and Codex session
     Given a visitor opens "/"
     When the visitor selects the model "GPT-5.6-Luna"
+    And the visitor selects the reasoning effort "High"
     And the visitor sends "Temporary message"
     And a Codex response appears incrementally
     When the visitor reloads the page
     Then the selected model is "GPT-5.6-Luna"
+    And the selected reasoning effort is "High"
     And the conversation displays the visitor message "Temporary message"
     And the conversation displays one completed Codex response
     When the visitor sends "After reload"
@@ -88,11 +118,13 @@ Feature: Beaver Nest chat
   Scenario: A visitor clears the chat and starts a new Codex session
     Given a visitor opens "/"
     When the visitor selects the model "GPT-5.6-Luna"
+    And the visitor selects the reasoning effort "High"
     And the visitor sends "Old session marker"
     And a Codex response appears incrementally
     When the visitor clears the chat
     Then the conversation is empty
     And the selected model is "GPT-5.6-Luna"
+    And the selected reasoning effort is "High"
     And the message composer is available
     When the visitor sends "Fresh start"
     Then the conversation displays the visitor message "Fresh start"

@@ -14,4 +14,8 @@ defmodule BnestApp.Codex.Settings do
   def label(display_name, reasoning_effort) do
     "#{String.replace_prefix(display_name, "GPT-5.6-", "")} · #{reasoning_effort}"
   end
+
+  @spec effort_label(String.t()) :: String.t()
+  def effort_label("xhigh"), do: "XHigh"
+  def effort_label(reasoning_effort), do: String.capitalize(reasoning_effort)
 end

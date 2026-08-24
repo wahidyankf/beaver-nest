@@ -27,6 +27,17 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the reasoning effort selector lists every effort supported by the selected model",
+       context do
+    assert context.behaviour_driver.effort_selector_lists_supported?(context)
+    context
+  end
+
+  step "the selected reasoning effort is {string}", %{args: [effort]} = context do
+    assert context.behaviour_driver.selected_effort?(context, effort)
+    context
+  end
+
   step "the model selector is available", context do
     assert context.behaviour_driver.model_selector_available?(context)
     context
@@ -37,8 +48,22 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the reasoning effort selector is available", context do
+    assert context.behaviour_driver.effort_selector_available?(context)
+    context
+  end
+
+  step "the reasoning effort selector is unavailable", context do
+    assert context.behaviour_driver.effort_selector_unavailable?(context)
+    context
+  end
+
   step "the visitor selects the model {string}", %{args: [model]} = context do
     context.behaviour_driver.select_model(context, model)
+  end
+
+  step "the visitor selects the reasoning effort {string}", %{args: [effort]} = context do
+    context.behaviour_driver.select_effort(context, effort)
   end
 
   step "the conversation is empty", context do

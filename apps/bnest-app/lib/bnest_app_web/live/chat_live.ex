@@ -26,19 +26,30 @@ defmodule BnestAppWeb.ChatLive do
   def handle_event("select_model", %{"model" => model_id}, socket) do
     with false <- socket.assigns.chat.busy,
          {:ok, model} <- ModelCatalog.fetch(model_id),
-         reasoning_effort = ModelCatalog.reasoning_effort(model),
+         reasoning_effort =
+           ModelCatalog.reasoning_effort(model, socket.assigns.chat.reasoning_effort),
          {:ok, chat} <- Chat.select_model(socket.assigns.chat, model.id, reasoning_effort) do
-      socket.assigns.session_adapter.close(socket.assigns.codex_session)
-
-      socket = assign(socket, :chat, chat)
-      {:ok, socket} = connect_codex(socket, chat)
-      {:noreply, persist_chat(socket)}
+      {:noreply, replace_codex(socket, chat)}
     else
       _busy_or_unknown -> {:noreply, socket}
     end
   end
 
   def handle_event("ignore_model_recovery", _params, socket), do: {:noreply, socket}
+
+  def handle_event("select_effort", %{"reasoning_effort" => reasoning_effort}, socket) do
+    with false <- socket.assigns.chat.busy,
+         {:ok, model} <- ModelCatalog.fetch(socket.assigns.chat.model),
+         true <- reasoning_effort in model.supported_reasoning_efforts,
+         {:ok, chat} <-
+           Chat.select_model(socket.assigns.chat, socket.assigns.chat.model, reasoning_effort) do
+      {:noreply, replace_codex(socket, chat)}
+    else
+      _busy_or_unsupported -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("ignore_effort_recovery", _params, socket), do: {:noreply, socket}
 
   @impl Phoenix.LiveView
   def handle_event("send", %{"chat" => %{"prompt" => prompt}}, socket) do
@@ -145,6 +156,28 @@ defmodule BnestAppWeb.ChatLive do
                 </option>
               </select>
             </form>
+            <form
+              id="effort-picker"
+              phx-change="select_effort"
+              phx-auto-recover="ignore_effort_recovery"
+              class="model-picker"
+            >
+              <label for="effort-selector">Reasoning effort</label>
+              <select
+                id="effort-selector"
+                name="reasoning_effort"
+                data-role="effort-selector"
+                disabled={@chat.busy}
+              >
+                <option
+                  :for={effort <- selected_model(@models, @chat.model).supported_reasoning_efforts}
+                  value={effort}
+                  selected={effort == @chat.reasoning_effort}
+                >
+                  {Settings.effort_label(effort)}
+                </option>
+              </select>
+            </form>
             <span
               class="model-badge"
               data-model={@chat.model}
@@ -247,6 +280,14 @@ defmodule BnestAppWeb.ChatLive do
     end
   end
 
+  defp replace_codex(socket, chat) do
+    socket.assigns.session_adapter.close(socket.assigns.codex_session)
+
+    socket = assign(socket, :chat, chat)
+    {:ok, socket} = connect_codex(socket, chat)
+    persist_chat(socket)
+  end
+
   defp prompt_form, do: to_form(%{"prompt" => ""}, as: :chat)
 
   defp new_chat(model), do: Chat.new(model.id, ModelCatalog.reasoning_effort(model))
@@ -258,16 +299,17 @@ defmodule BnestAppWeb.ChatLive do
         :error -> default_model
       end
 
-    {:ok, chat} =
-      Chat.select_model(chat, selected_model.id, ModelCatalog.reasoning_effort(selected_model))
+    reasoning_effort = ModelCatalog.reasoning_effort(selected_model, chat.reasoning_effort)
+    {:ok, chat} = Chat.select_model(chat, selected_model.id, reasoning_effort)
 
     chat
   end
 
   defp model_display_name(models, model_id) do
-    model = Enum.find(models, &(&1.id == model_id))
-    model.display_name
+    selected_model(models, model_id).display_name
   end
+
+  defp selected_model(models, model_id), do: Enum.find(models, &(&1.id == model_id))
 
   defp assistant_content(%{content: "", streaming: true}), do: "Thinking…"
   defp assistant_content(message), do: message.content

@@ -12,6 +12,12 @@ const model = process.argv[3];
 const reasoningEffort = process.argv[4];
 const resumedThreadId = process.argv[5];
 const newThreadId = `fixture-${process.pid}`;
+const expectedSettings = new Map([
+  ["After model switch", ["gpt-5.6-luna", "high"]],
+  ["After effort switch", ["gpt-5.6-terra", "high"]],
+  ["After reload", ["gpt-5.6-luna", "high"]],
+  ["Fresh start", ["gpt-5.6-luna", "high"]],
+]);
 
 for await (const line of lines) {
   const message = JSON.parse(line);
@@ -38,23 +44,26 @@ for await (const line of lines) {
       continue;
     }
 
+    const expected = expectedSettings.get(message.prompt);
+
     if (
-      ["After model switch", "After reload", "Fresh start"].includes(
-        message.prompt,
-      ) &&
-      (model !== "gpt-5.6-luna" || reasoningEffort !== "medium")
+      expected &&
+      (model !== expected[0] || reasoningEffort !== expected[1])
     ) {
       output({
         type: "error",
-        message: "Fixture selected model was not applied.",
+        message: "Fixture selected model or effort was not applied.",
       });
       continue;
     }
 
-    if (message.prompt === "After model switch" && !resumedThreadId) {
+    if (
+      ["After model switch", "After effort switch"].includes(message.prompt) &&
+      !resumedThreadId
+    ) {
       output({
         type: "error",
-        message: "Fixture model switch started a new Codex thread.",
+        message: "Fixture runtime setting switch started a new Codex thread.",
       });
       continue;
     }

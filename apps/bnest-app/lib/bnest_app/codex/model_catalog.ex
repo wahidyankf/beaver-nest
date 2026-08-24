@@ -42,12 +42,17 @@ defmodule BnestApp.Codex.ModelCatalog do
   @spec default() :: model()
   def default(server \\ __MODULE__), do: GenServer.call(server, :default)
 
-  @spec reasoning_effort(model()) :: String.t()
-  def reasoning_effort(model) do
-    if Settings.preferred_reasoning_effort() in model.supported_reasoning_efforts do
-      Settings.preferred_reasoning_effort()
-    else
-      model.default_reasoning_effort
+  @spec reasoning_effort(model(), String.t()) :: String.t()
+  def reasoning_effort(model, requested \\ Settings.preferred_reasoning_effort()) do
+    cond do
+      requested in model.supported_reasoning_efforts ->
+        requested
+
+      Settings.preferred_reasoning_effort() in model.supported_reasoning_efforts ->
+        Settings.preferred_reasoning_effort()
+
+      true ->
+        model.default_reasoning_effort
     end
   end
 

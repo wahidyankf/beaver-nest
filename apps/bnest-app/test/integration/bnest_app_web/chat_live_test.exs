@@ -27,6 +27,24 @@ defmodule BnestAppWeb.ChatLiveTest do
              BnestAppWeb.ChatLive.handle_event("ignore_model_recovery", %{}, socket)
   end
 
+  test "ignores disconnected effort-form recovery" do
+    socket = %Phoenix.LiveView.Socket{}
+
+    assert {:noreply, ^socket} =
+             BnestAppWeb.ChatLive.handle_event("ignore_effort_recovery", %{}, socket)
+  end
+
+  test "ignores an unsupported effort selection" do
+    socket = %Phoenix.LiveView.Socket{assigns: %{chat: Chat.new()}}
+
+    assert {:noreply, ^socket} =
+             BnestAppWeb.ChatLive.handle_event(
+               "select_effort",
+               %{"reasoning_effort" => "impossible"},
+               socket
+             )
+  end
+
   test "falls back to Terra when a saved model is no longer available", %{conn: conn} do
     snapshot = %{
       "version" => 2,

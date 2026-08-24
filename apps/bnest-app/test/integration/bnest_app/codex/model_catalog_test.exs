@@ -20,8 +20,11 @@ defmodule BnestApp.Codex.ModelCatalogTest do
 
     assert length(ModelCatalog.all(catalog)) == 7
 
-    assert {:ok, %{display_name: "GPT-5.6-Luna"}} =
+    assert {:ok, %{display_name: "GPT-5.6-Luna"} = luna} =
              ModelCatalog.fetch("gpt-5.6-luna", catalog)
+
+    assert ModelCatalog.reasoning_effort(luna, "high") == "high"
+    assert ModelCatalog.reasoning_effort(luna, "ultra") == "medium"
 
     assert ModelCatalog.fetch("hidden-or-unknown", catalog) == :error
   end
@@ -99,6 +102,7 @@ defmodule BnestApp.Codex.ModelCatalogTest do
 
     assert selected.id == "local-default"
     assert ModelCatalog.reasoning_effort(selected) == "high"
+    assert ModelCatalog.reasoning_effort(selected, "low") == "high"
   end
 
   test "uses the first valid model when no preferred or declared default exists" do

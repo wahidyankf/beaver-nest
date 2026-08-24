@@ -43,6 +43,41 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def effort_selector_lists_supported?(context) do
+    selected_model_id =
+      context.view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("[data-role=model-selector] option[selected]")
+      |> LazyHTML.attribute("value")
+      |> List.first()
+
+    model = FixtureModels.fetch_by_id!(selected_model_id)
+
+    Enum.all?(model.supported_reasoning_efforts, fn effort ->
+      has_element?(
+        context.view,
+        "[data-role=effort-selector] option[value='#{effort}']",
+        effort_label(effort)
+      )
+    end) and
+      context.view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("[data-role=effort-selector] option")
+      |> Enum.count()
+      |> Kernel.==(length(model.supported_reasoning_efforts))
+  end
+
+  @impl true
+  def selected_effort?(context, effort) do
+    has_element?(
+      context.view,
+      "[data-role=effort-selector] option[value='#{String.downcase(effort)}'][selected]"
+    )
+  end
+
+  @impl true
   def model_selector_available?(context) do
     has_element?(context.view, "[data-role=model-selector]:not([disabled])")
   end
@@ -53,9 +88,29 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def effort_selector_available?(context) do
+    has_element?(context.view, "[data-role=effort-selector]:not([disabled])")
+  end
+
+  @impl true
+  def effort_selector_unavailable?(context) do
+    has_element?(context.view, "[data-role=effort-selector][disabled]")
+  end
+
+  @impl true
   def select_model(context, display_name) do
     model = FixtureModels.fetch_by_display_name!(display_name)
     render_change(context.view, "select_model", %{"model" => model.id})
+    snapshot = await_push_event(context.view, "persist-chat")
+    Map.put(context, :persisted_chat, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def select_effort(context, effort) do
+    render_change(context.view, "select_effort", %{
+      "reasoning_effort" => String.downcase(effort)
+    })
+
     snapshot = await_push_event(context.view, "persist-chat")
     Map.put(context, :persisted_chat, Jason.encode!(snapshot))
   end
@@ -198,4 +253,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       {^ref, {:push_event, ^event, payload}} -> payload
     end
   end
+
+  defp effort_label("xhigh"), do: "XHigh"
+  defp effort_label(effort), do: String.capitalize(effort)
 end

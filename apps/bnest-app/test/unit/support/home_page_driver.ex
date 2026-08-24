@@ -47,6 +47,25 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def effort_selector_lists_supported?(context) do
+    model = FixtureModels.fetch_by_id!(context.chat.model)
+
+    context.page
+    |> LazyHTML.query("[data-role=effort-selector] option")
+    |> Enum.map(&(LazyHTML.text(&1) |> String.trim()))
+    |> Kernel.==(Enum.map(model.supported_reasoning_efforts, &effort_label/1))
+  end
+
+  @impl true
+  def selected_effort?(context, effort) do
+    context.page
+    |> LazyHTML.query("[data-role=effort-selector] option[selected]")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(effort)
+  end
+
+  @impl true
   def model_selector_available?(context) do
     selector = LazyHTML.query(context.page, "[data-role=model-selector]")
     not Enum.empty?(selector) and selector |> LazyHTML.attribute("disabled") |> Enum.empty?()
@@ -57,12 +76,33 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: not model_selector_available?(context)
 
   @impl true
+  def effort_selector_available?(context) do
+    selector = LazyHTML.query(context.page, "[data-role=effort-selector]")
+    not Enum.empty?(selector) and selector |> LazyHTML.attribute("disabled") |> Enum.empty?()
+  end
+
+  @impl true
+  def effort_selector_unavailable?(context),
+    do: not effort_selector_available?(context)
+
+  @impl true
   def select_model(context, display_name) do
     model = FixtureModels.fetch_by_display_name!(display_name)
 
-    {:ok, chat} =
-      Chat.select_model(context.chat, model.id, model.default_reasoning_effort)
+    effort =
+      if context.chat.reasoning_effort in model.supported_reasoning_efforts,
+        do: context.chat.reasoning_effort,
+        else: "medium"
 
+    {:ok, chat} =
+      Chat.select_model(context.chat, model.id, effort)
+
+    render_chat(context, chat)
+  end
+
+  @impl true
+  def select_effort(context, effort) do
+    {:ok, chat} = Chat.select_model(context.chat, context.chat.model, String.downcase(effort))
     render_chat(context, chat)
   end
 
@@ -223,4 +263,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> List.first()
     |> String.to_integer()
   end
+
+  defp effort_label("xhigh"), do: "XHigh"
+  defp effort_label(effort), do: String.capitalize(effort)
 end

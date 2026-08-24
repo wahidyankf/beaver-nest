@@ -13,6 +13,16 @@ const availableModels = [
   "GPT-5.3-Codex-Spark",
 ];
 
+const supportedEfforts: Record<string, string[]> = {
+  "gpt-5.6-sol": ["Low", "Medium", "High", "XHigh", "Max", "Ultra"],
+  "gpt-5.6-terra": ["Low", "Medium", "High", "XHigh", "Max", "Ultra"],
+  "gpt-5.6-luna": ["Low", "Medium", "High", "XHigh", "Max"],
+  "gpt-5.5": ["Low", "Medium", "High", "XHigh"],
+  "gpt-5.4": ["Low", "Medium", "High", "XHigh"],
+  "gpt-5.4-mini": ["Low", "Medium", "High", "XHigh"],
+  "gpt-5.3-codex-spark": ["Low", "Medium", "High", "XHigh"],
+};
+
 When("a visitor opens {string}", async ({ page }, route: string) => {
   await page.goto(route);
 });
@@ -47,12 +57,47 @@ Then("the selected model is {string}", async ({ page }, model: string) => {
   ).toBeVisible();
 });
 
+Then(
+  "the reasoning effort selector lists every effort supported by the selected model",
+  async ({ page }) => {
+    const modelId = await page.getByLabel("Model").inputValue();
+    const efforts = supportedEfforts[modelId];
+
+    if (!efforts) {
+      throw new Error(`No fixture efforts configured for model ${modelId}`);
+    }
+
+    await expect(
+      page.getByLabel("Reasoning effort").locator("option"),
+    ).toHaveText(efforts);
+  },
+);
+
+Then(
+  "the selected reasoning effort is {string}",
+  async ({ page }, effort: string) => {
+    const value = effort.toLowerCase();
+    await expect(page.getByLabel("Reasoning effort")).toHaveValue(value);
+    await expect(
+      page.locator(`.model-badge[data-reasoning-effort="${value}"]`),
+    ).toBeVisible();
+  },
+);
+
 Then("the model selector is available", async ({ page }) => {
   await expect(page.getByLabel("Model")).toBeEnabled();
 });
 
 Then("the model selector is unavailable", async ({ page }) => {
   await expect(page.getByLabel("Model")).toBeDisabled();
+});
+
+Then("the reasoning effort selector is available", async ({ page }) => {
+  await expect(page.getByLabel("Reasoning effort")).toBeEnabled();
+});
+
+Then("the reasoning effort selector is unavailable", async ({ page }) => {
+  await expect(page.getByLabel("Reasoning effort")).toBeDisabled();
 });
 
 When(
@@ -67,6 +112,19 @@ When(
     expect(modelId).not.toBeNull();
     await expect(
       page.locator(`.model-badge[data-model="${modelId}"]`),
+    ).toBeVisible();
+  },
+);
+
+When(
+  "the visitor selects the reasoning effort {string}",
+  async ({ page }, effort: string) => {
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    const selector = page.getByLabel("Reasoning effort");
+    await selector.selectOption({ label: effort });
+    const value = effort.toLowerCase();
+    await expect(
+      page.locator(`.model-badge[data-reasoning-effort="${value}"]`),
     ).toBeVisible();
   },
 );
