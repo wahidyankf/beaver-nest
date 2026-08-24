@@ -3,6 +3,16 @@ import { createBdd } from "playwright-bdd";
 
 const { Then, When } = createBdd();
 
+const availableModels = [
+  "GPT-5.6-Sol",
+  "GPT-5.6-Terra",
+  "GPT-5.6-Luna",
+  "GPT-5.5",
+  "GPT-5.4",
+  "GPT-5.4-Mini",
+  "GPT-5.3-Codex-Spark",
+];
+
 When("a visitor opens {string}", async ({ page }, route: string) => {
   await page.goto(route);
 });
@@ -19,6 +29,47 @@ Then(
 Then("the page displays the text {string}", async ({ page }, text: string) => {
   await expect(page.getByText(text, { exact: true })).toBeVisible();
 });
+
+Then(
+  "the model selector lists every available Codex model",
+  async ({ page }) => {
+    await expect(page.getByLabel("Model").locator("option")).toHaveText(
+      availableModels,
+    );
+  },
+);
+
+Then("the selected model is {string}", async ({ page }, model: string) => {
+  const modelId = model === "GPT-5.6-Luna" ? "gpt-5.6-luna" : "gpt-5.6-terra";
+  await expect(page.getByLabel("Model")).toHaveValue(modelId);
+  await expect(
+    page.locator(`.model-badge[data-model="${modelId}"]`),
+  ).toBeVisible();
+});
+
+Then("the model selector is available", async ({ page }) => {
+  await expect(page.getByLabel("Model")).toBeEnabled();
+});
+
+Then("the model selector is unavailable", async ({ page }) => {
+  await expect(page.getByLabel("Model")).toBeDisabled();
+});
+
+When(
+  "the visitor selects the model {string}",
+  async ({ page }, model: string) => {
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    const selector = page.getByLabel("Model");
+    await selector.selectOption({ label: model });
+    const modelId = await selector
+      .locator("option:checked")
+      .getAttribute("value");
+    expect(modelId).not.toBeNull();
+    await expect(
+      page.locator(`.model-badge[data-model="${modelId}"]`),
+    ).toBeVisible();
+  },
+);
 
 Then("the conversation is empty", async ({ page }) => {
   await expect(page.locator("[data-role=message]")).toHaveCount(0);

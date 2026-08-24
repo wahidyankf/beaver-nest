@@ -7,6 +7,10 @@ const codexRunner = path.resolve(
   appDirectory,
   "test/support/codex_fixture_runner.mjs",
 );
+const codexModelsRunner = path.resolve(
+  appDirectory,
+  "test/support/codex_fixture_models.mjs",
+);
 const port = process.env["BNEST_E2E_PORT"] ?? "4010";
 const baseURL = `http://127.0.0.1:${port}`;
 const featuresRoot = path.resolve(
@@ -31,7 +35,12 @@ export default defineConfig({
   webServer: {
     command: "mix phx.server",
     cwd: appDirectory,
-    env: { ...process.env, BNEST_CODEX_RUNNER: codexRunner, PORT: port },
+    env: {
+      ...process.env,
+      BNEST_CODEX_MODELS_RUNNER: codexModelsRunner,
+      BNEST_CODEX_RUNNER: codexRunner,
+      PORT: port,
+    },
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000,

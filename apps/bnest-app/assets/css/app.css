@@ -194,6 +194,39 @@ body {
   gap: 0.55rem;
 }
 
+.model-picker {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.model-picker label {
+  color: var(--nest-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.model-picker select {
+  max-width: 12rem;
+  border: 1px solid var(--nest-line);
+  border-radius: 0.55rem;
+  padding: 0.35rem 1.8rem 0.35rem 0.55rem;
+  color: var(--nest-ink);
+  background: white;
+  font-size: 0.78rem;
+}
+
+.model-picker select:focus-visible {
+  border-color: var(--nest-green);
+  outline: 3px solid rgb(53 92 75 / 12%);
+}
+
+.model-picker select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .clear-chat-button {
   border: 1px solid var(--nest-line);
   border-radius: 999px;

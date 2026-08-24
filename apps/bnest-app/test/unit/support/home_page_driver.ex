@@ -4,6 +4,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @behaviour BnestApp.Behaviour.Driver
 
   alias BnestApp.Chat
+  alias BnestApp.Codex.FixtureModels
   alias Phoenix.HTML.Safe
 
   @impl true
@@ -26,6 +27,43 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> LazyHTML.text()
     |> String.trim()
     |> Kernel.==(text)
+  end
+
+  @impl true
+  def model_selector_lists_all?(context) do
+    context.page
+    |> LazyHTML.query("[data-role=model-selector] option")
+    |> Enum.map(&(LazyHTML.text(&1) |> String.trim()))
+    |> Kernel.==(FixtureModels.display_names())
+  end
+
+  @impl true
+  def selected_model?(context, display_name) do
+    context.page
+    |> LazyHTML.query("[data-role=model-selector] option[selected]")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(display_name)
+  end
+
+  @impl true
+  def model_selector_available?(context) do
+    selector = LazyHTML.query(context.page, "[data-role=model-selector]")
+    not Enum.empty?(selector) and selector |> LazyHTML.attribute("disabled") |> Enum.empty?()
+  end
+
+  @impl true
+  def model_selector_unavailable?(context),
+    do: not model_selector_available?(context)
+
+  @impl true
+  def select_model(context, display_name) do
+    model = FixtureModels.fetch_by_display_name!(display_name)
+
+    {:ok, chat} =
+      Chat.select_model(context.chat, model.id, model.default_reasoning_effort)
+
+    render_chat(context, chat)
   end
 
   @impl true
@@ -150,12 +188,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def clear_chat(context) do
     context
     |> Map.delete(:persisted_chat)
-    |> render_chat(Chat.new())
+    |> render_chat(Chat.new(context.chat.model, context.chat.reasoning_effort))
   end
 
   defp render_chat(context, chat) do
     page =
-      %{chat: chat, form: Phoenix.Component.to_form(%{"prompt" => ""}, as: :chat)}
+      %{
+        chat: chat,
+        models: FixtureModels.all(),
+        form: Phoenix.Component.to_form(%{"prompt" => ""}, as: :chat)
+      }
       |> BnestAppWeb.ChatLive.render()
       |> Safe.to_iodata()
       |> IO.iodata_to_binary()

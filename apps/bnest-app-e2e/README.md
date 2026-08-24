@@ -4,7 +4,7 @@
 
 ## Scope
 
-This project owns thin browser bindings, browser configuration, and assertions across the running application boundary. Its web server injects Bnest's deterministic Codex runner so acceptance tests cover streaming and page lifecycle without a live model call. The canonical features and the unit/integration adapters are shared concerns rooted in `specs/` and `bnest-app`; component, LiveView, controller, and domain-level tests remain with `bnest-app`.
+This project owns thin browser bindings, browser configuration, and assertions across the running application boundary. Its web server injects deterministic Codex model-catalog and chat runners so acceptance tests cover discovery, model switching, streaming, and page lifecycle without a live model call. The canonical features and the unit/integration adapters are shared concerns rooted in `specs/` and `bnest-app`; component, LiveView, controller, and domain-level tests remain with `bnest-app`.
 
 ## Quality Targets
 
@@ -38,7 +38,7 @@ npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Reload preserves a co
 
 The `test:e2e` target first enforces behavior coverage, then uses [playwright.config.mts](playwright.config.mts) to start an isolated `bnest-app` at `http://127.0.0.1:4010`. Set `BNEST_E2E_PORT` to use another local port. The harness never reuses a development server because doing so could bypass its deterministic Codex runner. It runs Chromium and records a trace on the first retry. The [scheduled GitHub workflow](../../.github/workflows/full-e2e.yml) runs Bnest integration coverage before the complete browser suite at 06:00 and 18:00 WIB.
 
-Chat assertions deliberately avoid exact assistant prose. The fixture emits multiple transport updates, while the browser contract checks deterministic protocol and UI outcomes: incremental completion, same-tab reload restoration, resumed thread identity, and a fresh thread after **Clear chat**. It rejects the reload continuation if no thread ID was resumed and rejects the fresh-start prompt if Clear retained that ID. Semantic model quality is outside deterministic browser acceptance and belongs in representative evals with outcome-based graders.
+Chat assertions deliberately avoid exact assistant prose. The fixtures emit a stable picker-visible catalog and multiple transport updates, while the browser contract checks deterministic protocol and UI outcomes: complete model options, Terra/medium defaulting, a locked selector during turns, incremental completion, same-tab reload restoration, model changes applied to a resumed thread, and a fresh thread after **Clear chat**. The fixture rejects a switched-model prompt unless Luna/medium receives the existing thread ID, rejects reload continuation without a resumed ID, and rejects a fresh-start prompt if Clear retained that ID. Semantic model quality is outside deterministic browser acceptance and belongs in representative evals with outcome-based graders.
 
 ## Structure
 

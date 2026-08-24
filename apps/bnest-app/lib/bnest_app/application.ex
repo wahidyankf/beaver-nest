@@ -11,6 +11,7 @@ defmodule BnestApp.Application do
       BnestAppWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:bnest_app, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: BnestApp.PubSub},
+      BnestApp.Codex.ModelCatalog,
       # Start a worker by calling: BnestApp.Worker.start_link(arg)
       # {BnestApp.Worker, arg},
       # Start to serve requests, typically the last entry

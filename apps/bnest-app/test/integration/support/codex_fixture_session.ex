@@ -4,7 +4,7 @@ defmodule BnestApp.Codex.FixtureSession do
   @behaviour BnestApp.Codex.Session
 
   @impl true
-  def open(owner, _thread_id), do: {:ok, owner}
+  def open(owner, _thread_id, _model, _reasoning_effort), do: {:ok, owner}
 
   @impl true
   def send_prompt(_owner, "Are you there?"), do: {:error, :closed}

@@ -7,6 +7,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   import Phoenix.ConnTest
   import Phoenix.LiveViewTest
 
+  alias BnestApp.Codex.FixtureModels
+
   @impl true
   def open(%{conn: conn} = context, route) do
     {:ok, view, _html} = live(conn, route)
@@ -21,6 +23,41 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def text_visible?(context, text) do
     has_element?(context.view, ".model-badge", text)
+  end
+
+  @impl true
+  def model_selector_lists_all?(context) do
+    Enum.all?(FixtureModels.all(), fn model ->
+      has_element?(
+        context.view,
+        "[data-role=model-selector] option[value='#{model.id}']",
+        model.display_name
+      )
+    end)
+  end
+
+  @impl true
+  def selected_model?(context, display_name) do
+    model = FixtureModels.fetch_by_display_name!(display_name)
+    has_element?(context.view, "[data-role=model-selector] option[value='#{model.id}'][selected]")
+  end
+
+  @impl true
+  def model_selector_available?(context) do
+    has_element?(context.view, "[data-role=model-selector]:not([disabled])")
+  end
+
+  @impl true
+  def model_selector_unavailable?(context) do
+    has_element?(context.view, "[data-role=model-selector][disabled]")
+  end
+
+  @impl true
+  def select_model(context, display_name) do
+    model = FixtureModels.fetch_by_display_name!(display_name)
+    render_change(context.view, "select_model", %{"model" => model.id})
+    snapshot = await_push_event(context.view, "persist-chat")
+    Map.put(context, :persisted_chat, Jason.encode!(snapshot))
   end
 
   @impl true

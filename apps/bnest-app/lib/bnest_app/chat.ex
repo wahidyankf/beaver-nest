@@ -1,10 +1,14 @@
 defmodule BnestApp.Chat do
   @moduledoc false
 
-  @snapshot_version 1
+  alias BnestApp.Codex.Settings
+
+  @snapshot_version 2
   @max_messages 200
   @max_content_bytes 100_000
   @max_thread_id_bytes 512
+  @max_model_bytes 128
+  @reasoning_efforts ~w(none minimal low medium high xhigh max ultra)
 
   @type message :: %{
           id: pos_integer(),
@@ -19,12 +23,36 @@ defmodule BnestApp.Chat do
           next_id: pos_integer(),
           busy: boolean(),
           error: String.t() | nil,
-          thread_id: String.t() | nil
+          thread_id: String.t() | nil,
+          model: String.t(),
+          reasoning_effort: String.t()
         }
 
-  @spec new() :: t()
-  def new do
-    %{messages: [], next_id: 1, busy: false, error: nil, thread_id: nil}
+  @spec new(String.t(), String.t()) :: t()
+  def new(
+        model \\ Settings.preferred_model(),
+        reasoning_effort \\ Settings.preferred_reasoning_effort()
+      ) do
+    %{
+      messages: [],
+      next_id: 1,
+      busy: false,
+      error: nil,
+      thread_id: nil,
+      model: model,
+      reasoning_effort: reasoning_effort
+    }
+  end
+
+  @spec select_model(t(), String.t(), String.t()) :: {:ok, t()} | {:error, t()}
+  def select_model(%{busy: true} = chat, _model, _reasoning_effort), do: {:error, chat}
+
+  def select_model(chat, model, reasoning_effort) do
+    if valid_model?(model) and reasoning_effort in @reasoning_efforts do
+      {:ok, %{chat | model: model, reasoning_effort: reasoning_effort, error: nil}}
+    else
+      {:error, chat}
+    end
   end
 
   @spec put_thread_id(t(), String.t()) :: t()
@@ -33,12 +61,21 @@ defmodule BnestApp.Chat do
   end
 
   @spec snapshot(t()) :: {:ok, map()} | :error
-  def snapshot(%{busy: false, messages: messages, thread_id: thread_id}) do
-    if messages == [] or valid_thread_id?(thread_id) do
+  def snapshot(%{
+        busy: false,
+        messages: messages,
+        thread_id: thread_id,
+        model: model,
+        reasoning_effort: reasoning_effort
+      }) do
+    if valid_snapshot_thread?(thread_id, messages) and valid_model?(model) and
+         reasoning_effort in @reasoning_efforts do
       {:ok,
        %{
          "version" => @snapshot_version,
          "thread_id" => thread_id,
+         "model" => model,
+         "reasoning_effort" => reasoning_effort,
          "messages" => Enum.map(messages, &snapshot_message/1)
        }}
     else
@@ -52,10 +89,14 @@ defmodule BnestApp.Chat do
   def restore(%{
         "version" => @snapshot_version,
         "thread_id" => thread_id,
+        "model" => model,
+        "reasoning_effort" => reasoning_effort,
         "messages" => messages
       })
       when is_list(messages) and length(messages) <= @max_messages do
     with true <- valid_snapshot_thread?(thread_id, messages),
+         true <- valid_model?(model),
+         true <- reasoning_effort in @reasoning_efforts,
          {:ok, restored_messages} <- restore_messages(messages) do
       {:ok,
        %{
@@ -63,11 +104,24 @@ defmodule BnestApp.Chat do
          next_id: next_id(restored_messages),
          busy: false,
          error: nil,
-         thread_id: thread_id
+         thread_id: thread_id,
+         model: model,
+         reasoning_effort: reasoning_effort
        }}
     else
       _invalid -> :error
     end
+  end
+
+  def restore(%{"version" => 1, "thread_id" => thread_id, "messages" => messages} = snapshot) do
+    restore(
+      snapshot
+      |> Map.put("version", @snapshot_version)
+      |> Map.put("model", Settings.preferred_model())
+      |> Map.put("reasoning_effort", Settings.preferred_reasoning_effort())
+      |> Map.put("thread_id", thread_id)
+      |> Map.put("messages", messages)
+    )
   end
 
   def restore(_snapshot), do: :error
@@ -192,6 +246,9 @@ defmodule BnestApp.Chat do
   end
 
   defp valid_thread_id?(_thread_id), do: false
+
+  defp valid_model?(model) when is_binary(model), do: byte_size(model) in 1..@max_model_bytes
+  defp valid_model?(_model), do: false
 
   defp update_last_assistant(chat, update) do
     %{chat | messages: List.update_at(chat.messages, -1, update)}

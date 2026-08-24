@@ -109,6 +109,8 @@ defmodule BnestApp.MixProject do
           {"cover/unit",
            [
              BnestApp.Application,
+             BnestApp.Codex.FixtureModels,
+             BnestApp.Codex.ModelCatalog,
              BnestApp.Codex.FixtureSession,
              BnestApp.Behaviour.IntegrationHomePageDriver,
              BnestAppWeb.ConnCase,
@@ -121,6 +123,7 @@ defmodule BnestApp.MixProject do
           {"cover/integration",
            [
              BnestApp.Chat,
+             BnestApp.Codex.FixtureModels,
              BnestApp.Behaviour.UnitHomePageDriver,
              BnestAppWeb.ErrorJSON
            ]}

@@ -17,6 +17,30 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the model selector lists every available Codex model", context do
+    assert context.behaviour_driver.model_selector_lists_all?(context)
+    context
+  end
+
+  step "the selected model is {string}", %{args: [model]} = context do
+    assert context.behaviour_driver.selected_model?(context, model)
+    context
+  end
+
+  step "the model selector is available", context do
+    assert context.behaviour_driver.model_selector_available?(context)
+    context
+  end
+
+  step "the model selector is unavailable", context do
+    assert context.behaviour_driver.model_selector_unavailable?(context)
+    context
+  end
+
+  step "the visitor selects the model {string}", %{args: [model]} = context do
+    context.behaviour_driver.select_model(context, model)
+  end
+
   step "the conversation is empty", context do
     assert context.behaviour_driver.conversation_empty?(context)
     context

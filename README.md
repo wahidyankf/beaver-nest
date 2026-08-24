@@ -6,7 +6,7 @@ Beaver Nest is a private, always-available family application and a focused cons
 
 Beaver Nest is in its first implementation stage.
 
-- A Phoenix LiveView chat streams local Codex responses through the official SDK, alongside the Nx workspace and shared Gherkin unit/integration/E2E harness.
+- A Phoenix LiveView chat streams local Codex responses through the official SDK, discovers the models available to the local Codex installation, and can switch models without discarding the current thread.
 - Hot reload works during local development.
 - Tailscale Serve, an always-on launch service, authentication, persistent data, backups, and document processing are planned but not yet implemented.
 
@@ -31,7 +31,7 @@ Open [http://localhost:4000](http://localhost:4000).
 
 Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset watchers update JavaScript and CSS. Configuration, dependency, and supervision changes require the [development-server restart workflow](repo-governance/workflows/development-server-restart.md).
 
-The chat uses `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. A completed conversation and its Codex thread ID live in the current browser tab's session storage, survive reload, and disappear when the visitor chooses **Clear chat** or closes the tab. Beaver Nest does not yet provide authenticated, cross-tab, or cross-device conversation history.
+The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. Its model selector is populated from the picker-visible models reported by the local Codex installation. A visitor can change models between turns; Beaver Nest reopens the bridge with the selected model while resuming the same Codex thread and preserving the transcript. A completed conversation, selected model, and Codex thread ID live in the current browser tab's session storage and survive reload. **Clear chat** removes the stored conversation and starts a new thread with the currently selected model. Beaver Nest does not yet provide authenticated, cross-tab, or cross-device conversation history.
 
 ## Test
 

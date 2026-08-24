@@ -8,6 +8,8 @@ process.stdout.on("error", (error) => {
 const output = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
 const lines = readline.createInterface({ input: process.stdin });
 const prompts = [];
+const model = process.argv[3];
+const reasoningEffort = process.argv[4];
 const resumedThreadId = process.argv[5];
 const newThreadId = `fixture-${process.pid}`;
 
@@ -32,6 +34,27 @@ for await (const line of lines) {
       output({
         type: "error",
         message: "Fixture Codex thread was not resumed.",
+      });
+      continue;
+    }
+
+    if (
+      ["After model switch", "After reload", "Fresh start"].includes(
+        message.prompt,
+      ) &&
+      (model !== "gpt-5.6-luna" || reasoningEffort !== "medium")
+    ) {
+      output({
+        type: "error",
+        message: "Fixture selected model was not applied.",
+      });
+      continue;
+    }
+
+    if (message.prompt === "After model switch" && !resumedThreadId) {
+      output({
+        type: "error",
+        message: "Fixture model switch started a new Codex thread.",
       });
       continue;
     }

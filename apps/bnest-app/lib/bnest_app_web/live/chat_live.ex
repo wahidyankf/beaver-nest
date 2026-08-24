@@ -2,23 +2,43 @@ defmodule BnestAppWeb.ChatLive do
   use BnestAppWeb, :live_view
 
   alias BnestApp.Chat
-  alias BnestApp.Codex.Settings
+  alias BnestApp.Codex.{ModelCatalog, Settings}
 
   @max_snapshot_bytes 500_000
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
-    chat = restore_chat(socket)
+    models = ModelCatalog.all()
+    default_model = ModelCatalog.default()
+    chat = restore_chat(socket, default_model)
 
     socket =
       socket
       |> assign(:chat, chat)
+      |> assign(:models, models)
       |> assign(:form, prompt_form())
       |> assign(:session_adapter, nil)
       |> assign(:codex_session, nil)
 
-    if connected?(socket), do: connect_codex(socket, chat.thread_id), else: {:ok, socket}
+    if connected?(socket), do: connect_codex(socket, chat), else: {:ok, socket}
   end
+
+  def handle_event("select_model", %{"model" => model_id}, socket) do
+    with false <- socket.assigns.chat.busy,
+         {:ok, model} <- ModelCatalog.fetch(model_id),
+         reasoning_effort = ModelCatalog.reasoning_effort(model),
+         {:ok, chat} <- Chat.select_model(socket.assigns.chat, model.id, reasoning_effort) do
+      socket.assigns.session_adapter.close(socket.assigns.codex_session)
+
+      socket = assign(socket, :chat, chat)
+      {:ok, socket} = connect_codex(socket, chat)
+      {:noreply, persist_chat(socket)}
+    else
+      _busy_or_unknown -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("ignore_model_recovery", _params, socket), do: {:noreply, socket}
 
   @impl Phoenix.LiveView
   def handle_event("send", %{"chat" => %{"prompt" => prompt}}, socket) do
@@ -42,11 +62,14 @@ defmodule BnestAppWeb.ChatLive do
 
     socket =
       socket
-      |> assign(:chat, Chat.new())
+      |> assign(
+        :chat,
+        Chat.new(socket.assigns.chat.model, socket.assigns.chat.reasoning_effort)
+      )
       |> assign(:form, prompt_form())
       |> push_event("clear-chat-storage", %{})
 
-    {:ok, socket} = connect_codex(socket, nil)
+    {:ok, socket} = connect_codex(socket, socket.assigns.chat)
     {:noreply, socket}
   end
 
@@ -100,12 +123,34 @@ defmodule BnestAppWeb.ChatLive do
             <h1 id="chat-title">Beaver Nest</h1>
           </div>
           <div class="chat-actions">
+            <form
+              id="model-picker"
+              phx-change="select_model"
+              phx-auto-recover="ignore_model_recovery"
+              class="model-picker"
+            >
+              <label for="model-selector">Model</label>
+              <select
+                id="model-selector"
+                name="model"
+                data-role="model-selector"
+                disabled={@chat.busy}
+              >
+                <option
+                  :for={model <- @models}
+                  value={model.id}
+                  selected={model.id == @chat.model}
+                >
+                  {model.display_name}
+                </option>
+              </select>
+            </form>
             <span
               class="model-badge"
-              data-model={Settings.model()}
-              data-reasoning-effort={Settings.reasoning_effort()}
+              data-model={@chat.model}
+              data-reasoning-effort={@chat.reasoning_effort}
             >
-              {Settings.label()}
+              {Settings.label(model_display_name(@models, @chat.model), @chat.reasoning_effort)}
             </span>
             <button
               type="button"
@@ -168,25 +213,31 @@ defmodule BnestAppWeb.ChatLive do
     """
   end
 
-  defp connect_codex(socket, thread_id) do
+  defp connect_codex(socket, chat) do
     adapter = Application.get_env(:bnest_app, :codex_session, BnestApp.Codex.PortSession)
-    {:ok, session} = adapter.open(self(), thread_id)
+
+    {:ok, session} =
+      adapter.open(self(), chat.thread_id, chat.model, chat.reasoning_effort)
+
     {:ok, assign(socket, session_adapter: adapter, codex_session: session)}
   end
 
-  defp restore_chat(socket) do
-    if connected?(socket) do
-      with %{"chat" => encoded} when is_binary(encoded) <- get_connect_params(socket),
-           true <- byte_size(encoded) <= @max_snapshot_bytes,
-           {:ok, snapshot} <- Jason.decode(encoded),
-           {:ok, chat} <- Chat.restore(snapshot) do
-        chat
+  defp restore_chat(socket, default_model) do
+    chat =
+      if connected?(socket) do
+        with %{"chat" => encoded} when is_binary(encoded) <- get_connect_params(socket),
+             true <- byte_size(encoded) <= @max_snapshot_bytes,
+             {:ok, snapshot} <- Jason.decode(encoded),
+             {:ok, restored} <- Chat.restore(snapshot) do
+          restored
+        else
+          _invalid_or_missing -> new_chat(default_model)
+        end
       else
-        _invalid_or_missing -> Chat.new()
+        new_chat(default_model)
       end
-    else
-      Chat.new()
-    end
+
+    normalize_model(chat, default_model)
   end
 
   defp persist_chat(socket) do
@@ -197,6 +248,26 @@ defmodule BnestAppWeb.ChatLive do
   end
 
   defp prompt_form, do: to_form(%{"prompt" => ""}, as: :chat)
+
+  defp new_chat(model), do: Chat.new(model.id, ModelCatalog.reasoning_effort(model))
+
+  defp normalize_model(chat, default_model) do
+    selected_model =
+      case ModelCatalog.fetch(chat.model) do
+        {:ok, model} -> model
+        :error -> default_model
+      end
+
+    {:ok, chat} =
+      Chat.select_model(chat, selected_model.id, ModelCatalog.reasoning_effort(selected_model))
+
+    chat
+  end
+
+  defp model_display_name(models, model_id) do
+    model = Enum.find(models, &(&1.id == model_id))
+    model.display_name
+  end
 
   defp assistant_content(%{content: "", streaming: true}), do: "Thinking…"
   defp assistant_content(message), do: message.content

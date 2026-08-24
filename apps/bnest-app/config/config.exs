@@ -11,6 +11,7 @@ config :bnest_app,
   generators: [timestamp_type: :utc_datetime],
   codex: [
     runner: Path.expand("../priv/codex/chat_runner.mjs", __DIR__),
+    models_runner: Path.expand("../priv/codex/list_models.mjs", __DIR__),
     working_directory: Path.expand("../../..", __DIR__)
   ]
 

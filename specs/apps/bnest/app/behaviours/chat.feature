@@ -4,8 +4,11 @@ Feature: Beaver Nest chat
     When a visitor opens "/"
     Then the page displays the heading "Beaver Nest"
     And the page displays the text "Terra · medium"
+    And the model selector lists every available Codex model
+    And the selected model is "GPT-5.6-Terra"
     And the conversation is empty
     And the message composer is available
+    And the model selector is available
     And the clear chat control is available
 
   Scenario: A visitor cannot send an empty message
@@ -19,10 +22,12 @@ Feature: Beaver Nest chat
     When the visitor sends "First message"
     Then the conversation displays the visitor message "First message"
     And the message composer is unavailable
+    And the model selector is unavailable
     When the visitor attempts to send "Too soon" before Codex finishes
     Then the conversation does not display the visitor message "Too soon"
     And a Codex response appears incrementally
     And the message composer is available
+    And the model selector is available
 
   Scenario: A visitor sends a message with Shift+Enter
     Given a visitor opens "/"
@@ -41,6 +46,18 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     And the conversation displays a second Codex response
 
+  Scenario: A visitor changes models within one Codex conversation
+    Given a visitor opens "/"
+    When the visitor sends "Before model switch"
+    And a Codex response appears incrementally
+    When the visitor selects the model "GPT-5.6-Luna"
+    Then the selected model is "GPT-5.6-Luna"
+    And the conversation displays the visitor message "Before model switch"
+    When the visitor sends "After model switch"
+    Then the conversation displays the visitor message "After model switch"
+    And a Codex response appears incrementally
+    And the conversation displays a second Codex response
+
   Scenario: The Codex session cannot accept a message
     Given a visitor opens "/"
     When Codex rejects the visitor message "Are you there?"
@@ -56,10 +73,12 @@ Feature: Beaver Nest chat
 
   Scenario: Reload preserves a completed conversation and Codex session
     Given a visitor opens "/"
-    When the visitor sends "Temporary message"
+    When the visitor selects the model "GPT-5.6-Luna"
+    And the visitor sends "Temporary message"
     And a Codex response appears incrementally
     When the visitor reloads the page
-    Then the conversation displays the visitor message "Temporary message"
+    Then the selected model is "GPT-5.6-Luna"
+    And the conversation displays the visitor message "Temporary message"
     And the conversation displays one completed Codex response
     When the visitor sends "After reload"
     Then the conversation displays the visitor message "After reload"
@@ -68,10 +87,12 @@ Feature: Beaver Nest chat
 
   Scenario: A visitor clears the chat and starts a new Codex session
     Given a visitor opens "/"
-    When the visitor sends "Old session marker"
+    When the visitor selects the model "GPT-5.6-Luna"
+    And the visitor sends "Old session marker"
     And a Codex response appears incrementally
     When the visitor clears the chat
     Then the conversation is empty
+    And the selected model is "GPT-5.6-Luna"
     And the message composer is available
     When the visitor sends "Fresh start"
     Then the conversation displays the visitor message "Fresh start"
