@@ -10,12 +10,23 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Codex.FixtureModels
 
   @impl true
+  def open(%{conn: conn} = context, "/") do
+    response = get(conn, "/")
+    Map.put(context, :page, LazyHTML.from_fragment(response.resp_body))
+  end
+
   def open(%{conn: conn} = context, route) do
     {:ok, view, _html} = live(conn, route)
     Map.put(context, :view, view)
   end
 
   @impl true
+  def brand_logo_visible?(%{page: page}) do
+    page
+    |> LazyHTML.query("[data-role=brand-logo][src='/images/beaver-nest-logo.png']")
+    |> Enum.any?()
+  end
+
   def brand_logo_visible?(context) do
     has_element?(context.view, "[data-role=brand-logo][src='/images/beaver-nest-logo.png']")
   end
@@ -42,6 +53,14 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def heading_visible?(%{page: page}, heading) do
+    page
+    |> LazyHTML.query("h1")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(heading)
+  end
+
   def heading_visible?(context, heading) do
     has_element?(context.view, "h1", heading)
   end
@@ -49,6 +68,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def text_visible?(context, text) do
     has_element?(context.view, ".model-badge", text)
+  end
+
+  @impl true
+  def chat_entry_link_visible?(context, label, path) do
+    context.page
+    |> LazyHTML.query("a[href='#{path}'] strong")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(label)
   end
 
   @impl true
@@ -258,7 +286,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def reload(%{conn: conn, persisted_chat: persisted_chat} = context) do
     conn = put_connect_params(conn, %{"chat" => persisted_chat})
-    {:ok, view, _html} = live(conn, "/")
+    {:ok, view, _html} = live(conn, "/chat")
     Map.put(context, :view, view)
   end
 

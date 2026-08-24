@@ -55,7 +55,7 @@ defmodule BnestAppWeb.ChatLiveTest do
     }
 
     conn = put_connect_params(conn, %{"chat" => Jason.encode!(snapshot)})
-    {:ok, view, _html} = live(conn, "/")
+    {:ok, view, _html} = live(conn, "/chat")
 
     assert has_element?(
              view,

@@ -51,6 +51,18 @@ Type checking treats Elixir compiler warnings as errors, runs Dialyzer through D
 
 The development server is available at [http://localhost:4000](http://localhost:4000). Normal Elixir, HEEx, JavaScript, and CSS changes reload while it runs. Dependency, runtime configuration, and supervision-tree changes require the repository's [development-server restart workflow](../../repo-governance/workflows/development-server-restart.md). The optional background Tailscale Serve route has an independent lifecycle under the [development tailnet proxy workflow](../../repo-governance/workflows/development-tailnet-proxy.md), so restarting Phoenix does not interrupt the private HTTPS configuration.
 
+The home page at `/` is the child-friendly entry point and links to `/chat`, which owns the Codex conversation UI. This separation leaves room for future activities under `/apps/` without moving the chat route again.
+
+## Visual Language
+
+Every Bnest interface uses the **Nest workshop** visual language defined by the `--bnest-*` tokens in [`assets/css/app.css`](assets/css/app.css). Reuse those tokens rather than adding page-local colors, fonts, corner treatments, or shadows.
+
+- **Color:** ink `#153f42`, canvas `#d8f1ec`, paper `#fff9ed`, sunflower `#f7b84b`, coral `#e5633d`, and lagoon `#80c5b8`.
+- **Type:** use the rounded display stack for page titles and prominent actions; use the body stack for reading and controls.
+- **Shape:** cards and primary actions use an asymmetric rounded corner with a solid ink outline and offset ink shadow. Focus states use coral; hover motion is small and respects the control's purpose.
+
+The home-page chat card is the reference primary action. New routes should feel like the same playful workshop while keeping one obvious next action and accessible keyboard focus.
+
 ## Installable web app
 
 The root layout links a standalone PWA manifest and Beaver Nest icon sizes for Android, desktop Chromium browsers, and Apple home-screen use. Browser JavaScript registers the service worker, which keeps a cached application shell as an offline fallback while preferring the live app whenever the home host is reachable. To install on a device, use Beaver Nest's Tailscale HTTPS address: choose **Install app** in a Chromium browser or **Share → Add to Home Screen** in Safari. The installed PWA is a private web client, not a native application; Codex conversations still require the home host to be online.

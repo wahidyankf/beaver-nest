@@ -3,15 +3,10 @@ import { createBdd } from "playwright-bdd";
 
 const { Then, When } = createBdd();
 
-const availableModels = [
-  "GPT-5.6-Sol",
-  "GPT-5.6-Terra",
-  "GPT-5.6-Luna",
-  "GPT-5.5",
-  "GPT-5.4",
-  "GPT-5.4-Mini",
-  "GPT-5.3-Codex-Spark",
-];
+const availableModels =
+  "GPT-5.6-Sol,GPT-5.6-Terra,GPT-5.6-Luna,GPT-5.5,GPT-5.4,GPT-5.4-Mini,GPT-5.3-Codex-Spark".split(
+    ",",
+  );
 
 const supportedEfforts: Record<string, string[]> = {
   "gpt-5.6-sol": ["Low", "Medium", "High", "XHigh", "Max", "Ultra"],
@@ -83,6 +78,16 @@ Then(
 Then("the page displays the text {string}", async ({ page }, text: string) => {
   await expect(page.getByText(text, { exact: true })).toBeVisible();
 });
+
+Then(
+  "the page offers the {string} link to {string}",
+  async ({ page }, label: string, path: string) => {
+    await expect(page.getByRole("link", { name: label })).toHaveAttribute(
+      "href",
+      path,
+    );
+  },
+);
 
 Then(
   "the model selector lists every available Codex model",

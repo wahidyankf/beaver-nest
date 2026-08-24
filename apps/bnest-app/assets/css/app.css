@@ -108,24 +108,233 @@
 /* This file is for your main application CSS */
 
 :root {
-  --nest-ink: #24251f;
-  --nest-muted: #77776d;
-  --nest-paper: #f8f5ee;
-  --nest-line: #ded9cd;
-  --nest-green: #355c4b;
-  --nest-green-light: #e6eee9;
-  --nest-warm: #efe8dc;
+  /* Bnest's canonical visual language: make places that feel like a playful workshop. */
+  --bnest-ink: #153f42;
+  --bnest-ink-soft: #205c5d;
+  --bnest-canvas: #d8f1ec;
+  --bnest-paper: #fff9ed;
+  --bnest-sun: #f7b84b;
+  --bnest-sun-light: #ffc966;
+  --bnest-coral: #e5633d;
+  --bnest-lagoon: #80c5b8;
+  --bnest-grid: #47857a;
+  --bnest-error: #822b25;
+  --bnest-error-surface: #f8dfdc;
+  --bnest-display:
+    ui-rounded, "Arial Rounded MT Bold", ui-sans-serif, sans-serif;
+  --bnest-body: ui-sans-serif, system-ui, sans-serif;
+  --bnest-card-radius: 1.5rem 1.5rem 1.5rem 0.4rem;
+  --bnest-action-radius: 1.2rem 1.2rem 0.4rem 1.2rem;
+  --bnest-shadow: #153f42;
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  color: var(--nest-ink);
+  color: var(--bnest-ink);
   background:
-    radial-gradient(circle at 20% 0%, rgb(53 92 75 / 10%), transparent 34rem),
-    var(--nest-paper);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+    radial-gradient(circle at 20% 0%, rgb(21 63 66 / 14%), transparent 34rem),
+    var(--bnest-canvas);
+  font-family: var(--bnest-body);
+}
+
+.home-shell {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: clamp(1.25rem, 4vw, 3.5rem);
+  background: var(--bnest-canvas);
+  isolation: isolate;
+}
+
+.home-grid {
+  position: absolute;
+  z-index: -3;
+  inset: 0;
+  opacity: 0.5;
+  background-image: radial-gradient(var(--bnest-grid) 1px, transparent 1px);
+  background-size: 1.35rem 1.35rem;
+  mask-image: linear-gradient(to bottom, black, transparent 76%);
+}
+
+.home-sun {
+  position: absolute;
+  z-index: -2;
+  border-radius: 999px;
+  background: var(--bnest-sun);
+}
+
+.home-sun-one {
+  top: -9rem;
+  right: -5rem;
+  width: 22rem;
+  aspect-ratio: 1;
+}
+
+.home-sun-two {
+  bottom: -7rem;
+  left: -4rem;
+  width: 14rem;
+  aspect-ratio: 1;
+  background: var(--bnest-lagoon);
+}
+
+.home-header {
+  display: flex;
+  align-items: center;
+  align-self: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.home-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--bnest-ink);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  text-decoration: none;
+}
+
+.home-brand-logo {
+  width: 3rem;
+  height: 3rem;
+  object-fit: contain;
+}
+
+.home-status {
+  margin: 0;
+  border: 1px solid rgb(21 63 66 / 20%);
+  border-radius: 999px;
+  padding: 0.45rem 0.7rem;
+  color: var(--bnest-ink-soft);
+  background: rgb(255 255 255 / 45%);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.home-status span {
+  color: var(--bnest-coral);
+}
+
+.home-hero {
+  display: grid;
+  width: min(100%, 42rem);
+  align-self: center;
+  gap: 1.5rem;
+  margin: auto;
+  transform: translateY(-2.25rem);
+}
+
+.home-copy {
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  border: 2px solid var(--bnest-ink);
+  border-radius: var(--bnest-card-radius);
+  color: var(--bnest-ink);
+  background: var(--bnest-paper);
+  box-shadow: 0.75rem 0.75rem 0 var(--bnest-shadow);
+}
+
+.home-kicker {
+  margin: 0 0 1rem;
+  color: var(--bnest-coral);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.home-copy h1 {
+  margin: 0;
+  font-family: var(--bnest-display);
+  font-size: clamp(3rem, 10vw, 6.4rem);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.075em;
+}
+
+.home-lede {
+  max-width: 31rem;
+  margin: 1.35rem 0 0;
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.chat-entry {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  min-height: 6.5rem;
+  border: 2px solid var(--bnest-ink);
+  border-radius: var(--bnest-action-radius);
+  padding: 1rem 1.25rem;
+  color: var(--bnest-ink);
+  background: var(--bnest-sun);
+  box-shadow: 0.55rem 0.55rem 0 var(--bnest-shadow);
+  text-decoration: none;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.chat-entry:hover {
+  transform: translate(-0.18rem, -0.18rem);
+  box-shadow: 0.73rem 0.73rem 0 var(--bnest-shadow);
+  background: var(--bnest-sun-light);
+}
+
+.chat-entry:focus-visible {
+  outline: 4px solid var(--bnest-coral);
+  outline-offset: 4px;
+}
+
+.chat-entry-mark {
+  display: grid;
+  width: 3.4rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 1rem 1rem 1rem 0.25rem;
+  background: var(--bnest-canvas);
+  font-size: 1.6rem;
+}
+
+.chat-entry-copy {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.chat-entry-copy strong {
+  font-family: var(--bnest-display);
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  letter-spacing: -0.04em;
+}
+
+.chat-entry-copy small,
+.home-note {
+  color: var(--bnest-ink-soft);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.chat-entry-arrow {
+  font-size: 2rem;
+  font-weight: 700;
+  transition: transform 160ms ease;
+}
+
+.chat-entry:hover .chat-entry-arrow {
+  transform: translateX(0.25rem);
+}
+
+.home-note {
+  margin: 0.2rem 0 0 0.5rem;
 }
 
 .chat-shell {
@@ -141,11 +350,10 @@ body {
   min-height: min(46rem, calc(100vh - 4rem));
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--nest-line);
-  border-radius: 1.25rem;
-  background: rgb(255 255 255 / 78%);
-  box-shadow: 0 1.5rem 4rem rgb(48 45 37 / 10%);
-  backdrop-filter: blur(1rem);
+  border: 2px solid var(--bnest-ink);
+  border-radius: var(--bnest-card-radius);
+  background: var(--bnest-paper);
+  box-shadow: 0.6rem 0.6rem 0 var(--bnest-shadow);
 }
 
 .chat-header {
@@ -154,15 +362,16 @@ body {
   justify-content: space-between;
   gap: 1rem;
   padding: 1.35rem 1.5rem;
-  border-bottom: 1px solid var(--nest-line);
+  border-bottom: 2px solid var(--bnest-ink);
 }
 
 .chat-header h1 {
   margin: 0.1rem 0 0;
-  font-family: ui-serif, Georgia, serif;
-  font-size: clamp(1.65rem, 4vw, 2.1rem);
+  font-family: var(--bnest-display);
+  font-size: clamp(1.45rem, 3vw, 1.75rem);
   font-weight: 600;
   letter-spacing: -0.035em;
+  white-space: nowrap;
 }
 
 .brand-identity {
@@ -181,7 +390,7 @@ body {
 .chat-kicker,
 .message-label {
   margin: 0;
-  color: var(--nest-muted);
+  color: var(--bnest-ink-soft);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.09em;
@@ -190,11 +399,11 @@ body {
 
 .model-badge {
   flex: none;
-  border: 1px solid #b9cbbf;
+  border: 2px solid var(--bnest-ink);
   border-radius: 999px;
   padding: 0.4rem 0.7rem;
-  color: var(--nest-green);
-  background: var(--nest-green-light);
+  color: var(--bnest-ink);
+  background: var(--bnest-sun-light);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -213,7 +422,7 @@ body {
 }
 
 .model-picker label {
-  color: var(--nest-muted);
+  color: var(--bnest-ink-soft);
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -222,17 +431,17 @@ body {
 
 .model-picker select {
   max-width: 12rem;
-  border: 1px solid var(--nest-line);
-  border-radius: 0.55rem;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 0.65rem;
   padding: 0.35rem 1.8rem 0.35rem 0.55rem;
-  color: var(--nest-ink);
-  background: white;
+  color: var(--bnest-ink);
+  background: var(--bnest-paper);
   font-size: 0.78rem;
 }
 
 .model-picker select:focus-visible {
-  border-color: var(--nest-green);
-  outline: 3px solid rgb(53 92 75 / 12%);
+  outline: 3px solid var(--bnest-coral);
+  outline-offset: 2px;
 }
 
 .model-picker select:disabled {
@@ -241,11 +450,11 @@ body {
 }
 
 .clear-chat-button {
-  border: 1px solid var(--nest-line);
+  border: 2px solid var(--bnest-ink);
   border-radius: 999px;
   padding: 0.4rem 0.7rem;
-  color: var(--nest-muted);
-  background: transparent;
+  color: var(--bnest-ink);
+  background: var(--bnest-paper);
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
@@ -253,9 +462,10 @@ body {
 
 .clear-chat-button:hover,
 .clear-chat-button:focus-visible {
-  border-color: var(--nest-green);
-  color: var(--nest-green);
-  outline: none;
+  color: var(--bnest-ink);
+  background: var(--bnest-sun-light);
+  outline: 3px solid var(--bnest-coral);
+  outline-offset: 2px;
 }
 
 .conversation {
@@ -276,13 +486,13 @@ body {
 
 .empty-state p {
   margin: 0;
-  font-family: ui-serif, Georgia, serif;
+  font-family: var(--bnest-display);
   font-size: 1.35rem;
 }
 
 .empty-state span {
   margin-top: 0.35rem;
-  color: var(--nest-muted);
+  color: var(--bnest-ink-soft);
   font-size: 0.9rem;
 }
 
@@ -295,7 +505,7 @@ body {
 .message-visitor {
   align-self: flex-end;
   border-bottom-right-radius: 0.3rem;
-  background: var(--nest-green);
+  background: var(--bnest-ink);
   color: white;
 }
 
@@ -305,9 +515,9 @@ body {
 
 .message-assistant {
   align-self: flex-start;
-  border: 1px solid var(--nest-line);
+  border: 2px solid var(--bnest-ink);
   border-bottom-left-radius: 0.3rem;
-  background: white;
+  background: var(--bnest-paper);
 }
 
 .message-content {
@@ -320,8 +530,8 @@ body {
   margin: 0 1.5rem 0.75rem;
   border-radius: 0.6rem;
   padding: 0.7rem 0.85rem;
-  color: #822b25;
-  background: #f8dfdc;
+  color: var(--bnest-error);
+  background: var(--bnest-error-surface);
   font-size: 0.9rem;
 }
 
@@ -331,12 +541,12 @@ body {
   align-items: end;
   gap: 0.75rem;
   padding: 1rem 1.5rem 1.5rem;
-  border-top: 1px solid var(--nest-line);
-  background: rgb(248 245 238 / 80%);
+  border-top: 2px solid var(--bnest-ink);
+  background: var(--bnest-lagoon);
 }
 
 .composer label {
-  color: var(--nest-muted);
+  color: var(--bnest-ink-soft);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -345,25 +555,24 @@ body {
   width: 100%;
   min-height: 5.25rem;
   resize: vertical;
-  border: 1px solid #c9c3b7;
+  border: 2px solid var(--bnest-ink);
   border-radius: 0.75rem;
   padding: 0.75rem;
   outline: none;
-  background: white;
+  background: var(--bnest-paper);
 }
 
 .composer textarea:focus {
-  border-color: var(--nest-green);
-  box-shadow: 0 0 0 3px rgb(53 92 75 / 12%);
+  box-shadow: 0 0 0 3px var(--bnest-coral);
 }
 
 .send-button {
   min-width: 6.5rem;
-  border: 0;
-  border-radius: 0.75rem;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 0.75rem 0.75rem 0.25rem;
   padding: 0.78rem 1rem;
-  color: white;
-  background: var(--nest-green);
+  color: var(--bnest-ink);
+  background: var(--bnest-sun);
   font-weight: 750;
   cursor: pointer;
 }
@@ -373,7 +582,41 @@ body {
   opacity: 0.65;
 }
 
+.send-button:not(:disabled):hover,
+.send-button:not(:disabled):focus-visible {
+  background: var(--bnest-sun-light);
+}
+
+.send-button:focus-visible {
+  outline: 3px solid var(--bnest-coral);
+  outline-offset: 2px;
+}
+
 @media (max-width: 42rem) {
+  .home-shell {
+    padding: 1.15rem;
+  }
+
+  .home-status {
+    font-size: 0.7rem;
+  }
+
+  .home-hero {
+    gap: 1.25rem;
+    transform: none;
+  }
+
+  .home-copy {
+    border-radius: 1.5rem 1.5rem 1.5rem 0.35rem;
+    box-shadow: 0.45rem 0.45rem 0 var(--bnest-shadow);
+  }
+
+  .chat-entry {
+    min-height: 5.75rem;
+    gap: 0.8rem;
+    box-shadow: 0.4rem 0.4rem 0 var(--bnest-shadow);
+  }
+
   .chat-shell {
     display: block;
     padding: 0;

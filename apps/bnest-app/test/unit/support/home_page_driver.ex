@@ -8,9 +8,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias Phoenix.HTML.Safe
 
   @impl true
-  def open(context, "/") do
+  def open(context, "/chat") do
     render_chat(context, Chat.new())
   end
+
+  def open(context, "/"), do: render_home(context)
 
   @impl true
   def brand_logo_visible?(context) do
@@ -43,6 +45,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> LazyHTML.text()
     |> String.trim()
     |> Kernel.==(text)
+  end
+
+  @impl true
+  def chat_entry_link_visible?(context, label, path) do
+    context.page
+    |> LazyHTML.query("a[href='#{path}'] strong")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(label)
   end
 
   @impl true
@@ -262,6 +273,17 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context
     |> Map.put(:chat, chat)
     |> Map.put(:page, page)
+  end
+
+  defp render_home(context) do
+    page =
+      %{flash: %{}}
+      |> BnestAppWeb.PageHTML.home()
+      |> Safe.to_iodata()
+      |> IO.iodata_to_binary()
+      |> LazyHTML.from_fragment()
+
+    Map.put(context, :page, page)
   end
 
   defp enabled?(page, selector) do

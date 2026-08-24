@@ -27,6 +27,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the page offers the {string} link to {string}", %{args: [label, path]} = context do
+    assert context.behaviour_driver.chat_entry_link_visible?(context, label, path)
+    context
+  end
+
   step "the model selector lists every available Codex model", context do
     assert context.behaviour_driver.model_selector_lists_all?(context)
     context
