@@ -24,8 +24,8 @@
 
 ## Version Control
 
-- Use direct local-`main` pushes by default; follow [integration paths](repo-governance/conventions/integration-path.md) for PRs.
-- Make every commit [thematic](repo-governance/conventions/thematic-commits.md).
+- Default to local-`main` pushes; use [integration paths](repo-governance/conventions/integration-path.md) for PRs.
+- Make [thematic commits](repo-governance/conventions/thematic-commits.md).
 - Never commit secrets, tailnet names, or machine-local data. See [data safety](repo-governance/conventions/public-repository-data-safety.md).
 - [Commit or push](repo-governance/conventions/commit-authorization.md) only with explicit user authorization or an approved plan.
 - Fix hook failures at root; never use `--no-verify` without explicit authorization. Follow [push-hook verification](repo-governance/conventions/push-hook-verification.md).
@@ -33,18 +33,18 @@
 
 ## Repository Governance
 
-- Automatically follow [rules propagation](repo-governance/workflows/rules-propagation.md) for every repository rule change, even when not explicitly requested.
+- Follow [rules propagation](repo-governance/workflows/rules-propagation.md) for every repository rule change.
 - Use [Diátaxis for non-rule documentation](repo-governance/conventions/documentation-architecture.md).
-- Preserve rule-governed repository behavior across context compaction. Follow the [governance-continuity principle](repo-governance/principles/governance-continuity.md).
-- Keep a granular, synchronized [task list](repo-governance/conventions/task-tracking.md).
+- Preserve rules across context compaction under [governance continuity](repo-governance/principles/governance-continuity.md).
+- Keep [task lists](repo-governance/conventions/task-tracking.md) synchronized.
 - Ask questions only as a [last resort](repo-governance/conventions/last-resort-questions.md).
-- Make the [smallest sufficient change](repo-governance/principles/minimal-sufficiency.md) and stop when verification passes.
+- Make the [smallest sufficient change](repo-governance/principles/minimal-sufficiency.md); stop after verification passes.
 
 ## Development
 
+- Restart running development servers in their existing tmux panes via the [restart workflow](repo-governance/workflows/development-server-restart.md).
 - Keep every applicable [quality gate](repo-governance/development/quality-gates.md) green.
 - Keep `test:e2e` out of `test:quick`; run only affected end-to-end cases during development. Follow the [end-to-end testing standard](repo-governance/development/end-to-end-testing.md).
-- Develop app and library behavior with [TDD](repo-governance/development/test-driven-development.md).
-- Before app/library work, read tests and—except for `libs/ex-bdd`—canonical Gherkin. Change observable behavior there before production code under [BDD](repo-governance/development/behaviour-driven-development.md) and [TDD](repo-governance/development/test-driven-development.md).
+- **Application iron rule** (except `libs/ex-bdd`): canonical Gherkin → failing bindings in each applicable adapter → Nx red → implementation. Leave no step unimplemented; exempt only an incapable adapter, never all—remove all-impossible scenarios. Follow [BDD](repo-governance/development/behaviour-driven-development.md) and [TDD](repo-governance/development/test-driven-development.md).
 - Maintain every app and library [project README](repo-governance/conventions/project-readmes.md), updating it when affected.
 - Prefer accessible Mermaid for useful Markdown visuals under the [visualization convention](repo-governance/conventions/markdown-visualizations.md).
