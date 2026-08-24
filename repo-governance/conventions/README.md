@@ -23,6 +23,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Governance directory maps](directory-maps.md) keep every governance directory self-describing and navigable.
 - [Integration path](integration-path.md) makes direct pushes from local `main` the default and requires isolated, disposable worktrees for pull requests.
 - [Last-resort questions](last-resort-questions.md) require exhausting safe ways to proceed before asking the user.
+- [Language](language.md) makes English the repository's primary working language.
 - [Markdown visualizations](markdown-visualizations.md) prefer useful Mermaid diagrams and require accessible color, contrast, and non-color cues.
 - [Project READMEs](project-readmes.md) make every application and library independently understandable and operable.
 - [Public repository data safety](public-repository-data-safety.md) prevents secrets and machine-local identifiers from entering public history.

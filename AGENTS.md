@@ -6,7 +6,7 @@
 - For navigating/exploring the workspace, invoke the `nx-workspace` skill first - it has patterns for querying projects, targets, and dependencies
 - When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
 - Prefix nx commands with the workspace's package manager (e.g., `pnpm nx build`, `npm exec nx test`) - avoids using globally installed CLI
-- You have access to the Nx MCP server and its tools, use them to help the user
+- Use Nx MCP tools to help.
 - For Nx plugin best practices, check `node_modules/@nx/<plugin>/PLUGIN.md`. Not all plugins have this file - proceed without it if unavailable.
 - NEVER guess CLI flags - always check nx_docs or `--help` first when unsure
 
@@ -42,9 +42,10 @@
 
 ## Development
 
+- Use English for repository artifacts; see [language](repo-governance/conventions/language.md).
 - Separate server and proxy lifecycles; follow [restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep every applicable [quality gate](repo-governance/development/quality-gates.md) green.
 - Keep `test:e2e` out of `test:quick`; run only affected end-to-end cases during development. Follow the [end-to-end testing standard](repo-governance/development/end-to-end-testing.md).
-- **Application iron rule** (except `libs/ex-bdd`): canonical Gherkin → failing bindings in each applicable adapter → Nx red → implementation. Leave no step unimplemented; exempt only an incapable adapter, never all—remove all-impossible scenarios. Follow [BDD](repo-governance/development/behaviour-driven-development.md) and [TDD](repo-governance/development/test-driven-development.md).
+- **Application iron rule** (except `libs/ex-bdd`): canonical Gherkin → failing bindings in each applicable adapter → Nx red → implementation. No unimplemented step; exempt only incapable adapters, never all—remove all-impossible scenarios. See [BDD](repo-governance/development/behaviour-driven-development.md) and [TDD](repo-governance/development/test-driven-development.md).
 - Maintain every app and library [project README](repo-governance/conventions/project-readmes.md), updating it when affected.
 - Prefer accessible Mermaid for useful Markdown visuals under the [visualization convention](repo-governance/conventions/markdown-visualizations.md).
