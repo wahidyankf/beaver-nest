@@ -71,6 +71,7 @@ async function swipe(
   direction: "left" | "right",
 ) {
   const target = page.locator(selector);
+  await target.scrollIntoViewIfNeeded();
   const box = await target.boundingBox();
 
   if (!box) throw new Error(`Swipe target ${selector} is not visible`);
