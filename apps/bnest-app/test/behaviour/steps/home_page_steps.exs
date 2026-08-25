@@ -197,6 +197,10 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.return_to_mission(context)
   end
 
+  step "the visitor goes back in the browser", context do
+    context.behaviour_driver.browser_back_to_mission(context)
+  end
+
   step "the study card shows {string} and {string}", %{args: [name, meaning]} = context do
     assert context.behaviour_driver.study_card_shows?(context, name, meaning)
     context

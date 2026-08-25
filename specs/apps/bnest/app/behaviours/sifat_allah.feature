@@ -66,6 +66,13 @@ Feature: Revising the 20 attributes of Allah
     Then the study mode is available
     And the quiz mode is available
 
+  Scenario: Browser Back returns a child from a quiz to the mission
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts a quiz
+    And the visitor goes back in the browser
+    Then the study mode is available
+    And the quiz mode is available
+
   Scenario: A child receives kind feedback for a correct quiz answer
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz

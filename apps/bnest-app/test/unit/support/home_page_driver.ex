@@ -321,6 +321,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def browser_back_to_mission(context), do: return_to_mission(context)
+
+  @impl true
   def study_card_shows?(context, name, meaning) do
     card = LazyHTML.query(context.page, "[data-role=study-card]")
     text = LazyHTML.text(card)

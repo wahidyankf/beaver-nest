@@ -42,6 +42,7 @@ defmodule BnestApp.Behaviour.Driver do
   @callback swipe_study_card_left(map()) :: map()
   @callback swipe_study_card_right(map()) :: map()
   @callback return_to_mission(map()) :: map()
+  @callback browser_back_to_mission(map()) :: map()
   @callback study_card_shows?(map(), String.t(), String.t()) :: boolean()
   @callback study_card_colors_attributes?(map()) :: boolean()
   @callback mark_current_pair_remembered(map()) :: map()

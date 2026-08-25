@@ -29,7 +29,8 @@ defmodule BnestAppWeb.SifatAllahLive do
          |> assign(:lesson_pairs, lesson_pairs)
          |> assign(:lesson_index, 0)
          |> assign(:feedback, nil)
-         |> persist_snapshot()}
+         |> persist_snapshot()
+         |> push_history_entry()}
     end
   end
 
@@ -92,7 +93,8 @@ defmodule BnestAppWeb.SifatAllahLive do
      |> assign(:quiz_kind, :wajib_meaning)
      |> assign(:quiz_scope, :all)
      |> assign(:feedback, nil)
-     |> persist_snapshot()}
+     |> persist_snapshot()
+     |> push_history_entry()}
   end
 
   def handle_event("start-learned-review", _params, socket) do
@@ -108,7 +110,8 @@ defmodule BnestAppWeb.SifatAllahLive do
          |> assign(:quiz_kind, :wajib_meaning)
          |> assign(:quiz_scope, :learned)
          |> assign(:feedback, nil)
-         |> persist_snapshot()}
+         |> persist_snapshot()
+         |> push_history_entry()}
     end
   end
 
@@ -124,7 +127,8 @@ defmodule BnestAppWeb.SifatAllahLive do
          |> assign(:review_pair, pair)
          |> assign(:review_kind, :wajib_meaning)
          |> assign(:feedback, nil)
-         |> persist_snapshot()}
+         |> persist_snapshot()
+         |> push_history_entry()}
     end
   end
 
@@ -219,10 +223,14 @@ defmodule BnestAppWeb.SifatAllahLive do
      socket |> assign(:mode, :dashboard) |> assign(:feedback, nil) |> persist_snapshot()}
   end
 
+  def handle_event("back-to-mission", _params, socket) do
+    {:noreply, push_event(socket, "sifat-history-back", %{})}
+  end
+
   @impl Phoenix.LiveView
   def render(assigns) do
     ~H"""
-    <main class="sifat-shell">
+    <main id="sifat-allah-app" class="sifat-shell" phx-hook="SifatHistory">
       <header class="sifat-topbar">
         <a href="/" class="sifat-home-link">← Beaver Nest</a>
         <p class="sifat-saved-note">Tersimpan di browser ini</p>
@@ -403,7 +411,7 @@ defmodule BnestAppWeb.SifatAllahLive do
         >
           ← Pasangan sebelumnya
         </button>
-        <button type="button" class="sifat-quiet-action" phx-click="dashboard">← Kembali ke misi</button>
+        <button type="button" class="sifat-quiet-action" phx-click="back-to-mission">← Kembali ke misi</button>
         <button type="button" class="sifat-primary-action" phx-click="remember-pair">
           Aku sudah ingat
         </button>
@@ -485,7 +493,7 @@ defmodule BnestAppWeb.SifatAllahLive do
           <li :for={pair <- @revision_pairs}>{pair.wajib} — {pair.wajib_meaning}</li>
         </ul>
       </section>
-      <button type="button" class="sifat-quiet-action" phx-click="dashboard">← Kembali ke misi</button>
+      <button type="button" class="sifat-quiet-action" phx-click="back-to-mission">← Kembali ke misi</button>
     </section>
     """
   end
@@ -537,7 +545,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       >
         {if @remaining_count == 0, do: "Selesai dan kembali ke misi", else: "Soal ulangi berikutnya →"}
       </button>
-      <button type="button" class="sifat-quiet-action" phx-click="dashboard">← Kembali ke misi</button>
+      <button type="button" class="sifat-quiet-action" phx-click="back-to-mission">← Kembali ke misi</button>
     </section>
     """
   end
@@ -761,6 +769,8 @@ defmodule BnestAppWeb.SifatAllahLive do
       "session" => session_snapshot(socket.assigns)
     })
   end
+
+  defp push_history_entry(socket), do: push_event(socket, "sifat-history-entry", %{})
 
   defp session_snapshot(%{mode: :study} = assigns) do
     %{

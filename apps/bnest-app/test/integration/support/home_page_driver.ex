@@ -361,6 +361,16 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     |> element("button", "← Kembali ke misi")
     |> render_click()
 
+    %{} = await_push_event(context.view, "sifat-history-back")
+    render_hook(context.view, "dashboard", %{})
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def browser_back_to_mission(context) do
+    render_hook(context.view, "dashboard", %{})
     snapshot = await_push_event(context.view, "persist-sifat-allah")
     Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
   end

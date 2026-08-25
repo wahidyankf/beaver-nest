@@ -115,6 +115,14 @@ When("the visitor returns to the mission", async ({ page }) => {
   await page.getByRole("button", { name: "← Kembali ke misi" }).click();
 });
 
+When("the visitor goes back in the browser", async ({ page }) => {
+  await expect
+    .poll(() => page.evaluate(() => history.state?.bnestSifatMode))
+    .toBe("active");
+  await page.goBack();
+  await waitForLiveView(page);
+});
+
 When("the visitor swipes left on the quiz question", async ({ page }) => {
   await waitForLiveView(page);
   await swipe(page, "[data-role=quiz-question] h2", "left");

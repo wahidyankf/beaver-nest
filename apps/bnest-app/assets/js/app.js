@@ -25,6 +25,7 @@ import { LiveSocket } from "phoenix_live_view";
 import { hooks as colocatedHooks } from "phoenix-colocated/bnest_app";
 import topbar from "../vendor/topbar";
 import { celebrateSifatAnswer } from "./sifat_celebration";
+import { SifatHistory } from "./sifat_history";
 
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -180,7 +181,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     chat: storedChat(),
     sifat_allah: storedSifatAllah(),
   }),
-  hooks: { ...colocatedHooks, SifatSwipe },
+  hooks: { ...colocatedHooks, SifatHistory, SifatSwipe },
 });
 
 window.addEventListener("phx:persist-chat", (event) => {

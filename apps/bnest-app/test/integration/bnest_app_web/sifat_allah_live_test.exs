@@ -137,9 +137,7 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     |> element("button", "Lemah")
     |> render_click()
 
-    view
-    |> element("button", "← Kembali ke misi")
-    |> render_click()
+    return_to_mission(view)
 
     view
     |> element("button", "Ulangi yang masih bikin bingung (1)")
@@ -179,9 +177,7 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     |> element("button", "Fana’")
     |> render_click()
 
-    view
-    |> element("button", "← Kembali ke misi")
-    |> render_click()
+    return_to_mission(view)
 
     view
     |> element("button", "Ulangi yang masih bikin bingung (2)")
@@ -273,11 +269,7 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
 
     assert_push_event(view, "persist-sifat-allah", _remember_qidam_snapshot)
 
-    view
-    |> element("button", "← Kembali ke misi")
-    |> render_click()
-
-    assert_push_event(view, "persist-sifat-allah", _dashboard_snapshot)
+    _dashboard_snapshot = return_to_mission(view)
 
     view
     |> element("button", "Ulangi yang sudah hafal (2)")
@@ -419,6 +411,35 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     render_hook(view, "swipe-study", %{"direction" => "up"})
 
     assert has_element?(view, "[data-role=study-card]", "Wujud")
+  end
+
+  test "returns to the mission when browser history goes back from a quiz", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    view
+    |> element("button", "Latihan Ujian")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _quiz_snapshot)
+    assert_push_event(view, "sifat-history-entry", %{})
+
+    render_hook(view, "dashboard", %{})
+
+    assert_push_event(view, "persist-sifat-allah", dashboard_snapshot)
+    assert dashboard_snapshot["session"] == %{"mode" => "dashboard"}
+    assert has_element?(view, "button", "Belajar 3 Pasangan")
+    assert has_element?(view, "button", "Latihan Ujian")
+  end
+
+  defp return_to_mission(view) do
+    view
+    |> element("button", "← Kembali ke misi")
+    |> render_click()
+
+    assert_push_event(view, "sifat-history-back", %{})
+    render_hook(view, "dashboard", %{})
+    assert_push_event(view, "persist-sifat-allah", snapshot)
+    snapshot
   end
 
   defp snapshot(session, progress \\ SifatAllah.progress()),
