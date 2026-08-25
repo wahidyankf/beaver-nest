@@ -33,6 +33,99 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     assert has_element?(view, "button", "Latihan Ujian")
   end
 
+  test "marks wajib and mustahil cards with their memory colors", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    view
+    |> element("button", "Belajar 3 Pasangan")
+    |> render_click()
+
+    assert has_element?(view, "[data-role=study-card] [data-memory-color=wajib]", "SIFAT WAJIB")
+
+    assert has_element?(
+             view,
+             "[data-role=study-card] [data-memory-color=mustahil]",
+             "SIFAT MUSTAHIL"
+           )
+  end
+
+  test "does not repeat completed pairs in a new lesson", %{conn: conn} do
+    all_learned =
+      SifatAllah.curriculum()
+      |> Enum.map(& &1.id)
+      |> Enum.reduce(SifatAllah.progress(), &SifatAllah.remember(&2, &1))
+
+    conn =
+      put_connect_params(conn, %{
+        "sifat_allah" => Jason.encode!(snapshot(%{"mode" => "dashboard"}, all_learned))
+      })
+
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    assert has_element?(view, "button[phx-click=start-learning][disabled]")
+    assert has_element?(view, "[role=status]", "Semua pasangan sudah kamu hafal")
+    assert has_element?(view, "button", "Latihan Ujian")
+
+    render_click(view, "start-learning", %{})
+
+    assert has_element?(view, "button[phx-click=start-learning][disabled]")
+  end
+
+  test "keeps the quiz cycling after every pair is remembered", %{conn: conn} do
+    all_remembered =
+      Enum.reduce(SifatAllah.curriculum(), SifatAllah.progress(), fn pair, progress ->
+        SifatAllah.remember(progress, pair.id)
+      end)
+
+    conn =
+      put_connect_params(conn, %{
+        "sifat_allah" => Jason.encode!(snapshot(%{"mode" => "dashboard"}, all_remembered))
+      })
+
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    view
+    |> element("button", "Latihan Ujian")
+    |> render_click()
+
+    assert has_element?(view, "h2", "Apa arti Wujud?")
+
+    view
+    |> element("button", "Soal berikutnya →")
+    |> render_click()
+
+    assert has_element?(view, "h2", "Apa lawan dari Qidam?")
+  end
+
+  test "emits a celebration after a correct quiz answer", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    view
+    |> element("button", "Latihan Ujian")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _quiz_snapshot)
+
+    view
+    |> element("button", "Ada")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _answer_snapshot)
+    assert_push_event(view, "sifat-celebrate", %{})
+
+    assert has_element?(
+             view,
+             "[data-testid=sifat-allah-progress]",
+             "1 dari 60 kunci sudah hafal"
+           )
+
+    assert has_element?(
+             view,
+             "[data-testid=sifat-allah-unmastered-count]",
+             "59 kunci masih perlu diulang"
+           )
+  end
+
   test "removes a difficult pair after a correct focused review answer", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/apps/sifat-allah")
 
@@ -98,7 +191,11 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     |> element("[data-role=review-question] button", "Lemah")
     |> render_click()
 
-    assert has_element?(view, "[role=status]", "Belum tepat. Coba sekali lagi, ya.")
+    assert has_element?(
+             view,
+             "[role=status]",
+             "Belum tepat. Jawaban yang benar: Ada. Coba sekali lagi, ya."
+           )
 
     view
     |> element("button", "Soal ulangi berikutnya →")
@@ -149,6 +246,77 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     assert has_element?(resumed_view, "h2", "Apa lawan dari Qidam?")
   end
 
+  test "retests marked pairs and keeps the learned quiz after a reload", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    view
+    |> element("button", "Belajar 3 Pasangan")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _lesson_snapshot)
+
+    view
+    |> element("button", "Aku sudah ingat")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _remember_wujud_snapshot)
+
+    view
+    |> element("button", "Pasangan berikutnya →")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _qidam_snapshot)
+
+    view
+    |> element("button", "Aku sudah ingat")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _remember_qidam_snapshot)
+
+    view
+    |> element("button", "← Kembali ke misi")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _dashboard_snapshot)
+
+    view
+    |> element("button", "Ulangi yang sudah hafal (2)")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", start_snapshot)
+    assert start_snapshot["session"]["quiz_scope"] == "learned"
+    assert has_element?(view, ".sifat-quiz", "SOAL YANG SUDAH HAFAL")
+    assert has_element?(view, "h2", "Apa arti Wujud?")
+
+    view
+    |> element("button", "Soal berikutnya →")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _next_snapshot)
+    assert has_element?(view, "h2", "Apa lawan dari Qidam?")
+
+    view
+    |> element("button", "← Soal sebelumnya")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", snapshot)
+    assert has_element?(view, "h2", "Apa arti Wujud?")
+
+    conn = put_connect_params(conn, %{"sifat_allah" => Jason.encode!(snapshot)})
+    {:ok, resumed_view, _html} = live(conn, "/apps/sifat-allah")
+
+    assert has_element?(resumed_view, ".sifat-quiz", "SOAL YANG SUDAH HAFAL")
+    assert has_element?(resumed_view, "h2", "Apa arti Wujud?")
+  end
+
+  test "ignores learned review when no pair has been marked", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    render_click(view, "start-learned-review", %{})
+
+    assert has_element?(view, "button", "Belajar 3 Pasangan")
+  end
+
   test "restores an active focused review question from a browser snapshot", %{conn: conn} do
     progress = SifatAllah.record_answer(SifatAllah.progress(), SifatAllah.pair("wujud"), false)
 
@@ -173,10 +341,36 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     assert has_element?(view, "[data-role=review-question]", "Apa arti Wujud?")
   end
 
+  test "restores an opposite-meaning quiz question from a browser snapshot", %{conn: conn} do
+    conn =
+      put_connect_params(conn, %{
+        "sifat_allah" =>
+          Jason.encode!(
+            snapshot(%{
+              "mode" => "quiz",
+              "quiz_pair_id" => "baqa",
+              "quiz_kind" => "opposite_meaning",
+              "quiz_scope" => "all",
+              "feedback" => nil
+            })
+          )
+      })
+
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    assert has_element?(view, "h2", "Apa arti Fana’?")
+  end
+
   test "falls back safely when a saved session is not usable", %{conn: conn} do
     invalid_sessions = [
       %{"mode" => "study", "lesson_ids" => [], "lesson_index" => 0},
       %{"mode" => "quiz", "quiz_pair_id" => "unknown", "quiz_kind" => "meaning"},
+      %{
+        "mode" => "quiz",
+        "quiz_pair_id" => "wujud",
+        "quiz_kind" => "meaning",
+        "quiz_scope" => "learned"
+      },
       %{"mode" => "review", "review_pair_id" => "unknown", "review_kind" => "meaning"},
       %{"mode" => "dashboard"},
       %{"mode" => "unknown"}
@@ -203,7 +397,7 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
          "quiz_pair_id" => "qidam",
          "quiz_kind" => "opposite",
          "feedback" => "retry"
-       }, "Belum tepat. Nanti kita ulang lagi, ya."}
+       }, "Belum tepat. Jawaban yang benar: Hudus. Nanti kita ulang lagi, ya."}
     ]
 
     Enum.each(sessions, fn {session, feedback} ->

@@ -18,13 +18,19 @@ defmodule BnestAppWeb.SifatAllahLive do
   def handle_event("start-learning", _params, socket) do
     lesson_pairs = SifatAllah.lesson_pairs(socket.assigns.progress)
 
-    {:noreply,
-     socket
-     |> assign(:mode, :study)
-     |> assign(:lesson_pairs, lesson_pairs)
-     |> assign(:lesson_index, 0)
-     |> assign(:feedback, nil)
-     |> persist_snapshot()}
+    case lesson_pairs do
+      [] ->
+        {:noreply, socket}
+
+      _pairs ->
+        {:noreply,
+         socket
+         |> assign(:mode, :study)
+         |> assign(:lesson_pairs, lesson_pairs)
+         |> assign(:lesson_index, 0)
+         |> assign(:feedback, nil)
+         |> persist_snapshot()}
+    end
   end
 
   def handle_event("next-pair", _params, socket) do
@@ -84,8 +90,26 @@ defmodule BnestAppWeb.SifatAllahLive do
      |> assign(:mode, :quiz)
      |> assign(:quiz_pair, SifatAllah.quiz_pair(socket.assigns.progress))
      |> assign(:quiz_kind, :meaning)
+     |> assign(:quiz_scope, :all)
      |> assign(:feedback, nil)
      |> persist_snapshot()}
+  end
+
+  def handle_event("start-learned-review", _params, socket) do
+    case SifatAllah.pairs_for(socket.assigns.progress["learned_ids"]) do
+      [] ->
+        {:noreply, socket}
+
+      [pair | _rest] ->
+        {:noreply,
+         socket
+         |> assign(:mode, :quiz)
+         |> assign(:quiz_pair, pair)
+         |> assign(:quiz_kind, :meaning)
+         |> assign(:quiz_scope, :learned)
+         |> assign(:feedback, nil)
+         |> persist_snapshot()}
+    end
   end
 
   def handle_event("start-review", _params, socket) do
@@ -107,58 +131,66 @@ defmodule BnestAppWeb.SifatAllahLive do
   def handle_event("answer", %{"answer" => answer}, socket) do
     pair = socket.assigns.quiz_pair
     correct? = SifatAllah.correct_answer?(pair, socket.assigns.quiz_kind, answer)
-    progress = SifatAllah.record_answer(socket.assigns.progress, pair, correct?)
+
+    progress =
+      socket.assigns.progress
+      |> record_quiz_answer(pair, socket.assigns.quiz_kind, correct?, socket.assigns.quiz_scope)
 
     feedback =
       if correct? do
         %{kind: :success, text: "Betul!"}
       else
-        %{kind: :retry, text: "Belum tepat. Nanti kita ulang lagi, ya."}
+        retry_feedback("Nanti kita ulang lagi, ya.", pair, socket.assigns.quiz_kind)
       end
 
     {:noreply,
      socket
      |> assign(:progress, progress)
      |> assign(:feedback, feedback)
-     |> persist_snapshot()}
+     |> persist_snapshot()
+     |> celebrate_if_correct(correct?)}
   end
 
   def handle_event("review-answer", %{"answer" => answer}, socket) do
     pair = socket.assigns.review_pair
     correct? = SifatAllah.correct_answer?(pair, socket.assigns.review_kind, answer)
-    progress = SifatAllah.record_answer(socket.assigns.progress, pair, correct?)
+
+    progress =
+      socket.assigns.progress
+      |> SifatAllah.record_answer(pair, socket.assigns.review_kind, correct?)
 
     feedback =
       if correct? do
         %{kind: :success, text: "Mantap! #{pair.wajib} sudah kamu kuasai."}
       else
-        %{kind: :retry, text: "Belum tepat. Coba sekali lagi, ya."}
+        retry_feedback("Coba sekali lagi, ya.", pair, socket.assigns.review_kind)
       end
 
     {:noreply,
      socket
      |> assign(:progress, progress)
      |> assign(:feedback, feedback)
-     |> persist_snapshot()}
+     |> persist_snapshot()
+     |> celebrate_if_correct(correct?)}
   end
 
   def handle_event("next-question", _params, socket) do
-    quiz_kind = if socket.assigns.quiz_kind == :meaning, do: :opposite, else: :meaning
+    quiz_kind = SifatAllah.next_question_kind(socket.assigns.quiz_kind)
 
     {:noreply,
      socket
-     |> assign(:quiz_pair, SifatAllah.next_pair(socket.assigns.quiz_pair))
+     |> assign(:quiz_pair, next_quiz_pair(socket.assigns))
      |> assign(:quiz_kind, quiz_kind)
      |> assign(:feedback, nil)
      |> persist_snapshot()}
   end
 
   def handle_event("previous-question", _params, socket) do
-    quiz_kind = if socket.assigns.quiz_kind == :meaning, do: :opposite, else: :meaning
+    quiz_kind = SifatAllah.previous_question_kind(socket.assigns.quiz_kind)
 
     {:noreply,
      socket
-     |> assign(:quiz_pair, SifatAllah.previous_pair(socket.assigns.quiz_pair))
+     |> assign(:quiz_pair, previous_quiz_pair(socket.assigns))
      |> assign(:quiz_kind, quiz_kind)
      |> assign(:feedback, nil)
      |> persist_snapshot()}
@@ -200,15 +232,21 @@ defmodule BnestAppWeb.SifatAllahLive do
         <div class="sifat-title-card">
           <p class="sifat-kicker">MISI UJIAN BESOK</p>
           <h1 id="sifat-title">Misi Hafal 40 Sifat Allah</h1>
-          <p>20 pasangan untuk kamu hafal</p>
+          <p>20 pasangan: nama, arti, dan lawannya</p>
         </div>
 
         <section class="sifat-progress" aria-label="Kemajuan hafalan">
           <div>
-            <span>Sudah kenal</span>
-            <strong data-testid="sifat-allah-progress">
-              {SifatAllah.learned_count(@progress)} dari 20 pasangan sudah kenal
+            <span>PROGRES HAFALAN</span>
+            <strong class="sifat-percent" data-testid="sifat-allah-percent">
+              {SifatAllah.mastery_percent(@progress)}% hafal
             </strong>
+            <strong data-testid="sifat-allah-progress">
+              {SifatAllah.mastered_count(@progress)} dari {SifatAllah.total_count()} kunci sudah hafal
+            </strong>
+            <span class="sifat-unmastered-count" data-testid="sifat-allah-unmastered-count">
+              {SifatAllah.unmastered_count(@progress)} kunci masih perlu diulang
+            </span>
             <span class="sifat-correct-count">
               {SifatAllah.correct_count(@progress)} jawaban benar
             </span>
@@ -226,6 +264,7 @@ defmodule BnestAppWeb.SifatAllahLive do
         <.quiz :if={@mode == :quiz} assigns={assigns} />
         <.review :if={@mode == :review} assigns={assigns} />
       </section>
+      <div id="sifat-celebrations" class="sifat-celebrations" aria-hidden="true"></div>
     </main>
     """
   end
@@ -233,13 +272,44 @@ defmodule BnestAppWeb.SifatAllahLive do
   attr(:progress, :map, required: true)
 
   defp dashboard(assigns) do
+    assigns = assign(assigns, :lesson_available?, SifatAllah.lesson_pairs(assigns.progress) != [])
+
     ~H"""
     <section class="sifat-dashboard" aria-label="Pilih latihan">
       <p class="sifat-instruction">
         Pilih satu langkah kecil. Kamu nggak perlu hafal semuanya sekaligus.
       </p>
+      <section class="sifat-key-map" aria-labelledby="sifat-key-map-title">
+        <div>
+          <p>40 nama sifat, 60 kunci hafalan</p>
+          <h2 id="sifat-key-map-title">3 kunci tiap pasangan</h2>
+          <small>Bukan 60 nama baru. Tiap pasangan punya tiga hal yang perlu kamu tahu.</small>
+        </div>
+        <ol>
+          <li class="sifat-wajib-key" data-memory-color="wajib">
+            <span aria-hidden="true">1</span>
+            <strong>Sifat wajib</strong>
+            <small>dan artinya</small>
+          </li>
+          <li class="sifat-mustahil-key" data-memory-color="mustahil">
+            <span aria-hidden="true">2</span>
+            <strong>Sifat mustahil</strong>
+            <small>dan artinya</small>
+          </li>
+          <li class="sifat-opposite-key">
+            <span aria-hidden="true">3</span>
+            <strong>Dua sifat itu</strong>
+            <small>saling berlawanan</small>
+          </li>
+        </ol>
+      </section>
       <div class="sifat-actions">
-        <button type="button" class="sifat-primary-action" phx-click="start-learning">
+        <button
+          type="button"
+          class="sifat-primary-action"
+          phx-click="start-learning"
+          disabled={not @lesson_available?}
+        >
           <span aria-hidden="true">◎</span>
           <strong>Belajar 3 Pasangan</strong>
           <small>Lihat, baca, lalu ingat</small>
@@ -247,9 +317,12 @@ defmodule BnestAppWeb.SifatAllahLive do
         <button type="button" class="sifat-secondary-action" phx-click="start-quiz">
           <span aria-hidden="true">✦</span>
           <strong>Latihan Ujian</strong>
-          <small>Tebak arti atau lawannya</small>
+          <small>Uji nama, arti, dan lawannya</small>
         </button>
       </div>
+      <p :if={not @lesson_available?} class="sifat-feedback is-success" role="status">
+        Semua pasangan sudah kamu hafal. Yuk, kuatkan dengan Latihan Ujian.
+      </p>
       <button
         type="button"
         class="sifat-review-action"
@@ -257,6 +330,14 @@ defmodule BnestAppWeb.SifatAllahLive do
         disabled={@progress["review_ids"] == []}
       >
         Ulangi yang masih bikin bingung ({length(@progress["review_ids"])})
+      </button>
+      <button
+        type="button"
+        class="sifat-review-action"
+        phx-click="start-learned-review"
+        disabled={@progress["learned_ids"] == []}
+      >
+        Ulangi yang sudah hafal ({length(@progress["learned_ids"])})
       </button>
     </section>
     """
@@ -280,18 +361,33 @@ defmodule BnestAppWeb.SifatAllahLive do
         data-role="study-card"
         phx-hook="SifatSwipe"
       >
-        <div class="sifat-side sifat-wajib-side">
+        <div class="sifat-side sifat-wajib-side" data-memory-color="wajib">
           <span>SIFAT WAJIB</span>
           <strong>{@pair.wajib}</strong>
           <p>{@pair.wajib_meaning}</p>
         </div>
         <div class="sifat-pair-arrow" aria-hidden="true">↔</div>
-        <div class="sifat-side sifat-mustahil-side">
+        <div class="sifat-side sifat-mustahil-side" data-memory-color="mustahil">
           <span>SIFAT MUSTAHIL</span>
           <strong>{@pair.mustahil}</strong>
           <p>{@pair.mustahil_meaning}</p>
         </div>
       </article>
+      <section class="sifat-pair-keys" aria-labelledby="sifat-pair-keys-title">
+        <p>3 KUNCI PASANGAN INI</p>
+        <h2 id="sifat-pair-keys-title">Kenali tiga hubungan ini</h2>
+        <ol>
+          <li class="sifat-wajib-key">
+            <span aria-hidden="true">1</span> {@pair.wajib} artinya {@pair.wajib_meaning}
+          </li>
+          <li class="sifat-mustahil-key">
+            <span aria-hidden="true">2</span> {@pair.mustahil} artinya {@pair.mustahil_meaning}
+          </li>
+          <li class="sifat-opposite-key">
+            <span aria-hidden="true">3</span> {@pair.wajib} lawannya {@pair.mustahil}
+          </li>
+        </ol>
+      </section>
       <p class="sifat-swipe-hint" aria-hidden="true">
         Geser kanan untuk kembali <span>·</span> geser kiri untuk lanjut
       </p>
@@ -324,25 +420,30 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp quiz(assigns) do
     pair = assigns.assigns.quiz_pair
 
-    question =
-      if assigns.assigns.quiz_kind == :meaning,
-        do: "Apa arti #{pair.wajib}?",
-        else: "Apa lawan dari #{pair.wajib}?"
+    question = SifatAllah.question(pair, assigns.assigns.quiz_kind)
 
     options = SifatAllah.answer_options(pair, assigns.assigns.quiz_kind)
     revision_pairs = SifatAllah.review_pairs(assigns.assigns.progress)
+
+    {label, step} =
+      case assigns.assigns.quiz_scope do
+        :learned -> {"Ulangi yang sudah hafal", "SOAL YANG SUDAH HAFAL"}
+        :all -> {"Latihan ujian", "SOAL LATIHAN"}
+      end
 
     assigns =
       assign(assigns,
         pair: pair,
         question: question,
         options: options,
-        revision_pairs: revision_pairs
+        revision_pairs: revision_pairs,
+        label: label,
+        step: step
       )
 
     ~H"""
-    <section class="sifat-quiz" aria-label="Latihan ujian">
-      <p class="sifat-step">SOAL LATIHAN</p>
+    <section class="sifat-quiz" aria-label={@label}>
+      <p class="sifat-step">{@step}</p>
       <div
         id="sifat-quiz-question"
         class="sifat-quiz-question"
@@ -394,10 +495,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp review(assigns) do
     pair = assigns.assigns.review_pair
 
-    question =
-      if assigns.assigns.review_kind == :meaning,
-        do: "Apa arti #{pair.wajib}?",
-        else: "Apa lawan dari #{pair.wajib}?"
+    question = SifatAllah.question(pair, assigns.assigns.review_kind)
 
     options = SifatAllah.answer_options(pair, assigns.assigns.review_kind)
     remaining_count = length(assigns.assigns.progress["review_ids"])
@@ -469,6 +567,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       lesson_index: 0,
       quiz_pair: nil,
       quiz_kind: :meaning,
+      quiz_scope: :all,
       review_pair: nil,
       review_kind: :meaning,
       feedback: nil
@@ -500,19 +599,28 @@ defmodule BnestAppWeb.SifatAllahLive do
          progress,
          %{"mode" => "quiz", "quiz_pair_id" => pair_id, "quiz_kind" => quiz_kind} = session
        )
-       when quiz_kind in ["meaning", "opposite"] do
+       when quiz_kind in ["meaning", "opposite", "opposite_meaning"] do
     case SifatAllah.pair(pair_id) do
       nil ->
         default_state(progress)
 
       pair ->
-        default_state(progress)
-        |> Map.merge(%{
-          mode: :quiz,
-          quiz_pair: pair,
-          quiz_kind: quiz_kind_atom(quiz_kind),
-          feedback: quiz_feedback(session["feedback"])
-        })
+        scope = quiz_scope(session["quiz_scope"])
+
+        kind = quiz_kind_atom(quiz_kind)
+
+        if scope == :learned and pair.id not in progress["learned_ids"] do
+          default_state(progress)
+        else
+          default_state(progress)
+          |> Map.merge(%{
+            mode: :quiz,
+            quiz_pair: pair,
+            quiz_kind: kind,
+            quiz_scope: scope,
+            feedback: quiz_feedback(session["feedback"], pair, kind)
+          })
+        end
     end
   end
 
@@ -521,18 +629,20 @@ defmodule BnestAppWeb.SifatAllahLive do
          %{"mode" => "review", "review_pair_id" => pair_id, "review_kind" => review_kind} =
            session
        )
-       when review_kind in ["meaning", "opposite"] do
+       when review_kind in ["meaning", "opposite", "opposite_meaning"] do
     case SifatAllah.pair(pair_id) do
       nil ->
         default_state(progress)
 
       pair ->
+        kind = quiz_kind_atom(review_kind)
+
         default_state(progress)
         |> Map.merge(%{
           mode: :review,
           review_pair: pair,
-          review_kind: quiz_kind_atom(review_kind),
-          feedback: review_feedback(session["feedback"], pair)
+          review_kind: kind,
+          feedback: review_feedback(session["feedback"], pair, kind)
         })
     end
   end
@@ -555,33 +665,71 @@ defmodule BnestAppWeb.SifatAllahLive do
 
   defp study_feedback(_feedback, _pair), do: nil
 
-  defp quiz_feedback("success"), do: %{kind: :success, text: "Betul!"}
+  defp quiz_feedback("success", _pair, _kind), do: %{kind: :success, text: "Betul!"}
 
-  defp quiz_feedback("retry"),
-    do: %{kind: :retry, text: "Belum tepat. Nanti kita ulang lagi, ya."}
+  defp quiz_feedback("retry", pair, kind),
+    do: retry_feedback("Nanti kita ulang lagi, ya.", pair, kind)
 
-  defp quiz_feedback(_feedback), do: nil
+  defp quiz_feedback(_feedback, _pair, _kind), do: nil
 
-  defp review_feedback("success", pair),
+  defp review_feedback("success", pair, _kind),
     do: %{kind: :success, text: "Mantap! #{pair.wajib} sudah kamu kuasai."}
 
-  defp review_feedback("retry", _pair),
-    do: %{kind: :retry, text: "Belum tepat. Coba sekali lagi, ya."}
+  defp review_feedback("retry", pair, kind),
+    do: retry_feedback("Coba sekali lagi, ya.", pair, kind)
 
-  defp review_feedback(_feedback, _pair), do: nil
+  defp review_feedback(_feedback, _pair, _kind), do: nil
+
+  defp retry_feedback(next_step, pair, kind) do
+    %{
+      kind: :retry,
+      text:
+        "Belum tepat. Jawaban yang benar: #{SifatAllah.correct_answer(pair, kind)}. #{next_step}"
+    }
+  end
 
   defp quiz_kind_atom("meaning"), do: :meaning
   defp quiz_kind_atom("opposite"), do: :opposite
+  defp quiz_kind_atom("opposite_meaning"), do: :opposite_meaning
+
+  defp quiz_scope("learned"), do: :learned
+  defp quiz_scope(_scope), do: :all
+
+  defp record_quiz_answer(progress, pair, kind, correct?, _scope),
+    do: SifatAllah.record_answer(progress, pair, kind, correct?)
+
+  defp celebrate_if_correct(socket, true), do: push_event(socket, "sifat-celebrate", %{})
+  defp celebrate_if_correct(socket, false), do: socket
+
+  defp next_quiz_pair(assigns), do: cycle_quiz_pair(assigns, :next)
+  defp previous_quiz_pair(assigns), do: cycle_quiz_pair(assigns, :previous)
+
+  defp cycle_quiz_pair(%{quiz_scope: :all, progress: progress, quiz_pair: pair}, :next),
+    do: SifatAllah.next_unlearned_pair(progress, pair)
+
+  defp cycle_quiz_pair(%{quiz_scope: :all, progress: progress, quiz_pair: pair}, :previous),
+    do: SifatAllah.previous_unlearned_pair(progress, pair)
+
+  defp cycle_quiz_pair(%{progress: progress, quiz_pair: pair}, direction) do
+    pairs = SifatAllah.pairs_for(progress["learned_ids"])
+    index = Enum.find_index(pairs, &(&1.id == pair.id)) || 0
+
+    case direction do
+      :next -> Enum.at(pairs, rem(index + 1, length(pairs)))
+      :previous -> Enum.at(pairs, rem(index - 1 + length(pairs), length(pairs)))
+    end
+  end
 
   defp next_review_kind(%{id: id}, %{id: id}, kind), do: kind
-  defp next_review_kind(_current_pair, _next_pair, :meaning), do: :opposite
-  defp next_review_kind(_current_pair, _next_pair, :opposite), do: :meaning
+  defp next_review_kind(_current_pair, _next_pair, kind), do: SifatAllah.next_question_kind(kind)
 
   defp persist_snapshot(socket) do
     push_event(socket, "persist-sifat-allah", %{
       "version" => socket.assigns.progress["version"],
       "learned_ids" => socket.assigns.progress["learned_ids"],
       "review_ids" => socket.assigns.progress["review_ids"],
+      "mastered_key_ids" => socket.assigns.progress["mastered_key_ids"],
+      "review_key_ids" => socket.assigns.progress["review_key_ids"],
       "correct_answers" => socket.assigns.progress["correct_answers"],
       "incorrect_answers" => socket.assigns.progress["incorrect_answers"],
       "session" => session_snapshot(socket.assigns)
@@ -602,6 +750,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       "mode" => "quiz",
       "quiz_pair_id" => assigns.quiz_pair.id,
       "quiz_kind" => Atom.to_string(assigns.quiz_kind),
+      "quiz_scope" => Atom.to_string(assigns.quiz_scope),
       "feedback" => if(assigns.feedback, do: Atom.to_string(assigns.feedback.kind), else: nil)
     }
   end

@@ -181,6 +181,10 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.start_learning(context)
   end
 
+  step "the visitor has remembered every Sifat Allah pair", context do
+    context.behaviour_driver.remember_every_sifat_pair(context)
+  end
+
   step "the visitor swipes left on the study card", context do
     context.behaviour_driver.swipe_study_card_left(context)
   end
@@ -198,6 +202,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the study card uses green for wajib and orange for mustahil", context do
+    assert context.behaviour_driver.study_card_colors_attributes?(context)
+    context
+  end
+
   step "the visitor marks the current pair as remembered", context do
     context.behaviour_driver.mark_current_pair_remembered(context)
   end
@@ -209,6 +218,15 @@ defmodule BnestApp.Behaviour.ChatSteps do
 
   step "the visitor starts a quiz", context do
     context.behaviour_driver.start_quiz(context)
+  end
+
+  step "the quiz puts correct answers in varied positions", context do
+    assert context.behaviour_driver.quiz_answer_positions_vary?(context)
+    context
+  end
+
+  step "the visitor starts learned review", context do
+    context.behaviour_driver.start_learned_review(context)
   end
 
   step "the visitor starts focused review", context do

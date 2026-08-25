@@ -24,6 +24,7 @@ import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import { hooks as colocatedHooks } from "phoenix-colocated/bnest_app";
 import topbar from "../vendor/topbar";
+import { celebrateSifatAnswer } from "./sifat_celebration";
 
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -193,6 +194,8 @@ window.addEventListener("phx:clear-chat-storage", () => {
 window.addEventListener("phx:persist-sifat-allah", (event) => {
   if (event instanceof CustomEvent) persistSifatAllah(event.detail);
 });
+
+window.addEventListener("phx:sifat-celebrate", celebrateSifatAnswer);
 
 window.addEventListener("keydown", (event) => {
   const composer = event.target;

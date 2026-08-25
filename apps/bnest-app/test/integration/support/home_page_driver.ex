@@ -8,6 +8,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   import Phoenix.LiveViewTest
 
   alias BnestApp.Codex.FixtureModels
+  alias BnestApp.SifatAllah
 
   @impl true
   def open(%{conn: conn} = context, "/") do
@@ -325,6 +326,22 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def remember_every_sifat_pair(context) do
+    progress =
+      Enum.reduce(SifatAllah.curriculum(), SifatAllah.progress(), fn pair, acc ->
+        SifatAllah.remember(acc, pair.id)
+      end)
+
+    conn =
+      put_connect_params(context.conn, %{
+        "sifat_allah" => Jason.encode!(Map.put(progress, "session", %{"mode" => "dashboard"}))
+      })
+
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+    Map.put(context, :view, view)
+  end
+
+  @impl true
   def swipe_study_card_left(context) do
     render_hook(context.view, "swipe-study", %{"direction" => "left"})
     snapshot = await_push_event(context.view, "persist-sifat-allah")
@@ -355,6 +372,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def study_card_colors_attributes?(context) do
+    has_element?(context.view, "[data-memory-color=wajib]") and
+      has_element?(context.view, "[data-memory-color=mustahil]")
+  end
+
+  @impl true
   def mark_current_pair_remembered(context) do
     context.view
     |> element("button", "Aku sudah ingat")
@@ -373,6 +396,30 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def start_quiz(context) do
     context.view
     |> element("button", "Latihan Ujian")
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def quiz_answer_positions_vary?(context) do
+    first_position = answer_position(context.view, "Ada")
+
+    context.view
+    |> element("button", "Soal berikutnya →")
+    |> render_click()
+
+    _snapshot = await_push_event(context.view, "persist-sifat-allah")
+    second_position = answer_position(context.view, "Hudus")
+
+    first_position != second_position
+  end
+
+  @impl true
+  def start_learned_review(context) do
+    context.view
+    |> element("button[phx-click=start-learned-review]")
     |> render_click()
 
     snapshot = await_push_event(context.view, "persist-sifat-allah")
@@ -454,6 +501,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     receive do
       {^ref, {:push_event, ^event, payload}} -> payload
     end
+  end
+
+  defp answer_position(view, correct_answer) do
+    Enum.find_index(1..4, fn index ->
+      has_element?(view, ".sifat-answer-grid button:nth-child(#{index})", correct_answer)
+    end)
   end
 
   defp effort_label("xhigh"), do: "XHigh"

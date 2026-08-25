@@ -120,6 +120,10 @@
   --bnest-grid: #47857a;
   --bnest-error: #822b25;
   --bnest-error-surface: #f8dfdc;
+  --sifat-wajib: #b9dfc1;
+  --sifat-wajib-strong: #357a57;
+  --sifat-mustahil: #ffc3a8;
+  --sifat-mustahil-strong: #b95330;
   --bnest-display:
     ui-rounded, "Arial Rounded MT Bold", ui-sans-serif, sans-serif;
   --bnest-body: ui-sans-serif, system-ui, sans-serif;
@@ -750,6 +754,14 @@ body {
   font-size: 0.96rem;
 }
 
+.sifat-progress .sifat-percent {
+  margin: 0.05rem 0 0.15rem;
+  font-family: var(--bnest-display);
+  font-size: clamp(2rem, 7vw, 3.2rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+}
+
 .sifat-progress .sifat-correct-count {
   margin-top: 0.2rem;
   font-size: 0.8rem;
@@ -790,6 +802,100 @@ body {
   font-size: clamp(1.05rem, 3vw, 1.2rem);
   font-weight: 700;
   line-height: 1.45;
+}
+
+.sifat-key-map,
+.sifat-pair-keys {
+  margin: 0 0 1.25rem;
+  border: 2px dashed var(--bnest-ink);
+  border-radius: 1.15rem 1.15rem 0.35rem;
+  padding: 1rem;
+  background: var(--bnest-canvas);
+}
+
+.sifat-key-map > div > p,
+.sifat-pair-keys > p {
+  margin: 0;
+  color: var(--bnest-coral);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sifat-key-map h2,
+.sifat-pair-keys h2 {
+  margin: 0.25rem 0;
+  font-family: var(--bnest-display);
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  line-height: 1;
+}
+
+.sifat-key-map > div > small {
+  display: block;
+  max-width: 44rem;
+  font-weight: 700;
+}
+
+.sifat-key-map ol,
+.sifat-pair-keys ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sifat-key-map li,
+.sifat-pair-keys li {
+  display: grid;
+  gap: 0.12rem;
+  min-height: 5.3rem;
+  align-content: center;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 0.85rem 0.85rem 0.85rem 0.2rem;
+  padding: 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.sifat-wajib-key {
+  background: var(--sifat-wajib);
+}
+
+.sifat-mustahil-key {
+  background: var(--sifat-mustahil);
+}
+
+.sifat-opposite-key {
+  background: var(--bnest-paper);
+}
+
+.sifat-key-map li > span,
+.sifat-pair-keys li > span {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--bnest-ink);
+  border-radius: 999px;
+  background: var(--bnest-paper);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.sifat-key-map li > small {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sifat-pair-keys {
+  margin-top: 1.25rem;
+}
+
+.sifat-pair-keys li {
+  line-height: 1.3;
 }
 
 .sifat-actions {
@@ -895,12 +1001,12 @@ body {
 
 .sifat-wajib-side {
   border-radius: 1.35rem 1.35rem 0.35rem;
-  background: var(--bnest-sun);
+  background: var(--sifat-wajib);
 }
 
 .sifat-mustahil-side {
   border-radius: 1.35rem 1.35rem 1.35rem 0.35rem;
-  background: var(--bnest-lagoon);
+  background: var(--sifat-mustahil);
 }
 
 .sifat-side span {
@@ -977,6 +1083,79 @@ body {
 
 .sifat-feedback.is-retry {
   background: var(--bnest-sun-light);
+}
+
+.sifat-celebrations {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.sifat-confetti {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  width: 0.9rem;
+  height: 0.9rem;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+}
+
+.sifat-confetti::before {
+  display: block;
+  font-family: var(--bnest-display);
+  font-size: 1.5rem;
+  line-height: 0.8;
+}
+
+.sifat-confetti.is-star::before {
+  content: "✦";
+  color: var(--bnest-sun);
+}
+
+.sifat-confetti.is-spark::before {
+  content: "✹";
+  color: var(--bnest-coral);
+}
+
+.sifat-confetti.is-dot {
+  border-radius: 999px;
+  background: var(--bnest-lagoon);
+}
+
+.sifat-confetti.is-diamond {
+  background: var(--bnest-sun-light);
+}
+
+.sifat-confetti.is-flying {
+  animation: sifat-celebrate 860ms cubic-bezier(0.18, 0.75, 0.28, 1) forwards;
+}
+
+@keyframes sifat-celebrate {
+  0% {
+    opacity: 1;
+  }
+
+  72% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--celebration-x)),
+        calc(-50% + var(--celebration-y))
+      )
+      rotate(var(--celebration-rotation));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sifat-celebrations {
+    display: none;
+  }
 }
 
 .sifat-quiz h2 {
@@ -1076,7 +1255,9 @@ body {
   }
 
   .sifat-actions,
-  .sifat-answer-grid {
+  .sifat-answer-grid,
+  .sifat-key-map ol,
+  .sifat-pair-keys ol {
     grid-template-columns: 1fr;
   }
 

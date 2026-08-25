@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 
-const { Then, When } = createBdd();
+const { Given, Then, When } = createBdd();
 
 async function waitForLiveView(page: Page) {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
@@ -22,6 +22,47 @@ Then("the quiz mode is available", async ({ page }) => {
 When("the visitor starts learning", async ({ page }) => {
   await waitForLiveView(page);
   await page.getByRole("button", { name: "Belajar 3 Pasangan" }).click();
+});
+
+Given("the visitor has remembered every Sifat Allah pair", async ({ page }) => {
+  const rememberedIds = [
+    "wujud",
+    "qidam",
+    "baqa",
+    "mukhalafatuhu-lil-hawaditsi",
+    "qiyamuhu-binafsihi",
+    "wahdaniyah",
+    "qudrah",
+    "iradah",
+    "ilmun",
+    "hayah",
+    "sama",
+    "basar",
+    "kalam",
+    "qadiran",
+    "muridan",
+    "aliman",
+    "hayyan",
+    "samian",
+    "basiran",
+    "mutakalliman",
+  ];
+
+  await page.evaluate((learnedIds) => {
+    localStorage.setItem(
+      "bnest.sifat-allah.v1",
+      JSON.stringify({
+        version: 1,
+        learned_ids: learnedIds,
+        review_ids: [],
+        correct_answers: 0,
+        incorrect_answers: 0,
+        session: { mode: "dashboard" },
+      }),
+    );
+  }, rememberedIds);
+  await page.reload();
+  await waitForLiveView(page);
 });
 
 async function swipe(
@@ -77,6 +118,14 @@ Then(
   },
 );
 
+Then(
+  "the study card uses green for wajib and orange for mustahil",
+  async ({ page }) => {
+    await expect(page.locator("[data-memory-color=wajib]")).toBeVisible();
+    await expect(page.locator("[data-memory-color=mustahil]")).toBeVisible();
+  },
+);
+
 When("the visitor marks the current pair as remembered", async ({ page }) => {
   await waitForLiveView(page);
   await page.getByRole("button", { name: "Aku sudah ingat" }).click();
@@ -89,6 +138,28 @@ Then("the progress shows {string}", async ({ page }, progress: string) => {
 When("the visitor starts a quiz", async ({ page }) => {
   await waitForLiveView(page);
   await page.getByRole("button", { name: "Latihan Ujian" }).click();
+});
+
+Then("the quiz puts correct answers in varied positions", async ({ page }) => {
+  const answerButtons = page.locator(".sifat-answer-grid button");
+  const firstPosition = await answerButtons.evaluateAll((buttons) =>
+    buttons.findIndex((button) => button.textContent?.trim() === "Ada"),
+  );
+
+  await page.getByRole("button", { name: "Soal berikutnya →" }).click();
+
+  const secondPosition = await answerButtons.evaluateAll((buttons) =>
+    buttons.findIndex((button) => button.textContent?.trim() === "Hudus"),
+  );
+
+  expect(firstPosition).not.toBe(secondPosition);
+});
+
+When("the visitor starts learned review", async ({ page }) => {
+  await waitForLiveView(page);
+  await page
+    .getByRole("button", { name: /^Ulangi yang sudah hafal \(\d+\)$/u })
+    .click();
 });
 
 When("the visitor starts focused review", async ({ page }) => {

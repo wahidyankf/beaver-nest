@@ -292,6 +292,21 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def remember_every_sifat_pair(context) do
+    progress =
+      Enum.reduce(SifatAllah.curriculum(), context.sifat.progress, fn pair, acc ->
+        SifatAllah.remember(acc, pair.id)
+      end)
+
+    render_sifat_allah(context, %{
+      context.sifat
+      | progress: progress,
+        mode: :dashboard,
+        feedback: nil
+    })
+  end
+
+  @impl true
   def swipe_study_card_left(context), do: move_lesson(context, 1)
 
   @impl true
@@ -310,6 +325,23 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     card = LazyHTML.query(context.page, "[data-role=study-card]")
     text = LazyHTML.text(card)
     String.contains?(text, name) and String.contains?(text, meaning)
+  end
+
+  @impl true
+  def study_card_colors_attributes?(context) do
+    wajib? =
+      context.page
+      |> LazyHTML.query("[data-memory-color=wajib]")
+      |> LazyHTML.attribute("data-memory-color")
+      |> Enum.member?("wajib")
+
+    mustahil? =
+      context.page
+      |> LazyHTML.query("[data-memory-color=mustahil]")
+      |> LazyHTML.attribute("data-memory-color")
+      |> Enum.member?("mustahil")
+
+    wajib? and mustahil?
   end
 
   @impl true
@@ -343,6 +375,30 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       |> Map.put(:mode, :quiz)
       |> Map.put(:quiz_pair, SifatAllah.quiz_pair(context.sifat.progress))
       |> Map.put(:quiz_kind, :meaning)
+      |> Map.put(:quiz_scope, :all)
+      |> Map.put(:feedback, nil)
+    )
+  end
+
+  @impl true
+  def quiz_answer_positions_vary?(context) do
+    first_pair = context.sifat.quiz_pair
+    second_pair = SifatAllah.next_pair(first_pair)
+
+    answer_position(first_pair, :meaning) != answer_position(second_pair, :opposite)
+  end
+
+  @impl true
+  def start_learned_review(context) do
+    [pair | _rest] = SifatAllah.pairs_for(context.sifat.progress["learned_ids"])
+
+    render_sifat_allah(
+      context,
+      context.sifat
+      |> Map.put(:mode, :quiz)
+      |> Map.put(:quiz_pair, pair)
+      |> Map.put(:quiz_kind, :meaning)
+      |> Map.put(:quiz_scope, :learned)
       |> Map.put(:feedback, nil)
     )
   end
@@ -369,12 +425,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def next_quiz_question(context) do
-    quiz_kind = if context.sifat.quiz_kind == :meaning, do: :opposite, else: :meaning
+    quiz_kind = SifatAllah.next_question_kind(context.sifat.quiz_kind)
 
     render_sifat_allah(
       context,
       context.sifat
-      |> Map.put(:quiz_pair, SifatAllah.next_pair(context.sifat.quiz_pair))
+      |> Map.put(
+        :quiz_pair,
+        SifatAllah.next_unlearned_pair(context.sifat.progress, context.sifat.quiz_pair)
+      )
       |> Map.put(:quiz_kind, quiz_kind)
       |> Map.put(:feedback, nil)
     )
@@ -384,12 +443,19 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def answer_quiz(context, answer) do
     pair = context.sifat.quiz_pair
     correct? = SifatAllah.correct_answer?(pair, context.sifat.quiz_kind, answer)
-    progress = SifatAllah.record_answer(context.sifat.progress, pair, correct?)
+
+    progress =
+      context.sifat.progress
+      |> record_quiz_answer(pair, context.sifat.quiz_kind, correct?, context.sifat.quiz_scope)
 
     feedback =
       if correct?,
         do: %{kind: :success, text: "Betul!"},
-        else: %{kind: :retry, text: "Belum tepat. Nanti kita ulang lagi, ya."}
+        else: %{
+          kind: :retry,
+          text:
+            "Belum tepat. Jawaban yang benar: #{SifatAllah.correct_answer(pair, context.sifat.quiz_kind)}. Nanti kita ulang lagi, ya."
+        }
 
     context
     |> Map.put(:persisted_sifat_allah, Jason.encode!(progress))
@@ -404,13 +470,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def answer_focused_review(context, answer) do
     pair = context.sifat.review_pair
     correct? = SifatAllah.correct_answer?(pair, context.sifat.review_kind, answer)
-    progress = SifatAllah.record_answer(context.sifat.progress, pair, correct?)
+
+    progress =
+      context.sifat.progress
+      |> SifatAllah.record_answer(pair, context.sifat.review_kind, correct?)
 
     feedback =
       if correct? do
         %{kind: :success, text: "Mantap! #{pair.wajib} sudah kamu kuasai."}
       else
-        %{kind: :retry, text: "Belum tepat. Coba sekali lagi, ya."}
+        %{
+          kind: :retry,
+          text:
+            "Belum tepat. Jawaban yang benar: #{SifatAllah.correct_answer(pair, context.sifat.review_kind)}. Coba sekali lagi, ya."
+        }
       end
 
     context
@@ -499,6 +572,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         lesson_index: 0,
         quiz_pair: nil,
         quiz_kind: :meaning,
+        quiz_scope: :all,
         review_pair: nil,
         review_kind: :meaning,
         feedback: nil
@@ -508,6 +582,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   defp current_pair(state), do: Enum.at(state.lesson_pairs, state.lesson_index)
+
+  defp record_quiz_answer(progress, pair, kind, correct?, _scope),
+    do: SifatAllah.record_answer(progress, pair, kind, correct?)
 
   defp move_lesson(context, direction) do
     lesson_index =
@@ -520,7 +597,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   defp move_quiz_question(context, 1) do
-    quiz_kind = if context.sifat.quiz_kind == :meaning, do: :opposite, else: :meaning
+    quiz_kind = SifatAllah.next_question_kind(context.sifat.quiz_kind)
 
     render_sifat_allah(
       context,
@@ -532,20 +609,28 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   defp move_quiz_question(context, -1) do
-    quiz_kind = if context.sifat.quiz_kind == :meaning, do: :opposite, else: :meaning
+    quiz_kind = SifatAllah.previous_question_kind(context.sifat.quiz_kind)
 
     render_sifat_allah(
       context,
       context.sifat
-      |> Map.put(:quiz_pair, SifatAllah.previous_pair(context.sifat.quiz_pair))
+      |> Map.put(
+        :quiz_pair,
+        SifatAllah.previous_unlearned_pair(context.sifat.progress, context.sifat.quiz_pair)
+      )
       |> Map.put(:quiz_kind, quiz_kind)
       |> Map.put(:feedback, nil)
     )
   end
 
   defp review_next_kind(%{id: id}, %{id: id}, kind), do: kind
-  defp review_next_kind(_current_pair, _next_pair, :meaning), do: :opposite
-  defp review_next_kind(_current_pair, _next_pair, :opposite), do: :meaning
+  defp review_next_kind(_current_pair, _next_pair, kind), do: SifatAllah.next_question_kind(kind)
+
+  defp answer_position(pair, kind) do
+    pair
+    |> SifatAllah.answer_options(kind)
+    |> Enum.find_index(&(&1 == SifatAllah.correct_answer(pair, kind)))
+  end
 
   defp button_visible?(page, label) do
     page
