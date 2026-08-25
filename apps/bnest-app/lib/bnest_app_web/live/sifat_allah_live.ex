@@ -4,6 +4,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   alias BnestApp.SifatAllah
 
   @max_snapshot_bytes 10_000
+  @quiz_auto_advance_delay 5_000
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
@@ -25,6 +26,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       _pairs ->
         {:noreply,
          socket
+         |> cancel_auto_advance()
          |> assign(:mode, :study)
          |> assign(:lesson_pairs, lesson_pairs)
          |> assign(:lesson_index, 0)
@@ -88,6 +90,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   def handle_event("start-quiz", _params, socket) do
     {:noreply,
      socket
+     |> cancel_auto_advance()
      |> assign(:mode, :quiz)
      |> assign(:quiz_pair, SifatAllah.quiz_pair(socket.assigns.progress))
      |> assign(:quiz_kind, :wajib_meaning)
@@ -105,6 +108,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       [pair | _rest] ->
         {:noreply,
          socket
+         |> cancel_auto_advance()
          |> assign(:mode, :quiz)
          |> assign(:quiz_pair, pair)
          |> assign(:quiz_kind, :wajib_meaning)
@@ -123,6 +127,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       [pair | _rest] ->
         {:noreply,
          socket
+         |> cancel_auto_advance()
          |> assign(:mode, :review)
          |> assign(:review_pair, pair)
          |> assign(:review_kind, :wajib_meaning)
@@ -131,6 +136,10 @@ defmodule BnestAppWeb.SifatAllahLive do
          |> push_history_entry()}
     end
   end
+
+  def handle_event("answer", %{"answer" => _answer}, %{assigns: %{feedback: feedback}} = socket)
+      when not is_nil(feedback),
+      do: {:noreply, socket}
 
   def handle_event("answer", %{"answer" => answer}, socket) do
     pair = socket.assigns.quiz_pair
@@ -152,8 +161,17 @@ defmodule BnestAppWeb.SifatAllahLive do
      |> assign(:progress, progress)
      |> assign(:feedback, feedback)
      |> persist_snapshot()
+     |> schedule_auto_advance(:quiz)
      |> celebrate_if_correct(correct?)}
   end
+
+  def handle_event(
+        "review-answer",
+        %{"answer" => _answer},
+        %{assigns: %{feedback: feedback}} = socket
+      )
+      when not is_nil(feedback),
+      do: {:noreply, socket}
 
   def handle_event("review-answer", %{"answer" => answer}, socket) do
     pair = socket.assigns.review_pair
@@ -175,6 +193,7 @@ defmodule BnestAppWeb.SifatAllahLive do
      |> assign(:progress, progress)
      |> assign(:feedback, feedback)
      |> persist_snapshot()
+     |> schedule_auto_advance(:review)
      |> celebrate_if_correct(correct?)}
   end
 
@@ -183,6 +202,7 @@ defmodule BnestAppWeb.SifatAllahLive do
 
     {:noreply,
      socket
+     |> cancel_auto_advance()
      |> assign(:quiz_pair, next_quiz_pair(socket.assigns))
      |> assign(:quiz_kind, quiz_kind)
      |> assign(:feedback, nil)
@@ -194,6 +214,7 @@ defmodule BnestAppWeb.SifatAllahLive do
 
     {:noreply,
      socket
+     |> cancel_auto_advance()
      |> assign(:quiz_pair, previous_quiz_pair(socket.assigns))
      |> assign(:quiz_kind, quiz_kind)
      |> assign(:feedback, nil)
@@ -211,6 +232,7 @@ defmodule BnestAppWeb.SifatAllahLive do
 
         {:noreply,
          socket
+         |> cancel_auto_advance()
          |> assign(:review_pair, pair)
          |> assign(:review_kind, review_kind)
          |> assign(:feedback, nil)
@@ -220,12 +242,35 @@ defmodule BnestAppWeb.SifatAllahLive do
 
   def handle_event("dashboard", _params, socket) do
     {:noreply,
-     socket |> assign(:mode, :dashboard) |> assign(:feedback, nil) |> persist_snapshot()}
+     socket
+     |> cancel_auto_advance()
+     |> assign(:mode, :dashboard)
+     |> assign(:feedback, nil)
+     |> persist_snapshot()}
   end
 
   def handle_event("back-to-mission", _params, socket) do
     {:noreply, push_event(socket, "sifat-history-back", %{})}
   end
+
+  @impl Phoenix.LiveView
+  def handle_info(
+        {:auto_advance, :quiz, token},
+        %{assigns: %{auto_advance_token: token, feedback: feedback}} = socket
+      )
+      when not is_nil(feedback) do
+    handle_event("next-question", %{}, socket)
+  end
+
+  def handle_info(
+        {:auto_advance, :review, token},
+        %{assigns: %{auto_advance_token: token, feedback: feedback}} = socket
+      )
+      when not is_nil(feedback) do
+    handle_event("next-review-question", %{}, socket)
+  end
+
+  def handle_info({:auto_advance, _mode, _token}, socket), do: {:noreply, socket}
 
   @impl Phoenix.LiveView
   def render(assigns) do
@@ -402,6 +447,9 @@ defmodule BnestAppWeb.SifatAllahLive do
       <p :if={@assigns.feedback} class={"sifat-feedback is-#{@assigns.feedback.kind}"} role="status">
         {@assigns.feedback.text}
       </p>
+      <p :if={@assigns.feedback} class="sifat-auto-advance-note">
+        Soal berikutnya muncul otomatis dalam 5 detik.
+      </p>
       <div class="sifat-study-actions">
         <button
           type="button"
@@ -477,6 +525,9 @@ defmodule BnestAppWeb.SifatAllahLive do
       </p>
       <p :if={@assigns.feedback} class={"sifat-feedback is-#{@assigns.feedback.kind}"} role="status">
         {@assigns.feedback.text}
+      </p>
+      <p :if={@assigns.feedback} class="sifat-auto-advance-note">
+        Soal berikutnya muncul otomatis dalam 5 detik.
       </p>
       <button type="button" class="sifat-quiet-action" phx-click="previous-question">
         ← Soal sebelumnya
@@ -578,7 +629,8 @@ defmodule BnestAppWeb.SifatAllahLive do
       quiz_scope: :all,
       review_pair: nil,
       review_kind: :wajib_meaning,
-      feedback: nil
+      feedback: nil,
+      auto_advance_token: 0
     }
   end
 
@@ -771,6 +823,17 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   defp push_history_entry(socket), do: push_event(socket, "sifat-history-entry", %{})
+
+  defp cancel_auto_advance(socket),
+    do: update(socket, :auto_advance_token, &(&1 + 1))
+
+  defp schedule_auto_advance(socket, mode) do
+    socket = cancel_auto_advance(socket)
+    token = socket.assigns.auto_advance_token
+
+    Process.send_after(self(), {:auto_advance, mode, token}, @quiz_auto_advance_delay)
+    socket
+  end
 
   defp session_snapshot(%{mode: :study} = assigns) do
     %{

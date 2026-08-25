@@ -82,6 +82,14 @@ Feature: Revising the 20 attributes of Allah
     And the progress shows "1 dari 120 soal sudah hafal"
     And the progress shows "119 soal masih perlu diulang"
 
+  Scenario: A quiz locks one answer and moves on automatically
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts a quiz
+    And the visitor answers "Ada"
+    Then the quiz answer choices are locked
+    When five seconds pass after a quiz answer
+    Then the page displays the text "Apa lawan dari Qidam?"
+
   Scenario: A child sees correct answers in varied positions
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz

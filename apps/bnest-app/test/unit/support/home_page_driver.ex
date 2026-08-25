@@ -392,6 +392,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def quiz_answer_choices_locked?(context) do
+    context.page
+    |> LazyHTML.query(".sifat-answer-grid button")
+    |> Enum.all?(fn button -> LazyHTML.attribute(button, "disabled") != [] end)
+  end
+
+  @impl true
+  def wait_for_quiz_auto_advance(context), do: next_quiz_question(context)
+
+  @impl true
   def start_learned_review(context) do
     [pair | _rest] = SifatAllah.pairs_for(context.sifat.progress["learned_ids"])
 

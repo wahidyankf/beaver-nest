@@ -182,6 +182,23 @@ Then("the quiz puts correct answers in varied positions", async ({ page }) => {
   expect(firstPosition).not.toBe(secondPosition);
 });
 
+Then("the quiz answer choices are locked", async ({ page }) => {
+  const answerButtons = page.locator(".sifat-answer-grid button");
+  await expect
+    .poll(() =>
+      answerButtons.evaluateAll((buttons) =>
+        buttons.every(
+          (button) => button instanceof HTMLButtonElement && button.disabled,
+        ),
+      ),
+    )
+    .toBe(true);
+});
+
+When("five seconds pass after a quiz answer", async ({ page }) => {
+  await page.waitForTimeout(5_000);
+});
+
 When("the visitor starts learned review", async ({ page }) => {
   await waitForLiveView(page);
   await page

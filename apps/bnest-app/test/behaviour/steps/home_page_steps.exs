@@ -229,6 +229,15 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the quiz answer choices are locked", context do
+    assert context.behaviour_driver.quiz_answer_choices_locked?(context)
+    context
+  end
+
+  step "five seconds pass after a quiz answer", context do
+    context.behaviour_driver.wait_for_quiz_auto_advance(context)
+  end
+
   step "the visitor starts learned review", context do
     context.behaviour_driver.start_learned_review(context)
   end

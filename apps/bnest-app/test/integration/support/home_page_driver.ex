@@ -427,6 +427,17 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def quiz_answer_choices_locked?(context),
+    do: not has_element?(context.view, ".sifat-answer-grid button:not([disabled])")
+
+  @impl true
+  def wait_for_quiz_auto_advance(context) do
+    render_click(context.view, "next-question", %{})
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
   def start_learned_review(context) do
     context.view
     |> element("button[phx-click=start-learned-review]")

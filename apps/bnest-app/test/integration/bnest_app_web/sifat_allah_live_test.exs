@@ -126,6 +126,31 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
            )
   end
 
+  test "locks a quiz answer and advances only once after its timer fires", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    render_click(view, "start-quiz", %{})
+    assert_push_event(view, "persist-sifat-allah", _quiz_snapshot)
+    assert_push_event(view, "sifat-history-entry", %{})
+
+    render_click(view, "answer", %{"answer" => "Ada"})
+    assert_push_event(view, "persist-sifat-allah", answer_snapshot)
+
+    assert answer_snapshot["correct_answers"] == 1
+    assert has_element?(view, ".sifat-answer-grid button[disabled]")
+
+    render_click(view, "answer", %{"answer" => "Dahulu"})
+    assert has_element?(view, "[role=status]", "Betul!")
+    assert has_element?(view, "[data-testid=sifat-allah-progress]", "1 dari 120 soal sudah hafal")
+
+    send(view.pid, {:auto_advance, :quiz, 2})
+
+    assert_push_event(view, "persist-sifat-allah", next_snapshot)
+    assert next_snapshot["session"]["quiz_pair_id"] == "qidam"
+    assert next_snapshot["session"]["quiz_kind"] == "wajib_opposite"
+    assert has_element?(view, "h2", "Apa lawan dari Qidam?")
+  end
+
   test "removes a difficult pair after a correct focused review answer", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/apps/sifat-allah")
 

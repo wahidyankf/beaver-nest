@@ -49,6 +49,8 @@ defmodule BnestApp.Behaviour.Driver do
   @callback progress_shows?(map(), String.t()) :: boolean()
   @callback start_quiz(map()) :: map()
   @callback quiz_answer_positions_vary?(map()) :: boolean()
+  @callback quiz_answer_choices_locked?(map()) :: boolean()
+  @callback wait_for_quiz_auto_advance(map()) :: map()
   @callback start_learned_review(map()) :: map()
   @callback start_focused_review(map()) :: map()
   @callback swipe_quiz_question_left(map()) :: map()
