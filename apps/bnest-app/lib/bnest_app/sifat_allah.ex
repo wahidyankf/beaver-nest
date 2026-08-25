@@ -1,8 +1,16 @@
 defmodule BnestApp.SifatAllah do
   @moduledoc false
 
-  @progress_version 1
-  @question_kinds [:meaning, :opposite, :opposite_meaning]
+  @progress_version 2
+  @legacy_progress_version 1
+  @question_kinds [
+    :wajib_meaning,
+    :wajib_opposite,
+    :mustahil_meaning,
+    :meaning_wajib,
+    :mustahil_opposite,
+    :meaning_mustahil
+  ]
 
   @curriculum [
                 {"wujud", "Wujud", "Ada", "‘Adam", "Tidak ada"},
@@ -95,7 +103,30 @@ defmodule BnestApp.SifatAllah do
   end
 
   def restore(%{
-        "version" => @progress_version,
+        "version" => @legacy_progress_version,
+        "mastered_key_ids" => mastered_key_ids,
+        "review_key_ids" => review_key_ids,
+        "correct_answers" => correct_answers,
+        "incorrect_answers" => incorrect_answers
+      })
+      when is_list(mastered_key_ids) and is_list(review_key_ids) and is_integer(correct_answers) and
+             correct_answers >= 0 and is_integer(incorrect_answers) and incorrect_answers >= 0 do
+    with true <- valid_legacy_key_ids?(mastered_key_ids),
+         true <- valid_legacy_key_ids?(review_key_ids) do
+      {:ok,
+       progress_from_keys(
+         Enum.map(mastered_key_ids, &migrate_legacy_key_id/1),
+         Enum.map(review_key_ids, &migrate_legacy_key_id/1),
+         correct_answers,
+         incorrect_answers
+       )}
+    else
+      false -> :error
+    end
+  end
+
+  def restore(%{
+        "version" => @legacy_progress_version,
         "learned_ids" => learned_ids,
         "review_ids" => review_ids,
         "correct_answers" => correct_answers,
@@ -107,8 +138,8 @@ defmodule BnestApp.SifatAllah do
          true <- valid_ids?(review_ids) do
       {:ok,
        progress_from_keys(
-         Enum.flat_map(ordered_ids(learned_ids), &pair_key_ids/1),
-         Enum.flat_map(ordered_ids(review_ids), &pair_key_ids/1),
+         Enum.flat_map(ordered_ids(learned_ids), &legacy_pair_key_ids/1),
+         Enum.flat_map(ordered_ids(review_ids), &legacy_pair_key_ids/1),
          correct_answers,
          incorrect_answers
        )}
@@ -140,7 +171,7 @@ defmodule BnestApp.SifatAllah do
     |> Map.update!("incorrect_answers", &(&1 + 1))
   end
 
-  @spec record_answer(map(), map(), :meaning | :opposite | :opposite_meaning, boolean()) :: map()
+  @spec record_answer(map(), map(), atom(), boolean()) :: map()
   def record_answer(progress, pair, kind, true) do
     update_key_progress(progress, [key_id(pair, kind)], [], 1, 0)
   end
@@ -234,51 +265,40 @@ defmodule BnestApp.SifatAllah do
   def pair(id) when is_binary(id), do: Enum.find(@curriculum, &(&1.id == id))
   def pair(_id), do: nil
 
-  @spec question(map(), :meaning | :opposite | :opposite_meaning) :: String.t()
-  def question(pair, :meaning), do: "Apa arti #{pair.wajib}?"
-  def question(pair, :opposite), do: "Apa lawan dari #{pair.wajib}?"
-  def question(pair, :opposite_meaning), do: "Apa arti #{pair.mustahil}?"
+  @spec question(map(), atom()) :: String.t()
+  def question(pair, :wajib_meaning), do: "Apa arti #{pair.wajib}?"
+  def question(pair, :meaning_wajib), do: "Sifat wajib apa yang artinya #{pair.wajib_meaning}?"
+  def question(pair, :wajib_opposite), do: "Apa lawan dari #{pair.wajib}?"
+  def question(pair, :mustahil_opposite), do: "Apa lawan dari #{pair.mustahil}?"
+  def question(pair, :mustahil_meaning), do: "Apa arti #{pair.mustahil}?"
 
-  @spec answer_options(map(), :meaning | :opposite | :opposite_meaning) :: [String.t()]
-  def answer_options(pair, :meaning) do
-    arrange_answer_options(pair, :meaning, [pair.wajib_meaning, "Dahulu", "Kekal", "Lemah"])
+  def question(pair, :meaning_mustahil),
+    do: "Sifat mustahil apa yang artinya #{pair.mustahil_meaning}?"
+
+  @spec answer_options(map(), atom()) :: [String.t()]
+  def answer_options(pair, kind) do
+    arrange_answer_options(pair, kind, [correct_answer(pair, kind) | distractors(kind)])
   end
 
-  def answer_options(pair, :opposite) do
-    arrange_answer_options(pair, :opposite, [pair.mustahil, "Hudus", "Fana’", "‘Ajzun"])
-  end
+  @spec correct_answer(map(), atom()) :: String.t()
+  def correct_answer(pair, :wajib_meaning), do: pair.wajib_meaning
+  def correct_answer(pair, :meaning_wajib), do: pair.wajib
+  def correct_answer(pair, :wajib_opposite), do: pair.mustahil
+  def correct_answer(pair, :mustahil_opposite), do: pair.wajib
+  def correct_answer(pair, :mustahil_meaning), do: pair.mustahil_meaning
+  def correct_answer(pair, :meaning_mustahil), do: pair.mustahil
 
-  def answer_options(pair, :opposite_meaning) do
-    arrange_answer_options(pair, :opposite_meaning, [
-      pair.mustahil_meaning,
-      "Baru",
-      "Binasa",
-      "Lemah"
-    ])
-  end
-
-  @spec correct_answer(map(), :meaning | :opposite | :opposite_meaning) :: String.t()
-  def correct_answer(pair, :meaning), do: pair.wajib_meaning
-  def correct_answer(pair, :opposite), do: pair.mustahil
-  def correct_answer(pair, :opposite_meaning), do: pair.mustahil_meaning
-
-  @spec correct_answer?(map(), :meaning | :opposite | :opposite_meaning, String.t()) :: boolean()
+  @spec correct_answer?(map(), atom(), String.t()) :: boolean()
   def correct_answer?(pair, kind, answer), do: correct_answer(pair, kind) == answer
 
-  @spec key_id(map(), :meaning | :opposite | :opposite_meaning) :: String.t()
+  @spec key_id(map(), atom()) :: String.t()
   def key_id(pair, kind), do: "#{pair.id}:#{kind}"
 
-  @spec next_question_kind(:meaning | :opposite | :opposite_meaning) ::
-          :meaning | :opposite | :opposite_meaning
-  def next_question_kind(:meaning), do: :opposite
-  def next_question_kind(:opposite), do: :opposite_meaning
-  def next_question_kind(:opposite_meaning), do: :meaning
+  @spec next_question_kind(atom()) :: atom()
+  def next_question_kind(kind), do: cycle_question_kind(kind, :next)
 
-  @spec previous_question_kind(:meaning | :opposite | :opposite_meaning) ::
-          :meaning | :opposite | :opposite_meaning
-  def previous_question_kind(:meaning), do: :opposite_meaning
-  def previous_question_kind(:opposite), do: :meaning
-  def previous_question_kind(:opposite_meaning), do: :opposite
+  @spec previous_question_kind(atom()) :: atom()
+  def previous_question_kind(kind), do: cycle_question_kind(kind, :previous)
 
   @spec pairs_for([String.t()]) :: [map()]
   def pairs_for(ids) do
@@ -293,6 +313,34 @@ defmodule BnestApp.SifatAllah do
   defp valid_key_ids?(ids) do
     ids == Enum.uniq(ids) and Enum.all?(ids, &is_binary/1) and
       length(ordered_key_ids(ids)) == length(ids)
+  end
+
+  defp valid_legacy_key_ids?(ids) do
+    ids == Enum.uniq(ids) and Enum.all?(ids, &is_binary/1) and
+      Enum.all?(ids, &legacy_key_id?/1)
+  end
+
+  defp legacy_key_id?(id) do
+    case String.split(id, ":", parts: 2) do
+      [pair_id, kind] when kind in ["meaning", "opposite", "opposite_meaning"] ->
+        pair(pair_id) != nil
+
+      _other ->
+        false
+    end
+  end
+
+  defp migrate_legacy_key_id(id) do
+    [pair_id, legacy_kind] = String.split(id, ":", parts: 2)
+
+    kind =
+      case legacy_kind do
+        "meaning" -> :wajib_meaning
+        "opposite" -> :wajib_opposite
+        "opposite_meaning" -> :mustahil_meaning
+      end
+
+    "#{pair_id}:#{kind}"
   end
 
   defp progress_from_keys(mastered_key_ids, review_key_ids, correct_answers, incorrect_answers) do
@@ -349,6 +397,10 @@ defmodule BnestApp.SifatAllah do
 
   defp pair_key_ids(id), do: Enum.map(@question_kinds, &"#{id}:#{&1}")
 
+  defp legacy_pair_key_ids(id) do
+    Enum.map([:wajib_meaning, :wajib_opposite, :mustahil_meaning], &"#{id}:#{&1}")
+  end
+
   defp ordered_key_ids(ids) do
     selected = MapSet.new(ids)
 
@@ -357,9 +409,27 @@ defmodule BnestApp.SifatAllah do
     |> Enum.filter(&MapSet.member?(selected, &1))
   end
 
+  defp distractors(kind) do
+    case kind do
+      :wajib_meaning -> ["Dahulu", "Kekal", "Lemah"]
+      :meaning_wajib -> ["Qidam", "Baqa’", "Qudrah"]
+      :wajib_opposite -> ["Hudus", "Fana’", "‘Ajzun"]
+      :mustahil_opposite -> ["Qidam", "Baqa’", "Qudrah"]
+      :mustahil_meaning -> ["Baru", "Binasa", "Lemah"]
+      :meaning_mustahil -> ["Hudus", "Fana’", "‘Ajzun"]
+    end
+  end
+
   defp arrange_answer_options(pair, kind, options) do
     correct = correct_answer(pair, kind)
-    distractors = options |> Enum.uniq() |> List.delete(correct)
+
+    distractors =
+      options
+      |> Enum.uniq()
+      |> List.delete(correct)
+      |> fill_distractors(kind, correct)
+      |> Enum.take(3)
+
     position = stable_answer_position(pair, kind, length(distractors) + 1)
 
     List.insert_at(distractors, position, correct)
@@ -368,14 +438,38 @@ defmodule BnestApp.SifatAllah do
   defp stable_answer_position(pair, kind, answer_count) do
     pair_index = Enum.find_index(@curriculum, &(&1.id == pair.id)) || 0
 
-    kind_offset =
-      case kind do
-        :meaning -> 1
-        :opposite -> 2
-        :opposite_meaning -> 3
-      end
+    kind_offset = Enum.find_index(@question_kinds, &(&1 == kind)) + 1
 
     rem(pair_index * pair_index + pair_index * 3 + kind_offset, answer_count)
+  end
+
+  defp fill_distractors(distractors, kind, correct) do
+    candidates =
+      case kind do
+        kind when kind in [:wajib_meaning, :mustahil_meaning] ->
+          @curriculum
+          |> Enum.flat_map(&[&1.wajib_meaning, &1.mustahil_meaning])
+
+        kind when kind in [:meaning_wajib, :mustahil_opposite] ->
+          Enum.map(@curriculum, & &1.wajib)
+
+        kind when kind in [:wajib_opposite, :meaning_mustahil] ->
+          Enum.map(@curriculum, & &1.mustahil)
+      end
+
+    (distractors ++ candidates)
+    |> Enum.uniq()
+    |> List.delete(correct)
+  end
+
+  defp cycle_question_kind(kind, direction) do
+    index = Enum.find_index(@question_kinds, &(&1 == kind)) || 0
+    count = length(@question_kinds)
+
+    case direction do
+      :next -> Enum.at(@question_kinds, rem(index + 1, count))
+      :previous -> Enum.at(@question_kinds, rem(index - 1 + count, count))
+    end
   end
 
   defp cycle_quiz_pairs(progress, pair, direction) do

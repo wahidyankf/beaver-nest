@@ -374,7 +374,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       context.sifat
       |> Map.put(:mode, :quiz)
       |> Map.put(:quiz_pair, SifatAllah.quiz_pair(context.sifat.progress))
-      |> Map.put(:quiz_kind, :meaning)
+      |> Map.put(:quiz_kind, :wajib_meaning)
       |> Map.put(:quiz_scope, :all)
       |> Map.put(:feedback, nil)
     )
@@ -385,7 +385,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     first_pair = context.sifat.quiz_pair
     second_pair = SifatAllah.next_pair(first_pair)
 
-    answer_position(first_pair, :meaning) != answer_position(second_pair, :opposite)
+    answer_position(first_pair, :wajib_meaning) != answer_position(second_pair, :wajib_opposite)
   end
 
   @impl true
@@ -397,7 +397,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       context.sifat
       |> Map.put(:mode, :quiz)
       |> Map.put(:quiz_pair, pair)
-      |> Map.put(:quiz_kind, :meaning)
+      |> Map.put(:quiz_kind, :wajib_meaning)
       |> Map.put(:quiz_scope, :learned)
       |> Map.put(:feedback, nil)
     )
@@ -412,7 +412,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       context.sifat
       |> Map.put(:mode, :review)
       |> Map.put(:review_pair, pair)
-      |> Map.put(:review_kind, :meaning)
+      |> Map.put(:review_kind, :wajib_meaning)
       |> Map.put(:feedback, nil)
     )
   end
@@ -571,10 +571,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         lesson_pairs: [],
         lesson_index: 0,
         quiz_pair: nil,
-        quiz_kind: :meaning,
+        quiz_kind: :wajib_meaning,
         quiz_scope: :all,
         review_pair: nil,
-        review_kind: :meaning,
+        review_kind: :wajib_meaning,
         feedback: nil
       },
       Map.new(overrides)

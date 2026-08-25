@@ -89,7 +89,7 @@ defmodule BnestAppWeb.SifatAllahLive do
      socket
      |> assign(:mode, :quiz)
      |> assign(:quiz_pair, SifatAllah.quiz_pair(socket.assigns.progress))
-     |> assign(:quiz_kind, :meaning)
+     |> assign(:quiz_kind, :wajib_meaning)
      |> assign(:quiz_scope, :all)
      |> assign(:feedback, nil)
      |> persist_snapshot()}
@@ -105,7 +105,7 @@ defmodule BnestAppWeb.SifatAllahLive do
          socket
          |> assign(:mode, :quiz)
          |> assign(:quiz_pair, pair)
-         |> assign(:quiz_kind, :meaning)
+         |> assign(:quiz_kind, :wajib_meaning)
          |> assign(:quiz_scope, :learned)
          |> assign(:feedback, nil)
          |> persist_snapshot()}
@@ -122,7 +122,7 @@ defmodule BnestAppWeb.SifatAllahLive do
          socket
          |> assign(:mode, :review)
          |> assign(:review_pair, pair)
-         |> assign(:review_kind, :meaning)
+         |> assign(:review_kind, :wajib_meaning)
          |> assign(:feedback, nil)
          |> persist_snapshot()}
     end
@@ -242,10 +242,10 @@ defmodule BnestAppWeb.SifatAllahLive do
               {SifatAllah.mastery_percent(@progress)}% hafal
             </strong>
             <strong data-testid="sifat-allah-progress">
-              {SifatAllah.mastered_count(@progress)} dari {SifatAllah.total_count()} kunci sudah hafal
+              {SifatAllah.mastered_count(@progress)} dari {SifatAllah.total_count()} soal sudah hafal
             </strong>
             <span class="sifat-unmastered-count" data-testid="sifat-allah-unmastered-count">
-              {SifatAllah.unmastered_count(@progress)} kunci masih perlu diulang
+              {SifatAllah.unmastered_count(@progress)} soal masih perlu diulang
             </span>
             <span class="sifat-correct-count">
               {SifatAllah.correct_count(@progress)} jawaban benar
@@ -281,25 +281,25 @@ defmodule BnestAppWeb.SifatAllahLive do
       </p>
       <section class="sifat-key-map" aria-labelledby="sifat-key-map-title">
         <div>
-          <p>40 nama sifat, 60 kunci hafalan</p>
-          <h2 id="sifat-key-map-title">3 kunci tiap pasangan</h2>
-          <small>Bukan 60 nama baru. Tiap pasangan punya tiga hal yang perlu kamu tahu.</small>
+          <p>40 nama sifat, 120 soal hafalan</p>
+          <h2 id="sifat-key-map-title">6 soal tiap pasangan</h2>
+          <small>Setiap hubungan ditanya dari dua arah supaya hafalnya lebih kuat.</small>
         </div>
         <ol>
           <li class="sifat-wajib-key" data-memory-color="wajib">
             <span aria-hidden="true">1</span>
             <strong>Sifat wajib</strong>
-            <small>dan artinya</small>
+            <small>↔ artinya</small>
           </li>
           <li class="sifat-mustahil-key" data-memory-color="mustahil">
             <span aria-hidden="true">2</span>
             <strong>Sifat mustahil</strong>
-            <small>dan artinya</small>
+            <small>↔ artinya</small>
           </li>
           <li class="sifat-opposite-key">
             <span aria-hidden="true">3</span>
             <strong>Dua sifat itu</strong>
-            <small>saling berlawanan</small>
+            <small>↔ saling berlawanan</small>
           </li>
         </ol>
       </section>
@@ -374,17 +374,17 @@ defmodule BnestAppWeb.SifatAllahLive do
         </div>
       </article>
       <section class="sifat-pair-keys" aria-labelledby="sifat-pair-keys-title">
-        <p>3 KUNCI PASANGAN INI</p>
-        <h2 id="sifat-pair-keys-title">Kenali tiga hubungan ini</h2>
+        <p>6 SOAL PASANGAN INI</p>
+        <h2 id="sifat-pair-keys-title">Kenali tiga hubungan dari dua arah</h2>
         <ol>
           <li class="sifat-wajib-key">
-            <span aria-hidden="true">1</span> {@pair.wajib} artinya {@pair.wajib_meaning}
+            <span aria-hidden="true">1</span> {@pair.wajib} ↔ {@pair.wajib_meaning}
           </li>
           <li class="sifat-mustahil-key">
-            <span aria-hidden="true">2</span> {@pair.mustahil} artinya {@pair.mustahil_meaning}
+            <span aria-hidden="true">2</span> {@pair.mustahil} ↔ {@pair.mustahil_meaning}
           </li>
           <li class="sifat-opposite-key">
-            <span aria-hidden="true">3</span> {@pair.wajib} lawannya {@pair.mustahil}
+            <span aria-hidden="true">3</span> {@pair.wajib} ↔ {@pair.mustahil}
           </li>
         </ol>
       </section>
@@ -566,10 +566,10 @@ defmodule BnestAppWeb.SifatAllahLive do
       lesson_pairs: [],
       lesson_index: 0,
       quiz_pair: nil,
-      quiz_kind: :meaning,
+      quiz_kind: :wajib_meaning,
       quiz_scope: :all,
       review_pair: nil,
-      review_kind: :meaning,
+      review_kind: :wajib_meaning,
       feedback: nil
     }
   end
@@ -599,7 +599,17 @@ defmodule BnestAppWeb.SifatAllahLive do
          progress,
          %{"mode" => "quiz", "quiz_pair_id" => pair_id, "quiz_kind" => quiz_kind} = session
        )
-       when quiz_kind in ["meaning", "opposite", "opposite_meaning"] do
+       when quiz_kind in [
+              "wajib_meaning",
+              "wajib_opposite",
+              "mustahil_meaning",
+              "meaning_wajib",
+              "mustahil_opposite",
+              "meaning_mustahil",
+              "meaning",
+              "opposite",
+              "opposite_meaning"
+            ] do
     case SifatAllah.pair(pair_id) do
       nil ->
         default_state(progress)
@@ -629,7 +639,17 @@ defmodule BnestAppWeb.SifatAllahLive do
          %{"mode" => "review", "review_pair_id" => pair_id, "review_kind" => review_kind} =
            session
        )
-       when review_kind in ["meaning", "opposite", "opposite_meaning"] do
+       when review_kind in [
+              "wajib_meaning",
+              "wajib_opposite",
+              "mustahil_meaning",
+              "meaning_wajib",
+              "mustahil_opposite",
+              "meaning_mustahil",
+              "meaning",
+              "opposite",
+              "opposite_meaning"
+            ] do
     case SifatAllah.pair(pair_id) do
       nil ->
         default_state(progress)
@@ -688,9 +708,15 @@ defmodule BnestAppWeb.SifatAllahLive do
     }
   end
 
-  defp quiz_kind_atom("meaning"), do: :meaning
-  defp quiz_kind_atom("opposite"), do: :opposite
-  defp quiz_kind_atom("opposite_meaning"), do: :opposite_meaning
+  defp quiz_kind_atom("wajib_meaning"), do: :wajib_meaning
+  defp quiz_kind_atom("wajib_opposite"), do: :wajib_opposite
+  defp quiz_kind_atom("mustahil_meaning"), do: :mustahil_meaning
+  defp quiz_kind_atom("meaning_wajib"), do: :meaning_wajib
+  defp quiz_kind_atom("mustahil_opposite"), do: :mustahil_opposite
+  defp quiz_kind_atom("meaning_mustahil"), do: :meaning_mustahil
+  defp quiz_kind_atom("meaning"), do: :wajib_meaning
+  defp quiz_kind_atom("opposite"), do: :wajib_opposite
+  defp quiz_kind_atom("opposite_meaning"), do: :mustahil_meaning
 
   defp quiz_scope("learned"), do: :learned
   defp quiz_scope(_scope), do: :all

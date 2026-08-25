@@ -4,11 +4,11 @@ Feature: Revising the 20 attributes of Allah
     When a visitor opens "/apps/sifat-allah"
     Then the page displays the heading "Misi Hafal 40 Sifat Allah"
     And the page displays the text "20 pasangan: nama, arti, dan lawannya"
-    And the page displays the text "40 nama sifat, 60 kunci hafalan"
-    And the page displays the text "3 kunci tiap pasangan"
+    And the page displays the text "40 nama sifat, 120 soal hafalan"
+    And the page displays the text "6 soal tiap pasangan"
     And the page displays the text "0% hafal"
-    And the progress shows "0 dari 60 kunci sudah hafal"
-    And the progress shows "60 kunci masih perlu diulang"
+    And the progress shows "0 dari 120 soal sudah hafal"
+    And the progress shows "120 soal masih perlu diulang"
     And the study mode is available
     And the quiz mode is available
 
@@ -18,10 +18,10 @@ Feature: Revising the 20 attributes of Allah
     Then the study card shows "Wujud" and "Ada"
     And the study card uses green for wajib and orange for mustahil
     When the visitor marks the current pair as remembered
-    Then the progress shows "3 dari 60 kunci sudah hafal"
-    And the progress shows "57 kunci masih perlu diulang"
+    Then the progress shows "6 dari 120 soal sudah hafal"
+    And the progress shows "114 soal masih perlu diulang"
     When the visitor reloads the page
-    Then the progress shows "3 dari 60 kunci sudah hafal"
+    Then the progress shows "6 dari 120 soal sudah hafal"
     And the study card shows "Wujud" and "Ada"
 
   Scenario: A child learns the earliest pair that is not remembered yet
@@ -72,8 +72,8 @@ Feature: Revising the 20 attributes of Allah
     And the visitor answers "Ada"
     Then the page displays the text "Betul!"
     And the progress shows "1 jawaban benar"
-    And the progress shows "1 dari 60 kunci sudah hafal"
-    And the progress shows "59 kunci masih perlu diulang"
+    And the progress shows "1 dari 120 soal sudah hafal"
+    And the progress shows "119 soal masih perlu diulang"
 
   Scenario: A child sees correct answers in varied positions
     Given a visitor opens "/apps/sifat-allah"
@@ -111,6 +111,20 @@ Feature: Revising the 20 attributes of Allah
     And the visitor continues to the next quiz question
     Then the page displays the text "Apa arti Fana’?"
     When the visitor answers "Binasa"
+    Then the page displays the text "Betul!"
+
+  Scenario: A child practises every relationship from the reverse direction too
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts a quiz
+    And the visitor continues to the next quiz question
+    And the visitor continues to the next quiz question
+    And the visitor continues to the next quiz question
+    Then the page displays the text "Sifat wajib apa yang artinya Berbeda dengan makhluk?"
+    When the visitor answers "Mukhalafatuhu lil hawaditsi"
+    Then the page displays the text "Betul!"
+    When the visitor continues to the next quiz question
+    Then the page displays the text "Apa lawan dari Qiyamuhu bighairihi?"
+    When the visitor answers "Qiyamuhu binafsihi"
     Then the page displays the text "Betul!"
 
   Scenario: A difficult pair is kept for another try

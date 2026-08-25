@@ -3,6 +3,18 @@ import { createBdd } from "playwright-bdd";
 
 const { Given, Then, When } = createBdd();
 
+const questionKinds = [
+  "wajib_meaning",
+  "wajib_opposite",
+  "mustahil_meaning",
+  "meaning_wajib",
+  "mustahil_opposite",
+  "meaning_mustahil",
+];
+
+const masteredQuestionIds = (pairIds: string[]) =>
+  pairIds.flatMap((pairId) => questionKinds.map((kind) => `${pairId}:${kind}`));
+
 async function waitForLiveView(page: Page) {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
 }
@@ -25,7 +37,7 @@ When("the visitor starts learning", async ({ page }) => {
 });
 
 Given("the visitor has remembered every Sifat Allah pair", async ({ page }) => {
-  const rememberedIds = [
+  const pairIds = [
     "wujud",
     "qidam",
     "baqa",
@@ -48,19 +60,21 @@ Given("the visitor has remembered every Sifat Allah pair", async ({ page }) => {
     "mutakalliman",
   ];
 
-  await page.evaluate((learnedIds) => {
+  const rememberedQuestionIds = masteredQuestionIds(pairIds);
+
+  await page.evaluate((masteredKeyIds) => {
     localStorage.setItem(
       "bnest.sifat-allah.v1",
       JSON.stringify({
-        version: 1,
-        learned_ids: learnedIds,
-        review_ids: [],
+        version: 2,
+        mastered_key_ids: masteredKeyIds,
+        review_key_ids: [],
         correct_answers: 0,
         incorrect_answers: 0,
         session: { mode: "dashboard" },
       }),
     );
-  }, rememberedIds);
+  }, rememberedQuestionIds);
   await page.reload();
   await waitForLiveView(page);
 });
@@ -149,6 +163,10 @@ Then("the quiz puts correct answers in varied positions", async ({ page }) => {
 
   await page.getByRole("button", { name: "Soal berikutnya →" }).click();
 
+  await expect(page.locator("[data-role=quiz-question] h2")).toHaveText(
+    "Apa lawan dari Qidam?",
+  );
+
   const secondPosition = await answerButtons.evaluateAll((buttons) =>
     buttons.findIndex((button) => button.textContent?.trim() === "Hudus"),
   );
@@ -172,7 +190,10 @@ When("the visitor starts focused review", async ({ page }) => {
 
 When("the visitor continues to the next quiz question", async ({ page }) => {
   await waitForLiveView(page);
+  const question = page.locator("[data-role=quiz-question] h2");
+  const previousQuestion = await question.innerText();
   await page.getByRole("button", { name: "Soal berikutnya →" }).click();
+  await expect.poll(() => question.innerText()).not.toBe(previousQuestion);
 });
 
 When("the visitor answers {string}", async ({ page }, answer: string) => {

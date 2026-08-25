@@ -116,13 +116,13 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     assert has_element?(
              view,
              "[data-testid=sifat-allah-progress]",
-             "1 dari 60 kunci sudah hafal"
+             "1 dari 120 soal sudah hafal"
            )
 
     assert has_element?(
              view,
              "[data-testid=sifat-allah-unmastered-count]",
-             "59 kunci masih perlu diulang"
+             "119 soal masih perlu diulang"
            )
   end
 

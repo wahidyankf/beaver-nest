@@ -41,39 +41,42 @@ defmodule BnestApp.SifatAllahTest do
     assert SifatAllah.correct_count(progress) == 1
   end
 
-  test "tracks the 60 individual memory keys and moves an exact key between states" do
+  test "tracks the 120 individual questions and moves an exact question between states" do
     wujud = hd(SifatAllah.curriculum())
     progress = SifatAllah.progress()
 
-    assert SifatAllah.total_count() == 60
+    assert SifatAllah.total_count() == 120
     assert SifatAllah.mastered_count(progress) == 0
-    assert SifatAllah.unmastered_count(progress) == 60
+    assert SifatAllah.unmastered_count(progress) == 120
     assert SifatAllah.mastery_percent(progress) == 0
 
-    progress = SifatAllah.record_answer(progress, wujud, :meaning, true)
+    progress = SifatAllah.record_answer(progress, wujud, :wajib_meaning, true)
 
-    assert progress["mastered_key_ids"] == ["wujud:meaning"]
+    assert progress["mastered_key_ids"] == ["wujud:wajib_meaning"]
     assert progress["learned_ids"] == []
     assert SifatAllah.mastered_count(progress) == 1
-    assert SifatAllah.unmastered_count(progress) == 59
-    assert SifatAllah.mastery_percent(progress) == 1
+    assert SifatAllah.unmastered_count(progress) == 119
+    assert SifatAllah.mastery_percent(progress) == 0
 
-    progress = SifatAllah.record_answer(progress, wujud, :meaning, false)
+    progress = SifatAllah.record_answer(progress, wujud, :wajib_meaning, false)
 
     assert progress["mastered_key_ids"] == []
-    assert progress["review_key_ids"] == ["wujud:meaning"]
+    assert progress["review_key_ids"] == ["wujud:wajib_meaning"]
     assert progress["review_ids"] == ["wujud"]
-    assert SifatAllah.unmastered_count(progress) == 60
+    assert SifatAllah.unmastered_count(progress) == 120
 
     progress =
       progress
-      |> SifatAllah.record_answer(wujud, :meaning, true)
-      |> SifatAllah.record_answer(wujud, :opposite, true)
-      |> SifatAllah.record_answer(wujud, :opposite_meaning, true)
+      |> SifatAllah.record_answer(wujud, :wajib_meaning, true)
+      |> SifatAllah.record_answer(wujud, :wajib_opposite, true)
+      |> SifatAllah.record_answer(wujud, :mustahil_meaning, true)
+      |> SifatAllah.record_answer(wujud, :meaning_wajib, true)
+      |> SifatAllah.record_answer(wujud, :mustahil_opposite, true)
+      |> SifatAllah.record_answer(wujud, :meaning_mustahil, true)
 
     assert progress["learned_ids"] == ["wujud"]
-    assert SifatAllah.mastered_count(progress) == 3
-    assert SifatAllah.unmastered_count(progress) == 57
+    assert SifatAllah.mastered_count(progress) == 6
+    assert SifatAllah.unmastered_count(progress) == 114
     assert SifatAllah.mastery_percent(progress) == 5
   end
 
@@ -87,7 +90,7 @@ defmodule BnestApp.SifatAllahTest do
                "incorrect_answers" => 1
              })
 
-    assert progress["learned_ids"] == ["wujud"]
+    assert progress["learned_ids"] == []
     assert SifatAllah.mastered_count(progress) == 3
     assert SifatAllah.restore(%{}) == :error
 
@@ -110,52 +113,87 @@ defmodule BnestApp.SifatAllahTest do
                "incorrect_answers" => 1
              })
 
-    assert progress["mastered_key_ids"] == ["wujud:meaning", "qidam:opposite"]
-    assert progress["review_key_ids"] == ["wujud:opposite_meaning"]
+    assert progress["mastered_key_ids"] == ["wujud:wajib_meaning", "qidam:wajib_opposite"]
+    assert progress["review_key_ids"] == ["wujud:mustahil_meaning"]
     assert SifatAllah.mastered_count(progress) == 2
-    assert SifatAllah.unmastered_count(progress) == 58
-    assert SifatAllah.mastery_percent(progress) == 3
+    assert SifatAllah.unmastered_count(progress) == 118
+    assert SifatAllah.mastery_percent(progress) == 1
   end
 
-  test "offers a meaning or opposite quiz with a verifiable answer" do
+  test "restores valid 120-question snapshots and rejects invalid question ids" do
+    assert {:ok, progress} =
+             SifatAllah.restore(%{
+               "version" => 2,
+               "mastered_key_ids" => ["qidam:meaning_wajib", "wujud:wajib_meaning"],
+               "review_key_ids" => ["wujud:meaning_mustahil"],
+               "correct_answers" => 2,
+               "incorrect_answers" => 1
+             })
+
+    assert progress["mastered_key_ids"] == ["wujud:wajib_meaning", "qidam:meaning_wajib"]
+
+    assert SifatAllah.restore(%{
+             "version" => 2,
+             "mastered_key_ids" => ["wujud:not-a-question"],
+             "review_key_ids" => [],
+             "correct_answers" => 0,
+             "incorrect_answers" => 0
+           }) == :error
+
+    assert SifatAllah.restore(%{
+             "version" => 1,
+             "mastered_key_ids" => ["wujud:not-a-legacy-question"],
+             "review_key_ids" => [],
+             "correct_answers" => 0,
+             "incorrect_answers" => 0
+           }) == :error
+  end
+
+  test "offers each relation from both directions with a verifiable answer" do
     pair = hd(SifatAllah.curriculum())
 
-    assert "Ada" in SifatAllah.answer_options(pair, :meaning)
-    assert "‘Adam" in SifatAllah.answer_options(pair, :opposite)
-    assert "Tidak ada" in SifatAllah.answer_options(pair, :opposite_meaning)
-    assert SifatAllah.correct_answer?(pair, :meaning, "Ada")
-    refute SifatAllah.correct_answer?(pair, :opposite, "Hudus")
-    assert SifatAllah.question(pair, :opposite_meaning) == "Apa arti ‘Adam?"
-    assert SifatAllah.correct_answer?(pair, :opposite_meaning, "Tidak ada")
-    assert SifatAllah.next_question_kind(:meaning) == :opposite
-    assert SifatAllah.next_question_kind(:opposite) == :opposite_meaning
-    assert SifatAllah.next_question_kind(:opposite_meaning) == :meaning
-    assert SifatAllah.previous_question_kind(:opposite) == :meaning
-    assert SifatAllah.previous_question_kind(:opposite_meaning) == :opposite
-    assert SifatAllah.previous_question_kind(:meaning) == :opposite_meaning
+    assert "Ada" in SifatAllah.answer_options(pair, :wajib_meaning)
+    assert "Wujud" in SifatAllah.answer_options(pair, :meaning_wajib)
+    assert "‘Adam" in SifatAllah.answer_options(pair, :wajib_opposite)
+    assert "Wujud" in SifatAllah.answer_options(pair, :mustahil_opposite)
+    assert "Tidak ada" in SifatAllah.answer_options(pair, :mustahil_meaning)
+    assert "‘Adam" in SifatAllah.answer_options(pair, :meaning_mustahil)
+    assert SifatAllah.question(pair, :mustahil_opposite) == "Apa lawan dari ‘Adam?"
+    assert SifatAllah.question(pair, :meaning_wajib) == "Sifat wajib apa yang artinya Ada?"
+
+    assert SifatAllah.question(pair, :meaning_mustahil) ==
+             "Sifat mustahil apa yang artinya Tidak ada?"
+
+    assert SifatAllah.correct_answer?(pair, :meaning_mustahil, "‘Adam")
+    assert SifatAllah.next_question_kind(:mustahil_meaning) == :meaning_wajib
+    assert SifatAllah.previous_question_kind(:wajib_meaning) == :meaning_mustahil
   end
 
   test "returns the correct answer for each quiz kind" do
     pair = hd(SifatAllah.curriculum())
 
-    assert SifatAllah.correct_answer(pair, :meaning) == "Ada"
-    assert SifatAllah.correct_answer(pair, :opposite) == "‘Adam"
-    assert SifatAllah.correct_answer(pair, :opposite_meaning) == "Tidak ada"
+    assert SifatAllah.correct_answer(pair, :wajib_meaning) == "Ada"
+    assert SifatAllah.correct_answer(pair, :meaning_wajib) == "Wujud"
+    assert SifatAllah.correct_answer(pair, :wajib_opposite) == "‘Adam"
+    assert SifatAllah.correct_answer(pair, :mustahil_opposite) == "Wujud"
+    assert SifatAllah.correct_answer(pair, :mustahil_meaning) == "Tidak ada"
+    assert SifatAllah.correct_answer(pair, :meaning_mustahil) == "‘Adam"
   end
 
   test "places correct answers in varied, stable positions" do
     first = hd(SifatAllah.curriculum())
     second = SifatAllah.next_pair(first)
 
-    first_position = Enum.find_index(SifatAllah.answer_options(first, :meaning), &(&1 == "Ada"))
+    first_position =
+      Enum.find_index(SifatAllah.answer_options(first, :wajib_meaning), &(&1 == "Ada"))
 
     second_position =
-      Enum.find_index(SifatAllah.answer_options(second, :opposite), &(&1 == "Hudus"))
+      Enum.find_index(SifatAllah.answer_options(second, :wajib_opposite), &(&1 == "Hudus"))
 
     assert first_position != second_position
 
-    assert SifatAllah.answer_options(first, :meaning) ==
-             SifatAllah.answer_options(first, :meaning)
+    assert SifatAllah.answer_options(first, :wajib_meaning) ==
+             SifatAllah.answer_options(first, :wajib_meaning)
   end
 
   test "moves past pairs that are already remembered during a quiz" do
