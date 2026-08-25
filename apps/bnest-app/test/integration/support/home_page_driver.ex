@@ -403,6 +403,25 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def ask_reset_sifat_progress(context) do
+    context.view
+    |> element("button", "Reset progress")
+    |> render_click()
+
+    context
+  end
+
+  @impl true
+  def confirm_reset_sifat_progress(context) do
+    context.view
+    |> element("button", "Ya, reset progress")
+    |> render_click()
+
+    snapshot = await_push_event(context.view, "persist-sifat-allah")
+    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  @impl true
   def start_quiz(context) do
     context.view
     |> element("button", "Latihan Ujian")

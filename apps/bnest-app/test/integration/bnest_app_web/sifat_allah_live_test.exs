@@ -126,6 +126,51 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
            )
   end
 
+  test "resets browser progress from the dashboard after confirmation", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    view
+    |> element("button", "Belajar 3 Pasangan")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _lesson_snapshot)
+
+    view
+    |> element("button", "Aku sudah ingat")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", _remember_snapshot)
+
+    view
+    |> element("button", "← Kembali ke misi")
+    |> render_click()
+
+    render_hook(view, "dashboard", %{})
+    assert_push_event(view, "persist-sifat-allah", _dashboard_snapshot)
+
+    render_click(view, "reset-progress", %{})
+    assert has_element?(view, "[data-testid=sifat-allah-progress]", "6 dari 120 soal sudah hafal")
+
+    view
+    |> element("button", "Reset progress")
+    |> render_click()
+
+    assert has_element?(view, "[aria-label='Konfirmasi reset progress']", "Mulai lagi dari nol?")
+    assert has_element?(view, "[data-testid=sifat-allah-progress]", "6 dari 120 soal sudah hafal")
+
+    view
+    |> element("button", "Ya, reset progress")
+    |> render_click()
+
+    assert_push_event(view, "persist-sifat-allah", snapshot)
+    assert snapshot["mastered_key_ids"] == []
+    assert snapshot["review_key_ids"] == []
+    assert snapshot["correct_answers"] == 0
+    assert snapshot["incorrect_answers"] == 0
+    assert snapshot["session"] == %{"mode" => "dashboard"}
+    assert has_element?(view, "[data-testid=sifat-allah-progress]", "0 dari 120 soal sudah hafal")
+  end
+
   test "locks a quiz answer and advances only once after its timer fires", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/apps/sifat-allah")
 

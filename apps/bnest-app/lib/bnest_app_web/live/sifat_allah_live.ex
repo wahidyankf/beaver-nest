@@ -240,6 +240,23 @@ defmodule BnestAppWeb.SifatAllahLive do
     {:noreply, push_event(socket, "sifat-history-back", %{})}
   end
 
+  def handle_event("ask-reset-progress", _params, socket) do
+    {:noreply, assign(socket, :reset_confirmation?, true)}
+  end
+
+  def handle_event("cancel-reset-progress", _params, socket) do
+    {:noreply, assign(socket, :reset_confirmation?, false)}
+  end
+
+  def handle_event("reset-progress", _params, %{assigns: %{reset_confirmation?: true}} = socket) do
+    {:noreply,
+     socket
+     |> assign(default_state(SifatAllah.progress()))
+     |> persist_snapshot()}
+  end
+
+  def handle_event("reset-progress", _params, socket), do: {:noreply, socket}
+
   @impl Phoenix.LiveView
   def handle_info(
         {:auto_advance, :quiz, token},
@@ -299,7 +316,11 @@ defmodule BnestAppWeb.SifatAllahLive do
           </div>
         </section>
 
-        <.dashboard :if={@mode == :dashboard} progress={@progress} />
+        <.dashboard
+          :if={@mode == :dashboard}
+          progress={@progress}
+          reset_confirmation?={@reset_confirmation?}
+        />
         <.study :if={@mode == :study} assigns={assigns} />
         <.quiz :if={@mode == :quiz} assigns={assigns} />
         <.review :if={@mode == :review} assigns={assigns} />
@@ -310,6 +331,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   attr(:progress, :map, required: true)
+  attr(:reset_confirmation?, :boolean, default: false)
 
   defp dashboard(assigns) do
     assigns = assign(assigns, :lesson_available?, SifatAllah.lesson_pairs(assigns.progress) != [])
@@ -379,6 +401,30 @@ defmodule BnestAppWeb.SifatAllahLive do
       >
         Ulangi yang sudah hafal ({length(@progress["mastered_key_ids"])})
       </button>
+      <button
+        :if={not @reset_confirmation?}
+        type="button"
+        class="sifat-reset-action"
+        phx-click="ask-reset-progress"
+        disabled={
+          @progress["mastered_key_ids"] == [] and @progress["review_key_ids"] == [] and
+            @progress["correct_answers"] == 0 and @progress["incorrect_answers"] == 0
+        }
+      >
+        Reset progress
+      </button>
+      <section
+        :if={@reset_confirmation?}
+        class="sifat-reset-confirmation"
+        aria-label="Konfirmasi reset progress"
+      >
+        <strong>Mulai lagi dari nol?</strong>
+        <p>Semua progres hafalan di browser ini akan dihapus.</p>
+        <div>
+          <button type="button" class="sifat-quiet-action" phx-click="cancel-reset-progress">Batal</button>
+          <button type="button" class="sifat-reset-action" phx-click="reset-progress">Ya, reset progress</button>
+        </div>
+      </section>
     </section>
     """
   end
@@ -619,6 +665,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       review_kind: :wajib_meaning,
       feedback: nil,
       auto_advance_token: 0,
+      reset_confirmation?: false,
       persist_migrated_snapshot?: false
     }
   end

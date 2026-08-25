@@ -47,6 +47,8 @@ defmodule BnestApp.Behaviour.Driver do
   @callback study_card_colors_attributes?(map()) :: boolean()
   @callback mark_current_pair_remembered(map()) :: map()
   @callback progress_shows?(map(), String.t()) :: boolean()
+  @callback ask_reset_sifat_progress(map()) :: map()
+  @callback confirm_reset_sifat_progress(map()) :: map()
   @callback start_quiz(map()) :: map()
   @callback quiz_answer_positions_vary?(map()) :: boolean()
   @callback quiz_answer_choices_locked?(map()) :: boolean()

@@ -31,6 +31,18 @@ Feature: Revising the 20 attributes of Allah
     And the visitor reloads the page
     Then the progress shows "6 dari 120 soal sudah hafal"
 
+  Scenario: A child resets saved progress from the mission
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts learning
+    And the visitor marks the current pair as remembered
+    And the visitor returns to the mission
+    And the visitor asks to reset Sifat Allah progress
+    And the visitor confirms resetting Sifat Allah progress
+    Then the progress shows "0 dari 120 soal sudah hafal"
+    And the progress shows "120 soal masih perlu diulang"
+    When the visitor reloads the page
+    Then the progress shows "0 dari 120 soal sudah hafal"
+
   Scenario: A child learns the earliest pair that is not remembered yet
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts learning

@@ -158,6 +158,23 @@ Then("the progress shows {string}", async ({ page }, progress: string) => {
   await expect(page.getByText(progress, { exact: true })).toBeVisible();
 });
 
+When("the visitor asks to reset Sifat Allah progress", async ({ page }) => {
+  await waitForLiveView(page);
+  await page
+    .getByRole("button", { name: "Reset progress", exact: true })
+    .click();
+});
+
+When(
+  "the visitor confirms resetting Sifat Allah progress",
+  async ({ page }) => {
+    await waitForLiveView(page);
+    await page
+      .getByRole("button", { name: "Ya, reset progress", exact: true })
+      .click();
+  },
+);
+
 When("the visitor starts a quiz", async ({ page }) => {
   await waitForLiveView(page);
   await page.getByRole("button", { name: "Latihan Ujian" }).click();

@@ -371,6 +371,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def ask_reset_sifat_progress(context) do
+    render_sifat_allah(context, Map.put(context.sifat, :reset_confirmation?, true))
+  end
+
+  @impl true
+  def confirm_reset_sifat_progress(context) do
+    progress = SifatAllah.progress()
+
+    context
+    |> Map.put(:persisted_sifat_allah, Jason.encode!(progress))
+    |> render_sifat_allah(sifat_state(progress: progress))
+  end
+
+  @impl true
   def start_quiz(context) do
     {pair, kind} = SifatAllah.first_exam_question(context.sifat.progress)
 
@@ -589,7 +603,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         quiz_scope: :all,
         review_pair: nil,
         review_kind: :wajib_meaning,
-        feedback: nil
+        feedback: nil,
+        reset_confirmation?: false
       },
       Map.new(overrides)
     )

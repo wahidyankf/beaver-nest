@@ -955,6 +955,7 @@ body {
 }
 
 .sifat-review-action,
+.sifat-reset-action,
 .sifat-quiet-action {
   min-height: 2.75rem;
   margin-top: 1.25rem;
@@ -966,6 +967,49 @@ body {
 .sifat-review-action:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.sifat-reset-action {
+  display: block;
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: 1.25rem;
+  border: 2px dashed var(--bnest-ink);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--bnest-coral) 12%, white);
+  color: var(--bnest-ink);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.sifat-reset-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sifat-reset-confirmation {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--bnest-sun-light) 62%, white);
+}
+
+.sifat-reset-confirmation p {
+  margin: 0.45rem 0 0;
+}
+
+.sifat-reset-confirmation div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.9rem;
+}
+
+.sifat-reset-confirmation .sifat-reset-action {
+  width: auto;
+  margin: 0;
+  padding-inline: 1rem;
 }
 
 .sifat-review-count {
@@ -1223,6 +1267,7 @@ body {
 .sifat-primary-action:focus-visible,
 .sifat-secondary-action:focus-visible,
 .sifat-review-action:focus-visible,
+.sifat-reset-action:focus-visible,
 .sifat-quiet-action:focus-visible,
 .sifat-answer-grid button:focus-visible,
 .sifat-home-link:focus-visible {

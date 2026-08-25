@@ -220,6 +220,14 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the visitor asks to reset Sifat Allah progress", context do
+    context.behaviour_driver.ask_reset_sifat_progress(context)
+  end
+
+  step "the visitor confirms resetting Sifat Allah progress", context do
+    context.behaviour_driver.confirm_reset_sifat_progress(context)
+  end
+
   step "the visitor starts a quiz", context do
     context.behaviour_driver.start_quiz(context)
   end
