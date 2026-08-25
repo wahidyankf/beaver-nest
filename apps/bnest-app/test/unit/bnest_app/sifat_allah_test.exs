@@ -157,7 +157,7 @@ defmodule BnestApp.SifatAllahTest do
              })
 
     assert progress["mastered_key_ids"] == ["wujud:wajib_meaning", "qidam:meaning_wajib"]
-    assert progress["version"] == 3
+    assert progress["version"] == 2
 
     assert SifatAllah.restore(%{
              "version" => 2,

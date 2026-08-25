@@ -24,6 +24,13 @@ Feature: Revising the 20 attributes of Allah
     Then the progress shows "6 dari 120 soal sudah hafal"
     And the study card shows "Wujud" and "Ada"
 
+  Scenario: A child keeps saved progress during a live update
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts learning
+    And the visitor marks the current pair as remembered
+    And the visitor reloads the page
+    Then the progress shows "6 dari 120 soal sudah hafal"
+
   Scenario: A child learns the earliest pair that is not remembered yet
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts learning

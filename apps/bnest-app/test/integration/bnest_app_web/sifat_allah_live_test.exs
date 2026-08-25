@@ -378,23 +378,32 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     assert has_element?(view, "h2", "Apa arti Fana’?")
   end
 
-  test "migrates a version 2 browser snapshot and immediately persists version 3", %{conn: conn} do
+  test "migrates a version 1 browser snapshot and immediately persists compatible version 2", %{
+    conn: conn
+  } do
     legacy_snapshot =
-      snapshot(%{
-        "mode" => "quiz",
-        "quiz_pair_id" => "qidam",
-        "quiz_kind" => "wajib_opposite",
-        "quiz_scope" => "all",
-        "feedback" => nil
-      })
-      |> Map.put("version", 2)
+      %{
+        "version" => 1,
+        "mastered_key_ids" => ["wujud:meaning"],
+        "review_key_ids" => ["qidam:opposite"],
+        "correct_answers" => 1,
+        "incorrect_answers" => 1,
+        "session" => %{
+          "mode" => "quiz",
+          "quiz_pair_id" => "qidam",
+          "quiz_kind" => "wajib_opposite",
+          "quiz_scope" => "all",
+          "feedback" => nil
+        }
+      }
 
     conn = put_connect_params(conn, %{"sifat_allah" => Jason.encode!(legacy_snapshot)})
     {:ok, view, _html} = live(conn, "/apps/sifat-allah")
 
     assert_push_event(view, "persist-sifat-allah", migrated_snapshot)
-    assert migrated_snapshot["version"] == 3
-    assert migrated_snapshot["mastered_key_ids"] == legacy_snapshot["mastered_key_ids"]
+    assert migrated_snapshot["version"] == 2
+    assert migrated_snapshot["mastered_key_ids"] == ["wujud:wajib_meaning"]
+    assert migrated_snapshot["review_key_ids"] == ["qidam:wajib_opposite"]
     assert migrated_snapshot["session"]["quiz_pair_id"] == "qidam"
     assert has_element?(view, "h2", "Apa lawan dari Qidam?")
   end
