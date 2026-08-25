@@ -175,6 +175,25 @@ Feature: Revising the 20 attributes of Allah
     When the visitor answers "Lemah"
     Then the revision list contains "Wujud"
 
+  Scenario: Every answered question moves between the review queues immediately
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts a quiz
+    And the visitor answers "Ada"
+    And the visitor returns to the mission
+    Then the page displays the text "Ulangi yang sudah hafal (1)"
+    And the page displays the text "Ulangi yang masih bikin bingung (0)"
+    When the visitor starts learned review
+    Then the page displays the text "Apa arti Wujud?"
+    When the visitor answers "Lemah"
+    And the visitor returns to the mission
+    Then the page displays the text "Ulangi yang sudah hafal (0)"
+    And the page displays the text "Ulangi yang masih bikin bingung (1)"
+    When the visitor starts focused review
+    And the visitor answers "Ada" in focused review
+    And the visitor returns to the mission
+    Then the page displays the text "Ulangi yang sudah hafal (1)"
+    And the page displays the text "Ulangi yang masih bikin bingung (0)"
+
   Scenario: A pair moves between remembered and difficult review
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts learning
@@ -183,12 +202,12 @@ Feature: Revising the 20 attributes of Allah
     And the visitor starts learned review
     And the visitor answers "Lemah"
     And the visitor returns to the mission
-    Then the page displays the text "Ulangi yang sudah hafal (0)"
+    Then the page displays the text "Ulangi yang sudah hafal (5)"
     And the page displays the text "Ulangi yang masih bikin bingung (1)"
     When the visitor starts focused review
     And the visitor answers "Ada" in focused review
     And the visitor continues focused review
-    Then the page displays the text "Ulangi yang sudah hafal (1)"
+    Then the page displays the text "Ulangi yang sudah hafal (6)"
     And the page displays the text "Ulangi yang masih bikin bingung (0)"
 
   Scenario: A child gets another difficult pair before repeating one
@@ -205,4 +224,4 @@ Feature: Revising the 20 attributes of Allah
     Then the page displays the text "Apa lawan dari Qidam?"
     When the visitor answers "Fana’" in focused review
     And the visitor continues focused review
-    Then the page displays the text "Apa arti ‘Adam?"
+    Then the page displays the text "Apa arti Wujud?"

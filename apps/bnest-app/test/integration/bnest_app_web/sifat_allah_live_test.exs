@@ -297,7 +297,7 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     _dashboard_snapshot = return_to_mission(view)
 
     view
-    |> element("button", "Ulangi yang sudah hafal (2)")
+    |> element("button", "Ulangi yang sudah hafal (12)")
     |> render_click()
 
     assert_push_event(view, "persist-sifat-allah", start_snapshot)
@@ -310,7 +310,7 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     |> render_click()
 
     assert_push_event(view, "persist-sifat-allah", _next_snapshot)
-    assert has_element?(view, "h2", "Apa lawan dari Qidam?")
+    assert has_element?(view, "h2", "Apa lawan dari Wujud?")
 
     view
     |> element("button", "← Soal sebelumnya")

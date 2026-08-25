@@ -101,17 +101,17 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   def handle_event("start-learned-review", _params, socket) do
-    case SifatAllah.pairs_for(socket.assigns.progress["learned_ids"]) do
-      [] ->
+    case SifatAllah.first_mastered_question(socket.assigns.progress) do
+      nil ->
         {:noreply, socket}
 
-      [pair | _rest] ->
+      {pair, kind} ->
         {:noreply,
          socket
          |> cancel_auto_advance()
          |> assign(:mode, :quiz)
          |> assign(:quiz_pair, pair)
-         |> assign(:quiz_kind, :wajib_meaning)
+         |> assign(:quiz_kind, kind)
          |> assign(:quiz_scope, :learned)
          |> assign(:feedback, nil)
          |> persist_snapshot()
@@ -120,17 +120,17 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   def handle_event("start-review", _params, socket) do
-    case SifatAllah.review_pairs(socket.assigns.progress) do
-      [] ->
+    case SifatAllah.first_review_question(socket.assigns.progress) do
+      nil ->
         {:noreply, socket}
 
-      [pair | _rest] ->
+      {pair, kind} ->
         {:noreply,
          socket
          |> cancel_auto_advance()
          |> assign(:mode, :review)
          |> assign(:review_pair, pair)
-         |> assign(:review_kind, :wajib_meaning)
+         |> assign(:review_kind, kind)
          |> assign(:feedback, nil)
          |> persist_snapshot()
          |> push_history_entry()}
@@ -198,43 +198,28 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   def handle_event("next-question", _params, socket) do
-    quiz_kind = SifatAllah.next_question_kind(socket.assigns.quiz_kind)
-
-    {:noreply,
-     socket
-     |> cancel_auto_advance()
-     |> assign(:quiz_pair, next_quiz_pair(socket.assigns))
-     |> assign(:quiz_kind, quiz_kind)
-     |> assign(:feedback, nil)
-     |> persist_snapshot()}
+    move_quiz_question(socket, :next)
   end
 
   def handle_event("previous-question", _params, socket) do
-    quiz_kind = SifatAllah.previous_question_kind(socket.assigns.quiz_kind)
-
-    {:noreply,
-     socket
-     |> cancel_auto_advance()
-     |> assign(:quiz_pair, previous_quiz_pair(socket.assigns))
-     |> assign(:quiz_kind, quiz_kind)
-     |> assign(:feedback, nil)
-     |> persist_snapshot()}
+    move_quiz_question(socket, :previous)
   end
 
   def handle_event("next-review-question", _params, socket) do
-    case SifatAllah.next_review_pair(socket.assigns.progress, socket.assigns.review_pair) do
+    case SifatAllah.next_review_question(
+           socket.assigns.progress,
+           socket.assigns.review_pair,
+           socket.assigns.review_kind
+         ) do
       nil ->
         handle_event("dashboard", %{}, socket)
 
-      pair ->
-        review_kind =
-          next_review_kind(socket.assigns.review_pair, pair, socket.assigns.review_kind)
-
+      {pair, kind} ->
         {:noreply,
          socket
          |> cancel_auto_advance()
          |> assign(:review_pair, pair)
-         |> assign(:review_kind, review_kind)
+         |> assign(:review_kind, kind)
          |> assign(:feedback, nil)
          |> persist_snapshot()}
     end
@@ -380,17 +365,17 @@ defmodule BnestAppWeb.SifatAllahLive do
         type="button"
         class="sifat-review-action"
         phx-click="start-review"
-        disabled={@progress["review_ids"] == []}
+        disabled={@progress["review_key_ids"] == []}
       >
-        Ulangi yang masih bikin bingung ({length(@progress["review_ids"])})
+        Ulangi yang masih bikin bingung ({length(@progress["review_key_ids"])})
       </button>
       <button
         type="button"
         class="sifat-review-action"
         phx-click="start-learned-review"
-        disabled={@progress["learned_ids"] == []}
+        disabled={@progress["mastered_key_ids"] == []}
       >
-        Ulangi yang sudah hafal ({length(@progress["learned_ids"])})
+        Ulangi yang sudah hafal ({length(@progress["mastered_key_ids"])})
       </button>
     </section>
     """
@@ -557,7 +542,7 @@ defmodule BnestAppWeb.SifatAllahLive do
     question = SifatAllah.question(pair, assigns.assigns.review_kind)
 
     options = SifatAllah.answer_options(pair, assigns.assigns.review_kind)
-    remaining_count = length(assigns.assigns.progress["review_ids"])
+    remaining_count = length(assigns.assigns.progress["review_key_ids"])
 
     assigns =
       assign(assigns,
@@ -570,7 +555,7 @@ defmodule BnestAppWeb.SifatAllahLive do
     ~H"""
     <section class="sifat-quiz sifat-focused-review" aria-label="Ulangi yang masih bikin bingung">
       <p class="sifat-step">SOAL ULANGI</p>
-      <p class="sifat-review-count">Masih ada {@remaining_count} pasangan untuk dikuasai</p>
+      <p class="sifat-review-count">Masih ada {@remaining_count} soal untuk dikuasai</p>
       <div id="sifat-review-question" class="sifat-quiz-question" data-role="review-question">
         <h2>{@question}</h2>
         <div class="sifat-answer-grid">
@@ -679,7 +664,9 @@ defmodule BnestAppWeb.SifatAllahLive do
 
         kind = quiz_kind_atom(quiz_kind)
 
-        if scope == :learned and pair.id not in progress["learned_ids"] do
+        if scope == :learned and
+             SifatAllah.key_id(pair, kind) not in progress["mastered_key_ids"] and
+             is_nil(session["feedback"]) do
           default_state(progress)
         else
           default_state(progress)
@@ -787,27 +774,56 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp celebrate_if_correct(socket, true), do: push_event(socket, "sifat-celebrate", %{})
   defp celebrate_if_correct(socket, false), do: socket
 
-  defp next_quiz_pair(assigns), do: cycle_quiz_pair(assigns, :next)
-  defp previous_quiz_pair(assigns), do: cycle_quiz_pair(assigns, :previous)
+  defp move_quiz_question(%{assigns: %{quiz_scope: :learned}} = socket, direction) do
+    next_question =
+      case direction do
+        :next ->
+          SifatAllah.next_mastered_question(
+            socket.assigns.progress,
+            socket.assigns.quiz_pair,
+            socket.assigns.quiz_kind
+          )
+
+        :previous ->
+          SifatAllah.previous_mastered_question(
+            socket.assigns.progress,
+            socket.assigns.quiz_pair,
+            socket.assigns.quiz_kind
+          )
+      end
+
+    case next_question do
+      nil -> handle_event("dashboard", %{}, socket)
+      {pair, kind} -> assign_quiz_question(socket, pair, kind)
+    end
+  end
+
+  defp move_quiz_question(socket, direction) do
+    kind =
+      case direction do
+        :next -> SifatAllah.next_question_kind(socket.assigns.quiz_kind)
+        :previous -> SifatAllah.previous_question_kind(socket.assigns.quiz_kind)
+      end
+
+    pair = cycle_quiz_pair(socket.assigns, direction)
+    assign_quiz_question(socket, pair, kind)
+  end
+
+  defp assign_quiz_question(socket, pair, kind) do
+    {:noreply,
+     socket
+     |> cancel_auto_advance()
+     |> assign(:quiz_pair, pair)
+     |> assign(:quiz_kind, kind)
+     |> assign(:feedback, nil)
+     |> persist_snapshot()}
+  end
 
   defp cycle_quiz_pair(%{quiz_scope: :all, progress: progress, quiz_pair: pair}, :next),
     do: SifatAllah.next_unlearned_pair(progress, pair)
 
   defp cycle_quiz_pair(%{quiz_scope: :all, progress: progress, quiz_pair: pair}, :previous),
     do: SifatAllah.previous_unlearned_pair(progress, pair)
-
-  defp cycle_quiz_pair(%{progress: progress, quiz_pair: pair}, direction) do
-    pairs = SifatAllah.pairs_for(progress["learned_ids"])
-    index = Enum.find_index(pairs, &(&1.id == pair.id)) || 0
-
-    case direction do
-      :next -> Enum.at(pairs, rem(index + 1, length(pairs)))
-      :previous -> Enum.at(pairs, rem(index - 1 + length(pairs), length(pairs)))
-    end
-  end
-
-  defp next_review_kind(%{id: id}, %{id: id}, kind), do: kind
-  defp next_review_kind(_current_pair, _next_pair, kind), do: SifatAllah.next_question_kind(kind)
 
   defp persist_snapshot(socket) do
     push_event(socket, "persist-sifat-allah", %{

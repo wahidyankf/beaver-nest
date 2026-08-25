@@ -403,14 +403,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def start_learned_review(context) do
-    [pair | _rest] = SifatAllah.pairs_for(context.sifat.progress["learned_ids"])
+    {pair, kind} = SifatAllah.first_mastered_question(context.sifat.progress)
 
     render_sifat_allah(
       context,
       context.sifat
       |> Map.put(:mode, :quiz)
       |> Map.put(:quiz_pair, pair)
-      |> Map.put(:quiz_kind, :wajib_meaning)
+      |> Map.put(:quiz_kind, kind)
       |> Map.put(:quiz_scope, :learned)
       |> Map.put(:feedback, nil)
     )
@@ -418,14 +418,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def start_focused_review(context) do
-    [pair | _rest] = SifatAllah.review_pairs(context.sifat.progress)
+    {pair, kind} = SifatAllah.first_review_question(context.sifat.progress)
 
     render_sifat_allah(
       context,
       context.sifat
       |> Map.put(:mode, :review)
       |> Map.put(:review_pair, pair)
-      |> Map.put(:review_kind, :wajib_meaning)
+      |> Map.put(:review_kind, kind)
       |> Map.put(:feedback, nil)
     )
   end
@@ -438,16 +438,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def next_quiz_question(context) do
-    quiz_kind = SifatAllah.next_question_kind(context.sifat.quiz_kind)
+    {pair, kind} = next_quiz_question(context.sifat, :next)
 
     render_sifat_allah(
       context,
       context.sifat
-      |> Map.put(
-        :quiz_pair,
-        SifatAllah.next_unlearned_pair(context.sifat.progress, context.sifat.quiz_pair)
-      )
-      |> Map.put(:quiz_kind, quiz_kind)
+      |> Map.put(:quiz_pair, pair)
+      |> Map.put(:quiz_kind, kind)
       |> Map.put(:feedback, nil)
     )
   end
@@ -510,18 +507,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def next_focused_review(context) do
-    case SifatAllah.next_review_pair(context.sifat.progress, context.sifat.review_pair) do
+    case SifatAllah.next_review_question(
+           context.sifat.progress,
+           context.sifat.review_pair,
+           context.sifat.review_kind
+         ) do
       nil ->
         return_to_mission(context)
 
-      pair ->
-        review_kind = review_next_kind(context.sifat.review_pair, pair, context.sifat.review_kind)
-
+      {pair, kind} ->
         render_sifat_allah(
           context,
           context.sifat
           |> Map.put(:review_pair, pair)
-          |> Map.put(:review_kind, review_kind)
+          |> Map.put(:review_kind, kind)
           |> Map.put(:feedback, nil)
         )
     end
@@ -610,34 +609,48 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   defp move_quiz_question(context, 1) do
-    quiz_kind = SifatAllah.next_question_kind(context.sifat.quiz_kind)
+    {pair, kind} = next_quiz_question(context.sifat, :next)
 
     render_sifat_allah(
       context,
       context.sifat
-      |> Map.put(:quiz_pair, SifatAllah.next_pair(context.sifat.quiz_pair))
-      |> Map.put(:quiz_kind, quiz_kind)
+      |> Map.put(:quiz_pair, pair)
+      |> Map.put(:quiz_kind, kind)
       |> Map.put(:feedback, nil)
     )
   end
 
   defp move_quiz_question(context, -1) do
-    quiz_kind = SifatAllah.previous_question_kind(context.sifat.quiz_kind)
+    {pair, kind} = next_quiz_question(context.sifat, :previous)
 
     render_sifat_allah(
       context,
       context.sifat
-      |> Map.put(
-        :quiz_pair,
-        SifatAllah.previous_unlearned_pair(context.sifat.progress, context.sifat.quiz_pair)
-      )
-      |> Map.put(:quiz_kind, quiz_kind)
+      |> Map.put(:quiz_pair, pair)
+      |> Map.put(:quiz_kind, kind)
       |> Map.put(:feedback, nil)
     )
   end
 
-  defp review_next_kind(%{id: id}, %{id: id}, kind), do: kind
-  defp review_next_kind(_current_pair, _next_pair, kind), do: SifatAllah.next_question_kind(kind)
+  defp next_quiz_question(%{quiz_scope: :learned} = state, :next),
+    do: SifatAllah.next_mastered_question(state.progress, state.quiz_pair, state.quiz_kind)
+
+  defp next_quiz_question(%{quiz_scope: :learned} = state, :previous),
+    do: SifatAllah.previous_mastered_question(state.progress, state.quiz_pair, state.quiz_kind)
+
+  defp next_quiz_question(state, :next) do
+    {
+      SifatAllah.next_unlearned_pair(state.progress, state.quiz_pair),
+      SifatAllah.next_question_kind(state.quiz_kind)
+    }
+  end
+
+  defp next_quiz_question(state, :previous) do
+    {
+      SifatAllah.previous_unlearned_pair(state.progress, state.quiz_pair),
+      SifatAllah.previous_question_kind(state.quiz_kind)
+    }
+  end
 
   defp answer_position(pair, kind) do
     pair

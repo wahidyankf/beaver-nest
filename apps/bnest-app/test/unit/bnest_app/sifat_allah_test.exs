@@ -80,6 +80,32 @@ defmodule BnestApp.SifatAllahTest do
     assert SifatAllah.mastery_percent(progress) == 5
   end
 
+  test "uses exact question queues for learned and difficult review" do
+    [wujud, qidam | _rest] = SifatAllah.curriculum()
+
+    progress =
+      SifatAllah.progress()
+      |> SifatAllah.record_answer(wujud, :wajib_meaning, true)
+      |> SifatAllah.record_answer(qidam, :wajib_opposite, false)
+
+    assert SifatAllah.first_mastered_question(progress) == {wujud, :wajib_meaning}
+    assert SifatAllah.first_review_question(progress) == {qidam, :wajib_opposite}
+
+    assert SifatAllah.next_mastered_question(progress, wujud, :wajib_meaning) ==
+             {wujud, :wajib_meaning}
+
+    assert SifatAllah.next_review_question(progress, qidam, :wajib_opposite) ==
+             {qidam, :wajib_opposite}
+
+    progress = SifatAllah.record_answer(progress, qidam, :wajib_opposite, true)
+
+    assert SifatAllah.first_review_question(progress) == nil
+    assert SifatAllah.first_mastered_question(progress) == {wujud, :wajib_meaning}
+
+    assert SifatAllah.next_mastered_question(progress, wujud, :wajib_meaning) ==
+             {qidam, :wajib_opposite}
+  end
+
   test "restores only valid versioned browser progress" do
     assert {:ok, progress} =
              SifatAllah.restore(%{

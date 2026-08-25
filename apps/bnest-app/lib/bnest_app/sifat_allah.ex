@@ -220,6 +220,24 @@ defmodule BnestApp.SifatAllah do
   @spec review_pairs(map()) :: [map()]
   def review_pairs(progress), do: pairs_for(progress["review_ids"])
 
+  @spec first_mastered_question(map()) :: {map(), atom()} | nil
+  def first_mastered_question(progress), do: first_question(progress["mastered_key_ids"])
+
+  @spec first_review_question(map()) :: {map(), atom()} | nil
+  def first_review_question(progress), do: first_question(progress["review_key_ids"])
+
+  @spec next_mastered_question(map(), map(), atom()) :: {map(), atom()} | nil
+  def next_mastered_question(progress, pair, kind),
+    do: cycle_saved_question(progress["mastered_key_ids"], pair, kind, :next)
+
+  @spec previous_mastered_question(map(), map(), atom()) :: {map(), atom()} | nil
+  def previous_mastered_question(progress, pair, kind),
+    do: cycle_saved_question(progress["mastered_key_ids"], pair, kind, :previous)
+
+  @spec next_review_question(map(), map(), atom()) :: {map(), atom()} | nil
+  def next_review_question(progress, pair, kind),
+    do: cycle_saved_question(progress["review_key_ids"], pair, kind, :next)
+
   @spec next_review_pair(map(), map()) :: map() | nil
   def next_review_pair(progress, pair) do
     review_ids = MapSet.new(progress["review_ids"])
@@ -393,6 +411,52 @@ defmodule BnestApp.SifatAllah do
     @curriculum
     |> Enum.filter(fn pair -> Enum.any?(pair_key_ids(pair.id), &MapSet.member?(review, &1)) end)
     |> Enum.map(& &1.id)
+  end
+
+  defp first_question(key_ids) do
+    key_ids
+    |> question_entries()
+    |> List.first()
+  end
+
+  defp cycle_saved_question(key_ids, pair, kind, direction) do
+    entries = question_entries(key_ids)
+
+    case entries do
+      [] ->
+        nil
+
+      _entries ->
+        current_index =
+          Enum.find_index(entries, fn {entry_pair, entry_kind} ->
+            entry_pair.id == pair.id and entry_kind == kind
+          end) || if(direction == :next, do: -1, else: 0)
+
+        next_index =
+          case direction do
+            :next -> rem(current_index + 1, length(entries))
+            :previous -> rem(current_index - 1 + length(entries), length(entries))
+          end
+
+        Enum.at(entries, next_index)
+    end
+  end
+
+  defp question_entries(key_ids) do
+    key_ids
+    |> Enum.map(&question_entry/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp question_entry(key_id) do
+    with [pair_id, kind_name] <- String.split(key_id, ":", parts: 2),
+         pair when not is_nil(pair) <- pair(pair_id),
+         kind when not is_nil(kind) <-
+           Enum.find(@question_kinds, &(Atom.to_string(&1) == kind_name)) do
+      {pair, kind}
+    else
+      _invalid_key_id -> nil
+    end
   end
 
   defp pair_key_ids(id), do: Enum.map(@question_kinds, &"#{id}:#{&1}")
