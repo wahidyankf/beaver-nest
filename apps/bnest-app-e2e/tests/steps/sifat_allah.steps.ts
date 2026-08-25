@@ -188,7 +188,10 @@ Then("the quiz answer choices are locked", async ({ page }) => {
     .poll(() =>
       answerButtons.evaluateAll((buttons) =>
         buttons.every(
-          (button) => button instanceof HTMLButtonElement && button.disabled,
+          (button) =>
+            button instanceof HTMLButtonElement &&
+            button.disabled &&
+            getComputedStyle(button).pointerEvents === "none",
         ),
       ),
     )

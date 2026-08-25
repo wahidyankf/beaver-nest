@@ -1203,16 +1203,21 @@ body {
 
 .sifat-primary-action:hover,
 .sifat-secondary-action:hover,
-.sifat-answer-grid button:hover {
+.sifat-answer-grid button:not(:disabled):hover {
   transform: translate(-0.12rem, -0.12rem);
   box-shadow: 0.4rem 0.4rem 0 var(--bnest-shadow);
 }
 
 .sifat-primary-action:active,
 .sifat-secondary-action:active,
-.sifat-answer-grid button:active {
+.sifat-answer-grid button:not(:disabled):active {
   transform: translate(0.18rem, 0.18rem);
   box-shadow: 0.14rem 0.14rem 0 var(--bnest-shadow);
+}
+
+.sifat-answer-grid button:disabled {
+  cursor: default;
+  pointer-events: none;
 }
 
 .sifat-primary-action:focus-visible,
