@@ -230,8 +230,12 @@ Feature: Revising the 20 attributes of Allah
     And the visitor returns to the mission
     Then the page displays the text "Ulangi yang sudah hafal (5)"
     And the page displays the text "Ulangi yang masih bikin bingung (1)"
+    And the progress shows "5 dari 120 soal sudah hafal"
+    And the progress shows "115 soal masih perlu diulang"
     When the visitor starts focused review
     And the visitor answers "Ada" in focused review
+    Then the progress shows "6 dari 120 soal sudah hafal"
+    And the progress shows "114 soal masih perlu diulang"
     And the visitor continues focused review
     Then the page displays the text "Ulangi yang sudah hafal (6)"
     And the page displays the text "Ulangi yang masih bikin bingung (0)"

@@ -63,7 +63,9 @@ defmodule BnestApp.SifatAllahTest do
     assert progress["mastered_key_ids"] == []
     assert progress["review_key_ids"] == ["wujud:wajib_meaning"]
     assert progress["review_ids"] == ["wujud"]
+    assert SifatAllah.mastered_count(progress) == 0
     assert SifatAllah.unmastered_count(progress) == 120
+    assert SifatAllah.mastery_percent(progress) == 0
 
     progress =
       progress
