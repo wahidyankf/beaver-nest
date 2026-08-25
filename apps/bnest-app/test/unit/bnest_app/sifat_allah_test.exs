@@ -240,6 +240,24 @@ defmodule BnestApp.SifatAllahTest do
              "wujud"
   end
 
+  test "skips remembered individual questions in an exam until every question is mastered" do
+    [wujud, qidam | _rest] = SifatAllah.curriculum()
+
+    progress = SifatAllah.record_answer(SifatAllah.progress(), wujud, :wajib_meaning, true)
+
+    assert SifatAllah.first_exam_question(progress) == {qidam, :wajib_opposite}
+
+    all_mastered =
+      Enum.reduce(SifatAllah.curriculum(), SifatAllah.progress(), fn pair, acc ->
+        SifatAllah.remember(acc, pair.id)
+      end)
+
+    assert SifatAllah.first_exam_question(all_mastered) == {wujud, :wajib_meaning}
+
+    assert SifatAllah.next_exam_question(all_mastered, wujud, :wajib_meaning) ==
+             {qidam, :wajib_opposite}
+  end
+
   test "starts a short lesson with the first pairs not yet known" do
     progress = SifatAllah.progress() |> SifatAllah.remember("wujud")
 

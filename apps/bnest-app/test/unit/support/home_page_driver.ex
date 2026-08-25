@@ -372,12 +372,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def start_quiz(context) do
+    {pair, kind} = SifatAllah.first_exam_question(context.sifat.progress)
+
     context
     |> render_sifat_allah(
       context.sifat
       |> Map.put(:mode, :quiz)
-      |> Map.put(:quiz_pair, SifatAllah.quiz_pair(context.sifat.progress))
-      |> Map.put(:quiz_kind, :wajib_meaning)
+      |> Map.put(:quiz_pair, pair)
+      |> Map.put(:quiz_kind, kind)
       |> Map.put(:quiz_scope, :all)
       |> Map.put(:feedback, nil)
     )
@@ -639,17 +641,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: SifatAllah.previous_mastered_question(state.progress, state.quiz_pair, state.quiz_kind)
 
   defp next_quiz_question(state, :next) do
-    {
-      SifatAllah.next_unlearned_pair(state.progress, state.quiz_pair),
-      SifatAllah.next_question_kind(state.quiz_kind)
-    }
+    SifatAllah.next_exam_question(state.progress, state.quiz_pair, state.quiz_kind)
   end
 
   defp next_quiz_question(state, :previous) do
-    {
-      SifatAllah.previous_unlearned_pair(state.progress, state.quiz_pair),
-      SifatAllah.previous_question_kind(state.quiz_kind)
-    }
+    SifatAllah.previous_exam_question(state.progress, state.quiz_pair, state.quiz_kind)
   end
 
   defp answer_position(pair, kind) do

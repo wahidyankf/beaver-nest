@@ -88,12 +88,14 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   def handle_event("start-quiz", _params, socket) do
+    {pair, kind} = SifatAllah.first_exam_question(socket.assigns.progress)
+
     {:noreply,
      socket
      |> cancel_auto_advance()
      |> assign(:mode, :quiz)
-     |> assign(:quiz_pair, SifatAllah.quiz_pair(socket.assigns.progress))
-     |> assign(:quiz_kind, :wajib_meaning)
+     |> assign(:quiz_pair, pair)
+     |> assign(:quiz_kind, kind)
      |> assign(:quiz_scope, :all)
      |> assign(:feedback, nil)
      |> persist_snapshot()
@@ -799,14 +801,27 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   defp move_quiz_question(socket, direction) do
-    kind =
+    next_question =
       case direction do
-        :next -> SifatAllah.next_question_kind(socket.assigns.quiz_kind)
-        :previous -> SifatAllah.previous_question_kind(socket.assigns.quiz_kind)
+        :next ->
+          SifatAllah.next_exam_question(
+            socket.assigns.progress,
+            socket.assigns.quiz_pair,
+            socket.assigns.quiz_kind
+          )
+
+        :previous ->
+          SifatAllah.previous_exam_question(
+            socket.assigns.progress,
+            socket.assigns.quiz_pair,
+            socket.assigns.quiz_kind
+          )
       end
 
-    pair = cycle_quiz_pair(socket.assigns, direction)
-    assign_quiz_question(socket, pair, kind)
+    case next_question do
+      nil -> handle_event("dashboard", %{}, socket)
+      {pair, kind} -> assign_quiz_question(socket, pair, kind)
+    end
   end
 
   defp assign_quiz_question(socket, pair, kind) do
@@ -818,12 +833,6 @@ defmodule BnestAppWeb.SifatAllahLive do
      |> assign(:feedback, nil)
      |> persist_snapshot()}
   end
-
-  defp cycle_quiz_pair(%{quiz_scope: :all, progress: progress, quiz_pair: pair}, :next),
-    do: SifatAllah.next_unlearned_pair(progress, pair)
-
-  defp cycle_quiz_pair(%{quiz_scope: :all, progress: progress, quiz_pair: pair}, :previous),
-    do: SifatAllah.previous_unlearned_pair(progress, pair)
 
   defp persist_snapshot(socket) do
     push_event(socket, "persist-sifat-allah", %{

@@ -223,6 +223,17 @@ defmodule BnestApp.SifatAllah do
   @spec first_mastered_question(map()) :: {map(), atom()} | nil
   def first_mastered_question(progress), do: first_question(progress["mastered_key_ids"])
 
+  @spec first_exam_question(map()) :: {map(), atom()} | nil
+  def first_exam_question(progress), do: List.first(exam_question_entries(progress))
+
+  @spec next_exam_question(map(), map(), atom()) :: {map(), atom()} | nil
+  def next_exam_question(progress, pair, kind),
+    do: cycle_exam_question(progress, pair, kind, :next)
+
+  @spec previous_exam_question(map(), map(), atom()) :: {map(), atom()} | nil
+  def previous_exam_question(progress, pair, kind),
+    do: cycle_exam_question(progress, pair, kind, :previous)
+
   @spec first_review_question(map()) :: {map(), atom()} | nil
   def first_review_question(progress), do: first_question(progress["review_key_ids"])
 
@@ -418,6 +429,57 @@ defmodule BnestApp.SifatAllah do
     |> question_entries()
     |> List.first()
   end
+
+  defp cycle_exam_question(progress, pair, kind, direction) do
+    entries = exam_question_entries(progress)
+    all_entries = all_exam_question_entries()
+
+    current_index =
+      Enum.find_index(all_entries, fn {entry_pair, entry_kind} ->
+        entry_pair.id == pair.id and entry_kind == kind
+      end) || if(direction == :next, do: -1, else: 0)
+
+    candidate_entries =
+      case direction do
+        :next ->
+          Enum.drop(all_entries, current_index + 1) ++ Enum.take(all_entries, current_index + 1)
+
+        :previous ->
+          all_entries
+          |> Enum.take(current_index)
+          |> Enum.reverse()
+          |> Kernel.++(all_entries |> Enum.drop(current_index + 1) |> Enum.reverse())
+          |> Kernel.++([Enum.at(all_entries, current_index)])
+      end
+
+    eligible_keys = MapSet.new(Enum.map(entries, &entry_key_id/1))
+
+    Enum.find(candidate_entries, fn entry ->
+      MapSet.member?(eligible_keys, entry_key_id(entry))
+    end)
+  end
+
+  defp exam_question_entries(progress) do
+    mastered_keys = MapSet.new(progress["mastered_key_ids"])
+
+    case Enum.reject(
+           all_exam_question_entries(),
+           &MapSet.member?(mastered_keys, entry_key_id(&1))
+         ) do
+      [] -> all_exam_question_entries()
+      unmastered_entries -> unmastered_entries
+    end
+  end
+
+  defp all_exam_question_entries do
+    question_kind_count = length(@question_kinds)
+
+    for offset <- 0..(question_kind_count - 1), {pair, index} <- Enum.with_index(@curriculum) do
+      {pair, Enum.at(@question_kinds, rem(index + offset, question_kind_count))}
+    end
+  end
+
+  defp entry_key_id({pair, kind}), do: key_id(pair, kind)
 
   defp cycle_saved_question(key_ids, pair, kind, direction) do
     entries = question_entries(key_ids)

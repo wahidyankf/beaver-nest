@@ -32,7 +32,7 @@ Feature: Revising the 20 attributes of Allah
     And the visitor starts learning
     Then the study card shows "Qidam" and "Dahulu"
 
-  Scenario: A quiz prioritizes pairs that are not remembered yet
+  Scenario: A quiz prioritizes individual questions that are not remembered yet
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts learning
     And the visitor marks the current pair as remembered
@@ -41,7 +41,7 @@ Feature: Revising the 20 attributes of Allah
     And the visitor marks the current pair as remembered
     And the visitor returns to the mission
     And the visitor starts a quiz
-    Then the page displays the text "Apa arti Baqa’?"
+    Then the page displays the text "Apa arti Fana’?"
 
   Scenario: A quiz continues as reinforcement after every pair is remembered
     Given a visitor opens "/apps/sifat-allah"
@@ -81,6 +81,14 @@ Feature: Revising the 20 attributes of Allah
     And the progress shows "1 jawaban benar"
     And the progress shows "1 dari 120 soal sudah hafal"
     And the progress shows "119 soal masih perlu diulang"
+
+  Scenario: A quiz skips an individual question that is already learned
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts a quiz
+    And the visitor answers "Ada"
+    And the visitor returns to the mission
+    And the visitor starts a quiz
+    Then the page displays the text "Apa lawan dari Qidam?"
 
   Scenario: A quiz locks one answer and moves on automatically
     Given a visitor opens "/apps/sifat-allah"
@@ -174,6 +182,17 @@ Feature: Revising the 20 attributes of Allah
     Then the page displays the text "Apa arti Wujud?"
     When the visitor answers "Lemah"
     Then the revision list contains "Wujud"
+
+  Scenario: A child moves through remembered individual questions
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts learning
+    And the visitor marks the current pair as remembered
+    And the visitor returns to the mission
+    And the visitor starts learned review
+    And the visitor continues to the next quiz question
+    Then the page displays the text "Apa lawan dari Wujud?"
+    When the visitor swipes right on the quiz question
+    Then the page displays the text "Apa arti Wujud?"
 
   Scenario: Every answered question moves between the review queues immediately
     Given a visitor opens "/apps/sifat-allah"
