@@ -10,9 +10,9 @@ defmodule BnestAppWeb.SifatAllahLive do
   def mount(_params, _session, socket) do
     state = restore_state(socket)
 
-    {:ok,
-     socket
-     |> assign(state)}
+    socket = socket |> assign(state) |> persist_migrated_snapshot()
+
+    {:ok, socket}
   end
 
   @impl Phoenix.LiveView
@@ -597,6 +597,7 @@ defmodule BnestAppWeb.SifatAllahLive do
            {:ok, snapshot} <- Jason.decode(encoded),
            {:ok, progress} <- SifatAllah.restore(snapshot) do
         restore_session(progress, snapshot["session"])
+        |> Map.put(:persist_migrated_snapshot?, snapshot["version"] != progress["version"])
       else
         _invalid_or_missing -> default_state(SifatAllah.progress())
       end
@@ -617,7 +618,8 @@ defmodule BnestAppWeb.SifatAllahLive do
       review_pair: nil,
       review_kind: :wajib_meaning,
       feedback: nil,
-      auto_advance_token: 0
+      auto_advance_token: 0,
+      persist_migrated_snapshot?: false
     }
   end
 
@@ -846,6 +848,11 @@ defmodule BnestAppWeb.SifatAllahLive do
       "session" => session_snapshot(socket.assigns)
     })
   end
+
+  defp persist_migrated_snapshot(%{assigns: %{persist_migrated_snapshot?: true}} = socket),
+    do: persist_snapshot(socket)
+
+  defp persist_migrated_snapshot(socket), do: socket
 
   defp push_history_entry(socket), do: push_event(socket, "sifat-history-entry", %{})
 

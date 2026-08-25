@@ -1,7 +1,8 @@
 defmodule BnestApp.SifatAllah do
   @moduledoc false
 
-  @progress_version 2
+  @progress_version 3
+  @previous_progress_version 2
   @legacy_progress_version 1
   @question_kinds [
     :wajib_meaning,
@@ -87,6 +88,23 @@ defmodule BnestApp.SifatAllah do
   @spec restore(map()) :: {:ok, map()} | :error
   def restore(%{
         "version" => @progress_version,
+        "mastered_key_ids" => mastered_key_ids,
+        "review_key_ids" => review_key_ids,
+        "correct_answers" => correct_answers,
+        "incorrect_answers" => incorrect_answers
+      })
+      when is_list(mastered_key_ids) and is_list(review_key_ids) and is_integer(correct_answers) and
+             correct_answers >= 0 and is_integer(incorrect_answers) and incorrect_answers >= 0 do
+    with true <- valid_key_ids?(mastered_key_ids), true <- valid_key_ids?(review_key_ids) do
+      {:ok,
+       progress_from_keys(mastered_key_ids, review_key_ids, correct_answers, incorrect_answers)}
+    else
+      false -> :error
+    end
+  end
+
+  def restore(%{
+        "version" => @previous_progress_version,
         "mastered_key_ids" => mastered_key_ids,
         "review_key_ids" => review_key_ids,
         "correct_answers" => correct_answers,

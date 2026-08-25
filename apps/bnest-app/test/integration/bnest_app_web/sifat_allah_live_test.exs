@@ -378,6 +378,27 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     assert has_element?(view, "h2", "Apa arti Fana’?")
   end
 
+  test "migrates a version 2 browser snapshot and immediately persists version 3", %{conn: conn} do
+    legacy_snapshot =
+      snapshot(%{
+        "mode" => "quiz",
+        "quiz_pair_id" => "qidam",
+        "quiz_kind" => "wajib_opposite",
+        "quiz_scope" => "all",
+        "feedback" => nil
+      })
+      |> Map.put("version", 2)
+
+    conn = put_connect_params(conn, %{"sifat_allah" => Jason.encode!(legacy_snapshot)})
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    assert_push_event(view, "persist-sifat-allah", migrated_snapshot)
+    assert migrated_snapshot["version"] == 3
+    assert migrated_snapshot["mastered_key_ids"] == legacy_snapshot["mastered_key_ids"]
+    assert migrated_snapshot["session"]["quiz_pair_id"] == "qidam"
+    assert has_element?(view, "h2", "Apa lawan dari Qidam?")
+  end
+
   test "falls back safely when a saved session is not usable", %{conn: conn} do
     invalid_sessions = [
       %{"mode" => "study", "lesson_ids" => [], "lesson_index" => 0},
