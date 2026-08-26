@@ -6,7 +6,7 @@
   "implicitDependencies": ["ex-bdd"],
   "targets": {
     "serve": {
-      "command": "mix phx.server",
+      "command": "BNEST_STABLE=${BNEST_STABLE:-true} mix phx.server",
       "options": {
         "cwd": "apps/bnest-app"
       },
@@ -26,14 +26,14 @@
       "cache": false
     },
     "schema:audit": {
-      "command": "MIX_ENV=dev mix bnest.schema.audit",
+      "command": "BNEST_STABLE=true MIX_ENV=dev mix bnest.schema.audit",
       "options": {
         "cwd": "apps/bnest-app"
       },
       "cache": false
     },
     "identity:benchmark": {
-      "command": "MIX_ENV=dev mix bnest.identity.benchmark",
+      "command": "BNEST_STABLE=true MIX_ENV=dev mix bnest.identity.benchmark",
       "options": {
         "cwd": "apps/bnest-app"
       },

@@ -18,7 +18,7 @@ Run project tasks from the repository root:
 
 | Task                                 | Command                                                        |
 | ------------------------------------ | -------------------------------------------------------------- |
-| Start the development server         | `npm exec -- nx run -p bnest-app -t serve`                     |
+| Start the stable development server  | `npm exec -- nx run -p bnest-app -t serve`                     |
 | Enable persistent tailnet HTTPS      | `npm exec -- nx run -p bnest-app -t tailnet:up`                |
 | Inspect the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:status`            |
 | Disable the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:down`              |
@@ -36,6 +36,8 @@ Run project tasks from the repository root:
 | Benchmark the password verifier      | `npm exec -- nx run -p bnest-app -t identity:benchmark`        |
 
 `test:quick` runs type checking, linting, unit execution, unit coverage, and static behavior completeness. It intentionally excludes integration runtime and E2E execution. Both numeric coverage slices use Mix line coverage and fail below 99%.
+
+The serve target defaults to stable development compile mode because the family uses Bnest continuously. The read-only schema audit and password-verifier benchmark use the same mode, so they remain safe while the backend serves. Do not replace it with a command that recompiles the active backend for code reloading; a deliberately isolated, non-routed experiment must opt in to `BNEST_STABLE=false`.
 
 ## Shared behavior and boundaries
 
