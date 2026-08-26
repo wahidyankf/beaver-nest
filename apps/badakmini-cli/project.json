@@ -216,6 +216,7 @@
     "test:repo": {
       "dependsOn": ["build"],
       "executor": "nx:run-commands",
+      "inputs": ["default", "{workspaceRoot}/specs/**/*"],
       "options": {
         "commands": [
           {
@@ -228,6 +229,10 @@
           },
           {
             "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll governance directory-map validate --root ../.. --directory docs",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll governance directory-map validate --root ../.. --directory specs",
             "forwardAllArgs": false
           },
           {

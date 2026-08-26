@@ -4,7 +4,7 @@
 
 ## Scope
 
-This project owns thin browser bindings, browser configuration, and assertions across the running application boundary. Its web server injects deterministic Codex model-catalog and chat runners so acceptance tests cover discovery, model switching, streaming, and page lifecycle without a live model call. The canonical features and the unit/integration adapters are shared concerns rooted in `specs/` and `bnest-app`; component, LiveView, controller, and domain-level tests remain with `bnest-app`.
+This project owns thin browser bindings, browser configuration, and assertions across the running application boundary. Its web server injects deterministic Codex model-catalog and chat runners so acceptance tests cover discovery, model switching, streaming, and page lifecycle without a live model call. The canonical [C4 architecture model](../../specs/apps/bnest/app/architecture.md), features, and unit/integration adapters are shared concerns rooted in `specs/` and `bnest-app`; component, LiveView, controller, and domain-level tests remain with `bnest-app`.
 
 ## Quality Targets
 
@@ -42,6 +42,7 @@ Chat assertions deliberately avoid exact assistant prose. The fixtures emit a st
 
 ## Structure
 
+- `specs/apps/bnest/app/architecture.md` contains the canonical as-built C4 model.
 - `specs/apps/bnest/app/behaviours/` contains the canonical executable journeys.
 - `playwright.config.mts` defines BDD discovery, generated output, browser, base URL, and app server.
 - `tests/steps/` contains thin Playwright-BDD bindings.

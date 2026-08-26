@@ -38,15 +38,16 @@
 - Use [Diátaxis for non-rule documentation](repo-governance/conventions/documentation-architecture.md).
 - Preserve rules across context compaction under [governance continuity](repo-governance/principles/governance-continuity.md).
 - Keep [task lists](repo-governance/conventions/task-tracking.md) synchronized.
+- Keep recursive [specification directory maps](repo-governance/conventions/directory-maps.md) current.
 - Ask questions only as a [last resort](repo-governance/conventions/last-resort-questions.md).
 - Make the [smallest sufficient change](repo-governance/principles/minimal-sufficiency.md); stop after verification passes.
 
 ## Development
 
-- Use English for artifacts; see [language](repo-governance/conventions/language.md).
+- Use [English for artifacts](repo-governance/conventions/language.md).
 - Separate server and proxy lifecycles; follow [restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep applicable [quality gates](repo-governance/development/quality-gates.md) green.
 - Keep `test:e2e` out of `test:quick`; run only affected end-to-end cases during development. Follow the [end-to-end testing standard](repo-governance/development/end-to-end-testing.md).
-- **Application rule** (except `libs/ex-bdd`): Gherkin → failing bindings in every applicable adapter → Nx red → implementation → manual public smoke. Never leave a step unimplemented; exempt incapable adapters only. See [BDD](repo-governance/development/behaviour-driven-development.md) and [TDD](repo-governance/development/test-driven-development.md).
-- Update affected app and library [READMEs](repo-governance/conventions/project-readmes.md).
-- Prefer accessible Mermaid for useful Markdown visuals under the [visualization convention](repo-governance/conventions/markdown-visualizations.md).
+- **Application rule** (except `libs/ex-bdd`): assess/update all relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
+- Update affected project [READMEs](repo-governance/conventions/project-readmes.md).
+- Prefer useful, accessible [Mermaid visuals](repo-governance/conventions/markdown-visualizations.md).

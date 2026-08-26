@@ -37,7 +37,7 @@ Run project tasks from the repository root:
 
 ## Shared behavior and boundaries
 
-Every Bnest behavior starts in [`specs/apps/bnest/app/behaviours/`](../../specs/apps/bnest/app/behaviours/). The same recursively discovered feature, expanded scenarios, and shared step bindings run at both application levels:
+The canonical [C4 architecture model](../../specs/apps/bnest/app/architecture.md) defines Bnest's current system, container, component, data, and process boundaries. Every Bnest behavior starts in [`specs/apps/bnest/app/behaviours/`](../../specs/apps/bnest/app/behaviours/). The same recursively discovered feature, expanded scenarios, and shared step bindings run at both application levels:
 
 - The unit adapter calls the subject directly without starting the OTP application. Filesystem, database, process, network, and other system resources must be replaced by test doubles.
 - The integration adapter uses real in-process Phoenix components and isolated local resources. The endpoint server remains disabled, and network access—including loopback and local servers—is forbidden.
@@ -92,5 +92,6 @@ The test environment substitutes a deterministic model catalog and session, and 
 - `test/unit/` contains unit tests and the system-resource-free unit driver.
 - `test/integration/` contains local-only integration tests and the in-process Phoenix driver.
 - `test/support/codex_fixture_models.mjs` and `codex_fixture_runner.mjs` provide deterministic browser discovery and chat behavior without live model calls.
+- `specs/apps/bnest/app/architecture.md` contains the canonical as-built C4 model.
 
 Deployment and production hosting are not implemented yet; follow the [repository plans](../../plans/README.md) rather than treating generated Phoenix deployment comments as the current operating model.

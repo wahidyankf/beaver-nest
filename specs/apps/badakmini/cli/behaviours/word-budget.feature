@@ -29,6 +29,12 @@ Feature: Governance word-budget rules
     When I scan governed Markdown
     Then no Markdown files are scanned
 
+  Scenario: Specification Markdown has no word limit
+    Given file "specs/apps/bnest/app/architecture.md" contains 501 words
+    When I inspect the word budget
+    Then no Markdown files are scanned
+    And there are no violations
+
   Scenario: Word-budget inspection ignores other governance concerns
     Given file "AGENTS.md" contains 501 words
     And the repository contains:
