@@ -123,6 +123,12 @@ module Governance =
     let private normalizeRelativePath root path =
         Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/')
 
+    let private isWithinRoot fullRoot path =
+        let relativePath = Path.GetRelativePath(fullRoot, path)
+
+        relativePath <> ".."
+        && not (relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+
     let private isReparsePoint fileSystem (path: string) =
         fileSystem.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)
 
@@ -395,9 +401,9 @@ module Governance =
 
         classDefViolations @ paletteViolations
 
-    let private inspectMermaidAccessibilityCore fileSystem fullRoot =
+    let private inspectMermaidAccessibilityCore fileSystem fullRoot markdownFiles =
         let blocks =
-            enumerateOwnedMarkdown fileSystem fullRoot
+            markdownFiles
             |> Seq.sort
             |> Seq.collect (fun path ->
                 fileSystem.ReadAllText path
@@ -412,8 +418,50 @@ module Governance =
         blocks.Length, violations
 
     let inspectMermaidAccessibilityWith fileSystem root =
+        let fullRoot = Path.GetFullPath root
+
         let diagramCount, violations =
-            root |> Path.GetFullPath |> inspectMermaidAccessibilityCore fileSystem
+            enumerateOwnedMarkdown fileSystem fullRoot
+            |> inspectMermaidAccessibilityCore fileSystem fullRoot
+
+        { DiagramCount = diagramCount
+          Violations = violations }
+
+    let inspectMermaidAccessibilityAtWith fileSystem root relativeFiles =
+        let fullRoot = Path.GetFullPath root
+
+        let selectedFiles =
+            relativeFiles
+            |> Seq.map (fun relativePath ->
+                if String.IsNullOrWhiteSpace relativePath || Path.IsPathRooted relativePath then
+                    invalidArg "file" "Mermaid files must be non-empty repository-relative Markdown paths."
+
+                let absolutePath =
+                    relativePath.Replace('/', Path.DirectorySeparatorChar)
+                    |> fun path -> Path.GetFullPath(Path.Combine(fullRoot, path))
+
+                if
+                    not (isWithinRoot fullRoot absolutePath)
+                    || not (isMarkdown absolutePath)
+                    || not (fileSystem.FileExists absolutePath)
+                    || isReparsePoint fileSystem absolutePath
+                then
+                    invalidArg
+                        "file"
+                        $"Mermaid file '{relativePath}' must be an existing repository-owned Markdown file."
+
+                absolutePath)
+            |> Seq.distinct
+            |> Seq.toList
+
+        let files =
+            if List.isEmpty selectedFiles then
+                enumerateOwnedMarkdown fileSystem fullRoot |> Seq.toList
+            else
+                selectedFiles
+
+        let diagramCount, violations =
+            inspectMermaidAccessibilityCore fileSystem fullRoot files
 
         { DiagramCount = diagramCount
           Violations = violations }
@@ -548,12 +596,6 @@ module Governance =
         let relativePath = normalizeRelativePath fullRoot path
 
         relativePath.StartsWith("plans/done/", StringComparison.OrdinalIgnoreCase)
-
-    let private isWithinRoot fullRoot path =
-        let relativePath = Path.GetRelativePath(fullRoot, path)
-
-        relativePath <> ".."
-        && not (relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
 
     let private hasExistingMarkdownTarget fileSystem fullRoot (sourcePath: string) (target: string) =
         try

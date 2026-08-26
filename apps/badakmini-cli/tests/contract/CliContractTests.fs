@@ -33,6 +33,64 @@ type CliContractTests() =
             Assert.True(document.RootElement.TryGetProperty(property, &value), result.StandardOutput)
 
     [<Fact>]
+    member _.``Mermaid validation can scope inspection to named files``() =
+        let arrange (driver: IBehaviourDriver) =
+            driver.Write("docs/selected.md", "```mermaid\nflowchart LR\nA --> B\n```")
+
+            driver.Write("docs/also-selected.md", "```mermaid\nflowchart LR\nC --> D\n```")
+
+            driver.Write(
+                "docs/unselected.md",
+                "```mermaid\nflowchart LR\nclassDef unsafe fill:#FF0000,stroke:#000000,color:#FFFFFF\n```"
+            )
+
+        let result =
+            invokeWithDriver
+                arrange
+                [| "md"
+                   "mermaid"
+                   "validate"
+                   "--file"
+                   "docs/selected.md"
+                   "--file"
+                   "docs/also-selected.md" |]
+
+        Assert.Equal(0, result.ExitCode)
+        Assert.Contains("Checked 2 compatible Mermaid diagram(s)", result.StandardOutput)
+
+    [<Theory>]
+    [<InlineData("")>]
+    [<InlineData("../outside.md")>]
+    [<InlineData("/outside.md")>]
+    [<InlineData("docs/missing.md")>]
+    [<InlineData("docs/not-markdown.txt")>]
+    member _.``Mermaid file selection rejects invalid locations``(path: string) =
+        let arrange (driver: IBehaviourDriver) =
+            if path = "docs/not-markdown.txt" then
+                driver.Write(path, "not Markdown")
+
+        let result =
+            invokeWithDriver arrange [| "md"; "mermaid"; "validate"; "--file"; path; "--format"; "json" |]
+
+        Assert.Equal(2, result.ExitCode)
+        use error = jsonError result
+        Assert.Equal("md mermaid validate", error.RootElement.GetProperty("command").GetString())
+
+    [<Fact>]
+    member _.``Mermaid validation reports a missing root as an operational error``() =
+        let mutable missingRoot = ""
+
+        let arrange (driver: IBehaviourDriver) =
+            missingRoot <- System.IO.Path.Combine(driver.Root, "missing")
+
+        let result =
+            invokeWithDriver arrange [| "md"; "mermaid"; "validate"; "--root"; missingRoot; "--format"; "json" |]
+
+        Assert.Equal(2, result.ExitCode)
+        use error = jsonError result
+        Assert.Equal("md mermaid validate", error.RootElement.GetProperty("command").GetString())
+
+    [<Fact>]
     member _.``word-count exposes text JSON and operational errors``() =
         let arrange (driver: IBehaviourDriver) =
             driver.Write("subject.md", "one two three")
@@ -142,6 +200,7 @@ type CliContractTests() =
             [ [| "governance"; "word-budget"; "validate"; "--format"; "xml" |]
               [| "governance"; "directory-map"; "validate"; "--format"; "xml" |]
               [| "md"; "links"; "validate"; "--format"; "xml" |]
+              [| "md"; "mermaid"; "validate"; "--format"; "xml" |]
               [| "md"; "word-count"; "inspect"; "--file"; "subject.md"; "--format"; "xml" |] ] do
             let result = invokeWithDriver noArrangement arguments
             Assert.Equal(2, result.ExitCode)

@@ -34,7 +34,7 @@
 
 ## Governance
 
-- Follow [rules propagation](repo-governance/workflows/rules-propagation.md) for rule changes.
+- [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules across [compaction](repo-governance/principles/governance-continuity.md).
 - Track [tasks](repo-governance/conventions/task-tracking.md).
@@ -53,4 +53,4 @@
 - Keep `test:e2e` out of `test:quick`; run only affected end-to-end cases during development. Follow the [end-to-end testing standard](repo-governance/development/end-to-end-testing.md).
 - **Application rule** (except `libs/ex-bdd`): assess/update all relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
 - Update affected project [READMEs](repo-governance/conventions/project-readmes.md).
-- Prefer useful, accessible [Mermaid visuals](repo-governance/conventions/markdown-visualizations.md).
+- Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md); scope Badakmini to changed files.

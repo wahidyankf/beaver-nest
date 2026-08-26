@@ -12,18 +12,24 @@ Keep Phoenix LiveView as the public boundary. Add an authentication/session boun
 
 ```mermaid
 flowchart LR
-  Browser[Authenticated browser]
-  LiveView[Phoenix LiveView]
-  Auth[Session and role checks]
-  Repository[Bnest data repository]
-  UserData[data/users/user-id]
-  AppData[data/apps/beaver-nest]
-  SystemData[data/system]
+  %% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73, gray #808080
+  Browser([Authenticated browser]):::gray
+  LiveView[Phoenix LiveView]:::blue
+  Auth{{Session and role checks}}:::orange
+  Repository[/Bnest data repository/]:::teal
+  UserData[(data/users/user-id)]:::gray
+  AppData[(data/apps/beaver-nest)]:::gray
+  SystemData[(data/system)]:::gray
 
   Browser --> LiveView --> Auth --> Repository
   Repository --> UserData
   Repository --> AppData
   Repository --> SystemData
+
+  classDef blue fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+  classDef orange fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
+  classDef teal fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+  classDef gray fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
 ```
 
 `data/system/` is adjacent operational state only. It records manifests and hashes, not user payloads.

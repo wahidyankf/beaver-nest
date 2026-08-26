@@ -25,6 +25,10 @@ Every Mermaid diagram must remain understandable to color-blind readers and legi
 
 Badakmini enforces colored `classDef` declarations in `flowchart`, `graph`, `classDiagram`, `stateDiagram`, `stateDiagram-v2`, `erDiagram`, `requirementDiagram`, and `block`. Unstyled diagrams pass. Other types remain human-reviewed because their styling semantics differ or are unstable. Automated checks require 4.5:1 contrast because rendered text size cannot be proven statically.
 
+## Focused Validation
+
+For local changed-diagram checks, use Badakmini's `--file` once per changed repository-relative Markdown file. It validates only selected files; pre-push remains full-repository. See the [CLI README](../../apps/badakmini-cli/README.md#commands) for the command.
+
 This Mermaid-only accessibility standard aligns with [OSE Public's diagram convention](https://github.com/wahidyankf/ose-public/blob/main/repo-governance/conventions/formatting/diagrams.md).
 
 Use prose for a simple fact and a table for compact exact mappings. Do not add a diagram merely as decoration or duplicate information that is already clearer in another form. ASCII art may be used when Mermaid cannot represent the information adequately, the target renderer does not support Mermaid, or a plain-text fallback is specifically required.

@@ -180,9 +180,11 @@ module Cli =
         with ex ->
             operationalError runtime format "governance directory-map validate" "directory-map" ex
 
-    let private runMermaidAccessibility runtime format root =
+    let private runMermaidAccessibility runtime format root files =
         try
-            let inspection = Governance.inspectMermaidAccessibilityWith runtime.FileSystem root
+            let inspection =
+                Governance.inspectMermaidAccessibilityAtWith runtime.FileSystem root files
+
             let exitCode = if List.isEmpty inspection.Violations then 0 else 1
 
             match format with
@@ -333,6 +335,38 @@ module Cli =
 
         command
 
+    let private createMermaidLeaf runtime (rootOption: Option<string>) (formatOption: Option<string>) =
+        let command =
+            Command("validate", "Validate accessible colors in compatible Mermaid diagrams.")
+
+        let fileOption = Option<string array>("--file")
+        fileOption.Description <- "Repository-relative Markdown file to inspect; repeat to select multiple files."
+        fileOption.AllowMultipleArgumentsPerToken <- true
+        command.Options.Add fileOption
+
+        command.SetAction(
+            Func<ParseResult, int>(fun parseResult ->
+                match parseResult.GetRequiredValue(formatOption) |> parseFormat with
+                | Error ex -> operationalError runtime Text "md mermaid validate" "mermaid" ex
+                | Ok format ->
+                    try
+                        let files =
+                            parseResult.GetValue fileOption
+                            |> Option.ofObj
+                            |> Option.defaultValue [||]
+                            |> Array.toList
+
+                        runMermaidAccessibility
+                            runtime
+                            format
+                            (parseResult.GetRequiredValue(rootOption) |> requireRoot runtime)
+                            files
+                    with ex ->
+                        operationalError runtime format "md mermaid validate" "mermaid" ex)
+        )
+
+        command
+
     let createRootCommandWith runtime =
         let root = RootCommand("Validate repository governance and Markdown conventions.")
         let rootOption = Option<string>("--root")
@@ -383,17 +417,7 @@ module Cli =
                 (runMarkdownLinks runtime)
         )
 
-        mermaid.Subcommands.Add(
-            createLeaf
-                runtime
-                "validate"
-                "Validate accessible colors in compatible Mermaid diagrams."
-                rootOption
-                formatOption
-                "md mermaid validate"
-                "mermaid"
-                (runMermaidAccessibility runtime)
-        )
+        mermaid.Subcommands.Add(createMermaidLeaf runtime rootOption formatOption)
 
         let wordCount = Command("word-count", "Inspect Markdown word counts.")
         wordCount.Subcommands.Add(createWordCountLeaf runtime rootOption formatOption)

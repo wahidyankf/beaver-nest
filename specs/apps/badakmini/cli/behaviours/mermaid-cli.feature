@@ -1,5 +1,11 @@
 Feature: Mermaid accessibility command behavior
 
+  Scenario: File scope excludes unrelated diagrams
+    Given the repository contains Mermaid sample "accessible colored class" at "docs/selected.md"
+    And an unsafe "flowchart LR" Mermaid diagram exists at "docs/unselected.md" using backtick fences
+    When I invoke the CLI with "md|mermaid|validate|--file|docs/selected.md"
+    Then the exit code is 0
+
   Scenario Outline: Compatible diagram types enforce class colors
     Given an unsafe "<header>" Mermaid diagram exists at "docs/diagram.md" using backtick fences
     When I run the "mermaid" validator
