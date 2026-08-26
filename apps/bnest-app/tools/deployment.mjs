@@ -130,6 +130,7 @@ function caddyfile(slot, healthChecked) {
 :4100 {
 \tbind 127.0.0.1
 \treverse_proxy 127.0.0.1:${slots[slot]} {
+\t\theader_up X-Forwarded-Proto https
 ${healthCheck}
 \t\tstream_close_delay 5m
 \t}
@@ -174,11 +175,10 @@ function installProxy() {
   ensureCaddy();
   mkdirSync(paths.logs, { recursive: true });
   const deploymentState = state();
-  if (!existsSync(paths.config))
-    writeAtomic(
-      paths.config,
-      caddyfile(deploymentState.activeSlot, deploymentState.healthChecked),
-    );
+  writeAtomic(
+    paths.config,
+    caddyfile(deploymentState.activeSlot, deploymentState.healthChecked),
+  );
   run(caddyBinary(), ["fmt", "--overwrite", paths.config]);
   run(caddyBinary(), [
     "validate",
@@ -195,8 +195,17 @@ function installProxy() {
   const installed = spawnSync("launchctl", ["print", `${domain}/${label}`], {
     stdio: "ignore",
   });
-  if (installed.status !== 0)
+  if (installed.status !== 0) {
     run("launchctl", ["bootstrap", domain, agent.path]);
+  } else {
+    run(caddyBinary(), [
+      "reload",
+      "--config",
+      paths.config,
+      "--adapter",
+      "caddyfile",
+    ]);
+  }
 
   process.stdout.write(
     `Caddy is managed at 127.0.0.1:4100 for ${deploymentState.activeSlot}.\n`,

@@ -7,7 +7,7 @@ Use this workflow to expose the stable loopback Caddy proxy privately through a 
 - Manage the Tailnet proxy independently from Caddy and Phoenix so either application backend can restart without changing the public HTTPS route.
 - Keep the backend bound to loopback. Use Tailscale Serve, never Funnel, for private development access.
 - Never commit a machine hostname, tailnet name, private address, certificate, or other machine-local state.
-- Operate the repository-owned proxy through its package-manager-prefixed Nx targets. Tailscale forwards only to Caddy on loopback port `4100`; deployment targets change Caddy's upstream instead.
+- Operate the repository-owned proxy through its package-manager-prefixed Nx targets. Tailscale forwards only to Caddy on loopback port `4100`; Caddy preserves the forwarded Host and supplies `X-Forwarded-Proto: https` to the Phoenix upstream, while deployment targets change that upstream independently.
 - Treat the configured backend port as non-secret deployment state; never put the tailnet hostname in repository files or evidence.
 
 ## Procedure
