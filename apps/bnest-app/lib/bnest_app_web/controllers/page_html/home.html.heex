@@ -16,7 +16,18 @@
       />
       <span>Beaver Nest</span>
     </a>
-    <p class="home-status"><span aria-hidden="true">●</span> Ready to explore</p>
+    <div>
+      <p class="home-status">
+        <span aria-hidden="true">●</span> {@current_user["displayUsername"]}
+      </p>
+      <%= unless @current_user["migrationMode"] do %>
+        <form action="/logout" method="post">
+          <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+          <input type="hidden" name="_method" value="delete" />
+          <button class="home-logout" type="submit">Log out</button>
+        </form>
+      <% end %>
+    </div>
   </header>
 
   <section class="home-hero" aria-labelledby="home-title">
@@ -50,6 +61,25 @@
       <span class="chat-entry-arrow" aria-hidden="true">→</span>
     </a>
 
-    <p class="home-note">Your chat stays in this browser tab.</p>
+    <a
+      :if={!@current_user["migrationMode"]}
+      href="/data-migration"
+      class="chat-entry"
+      data-role="data-migration-entry"
+    >
+      <span class="chat-entry-mark" aria-hidden="true"><span>⇧</span></span>
+      <span class="chat-entry-copy">
+        <strong>Save browser data</strong>
+        <small>Preserve chat, learning, and theme safely</small>
+      </span>
+      <span class="chat-entry-arrow" aria-hidden="true">→</span>
+    </a>
+
+    <p :if={@current_user["migrationMode"]} class="home-note">
+      Your existing chat and learning progress remain in this browser during migration.
+    </p>
+    <p :if={!@current_user["migrationMode"]} class="home-note">
+      Your chat and learning progress are saved to your account.
+    </p>
   </section>
 </main>

@@ -20,3 +20,14 @@ ExBdd.compile_features!(
   support: [support],
   case_template: case_template
 )
+
+if System.get_env("BNEST_TEST_LAYER") == "integration" and
+     Application.get_env(:bnest_app, :test_runtime_owned) do
+  runtime_root = Application.fetch_env!(:bnest_app, :runtime_root)
+
+  ExUnit.after_suite(fn _result ->
+    _stopped = Application.stop(:bnest_app)
+    {:ok, runtime} = BnestApp.TestRuntimeRoot.validate(runtime_root)
+    :ok = BnestApp.TestRuntimeRoot.cleanup!(runtime)
+  end)
+end

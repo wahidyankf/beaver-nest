@@ -57,6 +57,27 @@ npm-debug.log*
 !/data/users/
 /data/users/*
 !/data/users/.gitkeep
+!/data/prod/
+/data/prod/*
+!/data/prod/general/
+/data/prod/general/*
+!/data/prod/general/.gitkeep
+!/data/prod/apps/
+/data/prod/apps/*
+!/data/prod/apps/beaver-nest/
+/data/prod/apps/beaver-nest/*
+!/data/prod/apps/beaver-nest/.gitkeep
+!/data/prod/system/
+/data/prod/system/*
+!/data/prod/system/.gitkeep
+!/data/prod/users/
+/data/prod/users/*
+!/data/prod/users/.gitkeep
+!/data/test/
+/data/test/*
+!/data/test/runs/
+/data/test/runs/*
+!/data/test/runs/.gitkeep
 
 
 

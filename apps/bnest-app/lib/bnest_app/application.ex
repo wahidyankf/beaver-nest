@@ -7,16 +7,13 @@ defmodule BnestApp.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      BnestAppWeb.Telemetry,
-      {DNSCluster, query: Application.get_env(:bnest_app, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: BnestApp.PubSub},
-      BnestApp.Codex.ModelCatalog,
-      # Start a worker by calling: BnestApp.Worker.start_link(arg)
-      # {BnestApp.Worker, arg},
-      # Start to serve requests, typically the last entry
-      BnestAppWeb.Endpoint
-    ]
+    children =
+      [
+        BnestAppWeb.Telemetry,
+        {DNSCluster, query: Application.get_env(:bnest_app, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: BnestApp.PubSub},
+        BnestApp.Codex.ModelCatalog
+      ] ++ repository_children() ++ [BnestAppWeb.Endpoint]
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
@@ -30,5 +27,12 @@ defmodule BnestApp.Application do
   def config_change(changed, _new, removed) do
     BnestAppWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp repository_children do
+    case Application.get_env(:bnest_app, :runtime_root) do
+      nil -> []
+      root -> [{BnestApp.DataRepository, root: root}, BnestApp.Identity]
+    end
   end
 end

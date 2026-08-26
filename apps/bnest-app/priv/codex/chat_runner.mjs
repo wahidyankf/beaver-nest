@@ -30,6 +30,7 @@ const threadOptions = {
 const thread = resumedThreadId
   ? codex.resumeThread(resumedThreadId, threadOptions)
   : codex.startThread(threadOptions);
+let threadStarted = false;
 
 const output = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
 
@@ -39,6 +40,7 @@ const runTurn = async (prompt) => {
 
     for await (const event of events) {
       if (event.type === "thread.started") {
+        threadStarted = true;
         output({ type: "thread_started", thread_id: event.thread_id });
       } else if (
         (event.type === "item.started" ||
@@ -57,7 +59,7 @@ const runTurn = async (prompt) => {
     }
   } catch (error) {
     output({
-      type: "error",
+      type: resumedThreadId && !threadStarted ? "resume_failed" : "error",
       message:
         error instanceof Error ? error.message : "Codex failed unexpectedly.",
     });

@@ -1,9 +1,16 @@
 defmodule BnestAppWeb.SifatAllahLiveTest do
-  use BnestAppWeb.ConnCase, async: true
+  use BnestAppWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
   alias BnestApp.SifatAllah
+
+  setup do
+    previous = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
+    Application.put_env(:bnest_app, :identity_cutover_enabled, false)
+    on_exit(fn -> Application.put_env(:bnest_app, :identity_cutover_enabled, previous) end)
+    {:ok, conn: Phoenix.ConnTest.build_conn()}
+  end
 
   test "moves through a short lesson and returns to the dashboard", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/apps/sifat-allah")

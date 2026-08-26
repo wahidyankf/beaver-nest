@@ -1,6 +1,7 @@
 defmodule BnestAppWeb.SifatAllahLive do
   use BnestAppWeb, :live_view
 
+  alias BnestApp.DataRepository
   alias BnestApp.SifatAllah
 
   @max_snapshot_bytes 10_000
@@ -249,9 +250,14 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   def handle_event("reset-progress", _params, %{assigns: %{reset_confirmation?: true}} = socket) do
+    reset_state =
+      SifatAllah.progress()
+      |> default_state()
+      |> Map.put(:central_record, socket.assigns.central_record)
+
     {:noreply,
      socket
-     |> assign(default_state(SifatAllah.progress()))
+     |> assign(reset_state)
      |> persist_snapshot()}
   end
 
@@ -282,7 +288,7 @@ defmodule BnestAppWeb.SifatAllahLive do
     <main id="sifat-allah-app" class="sifat-shell" phx-hook="SifatHistory">
       <header class="sifat-topbar">
         <a href="/" class="sifat-home-link">← Beaver Nest</a>
-        <p class="sifat-saved-note">Tersimpan di browser ini</p>
+        <p class="sifat-saved-note">{storage_note(@current_user)}</p>
       </header>
 
       <section class="sifat-stage" aria-labelledby="sifat-title">
@@ -419,7 +425,7 @@ defmodule BnestAppWeb.SifatAllahLive do
         aria-label="Konfirmasi reset progress"
       >
         <strong>Mulai lagi dari nol?</strong>
-        <p>Semua progres hafalan di browser ini akan dihapus.</p>
+        <p>Semua progres hafalan untuk akun ini akan direset.</p>
         <div>
           <button type="button" class="sifat-quiet-action" phx-click="cancel-reset-progress">Batal</button>
           <button type="button" class="sifat-reset-action" phx-click="reset-progress">Ya, reset progress</button>
@@ -637,6 +643,22 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp current_study_pair(assigns), do: Enum.at(assigns.lesson_pairs, assigns.lesson_index)
 
   defp restore_state(socket) do
+    owner_id = socket.assigns.current_user["userId"]
+
+    case DataRepository.read(:sifat_allah, owner_id) do
+      {:ok, record} ->
+        record["progress"]
+        |> restore_session(record["session"])
+        |> Map.put(:central_record, record)
+
+      {:error, _missing_or_invalid} ->
+        if legacy_browser_user?(socket),
+          do: restore_browser_state(socket),
+          else: default_state(SifatAllah.progress())
+    end
+  end
+
+  defp restore_browser_state(socket) do
     if connected?(socket) do
       with %{"sifat_allah" => encoded} when is_binary(encoded) <- get_connect_params(socket),
            true <- byte_size(encoded) <= @max_snapshot_bytes,
@@ -666,7 +688,8 @@ defmodule BnestAppWeb.SifatAllahLive do
       feedback: nil,
       auto_advance_token: 0,
       reset_confirmation?: false,
-      persist_migrated_snapshot?: false
+      persist_migrated_snapshot?: false,
+      central_record: nil
     }
   end
 
@@ -884,7 +907,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   defp persist_snapshot(socket) do
-    push_event(socket, "persist-sifat-allah", %{
+    snapshot = %{
       "version" => socket.assigns.progress["version"],
       "learned_ids" => socket.assigns.progress["learned_ids"],
       "review_ids" => socket.assigns.progress["review_ids"],
@@ -893,8 +916,51 @@ defmodule BnestAppWeb.SifatAllahLive do
       "correct_answers" => socket.assigns.progress["correct_answers"],
       "incorrect_answers" => socket.assigns.progress["incorrect_answers"],
       "session" => session_snapshot(socket.assigns)
-    })
+    }
+
+    persist_learning_snapshot(socket, snapshot)
   end
+
+  defp persist_learning_snapshot(
+         %{assigns: %{central_record: nil, current_user: %{"migrationMode" => true}}} = socket,
+         snapshot
+       ),
+       do: push_event(socket, "persist-sifat-allah", snapshot)
+
+  defp persist_learning_snapshot(socket, snapshot) do
+    owner_id = socket.assigns.current_user["userId"]
+    previous = socket.assigns.central_record
+
+    candidate = %{
+      "schemaVersion" => 1,
+      "recordType" => "sifat-allah-progress",
+      "ownerId" => owner_id,
+      "sourceImportId" => if(previous, do: previous["sourceImportId"], else: nil),
+      "progress" => Map.delete(snapshot, "session"),
+      "session" => snapshot["session"],
+      "updatedAt" => timestamp()
+    }
+
+    expected_revision = if previous, do: previous["revision"], else: nil
+
+    case DataRepository.write(:sifat_allah, owner_id, expected_revision, candidate) do
+      {:ok, record} ->
+        assign(socket, :central_record, record)
+
+      {:error, _reason} ->
+        put_flash(
+          socket,
+          :error,
+          "Progress could not be saved. The previous saved progress is unchanged."
+        )
+    end
+  end
+
+  defp legacy_browser_user?(socket),
+    do: socket.assigns.current_user["migrationMode"] == true
+
+  defp storage_note(%{"migrationMode" => true}), do: "Tersimpan di browser ini"
+  defp storage_note(_authenticated_user), do: "Tersimpan aman untuk akun ini"
 
   defp persist_migrated_snapshot(%{assigns: %{persist_migrated_snapshot?: true}} = socket),
     do: persist_snapshot(socket)
@@ -943,4 +1009,6 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   defp session_snapshot(_assigns), do: %{"mode" => "dashboard"}
+
+  defp timestamp, do: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 end

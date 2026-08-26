@@ -4,6 +4,7 @@ defmodule BnestApp.Codex.FixtureSession do
   @behaviour BnestApp.Codex.Session
 
   @impl true
+  def open(_owner, "unavailable-thread", _model, _reasoning_effort), do: {:error, :not_found}
   def open(owner, _thread_id, _model, _reasoning_effort), do: {:ok, owner}
 
   @impl true

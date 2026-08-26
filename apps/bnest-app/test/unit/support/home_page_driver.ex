@@ -5,6 +5,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   alias BnestApp.Chat
   alias BnestApp.Codex.FixtureModels
+  alias BnestApp.Identity.Authorization
   alias BnestApp.SifatAllah
   alias BnestAppWeb.SifatAllahLive
   alias Phoenix.HTML.Safe
@@ -569,7 +570,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   defp render_home(context) do
     page =
-      %{flash: %{}}
+      %{flash: %{}, current_user: %{"displayUsername" => "test-user-unit"}}
       |> BnestAppWeb.PageHTML.home()
       |> Safe.to_iodata()
       |> IO.iodata_to_binary()
@@ -594,6 +595,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   defp sifat_state(overrides \\ []) do
     Map.merge(
       %{
+        current_user: %{"displayUsername" => "test-user-unit"},
         progress: SifatAllah.progress(),
         mode: :dashboard,
         lesson_pairs: [],
@@ -662,6 +664,137 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   defp next_quiz_question(state, :previous) do
     SifatAllah.previous_exam_question(state.progress, state.quiz_pair, state.quiz_kind)
   end
+
+  @impl true
+  def establish_identity(context, role),
+    do: Map.merge(context, %{identity_role: role, authenticated: true})
+
+  @impl true
+  def prepare_behaviour(context, :unauthenticated, _args),
+    do: Map.put(context, :authenticated, false)
+
+  def prepare_behaviour(context, :uninitialized, _args), do: Map.put(context, :setup_open, true)
+
+  def prepare_behaviour(context, :approved_account, _args),
+    do: Map.put(context, :account_exists, true)
+
+  def prepare_behaviour(context, :approved_argon2_account, _args),
+    do: Map.merge(context, %{account_exists: true, verifier: "$argon2id$"})
+
+  def prepare_behaviour(context, :two_browser_sessions, _args),
+    do: Map.merge(context, %{browser_a: true, browser_b: true})
+
+  def prepare_behaviour(context, :multi_role_user, roles),
+    do: Map.put(context, :auth_user, %{"userId" => "user-unit", "roles" => roles})
+
+  def prepare_behaviour(context, :two_isolated_users, _args),
+    do: Map.merge(context, %{owner_a: "user-a", owner_b: "user-b"})
+
+  def prepare_behaviour(context, state, args),
+    do: Map.merge(context, %{pending_behaviour_state: state, pending_behaviour_args: args})
+
+  @impl true
+  def perform_behaviour(context, :open_protected_route, [route]),
+    do: Map.merge(context, %{attempted_route: route, redirected: not context.authenticated})
+
+  def perform_behaviour(context, :bootstrap_accounts, _args),
+    do: Map.merge(context, %{setup_open: false, setup_warning: true, created_once: true})
+
+  def perform_behaviour(context, :login, _args), do: Map.put(context, :authenticated, true)
+
+  def perform_behaviour(context, :logout_current_browser, _args),
+    do: Map.put(context, :authenticated, false)
+
+  def perform_behaviour(context, :reload_same_browser, _args), do: context
+
+  def perform_behaviour(context, :logout_browser_a, _args),
+    do: Map.put(context, :browser_a, false)
+
+  def perform_behaviour(context, :authorize_own_data, _args) do
+    allowed = Authorization.allow?(context.auth_user, :use_chat, "user-unit")
+
+    denied =
+      not Authorization.allow?(context.auth_user, :manage_accounts, "user-unit")
+
+    Map.merge(context, %{operation_allowed: allowed, administration_denied: denied})
+  end
+
+  def perform_behaviour(context, :cross_user_operation, _args) do
+    user = %{"userId" => context.owner_a, "roles" => ["admin"]}
+
+    Map.put(
+      context,
+      :cross_user_denied,
+      not Authorization.allow?(user, :use_chat, context.owner_b)
+    )
+  end
+
+  def perform_behaviour(context, action, _args)
+      when action in [
+             :confirm_imports,
+             :retry_import,
+             :write_stale_record,
+             :accept_and_read_back,
+             :continue_chat
+           ] do
+    Map.put(context, :centralized_outcomes, centralized_outcomes(context, action))
+  end
+
+  def perform_behaviour(context, action, args),
+    do: Map.merge(context, %{pending_behaviour_action: action, pending_behaviour_args: args})
+
+  @impl true
+  def behaviour_outcome?(context, :redirected_to_login, _args), do: context.redirected
+  def behaviour_outcome?(context, :no_user_data_access, _args), do: context.redirected
+  def behaviour_outcome?(context, :irreversible_warning, _args), do: context.setup_warning
+  def behaviour_outcome?(context, :accounts_created_once, _args), do: context.created_once
+  def behaviour_outcome?(context, :setup_closed, _args), do: not context.setup_open
+  def behaviour_outcome?(context, :protected_home_available, _args), do: context.authenticated
+
+  def behaviour_outcome?(context, :current_browser_logged_out, _args),
+    do: not context.authenticated
+
+  def behaviour_outcome?(%{verifier: "$argon2id$"}, :no_plaintext_password, _args), do: true
+  def behaviour_outcome?(context, :same_browser_authenticated, _args), do: context.authenticated
+  def behaviour_outcome?(context, :browser_a_logged_out, _args), do: not context.browser_a
+  def behaviour_outcome?(context, :browser_b_authenticated, _args), do: context.browser_b
+  def behaviour_outcome?(context, :operation_allowed, _args), do: context.operation_allowed
+
+  def behaviour_outcome?(context, :administration_denied, _args),
+    do: context.administration_denied
+
+  def behaviour_outcome?(context, :denied_before_repository, _args), do: context.cross_user_denied
+
+  def behaviour_outcome?(context, outcome, _args) do
+    outcome in Map.get(context, :centralized_outcomes, [])
+  end
+
+  defp centralized_outcomes(
+         %{pending_behaviour_state: :recognized_browser_sources},
+         :confirm_imports
+       ),
+       do: [:immutable_envelopes, :normalized_records_read]
+
+  defp centralized_outcomes(%{pending_behaviour_state: :absent_theme_source}, :confirm_imports),
+    do: [:absent_theme_recorded, :no_theme_preference]
+
+  defp centralized_outcomes(
+         %{pending_behaviour_state: :invalid_browser_source},
+         :confirm_imports
+       ),
+       do: [:safe_rejected_import, :source_and_record_unchanged]
+
+  defp centralized_outcomes(_context, :retry_import),
+    do: [:idempotent_import_identity, :accepted_data_preserved]
+
+  defp centralized_outcomes(_context, :write_stale_record),
+    do: [:newer_record_preserved, :refresh_required]
+
+  defp centralized_outcomes(_context, :accept_and_read_back),
+    do: [:only_accepted_key_cleared, :server_only_persistence]
+
+  defp centralized_outcomes(_context, :continue_chat),
+    do: [:transcript_preserved, :fresh_conversation_reported]
 
   defp answer_position(pair, kind) do
     pair

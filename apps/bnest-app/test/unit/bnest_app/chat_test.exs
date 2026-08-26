@@ -11,11 +11,15 @@ defmodule BnestApp.ChatTest do
     assert unchanged == chat
   end
 
-  test "snapshots only completed chat state" do
+  test "snapshots completed chat even before a transport supplies a thread ID" do
     {:ok, busy_chat} = Chat.submit(Chat.new(), "Hello")
 
     assert Chat.snapshot(busy_chat) == :error
-    assert Chat.snapshot(Chat.complete(busy_chat)) == :error
+
+    assert {:ok, %{"thread_id" => nil, "messages" => messages}} =
+             Chat.snapshot(Chat.complete(busy_chat))
+
+    assert Enum.map(messages, & &1["role"]) == ["visitor", "assistant"]
   end
 
   test "changes models only between turns" do

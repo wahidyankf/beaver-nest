@@ -8,7 +8,7 @@ Beaver Nest is in its first implementation stage.
 
 - A Phoenix LiveView chat streams local Codex responses through the official SDK, discovers the models available to the local Codex installation, and can switch models without discarding the current thread.
 - Hot reload works during local development.
-- A persistent Tailscale Serve proxy can expose the loopback development server privately over HTTPS; an always-on app launch service, authentication, persistent data, backups, and document processing remain planned.
+- A persistent Tailscale Serve proxy can expose the loopback server privately over HTTPS. Bnest now has one-time family-account setup, persistent per-browser login, centralized flat-file chat/learning/theme records, and recoverable browser import. An always-on launch service and document processing remain future work.
 
 ## Run locally
 
@@ -45,7 +45,7 @@ Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset w
 
 Open Beaver Nest through its private Tailscale HTTPS address, then use the browser's **Install app** command. In Chrome and other Chromium browsers, this is usually in the browser menu; in Safari on iPhone or iPad, choose **Share → Add to Home Screen**. The installed app opens in its own window and uses the Beaver Nest home-and-nest logo. It caches the application shell for temporary connection loss, but a live Codex chat still needs connectivity to the home host.
 
-The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. Its model selector is populated from the picker-visible models reported by the local Codex installation. A visitor can change models between turns; Beaver Nest reopens the bridge with the selected model while resuming the same Codex thread and preserving the transcript. A completed conversation, selected model, and Codex thread ID live in the current browser tab's session storage and survive reload. **Clear chat** removes the stored conversation and starts a new thread with the currently selected model. Beaver Nest does not yet provide authenticated, cross-tab, or cross-device conversation history.
+The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. Its model selector is populated from the picker-visible models reported by the local Codex installation. After one-time setup, approved family members log in with a username and password. A completed conversation, selected model, and private Codex thread ID are stored in that user's server-owned record and continue across tabs and browsers. **Clear chat** atomically saves an empty transcript and starts a new thread. If a retained Codex thread cannot resume, Bnest preserves the transcript, reports the fallback, and opens a fresh thread.
 
 ## Test
 
@@ -53,7 +53,7 @@ The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only s
 npm test
 npm exec -- nx run -p bnest-app -t test:integration
 npm exec -- nx run -p bnest-app -t test:coverage:behaviour
-npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Reload preserves a completed conversation and Codex session"
+npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Reload preserves a completed user-owned conversation"
 npm exec -- nx run -p badakmini-cli -t test:integration
 npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 ```
@@ -69,7 +69,7 @@ apps/badakmini-cli/  F# governance CLI with unit and integration tests
 apps/badakmini-cli-e2e/  Process end-to-end tests for the CLI
 libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
 specs/apps/  Canonical application architecture and behavior specifications
-data/        Ignored local runtime-data placeholders (general, users, system)
+data/        Ignored `prod/` runtime records and mirrored `test/runs/` fixtures
 docs/        Diátaxis-organized, non-rule documentation
 plans/       Ideas and plans organized by delivery lifecycle
 ```

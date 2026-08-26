@@ -119,6 +119,9 @@ defmodule BnestApp.Codex.PortSession do
       {:ok, %{"type" => "error", "message" => message}} ->
         send(owner, {:codex, self(), {:error, message}})
 
+      {:ok, %{"type" => "resume_failed", "message" => message}} ->
+        send(owner, {:codex, self(), {:resume_failed, message}})
+
       {:error, _reason} ->
         send(owner, {:codex, self(), {:error, "Codex runner returned invalid data."}})
     end

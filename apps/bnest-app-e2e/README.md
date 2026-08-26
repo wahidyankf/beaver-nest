@@ -36,7 +36,7 @@ During development, follow the [end-to-end testing standard](../../repo-governan
 npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Reload preserves a completed conversation and Codex session"
 ```
 
-The `test:e2e` target first enforces behavior coverage, then uses [playwright.config.mts](playwright.config.mts) to start an isolated `bnest-app` at `http://127.0.0.1:4010`. Set `BNEST_E2E_PORT` to use another local port. The harness never reuses a development server because doing so could bypass its deterministic Codex runner. It runs Chromium and records a trace on the first retry. The [scheduled GitHub workflow](../../.github/workflows/full-e2e.yml) runs Bnest integration coverage before the complete browser suite at 06:00 and 18:00 WIB.
+The `test:e2e` target first enforces behavior coverage, creates an exact-cleanup marked runtime root, then uses [playwright.config.mts](playwright.config.mts) to start an isolated `bnest-app` at `http://localhost:4010`. The hostname intentionally matches Phoenix's WebSocket origin. Set `BNEST_E2E_PORT` to use another local port. Every scenario creates its own `test-user-` identity and user-owned paths within the marked run; desktop, tablet, mobile, and parallel workers never assert mutable aggregate counts. The harness never reuses a development server or production data, waits for connected LiveView state before interacting, cleans only its validated run root, and records a trace on first retry.
 
 Chat assertions deliberately avoid exact assistant prose. The fixtures emit a stable picker-visible catalog and multiple transport updates, while the browser contract checks deterministic protocol and UI outcomes: complete model options, Terra/medium defaulting, a locked selector during turns, incremental completion, same-tab reload restoration, model changes applied to a resumed thread, and a fresh thread after **Clear chat**. The fixture rejects a switched-model prompt unless Luna/medium receives the existing thread ID, rejects reload continuation without a resumed ID, and rejects a fresh-start prompt if Clear retained that ID. The Sifat Allah browser journeys also verify a confirmed browser-progress reset that persists after reload, version-2 browser-progress compatibility across a live update, browser Back returning an active exercise to its mission dashboard, an answer locking all choices before automatic five-second advancement, every answered question immediately moving between the learned and difficult repeat queues, and the exam skipping learned questions until all 120 are learned. Semantic model quality is outside deterministic browser acceptance and belongs in representative evals with outcome-based graders.
 
@@ -46,7 +46,10 @@ Chat assertions deliberately avoid exact assistant prose. The fixtures emit a st
 - `specs/apps/bnest/app/behaviours/` contains the canonical executable journeys.
 - `playwright.config.mts` defines BDD discovery, generated output, browser, base URL, and app server.
 - `tests/steps/` contains thin Playwright-BDD bindings.
-- `tools/` contains the fast compliance validator and its self-tests.
+- `tests/support/authentication.ts` owns connected-LiveView setup/login helpers and scenario-scoped synthetic identities.
+- `tests/support/centralized-data.ts` owns safe browser-source fixtures and user-scoped record evidence.
+- `tests/support/test-runtime.mts` owns marked runtime-root creation and exact cleanup.
+- `tools/run-e2e.mts` owns the guarded runtime lifecycle around the canonical Playwright target.
 - `.features-gen/` contains ignored, disposable generated Playwright tests.
 
 Keep tests focused on behavior that requires a real browser or crosses application boundaries. Prefer the narrower `bnest-app` `test:unit` or `test:integration` target when Playwright is unnecessary.

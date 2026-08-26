@@ -14,7 +14,7 @@
       "cache": false
     },
     "tailnet:up": {
-      "command": "tailscale serve --bg --yes --https=443 --set-path=/ 4000",
+      "command": "tailscale serve --bg --yes --https=443 --set-path=/ ${BNEST_TAILNET_BACKEND_PORT:-4000}",
       "cache": false
     },
     "tailnet:status": {
@@ -23,6 +23,20 @@
     },
     "tailnet:down": {
       "command": "tailscale serve --https=443 --set-path=/ off",
+      "cache": false
+    },
+    "schema:audit": {
+      "command": "MIX_ENV=dev mix bnest.schema.audit",
+      "options": {
+        "cwd": "apps/bnest-app"
+      },
+      "cache": false
+    },
+    "identity:benchmark": {
+      "command": "MIX_ENV=dev mix bnest.identity.benchmark",
+      "options": {
+        "cwd": "apps/bnest-app"
+      },
       "cache": false
     },
     "typecheck": {

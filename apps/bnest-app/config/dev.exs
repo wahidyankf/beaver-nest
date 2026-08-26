@@ -1,5 +1,7 @@
 import Config
 
+stable_backend? = System.get_env("BNEST_STABLE") == "true"
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
@@ -11,13 +13,17 @@ config :bnest_app, BnestAppWeb.Endpoint,
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}],
   check_origin: false,
-  code_reloader: true,
+  code_reloader: not stable_backend?,
   debug_errors: true,
   secret_key_base: "unImpQouewxpGZOlAzZjd535SY7D4WSDnB+GOH5E4WoOu2SK8sg5P3LaYwspnsg6",
-  watchers: [
-    esbuild: {Esbuild, :install_and_run, [:bnest_app, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:bnest_app, ~w(--watch)]}
-  ]
+  watchers:
+    if(stable_backend?,
+      do: [],
+      else: [
+        esbuild: {Esbuild, :install_and_run, [:bnest_app, ~w(--sourcemap=inline --watch)]},
+        tailwind: {Tailwind, :install_and_run, [:bnest_app, ~w(--watch)]}
+      ]
+    )
 
 # ## SSL Support
 #

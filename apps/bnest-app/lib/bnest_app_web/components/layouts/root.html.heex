@@ -1,10 +1,21 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html> <% theme_storage = assigns[:theme_storage] || :browser %>
+<% current_theme = assigns[:current_theme] || "system" %>
+<html
+  lang="en"
+  data-theme={if(theme_storage == :server and current_theme != "system", do: current_theme)}
+  data-theme-source={if(current_theme == "system", do: "system", else: "user")}
+  data-theme-storage={theme_storage}
+  data-browser-persistence={if(theme_storage == :browser, do: "true", else: "false")}
+>
   <head>
     <% pwa = BnestAppWeb.Pwa.install_metadata() %>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="application-name" content="Beaver Nest" />
+    <meta
+      name="description"
+      content="A private family space for conversations, learning, and shared exploration."
+    />
     <meta name="theme-color" content="#153f42" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -18,34 +29,66 @@
     </script>
     <script>
       (() => {
+        const root = document.documentElement;
+        const serverOwned = root.dataset.themeStorage === "server";
         const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 
-        const setTheme = (theme) => {
+        const applyTheme = (theme) => {
           if (theme === "system") {
-            localStorage.removeItem("phx:theme");
-            document.documentElement.setAttribute("data-theme", systemTheme());
-            document.documentElement.setAttribute("data-theme-source", "system");
+            root.setAttribute("data-theme", systemTheme());
+            root.setAttribute("data-theme-source", "system");
           } else {
-            localStorage.setItem("phx:theme", theme);
-            document.documentElement.setAttribute("data-theme", theme);
-            document.documentElement.setAttribute("data-theme-source", "user");
+            root.setAttribute("data-theme", theme);
+            root.setAttribute("data-theme-source", "user");
           }
         };
-        if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
+
+        const persistServerTheme = async (theme) => {
+          const response = await fetch("/preferences/theme", {
+            method: "PUT",
+            headers: {
+              "content-type": "application/x-www-form-urlencoded",
+              "x-csrf-token": document.querySelector("meta[name='csrf-token']").content,
+            },
+            body: `theme=${encodeURIComponent(theme)}`,
+          });
+          return response.ok;
+        };
+
+        const setTheme = async (theme) => {
+          if (serverOwned) {
+            if (await persistServerTheme(theme)) applyTheme(theme);
+            return;
+          }
+
+          if (theme === "system") localStorage.removeItem("phx:theme");
+          else localStorage.setItem("phx:theme", theme);
+          applyTheme(theme);
+        };
+
+        if (serverOwned) {
+          applyTheme(root.dataset.themeSource === "system" ? "system" : root.dataset.theme);
+        } else if (!root.hasAttribute("data-theme")) {
+          applyTheme(localStorage.getItem("phx:theme") || "system");
         }
-        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
-        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
+
+        window.addEventListener("storage", (e) => {
+          if (!serverOwned && e.key === "phx:theme") applyTheme(e.newValue || "system");
+        });
+        window.addEventListener("phx:set-theme", (e) => void setTheme(e.target.dataset.phxTheme));
 
         matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-          if (document.documentElement.getAttribute("data-theme-source") === "system") {
-            document.documentElement.setAttribute("data-theme", systemTheme());
+          if (root.getAttribute("data-theme-source") === "system") {
+            root.setAttribute("data-theme", systemTheme());
           }
         });
       })();
     </script>
   </head>
   <body>
+    <nav class="theme-dock" aria-label="Color theme">
+      <.theme_toggle />
+    </nav>
     {@inner_content}
   </body>
 </html>

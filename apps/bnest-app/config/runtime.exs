@@ -23,6 +23,24 @@ end
 config :bnest_app, BnestAppWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+if runtime_root = System.get_env("BNEST_RUNTIME_ROOT") do
+  config :bnest_app, :runtime_root, Path.expand(runtime_root)
+end
+
+case System.get_env("BNEST_IDENTITY_CUTOVER") do
+  nil -> :ok
+  "true" -> config :bnest_app, :identity_cutover_enabled, true
+  "false" -> config :bnest_app, :identity_cutover_enabled, false
+  _invalid -> raise "BNEST_IDENTITY_CUTOVER must be true or false"
+end
+
+case System.get_env("BNEST_COOKIE_SECURE") do
+  nil -> :ok
+  "true" -> config :bnest_app, :session_cookie, secure: true
+  "false" -> config :bnest_app, :session_cookie, secure: false
+  _invalid -> raise "BNEST_COOKIE_SECURE must be true or false"
+end
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :bnest_app, BnestAppWeb.Endpoint,
@@ -59,14 +77,14 @@ if config_env() == :prod do
 
   config :bnest_app, BnestAppWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
-    http: [
-      # Enable IPv6 and bind on all interfaces.
-      # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
-      # See the documentation on https://bandit.hexdocs.pm/Bandit.html#t:options/0
-      # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0}
-    ],
+    http: [ip: {127, 0, 0, 1}],
     secret_key_base: secret_key_base
+
+  config :bnest_app, :session_cookie,
+    key: "_bnest_identity",
+    secure: true,
+    same_site: "Lax",
+    max_age: 60 * 60 * 24 * 365 * 20
 
   # ## SSL Support
   #

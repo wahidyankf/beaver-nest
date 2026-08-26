@@ -1,5 +1,6 @@
 defmodule BnestAppWeb.Router do
   use BnestAppWeb, :router
+  import BnestAppWeb.UserAuth
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -8,6 +9,15 @@ defmodule BnestAppWeb.Router do
     plug :put_root_layout, html: {BnestAppWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :fetch_current_user
+  end
+
+  pipeline :authenticated_browser do
+    plug :require_authenticated_user
+  end
+
+  pipeline :open_setup do
+    plug :require_open_setup
   end
 
   pipeline :api do
@@ -17,9 +27,30 @@ defmodule BnestAppWeb.Router do
   scope "/", BnestAppWeb do
     pipe_through :browser
 
+    live "/login", LoginLive, :login
+    post "/login", SessionController, :create
+    delete "/logout", SessionController, :delete
+  end
+
+  scope "/", BnestAppWeb do
+    pipe_through [:browser, :open_setup]
+
+    live "/setup", LoginLive, :setup
+    post "/setup", BootstrapController, :create
+  end
+
+  scope "/", BnestAppWeb do
+    pipe_through [:browser, :authenticated_browser]
+
     get "/", PageController, :home
-    live "/chat", ChatLive
-    live "/apps/sifat-allah", SifatAllahLive
+    put "/preferences/theme", ThemeController, :update
+
+    live_session :authenticated,
+      on_mount: [{BnestAppWeb.UserAuth, :require_authenticated_user}] do
+      live "/chat", ChatLive
+      live "/apps/sifat-allah", SifatAllahLive
+      live "/data-migration", DataMigrationLive
+    end
   end
 
   # Other scopes may use custom stacks.

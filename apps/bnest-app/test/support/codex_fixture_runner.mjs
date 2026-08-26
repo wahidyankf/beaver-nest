@@ -25,6 +25,14 @@ for await (const line of lines) {
   if (message.type === "prompt" && typeof message.prompt === "string") {
     await new Promise((resolve) => setTimeout(resolve, 750));
 
+    if (resumedThreadId === "unavailable-thread") {
+      output({
+        type: "resume_failed",
+        message: "Fixture Codex thread is unavailable.",
+      });
+      continue;
+    }
+
     if (
       message.prompt === "Remember me" &&
       !prompts.includes("Hello, Beaver Nest")

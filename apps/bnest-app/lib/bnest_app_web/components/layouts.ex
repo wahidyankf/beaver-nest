@@ -132,6 +132,8 @@ defmodule BnestAppWeb.Layouts do
       <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
 
       <button
+        type="button"
+        aria-label="Use system theme"
         class="flex p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
@@ -140,6 +142,8 @@ defmodule BnestAppWeb.Layouts do
       </button>
 
       <button
+        type="button"
+        aria-label="Use light theme"
         class="flex p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
@@ -148,6 +152,8 @@ defmodule BnestAppWeb.Layouts do
       </button>
 
       <button
+        type="button"
+        aria-label="Use dark theme"
         class="flex p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"

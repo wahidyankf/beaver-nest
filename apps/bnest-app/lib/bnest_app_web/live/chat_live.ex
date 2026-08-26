@@ -3,6 +3,7 @@ defmodule BnestAppWeb.ChatLive do
 
   alias BnestApp.Chat
   alias BnestApp.Codex.{ModelCatalog, Settings}
+  alias BnestApp.DataRepository
 
   @max_snapshot_bytes 500_000
 
@@ -10,13 +11,14 @@ defmodule BnestAppWeb.ChatLive do
   def mount(_params, _session, socket) do
     models = ModelCatalog.all()
     default_model = ModelCatalog.default()
-    chat = restore_chat(socket, default_model)
+    {chat, central_record} = restore_chat(socket, default_model)
 
     socket =
       socket
       |> assign(:chat, chat)
       |> assign(:models, models)
       |> assign(:form, prompt_form())
+      |> assign(:central_record, central_record)
       |> assign(:session_adapter, nil)
       |> assign(:codex_session, nil)
 
@@ -78,7 +80,7 @@ defmodule BnestAppWeb.ChatLive do
         Chat.new(socket.assigns.chat.model, socket.assigns.chat.reasoning_effort)
       )
       |> assign(:form, prompt_form())
-      |> push_event("clear-chat-storage", %{})
+      |> clear_chat_persistence()
 
     {:ok, socket} = connect_codex(socket, socket.assigns.chat)
     {:noreply, socket}
@@ -112,6 +114,35 @@ defmodule BnestAppWeb.ChatLive do
         %{assigns: %{codex_session: session}} = socket
       ) do
     {:noreply, update(socket, :chat, &Chat.fail(&1, message))}
+  end
+
+  def handle_info(
+        {:codex, session, {:resume_failed, _message}},
+        %{assigns: %{codex_session: session}} = socket
+      ) do
+    socket.assigns.session_adapter.close(session)
+
+    fresh = %{
+      Chat.fail(
+        socket.assigns.chat,
+        "The previous Codex conversation was unavailable. Your transcript is preserved in a fresh conversation."
+      )
+      | thread_id: nil
+    }
+
+    case socket.assigns.session_adapter.open(
+           self(),
+           nil,
+           fresh.model,
+           fresh.reasoning_effort
+         ) do
+      {:ok, replacement} ->
+        socket = assign(socket, chat: fresh, codex_session: replacement)
+        {:noreply, persist_chat(socket)}
+
+      {:error, _reason} ->
+        {:noreply, assign(socket, :chat, Chat.fail(fresh, "Codex is not available."))}
+    end
   end
 
   def handle_info({:codex, _stale_session, _event}, socket), do: {:noreply, socket}
@@ -209,7 +240,7 @@ defmodule BnestAppWeb.ChatLive do
         <div class="conversation" aria-live="polite" aria-label="Conversation">
           <div :if={@chat.messages == []} class="empty-state">
             <p>Ask Codex about this repository.</p>
-            <span>This conversation stays in this browser tab until you clear it.</span>
+            <span>This conversation is saved to your account until you clear it.</span>
           </div>
 
           <article :for={message <- @chat.messages} class={message_class(message)} data-role="message">
@@ -259,36 +290,132 @@ defmodule BnestAppWeb.ChatLive do
   defp connect_codex(socket, chat) do
     adapter = Application.get_env(:bnest_app, :codex_session, BnestApp.Codex.PortSession)
 
-    {:ok, session} =
-      adapter.open(self(), chat.thread_id, chat.model, chat.reasoning_effort)
+    case adapter.open(self(), chat.thread_id, chat.model, chat.reasoning_effort) do
+      {:ok, session} ->
+        {:ok, assign(socket, session_adapter: adapter, codex_session: session)}
 
-    {:ok, assign(socket, session_adapter: adapter, codex_session: session)}
+      {:error, _reason} when not is_nil(chat.thread_id) ->
+        fresh = %{
+          chat
+          | thread_id: nil,
+            error:
+              "The previous Codex conversation was unavailable. Your transcript is preserved in a fresh conversation."
+        }
+
+        case adapter.open(self(), nil, fresh.model, fresh.reasoning_effort) do
+          {:ok, session} ->
+            socket = assign(socket, chat: fresh, session_adapter: adapter, codex_session: session)
+            {:ok, persist_chat(socket)}
+
+          {:error, _reason} ->
+            {:ok, assign(socket, chat: Chat.fail(fresh, "Codex is not available."))}
+        end
+
+      {:error, _reason} ->
+        {:ok, assign(socket, chat: Chat.fail(chat, "Codex is not available."))}
+    end
   end
 
   defp restore_chat(socket, default_model) do
-    chat =
-      if connected?(socket) do
-        with %{"chat" => encoded} when is_binary(encoded) <- get_connect_params(socket),
-             true <- byte_size(encoded) <= @max_snapshot_bytes,
-             {:ok, snapshot} <- Jason.decode(encoded),
-             {:ok, restored} <- Chat.restore(snapshot) do
-          restored
-        else
-          _invalid_or_missing -> new_chat(default_model)
-        end
-      else
-        new_chat(default_model)
-      end
+    owner_id = socket.assigns.current_user["userId"]
 
-    normalize_model(chat, default_model)
+    case DataRepository.read(:chat, owner_id) do
+      {:ok, record} ->
+        case Chat.restore(record["state"]) do
+          {:ok, restored} -> {normalize_model(restored, default_model), record}
+          :error -> {new_chat(default_model), nil}
+        end
+
+      {:error, _missing_or_invalid} ->
+        chat =
+          if legacy_browser_user?(socket),
+            do: restore_browser_chat(socket, default_model),
+            else: new_chat(default_model)
+
+        {normalize_model(chat, default_model), nil}
+    end
   end
+
+  defp restore_browser_chat(socket, default_model) do
+    if connected?(socket) do
+      decode_browser_chat(get_connect_params(socket), default_model)
+    else
+      new_chat(default_model)
+    end
+  end
+
+  defp decode_browser_chat(%{"chat" => encoded}, default_model) when is_binary(encoded) do
+    with true <- byte_size(encoded) <= @max_snapshot_bytes,
+         {:ok, snapshot} <- Jason.decode(encoded),
+         {:ok, restored} <- Chat.restore(snapshot) do
+      restored
+    else
+      _invalid_or_missing -> new_chat(default_model)
+    end
+  end
+
+  defp decode_browser_chat(_params, default_model), do: new_chat(default_model)
 
   defp persist_chat(socket) do
     case Chat.snapshot(socket.assigns.chat) do
-      {:ok, snapshot} -> push_event(socket, "persist-chat", snapshot)
+      {:ok, snapshot} -> persist_chat_snapshot(socket, snapshot)
       :error -> socket
     end
   end
+
+  defp persist_chat_snapshot(
+         %{assigns: %{central_record: nil, current_user: %{"migrationMode" => true}}} = socket,
+         snapshot
+       ),
+       do: push_event(socket, "persist-chat", snapshot)
+
+  defp persist_chat_snapshot(socket, snapshot) do
+    owner_id = socket.assigns.current_user["userId"]
+    previous = socket.assigns.central_record
+
+    candidate = %{
+      "schemaVersion" => 1,
+      "recordType" => "chat",
+      "ownerId" => owner_id,
+      "sourceImportId" => if(previous, do: previous["sourceImportId"], else: nil),
+      "state" => snapshot,
+      "updatedAt" => timestamp()
+    }
+
+    expected_revision = if previous, do: previous["revision"], else: nil
+
+    case DataRepository.write(:chat, owner_id, expected_revision, candidate) do
+      {:ok, record} ->
+        assign(socket, :central_record, record)
+
+      {:error, :stale} ->
+        assign(
+          socket,
+          :chat,
+          Chat.fail(socket.assigns.chat, "Newer chat data exists. Reload before continuing.")
+        )
+
+      {:error, _reason} ->
+        assign(
+          socket,
+          :chat,
+          Chat.fail(
+            socket.assigns.chat,
+            "Chat could not be saved. Your previous saved chat is unchanged."
+          )
+        )
+    end
+  end
+
+  defp clear_chat_persistence(
+         %{assigns: %{central_record: nil, current_user: %{"migrationMode" => true}}} = socket
+       ),
+       do: push_event(socket, "clear-chat-storage", %{})
+
+  defp clear_chat_persistence(socket), do: persist_chat(socket)
+
+  defp legacy_browser_user?(socket),
+    do: socket.assigns.current_user["migrationMode"] == true
 
   defp replace_codex(socket, chat) do
     socket.assigns.session_adapter.close(socket.assigns.codex_session)
@@ -326,4 +453,6 @@ defmodule BnestAppWeb.ChatLive do
 
   defp message_class(%{role: :visitor}), do: "message message-visitor"
   defp message_class(%{role: :assistant}), do: "message message-assistant"
+
+  defp timestamp, do: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 end

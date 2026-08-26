@@ -14,7 +14,7 @@ defmodule BnestApp.MixProject do
       test_coverage: test_coverage(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      dialyzer: [plt_add_apps: [:ex_unit]],
+      dialyzer: [plt_add_apps: [:ex_unit, :mix]],
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader]
@@ -59,6 +59,7 @@ defmodule BnestApp.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.0"},
+      {:argon2_elixir, "~> 4.1.3"},
       {:ex_bdd, path: "../../libs/ex-bdd", only: :test},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
@@ -103,19 +104,52 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.Router
     ]
 
+    test_scaffolding = [
+      BnestApp.Behaviour.BoundaryPolicy,
+      BnestApp.Behaviour.Driver,
+      BnestApp.Behaviour.IntegrationHomePageDriver,
+      BnestApp.Behaviour.UnitHomePageDriver,
+      BnestApp.Codex.FixtureModels,
+      BnestApp.Codex.FixtureSession,
+      BnestApp.TestIdentity,
+      BnestApp.TestRuntimeRoot,
+      BnestAppWeb.ConnCase
+    ]
+
+    boundary_adapters = [
+      BnestApp.Application,
+      BnestApp.DataRepository.Backup,
+      BnestApp.DataRepository.Import,
+      BnestApp.DataRepository.Manifest,
+      BnestApp.DataRepository.RecoverySource,
+      BnestApp.DataRepository.Schema,
+      BnestApp.DataRepository.Store,
+      BnestApp.Identity.Bootstrap,
+      BnestApp.Identity.CredentialVerifier,
+      BnestApp.Identity.FileStore,
+      BnestApp.Identity.Session,
+      BnestAppWeb.BootstrapController,
+      BnestAppWeb.ChatLive,
+      BnestAppWeb.DataMigrationLive,
+      BnestAppWeb.LoginLive,
+      BnestAppWeb.SessionController,
+      BnestAppWeb.SifatAllahLive,
+      BnestAppWeb.ThemeController,
+      BnestAppWeb.UserAuth,
+      Mix.Tasks.Bnest.Identity.Benchmark,
+      Mix.Tasks.Bnest.Schema.Audit
+    ]
+
     {output, layer_exclusions} =
       case System.get_env("BNEST_TEST_LAYER") do
         "unit" ->
           {"cover/unit",
            [
-             BnestApp.Application,
-             BnestApp.Codex.FixtureModels,
+             BnestApp.DataRepository,
+             BnestApp.DataRepository.Import,
+             BnestApp.Identity,
+             BnestApp.Identity.Bootstrap,
              BnestApp.Codex.ModelCatalog,
-             BnestApp.Codex.FixtureSession,
-             BnestApp.Behaviour.IntegrationHomePageDriver,
-             BnestAppWeb.ConnCase,
-             BnestAppWeb.ChatLive,
-             BnestAppWeb.SifatAllahLive,
              BnestAppWeb.Endpoint,
              BnestAppWeb.Telemetry
            ]}
@@ -124,9 +158,10 @@ defmodule BnestApp.MixProject do
           {"cover/integration",
            [
              BnestApp.Chat,
+             BnestApp.DataRepository.Normalizer,
+             BnestApp.DataRepository.Schema,
+             BnestApp.Identity.Authorization,
              BnestApp.SifatAllah,
-             BnestApp.Codex.FixtureModels,
-             BnestApp.Behaviour.UnitHomePageDriver,
              BnestAppWeb.ErrorJSON
            ]}
 
@@ -137,7 +172,8 @@ defmodule BnestApp.MixProject do
     [
       output: output,
       summary: [threshold: 99],
-      ignore_modules: generated_or_static ++ layer_exclusions
+      ignore_modules:
+        generated_or_static ++ test_scaffolding ++ boundary_adapters ++ layer_exclusions
     ]
   end
 

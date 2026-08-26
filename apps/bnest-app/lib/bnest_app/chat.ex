@@ -238,7 +238,7 @@ defmodule BnestApp.Chat do
   defp next_id([]), do: 1
   defp next_id(messages), do: List.last(messages).id + 1
 
-  defp valid_snapshot_thread?(nil, []), do: true
+  defp valid_snapshot_thread?(nil, _messages), do: true
   defp valid_snapshot_thread?(thread_id, _messages), do: valid_thread_id?(thread_id)
 
   defp valid_thread_id?(thread_id) when is_binary(thread_id) do

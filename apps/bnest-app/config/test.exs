@@ -1,7 +1,50 @@
 import Config
 
-config :bnest_app, :codex_session, BnestApp.Codex.FixtureSession
+config :bnest_app, :identity_cutover_enabled, true
+
+if System.get_env("BNEST_TEST_LAYER") == "integration" do
+  run_id =
+    System.get_env("BNEST_TEST_RUN_ID") ||
+      "mix-" <>
+        (:crypto.strong_rand_bytes(8)
+         |> Base.url_encode64(padding: false)
+         |> String.downcase())
+
+  runtime_root =
+    System.get_env("BNEST_RUNTIME_ROOT") ||
+      Path.expand("../../../data/test/runs/#{run_id}", __DIR__)
+
+  marker = %{
+    "schemaVersion" => 1,
+    "recordType" => "bnest-test-run",
+    "runId" => Path.basename(runtime_root),
+    "createdAt" => DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+    "owner" => "bnest-test-harness"
+  }
+
+  Enum.each(~w(general apps/beaver-nest system users), fn relative ->
+    File.mkdir_p!(Path.join(runtime_root, relative))
+  end)
+
+  File.write!(Path.join(runtime_root, ".bnest-test-run.json"), JSON.encode!(marker))
+  config :bnest_app, runtime_root: runtime_root, test_runtime_owned: true
+else
+  config :bnest_app, runtime_root: nil, test_runtime_owned: false
+end
+
+codex_session =
+  if System.get_env("BNEST_CODEX_RUNNER"),
+    do: BnestApp.Codex.PortSession,
+    else: BnestApp.Codex.FixtureSession
+
+config :bnest_app, :codex_session, codex_session
 config :bnest_app, :codex_models, BnestApp.Codex.FixtureModels
+
+config :argon2_elixir,
+  argon2_type: 2,
+  m_cost: 8,
+  t_cost: 1,
+  parallelism: 1
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

@@ -1,9 +1,16 @@
 Feature: Beaver Nest chat
 
+  Rule: Public application installation
+
   Scenario: A visitor can install Beaver Nest as an app
     When a visitor opens "/"
     Then the page displays the Beaver Nest logo
     And Beaver Nest is ready to install as an app
+
+  Rule: Authenticated user-owned chat
+
+    Background:
+      Given an approved user is logged in
 
   Scenario: A visitor enters chat from the home page
     When a visitor opens "/"
@@ -109,7 +116,7 @@ Feature: Beaver Nest chat
     Then the page displays the alert "Turn failed."
     And the message composer is available
 
-  Scenario: Reload preserves a completed conversation and Codex session
+  Scenario: Reload preserves a completed user-owned conversation and Codex session
     Given a visitor opens "/chat"
     When the visitor selects the model "GPT-5.6-Luna"
     And the visitor selects the reasoning effort "High"
@@ -125,7 +132,7 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     And the conversation displays a second Codex response
 
-  Scenario: A visitor clears the chat and starts a new Codex session
+  Scenario: A user clears normalized chat and starts a new Codex session
     Given a visitor opens "/chat"
     When the visitor selects the model "GPT-5.6-Luna"
     And the visitor selects the reasoning effort "High"

@@ -12,7 +12,13 @@ const codexModelsRunner = path.resolve(
   "test/support/codex_fixture_models.mjs",
 );
 const port = process.env["BNEST_E2E_PORT"] ?? "4010";
-const baseURL = `http://127.0.0.1:${port}`;
+const baseURL = `http://localhost:${port}`;
+const runtime = {
+  path:
+    process.env["BNEST_E2E_RUNTIME_ROOT"] ??
+    path.resolve(import.meta.dirname, "../../data/test/runs/configuration-only"),
+  runId: process.env["BNEST_E2E_RUN_ID"] ?? "configuration-only",
+};
 const featuresRoot = path.resolve(
   import.meta.dirname,
   "../../specs/apps/bnest/app/behaviours",
@@ -27,7 +33,11 @@ const testDir = defineBddConfig({
 
 export default defineConfig({
   testDir,
-  fullyParallel: true,
+  fullyParallel: false,
+  globalTeardown: path.resolve(
+    import.meta.dirname,
+    "tests/support/test-runtime.mts",
+  ),
   use: {
     baseURL,
     trace: "on-first-retry",
@@ -39,6 +49,11 @@ export default defineConfig({
       ...process.env,
       BNEST_CODEX_MODELS_RUNNER: codexModelsRunner,
       BNEST_CODEX_RUNNER: codexRunner,
+      BNEST_RUNTIME_ROOT: runtime.path,
+      BNEST_TEST_LAYER: "integration",
+      BNEST_TEST_RUN_ID: runtime.runId,
+      MIX_ENV: "test",
+      PHX_SERVER: "true",
       PORT: port,
     },
     url: baseURL,
@@ -47,11 +62,29 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
+      name: "one-time-setup",
+      grep: /Initial setup warns about unavailable account recovery/u,
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      name: "chromium",
+      dependencies: ["one-time-setup"],
+      grepInvert: /Initial setup warns about unavailable account recovery/u,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "tablet-chromium",
+      dependencies: ["one-time-setup"],
+      grepInvert: /Initial setup warns about unavailable account recovery/u,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 768, height: 1024 },
+      },
+    },
+    {
       name: "mobile-chromium",
+      dependencies: ["one-time-setup"],
+      grepInvert: /Initial setup warns about unavailable account recovery/u,
       use: { ...devices["Pixel 5"] },
     },
   ],

@@ -9,7 +9,7 @@ This is the canonical as-built C4 model for Bnest. Maintain it under the reposit
 flowchart TB
     visitor(["Person<br/><b>Family member</b><br/>Uses the private family application"])
     tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Optional private HTTPS route to the home host"}}
-    bnest[["Software system<br/><b>Bnest</b><br/>Local Codex chat and browser-persisted learning activities"]]
+    bnest[["Software system<br/><b>Bnest</b><br/>Authenticated family experiences with centralized local data"]]
     codex{{"External system<br/><b>Local Codex installation</b><br/>Model discovery and read-only Codex threads"}}
 
     visitor -->|Remote HTTPS / WebSocket| tailscale
@@ -25,7 +25,7 @@ flowchart TB
     class tailscale,codex external
 ```
 
-Bnest is private to the local host and family devices routed through the independently managed Tailscale proxy. It has no application database, authentication, uploads, or server-side user-data store.
+Bnest is private to the local host and family devices routed through the independently managed Tailscale proxy. Approved users authenticate before protected access. Bnest keeps user-owned state in a server-managed flat-file runtime root; it has no public registration, cloud database, or uploads.
 
 ## Container View
 
@@ -38,12 +38,14 @@ flowchart TB
     subgraph bnest["Software system: Bnest"]
         direction TB
         browser["Container<br/><b>Browser / installed PWA</b><br/>HTML, CSS, JavaScript, LiveView client"]
-        storage[("Container / data store<br/><b>Browser storage</b><br/>sessionStorage and localStorage")]
+        legacy[("Container / data store<br/><b>Browser legacy sources</b><br/>Allow-listed values retained only until accepted import")]
         phoenix["Container<br/><b>Phoenix LiveView application</b><br/>Elixir / Phoenix / Bandit"]
+        runtime[("Container / data store<br/><b>Runtime flat files</b><br/>Accounts, sessions, manifests, and user-owned records")]
         bridge["Container<br/><b>Codex bridge processes</b><br/>Node.js / Codex SDK and CLI"]
 
         browser -->|HTTP / WebSocket events and renders| phoenix
-        browser -->|Web Storage API| storage
+        browser -->|Confirmed compatibility import| legacy
+        phoenix -->|Typed atomic operations| runtime
         phoenix -->|Ports and JSON lines| bridge
     end
 
@@ -56,11 +58,11 @@ flowchart TB
     classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
     class visitor person
     class browser,phoenix,bridge container
-    class storage data
+    class legacy,runtime data
     class codex external
 ```
 
-The Phoenix server and Node bridges run on the home host. Tailscale Serve may proxy the browser connection but has an independent lifecycle. Each connected chat LiveView owns one bridge process; a supervised catalog performs model discovery at application startup.
+The Phoenix server, runtime repository, and Node bridges run on the home host. Tailscale Serve may proxy the browser connection but has an independent lifecycle. Production resolves `data/prod/` once before supervision; filesystem tests use one marked mirror below `data/test/runs/`.
 
 ## Component View
 
@@ -68,11 +70,16 @@ The Phoenix server and Node bridges run on the home host. Tailscale Serve may pr
 %% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73, gray #808080
 flowchart TB
     browser(["External container<br/><b>Browser / installed PWA</b>"])
-    storage[("External data store<br/><b>Browser snapshots</b>")]
+    legacy[("External data store<br/><b>Allow-listed browser sources</b>")]
     bridge{{"External container<br/><b>Codex bridge processes</b>"}}
 
     subgraph phoenix["Container: Phoenix LiveView application"]
         direction TB
+
+        identity["Component<br/><b>Identity</b><br/>Bootstrap, Argon2id login, sessions, roles"]
+        auth["Component<br/><b>Authorization</b><br/>Capability plus ownership checks"]
+        repository["Component<br/><b>Data repository</b><br/>Schemas, paths, locks, atomic writes"]
+        imports["Component<br/><b>Import and recovery</b><br/>Envelopes, manifests, retry, restore"]
 
         subgraph chat_area["Chat components"]
             direction LR
@@ -93,11 +100,19 @@ flowchart TB
 
             sifat_live -->|Learning actions| sifat
         end
+
+        identity --> auth
+        auth --> repository
+        imports --> repository
+        chat_live -->|User-owned chat| repository
+        sifat_live -->|User-owned progress| repository
     end
 
-    browser -->|Chat events, renders, and snapshots| chat_live
-    browser -->|Learning events, renders, and snapshots| sifat_live
-    browser -->|Web Storage API| storage
+    browser -->|Opaque cookie and protected events| identity
+    browser -->|Chat events and renders| chat_live
+    browser -->|Learning events and renders| sifat_live
+    browser -->|Confirmed source values| imports
+    browser -->|Web Storage API until accepted import| legacy
     session -->|JSON lines| bridge
 
     classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
@@ -105,18 +120,21 @@ flowchart TB
     classDef process fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
     classDef data fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
     class browser external
-    class chat_live,chat,catalog,session,sifat_live,sifat component
+    class identity,auth,repository,imports,chat_live,chat,catalog,session,sifat_live,sifat component
     class bridge process
-    class storage data
+    class legacy data
 ```
 
 ## Architectural Constraints
 
 - Phoenix binds to the local endpoint lifecycle; Tailscale Serve is optional and managed independently.
 - Chat runners use read-only sandbox access, approval policy `never`, and disabled network and web search.
-- Completed chat state stays in the current browser tab's `sessionStorage`; Sifat Allah progress stays in browser `localStorage`.
-- The application owns no database, authentication, cross-device history, uploads, or server-side user-data persistence.
-- Test adapters replace live Codex discovery and chat sessions with deterministic local fixtures.
+- Every protected route and data operation resolves an unrevoked opaque-cookie session and current user before repository access.
+- Roles may contain `children`, `parents`, and `admin`; capabilities still default-deny cross-user access.
+- Durable chat, Sifat Allah progress, and explicit theme state live only below the authenticated user's runtime path after accepted import.
+- Browser keys are immutable compatibility sources until envelope, normalization, and normal read-back pass; only the accepted key is then cleared.
+- Mutable records use revision checks, one path lock, atomic replacement, and read-back. Sessions have no time expiry and remain independent per browser.
+- Test adapters use only synthetic `test-user-` identities and marked mirrored runtime roots; production structural audit is read-only.
 
 ## Behaviour Traceability
 

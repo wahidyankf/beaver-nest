@@ -55,7 +55,7 @@
       "cache": false
     },
     "test:e2e": {
-      "command": "npm exec -- playwright test --config apps/bnest-app-e2e/playwright.config.mts",
+      "command": "node apps/bnest-app-e2e/tools/run-e2e.mts",
       "dependsOn": ["test:coverage:behaviour"],
       "cache": false
     },

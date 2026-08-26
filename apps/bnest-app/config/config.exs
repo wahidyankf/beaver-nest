@@ -9,6 +9,15 @@ import Config
 
 config :bnest_app,
   generators: [timestamp_type: :utc_datetime],
+  runtime_root: Path.expand("../../../data/prod", __DIR__),
+  identity_cutover_enabled: false,
+  session_cookie: [
+    key: "_bnest_identity",
+    secure: false,
+    same_site: "Lax",
+    max_age: 60 * 60 * 24 * 365 * 20
+  ],
+  argon2: [memory_kib: 32_768, time_cost: 2, parallelism: 1],
   codex: [
     runner: Path.expand("../priv/codex/chat_runner.mjs", __DIR__),
     models_runner: Path.expand("../priv/codex/list_models.mjs", __DIR__),
@@ -25,6 +34,12 @@ config :bnest_app, BnestAppWeb.Endpoint,
   ],
   pubsub_server: BnestApp.PubSub,
   live_view: [signing_salt: "hErpnfVP"]
+
+config :argon2_elixir,
+  argon2_type: 2,
+  m_cost: 15,
+  t_cost: 2,
+  parallelism: 1
 
 # Configure LiveView
 config :phoenix_live_view,

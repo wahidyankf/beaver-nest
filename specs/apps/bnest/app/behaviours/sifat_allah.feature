@@ -1,5 +1,8 @@
 Feature: Revising the 20 attributes of Allah
 
+  Background:
+    Given an approved child is logged in
+
   Scenario: A child opens the revision dashboard
     When a visitor opens "/apps/sifat-allah"
     Then the page displays the heading "Misi Hafal 40 Sifat Allah"

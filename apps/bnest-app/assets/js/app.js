@@ -24,6 +24,8 @@ import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import { hooks as colocatedHooks } from "phoenix-colocated/bnest_app";
 import topbar from "../vendor/topbar";
+import { BrowserImport } from "./browser_import";
+import { initializeIdentitySetup } from "./identity_setup";
 import { celebrateSifatAnswer } from "./sifat_celebration";
 import { SifatHistory } from "./sifat_history";
 
@@ -37,8 +39,14 @@ if (!csrfToken) {
 
 const chatStorageKey = "bnest.chat.v1";
 const sifatAllahStorageKey = "bnest.sifat-allah.v1";
+const browserPersistenceEnabled =
+  document.documentElement.dataset["browserPersistence"] === "true";
+
+initializeIdentitySetup();
 
 const storedChat = () => {
+  if (!browserPersistenceEnabled) return "";
+
   try {
     return window.sessionStorage.getItem(chatStorageKey) ?? "";
   } catch {
@@ -48,6 +56,8 @@ const storedChat = () => {
 
 /** @param {unknown} snapshot */
 const persistChat = (snapshot) => {
+  if (!browserPersistenceEnabled) return;
+
   try {
     window.sessionStorage.setItem(chatStorageKey, JSON.stringify(snapshot));
   } catch {
@@ -56,6 +66,8 @@ const persistChat = (snapshot) => {
 };
 
 const clearStoredChat = () => {
+  if (!browserPersistenceEnabled) return;
+
   try {
     window.sessionStorage.removeItem(chatStorageKey);
   } catch {
@@ -158,6 +170,8 @@ const SifatSwipe = {
 };
 
 const storedSifatAllah = () => {
+  if (!browserPersistenceEnabled) return "";
+
   try {
     return window.localStorage.getItem(sifatAllahStorageKey) ?? "";
   } catch {
@@ -167,6 +181,8 @@ const storedSifatAllah = () => {
 
 /** @param {unknown} snapshot */
 const persistSifatAllah = (snapshot) => {
+  if (!browserPersistenceEnabled) return;
+
   try {
     window.localStorage.setItem(sifatAllahStorageKey, JSON.stringify(snapshot));
   } catch {
@@ -181,7 +197,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     chat: storedChat(),
     sifat_allah: storedSifatAllah(),
   }),
-  hooks: { ...colocatedHooks, SifatHistory, SifatSwipe },
+  hooks: { ...colocatedHooks, BrowserImport, SifatHistory, SifatSwipe },
 });
 
 window.addEventListener("phx:persist-chat", (event) => {
@@ -241,12 +257,6 @@ liveSocket.connect();
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket;
 
-// The lines below enable quality of life phoenix_live_reload
-// development features:
-//
-//     1. stream server logs to the browser console
-//     2. click on elements to jump to their definitions in your code editor
-//
 if (process.env["NODE_ENV"] === "development") {
   window.addEventListener(
     "phx:live_reload:attached",

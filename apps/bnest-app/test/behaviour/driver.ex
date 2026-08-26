@@ -62,4 +62,8 @@ defmodule BnestApp.Behaviour.Driver do
   @callback answer_focused_review(map(), String.t()) :: map()
   @callback next_focused_review(map()) :: map()
   @callback revision_list_contains?(map(), String.t()) :: boolean()
+  @callback establish_identity(map(), :user | :child) :: map()
+  @callback prepare_behaviour(map(), atom(), [String.t()]) :: map()
+  @callback perform_behaviour(map(), atom(), [String.t()]) :: map()
+  @callback behaviour_outcome?(map(), atom(), [String.t()]) :: boolean()
 end
