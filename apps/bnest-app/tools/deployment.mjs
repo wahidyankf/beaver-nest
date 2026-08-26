@@ -395,6 +395,8 @@ function launchAgent(
   <key>Label</key><string>${slotLabel(slot)}</string>
   <key>ProgramArguments</key><array><string>${release}/bin/bnest_app</string><string>start</string></array>
   <key>EnvironmentVariables</key><dict>${environment}</dict>
+  <key>SoftResourceLimits</key><dict><key>NumberOfFiles</key><integer>4096</integer></dict>
+  <key>HardResourceLimits</key><dict><key>NumberOfFiles</key><integer>8192</integer></dict>
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>${logPath}</string><key>StandardErrorPath</key><string>${errorPath}</string>
 </dict></plist>
