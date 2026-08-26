@@ -15,6 +15,7 @@ Use this workflow to promote a verified Bnest Phoenix release without requiring 
 3. Promote with `deploy:promote -- --slot <slot>`. The target validates and gracefully reloads Caddy; its old WebSocket upstream drains for at most five minutes.
 4. Verify local Caddy HTTP, Tailnet HTTPS, the release revision, and a connected LiveView. A compatible client reconnects automatically; an incompatible client reloads itself once.
 5. On any failure, run `deploy:rollback`; only then diagnose. After the drain window and verification, retire the previous slot and stop every other unneeded non-production candidate.
+6. Remove the exact isolated build worktree immediately after its release has been built or the promotion has ended. Do not retain it for later deployment work.
 
 ## Recovery
 

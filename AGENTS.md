@@ -22,7 +22,8 @@
 ## Version Control
 
 - Push `main` directly under [integration](repo-governance/conventions/integration-path.md).
-- Make [thematic commits](repo-governance/conventions/thematic-commits.md). Before every commit, inspect the complete proposed change for passwords, secret credentials, tailnet IDs, local data, and other prohibited content under [data safety](repo-governance/conventions/public-repository-data-safety.md); remove it and recheck before committing.
+- Non-`main` worktrees are temporary deployment infrastructure; remove them immediately after use under [integration](repo-governance/conventions/integration-path.md).
+- Make [thematic commits](repo-governance/conventions/thematic-commits.md). Before committing, inspect and remove prohibited data under [data safety](repo-governance/conventions/public-repository-data-safety.md).
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.
 - Fix root [push hooks](repo-governance/conventions/push-hook-verification.md); never use `--no-verify` without authorization.
