@@ -6,6 +6,10 @@ Plans are temporary change records, not canonical descriptions of the as-built s
 ideas/ → backlogs/ → in-progress/ → done/
 ```
 
+## Authorization
+
+Create a plan document under `plans/` only in response to an explicit user request. Do not infer a request to plan from a request to change code, specifications, or other documentation.
+
 ## Ideas
 
 Store one rough two-pager at `plans/ideas/<quadrant>/<slug>.md`. Use `q1-urgent-important`, `q2-not-urgent-important`, `q3-urgent-not-important`, or `q4-not-urgent-not-important` according to evidence in `Why now` and the idea's material impact.

@@ -32,16 +32,16 @@
 - Fix hooks at root; never use `--no-verify` without explicit authorization. Follow [push-hook verification](repo-governance/conventions/push-hook-verification.md).
 - Space GitHub polls two minutes apart; follow [GitHub polling](repo-governance/conventions/github-polling.md).
 
-## Repository Governance
+## Governance
 
 - Follow [rules propagation](repo-governance/workflows/rules-propagation.md) for every repository rule change.
 - Use [Diátaxis for non-rule documentation](repo-governance/conventions/documentation-architecture.md).
 - Preserve rules across context compaction under [governance continuity](repo-governance/principles/governance-continuity.md).
-- Keep [task lists](repo-governance/conventions/task-tracking.md) synchronized.
-- Follow the [plan lifecycle](repo-governance/conventions/plan-lifecycle.md); `specs/` stays authoritative.
+- Keep [task lists](repo-governance/conventions/task-tracking.md) current.
+- Create plan docs on explicit request; [plan lifecycle](repo-governance/conventions/plan-lifecycle.md) keeps `specs/` authoritative.
 - Maintain recursive [directory maps](repo-governance/conventions/directory-maps.md) for governed trees.
-- Ask questions only as a [last resort](repo-governance/conventions/last-resort-questions.md).
-- Make the [smallest sufficient change](repo-governance/principles/minimal-sufficiency.md); stop after verification passes.
+- Ask only as a [last resort](repo-governance/conventions/last-resort-questions.md).
+- Make the [smallest sufficient change](repo-governance/principles/minimal-sufficiency.md); stop when verified.
 
 ## Development
 
