@@ -1,9 +1,6 @@
 defmodule BnestApp.Identity.CredentialVerifier do
   @moduledoc false
 
-  @minimum_length 15
-  @maximum_length 128
-
   @spec hash(String.t()) :: {:ok, String.t()} | {:error, :invalid_password}
   def hash(password) do
     if valid_password?(password),
@@ -25,7 +22,11 @@ defmodule BnestApp.Identity.CredentialVerifier do
 
   @spec valid_password?(term()) :: boolean()
   def valid_password?(password) when is_binary(password) do
-    String.valid?(password) and String.length(password) in @minimum_length..@maximum_length
+    String.valid?(password) and
+      password != "" and
+      String.match?(password, ~r/\p{L}/u) and
+      String.match?(password, ~r/\p{Nd}/u) and
+      String.match?(password, ~r/[[:punct:]]/u)
   end
 
   def valid_password?(_password), do: false

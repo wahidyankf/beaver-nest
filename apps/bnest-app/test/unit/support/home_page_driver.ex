@@ -6,6 +6,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Chat
   alias BnestApp.Codex.FixtureModels
   alias BnestApp.Identity.Authorization
+  alias BnestApp.Identity.CredentialVerifier
   alias BnestApp.SifatAllah
   alias BnestAppWeb.SifatAllahLive
   alias Phoenix.HTML.Safe
@@ -697,8 +698,23 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :open_protected_route, [route]),
     do: Map.merge(context, %{attempted_route: route, redirected: not context.authenticated})
 
-  def perform_behaviour(context, :bootstrap_accounts, _args),
-    do: Map.merge(context, %{setup_open: false, setup_warning: true, created_once: true})
+  def perform_behaviour(context, :bootstrap_accounts, _args) do
+    accepts_short? = CredentialVerifier.valid_password?("a_1")
+    accepts_long? = CredentialVerifier.valid_password?(String.duplicate("é", 129) <> "_1")
+
+    rejects_missing_requirement? =
+      Enum.all?(["password_", "password1", "123_"], fn password ->
+        not CredentialVerifier.valid_password?(password)
+      end)
+
+    Map.merge(context, %{
+      setup_open: false,
+      setup_warning: true,
+      created_once: accepts_short? and accepts_long?,
+      passwords_without_length_rule: accepts_short? and accepts_long?,
+      password_requirements_enforced: rejects_missing_requirement?
+    })
+  end
 
   def perform_behaviour(context, :login, _args), do: Map.put(context, :authenticated, true)
 
@@ -749,6 +765,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :irreversible_warning, _args), do: context.setup_warning
   def behaviour_outcome?(context, :accounts_created_once, _args), do: context.created_once
   def behaviour_outcome?(context, :setup_closed, _args), do: not context.setup_open
+
+  def behaviour_outcome?(context, :passwords_without_length_rule, _args),
+    do: context.passwords_without_length_rule
+
+  def behaviour_outcome?(context, :password_requirements_enforced, _args),
+    do: context.password_requirements_enforced
+
   def behaviour_outcome?(context, :protected_home_available, _args), do: context.authenticated
 
   def behaviour_outcome?(context, :current_browser_logged_out, _args),

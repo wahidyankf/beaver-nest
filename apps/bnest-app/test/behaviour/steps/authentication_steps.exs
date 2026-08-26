@@ -45,6 +45,14 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
     do: outcome(context, :setup_closed)
   )
 
+  step("Bnest accepts the passwords without a character-count rule", context,
+    do: outcome(context, :passwords_without_length_rule)
+  )
+
+  step("Bnest rejects a password missing a letter, number, or punctuation mark", context,
+    do: outcome(context, :password_requirements_enforced)
+  )
+
   step("an approved user account exists", context, do: prepare(context, :approved_account))
 
   step("an approved user account exists with an Argon2id verifier", context,

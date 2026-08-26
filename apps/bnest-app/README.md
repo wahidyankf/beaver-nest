@@ -59,7 +59,7 @@ The home page at `/` is the child-friendly entry point and links to `/chat`, `/a
 
 ## Identity and Runtime Data
 
-Production resolves one server-owned runtime root at `data/prod`; tests use a unique marked mirror below `data/test/runs/` and reject the production root. Initial accounts have a normalized username, one or more `children`, `parents`, and `admin` roles, and an Argon2id password verifier. The browser receives only a persistent opaque session cookie; the server stores its SHA-256 digest, has no automatic session expiration, and lets one user remain logged in independently in multiple browsers. Logout revokes only that browser session. Cross-user data access is denied regardless of role.
+Production resolves one server-owned runtime root at `data/prod`; tests use a unique marked mirror below `data/test/runs/` and reject the production root. Initial accounts have a normalized username, one or more `children`, `parents`, and `admin` roles, and an Argon2id password verifier. Passwords have no application character-count rule, but each must contain a letter, number, and punctuation mark such as `_`. The browser receives only a persistent opaque session cookie; the server stores its SHA-256 digest, has no automatic session expiration, and lets one user remain logged in independently in multiple browsers. Logout revokes only that browser session. Cross-user data access is denied regardless of role.
 
 The routed HTTPS service must start with `BNEST_COOKIE_SECURE=true`; `BNEST_IDENTITY_CUTOVER=true` enables setup/login only when the replacement backend and import path are ready. Both variables accept only `true` or `false`. Local HTTP development keeps the secure-cookie override unset, while production Mix configuration enables it automatically.
 

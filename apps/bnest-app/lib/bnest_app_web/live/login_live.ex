@@ -88,13 +88,15 @@ defmodule BnestAppWeb.LoginLive do
                 autocomplete={if index == 0, do: "username", else: "off"}
               />
               <label for={"account-#{index}-password"}>Password</label>
+              <p id={"account-#{index}-password-hint"} class="identity-field-hint">
+                Include a letter, number, and punctuation mark, such as _.
+              </p>
               <input
                 id={"account-#{index}-password"}
                 name={"accounts[#{index}][password]"}
                 type="password"
                 required
-                minlength="15"
-                maxlength="128"
+                aria-describedby={"account-#{index}-password-hint"}
                 autocomplete="new-password"
               />
               <label for={"account-#{index}-password-confirmation"}>Confirm password</label>
@@ -103,8 +105,6 @@ defmodule BnestAppWeb.LoginLive do
                 name={"accounts[#{index}][password_confirmation]"}
                 type="password"
                 required
-                minlength="15"
-                maxlength="128"
                 autocomplete="new-password"
               />
               <div class="identity-role-group" aria-labelledby={"account-#{index}-roles"}>
@@ -154,13 +154,15 @@ defmodule BnestAppWeb.LoginLive do
                 autocomplete="off"
               />
               <label for="account-__INDEX__-password">Password</label>
+              <p id="account-__INDEX__-password-hint" class="identity-field-hint">
+                Include a letter, number, and punctuation mark, such as _.
+              </p>
               <input
                 id="account-__INDEX__-password"
                 name="accounts[__INDEX__][password]"
                 type="password"
                 required
-                minlength="15"
-                maxlength="128"
+                aria-describedby="account-__INDEX__-password-hint"
                 autocomplete="new-password"
               />
               <label for="account-__INDEX__-password-confirmation">Confirm password</label>
@@ -169,8 +171,6 @@ defmodule BnestAppWeb.LoginLive do
                 name="accounts[__INDEX__][password_confirmation]"
                 type="password"
                 required
-                minlength="15"
-                maxlength="128"
                 autocomplete="new-password"
               />
               <div class="identity-role-group" aria-labelledby="account-__INDEX__-roles">
@@ -234,7 +234,6 @@ defmodule BnestAppWeb.LoginLive do
             name="login[password]"
             type="password"
             required
-            maxlength="128"
             autocomplete="current-password"
           />
           <button class="identity-primary" type="submit">Log in</button>

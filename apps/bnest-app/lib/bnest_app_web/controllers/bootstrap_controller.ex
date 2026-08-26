@@ -61,13 +61,26 @@ defmodule BnestAppWeb.BootstrapController do
   defp setup_error(conn, reason, account_params) do
     message =
       case reason do
-        :admin_required -> "At least one initial account must have the admin role."
-        :duplicate_username -> "Each username must be unique regardless of letter case."
-        :invalid_username -> "Use 1–32 letters, numbers, dots, dashes, or underscores."
-        :invalid_password -> "Passwords must contain 15–128 characters."
-        :password_mismatch -> "Each password and confirmation must match."
-        :confirmation_required -> "Confirm that setup closes permanently before continuing."
-        _other -> "Check every account and try setup again. Password fields were cleared."
+        :admin_required ->
+          "At least one initial account must have the admin role."
+
+        :duplicate_username ->
+          "Each username must be unique regardless of letter case."
+
+        :invalid_username ->
+          "Use 1–32 letters, numbers, dots, dashes, or underscores."
+
+        :invalid_password ->
+          "Each password needs a letter, number, and punctuation mark, such as _."
+
+        :password_mismatch ->
+          "Each password and confirmation must match."
+
+        :confirmation_required ->
+          "Confirm that setup closes permanently before continuing."
+
+        _other ->
+          "Check every account and try setup again. Password fields were cleared."
       end
 
     conn

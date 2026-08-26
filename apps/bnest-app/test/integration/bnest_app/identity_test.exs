@@ -30,13 +30,15 @@ defmodule BnestApp.IdentityTest do
       assert {:error, :invalid_username} = FileStore.normalize_username("fámily")
     end
 
-    test "accepts exact Unicode password boundaries without trimming or truncating" do
-      assert CredentialVerifier.valid_password?(String.duplicate(" ", 15))
-      assert CredentialVerifier.valid_password?(String.duplicate("🙂", 128))
-      refute CredentialVerifier.valid_password?(String.duplicate("x", 14))
-      refute CredentialVerifier.valid_password?(String.duplicate("🙂", 129))
+    test "accepts every valid Unicode password with a letter, number, and punctuation without trimming or truncating" do
+      assert CredentialVerifier.valid_password?("x_1")
+      assert CredentialVerifier.valid_password?(String.duplicate("é", 129) <> "_1")
+      refute CredentialVerifier.valid_password?("")
+      refute CredentialVerifier.valid_password?("password_")
+      refute CredentialVerifier.valid_password?("password1")
+      refute CredentialVerifier.valid_password?("123_")
 
-      password = "  Synthetic password with spaces  "
+      password = "  Synthetic_password 1  "
       assert {:ok, verifier} = CredentialVerifier.hash(password)
       assert String.starts_with?(verifier, "$argon2id$")
       assert CredentialVerifier.verify(password, verifier)

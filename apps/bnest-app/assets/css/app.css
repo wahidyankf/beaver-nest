@@ -714,6 +714,13 @@ body {
   font-weight: 900;
 }
 
+.identity-field-hint {
+  margin: -0.35rem 0 0;
+  color: color-mix(in srgb, var(--bnest-ink) 82%, var(--bnest-paper));
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .identity-form input:not([type="hidden"]):not([type="checkbox"]),
 .identity-account-card input:not([type="checkbox"]) {
   min-height: 3rem;

@@ -10,6 +10,8 @@ Feature: Bnest authentication
     Given Bnest has no bootstrap journal
     When the maintainer submits all initial accounts including an administrator
     Then Bnest warns that later account management and password recovery are unavailable
+    And Bnest accepts the passwords without a character-count rule
+    And Bnest rejects a password missing a letter, number, or punctuation mark
     And Bnest creates the accounts exactly once
     And setup and public registration are unavailable afterward
 

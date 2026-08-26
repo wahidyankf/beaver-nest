@@ -10,6 +10,12 @@ export type InitialAccount = {
   admin: boolean;
 };
 
+export type SetupSafetyChecks = {
+  sawIrreversibleWarning: boolean;
+  passwordRequirementsEnforced: boolean;
+  noPasswordLengthRule: boolean;
+};
+
 export async function login(
   page: Page,
   identity: { username: string; password: string },
@@ -75,20 +81,12 @@ export async function fillInitialAccounts(
 export async function submitInitialAccountsWithSafetyChecks(
   page: Page,
   accounts: InitialAccount[],
-): Promise<boolean> {
+): Promise<SetupSafetyChecks> {
   const sawIrreversibleWarning = await page.getByRole("note").isVisible();
-  await fillInitialAccounts(page, accounts);
+  const noPasswordLengthRule = await checkPasswordFormRules(page);
 
-  const accountCards = page.locator("[data-account-card]");
-  await page
-    .getByRole("button", { name: "Add another initial account" })
-    .click();
-  await expect(accountCards).toHaveCount(accounts.length + 1);
-  await accountCards
-    .last()
-    .getByRole("button", { name: "Remove this account" })
-    .click();
-  await expect(accountCards).toHaveCount(accounts.length);
+  await fillInitialAccounts(page, accounts);
+  await checkInitialAccountCardControls(page, accounts.length);
 
   await page
     .getByLabel("Confirm password", { exact: true })
@@ -99,6 +97,11 @@ export async function submitInitialAccountsWithSafetyChecks(
     "Each password and confirmation must match.",
   );
   await verifyAndRestorePasswords(page, accounts);
+
+  const passwordRequirementsEnforced = await rejectPasswordMissingRequirement(
+    page,
+    accounts,
+  );
 
   await setInitialAdmins(page, accounts, false);
   await confirmAndSubmitSetup(page);
@@ -112,7 +115,61 @@ export async function submitInitialAccountsWithSafetyChecks(
   await setInitialAdmins(page, accounts, true);
   await confirmAndSubmitSetup(page);
 
-  return sawIrreversibleWarning;
+  return {
+    sawIrreversibleWarning,
+    passwordRequirementsEnforced,
+    noPasswordLengthRule,
+  };
+}
+
+async function checkInitialAccountCardControls(
+  page: Page,
+  accountCount: number,
+): Promise<void> {
+  const accountCards = page.locator("[data-account-card]");
+  await page
+    .getByRole("button", { name: "Add another initial account" })
+    .click();
+  await expect(accountCards).toHaveCount(accountCount + 1);
+  await accountCards
+    .last()
+    .getByRole("button", { name: "Remove this account" })
+    .click();
+  await expect(accountCards).toHaveCount(accountCount);
+}
+
+async function checkPasswordFormRules(page: Page): Promise<boolean> {
+  const passwordInputs = page.locator("#bootstrap-form input[type=password]");
+  const hasNoLengthRule = await passwordInputs.evaluateAll((inputs) =>
+    inputs.every(
+      (input) =>
+        !input.hasAttribute("minlength") && !input.hasAttribute("maxlength"),
+    ),
+  );
+
+  await expect(passwordInputs.first()).toHaveAccessibleDescription(
+    "Include a letter, number, and punctuation mark, such as _.",
+  );
+
+  return hasNoLengthRule;
+}
+
+async function rejectPasswordMissingRequirement(
+  page: Page,
+  accounts: InitialAccount[],
+): Promise<boolean> {
+  await page.getByLabel("Password", { exact: true }).first().fill("password1");
+  await page
+    .getByLabel("Confirm password", { exact: true })
+    .first()
+    .fill("password1");
+  await confirmAndSubmitSetup(page);
+  await expect(page.locator("#setup-error")).toContainText(
+    "Each password needs a letter, number, and punctuation mark, such as _.",
+  );
+  await verifyAndRestorePasswords(page, accounts);
+
+  return true;
 }
 
 async function confirmAndSubmitSetup(page: Page): Promise<void> {

@@ -70,7 +70,7 @@ defmodule BnestApp.DataRepositoryTest do
 
       assert String.starts_with?(identity.username, "test-user-")
       assert String.length(identity.username) <= 32
-      assert String.length(identity.password) >= 15
+      assert identity.password != ""
       assert identity.runtime_root == runtime.path
       assert identity.account_index_root == Path.join(runtime.path, "system/usernames")
       assert identity.family_list_root == Path.join(runtime.path, "system/accounts")

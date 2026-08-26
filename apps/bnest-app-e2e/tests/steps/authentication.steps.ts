@@ -21,7 +21,11 @@ const { Given, Then, When } = createBdd();
 
 let browserBContext: BrowserContext | undefined;
 let browserBPage: Page | undefined;
-let sawIrreversibleWarning = false;
+let setupSafetyChecks = {
+  sawIrreversibleWarning: false,
+  passwordRequirementsEnforced: false,
+  noPasswordLengthRule: false,
+};
 let userDataBefore = "";
 let activeIdentity: TestIdentity = testIdentityForProject("chromium");
 
@@ -81,7 +85,7 @@ When(
         { ...identity.child, role: "Children", admin: false },
       ],
     );
-    sawIrreversibleWarning = await submitInitialAccountsWithSafetyChecks(
+    setupSafetyChecks = await submitInitialAccountsWithSafetyChecks(
       page,
       accounts,
     );
@@ -92,7 +96,7 @@ Then(
   "Bnest warns that later account management and password recovery are unavailable",
   ({ page }) => {
     void page;
-    expect(sawIrreversibleWarning).toBe(true);
+    expect(setupSafetyChecks.sawIrreversibleWarning).toBe(true);
   },
 );
 
@@ -110,6 +114,22 @@ Then(
   async ({ page }) => {
     expect((await page.request.get("/setup")).status()).toBe(404);
     expect((await page.request.get("/register")).status()).toBe(404);
+  },
+);
+
+Then(
+  "Bnest accepts the passwords without a character-count rule",
+  ({ page }) => {
+    void page;
+    expect(setupSafetyChecks.noPasswordLengthRule).toBe(true);
+  },
+);
+
+Then(
+  "Bnest rejects a password missing a letter, number, or punctuation mark",
+  ({ page }) => {
+    void page;
+    expect(setupSafetyChecks.passwordRequirementsEnforced).toBe(true);
   },
 );
 
