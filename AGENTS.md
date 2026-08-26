@@ -22,7 +22,7 @@
 ## Version Control
 
 - Push `main` directly under [integration](repo-governance/conventions/integration-path.md).
-- Non-`main` worktrees are temporary deployment infrastructure; remove them immediately after use under [integration](repo-governance/conventions/integration-path.md).
+- Only `main` persists; delete non-`main` branches/worktrees immediately after integration or abandonment under [integration](repo-governance/conventions/integration-path.md).
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md). Before committing, inspect and remove prohibited data under [data safety](repo-governance/conventions/public-repository-data-safety.md).
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.
