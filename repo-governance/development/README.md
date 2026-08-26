@@ -21,3 +21,4 @@ A development standard should identify:
 - [Quality gates](quality-gates.md) define unit, local-only integration, dedicated-app E2E, coverage, and Git hook safeguards.
 - [Specification maintenance](specification-maintenance.md) keeps every relevant artifact under `specs/` synchronized with application changes.
 - [Test-driven development](test-driven-development.md) requires app and library behavior to be developed through red–green–refactor cycles.
+- [Test identities](test-identities.md) isolates synthetic accounts and makes cleanup safe and deterministic.

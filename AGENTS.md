@@ -24,21 +24,21 @@
 
 ## Version Control
 
-- Use local-`main` for default pushes; use [integration paths](repo-governance/conventions/integration-path.md) for PRs.
+- Push local `main` directly to `origin/main`; no PRs. Follow [integration path](repo-governance/conventions/integration-path.md).
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md).
-- Never commit secrets, tailnet identifiers, or machine-local data; see [data safety](repo-governance/conventions/public-repository-data-safety.md).
-- Keep runtime flat files within `data/{general,users,system}`; follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
-- [Commit or push](repo-governance/conventions/commit-authorization.md) only with explicit user authorization or an approved plan.
-- Fix hooks at root; never use `--no-verify` without explicit authorization. Follow [push-hook verification](repo-governance/conventions/push-hook-verification.md).
-- Space GitHub polls two minutes apart; follow [GitHub polling](repo-governance/conventions/github-polling.md).
+- Never commit secrets, tailnet IDs, or local data; follow [data safety](repo-governance/conventions/public-repository-data-safety.md).
+- Keep runtime flat files per [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
+- [Commit or push](repo-governance/conventions/commit-authorization.md) only when explicitly authorized or plan-approved.
+- Fix hooks at root; use no `--no-verify` without explicit authorization. Follow [push-hook verification](repo-governance/conventions/push-hook-verification.md).
+- Poll GitHub two minutes apart; follow [GitHub polling](repo-governance/conventions/github-polling.md).
 
 ## Governance
 
 - [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
-- Preserve rules across [compaction](repo-governance/principles/governance-continuity.md).
+- Preserve rules through [compaction](repo-governance/principles/governance-continuity.md).
 - Track [tasks](repo-governance/conventions/task-tracking.md).
-- Plan on request; [lifecycle](repo-governance/conventions/plan-lifecycle.md), [quality](repo-governance/workflows/plan-quality-gate.md), and [execution](repo-governance/workflows/plan-execution.md) govern plans.
+- `plans/`: explicit request only; harness Plan mode gives no authorization. Follow [lifecycle](repo-governance/conventions/plan-lifecycle.md).
 - Maintain [maps](repo-governance/conventions/directory-maps.md).
 - Keep [links](repo-governance/conventions/markdown-links.md) valid.
 - Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases.
@@ -49,8 +49,9 @@
 
 - Use [English](repo-governance/conventions/language.md).
 - Separate server/proxy lifecycles; follow [restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
-- Keep applicable [quality gates](repo-governance/development/quality-gates.md) green.
-- Keep `test:e2e` out of `test:quick`; run only affected end-to-end cases during development. Follow the [end-to-end testing standard](repo-governance/development/end-to-end-testing.md).
+- Keep [quality gates](repo-governance/development/quality-gates.md) green.
+- Keep `test:e2e` outside `test:quick`; run affected cases only. Follow the [end-to-end standard](repo-governance/development/end-to-end-testing.md).
+- Never test with real users; use isolated `test-user-` [identities](repo-governance/development/test-identities.md). Production schema inspection is read-only and structural.
 - **Application rule** (except `libs/ex-bdd`): assess/update all relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
 - Update affected project [READMEs](repo-governance/conventions/project-readmes.md).
 - Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md); scope Badakmini to changed files.

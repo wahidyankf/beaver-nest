@@ -11,7 +11,7 @@ ideas/ → backlogs/ → in-progress/ → done/
 ```
 
 - [`ideas/`](ideas/README.md) contains rough two-pager briefs grouped by urgency and importance.
-- [`backlogs/`](backlogs/README.md) contains complete five-document plans that have not started.
+- [`backlogs/`](backlogs/README.md) contains complete six-document plans that have not started.
 - [`in-progress/`](in-progress/README.md) contains only plans being actively executed.
 - [`done/`](done/README.md) preserves completed plans as historical delivery records.
 

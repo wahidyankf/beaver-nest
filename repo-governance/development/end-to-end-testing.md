@@ -2,6 +2,8 @@
 
 Use end-to-end tests sparingly because they are inherently slower and more expensive than narrower tests. Their purpose is to verify user or system behavior across real integration boundaries, not to recheck behavior that a unit or integration test can prove.
 
+Authenticated journeys must follow the [test-identity standard](test-identities.md): `test-user-` usernames, isolated runtime roots and browser profiles, and exact validated cleanup after each run.
+
 ## Development Runs
 
 - Run `test:e2e` only when a change can affect a covered end-to-end journey.
