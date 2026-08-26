@@ -8,26 +8,26 @@ Evolve Bnest from browser-persisted experiences into a private, login-protected 
 
 - **Child:** needs a private login and continuity of their permitted Bnest state.
 - **Parent:** needs a private login and access to their permitted household experiences.
-- **Admin:** needs to provision role assignments and verify safe recovery without direct file manipulation.
+- **Admin:** is one of the accounts created during setup and uses only the same self-owned capabilities defined for this plan; later account administration is out of scope.
 - **Maintainer:** needs deterministic migration, test fixtures, and rollback without production data in source control.
 
 A user may have multiple roles from `children`, `parents`, and `admin`. Authorization evaluates the complete role set plus the explicit record-ownership or sharing policy; no role grants cross-user data access merely by existing.
 
 ## User Stories
 
-- **US-01 — Protected access:** As an approved user, I must log in before I can use Bnest and remain signed in on this browser until I log out or a maintainer revokes the session.
+- **US-01 — Protected access:** As an approved user, I must log in before I can use Bnest and remain signed in on this browser until I log out or the browser clears its cookie.
 - **US-02 — Safe import:** As an approved user on my current browser, I can migrate existing chat and learning state without loss, then continue from server-owned data rather than client persistence.
 - **US-03 — Private data:** As an approved user, I see only data assigned to my identity.
-- **US-04 — Safe administration:** As an administrator, I can see whether migration completed or needs retry without seeing another user's content.
-- **US-05 — Recoverable migration:** As a maintainer, I can recover an interrupted migration from its manifest and backup.
+- **US-04 — Safe migration status:** As an approved user, I can see whether my own migration completed or needs retry without exposing its content.
+- **US-05 — Recoverable migration:** As a maintainer, I can recover an interrupted migration from its manifest and immutable source copy.
 - **US-06 — Concurrent personal access:** As an approved user, I can use Bnest in more than one browser at the same time without ending my other browser sessions.
 - **US-07 — One-time account setup:** As the initial maintainer, I can create the required usernames, passwords, and roles once through a setup UI; nobody can self-register afterward.
 - **US-08 — Safe test identity:** As a maintainer, I can run authentication and migration tests without using or risking a real account, browser profile, session, or data directory.
 
 ## Product Requirements
 
-1. Every Bnest route and server data operation requires an authenticated session, except explicitly defined login, logout, bootstrap, and health endpoints. The session persists in its browser through reload and browser restart until explicit logout or maintainer revocation; this internal Tailscale deployment has no automatic session expiry for now.
-2. Each authenticated user has one or more roles from `children`, `parents`, and `admin`; role assignments are many-to-many and auditable.
+1. Every Bnest route and server data operation requires an authenticated session, except explicitly defined login, logout, bootstrap, and health endpoints. The server session has no time-based expiry; its persistent browser cookie survives reload/restart until logout or browser clearing/eviction.
+2. Each authenticated user has one or more roles from `children`, `parents`, and `admin`; the account record stores the complete unique role set created during one-time setup.
 3. The application derives a stable internal user ID from the authenticated session; browser input never selects a filesystem path or another user.
 4. The persistence layout is:
 
@@ -47,20 +47,20 @@ A user may have multiple roles from `children`, `parents`, and `admin`. Authoriz
 
 5. `<runtime-root>/users/<user-id>/` contains user-owned Bnest records and that user's imported browser-source envelopes. Production resolves `<runtime-root>` to `data/prod/`; one filesystem test resolves it to its unique `data/test/runs/<run-id>/`.
 6. Each runtime root mirrors `general/`, `apps/beaver-nest/`, `system/`, and `users/`. Bnest-wide data belongs in `apps/beaver-nest/`; repository-wide shared data belongs in `general/`.
-7. `<runtime-root>/system/` contains only system-wide migration manifests, schema metadata, audit-safe hashes, server-owned session records, and account records with username and password-hash verifiers; it contains no plaintext credentials or user-authored payloads.
+7. `<runtime-root>/system/` contains only bootstrap/account/username/session records, migration manifests, schema metadata, and audit-safe hashes; it contains no plaintext credentials or user-authored payloads. Browser envelopes and immutable legacy recovery copies stay in the owning user/application namespace.
 8. On the first authenticated visit, the application offers import only for the known Bnest keys `bnest.chat.v1`, `bnest.sifat-allah.v1`, and explicit `phx:theme` light/dark preference. It records source key, accepted source version or format, payload hash where present, timestamp, and outcome. It never clears a key before server checksum, normalization, and read-back succeed; after that acceptance it removes Bnest's persisted browser keys because the immutable server envelope and normalized server record are authoritative.
 9. Every write validates a versioned schema and uses an atomic replacement strategy. Imports are idempotent by source identity and checksum.
 10. A failed or interrupted import preserves both source and already accepted destination data, reports its state, and can be retried safely.
 11. Browser state remains a compatibility fallback only until its import is acknowledged and centrally re-read; the centralized record is then the authoritative continuation point.
-12. Each login creates a separately revocable browser session. One user may have simultaneous sessions in multiple browsers; logout or revocation in one browser does not end another browser's session unless a separately specified all-session revocation action is used.
+12. Each login creates a separately revocable browser session. One user may have simultaneous sessions in multiple browsers; logout in one browser does not end another browser's session. Mutable records use revision checks: a stale browser cannot overwrite newer accepted data and receives a refresh-required result instead. All-session revocation is out of scope.
 13. After a verified migration, durable chat, Sifat Allah progress/quiz state, and explicit theme preference are read and written only beneath `data/prod/users/<user-id>/`; Bnest no longer persists those values in `sessionStorage` or `localStorage`. A browser not yet migrated retains its old keys only as a safe import source until that browser's first successful import, so the rollout never makes existing state unavailable.
-14. When no account records exist, a one-time setup UI lets the initial maintainer create the required username/password/role accounts, including at least one `admin`. On successful completion, setup and public self-registration are disabled. Later account creation, password reset, or all-session revocation needs explicit product direction.
+14. When no bootstrap journal exists, one-time setup creates all initial username/password/role accounts, including an `admin`, through a crash-recoverable transaction. Before confirmation it warns that setup will close and this plan has no later account creation, role edit, disablement, or password recovery. A lost credential leaves that account unavailable; restoring a migration recovery source must not roll back unrelated data as password recovery. Later lifecycle capabilities require an explicit plan.
 15. Passwords are accepted only by the setup/login form, never logged or written as plaintext. The account record stores a per-password salted Argon2id password-hash string and its parameters; SHA-256 or another fast hash is not a password verifier.
 16. Every filesystem-backed automated or AI-operated manual test starts a dedicated Bnest process against `data/test/runs/<run-id>/` and an isolated browser profile before creating synthetic `test-user-<suite>-<run-id>` accounts. Its mirrored account index and family list exist only in that run; test users never appear in production. Pure in-memory unit tests create no runtime folder. Development may inspect `data/prod/` only through a read-only structural schema audit that reveals no identity, path, count, hash, credential/session material, or payload and never supplies test fixtures.
 
 ## Proposed Acceptance Criteria
 
-These Gherkin scenarios express acceptance for this plan. They do not automatically become canonical `specs/` scenarios or prescribe a one-to-one rewrite. `tech-docs.md` selects the durable user-facing contracts; `delivery.md` proves the remaining operational and migration outcomes.
+These Gherkin scenarios express acceptance for this plan. They do not automatically become canonical `specs/` scenarios or prescribe a one-to-one rewrite. [Planned specification changes](tech-docs/specification-changes.md) selects the durable user-facing contracts; `delivery.md` proves the remaining operational and migration outcomes.
 
 ```gherkin
   Feature: Centralized Bnest data
@@ -76,8 +76,8 @@ These Gherkin scenarios express acceptance for this plan. They do not automatica
   Scenario: Existing browser state is copied safely after login
     Given an approved user has authenticated in a browser with valid Bnest chat, learning, or explicit theme state
     When the user confirms import
-    Then Bnest stores a checksummed copy under that user's data directory
-    And the original browser snapshot remains unchanged
+    Then Bnest stores a checksummed immutable envelope under that user's data directory
+    And the original browser snapshot remains unchanged until centralized read-back succeeds
 
   @AC-03
   Scenario: Users are isolated in centralized storage
@@ -103,7 +103,7 @@ These Gherkin scenarios express acceptance for this plan. They do not automatica
   @AC-06
   Scenario: Login persists in the same browser
     Given an approved user has logged in on one browser
-    When they reload or reopen Bnest before logout or maintainer revocation
+    When they reload or reopen Bnest before logout or browser cookie clearing
     Then Bnest restores that browser's authenticated session without another login
     And Bnest reads only that user's data
 
@@ -113,6 +113,7 @@ These Gherkin scenarios express acceptance for this plan. They do not automatica
     When the same user logs in on browser B
     Then both browsers can use that user's permitted Bnest data
     And logging out of browser A does not end browser B's session
+    And a stale write from either browser cannot overwrite a newer accepted record
 
   @AC-08
   Scenario: Verified migration removes Bnest client persistence without downtime
@@ -127,6 +128,7 @@ These Gherkin scenarios express acceptance for this plan. They do not automatica
     Given no Bnest account records exist
     When the initial maintainer creates the required username, password, and role accounts in setup
     Then Bnest creates at least one admin account and completes bootstrap
+    And Bnest warned that later account management and password recovery are unavailable in this plan
     And setup and public self-registration are unavailable afterward
 
   @AC-10
@@ -152,8 +154,8 @@ These Gherkin scenarios express acceptance for this plan. They do not automatica
 
 ## Scope and Risks
 
-In scope: authentication boundary, user ownership, flat-file layout, browser import, legacy-folder import, backup, restore, and migration observability.
+In scope: authentication boundary, user ownership, flat-file layout, browser import, legacy-folder import, immutable recovery sources, restore, and migration observability.
 
-Out of scope: public accounts, deleting legacy sources, cloud synchronization, and unrelated interface redesign.
+Out of scope: public accounts, post-bootstrap account/role/password management, parent-child sharing, deleting legacy sources, cloud synchronization, and unrelated interface redesign.
 
-Key risks are unresolved authentication bootstrap, storage corruption, duplicate import, and user-data exposure. The technical and delivery documents make backup, checksum, atomic write, and path-ownership gates mandatory.
+Key risks are irreversible setup without password reset, storage corruption, duplicate import, and user-data exposure. The technical and delivery documents require explicit setup warning, verified recovery sources, checksums, atomic writes, and path-ownership gates.

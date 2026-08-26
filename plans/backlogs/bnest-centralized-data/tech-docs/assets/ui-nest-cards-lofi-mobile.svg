@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="375" height="812" viewBox="0 0 375 812" role="img" aria-labelledby="nest-lofi-mobile-title nest-lofi-mobile-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="375" height="812" viewBox="0 0 375 812" role="img" aria-labelledby="nest-lofi-mobile-title nest-lofi-mobile-desc" data-plan-artifact="true">
   <title id="nest-lofi-mobile-title">Nest Cards mobile lo-fi wireframe</title><desc id="nest-lofi-mobile-desc">A grayscale mobile setup focused on one account, with progress dots and a collapsed family summary.</desc>
   <rect width="375" height="812" fill="#f1f1f1"/><rect x="14" y="14" width="347" height="784" rx="24" fill="#fff" stroke="#333" stroke-width="2"/>
   <text x="36" y="60" font-family="Arial" font-size="20" font-weight="700">SET UP YOUR NEST</text><text x="36" y="88" font-family="Arial" font-size="13">Accounts are created once.</text>

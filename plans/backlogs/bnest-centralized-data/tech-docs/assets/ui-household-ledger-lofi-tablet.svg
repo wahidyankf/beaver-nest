@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="768" height="1024" viewBox="0 0 768 1024" role="img" aria-labelledby="ledger-lofi-tablet-title ledger-lofi-tablet-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="1024" viewBox="0 0 768 1024" role="img" aria-labelledby="ledger-lofi-tablet-title ledger-lofi-tablet-desc" data-plan-artifact="true">
   <title id="ledger-lofi-tablet-title">Household Ledger tablet lo-fi wireframe</title><desc id="ledger-lofi-tablet-desc">A grayscale tablet ledger with horizontally grouped account fields and persistent setup checks.</desc>
   <rect width="768" height="1024" fill="#eee"/><rect x="28" y="26" width="712" height="972" rx="22" fill="#fff" stroke="#333" stroke-width="3"/>
   <text x="62" y="80" font-family="Arial" font-size="24" font-weight="700">HOUSEHOLD LEDGER</text><text x="62" y="113" font-family="Arial" font-size="14">Configure accounts. Review once. Close setup.</text>

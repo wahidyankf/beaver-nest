@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="375" height="812" viewBox="0 0 375 812" role="img" aria-labelledby="ledger-lofi-mobile-title ledger-lofi-mobile-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="375" height="812" viewBox="0 0 375 812" role="img" aria-labelledby="ledger-lofi-mobile-title ledger-lofi-mobile-desc" data-plan-artifact="true">
   <title id="ledger-lofi-mobile-title">Household Ledger mobile lo-fi wireframe</title><desc id="ledger-lofi-mobile-desc">A grayscale mobile ledger converted into account cards with a compact setup-check banner.</desc>
   <rect width="375" height="812" fill="#eee"/><rect x="13" y="13" width="349" height="786" rx="22" fill="#fff" stroke="#333" stroke-width="2"/>
   <text x="32" y="54" font-family="Arial" font-size="19" font-weight="700">ACCOUNT LEDGER</text><text x="32" y="80" font-family="Arial" font-size="12">Two ready · one needs input</text>

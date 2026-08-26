@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="768" height="1024" viewBox="0 0 768 1024" role="img" aria-labelledby="nest-lofi-tablet-title nest-lofi-tablet-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="1024" viewBox="0 0 768 1024" role="img" aria-labelledby="nest-lofi-tablet-title nest-lofi-tablet-desc" data-plan-artifact="true">
   <title id="nest-lofi-tablet-title">Nest Cards tablet lo-fi wireframe</title><desc id="nest-lofi-tablet-desc">A grayscale tablet setup with a compact stepper, account form, and horizontal family summary.</desc>
   <rect width="768" height="1024" fill="#f1f1f1"/><rect x="32" y="28" width="704" height="968" rx="26" fill="#fff" stroke="#333" stroke-width="3"/>
   <text x="70" y="84" font-family="Arial" font-size="25" font-weight="700">INITIAL FAMILY SETUP</text><text x="70" y="119" font-family="Arial" font-size="16">Create accounts once. Registration closes afterward.</text>

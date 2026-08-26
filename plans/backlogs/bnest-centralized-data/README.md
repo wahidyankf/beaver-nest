@@ -6,7 +6,7 @@
 
 ## Context
 
-Bnest currently has no authentication or server-side application data. Chat state stays in the current tab's `sessionStorage`; Sifat Allah progress and explicit light/dark theme preference stay in browser `localStorage`; `data/` contains only ignored placeholders. This plan introduces authenticated, centralized flat-file persistence without discarding the browser or filesystem data that already exists.
+Bnest currently has no authentication or server-side application data. Chat state stays in the current tab's `sessionStorage`; Sifat Allah progress and explicit light/dark theme preference stay in browser `localStorage`; root-level ignored runtime locations require private inventory before migration. This plan introduces authenticated, centralized flat-file persistence without discarding the browser or filesystem data that already exists.
 
 The canonical as-built system remains the [Bnest C4 architecture specification](../../../specs/apps/bnest/app/architecture.md). This proposal becomes authoritative only when implemented with its required specification updates.
 
@@ -18,7 +18,7 @@ The canonical as-built system remains the [Bnest C4 architecture specification](
 - Move current chat, Sifat Allah quiz/progress, and explicit theme state to centralized per-user records before removing accepted Bnest browser keys.
 - Store live data beneath `data/prod/` and give every filesystem test a mirrored `data/test/runs/<run-id>/` root.
 - Migrate legacy root-level runtime folders by copy, validation, and explicit archival—not destructive replacement.
-- Establish backup, restore, and rollback evidence for every migration step.
+- Establish immutable recovery-source, restore, and rollback evidence for every migration step.
 
 ## Approach Summary
 
@@ -30,24 +30,15 @@ Production and test runs share one logical shape: `{data/prod | data/test/runs/<
 
 **Nest Cards** is selected for the one-time account setup because it keeps family members and role assignments visible without turning setup into a dense administration screen.
 
-![Selected Bnest desktop setup with an active account card and family summary](assets/ui-nest-cards-hifi-desktop.svg)
+![Selected Bnest desktop setup with an active account card and family summary](tech-docs/assets/ui-nest-cards-hifi-desktop.svg)
 
-See the [three-alternative, three-device comparison](tech-docs.md#design-decision-at-a-glance) and [asset index](assets/README.md) for all lo-fi and selected hi-fi designs.
+See the [three-alternative, three-device comparison](tech-docs/ui-design.md#alternatives-and-decision) and [asset index](tech-docs/assets/README.md) for all lo-fi and selected hi-fi designs.
 
 ## Dependencies
 
-This plan depends on a resolved Bnest identity and session design, including one-time account bootstrap, username policy, password recovery, and a capability matrix for multi-role users.
+The [technical design](tech-docs/README.md#decisions) resolves the identity/session boundary, username policy, initial capability matrix, and deliberate absence of later account management or password reset. Before implementation, the maintainer must accept that setup creates every initial account once and a lost credential leaves that account unavailable until a later explicitly planned recovery capability; restoring migration recovery sources must not roll back unrelated user data as password recovery.
 
-It also deliberately changes the current runtime-data convention: `data/prod/` becomes the live root, `data/test/runs/<run-id>/` becomes the only filesystem-test root, and `apps/<app-name>/` owns application-shared data within either root. Existing root-level `data/{general,apps,system,users}/` content is a legacy migration source; it must not be deleted or silently repurposed. Phase 1 aligns the rule before introducing the layout.
-
-## Plan Documents
-
-- [BRD](brd.md) defines the business outcome and data-safety rationale.
-- [PRD](prd.md) defines personas, login, migration, and persistence requirements.
-- [Technical documentation](tech-docs.md) defines the proposed flat-file layout and migration mechanics.
-- [UI design assets](assets/README.md) compare responsive lo-fi alternatives and the selected hi-fi direction.
-- [Delivery plan](delivery.md) contains ordered execution and verification gates.
-- [Learnings](learnings.md) records transient delivery observations awaiting disposition.
+The runtime-data convention is already aligned during planning: `data/prod/` is the live root, `data/test/runs/<run-id>/` is the only filesystem-test root, and `apps/<app-name>/` owns application-shared data within either root. Existing root-level `data/{general,apps,system,users}/` content is a legacy migration source; it must not be deleted or silently repurposed. Phase 1 revalidates that contract against the current repository before introducing records.
 
 ## Directory Map
 
@@ -55,5 +46,4 @@ It also deliberately changes the current runtime-data convention: `data/prod/` b
 - [Delivery](delivery.md) owns ordered execution, migration gates, and rollback evidence.
 - [Learnings](learnings.md) records temporary findings for later disposition.
 - [Product requirements](prd.md) owns user-facing requirements and acceptance criteria.
-- [Technical documentation](tech-docs.md) owns proposed architecture, data layout, and mechanics.
-- [UI design assets](assets/README.md) owns wireframes, mockups, viewport evidence, and the design selection.
+- [Technical documentation](tech-docs/README.md) contains and maps architecture decisions, data contracts, migration, specification changes, File Impact, UI design, and assets.

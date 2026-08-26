@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="nest-hifi-desktop-title nest-hifi-desktop-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="nest-hifi-desktop-title nest-hifi-desktop-desc" data-plan-artifact="true">
   <title id="nest-hifi-desktop-title">Selected Nest Cards desktop mockup</title><desc id="nest-hifi-desktop-desc">A colorful Bnest account setup with a guided form, playful nest motif, and family account summary on desktop.</desc>
   <defs><pattern id="desktop-dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill="#47857a" opacity=".28"/></pattern></defs>
   <rect width="1440" height="900" fill="#d8f1ec"/><rect width="1440" height="900" fill="url(#desktop-dots)"/>

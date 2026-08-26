@@ -1,6 +1,6 @@
 # UI Design Assets
 
-These assets explore the one-time family account setup described by [the PRD](../prd.md#proposed-acceptance-criteria). They are planning evidence, not production screens. All names and values are synthetic.
+These assets explore the one-time family account setup described by [the PRD](../../prd.md#proposed-acceptance-criteria). They are planning evidence, not production screens. All names and values are synthetic.
 
 ## Comparison Method
 
