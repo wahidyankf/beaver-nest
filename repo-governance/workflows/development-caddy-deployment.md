@@ -5,7 +5,7 @@ Use this workflow to promote a verified Bnest Phoenix release without requiring 
 ## Preconditions
 
 - Caddy is managed by `proxy:install` and Tailscale Serve already forwards HTTPS to loopback port `4100`. During first migration, Caddy initially proxies the legacy blue server without an active health check; the first promoted release enables it.
-- `BNEST_DEPLOY_ROOT`, `BNEST_RUNTIME_ROOT`, and `BNEST_DEPLOY_COOKIE_FILE` name machine-local state outside the repository. Do not store their values, hostnames, or cookies in Git.
+- `BNEST_DEPLOY_ROOT`, `BNEST_RUNTIME_ROOT`, `BNEST_DEPLOY_COOKIE_FILE`, and `BNEST_DEPLOY_SECRET_KEY_BASE_FILE` name machine-local state outside the repository. Do not store their values, hostnames, cookies, or key-base material in Git. Keep the deployed key base compatible with the active service so browser sessions survive the cutover.
 - Build from an isolated Git worktree. The active backend remains independent from that worktree.
 
 ## Procedure

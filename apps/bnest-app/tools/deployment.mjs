@@ -292,6 +292,9 @@ function prepareSlot(slot) {
     fail("--revision is required; run release:build first.");
   const runtimeRoot = requiredEnvironment("BNEST_RUNTIME_ROOT");
   const cookie = requiredEnvironment("BNEST_DEPLOY_COOKIE_FILE");
+  const secretKeyBase = requiredEnvironment(
+    "BNEST_DEPLOY_SECRET_KEY_BASE_FILE",
+  );
   const release = join(paths.releases, revision);
   if (!existsSync(release)) fail(`Release ${revision} does not exist.`);
 
@@ -309,6 +312,7 @@ function prepareSlot(slot) {
       release,
       runtimeRoot,
       cookie,
+      secretKeyBase,
       revision,
       peer,
       logPath,
@@ -348,6 +352,7 @@ function launchAgent(
   release,
   runtimeRoot,
   cookieFile,
+  secretKeyBaseFile,
   revision,
   peer,
   logPath,
@@ -364,6 +369,7 @@ function launchAgent(
     RELEASE_DISTRIBUTION: "name",
     RELEASE_NODE: `bnest_${slot}`,
     RELEASE_COOKIE: readFileSync(cookieFile, "utf8").trim(),
+    SECRET_KEY_BASE: readFileSync(secretKeyBaseFile, "utf8").trim(),
     ...(peer ? { BNEST_DEPLOY_PEER: peer } : {}),
   };
   const environment = Object.entries(variables)
