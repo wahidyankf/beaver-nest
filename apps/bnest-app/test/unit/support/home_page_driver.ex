@@ -188,6 +188,21 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def chat_controls_arranged?(context) do
+    page = context.page
+
+    LazyHTML.query(page, ".chat-actions > *") |> Enum.count() == 3 and
+      not Enum.empty?(LazyHTML.query(page, ".chat-actions > .model-badge")) and
+      not Enum.empty?(LazyHTML.query(page, ".chat-actions > .chat-theme-control")) and
+      not Enum.empty?(
+        LazyHTML.query(
+          page,
+          ".chat-actions > .chat-theme-control button[aria-label='Use dark theme']"
+        )
+      )
+  end
+
+  @impl true
   def attempt_empty_message(context) do
     {:error, chat} = Chat.submit(context.chat, "   ")
     render_chat(context, chat)

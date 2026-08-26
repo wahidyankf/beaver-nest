@@ -120,6 +120,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the chat controls do not overlap", context do
+    assert context.behaviour_driver.chat_controls_arranged?(context)
+    context
+  end
+
   step "the visitor attempts to send an empty message", context do
     context.behaviour_driver.attempt_empty_message(context)
   end

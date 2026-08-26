@@ -275,6 +275,9 @@ defmodule BnestAppWeb.ChatLive do
             >
               {Settings.label(model_display_name(@models, @chat.model), @chat.reasoning_effort)}
             </span>
+            <nav class="chat-theme-control" aria-label="Color theme">
+              <Layouts.theme_toggle />
+            </nav>
             <button
               type="button"
               class="clear-chat-button"

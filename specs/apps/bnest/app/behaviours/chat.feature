@@ -168,6 +168,7 @@ Feature: Beaver Nest chat
     And the selected reasoning effort is "Medium"
     And the model selector is not shown
     And the reasoning effort selector is not shown
+    And the chat controls do not overlap
 
   Scenario: A parent is limited to Terra at medium effort
     Given an approved parent is logged in

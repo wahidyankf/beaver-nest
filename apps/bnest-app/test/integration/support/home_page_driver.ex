@@ -221,6 +221,16 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def chat_controls_arranged?(context) do
+    has_element?(context.view, ".chat-actions > .model-badge") and
+      has_element?(context.view, ".chat-actions > .chat-theme-control") and
+      has_element?(
+        context.view,
+        ".chat-actions > .chat-theme-control button[aria-label='Use dark theme']"
+      )
+  end
+
+  @impl true
   def attempt_empty_message(context) do
     render_submit(context.view, "send", %{"chat" => %{"prompt" => "   "}})
     context

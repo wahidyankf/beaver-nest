@@ -99,6 +99,50 @@ Then("the clear chat control is available", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Clear chat" })).toBeEnabled();
 });
 
+Then("the chat controls do not overlap", async ({ page }) => {
+  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+  await expect(page.locator(".theme-dock")).toBeHidden();
+  await expect(page.locator(".chat-theme-control")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Use dark theme" }),
+  ).toBeVisible();
+
+  const controls = page.locator(".chat-actions > *");
+  const rectangles = await controls.evaluateAll((elements) =>
+    elements.map((element) => {
+      const { bottom, height, left, right, top, width } =
+        element.getBoundingClientRect();
+      return { bottom, height, left, right, top, width };
+    }),
+  );
+
+  expect(rectangles).toHaveLength(3);
+
+  for (const rectangle of rectangles) {
+    expect(rectangle.width).toBeGreaterThan(0);
+    expect(rectangle.height).toBeGreaterThan(0);
+  }
+
+  for (let index = 0; index < rectangles.length; index += 1) {
+    for (let other = index + 1; other < rectangles.length; other += 1) {
+      const first = rectangles[index];
+      const second = rectangles[other];
+
+      if (!first || !second) {
+        throw new Error("Expected chat control rectangles to be present");
+      }
+
+      const overlap =
+        first.left < second.right &&
+        first.right > second.left &&
+        first.top < second.bottom &&
+        first.bottom > second.top;
+
+      expect(overlap).toBe(false);
+    }
+  }
+});
+
 When("the visitor attempts to send an empty message", async ({ page }) => {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
   await page.getByLabel("Message").fill("   ");

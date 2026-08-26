@@ -27,6 +27,10 @@ if runtime_root = System.get_env("BNEST_RUNTIME_ROOT") do
   config :bnest_app, :runtime_root, Path.expand(runtime_root)
 end
 
+if codex_working_directory = System.get_env("BNEST_CODEX_WORKING_DIRECTORY") do
+  config :bnest_app, :codex, working_directory: Path.expand(codex_working_directory)
+end
+
 case System.get_env("BNEST_IDENTITY_CUTOVER") do
   nil -> :ok
   "true" -> config :bnest_app, :identity_cutover_enabled, true

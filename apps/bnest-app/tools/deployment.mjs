@@ -368,14 +368,16 @@ function launchAgent(
   errorPath,
 ) {
   const variables = {
+    PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
     PHX_SERVER: "true",
     PORT: String(slots[slot]),
     BNEST_STABLE: "true",
     BNEST_RUNTIME_ROOT: runtimeRoot,
+    BNEST_CODEX_WORKING_DIRECTORY: repositoryRoot,
     BNEST_COOKIE_SECURE: "true",
     BNEST_RELEASE_REVISION: revision,
     BNEST_DEPLOY_SLOT: slot,
-    RELEASE_DISTRIBUTION: "name",
+    RELEASE_DISTRIBUTION: "sname",
     RELEASE_NODE: `bnest_${slot}`,
     RELEASE_COOKIE: readFileSync(cookieFile, "utf8").trim(),
     SECRET_KEY_BASE: readFileSync(secretKeyBaseFile, "utf8").trim(),

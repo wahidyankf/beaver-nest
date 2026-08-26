@@ -107,7 +107,8 @@
   width: 8rem;
 }
 
-body:has(.home-shell) .theme-dock {
+body:has(.home-shell) .theme-dock,
+body:has(.chat-shell) .theme-dock {
   display: none;
 }
 
@@ -399,6 +400,7 @@ body {
 .chat-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 1rem;
   padding: 1.35rem 1.5rem;
@@ -458,10 +460,15 @@ body {
 
 .chat-actions {
   display: flex;
+  width: 100%;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.55rem;
+}
+
+.chat-theme-control {
+  width: 7.5rem;
 }
 
 .model-picker {
@@ -691,6 +698,14 @@ body {
     min-height: 100vh;
     border: 0;
     border-radius: 0;
+  }
+
+  .chat-header {
+    align-items: flex-start;
+  }
+
+  .chat-actions {
+    justify-content: flex-start;
   }
 
   .composer {

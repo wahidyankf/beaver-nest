@@ -25,6 +25,7 @@ defmodule BnestApp.Behaviour.Driver do
   @callback composer_available?(map()) :: boolean()
   @callback composer_unavailable?(map()) :: boolean()
   @callback clear_chat_control_available?(map()) :: boolean()
+  @callback chat_controls_arranged?(map()) :: boolean()
   @callback attempt_empty_message(map()) :: map()
   @callback send_message(map(), String.t()) :: map()
   @callback submit_with_shift_enter(map(), String.t()) :: map()
