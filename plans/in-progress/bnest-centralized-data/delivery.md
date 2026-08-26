@@ -134,6 +134,7 @@
   - 2026-08-26 — Six safe learnings route to existing specifications/docs, focused E2E/test-identity/continuity rules, and one non-duplicate Q1 rollout idea; no private value is retained.
 - [ ] `[AI] [AC-02, AC-08]` Return the routed endpoint to the verified primary server pane and its default backend port. After routed root/chat and LiveView checks pass, stop and remove the temporary `bnest-stable` and `bnest-candidate` tmux windows, then delete only their explicitly validated temporary snapshot directories. Prove neither temporary process, directory, nor alternate proxy target remains.
   - 2026-08-26 — In progress: the primary pane was rebuilt with its exact stable environment, local and routed setup reached connected LiveView, and the proxy now targets default port 4000. Both temporary backends remain healthy until live account setup/import and authenticated post-cutover proof pass; cleanup has not started.
+  - 2026-08-26 — Repeated the no-downtime cutover for the final internal password policy: verified the fallback, routed traffic to it, compiled and restarted the primary with its exact stable environment, verified local and routed root/setup responses plus the updated accessible password guidance, then restored the default primary route. Temporary backends remain intentionally retained pending the human-owned live setup/import proof.
 
 ### Phase 4 Checkpoint
 
