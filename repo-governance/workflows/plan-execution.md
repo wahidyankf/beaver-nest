@@ -1,30 +1,32 @@
 # Plan Execution
 
-Use only after explicit direction to execute one formal plan. It turns the delivery checklist into the task list, keeps progress truthful, and archives only reconciled delivery.
+Use only after explicit direction to execute one formal plan. Keep delivery, tasks, evidence, and lifecycle truthful.
 
 ## Start
 
-1. Identify one plan in `plans/backlogs/<slug>/` or `plans/in-progress/<slug>/`. Run the [plan quality gate](plan-quality-gate.md) and repair findings before implementation.
-2. If it is in `backlogs/`, move—never copy—it to `plans/in-progress/<slug>/`. Set README status to In progress, move its stage-index entry, and update both maps in the same change.
-3. Read its learning-capture approach. Create or refresh the task list with one item for every unchecked executable `delivery.md` checkbox. Preserve wording, `[AI]`/`[HUMAN]`, order, and reference; do not merge or omit.
+1. Select one plan in `plans/backlogs/<slug>/` or `plans/in-progress/<slug>/`. Run and repair the [plan quality gate](plan-quality-gate.md).
+2. If backlogged, move—never copy—it to `plans/in-progress/<slug>/`. Set status to In progress and move its stage index/map entries together.
+3. Read `learnings.md`. Create or refresh one task-list item per unchecked required executable `delivery.md` checkbox. Preserve wording, `[AI]`/`[HUMAN]`, order, and references. Keep explicitly conditional recovery/rollback items dormant until triggered.
 
 ## Execute
 
-1. Work in task-list order, with one item in progress unless genuinely parallel. Perform `[AI]` only within authority; stop at `[HUMAN]` pending its stated input. Do not start a later phase before the current checkpoint completes.
-2. At start, material progress, and completion, update the matching `delivery.md` item. Keep it unchecked until outcome and verification pass; record concise dated notes beneath it.
-3. Synchronize task-list and delivery status. Add a discovered task to both only when needed for an existing outcome; label, order, and explain it in `delivery.md`.
-4. At each material learning and final reconciliation, update `learnings.md`. Search `plans/ideas/`; merge an overlap or create a distinct brief in the proper quadrant. Update its map and link the destination; do not duplicate ideas.
-5. Run specified automated checks and manual AI journey, recording safe evidence only. Never put secrets or sensitive user/runtime data in plan documents, task lists, or test evidence.
-6. Apply all applicable development, specification, testing, data-safety, and commit-authorization rules. A plan or task list never expands external authority.
+1. Work in order with one item active unless genuinely parallel. Stay within authority, stop at pending `[HUMAN]` input, and pass each phase checkpoint before continuing.
+2. Update the matching delivery item at start, material progress, and completion. Keep it unchecked until its outcome and proof pass; add concise dated notes.
+3. Synchronize both lists. Activate conditional items when triggered. Add a discovered task to both only for an existing outcome; label and explain it.
+4. Capture material and final learnings. Search `plans/ideas/`; merge an overlap or create one distinct brief, update its map, and link the destination.
+5. Run specified automation and the manual AI journey. Record only safe evidence; exclude secrets and sensitive user/runtime data.
+6. Apply all applicable development, specification, testing, data-safety, and authorization rules. Neither plan nor task list expands authority.
 
 ## Complete and Archive
 
-1. Reconcile from the beginning: re-run the [plan quality gate](plan-quality-gate.md), inspect every delivery item and progress note, verify all acceptance criteria, dispose of learnings, and confirm affected C4, Gherkin, READMEs, governance, and tests reflect the delivered system.
-2. Do not complete while any task, verification gate, unresolved dependency, or required human action remains open. Report the actual blocker and retain the plan in progress.
-3. When complete, set the plan README status to Done and move the folder to `plans/done/YYYY-MM-DD__<slug>/`, using the local completion date. Move, never copy.
-4. Remove the plan from the in-progress README, add the dated plan to the done README, and update both directory maps. Preserve its `delivery.md` task history and executor labels as the archive record.
-5. Reconcile the environment task list to completed only after the move and repository verification pass.
+1. Re-run the quality gate from its first step. Reconcile every item, note, acceptance criterion, learning, specification, README, governance change, and test with the delivered system.
+2. Give each dormant conditional item a dated, evidenced `Not triggered` disposition; do not claim it ran. Keep the plan in progress while any required outcome, activated conditional, gate, dependency, or human action is open. The move completes the archival item.
+3. Use the local date when the final checkpoint passed for README `Completed` and `plans/done/YYYY-MM-DD__<slug>/`. Stop if that destination exists; never merge, overwrite, or invent a suffix.
+4. Together, set status Done; record completion, actual outcome/proof, and deviations; move the folder and its stage index/map entries; preserve delivery history and labels.
+5. Complete the archival item with its dated destination. Confirm the source is absent, the destination occurs once, and active references avoid the old path.
+6. Resolve every archived internal link/map directly because routine link validation excludes archive sources. Run repository verification and inspect the complete diff.
+7. Keep move, metadata, indexes, maps, and archive record in one thematic commit when authorized. Commit/push requires its own authorization. Complete the environment task list only after verification.
 
 ## Recovery
 
-If execution stops, leave the plan in `in-progress/`, keep every unchecked item and progress note accurate, record the blocking state in `learnings.md`, and resume from the matching task after re-running the quality gate. Never archive an incomplete plan to make the board look clean.
+Before archival, leave interrupted work in progress with accurate items, notes, and blocking learning; resume after the quality gate. If archival verification fails, restore the folder, status, indexes, and maps to in progress. Never leave split copies or archive incomplete work.

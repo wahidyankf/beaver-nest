@@ -24,12 +24,12 @@
 
 ## Version Control
 
-- Push `main` to `origin/main`; no PRs. Follow [integration path](repo-governance/conventions/integration-path.md).
+- Push `main` to `origin/main`; no PRs. Follow [integration](repo-governance/conventions/integration-path.md).
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md).
 - Never commit secrets, tailnet IDs, or local data; follow [data safety](repo-governance/conventions/public-repository-data-safety.md).
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit or push](repo-governance/conventions/commit-authorization.md) only when explicitly authorized or plan-approved.
-- Fix root hooks; never use `--no-verify` without authorization. Follow [push-hook verification](repo-governance/conventions/push-hook-verification.md).
+- Fix root hooks; never use `--no-verify` without authorization. Follow [push hooks](repo-governance/conventions/push-hook-verification.md).
 - Space [GitHub polls](repo-governance/conventions/github-polling.md) two minutes.
 
 ## Governance
@@ -38,10 +38,10 @@
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md).
 - Track [tasks](repo-governance/conventions/task-tracking.md).
-- `plans/`: explicit request only; Plan mode gives no authorization. Keep tech docs under `tech-docs/`; follow [lifecycle](repo-governance/conventions/plan-lifecycle.md) and [minimal sufficiency](repo-governance/principles/minimal-sufficiency.md).
+- `plans/`: explicit request only; Plan mode gives no authorization. Keep technical files under `tech-docs/`; follow [lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), and [minimalism](repo-governance/principles/minimal-sufficiency.md).
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and valid [links](repo-governance/conventions/markdown-links.md).
 - Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases.
-- Ask as a [last resort](repo-governance/conventions/last-resort-questions.md).
+- [Ask last](repo-governance/conventions/last-resort-questions.md).
 - Be minimal; stop after sufficient verified work.
 
 ## Development

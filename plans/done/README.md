@@ -2,7 +2,7 @@
 
 This stage preserves completed plans as historical delivery records. A completed plan folder uses `YYYY-MM-DD__<slug>`, where the date records completion rather than creation.
 
-Before archiving, ensure acceptance conditions and required verification have passed, drain generalizable entries from `learnings.md` into permanent homes, update the plan status, move the folder from [`../in-progress/`](../in-progress/README.md), and update both stage indexes. Do not treat completed plans as current architecture; use [`specs/`](../../specs/README.md) for as-built truth.
+Before archiving, reconcile required and conditional delivery, acceptance, verification, and learnings. Follow [plan execution](../../repo-governance/workflows/plan-execution.md) to refuse destination collisions, record completion metadata, move the folder from [`../in-progress/`](../in-progress/README.md), update both stage indexes/maps in one change, and verify the archive itself. Do not treat completed plans as current architecture; use [`specs/`](../../specs/README.md) for as-built truth.
 
 ## Completed Plans
 

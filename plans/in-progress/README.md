@@ -2,7 +2,7 @@
 
 This stage contains only plans being actively executed. Keep the plan status, `delivery.md` checklist, and `learnings.md` log synchronized with actual work.
 
-Start work by moving one folder from [`../backlogs/`](../backlogs/README.md) without renaming it. Complete work only after its acceptance conditions and required verification pass; then move it to [`../done/YYYY-MM-DD__<slug>/`](../done/README.md), using the completion date, and update both stage indexes.
+Start work by moving one folder from [`../backlogs/`](../backlogs/README.md) without renaming it. Complete work only after required outcomes, acceptance conditions, verification, learnings, and conditional tasks are reconciled. Then follow [plan execution](../../repo-governance/workflows/plan-execution.md) for the collision-safe dated move and same-change stage-index/map updates.
 
 ## Active Plans
 
