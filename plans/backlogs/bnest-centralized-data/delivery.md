@@ -7,7 +7,7 @@
 
 ## Preconditions
 
-- [ ] `[AI]` Re-read current Bnest C4, Gherkin, storage keys, and the family-app foundation plan; record any conflict before implementation.
+- [ ] `[AI]` Re-read current Bnest C4, Gherkin, storage keys, and runtime-data rules; record any conflict before implementation.
 - [ ] `[HUMAN]` Decide and document approved-user bootstrap, credential recovery, session expiry, and administrator responsibilities.
 - [ ] `[HUMAN]` Define the `children`, `parents`, and `admin` capability matrix, multi-role evaluation, and any explicit parent-to-child sharing rules.
 - [ ] `[AI]` Inventory all runtime `data/` entries and supported browser snapshot keys without reading private production content into Git or test fixtures.
@@ -21,7 +21,10 @@
 - [ ] `[AI]` Implement server-owned path construction, validation, atomic replacement, lock/concurrency strategy, and structured failure results.
 - [ ] `[AI]` Verify malformed paths, malformed JSON, duplicate imports, write interruption, and concurrent access cannot overwrite accepted data.
 
-**Gate:** isolated backup, import, read-back, and restore tests pass; no implementation accepts browser-selected paths.
+### Phase 1 Checkpoint
+
+- [ ] `[AI]` Isolated backup, import, read-back, and restore tests pass.
+- [ ] `[AI]` No implementation accepts browser-selected paths.
 
 ## Phase 2 — Login and Ownership Boundary
 
@@ -31,7 +34,10 @@
 - [ ] `[AI]` Add administrator bootstrap and recovery flow without storing credentials under `data/`.
 - [ ] `[AI]` Verify unit, integration, and E2E adapters prove unauthenticated access cannot read or write user state.
 
-**Gate:** a current Bnest user must log in before protected access, and cross-user reads fail in every adapter.
+### Phase 2 Checkpoint
+
+- [ ] `[AI]` A current Bnest user must log in before protected access.
+- [ ] `[AI]` Cross-user reads fail in every adapter.
 
 ## Phase 3 — Browser and Legacy Import
 
@@ -42,17 +48,24 @@
 - [ ] `[AI]` Copy `data/general/` into Bnest-owned versioned legacy storage before creating normalized records.
 - [ ] `[AI]` Retain browser keys and legacy files unchanged; provide status and retry for incomplete imports.
 
-**Gate:** successful, duplicate, malformed, and interrupted imports preserve source data and produce deterministic recovery state.
+### Phase 3 Checkpoint
+
+- [ ] `[AI]` Successful, duplicate, malformed, and interrupted imports preserve source data.
+- [ ] `[AI]` Imports produce deterministic recovery state.
 
 ## Phase 4 — Cutover and Recovery Evidence
 
 - [ ] `[AI]` Place centralized reads and writes behind existing chat and learning flows without removing browser compatibility until acknowledged.
 - [ ] `[AI]` Add targeted public E2E journeys for login, existing-browser import, centralized continuation, and user isolation.
 - [ ] `[AI]` Run a restore rehearsal using the migration manifest and backup on isolated data.
+- [ ] `[AI]` Use Playwright MCP with synthetic users and approved fixture storage: log in, import, reload, confirm continuation, log out, then prove a second user cannot read the first user's state; record only safe evidence in this plan.
 - [ ] `[AI]` Update C4, Gherkin, app/E2E READMEs, runtime-data guidance, directory maps, and operational documentation to final as-built state.
 - [ ] `[AI]` Record architecture-impact assessment and manual public-boundary smoke results in this plan.
 
-**Gate:** `test:quick`, affected integration and E2E suites, backup/restore rehearsal, and private login smoke all pass. Only then decide whether an explicit later archival plan is needed; do not delete sources in this plan.
+### Phase 4 Checkpoint
+
+- [ ] `[AI]` `test:quick`, affected integration and E2E suites, backup/restore rehearsal, and private login smoke pass.
+- [ ] `[HUMAN]` Decide whether a later explicit archival plan is needed; do not delete sources in this plan.
 
 ## Rollback Rules
 

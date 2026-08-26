@@ -27,7 +27,7 @@ The requested four directory positions are `data/users/`, `data/apps/`, `data/ap
 
 ## Dependencies
 
-This plan depends on a resolved Bnest identity and session design, including bootstrap administration and credential recovery. Coordinate it with the [family app foundation plan](../family-app-foundation/README.md), whose identity and durable-persistence work overlaps this plan.
+This plan depends on a resolved Bnest identity and session design, including bootstrap administration, credential recovery, and a capability matrix for multi-role users.
 
 ## Plan Documents
 

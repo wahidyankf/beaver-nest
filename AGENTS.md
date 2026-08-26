@@ -37,17 +37,17 @@
 - Follow [rules propagation](repo-governance/workflows/rules-propagation.md) for rule changes.
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules across [compaction](repo-governance/principles/governance-continuity.md).
-- Keep [tasks](repo-governance/conventions/task-tracking.md) current.
-- Create plans on request; [lifecycle](repo-governance/conventions/plan-lifecycle.md) protects `specs/`.
-- Maintain [directory maps](repo-governance/conventions/directory-maps.md) for governed trees.
-- Keep [Markdown links](repo-governance/conventions/markdown-links.md) valid.
-- Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI.
+- Track [tasks](repo-governance/conventions/task-tracking.md).
+- Plan on request; [lifecycle](repo-governance/conventions/plan-lifecycle.md), [quality](repo-governance/workflows/plan-quality-gate.md), and [execution](repo-governance/workflows/plan-execution.md) govern plans.
+- Maintain [maps](repo-governance/conventions/directory-maps.md).
+- Keep [links](repo-governance/conventions/markdown-links.md) valid.
+- Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases.
 - Ask as a [last resort](repo-governance/conventions/last-resort-questions.md).
-- Make [minimal](repo-governance/principles/minimal-sufficiency.md) changes; stop verified.
+- Be [minimal](repo-governance/principles/minimal-sufficiency.md); stop.
 
 ## Development
 
-- Use [English](repo-governance/conventions/language.md) artifacts.
+- Use [English](repo-governance/conventions/language.md).
 - Separate server/proxy lifecycles; follow [restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep applicable [quality gates](repo-governance/development/quality-gates.md) green.
 - Keep `test:e2e` out of `test:quick`; run only affected end-to-end cases during development. Follow the [end-to-end testing standard](repo-governance/development/end-to-end-testing.md).
