@@ -33,7 +33,8 @@
 - [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); track [tasks](repo-governance/conventions/task-tracking.md).
-- `plans/`: explicit request only; Plan mode authorizes nothing. Use `tech-docs/`, [lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), and [minimalism](repo-governance/principles/minimal-sufficiency.md).
+- `plans/`: explicit request only; Plan mode does not authorize repository docs. Use `tech-docs/`, [lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), and [minimalism](repo-governance/principles/minimal-sufficiency.md).
+- Bnest active-service plans require Caddy candidate/promotion/rollback, compatible LiveView reconnect, and routed WebSocket/revision proof; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
 - Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases.
 - [Ask last](repo-governance/conventions/last-resort-questions.md); stop after the minimal verified change.
@@ -41,12 +42,14 @@
 ## Development
 
 - Use [English](repo-governance/conventions/language.md).
-- Treat Bnest as a 24/7 active service. Keep it available under [continuity](repo-governance/development/live-service-continuity.md); failed health stops work until recovery.
+- Bnest is 24/7; obey [continuity](repo-governance/development/live-service-continuity.md); failed health stops work.
+- A commit or push is not a deployment. Before reporting an active-service change complete, verify the routed backend serves the intended revision or behavior; otherwise perform a no-downtime candidate cutover.
+- Before completion, stop unneeded non-production servers, watchers, candidates, and temporary proxies; retain only the active route and bounded drain.
 - Separate server/proxy lifecycles; follow [restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep [quality gates](repo-governance/development/quality-gates.md) green.
 - Keep `test:e2e` outside `test:quick`; run affected cases and UI-accessibility states only. Wait for connected LiveView before interaction, and isolate user-owned records across parallel workers. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
 - Match each E2E browser origin exactly to its served application origin so LiveView/WebSocket checks are real.
-- Never test real users; use isolated `test-user-` [identities](repo-governance/development/test-identities.md). Inspect production schemas read-only.
+- Never test real users; use isolated `test-user-` [identities](repo-governance/development/test-identities.md); inspect production schemas read-only.
 - **Application rule** (except `libs/ex-bdd`): assess/update all relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
 - Update affected project [READMEs](repo-governance/conventions/project-readmes.md).
 - Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md); scope Badakmini to changed files.

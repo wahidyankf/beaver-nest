@@ -16,26 +16,35 @@ mix setup
 
 Run project tasks from the repository root:
 
-| Task                                 | Command                                                        |
-| ------------------------------------ | -------------------------------------------------------------- |
-| Start the stable development server  | `npm exec -- nx run -p bnest-app -t serve`                     |
-| Enable persistent tailnet HTTPS      | `npm exec -- nx run -p bnest-app -t tailnet:up`                |
-| Inspect the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:status`            |
-| Disable the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:down`              |
-| Run the complete quick suite         | `npm exec -- nx run -p bnest-app -t test:quick`                |
-| Run unit scenarios                   | `npm exec -- nx run -p bnest-app -t test:unit`                 |
-| Run local-only integration scenarios | `npm exec -- nx run -p bnest-app -t test:integration`          |
-| Cover the unit slice                 | `npm exec -- nx run -p bnest-app -t test:coverage:unit`        |
-| Cover the integration slice          | `npm exec -- nx run -p bnest-app -t test:coverage:integration` |
-| Verify every behavior adapter        | `npm exec -- nx run -p bnest-app -t test:coverage:behaviour`   |
-| Run all application coverage slices  | `npm exec -- nx run -p bnest-app -t test:coverage`             |
-| Run static type analysis             | `npm exec -- nx run -p bnest-app -t typecheck`                 |
-| Run all linters                      | `npm exec -- nx run -p bnest-app -t lint`                      |
-| Check Elixir and HEEx formatting     | `npm exec -- nx run -p bnest-app -t format`                    |
-| Audit runtime schemas without values | `npm exec -- nx run -p bnest-app -t schema:audit`              |
-| Benchmark the password verifier      | `npm exec -- nx run -p bnest-app -t identity:benchmark`        |
+| Task                                 | Command                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------ |
+| Start the stable development server  | `npm exec -- nx run -p bnest-app -t serve`                                           |
+| Install the stable local Caddy proxy | `npm exec -- nx run -p bnest-app -t proxy:install`                                   |
+| Inspect deployment routing           | `npm exec -- nx run -p bnest-app -t proxy:status`                                    |
+| Build an immutable candidate release | `npm exec -- nx run -p bnest-app -t release:build`                                   |
+| Start an inactive release slot       | `npm exec -- nx run -p bnest-app -t deploy:prepare -- --slot green --revision <sha>` |
+| Gracefully promote a release slot    | `npm exec -- nx run -p bnest-app -t deploy:promote -- --slot green`                  |
+| Route back to the previous slot      | `npm exec -- nx run -p bnest-app -t deploy:rollback`                                 |
+| Stop a drained inactive slot         | `npm exec -- nx run -p bnest-app -t deploy:retire -- --slot blue`                    |
+| Enable persistent tailnet HTTPS      | `npm exec -- nx run -p bnest-app -t tailnet:up`                                      |
+| Inspect the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:status`                                  |
+| Disable the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:down`                                    |
+| Run the complete quick suite         | `npm exec -- nx run -p bnest-app -t test:quick`                                      |
+| Run unit scenarios                   | `npm exec -- nx run -p bnest-app -t test:unit`                                       |
+| Run local-only integration scenarios | `npm exec -- nx run -p bnest-app -t test:integration`                                |
+| Cover the unit slice                 | `npm exec -- nx run -p bnest-app -t test:coverage:unit`                              |
+| Cover the integration slice          | `npm exec -- nx run -p bnest-app -t test:coverage:integration`                       |
+| Verify every behavior adapter        | `npm exec -- nx run -p bnest-app -t test:coverage:behaviour`                         |
+| Run all application coverage slices  | `npm exec -- nx run -p bnest-app -t test:coverage`                                   |
+| Run static type analysis             | `npm exec -- nx run -p bnest-app -t typecheck`                                       |
+| Run all linters                      | `npm exec -- nx run -p bnest-app -t lint`                                            |
+| Check Elixir and HEEx formatting     | `npm exec -- nx run -p bnest-app -t format`                                          |
+| Audit runtime schemas without values | `npm exec -- nx run -p bnest-app -t schema:audit`                                    |
+| Benchmark the password verifier      | `npm exec -- nx run -p bnest-app -t identity:benchmark`                              |
 
 `test:quick` runs type checking, linting, unit execution, unit coverage, and static behavior completeness. It intentionally excludes integration runtime and E2E execution. Both numeric coverage slices use Mix line coverage and fail below 99%.
+
+The deployment targets require machine-local `BNEST_DEPLOY_ROOT`, `BNEST_RUNTIME_ROOT`, and `BNEST_DEPLOY_COOKIE_FILE` values outside this repository; release builds also require `BNEST_DEPLOY_WORKTREE`. Their safe creation, promotion, and rollback sequence is defined by the [Caddy deployment workflow](../../repo-governance/workflows/development-caddy-deployment.md).
 
 The serve target defaults to stable development compile mode because the family uses Bnest continuously. The read-only schema audit and password-verifier benchmark use the same mode, so they remain safe while the backend serves. Do not replace it with a command that recompiles the active backend for code reloading; a deliberately isolated, non-routed experiment must opt in to `BNEST_STABLE=false`.
 
@@ -53,7 +62,7 @@ The unit slice measures resource-free domain code: chat, learning, Codex session
 
 Type checking treats Elixir compiler warnings as errors, runs Dialyzer through Dialyxir, and strictly checks browser JavaScript without emitting files. Linting checks formatting, runs Credo in strict mode, runs Oxlint on browser JavaScript, and rejects unused locked dependencies without changing the lockfile.
 
-The development server is available at [http://localhost:4000](http://localhost:4000). Normal Elixir, HEEx, JavaScript, and CSS changes reload while it runs. Dependency, runtime configuration, and supervision-tree changes require the repository's [development-server restart workflow](../../repo-governance/workflows/development-server-restart.md). The optional background Tailscale Serve route has an independent lifecycle under the [development tailnet proxy workflow](../../repo-governance/workflows/development-tailnet-proxy.md), so restarting Phoenix does not interrupt the private HTTPS configuration.
+The development server is available at [http://localhost:4000](http://localhost:4000). Normal Elixir, HEEx, JavaScript, and CSS changes reload only in an isolated non-stable experiment. Dependency, runtime configuration, and supervision-tree changes require the repository's [development-server restart workflow](../../repo-governance/workflows/development-server-restart.md). The always-available route is Tailscale Serve → loopback Caddy → one immutable Phoenix slot; Caddy changes upstream with a graceful reload while the previous LiveView connections drain and reconnect automatically. Follow the [Caddy deployment workflow](../../repo-governance/workflows/development-caddy-deployment.md) and [Tailnet proxy workflow](../../repo-governance/workflows/development-tailnet-proxy.md).
 
 The home page at `/` is the child-friendly entry point and links to `/chat`, `/apps/sifat-allah`, and the authenticated `/data-migration` compatibility flow. One-time `/setup` creates every initial account and permanently closes; `/login` then protects family data. There is no public registration or password-recovery flow.
 
@@ -83,7 +92,7 @@ The root layout links a standalone PWA manifest and Beaver Nest icon sizes for A
 
 At application startup, a supervised catalog asks the local [Codex app server](https://learn.chatgpt.com/docs/app-server) for every picker-visible model and caches the validated result. If local discovery fails or returns no valid choices, the app keeps chat available with a safe Terra-only fallback. `gpt-5.6-terra` with medium reasoning effort is the application default even when Codex declares another model as its own default. The reasoning-effort selector is populated from the selected model's discovered capabilities. Changing models preserves the current effort when the new model supports it, otherwise it falls back to medium when available and then to that model's declared default.
 
-Each connected LiveView owns one Node bridge. The bridge starts a Codex SDK thread for a fresh chat or resumes the stored thread ID. The model and reasoning-effort selectors are disabled during an active turn. Selecting either setting between turns replaces only the bridge process while preserving the transcript and thread. A completed state is written to the authenticated user's central chat record. If a retained Codex thread is unavailable, Bnest keeps the transcript, reports the fallback, clears only that thread ID, and starts a fresh conversation. **Clear chat** atomically saves an empty transcript and opens a fresh thread. Events carry their bridge identity so queued updates from a replaced bridge cannot modify the active chat.
+Each connected LiveView owns one Node bridge. The bridge starts a Codex SDK thread for a fresh chat or resumes the stored thread ID. The model and reasoning-effort selectors are disabled during an active turn. Selecting either setting between turns replaces only the bridge process while preserving the transcript and thread. Active turns checkpoint their prompt, thread, and partial transcript; after a deployment reconnect, Bnest asks the retained thread to continue once without repeating shown text. If a retained Codex thread is unavailable, Bnest keeps the transcript, reports the fallback, clears only that thread ID, and starts a fresh conversation. **Clear chat** atomically saves an empty transcript and opens a fresh thread. Events carry their bridge identity so queued updates from a replaced bridge cannot modify the active chat.
 
 Every chat runner uses read-only sandbox access, approval policy `never`, and disabled network and web search. Assistant message updates stream into the transcript as plain text. **Shift+Enter** submits the composer, while plain Enter remains available for multiline input.
 
@@ -99,6 +108,7 @@ The test environment substitutes a deterministic model catalog and session, and 
 - `priv/codex/` contains the SDK chat runner and the app-server model discovery helper.
 - `assets/` contains browser JavaScript, CSS, and declaration boundaries used for strict checking.
 - `config/` contains compile-time and runtime environment configuration.
+- `tools/deployment.mjs` owns the machine-local Caddy, release-slot, and rollback commands.
 - `priv/` contains static assets and translations.
 - `test/behaviour/` contains the shared driver contract, bindings, adapter hooks, and static completeness check.
 - `test/unit/` contains unit tests and the system-resource-free unit driver.

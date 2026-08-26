@@ -3,7 +3,7 @@ defmodule BnestApp.Chat do
 
   alias BnestApp.Codex.Settings
 
-  @snapshot_version 2
+  @snapshot_version 3
   @max_messages 200
   @max_content_bytes 100_000
   @max_thread_id_bytes 512
@@ -22,6 +22,7 @@ defmodule BnestApp.Chat do
           messages: [message()],
           next_id: pos_integer(),
           busy: boolean(),
+          pending_turn: map() | nil,
           error: String.t() | nil,
           thread_id: String.t() | nil,
           model: String.t(),
@@ -37,6 +38,7 @@ defmodule BnestApp.Chat do
       messages: [],
       next_id: 1,
       busy: false,
+      pending_turn: nil,
       error: nil,
       thread_id: nil,
       model: model,
@@ -62,13 +64,15 @@ defmodule BnestApp.Chat do
 
   @spec snapshot(t()) :: {:ok, map()} | :error
   def snapshot(%{
-        busy: false,
+        busy: busy,
+        pending_turn: pending_turn,
         messages: messages,
         thread_id: thread_id,
         model: model,
         reasoning_effort: reasoning_effort
       }) do
-    if valid_snapshot_thread?(thread_id, messages) and valid_model?(model) and
+    if is_boolean(busy) and valid_pending_turn?(pending_turn, messages, busy) and
+         valid_snapshot_thread?(thread_id, messages) and valid_model?(model) and
          reasoning_effort in @reasoning_efforts do
       {:ok,
        %{
@@ -76,7 +80,8 @@ defmodule BnestApp.Chat do
          "thread_id" => thread_id,
          "model" => model,
          "reasoning_effort" => reasoning_effort,
-         "messages" => Enum.map(messages, &snapshot_message/1)
+         "messages" => Enum.map(messages, &snapshot_message/1),
+         "pending_turn" => snapshot_pending_turn(pending_turn)
        }}
     else
       :error
@@ -91,18 +96,21 @@ defmodule BnestApp.Chat do
         "thread_id" => thread_id,
         "model" => model,
         "reasoning_effort" => reasoning_effort,
-        "messages" => messages
+        "messages" => messages,
+        "pending_turn" => pending_turn
       })
       when is_list(messages) and length(messages) <= @max_messages do
     with true <- valid_snapshot_thread?(thread_id, messages),
          true <- valid_model?(model),
          true <- reasoning_effort in @reasoning_efforts,
-         {:ok, restored_messages} <- restore_messages(messages) do
+         {:ok, restored_messages} <- restore_messages(messages),
+         {:ok, restored_pending_turn} <- restore_pending_turn(pending_turn, restored_messages) do
       {:ok,
        %{
          messages: restored_messages,
          next_id: next_id(restored_messages),
-         busy: false,
+         busy: not is_nil(restored_pending_turn),
+         pending_turn: restored_pending_turn,
          error: nil,
          thread_id: thread_id,
          model: model,
@@ -121,6 +129,17 @@ defmodule BnestApp.Chat do
       |> Map.put("reasoning_effort", Settings.preferred_reasoning_effort())
       |> Map.put("thread_id", thread_id)
       |> Map.put("messages", messages)
+      |> Map.put("pending_turn", nil)
+    )
+  end
+
+  def restore(%{"version" => 2, "thread_id" => thread_id, "messages" => messages} = snapshot) do
+    restore(
+      snapshot
+      |> Map.put("version", @snapshot_version)
+      |> Map.put("thread_id", thread_id)
+      |> Map.put("messages", messages)
+      |> Map.put("pending_turn", nil)
     )
   end
 
@@ -144,6 +163,11 @@ defmodule BnestApp.Chat do
            | messages: chat.messages ++ [visitor, assistant],
              next_id: chat.next_id + 2,
              busy: true,
+             pending_turn: %{
+               prompt: content,
+               assistant_message_id: assistant.id,
+               continuation_attempted: false
+             },
              error: nil
          }}
     end
@@ -164,14 +188,31 @@ defmodule BnestApp.Chat do
   def complete(chat) do
     chat
     |> update_last_assistant(&%{&1 | streaming: false})
-    |> Map.put(:busy, false)
+    |> Map.merge(%{busy: false, pending_turn: nil})
   end
 
   @spec fail(t(), String.t()) :: t()
   def fail(chat, message) do
     chat
     |> update_last_assistant(&%{&1 | streaming: false})
-    |> Map.merge(%{busy: false, error: message})
+    |> Map.merge(%{busy: false, pending_turn: nil, error: message})
+  end
+
+  @spec continuation_prompt(t()) :: {:ok, String.t(), t()} | {:error, :none | :already_attempted}
+  def continuation_prompt(%{pending_turn: nil}), do: {:error, :none}
+
+  def continuation_prompt(%{pending_turn: %{continuation_attempted: true}}),
+    do: {:error, :already_attempted}
+
+  def continuation_prompt(%{pending_turn: pending_turn, thread_id: thread_id} = chat) do
+    prompt =
+      if is_nil(thread_id) do
+        pending_turn.prompt
+      else
+        "Continue the previous answer to the user's latest request. Do not repeat text already shown."
+      end
+
+    {:ok, prompt, put_in(chat, [:pending_turn, :continuation_attempted], true)}
   end
 
   defp message(id, role, content, streaming) do
@@ -184,6 +225,20 @@ defmodule BnestApp.Chat do
       "role" => Atom.to_string(message.role),
       "content" => message.content,
       "update_count" => message.update_count
+    }
+  end
+
+  defp snapshot_pending_turn(nil), do: nil
+
+  defp snapshot_pending_turn(%{
+         prompt: prompt,
+         assistant_message_id: assistant_message_id,
+         continuation_attempted: continuation_attempted
+       }) do
+    %{
+      "prompt" => prompt,
+      "assistant_message_id" => assistant_message_id,
+      "continuation_attempted" => continuation_attempted
     }
   end
 
@@ -249,6 +304,45 @@ defmodule BnestApp.Chat do
 
   defp valid_model?(model) when is_binary(model), do: byte_size(model) in 1..@max_model_bytes
   defp valid_model?(_model), do: false
+
+  defp valid_pending_turn?(nil, _messages, false), do: true
+
+  defp valid_pending_turn?(%{} = pending_turn, messages, true) do
+    match?(
+      {:ok, _pending_turn},
+      restore_pending_turn(snapshot_pending_turn(pending_turn), messages)
+    )
+  end
+
+  defp valid_pending_turn?(_pending_turn, _messages, _busy), do: false
+
+  defp restore_pending_turn(nil, _messages), do: {:ok, nil}
+
+  defp restore_pending_turn(
+         %{
+           "prompt" => prompt,
+           "assistant_message_id" => assistant_message_id,
+           "continuation_attempted" => continuation_attempted
+         },
+         messages
+       )
+       when is_binary(prompt) and byte_size(prompt) in 1..@max_content_bytes and
+              is_integer(assistant_message_id) and is_boolean(continuation_attempted) do
+    case List.last(messages) do
+      %{id: ^assistant_message_id, role: :assistant} ->
+        {:ok,
+         %{
+           prompt: prompt,
+           assistant_message_id: assistant_message_id,
+           continuation_attempted: continuation_attempted
+         }}
+
+      _other ->
+        :error
+    end
+  end
+
+  defp restore_pending_turn(_pending_turn, _messages), do: :error
 
   defp update_last_assistant(chat, update) do
     %{chat | messages: List.update_at(chat.messages, -1, update)}

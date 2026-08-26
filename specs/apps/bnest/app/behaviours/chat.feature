@@ -120,13 +120,13 @@ Feature: Beaver Nest chat
     Then the page displays the alert "Turn failed."
     And the message composer is available
 
-  Scenario: Reload preserves a completed user-owned conversation and Codex session
+  Scenario: A LiveView reconnect preserves a completed user-owned conversation and Codex session
     Given a visitor opens "/chat"
     When the visitor selects the model "GPT-5.6-Luna"
     And the visitor selects the reasoning effort "High"
     And the visitor sends "Temporary message"
     And a Codex response appears incrementally
-    When the visitor reloads the page
+    When the visitor reconnects after a deployment
     Then the selected model is "GPT-5.6-Luna"
     And the selected reasoning effort is "High"
     And the conversation displays the visitor message "Temporary message"

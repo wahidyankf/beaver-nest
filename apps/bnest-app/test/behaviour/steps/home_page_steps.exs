@@ -164,6 +164,10 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the visitor reconnects after a deployment", context do
+    context.behaviour_driver.reload(context)
+  end
+
   step "the visitor reloads the page", context do
     context.behaviour_driver.reload(context)
   end

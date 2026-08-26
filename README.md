@@ -8,7 +8,7 @@ Beaver Nest is in its first implementation stage.
 
 - A Phoenix LiveView chat streams local Codex responses through the official SDK, discovers the models available to the local Codex installation, and can switch models without discarding the current thread.
 - Hot reload works during local development.
-- A persistent Tailscale Serve proxy can expose the loopback server privately over HTTPS. Bnest now has one-time family-account setup, persistent per-browser login, centralized flat-file chat/learning/theme records, and recoverable browser import. An always-on launch service and document processing remain future work.
+- A persistent Tailscale Serve route reaches a stable loopback Caddy proxy, which promotes immutable Phoenix releases without a manual browser refresh. Bnest now has one-time family-account setup, persistent per-browser login, centralized flat-file chat/learning/theme records, and recoverable browser import.
 
 ## Run locally
 
@@ -30,14 +30,15 @@ npm start
 
 Open [http://localhost:4000](http://localhost:4000).
 
-To keep private HTTPS routing available independently from Phoenix, enable the background proxy once and inspect the machine-derived URL without storing it in the repository:
+To keep private HTTPS routing available independently from Phoenix, install Caddy once, then expose its stable loopback endpoint through Tailscale without storing the machine-derived URL in the repository:
 
 ```sh
+BNEST_DEPLOY_ROOT=/machine-local/path npm exec -- nx run -p bnest-app -t proxy:install
 npm run tailnet:up
 npm run tailnet:status
 ```
 
-`npm start` can then stop or restart without reconfiguring the proxy. Run `npm run tailnet:down` when private HTTPS access should be removed. The first `tailnet:up` may require tailnet approval for HTTPS certificates; see the [development tailnet proxy workflow](repo-governance/workflows/development-tailnet-proxy.md).
+Use the deployment targets to prepare/promote a release; do not stop Caddy or reconfigure Tailscale for normal deploys. Run `npm run tailnet:down` when private HTTPS access should be removed. The first `tailnet:up` may require tailnet approval for HTTPS certificates; see the [Caddy deployment workflow](repo-governance/workflows/development-caddy-deployment.md).
 
 Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset watchers update JavaScript and CSS. Configuration, dependency, and supervision changes require the [development-server restart workflow](repo-governance/workflows/development-server-restart.md).
 
@@ -45,7 +46,7 @@ Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset w
 
 Open Beaver Nest through its private Tailscale HTTPS address, then use the browser's **Install app** command. In Chrome and other Chromium browsers, this is usually in the browser menu; in Safari on iPhone or iPad, choose **Share → Add to Home Screen**. The installed app opens in its own window and uses the Beaver Nest home-and-nest logo. It caches the application shell for temporary connection loss, but a live Codex chat still needs connectivity to the home host.
 
-The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. Its model selector is populated from the picker-visible models reported by the local Codex installation. After one-time setup, approved family members log in with a username and password. A completed conversation, selected model, and private Codex thread ID are stored in that user's server-owned record and continue across tabs and browsers. **Clear chat** atomically saves an empty transcript and starts a new thread. If a retained Codex thread cannot resume, Bnest preserves the transcript, reports the fallback, and opens a fresh thread.
+The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. Its model selector is populated from the picker-visible models reported by the local Codex installation. After one-time setup, approved family members log in with a username and password. Completed conversations—and the prompt, thread ID, and partial transcript of an active turn—are stored in that user's server-owned record and continue across tabs and browsers. After a compatible deployment reconnect, Bnest asks a retained thread to continue an interrupted turn once without repeating shown text. **Clear chat** atomically saves an empty transcript and starts a new thread. If a retained Codex thread cannot resume, Bnest preserves the transcript, reports the fallback, and opens a fresh thread.
 
 ## Test
 
@@ -53,7 +54,7 @@ The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only s
 npm test
 npm exec -- nx run -p bnest-app -t test:integration
 npm exec -- nx run -p bnest-app -t test:coverage:behaviour
-npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "Reload preserves a completed user-owned conversation"
+npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "LiveView reconnect preserves a completed user-owned conversation"
 npm exec -- nx run -p badakmini-cli -t test:integration
 npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 ```

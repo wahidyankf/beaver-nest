@@ -101,6 +101,7 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.Layouts,
       BnestAppWeb.PageController,
       BnestAppWeb.PageHTML,
+      BnestAppWeb.ReleaseHeaders,
       BnestAppWeb.Router
     ]
 
@@ -124,6 +125,7 @@ defmodule BnestApp.MixProject do
       BnestApp.DataRepository.RecoverySource,
       BnestApp.DataRepository.Schema,
       BnestApp.DataRepository.Store,
+      BnestApp.Deployment,
       BnestApp.Identity.Bootstrap,
       BnestApp.Identity.CredentialVerifier,
       BnestApp.Identity.FileStore,
@@ -131,6 +133,7 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.BootstrapController,
       BnestAppWeb.ChatLive,
       BnestAppWeb.DataMigrationLive,
+      BnestAppWeb.HealthController,
       BnestAppWeb.LoginLive,
       BnestAppWeb.SessionController,
       BnestAppWeb.SifatAllahLive,

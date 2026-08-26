@@ -290,9 +290,9 @@ Then(
   },
 );
 
-When("the visitor reloads the page", async ({ page }) => {
-  await page.reload();
-});
+When("the visitor reconnects after a deployment", ({ page }) => page.reload());
+
+When("the visitor reloads the page", ({ page }) => page.reload());
 
 When("the visitor clears the chat", async ({ page }) => {
   await page.getByRole("button", { name: "Clear chat" }).click();

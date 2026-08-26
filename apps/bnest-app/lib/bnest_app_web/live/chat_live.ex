@@ -21,6 +21,7 @@ defmodule BnestAppWeb.ChatLive do
       |> assign(:central_record, central_record)
       |> assign(:session_adapter, nil)
       |> assign(:codex_session, nil)
+      |> assign(:checkpoint_timer, nil)
 
     if connected?(socket), do: connect_codex(socket, chat), else: {:ok, socket}
   end
@@ -57,13 +58,18 @@ defmodule BnestAppWeb.ChatLive do
   def handle_event("send", %{"chat" => %{"prompt" => prompt}}, socket) do
     case Chat.submit(socket.assigns.chat, prompt) do
       {:ok, chat} ->
-        chat =
-          case socket.assigns.session_adapter.send_prompt(socket.assigns.codex_session, prompt) do
-            :ok -> chat
-            {:error, _reason} -> Chat.fail(chat, "Codex is not available.")
-          end
+        socket = socket |> assign(:chat, chat) |> assign(:form, prompt_form()) |> persist_chat()
 
-        {:noreply, socket |> assign(:chat, chat) |> assign(:form, prompt_form())}
+        case socket.assigns.session_adapter.send_prompt(socket.assigns.codex_session, prompt) do
+          :ok ->
+            {:noreply, socket}
+
+          {:error, _reason} ->
+            {:noreply,
+             socket
+             |> assign(:chat, Chat.fail(chat, "Codex is not available."))
+             |> persist_chat()}
+        end
 
       {:error, chat} ->
         {:noreply, assign(socket, :chat, chat)}
@@ -91,14 +97,18 @@ defmodule BnestAppWeb.ChatLive do
         {:codex, session, {:thread_started, thread_id}},
         %{assigns: %{codex_session: session}} = socket
       ) do
-    {:noreply, update(socket, :chat, &Chat.put_thread_id(&1, thread_id))}
+    socket = socket |> update(:chat, &Chat.put_thread_id(&1, thread_id)) |> persist_chat()
+    {:noreply, socket}
   end
 
   def handle_info(
         {:codex, session, {:assistant_update, text}},
         %{assigns: %{codex_session: session}} = socket
       ) do
-    {:noreply, update(socket, :chat, &Chat.update_assistant(&1, text))}
+    {:noreply,
+     socket
+     |> update(:chat, &Chat.update_assistant(&1, text))
+     |> schedule_checkpoint()}
   end
 
   def handle_info(
@@ -113,7 +123,7 @@ defmodule BnestAppWeb.ChatLive do
         {:codex, session, {:error, message}},
         %{assigns: %{codex_session: session}} = socket
       ) do
-    {:noreply, update(socket, :chat, &Chat.fail(&1, message))}
+    {:noreply, socket |> update(:chat, &Chat.fail(&1, message)) |> persist_chat()}
   end
 
   def handle_info(
@@ -141,11 +151,19 @@ defmodule BnestAppWeb.ChatLive do
         {:noreply, persist_chat(socket)}
 
       {:error, _reason} ->
-        {:noreply, assign(socket, :chat, Chat.fail(fresh, "Codex is not available."))}
+        {:noreply,
+         socket
+         |> assign(:chat, Chat.fail(fresh, "Codex is not available."))
+         |> persist_chat()}
     end
   end
 
   def handle_info({:codex, _stale_session, _event}, socket), do: {:noreply, socket}
+
+  @impl Phoenix.LiveView
+  def handle_info(:checkpoint_chat, socket) do
+    {:noreply, socket |> assign(:checkpoint_timer, nil) |> persist_chat()}
+  end
 
   @impl Phoenix.LiveView
   def terminate(_reason, %{assigns: %{session_adapter: nil}}), do: :ok
@@ -292,7 +310,8 @@ defmodule BnestAppWeb.ChatLive do
 
     case adapter.open(self(), chat.thread_id, chat.model, chat.reasoning_effort) do
       {:ok, session} ->
-        {:ok, assign(socket, session_adapter: adapter, codex_session: session)}
+        socket = assign(socket, session_adapter: adapter, codex_session: session)
+        recover_pending_turn(socket)
 
       {:error, _reason} when not is_nil(chat.thread_id) ->
         fresh = %{
@@ -362,6 +381,43 @@ defmodule BnestAppWeb.ChatLive do
       :error -> socket
     end
   end
+
+  defp recover_pending_turn(socket) do
+    case Chat.continuation_prompt(socket.assigns.chat) do
+      {:ok, prompt, chat} ->
+        socket = socket |> assign(:chat, chat) |> persist_chat()
+
+        case socket.assigns.session_adapter.send_prompt(socket.assigns.codex_session, prompt) do
+          :ok ->
+            {:ok, socket}
+
+          {:error, _reason} ->
+            {:ok,
+             socket
+             |> assign(:chat, Chat.fail(chat, "Codex is not available."))
+             |> persist_chat()}
+        end
+
+      {:error, :none} ->
+        {:ok, socket}
+
+      {:error, :already_attempted} ->
+        chat =
+          Chat.fail(
+            socket.assigns.chat,
+            "The previous response was interrupted. Your transcript is preserved; send a new message to continue."
+          )
+
+        {:ok, socket |> assign(:chat, chat) |> persist_chat()}
+    end
+  end
+
+  defp schedule_checkpoint(%{assigns: %{checkpoint_timer: nil}} = socket) do
+    timer = Process.send_after(self(), :checkpoint_chat, 1_000)
+    assign(socket, :checkpoint_timer, timer)
+  end
+
+  defp schedule_checkpoint(socket), do: socket
 
   defp persist_chat_snapshot(
          %{assigns: %{central_record: nil, current_user: %{"migrationMode" => true}}} = socket,

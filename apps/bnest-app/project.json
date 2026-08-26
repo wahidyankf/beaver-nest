@@ -14,7 +14,7 @@
       "cache": false
     },
     "tailnet:up": {
-      "command": "tailscale serve --bg --yes --https=443 --set-path=/ ${BNEST_TAILNET_BACKEND_PORT:-4000}",
+      "command": "tailscale serve --bg --yes --https=443 --set-path=/ 4100",
       "cache": false
     },
     "tailnet:status": {
@@ -23,6 +23,62 @@
     },
     "tailnet:down": {
       "command": "tailscale serve --https=443 --set-path=/ off",
+      "cache": false
+    },
+    "proxy:install": {
+      "command": "node tools/deployment.mjs proxy:install",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": false
+      },
+      "cache": false
+    },
+    "proxy:status": {
+      "command": "node tools/deployment.mjs proxy:status",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": false
+      },
+      "cache": false
+    },
+    "release:build": {
+      "command": "node tools/deployment.mjs release:build",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": false
+      },
+      "cache": false
+    },
+    "deploy:prepare": {
+      "command": "node tools/deployment.mjs deploy:prepare",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": true
+      },
+      "cache": false
+    },
+    "deploy:promote": {
+      "command": "node tools/deployment.mjs deploy:promote",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": true
+      },
+      "cache": false
+    },
+    "deploy:rollback": {
+      "command": "node tools/deployment.mjs deploy:rollback",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": false
+      },
+      "cache": false
+    },
+    "deploy:retire": {
+      "command": "node tools/deployment.mjs deploy:retire",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": true
+      },
       "cache": false
     },
     "schema:audit": {

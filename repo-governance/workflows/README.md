@@ -22,6 +22,7 @@ When composing workflows:
 ## Directory Map
 
 - [Development server restart](development-server-restart.md) restarts an existing local server through its original tmux pane and Nx target.
+- [Development Caddy deployment](development-caddy-deployment.md) promotes verified blue/green Phoenix releases behind the stable local Caddy proxy.
 - [Development tailnet proxy](development-tailnet-proxy.md) manages a persistent private HTTPS proxy independently from app-server restarts.
 - [Plan execution](plan-execution.md) moves an explicitly selected plan through active delivery, synchronized task tracking, and dated archival.
 - [Plan quality gate](plan-quality-gate.md) checks and repairs a formal plan before execution or completion reconciliation.

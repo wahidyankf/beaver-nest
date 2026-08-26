@@ -7,7 +7,7 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 1. Select one backlog or in-progress plan and repair it through the [quality gate](plan-quality-gate.md).
 2. If backlogged, move it with status and stage maps to `plans/in-progress/<slug>/`; never copy it.
 3. Read `learnings.md`. Mirror each unchecked executable delivery item into the task list with wording, label, order, and references. Keep conditional recovery dormant until triggered.
-4. Detect affected active services. Apply [live-service continuity](../development/live-service-continuity.md), baseline local/routed health, and activate continuity/rollback work before editing.
+4. Detect affected active services. Apply [live-service continuity](../development/live-service-continuity.md), baseline local/routed health, and activate continuity/rollback work before editing. For Bnest deployments, use the [Caddy workflow](development-caddy-deployment.md): preserve the stable route, prepare an independent revision-verified candidate, promote through Caddy, prove routed LiveView/WebSocket reconnect, then retire only after the bounded drain. Do not treat a browser refresh or Tailscale repoint as a normal-release recovery path.
 
 ## Execute
 
@@ -22,11 +22,12 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 ## Complete and Archive
 
 1. Re-run the quality gate from step one. Reconcile all items, criteria, learnings, specifications, documentation, rules, and tests with delivery.
-2. Give dormant conditionals a dated, evidenced `Not triggered`; never claim execution. Stay in progress while any required outcome, activated conditional, gate, dependency, or human action remains.
-3. Use the final-checkpoint local date for README `Completed` and `plans/done/YYYY-MM-DD__<slug>/`. Refuse an existing destination; never merge, overwrite, or add a suffix.
-4. Together set Done, record outcomes/proof/deviations, and move the folder with stage maps while preserving delivery history. This completes the archival item.
-5. Confirm one destination, no source, and no active old-path references. Resolve archived links/maps directly, then verify the repository and diff.
-6. When authorized, commit move, metadata, maps, and archive record together. Commit/push needs separate authorization. Complete the environment list only after verification.
+2. After any required drain, stop every unneeded non-production server, watcher, candidate, and temporary proxy; retain only the active route and intentional rollback capacity. Record proof or stay in progress.
+3. Give dormant conditionals a dated, evidenced `Not triggered`; never claim execution. Stay in progress while any required outcome, activated conditional, gate, dependency, or human action remains.
+4. Use the final-checkpoint local date for README `Completed` and `plans/done/YYYY-MM-DD__<slug>/`. Refuse an existing destination; never merge, overwrite, or add a suffix.
+5. Together set Done, record outcomes/proof/deviations, and move the folder with stage maps while preserving delivery history. This completes the archival item.
+6. Confirm one destination, no source, and no active old-path references. Resolve archived links/maps directly, then verify the repository and diff.
+7. When authorized, commit move, metadata, maps, and archive record together. Commit/push needs separate authorization. Complete the environment list only after verification.
 
 ## Recovery
 

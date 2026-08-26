@@ -50,5 +50,6 @@ defmodule BnestAppWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+  plug BnestAppWeb.ReleaseHeaders
   plug BnestAppWeb.Router
 end

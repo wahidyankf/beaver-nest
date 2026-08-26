@@ -24,6 +24,13 @@ defmodule BnestAppWeb.Router do
     plug :accepts, ["json"]
   end
 
+  scope "/health", BnestAppWeb do
+    pipe_through :api
+
+    get "/live", HealthController, :live
+    get "/ready", HealthController, :ready
+  end
+
   scope "/", BnestAppWeb do
     pipe_through :browser
 

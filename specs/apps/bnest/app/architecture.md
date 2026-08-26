@@ -8,12 +8,14 @@ This is the canonical as-built C4 model for Bnest. Maintain it under the reposit
 %% Accessible palette: blue #0173B2, orange #DE8F05, gray #808080
 flowchart TB
     visitor(["Person<br/><b>Family member</b><br/>Uses the private family application"])
-    tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Optional private HTTPS route to the home host"}}
+    tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route to the stable local proxy"}}
+    caddy["Container<br/><b>Caddy</b><br/>Loopback reverse proxy with blue/green upstream drain"]
     bnest[["Software system<br/><b>Bnest</b><br/>Authenticated family experiences with centralized local data"]]
     codex{{"External system<br/><b>Local Codex installation</b><br/>Model discovery and read-only Codex threads"}}
 
     visitor -->|Remote HTTPS / WebSocket| tailscale
-    tailscale -->|Loopback proxy| bnest
+    tailscale -->|Loopback HTTP| caddy
+    caddy -->|Loopback HTTP / WebSocket| bnest
     visitor -.->|Direct connection on home host| bnest
     bnest -->|Local processes| codex
 
@@ -23,9 +25,10 @@ flowchart TB
     class visitor person
     class bnest system
     class tailscale,codex external
+    class caddy system
 ```
 
-Bnest is a 24/7 family service, private to the local host and family devices routed through the independently managed Tailscale proxy. Elixir/OTP and Phoenix were selected for supervision, process isolation, and concurrent long-lived LiveView sessions. Approved users authenticate before protected access. Bnest keeps user-owned state in a server-managed flat-file runtime root; it has no public registration, cloud database, or uploads.
+Bnest is a 24/7 family service, private to the local host and family devices routed through Tailscale Serve and a stable loopback Caddy proxy. Caddy promotes a healthy blue or green Phoenix release with a bounded WebSocket drain; compatible LiveView clients reconnect without a manual refresh. Elixir/OTP and Phoenix were selected for supervision, process isolation, and concurrent long-lived LiveView sessions. Approved users authenticate before protected access. Bnest keeps user-owned state in a server-managed flat-file runtime root; it has no public registration, cloud database, or uploads.
 
 ## Container View
 
@@ -33,6 +36,8 @@ Bnest is a 24/7 family service, private to the local host and family devices rou
 %% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73, gray #808080
 flowchart TB
     visitor(["Person<br/><b>Family member</b>"])
+    tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route"}}
+    caddy["Container<br/><b>Caddy</b><br/>Loopback blue/green reverse proxy"]
     codex{{"External system<br/><b>Local Codex installation</b><br/>Codex SDK and app server"}}
 
     subgraph bnest["Software system: Bnest"]
@@ -50,6 +55,8 @@ flowchart TB
     end
 
     visitor -->|Uses| browser
+    tailscale -->|Loopback HTTP / WebSocket| caddy
+    caddy -->|Loopback HTTP / WebSocket| phoenix
     bridge -->|Discovers models; runs or resumes threads| codex
 
     classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
@@ -59,10 +66,11 @@ flowchart TB
     class visitor person
     class browser,phoenix,bridge container
     class legacy,runtime data
-    class codex external
+    class tailscale,codex external
+    class caddy container
 ```
 
-The Phoenix server, runtime repository, and Node bridges run on the home host. OTP supervision recovers failed child processes inside one running application; zero-downtime replacement of that application still requires a separate healthy backend. Tailscale Serve has an independent lifecycle. Production resolves `data/prod/` once before supervision; filesystem tests use one marked mirror below `data/test/runs/`.
+The Phoenix server, runtime repository, and Node bridges run on the home host. Caddy is a separate loopback container between Tailscale and blue/green Phoenix releases. OTP supervision recovers failed child processes inside one running application; replacement starts and proves the alternate release before Caddy promotes it. Production resolves `data/prod/` once before supervision; filesystem tests use one marked mirror below `data/test/runs/`.
 
 ## Component View
 
@@ -127,13 +135,13 @@ flowchart TB
 
 ## Architectural Constraints
 
-- Phoenix binds to the local endpoint lifecycle; Tailscale Serve is optional and managed independently.
+- Phoenix binds to blue/green loopback endpoints; Caddy owns the stable loopback route and Tailscale Serve forwards only to Caddy.
 - Chat runners use read-only sandbox access, approval policy `never`, and disabled network and web search.
 - Every protected route and data operation resolves an unrevoked opaque-cookie session and current user before repository access.
 - Roles may contain `children`, `parents`, and `admin`; capabilities still default-deny cross-user access.
 - Durable chat, Sifat Allah progress, and explicit theme state live only below the authenticated user's runtime path after accepted import.
 - Browser keys are immutable compatibility sources until envelope, normalization, and normal read-back pass; only the accepted key is then cleared.
-- Mutable records use revision checks, one path lock, atomic replacement, and read-back. Sessions have no time expiry and remain independent per browser.
+- Mutable records use revision checks, one path lock coordinated across connected local BEAM release nodes, atomic replacement, and read-back. Sessions have no time expiry and remain independent per browser.
 - Test adapters use only synthetic `test-user-` identities and marked mirrored runtime roots; production structural audit is read-only.
 
 ## Behaviour Traceability

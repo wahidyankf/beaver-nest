@@ -14,7 +14,7 @@ Create `plans/` artifacts only after an explicit user request. Harness Plan mode
 
 Store rough two-pagers at `plans/ideas/<quadrant>/<slug>.md`; select q1–q4 from dated urgency/importance evidence.
 
-Include summary, provenance, evidence, why now, prior art, direction, scope/non-goals, risks, success, and promotion signal. Exclude implementation detail, Gherkin, and delivery checklists. Search and consolidate first.
+Include summary, evidence, timing, prior art, direction, scope/non-goals, risks, success, and promotion signal. Exclude implementation detail, Gherkin, and delivery checklists; search and consolidate first.
 
 ## Formal Plans
 
@@ -29,15 +29,13 @@ Each active or backlogged plan contains:
 - `delivery.md`: detailed ordered tasks, executors, proof, phases, and gates; and
 - `learnings.md`: capture approach and transient observations awaiting disposition.
 
-Keep applicable contracts, migration, specification changes, File Impact, UI design, and assets in `tech-docs/`. Give each a reader job and technical-map link; the plan map links its entry point.
+Keep applicable contracts, migration, specification changes, File Impact, UI design, and assets in `tech-docs/`, each with reader job and map link. Under [minimal sufficiency](../principles/minimal-sufficiency.md), add only needed detail/evidence, split mixed jobs, and integrate unique content.
 
-Apply [minimal sufficiency](../principles/minimal-sufficiency.md): add companions only for required detail. Split mixed reader jobs; integrate unique content and delete duplicates. Add `evidence/` only for committed evidence.
+Follow [directory maps](directory-maps.md); plans have no word limit but exclude secrets and sensitive runtime data. Write for a junior. File Impact is an exact `[E]` update, `[N]` new, `[M]` moved, `[D]` deleted tree; discover unknown paths. Follow applicable [migration](plan-migrations.md), [specification-change](plan-specification-changes.md), and [UI-design](plan-ui-design.md) conventions.
 
-Every directory follows [directory maps](directory-maps.md). Plans have no word limit. Exclude secrets and sensitive user/runtime data.
+PRD Gherkin accepts the plan, not `specs/`; technical docs select durable contracts and delivery proves operational, migration, and rollout criteria.
 
-Write for a junior: define terms, decisions, ordered mechanics, and proof. File Impact is an exact tree: `[E]` update, `[N]` new, `[M]` moved, `[D]` deleted. Unknown filenames require discovery first. Follow applicable [migration](plan-migrations.md), [specification-change](plan-specification-changes.md), and [UI-design](plan-ui-design.md) conventions.
-
-PRD Gherkin accepts the plan; it does not map one-to-one to `specs/`. Technical docs select durable canonical contracts. Delivery proves remaining operational, migration, and rollout criteria.
+Active-service plans: `tech-docs/`/`delivery.md` apply [continuity](../development/live-service-continuity.md) and deployment workflow. Bnest plans name Caddy, candidate/revision health, LiveView/WebSocket reconnect, drain/cleanup, mixed-version safety, routed proof, rollback; never stop sole backend, repoint Tailscale, or require refresh.
 
 ## Delivery Ownership
 
