@@ -4,8 +4,8 @@ This quadrant contains ideas whose `Why now` evidence shows immediate pressure a
 
 ## Ideas
 
-No ideas are currently recorded.
+- [Zero-downtime local rollouts](zero-downtime-local-rollouts.md) makes stable Bnest promotion repeatable while repository work continues.
 
 ## Directory Map
 
-No sibling entries exist in this directory.
+- [Zero-downtime local rollouts](zero-downtime-local-rollouts.md) records the demonstrated continuity gap and promotion direction.

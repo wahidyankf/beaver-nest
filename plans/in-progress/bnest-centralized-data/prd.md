@@ -60,7 +60,7 @@ A user may have multiple roles from `children`, `parents`, and `admin`. Authoriz
 
 ## Proposed Acceptance Criteria
 
-These Gherkin scenarios express acceptance for this plan. They do not automatically become canonical `specs/` scenarios or prescribe a one-to-one rewrite. [Planned specification changes](tech-docs/specification-changes.md) selects the durable user-facing contracts; `delivery.md` proves the remaining operational and migration outcomes.
+These Gherkin scenarios express acceptance for this plan. They do not automatically become canonical `specs/` scenarios or prescribe a one-to-one rewrite. The [specification change record](tech-docs/specification-changes.md) selects the durable user-facing contracts; `delivery.md` proves the remaining operational and migration outcomes.
 
 ```gherkin
   Feature: Centralized Bnest data

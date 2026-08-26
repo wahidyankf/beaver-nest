@@ -78,7 +78,7 @@ Path: `system/accounts/<user-id>.json`.
   "displayUsername": "FamilyAdmin",
   "normalizedUsername": "familyadmin",
   "roles": ["parents", "admin"],
-  "passwordVerifier": "$argon2id$v=19$m=19456,t=2,p=1$synthetic-salt$synthetic-hash",
+  "passwordVerifier": "$argon2id$v=19$m=32768,t=2,p=1$synthetic-salt$synthetic-hash",
   "createdAt": "2030-01-01T00:00:00Z"
 }
 ```
@@ -351,7 +351,7 @@ For every future schema change:
 
 ## Production Schema Audit Projection
 
-The planned read-only audit reduces a record to public structure before comparison:
+The read-only schema audit reduces a record to public structure before comparison:
 
 ```json
 {

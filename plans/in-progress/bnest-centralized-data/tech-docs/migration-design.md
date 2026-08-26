@@ -5,6 +5,7 @@ This companion to [technical documentation](README.md) defines how current brows
 ## Safety Invariants
 
 - Copy before normalize; verify before switching the reader; never move or delete a legacy filesystem source in this plan.
+- Keep the current browser-backed root, chat, and learning journeys usable until authentication, import, normal read-back, and rollback are ready together. Introducing identity code does not authorize an early login cutover.
 - A browser key remains untouched until its immutable envelope, normalized server record, checksum, and normal product read-back all pass.
 - An accepted server record is never replaced by a failed candidate.
 - A stale browser revision never overwrites a newer accepted server record; the user refreshes before retrying.
@@ -12,13 +13,13 @@ This companion to [technical documentation](README.md) defines how current brows
 - Retrying the same owner/source/checksum is idempotent.
 - Logs, plan evidence, and committed fixtures never contain private payloads or identity-bearing production paths.
 
-## Current Source Inventory
+## Execution-Baseline Source Inventory
 
 ### Chat browser snapshot
 
 - **Source:** `sessionStorage["bnest.chat.v1"]`; tab-scoped.
-- **Current writer:** `apps/bnest-app/assets/js/app.js` stores completed snapshots.
-- **Current reader:** `ChatLive` receives `chat` connect data; `BnestApp.Chat` accepts versions 1 and 2.
+- **Baseline writer:** `apps/bnest-app/assets/js/app.js` stored completed snapshots.
+- **Compatibility reader:** `browser_import.js` now submits this exact key only from the confirmed migration screen; `BnestApp.Chat` accepts versions 1 and 2.
 - **Limits:** connect payload at most 500,000 bytes; normalized limits remain those in [central chat](data-contracts.md#central-chat).
 - **Owner:** the user who authenticates and explicitly confirms that browser's import.
 - **Destination:** immutable `users/<user-id>/imports/<import-id>.json`, then `users/<user-id>/chat/current.json`.
@@ -28,8 +29,8 @@ This companion to [technical documentation](README.md) defines how current brows
 ### Sifat Allah browser snapshot
 
 - **Source:** `localStorage["bnest.sifat-allah.v1"]`.
-- **Current writer:** `apps/bnest-app/assets/js/app.js` stores progress and optional activity state.
-- **Current reader:** `SifatAllahLive`; `BnestApp.SifatAllah` accepts versions 1 and 2.
+- **Baseline writer:** `apps/bnest-app/assets/js/app.js` stored progress and optional activity state.
+- **Compatibility reader:** `browser_import.js` submits this exact key; `BnestApp.SifatAllah` accepts versions 1 and 2.
 - **Limits:** encoded value at most 10,000 bytes; IDs and counters follow the existing validator.
 - **Owner:** the authenticated user confirming import.
 - **Destination:** immutable import envelope, then `users/<user-id>/sifat-allah/progress.json`.
@@ -39,7 +40,7 @@ This companion to [technical documentation](README.md) defines how current brows
 ### Explicit theme
 
 - **Source:** `localStorage["phx:theme"]`.
-- **Current writer/reader:** `root.html.heex` accepts only `light` or `dark`; absence means system theme.
+- **Compatibility reader:** `root.html.heex` and `browser_import.js` accept only `light` or `dark`; absence means system theme. Authenticated theme changes use the server endpoint.
 - **Owner:** the authenticated user confirming import.
 - **Destination:** `users/<user-id>/preferences/theme.json` for an explicit value; no file for system theme.
 - **Compatibility:** reject any other value without changing client or server preference.
@@ -47,25 +48,21 @@ This companion to [technical documentation](README.md) defines how current brows
 
 ### Root-level runtime folders
 
-- **Sources:** every ignored file below root-level `data/general/`, `data/apps/`, `data/system/`, and `data/users/`.
-- **Current readers/writers:** unknown until Phase 1 code/reference inspection and private runtime inventory.
-- **Owner:** determined per file as repository-shared, Bnest-shared, system, or one user; never guessed from payload values.
-- **Destination:** the same relative namespace under `data/prod/`; Bnest legacy material without a safe normalized owner goes beneath `data/prod/apps/beaver-nest/legacy/<import-id>/`.
-- **Compatibility:** known forms may normalize only after their opaque copy passes checksum; unknown/malformed forms remain opaque.
-- **Disposition proof:** private inventory receipt, source/recovery-copy checksums, destination read-back, and unchanged source checksum.
-
-Phase 1 records exact private source/destination paths outside Git. If ownership cannot be proven, the file stays only as a preserved legacy copy and the manifest reports `owner-unresolved`; implementation must not invent a user.
+- **Result:** read-only code/reference and private filesystem inventory found zero non-placeholder source files in root-level `data/general/`, `data/apps/`, `data/system/`, or `data/users/`.
+- **Disposition:** no ownership guess, production write, immutable copy, normalization, or deletion was required. Placeholder bytes and the empty-source inventory remained unchanged.
+- **Future safety:** if a source later appears, ownership must be proven outside Git before using `Backup`; unresolved material stays opaque and reports `owner-unresolved` rather than being assigned to a user.
 
 ## Transition Stages
 
 ### 1. Expand
 
 1. Add identity, repository, versioned readers, manifests, immutable recovery sources, and the `data/prod/` layout while old browser readers still work.
-2. Start Bnest with one resolved runtime root and fail before supervision when it is invalid.
-3. Add central writers behind an import/cutover state; do not remove browser writes yet.
-4. Add read-only inventory for legacy root-level sources and produce no mutation.
+2. Keep an explicit legacy-browser compatibility principal while one-time setup/cutover is disabled; it may use only the existing browser-backed behavior and must not become an owner of centralized records.
+3. Start Bnest with one resolved runtime root and fail before supervision when it is invalid.
+4. Add central writers behind an import/cutover state; do not remove browser writes yet.
+5. Add read-only inventory for legacy root-level sources and produce no mutation.
 
-**Checkpoint:** existing chat and Sifat Allah behavior still works; empty production roots bootstrap; test roots cannot resolve to production; every source has a reader, owner decision, destination, and failure outcome.
+**Checkpoint:** the routed root, chat, and Sifat Allah journeys still work without premature setup/login; empty production roots can be prepared without enabling cutover; test roots cannot resolve to production; every source has a reader, owner decision, destination, and failure outcome.
 
 ### 2. Migrate
 
@@ -90,7 +87,7 @@ For each root-level source, copy exact bytes to its owner/application legacy rec
 5. Tell the browser to remove only the accepted Bnest key.
 6. Confirm the key is absent and another non-Bnest key, when present in a synthetic test, remains unchanged.
 
-**Checkpoint:** reload and browser restart continue from central data; a browser that has not imported still reads its untouched source; no accepted server record or legacy filesystem source disappeared.
+**Checkpoint:** reload and browser restart continue from central data; a browser that has not imported retains its untouched source and can present it for confirmation, while normal views never adopt it silently; no accepted server record or legacy filesystem source disappeared.
 
 ### 4. Contract compatibility
 

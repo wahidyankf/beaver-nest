@@ -44,7 +44,7 @@ Nest Cards best balances setup clarity, family context, accessibility, and produ
 | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | ![Selected Bnest Nest Cards desktop hi-fi with account form and family summary](assets/ui-nest-cards-hifi-desktop.svg) | ![Selected Bnest Nest Cards tablet hi-fi with compact family cards](assets/ui-nest-cards-hifi-tablet.svg) | ![Selected Bnest Nest Cards mobile hi-fi focused on one child account](assets/ui-nest-cards-hifi-mobile.svg) |
 
-The direction uses Bnest's existing deep-teal ink, mint canvas, warm paper, sun yellow, coral, lagoon teal, rounded cards, offset shadow, and nest-ring motif. Desktop places the active form and persistent summary side by side. Tablet stacks a full-width form above two summary cards. Mobile shows one account task at a time and puts the summary behind a labeled disclosure.
+The direction uses Bnest's existing deep-teal ink, mint canvas, warm paper, sun yellow, coral, lagoon teal, rounded cards, offset shadow, and nest-ring motif. The implementation keeps the Nest Cards hierarchy but uses one responsive page instead of a multi-step client state machine: each account card is simultaneously editable and reviewable, passwords never move between steps, and the irreversible confirmation stays beside the final submit. This is the selected minimal variant of the hi-fi direction.
 
 ## Screens and Components
 
@@ -52,27 +52,27 @@ The direction uses Bnest's existing deep-teal ink, mint canvas, warm paper, sun 
 
 1. Explain that setup creates all initial accounts once and later account/password management is unavailable in this plan.
 2. Add accounts inside one final HTML form using username, password, password confirmation, and multi-role selection; incremental UI state never sends or stores passwords.
-3. Keep a visible family summary with edit/remove actions before final submission.
+3. Keep every account as a visible editable card; added cards can be removed before final submission, while the required first administrator card remains.
 4. Require at least one admin and resolve duplicate normalized usernames inline.
-5. Review usernames and roles only; never echo passwords.
+5. Review usernames and roles directly in their cards; password and confirmation inputs remain masked and are never echoed elsewhere.
 6. Require an explicit irreversible-close confirmation before the one final bootstrap POST.
 
 ### Login
 
-Show username, password, reveal button, submit state, and one generic invalid-credentials message. Do not reveal whether a username exists. Successful login returns to the originally requested safe internal route; an invalid return path goes home.
+Show username, masked password, submit state, and one generic invalid-credentials message. Do not reveal whether a username exists. Successful login returns to the originally requested safe internal route; an invalid return path goes home.
 
 ### Import and migration status
 
 After login, show only recognized sources found in that browser. For each source, explain what will be copied, that the source remains until read-back, and the final client-cleanup behavior. Status cards distinguish `ready`, `copying`, `verifying`, `accepted`, `retryable`, and `rejected` using icon, text, and color. Retry never asks the user to re-enter data.
 
-Shared implementation components are setup stepper, account form, role chips, family summary card, irreversible confirmation, login form, source confirmation card, status alert, and retry panel.
+Shared implementation surfaces are account cards, role checkboxes, add/remove controls, irreversible confirmation, login form, source confirmation cards, status alerts, and retry actions.
 
 A stale-record alert says another browser saved a newer version, keeps that server version untouched, and offers **Refresh latest**. It never promises an automatic merge or silently resubmits the stale change.
 
 ## Accessibility and Responsive Contract
 
 - Every field has a visible label; descriptions and errors are programmatically associated.
-- Password reveal is a real labeled button and never changes the submitted value.
+- Password and confirmation fields use native masked controls, password-manager autocomplete, and distinct visible labels.
 - Role chips expose checked state beyond color; status uses icon and text beyond color.
 - Keyboard order follows visual order and visible focus is never clipped by card shadows.
 - Error, loading, success, retry, and irreversible states use live-region semantics only when an announcement is useful.
@@ -83,4 +83,4 @@ A stale-record alert says another browser saved a newer version, keeps that serv
 
 ## Implementation and Proof Routes
 
-Exact application, test, specification, and asset paths live in [File Impact](file-impact.md). [Delivery](../delivery.md) must compare the implementation at all three selected viewports, run affected accessibility checks, and manually verify setup, login, import, retry, and irreversible-close states using synthetic users only.
+Exact application, test, specification, and asset paths live in [File Impact](file-impact.md). [Delivery](../delivery.md) compares the implementation at all three selected viewports and verifies setup, login, import, retry, and irreversible-close states with synthetic users only. Browser proof covered labels, password clearing, add/remove controls, keyboard order, focus, no horizontal overflow, light/dark themes, and color contrast; affected Lighthouse accessibility reached 100.

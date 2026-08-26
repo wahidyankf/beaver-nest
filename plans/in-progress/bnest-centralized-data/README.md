@@ -1,14 +1,15 @@
 # Bnest Centralized Data
 
-**Status:** Backlog  
+**Status:** In progress — synthetic implementation proof complete; authorized live setup/import pending  
 **Created:** 2026-08-26  
+**Started:** 2026-08-26  
 **Scope:** Bnest application, browser-persisted state, and ignored local runtime data
 
 ## Context
 
-Bnest currently has no authentication or server-side application data. Chat state stays in the current tab's `sessionStorage`; Sifat Allah progress and explicit light/dark theme preference stay in browser `localStorage`; root-level ignored runtime locations require private inventory before migration. This plan introduces authenticated, centralized flat-file persistence without discarding the browser or filesystem data that already exists.
+At execution start, Bnest had no authentication or server-side application data. Chat state stayed in the current tab's `sessionStorage`; Sifat Allah progress and explicit light/dark theme preference stayed in browser `localStorage`. The implementation now passes synthetic unit, integration, behavior, E2E, schema, and browser-accessibility proof. Live account setup and each authorized browser's confirmed import remain pending, so the compatibility backend stays routed and no source has been discarded.
 
-The canonical as-built system remains the [Bnest C4 architecture specification](../../../specs/apps/bnest/app/architecture.md). This proposal becomes authoritative only when implemented with its required specification updates.
+The canonical as-built system is the [Bnest C4 architecture specification](../../../specs/apps/bnest/app/architecture.md). Its implementation-aligned update is not a completed live cutover claim: this plan remains in progress until the human setup/import gate and final routed proof pass.
 
 ## Scope
 
@@ -36,7 +37,7 @@ See the [three-alternative, three-device comparison](tech-docs/ui-design.md#alte
 
 ## Dependencies
 
-The [technical design](tech-docs/README.md#decisions) resolves the identity/session boundary, username policy, initial capability matrix, and deliberate absence of later account management or password reset. Before implementation, the maintainer must accept that setup creates every initial account once and a lost credential leaves that account unavailable until a later explicitly planned recovery capability; restoring migration recovery sources must not roll back unrelated user data as password recovery.
+The maintainer accepted the [technical design](tech-docs/README.md#decisions): setup creates every initial account once, this plan adds no later account management or password reset, and losing a credential leaves only that account unavailable until a separate explicitly planned recovery capability. Migration recovery never doubles as password recovery and must not roll back unrelated data.
 
 The runtime-data convention is already aligned during planning: `data/prod/` is the live root, `data/test/runs/<run-id>/` is the only filesystem-test root, and `apps/<app-name>/` owns application-shared data within either root. Existing root-level `data/{general,apps,system,users}/` content is a legacy migration source; it must not be deleted or silently repurposed. Phase 1 revalidates that contract against the current repository before introducing records.
 

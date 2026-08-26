@@ -8,8 +8,8 @@ Before starting work, confirm that the plan still matches current repository evi
 
 ## Backlog Plans
 
-- [Bnest centralized data](bnest-centralized-data/README.md) proposes login-protected, per-user Bnest persistence with non-destructive browser and legacy-data migration.
+No plans are currently backlogged.
 
 ## Directory Map
 
-- [Bnest centralized data](bnest-centralized-data/README.md) contains the queued login and centralized-data plan.
+No sibling entries exist in this directory.
