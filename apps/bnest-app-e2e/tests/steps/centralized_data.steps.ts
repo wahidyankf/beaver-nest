@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import { login } from "../support/authentication";
 import {
   chatPayload,
   confirmImports,
@@ -250,14 +251,7 @@ Given(
   async ({ page, $testInfo }) => {
     activeIdentity = isolatedTestIdentity($testInfo);
     await page.context().clearCookies();
-    await page.goto("/login");
-    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-    await page.getByLabel("Username").fill(activeIdentity.child.username);
-    await page.getByLabel("Password").fill(activeIdentity.child.password);
-    await Promise.all([
-      page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 }),
-      page.getByRole("button", { name: "Log in" }).click(),
-    ]);
+    await login(page, activeIdentity.child);
 
     const unavailable = JSON.stringify({
       ...JSON.parse(chatPayload),
