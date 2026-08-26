@@ -6,8 +6,8 @@ Start work by moving one folder from [`../backlogs/`](../backlogs/README.md) wit
 
 ## Active Plans
 
-- [Bnest centralized data](bnest-centralized-data/README.md) implements login-protected, per-user persistence with non-destructive browser and legacy-data migration.
+No active plans are currently recorded.
 
 ## Directory Map
 
-- [Bnest centralized data](bnest-centralized-data/README.md) contains the active login and centralized-data plan.
+No sibling plan entries exist in this directory.

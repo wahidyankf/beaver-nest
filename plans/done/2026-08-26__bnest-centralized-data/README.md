@@ -1,15 +1,16 @@
 # Bnest Centralized Data
 
-**Status:** In progress — synthetic implementation proof complete; authorized live setup/import pending  
+**Status:** Done  
 **Created:** 2026-08-26  
 **Started:** 2026-08-26  
+**Completed:** 2026-08-26  
 **Scope:** Bnest application, browser-persisted state, and ignored local runtime data
 
 ## Context
 
-At execution start, Bnest had no authentication or server-side application data. Chat state stayed in the current tab's `sessionStorage`; Sifat Allah progress and explicit light/dark theme preference stayed in browser `localStorage`. The implementation now passes synthetic unit, integration, behavior, E2E, schema, and browser-accessibility proof. Live account setup and each authorized browser's confirmed import remain pending, so the compatibility backend stays routed and no source has been discarded.
+At execution start, Bnest had no authentication or server-side application data. Chat state stayed in the current tab's `sessionStorage`; Sifat Allah progress and explicit light/dark theme preference stayed in browser `localStorage`. The implementation passed synthetic unit, integration, behavior, E2E, schema, and browser-accessibility proof. Authorized live setup and browser imports were then confirmed; the final primary backend passed local and routed checks, and the temporary compatibility backends were retired. No source was discarded.
 
-The canonical as-built system is the [Bnest C4 architecture specification](../../../specs/apps/bnest/app/architecture.md). Its implementation-aligned update is not a completed live cutover claim: this plan remains in progress until the human setup/import gate and final routed proof pass.
+The canonical as-built system is the [Bnest C4 architecture specification](../../../specs/apps/bnest/app/architecture.md). This delivery record is ready for the final quality gate and collision-safe archival; it does not replace the as-built specification.
 
 ## Scope
 

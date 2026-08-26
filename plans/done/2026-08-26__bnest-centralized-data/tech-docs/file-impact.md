@@ -187,4 +187,4 @@ plans/ideas/q1-urgent-important/
 └── [N] zero-downtime-local-rollouts.md     # Capture a future repeatable promoter without duplicating this plan.
 ```
 
-The plan itself moved once from `plans/backlogs/bnest-centralized-data/` to `plans/in-progress/bnest-centralized-data/`, with both stage READMEs updated. Its 12 Markdown documents and 12 synthetic SVG assets remain fully mapped by the plan READMEs; final archival is recorded only after every human and AI gate passes.
+The plan moved from `plans/backlogs/bnest-centralized-data/` to `plans/in-progress/bnest-centralized-data/`, then after every human and AI gate passed to `plans/done/2026-08-26__bnest-centralized-data/`; both stage READMEs were updated for each move. Its 12 Markdown documents and 12 synthetic SVG assets remain fully mapped by the archived plan READMEs.

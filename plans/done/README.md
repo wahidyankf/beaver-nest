@@ -6,8 +6,8 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 
 ## Completed Plans
 
-No plans are currently archived.
+- [Bnest centralized data](2026-08-26__bnest-centralized-data/README.md) completed authenticated per-user persistence, non-destructive browser migration, and safe primary cutover.
 
 ## Directory Map
 
-No sibling entries exist in this directory.
+- [Bnest centralized data](2026-08-26__bnest-centralized-data/README.md) contains the completed login and centralized-data delivery record.

@@ -103,7 +103,8 @@
   - 2026-08-26 — Import logic is isolated in `browser_import.js`; E2E proves accepted-key-only cleanup and preservation of unrelated storage. Fresh authenticated chat, learning, and theme writes remain server-only.
 - [x] `[AI] [AC-02, AC-03, AC-05, AC-07, AC-08, AC-11]` Turn centralized-data unit/integration/behavior/E2E tests green. Cover absent, accepted, duplicate, oversized, unknown, malformed, interrupted, read-back-failed, stale-revision, cleanup-pending, two-user, two-browser, theme-system, legacy opaque, and failed Codex-resume outcomes.
   - 2026-08-26 — Unit 89/89, integration 142/142, all 55 behavior scenarios, and all 163 desktop/tablet/mobile E2E cases passed. Scenario-owned identities removed parallel shared-count races.
-- [ ] `[HUMAN] [AC-02, AC-05, AC-08]` In each authorized live browser, confirm only the displayed allow-listed sources after Bnest can create the immutable envelope. This grants only browser confirmation and live import; do not disclose credentials, cookie, private URL, path, checksum, or payload to the agent.
+- [x] `[HUMAN] [AC-02, AC-05, AC-08]` In each authorized live browser, confirm only the displayed allow-listed sources after Bnest can create the immutable envelope. This grants only browser confirmation and live import; do not disclose credentials, cookie, private URL, path, checksum, or payload to the agent.
+  - 2026-08-26 — The authorized user confirmed every browser source is synchronized. No credential, cookie, URL, path, checksum, or payload was shared; subsequent schema audit and authenticated two-device confirmation supplied the safe outcome evidence.
 
 ### Phase 3 Checkpoint
 
@@ -132,20 +133,24 @@
   - 2026-08-26 — C4, four feature files/maps, root/app/E2E READMEs, technical reconciliation, exact implementation tree, and one-page Nest Cards variant now match the tested code.
 - [x] `[AI] [AC-01–AC-11]` Capture only safe evidence and route each learning to a specification, permanent documentation, governance, an existing idea, or a distinct new idea after searching `plans/ideas/`. Do not duplicate ideas or retain secrets/runtime values.
   - 2026-08-26 — Six safe learnings route to existing specifications/docs, focused E2E/test-identity/continuity rules, and one non-duplicate Q1 rollout idea; no private value is retained.
-- [ ] `[AI] [AC-02, AC-08]` Return the routed endpoint to the verified primary server pane and its default backend port. After routed root/chat and LiveView checks pass, stop and remove the temporary `bnest-stable` and `bnest-candidate` tmux windows, then delete only their explicitly validated temporary snapshot directories. Prove neither temporary process, directory, nor alternate proxy target remains.
-  - 2026-08-26 — In progress: the primary pane was rebuilt with its exact stable environment, local and routed setup reached connected LiveView, and the proxy now targets default port 4000. Both temporary backends remain healthy until live account setup/import and authenticated post-cutover proof pass; cleanup has not started.
-  - 2026-08-26 — Repeated the no-downtime cutover for the final internal password policy: verified the fallback, routed traffic to it, compiled and restarted the primary with its exact stable environment, verified local and routed root/setup responses plus the updated accessible password guidance, then restored the default primary route. Temporary backends remain intentionally retained pending the human-owned live setup/import proof.
+- [x] `[AI] [AC-02, AC-08]` Return the routed endpoint to the verified primary server pane and its default backend port. After routed root/chat and LiveView checks pass, stop and remove the temporary `bnest-stable` and `bnest-candidate` tmux windows, then delete only their explicitly validated temporary snapshot directories. Prove neither temporary process, directory, nor alternate proxy target remains.
+  - 2026-08-26 — Before live setup/import confirmation, the primary pane was rebuilt with its exact stable environment; local and routed setup reached connected LiveView and the proxy returned to default port 4000 while both temporary backends remained available as recovery.
+  - 2026-08-26 — The primary was also rebuilt through the no-downtime cutover for the final internal password policy: fallback first, then environment-matched primary compile/restart, local and routed root/setup plus accessible-guidance proof, then restoration of the default primary route.
+  - 2026-08-26 — The authorized user confirmed all browser imports are synchronized and one account remains authenticated on two devices. Read-only schema audit passed every present record family, including centralized chat; routed and local root/login were healthy and one-time setup was correctly closed. The proxy remained on default port 4000 while `bnest-stable` and `bnest-candidate` were stopped; their exact validated temporary snapshot directories were then removed. No alternate listener, temporary window, directory, or proxy target remains.
 
 ### Phase 4 Checkpoint
 
-- [ ] `[AI] [AC-01–AC-11]` Re-run the plan quality gate from step 1, reconcile every delivery checkbox with repository evidence, and rerun required Nx gates. Confirm all selected behavior, migration, UI, cleanup, rollback, docs, and specifications are complete with no unresolved material gap.
-- [ ] `[HUMAN] [AC-02, AC-05, AC-08]` Decide whether to request a separate archival plan. The default is retain every envelope, recovery copy, manifest, old reader, and root-level legacy source; this item authorizes no deletion.
-- [ ] `[AI] [AC-01–AC-11]` When every prior item passes, follow plan execution to move the folder to `plans/done/YYYY-MM-DD__bnest-centralized-data/`, update both directory maps, and record the completion date. This does not independently authorize commit or push.
+- [x] `[AI] [AC-01–AC-11]` Re-run the plan quality gate from step 1, reconcile every delivery checkbox with repository evidence, and rerun required Nx gates. Confirm all selected behavior, migration, UI, cleanup, rollback, docs, and specifications are complete with no unresolved material gap.
+  - 2026-08-26 — Passed. The complete plan set, maps, linked technical set, assets, delivery evidence, current C4/Gherkin, and permanent rules were reconciled as necessary, discoverable, junior-executable, and free of unresolved material gaps. `bnest-app:test:quick` passed (89 unit tests, 99.63% coverage, 55 scenarios/436 steps/120 bindings); `bnest-app:test:integration` passed (142 tests); and the focused one-time-setup E2E passed. The final read-only production schema audit passed, while user-confirmed live import and two-device session evidence covered the human boundary.
+- [x] `[HUMAN] [AC-02, AC-05, AC-08]` Decide whether to request a separate archival plan. The default is retain every envelope, recovery copy, manifest, old reader, and root-level legacy source; this item authorizes no deletion.
+  - 2026-08-26 — No separate archival work was requested. The accepted default remains retention of every envelope, recovery copy, manifest, old reader, and root-level legacy source; no live data deletion is authorized or performed.
+- [x] `[AI] [AC-01–AC-11]` When every prior item passes, follow plan execution to move the folder to `plans/done/YYYY-MM-DD__bnest-centralized-data/`, update both directory maps, and record the completion date. This does not independently authorize commit or push.
+  - 2026-08-26 — Archived as `plans/done/2026-08-26__bnest-centralized-data/` after its collision check; the in-progress and done directory maps were reconciled in the same change.
 
-## Live Rollback
+## Live Rollback — Not Triggered
 
-- [ ] `[HUMAN] [AC-05]` Authorize and perform the operational stop of new live centralized writes. State only that writes are stopped; do not expose live access details.
-- [ ] `[AI] [AC-02, AC-05, AC-08]` Read the safe manifest status, preserve every source and accepted record, verify the selected recovery source in place, and prepare the exact restore operation without a live mutation beyond granted authority.
-- [ ] `[HUMAN] [AC-05]` Choose the verified recovery source or retained previous representation and authorize that exact live restore target.
-- [ ] `[AI] [AC-05]` Execute only the authorized restore, re-read it through the normal product flow, stop if checksum/schema/read-back fails, and retain the failed candidate plus previous accepted data.
-- [ ] `[AI] [AC-01–AC-11]` Record safe failure evidence and route reusable learning before resuming delivery or marking the plan complete.
+- [x] `[HUMAN] [AC-05]` Not triggered — no failed live migration or restore condition required an operational stop of centralized writes.
+- [x] `[AI] [AC-02, AC-05, AC-08]` Not triggered — accepted imports, schema audit, and normal user read-back remained healthy, so no recovery-source preparation was needed.
+- [x] `[HUMAN] [AC-05]` Not triggered — no recovery target selection was needed because no restore condition occurred.
+- [x] `[AI] [AC-05]` Not triggered — no restore was authorized or executed; accepted data and retained recovery representations remain intact.
+- [x] `[AI] [AC-01–AC-11]` Not triggered — no rollback failure occurred; the earlier continuity learning remains routed in `learnings.md`.
