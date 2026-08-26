@@ -291,10 +291,6 @@ function slotLabel(slot) {
   return `com.bnest.app.${slot}`;
 }
 
-function slotNode(slot) {
-  return `bnest_${slot}@${output("hostname", ["-s"])}`;
-}
-
 function prepareSlot(slot) {
   const revision =
     argumentValue("--revision") ||
@@ -307,8 +303,6 @@ function prepareSlot(slot) {
   const release = join(paths.releases, revision);
   if (!existsSync(release)) fail(`Release ${revision} does not exist.`);
 
-  const current = state();
-  const peer = current.healthChecked ? slotNode(current.activeSlot) : null;
   const plistPath = join(paths.launchAgents, `${slotLabel(slot)}.plist`);
   const logPath = join(paths.logs, `${slot}.log`);
   const errorPath = join(paths.logs, `${slot}.error.log`);
@@ -323,7 +317,6 @@ function prepareSlot(slot) {
       cookie,
       secretKeyBase,
       revision,
-      peer,
       logPath,
       errorPath,
     ),
@@ -363,7 +356,6 @@ function launchAgent(
   cookieFile,
   secretKeyBaseFile,
   revision,
-  peer,
   logPath,
   errorPath,
 ) {
@@ -377,11 +369,9 @@ function launchAgent(
     BNEST_COOKIE_SECURE: "true",
     BNEST_RELEASE_REVISION: revision,
     BNEST_DEPLOY_SLOT: slot,
-    RELEASE_DISTRIBUTION: "sname",
-    RELEASE_NODE: `bnest_${slot}`,
+    RELEASE_DISTRIBUTION: "none",
     RELEASE_COOKIE: readFileSync(cookieFile, "utf8").trim(),
     SECRET_KEY_BASE: readFileSync(secretKeyBaseFile, "utf8").trim(),
-    ...(peer ? { BNEST_DEPLOY_PEER: peer } : {}),
   };
   const environment = Object.entries(variables)
     .map(
