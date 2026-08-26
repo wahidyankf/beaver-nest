@@ -133,6 +133,7 @@
 - [x] `[AI] [AC-01–AC-11]` Capture only safe evidence and route each learning to a specification, permanent documentation, governance, an existing idea, or a distinct new idea after searching `plans/ideas/`. Do not duplicate ideas or retain secrets/runtime values.
   - 2026-08-26 — Six safe learnings route to existing specifications/docs, focused E2E/test-identity/continuity rules, and one non-duplicate Q1 rollout idea; no private value is retained.
 - [ ] `[AI] [AC-02, AC-08]` Return the routed endpoint to the verified primary server pane and its default backend port. After routed root/chat and LiveView checks pass, stop and remove the temporary `bnest-stable` and `bnest-candidate` tmux windows, then delete only their explicitly validated temporary snapshot directories. Prove neither temporary process, directory, nor alternate proxy target remains.
+  - 2026-08-26 — In progress: the primary pane was rebuilt with its exact stable environment, local and routed setup reached connected LiveView, and the proxy now targets default port 4000. Both temporary backends remain healthy until live account setup/import and authenticated post-cutover proof pass; cleanup has not started.
 
 ### Phase 4 Checkpoint
 
