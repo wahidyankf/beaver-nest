@@ -89,7 +89,7 @@ flowchart TB
 
 - Command handlers depend on the injectable runtime boundary; unit tests replace the filesystem and output writers.
 - Integration tests use isolated local files without network access; E2E tests observe only the built process's public command contract.
-- Governance documents remain authoritative. Badakmini reports structural violations but does not mutate repository content.
+- Governance documents remain authoritative. Badakmini reports structural, Markdown-link, and Mermaid violations but does not mutate repository content.
 - Text output is the human default, JSON is the machine-observation boundary, and exit codes distinguish success, findings, and invocation errors.
 
 ## Behaviour Traceability

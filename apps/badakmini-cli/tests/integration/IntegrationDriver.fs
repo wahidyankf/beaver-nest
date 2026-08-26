@@ -47,6 +47,14 @@ let private violationView violation =
           WordCount = None
           Line = None
           Diagnostic = Governance.formatViolation violation }
+    | InvalidMarkdownLink issue ->
+        { Kind = "invalid Markdown link"
+          Path = issue.Path
+          RelatedPath = None
+          Target = Some issue.Target
+          WordCount = None
+          Line = None
+          Diagnostic = Governance.formatViolation violation }
     | MermaidAccessibilityViolation issue ->
         { Kind = "Mermaid accessibility"
           Path = issue.Path
@@ -83,6 +91,7 @@ type private IntegrationDriver() =
         match validator with
         | "word-budget" -> [| "governance"; "word-budget"; "validate" |]
         | "directory-map" -> [| "governance"; "directory-map"; "validate" |]
+        | "links" -> [| "md"; "links"; "validate" |]
         | "mermaid" -> [| "md"; "mermaid"; "validate" |]
         | _ -> failwithf "Unknown validator '%s'." validator
 

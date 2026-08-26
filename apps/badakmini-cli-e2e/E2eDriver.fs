@@ -26,6 +26,7 @@ let private violationView (element: JsonElement) =
         | "missing-directory-map" -> "missing directory map"
         | "missing-map-entry" -> "missing map entry"
         | "invalid-map-entry" -> "invalid map entry"
+        | "invalid-markdown-link" -> "invalid Markdown link"
         | "mermaid-accessibility" -> "Mermaid accessibility"
         | unknown -> failwithf "Unknown CLI violation kind '%s'." unknown
       Path = element.GetProperty("path").GetString()
@@ -101,6 +102,7 @@ type private E2eDriver() =
         match validator with
         | "word-budget" -> [| "governance"; "word-budget"; "validate" |]
         | "directory-map" -> [| "governance"; "directory-map"; "validate" |]
+        | "links" -> [| "md"; "links"; "validate" |]
         | "mermaid" -> [| "md"; "mermaid"; "validate" |]
         | _ -> failwithf "Unknown validator '%s'." validator
 

@@ -24,6 +24,7 @@ type CliContractTests() =
         for arguments, property in
             [ [| "governance"; "word-budget"; "validate"; "--format"; "json" |], "markdownFiles"
               [| "governance"; "directory-map"; "validate"; "--format"; "json" |], "directoryCount"
+              [| "md"; "links"; "validate"; "--format"; "json" |], "markdownFileCount"
               [| "md"; "mermaid"; "validate"; "--format"; "json" |], "diagramCount" ] do
             let result = invokeWithDriver noArrangement arguments
             Assert.Equal(0, result.ExitCode)
@@ -88,7 +89,10 @@ type CliContractTests() =
                       "```mermaid\nflowchart LR\nclassDef unsafe fill:#FF0000,stroke:#000000,color:#FFFFFF\n```"
                   )),
               [| "md"; "mermaid"; "validate" |],
-              "mermaid-accessibility" ]
+              "mermaid-accessibility"
+              (fun driver -> driver.Write("docs/source.md", "[Missing](missing.md)")),
+              [| "md"; "links"; "validate" |],
+              "invalid-markdown-link" ]
 
         for arrange, command, expectedKind in cases do
             let result =
@@ -113,6 +117,7 @@ type CliContractTests() =
         for command, expected in
             [ [| "governance"; "word-budget"; "validate" |], "governance word-budget validate"
               [| "governance"; "directory-map"; "validate" |], "governance directory-map validate"
+              [| "md"; "links"; "validate" |], "md links validate"
               [| "md"; "mermaid"; "validate" |], "md mermaid validate" ] do
             let result =
                 invokeWithDriver arrange (Array.append command [| "--format"; "json" |])
@@ -136,6 +141,7 @@ type CliContractTests() =
         for arguments in
             [ [| "governance"; "word-budget"; "validate"; "--format"; "xml" |]
               [| "governance"; "directory-map"; "validate"; "--format"; "xml" |]
+              [| "md"; "links"; "validate"; "--format"; "xml" |]
               [| "md"; "word-count"; "inspect"; "--file"; "subject.md"; "--format"; "xml" |] ] do
             let result = invokeWithDriver noArrangement arguments
             Assert.Equal(2, result.ExitCode)

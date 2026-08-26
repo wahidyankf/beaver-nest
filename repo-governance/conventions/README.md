@@ -24,6 +24,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Integration path](integration-path.md) makes direct pushes from local `main` the default and requires isolated, disposable worktrees for pull requests.
 - [Last-resort questions](last-resort-questions.md) require exhausting safe ways to proceed before asking the user.
 - [Language](language.md) makes English the repository's primary working language.
+- [Markdown links](markdown-links.md) keep internal links resolvable across repository-owned Markdown.
 - [Markdown visualizations](markdown-visualizations.md) prefer useful Mermaid diagrams and require accessible color, contrast, and non-color cues.
 - [Plan lifecycle](plan-lifecycle.md) moves rough ideas through backlogs, active execution, and completion while keeping as-built truth in specifications.
 - [Project READMEs](project-readmes.md) make every application and library independently understandable and operable.

@@ -126,6 +126,8 @@ Feature: badakmini-cli command contract
       | governance\|word-budget\|--help             |
       | governance\|word-budget\|validate\|--help    |
       | md\|--help                                 |
+      | md\|links\|--help                          |
+      | md\|links\|validate\|--help               |
       | md\|mermaid\|--help                        |
       | md\|mermaid\|validate\|--help               |
 
@@ -140,6 +142,7 @@ Feature: badakmini-cli command contract
       | governance                                                   |
       | governance\|word-budget                                      |
       | md\|mermaid                                                  |
+      | md\|links                                                    |
       | unknown                                                      |
       | governance\|word-budget\|validate\|extra                      |
       | governance\|word-budget\|validate\|--root\|{missing-root}     |
@@ -166,6 +169,7 @@ Feature: badakmini-cli command contract
       | arguments                                 |
       | governance\|word-budget\|validate          |
       | governance\|directory-map\|validate        |
+      | md\|links\|validate                        |
       | md\|mermaid\|validate                      |
 
   Scenario: A file word count is observable as JSON
@@ -189,4 +193,5 @@ Feature: badakmini-cli command contract
       | arguments                                             |
       | governance\|word-budget\|validate                      |
       | governance\|directory-map\|validate                    |
+      | md\|links\|validate                                    |
       | md\|word-count\|inspect\|--file\|missing.md             |

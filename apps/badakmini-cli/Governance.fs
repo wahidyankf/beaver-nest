@@ -18,12 +18,15 @@ type MermaidAccessibilityIssue =
       Line: int
       Message: string }
 
+type MarkdownLinkIssue = { Path: string; Target: string }
+
 type GovernanceViolation =
     | WordLimitExceeded of MarkdownFile
     | MissingReadme of directoryPath: string
     | MissingDirectoryMap of readmePath: string
     | MissingMapEntry of readmePath: string * siblingPath: string
     | InvalidMapEntry of readmePath: string * target: string
+    | InvalidMarkdownLink of MarkdownLinkIssue
     | MermaidAccessibilityViolation of MermaidAccessibilityIssue
 
 type WordBudgetInspection =
@@ -38,6 +41,10 @@ type MermaidInspection =
     { DiagramCount: int
       Violations: GovernanceViolation list }
 
+type MarkdownLinkInspection =
+    { MarkdownFileCount: int
+      Violations: GovernanceViolation list }
+
 module Governance =
     [<Literal>]
     let WordLimit = 500
@@ -50,6 +57,12 @@ module Governance =
 
     let private markdownLinkPattern =
         Regex(@"(?<!!)\[[^\]]+\]\(\s*(?<target><[^>]+>|[^)\s]+)", RegexOptions.Compiled)
+
+    let private markdownReferenceLinkPattern =
+        Regex(@"^\s*\[[^\]]+\]:\s*(?<target><[^>]+>|[^\s]+)", RegexOptions.Compiled)
+
+    let private markdownFencePattern =
+        Regex(@"^\s*(?<fence>`{3,}|~{3,})", RegexOptions.Compiled)
 
     let private sectionHeadingPattern = Regex(@"^\s*#{1,2}\s+", RegexOptions.Compiled)
 
@@ -503,6 +516,94 @@ module Governance =
         else
             target
 
+    let private extractMarkdownLinkTargets content =
+        let lines = Regex.Split(content, "\r?\n")
+        let targets = ResizeArray<string>()
+        let mutable openingFence = ""
+
+        for line in lines do
+            let fence = markdownFencePattern.Match line
+
+            if String.IsNullOrEmpty openingFence then
+                if fence.Success then
+                    openingFence <- fence.Groups["fence"].Value
+                else
+                    markdownLinkPattern.Matches(line)
+                    |> Seq.cast<Match>
+                    |> Seq.iter (fun link -> targets.Add(link.Groups["target"].Value))
+
+                    markdownReferenceLinkPattern.Matches(line)
+                    |> Seq.cast<Match>
+                    |> Seq.iter (fun link -> targets.Add(link.Groups["target"].Value))
+            elif
+                fence.Success
+                && fence.Groups["fence"].Value[0] = openingFence[0]
+                && fence.Groups["fence"].Value.Length >= openingFence.Length
+            then
+                openingFence <- ""
+
+        targets |> Seq.toList
+
+    let private isArchivedPlanMarkdown fullRoot path =
+        let relativePath = normalizeRelativePath fullRoot path
+
+        relativePath.StartsWith("plans/done/", StringComparison.OrdinalIgnoreCase)
+
+    let private isWithinRoot fullRoot path =
+        let relativePath = Path.GetRelativePath(fullRoot, path)
+
+        relativePath <> ".."
+        && not (relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+
+    let private hasExistingMarkdownTarget fileSystem fullRoot (sourcePath: string) (target: string) =
+        try
+            let cleanTarget = cleanLinkTarget target
+
+            if String.IsNullOrWhiteSpace cleanTarget then
+                true
+            else
+                let decodedTarget = Uri.UnescapeDataString cleanTarget
+
+                if Path.IsPathRooted decodedTarget then
+                    false
+                else
+                    let mutable absoluteUri = Unchecked.defaultof<Uri>
+
+                    if Uri.TryCreate(cleanTarget, UriKind.Absolute, &absoluteUri) then
+                        true
+                    else
+                        let sourceDirectory = Path.GetDirectoryName sourcePath
+
+                        let targetPath =
+                            decodedTarget.Replace('/', Path.DirectorySeparatorChar)
+                            |> fun path -> Path.GetFullPath(Path.Combine(sourceDirectory, path))
+
+                        isWithinRoot fullRoot targetPath
+                        && (fileSystem.FileExists targetPath || fileSystem.DirectoryExists targetPath)
+        with
+        | :? ArgumentException
+        | :? NotSupportedException -> false
+
+    let inspectMarkdownLinksWith fileSystem root =
+        let fullRoot = Path.GetFullPath root
+
+        let markdownFiles =
+            enumerateOwnedMarkdown fileSystem fullRoot
+            |> Seq.filter (isArchivedPlanMarkdown fullRoot >> not)
+            |> Seq.sort
+            |> Seq.toList
+
+        let violations =
+            [ for path in markdownFiles do
+                  let relativePath = normalizeRelativePath fullRoot path
+
+                  for target in fileSystem.ReadAllText path |> extractMarkdownLinkTargets do
+                      if not (hasExistingMarkdownTarget fileSystem fullRoot path target) then
+                          yield InvalidMarkdownLink { Path = relativePath; Target = target } ]
+
+        { MarkdownFileCount = markdownFiles.Length
+          Violations = violations }
+
     let private pathsEqual left right =
         String.Equals(Path.GetFullPath left, Path.GetFullPath right, StringComparison.Ordinal)
 
@@ -589,4 +690,5 @@ module Governance =
             $"{readmePath}: directory map does not include sibling: {siblingPath}"
         | InvalidMapEntry(readmePath, target) ->
             $"{readmePath}: directory map links a nonexistent or non-sibling entry: {target}"
+        | InvalidMarkdownLink issue -> $"{issue.Path}: Markdown link target does not exist: {issue.Target}"
         | MermaidAccessibilityViolation issue -> $"{issue.Path}:{issue.Line}: {issue.Message}"

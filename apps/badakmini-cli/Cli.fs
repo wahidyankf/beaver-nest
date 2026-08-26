@@ -87,6 +87,14 @@ module Cli =
               WordCount = noNumber
               Line = noNumber
               Message = Governance.formatViolation violation }
+        | InvalidMarkdownLink issue ->
+            { Kind = "invalid-markdown-link"
+              Path = issue.Path
+              RelatedPath = emptyText
+              Target = issue.Target
+              WordCount = noNumber
+              Line = noNumber
+              Message = Governance.formatViolation violation }
         | MermaidAccessibilityViolation issue ->
             { Kind = "mermaid-accessibility"
               Path = issue.Path
@@ -199,6 +207,32 @@ module Cli =
             exitCode
         with ex ->
             operationalError runtime format "md mermaid validate" "mermaid" ex
+
+    let private runMarkdownLinks runtime format root =
+        try
+            let inspection = Governance.inspectMarkdownLinksWith runtime.FileSystem root
+            let exitCode = if List.isEmpty inspection.Violations then 0 else 1
+
+            match format with
+            | Json ->
+                writeJson
+                    runtime.Output
+                    {| schemaVersion = 1
+                       command = "md links validate"
+                       markdownFileCount = inspection.MarkdownFileCount
+                       violations = inspection.Violations |> List.map jsonViolation |}
+            | Text when exitCode = 0 ->
+                sprintf "Checked %d Markdown file(s); all local link targets exist." inspection.MarkdownFileCount
+                |> writeOutput runtime "links"
+            | Text ->
+                printViolations runtime "links" inspection.Violations
+
+                sprintf "Found %d invalid Markdown link(s)." inspection.Violations.Length
+                |> writeError runtime "links"
+
+            exitCode
+        with ex ->
+            operationalError runtime format "md links validate" "links" ex
 
     let private runWordCount runtime format root file =
         try
@@ -334,7 +368,20 @@ module Cli =
         governance.Subcommands.Add directoryMap
 
         let markdown = Command("md", "Validate repository-owned Markdown.")
+        let links = Command("links", "Validate internal Markdown links.")
         let mermaid = Command("mermaid", "Validate compatible Mermaid diagrams.")
+
+        links.Subcommands.Add(
+            createLeaf
+                runtime
+                "validate"
+                "Validate that local Markdown link targets exist."
+                rootOption
+                formatOption
+                "md links validate"
+                "links"
+                (runMarkdownLinks runtime)
+        )
 
         mermaid.Subcommands.Add(
             createLeaf
@@ -350,6 +397,7 @@ module Cli =
 
         let wordCount = Command("word-count", "Inspect Markdown word counts.")
         wordCount.Subcommands.Add(createWordCountLeaf runtime rootOption formatOption)
+        markdown.Subcommands.Add links
         markdown.Subcommands.Add mermaid
         markdown.Subcommands.Add wordCount
         root.Subcommands.Add governance

@@ -218,11 +218,16 @@
       "executor": "nx:run-commands",
       "inputs": [
         "default",
+        "{workspaceRoot}/**/*.md",
         "{workspaceRoot}/plans/**/*",
         "{workspaceRoot}/specs/**/*"
       ],
       "options": {
         "commands": [
+          {
+            "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll md links validate --root ../..",
+            "forwardAllArgs": false
+          },
           {
             "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll governance word-budget validate --root ../..",
             "forwardAllArgs": false
