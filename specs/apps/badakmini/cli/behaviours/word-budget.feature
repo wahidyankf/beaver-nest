@@ -35,6 +35,12 @@ Feature: Governance word-budget rules
     Then no Markdown files are scanned
     And there are no violations
 
+  Scenario: Planning Markdown has no word limit
+    Given file "plans/ideas/q2-not-urgent-important/family-calendar.md" contains 501 words
+    When I inspect the word budget
+    Then no Markdown files are scanned
+    And there are no violations
+
   Scenario: Word-budget inspection ignores other governance concerns
     Given file "AGENTS.md" contains 501 words
     And the repository contains:

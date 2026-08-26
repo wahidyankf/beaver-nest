@@ -71,7 +71,7 @@ libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
 specs/apps/  Canonical application architecture and behavior specifications
 data/        Ignored local runtime-data placeholders (general, users, system)
 docs/        Diátaxis-organized, non-rule documentation
-plans/       Product, architecture, testing, and operations plans
+plans/       Ideas and plans organized by delivery lifecycle
 ```
 
 ## Privacy and availability
@@ -80,7 +80,7 @@ The app is intended for private access by family devices on a Tailscale network.
 
 Never commit user data, documents, database files, credentials, Tailscale auth keys, or backups. The `data/` directory is intentionally ignored except for its directory placeholders; its layout and write rules follow the [runtime flat-file-data convention](repo-governance/conventions/runtime-flat-file-data.md).
 
-For the target architecture and operating model, see [the plans index](plans/README.md).
+For the current architecture, see the [Bnest C4 specification](specs/apps/bnest/app/architecture.md). Proposed future changes belong in the [plans lifecycle](plans/README.md).
 
 ## Development checks
 
@@ -90,7 +90,7 @@ Husky runs lint-staged before each commit. Prettier reformats supported staged f
 feat(app): add household dashboard
 ```
 
-Before a push, Husky runs `test:quick` for affected projects. It also runs governance, documentation-map, and Mermaid-accessibility checks when pushed commits change Markdown anywhere or any content under `docs/`. The end-to-end harness keeps browser tests out of `test:quick`; developers run affected browser cases, while GitHub Actions runs the full suite twice daily.
+Before a push, Husky runs `test:quick` for affected projects. It also runs governance, recursive directory-map checks for documentation, specifications, and plans, plus Mermaid accessibility when pushed commits change Markdown anywhere or relevant mapped content. The end-to-end harness keeps browser tests out of `test:quick`; developers run affected browser cases, while GitHub Actions runs the full suite twice daily.
 
 ## License
 

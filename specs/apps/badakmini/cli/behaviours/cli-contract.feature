@@ -53,6 +53,16 @@ Feature: badakmini-cli command contract
     When I run the directory-map validator for "docs"
     Then the exit code is 1
 
+  Scenario: A selected plans tree requires recursive README directory maps
+    Given the repository contains:
+      | path                                      | content                                                                                                       |
+      | plans/README.md                           | {hash} Plans\n\n{hash}{hash} Directory Map\n\n- [Backlogs](backlogs/README.md)                  |
+      | plans/backlogs/README.md                  | {hash} Backlogs\n\n{hash}{hash} Directory Map\n\n- [Family app](family-app/README.md)              |
+      | plans/backlogs/family-app/README.md       | {hash} Family App                                                                                             |
+      | plans/backlogs/family-app/delivery.md     | {hash} Delivery                                                                                               |
+    When I run the directory-map validator for "plans"
+    Then the exit code is 1
+
   Scenario: Mermaid accessibility validation is isolated
     Given an unsafe "flowchart LR" Mermaid diagram exists at "docs/diagram.md" using backtick fences
     When I run the "word-budget" validator

@@ -25,6 +25,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Last-resort questions](last-resort-questions.md) require exhausting safe ways to proceed before asking the user.
 - [Language](language.md) makes English the repository's primary working language.
 - [Markdown visualizations](markdown-visualizations.md) prefer useful Mermaid diagrams and require accessible color, contrast, and non-color cues.
+- [Plan lifecycle](plan-lifecycle.md) moves rough ideas through backlogs, active execution, and completion while keeping as-built truth in specifications.
 - [Project READMEs](project-readmes.md) make every application and library independently understandable and operable.
 - [Public repository data safety](public-repository-data-safety.md) prevents secrets and machine-local identifiers from entering public history.
 - [Push-hook verification](push-hook-verification.md) requires root-cause repair and prevents unauthorized bypass of push-time safeguards.

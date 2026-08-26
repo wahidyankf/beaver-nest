@@ -1,16 +1,25 @@
-# Planning Documents
+# Plans
 
-These documents define the intended system before implementation begins.
+Plans are temporary working records for proposed and delivered changes. They explain why work exists, how it will be executed, and what will prove it complete. Current system behavior and architecture remain canonical under [`specs/`](../specs/README.md).
 
-| Document | Purpose |
-| --- | --- |
-| [Problem statement](problem-statement.md) | User needs, constraints, and success criteria |
-| [Architecture](architecture.md) | System boundaries, data flow, and security model |
-| [Testing strategy](testing.md) | Test layers and release confidence |
-| [Operations](operations.md) | Development-in-production model, recovery, and control boundaries |
+Follow the repository [plan lifecycle convention](../repo-governance/conventions/plan-lifecycle.md).
 
-## Chosen direction
+## Lifecycle
 
-The initial direction is a private, self-hosted **Phoenix LiveView** application running on an always-on home host. It uses Elixir/OTP supervision, Postgres, supervised Python document-processing workers, Playwright browser E2E tests, and Tailscale Serve for private HTTPS access.
+```text
+ideas/ → backlogs/ → in-progress/ → done/
+```
 
-This is a planning decision, not an implementation commitment. Revisit it after the first vertical slice if the product needs contradict it.
+- [`ideas/`](ideas/README.md) contains rough two-pager briefs grouped by urgency and importance.
+- [`backlogs/`](backlogs/README.md) contains complete five-document plans that have not started.
+- [`in-progress/`](in-progress/README.md) contains only plans being actively executed.
+- [`done/`](done/README.md) preserves completed plans as historical delivery records.
+
+Move one plan through the lifecycle instead of copying it between stages. When implementation changes the as-built system, update all relevant specifications in the same change.
+
+## Directory Map
+
+- [Backlogs](backlogs/README.md) indexes queued plans.
+- [Done](done/README.md) indexes completed plans.
+- [Ideas](ideas/README.md) indexes rough two-pager briefs.
+- [In progress](in-progress/README.md) indexes active plans.
