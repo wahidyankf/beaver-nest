@@ -68,6 +68,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def data_migration_entry_absent?(context) do
+    context.page
+    |> LazyHTML.query("[data-role=data-migration-entry]")
+    |> Enum.empty?()
+  end
+
+  @impl true
   def model_selector_lists_all?(context) do
     context.page
     |> LazyHTML.query("[data-role=model-selector] option")

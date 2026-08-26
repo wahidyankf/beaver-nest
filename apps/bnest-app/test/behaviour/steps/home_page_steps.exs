@@ -32,6 +32,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the page does not offer browser-data migration", context do
+    assert context.behaviour_driver.data_migration_entry_absent?(context)
+    context
+  end
+
   step "the model selector lists every available Codex model", context do
     assert context.behaviour_driver.model_selector_lists_all?(context)
     context

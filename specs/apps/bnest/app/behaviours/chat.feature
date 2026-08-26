@@ -17,6 +17,10 @@ Feature: Beaver Nest chat
     Then the page displays the heading "Beaver Nest"
     And the page offers the "Start chatting" link to "/chat"
 
+  Scenario: Completed browser migration is not offered from the home page
+    When a visitor opens "/"
+    Then the page does not offer browser-data migration
+
   Scenario: A visitor opens a fresh chat
     When a visitor opens "/chat"
     Then the page displays the heading "Beaver Nest"

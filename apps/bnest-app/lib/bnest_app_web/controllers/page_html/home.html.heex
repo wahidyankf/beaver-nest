@@ -61,20 +61,6 @@
       <span class="chat-entry-arrow" aria-hidden="true">→</span>
     </a>
 
-    <a
-      :if={!@current_user["migrationMode"]}
-      href="/data-migration"
-      class="chat-entry"
-      data-role="data-migration-entry"
-    >
-      <span class="chat-entry-mark" aria-hidden="true"><span>⇧</span></span>
-      <span class="chat-entry-copy">
-        <strong>Save browser data</strong>
-        <small>Preserve chat, learning, and theme safely</small>
-      </span>
-      <span class="chat-entry-arrow" aria-hidden="true">→</span>
-    </a>
-
     <p :if={@current_user["migrationMode"]} class="home-note">
       Your existing chat and learning progress remain in this browser during migration.
     </p>
