@@ -260,6 +260,10 @@ function buildRelease() {
   const destination = join(paths.releases, revision);
 
   if (!existsSync(destination)) {
+    run("mix", ["compile"], {
+      cwd: source,
+      env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
+    });
     run("mix", ["assets.deploy"], {
       cwd: source,
       env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
