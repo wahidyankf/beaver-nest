@@ -33,6 +33,15 @@ Add `evidence/` only when execution produces committed evidence. Additional file
 
 Every directory under `plans/` must follow the recursive [README and directory-map convention](directory-maps.md). Planning Markdown has no word-count limit; split content only for clear ownership and readability.
 
+## Delivery Ownership
+
+Every executable checklist item in a non-archived formal plan's `delivery.md` must carry exactly one label immediately after its checkbox:
+
+- `[AI]` for work an AI agent can complete within its existing authorization, tools, and safety boundaries;
+- `[HUMAN]` only for work that requires a maintainer's decision, credentials, physical action, or external-state authority that the agent does not have.
+
+Default to `[AI]`. Split a mixed task into separate items rather than assigning both labels. Apply the same rule to checkable phase gates; narrative pause-safety notes do not need labels. Preserve labels in `plans/done/` as historical records, but do not retrofit an archive solely for this convention.
+
 ## Transitions and Specifications
 
 Move, never copy, one artifact through stages. Update source and destination indexes plus plan status in the same change. Promotion replaces the idea brief while preserving its evidence and decisions. Archive only after acceptance and verification pass; route useful learnings to permanent documentation, specifications, governance, or a new idea first.

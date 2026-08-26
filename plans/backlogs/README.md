@@ -8,8 +8,10 @@ Before starting work, confirm that the plan still matches current repository evi
 
 ## Backlog Plans
 
+- [Bnest centralized data](bnest-centralized-data/README.md) proposes login-protected, per-user Bnest persistence with non-destructive browser and legacy-data migration.
 - [Family app foundation](family-app-foundation/README.md) proposes authenticated access, durable shared data, document processing, backups, and releases beyond the current as-built Bnest system.
 
 ## Directory Map
 
+- [Bnest centralized data](bnest-centralized-data/README.md) contains the queued login and centralized-data plan.
 - [Family app foundation](family-app-foundation/README.md) contains the queued foundation plan.

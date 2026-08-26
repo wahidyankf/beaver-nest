@@ -19,9 +19,9 @@ Keep this checklist synchronized with actual delivery. Record observations in [l
 
 ### Phase 0 Gate
 
-- [ ] Material product and infrastructure decisions required by the first slice are recorded.
-- [ ] The affected specification, application, adapter, storage, and documentation surfaces are identified.
-- [ ] No production implementation begins while a material decision remains unresolved.
+- [ ] `[HUMAN]` Material product and infrastructure decisions required by the first slice are recorded.
+- [ ] `[AI]` The affected specification, application, adapter, storage, and documentation surfaces are identified.
+- [ ] `[AI]` No production implementation begins while a material decision remains unresolved.
 
 **Pause safety:** Documentation-only state; no runtime or data migration has started.
 
@@ -36,9 +36,9 @@ Keep this checklist synchronized with actual delivery. Record observations in [l
 
 ### Phase 1 Gate
 
-- [ ] Authorized and unauthorized journeys behave as specified across applicable adapters.
-- [ ] The C4 model and Gherkin describe the final identity boundary.
-- [ ] Applicable Nx checks and the manual smoke pass.
+- [ ] `[AI]` Authorized and unauthorized journeys behave as specified across applicable adapters.
+- [ ] `[AI]` The C4 model and Gherkin describe the final identity boundary.
+- [ ] `[AI]` Applicable Nx checks and the manual smoke pass.
 
 **Pause safety:** The slice can be disabled or reverted without changing durable family data.
 
@@ -53,9 +53,9 @@ Keep this checklist synchronized with actual delivery. Record observations in [l
 
 ### Phase 2 Gate
 
-- [ ] Authorized shared data survives restart, backup, restore, and release exercises.
-- [ ] Live data and backups remain outside Git and the synchronized source workspace.
-- [ ] Migrations and rollback behavior are documented and verified.
+- [ ] `[AI]` Authorized shared data survives restart, backup, restore, and release exercises.
+- [ ] `[AI]` Live data and backups remain outside Git and the synchronized source workspace.
+- [ ] `[AI]` Migrations and rollback behavior are documented and verified.
 
 **Pause safety:** A verified backup and previous compatible release exist before production migration.
 
@@ -70,9 +70,9 @@ Keep this checklist synchronized with actual delivery. Record observations in [l
 
 ### Phase 3 Gate
 
-- [ ] A supported document reaches a visible terminal state without exposing arbitrary host control.
-- [ ] Failures preserve the original input and leave retry or recovery state understandable.
-- [ ] Processor permissions, resource limits, and storage ownership match the technical documentation.
+- [ ] `[AI]` A supported document reaches a visible terminal state without exposing arbitrary host control.
+- [ ] `[AI]` Failures preserve the original input and leave retry or recovery state understandable.
+- [ ] `[AI]` Processor permissions, resource limits, and storage ownership match the technical documentation.
 
 **Pause safety:** Disable new submissions before rollback; retain originals and durable job records.
 
@@ -87,9 +87,9 @@ Keep this checklist synchronized with actual delivery. Record observations in [l
 
 ### Phase 4 Gate
 
-- [ ] A permitted administrator can recover the worker only through named actions.
-- [ ] A failed health check can return to a known-good release without losing accepted data.
-- [ ] Operational documentation matches tested commands and current runtime boundaries.
+- [ ] `[AI]` A permitted administrator can recover the worker only through named actions.
+- [ ] `[AI]` A failed health check can return to a known-good release without losing accepted data.
+- [ ] `[AI]` Operational documentation matches tested commands and current runtime boundaries.
 
 **Pause safety:** The previous release, verified backup, and independent private proxy remain available.
 
@@ -103,8 +103,8 @@ Keep this checklist synchronized with actual delivery. Record observations in [l
 
 ### Phase 5 Gate
 
-- [ ] No open checklist item or undisposed learning remains.
-- [ ] Every relevant specification and project README reflects the as-built system.
-- [ ] Required verification passes and the completion date is accurate.
+- [ ] `[AI]` No open checklist item or undisposed learning remains.
+- [ ] `[AI]` Every relevant specification and project README reflects the as-built system.
+- [ ] `[AI]` Required verification passes and the completion date is accurate.
 
 **Pause safety:** Archive only after the delivered system and its durable documentation agree.
