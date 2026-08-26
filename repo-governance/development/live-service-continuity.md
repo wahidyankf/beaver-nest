@@ -1,0 +1,20 @@
+# Live-Service Continuity
+
+Apply this standard whenever a repository-owned application is actively reachable by a user while work continues. An explicit no-downtime requirement is blocking, not aspirational.
+
+## Invariants
+
+- The active local and routed endpoints must not be left refusing connections, timing out, returning unexpected 5xx responses, or exposing an incomplete authentication/data cutover.
+- Preserve the last usable reader and writer until the replacement passes its normal read-back and critical user journey.
+- Never edit dependency, configuration, runtime, or supervision inputs beneath the only active code-reloading server. Those changes can invalidate the running compiler before a planned restart.
+- Keep a stable backend independent from the watched working tree. Start and verify a replacement on a separate loopback port before switching the proxy.
+- When two versions can reach one mutable store, their schemas and locking must be mutually compatible; otherwise only the active version may write.
+- Retain the previous healthy backend until local HTTP, routed HTTPS, and applicable LiveView/WebSocket checks pass against the replacement.
+
+## Blocking Gate
+
+Before a material change, identify the active server and proxy, record safe baseline health, and decide whether the change can affect compilation, startup, routing, authentication, storage, or a current journey. If it can and no independent healthy backend exists, establish one before editing. A single-process stop/start is not a zero-downtime deployment.
+
+If any active check fails, stop unrelated implementation immediately. Restore or route back to the last healthy backend, verify the user journey, capture a safe learning, and only then resume. Never continue a plan while the live surface remains degraded.
+
+Use the [server restart](../workflows/development-server-restart.md) and [tailnet proxy](../workflows/development-tailnet-proxy.md) workflows for the concrete lifecycle. Plans involving cutover must make continuity and rollback explicit in delivery checkpoints.

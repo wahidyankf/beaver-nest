@@ -1,32 +1,33 @@
 # Plan Execution
 
-Use only after explicit direction to execute one formal plan. Keep delivery, tasks, evidence, and lifecycle truthful.
+Use only after explicit direction to execute one formal plan. Keep its records truthful.
 
 ## Start
 
-1. Select one plan in `plans/backlogs/<slug>/` or `plans/in-progress/<slug>/`. Run and repair the [plan quality gate](plan-quality-gate.md).
-2. If backlogged, move—never copy—it to `plans/in-progress/<slug>/`. Set status to In progress and move its stage index/map entries together.
-3. Read `learnings.md`. Create or refresh one task-list item per unchecked required executable `delivery.md` checkbox. Preserve wording, `[AI]`/`[HUMAN]`, order, and references. Keep explicitly conditional recovery/rollback items dormant until triggered.
+1. Select one backlog or in-progress plan and repair it through the [quality gate](plan-quality-gate.md).
+2. If backlogged, move it with status and stage maps to `plans/in-progress/<slug>/`; never copy it.
+3. Read `learnings.md`. Mirror each unchecked executable delivery item into the task list with wording, label, order, and references. Keep conditional recovery dormant until triggered.
+4. Detect affected active services. Apply [live-service continuity](../development/live-service-continuity.md), baseline local/routed health, and activate continuity/rollback work before editing.
 
 ## Execute
 
-1. Work in order with one item active unless genuinely parallel. Stay within authority, stop at pending `[HUMAN]` input, and pass each phase checkpoint before continuing.
-2. Update the matching delivery item at start, material progress, and completion. Keep it unchecked until its outcome and proof pass; add concise dated notes.
-3. Synchronize both lists. Activate conditional items when triggered. Add a discovered task to both only for an existing outcome; label and explain it.
-4. Capture material and final learnings. Search `plans/ideas/`; merge an overlap or create one distinct brief, update its map, and link the destination.
-5. Run specified automation and the manual AI journey. Record only safe evidence; exclude secrets and sensitive user/runtime data.
-6. Apply all applicable development, specification, testing, data-safety, and authorization rules. Neither plan nor task list expands authority.
+1. Work in order with one active item unless genuinely parallel. Stay authorized, stop at pending `[HUMAN]` input, and pass every phase checkpoint.
+2. Update delivery at start, material progress, and completion. Check an item only after outcome and proof pass; add dated notes.
+3. Synchronize both lists and activate triggered conditionals. Add discoveries to both only for an existing outcome; label and explain them.
+4. Capture learnings. Search `plans/ideas/`; merge overlap or create one distinct mapped brief and link it.
+5. Run required automation and manual AI journeys. Record safe evidence without secrets or sensitive runtime data.
+6. Apply all applicable rules; plans and task lists expand no authority.
+7. A degraded endpoint or incomplete cutover stops the line. Restore and verify the usable local/routed journey, update delivery/learnings, then resume.
 
 ## Complete and Archive
 
-1. Re-run the quality gate from its first step. Reconcile every item, note, acceptance criterion, learning, specification, README, governance change, and test with the delivered system.
-2. Give each dormant conditional item a dated, evidenced `Not triggered` disposition; do not claim it ran. Keep the plan in progress while any required outcome, activated conditional, gate, dependency, or human action is open. The move completes the archival item.
-3. Use the local date when the final checkpoint passed for README `Completed` and `plans/done/YYYY-MM-DD__<slug>/`. Stop if that destination exists; never merge, overwrite, or invent a suffix.
-4. Together, set status Done; record completion, actual outcome/proof, and deviations; move the folder and its stage index/map entries; preserve delivery history and labels.
-5. Complete the archival item with its dated destination. Confirm the source is absent, the destination occurs once, and active references avoid the old path.
-6. Resolve every archived internal link/map directly because routine link validation excludes archive sources. Run repository verification and inspect the complete diff.
-7. Keep move, metadata, indexes, maps, and archive record in one thematic commit when authorized. Commit/push requires its own authorization. Complete the environment task list only after verification.
+1. Re-run the quality gate from step one. Reconcile all items, criteria, learnings, specifications, documentation, rules, and tests with delivery.
+2. Give dormant conditionals a dated, evidenced `Not triggered`; never claim execution. Stay in progress while any required outcome, activated conditional, gate, dependency, or human action remains.
+3. Use the final-checkpoint local date for README `Completed` and `plans/done/YYYY-MM-DD__<slug>/`. Refuse an existing destination; never merge, overwrite, or add a suffix.
+4. Together set Done, record outcomes/proof/deviations, and move the folder with stage maps while preserving delivery history. This completes the archival item.
+5. Confirm one destination, no source, and no active old-path references. Resolve archived links/maps directly, then verify the repository and diff.
+6. When authorized, commit move, metadata, maps, and archive record together. Commit/push needs separate authorization. Complete the environment list only after verification.
 
 ## Recovery
 
-Before archival, leave interrupted work in progress with accurate items, notes, and blocking learning; resume after the quality gate. If archival verification fails, restore the folder, status, indexes, and maps to in progress. Never leave split copies or archive incomplete work.
+Leave interrupted work accurately in progress and resume after the quality gate. If archival verification fails, restore folder, status, and maps. Never leave split copies or archive incomplete work.

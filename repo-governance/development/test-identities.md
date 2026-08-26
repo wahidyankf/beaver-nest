@@ -9,6 +9,7 @@ Use synthetic identities for every automated or manual test that creates an acco
 - Start the test application process with its `data/test/runs/<run-id>/` root before account bootstrap. Its account index and user-facing lists must read only that root; synthetic accounts must never appear in production.
 - Store only synthetic payloads. Do not copy live chat, learning, preference, credential, cookie, or session values into fixtures or evidence.
 - Test concurrent users with separate generated IDs and directories; never mutate an existing user's record to simulate another identity.
+- Give parallel projects or workers distinct synthetic identities and therefore distinct user-owned paths. A shared marked run root does not make shared account data safe; no test may assert a mutable aggregate that another worker can change.
 
 ## Production Schema Inspection
 
