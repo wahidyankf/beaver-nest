@@ -18,7 +18,7 @@ Bnest remains in use while centralized-data work changes configuration, supervis
 
 ## Proposed Direction (Sketch)
 
-Add Nx targets around a small local promoter. It should build or snapshot an immutable candidate outside the watched tree, start it on an unused loopback port, use the same explicitly configured production root only when schema/write compatibility is proven, and run local health plus a critical LiveView journey. Only then should it switch the existing Tailscale Serve root mount. Keep the previous backend alive until routed verification passes; one command switches back on failure. Record only ports, versions, and pass/fail—not tailnet or user identifiers.
+Add Nx targets around a small local promoter. It should build or snapshot an immutable candidate outside the watched tree, compile and start it with one matching stable environment on an unused loopback port, use the production root only when schema/write compatibility is proven, and run local health plus a critical LiveView journey. Only then should it switch the existing Tailscale Serve root mount. Keep the previous backend alive until routed verification passes; one command switches back on failure. Record only ports, versions, and pass/fail—not tailnet or user identifiers.
 
 ## Rough Scope & Non-Goals
 

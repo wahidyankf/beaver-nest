@@ -2,6 +2,8 @@
 
 Apply this standard whenever a repository-owned application is actively reachable by a user while work continues. An explicit no-downtime requirement is blocking, not aspirational.
 
+Bnest's routed development service is a 24/7 household service. Elixir/OTP supports that goal through supervision and process isolation, but it cannot keep the only application process available while its runtime is replaced. Treat Bnest as active even when no traffic is visible; never infer an idle or maintenance window from time of day, process activity, or development context.
+
 ## Invariants
 
 - The active local and routed endpoints must not be left refusing connections, timing out, returning unexpected 5xx responses, or exposing an incomplete authentication/data cutover.

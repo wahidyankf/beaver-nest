@@ -9,8 +9,9 @@ Do not stop or reconfigure an independently managed tailnet proxy during the res
 1. Check the expected local endpoint before editing restart-triggering files. If it is routed to users, verify the routed endpoint and establish a separate healthy backend before touching the only watched server.
 2. List tmux panes and identify the existing server pane from its working directory, current process, and captured output. Do not guess or silently create a competing server on the same port.
 3. Stop the server in that pane and wait until its shell prompt returns. If Erlang opens its BREAK menu, send `a` separately to abort, then wait for the prompt before sending another command.
-4. Restart the applicable Nx `serve` target in the same pane, prefixed with the workspace package manager.
-5. Verify startup from the pane output and make read-only requests to the expected local endpoint and one critical route. If this instance is the routed candidate, switch only after both pass, then verify routed HTTP and LiveView/WebSocket behavior.
+4. When stable/candidate mode changes compile-time endpoint settings, compile with the exact environment that will start the server before invoking its Nx `serve` target. A compile-environment mismatch disqualifies the candidate; leave routing on the healthy backend, rebuild, and reverify instead of bypassing validation.
+5. Restart the applicable Nx `serve` target in the same pane, prefixed with the workspace package manager.
+6. Verify startup from the pane output and make read-only requests to the expected local endpoint and one critical route. If this instance is the routed candidate, switch only after both pass, then verify routed HTTP and LiveView/WebSocket behavior.
 
 Do not leave a running code reloader to discover changed dependency or configuration inputs from a user request; restart or replace it immediately as part of the same change batch.
 

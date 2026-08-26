@@ -21,18 +21,19 @@ A _runtime root_ is the one directory a Bnest process may read and write. A _man
 
 ## Decisions
 
-| Area                    | Selected decision                                                                                                          |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Live data               | One startup-resolved `data/prod/` root.                                                                                    |
-| Filesystem tests        | One marked `data/test/runs/<run-id>/` root and isolated browser profile per run.                                           |
-| User identity           | Normalized username lookup resolves to a server-generated stable user ID; paths never contain usernames.                   |
-| Passwords               | Argon2id encoded salted verifiers; plaintext exists only during form handling.                                             |
-| Sessions                | Opaque persistent cookie per browser; server stores only the token digest and session metadata; no automatic expiry.       |
-| Authorization           | Multi-role capability check plus record ownership; cross-user access defaults to deny.                                     |
-| Bootstrap               | One setup transaction creates all initial accounts, including an admin, then closes setup permanently for that root.       |
-| Later account lifecycle | Account creation, role edits, password reset, account disablement, and all-session revocation are explicitly out of scope. |
-| Browser data            | Import allow-listed Bnest keys, re-read server data, then delete only the accepted key.                                    |
-| Legacy files            | Copy and verify; never move or delete root-level legacy sources in this plan.                                              |
+| Area                    | Selected decision                                                                                                           |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Availability            | Bnest is a 24/7 family service; Elixir/OTP provides supervision and process isolation, while deploys use a healthy backend. |
+| Live data               | One startup-resolved `data/prod/` root.                                                                                     |
+| Filesystem tests        | One marked `data/test/runs/<run-id>/` root and isolated browser profile per run.                                            |
+| User identity           | Normalized username lookup resolves to a server-generated stable user ID; paths never contain usernames.                    |
+| Passwords               | Argon2id encoded salted verifiers; plaintext exists only during form handling.                                              |
+| Sessions                | Opaque persistent cookie per browser; server stores only the token digest and session metadata; no automatic expiry.        |
+| Authorization           | Multi-role capability check plus record ownership; cross-user access defaults to deny.                                      |
+| Bootstrap               | One setup transaction creates all initial accounts, including an admin, then closes setup permanently for that root.        |
+| Later account lifecycle | Account creation, role edits, password reset, account disablement, and all-session revocation are explicitly out of scope.  |
+| Browser data            | Import allow-listed Bnest keys, re-read server data, then delete only the accepted key.                                     |
+| Legacy files            | Copy and verify; never move or delete root-level legacy sources in this plan.                                               |
 
 ## Implemented Architecture
 

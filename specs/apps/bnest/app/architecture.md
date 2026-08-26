@@ -25,7 +25,7 @@ flowchart TB
     class tailscale,codex external
 ```
 
-Bnest is private to the local host and family devices routed through the independently managed Tailscale proxy. Approved users authenticate before protected access. Bnest keeps user-owned state in a server-managed flat-file runtime root; it has no public registration, cloud database, or uploads.
+Bnest is a 24/7 family service, private to the local host and family devices routed through the independently managed Tailscale proxy. Elixir/OTP and Phoenix were selected for supervision, process isolation, and concurrent long-lived LiveView sessions. Approved users authenticate before protected access. Bnest keeps user-owned state in a server-managed flat-file runtime root; it has no public registration, cloud database, or uploads.
 
 ## Container View
 
@@ -62,7 +62,7 @@ flowchart TB
     class codex external
 ```
 
-The Phoenix server, runtime repository, and Node bridges run on the home host. Tailscale Serve may proxy the browser connection but has an independent lifecycle. Production resolves `data/prod/` once before supervision; filesystem tests use one marked mirror below `data/test/runs/`.
+The Phoenix server, runtime repository, and Node bridges run on the home host. OTP supervision recovers failed child processes inside one running application; zero-downtime replacement of that application still requires a separate healthy backend. Tailscale Serve has an independent lifecycle. Production resolves `data/prod/` once before supervision; filesystem tests use one marked mirror below `data/test/runs/`.
 
 ## Component View
 

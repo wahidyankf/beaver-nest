@@ -41,7 +41,7 @@
 ## Development
 
 - Use [English](repo-governance/conventions/language.md).
-- Keep active services available under [continuity](repo-governance/development/live-service-continuity.md); failed health stops work until recovery.
+- Treat Bnest as a 24/7 active service. Keep it available under [continuity](repo-governance/development/live-service-continuity.md); failed health stops work until recovery.
 - Separate server/proxy lifecycles; follow [restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep [quality gates](repo-governance/development/quality-gates.md) green.
 - Keep `test:e2e` outside `test:quick`; run affected cases and UI-accessibility states only. Wait for connected LiveView before interaction, and isolate user-owned records across parallel workers. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
