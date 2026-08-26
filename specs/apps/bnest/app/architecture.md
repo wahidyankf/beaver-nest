@@ -139,6 +139,7 @@ flowchart TB
 - Chat runners use read-only sandbox access, approval policy `never`, and disabled network and web search.
 - Every protected route and data operation resolves an unrevoked opaque-cookie session and current user before repository access.
 - Roles may contain `children`, `parents`, and `admin`; capabilities still default-deny cross-user access.
+- Codex model access is role-scoped server-side: admins receive the discovered catalog, parents use Terra at medium effort, and children use Luna at medium effort. A missing required model disables that role's chat instead of substituting another model.
 - Durable chat, Sifat Allah progress, and explicit theme state live only below the authenticated user's runtime path after accepted import.
 - Browser keys are immutable compatibility sources until envelope, normalization, and normal read-back pass; only the accepted key is then cleared.
 - Mutable records use revision checks, one path lock coordinated across connected local BEAM release nodes, atomic replacement, and read-back. Sessions have no time expiry and remain independent per browser.

@@ -83,6 +83,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def follow_brand_home_link(context) do
+    if has_element?(context.view, "a[aria-label='Beaver Nest home'][href='/']") do
+      open(Map.delete(context, :view), "/")
+    else
+      raise "Beaver Nest home link is not available"
+    end
+  end
+
+  @impl true
   def data_migration_entry_absent?(context) do
     context.page
     |> LazyHTML.query("[data-role=data-migration-entry]")
@@ -103,7 +112,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def selected_model?(context, display_name) do
     model = FixtureModels.fetch_by_display_name!(display_name)
-    has_element?(context.view, "[data-role=model-selector] option[value='#{model.id}'][selected]")
+
+    has_element?(context.view, "[data-role=model-selector] option[value='#{model.id}'][selected]") or
+      has_element?(context.view, ".model-badge[data-model='#{model.id}']")
   end
 
   @impl true
@@ -135,10 +146,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def selected_effort?(context, effort) do
-    has_element?(
-      context.view,
-      "[data-role=effort-selector] option[value='#{String.downcase(effort)}'][selected]"
-    )
+    effort = String.downcase(effort)
+
+    has_element?(context.view, "[data-role=effort-selector] option[value='#{effort}'][selected]") or
+      has_element?(context.view, ".model-badge[data-reasoning-effort='#{effort}']")
   end
 
   @impl true
@@ -152,6 +163,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def model_selector_hidden?(context),
+    do: not has_element?(context.view, "[data-role=model-selector]")
+
+  @impl true
   def effort_selector_available?(context) do
     has_element?(context.view, "[data-role=effort-selector]:not([disabled])")
   end
@@ -160,6 +175,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def effort_selector_unavailable?(context) do
     has_element?(context.view, "[data-role=effort-selector][disabled]")
   end
+
+  @impl true
+  def effort_selector_hidden?(context),
+    do: not has_element?(context.view, "[data-role=effort-selector]")
 
   @impl true
   def select_model(context, display_name) do
@@ -545,8 +564,25 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
-  def establish_identity(context, role),
-    do: Map.merge(context, %{identity_role: role, authenticated: true})
+  def establish_identity(context, role) do
+    scenario_key = "#{context.feature_file}:#{context.scenario_name}:#{role}"
+
+    {conn, identity} =
+      BnestAppWeb.ConnCase.scenario_authenticated_conn(
+        context.conn,
+        scenario_key,
+        roles_for(role)
+      )
+
+    Process.put(:bnest_behaviour_user_id, identity.user_id)
+
+    Map.merge(context, %{
+      conn: conn,
+      identity_role: role,
+      authenticated: true,
+      user_id: identity.user_id
+    })
+  end
 
   @impl true
   def prepare_behaviour(context, :unauthenticated, _args),
@@ -758,6 +794,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
         raise "central #{type} record unavailable: #{inspect(reason)}"
     end
   end
+
+  defp roles_for(:child), do: ["children"]
+  defp roles_for(:parent), do: ["parents"]
+  defp roles_for(_role), do: ["admin"]
 
   defp answer_position(view, correct_answer) do
     Enum.find_index(1..4, fn index ->

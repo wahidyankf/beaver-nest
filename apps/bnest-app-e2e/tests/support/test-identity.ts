@@ -13,6 +13,10 @@ const identities = {
       username: "test-user-e2e-desktop-child",
       password: "Synthetic E2E Desktop Child!",
     },
+    parent: {
+      username: "test-user-e2e-desktop-parent",
+      password: "Synthetic E2E Desktop Parent!",
+    },
   },
   "tablet-chromium": {
     admin: {
@@ -23,6 +27,10 @@ const identities = {
       username: "test-user-e2e-tablet-child",
       password: "Synthetic E2E Tablet Child!",
     },
+    parent: {
+      username: "test-user-e2e-tablet-parent",
+      password: "Synthetic E2E Tablet Parent!",
+    },
   },
   "mobile-chromium": {
     admin: {
@@ -32,6 +40,10 @@ const identities = {
     child: {
       username: "test-user-e2e-mobile-child",
       password: "Synthetic E2E Mobile Child!",
+    },
+    parent: {
+      username: "test-user-e2e-mobile-parent",
+      password: "Synthetic E2E Mobile Parent!",
     },
   },
 } as const;
@@ -61,10 +73,15 @@ export function isolatedTestIdentity(testInfo: TestInfo): TestIdentity {
       username: `test-user-${digest}-child`,
       password: base.child.password,
     },
+    parent: {
+      username: `test-user-${digest}-parent`,
+      password: base.parent.password,
+    },
   } as TestIdentity;
 
   seedAccount(base.admin.username, identity.admin.username, digest, "admin");
   seedAccount(base.child.username, identity.child.username, digest, "child");
+  seedAccount(base.parent.username, identity.parent.username, digest, "parent");
   return identity;
 }
 
@@ -81,7 +98,7 @@ function seedAccount(
   sourceUsername: string,
   username: string,
   digest: string,
-  role: "admin" | "child",
+  role: "admin" | "child" | "parent",
 ): void {
   const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
   if (!root) throw new Error("Missing marked E2E runtime root");
@@ -101,6 +118,7 @@ function seedAccount(
     userId,
     displayUsername: username,
     normalizedUsername: username,
+    roles: rolesFor(role),
   };
   const index = {
     ...sourceIndex,
@@ -123,4 +141,10 @@ function seedAccount(
 
 function readJson(file: string): Record<string, unknown> {
   return JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+}
+
+function rolesFor(role: "admin" | "child" | "parent"): string[] {
+  if (role === "admin") return ["admin", "parents"];
+  if (role === "parent") return ["parents"];
+  return ["children"];
 }

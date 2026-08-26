@@ -64,8 +64,8 @@ defmodule BnestAppWeb.ConnCase do
     Plug.Test.put_req_cookie(conn, "_bnest_identity", token)
   end
 
-  def scenario_authenticated_conn(conn, scenario_key) do
-    identity = scenario_identity!(scenario_key)
+  def scenario_authenticated_conn(conn, scenario_key, roles \\ ["admin"]) do
+    identity = scenario_identity!(scenario_key, roles)
     {:ok, token} = Identity.login(identity.username, identity.password)
     {Plug.Test.put_req_cookie(conn, "_bnest_identity", token), identity}
   end
@@ -75,9 +75,9 @@ defmodule BnestAppWeb.ConnCase do
     {@test_username, @test_password}
   end
 
-  defp scenario_identity!(scenario_key) do
+  defp scenario_identity!(scenario_key, roles) do
     suffix =
-      :crypto.hash(:sha256, scenario_key)
+      :crypto.hash(:sha256, "#{scenario_key}:#{Enum.join(roles, ",")}")
       |> Base.encode16(case: :lower)
       |> String.slice(0, 12)
 
@@ -103,7 +103,7 @@ defmodule BnestAppWeb.ConnCase do
           "userId" => identity.user_id,
           "displayUsername" => identity.username,
           "normalizedUsername" => identity.username,
-          "roles" => ["admin", "children", "parents"],
+          "roles" => roles,
           "passwordVerifier" => verifier,
           "createdAt" => timestamp
         }

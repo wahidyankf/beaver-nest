@@ -57,6 +57,13 @@ defmodule BnestApp.Chat do
     end
   end
 
+  @spec enforce_model(t(), String.t(), String.t()) :: t()
+  def enforce_model(chat, model, reasoning_effort)
+      when is_binary(model) and byte_size(model) > 0 and is_binary(reasoning_effort) and
+             reasoning_effort in @reasoning_efforts do
+    %{chat | model: model, reasoning_effort: reasoning_effort}
+  end
+
   @spec put_thread_id(t(), String.t()) :: t()
   def put_thread_id(chat, thread_id) when is_binary(thread_id) do
     if valid_thread_id?(thread_id), do: %{chat | thread_id: thread_id}, else: chat

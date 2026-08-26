@@ -34,6 +34,15 @@ Given("an approved user is logged in", async ({ page, $testInfo }) => {
   await login(page, activeIdentity.admin);
 });
 
+Given("an approved admin is logged in", async ({ page, $testInfo }) => {
+  activeIdentity = isolatedTestIdentity($testInfo);
+  await login(page, activeIdentity.admin);
+});
+Given("an approved parent is logged in", async ({ page, $testInfo }) => {
+  activeIdentity = isolatedTestIdentity($testInfo);
+  await login(page, activeIdentity.parent);
+});
+
 Given("an approved child is logged in", async ({ page, $testInfo }) => {
   activeIdentity = isolatedTestIdentity($testInfo);
   await login(page, activeIdentity.child);
@@ -83,6 +92,7 @@ When(
       (identity) => [
         { ...identity.admin, role: "Parents", admin: true },
         { ...identity.child, role: "Children", admin: false },
+        { ...identity.parent, role: "Parents", admin: false },
       ],
     );
     setupSafetyChecks = await submitInitialAccountsWithSafetyChecks(

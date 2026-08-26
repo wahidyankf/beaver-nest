@@ -38,7 +38,7 @@ npm run tailnet:up
 npm run tailnet:status
 ```
 
-Use the deployment targets to prepare/promote a release; do not stop Caddy or reconfigure Tailscale for normal deploys. Run `npm run tailnet:down` when private HTTPS access should be removed. The first `tailnet:up` may require tailnet approval for HTTPS certificates; see the [Caddy deployment workflow](repo-governance/workflows/development-caddy-deployment.md).
+Use the deployment targets to prepare/promote a release; do not stop Caddy or reconfigure Tailscale for normal deploys. Caddy stays bound to loopback while accepting the Host header forwarded by Tailscale Serve. Run `npm run tailnet:down` when private HTTPS access should be removed. The first `tailnet:up` may require tailnet approval for HTTPS certificates; see the [Caddy deployment workflow](repo-governance/workflows/development-caddy-deployment.md).
 
 Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset watchers update JavaScript and CSS. Configuration, dependency, and supervision changes require the [development-server restart workflow](repo-governance/workflows/development-server-restart.md).
 
@@ -46,7 +46,7 @@ Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset w
 
 Open Beaver Nest through its private Tailscale HTTPS address, then use the browser's **Install app** command. In Chrome and other Chromium browsers, this is usually in the browser menu; in Safari on iPhone or iPad, choose **Share → Add to Home Screen**. The installed app opens in its own window and uses the Beaver Nest home-and-nest logo. It caches the application shell for temporary connection loss, but a live Codex chat still needs connectivity to the home host.
 
-The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. Its model selector is populated from the picker-visible models reported by the local Codex installation. After one-time setup, approved family members log in with a username and password. Completed conversations—and the prompt, thread ID, and partial transcript of an active turn—are stored in that user's server-owned record and continue across tabs and browsers. After a compatible deployment reconnect, Bnest asks a retained thread to continue an interrupted turn once without repeating shown text. **Clear chat** atomically saves an empty transcript and starts a new thread. If a retained Codex thread cannot resume, Bnest preserves the transcript, reports the fallback, and opens a fresh thread.
+The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only sandbox. Admins can choose every picker-visible model and supported effort reported by the local Codex installation. Parents are fixed to `gpt-5.6-terra` at medium effort and children to `gpt-5.6-luna` at medium effort; their model and effort controls are not rendered. After one-time setup, approved family members log in with a username and password. Completed conversations—and the prompt, thread ID, and partial transcript of an active turn—are stored in that user's server-owned record and continue across tabs and browsers. After a compatible deployment reconnect, Bnest asks a retained thread to continue an interrupted turn once without repeating shown text. **Clear chat** atomically saves an empty transcript and starts a new thread. If a retained Codex thread cannot resume, Bnest preserves the transcript, reports the fallback, and opens a fresh thread.
 
 ## Test
 

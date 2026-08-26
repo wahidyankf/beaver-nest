@@ -89,6 +89,13 @@ Then(
   },
 );
 
+When("the visitor follows the Beaver Nest home link", async ({ page }) => {
+  const homeLink = page.getByRole("link", { name: "Beaver Nest home" });
+  await expect(homeLink).toHaveAttribute("href", "/");
+  await homeLink.click();
+  await expect(page).toHaveURL(/\/$/u);
+});
+
 Then(
   "the model selector lists every available Codex model",
   async ({ page }) => {
@@ -100,7 +107,8 @@ Then(
 
 Then("the selected model is {string}", async ({ page }, model: string) => {
   const modelId = model === "GPT-5.6-Luna" ? "gpt-5.6-luna" : "gpt-5.6-terra";
-  await expect(page.getByLabel("Model")).toHaveValue(modelId);
+  const selector = page.getByLabel("Model");
+  if (await selector.count()) await expect(selector).toHaveValue(modelId);
   await expect(
     page.locator(`.model-badge[data-model="${modelId}"]`),
   ).toBeVisible();
@@ -126,7 +134,8 @@ Then(
   "the selected reasoning effort is {string}",
   async ({ page }, effort: string) => {
     const value = effort.toLowerCase();
-    await expect(page.getByLabel("Reasoning effort")).toHaveValue(value);
+    const selector = page.getByLabel("Reasoning effort");
+    if (await selector.count()) await expect(selector).toHaveValue(value);
     await expect(
       page.locator(`.model-badge[data-reasoning-effort="${value}"]`),
     ).toBeVisible();
@@ -141,12 +150,20 @@ Then("the model selector is unavailable", async ({ page }) => {
   await expect(page.getByLabel("Model")).toBeDisabled();
 });
 
+Then("the model selector is not shown", async ({ page }) => {
+  await expect(page.getByLabel("Model")).toHaveCount(0);
+});
+
 Then("the reasoning effort selector is available", async ({ page }) => {
   await expect(page.getByLabel("Reasoning effort")).toBeEnabled();
 });
 
 Then("the reasoning effort selector is unavailable", async ({ page }) => {
   await expect(page.getByLabel("Reasoning effort")).toBeDisabled();
+});
+
+Then("the reasoning effort selector is not shown", async ({ page }) => {
+  await expect(page.getByLabel("Reasoning effort")).toHaveCount(0);
 });
 
 When(

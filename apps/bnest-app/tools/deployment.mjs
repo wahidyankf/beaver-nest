@@ -127,7 +127,7 @@ function caddyfile(slot, healthChecked) {
 \tgrace_period 5m
 }
 
-http://127.0.0.1:4100 {
+:4100 {
 \tbind 127.0.0.1
 \treverse_proxy 127.0.0.1:${slots[slot]} {
 ${healthCheck}

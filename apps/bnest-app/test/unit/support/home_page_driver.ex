@@ -4,7 +4,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @behaviour BnestApp.Behaviour.Driver
 
   alias BnestApp.Chat
-  alias BnestApp.Codex.FixtureModels
+  alias BnestApp.Codex.{FixtureModels, ModelAccess}
   alias BnestApp.Identity.Authorization
   alias BnestApp.Identity.CredentialVerifier
   alias BnestApp.SifatAllah
@@ -13,7 +13,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def open(context, "/chat") do
-    render_chat(context, Chat.new())
+    model_access = ModelAccess.resolve(identity(context), FixtureModels.all())
+    chat = Chat.new(model_access.model.id, model_access.reasoning_effort)
+    render_chat(context, chat, model_access)
   end
 
   def open(context, "/"), do: render_home(context)
@@ -68,6 +70,17 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def follow_brand_home_link(context) do
+    if context.page
+       |> LazyHTML.query("a[aria-label='Beaver Nest home'][href='/']")
+       |> Enum.empty?() do
+      raise "Beaver Nest home link is not available"
+    else
+      render_home(context)
+    end
+  end
+
+  @impl true
   def data_migration_entry_absent?(context) do
     context.page
     |> LazyHTML.query("[data-role=data-migration-entry]")
@@ -84,11 +97,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def selected_model?(context, display_name) do
-    context.page
-    |> LazyHTML.query("[data-role=model-selector] option[selected]")
-    |> LazyHTML.text()
-    |> String.trim()
-    |> Kernel.==(display_name)
+    context.chat.model == FixtureModels.fetch_by_display_name!(display_name).id
   end
 
   @impl true
@@ -103,11 +112,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def selected_effort?(context, effort) do
-    context.page
-    |> LazyHTML.query("[data-role=effort-selector] option[selected]")
-    |> LazyHTML.text()
-    |> String.trim()
-    |> Kernel.==(effort)
+    context.chat.reasoning_effort == String.downcase(effort)
   end
 
   @impl true
@@ -121,6 +126,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: not model_selector_available?(context)
 
   @impl true
+  def model_selector_hidden?(context),
+    do: context.page |> LazyHTML.query("[data-role=model-selector]") |> Enum.empty?()
+
+  @impl true
   def effort_selector_available?(context) do
     selector = LazyHTML.query(context.page, "[data-role=effort-selector]")
     not Enum.empty?(selector) and selector |> LazyHTML.attribute("disabled") |> Enum.empty?()
@@ -129,6 +138,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @impl true
   def effort_selector_unavailable?(context),
     do: not effort_selector_available?(context)
+
+  @impl true
+  def effort_selector_hidden?(context),
+    do: context.page |> LazyHTML.query("[data-role=effort-selector]") |> Enum.empty?()
 
   @impl true
   def select_model(context, display_name) do
@@ -559,11 +572,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> String.contains?(name)
   end
 
-  defp render_chat(context, chat) do
+  defp render_chat(context, chat, model_access \\ full_access()) do
     page =
       %{
         chat: chat,
         models: FixtureModels.all(),
+        model_access: model_access,
         form: Phoenix.Component.to_form(%{"prompt" => ""}, as: :chat)
       }
       |> BnestAppWeb.ChatLive.render()
@@ -574,6 +588,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context
     |> Map.put(:chat, chat)
     |> Map.put(:page, page)
+  end
+
+  defp identity(%{identity_role: :child}), do: %{"roles" => ["children"]}
+  defp identity(%{identity_role: :parent}), do: %{"roles" => ["parents"]}
+  defp identity(_context), do: %{"roles" => ["admin"]}
+
+  defp full_access do
+    ModelAccess.resolve(%{"roles" => ["admin"]}, FixtureModels.all())
   end
 
   defp render_home(context) do

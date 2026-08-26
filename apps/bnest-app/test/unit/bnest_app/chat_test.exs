@@ -63,6 +63,17 @@ defmodule BnestApp.ChatTest do
     assert Chat.select_model(chat, "gpt-5.6-luna", "impossible") == {:error, chat}
   end
 
+  test "enforces a role-required model even while a restored turn is active" do
+    {:ok, busy} = Chat.submit(Chat.new("gpt-5.6-terra", "high"), "Continue")
+
+    restricted = Chat.enforce_model(busy, "gpt-5.6-luna", "medium")
+
+    assert restricted.model == "gpt-5.6-luna"
+    assert restricted.reasoning_effort == "medium"
+    assert restricted.busy
+    assert restricted.pending_turn == busy.pending_turn
+  end
+
   test "snapshots the selected model and effort" do
     chat = Chat.new("gpt-5.6-luna", "medium")
 

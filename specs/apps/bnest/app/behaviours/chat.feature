@@ -10,10 +10,16 @@ Feature: Beaver Nest chat
   Rule: Authenticated user-owned chat
 
     Background:
-      Given an approved user is logged in
+      Given an approved admin is logged in
 
   Scenario: A visitor enters chat from the home page
     When a visitor opens "/"
+    Then the page displays the heading "Beaver Nest"
+    And the page offers the "Start chatting" link to "/chat"
+
+  Scenario: A visitor returns home through the Beaver Nest brand
+    Given a visitor opens "/chat"
+    When the visitor follows the Beaver Nest home link
     Then the page displays the heading "Beaver Nest"
     And the page offers the "Start chatting" link to "/chat"
 
@@ -151,3 +157,23 @@ Feature: Beaver Nest chat
     Then the conversation displays the visitor message "Fresh start"
     And a Codex response appears incrementally
     And the conversation does not display the visitor message "Old session marker"
+
+  Rule: Role-scoped Codex access
+
+  Scenario: A child is limited to Luna at medium effort
+    Given an approved child is logged in
+    When a visitor opens "/chat"
+    Then the page displays the text "Luna · medium"
+    And the selected model is "GPT-5.6-Luna"
+    And the selected reasoning effort is "Medium"
+    And the model selector is not shown
+    And the reasoning effort selector is not shown
+
+  Scenario: A parent is limited to Terra at medium effort
+    Given an approved parent is logged in
+    When a visitor opens "/chat"
+    Then the page displays the text "Terra · medium"
+    And the selected model is "GPT-5.6-Terra"
+    And the selected reasoning effort is "Medium"
+    And the model selector is not shown
+    And the reasoning effort selector is not shown

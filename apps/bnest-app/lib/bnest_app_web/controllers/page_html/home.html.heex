@@ -16,17 +16,22 @@
       />
       <span>Beaver Nest</span>
     </a>
-    <div>
+    <div class="home-account">
       <p class="home-status">
         <span aria-hidden="true">●</span> {@current_user["displayUsername"]}
       </p>
-      <%= unless @current_user["migrationMode"] do %>
-        <form action="/logout" method="post">
-          <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-          <input type="hidden" name="_method" value="delete" />
-          <button class="home-logout" type="submit">Log out</button>
-        </form>
-      <% end %>
+      <div class="home-account-actions">
+        <nav class="home-theme-control" aria-label="Color theme">
+          <Layouts.theme_toggle />
+        </nav>
+        <%= unless @current_user["migrationMode"] do %>
+          <form action="/logout" method="post">
+            <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+            <input type="hidden" name="_method" value="delete" />
+            <button class="home-logout" type="submit">Log out</button>
+          </form>
+        <% end %>
+      </div>
     </div>
   </header>
 

@@ -7,6 +7,14 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
     context.behaviour_driver.establish_identity(context, :user)
   end
 
+  step "an approved admin is logged in", context do
+    context.behaviour_driver.establish_identity(context, :admin)
+  end
+
+  step "an approved parent is logged in", context do
+    context.behaviour_driver.establish_identity(context, :parent)
+  end
+
   step "an approved child is logged in", context do
     context.behaviour_driver.establish_identity(context, :child)
   end

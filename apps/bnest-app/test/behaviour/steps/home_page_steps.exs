@@ -32,6 +32,10 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the visitor follows the Beaver Nest home link", context do
+    context.behaviour_driver.follow_brand_home_link(context)
+  end
+
   step "the page does not offer browser-data migration", context do
     assert context.behaviour_driver.data_migration_entry_absent?(context)
     context
@@ -68,6 +72,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the model selector is not shown", context do
+    assert context.behaviour_driver.model_selector_hidden?(context)
+    context
+  end
+
   step "the reasoning effort selector is available", context do
     assert context.behaviour_driver.effort_selector_available?(context)
     context
@@ -75,6 +84,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
 
   step "the reasoning effort selector is unavailable", context do
     assert context.behaviour_driver.effort_selector_unavailable?(context)
+    context
+  end
+
+  step "the reasoning effort selector is not shown", context do
+    assert context.behaviour_driver.effort_selector_hidden?(context)
     context
   end
 

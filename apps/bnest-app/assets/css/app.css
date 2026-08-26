@@ -107,6 +107,10 @@
   width: 8rem;
 }
 
+body:has(.home-shell) .theme-dock {
+  display: none;
+}
+
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session],
 [data-phx-teleported-src] {
@@ -232,6 +236,29 @@ body {
 
 .home-status span {
   color: var(--bnest-coral);
+}
+
+.home-account {
+  display: grid;
+  min-width: 0;
+  justify-items: end;
+  gap: 0.55rem;
+}
+
+.home-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: end;
+  gap: 0.6rem;
+}
+
+.home-theme-control {
+  width: 7.5rem;
+}
+
+.home-account-actions .home-logout {
+  margin-top: 0;
 }
 
 .home-hero {
@@ -391,6 +418,14 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.brand-identity:focus-visible {
+  outline: 3px solid var(--bnest-coral);
+  outline-offset: 0.35rem;
+  border-radius: 0.4rem;
 }
 
 .brand-logo {
@@ -613,6 +648,22 @@ body {
 
   .home-status {
     font-size: 0.7rem;
+  }
+
+  .home-header {
+    align-items: start;
+  }
+
+  .home-brand {
+    min-width: 0;
+  }
+
+  .home-brand span {
+    font-size: 0.95rem;
+  }
+
+  .home-account-actions {
+    max-width: 100%;
   }
 
   .home-hero {
