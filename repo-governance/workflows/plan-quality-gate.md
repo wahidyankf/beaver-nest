@@ -1,30 +1,32 @@
 # Plan Quality Gate
 
-Use this workflow before executing a formal plan, after a material plan change, and during final completion reconciliation. Its outcome is an executable or repaired plan; do not start while a material gap remains.
+Use before execution, after plan changes, and at completion. Repair gaps before advancing.
 
-Do not rerun or manually duplicate deterministic pre-commit/pre-push validation. Hooks own link, directory-map, word-budget, Mermaid-accessibility, and applicable automated checks. This workflow assesses plan content and execution readiness instead.
+Do not duplicate deterministic pre-commit/pre-push checks. Hooks own links, maps, word budgets, Mermaid accessibility, and automated gates. This workflow evaluates meaning and readiness.
 
 ## Inputs
 
-- one formal plan below `plans/backlogs/` or `plans/in-progress/`;
-- current repository evidence, specifications, and relevant governance; and
-- the intended execution scope and any unresolved human decisions.
+One active/backlog plan, current repository/specifications/governance, scope, and unresolved external decisions.
 
 ## Procedure
 
-1. Confirm one non-archived stage and all six required files: `README.md`, `brd.md`, `prd.md`, `tech-docs.md`, `delivery.md`, and `learnings.md`.
-2. Check useful README status, scope, dependencies, and navigation.
-3. Check BRD, PRD, and technical docs agree on goal, roles, scope, risks, dependencies, data safety, testing, rollback, and proposed/as-built state. Reject secrets and sensitive identifiers or runtime values.
-4. Check `tech-docs.md` has junior-readable context, decisions, flow, exact annotated File Impact, and verification. Label every path `[E]`, `[N]`, `[M]`, or `[D]`. Schemas need old/new shapes, compatibility, migration, rollback, and tests. Apply [migration](../conventions/plan-migrations.md) and [UI-design](../conventions/plan-ui-design.md) conventions when relevant.
-5. Confirm selected C4/Gherkin/test targets and safe manual AI verification: tool, setup, steps, result, safe evidence—never a secret. Auth tests follow [test identities](../development/test-identities.md). Plan-only PRD criteria need a reason and named delivery proof, not a `specs/` copy. Behavior changes follow [plan specification changes](../conventions/plan-specification-changes.md).
-6. Confirm `learnings.md` defines what to learn, capture timing, retained evidence, and likely permanent destination. Require searching `plans/ideas/` before adding an idea, then merging overlap or creating only a distinct one.
-7. Compare proposed behavior and architecture with current C4, Gherkin, implementation, and other active plans. Resolve a conflict, duplicate responsibility, stale assumption, or missing affected surface in the plan before execution.
-8. Check `prd.md` identifies user stories and expresses acceptance criteria in Gherkin. Check `delivery.md` for small, ordered, observable tasks; a labeled checkpoint at every phase end; `[AI]`/`[HUMAN]` and relevant PRD `[AC-...]` labels on every executable item; and enough context, action, outcome, and verification for a junior engineer. Default eligible work to `[AI]`; split mixed work.
-9. Confirm every `[HUMAN]` item states the exact needed decision, credential, physical action, or external authority. Confirm every `[AI]` item remains within current authorization and safety boundaries.
-10. Repair every finding in its canonical plan document, refresh the stage index when needed, then repeat this workflow from step 1.
+1. Confirm one non-archived stage and `README.md`, `brd.md`, `prd.md`, `delivery.md`, `learnings.md`, and `tech-docs/README.md`.
+2. Inventory every file/directory recursively. Read every plan document completely; inspect each asset's purpose, safety, and owner. Follow every map and internal plan link.
+3. Find unlinked files/folders, empty directories, unexplained evidence, duplicate ownership, stale/superseded content, and unrelated material. Integrate unique required content, update links, then delete each redundant orphan. Keep assets only with an explicit reader, purpose, and owner.
+4. Apply [minimal sufficiency](../principles/minimal-sufficiency.md). Keep only artifacts required for scope, safety, correctness, or execution. Split mixed reader jobs when navigation improves; merge needless fragments.
+5. Check README status, context, scope, dependencies, technical route, and complete map. Align BRD/PRD goals, roles, stories, Gherkin criteria, scope, non-goals, risks, and decisions.
+6. Read the technical set as one design. Require junior-readable context, selected decisions, architecture, components, flow, verification, reading order, and distinct companion ownership.
+7. Schemas need exact old/new shapes, types, validation, defaults, compatibility, migration, rollback, and tests. Migrations need every source/reader/writer/owner/destination, expand→migrate→verify→contract, retry, immutable recovery sources, restore, no-loss proof, and safe manual verification. Apply [migration](../conventions/plan-migrations.md).
+8. `tech-docs/specification-changes.md` selects—not copies—durable PRD outcomes and gives exact C4/Gherkin deltas, named scenarios, bindings/adapters, and proof. `tech-docs/file-impact.md` lists every expected path with `[E]`, `[N]`, `[M]`, or `[D]`; its baseline excludes plan artifacts already present. Apply [specification changes](../conventions/plan-specification-changes.md).
+9. UI work needs selected design, alternatives, states, responsive/accessibility behavior, displayed safe assets, implementation paths, and device proof under `tech-docs/`. Apply [UI design](../conventions/plan-ui-design.md).
+10. `delivery.md` needs small ordered tasks with `[AC-...]`, context/input, action, outcome, proof, and per-phase checkpoints. Prefer `[AI]`; `[HUMAN]` requires an unavailable decision, credential, physical action, production mutation, or external authority. Split mixed work.
+11. Testing names unit/integration/behavior/E2E targets, spec/test changes, safe manual AI steps, setup, expected results, cleanup, and evidence. Authentication follows [test identities](../development/test-identities.md).
+12. `learnings.md` defines timing, safe evidence, and destination. Search `plans/ideas/`; merge overlap or create only a distinct brief.
+13. Compare claims with current C4, Gherkin, implementation, governance, and active plans. Resolve staleness, duplication, secrets, missing surfaces, and contradictions canonically.
+14. Repeat until the recursive inventory is reachable, necessary, consistent, junior-executable, and orphan-free.
 
 ## Exit Criteria
 
-The plan passes only when its documents agree, dependencies are explicit, learning capture and testing are executable, every delivery item has a clear executor and verification, and no material ambiguity would force an executor to invent product, security, or operational decisions.
+Pass only when all documentation is reconciled, every artifact is necessary and discoverable, decisions and dependencies are explicit, delivery is safe, and no implementer must invent product, security, migration, UI, test, or rollback behavior.
 
-Passing this gate does not authorize plan execution, commits, pushes, or external actions. Follow the [plan-execution workflow](plan-execution.md) only after explicit user direction.
+Passing authorizes neither execution nor commit/push. Use [plan execution](plan-execution.md) only after explicit direction.

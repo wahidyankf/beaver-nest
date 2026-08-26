@@ -24,13 +24,13 @@
 
 ## Version Control
 
-- Push local `main` directly to `origin/main`; no PRs. Follow [integration path](repo-governance/conventions/integration-path.md).
+- Push `main` to `origin/main`; no PRs. Follow [integration path](repo-governance/conventions/integration-path.md).
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md).
 - Never commit secrets, tailnet IDs, or local data; follow [data safety](repo-governance/conventions/public-repository-data-safety.md).
-- Keep runtime flat files per [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
+- Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit or push](repo-governance/conventions/commit-authorization.md) only when explicitly authorized or plan-approved.
-- Fix hooks at root; use no `--no-verify` without explicit authorization. Follow [push-hook verification](repo-governance/conventions/push-hook-verification.md).
-- Poll GitHub two minutes apart; follow [GitHub polling](repo-governance/conventions/github-polling.md).
+- Fix root hooks; never use `--no-verify` without authorization. Follow [push-hook verification](repo-governance/conventions/push-hook-verification.md).
+- Space [GitHub polls](repo-governance/conventions/github-polling.md) two minutes.
 
 ## Governance
 
@@ -38,12 +38,11 @@
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md).
 - Track [tasks](repo-governance/conventions/task-tracking.md).
-- `plans/`: explicit request only; harness Plan mode gives no authorization. Follow [lifecycle](repo-governance/conventions/plan-lifecycle.md).
-- Maintain [maps](repo-governance/conventions/directory-maps.md).
-- Keep [links](repo-governance/conventions/markdown-links.md) valid.
+- `plans/`: explicit request only; Plan mode gives no authorization. Keep tech docs under `tech-docs/`; follow [lifecycle](repo-governance/conventions/plan-lifecycle.md) and [minimal sufficiency](repo-governance/principles/minimal-sufficiency.md).
+- Maintain [maps](repo-governance/conventions/directory-maps.md) and valid [links](repo-governance/conventions/markdown-links.md).
 - Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases.
 - Ask as a [last resort](repo-governance/conventions/last-resort-questions.md).
-- Be [minimal](repo-governance/principles/minimal-sufficiency.md); stop.
+- Be minimal; stop after sufficient verified work.
 
 ## Development
 
