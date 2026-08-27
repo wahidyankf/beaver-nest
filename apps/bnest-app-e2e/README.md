@@ -35,7 +35,7 @@ Every feature must contain a scenario, and every scenario must contain an explic
 During development, follow the [end-to-end testing standard](../../repo-governance/development/end-to-end-testing.md) and run only cases plausibly affected by the change. Pass a scenario-title or tag `--grep` filter through the Nx target:
 
 ```sh
-npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
+npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect"
 npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --project chromium --grep "Ten synthetic visitors preserve recoverable state"
 ```
 

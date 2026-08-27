@@ -52,6 +52,13 @@ Feature: Assess the Bnest single-machine release process
     And acknowledged data, recoverable in-progress input, and completed progress are unchanged
     And the user does not need to reload, re-enter input, or repeat completed work
 
+  Scenario: An in-progress persisted chat resumes safely
+    Given an isolated authenticated chat has a persisted pending turn
+    When it reconnects before the turn completes
+    Then the chat route remains usable without a server error
+    And the pending turn and transcript remain recoverable
+    And the deterministic pre-artifact release gate includes this scenario
+
   Scenario: A multiplayer WebSocket resumes authoritative state
     Given two isolated child players share one synthetic game session
     And each browser knows its last acknowledged event sequence
@@ -126,4 +133,4 @@ The acceptance criteria govern the plan assessment only. Application behavior, d
 
 ## Risks
 
-The isolated browser gates now reconnect LiveView without page reload and preserve route, draft, conversation, and session across desktop, tablet, mobile, and a ten-client/three-group load. Development leases the host-safe `4020`–`4029` pool. The release controller pins clean `main`, runs fixed uncached gates before build, produces artifact and migration manifests, owns the release lock, and refuses any non-empty migration set until an approved adapter exists. The final managed release must still prove admitted resource overlap, routed revision/LiveView continuity, cleanup, and retained rollback capacity.
+The isolated browser gates reconnect LiveView without page reload and preserve route, draft, conversation, and session across desktop, tablet, mobile, and a ten-client/three-group load. The authenticated integration gate also restores a persisted pending chat turn before completion. Development leases the host-safe `4020`–`4029` pool. The release controller pins clean `main`, runs fixed uncached gates before build, produces artifact and migration manifests, owns the release lock, and refuses any non-empty migration set until an approved adapter exists. The earlier managed production release proved admitted resource overlap, exact routed revision, anonymous ten-client/three-group LiveView recovery, bounded cleanup, and retained cold rollback capacity; it did not prove the pending-turn restoration path and cannot complete this plan until the corrected revision is released and verified.

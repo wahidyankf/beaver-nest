@@ -239,7 +239,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def send_message(context, message) do
     render_submit(context.view, "send", %{"chat" => %{"prompt" => message}})
-    context
+    Map.put(context, :pending_turn?, true)
   end
 
   @impl true
@@ -281,7 +281,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       |> List.first()
       |> then(&(&1 && String.to_integer(&1) >= 2))
 
-    {streamed?, Map.put(context, :persisted_chat, Jason.encode!(snapshot))}
+    {streamed?,
+     context
+     |> Map.put(:pending_turn?, false)
+     |> Map.put(:persisted_chat, Jason.encode!(snapshot))}
   end
 
   @impl true
@@ -340,6 +343,21 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       if Map.has_key?(context, :persisted_chat),
         do: reload(context),
         else: open(context, context.route)
+
+    context =
+      if context[:pending_turn?] do
+        send(
+          context.view.pid,
+          {:codex, context.view.pid,
+           {:error,
+            "The previous response was interrupted. Your transcript is preserved; send a new message to continue."}}
+        )
+
+        render(context.view)
+        Map.put(context, :pending_turn?, false)
+      else
+        context
+      end
 
     case Map.fetch(context, :draft) do
       {:ok, draft} ->

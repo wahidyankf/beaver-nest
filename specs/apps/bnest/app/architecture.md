@@ -97,7 +97,7 @@ flowchart TD
     class routed,reconnect,cleanup proof
 ```
 
-Current chat continuity combines durable server records with LiveView form auto-recovery: a compatible transport reconnect restores the same route, completed conversation, Codex session identity, and unsent composer draft without calling `page.reload()`. Future multiplayer must use the executable continuity contract below; the contract exists now as a tested release fixture, but no multiplayer product is implemented.
+Current chat continuity combines durable server records with LiveView form auto-recovery: a compatible transport reconnect restores the same route, completed or in-progress conversation, Codex session identity, and unsent composer draft without calling `page.reload()`. An in-progress restored turn retains its pending continuation while policy-driven model normalization remains valid; it is never treated as a user model-selection event. Future multiplayer must use the executable continuity contract below; the contract exists now as a tested release fixture, but no multiplayer product is implemented.
 
 ```mermaid
 %% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73

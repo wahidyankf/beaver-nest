@@ -539,9 +539,7 @@ defmodule BnestAppWeb.ChatLive do
       selected_model(models, chat.model) || default_model
 
     reasoning_effort = ModelCatalog.reasoning_effort(selected_model, chat.reasoning_effort)
-    {:ok, chat} = Chat.select_model(chat, selected_model.id, reasoning_effort)
-
-    chat
+    Chat.enforce_model(chat, selected_model.id, reasoning_effort)
   end
 
   defp model_display_name(models, model_id) do

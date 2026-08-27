@@ -211,7 +211,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @impl true
   def send_message(context, message) do
     {:ok, chat} = Chat.submit(context.chat, message)
-    render_chat(context, chat)
+    {:ok, snapshot} = Chat.snapshot(chat)
+
+    context
+    |> Map.put(:persisted_chat, Jason.encode!(snapshot))
+    |> render_chat(chat)
   end
 
   @impl true
@@ -353,6 +357,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def reload(%{persisted_chat: encoded} = context) do
     {:ok, snapshot} = Jason.decode(encoded)
     {:ok, chat} = Chat.restore(snapshot)
+
+    chat =
+      if chat.busy,
+        do:
+          Chat.fail(
+            chat,
+            "The previous response was interrupted. Your transcript is preserved; send a new message to continue."
+          ),
+        else: chat
+
     render_chat(context, chat)
   end
 

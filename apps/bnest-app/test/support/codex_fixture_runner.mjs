@@ -23,8 +23,6 @@ for await (const line of lines) {
   const message = JSON.parse(line);
 
   if (message.type === "prompt" && typeof message.prompt === "string") {
-    await new Promise((resolve) => setTimeout(resolve, 750));
-
     if (resumedThreadId === "unavailable-thread") {
       output({
         type: "resume_failed",
@@ -89,6 +87,8 @@ for await (const line of lines) {
       type: "thread_started",
       thread_id: resumedThreadId || newThreadId,
     });
+
+    await new Promise((resolve) => setTimeout(resolve, 750));
 
     if (message.prompt === "Are you there?") {
       output({ type: "error", message: "Codex is not available." });

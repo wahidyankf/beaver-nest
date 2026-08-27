@@ -56,6 +56,12 @@ test("owns one fixed uncached gate manifest without duplicate application quick 
     gateManifest.find(({ id }) => id === "e2e-quick").arguments.at(-2),
     "test:release-quick",
   );
+  assert.deepEqual(
+    gateManifest
+      .find(({ id }) => id === "release-recovery-e2e")
+      .arguments.slice(-2),
+    ["--grep", "An automatic LiveView reconnect"],
+  );
 });
 
 test("isolates release gates from production runtime configuration", () => {

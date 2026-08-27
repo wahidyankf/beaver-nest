@@ -145,6 +145,15 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     And the conversation displays a second Codex response
 
+  Scenario: An automatic LiveView reconnect safely restores a persisted in-progress user-owned turn
+    Given a visitor opens "/chat"
+    When the visitor sends "Resume after deployment"
+    And the visitor reconnects after a deployment
+    Then the current route is "/chat"
+    And the conversation displays the visitor message "Resume after deployment"
+    And the page displays the alert "The previous response was interrupted. Your transcript is preserved; send a new message to continue."
+    Then the message composer is available
+
   Scenario: Ten synthetic visitors preserve recoverable state across three groups
     Given 10 synthetic visitors across 3 recovery groups have distinct drafts on "/chat"
     When every recovery-group visitor reconnects after a deployment

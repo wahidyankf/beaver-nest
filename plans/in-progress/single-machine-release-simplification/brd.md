@@ -37,6 +37,7 @@ Routine releases must use an explicit revision and an ordered, fail-closed pipel
 - Multiple daily releases can overlap drains, builds, or cleanup; parallel transactions or unbounded queues would multiply resources and rollback ambiguity.
 - Five to ten concurrent development workloads can consume release headroom unpredictably; automation must defer rather than kill, pause, or reconfigure them.
 - New page-local state can escape the current inventory; every journey must declare its durable/browser owner and reconnect proof before release qualification covers it.
+- A route can remain healthy for anonymous proof while an authenticated restored in-progress state fails; every persisted busy-state class needs isolated synthetic recovery proof before an artifact is accepted.
 - Future multiplayer state stored only in LiveView assigns, one VM, or one container would be lost or split across revisions during reconnect.
 - Development leases `4020`–`4029`; any bypass or unmarked listener can reintroduce collision risk and must fail closed.
 - Future destructive database/schema changes can invalidate the rollback artifact; expand–migrate–verify–contract and a single migration owner are mandatory.

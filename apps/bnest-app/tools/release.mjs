@@ -72,7 +72,7 @@ export const gateManifest = [
       "--workers",
       "1",
       "--grep",
-      "An automatic LiveView reconnect preserves",
+      "An automatic LiveView reconnect",
     ],
   },
   {

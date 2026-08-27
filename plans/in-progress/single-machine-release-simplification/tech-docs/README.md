@@ -7,7 +7,7 @@
 3. Read [recommendation and ranking](#recommendation-and-ranking) for the selected direction.
 4. Read [possible alternatives](alternatives.md) for ports, resource expectations, test impact, and detailed comparison.
 5. Read [migration design](migration-design.md) for current data and future database/schema safety.
-6. Use the [deterministic release contract](release-contract.md) to verify the implemented transaction and pending live release.
+6. Use the [deterministic release contract](release-contract.md) to verify the implemented transaction and completed live release.
 
 ## Directory Map
 
@@ -58,13 +58,13 @@ The launcher provides fixed blue/green ports, revision-addressed release directo
 
 `release:run` composes these primitives into one revision-bound transaction. It requires clean `main`, runs the fixed uncached gates before build, binds evidence and an artifact digest to the revision, verifies an empty migration manifest, prepares and proves the candidate, promotes through Caddy, verifies routed anonymous LiveView recovery, drains, retires, and applies bounded retention. Capacity loss, lock contention, port collision, migration uncertainty, or failed continuity returns a deterministic non-mutating or recovery result.
 
-### Observed boundaries and remaining live proof
+### Observed boundaries and live proof
 
 - The repository target configuration, release script, workflow, architecture specification, and recent release documentation support the facts above.
-- The authorized baseline established Caddy and routed readiness at `200`, one green Phoenix listener on `4001`, Caddy on `4100`, and blue `4000` free. The final managed release must still record admitted overlap resources and the new routed revision without exposing the origin or machine-local paths.
+- The authorized baseline established Caddy and routed readiness at `200`, one green Phoenix listener on `4001`, Caddy on `4100`, and blue `4000` free. The earlier managed release moved its intended revision to blue `4000`, retained HTTP `200` and revision proof, retired green after drain, and left only Caddy `4100` plus blue `4000` listening. A subsequent `/chat` route failure exposed a missing persisted-pending-turn recovery case, so this evidence is historical capacity/routing evidence only, not completion proof.
 - Isolated E2E now disconnects and reconnects `liveSocket` without page reload. Desktop, tablet, and mobile preserve the route, draft, conversation, and session; ten distinct synthetic clients across three groups also pass.
 - Warm rollback remains available before retirement. After drain, the retained prior artifact is re-prepared and revision-proven through the same primitives before cold promotion.
-- Authenticated synthetic journeys cannot run against the production runtime root: the [test-identity standard](../../../../repo-governance/development/test-identities.md) requires a marked `data/test/runs/<run-id>/` root, distinct identities and browser contexts, and exact cleanup. Phase 1 must establish an isolated served origin that exercises the same artifact and reconnect path, then keep production-origin proof read-only and anonymous unless a governed isolation mechanism exists. It must never use a real session or add a synthetic account to production.
+- Authenticated synthetic journeys cannot run against the production runtime root: the [test-identity standard](../../../../repo-governance/development/test-identities.md) requires a marked `data/test/runs/<run-id>/` root, distinct identities and browser contexts, and exact cleanup. Isolated gates exercise the same artifact and reconnect path; production-origin proof stays anonymous and read-only. No real session or synthetic production account was used.
 - Two slots may write the same flat-file runtime root while they overlap. The [continuity standard](../../../../repo-governance/development/live-service-continuity.md) therefore requires compatible schemas and locks before promotion.
 
 ### Blocking user-experience limitation
@@ -111,9 +111,9 @@ Reviewed 2026-08-27 against official documentation:
 
 Retain the current stable Caddy route and blue/green ports. Add one deterministic Nx entry point that composes preflight, fixed pre-artifact gates, immutable build, inactive-slot preparation, candidate proof, Caddy promotion, routed page/progress proof, rollback, bounded drain, retirement, and cleanup. Keep one Phoenix process normally and allow the second only during release. Keep the active and one prior verified artifact on disk so post-drain recovery does not require a warm process.
 
-This is recommended because the implemented Caddy route, revision checks, and slot rollback already cover more continuity properties than the alternatives currently prove. Reuse is not a constraint: Phase 1 may replace Caddy, LaunchAgents, ports, or the slot mechanism when another option demonstrates equal state continuity and rollback, lower measured resource cost, and simpler deterministic operation. The remaining work—state recovery proof, orchestration, automatic cleanup, and bounded artifact/log retention—is needed under every credible solution.
+This is recommended because the measured Caddy route, revision checks, slot rollback, automatic state recovery, and bounded cleanup cover more continuity properties than the alternatives currently prove. Reuse was not a constraint: Caddy, LaunchAgents, ports, or the slot mechanism could have been replaced if another option demonstrated equal state continuity and rollback, lower measured resource cost, and simpler deterministic operation.
 
-The recommendation was reassessed for the expected cadence of one or more releases every day and remains unchanged. High cadence increases the value of a single automated transaction and makes manual Alternative A, interruptive E, and version-pair-specific F less suitable. Alternative C avoids candidate startup but always consumes the second VM; B consumes the same second VM only for prepare, proof, and bounded drain. C becomes preferable only if measured release overlap is effectively continuous or candidate startup prevents the required cadence and the host safely supports two permanent VMs. D or G can replace B when their full measured control-plane cost and continuity proof are better, not merely because they remove Caddy.
+The recommendation was reassessed after the 440-second managed release and remains unchanged for one or more releases every day. The host retained 12.80 GiB minimum available memory, 95.95 GiB minimum free disk, two p95 CPU cores of safety headroom, zero Caddy health failures, and only one Phoenix listener after cleanup. A post-release persisted-pending-turn crash is a release-proof gap, not evidence against the Caddy blue/green topology: its repair requires safe model normalization and a fixed isolated authenticated recovery gate before the next artifact. High cadence increases the value of one automated transaction and makes manual Alternative A, interruptive E, and version-pair-specific F less suitable. Alternative C avoids candidate startup but always consumes the second VM; B consumes it only for prepare, proof, and bounded drain. D or G can replace B when their full measured control-plane cost and continuity proof are better, not merely because they remove Caddy.
 
 The routine transaction should have one fail-closed path and two explicit recovery edges:
 
