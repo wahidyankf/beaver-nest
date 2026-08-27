@@ -3,14 +3,18 @@
 ## Personas
 
 - **Family user:** accesses Bnest through private HTTPS and may have a connected LiveView.
+- **Child player:** may later participate in a multiplayer session whose authoritative state must survive release reconnects.
 - **Maintainer:** releases a reviewed `main` revision from the host machine.
+- **Development user:** owns one of 5–10 unrelated development workloads that release automation must not interrupt or reconfigure.
 
 ## User Stories
 
 - As a family user, I want a release to keep my page usable or recover it automatically so I do not need to reload, re-enter work, or repeat progress.
+- As a child player, I want a release to return me automatically to the same game state without missing or repeating a move.
 - As a maintainer, I want the release steps and their rollback to be small, observable, and executable on one machine.
 - As the host operator, I want the release process to leave only the active backend and deliberate rollback capacity after its bounded drain.
 - As an AI operator, I want one revision-bound sequence with structured stage results so routine releases consume little context and cannot skip a gate accidentally.
+- As a maintainer, I want multiple daily release requests serialized and coalesced so they do not overlap drains, resources, or rollback state.
 - As a plan reader, I want Mermaid labels checked before push so a clipped transition cannot hide a release condition.
 
 ## Acceptance Criteria for This Assessment
@@ -27,7 +31,8 @@ Feature: Assess the Bnest single-machine release process
   Scenario: Present alternatives and an explicit recommendation
     Given the maintainer wants simpler one-machine releases
     When possible operating models are compared
-    Then each model states its continuity, resource, rollback, and complexity trade-offs
+    Then each model has its own port-labelled diagram
+    And each model states its continuity, resource formula, test impact, rollback, WebSocket, migration, and complexity trade-offs
     And Caddy is treated as optional rather than a fixed architecture requirement
     And the plan recommends ephemeral blue-green Caddy promotion through one deterministic release transaction
     And the recommendation remains distinct from implementation approval
@@ -46,6 +51,52 @@ Feature: Assess the Bnest single-machine release process
     Then the browser restores a usable current page automatically
     And acknowledged data, recoverable in-progress input, and completed progress are unchanged
     And the user does not need to reload, re-enter input, or repeat completed work
+
+  Scenario: A multiplayer WebSocket resumes authoritative state
+    Given two isolated child players share one synthetic game session
+    And each browser knows its last acknowledged event sequence
+    When a release interrupts or moves either WebSocket connection
+    Then each browser reconnects automatically without a page reload
+    And both browsers recover the same game identifier, version, players, turn, and ordered events
+    And an action near the interruption is applied exactly once
+    And no authoritative game state depends only on the replaced LiveView process
+
+  Scenario: Every runtime owns an unambiguous port
+    Given production, candidate, development, test, and E2E processes may share one host
+    When an alternative is assessed or a release preflight runs
+    Then its Tailnet, proxy, Phoenix, development, and test ports match the documented port contract
+    And an unexpected listener or development collision stops before build or process mutation
+
+  Scenario: Resource expectations are measurable
+    Given the live machine resource baseline is not available in repository source
+    When alternatives are compared
+    Then each alternative declares its steady process formula, release peak formula, retained disk shape, and added measurement
+    And no unmeasured MB or CPU value is presented as fact
+    And Phase 1 rejects a model that causes swap pressure, health degradation, dropped WebSockets, or unbounded disk growth
+
+  Scenario: Releases coexist with development workloads
+    Given the 32 GiB 12-core host runs between 5 and 10 development workloads
+    And Bnest serves at most 10 connected users across 3 groups
+    When a release requests the shared host capacity
+    Then preflight reserves the documented RAM, CPU, and disk safety envelope
+    And insufficient capacity returns capacity-deferred without stopping or reconfiguring development work
+    And gates run sequentially with bounded schedulers and one browser worker
+
+  Scenario: Multiple daily releases remain serialized
+    Given one release transaction owns the host-wide release lock
+    When one or more newer revisions request release
+    Then no second transaction mutates migration, slots, route, drain, or cleanup state
+    And queued requests may coalesce to the newest clean main revision
+    And the pinned revision of the running transaction never changes
+    And the next activation waits for resolved routing, rollback capacity, drain, and cleanup
+
+  Scenario: A future schema change preserves rollback
+    Given an artifact declares a flat-file or database migration
+    When the release reaches migration proof
+    Then one lock-owned idempotent coordinator expands, migrates, and verifies the data state
+    And the active and rollback revisions remain compatible with the expanded state
+    And candidate promotion is blocked by missing backup, checksum, lock, compatibility, or restore evidence
+    And destructive contract work remains a separate later authorization
 
   Scenario: Tests pass before an artifact is created
     Given one clean main revision is selected for release
@@ -71,8 +122,8 @@ Feature: Assess the Bnest single-machine release process
 
 ## Scope
 
-The acceptance criteria govern the plan assessment only. Application behavior, data schemas, routes, and user interface are unchanged.
+The acceptance criteria govern the plan assessment only. Application behavior, data schemas, routes, ports, and user interface are unchanged. The multiplayer and database clauses are forward compatibility requirements, not approval to build either feature.
 
 ## Risks
 
-The current browser test step that models deployment reconnect uses a page reload, whereas the runtime contract requires automatic recovery without user action and no progress loss. A later assessment checkpoint must inventory recoverable state for each affected journey and inspect the actual routed WebSocket proof before accepting any simplification. The current release builder does not invoke quality gates, verify a clean `main`, or produce an artifact manifest, so deterministic orchestration remains proposed rather than as-built.
+The current browser test step that models deployment reconnect uses a page reload, whereas the runtime contract requires automatic recovery without user action and no progress loss. A later assessment checkpoint must inventory recoverable state for each affected journey and prove multi-browser ordered/idempotent catch-up before accepting any simplification. Current development also defaults to blue port `4000`; the proposed host-safe `4020`–`4029` lease pool is documentation only. The release builder does not invoke quality gates, verify a clean `main`, produce an artifact/migration manifest, or own a migration lock, so deterministic orchestration remains proposed rather than as-built.
