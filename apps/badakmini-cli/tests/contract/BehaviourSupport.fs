@@ -288,7 +288,7 @@ let ``the violations include an overlong "(.*)" and its missing map entry for "(
     let mapViolation = Assert.Single mapViolations
     Assert.Equal("word limit exceeded", wordViolation.Kind)
     Assert.Equal(expectedReadme, wordViolation.Path)
-    Assert.True(wordViolation.WordCount |> Option.exists (fun count -> count > 500))
+    Assert.True(wordViolation.WordCount |> Option.exists (fun count -> count > 750))
     Assert.Equal("missing map entry", mapViolation.Kind)
     Assert.Equal(expectedReadme, mapViolation.Path)
     Assert.Equal(Some expectedSibling, mapViolation.RelatedPath)

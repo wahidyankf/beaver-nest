@@ -1,7 +1,7 @@
 Feature: Mermaid governance inspection
 
   Scenario: Mermaid inspection ignores other governance concerns
-    Given file "AGENTS.md" contains 501 words
+    Given file "AGENTS.md" contains 751 words
     And the repository contains:
       | path                      | content           |
       | repo-governance/README.md | {hash} Governance |

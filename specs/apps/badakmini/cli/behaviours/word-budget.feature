@@ -18,11 +18,11 @@ Feature: Governance word-budget rules
       * AGENTS.md
       * repo-governance/nested/RULES.MD
 
-  Scenario: The 500-word boundary is inclusive
-    Given file "AGENTS.md" contains 500 words
-    And file "repo-governance/too-long.md" contains 501 words
+  Scenario: The 750-word boundary is inclusive
+    Given file "AGENTS.md" contains 750 words
+    And file "repo-governance/too-long.md" contains 751 words
     When I find word-limit violations
-    Then the only violation is a 501-word limit for "repo-governance/too-long.md"
+    Then the only violation is a 751-word limit for "repo-governance/too-long.md"
 
   Scenario: Optional governed paths may be absent
     Given an empty repository
@@ -30,19 +30,19 @@ Feature: Governance word-budget rules
     Then no Markdown files are scanned
 
   Scenario: Specification Markdown has no word limit
-    Given file "specs/apps/bnest/app/architecture.md" contains 501 words
+    Given file "specs/apps/bnest/app/architecture.md" contains 751 words
     When I inspect the word budget
     Then no Markdown files are scanned
     And there are no violations
 
   Scenario: Planning Markdown has no word limit
-    Given file "plans/ideas/q2-not-urgent-important/family-calendar.md" contains 501 words
+    Given file "plans/ideas/q2-not-urgent-important/family-calendar.md" contains 751 words
     When I inspect the word budget
     Then no Markdown files are scanned
     And there are no violations
 
   Scenario: Word-budget inspection ignores other governance concerns
-    Given file "AGENTS.md" contains 501 words
+    Given file "AGENTS.md" contains 751 words
     And the repository contains:
       | path                      | content                                                 |
       | repo-governance/README.md | {hash} Governance                                       |
@@ -51,4 +51,4 @@ Feature: Governance word-budget rules
     Then the scanned Markdown paths are:
       * AGENTS.md
       * repo-governance/README.md
-    And the only violation is a 501-word limit for "AGENTS.md"
+    And the only violation is a 751-word limit for "AGENTS.md"

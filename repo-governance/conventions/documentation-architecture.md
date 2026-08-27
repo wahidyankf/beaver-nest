@@ -4,7 +4,7 @@ Use the root `docs/` directory for general repository documentation that is not 
 
 Do not duplicate project READMEs, plans, governance, or other purpose-specific documents merely to populate `docs/`. Link to the existing canonical document when it already has an appropriate home.
 
-Every Markdown file anywhere under `docs/` is exempt from the 500-word limit. That limit applies only to root `AGENTS.md` and Markdown under `repo-governance/`.
+Every Markdown file anywhere under `docs/` is exempt from the [governance word budget](directory-maps.md#word-budget). That budget applies only to root `AGENTS.md` and Markdown under `repo-governance/`.
 
 ## Directory Maps
 

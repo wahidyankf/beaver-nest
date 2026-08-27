@@ -1,7 +1,7 @@
 Feature: Governance directory-map rules
 
   Scenario: Directory-map inspection ignores other governance concerns
-    Given file "AGENTS.md" contains 501 words
+    Given file "AGENTS.md" contains 751 words
     And the repository contains:
       | path                      | content                                                 |
       | repo-governance/README.md | {hash} Governance                                       |
@@ -71,7 +71,7 @@ Feature: Governance directory-map rules
     Then the only violation is a missing map entry from "repo-governance/README.md" to "repo-governance/rules.md"
 
   Scenario: Independent inspections report independent violations
-    Given file "repo-governance/README.md" has an empty "Governance" directory map followed by 501 words
+    Given file "repo-governance/README.md" has an empty "Governance" directory map followed by 751 words
     And the repository contains:
       | path                     | content      |
       | repo-governance/rules.md | {hash} Rules |

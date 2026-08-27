@@ -10,7 +10,7 @@ Feature: badakmini-cli command contract
     Then the exit code is 0
 
   Scenario: Word-budget validation is isolated
-    Given file "AGENTS.md" contains 501 words
+    Given file "AGENTS.md" contains 751 words
     When I run the "word-budget" validator
     Then the exit code is 1
     When I run the "directory-map" validator
@@ -95,7 +95,7 @@ Feature: badakmini-cli command contract
     When I run the "mermaid" validator
     Then the exit code is 0
     And stdout lines start with "[mermaid] "
-    Given file "AGENTS.md" contains 501 words
+    Given file "AGENTS.md" contains 751 words
     When I run the "word-budget" validator
     Then the exit code is 1
     And stderr lines start with "[word-budget] "
@@ -148,7 +148,7 @@ Feature: badakmini-cli command contract
       | governance\|word-budget\|validate\|--root\|{missing-root}     |
 
   Scenario: A governed file above the limit returns validation failure
-    Given file "AGENTS.md" contains 501 words
+    Given file "AGENTS.md" contains 751 words
     When I run the "word-budget" validator
     Then the exit code is 1
 
@@ -179,7 +179,7 @@ Feature: badakmini-cli command contract
     And stdout JSON property "wordCount" is 4
 
   Scenario: JSON validation failures retain the validation exit code
-    Given file "AGENTS.md" contains 501 words
+    Given file "AGENTS.md" contains 751 words
     When I invoke the CLI with "governance|word-budget|validate|--format|json|--root|{root}"
     Then the exit code is 1
     And the first stdout JSON violation kind is "word-limit-exceeded"

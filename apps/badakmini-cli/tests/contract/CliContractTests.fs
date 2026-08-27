@@ -119,7 +119,7 @@ type CliContractTests() =
     [<Fact>]
     member _.``JSON serializes every governance violation kind``() =
         let cases =
-            [ (fun (driver: IBehaviourDriver) -> driver.Write("AGENTS.md", String.replicate 501 "word ")),
+            [ (fun (driver: IBehaviourDriver) -> driver.Write("AGENTS.md", String.replicate 751 "word ")),
               [| "governance"; "word-budget"; "validate" |],
               "word-limit-exceeded"
               (fun driver -> driver.Write("repo-governance/README.md", "# Governance")),

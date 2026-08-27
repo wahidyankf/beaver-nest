@@ -47,7 +47,7 @@ type MarkdownLinkInspection =
 
 module Governance =
     [<Literal>]
-    let WordLimit = 500
+    let WordLimit = 750
 
     [<Literal>]
     let DirectoryMapHeading = "## Directory Map"

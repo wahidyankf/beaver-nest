@@ -30,7 +30,7 @@ flowchart TD
 
 The hierarchy flows from top to bottom: a lower level cannot contradict any level above it. Higher levels do not need to conform to lower levels. When documents conflict, the higher level takes precedence and the lower-level document must change. Documents should link to higher-level rules rather than duplicate them.
 
-Root instruction files such as `AGENTS.md` should remain concise—no more than 500 words—and link to the relevant documents here.
+Root instruction files such as `AGENTS.md` should remain concise and link to the relevant documents here. The [750-word governance budget](conventions/directory-maps.md#word-budget) sets the hard limit; progressive disclosure, clear ownership, and reader tasks determine when to split content earlier.
 
 The `badakmini-cli` application enforces this limit for root `AGENTS.md` and every Markdown file in this directory, along with the governance navigation requirements. Run it manually with:
 

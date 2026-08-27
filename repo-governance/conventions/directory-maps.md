@@ -18,7 +18,7 @@ Every directory recursively under `specs/`, including `specs/` itself, must cont
 
 Use relative links, concise descriptions, and the same empty-map statement and same-change maintenance requirements defined above. A directory link may target the child directory's required `README.md`.
 
-Markdown files under `specs/` have no word limit. The 500-word governance limit applies only to root `AGENTS.md` and Markdown under `repo-governance/`.
+Markdown files under `specs/` have no word limit. The [750-word governance budget](#word-budget) applies only to root `AGENTS.md` and Markdown under `repo-governance/`.
 
 ## Planning Trees
 
@@ -28,9 +28,13 @@ Use relative links, concise descriptions, and the same empty-map statement and s
 
 Markdown files under `plans/` have no word limit. Organize and split plan content according to reader needs and the [plan-lifecycle convention](plan-lifecycle.md), never an arbitrary file-length ceiling.
 
-## Capacity
+## Word Budget
 
-Within `repo-governance`, a complete map and the 500-word limit must both be satisfied. If a complete governance README would exceed the limit, divide its directory into coherent subdirectories until each README complies. Every new subdirectory must follow this convention. Never omit a sibling to make a map fit.
+Root `AGENTS.md` and every Markdown file under `repo-governance/` must contain no more than 750 words. The budget keeps high-visibility rules scannable; it is a maximum, not a target. Markdown under `docs/`, `specs/`, and `plans/` is exempt.
+
+Split or redistribute governance content when one document has distinct reader tasks, ownership, or navigation needs; do not split merely to use or avoid the budget. If a complete governance README would exceed 750 words, divide it into coherent subdirectories until every governed Markdown file complies. Every new subdirectory must follow this convention. Never omit a sibling to make a map fit.
+
+Use the normal `wc -w <path>` command to check a document while authoring. The repository validator is authoritative because it applies the repository's Unicode-aware word-counting rule to every governed Markdown file.
 
 The `badakmini-cli` check enforces README presence and directory-map completeness under governance, documentation, specification, and planning trees, plus applicable word limits:
 
