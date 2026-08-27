@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -17,6 +17,22 @@ import { acquirePortLease, releasePortLease } from "./port-lease.mjs";
 import { normalizeProductionOrigin } from "./production-origin.mjs";
 
 const revision = "0123456789abcdef0123456789abcdef01234567";
+
+test("installs both lock-bound dependency sets before compiling an artifact", () => {
+  const source = readFileSync(
+    new URL("./deployment.mjs", import.meta.url),
+    "utf8",
+  );
+  const npmInstall = source.indexOf('run("npm", ["ci"]');
+  const mixInstall = source.indexOf(
+    'run("mix", ["deps.get", "--only", "prod", "--check-locked"]',
+  );
+  const compile = source.indexOf('run("mix", ["compile"]');
+
+  assert.ok(npmInstall >= 0);
+  assert.ok(mixInstall > npmInstall);
+  assert.ok(compile > mixInstall);
+});
 
 test("owns one fixed uncached gate manifest without duplicate application quick work", () => {
   assert.deepEqual(
