@@ -1076,9 +1076,9 @@ export function cpuHeadroomAvailable(
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds),
 ) {
   const threshold = Math.max(0, (logicalCores - 6) * 100);
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  for (let attempt = 0; attempt < 31; attempt += 1) {
     if (sample() <= threshold) return true;
-    if (attempt < 4) pause(500);
+    if (attempt < 30) pause(500);
   }
   return false;
 }
