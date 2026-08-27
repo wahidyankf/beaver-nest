@@ -164,4 +164,33 @@ defmodule BnestAppWeb.ChatLiveTest do
 
     assert :ok = PortSession.close(session)
   end
+
+  test "the production runner loads its SDK after release-style relocation" do
+    codex_config = Application.fetch_env!(:bnest_app, :codex)
+    runner = Keyword.fetch!(codex_config, :runner)
+    working_directory = Keyword.fetch!(codex_config, :working_directory)
+
+    relocated_directory =
+      Path.join(System.tmp_dir!(), "bnest-codex-runner-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(relocated_directory)
+    relocated_runner = Path.join(relocated_directory, "chat_runner.mjs")
+    File.cp!(runner, relocated_runner)
+
+    on_exit(fn -> File.rm_rf(relocated_directory) end)
+
+    probe =
+      """
+      process.stdin.push(null);
+      process.argv.splice(2, 0, #{inspect(working_directory)}, "gpt-5.6-terra", "medium");
+      await import(process.argv[1]);
+      """
+
+    assert {"", 0} =
+             System.cmd(
+               System.find_executable("node"),
+               ["--input-type=module", "--eval", probe, relocated_runner],
+               stderr_to_stdout: true
+             )
+  end
 end

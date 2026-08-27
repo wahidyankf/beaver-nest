@@ -1,5 +1,6 @@
-import { Codex } from "@openai/codex-sdk";
+import { resolve } from "node:path";
 import readline from "node:readline";
+import { pathToFileURL } from "node:url";
 
 process.stdout.on("error", (error) => {
   if (error.code === "EPIPE") process.exit(0);
@@ -17,6 +18,11 @@ if (!workingDirectory || !model || !modelReasoningEffort) {
   );
 }
 
+const { Codex } = await import(
+  pathToFileURL(
+    resolve(workingDirectory, "node_modules/@openai/codex-sdk/dist/index.js"),
+  ).href
+);
 const codex = new Codex();
 const threadOptions = {
   model,
