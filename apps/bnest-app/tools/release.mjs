@@ -1069,8 +1069,22 @@ function systemCpuPercent() {
     .reduce((total, value) => total + (Number(value) || 0), 0);
 }
 
-function boundedReleaseEnvironment(environment) {
-  return { ...environment, ERL_FLAGS: "+S 4:4" };
+export function boundedReleaseEnvironment(environment) {
+  const releaseEnvironment = { ...environment, ERL_FLAGS: "+S 4:4" };
+  for (const name of [
+    "BNEST_DEPLOY_ROOT",
+    "BNEST_RUNTIME_ROOT",
+    "BNEST_DEPLOY_COOKIE_FILE",
+    "BNEST_DEPLOY_SECRET_KEY_BASE_FILE",
+    "BNEST_DEPLOY_WORKTREE",
+    "BNEST_PRODUCTION_ORIGIN",
+    "RELEASE_COOKIE",
+    "SECRET_KEY_BASE",
+    "PHX_HOST",
+    "PORT",
+  ])
+    delete releaseEnvironment[name];
+  return releaseEnvironment;
 }
 
 function listenerPids(port) {

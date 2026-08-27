@@ -6,6 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  boundedReleaseEnvironment,
   executeRelease,
   gateManifest,
   ReleaseError,
@@ -37,6 +38,38 @@ test("owns one fixed uncached gate manifest without duplicate application quick 
     gateManifest.find(({ id }) => id === "e2e-quick").arguments.at(-2),
     "test:release-quick",
   );
+});
+
+test("isolates release gates from production runtime configuration", () => {
+  const environment = boundedReleaseEnvironment({
+    BNEST_DEPLOY_ROOT: "/synthetic/deployment",
+    BNEST_RUNTIME_ROOT: "/synthetic/production-data",
+    BNEST_DEPLOY_COOKIE_FILE: "/synthetic/cookie",
+    BNEST_DEPLOY_SECRET_KEY_BASE_FILE: "/synthetic/key-base",
+    BNEST_DEPLOY_WORKTREE: "/synthetic/worktree",
+    BNEST_PRODUCTION_ORIGIN: "https://service.example",
+    RELEASE_COOKIE: "synthetic-cookie",
+    SECRET_KEY_BASE: "synthetic-key-base",
+    PHX_HOST: "service.example",
+    PORT: "4001",
+    PATH: "/synthetic/bin",
+  });
+
+  assert.equal(environment.ERL_FLAGS, "+S 4:4");
+  assert.equal(environment.PATH, "/synthetic/bin");
+  for (const name of [
+    "BNEST_DEPLOY_ROOT",
+    "BNEST_RUNTIME_ROOT",
+    "BNEST_DEPLOY_COOKIE_FILE",
+    "BNEST_DEPLOY_SECRET_KEY_BASE_FILE",
+    "BNEST_DEPLOY_WORKTREE",
+    "BNEST_PRODUCTION_ORIGIN",
+    "RELEASE_COOKIE",
+    "SECRET_KEY_BASE",
+    "PHX_HOST",
+    "PORT",
+  ])
+    assert.equal(environment[name], undefined);
 });
 
 function fakeHost(overrides = {}) {
