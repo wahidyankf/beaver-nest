@@ -1,6 +1,6 @@
 # Plan Lifecycle
 
-Keep each temporary plan artifact in one stage:
+Keep each plan in one stage:
 
 ```text
 ideas/ → backlogs/ → in-progress/ → done/
@@ -8,7 +8,7 @@ ideas/ → backlogs/ → in-progress/ → done/
 
 ## Authorization
 
-Create `plans/` artifacts only after an explicit user request. Harness Plan mode permits in-memory or temporary working plans, never repository plan docs.
+`plans/` artifacts require explicit user request; Plan mode never authorizes repository plan docs.
 
 ## Ideas
 
@@ -20,22 +20,22 @@ Include summary, evidence, timing, prior art, direction, scope/non-goals, risks,
 
 Use `plans/backlogs/<slug>/` for queued, `plans/in-progress/<slug>/` for active, and `plans/done/YYYY-MM-DD__<slug>/` for completed work. Use kebab-case.
 
-Each active or backlogged plan contains:
+Each formal plan contains:
 
-- `README.md`: status, context, scope, approach, dependencies, and navigation;
-- `brd.md`: business goal, roles, outcomes, non-goals, and risks;
-- `prd.md`: personas, user stories, Gherkin acceptance criteria, scope, and risks;
-- `tech-docs/README.md`: technical entry point, architecture, decisions, and order;
-- `delivery.md`: detailed ordered tasks, executors, proof, phases, and gates; and
-- `learnings.md`: capture approach and transient observations awaiting disposition.
+- `README.md`: status, context, scope, approach, dependencies, navigation;
+- `brd.md`: goal, roles, outcomes, non-goals, risks;
+- `prd.md`: personas, stories, Gherkin criteria, scope, risks;
+- `tech-docs.md`: technical entry point, architecture, decisions;
+- `delivery.md`: ordered tasks, executors, proof, phases, gates; and
+- `learnings.md`: capture approach and transient observations.
 
-Keep applicable contracts, migration, specification changes, File Impact, UI design, and assets in `tech-docs/`, each with reader job and map link. Under [minimal sufficiency](../principles/minimal-sufficiency.md), add only needed detail/evidence, split mixed jobs, and integrate unique content.
+Start with `tech-docs.md`; one document or assets never justify `tech-docs/`. Check manually with `wc -l`: keep through 400 lines; at 401, split into `tech-docs/README.md` and mapped companions. A split's `wc -l <plan>/tech-docs/*.md` total must be 401 or more; otherwise collapse it. Never keep both shapes, pre-create the folder, evade the threshold, or add an enforcement script. Follow [minimal sufficiency](../principles/minimal-sufficiency.md).
 
-Follow [directory maps](directory-maps.md); plans have no word limit but exclude secrets and sensitive runtime data. Write for a junior. File Impact is an exact `[E]` update, `[N]` new, `[M]` moved, `[D]` deleted tree; discover unknown paths. Follow applicable [migration](plan-migrations.md), [specification-change](plan-specification-changes.md), and [UI-design](plan-ui-design.md) conventions.
+Follow [maps](directory-maps.md); plans have no word limit but exclude secrets and sensitive runtime data. Write for juniors. File Impact: exact `[E]` update, `[N]` new, `[M]` moved, `[D]` deleted paths; discover unknowns. Follow applicable [migration](plan-migrations.md), [specification-change](plan-specification-changes.md), [UI-design](plan-ui-design.md) conventions.
 
 PRD Gherkin accepts the plan, not `specs/`; technical docs select durable contracts and delivery proves operational, migration, and rollout criteria.
 
-Active-service plans: `tech-docs/`/`delivery.md` apply [continuity](../development/live-service-continuity.md) and deployment workflow. Bnest plans name Caddy, candidate/revision health, LiveView/WebSocket reconnect, drain/cleanup, mixed-version safety, routed proof, rollback; never stop sole backend, repoint Tailscale, or require refresh.
+Active-service plans: the technical document set and `delivery.md` apply [continuity](../development/live-service-continuity.md) and deployment workflow. Bnest plans name Caddy, candidate/revision health, LiveView/WebSocket reconnect, drain/cleanup, mixed-version safety, routed proof, rollback; never stop sole backend, repoint Tailscale, or require refresh.
 
 ## Delivery Ownership
 

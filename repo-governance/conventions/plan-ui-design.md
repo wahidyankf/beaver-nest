@@ -4,9 +4,9 @@ Apply this convention when an explicitly requested formal plan creates or materi
 
 ## Required Exploration
 
-Store project-bound design assets under `tech-docs/assets/` and link its required `README.md` from the plan map and `tech-docs/README.md`.
+Store project-bound design assets under the plan-level `assets/` directory and link its required `README.md` from the plan map and technical document. Assets never justify creating `tech-docs/`; apply the plan lifecycle's 400-line check to `tech-docs.md` normally.
 
-Embed all nine lo-fi assets and all three selected hi-fi assets in `tech-docs/ui-design.md`. Label each alternative and image group as selected or not selected, and show the decision rationale beside the comparison. The plan README displays at least one selected hi-fi preview and links the full comparison.
+Embed all nine lo-fi assets and all three selected hi-fi assets in the UI Design section of `tech-docs.md`, or `tech-docs/ui-design.md` after a required length split. Label each alternative and image group as selected or not selected, and show the decision rationale beside the comparison. The plan README displays at least one selected hi-fi preview and links the full comparison.
 
 Use two fidelity stages for the same representative task and content:
 
@@ -22,12 +22,12 @@ Name assets `ui-<option>-<fidelity>-<device>.svg`, where fidelity is `lofi` or `
 
 ## Plan Documentation
 
-`tech-docs/ui-design.md` must state:
+The UI Design section of `tech-docs.md`, or `tech-docs/ui-design.md` after a required length split, must state:
 
 - the UI's user, job, states, and real product copy;
 - the three alternatives and their device behavior;
 - the selected alternative, trade-offs, palette/type/layout tokens, and reusable components;
 - keyboard, focus, error, empty, loading, reduced-motion, and responsive expectations; and
-- exact implementation, test, specification, and asset paths through `tech-docs/file-impact.md`.
+- exact implementation, test, specification, and asset paths through the File Impact section or its split companion.
 
 `delivery.md` must trace exploration, selection, implementation, accessibility checks, and affected-device manual verification to PRD acceptance criteria. Never include real accounts, credentials, cookies, private identifiers, or user data in an asset.

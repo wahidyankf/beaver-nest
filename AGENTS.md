@@ -34,7 +34,7 @@
 - [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); track [tasks](repo-governance/conventions/task-tracking.md).
-- `plans/`: explicit request only; Plan mode does not authorize repository docs. Use `tech-docs/`, [lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), and [minimalism](repo-governance/principles/minimal-sufficiency.md).
+- `plans/`: user request only—not Plan mode. Use `tech-docs.md`; split at 401 lines. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
 - Bnest active-service plans require Caddy candidate/promotion/rollback, compatible LiveView reconnect, and routed WebSocket/revision proof; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
 - Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases.
