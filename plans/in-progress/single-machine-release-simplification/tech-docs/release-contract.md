@@ -17,6 +17,8 @@ The selected mechanism must expose one revision-bound state machine even if it c
 
 Every stage returns a versioned structured summary and a nonzero failure status. It may reference detailed machine-local logs, but routine AI operation consumes only the bounded summary. Retrying with the same revision must be idempotent or return one exact recovery transition; it must never silently skip a gate because an artifact directory already exists. Capacity deferral and queued/coalesced requests are normal non-mutating outcomes, not release failures.
 
+Capacity uses two deterministic boundaries. Before mutation, any recent swap-in, less than 9 GiB available memory, less than 13 GiB free disk, or inability to leave six logical cores unused defers the release. After routed proof and drain, rollback occurs for any health failure, less than 2 GiB minimum available memory, less than two p95 CPU cores of headroom, or swap-in combined with less than 4 GiB minimum available memory. A swap counter alone is evidence, not proof of pressure, because unrelated macOS workloads can page cold memory while abundant memory and healthy latency remain.
+
 ### Exact pre-artifact manifest
 
 Until Phase 1 proves complete cache inputs and outputs, release evidence must use `--skip-nx-cache`. This spends more test time but removes cached success as a release decision. The composed release target must invoke this fixed order without asking an operator or AI to select tests:

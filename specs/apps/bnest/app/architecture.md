@@ -190,7 +190,7 @@ flowchart TB
 - Browser keys are immutable compatibility sources until envelope, normalization, and normal read-back pass; only the accepted key is then cleared.
 - Mutable records use revision checks, one path lock coordinated across connected local BEAM release nodes, atomic replacement, and read-back. Sessions have no time expiry and remain independent per browser.
 - Test adapters use only synthetic `test-user-` identities and marked mirrored runtime roots; production structural audit is read-only.
-- Routine releases are clean-revision, host-locked transactions with fixed uncached gates, capacity and port admission, immutable artifact and migration manifests, revision proofs, rollback, bounded drain, and two-artifact retention.
+- Routine releases are clean-revision, host-locked transactions with fixed uncached gates, capacity and port admission, immutable artifact and migration manifests, revision proofs, rollback, bounded drain, and two-artifact retention. Pre-mutation admission defers on recent swap-in; final overlap proof treats swap-in as pressure only when minimum available memory also fell below 4 GiB, while independently requiring at least 2 GiB available and two CPU cores of p95 headroom.
 - A future multiplayer connection resumes authoritative versioned state by stable session identity, catches up ordered events after its acknowledged sequence, and retries commands by idempotency identity. Server time orders durable actions; presence remains ephemeral.
 
 ## Behaviour Traceability

@@ -11,6 +11,7 @@ import {
   executeRelease,
   gateManifest,
   ReleaseError,
+  releaseResourceHeadroomAvailable,
   verifyMigrationManifest,
 } from "./release.mjs";
 import { acquirePortLease, releasePortLease } from "./port-lease.mjs";
@@ -109,6 +110,40 @@ test("waits for gate teardown before declaring CPU contention", () => {
       () => 601,
       () => {},
     ),
+    false,
+  );
+});
+
+test("distinguishes background swap counters from release memory pressure", () => {
+  const healthy = {
+    logicalCores: 12,
+    availableMemoryMinBytes: 13.12 * 1024 ** 3,
+    systemCpuP95Percent: 751.7,
+    swapInsDelta: 36,
+  };
+
+  assert.equal(releaseResourceHeadroomAvailable(healthy), true);
+  assert.equal(
+    releaseResourceHeadroomAvailable({
+      ...healthy,
+      availableMemoryMinBytes: 3 * 1024 ** 3,
+    }),
+    false,
+  );
+  assert.equal(
+    releaseResourceHeadroomAvailable({
+      ...healthy,
+      availableMemoryMinBytes: 1.9 * 1024 ** 3,
+      swapInsDelta: 0,
+    }),
+    false,
+  );
+  assert.equal(
+    releaseResourceHeadroomAvailable({
+      ...healthy,
+      systemCpuP95Percent: 1000.1,
+      swapInsDelta: 0,
+    }),
     false,
   );
 });

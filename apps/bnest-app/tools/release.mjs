@@ -616,12 +616,7 @@ export class MachineHost {
         "continuity",
         "Caddy health failed during the release window",
       );
-    if (
-      resourceSummary.swapInsDelta > 0 ||
-      resourceSummary.availableMemoryMinBytes < 2 * 1024 ** 3 ||
-      resourceSummary.systemCpuP95Percent >
-        Math.max(0, (resourceSummary.logicalCores - 2) * 100)
-    )
+    if (!releaseResourceHeadroomAvailable(resourceSummary))
       throw new ReleaseError(
         "capacity",
         "Release overlap exhausted resource headroom",
@@ -968,6 +963,20 @@ function writePrivateJson(path, value) {
     encoding: "utf8",
     mode: 0o600,
   });
+}
+
+export function releaseResourceHeadroomAvailable(summary) {
+  const twoGiB = 2 * 1024 ** 3;
+  const fourGiB = 4 * 1024 ** 3;
+  const swapPressure =
+    summary.swapInsDelta > 0 && summary.availableMemoryMinBytes < fourGiB;
+  const cpuCeiling = Math.max(0, (summary.logicalCores - 2) * 100);
+
+  return (
+    summary.availableMemoryMinBytes >= twoGiB &&
+    !swapPressure &&
+    summary.systemCpuP95Percent <= cpuCeiling
+  );
 }
 
 function staleProcessMarker(path) {
