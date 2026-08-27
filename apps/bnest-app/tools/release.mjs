@@ -781,7 +781,7 @@ export class MachineHost {
         "Fewer than eight logical cores are available",
         "deferred",
       );
-    if (systemCpuPercent() > Math.max(0, (logicalCores - 6) * 100))
+    if (!cpuHeadroomAvailable(logicalCores))
       throw new ReleaseError(
         "capacity",
         "CPU use does not leave release and safety headroom",
@@ -1067,6 +1067,20 @@ function systemCpuPercent() {
     .trim()
     .split(/\s+/u)
     .reduce((total, value) => total + (Number(value) || 0), 0);
+}
+
+export function cpuHeadroomAvailable(
+  logicalCores,
+  sample = systemCpuPercent,
+  pause = (milliseconds) =>
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds),
+) {
+  const threshold = Math.max(0, (logicalCores - 6) * 100);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (sample() <= threshold) return true;
+    if (attempt < 4) pause(500);
+  }
+  return false;
 }
 
 export function boundedReleaseEnvironment(environment) {

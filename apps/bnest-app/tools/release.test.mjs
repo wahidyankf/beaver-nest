@@ -7,6 +7,7 @@ import test from "node:test";
 
 import {
   boundedReleaseEnvironment,
+  cpuHeadroomAvailable,
   executeRelease,
   gateManifest,
   ReleaseError,
@@ -70,6 +71,30 @@ test("isolates release gates from production runtime configuration", () => {
     "PORT",
   ])
     assert.equal(environment[name], undefined);
+});
+
+test("waits for gate teardown before declaring CPU contention", () => {
+  const transientSamples = [850, 720, 550];
+  let pauses = 0;
+  assert.equal(
+    cpuHeadroomAvailable(
+      12,
+      () => transientSamples.shift(),
+      () => {
+        pauses += 1;
+      },
+    ),
+    true,
+  );
+  assert.equal(pauses, 2);
+  assert.equal(
+    cpuHeadroomAvailable(
+      12,
+      () => 601,
+      () => {},
+    ),
+    false,
+  );
 });
 
 function fakeHost(overrides = {}) {
