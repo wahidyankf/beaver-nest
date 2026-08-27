@@ -110,7 +110,7 @@ The JSON finding includes `kind`, `path`, `line`, `labelRole`, `actualLength`, `
 - `[E] .husky/pre-push`, `AGENTS.md`, `repo-governance/README.md`, `repo-governance/conventions/markdown-visualizations.md`, `repo-governance/conventions/push-hook-verification.md`, `repo-governance/development/live-service-continuity.md`, and `repo-governance/workflows/development-caddy-deployment.md`: point-of-use rules, canonical detail, and enforcement trigger.
 - `[E] README.md`, `apps/bnest-app/README.md`, and `apps/bnest-app-e2e/README.md`: repository and project operating commands and port ownership.
 - `[E] repo-governance/workflows/red-green-refactor.md` and `plans/done/2026-08-26__bnest-centralized-data/tech-docs/migration-design.md`: Mermaid corpus repairs required before enforcement.
-- `[E] plans/in-progress/single-machine-release-simplification/README.md`, `brd.md`, `prd.md`, `delivery.md`, `learnings.md`, and `tech-docs/`: reconciled decisions, implementation, safe evidence, and remaining live/archival checkpoints.
+- `[E] plans/done/2026-08-27__single-machine-release-simplification/README.md`, `brd.md`, `prd.md`, `delivery.md`, `learnings.md`, and `tech-docs/`: reconciled decisions, implementation, safe evidence, and completed delivery/archival record.
 
 ## Decision Criteria
 

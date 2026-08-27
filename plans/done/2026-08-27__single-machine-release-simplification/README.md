@@ -1,6 +1,6 @@
 # Single-Machine Release Simplification
 
-**Status:** In progress — incident remediation and a replacement managed release are pending; final gate and archival remain blocked
+**Status:** Completed: 2026-08-27
 **Created:** 2026-08-27  
 **Started:** 2026-08-27  
 **Scope:** Bnest's machine-local release workflow and its operational evidence
@@ -17,7 +17,7 @@ Repository source, governance, and the authorized machine-local lower pane confi
 
 The current recommendation is Tailscale Serve → Caddy → ephemeral blue/green Phoenix with one deterministic Nx release transaction. Run fixed gates against one clean `main` revision before building; apply only compatible lock-owned data expansion/migration; verify the inactive revision and user journeys; promote; prove routed automatic state recovery; then retire and clean after the bounded drain. The mechanism may be replaced if another alternative proves equal continuity/rollback, simpler deterministic operation, and lower measured resource cost.
 
-The intended steady state is Tailscale Serve, Caddy, and one Phoenix release. A second Phoenix VM exists only from candidate preparation through routed proof and drain. Retain the active and one previous verified artifact for cold recovery, not two permanently warm application processes. The managed transaction owns warm rollback, post-drain retention, and deterministic re-prepare through revision-checked deployment primitives. A post-release `/chat` failure showed that anonymous recovery proof did not cover persisted in-progress chat restoration; the recommendation is unchanged, but the fixed gate now includes that isolated authenticated case. See the [technical recommendation](tech-docs/README.md#recommendation-and-ranking), [port and resource comparison](tech-docs/alternatives.md#port-contract), and [migration design](tech-docs/migration-design.md).
+The intended steady state is Tailscale Serve, Caddy, and one Phoenix release. A second Phoenix VM exists only from candidate preparation through routed proof and drain. Retain the active and one previous verified artifact for cold recovery, not two permanently warm application processes. The managed transaction owns warm rollback, post-drain retention, and deterministic re-prepare through revision-checked deployment primitives. A post-release `/chat` failure showed that anonymous recovery proof had omitted persisted in-progress chat restoration; the repaired release passed with that isolated authenticated case in the fixed gate. The recommendation is unchanged. See the [technical recommendation](tech-docs/README.md#recommendation-and-ranking), [port and resource comparison](tech-docs/alternatives.md#port-contract), and [migration design](tech-docs/migration-design.md).
 
 ## Scope
 
