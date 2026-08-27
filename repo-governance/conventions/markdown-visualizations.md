@@ -25,6 +25,12 @@ Every Mermaid diagram must remain understandable to color-blind readers and legi
 
 Badakmini enforces colored `classDef` declarations in `flowchart`, `graph`, `classDiagram`, `stateDiagram`, `stateDiagram-v2`, `erDiagram`, `requirementDiagram`, and `block`. Unstyled diagrams pass. Other types remain human-reviewed because their styling semantics differ or are unstable. Automated checks require 4.5:1 contrast because rendered text size cannot be proven statically.
 
+## Mermaid Legibility
+
+Keep every visible node or state label segment at 32 Unicode grapheme clusters or fewer and every edge or transition label segment at 24 or fewer. Use `<br>`, `<br/>`, or an escaped newline to split a longer label into independently measured segments. Badakmini decodes basic HTML entities, removes markup, normalizes whitespace, and counts user-perceived graphemes rather than code points. It rejects semicolons in state-transition labels because they make static statement boundaries ambiguous.
+
+The deterministic check excludes class members, ER attributes, requirement body fields, directives, comments, and front matter. Its structured finding reports the file, line, label role, measured length, and limit. These limits prevent known clipping without requiring a browser or renderer; authors must still inspect overall layout when a diagram is materially changed.
+
 ## Focused Validation
 
 For local changed-diagram checks, use Badakmini's `--file` once per changed repository-relative Markdown file. It validates only selected files; pre-push remains full-repository. See the [CLI README](../../apps/badakmini-cli/README.md#commands) for the command.

@@ -240,3 +240,16 @@ let ``stdout JSON property "(.*)" is (\d+)`` (property: string) (expected: int) 
 [<Then>]
 let ``the first stdout JSON violation kind is "(.*)"`` (expected: string) (context: ScenarioContext) =
     BehaviourSupport.``the first stdout JSON violation kind is "(.*)"`` expected context
+
+[<Then>]
+let ``the first stdout JSON legibility fields are "(.*)", (\d+), and (\d+)``
+    (expectedRole: string)
+    (expectedLength: int)
+    (expectedLimit: int)
+    (context: ScenarioContext)
+    =
+    BehaviourSupport.``the first stdout JSON legibility fields are "(.*)", (\d+), and (\d+)``
+        expectedRole
+        expectedLength
+        expectedLimit
+        context

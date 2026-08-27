@@ -1,6 +1,6 @@
 # badakmini-cli
 
-`badakmini-cli` is the F# command-line application that validates this repository's governance documents and Markdown conventions. It keeps governed Markdown within its word limit, verifies configured directory-map trees, checks internal link targets, and validates author-controlled Mermaid colors. See the [governance index](../../repo-governance/README.md) for the rules it supports.
+`badakmini-cli` is the F# command-line application that validates this repository's governance documents and Markdown conventions. It keeps governed Markdown within its word limit, verifies configured directory-map trees, checks internal link targets, and validates author-controlled Mermaid colors and label legibility. See the [governance index](../../repo-governance/README.md) for the rules it supports.
 
 ## Scope
 
@@ -62,9 +62,9 @@ dotnet run --project apps/badakmini-cli/Badakmini.Cli.fsproj -- \
 
 There is no aggregate CLI command; use the Nx `test:repo` target to run every validator. Exit code `0` means success or help, `1` means validation findings, and `2` means an invalid invocation, invalid root, or execution error.
 
-The word-budget leaf applies the [750-word governance budget](../../repo-governance/conventions/directory-maps.md#word-budget) only to root `AGENTS.md` and Markdown under `repo-governance/`. Markdown under `docs/`, `specs/`, and `plans/` is intentionally excluded. Directory-map validation checks required READMEs, complete direct-sibling maps, and valid sibling links in each configured tree. Link validation checks local Markdown targets across repository-owned Markdown, excluding `plans/done/` as archived sources. Mermaid validation checks accessible `classDef` colors in supported diagram types. Repeat `--file` to inspect only changed repository-relative Markdown files; omitted, it scans the repository. Findings include their source path and line when applicable.
+The word-budget leaf applies the [750-word governance budget](../../repo-governance/conventions/directory-maps.md#word-budget) only to root `AGENTS.md` and Markdown under `repo-governance/`. Markdown under `docs/`, `specs/`, and `plans/` is intentionally excluded. Directory-map validation checks required READMEs, complete direct-sibling maps, and valid sibling links in each configured tree. Link validation checks local Markdown targets across repository-owned Markdown, excluding `plans/done/` as archived sources. Mermaid validation checks accessible `classDef` colors plus visible node/state segments of at most 32 graphemes and edge/transition segments of at most 24. Repeat `--file` to inspect only changed repository-relative Markdown files; omitted, it scans the repository. Legibility findings include `labelRole`, `actualLength`, and `limit` with their source path and line.
 
-Mermaid enforcement covers `flowchart`, `graph`, `classDiagram`, `stateDiagram`, `stateDiagram-v2`, `erDiagram`, `requirementDiagram`, and `block`. Other types are skipped because their styling syntax is incompatible, unstable, or undocumented. The scanner excludes dependencies, generated output, caches, and filesystem links.
+Mermaid enforcement covers `flowchart`, `graph`, `classDiagram`, `stateDiagram`, `stateDiagram-v2`, `erDiagram`, `requirementDiagram`, and `block`. `<br>`, `<br/>`, and escaped newlines split measured label segments. Class members, ER attributes, requirement body fields, directives, comments, and front matter are excluded. Other diagram types are skipped because their styling syntax is incompatible, unstable, or undocumented. The scanner excludes dependencies, generated output, caches, worktrees, and filesystem links.
 
 ## Structure
 

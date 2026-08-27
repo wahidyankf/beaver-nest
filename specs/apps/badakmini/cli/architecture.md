@@ -7,14 +7,14 @@ This is the canonical as-built C4 model for the Badakmini command-line applicati
 ```mermaid
 %% Accessible palette: blue #0173B2, orange #DE8F05, gray #808080
 flowchart TB
-    contributor(["Person<br/><b>Repository contributor</b><br/>Maintains repository content and runs checks"])
-    automation{{"External system<br/><b>Nx tasks and Git hooks</b><br/>Run checks during development and before pushes"}}
-    badakmini[["Software system<br/><b>Badakmini CLI</b><br/>Inspects governance and Markdown and reports findings"]]
-    repository[("External system / data store<br/><b>Repository tree</b><br/>Repository-owned files and directories")]
+    contributor(["Person<br/><b>Repository contributor</b><br/>Maintains repository content<br/>and runs checks"])
+    automation{{"External system<br/><b>Nx tasks and Git hooks</b><br/>Run checks during development<br/>and before pushes"}}
+    badakmini[["Software system<br/><b>Badakmini CLI</b><br/>Inspects governance and Markdown<br/>and reports findings"]]
+    repository[("External system / data store<br/><b>Repository tree</b><br/>Repository-owned files<br/>and directories")]
 
-    contributor -->|Invokes and reads results| badakmini
+    contributor -->|Invokes<br/>reads results| badakmini
     automation -->|Runs validation commands| badakmini
-    badakmini -->|Reads through the local filesystem| repository
+    badakmini -->|Reads local files| repository
 
     classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
     classDef system fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
@@ -36,11 +36,11 @@ flowchart TB
     repository[("External data store<br/><b>Repository tree</b>")]
 
     subgraph badakmini["Software system: Badakmini CLI"]
-        cli["Container<br/><b>CLI process</b><br/>F# / .NET 10<br/>Parses commands, inspects content, and formats results"]
+        cli["Container<br/><b>CLI process</b><br/>F# / .NET 10<br/>Parses commands and content<br/>Formats results"]
     end
 
-    contributor -->|Command line; text or JSON results| cli
-    automation -->|Child process and exit status| cli
+    contributor -->|Command line<br/>text or JSON results| cli
+    automation -->|Child process<br/>exit status| cli
     cli -->|Read-only filesystem API| repository
 
     classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
@@ -89,7 +89,7 @@ flowchart TB
 
 - Command handlers depend on the injectable runtime boundary; unit tests replace the filesystem and output writers.
 - Integration tests use isolated local files without network access; E2E tests observe only the built process's public command contract.
-- Governance documents remain authoritative. Badakmini reports structural, Markdown-link, and Mermaid violations but does not mutate repository content. Mermaid checks may read the complete repository or only caller-selected repository-relative Markdown files.
+- Governance documents remain authoritative. Badakmini reports structural, Markdown-link, and Mermaid violations but does not mutate repository content. Mermaid checks enforce accessible colors and renderer-free visible-label grapheme limits across supported diagrams; they may read the complete repository or only caller-selected repository-relative Markdown files.
 - Text output is the human default, JSON is the machine-observation boundary, and exit codes distinguish success, findings, and invocation errors.
 
 ## Behaviour Traceability

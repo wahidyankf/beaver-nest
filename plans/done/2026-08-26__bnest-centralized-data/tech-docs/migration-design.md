@@ -101,14 +101,14 @@ Deleting envelopes, recovery copies, manifests, old readers, or root-level legac
 stateDiagram-v2
   [*] --> SourceAbsent
   [*] --> AwaitingConfirmation: recognized key exists
-  AwaitingConfirmation --> Preserved: user confirms; immutable envelope written
-  Preserved --> CandidateWritten: source validates and atomic write succeeds
-  CandidateWritten --> Accepted: normal product read-back succeeds
+  AwaitingConfirmation --> Preserved: user confirms<br/>envelope written
+  Preserved --> CandidateWritten: source validates<br/>atomic write succeeds
+  CandidateWritten --> Accepted: product read-back<br/>succeeds
   Accepted --> ClientCleared: accepted key removed
-  Preserved --> Retryable: parse or write/read-back fails
+  Preserved --> Retryable: parse or write<br/>read-back fails
   CandidateWritten --> Retryable: read-back fails
   AwaitingConfirmation --> Rejected: unsupported or oversized
-  Retryable --> Preserved: retry same idempotency identity
+  Retryable --> Preserved: retry same<br/>idempotency identity
   SourceAbsent --> [*]
   ClientCleared --> [*]
   Rejected --> [*]

@@ -13,8 +13,8 @@ Use this workflow for each behavior increment required by the [test-driven devel
 ```mermaid
 %% Accessible palette: orange #DE8F05, teal #029E73, blue #0173B2
 flowchart LR
-    Red["Red<br/>Test fails for the expected reason"] --> Green["Green<br/>Minimum implementation passes"]
-    Green --> Refactor["Refactor<br/>Improve design while tests stay green"]
+    Red["Red<br/>Expected test failure"] --> Green["Green<br/>Minimum implementation passes"]
+    Green --> Refactor["Refactor<br/>Improve design<br/>Keep tests green"]
     Refactor --> Red
 
     classDef redPhase fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px

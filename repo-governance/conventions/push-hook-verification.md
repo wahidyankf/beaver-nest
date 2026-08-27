@@ -6,6 +6,7 @@ Do not pass `--no-verify` to `git push` unless the user explicitly authorizes by
 
 - Run the [`test:quick` quality gate](../development/quality-gates.md) through `nx affected` for every non-deleted ref being pushed, using `origin/main` as the base and the pushed local commit as the head. Only affected projects that define `test:quick` participate.
 - Keep Nx Cloud disabled for pre-push checks.
+- Run the full repository documentation gate when a pushed range changes repository Markdown, governed documentation trees, Badakmini source or adapters, or the pre-push hook itself. Validator changes must prove the existing corpus before they can enforce it.
 - Treat authorization to push and authorization to bypass push hooks as separate permissions. A normal push request does not authorize `--no-verify`.
 - Obtain explicit user permission that identifies or clearly includes the hook bypass before using `--no-verify`.
 - Do not carry bypass permission into a later push or broader scope.

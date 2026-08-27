@@ -18,6 +18,11 @@ let private coloredMermaid fence header color =
     $"{fence}mermaid\n{header}\n    A[Node]\n    classDef unsafe fill:{color},stroke:#000000,color:#FFFFFF\n    class A unsafe\n{fence}"
 
 let private mermaidSample sample =
+    let repeated count = String.replicate count "x"
+    let overlong = repeated 33
+    let combiningBoundary = String.replicate 32 "é"
+    let encodedBoundary = String.replicate 4 "&amp;&lt;&gt;&quot;&apos;&#39;&#x61;&#97;"
+
     let invalidClass definition =
         mermaid
             $"%%%% Accessible palette: orange #DE8F05\nflowchart LR\n    A[Node]\n    {definition}\n    class A invalid"
@@ -75,6 +80,30 @@ let private mermaidSample sample =
     | "text-only class" -> mermaid "flowchart LR\n    A --> B\n    classDef textOnly color:#000000"
     | "inaccessible stroke-only class" ->
         mermaid "flowchart LR\n    A --> B\n    classDef unsafeEdge stroke:#FF0000,stroke-width:2px"
+    | "overlong flowchart node" -> mermaid $"flowchart LR\n    A[{overlong}]"
+    | "overlong graph node" -> mermaid $"graph TD\n    A[{overlong}]"
+    | "overlong class node" -> mermaid $"classDiagram\n    class A[\"{overlong}\"]"
+    | "overlong state node" -> mermaid $"stateDiagram\n    state \"{overlong}\" as A"
+    | "overlong state-v2 node" -> mermaid $"stateDiagram-v2\n    state \"{overlong}\" as A"
+    | "overlong ER entity" -> mermaid $"erDiagram\n    {overlong} {{\n        string name\n    }}"
+    | "overlong requirement node" ->
+        mermaid
+            $"requirementDiagram\n    requirement {overlong} {{\n        id: 1\n        text: ignored\n        risk: low\n        verifymethod: test\n    }}"
+    | "overlong block node" -> mermaid $"block\n    columns 1\n    A[\"{overlong}\"]"
+    | "node label at 32 graphemes" -> mermaid $"flowchart LR\n    A[{repeated 32}]"
+    | "node label at 33 graphemes" -> mermaid $"flowchart LR\n    A[{repeated 33}]"
+    | "edge label at 24 graphemes" -> mermaid $"flowchart LR\n    A -->|{repeated 24}| B"
+    | "edge label at 25 graphemes" -> mermaid $"flowchart LR\n    A -->|{repeated 25}| B"
+    | "text edge at 25 graphemes" -> mermaid $"flowchart LR\n    A -- {repeated 25} --> B"
+    | "split node labels at the boundary" -> mermaid $"flowchart LR\n    A[{repeated 32}<br/>{repeated 32}]"
+    | "split node labels with br" -> mermaid $"flowchart LR\n    A[{repeated 32}<br>{repeated 32}]"
+    | "split node labels with newline" -> mermaid $"flowchart LR\n    A[{repeated 32}\\n{repeated 32}]"
+    | "combining grapheme node at boundary" -> mermaid $"flowchart LR\n    A[{combiningBoundary}]"
+    | "encoded node at boundary" -> mermaid $"flowchart LR\n    A[{encodedBoundary}]"
+    | "state transition semicolon" -> mermaid "stateDiagram-v2\n    A --> B: continue; later"
+    | "legibility exclusions" ->
+        mermaid
+            $"---\ntitle: {overlong}\n---\nclassDiagram\n    %% {overlong}\n    class A {{\n        +{overlong}\n    }}"
     | _ -> failwithf "Unknown Mermaid sample '%s'." sample
 
 let private expandInlineMarkdown (content: string) =
@@ -339,3 +368,18 @@ let ``the first stdout JSON violation kind is "(.*)"`` (expected: string) (conte
         document.RootElement.GetProperty("violations").EnumerateArray() |> Seq.head
 
     Assert.Equal(expected, violation.GetProperty("kind").GetString())
+
+let ``the first stdout JSON legibility fields are "(.*)", (\d+), and (\d+)``
+    (expectedRole: string)
+    (expectedLength: int)
+    (expectedLimit: int)
+    (context: ScenarioContext)
+    =
+    use document = JsonDocument.Parse(context.CommandResult.Value.StandardOutput)
+
+    let violation =
+        document.RootElement.GetProperty("violations").EnumerateArray() |> Seq.head
+
+    Assert.Equal(expectedRole, violation.GetProperty("labelRole").GetString())
+    Assert.Equal(expectedLength, violation.GetProperty("actualLength").GetInt32())
+    Assert.Equal(expectedLimit, violation.GetProperty("limit").GetInt32())

@@ -18,6 +18,14 @@ type MermaidAccessibilityIssue =
       Line: int
       Message: string }
 
+type MermaidLegibilityIssue =
+    { Path: string
+      Line: int
+      LabelRole: string
+      ActualLength: int
+      Limit: int
+      Message: string }
+
 type MarkdownLinkIssue = { Path: string; Target: string }
 
 type GovernanceViolation =
@@ -28,6 +36,7 @@ type GovernanceViolation =
     | InvalidMapEntry of readmePath: string * target: string
     | InvalidMarkdownLink of MarkdownLinkIssue
     | MermaidAccessibilityViolation of MermaidAccessibilityIssue
+    | MermaidLegibilityViolation of MermaidLegibilityIssue
 
 type WordBudgetInspection =
     { MarkdownFiles: MarkdownFile list
@@ -77,6 +86,39 @@ module Governance =
     let private classDefPattern =
         Regex(@"^\s*classDef\s+\S+\s+(?<properties>.+?)\s*;?\s*$", RegexOptions.Compiled ||| RegexOptions.IgnoreCase)
 
+    let private nodeLabelPattern =
+        Regex(
+            @"\b[A-Za-z_][\w-]*\s*(?:\(\[|\[\[|\[\(|\{\{|\(\(|\[|\{|\()(?<label>.*?)(?:\]\)|\]\]|\)\]|\}\}|\)\)|\]|\}|\))",
+            RegexOptions.Compiled
+        )
+
+    let private stateNodePattern =
+        Regex(@"^\s*state\s+[\""'](?<label>.+?)[\""']\s+as\s+", RegexOptions.Compiled ||| RegexOptions.IgnoreCase)
+
+    let private namedBlockPattern =
+        Regex(
+            @"^\s*(?:requirement|functionalRequirement|performanceRequirement|interfaceRequirement|physicalRequirement|designConstraint)?\s*(?<label>[A-Za-z_][\w-]*)\s*\{\s*$",
+            RegexOptions.Compiled ||| RegexOptions.IgnoreCase
+        )
+
+    let private pipeEdgeLabelPattern =
+        Regex(@"\|(?<label>[^|]+)\|", RegexOptions.Compiled)
+
+    let private textEdgeLabelPattern =
+        Regex(@"(?:--|-\.|==)\s+(?<label>.+?)\s+(?:-->|-\.->|==>)", RegexOptions.Compiled)
+
+    let private colonEdgeLabelPattern =
+        Regex(@"(?:-->|--|\.\.|\|\||\}\|)[^:]*:\s*(?<label>.+?)\s*$", RegexOptions.Compiled)
+
+    let private labelBreakPattern =
+        Regex(@"(?:<br\s*/?>|\\n)", RegexOptions.Compiled ||| RegexOptions.IgnoreCase)
+
+    let private markupPattern = Regex(@"<[^>]+>", RegexOptions.Compiled)
+    let private whitespacePattern = Regex(@"\s+", RegexOptions.Compiled)
+
+    let private htmlEntityPattern =
+        Regex(@"&(?:amp|lt|gt|quot|apos|#39|#x[0-9a-f]+|#[0-9]+);", RegexOptions.Compiled ||| RegexOptions.IgnoreCase)
+
     let private stylePropertyPattern =
         Regex(@"(?<name>[a-zA-Z-]+)\s*:\s*(?<value>[^,\s;]+)", RegexOptions.Compiled)
 
@@ -111,7 +153,8 @@ module Governance =
               "deps"
               "coverage"
               "playwright-report"
-              "test-results" ],
+              "test-results"
+              "worktrees" ],
             StringComparer.OrdinalIgnoreCase
         )
 
@@ -272,6 +315,135 @@ module Governance =
               Line = line
               Message = message }
 
+    [<Literal>]
+    let private NodeLabelLimit = 32
+
+    [<Literal>]
+    let private EdgeLabelLimit = 24
+
+    let private graphemeLength (value: string) =
+        StringInfo.ParseCombiningCharacters(value).Length
+
+    let private decodeHtmlEntities (value: string) =
+        htmlEntityPattern.Replace(
+            value,
+            MatchEvaluator(fun matched ->
+                match matched.Value.ToLowerInvariant() with
+                | "&amp;" -> "&"
+                | "&lt;" -> "<"
+                | "&gt;" -> ">"
+                | "&quot;" -> "\""
+                | "&apos;"
+                | "&#39;" -> "'"
+                | numeric when numeric.StartsWith("&#x", StringComparison.Ordinal) ->
+                    Char.ConvertFromUtf32(Convert.ToInt32(numeric[3 .. numeric.Length - 2], 16))
+                | numeric ->
+                    Char.ConvertFromUtf32(Int32.Parse(numeric[2 .. numeric.Length - 2], CultureInfo.InvariantCulture)))
+        )
+
+    let private normalizeLabelSegment (value: string) =
+        value
+        |> decodeHtmlEntities
+        |> fun text -> markupPattern.Replace(text, "")
+        |> fun text -> text.Replace("**", "").Replace("__", "")
+        |> fun text -> whitespacePattern.Replace(text, " ")
+        |> _.Trim([| ' '; '\t'; '\r'; '\n'; '"'; '\''; '`' |])
+
+    let private legibilityIssue (block: MermaidBlock) line role actual limit message =
+        MermaidLegibilityViolation
+            { Path = block.Path
+              Line = line
+              LabelRole = role
+              ActualLength = actual
+              Limit = limit
+              Message = message }
+
+    let private validateLabel (block: MermaidBlock) line role limit rawLabel =
+        [ for segment in labelBreakPattern.Split rawLabel do
+              let normalized = normalizeLabelSegment segment
+
+              if not (String.IsNullOrWhiteSpace normalized) then
+                  let actual = graphemeLength normalized
+
+                  if actual > limit then
+                      yield
+                          legibilityIssue
+                              block
+                              line
+                              role
+                              actual
+                              limit
+                              $"Mermaid {role} label segment has {actual} graphemes; maximum is {limit}" ]
+
+    let private ignoredLegibilityLine (line: string) =
+        let trimmed = line.TrimStart()
+
+        String.IsNullOrWhiteSpace trimmed
+        || trimmed.StartsWith("%%", StringComparison.Ordinal)
+        || trimmed.StartsWith("---", StringComparison.Ordinal)
+        || trimmed.StartsWith("classDef ", StringComparison.OrdinalIgnoreCase)
+        || trimmed.StartsWith("style ", StringComparison.OrdinalIgnoreCase)
+        || trimmed.StartsWith("linkStyle ", StringComparison.OrdinalIgnoreCase)
+        || trimmed.StartsWith("direction ", StringComparison.OrdinalIgnoreCase)
+        || trimmed.StartsWith("columns ", StringComparison.OrdinalIgnoreCase)
+        || trimmed.StartsWith("+", StringComparison.Ordinal)
+        || trimmed.StartsWith("-", StringComparison.Ordinal)
+        || trimmed.StartsWith("#", StringComparison.Ordinal)
+        || Regex.IsMatch(trimmed, @"^(id|text|risk|verifymethod|type|docref):", RegexOptions.IgnoreCase)
+        || Regex.IsMatch(trimmed, @"^[A-Za-z_][\w-]*\s+[A-Za-z_][\w-]*\s*$")
+
+    let private validateMermaidLegibility (block: MermaidBlock) =
+        let header = diagramHeader block |> Option.defaultValue ""
+
+        [ for lineNumber, line in block.Lines do
+              if not (ignoredLegibilityLine line) then
+                  for matched in nodeLabelPattern.Matches(line) |> Seq.cast<Match> do
+                      yield! validateLabel block lineNumber "node" NodeLabelLimit matched.Groups["label"].Value
+
+                  let stateNode = stateNodePattern.Match line
+
+                  if stateNode.Success then
+                      yield! validateLabel block lineNumber "state" NodeLabelLimit stateNode.Groups["label"].Value
+
+                  if header = "erDiagram" || header = "requirementDiagram" then
+                      let namedBlock = namedBlockPattern.Match line
+
+                      if namedBlock.Success then
+                          yield! validateLabel block lineNumber "node" NodeLabelLimit namedBlock.Groups["label"].Value
+
+                  for matched in pipeEdgeLabelPattern.Matches(line) |> Seq.cast<Match> do
+                      yield! validateLabel block lineNumber "edge" EdgeLabelLimit matched.Groups["label"].Value
+
+                  let textEdge = textEdgeLabelPattern.Match line
+
+                  if textEdge.Success then
+                      yield! validateLabel block lineNumber "edge" EdgeLabelLimit textEdge.Groups["label"].Value
+
+                  let supportsColonEdges =
+                      header.StartsWith("stateDiagram", StringComparison.Ordinal)
+                      || header = "classDiagram"
+                      || header = "erDiagram"
+
+                  let colonEdge = colonEdgeLabelPattern.Match line
+
+                  if supportsColonEdges && colonEdge.Success then
+                      let label = colonEdge.Groups["label"].Value
+
+                      if
+                          header.StartsWith("stateDiagram", StringComparison.Ordinal)
+                          && label.Contains(';')
+                      then
+                          yield
+                              legibilityIssue
+                                  block
+                                  lineNumber
+                                  "transition"
+                                  (normalizeLabelSegment label |> graphemeLength)
+                                  EdgeLabelLimit
+                                  "Mermaid state transition labels must not contain semicolons"
+                      else
+                          yield! validateLabel block lineNumber "edge" EdgeLabelLimit label ]
+
     let private validateClassDef (block: MermaidBlock) (lineNumber: int) (properties: string) =
         let properties = parseStyleProperties properties
         let fill = Map.tryFind "fill" properties
@@ -399,7 +571,7 @@ module Governance =
                           lineNumber
                           "Mermaid palette comment must list exactly the accessible colors used by classDef" ]
 
-        classDefViolations @ paletteViolations
+        classDefViolations @ paletteViolations @ validateMermaidLegibility block
 
     let private inspectMermaidAccessibilityCore fileSystem fullRoot markdownFiles =
         let blocks =
@@ -734,3 +906,4 @@ module Governance =
             $"{readmePath}: directory map links a nonexistent or non-sibling entry: {target}"
         | InvalidMarkdownLink issue -> $"{issue.Path}: Markdown link target does not exist: {issue.Target}"
         | MermaidAccessibilityViolation issue -> $"{issue.Path}:{issue.Line}: {issue.Message}"
+        | MermaidLegibilityViolation issue -> $"{issue.Path}:{issue.Line}: {issue.Message}"

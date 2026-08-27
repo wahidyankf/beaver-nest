@@ -28,6 +28,7 @@ let private violationView (element: JsonElement) =
         | "invalid-map-entry" -> "invalid map entry"
         | "invalid-markdown-link" -> "invalid Markdown link"
         | "mermaid-accessibility" -> "Mermaid accessibility"
+        | "mermaid-legibility" -> "Mermaid legibility"
         | unknown -> failwithf "Unknown CLI violation kind '%s'." unknown
       Path = element.GetProperty("path").GetString()
       RelatedPath = optionText element "relatedPath"

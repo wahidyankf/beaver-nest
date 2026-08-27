@@ -63,6 +63,14 @@ let private violationView violation =
           WordCount = None
           Line = Some issue.Line
           Diagnostic = Governance.formatViolation violation }
+    | MermaidLegibilityViolation issue ->
+        { Kind = "Mermaid legibility"
+          Path = issue.Path
+          RelatedPath = None
+          Target = None
+          WordCount = None
+          Line = Some issue.Line
+          Diagnostic = Governance.formatViolation violation }
 
 type private IntegrationDriver() =
     let root =

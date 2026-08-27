@@ -69,6 +69,7 @@ Feature: Mermaid accessibility command behavior
       * coverage
       * playwright-report
       * test-results
+      * worktrees
     When I run the "mermaid" validator
     Then the exit code is 0
 

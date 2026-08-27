@@ -18,6 +18,9 @@ type JsonViolation =
       Target: string
       WordCount: Nullable<int>
       Line: Nullable<int>
+      LabelRole: string
+      ActualLength: Nullable<int>
+      Limit: Nullable<int>
       Message: string }
 
 module Cli =
@@ -54,6 +57,9 @@ module Cli =
               Target = emptyText
               WordCount = Nullable file.WordCount
               Line = noNumber
+              LabelRole = emptyText
+              ActualLength = noNumber
+              Limit = noNumber
               Message = Governance.formatViolation violation }
         | MissingReadme path ->
             { Kind = "missing-readme"
@@ -62,6 +68,9 @@ module Cli =
               Target = emptyText
               WordCount = noNumber
               Line = noNumber
+              LabelRole = emptyText
+              ActualLength = noNumber
+              Limit = noNumber
               Message = Governance.formatViolation violation }
         | MissingDirectoryMap path ->
             { Kind = "missing-directory-map"
@@ -70,6 +79,9 @@ module Cli =
               Target = emptyText
               WordCount = noNumber
               Line = noNumber
+              LabelRole = emptyText
+              ActualLength = noNumber
+              Limit = noNumber
               Message = Governance.formatViolation violation }
         | MissingMapEntry(readme, sibling) ->
             { Kind = "missing-map-entry"
@@ -78,6 +90,9 @@ module Cli =
               Target = emptyText
               WordCount = noNumber
               Line = noNumber
+              LabelRole = emptyText
+              ActualLength = noNumber
+              Limit = noNumber
               Message = Governance.formatViolation violation }
         | InvalidMapEntry(readme, target) ->
             { Kind = "invalid-map-entry"
@@ -86,6 +101,9 @@ module Cli =
               Target = target
               WordCount = noNumber
               Line = noNumber
+              LabelRole = emptyText
+              ActualLength = noNumber
+              Limit = noNumber
               Message = Governance.formatViolation violation }
         | InvalidMarkdownLink issue ->
             { Kind = "invalid-markdown-link"
@@ -94,6 +112,9 @@ module Cli =
               Target = issue.Target
               WordCount = noNumber
               Line = noNumber
+              LabelRole = emptyText
+              ActualLength = noNumber
+              Limit = noNumber
               Message = Governance.formatViolation violation }
         | MermaidAccessibilityViolation issue ->
             { Kind = "mermaid-accessibility"
@@ -102,6 +123,20 @@ module Cli =
               Target = emptyText
               WordCount = noNumber
               Line = Nullable issue.Line
+              LabelRole = emptyText
+              ActualLength = noNumber
+              Limit = noNumber
+              Message = Governance.formatViolation violation }
+        | MermaidLegibilityViolation issue ->
+            { Kind = "mermaid-legibility"
+              Path = issue.Path
+              RelatedPath = emptyText
+              Target = emptyText
+              WordCount = noNumber
+              Line = Nullable issue.Line
+              LabelRole = issue.LabelRole
+              ActualLength = Nullable issue.ActualLength
+              Limit = Nullable issue.Limit
               Message = Governance.formatViolation violation }
 
     let private printViolations runtime category violations =

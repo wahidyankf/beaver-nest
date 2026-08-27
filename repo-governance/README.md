@@ -38,4 +38,4 @@ The `badakmini-cli` application enforces this limit for root `AGENTS.md` and eve
 npm exec -- nx run -p badakmini-cli -t test:repo
 ```
 
-The repository's pre-push hook follows the [push-hook verification convention](conventions/push-hook-verification.md). It runs the [`test:quick` quality gate](development/quality-gates.md) for affected projects that define the target, and also runs governance, recursive maps, and Mermaid-accessibility checks when pushed commits change Markdown or any mapped-tree content.
+The repository's pre-push hook follows the [push-hook verification convention](conventions/push-hook-verification.md). It runs the [`test:quick` quality gate](development/quality-gates.md) for affected projects that define the target, and also runs governance, recursive maps, and Mermaid checks when pushed commits change Markdown, a mapped tree, Badakmini source or adapters, or the hook itself.
