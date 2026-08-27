@@ -6,11 +6,50 @@
   "implicitDependencies": ["ex-bdd"],
   "targets": {
     "serve": {
-      "command": "BNEST_STABLE=${BNEST_STABLE:-true} mix phx.server",
+      "command": "node tools/serve.mjs",
       "options": {
         "cwd": "apps/bnest-app"
       },
       "continuous": true,
+      "cache": false
+    },
+    "release:test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "node --test tools/release.test.mjs tools/continuity-contract.test.mjs",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node --check tools/deployment.mjs",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node --check tools/serve.mjs",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node --check tools/verify-liveview.mjs",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node --check tools/resource-monitor.mjs",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    },
+    "release:run": {
+      "command": "node tools/release.mjs",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": true
+      },
       "cache": false
     },
     "tailnet:up": {

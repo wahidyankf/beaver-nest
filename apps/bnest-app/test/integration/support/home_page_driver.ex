@@ -20,7 +20,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def open(%{conn: conn} = context, route) do
     {:ok, view, _html} = live(conn, route)
-    Map.put(context, :view, view)
+    context |> Map.put(:view, view) |> Map.put(:route, route)
   end
 
   @impl true
@@ -320,6 +320,72 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def alert_visible?(context, message) do
     has_element?(context.view, "[role=alert]", message)
+  end
+
+  @impl true
+  def type_draft(context, draft) do
+    render_change(context.view, "recover_draft", %{"chat" => %{"prompt" => draft}})
+    Map.put(context, :draft, draft)
+  end
+
+  @impl true
+  def composer_contains?(context, draft), do: has_element?(context.view, "textarea", draft)
+
+  @impl true
+  def current_route?(context, route), do: context.route == route
+
+  @impl true
+  def reconnect(context) do
+    context =
+      if Map.has_key?(context, :persisted_chat),
+        do: reload(context),
+        else: open(context, context.route)
+
+    case Map.fetch(context, :draft) do
+      {:ok, draft} ->
+        render_change(context.view, "recover_draft", %{"chat" => %{"prompt" => draft}})
+        context
+
+      :error ->
+        context
+    end
+  end
+
+  @impl true
+  def prepare_recovery_group(context, client_count, group_count, route) do
+    clients =
+      Enum.map(1..client_count, fn index ->
+        draft = "Recovery draft #{index}"
+
+        client =
+          context
+          |> open(route)
+          |> type_draft(draft)
+
+        %{context: client, draft: draft, group: rem(index - 1, group_count) + 1, route: route}
+      end)
+
+    context
+    |> Map.put(:recovery_clients, clients)
+    |> Map.put(:recovery_group_count, group_count)
+  end
+
+  @impl true
+  def reconnect_recovery_group(context) do
+    Map.update!(context, :recovery_clients, fn clients ->
+      Enum.map(clients, fn client -> Map.update!(client, :context, &reconnect/1) end)
+    end)
+  end
+
+  @impl true
+  def recovery_group_preserved?(context) do
+    groups = context.recovery_clients |> Enum.map(& &1.group) |> MapSet.new()
+
+    MapSet.size(groups) == context.recovery_group_count and
+      Enum.all?(context.recovery_clients, fn client ->
+        current_route?(client.context, client.route) and
+          composer_contains?(client.context, client.draft)
+      end)
   end
 
   @impl true

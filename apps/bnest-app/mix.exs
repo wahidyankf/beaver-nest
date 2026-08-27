@@ -161,6 +161,7 @@ defmodule BnestApp.MixProject do
           {"cover/integration",
            [
              BnestApp.Chat,
+             BnestApp.Codex.ModelAccess,
              BnestApp.DataRepository.Normalizer,
              BnestApp.DataRepository.Schema,
              BnestApp.Identity.Authorization,

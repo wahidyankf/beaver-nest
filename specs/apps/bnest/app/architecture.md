@@ -7,16 +7,16 @@ This is the canonical as-built C4 model for Bnest. Maintain it under the reposit
 ```mermaid
 %% Accessible palette: blue #0173B2, orange #DE8F05, gray #808080
 flowchart TB
-    visitor(["Person<br/><b>Family member</b><br/>Uses the private family application"])
-    tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route to the stable local proxy"}}
-    caddy["Container<br/><b>Caddy</b><br/>Loopback reverse proxy with blue/green upstream drain"]
-    bnest[["Software system<br/><b>Bnest</b><br/>Authenticated family experiences with centralized local data"]]
-    codex{{"External system<br/><b>Local Codex installation</b><br/>Model discovery and read-only Codex threads"}}
+    visitor(["Person<br/><b>Family member</b><br/>Uses the private<br/>family application"])
+    tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route<br/>to stable local proxy"}}
+    caddy["Container<br/><b>Caddy</b><br/>Loopback reverse proxy<br/>Blue/green upstream drain"]
+    bnest[["Software system<br/><b>Bnest</b><br/>Authenticated family experiences<br/>Centralized local data"]]
+    codex{{"External system<br/><b>Local Codex installation</b><br/>Model discovery<br/>Read-only Codex threads"}}
 
     visitor -->|Remote HTTPS / WebSocket| tailscale
     tailscale -->|Loopback HTTP| caddy
-    caddy -->|Loopback HTTP / WebSocket| bnest
-    visitor -.->|Direct connection on home host| bnest
+    caddy -->|Loopback HTTP<br/>WebSocket| bnest
+    visitor -.->|Direct home-host<br/>connection| bnest
     bnest -->|Local processes| codex
 
     classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
@@ -37,27 +37,27 @@ Bnest is a 24/7 family service, private to the local host and family devices rou
 flowchart TB
     visitor(["Person<br/><b>Family member</b>"])
     tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route"}}
-    caddy["Container<br/><b>Caddy</b><br/>Loopback blue/green reverse proxy"]
+    caddy["Container<br/><b>Caddy</b><br/>Loopback blue/green<br/>reverse proxy"]
     codex{{"External system<br/><b>Local Codex installation</b><br/>Codex SDK and app server"}}
 
     subgraph bnest["Software system: Bnest"]
         direction TB
-        browser["Container<br/><b>Browser / installed PWA</b><br/>HTML, CSS, JavaScript, LiveView client"]
-        legacy[("Container / data store<br/><b>Browser legacy sources</b><br/>Allow-listed values retained only until accepted import")]
+        browser["Container<br/><b>Browser / installed PWA</b><br/>HTML, CSS, JavaScript<br/>LiveView client"]
+        legacy[("Container / data store<br/><b>Browser legacy sources</b><br/>Allow-listed values<br/>Retained until accepted import")]
         phoenix["Container<br/><b>Phoenix LiveView application</b><br/>Elixir / Phoenix / Bandit"]
-        runtime[("Container / data store<br/><b>Runtime flat files</b><br/>Accounts, sessions, manifests, and user-owned records")]
+        runtime[("Container / data store<br/><b>Runtime flat files</b><br/>Accounts and sessions<br/>Manifests and user records")]
         bridge["Container<br/><b>Codex bridge processes</b><br/>Node.js / Codex SDK and CLI"]
 
-        browser -->|HTTP / WebSocket events and renders| phoenix
-        browser -->|Confirmed compatibility import| legacy
+        browser -->|HTTP and WebSocket<br/>events and renders| phoenix
+        browser -->|Confirmed<br/>compatibility import| legacy
         phoenix -->|Typed atomic operations| runtime
         phoenix -->|Ports and JSON lines| bridge
     end
 
     visitor -->|Uses| browser
-    tailscale -->|Loopback HTTP / WebSocket| caddy
-    caddy -->|Loopback HTTP / WebSocket| phoenix
-    bridge -->|Discovers models; runs or resumes threads| codex
+    tailscale -->|Loopback HTTP<br/>WebSocket| caddy
+    caddy -->|Loopback HTTP<br/>WebSocket| phoenix
+    bridge -->|Discovers models<br/>runs or resumes threads| codex
 
     classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
     classDef container fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
@@ -72,6 +72,52 @@ flowchart TB
 
 The Phoenix server, runtime repository, and Node bridges run on the home host. Caddy is a separate loopback container between Tailscale and blue/green Phoenix releases. OTP supervision recovers failed child processes inside one running application; replacement starts and proves the alternate release before Caddy promotes it. Production resolves `data/prod/` once before supervision; filesystem tests use one marked mirror below `data/test/runs/`.
 
+## Release and Resumable State
+
+The managed release controller serializes each clean `origin/main` revision through one fail-closed transaction. Production slots own `4000` and `4001`, Caddy owns `4100`, isolated E2E leases `4010`–`4019`, and development leases `4020`–`4029`. It creates no artifact until every fixed gate passes, refuses an undeclared migration adapter, and leaves the proven route active when only final cleanup needs retrying.
+
+```mermaid
+%% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73
+flowchart TD
+    source[Clean origin main] --> gates[Fixed uncached gates]
+    gates --> artifact[Immutable artifact]
+    artifact --> migration[Migration proof]
+    migration --> candidate[Inactive slot proof]
+    candidate --> promote[Caddy promotion]
+    promote --> routed[Routed revision proof]
+    routed --> reconnect[Ten-client reconnect]
+    reconnect --> drain[Bounded five-minute drain]
+    drain --> cleanup[Retain active and previous]
+
+    classDef input fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
+    classDef stage fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+    classDef proof fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+    class source input
+    class gates,artifact,migration,candidate,promote,drain stage
+    class routed,reconnect,cleanup proof
+```
+
+Current chat continuity combines durable server records with LiveView form auto-recovery: a compatible transport reconnect restores the same route, completed conversation, Codex session identity, and unsent composer draft without calling `page.reload()`. Future multiplayer must use the executable continuity contract below; the contract exists now as a tested release fixture, but no multiplayer product is implemented.
+
+```mermaid
+%% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73
+flowchart TD
+    browser[Browser route and draft] --> gateway[LiveView or Channel]
+    browser -->|stable session id| session[Authoritative session]
+    gateway -->|resume sequence| session
+    session --> events[Ordered event log]
+    events -->|catch-up events| browser
+    browser -->|idempotent command| session
+    presence[Ephemeral presence] -.->|not game truth| session
+
+    classDef client fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
+    classDef runtime fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+    classDef durable fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+    class browser client
+    class gateway,presence runtime
+    class session,events durable
+```
+
 ## Component View
 
 ```mermaid
@@ -81,13 +127,13 @@ flowchart TB
     legacy[("External data store<br/><b>Allow-listed browser sources</b>")]
     bridge{{"External container<br/><b>Codex bridge processes</b>"}}
 
-    subgraph phoenix["Container: Phoenix LiveView application"]
+    subgraph phoenix["Container: Phoenix<br/>LiveView application"]
         direction TB
 
-        identity["Component<br/><b>Identity</b><br/>Bootstrap, Argon2id login, sessions, roles"]
+        identity["Component<br/><b>Identity</b><br/>Bootstrap and login<br/>Sessions and roles"]
         auth["Component<br/><b>Authorization</b><br/>Capability plus ownership checks"]
-        repository["Component<br/><b>Data repository</b><br/>Schemas, paths, locks, atomic writes"]
-        imports["Component<br/><b>Import and recovery</b><br/>Envelopes, manifests, retry, restore"]
+        repository["Component<br/><b>Data repository</b><br/>Schemas, paths, locks<br/>Atomic writes"]
+        imports["Component<br/><b>Import and recovery</b><br/>Envelopes and manifests<br/>Retry and restore"]
 
         subgraph chat_area["Chat components"]
             direction LR
@@ -116,11 +162,11 @@ flowchart TB
         sifat_live -->|User-owned progress| repository
     end
 
-    browser -->|Opaque cookie and protected events| identity
+    browser -->|Opaque cookie<br/>protected events| identity
     browser -->|Chat events and renders| chat_live
-    browser -->|Learning events and renders| sifat_live
+    browser -->|Learning events<br/>renders| sifat_live
     browser -->|Confirmed source values| imports
-    browser -->|Web Storage API until accepted import| legacy
+    browser -->|Web Storage API<br/>until accepted import| legacy
     session -->|JSON lines| bridge
 
     classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
@@ -144,6 +190,8 @@ flowchart TB
 - Browser keys are immutable compatibility sources until envelope, normalization, and normal read-back pass; only the accepted key is then cleared.
 - Mutable records use revision checks, one path lock coordinated across connected local BEAM release nodes, atomic replacement, and read-back. Sessions have no time expiry and remain independent per browser.
 - Test adapters use only synthetic `test-user-` identities and marked mirrored runtime roots; production structural audit is read-only.
+- Routine releases are clean-revision, host-locked transactions with fixed uncached gates, capacity and port admission, immutable artifact and migration manifests, revision proofs, rollback, bounded drain, and two-artifact retention.
+- A future multiplayer connection resumes authoritative versioned state by stable session identity, catches up ordered events after its acknowledged sequence, and retries commands by idempotency identity. Server time orders durable actions; presence remains ephemeral.
 
 ## Behaviour Traceability
 

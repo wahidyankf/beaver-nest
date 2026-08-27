@@ -35,7 +35,7 @@
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); track [tasks](repo-governance/conventions/task-tracking.md).
 - `plans/`: user request only—not Plan mode. Use `tech-docs.md`; split at 401 lines. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
-- Bnest active-service plans require Caddy candidate/promotion/rollback, compatible LiveView reconnect, and routed WebSocket/revision proof; never assume refresh.
+- Bnest active-service plans require Caddy candidate/promotion/rollback, compatible LiveView reconnect, authoritative socket-state recovery, and routed WebSocket/revision proof; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
 - Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases.
 - [Ask last](repo-governance/conventions/last-resort-questions.md); stop after the minimal verified change.
@@ -53,4 +53,4 @@
 - Never test real users; use isolated `test-user-` [identities](repo-governance/development/test-identities.md); inspect production schemas read-only.
 - **Application rule** (except `libs/ex-bdd`): assess/update all relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
 - Update affected project [READMEs](repo-governance/conventions/project-readmes.md).
-- Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md); scope Badakmini to changed files.
+- Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md); visible node/state segments are at most 32 graphemes and edge/transition segments at most 24. Scope Badakmini to changed files.

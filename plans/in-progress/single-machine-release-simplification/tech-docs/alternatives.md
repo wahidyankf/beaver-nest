@@ -18,18 +18,18 @@ The alternatives share one acceptance bar: fixed pre-artifact gates, an immutabl
 
 ### Port Contract
 
-These are loopback ports unless explicitly described as Tailnet-facing. The application never terminates public HTTPS itself. `4020`–`4029` is the proposed service-host development pool; current `serve` defaults to `4000`, so implementation must lease one safe port explicitly and fail if it is occupied. Routine releases do not start a development server.
+These are loopback ports unless explicitly described as Tailnet-facing. The application never terminates public HTTPS itself. Development leases `4020`–`4029` and fails closed on collision; routine releases do not start a development server.
 
-| Port          | Owner and purpose                                                                                     | Current or proposed               |
-| ------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------- |
-| `443`         | Tailscale HTTPS used by family browsers and exact-origin routed proof                                 | Current for every alternative     |
-| `2019`        | Caddy admin API; never a browser or Phoenix port                                                      | Current in A–C only               |
-| `4000`        | Blue production slot, or the fixed sole Phoenix slot                                                  | Current                           |
-| `4001`        | Green production slot during blue/green operation                                                     | Current                           |
-| `4002`        | Phoenix test-environment default when a test starts the endpoint                                      | Current                           |
-| `4010`        | Release-gate Playwright/E2E origin; other concurrent Bnest E2E runs use explicit `4011`–`4019` leases | Current base; pool proposed       |
-| `4020`–`4029` | Explicitly leased code-reloading Bnest development servers; closed when unused                        | Proposed pool                     |
-| `4100`        | Stable loopback handoff owned by Caddy or a future container ingress                                  | Current for Caddy; proposed for G |
+| Port          | Owner and purpose                                                              | Status                            |
+| ------------- | ------------------------------------------------------------------------------ | --------------------------------- |
+| `443`         | Tailscale HTTPS used by family browsers and exact-origin routed proof          | Current for every alternative     |
+| `2019`        | Caddy admin API; never a browser or Phoenix port                               | Current in A–C only               |
+| `4000`        | Blue production slot, or the fixed sole Phoenix slot                           | Current                           |
+| `4001`        | Green production slot during blue/green operation                              | Current                           |
+| `4002`        | Phoenix test-environment default when a test starts the endpoint               | Current                           |
+| `4010`–`4019` | Leased Playwright/E2E origins; the managed release gate owns base `4010`       | Implemented                       |
+| `4020`–`4029` | Explicitly leased code-reloading Bnest development servers; closed when unused | Implemented                       |
+| `4100`        | Stable loopback handoff owned by Caddy or a future container ingress           | Current for Caddy; proposed for G |
 
 | Alternative | Exact production path                                                          | Candidate or rolling port                                               | Development and tests                                       |
 | ----------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ----------------------------------------------------------- |
@@ -42,7 +42,7 @@ Preflight must assert exclusive ownership of every port the chosen option will m
 
 ### Resource Expectation Model
 
-Complete peak MB and CPU values remain unobserved because routed-status and release execution configuration was unavailable. The deterministic comparison combines safe process snapshots with measured symbols: `P` is one healthy Phoenix VM at representative load, `C` is Caddy, `R` is a container runtime plus local ingress, `B` is the peak build/test workload, `A` is one immutable artifact or image, and `W` is bounded worktree/build scratch. Tailscale and the operating system are common to every option and excluded from deltas.
+Final qualifying release-overlap MB and CPU values remain pending the managed live release. The deterministic comparison combines safe process snapshots with measured symbols: `P` is one healthy Phoenix VM at representative load, `C` is Caddy, `R` is a container runtime plus local ingress, `B` is the peak build/test workload, `A` is one immutable artifact or image, and `W` is bounded worktree/build scratch. Tailscale and the operating system are common to every option and excluded from deltas.
 
 | Alternative | Expected steady RSS/process shape      | Expected release peak                   | Retained release disk                        | Main capacity concern                                                        |
 | ----------- | -------------------------------------- | --------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -84,7 +84,7 @@ For the daily cadence, evidence also reports `overlapMinutesPerRelease`, `releas
 
 ### Test Impact by Alternative
 
-All options retain the fixed quick, integration, behavior, repository, and isolated E2E gates in the [release contract](release-contract.md#exact-proposed-pre-artifact-manifest). The rows below are additional option-specific proof, not replacements.
+All options retain the fixed quick, integration, behavior, repository, and isolated E2E gates in the [release contract](release-contract.md#exact-pre-artifact-manifest). The rows below are additional option-specific proof, not replacements.
 
 | Alternative | Additional deterministic tests and evidence                                                                                                                                                                                                                 |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

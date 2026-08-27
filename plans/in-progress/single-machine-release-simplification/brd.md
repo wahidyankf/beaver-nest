@@ -16,7 +16,7 @@ Give the Bnest maintainer a release process that is understandable and practical
 
 ## Non-goals
 
-This assessment does not promise literal zero interruption for every incompatible schema, protocol, or session change. Such changes require an explicit compatibility or maintenance strategy. It recommends an operating direction but does not authorize implementation.
+This work does not promise literal zero interruption for every incompatible schema, protocol, or session change. Such changes require an explicit compatibility or maintenance strategy. The recommendation itself granted no authority; implementation and live verification proceeded only after later explicit direction.
 
 ## Availability Limitation
 
@@ -36,9 +36,9 @@ Routine releases must use an explicit revision and an ordered, fail-closed pipel
 - Keeping both slots or old artifacts indefinitely would defeat the resource objective.
 - Multiple daily releases can overlap drains, builds, or cleanup; parallel transactions or unbounded queues would multiply resources and rollback ambiguity.
 - Five to ten concurrent development workloads can consume release headroom unpredictably; automation must defer rather than kill, pause, or reconfigure them.
-- Some page-local state may not yet have a durable recovery contract; selecting a release model before inventorying that state could satisfy endpoint health while still losing user progress.
+- New page-local state can escape the current inventory; every journey must declare its durable/browser owner and reconnect proof before release qualification covers it.
 - Future multiplayer state stored only in LiveView assigns, one VM, or one container would be lost or split across revisions during reconnect.
-- Development currently defaults to production blue port `4000`; a same-host development process must use the proposed dedicated port and fail closed on collisions.
+- Development leases `4020`–`4029`; any bypass or unmarked listener can reintroduce collision risk and must fail closed.
 - Future destructive database/schema changes can invalidate the rollback artifact; expand–migrate–verify–contract and a single migration owner are mandatory.
 - Cached or reused evidence can be stale when inputs are incomplete; release gates may use Nx caching only after every relevant source, dependency, environment, and output is declared.
 - A syntactically valid Mermaid diagram can still hide release transitions when a rendered label is clipped; plan execution must first make label limits deterministic and pre-push enforced.

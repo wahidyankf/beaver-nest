@@ -85,6 +85,24 @@ export function isolatedTestIdentity(testInfo: TestInfo): TestIdentity {
   return identity;
 }
 
+export function isolatedLoadIdentities(
+  testInfo: TestInfo,
+  count: number,
+): Array<{ password: string; username: string }> {
+  const source = testIdentityForProject(testInfo.project.name).admin;
+  return Array.from({ length: count }, (_, index) => {
+    const digest = createHash("sha256")
+      .update(
+        `${testInfo.project.name}:${testInfo.file}:${testInfo.title}:load:${index}`,
+      )
+      .digest("hex")
+      .slice(0, 10);
+    const username = `test-user-${digest}-load-${index + 1}`;
+    seedAccount(source.username, username, digest, "admin");
+    return { password: source.password, username };
+  });
+}
+
 export function userDataRelativePath(username: string): string {
   const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
   if (!root) throw new Error("Missing marked E2E runtime root");

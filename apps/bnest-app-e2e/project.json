@@ -82,6 +82,24 @@
         "parallel": false
       },
       "cache": false
+    },
+    "test:release-quick": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p bnest-app-e2e -t typecheck",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app-e2e -t lint",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
     }
   },
   "tags": []

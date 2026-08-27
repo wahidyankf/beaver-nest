@@ -4,10 +4,10 @@
 
 1. Read [current condition](#current-condition) for source-backed facts and observation boundaries.
 2. Read [primary-source verification](#primary-source-verification) for current external contracts.
-3. Read [recommendation and ranking](#recommendation-and-ranking) for the proposed direction.
+3. Read [recommendation and ranking](#recommendation-and-ranking) for the selected direction.
 4. Read [possible alternatives](alternatives.md) for ports, resource expectations, test impact, and detailed comparison.
 5. Read [migration design](migration-design.md) for current data and future database/schema safety.
-6. Use the [deterministic release contract](release-contract.md) to validate the recommendation against the deferred live baseline.
+6. Use the [deterministic release contract](release-contract.md) to verify the implemented transaction and pending live release.
 
 ## Directory Map
 
@@ -50,21 +50,20 @@ The Caddy configuration has a five-minute `grace_period` and `stream_close_delay
 | Prepare and promote | The steady-state components                                              | One second Phoenix release slot until routed proof and drain complete     |
 | Complete cleanup    | Tailscale Serve, Caddy, chosen active Phoenix slot                       | Previous slot must be retired; temporary worktree must be removed         |
 
-This means the existing mechanism is already a one-machine design and has one application process in intended steady state. It deliberately spends the memory and CPU of a second release only to avoid replacing the sole reader. The current script does not retire the previous slot automatically, so release completion depends on the documented `deploy:retire` step. It also keeps immutable artifacts under machine-local deployment state; an evidence-based retention policy has not yet been found in the script.
+This remains a one-machine design with one application process in steady state. It deliberately spends the memory and CPU of a second release only to avoid replacing the sole reader. The composed transaction owns retirement after the five-minute drain and retains only the active and one prior verified artifact under machine-local deployment state.
 
-### Determinism already present and missing
+### Deterministic transaction
 
-The existing launcher has useful deterministic primitives: fixed blue/green ports, revision-addressed release directories, an exact revision response header, bounded readiness polling, nonzero failure exits, atomic state writes, and JSON `proxy:status`. The resolved Nx targets also define named quality gates.
+The launcher provides fixed blue/green ports, revision-addressed release directories, an exact revision response header, bounded readiness polling, nonzero failure exits, atomic state writes, and JSON `proxy:status`. The resolved Nx targets also define named quality gates.
 
-The end-to-end release is still manually composed. `release:build` does not run tests first, require a clean `main`, bind gate evidence to the revision, verify an existing revision directory by digest/manifest, or emit one transaction result. Prepare, promote, routed browser proof, retire, worktree cleanup, and artifact retention are separate operator actions. These are assessment gaps, not evidence that the current releases are faulty.
+`release:run` composes these primitives into one revision-bound transaction. It requires clean `main`, runs the fixed uncached gates before build, binds evidence and an artifact digest to the revision, verifies an empty migration manifest, prepares and proves the candidate, promotes through Caddy, verifies routed anonymous LiveView recovery, drains, retires, and applies bounded retention. Capacity loss, lock contention, port collision, migration uncertainty, or failed continuity returns a deterministic non-mutating or recovery result.
 
-### Observed boundaries and gaps
+### Observed boundaries and remaining live proof
 
 - The repository target configuration, release script, workflow, architecture specification, and recent release documentation support the facts above.
-- A safe attempt to inspect `proxy:status` in this shell stopped because `BNEST_DEPLOY_ROOT` is unavailable. It did not query Caddy or Tailscale. Aggregate process sampling observed one Phoenix, Caddy, and Tailscale process and supplied the planning ranges in [release alternatives](alternatives.md#absolute-planning-estimates), but it did not establish routing ownership or representative load. The active slot, revision, routed health, artifact size, release peak, free disk, and Tailnet route therefore remain unobserved.
-- The deployment workflow requires local Caddy HTTP, Tailnet HTTPS, reported revision, and a connected synthetic LiveView before the old slot is retired. The existing E2E reconnect step models deployment with a page reload; later work must prove real routed WebSocket reconnect without using refresh as the release mechanism.
-- The canonical chat scenario preserves completed state across that manual reload, but it does not preserve in-progress form input or prove that LiveView reconnects by itself. It is useful prior coverage, not acceptance evidence for this plan.
-- The current rollback target is a warm rollback edge. The prior artifact may remain on disk after retirement, but no composed cold-rollback edge or retention manifest is implemented yet.
+- The authorized baseline established Caddy and routed readiness at `200`, one green Phoenix listener on `4001`, Caddy on `4100`, and blue `4000` free. The final managed release must still record admitted overlap resources and the new routed revision without exposing the origin or machine-local paths.
+- Isolated E2E now disconnects and reconnects `liveSocket` without page reload. Desktop, tablet, and mobile preserve the route, draft, conversation, and session; ten distinct synthetic clients across three groups also pass.
+- Warm rollback remains available before retirement. After drain, the retained prior artifact is re-prepared and revision-proven through the same primitives before cold promotion.
 - Authenticated synthetic journeys cannot run against the production runtime root: the [test-identity standard](../../../../repo-governance/development/test-identities.md) requires a marked `data/test/runs/<run-id>/` root, distinct identities and browser contexts, and exact cleanup. Phase 1 must establish an isolated served origin that exercises the same artifact and reconnect path, then keep production-origin proof read-only and anonymous unless a governed isolation mechanism exists. It must never use a real session or add a synthetic account to production.
 - Two slots may write the same flat-file runtime root while they overlap. The [continuity standard](../../../../repo-governance/development/live-service-continuity.md) therefore requires compatible schemas and locks before promotion.
 
@@ -72,7 +71,7 @@ The end-to-end release is still manually composed. `release:build` does not run 
 
 Endpoint health alone is insufficient. During a release, an open page must either remain usable or automatically reconnect/update itself after a brief interruption. Recovery must preserve the current route, acknowledged server data, and recoverable in-progress browser or LiveView state. It must not require the user to reload, re-enter input, repeat completed progress, or resolve duplicate submissions.
 
-Before choosing an alternative, later work must inventory each affected journey's state owner and recovery behavior. This includes at least authenticated navigation, chat prompts and partial transcripts, learning progress and active exercises, theme or form input, and any pending write that could be retried. The inventory—not a generic HTTP 200 check—determines whether an alternative satisfies the limitation.
+The state inventory covers authenticated navigation, chat prompts and partial transcripts, learning progress and active exercises, theme/form input, and pending retryable writes. This inventory—not a generic HTTP `200` check—determines whether a release satisfies the limitation.
 
 ### WebSocket and future multiplayer continuity
 

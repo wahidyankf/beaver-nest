@@ -30,6 +30,8 @@ const testDir = defineBddConfig({
   outputDir: ".features-gen",
   steps: "tests/steps/**/*.ts",
 });
+const setupScenario = /Initial setup warns about unavailable account recovery/u;
+const desktopOnlyLoadScenario = /Ten synthetic visitors preserve recoverable state/u;
 
 export default defineConfig({
   testDir,
@@ -63,19 +65,22 @@ export default defineConfig({
   projects: [
     {
       name: "one-time-setup",
-      grep: /Initial setup warns about unavailable account recovery/u,
+      grep: setupScenario,
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "chromium",
       dependencies: ["one-time-setup"],
-      grepInvert: /Initial setup warns about unavailable account recovery/u,
+      grepInvert: setupScenario,
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "tablet-chromium",
       dependencies: ["one-time-setup"],
-      grepInvert: /Initial setup warns about unavailable account recovery/u,
+      grepInvert: new RegExp(
+        `${setupScenario.source}|${desktopOnlyLoadScenario.source}`,
+        "u",
+      ),
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 768, height: 1024 },
@@ -84,7 +89,10 @@ export default defineConfig({
     {
       name: "mobile-chromium",
       dependencies: ["one-time-setup"],
-      grepInvert: /Initial setup warns about unavailable account recovery/u,
+      grepInvert: new RegExp(
+        `${setupScenario.source}|${desktopOnlyLoadScenario.source}`,
+        "u",
+      ),
       use: { ...devices["Pixel 5"] },
     },
   ],

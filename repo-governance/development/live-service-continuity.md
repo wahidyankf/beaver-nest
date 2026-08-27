@@ -13,6 +13,7 @@ Bnest's routed development service is a 24/7 household service. Elixir/OTP suppo
 - Keep a stable backend independent from the watched working tree. Start and verify a replacement on a separate loopback port before switching Caddy's upstream with a graceful reload.
 - When two versions can reach one mutable store, their schemas and locking must be mutually compatible; otherwise only the active version may write.
 - Retain the previous healthy backend until local HTTP, routed HTTPS, and applicable LiveView/WebSocket checks pass against the replacement. Configure a bounded WebSocket drain; clients may reconnect automatically but must never require a manual refresh for a compatible release.
+- Preserve acknowledged multi-client state outside one LiveView or socket process. Reconnect with a stable session identity, ordered catch-up sequence, and idempotent command identity; treat presence and connection ownership as ephemeral rather than authoritative state.
 - After final verification and any required drain, stop every unneeded non-production server, watcher, candidate, and temporary proxy. Keep only the active route and explicitly retained rollback capacity; unfinished cleanup means the work is incomplete.
 
 ## Blocking Gate

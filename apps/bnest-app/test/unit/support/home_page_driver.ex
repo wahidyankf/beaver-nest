@@ -15,7 +15,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def open(context, "/chat") do
     model_access = ModelAccess.resolve(identity(context), FixtureModels.all())
     chat = Chat.new(model_access.model.id, model_access.reasoning_effort)
-    render_chat(context, chat, model_access)
+    context |> Map.put(:route, "/chat") |> render_chat(chat, model_access)
   end
 
   def open(context, "/"), do: render_home(context)
@@ -288,6 +288,65 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> LazyHTML.text()
     |> String.trim()
     |> Kernel.==(message)
+  end
+
+  @impl true
+  def type_draft(context, draft) do
+    context |> Map.put(:draft, draft) |> render_chat(context.chat)
+  end
+
+  @impl true
+  def composer_contains?(context, draft) do
+    context.page |> LazyHTML.query("textarea") |> LazyHTML.text() |> Kernel.==(draft)
+  end
+
+  @impl true
+  def current_route?(context, route), do: context.route == route
+
+  @impl true
+  def reconnect(%{persisted_chat: _persisted_chat} = context), do: reload(context)
+
+  def reconnect(context) do
+    context
+    |> open(context.route)
+    |> type_draft(context.draft)
+  end
+
+  @impl true
+  def prepare_recovery_group(context, client_count, group_count, route) do
+    clients =
+      Enum.map(1..client_count, fn index ->
+        draft = "Recovery draft #{index}"
+
+        client =
+          context
+          |> open(route)
+          |> type_draft(draft)
+
+        %{context: client, draft: draft, group: rem(index - 1, group_count) + 1, route: route}
+      end)
+
+    context
+    |> Map.put(:recovery_clients, clients)
+    |> Map.put(:recovery_group_count, group_count)
+  end
+
+  @impl true
+  def reconnect_recovery_group(context) do
+    Map.update!(context, :recovery_clients, fn clients ->
+      Enum.map(clients, fn client -> Map.update!(client, :context, &reconnect/1) end)
+    end)
+  end
+
+  @impl true
+  def recovery_group_preserved?(context) do
+    groups = context.recovery_clients |> Enum.map(& &1.group) |> MapSet.new()
+
+    MapSet.size(groups) == context.recovery_group_count and
+      Enum.all?(context.recovery_clients, fn client ->
+        current_route?(client.context, client.route) and
+          composer_contains?(client.context, client.draft)
+      end)
   end
 
   @impl true
@@ -593,7 +652,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         chat: chat,
         models: FixtureModels.all(),
         model_access: model_access,
-        form: Phoenix.Component.to_form(%{"prompt" => ""}, as: :chat)
+        form: Phoenix.Component.to_form(%{"prompt" => Map.get(context, :draft, "")}, as: :chat)
       }
       |> BnestAppWeb.ChatLive.render()
       |> Safe.to_iodata()

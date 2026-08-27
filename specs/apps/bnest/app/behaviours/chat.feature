@@ -126,21 +126,29 @@ Feature: Beaver Nest chat
     Then the page displays the alert "Turn failed."
     And the message composer is available
 
-  Scenario: A LiveView reconnect preserves a completed user-owned conversation and Codex session
+  Scenario: An automatic LiveView reconnect preserves a completed user-owned conversation and Codex session
     Given a visitor opens "/chat"
     When the visitor selects the model "GPT-5.6-Luna"
     And the visitor selects the reasoning effort "High"
     And the visitor sends "Temporary message"
     And a Codex response appears incrementally
+    And the visitor types "Unsent draft" without sending
     When the visitor reconnects after a deployment
+    Then the current route is "/chat"
+    And the message composer contains "Unsent draft"
     Then the selected model is "GPT-5.6-Luna"
     And the selected reasoning effort is "High"
     And the conversation displays the visitor message "Temporary message"
     And the conversation displays one completed Codex response
-    When the visitor sends "After reload"
-    Then the conversation displays the visitor message "After reload"
+    When the visitor sends "After reconnect"
+    Then the conversation displays the visitor message "After reconnect"
     And a Codex response appears incrementally
     And the conversation displays a second Codex response
+
+  Scenario: Ten synthetic visitors preserve recoverable state across three groups
+    Given 10 synthetic visitors across 3 recovery groups have distinct drafts on "/chat"
+    When every recovery-group visitor reconnects after a deployment
+    Then every recovery-group visitor keeps its route and draft
 
   Scenario: A user clears normalized chat and starts a new Codex session
     Given a visitor opens "/chat"

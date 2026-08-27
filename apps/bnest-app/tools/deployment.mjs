@@ -9,6 +9,8 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 
+import { normalizeProductionOrigin } from "./production-origin.mjs";
+
 const [command, ...arguments_] = process.argv.slice(2);
 const slots = { blue: 4000, green: 4001 };
 const label = "com.bnest.caddy";
@@ -58,6 +60,17 @@ function requiredEnvironment(name) {
   const value = process.env[name];
   if (!value) fail(`${name} must point to machine-local deployment state.`);
   return resolve(value);
+}
+
+function requiredProductionOrigin() {
+  const value = process.env.BNEST_PRODUCTION_ORIGIN;
+  if (!value)
+    fail("BNEST_PRODUCTION_ORIGIN must identify the routed HTTPS origin.");
+  try {
+    return normalizeProductionOrigin(value);
+  } catch (error) {
+    fail(error.message);
+  }
 }
 
 function fail(message) {
@@ -268,21 +281,24 @@ function buildRelease() {
   const release = join(buildPath, "rel", "bnest_app");
   const destination = join(paths.releases, revision);
 
-  if (!existsSync(destination)) {
-    run("mix", ["compile"], {
-      cwd: source,
-      env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
-    });
-    run("mix", ["assets.deploy"], {
-      cwd: source,
-      env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
-    });
-    run("mix", ["release", "--overwrite"], {
-      cwd: source,
-      env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
-    });
-    run("ditto", [release, destination]);
-  }
+  if (existsSync(destination))
+    fail(
+      `Release ${revision} already exists; refuse to overwrite an immutable artifact.`,
+    );
+
+  run("mix", ["compile"], {
+    cwd: source,
+    env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
+  });
+  run("mix", ["assets.deploy"], {
+    cwd: source,
+    env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
+  });
+  run("mix", ["release", "--overwrite"], {
+    cwd: source,
+    env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
+  });
+  run("ditto", [release, destination]);
 
   process.stdout.write(`${revision}\n`);
 }
@@ -300,6 +316,7 @@ function prepareSlot(slot) {
   const secretKeyBase = requiredEnvironment(
     "BNEST_DEPLOY_SECRET_KEY_BASE_FILE",
   );
+  const productionOrigin = requiredProductionOrigin();
   const release = join(paths.releases, revision);
   if (!existsSync(release)) fail(`Release ${revision} does not exist.`);
 
@@ -316,6 +333,7 @@ function prepareSlot(slot) {
       runtimeRoot,
       cookie,
       secretKeyBase,
+      productionOrigin.host,
       revision,
       logPath,
       errorPath,
@@ -355,6 +373,7 @@ function launchAgent(
   runtimeRoot,
   cookieFile,
   secretKeyBaseFile,
+  productionHost,
   revision,
   logPath,
   errorPath,
@@ -369,6 +388,7 @@ function launchAgent(
     BNEST_COOKIE_SECURE: "true",
     BNEST_RELEASE_REVISION: revision,
     BNEST_DEPLOY_SLOT: slot,
+    PHX_HOST: productionHost,
     RELEASE_DISTRIBUTION: "none",
     RELEASE_COOKIE: readFileSync(cookieFile, "utf8").trim(),
     SECRET_KEY_BASE: readFileSync(secretKeyBaseFile, "utf8").trim(),

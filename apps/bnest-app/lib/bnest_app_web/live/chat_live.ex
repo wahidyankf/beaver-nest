@@ -72,6 +72,10 @@ defmodule BnestAppWeb.ChatLive do
 
   def handle_event("ignore_effort_recovery", _params, socket), do: {:noreply, socket}
 
+  def handle_event("recover_draft", %{"chat" => %{"prompt" => prompt}}, socket) do
+    {:noreply, assign(socket, :form, prompt_form(prompt))}
+  end
+
   @impl Phoenix.LiveView
   def handle_event("send", _params, %{assigns: %{model_access: %{available?: false}}} = socket),
     do: {:noreply, socket}
@@ -318,7 +322,14 @@ defmodule BnestAppWeb.ChatLive do
 
         <p :if={@chat.error} class="chat-error" role="alert">{@chat.error}</p>
 
-        <.form for={@form} phx-submit="send" class="composer">
+        <.form
+          for={@form}
+          id="chat-composer-form"
+          phx-change="recover_draft"
+          phx-auto-recover="recover_draft"
+          phx-submit="send"
+          class="composer"
+        >
           <.input
             field={@form[:prompt]}
             type="textarea"
@@ -519,7 +530,7 @@ defmodule BnestAppWeb.ChatLive do
     persist_chat(socket)
   end
 
-  defp prompt_form, do: to_form(%{"prompt" => ""}, as: :chat)
+  defp prompt_form(prompt \\ ""), do: to_form(%{"prompt" => prompt}, as: :chat)
 
   defp new_chat(model), do: Chat.new(model.id, ModelCatalog.reasoning_effort(model))
 

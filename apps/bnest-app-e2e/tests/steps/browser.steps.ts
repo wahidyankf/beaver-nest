@@ -230,6 +230,26 @@ When("Codex reports the error {string}", async ({ page }, message: string) => {
   await expect(page.getByRole("alert")).toHaveText(message);
 });
 
+When(
+  "the visitor types {string} without sending",
+  async ({ page }, draft: string) => {
+    await page.getByLabel("Message").fill(draft);
+  },
+);
+
+Then(
+  "the message composer contains {string}",
+  async ({ page }, draft: string) => {
+    await expect(page.getByLabel("Message")).toHaveValue(draft);
+  },
+);
+
+Then("the current route is {string}", async ({ page }, route: string) => {
+  await expect(page).toHaveURL(
+    new RegExp(`${route.replaceAll("/", "\\/")}$`, "u"),
+  );
+});
+
 Then(
   "the page displays the alert {string}",
   async ({ page }, message: string) => {
@@ -237,7 +257,27 @@ Then(
   },
 );
 
-When("the visitor reconnects after a deployment", ({ page }) => page.reload());
+When("the visitor reconnects after a deployment", async ({ page }) => {
+  await page.evaluate(() => {
+    const liveSocket = (
+      window as unknown as { liveSocket: { disconnect: () => void } }
+    ).liveSocket;
+    liveSocket.disconnect();
+  });
+  await expect(page.locator("[data-phx-main]")).not.toHaveClass(
+    /phx-connected/u,
+  );
+  await expect(page.locator("[data-phx-main]")).toHaveClass(
+    /phx-client-error/u,
+  );
+  await page.evaluate(() => {
+    const liveSocket = (
+      window as unknown as { liveSocket: { connect: () => void } }
+    ).liveSocket;
+    liveSocket.connect();
+  });
+  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+});
 
 When("the visitor reloads the page", ({ page }) => page.reload());
 

@@ -7,7 +7,7 @@ Beaver Nest is a private, always-available family application and a focused cons
 Beaver Nest is in its first implementation stage.
 
 - A Phoenix LiveView chat streams local Codex responses through the official SDK, discovers the models available to the local Codex installation, and can switch models without discarding the current thread.
-- Hot reload works during local development.
+- Isolated, non-routed local development can opt into hot reload.
 - A persistent Tailscale Serve route reaches a stable loopback Caddy proxy, which promotes immutable Phoenix releases without a manual browser refresh. Bnest now has one-time family-account setup, persistent per-browser login, centralized flat-file chat/learning/theme records, and recoverable browser import.
 
 ## Run locally
@@ -28,7 +28,7 @@ npm install
 npm start
 ```
 
-Open [http://localhost:4000](http://localhost:4000).
+Open [http://localhost:4020](http://localhost:4020). Development leases `4020`–`4029`; production remains on `4000`/`4001`, browser E2E on `4010`–`4019`, and Caddy on `4100`.
 
 To keep private HTTPS routing available independently from Phoenix, install Caddy once, then expose its stable loopback endpoint through Tailscale without storing the machine-derived URL in the repository:
 
@@ -38,9 +38,9 @@ npm run tailnet:up
 npm run tailnet:status
 ```
 
-Use the deployment targets to prepare/promote a release; do not stop Caddy or reconfigure Tailscale for normal deploys. Caddy stays bound to loopback while accepting the Host header forwarded by Tailscale Serve. Run `npm run tailnet:down` when private HTTPS access should be removed. The first `tailnet:up` may require tailnet approval for HTTPS certificates; see the [Caddy deployment workflow](repo-governance/workflows/development-caddy-deployment.md).
+Use `npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>` for a routine deterministic release; do not stop Caddy or reconfigure Tailscale for normal deploys. Caddy stays bound to loopback while accepting the Host header forwarded by Tailscale Serve. Run `npm run tailnet:down` when private HTTPS access should be removed. The first `tailnet:up` may require tailnet approval for HTTPS certificates; see the [Caddy deployment workflow](repo-governance/workflows/development-caddy-deployment.md).
 
-Phoenix recompiles normal Elixir and HEEx changes while it runs, and its asset watchers update JavaScript and CSS. Configuration, dependency, and supervision changes require the [development-server restart workflow](repo-governance/workflows/development-server-restart.md).
+An explicitly isolated `BNEST_STABLE=false` server may recompile normal Elixir and HEEx changes and run asset watchers. The default stable server and configuration, dependency, or supervision changes follow the [development-server restart workflow](repo-governance/workflows/development-server-restart.md).
 
 ## Install on a phone or tablet
 
@@ -54,7 +54,7 @@ The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only s
 npm test
 npm exec -- nx run -p bnest-app -t test:integration
 npm exec -- nx run -p bnest-app -t test:coverage:behaviour
-npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "LiveView reconnect preserves a completed user-owned conversation"
+npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
 npm exec -- nx run -p badakmini-cli -t test:integration
 npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 ```

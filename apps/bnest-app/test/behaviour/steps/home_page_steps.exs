@@ -183,8 +183,41 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the visitor types {string} without sending", %{args: [draft]} = context do
+    context.behaviour_driver.type_draft(context, draft)
+  end
+
+  step "the message composer contains {string}", %{args: [draft]} = context do
+    assert context.behaviour_driver.composer_contains?(context, draft)
+    context
+  end
+
+  step "the current route is {string}", %{args: [route]} = context do
+    assert context.behaviour_driver.current_route?(context, route)
+    context
+  end
+
   step "the visitor reconnects after a deployment", context do
-    context.behaviour_driver.reload(context)
+    context.behaviour_driver.reconnect(context)
+  end
+
+  step "{int} synthetic visitors across {int} recovery groups have distinct drafts on {string}",
+       %{args: [client_count, group_count, route]} = context do
+    context.behaviour_driver.prepare_recovery_group(
+      context,
+      client_count,
+      group_count,
+      route
+    )
+  end
+
+  step "every recovery-group visitor reconnects after a deployment", context do
+    context.behaviour_driver.reconnect_recovery_group(context)
+  end
+
+  step "every recovery-group visitor keeps its route and draft", context do
+    assert context.behaviour_driver.recovery_group_preserved?(context)
+    context
   end
 
   step "the visitor reloads the page", context do
