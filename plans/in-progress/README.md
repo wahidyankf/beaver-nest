@@ -6,8 +6,8 @@ Start work by moving one folder from [`../backlogs/`](../backlogs/README.md) wit
 
 ## Active Plans
 
-No active plans are currently recorded.
+- [Single-machine release simplification](single-machine-release-simplification/README.md) — current-condition assessment and release-model alternatives for Bnest.
 
 ## Directory Map
 
-No sibling plan entries exist in this directory.
+- [Single-machine release simplification](single-machine-release-simplification/README.md) records the active release-process assessment.
