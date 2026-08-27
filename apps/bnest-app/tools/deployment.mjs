@@ -286,6 +286,10 @@ function buildRelease() {
       `Release ${revision} already exists; refuse to overwrite an immutable artifact.`,
     );
 
+  run("mix", ["deps.get", "--only", "prod", "--check-locked"], {
+    cwd: source,
+    env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
+  });
   run("mix", ["compile"], {
     cwd: source,
     env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
