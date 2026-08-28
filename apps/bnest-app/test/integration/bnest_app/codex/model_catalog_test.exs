@@ -50,6 +50,11 @@ defmodule BnestApp.Codex.ModelCatalogTest do
     assert length(ModelCatalog.all(catalog)) == 7
   end
 
+  test "the production model runner is located in the packaged application" do
+    assert ModelCatalog.bundled_models_runner() ==
+             Application.app_dir(:bnest_app, "priv/codex/list_models.mjs")
+  end
+
   test "uses a safe Terra fallback for an invalid catalog" do
     log =
       capture_log(fn ->

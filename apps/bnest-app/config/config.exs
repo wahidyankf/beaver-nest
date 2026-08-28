@@ -19,8 +19,6 @@ config :bnest_app,
   ],
   argon2: [memory_kib: 32_768, time_cost: 2, parallelism: 1],
   codex: [
-    runner: Path.expand("../priv/codex/chat_runner.mjs", __DIR__),
-    models_runner: Path.expand("../priv/codex/list_models.mjs", __DIR__),
     working_directory: Path.expand("../../..", __DIR__)
   ]
 

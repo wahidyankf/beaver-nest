@@ -21,6 +21,11 @@ defmodule BnestApp.Codex.PortSession do
     :exit, _reason -> :ok
   end
 
+  @spec bundled_runner() :: String.t()
+  def bundled_runner do
+    Application.app_dir(:bnest_app, "priv/codex/chat_runner.mjs")
+  end
+
   @impl GenServer
   def init({owner, thread_id, model, reasoning_effort}) do
     monitor = Process.monitor(owner)
@@ -72,7 +77,10 @@ defmodule BnestApp.Codex.PortSession do
 
   defp open_port(thread_id, model, reasoning_effort) do
     config = Application.fetch_env!(:bnest_app, :codex)
-    runner = System.get_env("BNEST_CODEX_RUNNER") || Keyword.fetch!(config, :runner)
+
+    runner =
+      System.get_env("BNEST_CODEX_RUNNER") || Keyword.get(config, :runner, bundled_runner())
+
     working_directory = Keyword.fetch!(config, :working_directory)
     executable = System.find_executable("node") || raise "Node.js is required to run Codex"
 

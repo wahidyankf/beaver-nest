@@ -167,7 +167,7 @@ defmodule BnestAppWeb.ChatLiveTest do
 
   test "the production runner loads its SDK after release-style relocation" do
     codex_config = Application.fetch_env!(:bnest_app, :codex)
-    runner = Keyword.fetch!(codex_config, :runner)
+    runner = PortSession.bundled_runner()
     working_directory = Keyword.fetch!(codex_config, :working_directory)
 
     relocated_directory =
@@ -192,5 +192,10 @@ defmodule BnestAppWeb.ChatLiveTest do
                ["--input-type=module", "--eval", probe, relocated_runner],
                stderr_to_stdout: true
              )
+  end
+
+  test "the production runner is located in the packaged application" do
+    assert PortSession.bundled_runner() ==
+             Application.app_dir(:bnest_app, "priv/codex/chat_runner.mjs")
   end
 end

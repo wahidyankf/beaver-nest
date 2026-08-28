@@ -42,6 +42,11 @@ defmodule BnestApp.Codex.ModelCatalog do
   @spec default() :: model()
   def default(server \\ __MODULE__), do: GenServer.call(server, :default)
 
+  @spec bundled_models_runner() :: String.t()
+  def bundled_models_runner do
+    Application.app_dir(:bnest_app, "priv/codex/list_models.mjs")
+  end
+
   @spec reasoning_effort(model(), String.t()) :: String.t()
   def reasoning_effort(model, requested \\ Settings.preferred_reasoning_effort()) do
     cond do
@@ -106,7 +111,7 @@ defmodule BnestApp.Codex.ModelCatalog do
 
     runner =
       Keyword.get(options, :models_runner) || System.get_env("BNEST_CODEX_MODELS_RUNNER") ||
-        Keyword.fetch!(config, :models_runner)
+        Keyword.get(config, :models_runner, bundled_models_runner())
 
     working_directory =
       Keyword.get(options, :working_directory, Keyword.fetch!(config, :working_directory))
