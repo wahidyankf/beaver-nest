@@ -1,10 +1,15 @@
 # Multi-Harness Repository Support
 
-**Status:** Planning complete; implementation not authorized
+**Status:** Completed
 
 **Created:** 2026-08-28
 
 **Started:** 2026-08-28
+
+**Execution started:** 2026-08-28
+
+**Completed:** 2026-08-28
+
 **Scope:** Repository development through Codex, Claude Code, and OpenCode
 
 ## Context
@@ -51,7 +56,7 @@ Harness UI, model choice, credentials, local memory, approval prompts, and user-
 - [Business requirements](brd.md) defines value, roles, outcomes, and risks.
 - [Product requirements](prd.md) defines personas, stories, and Gherkin acceptance.
 - [Technical design](tech-docs.md) defines canonical sources, adapters, validation, specifications, and file impact.
-- [Delivery](delivery.md) orders later implementation and proof; all implementation phases remain pending.
+- [Delivery](delivery.md) records completed implementation and the remaining final verification/archive proof.
 - [Learnings](learnings.md) records safe evidence and planning decisions.
 
 ## Directory Map

@@ -6,4 +6,4 @@ See the [Diátaxis how-to guidance](https://diataxis.fr/how-to-guides/) for the 
 
 ## Directory Map
 
-This directory currently has no entries other than this README.
+- [Coding harnesses](coding-harnesses.md) configures Codex, Claude Code, or OpenCode against the shared repository contract.

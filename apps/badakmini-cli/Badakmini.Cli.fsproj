@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <Compile Include="Runtime.fs" />
+    <Compile Include="HarnessContract.fs" />
     <Compile Include="Governance.fs" />
     <Compile Include="Cli.fs" />
     <Compile Include="Program.fs" />

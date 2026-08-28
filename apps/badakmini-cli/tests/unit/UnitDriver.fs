@@ -80,6 +80,7 @@ type private MemoryRepository() =
     let files = Dictionary<string, string>(StringComparer.Ordinal)
     let directories = HashSet<string>(StringComparer.Ordinal)
     let locked = HashSet<string>(StringComparer.Ordinal)
+    let links = HashSet<string>(StringComparer.Ordinal)
 
     let normalize path = Path.GetFullPath path
 
@@ -120,7 +121,12 @@ type private MemoryRepository() =
           EnumerateDirectories = fun directory -> directChildren directories directory
           EnumerateFileSystemEntries =
             fun directory -> Seq.append (directChildren files.Keys directory) (directChildren directories directory)
-          GetAttributes = fun _ -> FileAttributes.Normal
+          GetAttributes =
+            fun path ->
+                if links.Contains(normalize path) then
+                    FileAttributes.ReparsePoint
+                else
+                    FileAttributes.Normal
           CurrentDirectory = fun () -> root }
 
     member _.Root = root
@@ -130,6 +136,25 @@ type private MemoryRepository() =
         let path = normalize (Path.Combine(root, relativePath))
         addDirectories path
         files[path] <- content
+
+    member _.Delete(relativePath) =
+        let path = normalize (Path.Combine(root, relativePath))
+        files.Remove path |> ignore
+        directories.Remove path |> ignore
+        links.Remove path |> ignore
+
+    member _.Link(relativePath, target) =
+        let path = normalize (Path.Combine(root, relativePath))
+        addDirectories path
+        directories.Add path |> ignore
+        links.Add path |> ignore
+
+    member _.Snapshot() =
+        files
+        |> Seq.map (fun entry ->
+            Path.GetRelativePath(root, entry.Key).Replace(Path.DirectorySeparatorChar, '/'), entry.Value)
+        |> Seq.sortBy fst
+        |> Seq.toList
 
     member _.Lock(relativePath) =
         locked.Add(normalize (Path.Combine(root, relativePath))) |> ignore
@@ -156,6 +181,7 @@ type private UnitDriver() =
         | "directory-map" -> [| "governance"; "directory-map"; "validate" |]
         | "links" -> [| "md"; "links"; "validate" |]
         | "mermaid" -> [| "md"; "mermaid"; "validate" |]
+        | "harness-contract" -> [| "governance"; "harness-contract"; "validate" |]
         | _ -> failwithf "Unknown validator '%s'." validator
 
     let relativeDirectory location =
@@ -168,7 +194,10 @@ type private UnitDriver() =
     interface IBehaviourDriver with
         member _.Root = repository.Root
         member _.Write(relativePath, content) = repository.Write(relativePath, content)
+        member _.Delete(relativePath) = repository.Delete relativePath
+        member _.Link(relativePath, target) = repository.Link(relativePath, target)
         member _.Lock(relativePath) = repository.Lock relativePath
+        member _.Snapshot() = repository.Snapshot()
 
         member _.CountWords(relativePath) =
             repository.FileSystem.ReadAllText(Path.Combine(repository.Root, relativePath))
@@ -212,6 +241,16 @@ type private UnitDriver() =
                 Governance.inspectMermaidAccessibilityWith repository.FileSystem repository.Root
 
             inspection.DiagramCount, inspection.Violations |> List.map violationView
+
+        member _.InspectHarnessContract() =
+            [| "governance"
+               "harness-contract"
+               "validate"
+               "--root"
+               repository.Root
+               "--format"
+               "json" |]
+            |> capture
 
         member _.RunValidator(validator) =
             Array.append (commandArguments validator) [| "--root"; repository.Root |]

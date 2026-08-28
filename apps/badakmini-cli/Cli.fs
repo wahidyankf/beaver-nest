@@ -23,6 +23,17 @@ type JsonViolation =
       Limit: Nullable<int>
       Message: string }
 
+type JsonHarnessContractFinding =
+    { Kind: string
+      Path: string
+      RelatedPath: string
+      Harness: string
+      Name: string
+      Field: string
+      ExpectedDigest: string
+      ActualDigest: string
+      Message: string }
+
 module Cli =
     let private jsonOptions =
         JsonSerializerOptions(
@@ -142,6 +153,17 @@ module Cli =
     let private printViolations runtime category violations =
         for violation in violations do
             Governance.formatViolation violation |> writeError runtime category
+
+    let private jsonHarnessContractFinding (finding: HarnessContractFinding) : JsonHarnessContractFinding =
+        { Kind = finding.Kind
+          Path = finding.Path
+          RelatedPath = finding.RelatedPath |> Option.toObj
+          Harness = finding.Harness |> Option.toObj
+          Name = finding.Name |> Option.toObj
+          Field = finding.Field |> Option.toObj
+          ExpectedDigest = finding.ExpectedDigest |> Option.toObj
+          ActualDigest = finding.ActualDigest |> Option.toObj
+          Message = finding.Message }
 
     let private operationalError runtime format command category (ex: exn) =
         match format with
@@ -270,6 +292,43 @@ module Cli =
             exitCode
         with ex ->
             operationalError runtime format "md links validate" "links" ex
+
+    let private runHarnessContract runtime format root =
+        try
+            let inspection = HarnessContract.inspectWith runtime.FileSystem root
+            let exitCode = if List.isEmpty inspection.Violations then 0 else 1
+
+            match format with
+            | Json ->
+                writeJson
+                    runtime.Output
+                    {| schemaVersion = 1
+                       command = "governance harness-contract validate"
+                       contractDigest = inspection.ContractDigest
+                       harnessCount = inspection.HarnessCount
+                       skillCount = inspection.SkillCount
+                       agentCount = inspection.AgentCount
+                       capabilityCount = inspection.CapabilityCount
+                       violations = inspection.Violations |> List.map jsonHarnessContractFinding |}
+            | Text when exitCode = 0 ->
+                sprintf
+                    "Contract %s reconciles %d harness(es), %d skill(s), %d agent(s), and %d capability declaration(s)."
+                    inspection.ContractDigest
+                    inspection.HarnessCount
+                    inspection.SkillCount
+                    inspection.AgentCount
+                    inspection.CapabilityCount
+                |> writeOutput runtime "harness-contract"
+            | Text ->
+                for violation in inspection.Violations do
+                    HarnessContract.formatFinding violation |> writeError runtime "harness-contract"
+
+                sprintf "Found %d harness-contract violation(s)." inspection.Violations.Length
+                |> writeError runtime "harness-contract"
+
+            exitCode
+        with ex ->
+            operationalError runtime format "governance harness-contract validate" "harness-contract" ex
 
     let private runWordCount runtime format root file =
         try
@@ -433,8 +492,25 @@ module Cli =
 
         let directoryMap = Command("directory-map", "Validate README directory maps.")
         directoryMap.Subcommands.Add(createDirectoryMapLeaf runtime rootOption formatOption)
+
+        let harnessContract =
+            Command("harness-contract", "Validate coding-harness content parity.")
+
+        harnessContract.Subcommands.Add(
+            createLeaf
+                runtime
+                "validate"
+                "Validate repository rules, skills, custom agents, and required harness capabilities."
+                rootOption
+                formatOption
+                "governance harness-contract validate"
+                "harness-contract"
+                (runHarnessContract runtime)
+        )
+
         governance.Subcommands.Add wordBudget
         governance.Subcommands.Add directoryMap
+        governance.Subcommands.Add harnessContract
 
         let markdown = Command("md", "Validate repository-owned Markdown.")
         let links = Command("links", "Validate internal Markdown links.")

@@ -31,6 +31,7 @@
 
 ## Governance
 
+- Keep Codex, Claude Code, and OpenCode on the same repository-owned rules, skills, agents, and required capabilities under the [coding-harness contract](repo-governance/conventions/coding-harness-contract.md).
 - [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); track [tasks](repo-governance/conventions/task-tracking.md).
@@ -42,6 +43,7 @@
 
 ## Development
 
+- Prefix shell commands with `rtk` under [the shared RTK instructions](RTK.md), preserving every repository-mandated command form and safety rule.
 - Use [English](repo-governance/conventions/language.md).
 - Bnest is 24/7; obey [continuity](repo-governance/development/live-service-continuity.md); failed health stops work.
 - A commit or push is not a deployment. Before reporting an active-service change complete, verify the routed backend serves the intended revision or behavior; otherwise perform a no-downtime candidate cutover.

@@ -80,6 +80,14 @@ type private IntegrationDriver() =
 
     do Directory.CreateDirectory root |> ignore
 
+    let snapshot () =
+        Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+        |> Seq.filter (fun path -> not (File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)))
+        |> Seq.map (fun path ->
+            Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/'), File.ReadAllText path)
+        |> Seq.sortBy fst
+        |> Seq.toList
+
     let capture currentDirectory arguments =
         use output = new StringWriter()
         use error = new StringWriter()
@@ -101,6 +109,7 @@ type private IntegrationDriver() =
         | "directory-map" -> [| "governance"; "directory-map"; "validate" |]
         | "links" -> [| "md"; "links"; "validate" |]
         | "mermaid" -> [| "md"; "mermaid"; "validate" |]
+        | "harness-contract" -> [| "governance"; "harness-contract"; "validate" |]
         | _ -> failwithf "Unknown validator '%s'." validator
 
     let relativeDirectory location =
@@ -122,11 +131,30 @@ type private IntegrationDriver() =
 
             File.WriteAllText(path, content)
 
+        member _.Delete(relativePath) =
+            let path = Path.Combine(root, relativePath)
+
+            if File.Exists path then
+                File.Delete path
+            elif Directory.Exists path then
+                Directory.Delete(path, true)
+
+        member _.Link(relativePath, target) =
+            let path = Path.Combine(root, relativePath)
+            let directory = Path.GetDirectoryName path
+
+            if not (String.IsNullOrEmpty directory) then
+                Directory.CreateDirectory directory |> ignore
+
+            Directory.CreateSymbolicLink(path, Path.Combine(root, target)) |> ignore
+
         member _.Lock(relativePath) =
             let stream =
                 new FileStream(Path.Combine(root, relativePath), FileMode.Open, FileAccess.Read, FileShare.None)
 
             resources.Add stream
+
+        member _.Snapshot() = snapshot ()
 
         member _.CountWords(relativePath) =
             File.ReadAllText(Path.Combine(root, relativePath)) |> Governance.countWords
@@ -167,6 +195,16 @@ type private IntegrationDriver() =
                 Governance.inspectMermaidAccessibilityWith RepositoryFileSystem.system root
 
             inspection.DiagramCount, inspection.Violations |> List.map violationView
+
+        member _.InspectHarnessContract() =
+            [| "governance"
+               "harness-contract"
+               "validate"
+               "--root"
+               root
+               "--format"
+               "json" |]
+            |> capture root
 
         member _.RunValidator(validator) =
             Array.append (commandArguments validator) [| "--root"; root |] |> capture root

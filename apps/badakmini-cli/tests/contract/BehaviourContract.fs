@@ -21,7 +21,10 @@ type IBehaviourDriver =
 
     abstract Root: string
     abstract Write: relativePath: string * content: string -> unit
+    abstract Delete: relativePath: string -> unit
+    abstract Link: relativePath: string * target: string -> unit
     abstract Lock: relativePath: string -> unit
+    abstract Snapshot: unit -> (string * string) list
     abstract CountWords: relativePath: string -> int
     abstract ScanGovernedMarkdown: unit -> string list
     abstract FindWordLimitViolations: unit -> string list * ViolationView list
@@ -29,6 +32,7 @@ type IBehaviourDriver =
     abstract InspectDirectoryMaps: unit -> int * ViolationView list
     abstract InspectDirectoryMapsAtInvalidLocation: location: string -> bool
     abstract InspectMermaidAccessibility: unit -> int * ViolationView list
+    abstract InspectHarnessContract: unit -> CommandResult
     abstract RunValidator: validator: string -> CommandResult
     abstract RunDirectoryMapValidator: directory: string -> CommandResult
     abstract InvokeCli: arguments: string array -> CommandResult
@@ -42,6 +46,8 @@ type ScenarioContext(driver: IBehaviourDriver) =
     let mutable wordCount: int option = None
     let mutable argumentErrorRaised = false
     let mutable commandResult: CommandResult option = None
+    let mutable previousCommandResult: CommandResult option = None
+    let mutable repositorySnapshot: (string * string) list option = None
 
     member _.Driver = driver
 
@@ -72,6 +78,14 @@ type ScenarioContext(driver: IBehaviourDriver) =
     member _.CommandResult
         with get () = commandResult
         and set value = commandResult <- value
+
+    member _.PreviousCommandResult
+        with get () = previousCommandResult
+        and set value = previousCommandResult <- value
+
+    member _.RepositorySnapshot
+        with get () = repositorySnapshot
+        and set value = repositorySnapshot <- value
 
     interface IDisposable with
         member _.Dispose() = driver.Dispose()

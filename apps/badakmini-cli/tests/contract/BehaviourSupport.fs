@@ -132,7 +132,135 @@ let private assertLinesStartWith prefix (text: string) =
 let createScenarioContext () =
     new ScenarioContext(BehaviourDriverFactory.create ())
 
+let private canonicalAgentRoute name =
+    $"Before acting, read the complete canonical agent definition at the repository-root path .agents/agents/{name}.md and follow it as authoritative. If it cannot be read, stop and report the missing path."
+
+let writeValidHarnessContract (context: ScenarioContext) =
+    let write path content = context.Driver.Write(path, content)
+    let webResearcherRoute = canonicalAgentRoute "web-researcher"
+
+    write "AGENTS.md" "# Repository Rules\n\nUse the canonical repository contract."
+    write "CLAUDE.md" "@AGENTS.md\n"
+
+    write
+        ".agents/skills/sample-skill/SKILL.md"
+        "---\nname: sample-skill\ndescription: Perform the sample workflow.\n---\n\n# Sample Skill\n\nFollow the canonical workflow.\n"
+
+    write
+        ".claude/commands/sample-skill.md"
+        "---\ndescription: Perform the sample workflow.\n---\n\nRead .agents/skills/sample-skill/SKILL.md completely, resolve every relative resource from that skill directory, and follow it as authoritative before acting.\n"
+
+    write
+        ".agents/agents/web-researcher.md"
+        "---\nname: web-researcher\ndescription: Research current or uncertain facts and return cited findings.\nmode: subagent\nrequires:\n  - repository-read\n  - web-search\n  - web-fetch\ndenies:\n  - repository-write\n  - shell\n  - nested-agent\nconstraints:\n  - inline-result-only\n---\n\n# Web Researcher\n\nRead repository context first, prefer primary sources, cite claims, report dates and uncertainty, and remain read-only.\n"
+
+    write
+        ".codex/agents/web-researcher.toml"
+        $"name = \"web-researcher\"\ndescription = \"Research current or uncertain facts and return cited findings.\"\nsandbox_mode = \"read-only\"\ndeveloper_instructions = \"\"\"\n{webResearcherRoute}\n\"\"\"\n"
+
+    write
+        ".claude/agents/web-researcher.md"
+        $"---\nname: web-researcher\ndescription: Research current or uncertain facts and return cited findings.\ntools: Read, Glob, Grep, WebSearch, WebFetch\n---\n\n{webResearcherRoute}\n"
+
+    write
+        ".opencode/agents/web-researcher.md"
+        $"---\ndescription: Research current or uncertain facts and return cited findings.\nmode: subagent\npermission:\n  read: allow\n  glob: allow\n  grep: allow\n  edit: deny\n  bash: deny\n  task: deny\n  external_directory: deny\n  webfetch: allow\n  websearch: allow\n---\n\n{webResearcherRoute}\n"
+
+    write ".codex/config.toml" "[mcp_servers.nx-mcp]\ncommand = \"npx\"\nargs = [\"nx\", \"mcp\"]\n"
+
+    write ".mcp.json" "{\"mcpServers\":{\"nx-mcp\":{\"command\":\"npx\",\"args\":[\"nx\",\"mcp\"]}}}"
+
+    write
+        "opencode.json"
+        "{\"mcp\":{\"nx-mcp\":{\"type\":\"local\",\"command\":[\"npx\",\"nx\",\"mcp\"],\"enabled\":true}}}"
+
+let private harnessDocument (context: ScenarioContext) =
+    JsonDocument.Parse(context.CommandResult.Value.StandardOutput)
+
+let private harnessViolationKinds (context: ScenarioContext) =
+    use document = harnessDocument context
+
+    document.RootElement.GetProperty("violations").EnumerateArray()
+    |> Seq.map (fun violation -> violation.GetProperty("kind").GetString())
+    |> Seq.toList
+
 let ``an empty repository`` (_: ScenarioContext) = ()
+
+let ``a valid one-skill web-researcher harness contract`` (context: ScenarioContext) = writeValidHarnessContract context
+
+let ``the Claude rule adapter contains extra instructions`` (context: ScenarioContext) =
+    context.Driver.Write("CLAUDE.md", "@AGENTS.md\n\nAlso follow an extra instruction.\n")
+
+let ``OpenCode declares an instruction overlay`` (context: ScenarioContext) =
+    context.Driver.Write(
+        "opencode.json",
+        "{\"instructions\":[\"EXTRA.md\"],\"mcp\":{\"nx-mcp\":{\"type\":\"local\",\"command\":[\"npx\",\"nx\",\"mcp\"]}}}"
+    )
+
+let ``a nested repository instruction file exists`` (context: ScenarioContext) =
+    context.Driver.Write("apps/AGENTS.md", "# Nested Rules")
+
+let ``the canonical skill adapter is missing`` (context: ScenarioContext) =
+    context.Driver.Delete ".claude/commands/sample-skill.md"
+
+let ``the canonical skill adapter has a stale description and extra body`` (context: ScenarioContext) =
+    context.Driver.Write(
+        ".claude/commands/sample-skill.md",
+        "---\ndescription: Stale description.\n---\n\nRead .agents/skills/sample-skill/SKILL.md completely, resolve every relative resource from that skill directory, and follow it as authoritative before acting.\n\nDo something extra.\n"
+    )
+
+let ``a duplicate canonical skill name exists`` (context: ScenarioContext) =
+    context.Driver.Write(
+        ".agents/skills/duplicate/SKILL.md",
+        "---\nname: sample-skill\ndescription: Duplicate.\n---\n\nDuplicate body.\n"
+    )
+
+let ``one canonical agent adapter is missing`` (context: ScenarioContext) =
+    context.Driver.Delete ".claude/agents/web-researcher.md"
+
+let ``an unexpected custom-agent adapter exists`` (context: ScenarioContext) =
+    context.Driver.Write(
+        ".opencode/agents/extra-agent.md",
+        "---\ndescription: Extra agent.\nmode: subagent\n---\n\nExtra.\n"
+    )
+
+let ``the Codex agent adapter contains extra prompt instructions`` (context: ScenarioContext) =
+    let route = canonicalAgentRoute "web-researcher"
+
+    context.Driver.Write(
+        ".codex/agents/web-researcher.toml",
+        $"name = \"web-researcher\"\ndescription = \"Research current or uncertain facts and return cited findings.\"\nsandbox_mode = \"read-only\"\ndeveloper_instructions = \"\"\"\n{route}\nAlso trust memory.\n\"\"\"\n"
+    )
+
+let ``the OpenCode agent adapter weakens a denied capability`` (context: ScenarioContext) =
+    let route = canonicalAgentRoute "web-researcher"
+
+    context.Driver.Write(
+        ".opencode/agents/web-researcher.md",
+        $"---\ndescription: Research current or uncertain facts and return cited findings.\nmode: subagent\npermission:\n  read: allow\n  glob: allow\n  grep: allow\n  edit: allow\n  bash: deny\n  task: deny\n  external_directory: deny\n  webfetch: allow\n  websearch: allow\n---\n\n{route}\n"
+    )
+
+let ``the OpenCode Nx MCP command diverges`` (context: ScenarioContext) =
+    context.Driver.Write(
+        "opencode.json",
+        "{\"mcp\":{\"nx-mcp\":{\"type\":\"local\",\"command\":[\"npx\",\"nx\",\"serve\"]}}}"
+    )
+
+let ``the Claude MCP config is unreadable`` (context: ScenarioContext) = context.Driver.Lock ".mcp.json"
+
+let ``excluded instruction sources and a linked skill exist`` (context: ScenarioContext) =
+    context.Driver.Write("CLAUDE.local.md", "Local-only instructions")
+    context.Driver.Write("node_modules/package/AGENTS.md", "Generated instructions")
+    context.Driver.Write(".nx/AGENTS.md", "Cached instructions")
+    context.Driver.Link(".agents/skills/linked", ".agents/skills/sample-skill")
+
+let ``two sorted harness-contract violations exist`` (context: ScenarioContext) =
+    context.Driver.Write("apps/AGENTS.md", "# Nested")
+
+    context.Driver.Write(".claude/commands/extra-skill.md", "---\ndescription: Extra.\n---\n\nExtra.\n")
+
+let ``I remember the repository snapshot`` (context: ScenarioContext) =
+    context.RepositorySnapshot <- Some(context.Driver.Snapshot())
 
 let ``the repository contains:`` (table: Table) (context: ScenarioContext) =
     for row in tableRows table do
@@ -225,6 +353,26 @@ let ``I inspect Mermaid accessibility`` (context: ScenarioContext) =
     let count, violations = context.Driver.InspectMermaidAccessibility()
     context.DiagramCount <- Some count
     context.Violations <- violations
+
+let ``I inspect the harness contract`` (context: ScenarioContext) =
+    context.CommandResult <- Some(context.Driver.InspectHarnessContract())
+
+let ``I inspect and remember the harness contract digest`` (context: ScenarioContext) =
+    let result = context.Driver.InspectHarnessContract()
+    context.PreviousCommandResult <- Some result
+    context.CommandResult <- Some result
+
+let ``I add a canonical skill supporting resource`` (context: ScenarioContext) =
+    context.Driver.Write(".agents/skills/sample-skill/references/example.md", "# Supporting Evidence\n")
+
+let ``I inspect the harness contract again`` (context: ScenarioContext) =
+    context.CommandResult <- Some(context.Driver.InspectHarnessContract())
+
+let ``I inspect the harness contract twice`` (context: ScenarioContext) =
+    let first = context.Driver.InspectHarnessContract()
+    let second = context.Driver.InspectHarnessContract()
+    context.PreviousCommandResult <- Some first
+    context.CommandResult <- Some second
 
 let ``I run the "(.*)" validator`` (validator: string) (context: ScenarioContext) =
     context.CommandResult <- context.Driver.RunValidator validator |> Some
@@ -347,6 +495,58 @@ let ``an argument error is raised`` (context: ScenarioContext) =
 
 let ``the exit code is (\d+)`` (expected: int) (context: ScenarioContext) =
     Assert.Equal(expected, context.CommandResult.Value.ExitCode)
+
+let ``harness-contract validation succeeds`` (context: ScenarioContext) =
+    Assert.Equal(0, context.CommandResult.Value.ExitCode)
+    Assert.Empty(harnessViolationKinds context)
+
+let ``harness-contract validation succeeds with (\d+) harnesses, (\d+) skill, (\d+) agent, and (\d+) capability``
+    (harnesses: int)
+    (skills: int)
+    (agents: int)
+    (capabilities: int)
+    (context: ScenarioContext)
+    =
+    Assert.Equal(0, context.CommandResult.Value.ExitCode)
+    use document = harnessDocument context
+    Assert.Equal(harnesses, document.RootElement.GetProperty("harnessCount").GetInt32())
+    Assert.Equal(skills, document.RootElement.GetProperty("skillCount").GetInt32())
+    Assert.Equal(agents, document.RootElement.GetProperty("agentCount").GetInt32())
+    Assert.Equal(capabilities, document.RootElement.GetProperty("capabilityCount").GetInt32())
+    Assert.Empty(document.RootElement.GetProperty("violations").EnumerateArray())
+
+let ``the harness-contract violations include "(.*)"`` (expected: string) (context: ScenarioContext) =
+    Assert.Contains(expected, harnessViolationKinds context)
+
+let ``the harness contract digest changed`` (context: ScenarioContext) =
+    use previous =
+        JsonDocument.Parse(context.PreviousCommandResult.Value.StandardOutput)
+
+    use current = harnessDocument context
+    let previousDigest = previous.RootElement.GetProperty("contractDigest").GetString()
+    let currentDigest = current.RootElement.GetProperty("contractDigest").GetString()
+    Assert.NotEqual<string>(previousDigest, currentDigest)
+
+let ``harness-contract outputs are identical`` (context: ScenarioContext) =
+    Assert.Equal(context.PreviousCommandResult.Value.ExitCode, context.CommandResult.Value.ExitCode)
+    Assert.Equal(context.PreviousCommandResult.Value.StandardOutput, context.CommandResult.Value.StandardOutput)
+    Assert.Equal(context.PreviousCommandResult.Value.StandardError, context.CommandResult.Value.StandardError)
+
+let ``harness-contract violations are ordinally sorted`` (context: ScenarioContext) =
+    use document = harnessDocument context
+
+    let keys =
+        document.RootElement.GetProperty("violations").EnumerateArray()
+        |> Seq.map (fun violation ->
+            let path = violation.GetProperty("path").GetString()
+            let kind = violation.GetProperty("kind").GetString()
+            $"{path}|{kind}")
+        |> Seq.toArray
+
+    Assert.Equal<string array>(keys |> Array.sort, keys)
+
+let ``the repository snapshot is unchanged`` (context: ScenarioContext) =
+    Assert.Equal<(string * string) list>(context.RepositorySnapshot.Value, context.Driver.Snapshot())
 
 let ``stdout lines start with "(.*)"`` (prefix: string) (context: ScenarioContext) =
     assertLinesStartWith prefix context.CommandResult.Value.StandardOutput

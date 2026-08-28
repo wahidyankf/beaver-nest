@@ -219,6 +219,14 @@
       "inputs": [
         "default",
         "{workspaceRoot}/**/*.md",
+        "{workspaceRoot}/.agents/**/*",
+        "{workspaceRoot}/.codex/**/*",
+        "{workspaceRoot}/.claude/**/*",
+        "{workspaceRoot}/.opencode/**/*",
+        "{workspaceRoot}/.mcp.json",
+        "{workspaceRoot}/CLAUDE.md",
+        "{workspaceRoot}/opencode.json",
+        "{workspaceRoot}/opencode.jsonc",
         "{workspaceRoot}/plans/**/*",
         "{workspaceRoot}/specs/**/*"
       ],
@@ -246,6 +254,10 @@
           },
           {
             "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll governance directory-map validate --root ../.. --directory plans",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "dotnet bin/Release/net10.0/Badakmini.Cli.dll governance harness-contract validate --root ../..",
             "forwardAllArgs": false
           },
           {

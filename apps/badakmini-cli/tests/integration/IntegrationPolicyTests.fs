@@ -26,6 +26,7 @@ type IntegrationPolicyTests() =
               "IntegrationApplicationTests.fs"
               "../contract/CliContractTests.fs"
               "../../Runtime.fs"
+              "../../HarnessContract.fs"
               "../../Governance.fs"
               "../../Cli.fs"
               "../../Program.fs" ]

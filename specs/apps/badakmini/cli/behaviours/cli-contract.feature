@@ -8,6 +8,8 @@ Feature: badakmini-cli command contract
     Then the exit code is 0
     When I run the "mermaid" validator
     Then the exit code is 0
+    When I run the "harness-contract" validator
+    Then the exit code is 1
 
   Scenario: Word-budget validation is isolated
     Given file "AGENTS.md" contains 751 words
@@ -125,6 +127,8 @@ Feature: badakmini-cli command contract
       | governance\|--help                         |
       | governance\|word-budget\|--help             |
       | governance\|word-budget\|validate\|--help    |
+      | governance\|harness-contract\|--help         |
+      | governance\|harness-contract\|validate\|--help |
       | md\|--help                                 |
       | md\|links\|--help                          |
       | md\|links\|validate\|--help               |
@@ -141,6 +145,7 @@ Feature: badakmini-cli command contract
       | {root}                                                       |
       | governance                                                   |
       | governance\|word-budget                                      |
+      | governance\|harness-contract                                 |
       | md\|mermaid                                                  |
       | md\|links                                                    |
       | unknown                                                      |

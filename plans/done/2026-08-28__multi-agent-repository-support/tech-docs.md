@@ -93,7 +93,7 @@ Every adapter body normalizes to exactly this route, substituting only the name:
 
 | Semantic constraint  | Codex                               | Claude Code           | OpenCode                 |
 | -------------------- | ----------------------------------- | --------------------- | ------------------------ |
-| Project subagent     | registered project TOML             | `mode`/project agent  | `mode: subagent`         |
+| Project subagent     | standalone project TOML             | project agent file    | `mode: subagent`         |
 | Repository read      | inherited read tools                | `Read, Glob, Grep`    | read/glob/grep allow     |
 | Web research         | inherited web tools; smoke required | `WebSearch, WebFetch` | websearch/webfetch allow |
 | No repository writes | `sandbox_mode = "read-only"`        | no Write/Edit tools   | edit deny                |
@@ -226,7 +226,7 @@ PRD outcomes AC-01–AC-06 become durable Badakmini contracts. AC-07 remains pla
 - `[N] .agents/agents/web-researcher.md` — canonical repository-first, source-grounded, read-only research workflow.
 - `[E] .codex/agents/ci-monitor-subagent.toml` — reduce to a Codex adapter.
 - `[N] .codex/agents/web-researcher.toml` — Codex read-only web-research adapter.
-- `[E] .codex/config.toml` — preserve Codex Nx MCP and register both canonical agents.
+- `[E] .codex/config.toml` — preserve Codex Nx MCP and remove the superseded legacy agent registration.
 - `[N] .mcp.json` — declare Claude's equivalent Nx MCP server.
 - `[N] .claude/agents/ci-monitor-subagent.md` — Claude custom-agent adapter.
 - `[N] .claude/agents/web-researcher.md` — Claude read-only web-research adapter.
@@ -243,7 +243,7 @@ PRD outcomes AC-01–AC-06 become durable Badakmini contracts. AC-07 remains pla
 
 ### Badakmini implementation and tests
 
-- `[E] apps/badakmini-cli/Governance.fs` — add contract models, parsers, reconciliation, findings, and formatting.
+- `[N] apps/badakmini-cli/HarnessContract.fs` — add contract models, parsers, reconciliation, findings, and formatting behind the existing filesystem port.
 - `[E] apps/badakmini-cli/Cli.fs` — expose text/JSON command behavior.
 - `[E] apps/badakmini-cli/project.json` — add `test:repo` invocation and complete cache inputs.
 - `[E] apps/badakmini-cli/README.md` — document scope, command, output, and tests.
@@ -261,14 +261,10 @@ PRD outcomes AC-01–AC-06 become durable Badakmini contracts. AC-07 remains pla
 - `[E] specs/apps/badakmini/cli/behaviours/README.md` — map the new feature.
 - `[E] .husky/pre-push` — select every harness-contract path for repository validation.
 
-### Planning records created by this request
+### Planning records
 
-- `[E] plans/in-progress/README.md` — map the active plan.
-- `[N] plans/in-progress/multi-agent-repository-support/README.md` — plan entry point.
-- `[N] plans/in-progress/multi-agent-repository-support/brd.md` — business requirements.
-- `[N] plans/in-progress/multi-agent-repository-support/prd.md` — product requirements.
-- `[N] plans/in-progress/multi-agent-repository-support/tech-docs.md` — technical design.
-- `[N] plans/in-progress/multi-agent-repository-support/delivery.md` — implementation checklist.
-- `[N] plans/in-progress/multi-agent-repository-support/learnings.md` — evidence log.
+- `[E] plans/in-progress/README.md` — remove the completed active-plan route.
+- `[E] plans/done/README.md` — map the completed plan.
+- `[M] plans/in-progress/multi-agent-repository-support/ → plans/done/2026-08-28__multi-agent-repository-support/` — archive the completed plan and its six required documents.
 
 No Bnest source, Bnest specification, dependency lockfile, provider credential, runtime data, or deployment file is expected to change.

@@ -13,16 +13,22 @@ validation_changes_for_range() {
     git log --format= --name-only "$1" --not --remotes -- \
       ':(icase,glob)**/*.md' \
       ':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
-      ':(glob)apps/badakmini-cli/**' ':(glob)apps/badakmini-cli-e2e/**' '.husky/pre-push'
+      ':(glob)apps/badakmini-cli/**' ':(glob)apps/badakmini-cli-e2e/**' '.husky/pre-push' \
+      ':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
+      '.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
   else
     git diff --name-only "$2" "$1" -- \
       ':(icase,glob)**/*.md' \
       ':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
-      ':(glob)apps/badakmini-cli/**' ':(glob)apps/badakmini-cli-e2e/**' '.husky/pre-push'
+      ':(glob)apps/badakmini-cli/**' ':(glob)apps/badakmini-cli-e2e/**' '.husky/pre-push' \
+      ':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
+      '.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
     git log --format= --name-only "$2..$1" -- \
       ':(icase,glob)**/*.md' \
       ':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
-      ':(glob)apps/badakmini-cli/**' ':(glob)apps/badakmini-cli-e2e/**' '.husky/pre-push'
+      ':(glob)apps/badakmini-cli/**' ':(glob)apps/badakmini-cli-e2e/**' '.husky/pre-push' \
+      ':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
+      '.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
   fi
 }
 
@@ -40,7 +46,7 @@ while read -r _local_ref local_oid _remote_ref remote_oid; do
 done
 
 if [ -z "$run_repository_check" ]; then
-  echo "Skipping repository validation: pushed commits do not affect documentation or its validator."
+  echo "Skipping repository validation: pushed commits do not affect governed content or its validators."
   exit 0
 fi
 

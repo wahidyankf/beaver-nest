@@ -55,6 +55,14 @@ type private E2eDriver() =
         if not (File.Exists cliDll) then
             invalidOp $"Built badakmini-cli executable was not found at '{cliDll}'."
 
+    let snapshot () =
+        Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+        |> Seq.filter (fun path -> not (File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)))
+        |> Seq.map (fun path ->
+            Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/'), File.ReadAllText path)
+        |> Seq.sortBy fst
+        |> Seq.toList
+
     let run workingDirectory arguments =
         let startInfo = ProcessStartInfo("dotnet")
         startInfo.ArgumentList.Add cliDll
@@ -105,6 +113,7 @@ type private E2eDriver() =
         | "directory-map" -> [| "governance"; "directory-map"; "validate" |]
         | "links" -> [| "md"; "links"; "validate" |]
         | "mermaid" -> [| "md"; "mermaid"; "validate" |]
+        | "harness-contract" -> [| "governance"; "harness-contract"; "validate" |]
         | _ -> failwithf "Unknown validator '%s'." validator
 
     let relativeDirectory location =
@@ -126,11 +135,30 @@ type private E2eDriver() =
 
             File.WriteAllText(path, content)
 
+        member _.Delete(relativePath) =
+            let path = Path.Combine(root, relativePath)
+
+            if File.Exists path then
+                File.Delete path
+            elif Directory.Exists path then
+                Directory.Delete(path, true)
+
+        member _.Link(relativePath, target) =
+            let path = Path.Combine(root, relativePath)
+            let directory = Path.GetDirectoryName path
+
+            if not (String.IsNullOrEmpty directory) then
+                Directory.CreateDirectory directory |> ignore
+
+            Directory.CreateSymbolicLink(path, Path.Combine(root, target)) |> ignore
+
         member _.Lock(relativePath) =
             let stream =
                 new FileStream(Path.Combine(root, relativePath), FileMode.Open, FileAccess.Read, FileShare.None)
 
             resources.Add stream
+
+        member _.Snapshot() = snapshot ()
 
         member _.CountWords(relativePath) =
             use document = runJson [| "md"; "word-count"; "inspect"; "--file"; relativePath |]
@@ -184,6 +212,16 @@ type private E2eDriver() =
         member _.InspectMermaidAccessibility() =
             use document = runJson [| "md"; "mermaid"; "validate" |]
             document.RootElement.GetProperty("diagramCount").GetInt32(), violations document
+
+        member _.InspectHarnessContract() =
+            [| "governance"
+               "harness-contract"
+               "validate"
+               "--root"
+               root
+               "--format"
+               "json" |]
+            |> runAtRoot
 
         member _.RunValidator(validator) =
             Array.append (commandArguments validator) [| "--root"; root |] |> runAtRoot

@@ -13,6 +13,70 @@ let ``an empty repository`` (context: ScenarioContext) =
     BehaviourSupport.``an empty repository`` context
 
 [<Given>]
+let ``a valid one-skill web-researcher harness contract`` (context: ScenarioContext) =
+    BehaviourSupport.``a valid one-skill web-researcher harness contract`` context
+
+[<Given>]
+let ``the Claude rule adapter contains extra instructions`` (context: ScenarioContext) =
+    BehaviourSupport.``the Claude rule adapter contains extra instructions`` context
+
+[<Given>]
+let ``OpenCode declares an instruction overlay`` (context: ScenarioContext) =
+    BehaviourSupport.``OpenCode declares an instruction overlay`` context
+
+[<Given>]
+let ``a nested repository instruction file exists`` (context: ScenarioContext) =
+    BehaviourSupport.``a nested repository instruction file exists`` context
+
+[<Given>]
+let ``the canonical skill adapter is missing`` (context: ScenarioContext) =
+    BehaviourSupport.``the canonical skill adapter is missing`` context
+
+[<Given>]
+let ``the canonical skill adapter has a stale description and extra body`` (context: ScenarioContext) =
+    BehaviourSupport.``the canonical skill adapter has a stale description and extra body`` context
+
+[<Given>]
+let ``a duplicate canonical skill name exists`` (context: ScenarioContext) =
+    BehaviourSupport.``a duplicate canonical skill name exists`` context
+
+[<Given>]
+let ``one canonical agent adapter is missing`` (context: ScenarioContext) =
+    BehaviourSupport.``one canonical agent adapter is missing`` context
+
+[<Given>]
+let ``an unexpected custom-agent adapter exists`` (context: ScenarioContext) =
+    BehaviourSupport.``an unexpected custom-agent adapter exists`` context
+
+[<Given>]
+let ``the Codex agent adapter contains extra prompt instructions`` (context: ScenarioContext) =
+    BehaviourSupport.``the Codex agent adapter contains extra prompt instructions`` context
+
+[<Given>]
+let ``the OpenCode agent adapter weakens a denied capability`` (context: ScenarioContext) =
+    BehaviourSupport.``the OpenCode agent adapter weakens a denied capability`` context
+
+[<Given>]
+let ``the OpenCode Nx MCP command diverges`` (context: ScenarioContext) =
+    BehaviourSupport.``the OpenCode Nx MCP command diverges`` context
+
+[<Given>]
+let ``the Claude MCP config is unreadable`` (context: ScenarioContext) =
+    BehaviourSupport.``the Claude MCP config is unreadable`` context
+
+[<Given>]
+let ``excluded instruction sources and a linked skill exist`` (context: ScenarioContext) =
+    BehaviourSupport.``excluded instruction sources and a linked skill exist`` context
+
+[<Given>]
+let ``two sorted harness-contract violations exist`` (context: ScenarioContext) =
+    BehaviourSupport.``two sorted harness-contract violations exist`` context
+
+[<Given>]
+let ``I remember the repository snapshot`` (context: ScenarioContext) =
+    BehaviourSupport.``I remember the repository snapshot`` context
+
+[<Given>]
 let ``the repository contains:`` (table: Table) (context: ScenarioContext) =
     BehaviourSupport.``the repository contains:`` table context
 
@@ -104,6 +168,26 @@ let ``I inspect directory maps under the invalid "(.*)" location`` (location: st
 [<When>]
 let ``I inspect Mermaid accessibility`` (context: ScenarioContext) =
     BehaviourSupport.``I inspect Mermaid accessibility`` context
+
+[<When>]
+let ``I inspect the harness contract`` (context: ScenarioContext) =
+    BehaviourSupport.``I inspect the harness contract`` context
+
+[<When>]
+let ``I inspect and remember the harness contract digest`` (context: ScenarioContext) =
+    BehaviourSupport.``I inspect and remember the harness contract digest`` context
+
+[<When>]
+let ``I add a canonical skill supporting resource`` (context: ScenarioContext) =
+    BehaviourSupport.``I add a canonical skill supporting resource`` context
+
+[<When>]
+let ``I inspect the harness contract again`` (context: ScenarioContext) =
+    BehaviourSupport.``I inspect the harness contract again`` context
+
+[<When>]
+let ``I inspect the harness contract twice`` (context: ScenarioContext) =
+    BehaviourSupport.``I inspect the harness contract twice`` context
 
 [<When>]
 let ``I run the "(.*)" validator`` (validator: string) (context: ScenarioContext) =
@@ -220,6 +304,45 @@ let ``an argument error is raised`` (context: ScenarioContext) =
 [<Then>]
 let ``the exit code is (\d+)`` (expected: int) (context: ScenarioContext) =
     BehaviourSupport.``the exit code is (\d+)`` expected context
+
+[<Then>]
+let ``harness-contract validation succeeds`` (context: ScenarioContext) =
+    BehaviourSupport.``harness-contract validation succeeds`` context
+
+[<Then>]
+let ``harness-contract validation succeeds with (\d+) harnesses, (\d+) skill, (\d+) agent, and (\d+) capability``
+    (harnesses: int)
+    (skills: int)
+    (agents: int)
+    (capabilities: int)
+    (context: ScenarioContext)
+    =
+    BehaviourSupport.``harness-contract validation succeeds with (\d+) harnesses, (\d+) skill, (\d+) agent, and (\d+) capability``
+        harnesses
+        skills
+        agents
+        capabilities
+        context
+
+[<Then>]
+let ``the harness-contract violations include "(.*)"`` (expected: string) (context: ScenarioContext) =
+    BehaviourSupport.``the harness-contract violations include "(.*)"`` expected context
+
+[<Then>]
+let ``the harness contract digest changed`` (context: ScenarioContext) =
+    BehaviourSupport.``the harness contract digest changed`` context
+
+[<Then>]
+let ``harness-contract outputs are identical`` (context: ScenarioContext) =
+    BehaviourSupport.``harness-contract outputs are identical`` context
+
+[<Then>]
+let ``harness-contract violations are ordinally sorted`` (context: ScenarioContext) =
+    BehaviourSupport.``harness-contract violations are ordinally sorted`` context
+
+[<Then>]
+let ``the repository snapshot is unchanged`` (context: ScenarioContext) =
+    BehaviourSupport.``the repository snapshot is unchanged`` context
 
 [<Then>]
 let ``stdout lines start with "(.*)"`` (prefix: string) (context: ScenarioContext) =

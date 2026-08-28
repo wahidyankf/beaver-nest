@@ -6,4 +6,4 @@ Start work by moving one folder from [`../backlogs/`](../backlogs/README.md) wit
 
 ## Directory Map
 
-- [Multi-harness repository support](multi-agent-repository-support/README.md) plans one canonical coding-agent contract for Codex, Claude Code, and OpenCode with deterministic Badakmini validation.
+No plans are currently in progress.

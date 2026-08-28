@@ -66,11 +66,14 @@ flowchart TB
         entry["Component<br/><b>Process entry</b><br/>Program.fs"]
         commands["Component<br/><b>Command tree</b><br/>Cli.fs / System.CommandLine"]
         governance["Component<br/><b>Governance inspection</b><br/>Governance.fs"]
+        harness["Component<br/><b>Harness reconciliation</b><br/>HarnessContract.fs"]
         runtime["Component<br/><b>Runtime ports</b><br/>Runtime.fs"]
 
         entry -->|Delegates invocation| commands
         commands -->|Requests inspections| governance
+        commands -->|Requests parity check| harness
         governance -->|Reads through| runtime
+        harness -->|Reads through| runtime
         commands -->|Writes output through| runtime
     end
 
@@ -81,7 +84,7 @@ flowchart TB
     classDef component fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
     classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
     class caller caller
-    class entry,commands,governance,runtime component
+    class entry,commands,governance,harness,runtime component
     class repository external
 ```
 
@@ -89,7 +92,7 @@ flowchart TB
 
 - Command handlers depend on the injectable runtime boundary; unit tests replace the filesystem and output writers.
 - Integration tests use isolated local files without network access; E2E tests observe only the built process's public command contract.
-- Governance documents remain authoritative. Badakmini reports structural, Markdown-link, and Mermaid violations but does not mutate repository content. Mermaid checks enforce accessible colors and renderer-free visible-label grapheme limits across supported diagrams; they may read the complete repository or only caller-selected repository-relative Markdown files.
+- Governance documents remain authoritative. Badakmini reports structural, Markdown-link, Mermaid, and coding-harness parity violations but does not mutate repository content. Harness reconciliation normalizes only BOM and line endings, parses the owned YAML/JSON/JSONC/TOML subsets, compares exact adapter routes and semantic permissions, and hashes complete canonical rule, skill-resource, agent-prompt, and capability records with SHA-256. Mermaid checks enforce accessible colors and renderer-free visible-label grapheme limits across supported diagrams; they may read the complete repository or only caller-selected repository-relative Markdown files.
 - Text output is the human default, JSON is the machine-observation boundary, and exit codes distinguish success, findings, and invocation errors.
 
 ## Behaviour Traceability
