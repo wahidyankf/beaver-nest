@@ -40,6 +40,17 @@ let threadStarted = false;
 
 const output = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
 
+const outputPublicItem = (type, item, text) => {
+  if (
+    typeof item.id === "string" &&
+    item.id.length > 0 &&
+    typeof text === "string" &&
+    text.trim().length > 0
+  ) {
+    output({ type, item_id: item.id, text });
+  }
+};
+
 const runTurn = async (prompt) => {
   try {
     const { events } = await thread.runStreamed(prompt);
@@ -54,7 +65,25 @@ const runTurn = async (prompt) => {
           event.type === "item.completed") &&
         event.item.type === "agent_message"
       ) {
-        output({ type: "assistant_update", text: event.item.text });
+        outputPublicItem("assistant_update", event.item, event.item.text);
+      } else if (
+        (event.type === "item.started" ||
+          event.type === "item.updated" ||
+          event.type === "item.completed") &&
+        event.item.type === "reasoning"
+      ) {
+        outputPublicItem("reasoning_update", event.item, event.item.text);
+      } else if (
+        (event.type === "item.started" || event.type === "item.completed") &&
+        event.item.type === "web_search"
+      ) {
+        outputPublicItem(
+          "activity_update",
+          event.item,
+          event.type === "item.started"
+            ? "Searching the web…"
+            : "Finished searching the web.",
+        );
       } else if (event.type === "turn.completed") {
         output({ type: "turn_completed" });
       } else if (event.type === "turn.failed") {

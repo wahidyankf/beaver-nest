@@ -160,6 +160,20 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "Codex reports public progress", context do
+    context.behaviour_driver.report_public_codex_progress(context)
+  end
+
+  step "the conversation shows the public Codex reasoning summary", context do
+    assert context.behaviour_driver.codex_reasoning_summary_visible?(context)
+    context
+  end
+
+  step "the conversation preserves the Codex progress beside the final answer", context do
+    assert context.behaviour_driver.codex_progress_preserved_beside_final_answer?(context)
+    context
+  end
+
   step "the conversation displays one completed Codex response", context do
     assert context.behaviour_driver.one_completed_codex_response_visible?(context)
     context

@@ -69,6 +69,14 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     And the message composer is available
 
+  Scenario: A visitor retains public Codex progress beside the final answer
+    Given a visitor opens "/chat"
+    When the visitor sends "Show progress"
+    And Codex reports public progress
+    Then the conversation shows the public Codex reasoning summary
+    And the conversation preserves the Codex progress beside the final answer
+    And the message composer is available
+
   Scenario: A visitor continues one page-scoped conversation
     Given a visitor opens "/chat"
     When the visitor sends "Hello, Beaver Nest"

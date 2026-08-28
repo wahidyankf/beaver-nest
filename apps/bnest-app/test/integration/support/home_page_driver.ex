@@ -265,8 +265,17 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def stream_codex_response(context) do
     session = context.view.pid
     send(context.view.pid, {:codex, session, {:thread_started, "fixture-thread"}})
-    send(context.view.pid, {:codex, session, {:assistant_update, "Fixture response"}})
-    send(context.view.pid, {:codex, session, {:assistant_update, "Fixture response complete."}})
+
+    send(
+      context.view.pid,
+      {:codex, session, {:assistant_update, "fixture-answer", "Fixture response"}}
+    )
+
+    send(
+      context.view.pid,
+      {:codex, session, {:assistant_update, "fixture-answer", "Fixture response complete."}}
+    )
+
     send(context.view.pid, {:codex, session, :turn_completed})
 
     snapshot = await_push_event(context.view, "persist-chat")
@@ -285,6 +294,45 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
      context
      |> Map.put(:pending_turn?, false)
      |> Map.put(:persisted_chat, Jason.encode!(snapshot))}
+  end
+
+  @impl true
+  def report_public_codex_progress(context) do
+    session = context.view.pid
+
+    send(
+      context.view.pid,
+      {:codex, session, {:reasoning_update, "fixture-reasoning", "Fixture reasoning summary"}}
+    )
+
+    send(
+      context.view.pid,
+      {:codex, session, {:assistant_update, "fixture-progress", "Fixture progress"}}
+    )
+
+    send(
+      context.view.pid,
+      {:codex, session, {:assistant_update, "fixture-final", "Fixture final answer"}}
+    )
+
+    send(context.view.pid, {:codex, session, :turn_completed})
+
+    snapshot = await_push_event(context.view, "persist-chat")
+
+    context
+    |> Map.put(:pending_turn?, false)
+    |> Map.put(:persisted_chat, Jason.encode!(snapshot))
+  end
+
+  @impl true
+  def codex_reasoning_summary_visible?(context) do
+    has_element?(context.view, "[data-role=codex-reasoning-summary]", "Fixture reasoning summary")
+  end
+
+  @impl true
+  def codex_progress_preserved_beside_final_answer?(context) do
+    has_element?(context.view, "[data-role=codex-progress-item]", "Fixture progress") and
+      has_element?(context.view, "[data-role=assistant-message]", "Fixture final answer")
   end
 
   @impl true

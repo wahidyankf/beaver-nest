@@ -165,6 +165,40 @@ defmodule BnestAppWeb.ChatLiveTest do
     assert :ok = PortSession.close(session)
   end
 
+  test "PortSession forwards public progress with stable runner item IDs" do
+    runner = Path.expand("../../support/codex_fixture_runner.mjs", __DIR__)
+    previous = System.get_env("BNEST_CODEX_RUNNER")
+    System.put_env("BNEST_CODEX_RUNNER", runner)
+
+    on_exit(fn ->
+      if previous,
+        do: System.put_env("BNEST_CODEX_RUNNER", previous),
+        else: System.delete_env("BNEST_CODEX_RUNNER")
+    end)
+
+    assert {:ok, session} =
+             PortSession.open(self(), nil, "gpt-5.6-terra", "medium")
+
+    assert :ok = PortSession.send_prompt(session, "Show progress")
+
+    assert_receive {:codex, ^session, {:thread_started, _thread_id}}, 2_000
+
+    assert_receive {:codex, ^session,
+                    {:reasoning_update, "fixture-reasoning", "Fixture reasoning summary"}},
+                   2_000
+
+    assert_receive {:codex, ^session,
+                    {:assistant_update, "fixture-progress", "Fixture progress"}},
+                   2_000
+
+    assert_receive {:codex, ^session,
+                    {:assistant_update, "fixture-final", "Fixture final answer"}},
+                   2_000
+
+    assert_receive {:codex, ^session, :turn_completed}, 2_000
+    assert :ok = PortSession.close(session)
+  end
+
   test "the production runner loads its SDK after release-style relocation" do
     codex_config = Application.fetch_env!(:bnest_app, :codex)
     runner = PortSession.bundled_runner()

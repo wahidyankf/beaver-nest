@@ -581,6 +581,41 @@ body {
   overflow-wrap: anywhere;
 }
 
+.codex-progress {
+  margin-top: 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--bnest-ink) 42%, transparent);
+  border-radius: 0.65rem;
+  background: var(--bnest-canvas);
+  color: var(--bnest-ink);
+}
+
+.codex-progress summary {
+  cursor: pointer;
+  padding: 0.45rem 0.65rem;
+  color: var(--bnest-ink-soft);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.codex-progress ol {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0 0.65rem 0.65rem 1.9rem;
+}
+
+.codex-progress li {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.codex-progress-label {
+  margin-inline-end: 0.35rem;
+  color: var(--bnest-ink-soft);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
 .chat-error {
   margin: 0 1.5rem 0.75rem;
   border-radius: 0.6rem;

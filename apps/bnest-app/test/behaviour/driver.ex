@@ -33,6 +33,9 @@ defmodule BnestApp.Behaviour.Driver do
   @callback visitor_message_visible?(map(), String.t()) :: boolean()
   @callback visitor_message_absent?(map(), String.t()) :: boolean()
   @callback stream_codex_response(map()) :: {boolean(), map()}
+  @callback report_public_codex_progress(map()) :: map()
+  @callback codex_reasoning_summary_visible?(map()) :: boolean()
+  @callback codex_progress_preserved_beside_final_answer?(map()) :: boolean()
   @callback one_completed_codex_response_visible?(map()) :: boolean()
   @callback second_codex_response_visible?(map()) :: boolean()
   @callback reject_message(map(), String.t()) :: map()

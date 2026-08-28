@@ -3,19 +3,32 @@ defmodule BnestApp.Chat do
 
   alias BnestApp.Codex.Settings
 
-  @snapshot_version 3
+  @snapshot_version 4
   @max_messages 200
   @max_content_bytes 100_000
   @max_thread_id_bytes 512
   @max_model_bytes 128
+  @max_runner_item_id_bytes 512
+  @max_progress_items 20
+  @max_progress_content_bytes 20_000
   @reasoning_efforts ~w(none minimal low medium high xhigh max ultra)
+
+  @type progress_kind :: :reasoning | :activity | :status
+
+  @type progress_item :: %{
+          item_id: String.t(),
+          kind: progress_kind(),
+          content: String.t()
+        }
 
   @type message :: %{
           id: pos_integer(),
           role: :visitor | :assistant,
           content: String.t(),
           streaming: boolean(),
-          update_count: non_neg_integer()
+          update_count: non_neg_integer(),
+          active_item_id: String.t() | nil,
+          progress: [progress_item()]
         }
 
   @type t :: %{
@@ -128,25 +141,15 @@ defmodule BnestApp.Chat do
     end
   end
 
-  def restore(%{"version" => 1, "thread_id" => thread_id, "messages" => messages} = snapshot) do
+  def restore(%{"version" => version, "messages" => messages} = snapshot)
+      when version in [1, 2, 3] do
     restore(
       snapshot
       |> Map.put("version", @snapshot_version)
-      |> Map.put("model", Settings.preferred_model())
-      |> Map.put("reasoning_effort", Settings.preferred_reasoning_effort())
-      |> Map.put("thread_id", thread_id)
-      |> Map.put("messages", messages)
-      |> Map.put("pending_turn", nil)
-    )
-  end
-
-  def restore(%{"version" => 2, "thread_id" => thread_id, "messages" => messages} = snapshot) do
-    restore(
-      snapshot
-      |> Map.put("version", @snapshot_version)
-      |> Map.put("thread_id", thread_id)
-      |> Map.put("messages", messages)
-      |> Map.put("pending_turn", nil)
+      |> Map.put_new("model", Settings.preferred_model())
+      |> Map.put_new("reasoning_effort", Settings.preferred_reasoning_effort())
+      |> Map.put_new("pending_turn", nil)
+      |> Map.put("messages", Enum.map(messages, &upgrade_message/1))
     )
   end
 
@@ -181,15 +184,37 @@ defmodule BnestApp.Chat do
   end
 
   @spec update_assistant(t(), String.t()) :: t()
-  def update_assistant(chat, text) do
-    update_last_assistant(chat, fn message ->
-      if message.content == text do
-        message
-      else
-        %{message | content: text, update_count: message.update_count + 1}
-      end
-    end)
+  def update_assistant(chat, text) when is_binary(text),
+    do: update_assistant(chat, "assistant-message", text)
+
+  @spec update_assistant(t(), String.t(), String.t()) :: t()
+  def update_assistant(chat, item_id, text)
+      when is_binary(item_id) and is_binary(text) do
+    if valid_runner_item_id?(item_id) do
+      update_last_assistant(chat, fn message ->
+        update_assistant_message(message, item_id, text)
+      end)
+    else
+      chat
+    end
   end
+
+  def update_assistant(chat, _item_id, _text), do: chat
+
+  @spec update_progress(t(), String.t(), progress_kind(), String.t()) :: t()
+  def update_progress(chat, item_id, kind, text)
+      when is_binary(item_id) and kind in [:reasoning, :activity, :status] and is_binary(text) do
+    if valid_runner_item_id?(item_id) do
+      case normalize_progress_content(text) do
+        "" -> chat
+        content -> update_last_assistant(chat, &upsert_progress(&1, item_id, kind, content))
+      end
+    else
+      chat
+    end
+  end
+
+  def update_progress(chat, _item_id, _kind, _text), do: chat
 
   @spec complete(t()) :: t()
   def complete(chat) do
@@ -223,7 +248,15 @@ defmodule BnestApp.Chat do
   end
 
   defp message(id, role, content, streaming) do
-    %{id: id, role: role, content: content, streaming: streaming, update_count: 0}
+    %{
+      id: id,
+      role: role,
+      content: content,
+      streaming: streaming,
+      update_count: 0,
+      active_item_id: nil,
+      progress: []
+    }
   end
 
   defp snapshot_message(message) do
@@ -231,9 +264,23 @@ defmodule BnestApp.Chat do
       "id" => message.id,
       "role" => Atom.to_string(message.role),
       "content" => message.content,
-      "update_count" => message.update_count
+      "update_count" => message.update_count,
+      "active_item_id" => message.active_item_id,
+      "progress" => Enum.map(message.progress, &snapshot_progress_item/1)
     }
   end
+
+  defp snapshot_progress_item(%{item_id: item_id, kind: kind, content: content}) do
+    %{"item_id" => item_id, "kind" => Atom.to_string(kind), "content" => content}
+  end
+
+  defp upgrade_message(message) when is_map(message) do
+    message
+    |> Map.put_new("active_item_id", nil)
+    |> Map.put_new("progress", [])
+  end
+
+  defp upgrade_message(message), do: message
 
   defp snapshot_pending_turn(nil), do: nil
 
@@ -268,21 +315,30 @@ defmodule BnestApp.Chat do
            "id" => id,
            "role" => role,
            "content" => content,
-           "update_count" => update_count
+           "update_count" => update_count,
+           "active_item_id" => active_item_id,
+           "progress" => progress
          },
          id
        )
        when role in ["visitor", "assistant"] and is_binary(content) and
               byte_size(content) <= @max_content_bytes and is_integer(update_count) and
               update_count >= 0 do
-    {:ok,
-     %{
-       id: id,
-       role: if(role == "visitor", do: :visitor, else: :assistant),
-       content: content,
-       streaming: false,
-       update_count: update_count
-     }}
+    with true <- valid_active_item_id?(active_item_id),
+         {:ok, restored_progress} <- restore_progress(progress) do
+      {:ok,
+       %{
+         id: id,
+         role: if(role == "visitor", do: :visitor, else: :assistant),
+         content: content,
+         streaming: false,
+         update_count: update_count,
+         active_item_id: active_item_id,
+         progress: restored_progress
+       }}
+    else
+      _invalid -> :error
+    end
   end
 
   defp restore_message(_snapshot, _expected_id), do: :error
@@ -311,6 +367,48 @@ defmodule BnestApp.Chat do
 
   defp valid_model?(model) when is_binary(model), do: byte_size(model) in 1..@max_model_bytes
   defp valid_model?(_model), do: false
+
+  defp valid_runner_item_id?(item_id) when is_binary(item_id),
+    do: byte_size(item_id) in 1..@max_runner_item_id_bytes
+
+  defp valid_runner_item_id?(_item_id), do: false
+
+  defp valid_active_item_id?(nil), do: true
+  defp valid_active_item_id?(item_id), do: valid_runner_item_id?(item_id)
+
+  defp restore_progress(progress)
+       when is_list(progress) and length(progress) <= @max_progress_items do
+    progress
+    |> Enum.reduce_while({:ok, []}, fn progress_item, {:ok, restored} ->
+      case restore_progress_item(progress_item) do
+        {:ok, item} -> {:cont, {:ok, [item | restored]}}
+        :error -> {:halt, :error}
+      end
+    end)
+    |> case do
+      {:ok, restored} ->
+        restored = Enum.reverse(restored)
+
+        if Enum.uniq_by(restored, & &1.item_id) == restored, do: {:ok, restored}, else: :error
+
+      :error ->
+        :error
+    end
+  end
+
+  defp restore_progress(_progress), do: :error
+
+  defp restore_progress_item(%{"item_id" => item_id, "kind" => kind, "content" => content})
+       when kind in ["reasoning", "activity", "status"] and is_binary(content) and
+              byte_size(content) in 1..@max_progress_content_bytes do
+    if valid_runner_item_id?(item_id) do
+      {:ok, %{item_id: item_id, kind: String.to_existing_atom(kind), content: content}}
+    else
+      :error
+    end
+  end
+
+  defp restore_progress_item(_progress_item), do: :error
 
   defp valid_pending_turn?(nil, _messages, false), do: true
 
@@ -353,5 +451,54 @@ defmodule BnestApp.Chat do
 
   defp update_last_assistant(chat, update) do
     %{chat | messages: List.update_at(chat.messages, -1, update)}
+  end
+
+  defp update_assistant_message(message, item_id, text) do
+    cond do
+      message.active_item_id == item_id and message.content == text ->
+        message
+
+      message.active_item_id == item_id ->
+        %{message | content: text, update_count: message.update_count + 1}
+
+      message.content == "" ->
+        %{
+          message
+          | active_item_id: item_id,
+            content: text,
+            update_count: message.update_count + 1
+        }
+
+      true ->
+        message
+        |> upsert_progress(
+          message.active_item_id || "assistant-message",
+          :status,
+          message.content
+        )
+        |> Map.merge(%{
+          active_item_id: item_id,
+          content: text,
+          update_count: message.update_count + 1
+        })
+    end
+  end
+
+  defp upsert_progress(message, item_id, kind, content) do
+    progress_item = %{item_id: item_id, kind: kind, content: content}
+
+    progress =
+      case Enum.find_index(message.progress, &(&1.item_id == item_id)) do
+        nil -> Enum.take(message.progress ++ [progress_item], -@max_progress_items)
+        index -> List.replace_at(message.progress, index, progress_item)
+      end
+
+    %{message | progress: progress}
+  end
+
+  defp normalize_progress_content(text) do
+    text
+    |> String.trim()
+    |> String.slice(0, @max_progress_content_bytes)
   end
 end

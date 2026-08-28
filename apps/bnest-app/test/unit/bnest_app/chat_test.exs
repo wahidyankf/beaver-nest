@@ -5,10 +5,104 @@ defmodule BnestApp.ChatTest do
 
   test "counts only distinct assistant updates" do
     {:ok, chat} = Chat.submit(Chat.new(), "Hello")
-    chat = Chat.update_assistant(chat, "First")
-    unchanged = Chat.update_assistant(chat, "First")
+    chat = Chat.update_assistant(chat, "answer", "First")
+    unchanged = Chat.update_assistant(chat, "answer", "First")
 
     assert unchanged == chat
+  end
+
+  test "retains public reasoning and prior assistant progress when a new item becomes final" do
+    {:ok, chat} = Chat.submit(Chat.new(), "Hello")
+
+    chat =
+      chat
+      |> Chat.update_progress("reasoning", :reasoning, "Checking the request")
+      |> Chat.update_assistant("progress", "Looking up the answer")
+      |> Chat.update_assistant("final", "Here is the answer")
+      |> Chat.complete()
+
+    assert [%{role: :visitor}, assistant] = chat.messages
+    assert assistant.content == "Here is the answer"
+    assert assistant.streaming == false
+
+    assert assistant.progress == [
+             %{item_id: "reasoning", kind: :reasoning, content: "Checking the request"},
+             %{item_id: "progress", kind: :status, content: "Looking up the answer"}
+           ]
+
+    assert {:ok, snapshot} = Chat.snapshot(chat)
+    assert snapshot["version"] == 4
+    assert {:ok, restored} = Chat.restore(snapshot)
+    assert List.last(restored.messages).progress == assistant.progress
+  end
+
+  test "updates only valid public progress and restores compatible snapshots safely" do
+    {:ok, chat} = Chat.submit(Chat.new(), "Hello")
+
+    assert Chat.update_assistant(chat, "Legacy answer")
+           |> Map.fetch!(:messages)
+           |> List.last()
+           |> Map.fetch!(:active_item_id) == "assistant-message"
+
+    assert Chat.update_assistant(chat, "", "Ignored") == chat
+    assert Chat.update_assistant(chat, :invalid, "Ignored") == chat
+    assert Chat.update_progress(chat, "progress", :reasoning, " ") == chat
+    assert Chat.update_progress(chat, "", :reasoning, "Ignored") == chat
+    assert Chat.update_progress(chat, :invalid, :reasoning, "Ignored") == chat
+
+    updated =
+      chat
+      |> Chat.update_progress("progress", :activity, "Starting")
+      |> Chat.update_progress("progress", :activity, "Finished")
+
+    assert List.last(updated.messages).progress == [
+             %{item_id: "progress", kind: :activity, content: "Finished"}
+           ]
+
+    version_3_snapshot = %{
+      "version" => 3,
+      "thread_id" => nil,
+      "model" => "gpt-5.6-terra",
+      "reasoning_effort" => "medium",
+      "messages" => [
+        %{"id" => 1, "role" => "visitor", "content" => "Hello", "update_count" => 0},
+        %{"id" => 2, "role" => "assistant", "content" => "Answer", "update_count" => 1}
+      ],
+      "pending_turn" => nil
+    }
+
+    assert {:ok, restored} = Chat.restore(version_3_snapshot)
+    assert List.last(restored.messages).progress == []
+
+    assert Chat.restore(%{version_3_snapshot | "messages" => [:invalid]}) == :error
+
+    invalid_progress_snapshot = %{
+      "version" => 4,
+      "thread_id" => nil,
+      "model" => "gpt-5.6-terra",
+      "reasoning_effort" => "medium",
+      "messages" => [
+        %{
+          "id" => 1,
+          "role" => "visitor",
+          "content" => "Hello",
+          "update_count" => 0,
+          "active_item_id" => 123,
+          "progress" => "invalid"
+        },
+        %{
+          "id" => 2,
+          "role" => "assistant",
+          "content" => "Answer",
+          "update_count" => 1,
+          "active_item_id" => nil,
+          "progress" => []
+        }
+      ],
+      "pending_turn" => nil
+    }
+
+    assert Chat.restore(invalid_progress_snapshot) == :error
   end
 
   test "checkpoints an active chat before a transport supplies a thread ID" do
@@ -16,7 +110,7 @@ defmodule BnestApp.ChatTest do
 
     assert {:ok,
             %{
-              "version" => 3,
+              "version" => 4,
               "pending_turn" => %{
                 "assistant_message_id" => 2,
                 "continuation_attempted" => false,
@@ -79,7 +173,7 @@ defmodule BnestApp.ChatTest do
 
     assert {:ok,
             %{
-              "version" => 3,
+              "version" => 4,
               "model" => "gpt-5.6-luna",
               "reasoning_effort" => "medium"
             }} = Chat.snapshot(chat)
@@ -140,6 +234,32 @@ defmodule BnestApp.ChatTest do
                "assistant_message_id" => 3,
                "continuation_attempted" => false
              }
+           }) == :error
+
+    assert Chat.restore(%{
+             "version" => 4,
+             "thread_id" => nil,
+             "model" => "gpt-5.6-luna",
+             "reasoning_effort" => "medium",
+             "messages" => [
+               %{
+                 "id" => 1,
+                 "role" => "visitor",
+                 "content" => "Hello",
+                 "update_count" => 0,
+                 "active_item_id" => nil,
+                 "progress" => []
+               },
+               %{
+                 "id" => 2,
+                 "role" => "assistant",
+                 "content" => "Answer",
+                 "update_count" => 1,
+                 "active_item_id" => "answer",
+                 "progress" => [%{"item_id" => "x", "kind" => "unknown", "content" => "Nope"}]
+               }
+             ],
+             "pending_turn" => nil
            }) == :error
 
     assert Chat.restore(%{

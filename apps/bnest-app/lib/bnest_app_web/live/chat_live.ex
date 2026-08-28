@@ -135,12 +135,42 @@ defmodule BnestAppWeb.ChatLive do
   end
 
   def handle_info(
+        {:codex, session, {:assistant_update, item_id, text}},
+        %{assigns: %{codex_session: session}} = socket
+      ) do
+    {:noreply,
+     socket
+     |> update(:chat, &Chat.update_assistant(&1, item_id, text))
+     |> schedule_checkpoint()}
+  end
+
+  def handle_info(
         {:codex, session, {:assistant_update, text}},
         %{assigns: %{codex_session: session}} = socket
       ) do
     {:noreply,
      socket
      |> update(:chat, &Chat.update_assistant(&1, text))
+     |> schedule_checkpoint()}
+  end
+
+  def handle_info(
+        {:codex, session, {:reasoning_update, item_id, text}},
+        %{assigns: %{codex_session: session}} = socket
+      ) do
+    {:noreply,
+     socket
+     |> update(:chat, &Chat.update_progress(&1, item_id, :reasoning, text))
+     |> schedule_checkpoint()}
+  end
+
+  def handle_info(
+        {:codex, session, {:activity_update, item_id, text}},
+        %{assigns: %{codex_session: session}} = socket
+      ) do
+    {:noreply,
+     socket
+     |> update(:chat, &Chat.update_progress(&1, item_id, :activity, text))
      |> schedule_checkpoint()}
   end
 
@@ -308,6 +338,24 @@ defmodule BnestAppWeb.ChatLive do
             >
               {message.content}
             </p>
+            <details
+              :if={message.role == :assistant and message.progress != []}
+              class="codex-progress"
+              data-role="codex-thinking"
+              open={message.streaming}
+            >
+              <summary data-role="codex-thinking-summary">Thinking</summary>
+              <ol>
+                <li
+                  :for={progress <- message.progress}
+                  data-role={progress_data_role(progress.kind)}
+                  data-kind={progress.kind}
+                >
+                  <span class="codex-progress-label">{progress_label(progress.kind)}</span>
+                  <span>{progress.content}</span>
+                </li>
+              </ol>
+            </details>
             <p
               :if={message.role == :assistant}
               class="message-content whitespace-pre-wrap"
@@ -553,6 +601,13 @@ defmodule BnestAppWeb.ChatLive do
 
   defp assistant_content(%{content: "", streaming: true}), do: "Thinking…"
   defp assistant_content(message), do: message.content
+
+  defp progress_data_role(:reasoning), do: "codex-reasoning-summary"
+  defp progress_data_role(_kind), do: "codex-progress-item"
+
+  defp progress_label(:reasoning), do: "Reasoning"
+  defp progress_label(:activity), do: "Working"
+  defp progress_label(:status), do: "Progress"
 
   defp message_class(%{role: :visitor}), do: "message message-visitor"
   defp message_class(%{role: :assistant}), do: "message message-assistant"

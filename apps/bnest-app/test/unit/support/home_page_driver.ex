@@ -244,8 +244,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     chat =
       context.chat
       |> Chat.put_thread_id("fixture-thread")
-      |> Chat.update_assistant("Fixture response")
-      |> Chat.update_assistant("Fixture response complete.")
+      |> Chat.update_assistant("fixture-answer", "Fixture response")
+      |> Chat.update_assistant("fixture-answer", "Fixture response complete.")
       |> Chat.complete()
 
     {:ok, snapshot} = Chat.snapshot(chat)
@@ -256,6 +256,47 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       |> render_chat(chat)
 
     {assistant_update_count(context) >= 2, context}
+  end
+
+  @impl true
+  def report_public_codex_progress(context) do
+    chat =
+      context.chat
+      |> Chat.update_progress("fixture-reasoning", :reasoning, "Fixture reasoning summary")
+      |> Chat.update_assistant("fixture-progress", "Fixture progress")
+      |> Chat.update_assistant("fixture-final", "Fixture final answer")
+      |> Chat.complete()
+
+    {:ok, snapshot} = Chat.snapshot(chat)
+
+    context
+    |> Map.put(:persisted_chat, Jason.encode!(snapshot))
+    |> render_chat(chat)
+  end
+
+  @impl true
+  def codex_reasoning_summary_visible?(context) do
+    context.page
+    |> LazyHTML.query("[data-role=codex-reasoning-summary]")
+    |> LazyHTML.text()
+    |> String.contains?("Fixture reasoning summary")
+  end
+
+  @impl true
+  def codex_progress_preserved_beside_final_answer?(context) do
+    progress_visible? =
+      context.page
+      |> LazyHTML.query("[data-role=codex-progress-item]")
+      |> LazyHTML.text()
+      |> String.contains?("Fixture progress")
+
+    final_answer_visible? =
+      context.page
+      |> LazyHTML.query("[data-role=assistant-message]")
+      |> LazyHTML.text()
+      |> String.contains?("Fixture final answer")
+
+    progress_visible? and final_answer_visible?
   end
 
   @impl true

@@ -183,6 +183,7 @@ flowchart TB
 
 - Phoenix binds to blue/green loopback endpoints; Caddy owns the stable loopback route and Tailscale Serve forwards only to Caddy.
 - Chat runners use read-only sandbox access, approval policy `never`, and disabled network and web search.
+- The chat runner forwards only public reasoning summaries and generic activity status with stable item IDs; raw private reasoning and tool input remain outside the transcript. Chat retains these progress entries beside the final assistant answer across reconnects.
 - Every protected route and data operation resolves an unrevoked opaque-cookie session and current user before repository access.
 - Roles may contain `children`, `parents`, and `admin`; capabilities still default-deny cross-user access.
 - Codex model access is role-scoped server-side: admins receive the discovered catalog, parents use Terra at medium effort, and children use Luna at medium effort. A missing required model disables that role's chat instead of substituting another model.

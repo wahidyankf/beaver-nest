@@ -100,9 +100,37 @@ for await (const line of lines) {
       continue;
     }
 
-    output({ type: "assistant_update", text: "Fixture response" });
+    if (message.prompt === "Show progress") {
+      output({
+        type: "reasoning_update",
+        item_id: "fixture-reasoning",
+        text: "Fixture reasoning summary",
+      });
+      output({
+        type: "assistant_update",
+        item_id: "fixture-progress",
+        text: "Fixture progress",
+      });
+      output({
+        type: "assistant_update",
+        item_id: "fixture-final",
+        text: "Fixture final answer",
+      });
+      output({ type: "turn_completed" });
+      continue;
+    }
+
+    output({
+      type: "assistant_update",
+      item_id: "fixture-answer",
+      text: "Fixture response",
+    });
     await new Promise((resolve) => setTimeout(resolve, 50));
-    output({ type: "assistant_update", text: "Fixture response complete." });
+    output({
+      type: "assistant_update",
+      item_id: "fixture-answer",
+      text: "Fixture response complete.",
+    });
     output({ type: "turn_completed" });
   }
 }

@@ -115,23 +115,50 @@ defmodule BnestApp.Codex.PortSession do
 
   defp notify_owner(owner, line) do
     case Jason.decode(line) do
-      {:ok, %{"type" => "thread_started", "thread_id" => thread_id}} ->
-        send(owner, {:codex, self(), {:thread_started, thread_id}})
-
-      {:ok, %{"type" => "assistant_update", "text" => text}} ->
-        send(owner, {:codex, self(), {:assistant_update, text}})
-
-      {:ok, %{"type" => "turn_completed"}} ->
-        send(owner, {:codex, self(), :turn_completed})
-
-      {:ok, %{"type" => "error", "message" => message}} ->
-        send(owner, {:codex, self(), {:error, message}})
-
-      {:ok, %{"type" => "resume_failed", "message" => message}} ->
-        send(owner, {:codex, self(), {:resume_failed, message}})
+      {:ok, event} ->
+        forward_runner_event(owner, event)
 
       {:error, _reason} ->
         send(owner, {:codex, self(), {:error, "Codex runner returned invalid data."}})
     end
   end
+
+  defp forward_runner_event(owner, %{"type" => "thread_started", "thread_id" => thread_id}),
+    do: send(owner, {:codex, self(), {:thread_started, thread_id}})
+
+  defp forward_runner_event(owner, %{
+         "type" => "assistant_update",
+         "item_id" => item_id,
+         "text" => text
+       }),
+       do: send(owner, {:codex, self(), {:assistant_update, item_id, text}})
+
+  defp forward_runner_event(owner, %{"type" => "assistant_update", "text" => text}),
+    do: send(owner, {:codex, self(), {:assistant_update, "assistant-message", text}})
+
+  defp forward_runner_event(owner, %{
+         "type" => "reasoning_update",
+         "item_id" => item_id,
+         "text" => text
+       }),
+       do: send(owner, {:codex, self(), {:reasoning_update, item_id, text}})
+
+  defp forward_runner_event(owner, %{
+         "type" => "activity_update",
+         "item_id" => item_id,
+         "text" => text
+       }),
+       do: send(owner, {:codex, self(), {:activity_update, item_id, text}})
+
+  defp forward_runner_event(owner, %{"type" => "turn_completed"}),
+    do: send(owner, {:codex, self(), :turn_completed})
+
+  defp forward_runner_event(owner, %{"type" => "error", "message" => message}),
+    do: send(owner, {:codex, self(), {:error, message}})
+
+  defp forward_runner_event(owner, %{"type" => "resume_failed", "message" => message}),
+    do: send(owner, {:codex, self(), {:resume_failed, message}})
+
+  defp forward_runner_event(owner, _event),
+    do: send(owner, {:codex, self(), {:error, "Codex runner returned invalid data."}})
 end
