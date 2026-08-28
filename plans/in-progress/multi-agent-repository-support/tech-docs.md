@@ -104,6 +104,20 @@ The canonical prompt says to stop with a capability gap instead of answering fro
 
 Badakmini scans `.agents/agents/*.md`, requires unique names, and checks a one-to-one adapter in all three harness directories. It validates identity, description, canonical path, subagent mode, semantic capability mapping, and agent-specific invariants. For `web-researcher`, the invariant is the required/denied capability set and exact canonical route; for `ci-monitor-subagent`, it is `nx-mcp` plus the single-MCP-call constraint. It ignores vendor-only model, effort, and cosmetic fields, but fails if an adapter weakens a native permission that the plan requires. Model fields must be absent or use the harness's documented inherit value; hard-coded provider/model identifiers fail because they create a fourth, non-portable parity dimension.
 
+### Content Parity Algorithm
+
+File presence and matching names are necessary but insufficient. Badakmini constructs a normalized logical record for each concern and compares the effective content reached by every harness:
+
+1. Read regular files through the injected filesystem only; reject links, unreadable files, duplicate logical names, and paths escaping the repository root.
+2. Normalize UTF-8 BOM and CRLF/LF only. Preserve all other whitespace and bytes so an instruction change cannot disappear during normalization.
+3. Build the instruction record from normalized `AGENTS.md` bytes. Claude passes only when normalized `CLAUDE.md` is the exact import token and no competing instruction source exists; Codex and OpenCode pass only through their native route to the same root body.
+4. Build each skill record from `name`, `description`, normalized `SKILL.md`, and every regular supporting file below its canonical skill directory, sorted by repository-relative path. The Claude wrapper must match the description and exact fixed route with no additional body; Codex and OpenCode must resolve the canonical directory natively.
+5. Build each agent record from its normalized canonical prompt plus identity, description, mode, required capabilities, denies, and constraints. Parse every native adapter into that common semantic projection; require the exact fixed route body and reject extra prompt text, missing/extra semantics, or a weakened native restriction.
+6. Build the capability record from the normalized `nx-mcp` executable vector and credential-free working-directory semantics, not raw vendor syntax.
+7. SHA-256 each canonical record and the final ordinally sorted record set. SHA-256 is a deterministic change identifier, not a secrecy mechanism. The same canonical digest must back every harness projection even though raw adapter formats differ.
+
+This comparison validates full repository-owned content and supporting resources without duplicating canonical bodies into adapters. It does not claim that a vendor model obeyed the content at runtime; the discovery smoke remains the separate, non-deterministic proof boundary.
+
 ### Required Capability
 
 The current required MCP set contains only `nx-mcp`, expressed canonically as executable vector `npx nx mcp` with the repository root as working directory and no environment values. Badakmini checks the equivalent committed subset in:
@@ -126,9 +140,9 @@ badakmini-cli governance harness-contract validate [--root <path>]
 
 The inspection is read-only, network-free, process-free, and deterministic. It uses the injected filesystem boundary, skips generated/vendor/cache/worktree directories and filesystem links, sorts all paths and findings ordinally, and never reads outside the requested root.
 
-The JSON success shape has `schemaVersion`, `command`, `harnessCount`, `skillCount`, `agentCount`, `capabilityCount`, and `violations`. The repository fixture expects `harnessCount = 3`, `skillCount = 7`, `agentCount = 2`, and `capabilityCount = 1`; generic test fixtures derive their counts from their canonical trees. Findings identify `kind`, `path`, optional `relatedPath`, optional `harness`, optional `name`, and `message`. Text output uses the atomic `[harness-contract]` prefix.
+The JSON success shape has `schemaVersion`, `command`, `contractDigest`, `harnessCount`, `skillCount`, `agentCount`, `capabilityCount`, and `violations`. The repository fixture expects `harnessCount = 3`, `skillCount = 7`, `agentCount = 2`, and `capabilityCount = 1`; generic test fixtures derive their counts from their canonical trees. Findings identify `kind`, `path`, optional `relatedPath`, optional `harness`, optional `name`, optional `field`, optional `expectedDigest`, optional `actualDigest`, and `message`. Text output uses the atomic `[harness-contract]` prefix and never prints full canonical content.
 
-Minimum finding kinds are missing canonical source, invalid instruction adapter, unexpected instruction source, invalid skill, missing/stale/unexpected skill adapter, invalid agent, missing/stale/unexpected agent adapter, missing/divergent capability, and unreadable harness config. Exit codes retain Badakmini's `0`/`1`/`2` contract.
+Minimum finding kinds are missing canonical source, invalid instruction adapter, instruction content divergence, unexpected instruction source, invalid skill, skill content divergence, missing/stale/unexpected skill adapter, invalid agent, agent prompt divergence, agent semantic divergence, missing/stale/unexpected agent adapter, supporting-resource divergence, missing/divergent capability, and unreadable harness config. Exit codes retain Badakmini's `0`/`1`/`2` contract.
 
 `test:repo` will run the leaf beside existing validators. Its Nx inputs and `.husky/pre-push` path selection must include `.agents/**`, `.codex/**`, `.claude/**`, `.opencode/**`, `.mcp.json`, `CLAUDE.md`, `opencode.json`, and `opencode.jsonc` so cache or hook selection cannot hide drift.
 
@@ -136,7 +150,7 @@ Minimum finding kinds are missing canonical source, invalid instruction adapter,
 
 1. Add canonical Gherkin and thin shared bindings first; implement every new driver member in unit, integration, and E2E adapters.
 2. Prove Nx red for the new scenarios before production implementation.
-3. Unit-test normalized content, sorted findings, exclusions, JSONC, minimal TOML sections, and exact adapter reconciliation using the in-memory filesystem.
+3. Unit-test byte normalization, canonical and aggregate digests, supporting-resource ordering, changed descriptions, extra wrapper/agent instructions, weakened permissions, sorted findings, exclusions, JSONC, minimal TOML sections, and exact adapter reconciliation using the in-memory filesystem.
 4. Integration-test real temporary files without network or child processes.
 5. E2E-test the built CLI's text/JSON shape, exit codes, and read-only filesystem behavior.
 6. Run `test:coverage:behaviour`, unit/integration coverage, `test:quick`, focused E2E, and `test:repo` through Nx.
@@ -152,11 +166,14 @@ PRD outcomes AC-01–AC-06 become durable Badakmini contracts. AC-07 remains pla
 + Feature: Repository coding-harness contract
 + Scenario: Canonical instructions, skills, agents, and Nx capability pass
 + Scenario: Claude imports only the canonical AGENTS file
++ Scenario: Rule adapter overlays or changed effective content fail
 + Scenario: Additional or nested instruction sources fail
 + Scenario: Every canonical skill has exactly one thin Claude adapter
++ Scenario: Skill body, description, and resource-bundle drift fail
 + Scenario: Malformed or duplicated canonical skills fail
 + Scenario: Every canonical custom agent has three equivalent adapters
 + Scenario: Missing, stale, or extra custom-agent adapters fail
++ Scenario: Extra agent prompt content or semantic drift fails
 + Scenario: Web researcher adapters preserve source and read-only constraints
 + Scenario: Equivalent Nx MCP declarations pass in all harness configs
 + Scenario: Divergent or unreadable harness capability config fails closed

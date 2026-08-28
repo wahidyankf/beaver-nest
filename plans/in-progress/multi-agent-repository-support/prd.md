@@ -17,11 +17,11 @@
 
 ## Acceptance Criteria
 
-- **AC-01 — Canonical instructions:** `AGENTS.md` is the only canonical repository rule entry point; Codex and OpenCode consume it directly and Claude's adapter imports only it.
-- **AC-02 — Canonical skills:** `.agents/skills/` owns every skill body and supporting resource; harness adapters add no competing workflow body.
-- **AC-03 — Canonical custom agents:** `.agents/agents/` owns custom-agent intent; the initial set is exactly `ci-monitor-subagent` and `web-researcher`, and every supported harness exposes the same identities, canonical prompt routes, modes, and semantic capability constraints.
+- **AC-01 — Canonical instructions:** `AGENTS.md` is the only canonical repository rule body; Codex and OpenCode consume those normalized bytes directly, while Claude imports exactly that file with no before/after content or additional always-on rule source.
+- **AC-02 — Canonical skills:** `.agents/skills/` owns every complete skill bundle, including `SKILL.md` and supporting resources; each harness resolves the same normalized bundle content, and wrappers may contain only the matching description and exact canonical route.
+- **AC-03 — Canonical custom agents:** `.agents/agents/` owns each complete prompt body and semantic contract; the initial set is exactly `ci-monitor-subagent` and `web-researcher`, and every harness adapter must resolve the same prompt, description, mode, capabilities, denies, and constraints without extra workflow instructions.
 - **AC-04 — Required capabilities:** each harness declares the same repository-required `nx-mcp` command without credentials or absolute paths.
-- **AC-05 — Deterministic validation:** Badakmini inspects only repository files, emits stable text and JSON findings, and returns `0` for parity, `1` for findings, and `2` for invocation or unreadable-config errors.
+- **AC-05 — Deterministic validation:** Badakmini normalizes content, builds logical contract records, computes stable SHA-256 content digests, compares harness projections field by field, emits stable text and JSON findings, and returns `0` for parity, `1` for findings, and `2` for invocation or unreadable-config errors.
 - **AC-06 — Gate integration:** the focused validator, `test:repo`, Badakmini quality gates, and affected pre-push selection cover all contract paths.
 - **AC-07 — Honest boundary:** docs exclude models, provider auth, user-global settings, ignored local memory, and proprietary approval behavior from the parity claim.
 
@@ -52,6 +52,16 @@ Feature: Work through any supported coding harness
     Given a canonical skill has no required Claude adapter
     When Badakmini validates the harness contract
     Then validation fails with the skill name and missing adapter path
+
+  Scenario: An adapter changes effective skill content
+    Given a Claude skill wrapper changes the canonical description or adds workflow instructions
+    When Badakmini validates the harness contract
+    Then validation fails with the changed field and both related paths
+
+  Scenario: An agent adapter changes effective behavior
+    Given an agent adapter adds prompt content or weakens a canonical deny
+    When Badakmini validates the harness contract
+    Then validation fails with the agent, harness, and divergent semantic field
 
   Scenario: The web researcher has one source-quality contract
     Given web-researcher is declared for every supported harness

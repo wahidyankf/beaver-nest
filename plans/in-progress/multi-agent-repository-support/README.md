@@ -15,7 +15,7 @@ The repository needs deterministic proof of its committed harness contract. Bada
 
 ## Recommendation
 
-Keep `AGENTS.md`, `.agents/skills/`, and `.agents/agents/` as canonical repository-owned sources. Start the canonical agent set with the existing CI monitor and an OSE Public-inspired, read-only `web-researcher`. Add thin Claude and OpenCode/Codex adapters only where native discovery differs. Extend Badakmini with a read-only `governance harness-contract validate` command that proves instruction routing, skill coverage, custom-agent coverage, and required Nx MCP declarations for all three harnesses.
+Keep `AGENTS.md`, `.agents/skills/`, and `.agents/agents/` as canonical repository-owned sources. Start the canonical agent set with the existing CI monitor and an OSE Public-inspired, read-only `web-researcher`. Add thin Claude and OpenCode/Codex adapters only where native discovery differs. Extend Badakmini with a read-only `governance harness-contract validate` command that resolves and normalizes effective instruction, skill, and agent content; rejects adapter overlays or semantic permission drift; and proves required Nx MCP declarations for all three harnesses.
 
 Harness UI, model choice, credentials, local memory, approval prompts, and user-global extensions remain intentionally outside the equality contract. See the [technical design](tech-docs.md).
 
@@ -24,7 +24,7 @@ Harness UI, model choice, credentials, local memory, approval prompts, and user-
 - Define the repository-owned contract shared by Codex, Claude Code, and OpenCode.
 - Preserve one canonical instruction source and one canonical copy of each skill and custom-agent workflow.
 - Add minimal harness adapters for instruction loading, skill discovery, the CI monitor, the source-grounded web researcher, and Nx MCP.
-- Make Badakmini deterministically reject missing, extra, stale, malformed, or divergent committed adapters.
+- Make Badakmini deterministically reject missing, extra, stale, malformed, or content-divergent committed adapters, including changed descriptions, extra adapter instructions, wrong canonical routes, modified capability mappings, and altered supporting-resource bundles.
 - Route the new validator through `test:repo`, Nx cache inputs, and pre-push selection.
 - Document installation and read-only verification for each harness and RTK integration.
 
