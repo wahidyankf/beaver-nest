@@ -2,6 +2,8 @@ import Config
 
 config :bnest_app, :identity_cutover_enabled, true
 
+config :bnest_app, :storage_profile, {:test, System.get_env("BNEST_TEST_RUN_ID")}
+
 if System.get_env("BNEST_TEST_LAYER") == "integration" do
   run_id =
     System.get_env("BNEST_TEST_RUN_ID") ||
@@ -13,6 +15,8 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
   runtime_root =
     System.get_env("BNEST_RUNTIME_ROOT") ||
       Path.expand("../../../data/test/runs/#{run_id}", __DIR__)
+
+  sqlite_root = Path.expand("~/bnest/data/test/runs/#{run_id}")
 
   marker = %{
     "schemaVersion" => 1,
@@ -26,10 +30,36 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
     File.mkdir_p!(Path.join(runtime_root, relative))
   end)
 
-  File.write!(Path.join(runtime_root, ".bnest-test-run.json"), JSON.encode!(marker))
-  config :bnest_app, runtime_root: runtime_root, test_runtime_owned: true
+  File.mkdir_p!(sqlite_root)
+
+  marker =
+    marker
+    |> Map.put("pid", System.pid())
+    |> Map.put(
+      "hostname",
+      case :inet.gethostname() do
+        {:ok, hostname} -> List.to_string(hostname)
+        {:error, _reason} -> "local"
+      end
+    )
+
+  encoded_marker = JSON.encode!(marker)
+  File.write!(Path.join(runtime_root, ".bnest-test-run.json"), encoded_marker)
+  File.write!(Path.join(sqlite_root, ".bnest-test-run.json"), encoded_marker)
+
+  config :bnest_app,
+    runtime_root: runtime_root,
+    test_sqlite_root: sqlite_root,
+    storage_config_path: Path.join(runtime_root, "storage-config/storage.json"),
+    test_runtime_owned: true
+
+  config :bnest_app, storage_profile: {:test, run_id}
 else
-  config :bnest_app, runtime_root: nil, test_runtime_owned: false
+  config :bnest_app,
+    runtime_root: nil,
+    test_sqlite_root: nil,
+    storage_config_path: nil,
+    test_runtime_owned: false
 end
 
 codex_session =

@@ -7,7 +7,8 @@ Feature: Bnest SQLite storage
     Given Bnest has no storage configuration
     And the storage UI has not been visited
     When managed migration starts
-    Then Bnest uses the default database location
+    Then Bnest keeps the storage pointer under the configuration home
+    And Bnest uses the environment-specific data directory for SQLite
     And migration does not require a browser confirmation
 
   Scenario: Administrator optionally selects a valid custom database folder
@@ -70,3 +71,15 @@ Feature: Bnest SQLite storage
     Then the routed revision and SQLite readiness are proven
     And the LiveView reconnects without a manual refresh
     And the acknowledged state and unsent draft remain available
+
+  Scenario: Authoritative SQLite relocates out of the configuration directory
+    Given authoritative SQLite still uses the legacy configuration directory
+    When managed storage relocation runs
+    Then the storage pointer resolves the production data directory atomically
+    And legacy SQLite files remain until the new database passes routed proof
+
+  Scenario: Verified legacy flat-file storage is retired
+    Given routed SQLite proof matches the authoritative database generation
+    When managed legacy storage cleanup runs
+    Then Bnest removes every verified flat-file source and legacy SQLite sidecar
+    And Bnest preserves storage configuration and tracked placeholders

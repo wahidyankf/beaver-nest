@@ -9,8 +9,10 @@ import {
   acquirePortLease,
   releasePortLease,
 } from "../../bnest-app/tools/port-lease.mjs";
+import { cleanupStaleTestData } from "../../bnest-app/tools/test-data-cleanup.mjs";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "../../..");
+cleanupStaleTestData();
 const runtime = createTestRuntime("e2e");
 const port = Number(process.env["BNEST_E2E_PORT"] ?? "4010");
 let lease: ReturnType<typeof acquirePortLease> | undefined;

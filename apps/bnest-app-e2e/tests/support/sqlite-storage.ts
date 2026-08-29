@@ -21,6 +21,7 @@ export type StorageScenario = {
   flatRoot: string;
   pointerPath: string;
   homeDirectory: string;
+  runId: string;
 };
 
 const repositoryRoot = process.cwd();
@@ -45,6 +46,7 @@ export function isolatedStorageScenario(
     flatRoot: path.join(base, "flat"),
     pointerPath: path.join(base, "pointer", "storage.json"),
     homeDirectory: path.join(base, "home"),
+    runId: digest,
   };
 }
 
@@ -59,6 +61,14 @@ export function defaultPointerPath(scenario: StorageScenario): string {
   return path.join(scenario.homeDirectory, ".config/bnest/storage.json");
 }
 
+export function defaultDatabaseDirectory(scenario: StorageScenario): string {
+  return path.join(
+    scenario.homeDirectory,
+    "bnest/data/test/runs",
+    scenario.runId,
+  );
+}
+
 type MigrateResult = { status: number; stdout: string; stderr: string };
 
 // By default the isolated pointer path is used (BNEST_STORAGE_CONFIG set).
@@ -70,26 +80,38 @@ export function runStorageMigrate(
   args: string[],
   { useDefaultPointer = false }: { useDefaultPointer?: boolean } = {},
 ): MigrateResult {
+  const result = runStorageCommand(
+    scenario,
+    "bnest.storage.migrate",
+    ["--root", scenario.flatRoot, ...args],
+    { useDefaultPointer },
+  );
+  return result;
+}
+
+export function runStorageCommand(
+  scenario: StorageScenario,
+  command: string,
+  args: string[],
+  { useDefaultPointer = false }: { useDefaultPointer?: boolean } = {},
+): MigrateResult {
   const realHome = os.homedir();
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     MIX_ENV: "test",
     HOME: scenario.homeDirectory,
-    // asdf's `mix` shim resolves itself via $HOME/.asdf unless told
-    // otherwise; overriding HOME (so Elixir's own `~` expansion for
-    // Location.default_directory() stays inside the scratch sandbox) would
-    // otherwise break the shim's own version lookup (exit 126).
+    BNEST_TEST_RUN_ID: scenario.runId,
     ASDF_DIR: process.env["ASDF_DIR"] ?? path.join(realHome, ".asdf"),
     ASDF_DATA_DIR: process.env["ASDF_DATA_DIR"] ?? path.join(realHome, ".asdf"),
   };
   delete env["BNEST_STORAGE_CONFIG"];
   if (!useDefaultPointer) env["BNEST_STORAGE_CONFIG"] = scenario.pointerPath;
 
-  const result = spawnSync(
-    "mix",
-    ["bnest.storage.migrate", "--root", scenario.flatRoot, ...args],
-    { cwd: appDirectory, env, encoding: "utf8" },
-  );
+  const result = spawnSync("mix", [command, ...args], {
+    cwd: appDirectory,
+    env,
+    encoding: "utf8",
+  });
   return {
     status: result.status ?? 1,
     stdout: result.stdout ?? "",
@@ -101,6 +123,23 @@ export function readPointer(
   scenario: StorageScenario,
 ): Record<string, unknown> | undefined {
   return readJsonIfPresent(scenario.pointerPath);
+}
+
+export function writePointer(
+  scenario: StorageScenario,
+  databaseDirectory: string,
+): void {
+  writeFileSync(
+    scenario.pointerPath,
+    JSON.stringify({
+      schemaVersion: 1,
+      databaseDirectory,
+      databaseFilename: "bnest.sqlite3",
+      phase: "flat_primary",
+      migrationId: "flat-files-v1-to-sqlite-v1",
+    }),
+    { encoding: "utf8", flag: "wx" },
+  );
 }
 
 export function readDefaultPointer(

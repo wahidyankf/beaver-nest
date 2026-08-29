@@ -39,7 +39,9 @@ defmodule BnestApp.DataRepository.StorageCoordinator do
   end
 
   defp start!(database_path) do
-    File.mkdir_p!(Path.dirname(database_path))
+    directory = Path.dirname(database_path)
+    File.mkdir_p!(directory)
+    File.chmod!(directory, 0o700)
 
     Application.put_env(
       :bnest_app,
@@ -50,11 +52,18 @@ defmodule BnestApp.DataRepository.StorageCoordinator do
     case SqliteRepo.start_link() do
       {:ok, pid} ->
         Process.unlink(pid)
+        protect_database_files(database_path)
         :ok
 
       {:error, {:already_started, _pid}} ->
         :ok
     end
+  end
+
+  defp protect_database_files(database_path) do
+    Enum.each([database_path, database_path <> "-wal", database_path <> "-shm"], fn path ->
+      if File.exists?(path), do: File.chmod!(path, 0o600)
+    end)
   end
 
   @spec stop() :: :ok

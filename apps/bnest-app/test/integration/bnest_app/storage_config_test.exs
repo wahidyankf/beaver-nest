@@ -42,9 +42,12 @@ defmodule BnestApp.Storage.ConfigTest do
   describe "pointer_path/0" do
     test "falls back to the default directory when BNEST_STORAGE_CONFIG is unset" do
       System.delete_env("BNEST_STORAGE_CONFIG")
+      isolated = Application.get_env(:bnest_app, :storage_config_path)
+      Application.delete_env(:bnest_app, :storage_config_path)
+      on_exit(fn -> Application.put_env(:bnest_app, :storage_config_path, isolated) end)
 
       assert Config.pointer_path() ==
-               Path.join(Location.default_directory(), "storage.json")
+               Path.join(Location.config_directory(), "storage.json")
     end
   end
 

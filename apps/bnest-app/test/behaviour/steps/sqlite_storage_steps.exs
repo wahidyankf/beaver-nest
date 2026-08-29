@@ -13,8 +13,12 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
 
   step("managed migration starts", context, do: perform(context, :start_managed_migration))
 
-  step("Bnest uses the default database location", context,
-    do: outcome(context, :default_database_location)
+  step("Bnest keeps the storage pointer under the configuration home", context,
+    do: outcome(context, :pointer_under_configuration_home)
+  )
+
+  step("Bnest uses the environment-specific data directory for SQLite", context,
+    do: outcome(context, :sqlite_under_production_data)
   )
 
   step("migration does not require a browser confirmation", context,
@@ -181,6 +185,38 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
 
   step("the acknowledged state and unsent draft remain available", context,
     do: outcome(context, :acknowledged_state_and_draft_available)
+  )
+
+  step("authoritative SQLite still uses the legacy configuration directory", context,
+    do: prepare(context, :legacy_authoritative_sqlite)
+  )
+
+  step("managed storage relocation runs", context, do: perform(context, :relocate_storage))
+
+  step("the storage pointer resolves the production data directory atomically", context,
+    do: outcome(context, :pointer_relocated_atomically)
+  )
+
+  step(
+    "legacy SQLite files remain until the new database passes routed proof",
+    context,
+    do: outcome(context, :legacy_sqlite_retained_until_proof)
+  )
+
+  step("routed SQLite proof matches the authoritative database generation", context,
+    do: prepare(context, :routed_storage_generation_proven)
+  )
+
+  step("managed legacy storage cleanup runs", context,
+    do: perform(context, :retire_legacy_storage)
+  )
+
+  step("Bnest removes every verified flat-file source and legacy SQLite sidecar", context,
+    do: outcome(context, :verified_legacy_sources_removed)
+  )
+
+  step("Bnest preserves storage configuration and tracked placeholders", context,
+    do: outcome(context, :config_and_placeholders_preserved)
   )
 
   defp prepare(context, state), do: context.behaviour_driver.prepare_behaviour(context, state, [])

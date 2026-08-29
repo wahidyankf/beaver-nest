@@ -9,6 +9,7 @@ import Config
 
 config :bnest_app,
   generators: [timestamp_type: :utc_datetime],
+  storage_profile: :production,
   runtime_root: Path.expand("../../../data/prod", __DIR__),
   identity_cutover_enabled: false,
   session_cookie: [

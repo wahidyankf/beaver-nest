@@ -16,6 +16,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Storage.Config, as: StorageConfig
   alias BnestApp.Storage.Location, as: StorageLocation
   alias BnestApp.Storage.Migration, as: StorageMigration
+  alias BnestApp.Storage.Relocation, as: StorageRelocation
+  alias BnestApp.Storage.Retirement, as: StorageRetirement
   alias BnestApp.TestRuntimeRoot
 
   @impl true
@@ -776,7 +778,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     context = prepare_behaviour(context, :no_storage_configuration, [])
     runtime = TestRuntimeRoot.create!("sqlite-storage-schema")
     ExUnit.Callbacks.on_exit(fn -> TestRuntimeRoot.cleanup!(runtime) end)
-    Map.put(context, :sqlite_database_path, Path.join(runtime.path, "bnest.sqlite3"))
+    Map.put(context, :sqlite_database_path, Path.join(runtime.sqlite_path, "bnest.sqlite3"))
   end
 
   def prepare_behaviour(context, :flat_primary_default_location, _args) do
@@ -787,7 +789,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
     context
     |> Map.put(:flat_root, runtime.path)
-    |> Map.put(:sqlite_database_path, Path.join(runtime.path, "bnest.sqlite3"))
+    |> Map.put(:sqlite_database_path, Path.join(runtime.sqlite_path, "bnest.sqlite3"))
   end
 
   def prepare_behaviour(context, :no_incompatible_writer, _args), do: context
@@ -821,6 +823,41 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: establish_identity(context, :child)
 
   def prepare_behaviour(context, :healthy_route_with_acknowledged_state, _args), do: context
+
+  def prepare_behaviour(context, :legacy_authoritative_sqlite, _args) do
+    context = prepare_behaviour(context, :no_storage_configuration, [])
+    runtime = TestRuntimeRoot.create!("sqlite-storage-lifecycle")
+
+    ExUnit.Callbacks.on_exit(fn ->
+      StorageCoordinator.stop()
+      TestRuntimeRoot.cleanup!(runtime)
+    end)
+
+    flat_root = Path.join(runtime.sqlite_path, "flat-source")
+    legacy_directory = Path.join(runtime.sqlite_path, "legacy-config")
+    destination = Path.join(runtime.sqlite_path, "relocated")
+    File.mkdir_p!(flat_root)
+    File.write!(Path.join(flat_root, ".gitkeep"), "")
+    seed_flat_fixtures!(flat_root)
+    {:ok, _config} = StorageConfig.persist_directory(legacy_directory)
+    database_path = Path.join(legacy_directory, StorageLocation.filename())
+    repo = sqlite_repo_started!(database_path)
+    Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
+    StorageMigration.run(flat_root, repo)
+    :ok = StorageMigration.activate!(repo)
+
+    Map.merge(context, %{
+      flat_root: flat_root,
+      legacy_database_path: database_path,
+      relocation_destination: destination
+    })
+  end
+
+  def prepare_behaviour(context, :routed_storage_generation_proven, _args) do
+    context = prepare_behaviour(context, :legacy_authoritative_sqlite, [])
+    {:ok, config} = StorageRelocation.run(context.relocation_destination)
+    Map.put(context, :storage_generation, config["databaseGeneration"])
+  end
 
   def prepare_behaviour(context, state, args),
     do: Map.merge(context, %{pending_behaviour_state: state, pending_behaviour_args: args})
@@ -982,6 +1019,22 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def perform_behaviour(context, :promote_compatible_candidate, _args), do: context
 
+  def perform_behaviour(context, :relocate_storage, _args),
+    do:
+      Map.put(
+        context,
+        :relocation_result,
+        StorageRelocation.run(context.relocation_destination)
+      )
+
+  def perform_behaviour(context, :retire_legacy_storage, _args),
+    do:
+      Map.put(
+        context,
+        :retirement_result,
+        StorageRetirement.run(context.flat_root, context.storage_generation)
+      )
+
   def perform_behaviour(context, action, args),
     do: Map.merge(context, %{pending_behaviour_action: action, pending_behaviour_args: args})
 
@@ -1014,7 +1067,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def behaviour_outcome?(context, :denied_before_repository, _args), do: context.cross_user_denied
 
-  def behaviour_outcome?(context, :default_database_location, _args),
+  def behaviour_outcome?(_context, :pointer_under_configuration_home, _args),
+    do: String.ends_with?(StorageLocation.config_directory(), "/.config/bnest")
+
+  def behaviour_outcome?(context, :sqlite_under_production_data, _args),
     do: context.storage_config["databaseDirectory"] == StorageLocation.default_directory()
 
   def behaviour_outcome?(_context, :no_browser_confirmation, _args), do: true
@@ -1111,6 +1167,30 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       Code.ensure_loaded?(BnestApp.DataRepository.Store) and
       function_exported?(BnestApp.DataRepository.SqliteStore, :read, 3) and
       function_exported?(BnestApp.DataRepository.Store, :read, 3)
+  end
+
+  def behaviour_outcome?(context, :pointer_relocated_atomically, _args),
+    do:
+      match?({:ok, _config}, context.relocation_result) and
+        StorageConfig.resolved_database_path() ==
+          Path.join(context.relocation_destination, StorageLocation.filename())
+
+  def behaviour_outcome?(context, :legacy_sqlite_retained_until_proof, _args) do
+    {:ok, config} = context.relocation_result
+    is_binary(config["databaseGeneration"]) and File.exists?(context.legacy_database_path)
+  end
+
+  def behaviour_outcome?(context, :verified_legacy_sources_removed, _args),
+    do:
+      match?({:ok, _config}, context.retirement_result) and
+        not File.exists?(context.legacy_database_path) and
+        not File.exists?(Path.join(context.flat_root, "system/bootstrap.json"))
+
+  def behaviour_outcome?(context, :config_and_placeholders_preserved, _args) do
+    match?(
+      {:ok, %{"flatFilesRetiredAt" => retired_at}} when is_binary(retired_at),
+      StorageConfig.read()
+    ) and File.exists?(Path.join(context.flat_root, ".gitkeep"))
   end
 
   def behaviour_outcome?(context, outcome, _args) do

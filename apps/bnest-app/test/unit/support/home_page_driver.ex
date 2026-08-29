@@ -8,6 +8,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Identity.Authorization
   alias BnestApp.Identity.CredentialVerifier
   alias BnestApp.SifatAllah
+  alias BnestApp.Storage.Location, as: StorageLocation
   alias BnestAppWeb.SifatAllahLive
   alias Phoenix.HTML.Safe
 
@@ -967,7 +968,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do:
       Map.put(context, :storage_config, %{
         "phase" => "flat_primary",
-        "databaseDirectory" => "~/.config/bnest"
+        "databaseDirectory" => StorageLocation.production_data_directory()
+      })
+
+  def perform_behaviour(context, :relocate_storage, _args),
+    do: Map.merge(context, %{relocated?: true, relocation_verified?: true})
+
+  def perform_behaviour(context, :retire_legacy_storage, _args),
+    do:
+      Map.merge(context, %{
+        flat_sources: [],
+        config_preserved?: true,
+        placeholders_preserved?: true
       })
 
   def perform_behaviour(context, :enter_valid_folder, _args) do
@@ -1058,8 +1070,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def behaviour_outcome?(context, :denied_before_repository, _args), do: context.cross_user_denied
 
-  def behaviour_outcome?(context, :default_database_location, _args),
-    do: context.storage_config["databaseDirectory"] == "~/.config/bnest"
+  def behaviour_outcome?(_context, :pointer_under_configuration_home, _args),
+    do: String.ends_with?(StorageLocation.config_directory(), "/.config/bnest")
+
+  def behaviour_outcome?(context, :sqlite_under_production_data, _args),
+    do: context.storage_config["databaseDirectory"] == StorageLocation.production_data_directory()
 
   def behaviour_outcome?(_context, :no_browser_confirmation, _args), do: true
 
@@ -1120,6 +1135,17 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
              :acknowledged_state_and_draft_available
            ],
       do: true
+
+  def behaviour_outcome?(context, :pointer_relocated_atomically, _args), do: context.relocated?
+
+  def behaviour_outcome?(context, :legacy_sqlite_retained_until_proof, _args),
+    do: context.relocation_verified?
+
+  def behaviour_outcome?(context, :verified_legacy_sources_removed, _args),
+    do: context.flat_sources == []
+
+  def behaviour_outcome?(context, :config_and_placeholders_preserved, _args),
+    do: context.config_preserved? and context.placeholders_preserved?
 
   def behaviour_outcome?(context, outcome, _args) do
     outcome in Map.get(context, :centralized_outcomes, [])

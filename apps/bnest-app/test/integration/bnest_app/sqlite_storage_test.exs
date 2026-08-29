@@ -14,7 +14,7 @@ defmodule BnestApp.SqliteStorageTest do
 
   setup do
     runtime = TestRuntimeRoot.create!("sqlite-ddl")
-    database_path = Path.join(runtime.path, "bnest.sqlite3")
+    database_path = Path.join(runtime.sqlite_path, "bnest.sqlite3")
 
     :ok = StorageCoordinator.ensure_started!(database_path)
     {:ok, _versions, _apps} = migrate(:up)

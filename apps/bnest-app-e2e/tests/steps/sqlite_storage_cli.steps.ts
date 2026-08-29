@@ -3,6 +3,7 @@ import { createBdd } from "playwright-bdd";
 import path from "node:path";
 import {
   cleanupStorageScenario,
+  defaultDatabaseDirectory,
   digestFile,
   isolatedStorageScenario,
   readDefaultPointer,
@@ -43,11 +44,15 @@ When("managed migration starts", () => {
   migrateResult = runStorageMigrate(scenario, [], { useDefaultPointer: true });
 });
 
-Then("Bnest uses the default database location", () => {
+Then("Bnest keeps the storage pointer under the configuration home", () => {
   expect(migrateResult.status).toBe(0);
+  expect(readDefaultPointer(scenario)).toBeDefined();
+});
+
+Then("Bnest uses the environment-specific data directory for SQLite", () => {
   const pointer = readDefaultPointer(scenario);
   expect(pointer?.["databaseDirectory"]).toBe(
-    path.join(scenario.homeDirectory, ".config/bnest"),
+    defaultDatabaseDirectory(scenario),
   );
   expect(pointer?.["databaseFilename"]).toBe("bnest.sqlite3");
 });
@@ -112,7 +117,7 @@ Then("Bnest inventories records in deterministic path order", () => {
 Then("Bnest writes the database under the resolved storage directory", () => {
   const pointer = readPointer(scenario);
   expect(pointer?.["databaseDirectory"]).toBe(
-    path.join(scenario.homeDirectory, ".config/bnest"),
+    defaultDatabaseDirectory(scenario),
   );
 });
 

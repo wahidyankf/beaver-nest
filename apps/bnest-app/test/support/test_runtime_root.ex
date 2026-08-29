@@ -7,10 +7,14 @@ defmodule BnestApp.TestRuntimeRoot do
   @runs_root Path.join(@repo_root, "data/test/runs")
   @production_root Path.join(@repo_root, "data/prod")
 
-  @type t :: %{path: String.t(), run_id: String.t()}
+  @type t :: %{path: String.t(), sqlite_path: String.t(), run_id: String.t()}
+  @type marker :: %{path: String.t(), run_id: String.t()}
 
   @spec runs_root() :: String.t()
   def runs_root, do: @runs_root
+
+  @spec sqlite_runs_root() :: String.t()
+  def sqlite_runs_root, do: Path.expand("~/bnest/data/test/runs")
 
   @spec production_root() :: String.t()
   def production_root, do: @production_root
@@ -21,20 +25,40 @@ defmodule BnestApp.TestRuntimeRoot do
     suffix = Base.url_encode64(:crypto.strong_rand_bytes(8), padding: false)
     run_id = "#{suite}-#{String.downcase(suffix)}"
     path = Path.join(@runs_root, run_id)
+    sqlite_path = Path.join(sqlite_runs_root(), run_id)
 
     with :ok <- validate(path),
+         :ok <- validate_sqlite(sqlite_path),
          false <- File.exists?(path),
+         false <- File.exists?(sqlite_path),
          :ok <- create_tree(path),
+         :ok <- create_sqlite_tree(sqlite_path),
          :ok <- write_marker(path, run_id),
-         {:ok, _runtime} <- validate(path) do
-      %{path: path, run_id: run_id}
+         :ok <- write_marker(sqlite_path, run_id),
+         {:ok, _runtime} <- validate(path),
+         {:ok, _sqlite_runtime} <- validate_sqlite(sqlite_path) do
+      %{path: path, sqlite_path: sqlite_path, run_id: run_id}
     else
       true -> raise ArgumentError, "test runtime already exists"
       {:error, reason} -> raise ArgumentError, "invalid test runtime: #{reason}"
     end
   end
 
-  @spec validate(String.t()) :: :ok | {:ok, t()} | {:error, atom()}
+  @spec validate_sqlite(String.t()) :: :ok | {:ok, marker()} | {:error, atom()}
+  def validate_sqlite(path) when is_binary(path) do
+    expanded = Path.expand(path)
+    root = sqlite_runs_root()
+
+    cond do
+      expanded == root -> {:error, :shared_root}
+      Path.dirname(expanded) != root -> {:error, :outside_test_runs}
+      symlink?(expanded) -> {:error, :symlink}
+      File.exists?(expanded) -> validate_marker(expanded)
+      true -> :ok
+    end
+  end
+
+  @spec validate(String.t()) :: :ok | {:ok, marker()} | {:error, atom()}
   def validate(path) when is_binary(path) do
     expanded = Path.expand(path)
 
@@ -62,15 +86,17 @@ defmodule BnestApp.TestRuntimeRoot do
   @spec cleanup(t(), [pid()]) :: :ok | {:error, atom()}
   def cleanup(runtime, processes \\ [])
 
-  def cleanup(%{path: path, run_id: run_id}, processes) when is_list(processes) do
+  def cleanup(%{path: path, sqlite_path: sqlite_path, run_id: run_id}, processes)
+      when is_list(processes) do
     with false <- Enum.any?(processes, &Process.alive?/1),
          {:ok, %{run_id: ^run_id}} <- validate(path),
-         {:ok, _entries} <- File.rm_rf(path) do
+         {:ok, %{run_id: ^run_id}} <- validate_sqlite(sqlite_path),
+         {:ok, _entries} <- File.rm_rf(path),
+         {:ok, _entries} <- File.rm_rf(sqlite_path) do
       :ok
     else
       true -> {:error, :processes_running}
       {:error, reason} -> {:error, reason}
-      {:error, _reason, _file} -> {:error, :cleanup_failed}
     end
   end
 
@@ -91,13 +117,22 @@ defmodule BnestApp.TestRuntimeRoot do
     File.Error -> {:error, :create_failed}
   end
 
+  defp create_sqlite_tree(path) do
+    File.mkdir_p!(path)
+    :ok
+  rescue
+    File.Error -> {:error, :create_failed}
+  end
+
   defp write_marker(path, run_id) do
     marker = %{
       "schemaVersion" => 1,
       "recordType" => "bnest-test-run",
       "runId" => run_id,
       "createdAt" => DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
-      "owner" => @owner
+      "owner" => @owner,
+      "pid" => System.pid(),
+      "hostname" => hostname()
     }
 
     File.write!(Path.join(path, @marker), Jason.encode!(marker))
@@ -137,6 +172,11 @@ defmodule BnestApp.TestRuntimeRoot do
   end
 
   defp inside?(path, root), do: String.starts_with?(path, root <> "/")
+
+  defp hostname do
+    {:ok, hostname} = :inet.gethostname()
+    List.to_string(hostname)
+  end
 
   defp symlink?(path) do
     case File.lstat(path) do

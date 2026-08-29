@@ -9,7 +9,7 @@ defmodule BnestApp.SqliteStorageMigrationTest do
 
   setup do
     runtime = TestRuntimeRoot.create!("sqlite-storage-backfill")
-    database_path = Path.join(runtime.path, "bnest.sqlite3")
+    database_path = Path.join(runtime.sqlite_path, "bnest.sqlite3")
     pointer_directory = Path.join(runtime.path, "pointer")
     File.mkdir_p!(pointer_directory)
     System.put_env("BNEST_STORAGE_CONFIG", Path.join(pointer_directory, "storage.json"))

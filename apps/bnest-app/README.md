@@ -16,33 +16,36 @@ mix setup
 
 Run project tasks from the repository root:
 
-| Task                                 | Command                                                                              |
-| ------------------------------------ | ------------------------------------------------------------------------------------ |
-| Start the stable development server  | `npm exec -- nx run -p bnest-app -t serve`                                           |
-| Install the stable local Caddy proxy | `npm exec -- nx run -p bnest-app -t proxy:install`                                   |
-| Inspect deployment routing           | `npm exec -- nx run -p bnest-app -t proxy:status`                                    |
-| Build an immutable candidate release | `npm exec -- nx run -p bnest-app -t release:build`                                   |
-| Test the release transaction         | `npm exec -- nx run -p bnest-app -t release:test`                                    |
-| Run one deterministic release        | `npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>`                 |
-| Start an inactive release slot       | `npm exec -- nx run -p bnest-app -t deploy:prepare -- --slot green --revision <sha>` |
-| Gracefully promote a release slot    | `npm exec -- nx run -p bnest-app -t deploy:promote -- --slot green`                  |
-| Route back to the previous slot      | `npm exec -- nx run -p bnest-app -t deploy:rollback`                                 |
-| Stop a drained inactive slot         | `npm exec -- nx run -p bnest-app -t deploy:retire -- --slot blue`                    |
-| Enable persistent tailnet HTTPS      | `npm exec -- nx run -p bnest-app -t tailnet:up`                                      |
-| Inspect the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:status`                                  |
-| Disable the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:down`                                    |
-| Run the complete quick suite         | `npm exec -- nx run -p bnest-app -t test:quick`                                      |
-| Run unit scenarios                   | `npm exec -- nx run -p bnest-app -t test:unit`                                       |
-| Run local-only integration scenarios | `npm exec -- nx run -p bnest-app -t test:integration`                                |
-| Cover the unit slice                 | `npm exec -- nx run -p bnest-app -t test:coverage:unit`                              |
-| Cover the integration slice          | `npm exec -- nx run -p bnest-app -t test:coverage:integration`                       |
-| Verify every behavior adapter        | `npm exec -- nx run -p bnest-app -t test:coverage:behaviour`                         |
-| Run all application coverage slices  | `npm exec -- nx run -p bnest-app -t test:coverage`                                   |
-| Run static type analysis             | `npm exec -- nx run -p bnest-app -t typecheck`                                       |
-| Run all linters                      | `npm exec -- nx run -p bnest-app -t lint`                                            |
-| Check Elixir and HEEx formatting     | `npm exec -- nx run -p bnest-app -t format`                                          |
-| Audit runtime schemas without values | `npm exec -- nx run -p bnest-app -t schema:audit`                                    |
-| Benchmark the password verifier      | `npm exec -- nx run -p bnest-app -t identity:benchmark`                              |
+| Task                                 | Command                                                                                        |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Start the stable development server  | `npm exec -- nx run -p bnest-app -t serve`                                                     |
+| Install the stable local Caddy proxy | `npm exec -- nx run -p bnest-app -t proxy:install`                                             |
+| Inspect deployment routing           | `npm exec -- nx run -p bnest-app -t proxy:status`                                              |
+| Build an immutable candidate release | `npm exec -- nx run -p bnest-app -t release:build`                                             |
+| Test the release transaction         | `npm exec -- nx run -p bnest-app -t release:test`                                              |
+| Run one deterministic release        | `npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>`                           |
+| Start an inactive release slot       | `npm exec -- nx run -p bnest-app -t deploy:prepare -- --slot green --revision <sha>`           |
+| Gracefully promote a release slot    | `npm exec -- nx run -p bnest-app -t deploy:promote -- --slot green`                            |
+| Route back to the previous slot      | `npm exec -- nx run -p bnest-app -t deploy:rollback`                                           |
+| Stop a drained inactive slot         | `npm exec -- nx run -p bnest-app -t deploy:retire -- --slot blue`                              |
+| Enable persistent tailnet HTTPS      | `npm exec -- nx run -p bnest-app -t tailnet:up`                                                |
+| Inspect the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:status`                                            |
+| Disable the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:down`                                              |
+| Run the complete quick suite         | `npm exec -- nx run -p bnest-app -t test:quick`                                                |
+| Run unit scenarios                   | `npm exec -- nx run -p bnest-app -t test:unit`                                                 |
+| Run local-only integration scenarios | `npm exec -- nx run -p bnest-app -t test:integration`                                          |
+| Cover the unit slice                 | `npm exec -- nx run -p bnest-app -t test:coverage:unit`                                        |
+| Cover the integration slice          | `npm exec -- nx run -p bnest-app -t test:coverage:integration`                                 |
+| Verify every behavior adapter        | `npm exec -- nx run -p bnest-app -t test:coverage:behaviour`                                   |
+| Run all application coverage slices  | `npm exec -- nx run -p bnest-app -t test:coverage`                                             |
+| Run static type analysis             | `npm exec -- nx run -p bnest-app -t typecheck`                                                 |
+| Run all linters                      | `npm exec -- nx run -p bnest-app -t lint`                                                      |
+| Check Elixir and HEEx formatting     | `npm exec -- nx run -p bnest-app -t format`                                                    |
+| Audit runtime schemas without values | `npm exec -- nx run -p bnest-app -t schema:audit`                                              |
+| Benchmark the password verifier      | `npm exec -- nx run -p bnest-app -t identity:benchmark`                                        |
+| Relocate authoritative SQLite data   | `npm exec -- nx run -p bnest-app -t storage:relocate`                                          |
+| Retire verified legacy storage       | `npm exec -- nx run -p bnest-app -t storage:retire -- --root <root> --generation <generation>` |
+| Clean stale isolated test data       | `npm exec -- nx run -p bnest-app -t test-data:cleanup`                                         |
 
 `test:quick` runs type checking, linting, unit execution, unit coverage, and static behavior completeness. It intentionally excludes integration runtime and E2E execution. Both numeric coverage slices use Mix line coverage and fail below 99%.
 
@@ -72,7 +75,7 @@ The home page at `/` is the child-friendly entry point and links to `/chat`, `/a
 
 ## Identity and Runtime Data
 
-Production resolves one server-owned runtime root at `data/prod`; tests use a unique marked mirror below `data/test/runs/` and reject the production root. Initial accounts have a normalized username, one or more `children`, `parents`, and `admin` roles, and an Argon2id password verifier. Passwords have no application character-count rule, but each must contain a letter, number, and punctuation mark such as `_`. The browser receives only a persistent opaque session cookie; the server stores its SHA-256 digest, has no automatic session expiration, and lets one user remain logged in independently in multiple browsers. Logout revokes only that browser session. Cross-user data access is denied regardless of role.
+Production SQLite data defaults to `~/bnest/data/prod/`; repository `data/prod/` is only a verified legacy migration source until retirement. Each test uses the same marked run identifier in a flat-file fixture root below `data/test/runs/` and a SQLite root below `~/bnest/data/test/runs/`; either root being absent, shared, or mismatched fails closed. Initial accounts have a normalized username, one or more `children`, `parents`, and `admin` roles, and an Argon2id password verifier. Passwords have no application character-count rule, but each must contain a letter, number, and punctuation mark such as `_`. The browser receives only a persistent opaque session cookie; the server stores its SHA-256 digest, has no automatic session expiration, and lets one user remain logged in independently in multiple browsers. Logout revokes only that browser session. Cross-user data access is denied regardless of role.
 
 The routed HTTPS service must start with `BNEST_COOKIE_SECURE=true`; `BNEST_IDENTITY_CUTOVER=true` enables setup/login only when the replacement backend and import path are ready. Both variables accept only `true` or `false`. Local HTTP development keeps the secure-cookie override unset, while production Mix configuration enables it automatically.
 
@@ -80,9 +83,11 @@ Chat, Sifat Allah progress, and explicit theme preference are versioned user-own
 
 ## SQLite Storage
 
-Bnest's user-owned state moves from the flat-file runtime root into a private local SQLite database while keeping the flat files as a retained rollback mirror. The stable pointer at `~/.config/bnest/storage.json` (or `BNEST_STORAGE_CONFIG` for machine-local overrides) resolves the database directory and the `flat_primary`/`sqlite_primary` phase; it is absent-safe, so managed migration resolves the default directory and runs headlessly with no browser visit. An authenticated `admin`-role user may optionally select a different private, writable, non-symlinked, non-world-writable folder outside the repository and migration sources before migration starts; the folder and filename are immutable once the database exists.
+Bnest's user-owned state moves from the flat-file runtime root into a private local SQLite database. The stable pointer at `~/.config/bnest/storage.json` (or `BNEST_STORAGE_CONFIG` for machine-local overrides) remains configuration and resolves the database directory, generation, and `flat_primary`/`sqlite_primary` phase. Production data defaults to `~/bnest/data/prod/bnest.sqlite3`; tests use `~/bnest/data/test/runs/<run-id>/bnest.sqlite3`. An authenticated `admin`-role user may optionally select a different private, writable, non-symlinked, non-world-writable folder outside the repository and migration sources before migration starts.
 
 The versioned DDL migration at `priv/sqlite_repo/migrations/` never scans flat files; data copying is owned by the reproducible `flat-files-v1-to-sqlite-v1` backfill adapter (`lib/bnest_app/storage/migration.ex`), which the headless `mix bnest.storage.migrate` task (Nx target `storage:migrate`) and the optional `/storage` admin LiveView both call through the same domain module. Every recognized source is inventoried in deterministic path order, copied with immutable source/target checksum evidence, and read back through the normal repository before SQLite becomes authoritative; a changed or malformed source blocks the phase switch without mutating the flat-primary service, and retrying the same migration identifier never rewrites or duplicates accepted items. Activation requires schema, backfill, parity, integrity (`PRAGMA quick_check`), and an isolated `VACUUM INTO` restore rehearsal to all pass first. Repo queries never log record payloads (`log: false` on `BnestApp.SqliteRepo`), keeping migration output as value-free as the flat-file adapter it replaces.
+
+`storage:relocate` serializes repository access across processes, checkpoints the source, copies it through `VACUUM INTO`, compares value-free logical evidence, atomically updates the pointer with a new generation, and keeps the old database available for rollback. After the managed release and routed health response prove that exact generation, `storage:retire` rechecks database integrity and migration checksums before deleting only the verified repository flat-file sources and the legacy SQLite database and sidecars. `test-data:cleanup` removes only marked, inactive paired test roots older than 24 hours; each test suite also cleans its own pair in its finalizer.
 
 ## Visual Language
 
@@ -119,7 +124,7 @@ The test environment substitutes a deterministic model catalog and session, and 
 - `lib/bnest_app/` contains the OTP application, identity boundary, and typed data repository.
 - `lib/bnest_app/codex/` owns the SDK subprocess protocol and resumable session lifecycle.
 - `lib/bnest_app/storage/` and `lib/bnest_app/data_repository/sqlite_store.ex` own SQLite location validation, the storage pointer, the flat-file backfill adapter, and the phase-aware storage coordinator.
-- `lib/mix/tasks/bnest.storage.migrate.ex` runs the headless flat-file-to-SQLite migration without a browser visit.
+- `lib/mix/tasks/bnest.storage.*.ex` runs headless migration, relocation, and verified retirement without a browser visit.
 - `lib/bnest_app_web/` contains the endpoint, protected router, authentication/import controllers and LiveViews, chat/learning LiveViews, the admin-only storage LiveView, and components.
 - `priv/codex/` contains the SDK chat runner and the app-server model discovery helper.
 - `priv/sqlite_repo/migrations/` contains the versioned, committed SQLite DDL.

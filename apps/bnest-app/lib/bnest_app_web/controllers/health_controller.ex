@@ -5,6 +5,7 @@ defmodule BnestAppWeb.HealthController do
   alias BnestApp.Deployment
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Config, as: StorageConfig
+  alias BnestApp.Storage.Lock, as: StorageLock
 
   def live(conn, _params) do
     {:ok, health} = Deployment.liveness()
@@ -14,7 +15,12 @@ defmodule BnestAppWeb.HealthController do
   def ready(conn, _params) do
     with {:ok, health} <- Deployment.readiness(),
          :ok <- storage_ready() do
-      json(conn, Map.put(health, :sqliteReady, sqlite_primary?()))
+      json(
+        conn,
+        health
+        |> Map.put(:sqliteReady, sqlite_primary?())
+        |> Map.put(:storageGeneration, StorageConfig.database_generation())
+      )
     else
       _not_ready ->
         conn |> put_status(:service_unavailable) |> json(%{status: "not_ready"})
@@ -26,17 +32,22 @@ defmodule BnestAppWeb.HealthController do
   # database once the phase pointer has switched storage authority to it.
   defp storage_ready do
     if sqlite_primary?() do
-      StorageCoordinator.ensure_started!()
-
-      case SqliteRepo.query("SELECT 1") do
-        {:ok, _result} -> :ok
-        _error -> {:error, :sqlite_not_ready}
-      end
+      StorageLock.with_shared(fn ->
+        StorageCoordinator.ensure_started!()
+        storage_query_ready()
+      end)
     else
       :ok
     end
   rescue
     _error -> {:error, :sqlite_not_ready}
+  end
+
+  defp storage_query_ready do
+    case SqliteRepo.query("SELECT 1") do
+      {:ok, _result} -> :ok
+      _error -> {:error, :sqlite_not_ready}
+    end
   end
 
   defp sqlite_primary?, do: StorageConfig.phase() == :sqlite_primary

@@ -18,7 +18,7 @@
       "options": {
         "commands": [
           {
-            "command": "node --test tools/release.test.mjs tools/continuity-contract.test.mjs",
+            "command": "node --test tools/release.test.mjs tools/continuity-contract.test.mjs tools/test-data-cleanup.test.mjs",
             "forwardAllArgs": false
           },
           {
@@ -142,6 +142,30 @@
       },
       "cache": false
     },
+    "storage:relocate": {
+      "command": "BNEST_STABLE=true MIX_ENV=dev mix bnest.storage.relocate",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": true
+      },
+      "cache": false
+    },
+    "storage:retire": {
+      "command": "BNEST_STABLE=true MIX_ENV=dev mix bnest.storage.retire",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": true
+      },
+      "cache": false
+    },
+    "test-data:cleanup": {
+      "command": "node tools/test-data-cleanup.mjs",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": true
+      },
+      "cache": false
+    },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
@@ -202,6 +226,7 @@
       }
     },
     "test:integration": {
+      "dependsOn": ["test-data:cleanup"],
       "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors test/integration",
       "inputs": [
         "default",

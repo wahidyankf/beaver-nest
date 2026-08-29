@@ -28,7 +28,7 @@ flowchart TB
     class caddy system
 ```
 
-Bnest is a 24/7 family service, private to the local host and family devices routed through Tailscale Serve and a stable loopback Caddy proxy. Caddy promotes a healthy blue or green Phoenix release with a bounded WebSocket drain; compatible LiveView clients reconnect without a manual refresh. Elixir/OTP and Phoenix were selected for supervision, process isolation, and concurrent long-lived LiveView sessions. Approved users authenticate before protected access. Bnest keeps user-owned state in a server-managed local SQLite database with a retained flat-file rollback mirror; it has no public registration, cloud database, or uploads.
+Bnest is a 24/7 family service, private to the local host and family devices routed through Tailscale Serve and a stable loopback Caddy proxy. Caddy promotes a healthy blue or green Phoenix release with a bounded WebSocket drain; compatible LiveView clients reconnect without a manual refresh. Elixir/OTP and Phoenix were selected for supervision, process isolation, and concurrent long-lived LiveView sessions. Approved users authenticate before protected access. Bnest keeps user-owned state in a server-managed local SQLite database; verified legacy flat files are retired after cutover instead of remaining as an unbounded rollback copy. It has no public registration, cloud database, or uploads.
 
 ## Container View
 
@@ -46,13 +46,13 @@ flowchart TB
         legacy[("Container / data store<br/><b>Browser legacy sources</b><br/>Allow-listed values<br/>Retained until accepted import")]
         phoenix["Container<br/><b>Phoenix LiveView application</b><br/>Elixir / Phoenix / Bandit"]
         runtime[("Container / data store<br/><b>Local SQLite database</b><br/>Accounts and sessions<br/>Manifests and user records")]
-        mirror[("Container / data store<br/><b>Runtime flat files</b><br/>Rollback mirror<br/>Retained sources")]
+        legacy_runtime[("Container / data store<br/><b>Legacy flat files</b><br/>Migration source<br/>Removed after proof")]
         bridge["Container<br/><b>Codex bridge processes</b><br/>Node.js / Codex SDK and CLI"]
 
         browser -->|HTTP and WebSocket<br/>events and renders| phoenix
         browser -->|Confirmed<br/>compatibility import| legacy
         phoenix -->|Typed atomic operations| runtime
-        phoenix -->|Compatibility mirror| mirror
+        legacy_runtime -->|Verified migration input| phoenix
         phoenix -->|Ports and JSON lines| bridge
     end
 
@@ -67,12 +67,12 @@ flowchart TB
     classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
     class visitor person
     class browser,phoenix,bridge container
-    class legacy,runtime,mirror data
+    class legacy,runtime,legacy_runtime data
     class tailscale,codex external
     class caddy container
 ```
 
-The Phoenix server, SQLite storage, flat-file rollback mirror, and Node bridges run on the home host. Caddy is a separate loopback container between Tailscale and blue/green Phoenix releases. OTP supervision recovers failed child processes inside one running application; replacement starts and proves the alternate release before Caddy promotes it. The storage pointer at `~/.config/bnest/storage.json` resolves the SQLite database directory once managed migration activates it; the flat-file mirror still resolves `data/prod/` once before supervision, and filesystem tests use one marked mirror below `data/test/runs/`.
+The Phoenix server, SQLite storage, temporary flat-file migration source, and Node bridges run on the home host. Caddy is a separate loopback container between Tailscale and blue/green Phoenix releases. OTP supervision recovers failed child processes inside one running application; replacement starts and proves the alternate release before Caddy promotes it. The stable pointer remains at `~/.config/bnest/storage.json`, while the default production database lives at `~/bnest/data/prod/bnest.sqlite3`. Verified flat sources under `data/prod/` are removed after routed storage proof. Filesystem test fixtures remain in a marked Dropbox run below `data/test/runs/`, while the paired SQLite database uses the same run identifier below `~/bnest/data/test/runs/`; both roots are cleaned after the run.
 
 ## Release and Resumable State
 
@@ -189,10 +189,10 @@ flowchart TB
 - Every protected route and data operation resolves an unrevoked opaque-cookie session and current user before repository access.
 - Roles may contain `children`, `parents`, and `admin`; capabilities still default-deny cross-user access.
 - Codex model access is role-scoped server-side: admins receive the discovered catalog, parents use Terra at medium effort, and children use Luna at medium effort. A missing required model disables that role's chat instead of substituting another model.
-- Durable chat, Sifat Allah progress, and explicit theme state live only below the authenticated user's runtime path after accepted import.
+- Durable chat, Sifat Allah progress, and explicit theme state live in the authenticated user's SQLite records after accepted import.
 - Browser keys are immutable compatibility sources until envelope, normalization, and normal read-back pass; only the accepted key is then cleared.
 - Mutable records use revision checks, one path lock coordinated across connected local BEAM release nodes, atomic replacement, and read-back. Sessions have no time expiry and remain independent per browser.
-- Test adapters use only synthetic `test-user-` identities and marked mirrored runtime roots; production structural audit is read-only.
+- Test adapters use only synthetic `test-user-` identities and paired marked flat-file and SQLite run roots; production structural audit is read-only.
 - Routine releases are clean-revision, host-locked transactions with fixed uncached gates, capacity and port admission, immutable artifact and migration manifests, revision proofs, rollback, bounded drain, and two-artifact retention. Pre-mutation admission defers on recent swap-in; final overlap proof treats swap-in as pressure only when minimum available memory also fell below 4 GiB, while independently requiring at least 2 GiB available and two CPU cores of p95 headroom.
 - A future multiplayer connection resumes authoritative versioned state by stable session identity, catches up ordered events after its acknowledged sequence, and retries commands by idempotency identity. Server time orders durable actions; presence remains ephemeral.
 

@@ -8,7 +8,8 @@ defmodule BnestApp.Storage.Config do
   @spec pointer_path() :: String.t()
   def pointer_path do
     System.get_env("BNEST_STORAGE_CONFIG") ||
-      Path.join(Location.default_directory(), "storage.json")
+      Application.get_env(:bnest_app, :storage_config_path) ||
+      Path.join(Location.config_directory(), "storage.json")
   end
 
   @spec read() :: {:ok, map()} | {:error, :absent | :invalid}
@@ -36,6 +37,14 @@ defmodule BnestApp.Storage.Config do
     case read() do
       {:ok, %{"phase" => "sqlite_primary"}} -> :sqlite_primary
       _other -> :flat_primary
+    end
+  end
+
+  @spec database_generation() :: String.t() | nil
+  def database_generation do
+    case read() do
+      {:ok, config} -> config["databaseGeneration"]
+      {:error, _reason} -> nil
     end
   end
 
@@ -87,6 +96,47 @@ defmodule BnestApp.Storage.Config do
     updated
   end
 
+  @spec relocate!(String.t(), String.t()) :: map()
+  def relocate!(directory, generation) when is_binary(generation) and generation != "" do
+    {:ok, config} = read()
+    {:ok, validated} = Location.validate(directory)
+
+    updated =
+      config
+      |> Map.put("legacyDatabaseDirectory", config["databaseDirectory"])
+      |> Map.put("databaseDirectory", validated)
+      |> Map.put("databaseGeneration", generation)
+
+    write!(updated)
+    updated
+  end
+
+  @spec mark_legacy_retired!() :: map()
+  def mark_legacy_retired! do
+    {:ok, config} = read()
+
+    updated =
+      config
+      |> Map.delete("legacyDatabaseDirectory")
+      |> Map.put(
+        "flatFilesRetiredAt",
+        DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+      )
+
+    write!(updated)
+    updated
+  end
+
+  @spec restore!(map()) :: map()
+  def restore!(config) when is_map(config) do
+    if valid?(config) do
+      write!(config)
+      config
+    else
+      raise ArgumentError, "cannot restore an invalid storage pointer"
+    end
+  end
+
   defp guard_immutable do
     case read() do
       {:ok, _config} -> {:ok, :exists}
@@ -95,19 +145,31 @@ defmodule BnestApp.Storage.Config do
     end
   end
 
-  defp valid?(%{
-         "schemaVersion" => @schema_version,
-         "databaseDirectory" => directory,
-         "databaseFilename" => filename,
-         "phase" => phase,
-         "migrationId" => migration_id
-       })
+  defp valid?(
+         %{
+           "schemaVersion" => @schema_version,
+           "databaseDirectory" => directory,
+           "databaseFilename" => filename,
+           "phase" => phase,
+           "migrationId" => migration_id
+         } = config
+       )
        when is_binary(directory) and is_binary(filename) and
               phase in ["flat_primary", "sqlite_primary"] and
-              is_binary(migration_id),
-       do: true
+              is_binary(migration_id) do
+    valid_optional_string?(config, "databaseGeneration") and
+      valid_optional_string?(config, "legacyDatabaseDirectory") and
+      valid_optional_string?(config, "flatFilesRetiredAt")
+  end
 
   defp valid?(_config), do: false
+
+  defp valid_optional_string?(config, key) do
+    case Map.fetch(config, key) do
+      :error -> true
+      {:ok, value} -> is_binary(value) and value != ""
+    end
+  end
 
   defp write!(config) do
     path = pointer_path()

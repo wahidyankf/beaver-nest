@@ -122,11 +122,17 @@ defmodule BnestApp.DataRepository.Schema do
   end
 
   defp validate_type("bnest-test-run", record) do
-    exact?(record, ~w(schemaVersion recordType runId createdAt owner)) and id?(record["runId"]) and
-      timestamp?(record["createdAt"]) and record["owner"] == "bnest-test-harness"
+    marker_shape?(record) and id?(record["runId"]) and timestamp?(record["createdAt"]) and
+      record["owner"] == "bnest-test-harness"
   end
 
   defp validate_type(_type, _record), do: false
+
+  defp marker_shape?(record) do
+    exact?(record, ~w(schemaVersion recordType runId createdAt owner)) or
+      (exact?(record, ~w(schemaVersion recordType runId createdAt owner pid hostname)) and
+         is_binary(record["pid"]) and is_binary(record["hostname"]))
+  end
 
   defp browser_import_shape?(record) do
     exact?(

@@ -24,10 +24,17 @@ ExBdd.compile_features!(
 if System.get_env("BNEST_TEST_LAYER") == "integration" and
      Application.get_env(:bnest_app, :test_runtime_owned) do
   runtime_root = Application.fetch_env!(:bnest_app, :runtime_root)
+  sqlite_root = Application.fetch_env!(:bnest_app, :test_sqlite_root)
 
   ExUnit.after_suite(fn _result ->
     _stopped = Application.stop(:bnest_app)
     {:ok, runtime} = BnestApp.TestRuntimeRoot.validate(runtime_root)
-    :ok = BnestApp.TestRuntimeRoot.cleanup!(runtime)
+
+    :ok =
+      BnestApp.TestRuntimeRoot.cleanup!(%{
+        path: runtime_root,
+        sqlite_path: sqlite_root,
+        run_id: runtime.run_id
+      })
   end)
 end

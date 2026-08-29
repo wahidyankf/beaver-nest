@@ -16,7 +16,12 @@ defmodule BnestAppWeb.HealthControllerTest do
 
     ready = get(build_conn(), "/health/ready")
 
-    assert %{"status" => "ready", "revision" => ^revision, "sqliteReady" => false} =
+    assert %{
+             "status" => "ready",
+             "revision" => ^revision,
+             "sqliteReady" => false,
+             "storageGeneration" => nil
+           } =
              json_response(ready, 200)
   end
 
@@ -32,7 +37,7 @@ defmodule BnestAppWeb.HealthControllerTest do
       TestRuntimeRoot.cleanup!(runtime)
     end)
 
-    database_path = Path.join(runtime.path, "bnest.sqlite3")
+    database_path = Path.join(runtime.sqlite_path, "bnest.sqlite3")
     :ok = StorageCoordinator.ensure_started!(database_path)
 
     migrations_path = Application.app_dir(:bnest_app, "priv/sqlite_repo/migrations")

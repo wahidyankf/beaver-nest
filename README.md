@@ -9,7 +9,7 @@ Beaver Nest is in its first implementation stage.
 - A Phoenix LiveView chat streams local Codex responses through the official SDK, discovers the models available to the local Codex installation, and can switch models without discarding the current thread.
 - Isolated, non-routed local development can opt into hot reload.
 - A persistent Tailscale Serve route reaches a stable loopback Caddy proxy, which promotes immutable Phoenix releases without a manual browser refresh. Bnest now has one-time family-account setup, persistent per-browser login, centralized chat/learning/theme records, and recoverable browser import.
-- Centralized records move from flat files into a private local SQLite database through a headless, checksum-verified migration (`npm exec -- nx run -p bnest-app -t storage:migrate -- --activate`); flat files remain a retained rollback mirror, and an optional admin-only route selects a custom database folder before migration starts.
+- Centralized records move from flat files into a private local SQLite database through a headless, checksum-verified migration (`npm exec -- nx run -p bnest-app -t storage:migrate -- --activate`). The stable pointer remains configuration at `~/.config/bnest/storage.json`, production data defaults to `~/bnest/data/prod/bnest.sqlite3`, and verified legacy flat files are retired only after the routed service proves the relocated database generation.
 
 ## Run locally
 
@@ -71,7 +71,7 @@ apps/badakmini-cli/  F# governance CLI with unit and integration tests
 apps/badakmini-cli-e2e/  Process end-to-end tests for the CLI
 libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
 specs/apps/  Canonical application architecture and behavior specifications
-data/        Ignored `prod/` runtime records and mirrored `test/runs/` fixtures
+data/        Ignored legacy production sources and isolated flat-file test fixtures
 docs/        Diátaxis-organized, non-rule documentation
 plans/       Ideas and plans organized by delivery lifecycle
 ```

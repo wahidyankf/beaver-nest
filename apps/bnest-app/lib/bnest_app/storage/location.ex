@@ -6,8 +6,26 @@ defmodule BnestApp.Storage.Location do
   @spec filename() :: String.t()
   def filename, do: @filename
 
+  @spec config_directory() :: String.t()
+  def config_directory, do: Path.expand("~/.config/bnest")
+
+  @spec production_data_directory() :: String.t()
+  def production_data_directory, do: Path.expand("~/bnest/data/prod")
+
+  @spec test_data_directory(String.t()) :: String.t()
+  def test_data_directory(run_id) when is_binary(run_id) and run_id != "" do
+    Path.expand("~/bnest/data/test/runs/#{run_id}")
+  end
+
+  def test_data_directory(_run_id), do: raise(ArgumentError, "BNEST_TEST_RUN_ID is required")
+
   @spec default_directory() :: String.t()
-  def default_directory, do: Path.expand("~/.config/bnest")
+  def default_directory do
+    case Application.get_env(:bnest_app, :storage_profile, :production) do
+      :production -> production_data_directory()
+      {:test, run_id} -> test_data_directory(run_id)
+    end
+  end
 
   @spec validate(String.t()) :: {:ok, String.t()} | {:error, atom()}
   def validate(directory) when is_binary(directory) do
