@@ -22,6 +22,7 @@ When composing workflows:
 ## Directory Map
 
 - [Coding-harness contract change](coding-harness-contract-change.md) keeps canonical rules, skills, agents, capabilities, and native adapters synchronized across supported harnesses.
+- [Coding-harness parity verification](coding-harness-parity-verification.md) evaluates repository-owned parity across supported harnesses without changing the contract.
 - [Development server restart](development-server-restart.md) restarts an existing local server through its original tmux pane and Nx target.
 - [Development Caddy deployment](development-caddy-deployment.md) promotes verified blue/green Phoenix releases behind the stable local Caddy proxy.
 - [Development tailnet proxy](development-tailnet-proxy.md) manages a persistent private HTTPS proxy independently from app-server restarts.

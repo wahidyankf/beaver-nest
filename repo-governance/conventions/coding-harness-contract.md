@@ -37,3 +37,5 @@ The initial contract permits only root `AGENTS.md` and its exact Claude import. 
 Run `npm exec -- nx run -p badakmini-cli -t test:repo --skipNxCache` to reconcile effective content. The harness-contract validator is read-only, network-free, process-free, path-contained, and deterministic. It normalizes only a UTF-8 BOM and CRLF/LF, sorts records ordinally, hashes canonical content with SHA-256, and fails on missing, extra, stale, malformed, content-divergent, or semantically weaker adapters.
 
 Runtime discovery smoke checks remain separate because a deterministic repository validator cannot prove vendor model compliance or locally available tools.
+
+Use the [coding-harness parity verification workflow](../workflows/coding-harness-parity-verification.md) to record an evidence-backed audit without changing the contract.
