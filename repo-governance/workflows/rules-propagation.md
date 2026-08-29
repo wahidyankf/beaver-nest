@@ -33,7 +33,7 @@ Continue only when the gate identifies a material gap.
 9. **Verify.** Confirm links, affected [directory maps](../conventions/directory-maps.md), canonical ownership, lower-level alignment, and preserved existing intent. Run:
 
    ```sh
-   npm exec -- nx run -p badakmini-cli -t test:repo
+   npm run resource:run -- --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
    ```
 
 ## Outcome

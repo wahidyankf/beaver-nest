@@ -10,6 +10,7 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [Single-machine release simplification](2026-08-27__single-machine-release-simplification/README.md) completed deterministic one-machine Caddy release evidence, automatic recovery coverage, and the pending-chat regression repair.
 - [Multi-harness repository support](2026-08-28__multi-agent-repository-support/README.md) completed one canonical coding-agent contract for Codex, Claude Code, and OpenCode with deterministic Badakmini enforcement.
 - [Bnest SQLite storage](2026-08-29__bnest-sqlite-storage/README.md) completed the headless flat-file-to-SQLite migration, optional admin folder selection, and a verified active-service cutover.
+- [Resource-aware development](2026-08-29__resource-aware-development/README.md) completed evidence-backed host-pressure admission, owned-process shedding, shared release metrics, and guarded repository workflows.
 
 ## Directory Map
 
@@ -17,3 +18,4 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [Single-machine release simplification](2026-08-27__single-machine-release-simplification/README.md) contains the completed release-process assessment and delivery record.
 - [Multi-harness repository support](2026-08-28__multi-agent-repository-support/README.md) contains the completed cross-harness governance and validation record.
 - [Bnest SQLite storage](2026-08-29__bnest-sqlite-storage/README.md) contains the completed SQLite storage migration and cutover delivery record.
+- [Resource-aware development](2026-08-29__resource-aware-development/README.md) contains the completed resource-aware development and release-monitoring delivery record.

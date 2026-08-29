@@ -98,7 +98,7 @@ test("isolates release gates from production runtime configuration", () => {
 });
 
 test("waits for gate teardown before declaring CPU contention", () => {
-  const transientSamples = [850, 720, 550];
+  const transientSamples = [70, 55, 49, 48, 47];
   let pauses = 0;
   assert.equal(
     cpuHeadroomAvailable(
@@ -110,11 +110,11 @@ test("waits for gate teardown before declaring CPU contention", () => {
     ),
     true,
   );
-  assert.equal(pauses, 2);
+  assert.equal(pauses, 4);
   assert.equal(
     cpuHeadroomAvailable(
       12,
-      () => 601,
+      () => 50.1,
       () => {},
     ),
     false,
@@ -123,20 +123,21 @@ test("waits for gate teardown before declaring CPU contention", () => {
 
 test("distinguishes background swap counters from release memory pressure", () => {
   const healthy = {
-    logicalCores: 12,
-    availableMemoryMinBytes: 13.12 * 1024 ** 3,
+    availableParallelism: 12,
+    availableNonCompressedEstimateMinBytes: 13.12 * 1024 ** 3,
     memoryPressureLevelMax: 1,
-    compressorBytesPeak: 8 * 1024 ** 3,
-    physicalMemoryBytes: 32 * 1024 ** 3,
-    systemCpuP95Percent: 751.7,
+    compressorAvailableAll: true,
+    cpuUtilizationP95Percent: 75.17,
     swapInsDelta: 36,
+    swapOutsDelta: 20,
+    healthFailures: 0,
   };
 
   assert.equal(releaseResourceHeadroomAvailable(healthy), true);
   assert.equal(
     releaseResourceHeadroomAvailable({
       ...healthy,
-      availableMemoryMinBytes: 3 * 1024 ** 3,
+      availableNonCompressedEstimateMinBytes: 3 * 1024 ** 3,
     }),
     false,
   );
@@ -150,23 +151,25 @@ test("distinguishes background swap counters from release memory pressure", () =
   assert.equal(
     releaseResourceHeadroomAvailable({
       ...healthy,
-      compressorBytesPeak: 12 * 1024 ** 3,
+      compressorAvailableAll: false,
     }),
     false,
   );
   assert.equal(
     releaseResourceHeadroomAvailable({
       ...healthy,
-      availableMemoryMinBytes: 1.9 * 1024 ** 3,
+      availableNonCompressedEstimateMinBytes: 1.9 * 1024 ** 3,
       swapInsDelta: 0,
+      swapOutsDelta: 0,
     }),
     false,
   );
   assert.equal(
     releaseResourceHeadroomAvailable({
       ...healthy,
-      systemCpuP95Percent: 1000.1,
+      cpuUtilizationP95Percent: 83.4,
       swapInsDelta: 0,
+      swapOutsDelta: 0,
     }),
     false,
   );
@@ -174,17 +177,16 @@ test("distinguishes background swap counters from release memory pressure", () =
 
 test("admits release work only below measured memory pressure limits", () => {
   const healthy = {
-    availableMemoryBytes: 13 * 1024 ** 3,
+    availableNonCompressedEstimateBytes: 13 * 1024 ** 3,
     memoryPressureLevel: 1,
-    compressorBytes: 11.9 * 1024 ** 3,
-    physicalMemoryBytes: 32 * 1024 ** 3,
+    compressorAvailable: true,
   };
 
   assert.equal(releaseAdmissionMemoryAvailable(healthy), true);
   assert.equal(
     releaseAdmissionMemoryAvailable({
       ...healthy,
-      availableMemoryBytes: 8.9 * 1024 ** 3,
+      availableNonCompressedEstimateBytes: 8.9 * 1024 ** 3,
     }),
     false,
   );
@@ -195,7 +197,7 @@ test("admits release work only below measured memory pressure limits", () => {
   assert.equal(
     releaseAdmissionMemoryAvailable({
       ...healthy,
-      compressorBytes: 12 * 1024 ** 3,
+      compressorAvailable: false,
     }),
     false,
   );

@@ -36,7 +36,7 @@ Do not infer parity from matching names or counts. Content digests, canonical ro
 Run the required gate without accepting cached results:
 
 ```sh
-npm exec -- nx run -p badakmini-cli -t test:repo --skipNxCache
+npm run resource:run -- --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo --skipNxCache
 ```
 
 Record the exit status, contract digest, harness count, skill count, agent count, and capability count. On failure, review every finding by kind, field, harness, and path rather than stopping at the summary count.
@@ -46,7 +46,7 @@ Record the exit status, contract digest, harness count, skill count, agent count
 When the request includes evaluating the validator itself, run its unit, integration, and process-level behavior proof:
 
 ```sh
-npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour --skipNxCache
+npm run resource:run -- --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour --skipNxCache
 ```
 
 This additional target is optional for a routine parity check when a current matching result already exists and neither the validator nor its specifications changed.

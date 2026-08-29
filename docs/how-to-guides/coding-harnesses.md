@@ -30,7 +30,7 @@ Do not ask an agent to reveal its system prompt, credentials, local paths, or pr
 Run the deterministic repository gate:
 
 ```sh
-rtk npm exec -- nx run badakmini-cli:test:repo --skipNxCache
+rtk npm run resource:run -- --class ephemeral -- npm exec -- nx run badakmini-cli:test:repo --skipNxCache
 ```
 
 The harness-contract leaf reads committed project files only. It does not start a harness, access the network, mutate adapters, or validate user-global RTK installation.

@@ -9,6 +9,10 @@ Keep in mind that you might have to prefix things with npx/pnpx/yarn if the user
 
 For more details on any command, run it with `--help` (e.g. `nx run-many --help`, `nx affected --help`).
 
+## Repository resource guard
+
+When the workspace rule links `repo-governance/development/resource-aware-development.md`, wrap compute-bearing Nx commands through its canonical resource guard. Preserve the package-manager-prefixed inner Nx command and any repository-required shell prefix. Do not bypass, immediately retry, or parallelize an exit `75`; it means host capacity was deferred or the guarded child was shed. Run recovery and read-only status controls directly so pressure protection cannot block service restoration.
+
 ## Understand which tasks can be run
 
 You can check those via `nx show project <projectname> --json`, for example `nx show project myapp --json`. It contains a `targets` section which has information about targets that can be run. You can also just look at the `package.json` scripts or `project.json` targets, but you might miss out on inferred tasks by Nx plugins.

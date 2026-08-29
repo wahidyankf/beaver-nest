@@ -4,7 +4,8 @@ zero_oid=0000000000000000000000000000000000000000
 run_repository_check=
 
 quick_checks_for_head() {
-  NX_NO_CLOUD=true npm exec -- nx affected -t test:quick \
+  NX_NO_CLOUD=true node tools/resource-guard/cli.mjs run --class ephemeral -- \
+    npm exec -- nx affected -t test:quick --parallel=1 \
     --base=origin/main --head="$1"
 }
 
@@ -50,4 +51,5 @@ if [ -z "$run_repository_check" ]; then
   exit 0
 fi
 
-NX_NO_CLOUD=true npm exec -- nx run -p badakmini-cli -t test:repo
+NX_NO_CLOUD=true node tools/resource-guard/cli.mjs run --class ephemeral -- \
+  npm exec -- nx run -p badakmini-cli -t test:repo

@@ -67,7 +67,7 @@ When topology, accepted frontmatter, semantic capability mappings, native schema
 Always run the deterministic repository gate uncached:
 
 ```sh
-npm exec -- nx run -p badakmini-cli -t test:repo --skipNxCache
+npm run resource:run -- --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo --skipNxCache
 ```
 
 If Badakmini source, specifications, bindings, drivers, project configuration, or the push hook changed, also run the affected `test:quick`, coverage, and E2E targets required by the repository quality gates. Review findings by field and path; matching counts alone are not proof.

@@ -22,11 +22,12 @@ Define applicable project gates as Nx targets, invoke them through Nx with the w
 | `test:e2e`                | Exercise relevant journeys at the public boundary under the [end-to-end standard](end-to-end-testing.md). Dedicated harnesses must expose this target.                                          |
 | `test:quick`              | Run `typecheck` → `lint` → `test:unit` → fast coverage slices. Harnesses use `typecheck` → `lint`. Append required behavior coverage; never run integration or E2E scenarios.                   |
 | `pre-commit`              | Run deterministic staged-file checks selected by `lint-staged`.                                                                                                                                 |
-| `pre-push`                | Run affected `test:quick` gates and repository validation under the [push-hook convention](../conventions/push-hook-verification.md).                                                           |
+| `pre-push`                | Run resource-guarded, sequential affected `test:quick` gates and repository validation under the [push-hook convention](../conventions/push-hook-verification.md).                              |
 
 ## Application
 
 - Run the narrowest relevant gate during development and keep applicable gates green before completion.
+- Invoke compute-bearing local gates through [resource-aware development](resource-aware-development.md); capacity deferral is not a test failure and must not be bypassed.
 - A deliberate failing test during the red phase of [TDD](test-driven-development.md) is temporary evidence, not a completed state.
 - Run `test:quick` after the final red–green–refactor cycle. Select `test:e2e` cases according to the [end-to-end testing standard](end-to-end-testing.md).
 - Do not duplicate tool commands outside their canonical Nx target. Aggregate gates must compose named targets. Unsplit projects may use `test:coverage` directly as their single coverage target.

@@ -7,7 +7,7 @@ Fragments and query strings do not alter the target-file check. External and pro
 Badakmini enforces the rule across repository-owned Markdown through:
 
 ```sh
-npm exec -- nx run -p badakmini-cli -t test:repo
+npm run resource:run -- --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
 ```
 
 Update affected links in the same change as a move, rename, or deletion.

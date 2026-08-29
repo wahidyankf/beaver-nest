@@ -50,6 +50,7 @@
 - Before completion, stop unneeded non-production servers, watchers, candidates, and temporary proxies; retain only the active route and bounded drain.
 - Separate server/proxy lifecycles; follow [restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep [quality gates](repo-governance/development/quality-gates.md) green.
+- Run compute-bearing Nx work through the [resource guard](repo-governance/development/resource-aware-development.md); never bypass or parallel-retry exit `75`. Recovery/status controls remain direct.
 - Keep `test:e2e` outside `test:quick`; run affected cases and UI-accessibility states only. Wait for connected LiveView before interaction, and isolate user-owned records across parallel workers. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
 - Match each E2E browser origin exactly to its served application origin so LiveView/WebSocket checks are real.
 - Never test real users; use isolated `test-user-` [identities](repo-governance/development/test-identities.md); inspect production schemas read-only.

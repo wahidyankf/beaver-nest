@@ -4,7 +4,7 @@ This Nx app owns process-level end-to-end tests for `badakmini-cli`. It launches
 
 ## Tasks
 
-Run from the repository root:
+Run from the repository root through `npm run resource:run -- --class ephemeral -- <command>`:
 
 | Task                         | Command                                                              |
 | ---------------------------- | -------------------------------------------------------------------- |

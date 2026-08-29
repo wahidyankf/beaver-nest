@@ -12,11 +12,22 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { availableParallelism, freemem, tmpdir, totalmem } from "node:os";
+import { availableParallelism, cpus, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { normalizeProductionOrigin } from "./production-origin.mjs";
+import {
+  cpuUtilizationPercent,
+  defaultEvidenceRoot,
+  readHostSample,
+} from "../../../tools/resource-guard/metrics.mjs";
+import { releaseResourceHeadroomAvailable as sharedReleaseResourceHeadroomAvailable } from "../../../tools/resource-guard/policy.mjs";
+import { cleanupEvidence } from "../../../tools/resource-guard/evidence.mjs";
+import {
+  acquireSession,
+  releaseSession,
+} from "../../../tools/resource-guard/session.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const applicationRoot = resolve(import.meta.dirname, "..");
@@ -399,6 +410,8 @@ export class MachineHost {
     this.logPath = null;
     this.resourceMonitor = null;
     this.resourceSummaryPath = null;
+    this.resourceGuardRoot = defaultEvidenceRoot(environment);
+    this.resourceGuardSession = null;
   }
 
   async preflight(requestedRevision) {
@@ -420,6 +433,18 @@ export class MachineHost {
       );
     }
     rmSync(this.queuePath, { force: true });
+
+    this.resourceGuardSession = await acquireSession(this.resourceGuardRoot);
+    if (!this.resourceGuardSession)
+      throw new ReleaseError(
+        "capacity",
+        "Repository-owned development work did not release the resource lease",
+        "deferred",
+      );
+    this.environment = {
+      ...this.environment,
+      BNEST_RESOURCE_SESSION: this.resourceGuardSession.token,
+    };
 
     mkdirSync(this.logsPath, { recursive: true });
     this.logPath = join(this.logsPath, `release-${revision}.log`);
@@ -631,7 +656,11 @@ export class MachineHost {
   }
 
   async releaseLock() {
-    if (!this.lockOwned) return;
+    if (!this.lockOwned) {
+      releaseSession(this.resourceGuardRoot, this.resourceGuardSession);
+      this.resourceGuardSession = null;
+      return;
+    }
     const marker = readPrivateJson(join(this.lockPath, "owner.json"));
     if (marker.pid !== process.pid)
       throw new ReleaseError(
@@ -641,13 +670,19 @@ export class MachineHost {
     try {
       this.stopResourceMonitor();
     } finally {
-      rmSync(this.lockPath, { recursive: true });
-      this.lockOwned = false;
+      try {
+        releaseSession(this.resourceGuardRoot, this.resourceGuardSession);
+        this.resourceGuardSession = null;
+      } finally {
+        rmSync(this.lockPath, { recursive: true });
+        this.lockOwned = false;
+      }
     }
   }
 
   startResourceMonitor(revision) {
     const metricsPath = join(this.deploymentRoot, "metrics");
+    cleanupEvidence(metricsPath);
     const identifier = `${revision}-${Date.now()}-${process.pid}`;
     const outputPath = join(metricsPath, `${identifier}.jsonl`);
     this.resourceSummaryPath = join(metricsPath, `${identifier}.summary.json`);
@@ -699,6 +734,7 @@ export class MachineHost {
       return null;
     }
     this.log(`resource evidence ${basename(this.resourceSummaryPath)}`);
+    cleanupEvidence(dirname(this.resourceSummaryPath));
     return summary;
   }
 
@@ -761,12 +797,7 @@ export class MachineHost {
   }
 
   assertCapacity() {
-    const memory = {
-      availableMemoryBytes: availableMemoryBytes(),
-      compressorBytes: compressorBytes(),
-      memoryPressureLevel: memoryPressureLevel(),
-      physicalMemoryBytes: totalmem(),
-    };
+    const memory = readHostSample().sample;
     if (!releaseAdmissionMemoryAvailable(memory))
       throw new ReleaseError(
         "capacity",
@@ -966,26 +997,14 @@ function writePrivateJson(path, value) {
 }
 
 export function releaseResourceHeadroomAvailable(summary) {
-  const twoGiB = 2 * 1024 ** 3;
-  const fourGiB = 4 * 1024 ** 3;
-  const swapPressure =
-    summary.swapInsDelta > 0 && summary.availableMemoryMinBytes < fourGiB;
-  const cpuCeiling = Math.max(0, (summary.logicalCores - 2) * 100);
-
-  return (
-    summary.availableMemoryMinBytes >= twoGiB &&
-    summary.memoryPressureLevelMax === 1 &&
-    summary.compressorBytesPeak < summary.physicalMemoryBytes * 0.375 &&
-    !swapPressure &&
-    summary.systemCpuP95Percent <= cpuCeiling
-  );
+  return sharedReleaseResourceHeadroomAvailable(summary);
 }
 
 export function releaseAdmissionMemoryAvailable(snapshot) {
   return (
-    snapshot.availableMemoryBytes >= 9 * 1024 ** 3 &&
+    snapshot.availableNonCompressedEstimateBytes >= 9 * 1024 ** 3 &&
     snapshot.memoryPressureLevel === 1 &&
-    snapshot.compressorBytes < snapshot.physicalMemoryBytes * 0.375
+    snapshot.compressorAvailable === true
   );
 }
 
@@ -1008,20 +1027,23 @@ function staleProcessMarker(path) {
 function validResourceSummary(summary) {
   const numericFields = [
     "sampleCount",
-    "logicalCores",
-    "availableMemoryMinBytes",
+    "availableParallelism",
+    "availableNonCompressedEstimateMinBytes",
     "memoryPressureLevelMax",
-    "compressorBytesPeak",
+    "compressorPayloadPeakBytes",
     "physicalMemoryBytes",
-    "systemCpuP95Percent",
+    "cpuUtilizationP95Percent",
     "serviceRssPeakBytes",
     "diskFreeMinBytes",
     "swapInsDelta",
+    "swapOutsDelta",
+    "swapFreeMinBytes",
     "caddyHealthLatencyP95Ms",
     "healthFailures",
   ];
   return (
-    summary?.schemaVersion === 1 &&
+    summary?.schemaVersion === 2 &&
+    typeof summary.compressorAvailableAll === "boolean" &&
     numericFields.every(
       (field) => Number.isFinite(summary[field]) && summary[field] >= 0,
     ) &&
@@ -1062,47 +1084,31 @@ function digestDirectory(root) {
   return digest.digest("hex");
 }
 
-function availableMemoryBytes() {
-  if (process.platform !== "darwin") return freemem();
-  const result_ = spawnSync("memory_pressure", ["-Q"], { encoding: "utf8" });
-  const matched = result_.stdout?.match(/free percentage:\s*(\d+)%/u);
-  return matched ? (totalmem() * Number(matched[1])) / 100 : freemem();
-}
-
-function memoryPressureLevel() {
-  if (process.platform !== "darwin") return 1;
-  return darwinSysctlNumber("kern.memorystatus_vm_pressure_level", 4);
-}
-
-function compressorBytes() {
-  if (process.platform !== "darwin") return 0;
-  return darwinSysctlNumber("vm.compressor_bytes_used", totalmem());
-}
-
-function darwinSysctlNumber(name, fallback) {
-  const result_ = spawnSync("sysctl", ["-n", name], { encoding: "utf8" });
-  const value = Number(result_.stdout?.trim());
-  return result_.status === 0 && Number.isFinite(value) ? value : fallback;
-}
-
-function systemCpuPercent() {
-  const result_ = spawnSync("ps", ["-A", "-o", "%cpu="], { encoding: "utf8" });
-  if (result_.status !== 0) return Number.POSITIVE_INFINITY;
-  return result_.stdout
-    .trim()
-    .split(/\s+/u)
-    .reduce((total, value) => total + (Number(value) || 0), 0);
+function intervalCpuSampler() {
+  let previous = cpus().map(({ times }) => ({ ...times }));
+  return () => {
+    const current = cpus().map(({ times }) => ({ ...times }));
+    const utilization = cpuUtilizationPercent(previous, current);
+    previous = current;
+    return utilization;
+  };
 }
 
 export function cpuHeadroomAvailable(
   parallelism,
-  sample = systemCpuPercent,
+  sample = intervalCpuSampler(),
   pause = (milliseconds) =>
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds),
 ) {
-  const threshold = Math.max(0, (parallelism - 6) * 100);
+  const threshold = Math.max(0, (100 * (parallelism - 6)) / parallelism);
+  let consecutive = 0;
   for (let attempt = 0; attempt < 31; attempt += 1) {
-    if (sample() <= threshold) return true;
+    const utilization = sample();
+    consecutive =
+      Number.isFinite(utilization) && utilization <= threshold
+        ? consecutive + 1
+        : 0;
+    if (consecutive >= 3) return true;
     if (attempt < 30) pause(500);
   }
   return false;

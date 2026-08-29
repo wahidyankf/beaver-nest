@@ -8,7 +8,7 @@ This project owns governance inspection plus its unit and local-only integration
 
 ## Prerequisites and Tasks
 
-Install the repository's npm dependencies and the .NET 10 SDK. Run tasks from the repository root:
+Install the repository's npm dependencies and the .NET 10 SDK. Run tasks from the repository root through `npm run resource:run -- --class ephemeral -- <command>`:
 
 | Task                                  | Command                                                            |
 | ------------------------------------- | ------------------------------------------------------------------ |

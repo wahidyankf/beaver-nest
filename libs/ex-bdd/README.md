@@ -23,14 +23,14 @@ ExBdd.compile_features!(
 
 `ExBdd.verify_features!/1` performs the static completeness check without executing scenarios. It requires non-empty features, expanded scenarios with explicit `When` and `Then`, exactly one binding per step, and no unused binding. `:case_template` lets an integration adapter use a project-specific ExUnit case template such as a Phoenix connection case.
 
-Run tasks from the repository root:
+Run tasks from the repository root through the resource guard:
 
 ```sh
-npm exec -- nx run -p ex-bdd -t typecheck
-npm exec -- nx run -p ex-bdd -t lint
-npm exec -- nx run -p ex-bdd -t test:unit
-npm exec -- nx run -p ex-bdd -t test:coverage
-npm exec -- nx run -p ex-bdd -t test:quick
+npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t typecheck
+npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t lint
+npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:unit
+npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage
+npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:quick
 ```
 
 The coverage target includes the complete retained production engine and must remain at least 99% line-covered. Test-only support modules are excluded from the production denominator.

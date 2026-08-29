@@ -18,7 +18,7 @@ Follow each artifact's more specific ordering and verification requirements. In 
 Run applicable project tests and the repository specification-map gate:
 
 ```sh
-npm exec -- nx run -p badakmini-cli -t test:repo
+npm run resource:run -- --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
 ```
 
 The delivery report must identify the specification files updated or state that the impact check found no required specification change.
