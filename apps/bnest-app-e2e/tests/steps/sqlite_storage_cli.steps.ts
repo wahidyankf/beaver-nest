@@ -1,19 +1,11 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
-import { login } from "../support/authentication";
-import {
-  isolatedTestIdentity,
-  type TestIdentity,
-} from "../support/test-identity";
+import path from "node:path";
 import {
   cleanupStorageScenario,
   digestFile,
   isolatedStorageScenario,
   readDefaultPointer,
-  readLivePointer,
   readPointer,
   runStorageMigrate,
   seedMalformedBootstrap,
@@ -21,23 +13,22 @@ import {
   type StorageScenario,
 } from "../support/sqlite-storage";
 
+// Headless mix bnest.storage.migrate CLI flows (feature scenarios 1, 4, 5, 6,
+// 7, 8). Split out of sqlite_storage.steps.ts to stay under the repository's
+// 300-line step-file budget; the admin-UI and access-control scenarios live
+// in their own sibling files.
+
 const { Given, Then, When } = createBdd();
 
-const repositoryRoot = process.cwd();
-
-let activeIdentity: TestIdentity;
 let scenario: StorageScenario;
-let visitedStorageUI = false;
 let migrateResult: { status: number; stdout: string; stderr: string };
 let secondMigrateResult: { status: number; stdout: string; stderr: string };
-let customFolder = "";
 let fixtureFile = "";
 let fixtureDigestBefore = "";
-let livePointerBefore: Record<string, unknown> | undefined;
-let deniedRouteStatus = 0;
-let deniedRouteBody = "";
 
 // --- Scenario 1: headless default location, no browser confirmation -------
+
+let visitedStorageUI = false;
 
 Given("Bnest has no storage configuration", ({ $testInfo }) => {
   scenario = isolatedStorageScenario($testInfo, "default-location");
@@ -65,97 +56,6 @@ Then("migration does not require a browser confirmation", () => {
   expect(visitedStorageUI).toBe(false);
   expect(migrateResult.stdout).toContain("dry run complete");
   cleanupStorageScenario(scenario);
-});
-
-// --- Scenario 2: admin selects a valid custom folder ------------------------
-
-Given(
-  "an authenticated user with the admin role opened storage settings",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
-    livePointerBefore = readLivePointer();
-    const response = await page.goto("/storage");
-    expect(response?.status()).toBe(200);
-    visitedStorageUI = true;
-    await expect(
-      page.getByRole("heading", { name: "Storage setup" }),
-    ).toBeVisible();
-  },
-);
-
-Given("migration has not started", async ({ page }) => {
-  await expect(page.getByText("Status:")).toContainText("Not started");
-});
-
-When(
-  "the administrator enters a writable private server-local folder",
-  async ({ page }) => {
-    customFolder = mkdtempSync(
-      path.join(os.tmpdir(), "bnest-e2e-storage-custom-"),
-    );
-    await page
-      .getByRole("textbox", { name: "Database folder" })
-      .fill(customFolder);
-    await page.getByRole("button", { name: "Check folder" }).click();
-    await expect(page.getByText("Folder looks safe to use.")).toBeVisible();
-    await page.getByRole("button", { name: "Create database" }).click();
-    // create_database is a LiveView event; its persist happens server-side
-    // after the click resolves client-side, so poll for the write to land.
-    await expect
-      .poll(() => readLivePointer()?.["databaseDirectory"])
-      .toBe(path.resolve(customFolder));
-  },
-);
-
-Then(
-  "Bnest normalizes the folder and appends the fixed database filename",
-  () => {
-    const pointer = readLivePointer();
-    expect(pointer?.["databaseDirectory"]).toBe(path.resolve(customFolder));
-    expect(pointer?.["databaseFilename"]).toBe("bnest.sqlite3");
-  },
-);
-
-Then(
-  "Bnest stores only the validated absolute location in private machine state",
-  () => {
-    const pointer = readLivePointer();
-    expect(Object.keys(pointer ?? {}).toSorted()).toEqual(
-      [
-        "databaseDirectory",
-        "databaseFilename",
-        "migrationId",
-        "phase",
-        "schemaVersion",
-      ].toSorted(),
-    );
-    expect(String(pointer?.["databaseDirectory"])).toMatch(/^\//u);
-    rmSync(customFolder, { recursive: true, force: true });
-  },
-);
-
-// --- Scenario 3: unsafe folder rejected without mutation --------------------
-
-When(
-  "the folder is relative, symlinked, world-writable, inside the repository, or overlaps a migration source",
-  async ({ page }) => {
-    livePointerBefore = readLivePointer();
-    const unsafeFolder = path.join(repositoryRoot, "data");
-    await page
-      .getByRole("textbox", { name: "Database folder" })
-      .fill(unsafeFolder);
-    await page.getByRole("button", { name: "Check folder" }).click();
-  },
-);
-
-Then("Bnest explains the safe correction", async ({ page }) => {
-  await expect(page.getByRole("alert")).toContainText(
-    "That folder overlaps the application or a migration source.",
-  );
-});
-
-Then("Bnest creates no database or storage configuration", () => {
-  expect(readLivePointer()).toEqual(livePointerBefore);
 });
 
 // --- Scenario 4: DDL applied twice stays idempotent --------------------------
@@ -348,83 +248,3 @@ Then("the administrator sees a value-free retry category", () => {
   expect(migrateResult.stderr).not.toContain(scenario.flatRoot);
   cleanupStorageScenario(scenario);
 });
-
-// --- Scenario 9: non-admin cannot configure storage --------------------------
-
-Given("a non-admin family member is logged in", async ({ page, $testInfo }) => {
-  activeIdentity = isolatedTestIdentity($testInfo);
-  await page.context().clearCookies();
-  await login(page, activeIdentity.child);
-});
-
-When("the user opens the storage settings route", async ({ page }) => {
-  // Plug's send_resp(:not_found, ...) leaves content-type unset, which
-  // Chrome's navigation stack treats as an attachment download rather than
-  // a renderable page; page.request sidesteps navigation/download detection
-  // the same way authorization.steps.ts already does for other 404 routes.
-  const response = await page.request.get("/storage");
-  deniedRouteStatus = response.status();
-  deniedRouteBody = await response.text();
-});
-
-Then("Bnest denies the operation", () => {
-  expect(deniedRouteStatus).toBe(404);
-});
-
-Then("Bnest reveals no host path or migration inventory", () => {
-  expect(deniedRouteBody).not.toContain("Storage setup");
-  expect(deniedRouteBody).not.toContain(os.homedir());
-  expect(deniedRouteBody).not.toContain(repositoryRoot);
-});
-
-// --- Scenario 10: routed client reconnects across a compatible rollout ------
-
-let draftMessage = "";
-
-Given(
-  "the current Caddy route is healthy and a connected user has acknowledged state",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
-    await page.context().clearCookies();
-    await login(page, activeIdentity.admin);
-    await page.goto("/chat");
-    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-    draftMessage = "Unsent draft before rollout";
-    await page.getByLabel("Message").fill(draftMessage);
-  },
-);
-
-When("a revision-compatible candidate is promoted", async ({ page }) => {
-  await page.evaluate(() => {
-    const liveSocket = (
-      window as unknown as {
-        liveSocket: { connect: () => void; disconnect: () => void };
-      }
-    ).liveSocket;
-    liveSocket.disconnect();
-    liveSocket.connect();
-  });
-});
-
-Then(
-  "the routed revision and SQLite readiness are proven",
-  async ({ page }) => {
-    const ready = await page.request.get("/health/ready");
-    expect(ready.status()).toBe(200);
-    const body = await ready.json();
-    expect(typeof body.revision).toBe("string");
-    expect(typeof body.sqliteReady).toBe("boolean");
-  },
-);
-
-Then("the LiveView reconnects without a manual refresh", async ({ page }) => {
-  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-  await expect(page).toHaveURL(/\/chat$/u);
-});
-
-Then(
-  "the acknowledged state and unsent draft remain available",
-  async ({ page }) => {
-    await expect(page.getByLabel("Message")).toHaveValue(draftMessage);
-  },
-);
