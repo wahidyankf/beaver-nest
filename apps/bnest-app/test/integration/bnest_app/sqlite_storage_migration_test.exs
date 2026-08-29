@@ -1,6 +1,7 @@
 defmodule BnestApp.SqliteStorageMigrationTest do
   use ExUnit.Case, async: false
 
+  alias BnestApp.DataRepository.SqliteStore
   alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Config, as: StorageConfig
@@ -114,6 +115,32 @@ defmodule BnestApp.SqliteStorageMigrationTest do
       ])
 
     assert state == "verified"
+  end
+
+  test "verified retry preserves a newer authoritative record while reconciling sources", %{
+    flat_root: flat_root
+  } do
+    StorageConfig.ensure_default!()
+    StorageMigration.run(flat_root)
+    StorageMigration.activate!()
+
+    relative_path = theme_relative_path(flat_root)
+    ["users", user_id, "preferences", "theme.json"] = String.split(relative_path, "/")
+    store = SqliteStore.new()
+    {:ok, source} = SqliteStore.read(store, :theme, user_id)
+
+    newer =
+      source
+      |> Map.put("theme", "light")
+      |> Map.put("updatedAt", DateTime.utc_now() |> DateTime.to_iso8601())
+
+    assert {:ok, authoritative} = SqliteStore.write(store, :theme, user_id, 0, newer)
+
+    assert authoritative["revision"] == 1
+    assert StorageMigration.run(flat_root).state == "verified"
+    assert StorageMigration.parity_ok?(flat_root)
+
+    assert {:ok, ^authoritative} = SqliteStore.read(store, :theme, user_id)
   end
 
   test "a source that changes after inventory blocks cutover with a value-free retry category", %{

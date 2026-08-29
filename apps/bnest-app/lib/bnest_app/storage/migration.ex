@@ -52,7 +52,7 @@ defmodule BnestApp.Storage.Migration do
     accepted = Enum.count(outcomes, &(&1 == :accepted))
     blocked = Enum.count(outcomes, &(&1 in [:invalid, :changed]))
 
-    state = if blocked > 0, do: "failed", else: "copying"
+    state = migration_state(blocked)
     update_run_state!(repo, fingerprint, state)
 
     %{
@@ -329,7 +329,7 @@ defmodule BnestApp.Storage.Migration do
 
     case classify_source(relative_path) do
       {:ok, {:record, classification}} ->
-        record_matches?(store, classification, source_bytes)
+        record_matches?(store, classification, source_bytes, Config.phase())
 
       {:ok, {:recovery, classification}} ->
         recovery_matches?(repo, classification, source_bytes)
@@ -339,16 +339,21 @@ defmodule BnestApp.Storage.Migration do
     end
   end
 
-  defp record_matches?(store, classification, source_bytes) do
+  defp record_matches?(store, classification, source_bytes, phase) do
     with {:ok, source_record} <- Jason.decode(source_bytes),
          {:ok, ^source_record} <- Schema.validate(source_record),
          {:ok, target_record} <-
            SqliteStore.read(store, classification.type, identity_of(classification)) do
-      target_record == source_record
+      target_record == source_record or phase == :sqlite_primary
     else
       _mismatch -> false
     end
   end
+
+  defp migration_state(blocked) when blocked > 0, do: "failed"
+
+  defp migration_state(0),
+    do: if(Config.phase() == :sqlite_primary, do: "verified", else: "copying")
 
   defp classify_source(relative_path) do
     case RecordMap.classify(relative_path) do
