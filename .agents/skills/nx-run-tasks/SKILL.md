@@ -11,7 +11,7 @@ For more details on any command, run it with `--help` (e.g. `nx run-many --help`
 
 ## Repository resource guard
 
-When the workspace rule links `repo-governance/development/resource-aware-development.md`, wrap compute-bearing Nx commands through its canonical resource guard. Preserve the package-manager-prefixed inner Nx command and any repository-required shell prefix. Do not bypass, immediately retry, or parallelize an exit `75`; it means host capacity was deferred or the guarded child was shed. Run recovery and read-only status controls directly so pressure protection cannot block service restoration.
+When the workspace rule links `repo-governance/development/resource-aware-development.md`, wrap compute-bearing Nx commands for every project under `apps/` and `libs/` through its canonical resource guard. This includes current and newly added applications, E2E adapters, libraries, and repository tools with compute-bearing targets. Preserve the package-manager-prefixed inner Nx command and any repository-required shell prefix. Do not bypass, immediately retry, or parallelize an exit `75`; it means host capacity was deferred or the guarded child was shed. Run recovery and read-only status controls directly so pressure protection cannot block service restoration.
 
 ## Understand which tasks can be run
 

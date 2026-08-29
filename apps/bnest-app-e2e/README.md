@@ -8,7 +8,7 @@ This project owns thin browser bindings, browser configuration, and assertions a
 
 ## Quality Targets
 
-Install the repository dependencies and Playwright's Chromium browser, then run the Nx target from the repository root:
+Install the repository dependencies and Playwright's Chromium browser, then run the Nx target from the repository root through the workspace [resource guard](../../repo-governance/development/resource-aware-development.md):
 
 ```sh
 npm install

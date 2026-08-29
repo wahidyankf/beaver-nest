@@ -1,6 +1,6 @@
 # Resource-Aware Development
 
-Apply this standard to repository-owned development commands that compile, build, lint, test, run coverage, execute E2E, validate the repository, or start a development server. It reduces this host's measured memory-pressure risk; it does not control unrelated applications or prove that macOS cannot restart.
+Apply this standard to every current or future Nx project under `apps/` and `libs/`, plus repository-owned tools. It covers development commands that compile, build, lint, test, run coverage, execute E2E, validate the repository, or start a development server. It reduces this host's measured memory-pressure risk; it does not control unrelated applications or prove that macOS cannot restart.
 
 ## Required Behavior
 

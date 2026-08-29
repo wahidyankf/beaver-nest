@@ -23,7 +23,7 @@ ExBdd.compile_features!(
 
 `ExBdd.verify_features!/1` performs the static completeness check without executing scenarios. It requires non-empty features, expanded scenarios with explicit `When` and `Then`, exactly one binding per step, and no unused binding. `:case_template` lets an integration adapter use a project-specific ExUnit case template such as a Phoenix connection case.
 
-Run tasks from the repository root through the resource guard:
+Run tasks from the repository root through the workspace [resource guard](../../repo-governance/development/resource-aware-development.md):
 
 ```sh
 npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t typecheck

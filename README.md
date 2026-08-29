@@ -31,7 +31,7 @@ npm start
 
 Open [http://localhost:4020](http://localhost:4020). Development leases `4020`–`4029`; production remains on `4000`/`4001`, browser E2E on `4010`–`4019`, and Caddy on `4100`.
 
-The stable development server enters the repository resource guard automatically. Inspect current host state with `npm exec -- nx run -p beaver-nest -t resource:status -- --json`, or monitor transitions with `npm exec -- nx run -p beaver-nest -t resource:monitor`. Run other compute-bearing Nx work through `npm run resource:run -- --class ephemeral -- npm exec -- nx ...`; exit `75` means wait for capacity instead of bypassing or retrying concurrently. The guard controls only its own child process group and keeps private evidence bounded below `~/bnest/runtime/resource-guard/`.
+The stable development server enters the repository resource guard automatically. Inspect current host state with `npm exec -- nx run -p beaver-nest -t resource:status -- --json`, or monitor transitions with `npm exec -- nx run -p beaver-nest -t resource:monitor`. Run compute-bearing Nx work for every current or future project under `apps/` and `libs/` through `npm run resource:run -- --class ephemeral -- npm exec -- nx ...`; exit `75` means wait for capacity instead of bypassing or retrying concurrently. The guard controls only its own child process group and keeps private evidence bounded below `~/bnest/runtime/resource-guard/`.
 
 To keep private HTTPS routing available independently from Phoenix, install Caddy once, then expose its stable loopback endpoint through Tailscale without storing the machine-derived URL in the repository:
 
