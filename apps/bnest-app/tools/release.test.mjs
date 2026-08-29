@@ -11,6 +11,7 @@ import {
   executeRelease,
   gateManifest,
   ReleaseError,
+  releaseAdmissionMemoryAvailable,
   releaseResourceHeadroomAvailable,
   verifyMigrationManifest,
 } from "./release.mjs";
@@ -124,6 +125,9 @@ test("distinguishes background swap counters from release memory pressure", () =
   const healthy = {
     logicalCores: 12,
     availableMemoryMinBytes: 13.12 * 1024 ** 3,
+    memoryPressureLevelMax: 1,
+    compressorBytesPeak: 8 * 1024 ** 3,
+    physicalMemoryBytes: 32 * 1024 ** 3,
     systemCpuP95Percent: 751.7,
     swapInsDelta: 36,
   };
@@ -133,6 +137,20 @@ test("distinguishes background swap counters from release memory pressure", () =
     releaseResourceHeadroomAvailable({
       ...healthy,
       availableMemoryMinBytes: 3 * 1024 ** 3,
+    }),
+    false,
+  );
+  assert.equal(
+    releaseResourceHeadroomAvailable({
+      ...healthy,
+      memoryPressureLevelMax: 2,
+    }),
+    false,
+  );
+  assert.equal(
+    releaseResourceHeadroomAvailable({
+      ...healthy,
+      compressorBytesPeak: 12 * 1024 ** 3,
     }),
     false,
   );
@@ -149,6 +167,35 @@ test("distinguishes background swap counters from release memory pressure", () =
       ...healthy,
       systemCpuP95Percent: 1000.1,
       swapInsDelta: 0,
+    }),
+    false,
+  );
+});
+
+test("admits release work only below measured memory pressure limits", () => {
+  const healthy = {
+    availableMemoryBytes: 13 * 1024 ** 3,
+    memoryPressureLevel: 1,
+    compressorBytes: 11.9 * 1024 ** 3,
+    physicalMemoryBytes: 32 * 1024 ** 3,
+  };
+
+  assert.equal(releaseAdmissionMemoryAvailable(healthy), true);
+  assert.equal(
+    releaseAdmissionMemoryAvailable({
+      ...healthy,
+      availableMemoryBytes: 8.9 * 1024 ** 3,
+    }),
+    false,
+  );
+  assert.equal(
+    releaseAdmissionMemoryAvailable({ ...healthy, memoryPressureLevel: 2 }),
+    false,
+  );
+  assert.equal(
+    releaseAdmissionMemoryAvailable({
+      ...healthy,
+      compressorBytes: 12 * 1024 ** 3,
     }),
     false,
   );

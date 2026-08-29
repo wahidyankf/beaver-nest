@@ -12,7 +12,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { cpus, freemem, tmpdir, totalmem } from "node:os";
+import { availableParallelism, freemem, tmpdir, totalmem } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -399,7 +399,6 @@ export class MachineHost {
     this.logPath = null;
     this.resourceMonitor = null;
     this.resourceSummaryPath = null;
-    this.swapInsBaseline = null;
   }
 
   async preflight(requestedRevision) {
@@ -762,21 +761,26 @@ export class MachineHost {
   }
 
   assertCapacity() {
-    const availableMemory = availableMemoryBytes();
-    if (availableMemory < 9 * 1024 ** 3)
+    const memory = {
+      availableMemoryBytes: availableMemoryBytes(),
+      compressorBytes: compressorBytes(),
+      memoryPressureLevel: memoryPressureLevel(),
+      physicalMemoryBytes: totalmem(),
+    };
+    if (!releaseAdmissionMemoryAvailable(memory))
       throw new ReleaseError(
         "capacity",
-        "Less than 9 GiB memory is available",
+        "Memory pressure does not leave safe release headroom",
         "deferred",
       );
-    const logicalCores = cpus().length;
-    if (logicalCores < 8)
+    const parallelism = availableParallelism();
+    if (parallelism < 8)
       throw new ReleaseError(
         "capacity",
-        "Fewer than eight logical cores are available",
+        "Fewer than eight parallel execution units are available",
         "deferred",
       );
-    if (!cpuHeadroomAvailable(logicalCores))
+    if (!cpuHeadroomAvailable(parallelism))
       throw new ReleaseError(
         "capacity",
         "CPU use does not leave release and safety headroom",
@@ -789,21 +793,6 @@ export class MachineHost {
         "Less than 13 GiB release disk is available",
         "deferred",
       );
-    if (this.swapInsBaseline === null) {
-      if (recentSwapIns() > 0)
-        throw new ReleaseError(
-          "capacity",
-          "Swap-in activity is present",
-          "deferred",
-        );
-      this.swapInsBaseline = swapInCount();
-    } else if (swapInCount() > this.swapInsBaseline) {
-      throw new ReleaseError(
-        "capacity",
-        "Swap-in activity occurred during release work",
-        "deferred",
-      );
-    }
   }
 
   assertPorts(activeSlot) {
@@ -985,8 +974,18 @@ export function releaseResourceHeadroomAvailable(summary) {
 
   return (
     summary.availableMemoryMinBytes >= twoGiB &&
+    summary.memoryPressureLevelMax === 1 &&
+    summary.compressorBytesPeak < summary.physicalMemoryBytes * 0.375 &&
     !swapPressure &&
     summary.systemCpuP95Percent <= cpuCeiling
+  );
+}
+
+export function releaseAdmissionMemoryAvailable(snapshot) {
+  return (
+    snapshot.availableMemoryBytes >= 9 * 1024 ** 3 &&
+    snapshot.memoryPressureLevel === 1 &&
+    snapshot.compressorBytes < snapshot.physicalMemoryBytes * 0.375
   );
 }
 
@@ -1011,6 +1010,9 @@ function validResourceSummary(summary) {
     "sampleCount",
     "logicalCores",
     "availableMemoryMinBytes",
+    "memoryPressureLevelMax",
+    "compressorBytesPeak",
+    "physicalMemoryBytes",
     "systemCpuP95Percent",
     "serviceRssPeakBytes",
     "diskFreeMinBytes",
@@ -1067,17 +1069,20 @@ function availableMemoryBytes() {
   return matched ? (totalmem() * Number(matched[1])) / 100 : freemem();
 }
 
-function recentSwapIns() {
-  if (process.platform !== "darwin") return 0;
-  const before = swapInCount();
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
-  return Math.max(0, swapInCount() - before);
+function memoryPressureLevel() {
+  if (process.platform !== "darwin") return 1;
+  return darwinSysctlNumber("kern.memorystatus_vm_pressure_level", 4);
 }
 
-function swapInCount() {
+function compressorBytes() {
   if (process.platform !== "darwin") return 0;
-  const result_ = spawnSync("vm_stat", [], { encoding: "utf8" });
-  return Number(result_.stdout?.match(/Swapins:\s+(\d+)\./u)?.[1] ?? 0);
+  return darwinSysctlNumber("vm.compressor_bytes_used", totalmem());
+}
+
+function darwinSysctlNumber(name, fallback) {
+  const result_ = spawnSync("sysctl", ["-n", name], { encoding: "utf8" });
+  const value = Number(result_.stdout?.trim());
+  return result_.status === 0 && Number.isFinite(value) ? value : fallback;
 }
 
 function systemCpuPercent() {
@@ -1090,12 +1095,12 @@ function systemCpuPercent() {
 }
 
 export function cpuHeadroomAvailable(
-  logicalCores,
+  parallelism,
   sample = systemCpuPercent,
   pause = (milliseconds) =>
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds),
 ) {
-  const threshold = Math.max(0, (logicalCores - 6) * 100);
+  const threshold = Math.max(0, (parallelism - 6) * 100);
   for (let attempt = 0; attempt < 31; attempt += 1) {
     if (sample() <= threshold) return true;
     if (attempt < 30) pause(500);

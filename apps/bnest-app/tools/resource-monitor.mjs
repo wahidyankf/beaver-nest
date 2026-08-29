@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { appendFileSync, mkdirSync, statfsSync, writeFileSync } from "node:fs";
-import { cpus, freemem, loadavg, totalmem } from "node:os";
+import { availableParallelism, freemem, loadavg, totalmem } from "node:os";
 import { dirname } from "node:path";
 
 const outputPath = requiredArgument("--output");
@@ -18,7 +18,10 @@ function sample() {
     schemaVersion: 1,
     measuredAt: new Date().toISOString(),
     availableMemoryBytes: availableMemoryBytes(),
-    logicalCores: cpus().length,
+    memoryPressureLevel: memoryPressureLevel(),
+    compressorBytes: compressorBytes(),
+    physicalMemoryBytes: totalmem(),
+    logicalCores: availableParallelism(),
     systemCpuPercent: systemCpuPercent(),
     oneMinuteLoad: loadavg()[0],
     serviceRssBytes: serviceRssBytes(),
@@ -40,6 +43,13 @@ function finalize() {
     availableMemoryMinBytes: Math.min(
       ...samples.map(({ availableMemoryBytes }) => availableMemoryBytes),
     ),
+    memoryPressureLevelMax: Math.max(
+      ...samples.map(({ memoryPressureLevel }) => memoryPressureLevel),
+    ),
+    compressorBytesPeak: Math.max(
+      ...samples.map(({ compressorBytes }) => compressorBytes),
+    ),
+    physicalMemoryBytes: samples[0].physicalMemoryBytes,
     systemCpuP95Percent: percentile(
       samples.map(({ systemCpuPercent }) => systemCpuPercent),
       0.95,
@@ -79,6 +89,22 @@ function availableMemoryBytes() {
   const result = spawnSync("memory_pressure", ["-Q"], { encoding: "utf8" });
   const matched = result.stdout?.match(/free percentage:\s*(\d+)%/u);
   return matched ? (totalmem() * Number(matched[1])) / 100 : freemem();
+}
+
+function memoryPressureLevel() {
+  if (process.platform !== "darwin") return 1;
+  return darwinSysctlNumber("kern.memorystatus_vm_pressure_level", 4);
+}
+
+function compressorBytes() {
+  if (process.platform !== "darwin") return 0;
+  return darwinSysctlNumber("vm.compressor_bytes_used", totalmem());
+}
+
+function darwinSysctlNumber(name, fallback) {
+  const result = spawnSync("sysctl", ["-n", name], { encoding: "utf8" });
+  const value = Number(result.stdout?.trim());
+  return result.status === 0 && Number.isFinite(value) ? value : fallback;
 }
 
 function systemCpuPercent() {
