@@ -84,6 +84,7 @@ export function readHostSample(previousCpuTimes = null, options = {}) {
     cpus,
     now: () => new Date(),
     spawnSync,
+    statfsSync,
     totalmem,
     ...options.dependencies,
   };
@@ -113,7 +114,7 @@ export function readHostSample(previousCpuTimes = null, options = {}) {
   let diskFreeBytes = null;
   if (options.diskPath) {
     try {
-      const disk = statfsSync(options.diskPath);
+      const disk = dependencies.statfsSync(options.diskPath);
       diskFreeBytes = disk.bavail * disk.bsize;
     } catch {
       diskFreeBytes = null;

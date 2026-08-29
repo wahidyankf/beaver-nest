@@ -16,6 +16,8 @@ Canonical guarded execution is:
 npm run resource:run -- --class ephemeral -- npm exec -- nx run -p <project> -t <target>
 ```
 
+The plugin-free `resource-guard` Nx project owns lint and test lifecycle targets. Root `npm run resource:status`, `resource:monitor`, and `resource:run` remain direct Node bootstrap entry points so admission occurs before Nx starts the protected workload.
+
 Repository agents additionally retain the required `rtk` prefix. Use `service` only for a non-production long-running server and `transactional` only for an admitted mutation.
 
 ## Admission and Shedding
@@ -36,4 +38,4 @@ The shared collector derives CPU from cumulative CPU-time deltas. It records exp
 
 Development evidence defaults to private `~/bnest/runtime/resource-guard/` state. Raw samples expire after seven days, summaries after thirty days, and total files remain below 50 MiB. Evidence contains no command arguments, origins, application paths, credentials, or user data.
 
-Verify changes through `beaver-nest:resource:test`, affected guarded Nx gates, and the repository gate. Use deterministic fake pressure in tests; never endanger the host to prove shedding.
+Verify changes through `resource-guard:test`, affected guarded Nx gates, and the repository gate. Use deterministic fake pressure in tests; never endanger the host to prove shedding.

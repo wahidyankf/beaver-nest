@@ -1,0 +1,157 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "resource-guard",
+  "root": "tools/resource-guard",
+  "targets": {
+    "status": {
+      "command": "node cli.mjs status",
+      "options": {
+        "cwd": "tools/resource-guard",
+        "forwardAllArgs": true
+      },
+      "cache": false
+    },
+    "monitor": {
+      "command": "node cli.mjs monitor",
+      "options": {
+        "cwd": "tools/resource-guard"
+      },
+      "continuous": true,
+      "cache": false
+    },
+    "run": {
+      "command": "node cli.mjs run",
+      "options": {
+        "cwd": "tools/resource-guard",
+        "forwardAllArgs": true
+      },
+      "cache": false
+    },
+    "format": {
+      "command": "npm exec -- prettier --write . ../../apps/bnest-app/tools/release.mjs ../../apps/bnest-app/tools/resource-monitor.mjs ../../apps/bnest-app/tools/serve.mjs",
+      "options": {
+        "cwd": "tools/resource-guard"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/apps/bnest-app/tools/release.mjs",
+        "{workspaceRoot}/apps/bnest-app/tools/resource-monitor.mjs",
+        "{workspaceRoot}/apps/bnest-app/tools/serve.mjs",
+        "{workspaceRoot}/.husky/pre-push"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "node --check metrics.mjs && node --check policy.mjs && node --check evidence.mjs && node --check session.mjs && node --check guard.mjs && node --check cli-application.mjs && node --check cli.mjs && node --check metrics-policy.test.mjs && node --check resource-guard.integration.test.mjs",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node --check ../../apps/bnest-app/tools/release.mjs && node --check ../../apps/bnest-app/tools/resource-monitor.mjs && node --check ../../apps/bnest-app/tools/serve.mjs && zsh -n ../../.husky/pre-push",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- prettier --check . ../../apps/bnest-app/tools/release.mjs ../../apps/bnest-app/tools/resource-monitor.mjs ../../apps/bnest-app/tools/serve.mjs",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "tools/resource-guard",
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
+    "test:unit": {
+      "command": "node --test metrics-policy.test.mjs",
+      "options": {
+        "cwd": "tools/resource-guard"
+      },
+      "cache": true
+    },
+    "test:integration": {
+      "command": "node --test resource-guard.integration.test.mjs",
+      "options": {
+        "cwd": "tools/resource-guard"
+      },
+      "cache": false
+    },
+    "test:coverage:unit": {
+      "command": "node --experimental-test-coverage --test --test-coverage-include=metrics.mjs --test-coverage-include=policy.mjs --test-coverage-include=cli-application.mjs --test-coverage-lines=99 metrics-policy.test.mjs",
+      "options": {
+        "cwd": "tools/resource-guard"
+      },
+      "cache": true
+    },
+    "test:coverage:integration": {
+      "command": "node --experimental-test-coverage --test --test-coverage-include=evidence.mjs --test-coverage-include=guard.mjs --test-coverage-include=session.mjs --test-coverage-lines=99 resource-guard.integration.test.mjs",
+      "options": {
+        "cwd": "tools/resource-guard"
+      },
+      "cache": false
+    },
+    "test:coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:integration",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:integration",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    },
+    "test:quick": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p resource-guard -t lint",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:unit",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    }
+  },
+  "tags": ["type:tool", "scope:workspace"]
+}

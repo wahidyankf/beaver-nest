@@ -3,7 +3,7 @@
   "name": "bnest-app",
   "projectType": "application",
   "root": "apps/bnest-app",
-  "implicitDependencies": ["ex-bdd"],
+  "implicitDependencies": ["ex-bdd", "resource-guard"],
   "targets": {
     "serve": {
       "command": "node tools/serve.mjs",

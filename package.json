@@ -20,9 +20,9 @@
     "resource:status": "node tools/resource-guard/cli.mjs status",
     "resource:monitor": "node tools/resource-guard/cli.mjs monitor",
     "resource:run": "node tools/resource-guard/cli.mjs run",
-    "resource:lint": "node --check tools/resource-guard/metrics.mjs && node --check tools/resource-guard/policy.mjs && node --check tools/resource-guard/evidence.mjs && node --check tools/resource-guard/session.mjs && node --check tools/resource-guard/guard.mjs && node --check tools/resource-guard/cli.mjs && node --check apps/bnest-app/tools/release.mjs && node --check apps/bnest-app/tools/resource-monitor.mjs && node --check apps/bnest-app/tools/serve.mjs && zsh -n .husky/pre-push && npm exec -- prettier --check tools/resource-guard apps/bnest-app/tools/release.mjs apps/bnest-app/tools/resource-monitor.mjs apps/bnest-app/tools/serve.mjs",
-    "resource:format": "npm exec -- prettier --write tools/resource-guard apps/bnest-app/tools/release.mjs apps/bnest-app/tools/resource-monitor.mjs apps/bnest-app/tools/serve.mjs",
-    "resource:test": "node --test tools/resource-guard/resource-guard.test.mjs",
+    "resource:lint": "node tools/resource-guard/cli.mjs run --class ephemeral -- npm exec -- nx run -p resource-guard -t lint",
+    "resource:format": "node tools/resource-guard/cli.mjs run --class ephemeral -- npm exec -- nx run -p resource-guard -t format",
+    "resource:test": "node tools/resource-guard/cli.mjs run --class ephemeral -- npm exec -- nx run -p resource-guard -t test",
     "test": "node tools/resource-guard/cli.mjs run --class ephemeral -- npm exec -- nx run -p bnest-app -t test:unit",
     "test:e2e": "node tools/resource-guard/cli.mjs run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:e2e"
   },
@@ -55,7 +55,11 @@
     "tailwindcss": "^4.3.0",
     "typescript": "^7.0.2"
   },
-  "nx": {},
+  "nx": {
+    "implicitDependencies": [
+      "resource-guard"
+    ]
+  },
   "dependencies": {
     "@openai/codex-sdk": "0.149.1"
   }
