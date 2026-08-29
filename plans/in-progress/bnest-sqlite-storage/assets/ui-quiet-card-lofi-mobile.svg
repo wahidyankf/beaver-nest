@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" role="img" aria-labelledby="title desc">
+  <title id="title">Quiet card lo-fi storage setup on mobile</title>
+  <desc id="desc">A compact mobile card presents the database folder, one note, and one primary action.</desc>
+  <rect width="390" height="844" fill="#f2f3f5"/><rect x="20" y="25" width="130" height="22" rx="7" fill="#b8bcc4"/>
+  <rect x="16" y="82" width="358" height="650" rx="16" fill="#fff" stroke="#8d929b" stroke-width="2"/>
+  <rect x="42" y="126" width="230" height="27" rx="6" fill="#61656d"/><rect x="42" y="172" width="286" height="13" rx="5" fill="#c1c4ca"/>
+  <text x="42" y="246" font-family="sans-serif" font-size="17" fill="#42464d">Database folder</text><rect x="42" y="264" width="306" height="74" rx="8" fill="#fff" stroke="#777c85" stroke-width="2"/>
+  <text x="56" y="307" font-family="monospace" font-size="15" fill="#555a62">~/.config/bnest/</text><rect x="42" y="370" width="306" height="120" rx="8" fill="#e3e5e8"/>
+  <circle cx="68" cy="406" r="9" fill="#777c85"/><rect x="94" y="400" width="210" height="13" rx="5" fill="#a1a5ad"/><rect x="94" y="433" width="180" height="12" rx="5" fill="#b2b5bb"/>
+  <rect x="42" y="548" width="306" height="60" rx="8" fill="#555a62"/><text x="195" y="585" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#fff">Move data</text>
+</svg>

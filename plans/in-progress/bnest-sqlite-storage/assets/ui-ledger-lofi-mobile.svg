@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" role="img" aria-labelledby="title desc">
+  <title id="title">Migration ledger lo-fi storage setup on mobile</title>
+  <desc id="desc">Five connected storage states stack vertically with a bottom move-data action on mobile.</desc>
+  <rect width="390" height="844" fill="#f2f3f5"/><rect x="20" y="24" width="130" height="22" rx="7" fill="#b8bcc4"/>
+  <rect x="14" y="76" width="362" height="744" rx="16" fill="#fff" stroke="#8d929b" stroke-width="2"/><rect x="38" y="111" width="260" height="27" rx="6" fill="#61656d"/>
+  <rect x="38" y="166" width="314" height="88" rx="9" fill="#e3e5e8"/><path d="M62 300V650" stroke="#8d929b" stroke-width="4"/>
+  <circle cx="62" cy="305" r="11" fill="#666b74"/><circle cx="62" cy="395" r="11" fill="#a7abb2"/><circle cx="62" cy="480" r="11" fill="#a7abb2"/><circle cx="62" cy="565" r="11" fill="#a7abb2"/><circle cx="62" cy="650" r="11" fill="#a7abb2"/>
+  <text x="93" y="310" font-family="sans-serif" font-size="17" fill="#42464d">Database folder</text><rect x="93" y="330" width="242" height="50" rx="7" fill="#fff" stroke="#8d929b"/>
+  <text x="93" y="401" font-family="sans-serif" font-size="17" fill="#42464d">Source inventory</text><text x="93" y="486" font-family="sans-serif" font-size="17" fill="#42464d">Copy records</text><text x="93" y="571" font-family="sans-serif" font-size="17" fill="#42464d">Verify and restore</text><text x="93" y="656" font-family="sans-serif" font-size="17" fill="#42464d">Activate SQLite</text>
+  <rect x="38" y="715" width="314" height="58" rx="8" fill="#555a62"/>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="900" viewBox="0 0 800 900" role="img" aria-labelledby="title desc">
+  <title id="title">Migration ledger lo-fi storage setup on tablet</title>
+  <desc id="desc">A single tablet column places the safety summary above five connected migration rows.</desc>
+  <rect width="800" height="900" fill="#f2f3f5"/><rect x="38" y="34" width="160" height="26" rx="8" fill="#b8bcc4"/>
+  <rect x="60" y="100" width="680" height="730" rx="16" fill="#fff" stroke="#8d929b" stroke-width="3"/><rect x="110" y="145" width="320" height="29" rx="6" fill="#61656d"/>
+  <rect x="110" y="205" width="580" height="90" rx="10" fill="#e3e5e8"/><path d="M140 360V710" stroke="#8d929b" stroke-width="4"/>
+  <circle cx="140" cy="365" r="13" fill="#666b74"/><circle cx="140" cy="450" r="13" fill="#a7abb2"/><circle cx="140" cy="535" r="13" fill="#a7abb2"/><circle cx="140" cy="620" r="13" fill="#a7abb2"/><circle cx="140" cy="705" r="13" fill="#a7abb2"/>
+  <text x="185" y="370" font-family="sans-serif" font-size="19" fill="#42464d">Database folder</text><rect x="185" y="390" width="460" height="48" rx="7" fill="#fff" stroke="#8d929b"/>
+  <text x="185" y="456" font-family="sans-serif" font-size="19" fill="#42464d">Source inventory</text><text x="185" y="541" font-family="sans-serif" font-size="19" fill="#42464d">Copy records</text><text x="185" y="626" font-family="sans-serif" font-size="19" fill="#42464d">Verify and restore</text><text x="185" y="711" font-family="sans-serif" font-size="19" fill="#42464d">Activate SQLite</text>
+  <rect x="470" y="750" width="175" height="52" rx="8" fill="#555a62"/>
+</svg>
