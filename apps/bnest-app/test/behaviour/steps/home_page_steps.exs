@@ -160,6 +160,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the in-progress turn resumes once or fails safely without duplication", context do
+    assert context.behaviour_driver.in_progress_turn_recovered?(context)
+    context
+  end
+
   step "Codex reports public progress", context do
     context.behaviour_driver.report_public_codex_progress(context)
   end

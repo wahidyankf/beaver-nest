@@ -88,7 +88,9 @@ for await (const line of lines) {
       thread_id: resumedThreadId || newThreadId,
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 750));
+    const responseDelay =
+      message.prompt === "Resume after deployment" ? 2_000 : 750;
+    await new Promise((resolve) => setTimeout(resolve, responseDelay));
 
     if (message.prompt === "Are you there?") {
       output({ type: "error", message: "Codex is not available." });

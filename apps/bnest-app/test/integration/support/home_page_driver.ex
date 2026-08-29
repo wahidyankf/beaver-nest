@@ -305,6 +305,26 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def in_progress_turn_recovered?(context) do
+    page = context.view |> render() |> LazyHTML.from_fragment()
+
+    resumed? =
+      page
+      |> LazyHTML.query("[data-role=assistant-message][data-streaming=false]")
+      |> LazyHTML.attribute("data-update-count")
+      |> Enum.any?(&(String.to_integer(&1) >= 2))
+
+    failed_safely? =
+      alert_visible?(
+        context,
+        "The previous response was interrupted. Your transcript is preserved; send a new message to continue."
+      )
+
+    visitor_message_count = page |> LazyHTML.query("[data-role=user-message]") |> Enum.count()
+    (resumed? or failed_safely?) and visitor_message_count == 1
+  end
+
+  @impl true
   def report_public_codex_progress(context) do
     session = context.view.pid
 

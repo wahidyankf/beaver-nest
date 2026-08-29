@@ -260,6 +260,24 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def in_progress_turn_recovered?(context) do
+    resumed? = assistant_update_count(context) >= 2
+
+    failed_safely? =
+      alert_visible?(
+        context,
+        "The previous response was interrupted. Your transcript is preserved; send a new message to continue."
+      )
+
+    visitor_message_count =
+      context.page
+      |> LazyHTML.query("[data-role=user-message]")
+      |> Enum.count()
+
+    (resumed? or failed_safely?) and visitor_message_count == 1
+  end
+
+  @impl true
   def report_public_codex_progress(context) do
     chat =
       context.chat

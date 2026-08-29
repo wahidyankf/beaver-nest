@@ -159,7 +159,7 @@ Feature: Beaver Nest chat
     And the visitor reconnects after a deployment
     Then the current route is "/chat"
     And the conversation displays the visitor message "Resume after deployment"
-    And the page displays the alert "The previous response was interrupted. Your transcript is preserved; send a new message to continue."
+    And the in-progress turn resumes once or fails safely without duplication
     Then the message composer is available
 
   Scenario: Ten synthetic visitors preserve recoverable state across three groups

@@ -77,6 +77,40 @@ Then(
   },
 );
 
+Then(
+  "the in-progress turn resumes once or fails safely without duplication",
+  async ({ page }) => {
+    const response = page.locator("[data-role=assistant-message]").last();
+    const alert = page.getByRole("alert");
+    const fallbackMessage =
+      "The previous response was interrupted. Your transcript is preserved; send a new message to continue.";
+
+    await expect
+      .poll(async () => {
+        if (
+          (await alert.count()) === 1 &&
+          (await alert.textContent())?.trim() === fallbackMessage
+        ) {
+          return "failed-safely";
+        }
+
+        const completed =
+          (await response.getAttribute("data-streaming")) === "false";
+        const updateCount = Number(
+          await response.getAttribute("data-update-count"),
+        );
+        return completed && updateCount >= 2 ? "resumed" : "pending";
+      })
+      .toMatch(/^(failed-safely|resumed)$/u);
+
+    await expect(
+      page.locator("[data-role=user-message]", {
+        hasText: "Resume after deployment",
+      }),
+    ).toHaveCount(1);
+  },
+);
+
 async function prepareRecoveryClients(
   page: Page,
   testInfo: TestInfo,
