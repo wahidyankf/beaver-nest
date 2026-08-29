@@ -45,6 +45,7 @@ Run project tasks from the repository root:
 | Benchmark the password verifier      | `npm exec -- nx run -p bnest-app -t identity:benchmark`                                        |
 | Relocate authoritative SQLite data   | `npm exec -- nx run -p bnest-app -t storage:relocate`                                          |
 | Retire verified legacy storage       | `npm exec -- nx run -p bnest-app -t storage:retire -- --root <root> --generation <generation>` |
+| Purge legacy production test records | `npm exec -- nx run -p bnest-app -t storage:purge-test-data -- --generation <generation>`      |
 | Clean stale isolated test data       | `npm exec -- nx run -p bnest-app -t test-data:cleanup`                                         |
 
 `test:quick` runs type checking, linting, unit execution, unit coverage, and static behavior completeness. It intentionally excludes integration runtime and E2E execution. Both numeric coverage slices use Mix line coverage and fail below 99%.

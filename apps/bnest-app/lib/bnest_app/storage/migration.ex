@@ -3,6 +3,7 @@ defmodule BnestApp.Storage.Migration do
 
   alias BnestApp.DataRepository.CanonicalJson
   alias BnestApp.DataRepository.Schema
+  alias BnestApp.DataRepository.SqliteStore
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Config
   alias BnestApp.Storage.RecordMap
@@ -10,6 +11,7 @@ defmodule BnestApp.Storage.Migration do
   import Ecto.Query
 
   @migration_id "flat-files-v1-to-sqlite-v1"
+  @id_pattern ~r/\A[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}\z/u
 
   @spec migration_id() :: String.t()
   def migration_id, do: @migration_id
@@ -17,10 +19,10 @@ defmodule BnestApp.Storage.Migration do
   @spec inventory(String.t()) :: [String.t()]
   def inventory(flat_root) do
     flat_root
-    |> Path.join("**/*.json")
+    |> Path.join("**/*")
     |> Path.wildcard()
     |> Enum.map(&Path.relative_to(&1, flat_root))
-    |> Enum.filter(&match?({:ok, _classification}, RecordMap.classify(&1)))
+    |> Enum.filter(&match?({:ok, _classification}, classify_source(&1)))
     |> Enum.sort()
   end
 
@@ -70,24 +72,10 @@ defmodule BnestApp.Storage.Migration do
 
   @spec parity_ok?(String.t(), module()) :: boolean()
   def parity_ok?(flat_root, repo \\ SqliteRepo) do
-    alias BnestApp.DataRepository.SqliteStore
-
     store = SqliteStore.new(repo)
 
     inventory(flat_root)
-    |> Enum.all?(fn relative_path ->
-      {:ok, classification} = RecordMap.classify(relative_path)
-      source_bytes = File.read!(Path.join(flat_root, relative_path))
-
-      with {:ok, source_record} <- Jason.decode(source_bytes),
-           {:ok, ^source_record} <- Schema.validate(source_record),
-           {:ok, target_record} <-
-             SqliteStore.read(store, classification.type, identity_of(classification)) do
-        target_record == source_record
-      else
-        _mismatch -> false
-      end
-    end)
+    |> Enum.all?(&source_matches?(repo, store, flat_root, &1))
   end
 
   @spec integrity_ok?(module()) :: boolean()
@@ -118,7 +106,7 @@ defmodule BnestApp.Storage.Migration do
   end
 
   defp process_item(repo, flat_root, relative_path) do
-    {:ok, classification} = RecordMap.classify(relative_path)
+    {:ok, source} = classify_source(relative_path)
     source_bytes = File.read!(Path.join(flat_root, relative_path))
     source_sha256 = sha256(source_bytes)
 
@@ -132,7 +120,7 @@ defmodule BnestApp.Storage.Migration do
         upsert_item!(
           repo,
           relative_path,
-          classification,
+          item_classification(source),
           source_sha256,
           nil,
           "changed",
@@ -142,11 +130,17 @@ defmodule BnestApp.Storage.Migration do
         :changed
 
       true ->
-        accept_or_reject(repo, relative_path, classification, source_bytes, source_sha256)
+        accept_or_reject(repo, relative_path, source, source_bytes, source_sha256)
     end
   end
 
-  defp accept_or_reject(repo, relative_path, classification, source_bytes, source_sha256) do
+  defp accept_or_reject(
+         repo,
+         relative_path,
+         {:record, classification},
+         source_bytes,
+         source_sha256
+       ) do
     with {:ok, record} <- Jason.decode(source_bytes),
          {:ok, ^record} <- Schema.validate(record) do
       target_sha256 = CanonicalJson.sha256(record)
@@ -176,6 +170,59 @@ defmodule BnestApp.Storage.Migration do
         )
 
         :invalid
+    end
+  end
+
+  defp accept_or_reject(
+         repo,
+         relative_path,
+         {:recovery, classification},
+         source_bytes,
+         source_sha256
+       ) do
+    now = timestamp()
+
+    repo.insert_all(
+      "bnest_recovery_sources",
+      [
+        %{
+          owner_kind: classification.owner_kind,
+          owner_key: classification.owner_key,
+          import_id: classification.import_id,
+          payload_blob: source_bytes,
+          payload_sha256: source_sha256,
+          byte_size: byte_size(source_bytes),
+          inserted_at: now
+        }
+      ],
+      on_conflict: :nothing,
+      conflict_target: [:owner_kind, :owner_key, :import_id]
+    )
+
+    if recovery_matches?(repo, classification, source_bytes) do
+      upsert_item!(
+        repo,
+        relative_path,
+        recovery_item_classification(classification),
+        source_sha256,
+        source_sha256,
+        "accepted",
+        nil
+      )
+
+      :accepted
+    else
+      upsert_item!(
+        repo,
+        relative_path,
+        recovery_item_classification(classification),
+        source_sha256,
+        nil,
+        "invalid",
+        "recovery_collision"
+      )
+
+      :invalid
     end
   end
 
@@ -276,6 +323,88 @@ defmodule BnestApp.Storage.Migration do
   end
 
   defp identity_of(%{record_key: key}), do: key
+
+  defp source_matches?(repo, store, flat_root, relative_path) do
+    source_bytes = File.read!(Path.join(flat_root, relative_path))
+
+    case classify_source(relative_path) do
+      {:ok, {:record, classification}} ->
+        record_matches?(store, classification, source_bytes)
+
+      {:ok, {:recovery, classification}} ->
+        recovery_matches?(repo, classification, source_bytes)
+
+      {:error, :unsupported_source} ->
+        false
+    end
+  end
+
+  defp record_matches?(store, classification, source_bytes) do
+    with {:ok, source_record} <- Jason.decode(source_bytes),
+         {:ok, ^source_record} <- Schema.validate(source_record),
+         {:ok, target_record} <-
+           SqliteStore.read(store, classification.type, identity_of(classification)) do
+      target_record == source_record
+    else
+      _mismatch -> false
+    end
+  end
+
+  defp classify_source(relative_path) do
+    case RecordMap.classify(relative_path) do
+      {:ok, classification} -> {:ok, {:record, classification}}
+      {:error, :unsupported_source} -> classify_recovery_source(relative_path)
+    end
+  end
+
+  defp classify_recovery_source(relative_path) do
+    case String.split(relative_path, "/") do
+      ["apps", "beaver-nest", "legacy", import_id, "source.bin"] ->
+        recovery_classification("app", "beaver-nest", import_id)
+
+      ["users", owner_key, "legacy", import_id, "source.bin"] ->
+        recovery_classification("user", owner_key, import_id)
+
+      _unsupported ->
+        {:error, :unsupported_source}
+    end
+  end
+
+  defp recovery_classification(owner_kind, owner_key, import_id) do
+    if Regex.match?(@id_pattern, owner_key) and Regex.match?(@id_pattern, import_id) do
+      {:ok, {:recovery, %{owner_kind: owner_kind, owner_key: owner_key, import_id: import_id}}}
+    else
+      {:error, :unsupported_source}
+    end
+  end
+
+  defp recovery_item_classification(classification) do
+    %{
+      record_type: "recovery-source",
+      record_key:
+        Enum.join(
+          [classification.owner_kind, classification.owner_key, classification.import_id],
+          ":"
+        )
+    }
+  end
+
+  defp item_classification({:record, classification}), do: classification
+
+  defp item_classification({:recovery, classification}),
+    do: recovery_item_classification(classification)
+
+  defp recovery_matches?(repo, classification, source_bytes) do
+    expected_sha256 = sha256(source_bytes)
+
+    case repo.query!(
+           "SELECT payload_blob, payload_sha256, byte_size FROM bnest_recovery_sources WHERE owner_kind = ? AND owner_key = ? AND import_id = ?",
+           [classification.owner_kind, classification.owner_key, classification.import_id]
+         ).rows do
+      [[^source_bytes, ^expected_sha256, byte_size]] -> byte_size == byte_size(source_bytes)
+      _mismatch -> false
+    end
+  end
 
   defp source_sha256(flat_root, relative_path) do
     Path.join(flat_root, relative_path) |> File.read!() |> sha256()

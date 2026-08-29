@@ -143,6 +143,7 @@ defmodule BnestApp.MixProject do
       BnestApp.Storage.RecordMap,
       BnestApp.Storage.Relocation,
       BnestApp.Storage.Retirement,
+      BnestApp.Storage.TestDataCleanup,
       BnestAppWeb.BootstrapController,
       BnestAppWeb.ChatLive,
       BnestAppWeb.DataMigrationLive,
@@ -157,7 +158,8 @@ defmodule BnestApp.MixProject do
       Mix.Tasks.Bnest.Schema.Audit,
       Mix.Tasks.Bnest.Storage.Migrate,
       Mix.Tasks.Bnest.Storage.Relocate,
-      Mix.Tasks.Bnest.Storage.Retire
+      Mix.Tasks.Bnest.Storage.Retire,
+      Mix.Tasks.Bnest.Storage.PurgeTestData
     ]
 
     {output, layer_exclusions} =

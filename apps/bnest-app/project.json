@@ -158,6 +158,14 @@
       },
       "cache": false
     },
+    "storage:purge-test-data": {
+      "command": "BNEST_STABLE=true MIX_ENV=dev mix bnest.storage.purge_test_data",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": true
+      },
+      "cache": false
+    },
     "test-data:cleanup": {
       "command": "node tools/test-data-cleanup.mjs",
       "options": {

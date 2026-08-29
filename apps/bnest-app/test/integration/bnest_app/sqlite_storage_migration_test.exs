@@ -33,7 +33,7 @@ defmodule BnestApp.SqliteStorageMigrationTest do
   } do
     result = StorageMigration.run(flat_root)
 
-    assert result.accepted == 2
+    assert result.accepted == 4
     assert result.blocked == 0
     assert result.unsupported == 0
     assert result.state == "copying"
@@ -48,8 +48,20 @@ defmodule BnestApp.SqliteStorageMigrationTest do
         "SELECT source_sha256, target_sha256 FROM bnest_migration_items WHERE outcome = 'accepted'"
       )
 
-    assert length(rows) == 2
+    assert length(rows) == 4
     assert Enum.all?(rows, fn [source, target] -> is_binary(source) and is_binary(target) end)
+
+    %{rows: recovery_rows} =
+      SqliteRepo.query!(
+        "SELECT payload_blob, payload_sha256, byte_size FROM bnest_recovery_sources ORDER BY owner_kind"
+      )
+
+    assert length(recovery_rows) == 2
+
+    assert Enum.all?(recovery_rows, fn [payload, checksum, size] ->
+             byte_size(payload) == size and
+               Base.encode16(:crypto.hash(:sha256, payload), case: :lower) == checksum
+           end)
   end
 
   test "retrying the same migration identifier does not rewrite or duplicate accepted items", %{
@@ -65,10 +77,10 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     %{rows: [[items_after_second]]} =
       SqliteRepo.query!("SELECT count(*) FROM bnest_migration_items")
 
-    assert first.accepted == 2
-    assert second.accepted == 2
+    assert first.accepted == 4
+    assert second.accepted == 4
     assert items_after_first == items_after_second
-    assert items_after_first == 2
+    assert items_after_first == 4
   end
 
   test "an isolated restore rehearsal proves the database without mutating the live copy", %{
@@ -108,7 +120,7 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     flat_root: flat_root
   } do
     first = StorageMigration.run(flat_root)
-    assert first.accepted == 2
+    assert first.accepted == 4
     assert first.blocked == 0
 
     theme_path = Path.join(flat_root, theme_relative_path(flat_root))
@@ -170,6 +182,18 @@ defmodule BnestApp.SqliteStorageMigrationTest do
       "updatedAt" => now
     })
 
+    write_binary_fixture!(
+      root,
+      "apps/beaver-nest/legacy/import-app-backup/source.bin",
+      "app recovery bytes"
+    )
+
+    write_binary_fixture!(
+      root,
+      "users/#{user_id}/legacy/import-user-backup/source.bin",
+      "user recovery bytes"
+    )
+
     :ok
   end
 
@@ -177,6 +201,12 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     path = Path.join(root, relative_path)
     File.mkdir_p!(Path.dirname(path))
     File.write!(path, Jason.encode!(record))
+  end
+
+  defp write_binary_fixture!(root, relative_path, bytes) do
+    path = Path.join(root, relative_path)
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, bytes)
   end
 
   defp unique_suffix, do: Base.url_encode64(:crypto.strong_rand_bytes(6), padding: false)
