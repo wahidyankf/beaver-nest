@@ -28,4 +28,5 @@
 ## Log
 
 - 2026-08-29 — Planning inventory confirmed that SQLite had not yet been selected and the existing release controller deliberately rejects non-empty migration sets until a concrete adapter is approved.
-- 2026-08-29 — The storage UI must serve two boundaries: pre-account setup for fresh installations and admin-only migration for existing flat-primary installations.
+- 2026-08-29 — Default migration must run through managed/headless tooling without a storage-UI visit; UI is optional only for a custom pre-migration folder and status/retry review.
+- 2026-08-29 — SQLite activation occurs automatically after verified migration; repository migration rules require legacy flat-file deletion to run through the separately authorized retirement plan, which has no arbitrary waiting period beyond its safety gates.

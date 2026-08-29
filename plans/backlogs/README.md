@@ -8,8 +8,8 @@ Before starting work, confirm that the plan still matches current repository evi
 
 ## Backlog Plans
 
-No plans are currently backlogged.
+- [Bnest flat-file retirement](bnest-flat-file-retirement/README.md) — remove verified legacy Bnest flat-file data immediately after the SQLite cutover plan and SQLite-only rollback floor pass.
 
 ## Directory Map
 
-No sibling entries exist in this directory.
+- [`bnest-flat-file-retirement/`](bnest-flat-file-retirement/README.md) — queued destructive contraction after verified SQLite activation.

@@ -26,12 +26,12 @@ Inventory follows only these exact templates, rejects symlinks, and validates th
 
 1. Use `Ecto.Repo`, `ecto_sql`, and `ecto_sqlite3` (which uses Exqlite) rather than raw driver calls. Ecto owns committed DDL and transactions; the existing Bnest facade remains the product boundary. Do not add `phoenix_ecto` unless implementation actually needs its changeset form or exception protocols. See the official [adapter options](https://ecto-sqlite3.hexdocs.pm/Ecto.Adapters.SQLite3.html), [release-capable migrator](https://ecto-sql.hexdocs.pm/Ecto.Migrator.html), and [Phoenix/Ecto protocol scope](https://phoenix-ecto.hexdocs.pm/).
 2. Preserve current typed record maps as validated JSON documents in one relational envelope. Feature-specific normalization is deferred; this minimizes migration surface and keeps readers stable.
-3. The stable configuration pointer is `~/.config/bnest/storage.json` unless `BNEST_STORAGE_CONFIG` explicitly selects another machine-local pointer. The UI selects a directory only. Bnest appends the fixed `bnest.sqlite3` filename.
+3. The stable configuration pointer is `~/.config/bnest/storage.json` unless `BNEST_STORAGE_CONFIG` explicitly selects another machine-local pointer. If it is absent, managed migration uses the default directory without UI. The optional UI selects a directory only before migration; Bnest appends `bnest.sqlite3`.
 4. Default production database path is `~/.config/bnest/bnest.sqlite3`; `~` is expanded server-side and the stored value is absolute. Database, `-wal`, `-shm`, configuration, and recovery files stay ignored and private.
 5. The committed DDL file is `apps/bnest-app/priv/sqlite_repo/migrations/20260829000000_create_bnest_storage.exs`. DDL never scans flat files. Data copying is owned by adapter `flat-files-v1-to-sqlite-v1`, called by the UI or the reproducible `bnest-app:storage:migrate` Nx target through the same domain module.
-6. Schema migration never runs implicitly on ordinary application startup. UI or managed release tooling calls `Ecto.Migrator.with_repo/3` under the host migration lock.
+6. Schema migration never runs implicitly on ordinary application startup. Managed release/headless tooling is the default caller of `Ecto.Migrator.with_repo/3`; optional UI calls the same domain module only for a custom pre-migration location or retry.
 7. SQLite uses WAL, foreign keys, `synchronous: :full`, an execution-measured bounded busy timeout, and a small pool. Exact pool/timeout values are accepted only after overlap tests; initial test candidates are pool 5 and 5,000 ms.
-8. SQLite becomes primary only after the incompatible flat-only slot is retired. Flat compatibility remains during rollback; deletion and reader removal need a later plan.
+8. SQLite becomes primary automatically after the incompatible slot retires and all migration proofs pass, without UI confirmation. Flat compatibility remains only until the separately gated [retirement plan](../../backlogs/bnest-flat-file-retirement/README.md) removes it.
 
 ## Target Architecture
 
@@ -46,9 +46,9 @@ flowchart LR
     sqlite[(SQLite primary)]
     release[Release controller]
 
-    admin -->|Select folder| ui
-    ui -->|Validate and migrate| coordinator
-    release -->|Lock and eligibility| coordinator
+    admin -->|Optional override| ui
+    ui -->|Persist custom path| coordinator
+    release -->|Default migration| coordinator
     coordinator -->|Inventory and mirror| flat
     coordinator -->|DDL and backfill| sqlite
     facade -->|Phase-routed calls| coordinator
@@ -67,7 +67,7 @@ flowchart LR
 
 ## UI Design
 
-The representative task is an existing family administrator moving household data on the Bnest host. The interface uses real copy such as “Database folder,” “This folder is on the Bnest computer,” and “Move data.” New setup reuses the selected structure but replaces migration status with “Create database” and then continues account setup.
+The representative UI task is an authenticated existing user with the `admin` role optionally changing the database folder before the headless move. The default path requires no visit. Non-admin users cannot open the route or learn its path/status. After migration starts, location editing locks while status and safe retry remain available.
 
 ### Alternatives
 
@@ -125,7 +125,7 @@ The pointer is atomically written with mode `0600`; its parent is `0700`. It con
 }
 ```
 
-`phase` is `flat_primary` or `sqlite_primary`. Missing configuration means storage setup is required for a fresh install or legacy flat-primary mode for an existing install. The location validator expands `~`, requires an absolute server path owned by the service account, rejects symlink components and world-writable parents, and rejects repository, legacy source, deployment artifact, and test-run overlap. It creates no path until the user confirms. Once DDL begins, directory and filename cannot change.
+`phase` is `flat_primary` or `sqlite_primary`. Missing configuration means managed migration resolves `~/.config/bnest/`; it never means a UI visit is required. The location validator expands `~`, requires an absolute server path owned by the service account, rejects symlink components and world-writable parents, and rejects repository, legacy source, deployment artifact, and test-run overlap. Headless tooling may create the validated default; UI creates no custom path until confirmation. Once DDL begins, directory and filename cannot change.
 
 ## SQLite Schema Contract
 
@@ -198,9 +198,9 @@ SQLite integrity proof runs `PRAGMA quick_check`; parity compares the full suppo
 ## Expand → Migrate → Verify → Contract
 
 1. **Expand:** update specs and Gherkin first; add Ecto dependencies, migration file, adapters, coordinator, UI, release manifest support, and tests. Deploy while `flat_primary`; the candidate must remain compatible when SQLite is not configured.
-2. **Migrate:** after Caddy promotes the expand revision and the incompatible slot drains and retires, an admin selects the folder. The coordinator acquires the host lock, applies DDL, inventories sources, and backfills idempotently. Ordinary startup never owns this transition.
-3. **Verify:** prove schema checksum, normal reads, parity, quick check, isolated restore, restart, representative synthetic user flows, and rollback-reader compatibility. Then atomically change the pointer to `sqlite_primary` and prove the same journeys again.
-4. **Contract:** keep the flat reader and compatibility mirror for the stated rollback window and retained artifact. Releasing or deleting flat sources, mirror code, or `BNEST_RUNTIME_ROOT` occurs only in a later authorized plan.
+2. **Migrate:** after Caddy promotes the expand revision and the incompatible slot drains and retires, managed tooling uses the default unless an admin previously saved a custom folder. The coordinator acquires the host lock, applies DDL, inventories sources, and backfills idempotently. Ordinary startup never owns this transition.
+3. **Verify:** prove schema checksum, normal reads, parity, quick check, isolated restore, restart, representative synthetic user flows, and rollback-reader compatibility. The same managed run then atomically changes the pointer to `sqlite_primary` without UI confirmation and proves the journeys again.
+4. **Contract:** keep the flat reader and compatibility mirror only until this plan passes and the explicitly authorized [flat-file retirement plan](../../backlogs/bnest-flat-file-retirement/README.md) establishes an SQLite-only rollback floor; that later plan owns deletion.
 
 During `flat_primary`, flat files are authoritative and SQLite is a verified mirror. During `sqlite_primary`, SQLite is authoritative; compatibility writes remain observable and block rollback eligibility when mirror parity is pending. If cross-store synchronization cannot be made failure-atomic, implement a SQLite outbox and reconciler rather than acknowledging a write that makes rollback silently stale.
 
@@ -243,11 +243,11 @@ Plan acceptance AC-01 through AC-08 becomes durable behavior or architecture bec
 ### [N] `specs/apps/bnest/app/behaviours/sqlite_storage.feature`
 
 ```diff
-+ New setup proposes the private default SQLite folder.
-+ Administrator selects a valid custom database folder.
++ Managed migration uses the private default without storage UI.
++ Administrator optionally selects a valid custom database folder.
 + Unsafe database folder is rejected without mutation.
 + Versioned SQLite migration creates the expected schema once.
-+ Existing administrator migrates every recognized flat-file record.
++ Managed migration moves every recognized flat-file record.
 + Interrupted migration resumes idempotently.
 + SQLite becomes authoritative only after complete verification.
 + Invalid or changed source blocks cutover without data loss.
@@ -272,8 +272,8 @@ Plan acceptance AC-01 through AC-08 becomes durable behavior or architecture bec
 ### [E] `specs/apps/bnest/app/behaviours/authentication.feature`
 
 ```diff
-- Initial setup begins directly with account creation.
-+ Initial setup requires ready SQLite storage before account creation.
+- Initial setup begins directly with account creation on flat storage.
++ Initial setup ensures default SQLite storage without a separate storage-UI prerequisite.
 ```
 
 - = Preserve redirect, password, roles, session, multi-browser, logout, and cross-user isolation scenarios.

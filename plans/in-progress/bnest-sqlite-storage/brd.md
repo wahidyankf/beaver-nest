@@ -7,26 +7,26 @@ Replace Bnest's interim production flat-file store with a private, configurable 
 ## Roles
 
 - **Family member:** keeps using chat, learning, theme, login, and logout without understanding storage internals.
-- **Administrator:** chooses the server-side database folder, reviews safety status, starts or retries migration, and sees a value-free result.
+- **Administrator:** optionally replaces the default server-side database folder before migration and reviews value-free status or retry outcomes.
 - **Maintainer:** deploys compatible revisions, verifies recovery and routed behavior, and retains rollback capacity.
 - **Bnest application:** validates storage configuration, serializes migration, preserves sources, and refuses unsafe authority changes.
 
 ## Required Outcomes
 
-- A fresh installation proposes `~/.config/bnest/` and creates `bnest.sqlite3` there unless the administrator chooses another valid server-local directory.
-- An existing installation copies every recognized current record into SQLite through one reproducible schema migration and one checksum-identified backfill.
-- SQLite becomes authoritative only after read-back, parity, restart, and isolated restore proof.
+- A fresh or existing installation uses `~/.config/bnest/bnest.sqlite3` when no explicit custom location exists; visiting storage UI is not required.
+- An existing installation copies every recognized current record through one reproducible headless schema migration and checksum-identified backfill.
+- SQLite becomes authoritative automatically in the same managed run after read-back, parity, restart, and isolated restore proof; no browser confirmation intervenes.
 - Unknown, malformed, changed, or unsupported sources remain untouched and are reported with a safe retry category.
 - Existing authenticated journeys and sessions remain usable across Caddy promotion and compatible LiveView reconnect without a manual refresh.
 - A failed migration leaves the current flat-file route healthy and retryable.
 
 ## Business Rules
 
-- Only an administrator may configure or migrate an existing installation. Before any accounts exist, the storage step is part of the already one-time setup boundary.
-- The browser selects a folder on the Bnest host, not a folder on the browser device.
+- Managed release/headless tooling may migrate without a browser step. Only an authenticated user with the `admin` role may open storage UI or override the default before migration starts; fresh installs therefore use the headless default.
+- The optional browser UI selects a folder on the Bnest host, not a folder on the browser device.
 - The UI never displays record values, password material, token digests, user identifiers, or recovery contents.
 - An initialized database location is immutable in this plan. Relocation requires a later migration plan.
-- Destructive flat-file cleanup is not implied by successful cutover.
+- Destructive flat-file cleanup is owned by the explicitly authorized follow-up plan and may begin immediately after this plan's acceptance gates pass.
 
 ## Non-goals
 
