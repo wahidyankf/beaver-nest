@@ -4,7 +4,8 @@ Apply this standard to every current or future Nx project under `apps/` and `lib
 
 ## Required Behavior
 
-- Run compute-bearing Nx work through the resource guard. Treat exit `75` as temporary capacity deferral or pressure shedding; wait for recovery instead of bypassing it or retrying concurrently.
+- Run compute-bearing Nx work through the resource guard. Exit `75` is a transient capacity outcome, not a task or test failure and not permission to abandon the objective.
+- After exit `75`, wait for recovery, then retry the same canonical guarded command sequentially and let the guard reassess admission. Treat a shed attempt as incomplete and rerun it from the beginning. Never bypass the guard, retry concurrently, weaken the gate, or change task class merely to gain admission.
 - The stable development `serve`, managed release, and pre-push hook enter the guard automatically. Recovery, proxy status, rollback, retire, and tailnet controls remain directly available.
 - Use `transactional` admission for storage mutation or another command that must not be killed after starting. Never use that class to exempt ordinary build or test work.
 - The guard may signal only the child process group it created. It must never stop production Bnest, Caddy, Tailscale, another application, or an unverified PID.
