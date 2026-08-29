@@ -1,6 +1,8 @@
 defmodule BnestApp.DataRepository.Store do
   @moduledoc false
 
+  @behaviour BnestApp.DataRepository.Backend
+
   alias BnestApp.DataRepository.Schema
 
   @id_pattern ~r/\A[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}\z/u

@@ -3,6 +3,7 @@ defmodule BnestApp.DataRepository do
 
   use GenServer
 
+  alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.DataRepository.Store
 
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -12,22 +13,37 @@ defmodule BnestApp.DataRepository do
   def store, do: GenServer.call(__MODULE__, :store)
 
   @spec read(atom(), term()) :: {:ok, map()} | {:error, atom()}
-  def read(type, identity), do: Store.read(store(), type, identity)
+  def read(type, identity) do
+    {backend, state} = backend()
+    backend.read(state, type, identity)
+  end
 
   @spec write(atom(), term(), non_neg_integer() | nil, map()) ::
           {:ok, map()} | {:error, atom()}
-  def write(type, identity, expected_revision, candidate),
-    do: Store.write(store(), type, identity, expected_revision, candidate)
+  def write(type, identity, expected_revision, candidate) do
+    {backend, state} = backend()
+    backend.write(state, type, identity, expected_revision, candidate)
+  end
 
   @spec put_new(atom(), term(), map()) :: {:ok, map()} | {:error, atom()}
-  def put_new(type, identity, candidate), do: Store.put_new(store(), type, identity, candidate)
+  def put_new(type, identity, candidate) do
+    {backend, state} = backend()
+    backend.put_new(state, type, identity, candidate)
+  end
 
   @spec replace(atom(), term(), map()) :: {:ok, map()} | {:error, atom()}
-  def replace(type, identity, candidate), do: Store.replace(store(), type, identity, candidate)
+  def replace(type, identity, candidate) do
+    {backend, state} = backend()
+    backend.replace(state, type, identity, candidate)
+  end
 
   @spec remove_exact(atom(), term(), map()) :: :ok | {:error, atom()}
-  def remove_exact(type, identity, expected),
-    do: Store.remove_exact(store(), type, identity, expected)
+  def remove_exact(type, identity, expected) do
+    {backend, state} = backend()
+    backend.remove_exact(state, type, identity, expected)
+  end
+
+  defp backend, do: StorageCoordinator.active_backend(store())
 
   @impl GenServer
   def init(options), do: {:ok, options |> Keyword.fetch!(:root) |> Store.new!()}

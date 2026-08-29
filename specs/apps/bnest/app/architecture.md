@@ -28,7 +28,7 @@ flowchart TB
     class caddy system
 ```
 
-Bnest is a 24/7 family service, private to the local host and family devices routed through Tailscale Serve and a stable loopback Caddy proxy. Caddy promotes a healthy blue or green Phoenix release with a bounded WebSocket drain; compatible LiveView clients reconnect without a manual refresh. Elixir/OTP and Phoenix were selected for supervision, process isolation, and concurrent long-lived LiveView sessions. Approved users authenticate before protected access. Bnest keeps user-owned state in a server-managed flat-file runtime root; it has no public registration, cloud database, or uploads.
+Bnest is a 24/7 family service, private to the local host and family devices routed through Tailscale Serve and a stable loopback Caddy proxy. Caddy promotes a healthy blue or green Phoenix release with a bounded WebSocket drain; compatible LiveView clients reconnect without a manual refresh. Elixir/OTP and Phoenix were selected for supervision, process isolation, and concurrent long-lived LiveView sessions. Approved users authenticate before protected access. Bnest keeps user-owned state in a server-managed local SQLite database with a retained flat-file rollback mirror; it has no public registration, cloud database, or uploads.
 
 ## Container View
 
@@ -45,12 +45,14 @@ flowchart TB
         browser["Container<br/><b>Browser / installed PWA</b><br/>HTML, CSS, JavaScript<br/>LiveView client"]
         legacy[("Container / data store<br/><b>Browser legacy sources</b><br/>Allow-listed values<br/>Retained until accepted import")]
         phoenix["Container<br/><b>Phoenix LiveView application</b><br/>Elixir / Phoenix / Bandit"]
-        runtime[("Container / data store<br/><b>Runtime flat files</b><br/>Accounts and sessions<br/>Manifests and user records")]
+        runtime[("Container / data store<br/><b>Local SQLite database</b><br/>Accounts and sessions<br/>Manifests and user records")]
+        mirror[("Container / data store<br/><b>Runtime flat files</b><br/>Rollback mirror<br/>Retained sources")]
         bridge["Container<br/><b>Codex bridge processes</b><br/>Node.js / Codex SDK and CLI"]
 
         browser -->|HTTP and WebSocket<br/>events and renders| phoenix
         browser -->|Confirmed<br/>compatibility import| legacy
         phoenix -->|Typed atomic operations| runtime
+        phoenix -->|Compatibility mirror| mirror
         phoenix -->|Ports and JSON lines| bridge
     end
 
@@ -65,12 +67,12 @@ flowchart TB
     classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
     class visitor person
     class browser,phoenix,bridge container
-    class legacy,runtime data
+    class legacy,runtime,mirror data
     class tailscale,codex external
     class caddy container
 ```
 
-The Phoenix server, runtime repository, and Node bridges run on the home host. Caddy is a separate loopback container between Tailscale and blue/green Phoenix releases. OTP supervision recovers failed child processes inside one running application; replacement starts and proves the alternate release before Caddy promotes it. Production resolves `data/prod/` once before supervision; filesystem tests use one marked mirror below `data/test/runs/`.
+The Phoenix server, SQLite storage, flat-file rollback mirror, and Node bridges run on the home host. Caddy is a separate loopback container between Tailscale and blue/green Phoenix releases. OTP supervision recovers failed child processes inside one running application; replacement starts and proves the alternate release before Caddy promotes it. The storage pointer at `~/.config/bnest/storage.json` resolves the SQLite database directory once managed migration activates it; the flat-file mirror still resolves `data/prod/` once before supervision, and filesystem tests use one marked mirror below `data/test/runs/`.
 
 ## Release and Resumable State
 
@@ -132,7 +134,7 @@ flowchart TB
 
         identity["Component<br/><b>Identity</b><br/>Bootstrap and login<br/>Sessions and roles"]
         auth["Component<br/><b>Authorization</b><br/>Capability plus ownership checks"]
-        repository["Component<br/><b>Data repository</b><br/>Schemas, paths, locks<br/>Atomic writes"]
+        repository["Component<br/><b>Data repository</b><br/>Schemas, coordinator<br/>Ecto repo and phase"]
         imports["Component<br/><b>Import and recovery</b><br/>Envelopes and manifests<br/>Retry and restore"]
 
         subgraph chat_area["Chat components"]

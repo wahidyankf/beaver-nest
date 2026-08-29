@@ -405,6 +405,17 @@ test("accepts only an empty checksum-verified migration set", () => {
       }),
     /checksum does not match/u,
   );
+  const approvedMigrations = [{ id: "flat-files-v1-to-sqlite-v1" }];
+  const approvedChecksum = createHash("sha256")
+    .update(JSON.stringify(approvedMigrations))
+    .digest("hex");
+  assert.equal(
+    verifyMigrationManifest({
+      migrations: approvedMigrations,
+      migrationSetChecksum: approvedChecksum,
+    }),
+    "declared",
+  );
   const declaredMigrations = [{ id: "expand-1" }];
   const declaredChecksum = createHash("sha256")
     .update(JSON.stringify(declaredMigrations))

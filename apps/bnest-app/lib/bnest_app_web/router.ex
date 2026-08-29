@@ -20,6 +20,10 @@ defmodule BnestAppWeb.Router do
     plug :require_open_setup
   end
 
+  pipeline :admin_only do
+    plug :require_admin_role
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
   end
@@ -57,6 +61,15 @@ defmodule BnestAppWeb.Router do
       live "/chat", ChatLive
       live "/apps/sifat-allah", SifatAllahLive
       live "/data-migration", DataMigrationLive
+    end
+  end
+
+  scope "/", BnestAppWeb do
+    pipe_through [:browser, :authenticated_browser, :admin_only]
+
+    live_session :storage_admin,
+      on_mount: [{BnestAppWeb.UserAuth, :require_authenticated_user}] do
+      live "/storage", StorageLive
     end
   end
 

@@ -78,6 +78,12 @@ The routed HTTPS service must start with `BNEST_COOKIE_SECURE=true`; `BNEST_IDEN
 
 Chat, Sifat Allah progress, and explicit theme preference are versioned user-owned JSON records. The typed repository derives paths from the authenticated user, validates schemas, locks per path, writes a temporary file, atomically replaces, and reads the result back. Mutable records require the last revision. Browser import reads only `bnest.chat.v1`, `bnest.sifat-allah.v1`, and `phx:theme`; it keeps an immutable envelope and manifest, normalizes and reads the destination through the normal repository, then removes only the accepted browser key. Unknown, malformed, oversized, interrupted, or stale sources remain in the browser and cannot replace accepted data. Immutable envelopes, legacy copies, manifests, and old readers are retained for recovery.
 
+## SQLite Storage
+
+Bnest's user-owned state moves from the flat-file runtime root into a private local SQLite database while keeping the flat files as a retained rollback mirror. The stable pointer at `~/.config/bnest/storage.json` (or `BNEST_STORAGE_CONFIG` for machine-local overrides) resolves the database directory and the `flat_primary`/`sqlite_primary` phase; it is absent-safe, so managed migration resolves the default directory and runs headlessly with no browser visit. An authenticated `admin`-role user may optionally select a different private, writable, non-symlinked, non-world-writable folder outside the repository and migration sources before migration starts; the folder and filename are immutable once the database exists.
+
+The versioned DDL migration at `priv/sqlite_repo/migrations/` never scans flat files; data copying is owned by the reproducible `flat-files-v1-to-sqlite-v1` backfill adapter (`lib/bnest_app/storage/migration.ex`), which the headless `mix bnest.storage.migrate` task (Nx target `storage:migrate`) and the optional `/storage` admin LiveView both call through the same domain module. Every recognized source is inventoried in deterministic path order, copied with immutable source/target checksum evidence, and read back through the normal repository before SQLite becomes authoritative; a changed or malformed source blocks the phase switch without mutating the flat-primary service, and retrying the same migration identifier never rewrites or duplicates accepted items. Activation requires schema, backfill, parity, integrity (`PRAGMA quick_check`), and an isolated `VACUUM INTO` restore rehearsal to all pass first. Repo queries never log record payloads (`log: false` on `BnestApp.SqliteRepo`), keeping migration output as value-free as the flat-file adapter it replaces.
+
 ## Visual Language
 
 Every Bnest interface uses the **Nest workshop** visual language defined by the `--bnest-*` tokens in [`assets/css/app.css`](assets/css/app.css). Reuse those tokens rather than adding page-local colors, fonts, corner treatments, or shadows.
@@ -112,8 +118,11 @@ The test environment substitutes a deterministic model catalog and session, and 
 
 - `lib/bnest_app/` contains the OTP application, identity boundary, and typed data repository.
 - `lib/bnest_app/codex/` owns the SDK subprocess protocol and resumable session lifecycle.
-- `lib/bnest_app_web/` contains the endpoint, protected router, authentication/import controllers and LiveViews, chat/learning LiveViews, and components.
+- `lib/bnest_app/storage/` and `lib/bnest_app/data_repository/sqlite_store.ex` own SQLite location validation, the storage pointer, the flat-file backfill adapter, and the phase-aware storage coordinator.
+- `lib/mix/tasks/bnest.storage.migrate.ex` runs the headless flat-file-to-SQLite migration without a browser visit.
+- `lib/bnest_app_web/` contains the endpoint, protected router, authentication/import controllers and LiveViews, chat/learning LiveViews, the admin-only storage LiveView, and components.
 - `priv/codex/` contains the SDK chat runner and the app-server model discovery helper.
+- `priv/sqlite_repo/migrations/` contains the versioned, committed SQLite DDL.
 - `assets/` contains browser JavaScript, CSS, and declaration boundaries used for strict checking.
 - `config/` contains compile-time and runtime environment configuration.
 - `tools/deployment.mjs` owns machine-local Caddy, release-slot, and rollback primitives.

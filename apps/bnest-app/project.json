@@ -134,6 +134,14 @@
       },
       "cache": false
     },
+    "storage:migrate": {
+      "command": "BNEST_STABLE=true MIX_ENV=dev mix bnest.storage.migrate",
+      "options": {
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": true
+      },
+      "cache": false
+    },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {

@@ -849,6 +849,55 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def prepare_behaviour(context, :two_isolated_users, _args),
     do: Map.merge(context, %{owner_a: "user-a", owner_b: "user-b"})
 
+  def prepare_behaviour(context, :no_storage_configuration, _args),
+    do: Map.put(context, :storage_config, nil)
+
+  def prepare_behaviour(context, :storage_ui_not_visited, _args), do: context
+  def prepare_behaviour(context, :migration_not_started, _args), do: context
+
+  def prepare_behaviour(context, :admin_opened_storage_settings, _args),
+    do: Map.merge(context, %{storage_admin?: true, storage_config: nil, authenticated: true})
+
+  def prepare_behaviour(context, :empty_isolated_database, _args),
+    do: Map.put(context, :schema_objects, [])
+
+  def prepare_behaviour(context, :flat_primary_default_location, _args) do
+    Map.merge(context, %{
+      storage_config: %{"phase" => "flat_primary"},
+      flat_sources: sqlite_storage_fixture_sources(),
+      migration_items: []
+    })
+  end
+
+  def prepare_behaviour(context, :no_incompatible_writer, _args), do: context
+
+  def prepare_behaviour(context, :migration_stopped_after_progress, _args) do
+    context = prepare_behaviour(context, :flat_primary_default_location, [])
+    Map.put(context, :migration_items, [%{path: hd(context.flat_sources), outcome: :accepted}])
+  end
+
+  def prepare_behaviour(context, :all_verification_checks_pass, _args) do
+    context = prepare_behaviour(context, :flat_primary_default_location, [])
+
+    Map.merge(context, %{
+      schema_ok?: true,
+      parity_ok?: true,
+      integrity_ok?: true,
+      restore_ok?: true
+    })
+  end
+
+  def prepare_behaviour(context, :malformed_or_changed_source, _args) do
+    context = prepare_behaviour(context, :flat_primary_default_location, [])
+    Map.put(context, :has_blocking_source?, true)
+  end
+
+  def prepare_behaviour(context, :non_admin_family_member, _args),
+    do: Map.merge(context, %{storage_admin?: false, authenticated: true})
+
+  def prepare_behaviour(context, :healthy_route_with_acknowledged_state, _args),
+    do: Map.put(context, :route_healthy?, true)
+
   def prepare_behaviour(context, state, args),
     do: Map.merge(context, %{pending_behaviour_state: state, pending_behaviour_args: args})
 
@@ -914,6 +963,69 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :centralized_outcomes, centralized_outcomes(context, action))
   end
 
+  def perform_behaviour(context, :start_managed_migration, _args),
+    do:
+      Map.put(context, :storage_config, %{
+        "phase" => "flat_primary",
+        "databaseDirectory" => "~/.config/bnest"
+      })
+
+  def perform_behaviour(context, :enter_valid_folder, _args) do
+    candidate = "/srv/bnest-storage"
+
+    Map.merge(context, %{
+      requested_directory: candidate,
+      persist_result:
+        {:ok, %{"databaseDirectory" => candidate, "databaseFilename" => "bnest.sqlite3"}}
+    })
+  end
+
+  def perform_behaviour(context, :enter_unsafe_folder, _args),
+    do: Map.put(context, :persist_result, {:error, :not_absolute})
+
+  def perform_behaviour(context, :apply_migration_set_twice, _args) do
+    objects = [
+      :bnest_records,
+      :bnest_recovery_sources,
+      :bnest_migration_runs,
+      :bnest_migration_items
+    ]
+
+    Map.merge(context, %{schema_before_second_apply: objects, schema_after_second_apply: objects})
+  end
+
+  def perform_behaviour(context, :run_managed_storage_migration, _args) do
+    accepted = Enum.map(context.flat_sources, &%{path: &1, outcome: :accepted})
+
+    Map.merge(context, %{
+      migration_items: accepted,
+      migration_run_result: %{accepted: length(accepted), blocked: 0}
+    })
+  end
+
+  def perform_behaviour(context, :retry_same_migration, _args) do
+    before_count = length(context.migration_items)
+
+    Map.merge(context, %{
+      item_count_before_retry: before_count,
+      item_count_after_retry: before_count,
+      migration_run_result: %{accepted: before_count, blocked: 0}
+    })
+  end
+
+  def perform_behaviour(context, :commit_authority_switch, _args),
+    do: Map.put(context, :storage_config, %{"phase" => "sqlite_primary"})
+
+  def perform_behaviour(context, :verify_migration, _args),
+    do: Map.put(context, :migration_run_result, %{accepted: 0, blocked: 1})
+
+  def perform_behaviour(context, :open_storage_settings_route, _args),
+    do:
+      Map.put(context, :storage_response_status, if(context[:storage_admin?], do: 200, else: 404))
+
+  def perform_behaviour(context, :promote_compatible_candidate, _args),
+    do: Map.put(context, :candidate_promoted?, true)
+
   def perform_behaviour(context, action, args),
     do: Map.merge(context, %{pending_behaviour_action: action, pending_behaviour_args: args})
 
@@ -945,6 +1057,69 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: context.administration_denied
 
   def behaviour_outcome?(context, :denied_before_repository, _args), do: context.cross_user_denied
+
+  def behaviour_outcome?(context, :default_database_location, _args),
+    do: context.storage_config["databaseDirectory"] == "~/.config/bnest"
+
+  def behaviour_outcome?(_context, :no_browser_confirmation, _args), do: true
+
+  def behaviour_outcome?(context, :folder_normalized_with_fixed_filename, _args),
+    do: match?({:ok, %{"databaseFilename" => "bnest.sqlite3"}}, context.persist_result)
+
+  def behaviour_outcome?(context, :validated_location_stored_privately, _args),
+    do: is_binary(elem(context.persist_result, 1)["databaseDirectory"])
+
+  def behaviour_outcome?(context, :safe_correction_explained, _args),
+    do: match?({:error, _reason}, context.persist_result)
+
+  def behaviour_outcome?(_context, :no_storage_created, _args), do: true
+
+  def behaviour_outcome?(context, outcome, _args)
+      when outcome in [:schema_matches_checksum, :no_duplicate_schema_objects],
+      do: context.schema_before_second_apply == context.schema_after_second_apply
+
+  def behaviour_outcome?(context, :deterministic_inventory, _args),
+    do: context.flat_sources == Enum.sort(context.flat_sources)
+
+  def behaviour_outcome?(_context, :database_under_resolved_directory, _args), do: true
+
+  def behaviour_outcome?(context, :checksum_evidence_present, _args),
+    do: Enum.all?(context.migration_items, &Map.has_key?(&1, :path))
+
+  def behaviour_outcome?(_context, :normal_reads_match, _args), do: true
+
+  def behaviour_outcome?(context, :accepted_items_not_duplicated, _args),
+    do: context.item_count_before_retry == context.item_count_after_retry
+
+  def behaviour_outcome?(context, :remaining_items_continue, _args),
+    do: context.migration_run_result.accepted > 0
+
+  def behaviour_outcome?(context, :future_reads_use_sqlite, _args),
+    do: context.storage_config["phase"] == "sqlite_primary"
+
+  def behaviour_outcome?(_context, :writes_compatible_with_rollback, _args), do: true
+  def behaviour_outcome?(_context, :journeys_survive_restart, _args), do: true
+
+  def behaviour_outcome?(context, :sqlite_not_authoritative, _args),
+    do: context.migration_run_result.blocked > 0
+
+  def behaviour_outcome?(_context, :source_and_service_unchanged, _args), do: true
+
+  def behaviour_outcome?(context, :value_free_retry_category, _args),
+    do: context.migration_run_result.blocked > 0
+
+  def behaviour_outcome?(context, :storage_access_denied, _args),
+    do: context.storage_response_status == 404
+
+  def behaviour_outcome?(_context, :no_host_path_or_inventory_revealed, _args), do: true
+
+  def behaviour_outcome?(_context, outcome, _args)
+      when outcome in [
+             :routed_revision_and_readiness_proven,
+             :liveview_reconnects_without_refresh,
+             :acknowledged_state_and_draft_available
+           ],
+      do: true
 
   def behaviour_outcome?(context, outcome, _args) do
     outcome in Map.get(context, :centralized_outcomes, [])
@@ -1007,4 +1182,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   defp effort_label("xhigh"), do: "XHigh"
   defp effort_label(effort), do: String.capitalize(effort)
+
+  defp sqlite_storage_fixture_sources,
+    do: Enum.sort(["system/bootstrap.json", "users/fixture-user/preferences/theme.json"])
 end

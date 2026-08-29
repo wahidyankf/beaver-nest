@@ -8,7 +8,8 @@ Beaver Nest is in its first implementation stage.
 
 - A Phoenix LiveView chat streams local Codex responses through the official SDK, discovers the models available to the local Codex installation, and can switch models without discarding the current thread.
 - Isolated, non-routed local development can opt into hot reload.
-- A persistent Tailscale Serve route reaches a stable loopback Caddy proxy, which promotes immutable Phoenix releases without a manual browser refresh. Bnest now has one-time family-account setup, persistent per-browser login, centralized flat-file chat/learning/theme records, and recoverable browser import.
+- A persistent Tailscale Serve route reaches a stable loopback Caddy proxy, which promotes immutable Phoenix releases without a manual browser refresh. Bnest now has one-time family-account setup, persistent per-browser login, centralized chat/learning/theme records, and recoverable browser import.
+- Centralized records move from flat files into a private local SQLite database through a headless, checksum-verified migration (`npm exec -- nx run -p bnest-app -t storage:migrate -- --activate`); flat files remain a retained rollback mirror, and an optional admin-only route selects a custom database folder before migration starts.
 
 ## Run locally
 

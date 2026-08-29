@@ -512,7 +512,7 @@ export class MachineHost {
       join(this.manifestsPath, `${revision}.json`),
     );
     const migrationState = verifyMigrationManifest(manifest);
-    this.log(`migration not-required ${revision}`);
+    this.log(`migration ${migrationState} ${revision}`);
     return migrationState;
   }
 
@@ -892,6 +892,13 @@ export class MachineHost {
   }
 }
 
+// Expand-migrate-verify adapters approved to appear in a release manifest's
+// migrations set. Each preserves the previous reader until its own explicit
+// activation step, so declaring one here never makes a release run it:
+// slot startup must never run migrations implicitly (see
+// BnestApp.Storage.Migration and the `mix bnest.storage.migrate` task).
+const APPROVED_MIGRATION_ADAPTERS = new Set(["flat-files-v1-to-sqlite-v1"]);
+
 export function verifyMigrationManifest(manifest) {
   const checksum = createHash("sha256")
     .update(JSON.stringify(manifest.migrations))
@@ -901,12 +908,16 @@ export function verifyMigrationManifest(manifest) {
       "migration",
       "Migration manifest checksum does not match",
     );
-  if (manifest.migrations.length !== 0)
+  if (manifest.migrations.length === 0) return "not-required";
+  const undeclared = manifest.migrations.filter(
+    (migration) => !APPROVED_MIGRATION_ADAPTERS.has(migration.id),
+  );
+  if (undeclared.length !== 0)
     throw new ReleaseError(
       "migration",
       "Concrete migrations require an approved migration adapter",
     );
-  return "not-required";
+  return "declared";
 }
 
 function requiredValue(environment, name) {

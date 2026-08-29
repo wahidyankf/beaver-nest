@@ -88,7 +88,10 @@ defmodule BnestApp.MixProject do
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:ecto, "~> 3.13"},
+      {:ecto_sql, "~> 3.13"},
+      {:ecto_sqlite3, "~> 0.19"}
     ]
   end
 
@@ -124,12 +127,19 @@ defmodule BnestApp.MixProject do
       BnestApp.DataRepository.Manifest,
       BnestApp.DataRepository.RecoverySource,
       BnestApp.DataRepository.Schema,
+      BnestApp.DataRepository.SqliteStore,
       BnestApp.DataRepository.Store,
+      BnestApp.DataRepository.StorageCoordinator,
       BnestApp.Deployment,
       BnestApp.Identity.Bootstrap,
       BnestApp.Identity.CredentialVerifier,
       BnestApp.Identity.FileStore,
       BnestApp.Identity.Session,
+      BnestApp.SqliteRepo,
+      BnestApp.Storage.Config,
+      BnestApp.Storage.Location,
+      BnestApp.Storage.Migration,
+      BnestApp.Storage.RecordMap,
       BnestAppWeb.BootstrapController,
       BnestAppWeb.ChatLive,
       BnestAppWeb.DataMigrationLive,
@@ -137,10 +147,12 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.LoginLive,
       BnestAppWeb.SessionController,
       BnestAppWeb.SifatAllahLive,
+      BnestAppWeb.StorageLive,
       BnestAppWeb.ThemeController,
       BnestAppWeb.UserAuth,
       Mix.Tasks.Bnest.Identity.Benchmark,
-      Mix.Tasks.Bnest.Schema.Audit
+      Mix.Tasks.Bnest.Schema.Audit,
+      Mix.Tasks.Bnest.Storage.Migrate
     ]
 
     {output, layer_exclusions} =

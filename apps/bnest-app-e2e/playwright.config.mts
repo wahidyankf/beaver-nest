@@ -32,6 +32,13 @@ const testDir = defineBddConfig({
 });
 const setupScenario = /Initial setup warns about unavailable account recovery/u;
 const desktopOnlyLoadScenario = /Ten synthetic visitors preserve recoverable state/u;
+// The admin-UI storage scenarios persist a single, once-per-server-lifetime
+// pointer (Bnest's storage location is immutable once set). Running them
+// again on the tablet/mobile projects would collide with the chromium
+// project's own run of the same pointer, so — like the one-time setup
+// scenario — sqlite storage runs on chromium only.
+const sqliteStorageScenario =
+  /private default without storage UI|valid custom database folder|Unsafe database folder is rejected|expected schema once|every recognized flat-file record|resumes idempotently|authoritative only after complete verification|blocks cutover without data loss|Non-admin cannot configure storage|reconnects across compatible SQLite rollout/u;
 
 export default defineConfig({
   testDir,
@@ -52,6 +59,7 @@ export default defineConfig({
       BNEST_CODEX_MODELS_RUNNER: codexModelsRunner,
       BNEST_CODEX_RUNNER: codexRunner,
       BNEST_RUNTIME_ROOT: runtime.path,
+      BNEST_STORAGE_CONFIG: path.join(runtime.path, "storage-config", "storage.json"),
       BNEST_TEST_LAYER: "integration",
       BNEST_TEST_RUN_ID: runtime.runId,
       MIX_ENV: "test",
@@ -78,7 +86,7 @@ export default defineConfig({
       name: "tablet-chromium",
       dependencies: ["one-time-setup"],
       grepInvert: new RegExp(
-        `${setupScenario.source}|${desktopOnlyLoadScenario.source}`,
+        `${setupScenario.source}|${desktopOnlyLoadScenario.source}|${sqliteStorageScenario.source}`,
         "u",
       ),
       use: {
@@ -90,7 +98,7 @@ export default defineConfig({
       name: "mobile-chromium",
       dependencies: ["one-time-setup"],
       grepInvert: new RegExp(
-        `${setupScenario.source}|${desktopOnlyLoadScenario.source}`,
+        `${setupScenario.source}|${desktopOnlyLoadScenario.source}|${sqliteStorageScenario.source}`,
         "u",
       ),
       use: { ...devices["Pixel 5"] },

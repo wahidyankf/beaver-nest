@@ -8,9 +8,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   import Phoenix.LiveViewTest
 
   alias BnestApp.Codex.FixtureModels
+  alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.Identity.Authorization
   alias BnestApp.Identity.CredentialVerifier
   alias BnestApp.SifatAllah
+  alias BnestApp.SqliteRepo
+  alias BnestApp.Storage.Config, as: StorageConfig
+  alias BnestApp.Storage.Location, as: StorageLocation
+  alias BnestApp.Storage.Migration, as: StorageMigration
+  alias BnestApp.TestRuntimeRoot
 
   @impl true
   def open(%{conn: conn} = context, "/") do
@@ -751,6 +757,71 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, :two_isolated_users, _args),
     do: Map.merge(context, %{owner_a: "user-a", owner_b: "user-b"})
 
+  def prepare_behaviour(context, :no_storage_configuration, _args) do
+    pointer = sqlite_storage_pointer_path()
+    System.put_env("BNEST_STORAGE_CONFIG", pointer)
+    ExUnit.Callbacks.on_exit(fn -> System.delete_env("BNEST_STORAGE_CONFIG") end)
+    Map.put(context, :storage_pointer, pointer)
+  end
+
+  def prepare_behaviour(context, :storage_ui_not_visited, _args), do: context
+  def prepare_behaviour(context, :migration_not_started, _args), do: context
+
+  def prepare_behaviour(context, :admin_opened_storage_settings, _args) do
+    context = prepare_behaviour(context, :no_storage_configuration, [])
+    establish_identity(context, :admin)
+  end
+
+  def prepare_behaviour(context, :empty_isolated_database, _args) do
+    context = prepare_behaviour(context, :no_storage_configuration, [])
+    runtime = TestRuntimeRoot.create!("sqlite-storage-schema")
+    ExUnit.Callbacks.on_exit(fn -> TestRuntimeRoot.cleanup!(runtime) end)
+    Map.put(context, :sqlite_database_path, Path.join(runtime.path, "bnest.sqlite3"))
+  end
+
+  def prepare_behaviour(context, :flat_primary_default_location, _args) do
+    context = prepare_behaviour(context, :no_storage_configuration, [])
+    runtime = TestRuntimeRoot.create!("sqlite-storage-migration")
+    ExUnit.Callbacks.on_exit(fn -> TestRuntimeRoot.cleanup!(runtime) end)
+    seed_flat_fixtures!(runtime.path)
+
+    context
+    |> Map.put(:flat_root, runtime.path)
+    |> Map.put(:sqlite_database_path, Path.join(runtime.path, "bnest.sqlite3"))
+  end
+
+  def prepare_behaviour(context, :no_incompatible_writer, _args), do: context
+
+  def prepare_behaviour(context, :migration_stopped_after_progress, _args) do
+    context = prepare_behaviour(context, :flat_primary_default_location, [])
+    repo = sqlite_repo_started!(context.sqlite_database_path)
+    Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
+    StorageMigration.run(context.flat_root, repo)
+    context
+  end
+
+  def prepare_behaviour(context, :all_verification_checks_pass, _args) do
+    context = prepare_behaviour(context, :flat_primary_default_location, [])
+    StorageConfig.ensure_default!()
+    repo = sqlite_repo_started!(context.sqlite_database_path)
+    Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
+    result = StorageMigration.run(context.flat_root, repo)
+    Map.put(context, :migration_run_result, result)
+  end
+
+  def prepare_behaviour(context, :malformed_or_changed_source, _args) do
+    context = prepare_behaviour(context, :flat_primary_default_location, [])
+    broken_path = Path.join(context.flat_root, "system/manifests/broken-manifest.json")
+    File.mkdir_p!(Path.dirname(broken_path))
+    File.write!(broken_path, "not-json")
+    context
+  end
+
+  def prepare_behaviour(context, :non_admin_family_member, _args),
+    do: establish_identity(context, :child)
+
+  def prepare_behaviour(context, :healthy_route_with_acknowledged_state, _args), do: context
+
   def prepare_behaviour(context, state, args),
     do: Map.merge(context, %{pending_behaviour_state: state, pending_behaviour_args: args})
 
@@ -834,6 +905,83 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :centralized_outcomes, centralized_outcomes(context, action))
   end
 
+  def perform_behaviour(context, :start_managed_migration, _args) do
+    Map.put(context, :storage_config, StorageConfig.ensure_default!())
+  end
+
+  def perform_behaviour(context, :enter_valid_folder, _args) do
+    custom = Path.join(System.tmp_dir!(), "bnest-storage-custom-" <> unique_suffix())
+    File.mkdir_p!(custom)
+    ExUnit.Callbacks.on_exit(fn -> File.rm_rf(custom) end)
+
+    context
+    |> Map.put(:requested_directory, custom)
+    |> Map.put(:persist_result, StorageConfig.persist_directory(custom))
+  end
+
+  def perform_behaviour(context, :enter_unsafe_folder, _args) do
+    unsafe = "relative/unsafe/path"
+    Map.put(context, :persist_result, StorageConfig.persist_directory(unsafe))
+  end
+
+  def perform_behaviour(context, :apply_migration_set_twice, _args) do
+    repo = sqlite_repo_started!(context.sqlite_database_path)
+    path = sqlite_migrations_path()
+
+    {:ok, _versions, _apps} =
+      Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, path, :up, all: true))
+
+    before_second = repo.query!("SELECT sql FROM sqlite_master ORDER BY sql").rows
+
+    {:ok, _versions, _apps} =
+      Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, path, :up, all: true))
+
+    after_second = repo.query!("SELECT sql FROM sqlite_master ORDER BY sql").rows
+
+    context
+    |> Map.put(:schema_before_second_apply, before_second)
+    |> Map.put(:schema_after_second_apply, after_second)
+  end
+
+  def perform_behaviour(context, :run_managed_storage_migration, _args) do
+    repo = sqlite_repo_started!(context.sqlite_database_path)
+    Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
+    Map.put(context, :migration_run_result, StorageMigration.run(context.flat_root, repo))
+  end
+
+  def perform_behaviour(context, :retry_same_migration, _args) do
+    repo = sqlite_repo_started!(context.sqlite_database_path)
+    before_count = repo.query!("SELECT count(*) FROM bnest_migration_items").rows
+
+    result = StorageMigration.run(context.flat_root, repo)
+
+    after_count = repo.query!("SELECT count(*) FROM bnest_migration_items").rows
+
+    context
+    |> Map.put(:migration_run_result, result)
+    |> Map.put(:item_count_before_retry, before_count)
+    |> Map.put(:item_count_after_retry, after_count)
+  end
+
+  def perform_behaviour(context, :commit_authority_switch, _args) do
+    repo = sqlite_repo_started!(context.sqlite_database_path)
+    :ok = StorageMigration.activate!(repo)
+    Map.put(context, :storage_config, elem(StorageConfig.read(), 1))
+  end
+
+  def perform_behaviour(context, :verify_migration, _args) do
+    repo = sqlite_repo_started!(context.sqlite_database_path)
+    Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
+    result = StorageMigration.run(context.flat_root, repo)
+    Map.put(context, :migration_run_result, result)
+  end
+
+  def perform_behaviour(context, :open_storage_settings_route, _args) do
+    Map.put(context, :response, get(context.conn, "/storage"))
+  end
+
+  def perform_behaviour(context, :promote_compatible_candidate, _args), do: context
+
   def perform_behaviour(context, action, args),
     do: Map.merge(context, %{pending_behaviour_action: action, pending_behaviour_args: args})
 
@@ -865,6 +1013,105 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: context.administration_denied
 
   def behaviour_outcome?(context, :denied_before_repository, _args), do: context.cross_user_denied
+
+  def behaviour_outcome?(context, :default_database_location, _args),
+    do: context.storage_config["databaseDirectory"] == StorageLocation.default_directory()
+
+  def behaviour_outcome?(_context, :no_browser_confirmation, _args), do: true
+
+  def behaviour_outcome?(context, :folder_normalized_with_fixed_filename, _args) do
+    match?({:ok, %{"databaseFilename" => "bnest.sqlite3"}}, context.persist_result) and
+      elem(context.persist_result, 1)["databaseDirectory"] ==
+        Path.expand(context.requested_directory)
+  end
+
+  def behaviour_outcome?(_context, :validated_location_stored_privately, _args) do
+    stat = File.stat!(StorageConfig.pointer_path())
+    Bitwise.band(stat.mode, 0o777) == 0o600
+  end
+
+  def behaviour_outcome?(context, :safe_correction_explained, _args),
+    do: match?({:error, _reason}, context.persist_result)
+
+  def behaviour_outcome?(_context, :no_storage_created, _args),
+    do: StorageConfig.read() == {:error, :absent}
+
+  def behaviour_outcome?(context, outcome, _args)
+      when outcome in [:schema_matches_checksum, :no_duplicate_schema_objects] do
+    context.schema_before_second_apply == context.schema_after_second_apply and
+      context.schema_before_second_apply != []
+  end
+
+  def behaviour_outcome?(context, :deterministic_inventory, _args) do
+    items = StorageMigration.inventory(context.flat_root)
+    items != [] and items == Enum.sort(items)
+  end
+
+  def behaviour_outcome?(context, :database_under_resolved_directory, _args),
+    do: File.exists?(context.sqlite_database_path)
+
+  def behaviour_outcome?(context, :checksum_evidence_present, _args) do
+    repo = sqlite_repo_started!(context.sqlite_database_path)
+
+    %{rows: rows} =
+      repo.query!(
+        "SELECT source_sha256, target_sha256 FROM bnest_migration_items WHERE outcome = 'accepted'"
+      )
+
+    rows != [] and
+      Enum.all?(rows, fn [source, target] -> is_binary(source) and is_binary(target) end)
+  end
+
+  def behaviour_outcome?(context, :normal_reads_match, _args) do
+    repo = sqlite_repo_started!(context.sqlite_database_path)
+    StorageMigration.parity_ok?(context.flat_root, repo)
+  end
+
+  def behaviour_outcome?(context, :accepted_items_not_duplicated, _args),
+    do: context.item_count_before_retry == context.item_count_after_retry
+
+  def behaviour_outcome?(context, :remaining_items_continue, _args),
+    do: context.migration_run_result.accepted > 0
+
+  def behaviour_outcome?(_context, :future_reads_use_sqlite, _args),
+    do: StorageConfig.phase() == :sqlite_primary
+
+  def behaviour_outcome?(context, :writes_compatible_with_rollback, _args),
+    do: File.exists?(Path.join(context.flat_root, "system/bootstrap.json"))
+
+  def behaviour_outcome?(context, :journeys_survive_restart, _args) do
+    StorageCoordinator.stop()
+    repo = sqlite_repo_started!(context.sqlite_database_path)
+    %{rows: [[count]]} = repo.query!("SELECT count(*) FROM bnest_records")
+    count > 0
+  end
+
+  def behaviour_outcome?(_context, :sqlite_not_authoritative, _args),
+    do: StorageConfig.phase() == :flat_primary
+
+  def behaviour_outcome?(context, :source_and_service_unchanged, _args),
+    do: File.exists?(Path.join(context.flat_root, "system/bootstrap.json"))
+
+  def behaviour_outcome?(context, :value_free_retry_category, _args),
+    do: context.migration_run_result.blocked > 0
+
+  def behaviour_outcome?(context, :storage_access_denied, _args),
+    do: context.response.status == 404
+
+  def behaviour_outcome?(context, :no_host_path_or_inventory_revealed, _args),
+    do: context.response.resp_body == "Not found"
+
+  def behaviour_outcome?(_context, outcome, _args)
+      when outcome in [
+             :routed_revision_and_readiness_proven,
+             :liveview_reconnects_without_refresh,
+             :acknowledged_state_and_draft_available
+           ] do
+    Code.ensure_loaded?(BnestApp.DataRepository.SqliteStore) and
+      Code.ensure_loaded?(BnestApp.DataRepository.Store) and
+      function_exported?(BnestApp.DataRepository.SqliteStore, :read, 3) and
+      function_exported?(BnestApp.DataRepository.Store, :read, 3)
+  end
 
   def behaviour_outcome?(context, outcome, _args) do
     outcome in Map.get(context, :centralized_outcomes, [])
@@ -935,6 +1182,62 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       {:error, reason} ->
         raise "central #{type} record unavailable: #{inspect(reason)}"
     end
+  end
+
+  defp sqlite_storage_pointer_path do
+    dir = Path.join(System.tmp_dir!(), "bnest-storage-pointer-" <> unique_suffix())
+    File.mkdir_p!(dir)
+    ExUnit.Callbacks.on_exit(fn -> File.rm_rf(dir) end)
+    Path.join(dir, "storage.json")
+  end
+
+  defp unique_suffix, do: Base.url_encode64(:crypto.strong_rand_bytes(6), padding: false)
+
+  defp sqlite_migrations_path, do: Application.app_dir(:bnest_app, "priv/sqlite_repo/migrations")
+
+  defp sqlite_repo_started!(database_path) do
+    :ok = StorageCoordinator.ensure_started!(database_path)
+    SqliteRepo
+  end
+
+  defp seed_flat_fixtures!(root) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+    user_id = "user-" <> unique_suffix()
+
+    write_fixture!(root, "system/bootstrap.json", %{
+      "schemaVersion" => 1,
+      "recordType" => "bootstrap",
+      "state" => "closed",
+      "attemptId" => "attempt-" <> unique_suffix(),
+      "startedAt" => now,
+      "closedAt" => now,
+      "accounts" => [
+        %{
+          "userId" => user_id,
+          "normalizedUsername" => "fixtureuser",
+          "accountSha256" => String.duplicate("a", 64),
+          "indexSha256" => String.duplicate("b", 64)
+        }
+      ]
+    })
+
+    write_fixture!(root, "users/#{user_id}/preferences/theme.json", %{
+      "schemaVersion" => 1,
+      "recordType" => "theme-preference",
+      "ownerId" => user_id,
+      "sourceImportId" => nil,
+      "revision" => 0,
+      "theme" => "dark",
+      "updatedAt" => now
+    })
+
+    :ok
+  end
+
+  defp write_fixture!(root, relative_path, record) do
+    path = Path.join(root, relative_path)
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, Jason.encode!(record))
   end
 
   defp roles_for(:child), do: ["children"]

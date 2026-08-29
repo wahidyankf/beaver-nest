@@ -87,4 +87,19 @@ config :phoenix, :json_library, Jason
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
+
+config :bnest_app, BnestApp.SqliteRepo,
+  pool_size: 5,
+  journal_mode: :wal,
+  busy_timeout: 5_000,
+  foreign_keys: :on,
+  synchronous: :full,
+  priv: "priv/sqlite_repo",
+  # Query logs would otherwise print full record payloads (chat, learning
+  # progress, account details) to stdout/log files. Keep storage operations
+  # as value-free as the flat-file Store adapter they replace.
+  log: false
+
+config :bnest_app, ecto_repos: [BnestApp.SqliteRepo]
+
 import_config "#{config_env()}.exs"

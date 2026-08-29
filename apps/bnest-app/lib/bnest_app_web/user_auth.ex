@@ -72,6 +72,12 @@ defmodule BnestAppWeb.UserAuth do
     end
   end
 
+  def require_admin_role(%{assigns: %{current_user: %{"roles" => roles}}} = conn, _options) do
+    if "admin" in roles, do: conn, else: conn |> send_resp(:not_found, "Not found") |> halt()
+  end
+
+  def require_admin_role(conn, _options), do: conn |> send_resp(:not_found, "Not found") |> halt()
+
   def on_mount(:require_authenticated_user, _params, session, socket) do
     case session["current_user"] do
       %{"userId" => _user_id} = user ->
