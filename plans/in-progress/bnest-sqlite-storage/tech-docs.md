@@ -204,6 +204,8 @@ SQLite integrity proof runs `PRAGMA quick_check`; parity compares the full suppo
 
 During `flat_primary`, flat files are authoritative and SQLite is a verified mirror. During `sqlite_primary`, SQLite is authoritative; compatibility writes remain observable and block rollback eligibility when mirror parity is pending. If cross-store synchronization cannot be made failure-atomic, implement a SQLite outbox and reconciler rather than acknowledging a write that makes rollback silently stale.
 
+Mixed-version boundary: exactly one release slot may write. A flat-only slot and a SQLite-capable slot never write concurrently, because the incompatible slot is retired and drained before migration begins, and the host migration lock plus the phase pointer are machine-wide. A promoted candidate whose declared schema range does not cover the recorded phase refuses readiness instead of writing, and rollback is eligible only to an artifact inside that range. This plan applies [live-service continuity](../../../repo-governance/development/live-service-continuity.md) with the [server restart](../../../repo-governance/workflows/development-server-restart.md) and [tailnet proxy](../../../repo-governance/workflows/development-tailnet-proxy.md) workflows: the routed Caddy upstream always points at a healthy independent backend, the sole backend is never stopped, Tailscale is never repointed for a normal release, and no compatible client is asked to refresh.
+
 ## Failure and Rollback
 
 - Folder/DDL/inventory/backfill failure: leave flat-primary route active, preserve partial SQLite/evidence, release the lock, and expose a safe retry category.
@@ -226,66 +228,55 @@ Run package-manager-prefixed targets: `bnest-app:test:unit`, `test:integration`,
 
 ## Specification Changes
 
-Plan acceptance AC-01 through AC-08 becomes durable behavior or architecture because each changes an observable setup, authorization, storage, migration, or continuity contract. Visual-alternative comparison remains plan-only and is proven by delivery review plus desktop/tablet/mobile manual checks.
+Plan acceptance AC-01 through AC-08 becomes durable behavior or architecture because each changes an observable setup, authorization, storage, migration, or continuity contract. Only the visual-alternative comparison stays plan-only, because choosing between wireframes is a review decision rather than product behavior; the Phase 4 asset/accessibility task and the Phase 5 manual device checks in [`delivery.md`](delivery.md) verify it.
+
+`centralized_data.feature` and `authentication.feature` are deliberately **not** changed. Their current text already describes server-owned persistence and one-time setup without naming a storage backend, so no scenario there is added, updated, moved, or deleted. Their adapters still change, because the E2E steps and support helpers assert flat-file paths directly; those exact binding paths appear in File Impact.
 
 ### [E] `specs/apps/bnest/app/architecture.md`
 
+Changing views and elements: the System Context paragraph, the Container View `runtime` data store and its `phoenix -->|Typed atomic operations| runtime` relationship, and the Component View `repository` component. They change because the authoritative store, its activation path, and the retained rollback mirror change.
+
 ```diff
-- Runtime flat files are the only authoritative application store.
-+ SQLite is the configured primary store after verified migration.
-+ Flat files remain a compatibility source/mirror during rollback.
-+ Storage coordinator, Ecto repo, migration lock, and configuration pointer own activation.
+- Bnest keeps user-owned state in a server-managed flat-file runtime root; it has no public registration, cloud database, or uploads.
++ Bnest keeps user-owned state in a server-managed local SQLite database with a retained flat-file rollback mirror; it has no public registration, cloud database, or uploads.
+- runtime[("Container / data store<br/><b>Runtime flat files</b><br/>Accounts and sessions<br/>Manifests and user records")]
++ runtime[("Container / data store<br/><b>Local SQLite database</b><br/>Accounts and sessions<br/>Manifests and user records")]
++ mirror[("Container / data store<br/><b>Runtime flat files</b><br/>Rollback mirror<br/>Retained sources")]
++ phoenix -->|Compatibility mirror| mirror
+- repository["Component<br/><b>Data repository</b><br/>Schemas, paths, locks<br/>Atomic writes"]
++ repository["Component<br/><b>Data repository</b><br/>Schemas, coordinator<br/>Ecto repo and phase"]
 ```
 
-- = Preserve Tailscale → Caddy → Phoenix routing, auth, ownership, Codex boundaries, and resumable LiveView state.
+- = Preserve Tailscale → Caddy → Phoenix routing, authentication, ownership, Codex boundaries, and resumable LiveView state.
 - ✓ Proof: architecture map gate plus local/routed revision and reconnect evidence.
 
 ### [N] `specs/apps/bnest/app/behaviours/sqlite_storage.feature`
 
+Each new scenario's user, preconditions, action, and expected outcome are the identically named PRD acceptance scenario; the feature file adopts them verbatim.
+
 ```diff
-+ Managed migration uses the private default without storage UI.
-+ Administrator optionally selects a valid custom database folder.
-+ Unsafe database folder is rejected without mutation.
-+ Versioned SQLite migration creates the expected schema once.
-+ Managed migration moves every recognized flat-file record.
-+ Interrupted migration resumes idempotently.
-+ SQLite becomes authoritative only after complete verification.
-+ Invalid or changed source blocks cutover without data loss.
-+ Non-admin cannot configure storage.
-+ Routed client reconnects across compatible SQLite rollout.
++ Managed migration uses the private default without storage UI.            (AC-01)
++ Administrator optionally selects a valid custom database folder.          (AC-02)
++ Unsafe database folder is rejected without mutation.                      (AC-02)
++ Versioned SQLite migration creates the expected schema once.              (AC-03)
++ Managed migration moves every recognized flat-file record.                (AC-04)
++ Interrupted migration resumes idempotently.                               (AC-04)
++ SQLite becomes authoritative only after complete verification.            (AC-05)
++ Invalid or changed source blocks cutover without data loss.               (AC-06)
++ Non-admin cannot configure storage.                                       (AC-07)
++ Routed client reconnects across compatible SQLite rollout.                (AC-08)
 ```
 
 - → Bindings: `apps/bnest-app/test/behaviour/steps/sqlite_storage_steps.exs`, both behavior support adapters, and `apps/bnest-app-e2e/tests/steps/sqlite_storage.steps.ts` with its support helper.
 - ✓ Proof: `bnest-app:test:coverage:behaviour`, focused exact-origin E2E, and release reconnect proof.
 
-### [E] `specs/apps/bnest/app/behaviours/centralized_data.feature`
-
-```diff
-- Future accepted records persist only in server flat files.
-+ Future accepted records persist through the active repository backend.
-```
-
-- = Preserve all seven named import, stale-write, cleanup, and Codex-resume scenarios.
-- → Bindings: existing centralized-data unit, integration, and E2E adapters update only storage assertions.
-- ✓ Proof: behavior coverage plus focused browser-import continuation journey.
-
-### [E] `specs/apps/bnest/app/behaviours/authentication.feature`
-
-```diff
-- Initial setup begins directly with account creation on flat storage.
-+ Initial setup ensures default SQLite storage without a separate storage-UI prerequisite.
-```
-
-- = Preserve redirect, password, roles, session, multi-browser, logout, and cross-user isolation scenarios.
-- → Bindings: existing authentication adapters plus the new storage support helper.
-- ✓ Proof: behavior coverage and fresh-install E2E.
-
 ### [E] `specs/apps/bnest/app/behaviours/README.md`
 
 ```diff
-+ Map sqlite_storage.feature as the canonical local database contract.
++ - [SQLite storage](sqlite_storage.feature) specifies the local database location, migration, and activation contract.
 ```
 
+- = Preserve the chat, authentication, centralized-data, and Sifat Allah map entries unchanged.
 - ✓ Proof: repository specification-map gate.
 
 ## File Impact
@@ -327,7 +318,8 @@ apps/bnest-app/
 │   ├── [E] router.ex
 │   ├── [E] user_auth.ex
 │   ├── controllers/
-│   │   └── [E] bootstrap_controller.ex
+│   │   ├── [E] bootstrap_controller.ex
+│   │   └── [E] health_controller.ex
 │   └── live/
 │       ├── [E] login_live.ex
 │       └── [N] storage_live.ex
@@ -342,59 +334,62 @@ apps/bnest-app/
 ### UI, tests, and specifications
 
 ```text
-apps/bnest-app/assets/css/app.css                                      [E]
-apps/bnest-app/test/behaviour/driver.ex                               [E]
-apps/bnest-app/test/behaviour/steps/sqlite_storage_steps.exs          [N]
-apps/bnest-app/test/behaviour/support/integration.exs                  [E]
-apps/bnest-app/test/behaviour/support/unit.exs                         [E]
-apps/bnest-app/test/integration/bnest_app/application_test.exs        [E]
-apps/bnest-app/test/integration/bnest_app/backup_test.exs             [E]
-apps/bnest-app/test/integration/bnest_app/data_repository_test.exs    [E]
-apps/bnest-app/test/integration/bnest_app/identity_test.exs            [E]
-apps/bnest-app/test/integration/bnest_app/schema_audit_test.exs        [E]
-apps/bnest-app/test/integration/bnest_app/sqlite_storage_test.exs     [N]
-apps/bnest-app/test/support/test_runtime_root.ex                       [E]
-apps/bnest-app/test/unit/bnest_app/storage_config_test.exs            [N]
-apps/bnest-app/test/unit/bnest_app/storage_migration_test.exs         [N]
-apps/bnest-app-e2e/README.md                                          [E]
-apps/bnest-app-e2e/playwright.config.mts                              [E]
-apps/bnest-app-e2e/tests/steps/authentication.steps.ts                 [E]
-apps/bnest-app-e2e/tests/steps/centralized_data.steps.ts               [E]
-apps/bnest-app-e2e/tests/steps/sqlite_storage.steps.ts                 [N]
-apps/bnest-app-e2e/tests/support/sqlite-storage.ts                     [N]
-apps/bnest-app-e2e/tests/support/test-runtime.mts                      [E]
-apps/bnest-app-e2e/tools/run-e2e.mts                                  [E]
-apps/bnest-app/lib/mix/tasks/bnest.schema.audit.ex                     [E]
-apps/bnest-app/lib/mix/tasks/bnest.storage.migrate.ex                  [N]
-specs/apps/bnest/app/architecture.md                                  [E]
-specs/apps/bnest/app/behaviours/README.md                              [E]
-specs/apps/bnest/app/behaviours/authentication.feature                [E]
-specs/apps/bnest/app/behaviours/centralized_data.feature              [E]
-specs/apps/bnest/app/behaviours/sqlite_storage.feature                [N]
-README.md                                                              [E]
-.gitignore                                                             [E]
+apps/bnest-app/assets/css/app.css                                        [E]
+apps/bnest-app/test/behaviour/driver.ex                                  [E]
+apps/bnest-app/test/behaviour/steps/sqlite_storage_steps.exs             [N]
+apps/bnest-app/test/behaviour/support/integration.exs                    [E]
+apps/bnest-app/test/behaviour/support/unit.exs                           [E]
+apps/bnest-app/test/integration/bnest_app/application_test.exs           [E]
+apps/bnest-app/test/integration/bnest_app/backup_test.exs                [E]
+apps/bnest-app/test/integration/bnest_app/browser_import_test.exs        [E]
+apps/bnest-app/test/integration/bnest_app/data_repository_test.exs       [E]
+apps/bnest-app/test/integration/bnest_app/identity_test.exs              [E]
+apps/bnest-app/test/integration/bnest_app/schema_audit_test.exs          [E]
+apps/bnest-app/test/integration/bnest_app/sqlite_storage_test.exs        [N]
+apps/bnest-app/test/integration/bnest_app_web/health_controller_test.exs [E]
+apps/bnest-app/test/support/test_runtime_root.ex                         [E]
+apps/bnest-app/test/unit/bnest_app/storage_config_test.exs               [N]
+apps/bnest-app/test/unit/bnest_app/storage_migration_test.exs            [N]
+apps/bnest-app-e2e/README.md                                             [E]
+apps/bnest-app-e2e/playwright.config.mts                                 [E]
+apps/bnest-app-e2e/tests/steps/authentication.steps.ts                   [E]
+apps/bnest-app-e2e/tests/steps/centralized_data.steps.ts                 [E]
+apps/bnest-app-e2e/tests/steps/sqlite_storage.steps.ts                   [N]
+apps/bnest-app-e2e/tests/support/authentication.ts                       [E]
+apps/bnest-app-e2e/tests/support/centralized-data.ts                     [E]
+apps/bnest-app-e2e/tests/support/sqlite-storage.ts                       [N]
+apps/bnest-app-e2e/tests/support/test-identity.ts                        [E]
+apps/bnest-app-e2e/tests/support/test-runtime.mts                        [E]
+apps/bnest-app-e2e/tools/run-e2e.mts                                     [E]
+apps/bnest-app/lib/mix/tasks/bnest.schema.audit.ex                       [E]
+apps/bnest-app/lib/mix/tasks/bnest.storage.migrate.ex                    [N]
+specs/apps/bnest/app/architecture.md                                     [E]
+specs/apps/bnest/app/behaviours/README.md                                [E]
+specs/apps/bnest/app/behaviours/sqlite_storage.feature                   [N]
+README.md                                                                [E]
+.gitignore                                                               [E]
 ```
 
 ### Runtime instances
 
 ```text
-~/.config/bnest/storage.json                              [N] private pointer; default fixed location
-<database-directory>/bnest.sqlite3                       [N] SQLite database
-<database-directory>/bnest.sqlite3-wal                   [N] SQLite-managed WAL sidecar when present
-<database-directory>/bnest.sqlite3-shm                   [N] SQLite-managed shared-memory sidecar when present
-data/test/runs/<run-id>/bnest.sqlite3                    [N] isolated generated test database
-<legacy-runtime-root>/system/bootstrap.json              [E] compatible mirror; no deletion
-<legacy-runtime-root>/system/accounts/<user-id>.json     [E] compatible mirror; no deletion
-<legacy-runtime-root>/system/usernames/<username>.json   [E] compatible mirror; no deletion
-<legacy-runtime-root>/system/sessions/<digest>.json      [E] compatible mirror; no deletion
-<legacy-runtime-root>/system/manifests/<import-id>.json  [E] compatible mirror; no deletion
-<legacy-runtime-root>/system/schema-registry.json        [E] compatible mirror; no deletion
-<legacy-runtime-root>/users/<user-id>/imports/<import-id>.json [E] compatible mirror; no deletion
-<legacy-runtime-root>/users/<user-id>/chat/current.json  [E] compatible mirror; no deletion
-<legacy-runtime-root>/users/<user-id>/sifat-allah/progress.json [E] compatible mirror; no deletion
-<legacy-runtime-root>/users/<user-id>/preferences/theme.json [E] compatible mirror; no deletion
+~/.config/bnest/storage.json                                         [N] private pointer; default fixed location
+<database-directory>/bnest.sqlite3                                   [N] SQLite database
+<database-directory>/bnest.sqlite3-wal                               [N] SQLite-managed WAL sidecar when present
+<database-directory>/bnest.sqlite3-shm                               [N] SQLite-managed shared-memory sidecar when present
+data/test/runs/<run-id>/bnest.sqlite3                                [N] isolated generated test database
+<legacy-runtime-root>/system/bootstrap.json                          [E] compatible mirror; no deletion
+<legacy-runtime-root>/system/accounts/<user-id>.json                 [E] compatible mirror; no deletion
+<legacy-runtime-root>/system/usernames/<username>.json               [E] compatible mirror; no deletion
+<legacy-runtime-root>/system/sessions/<digest>.json                  [E] compatible mirror; no deletion
+<legacy-runtime-root>/system/manifests/<import-id>.json              [E] compatible mirror; no deletion
+<legacy-runtime-root>/system/schema-registry.json                    [E] compatible mirror; no deletion
+<legacy-runtime-root>/users/<user-id>/imports/<import-id>.json       [E] compatible mirror; no deletion
+<legacy-runtime-root>/users/<user-id>/chat/current.json              [E] compatible mirror; no deletion
+<legacy-runtime-root>/users/<user-id>/sifat-allah/progress.json      [E] compatible mirror; no deletion
+<legacy-runtime-root>/users/<user-id>/preferences/theme.json         [E] compatible mirror; no deletion
 <legacy-runtime-root>/apps/beaver-nest/legacy/<import-id>/source.bin [E] immutable source; no deletion
-<legacy-runtime-root>/users/<user-id>/legacy/<import-id>/source.bin [E] immutable source; no deletion
+<legacy-runtime-root>/users/<user-id>/legacy/<import-id>/source.bin  [E] immutable source; no deletion
 ```
 
 The application creates `<run-id>` and fixed runtime filenames; user-controlled input never supplies record keys or filenames. Runtime instances are ignored and never plan assets.

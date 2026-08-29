@@ -123,6 +123,15 @@ Scenario: Routed client reconnects across compatible SQLite rollout
 - The primary action keeps one verb per state: **Check folder**, **Create database**, **Move data**, **Retry migration**, or **Continue account setup**.
 - Progress is textual and announced through a polite live region; blocking failure uses an alert. No state relies on color alone.
 
+## Product Risks
+
+- **Silent migration:** the default run needs no UI, so an administrator may not know a migration happened or failed. Control: the optional status screen and a value-free retry category remain reachable after the fact (AC-06), and Phase 6 records safe outcome categories.
+- **Locked expectations:** an administrator may open storage settings after migration started and expect to change the folder. Control: the location locks with an explanation rather than failing silently (AC-02), proven by the Phase 4 state-rendering task.
+- **Session loss at cutover:** browser sessions are migrated records, so a copy defect would log every family member out. Control: sessions are inventoried like any other record and login/logout survive restart (AC-05) and routed promotion (AC-08).
+- **Route disclosure:** a non-admin could learn that a storage route exists. Control: denial happens before rendering and reveals no host path or inventory (AC-07).
+- **Confusing partial state:** an interrupted run could look like duplicated or missing data. Control: deterministic inventory with idempotent resume and no rewrite of accepted items (AC-04).
+- **Accessibility regression:** the new ledger introduces progress, error, and retry states not present today. Control: live regions, alert focus, keyboard order, and three-device manual proof in the Phase 4 accessibility task.
+
 ## Scope Boundaries
 
 In scope: server-local folder selection, configuration pointer, SQLite DDL, all supported record types, idempotent backfill, rollback compatibility, health/readiness, docs, specifications, tests, and Caddy rollout.

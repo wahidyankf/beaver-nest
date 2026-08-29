@@ -2,6 +2,8 @@
 
 All product work remains pending until execution is explicitly underway. Each checkbox is independently verifiable; a failed phase checkpoint blocks later phases.
 
+Every phase applies [live-service continuity](../../../repo-governance/development/live-service-continuity.md): Bnest stays routed throughout, the sole backend is never stopped, Tailscale is never repointed for a normal release, only one release slot may write at a time, and no compatible client is required to refresh. A failed active-route health check stops all other work until the route is restored.
+
 ## Phase 1 — Baseline and Contracts
 
 - [ ] `[AI] [AC-01] [AC-08]` Input: active Bnest route, Caddy state, current revision, storage root, specifications, and this plan. Action: run the plan quality gate, record value-free local/routed health and revision, inventory active/previous slots and supported source templates without values, and stop if health or inventory is unsafe. Outcome: implementation begins from a healthy, known flat-primary baseline. Proof: safe checkpoint note, `proxy:status`, ready endpoint, and structural inventory categories.
