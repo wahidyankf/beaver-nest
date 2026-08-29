@@ -1,8 +1,15 @@
 # Bnest SQLite Storage
 
-**Status:** In Progress  
-**Created:** 2026-08-29  
-**Started:** 2026-08-29  
+**Status:** Completed
+
+**Created:** 2026-08-29
+
+**Started:** 2026-08-29
+
+**Execution started:** 2026-08-29
+
+**Completed:** 2026-08-29
+
 **Scope:** Bnest storage configuration, reproducible SQLite schema, flat-file backfill, and active-service cutover
 
 ## Context

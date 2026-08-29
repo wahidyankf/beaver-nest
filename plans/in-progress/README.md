@@ -6,4 +6,4 @@ Start work by moving one folder from [`../backlogs/`](../backlogs/README.md) wit
 
 ## Directory Map
 
-- [Bnest SQLite storage](bnest-sqlite-storage/README.md) — migrate Bnest's authenticated flat-file records to a user-configured local SQLite database.
+No plans are currently in progress.

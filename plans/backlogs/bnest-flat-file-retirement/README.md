@@ -6,7 +6,7 @@
 
 ## Context
 
-The [SQLite storage plan](../../in-progress/bnest-sqlite-storage/README.md) deliberately preserves flat files while it expands, migrates, verifies, activates SQLite, and proves rollback compatibility. Repository migration rules require destructive contraction to occur in a later explicitly authorized plan. The user has authorized that deletion, provided every legacy source is genuinely migrated first.
+The [SQLite storage plan](../../done/2026-08-29__bnest-sqlite-storage/README.md) deliberately preserved flat files while it expanded, migrated, verified, activated SQLite, and proved rollback compatibility. Repository migration rules require destructive contraction to occur in a later explicitly authorized plan. The user has authorized that deletion, provided every legacy source is genuinely migrated first.
 
 This plan has no arbitrary waiting period. It becomes executable immediately after the SQLite plan is accepted and archived, both the active and rollback-eligible application artifacts can operate from SQLite, and the fresh deletion-entry proofs pass.
 
