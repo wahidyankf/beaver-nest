@@ -25,6 +25,8 @@ Describe the transition in this order:
 3. **Verify:** read the accepted target through the normal product flow and rehearse restore from its verified immutable recovery source.
 4. **Contract:** retain compatibility for a stated window. Put any archival or deletion in a later explicitly authorized plan.
 
+For an authority or retirement cutover, verification must boot a fresh process from persisted target configuration, make the prior source unavailable in an isolated fixture, and execute every affected critical reader and writer through normal product boundaries. Prove the target remains authoritative and fails closed instead of falling back. Row counts, schema presence, migration summaries, adapter-only calls, and same-process state are insufficient.
+
 State the rollback reader/writer behavior, mixed-version boundary, retry behavior, recovery-source/manifest evidence, and manual verification. Treat unknown or malformed sources as preserved opaque records with a reported outcome; never coerce, discard, or overwrite them to make a migration appear successful.
 
 ## Delivery
