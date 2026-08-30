@@ -20,6 +20,11 @@ import (
 
 // Check requires consecutive CPU samples plus release memory and disk reserves.
 func Check(collector guard.Collector, diskPath string, pause func(time.Duration)) error {
+	return CheckWithPolicy(collector, diskPath, pause, guard.DevelopmentPolicy)
+}
+
+// CheckWithPolicy requires consecutive samples inside one resolved strict profile.
+func CheckWithPolicy(collector guard.Collector, diskPath string, pause func(time.Duration), policy guard.Policy) error {
 	if collector == nil {
 		return errors.New("host collector is required")
 	}
@@ -34,17 +39,13 @@ func Check(collector guard.Collector, diskPath string, pause func(time.Duration)
 			return err
 		}
 		previous = reading.CPUState
-		if !guard.ReleaseMemoryAvailable(reading.Sample) {
+		if guard.MemoryState(reading.Sample, policy) != "normal" {
 			return errors.New("memory pressure does not leave safe release headroom")
 		}
-		if reading.Sample.AvailableParallelism < 8 {
-			return errors.New("fewer than eight parallel execution units are available")
+		if reading.Sample.DiskFreeBytes == nil || *reading.Sample.DiskFreeBytes < policy.DiskWarningBytes {
+			return errors.New("release disk reserve is unavailable")
 		}
-		if reading.Sample.DiskFreeBytes == nil || *reading.Sample.DiskFreeBytes < 13*guard.GiB {
-			return errors.New("less than 13 GiB release disk is available")
-		}
-		threshold := 100 * float64(reading.Sample.AvailableParallelism-6) / float64(reading.Sample.AvailableParallelism)
-		if reading.Sample.CPUUtilizationPercent != nil && *reading.Sample.CPUUtilizationPercent <= threshold {
+		if guard.CPUAdmissionReady(reading.Sample, policy) {
 			consecutive++
 		} else {
 			consecutive = 0
@@ -69,7 +70,7 @@ func AssessFile(path string) (guard.ReleaseSummary, error) {
 	if err = json.Unmarshal(data, &summary); err != nil {
 		return guard.ReleaseSummary{}, err
 	}
-	if summary.SchemaVersion != 2 || summary.SampleCount <= 0 || summary.AvailableParallelism <= 0 {
+	if summary.SchemaVersion != 2 && summary.SchemaVersion != 3 || summary.SampleCount <= 0 || summary.AvailableParallelism <= 0 {
 		return summary, errors.New("resource evidence summary is invalid")
 	}
 	if !guard.ReleaseHeadroomAvailable(summary) {
@@ -142,6 +143,14 @@ func caddyHealth() (int, float64) {
 }
 
 func oneMinuteLoad() float64 {
+	if data, err := os.ReadFile("/proc/loadavg"); err == nil {
+		fields := strings.Fields(string(data))
+		if len(fields) > 0 {
+			if value, parseError := strconv.ParseFloat(fields[0], 64); parseError == nil {
+				return value
+			}
+		}
+	}
 	fields := strings.Fields(strings.Trim(output("sysctl", "-n", "vm.loadavg"), "{} "))
 	if len(fields) == 0 {
 		return 0
@@ -240,12 +249,16 @@ func writeSummary(path string, samples []releaseSample) error {
 	if len(samples) == 0 {
 		return errors.New("release monitor has no samples")
 	}
-	summary := guard.ReleaseSummary{SchemaVersion: 2, SampleCount: len(samples), AvailableParallelism: samples[0].AvailableParallelism, CompressorAvailableAll: true, MemoryPressureLevelMax: 0, AvailableNonCompressedEstimateMinBytes: math.MaxInt64, DiskFreeMinBytes: math.MaxInt64, SwapFreeMinBytes: math.MaxInt64}
+	summary := guard.ReleaseSummary{SchemaVersion: 3, Platform: samples[0].Platform, Capabilities: append([]string(nil), samples[0].Capabilities...), SampleCount: len(samples), AvailableParallelism: samples[0].AvailableParallelism, CompressorAvailableAll: true, MemoryPressureLevelMax: 0, AvailableNonCompressedEstimateMinBytes: math.MaxInt64, DiskFreeMinBytes: math.MaxInt64, SwapFreeMinBytes: math.MaxInt64}
 	cpu, latency := []float64{}, []float64{}
 	first, last := samples[0], samples[len(samples)-1]
 	for _, sample := range samples {
-		if sample.AvailableNonCompressedEstimateBytes != nil {
-			summary.AvailableNonCompressedEstimateMinBytes = min(summary.AvailableNonCompressedEstimateMinBytes, *sample.AvailableNonCompressedEstimateBytes)
+		available := sample.AvailableMemoryBytes
+		if available == nil {
+			available = sample.AvailableNonCompressedEstimateBytes
+		}
+		if available != nil {
+			summary.AvailableNonCompressedEstimateMinBytes = min(summary.AvailableNonCompressedEstimateMinBytes, *available)
 		}
 		if sample.MemoryPressureLevel != nil {
 			summary.MemoryPressureLevelMax = max(summary.MemoryPressureLevelMax, *sample.MemoryPressureLevel)

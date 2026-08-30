@@ -169,6 +169,7 @@ func TestEvidenceLifecycleSummaryAndCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	writer.SetContext(guard.Resolution{RequestedProfile: "balanced", ResolvedProfile: "minimal", FallbackChain: []string{"balanced", "minimal"}, Concurrency: 1}, "config-hash")
 	one := int64(1)
 	two := int64(2)
 	levelOne := 1
@@ -188,7 +189,7 @@ func TestEvidenceLifecycleSummaryAndCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if summary.SchemaVersion != 2 || summary.SampleCount != 2 || summary.CompressorAvailableAll || summary.SwapInsDelta != 1 || summary.SwapOutsDelta != 1 || summary.HealthFailures != 1 {
+	if summary.SchemaVersion != 3 || summary.SampleCount != 2 || summary.CompressorAvailableAll || summary.SwapInsDelta != 1 || summary.SwapOutsDelta != 1 || summary.HealthFailures != 1 || summary.ResolvedProfile != "minimal" || summary.ConfigHash != "config-hash" {
 		t.Fatalf("unexpected summary %+v", summary)
 	}
 	if _, err := writer.Finalize("ephemeral", "passed", 0); err == nil {

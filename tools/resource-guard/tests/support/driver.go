@@ -16,6 +16,7 @@ import (
 
 	"github.com/wahidyankf/beaver-nest/tools/resource-guard/internal/cli"
 	"github.com/wahidyankf/beaver-nest/tools/resource-guard/internal/guard"
+	"github.com/wahidyankf/beaver-nest/tools/resource-guard/internal/host"
 	releaseguard "github.com/wahidyankf/beaver-nest/tools/resource-guard/internal/release"
 	"github.com/wahidyankf/beaver-nest/tools/resource-guard/tests/contract"
 )
@@ -53,6 +54,13 @@ type Driver struct {
 	approvedExemptions  bool
 	serialCompliance    bool
 	e2ePlacement        bool
+	resolution          guard.Resolution
+	requestedProfile    string
+	taskClass           string
+	effectiveMemory     int64
+	configPath          string
+	privateArtifacts    bool
+	exampleTracked      bool
 }
 
 // NewDriver returns isolated scenario state for one behavior adapter.
@@ -61,7 +69,7 @@ func NewDriver(adapter contract.Adapter) *Driver {
 }
 
 func healthySample(at time.Time) guard.Sample {
-	return guard.Sample{SchemaVersion: 2, MeasuredAt: at.UTC().Format(time.RFC3339Nano), AvailableNonCompressedEstimateBytes: new(12 * guard.GiB), MemoryPressureLevel: new(1), CompressorAvailable: new(true), CompressorPayloadBytes: new(7 * guard.GiB), PhysicalMemoryBytes: 32 * guard.GiB, AvailableParallelism: 8, CPUUtilizationPercent: new(20.0), DiskFreeBytes: new(40 * guard.GiB), PageSizeBytes: new(int64(16_384)), SwapIns: new(int64(10)), SwapOuts: new(int64(20)), SwapFreeBytes: new(2 * guard.GiB)}
+	return guard.Sample{SchemaVersion: 3, MeasuredAt: at.UTC().Format(time.RFC3339Nano), Platform: "darwin", Capabilities: []string{"compressor", "memory-pressure", "swap"}, EffectiveMemoryLimitBytes: 32 * guard.GiB, AvailableMemoryBytes: new(12 * guard.GiB), AvailableNonCompressedEstimateBytes: new(12 * guard.GiB), MemoryPressureLevel: new(1), CompressorAvailable: new(true), CompressorPayloadBytes: new(7 * guard.GiB), PhysicalMemoryBytes: 32 * guard.GiB, AvailableParallelism: 8, CPUUtilizationPercent: new(20.0), DiskFreeBytes: new(40 * guard.GiB), DiskTotalBytes: new(512 * guard.GiB), PageSizeBytes: new(int64(16_384)), SwapIns: new(int64(10)), SwapOuts: new(int64(20)), SwapFreeBytes: new(2 * guard.GiB), SwapState: "idle"}
 }
 
 func (driver *Driver) reset() {
@@ -114,12 +122,6 @@ func (driver *Driver) threeHealthy() {
 	driver.samples = []guard.Sample{healthySample(base), healthySample(base.Add(time.Second)), healthySample(base.Add(2 * time.Second))}
 }
 
-func (driver *Driver) diskWarning() {
-	sample := healthySample(time.Unix(0, 0))
-	sample.DiskFreeBytes = new(29 * guard.GiB)
-	driver.samples = []guard.Sample{sample}
-}
-
 func (driver *Driver) swapGrowth() {
 	first := healthySample(time.Unix(0, 0))
 	second := healthySample(time.Unix(15, 0))
@@ -137,15 +139,34 @@ func (driver *Driver) compressorGrowth() {
 }
 
 func (driver *Driver) assessAdmission() {
-	driver.assessment = guard.ResourceAssessment(driver.samples, guard.DevelopmentPolicy)
-	driver.admitted = guard.AdmissionReady(driver.samples, guard.DevelopmentPolicy)
-	if driver.assessment.StorageBlocked {
-		driver.exitCode = guard.StorageBlockedExitCode
+	if len(driver.samples) == 0 {
+		driver.assessment = guard.ResourceAssessment(nil, guard.DevelopmentPolicy)
+		return
 	}
+	resolution, err := guard.BuiltinCatalog().Resolve(driver.requestedProfile, driver.taskClass, driver.samples[len(driver.samples)-1])
+	if err != nil {
+		driver.errorOutput = err.Error()
+		driver.exitCode = guard.ReplanRequiredExitCode
+		return
+	}
+	driver.resolution = resolution
+	driver.exitCode = resolution.ExitCode
+	driver.assessment = guard.ResourceAssessment(driver.samples, resolution.Policy)
+	driver.admitted = resolution.ExitCode == 0 && guard.AdmissionReady(driver.samples, resolution.Policy)
 }
 
 func (driver *Driver) assessPressure() {
-	driver.assessment = guard.ResourceAssessment(driver.samples, guard.DevelopmentPolicy)
+	if len(driver.samples) == 0 {
+		driver.assessment = guard.ResourceAssessment(nil, guard.DevelopmentPolicy)
+		return
+	}
+	resolution, err := guard.BuiltinCatalog().Resolve(driver.requestedProfile, driver.taskClass, driver.samples[len(driver.samples)-1])
+	if err != nil {
+		driver.errorOutput = err.Error()
+		return
+	}
+	driver.resolution = resolution
+	driver.assessment = guard.ResourceAssessment(driver.samples, resolution.Policy)
 }
 
 func (driver *Driver) requireAdmitted() error {
@@ -245,11 +266,13 @@ func (driver *Driver) requireStatus() error {
 	var payload struct {
 		SchemaVersion int               `json:"schemaVersion"`
 		Resource      *guard.Assessment `json:"resource"`
+		Profile       *guard.Resolution `json:"profile"`
+		Capabilities  []string          `json:"capabilities"`
 	}
 	if err := json.Unmarshal([]byte(driver.output), &payload); err != nil {
 		return err
 	}
-	if driver.exitCode != 0 || payload.SchemaVersion != 2 || payload.Resource == nil {
+	if driver.exitCode != 0 || payload.SchemaVersion != 3 || payload.Resource == nil || payload.Profile == nil || len(payload.Capabilities) == 0 {
 		return fmt.Errorf("invalid status: exit=%d payload=%+v", driver.exitCode, payload)
 	}
 	return nil
@@ -314,22 +337,17 @@ func (driver *Driver) requireAccepted() error {
 }
 
 func (driver *Driver) releaseHost() {
-	base := healthySample(time.Unix(0, 0))
-	base.AvailableParallelism = 8
-	base.CPUUtilizationPercent = new(25.0)
-	driver.samples = []guard.Sample{base, base, base}
+	driver.samples = []guard.Sample{capacitySample(5*guard.GiB, 700*guard.MiB)}
 }
 
 func (driver *Driver) assessRelease() {
-	driver.admitted = len(driver.samples) == 3
-	for _, sample := range driver.samples {
-		driver.admitted = driver.admitted && guard.ReleaseMemoryAvailable(sample) && sample.CPUUtilizationPercent != nil && *sample.CPUUtilizationPercent <= 25
-	}
+	driver.resolution, _ = guard.BuiltinCatalog().Resolve("balanced", "release", driver.samples[len(driver.samples)-1])
+	driver.exitCode = driver.resolution.ExitCode
 }
 
 func (driver *Driver) requireReleaseCPU() error {
-	if !driver.admitted {
-		return errors.New("release CPU sequence was not accepted")
+	if driver.exitCode != guard.ReplanRequiredExitCode || driver.resolution.Decision != "replan" {
+		return fmt.Errorf("got %+v", driver.resolution)
 	}
 	return nil
 }
@@ -454,9 +472,6 @@ func (driver *Driver) requireE2ECleanup() error {
 }
 
 func (driver *Driver) historicalGenerations() error {
-	if runtime.GOOS != "darwin" {
-		return fmt.Errorf("bootstrap retention requires darwin, got %s", runtime.GOOS)
-	}
 	cacheRoot, err := os.MkdirTemp("", "resource-guard-cache-")
 	if err != nil {
 		return err
@@ -660,6 +675,164 @@ func (driver *Driver) requireSerialCompliance() error {
 func (driver *Driver) requireE2EPlacement() error {
 	if !driver.e2ePlacement {
 		return errors.New("full end-to-end behavior is not isolated from quick checks")
+	}
+	return nil
+}
+
+func capacitySample(memory, available int64) guard.Sample {
+	sample := healthySample(time.Unix(0, 0))
+	sample.Platform = "linux"
+	sample.Capabilities = []string{"cgroup-v2", "memory-psi"}
+	sample.PhysicalMemoryBytes = memory
+	sample.EffectiveMemoryLimitBytes = memory
+	sample.AvailableMemoryBytes = &available
+	sample.AvailableNonCompressedEstimateBytes = nil
+	sample.CompressorAvailable = nil
+	sample.CompressorPayloadBytes = nil
+	sample.SwapState = "unavailable"
+	return sample
+}
+
+func (driver *Driver) smallRunner() {
+	driver.samples = []guard.Sample{capacitySample(5*guard.GiB, 800*guard.MiB)}
+}
+
+func (driver *Driver) requireConstrained() error {
+	if driver.resolution.ResolvedProfile != "constrained" || driver.exitCode != 0 {
+		return fmt.Errorf("got profile %q exit %d", driver.resolution.ResolvedProfile, driver.exitCode)
+	}
+	return nil
+}
+
+func (driver *Driver) tinyMachine() {
+	driver.samples = []guard.Sample{capacitySample(guard.GiB, 200*guard.MiB)}
+}
+
+func (driver *Driver) requireMinimal() error {
+	if driver.resolution.ResolvedProfile != "minimal" || driver.resolution.Concurrency != 1 || driver.exitCode != 0 {
+		return fmt.Errorf("got %+v exit %d", driver.resolution, driver.exitCode)
+	}
+	return nil
+}
+
+func (driver *Driver) exhaustedDisk() {
+	sample := capacitySample(guard.GiB, 512*guard.MiB)
+	sample.DiskFreeBytes = new(200 * guard.MiB)
+	sample.DiskTotalBytes = new(guard.GiB)
+	driver.samples = []guard.Sample{sample}
+}
+
+func (driver *Driver) strictTransaction() {
+	driver.taskClass = "transactional"
+	driver.samples = []guard.Sample{capacitySample(5*guard.GiB, 700*guard.MiB)}
+}
+
+func (driver *Driver) requireReplan() error {
+	if driver.exitCode != guard.ReplanRequiredExitCode || driver.resolution.Decision != "replan" {
+		return fmt.Errorf("got %+v exit %d", driver.resolution, driver.exitCode)
+	}
+	return nil
+}
+
+func (driver *Driver) linuxCgroupCapacity() {
+	memory, err := host.ParseMemInfo("MemTotal: 16777216 kB\nMemAvailable: 8388608 kB\nSwapTotal: 0 kB\nSwapFree: 0 kB\n")
+	if err == nil {
+		driver.effectiveMemory = host.EffectiveMemoryLimit(memory.Total, 4*guard.GiB, 0)
+	}
+}
+
+func (driver *Driver) collectLinuxEvidence() {}
+
+func (driver *Driver) requireFourGiB() error {
+	if driver.effectiveMemory != 4*guard.GiB {
+		return fmt.Errorf("effective memory is %d", driver.effectiveMemory)
+	}
+	return nil
+}
+
+func (driver *Driver) linuxWithoutSwap() {
+	driver.samples = []guard.Sample{capacitySample(4*guard.GiB, 3*guard.GiB)}
+}
+
+func (driver *Driver) requireSwapUnavailable() error {
+	if driver.assessment.State == "critical" || driver.assessment.SwapState != "unavailable" {
+		return fmt.Errorf("got %+v", driver.assessment)
+	}
+	return nil
+}
+
+func (driver *Driver) linuxPSIWarning() {
+	sample := capacitySample(4*guard.GiB, 3*guard.GiB)
+	sample.MemoryPSISomeAvg10 = new(10.0)
+	driver.samples = []guard.Sample{sample}
+}
+
+func (driver *Driver) requirePSIWarning() error {
+	if driver.assessment.State != "warning" || driver.assessment.Reason != "memory-psi" {
+		return fmt.Errorf("got %+v", driver.assessment)
+	}
+	return nil
+}
+
+func (driver *Driver) invalidExplicitConfig() {
+	directory, err := os.MkdirTemp("", "resource-guard-config-")
+	if err != nil {
+		driver.errorOutput = err.Error()
+		return
+	}
+	driver.temporaryPaths = append(driver.temporaryPaths, directory)
+	driver.configPath = filepath.Join(directory, "invalid.json")
+	if err := os.WriteFile(driver.configPath, []byte(`{"schemaVersion":1,"unknown":true}`), 0o600); err != nil {
+		driver.errorOutput = err.Error()
+	}
+}
+
+func (driver *Driver) statusWithConfig() {
+	base := time.Unix(0, 0)
+	collector := &sequenceCollector{samples: []guard.Sample{healthySample(base), healthySample(base.Add(time.Second))}}
+	code, err := (cli.Application{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Collector: collector, Sleep: func(time.Duration) {}}).Run([]string{"status", "--json", "--config", driver.configPath})
+	driver.exitCode = code
+	if err != nil {
+		driver.errorOutput = err.Error()
+	}
+}
+
+func (driver *Driver) requireConfigExit() error {
+	if driver.exitCode != guard.ReplanRequiredExitCode || !strings.Contains(driver.errorOutput, "unknown") {
+		return fmt.Errorf("exit=%d error=%q", driver.exitCode, driver.errorOutput)
+	}
+	return nil
+}
+
+func (driver *Driver) artifactPolicy() {}
+
+func repositoryRoot() string { return filepath.Clean(filepath.Join(toolRoot(), "..", "..")) }
+
+func (driver *Driver) inspectArtifactPolicy() {
+	root := repositoryRoot()
+	local := "tools/resource-guard/resource-guard.local.json"
+	ignore := exec.Command("git", "check-ignore", "--quiet", local)
+	ignore.Dir = root
+	notTracked := exec.Command("git", "ls-files", "--error-unmatch", local)
+	notTracked.Dir = root
+	bootstrap, readError := os.ReadFile(filepath.Join(root, "tools/resource-guard/resource-guard"))
+	driver.privateArtifacts = ignore.Run() == nil && notTracked.Run() != nil && readError == nil && bytes.HasPrefix(bootstrap, []byte("#!/bin/sh\n"))
+	example := exec.Command("git", "check-ignore", "--quiet", "tools/resource-guard/resource-guard.local.json.example")
+	example.Dir = root
+	_, exampleError := os.Stat(filepath.Join(root, "tools/resource-guard/resource-guard.local.json.example"))
+	driver.exampleTracked = example.Run() != nil && exampleError == nil
+}
+
+func (driver *Driver) requirePrivateArtifacts() error {
+	if !driver.privateArtifacts {
+		return errors.New("local config is tracked, not ignored, or bootstrap is not a shell script")
+	}
+	return nil
+}
+
+func (driver *Driver) requireExampleTracked() error {
+	if !driver.exampleTracked {
+		return errors.New("local config example is not tracked")
 	}
 	return nil
 }

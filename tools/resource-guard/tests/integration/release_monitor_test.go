@@ -30,7 +30,7 @@ func TestReleaseMonitorWritesAndAssessesPrivateEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if summary.SchemaVersion != 2 || summary.SampleCount < 2 || summary.ServiceRSSPeakBytes != 4096 || summary.HealthFailures != 0 {
+	if summary.SchemaVersion != 3 || summary.SampleCount < 2 || summary.ServiceRSSPeakBytes != 4096 || summary.HealthFailures != 0 {
 		t.Fatalf("unexpected summary %+v", summary)
 	}
 }

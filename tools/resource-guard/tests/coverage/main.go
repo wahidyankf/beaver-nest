@@ -9,14 +9,34 @@ import (
 	"strings"
 )
 
-func run() int {
+func run() int { //nolint:cyclop,gocognit // Coverage discovery, parsing, completeness, and threshold checks form one small command lifecycle.
 	profile := flag.String("profile", "", "Go coverage profile")
 	files := flag.String("files", "", "comma-separated production files")
+	directories := flag.String("directories", "", "comma-separated deterministic production directories")
 	minimum := flag.Float64("minimum", 99, "minimum covered statement percentage")
 	flag.Parse()
 	selected := map[string]bool{}
 	for file := range strings.SplitSeq(*files, ",") {
-		selected[strings.TrimSpace(file)] = true
+		if cleaned := strings.TrimSpace(file); cleaned != "" {
+			selected[cleaned] = true
+		}
+	}
+	for directory := range strings.SplitSeq(*directories, ",") {
+		directory = strings.TrimSpace(directory)
+		if directory == "" {
+			continue
+		}
+		entries, readError := os.ReadDir(directory)
+		if readError != nil {
+			panic(readError)
+		}
+		for _, entry := range entries {
+			name := entry.Name()
+			if !entry.Type().IsRegular() || !strings.HasSuffix(name, ".go") || name == "doc.go" || strings.HasSuffix(name, "_test.go") {
+				continue
+			}
+			selected[directory+"/"+name] = true
+		}
 	}
 	input, err := os.Open(*profile)
 	if err != nil {
@@ -24,6 +44,7 @@ func run() int {
 	}
 	defer func() { _ = input.Close() }()
 	covered, total := 0, 0
+	matchedFiles := map[string]bool{}
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
@@ -40,6 +61,7 @@ func run() int {
 		for file := range selected {
 			if strings.HasSuffix(path, file) {
 				matched = true
+				matchedFiles[file] = true
 				break
 			}
 		}
@@ -64,6 +86,11 @@ func run() int {
 	}
 	if total == 0 {
 		panic("coverage selection matched no statements")
+	}
+	for file := range selected {
+		if !matchedFiles[file] {
+			panic("coverage selection matched no statements for " + file)
+		}
 	}
 	percentage := float64(covered) * 100 / float64(total)
 	_, _ = fmt.Fprintf(os.Stdout, "selected production line coverage: %.2f%% (%d/%d statements)\n", percentage, covered, total)

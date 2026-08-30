@@ -7,6 +7,8 @@ const (
 	GiB = core.GiB
 	// MiB is one binary mebibyte.
 	MiB = core.MiB
+	// ReplanRequiredExitCode indicates strict configuration or capacity incompatibility.
+	ReplanRequiredExitCode = core.ReplanRequiredExitCode
 )
 
 type (
@@ -24,10 +26,19 @@ type (
 	Assessment = core.Assessment
 	// ReleaseSummary contains aggregate release-monitor evidence.
 	ReleaseSummary = core.ReleaseSummary
+	// Profile defines one adaptive admission envelope.
+	Profile = core.Profile
+	// Catalog owns the named resource profiles.
+	Catalog = core.Catalog
+	// Resolution is the selected concrete resource profile.
+	Resolution = core.Resolution
 )
 
 // DevelopmentPolicy is the repository's canonical guarded-development policy.
 var DevelopmentPolicy = core.DevelopmentPolicy
+
+// BuiltinCatalog returns the capacity-relative default profiles.
+func BuiltinCatalog() Catalog { return core.BuiltinCatalog() }
 
 // EssentialReadingsValid reports whether a sample contains required safe-admission evidence.
 func EssentialReadingsValid(sample Sample) bool { return core.EssentialReadingsValid(sample) }

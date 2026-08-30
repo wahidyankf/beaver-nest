@@ -8,5 +8,6 @@ These scenarios are shared by unit, local integration, and safe compiled-binary 
 - [`artifacts.feature`](artifacts.feature) specifies compiled artifact caching and retention.
 - [`execution.feature`](execution.feature) specifies lease and child-process behavior.
 - [`public-cli.feature`](public-cli.feature) specifies the safe executable boundary.
+- [`portability.feature`](portability.feature) specifies normalized macOS, Linux, cgroup, swap, and PSI evidence.
 - [`quality-gates.feature`](quality-gates.feature) specifies strict module-local Go lint and Gherkin adapter enforcement.
 - [`release.feature`](release.feature) specifies release-specific capacity evidence.

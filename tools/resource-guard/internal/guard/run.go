@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -35,6 +36,8 @@ type RunConfig struct {
 	PortLeaseRoot                         string
 	Collector                             Collector
 	Policy                                Policy
+	Resolution                            Resolution
+	ConfigHash                            string
 	Now                                   func() time.Time
 	Sleep                                 func(time.Duration)
 	Stderr                                io.Writer
@@ -59,6 +62,26 @@ func withEnvironment(environment []string, name, value string) []string {
 		}
 	}
 	return append(result, prefix+value)
+}
+
+func withEnvironmentIfMissing(environment []string, name, value string) []string {
+	if environmentValue(environment, name) != "" {
+		return environment
+	}
+	return withEnvironment(environment, name, value)
+}
+
+func resolvedEnvironment(environment []string, resolution Resolution) []string {
+	if resolution.ResolvedProfile == "" || resolution.Concurrency <= 0 {
+		return environment
+	}
+	concurrency := strconv.Itoa(resolution.Concurrency)
+	environment = withEnvironment(environment, "RESOURCE_GUARD_PROFILE", resolution.ResolvedProfile)
+	environment = withEnvironment(environment, "RESOURCE_GUARD_CONCURRENCY", concurrency)
+	for _, name := range []string{"NX_PARALLEL", "GOMAXPROCS", "DOTNET_PROCESSOR_COUNT"} {
+		environment = withEnvironmentIfMissing(environment, name, concurrency)
+	}
+	return environment
 }
 
 func waitStatusCode(err error) int {
@@ -122,6 +145,7 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 	if config.Environment == nil {
 		config.Environment = os.Environ()
 	}
+	config.Environment = resolvedEnvironment(config.Environment, config.Resolution)
 	if config.DiskPath == "" {
 		config.DiskPath = config.WorkingDirectory
 	}
@@ -170,6 +194,7 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 	if err != nil {
 		return 1, err
 	}
+	writer.SetContext(config.Resolution, config.ConfigHash)
 	outcome := "capacity-deferred"
 	finalized := false
 	finalize := func() error {

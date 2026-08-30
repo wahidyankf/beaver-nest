@@ -85,6 +85,8 @@ type EvidenceWriter struct {
 	outputPath, summaryPath string
 	output                  *os.File
 	samples                 []Sample
+	resolution              Resolution
+	configHash              string
 }
 
 // NewEvidenceWriter creates an exclusive evidence stream below root.
@@ -103,6 +105,12 @@ func NewEvidenceWriter(root, identifier string) (*EvidenceWriter, error) {
 	return &EvidenceWriter{outputPath: outputPath, summaryPath: filepath.Join(root, identifier+".summary.json"), output: output}, nil
 }
 
+// SetContext attaches resolved, non-sensitive policy metadata to the summary.
+func (writer *EvidenceWriter) SetContext(resolution Resolution, configHash string) {
+	writer.resolution = resolution
+	writer.configHash = configHash
+}
+
 // Append records one sample in the evidence stream.
 func (writer *EvidenceWriter) Append(sample Sample) error {
 	encoded, err := json.Marshal(sample)
@@ -118,21 +126,28 @@ func (writer *EvidenceWriter) Append(sample Sample) error {
 
 // EvidenceSummary captures bounded aggregate evidence for one guarded task.
 type EvidenceSummary struct {
-	SchemaVersion                          int     `json:"schemaVersion"`
-	SampleCount                            int     `json:"sampleCount"`
-	TaskClass                              string  `json:"taskClass"`
-	Outcome                                string  `json:"outcome"`
-	AvailableParallelism                   int     `json:"availableParallelism"`
-	AvailableNonCompressedEstimateMinBytes *int64  `json:"availableNonCompressedEstimateMinBytes"`
-	MemoryPressureLevelMax                 *int    `json:"memoryPressureLevelMax"`
-	CompressorAvailableAll                 bool    `json:"compressorAvailableAll"`
-	CompressorPayloadPeakBytes             *int64  `json:"compressorPayloadPeakBytes"`
-	CPUUtilizationP95Percent               float64 `json:"cpuUtilizationP95Percent"`
-	DiskFreeMinBytes                       *int64  `json:"diskFreeMinBytes"`
-	SwapInsDelta                           int64   `json:"swapInsDelta"`
-	SwapOutsDelta                          int64   `json:"swapOutsDelta"`
-	SwapFreeMinBytes                       *int64  `json:"swapFreeMinBytes"`
-	HealthFailures                         int     `json:"healthFailures"`
+	SchemaVersion                          int      `json:"schemaVersion"`
+	SampleCount                            int      `json:"sampleCount"`
+	TaskClass                              string   `json:"taskClass"`
+	Outcome                                string   `json:"outcome"`
+	AvailableParallelism                   int      `json:"availableParallelism"`
+	AvailableNonCompressedEstimateMinBytes *int64   `json:"availableNonCompressedEstimateMinBytes"`
+	MemoryPressureLevelMax                 *int     `json:"memoryPressureLevelMax"`
+	CompressorAvailableAll                 bool     `json:"compressorAvailableAll"`
+	CompressorPayloadPeakBytes             *int64   `json:"compressorPayloadPeakBytes"`
+	CPUUtilizationP95Percent               float64  `json:"cpuUtilizationP95Percent"`
+	DiskFreeMinBytes                       *int64   `json:"diskFreeMinBytes"`
+	SwapInsDelta                           int64    `json:"swapInsDelta"`
+	SwapOutsDelta                          int64    `json:"swapOutsDelta"`
+	SwapFreeMinBytes                       *int64   `json:"swapFreeMinBytes"`
+	HealthFailures                         int      `json:"healthFailures"`
+	Platform                               string   `json:"platform,omitempty"`
+	Capabilities                           []string `json:"capabilities,omitempty"`
+	RequestedProfile                       string   `json:"requestedProfile,omitempty"`
+	ResolvedProfile                        string   `json:"resolvedProfile,omitempty"`
+	FallbackChain                          []string `json:"fallbackChain,omitempty"`
+	Concurrency                            int      `json:"concurrency,omitempty"`
+	ConfigHash                             string   `json:"configHash,omitempty"`
 }
 
 func minInt64(values []*int64) *int64 {
@@ -184,11 +199,15 @@ func (writer *EvidenceWriter) Finalize(taskClass, outcome string, healthFailures
 		return EvidenceSummary{}, err
 	}
 	writer.output = nil
-	summary := EvidenceSummary{SchemaVersion: 2, SampleCount: len(writer.samples), TaskClass: taskClass, Outcome: outcome, HealthFailures: healthFailures, CompressorAvailableAll: true}
+	summary := EvidenceSummary{SchemaVersion: 3, SampleCount: len(writer.samples), TaskClass: taskClass, Outcome: outcome, HealthFailures: healthFailures, CompressorAvailableAll: true, RequestedProfile: writer.resolution.RequestedProfile, ResolvedProfile: writer.resolution.ResolvedProfile, FallbackChain: writer.resolution.FallbackChain, Concurrency: writer.resolution.Concurrency, ConfigHash: writer.configHash}
 	available, levels, payloads, disks, swapFree := []*int64{}, []*int{}, []*int64{}, []*int64{}, []*int64{}
 	cpu := []float64{}
 	for _, sample := range writer.samples {
-		available = append(available, sample.AvailableNonCompressedEstimateBytes)
+		availableValue := sample.AvailableMemoryBytes
+		if availableValue == nil {
+			availableValue = sample.AvailableNonCompressedEstimateBytes
+		}
+		available = append(available, availableValue)
 		levels = append(levels, sample.MemoryPressureLevel)
 		payloads = append(payloads, sample.CompressorPayloadBytes)
 		disks = append(disks, sample.DiskFreeBytes)
@@ -202,6 +221,8 @@ func (writer *EvidenceWriter) Finalize(taskClass, outcome string, healthFailures
 	}
 	if len(writer.samples) > 0 {
 		summary.AvailableParallelism = writer.samples[0].AvailableParallelism
+		summary.Platform = writer.samples[0].Platform
+		summary.Capabilities = append([]string(nil), writer.samples[0].Capabilities...)
 		summary.SwapInsDelta = delta(writer.samples[0].SwapIns, writer.samples[len(writer.samples)-1].SwapIns)
 		summary.SwapOutsDelta = delta(writer.samples[0].SwapOuts, writer.samples[len(writer.samples)-1].SwapOuts)
 	}

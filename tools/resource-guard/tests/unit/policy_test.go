@@ -28,6 +28,8 @@ func TestEssentialReadingsAndMemoryStates(t *testing.T) {
 		t.Fatal("critical pressure ignored")
 	}
 	compressor := healthy
+	compressor.Platform = "darwin"
+	compressor.Capabilities = []string{"compressor"}
 	compressor.CompressorAvailable = new(false)
 	if guard.MemoryState(compressor, guard.DevelopmentPolicy) != "critical" {
 		t.Fatal("compressor failure ignored")
@@ -70,6 +72,13 @@ func TestCPUAdmissionBoundaries(t *testing.T) {
 	if !guard.CPUAdmissionReady(sample, guard.DevelopmentPolicy) {
 		t.Fatal("reserved CPU clamp failed")
 	}
+	legacy := guard.DevelopmentPolicy
+	legacy.MaxCPUUtilizationPercent = 0
+	sample.AvailableParallelism = 12
+	sample.CPUUtilizationPercent = new(80.0)
+	if !guard.CPUAdmissionReady(sample, legacy) {
+		t.Fatal("reserved CPU fallback rejected safe utilization")
+	}
 }
 
 func TestResourceAssessmentBranches(t *testing.T) {
@@ -88,6 +97,11 @@ func TestResourceAssessmentBranches(t *testing.T) {
 	diskCritical.MemoryPressureLevel = new(2)
 	if got := guard.ResourceAssessment([]guard.Sample{diskCritical}, policy); got.Reason != "disk-critical" || got.State != "critical" {
 		t.Fatalf("unexpected critical disk %+v", got)
+	}
+	diskWarning := policySample(base)
+	diskWarning.DiskFreeBytes = new(29 * guard.GiB)
+	if got := guard.ResourceAssessment([]guard.Sample{diskWarning}, policy); got.Reason != "disk-warning" || got.State != "warning" {
+		t.Fatalf("unexpected warning disk %+v", got)
 	}
 	memoryWarning := policySample(base)
 	memoryWarning.MemoryPressureLevel = new(2)

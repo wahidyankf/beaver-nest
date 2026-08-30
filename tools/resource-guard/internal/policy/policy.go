@@ -2,6 +2,7 @@ package policy
 
 import (
 	"math"
+	"slices"
 	"sort"
 	"time"
 )
@@ -10,16 +11,21 @@ const (
 	// GiB is one binary gibibyte.
 	GiB = int64(1024 * 1024 * 1024)
 	// MiB is one binary mebibyte.
-	MiB           = int64(1024 * 1024)
-	stateNormal   = "normal"
-	stateWarning  = "warning"
-	stateCritical = "critical"
+	MiB                  = int64(1024 * 1024)
+	stateNormal          = "normal"
+	stateWarning         = "warning"
+	stateCritical        = "critical"
+	swapUnavailableState = "unavailable"
 )
 
 // Sample is one timestamped host resource observation.
 type Sample struct {
 	SchemaVersion                       int      `json:"schemaVersion"`
 	MeasuredAt                          string   `json:"measuredAt"`
+	Platform                            string   `json:"platform,omitempty"`
+	Capabilities                        []string `json:"capabilities,omitempty"`
+	EffectiveMemoryLimitBytes           int64    `json:"effectiveMemoryLimitBytes,omitempty"`
+	AvailableMemoryBytes                *int64   `json:"availableMemoryBytes,omitempty"`
 	AvailableNonCompressedEstimateBytes *int64   `json:"availableNonCompressedEstimateBytes"`
 	MemoryPressureLevel                 *int     `json:"memoryPressureLevel"`
 	CompressorAvailable                 *bool    `json:"compressorAvailable"`
@@ -28,6 +34,7 @@ type Sample struct {
 	AvailableParallelism                int      `json:"availableParallelism"`
 	CPUUtilizationPercent               *float64 `json:"cpuUtilizationPercent"`
 	DiskFreeBytes                       *int64   `json:"diskFreeBytes"`
+	DiskTotalBytes                      *int64   `json:"diskTotalBytes,omitempty"`
 	PageSizeBytes                       *int64   `json:"pageSizeBytes"`
 	CompressorStoredPages               *int64   `json:"compressorStoredPages"`
 	CompressorOccupiedPages             *int64   `json:"compressorOccupiedPages"`
@@ -36,6 +43,11 @@ type Sample struct {
 	SwapTotalBytes                      *int64   `json:"swapTotalBytes"`
 	SwapUsedBytes                       *int64   `json:"swapUsedBytes"`
 	SwapFreeBytes                       *int64   `json:"swapFreeBytes"`
+	SwapState                           string   `json:"swapState,omitempty"`
+	MemoryPSISomeAvg10                  *float64 `json:"memoryPsiSomeAvg10,omitempty"`
+	MemoryPSIFullAvg10                  *float64 `json:"memoryPsiFullAvg10,omitempty"`
+	OOMEvents                           *int64   `json:"oomEvents,omitempty"`
+	OOMKillEvents                       *int64   `json:"oomKillEvents,omitempty"`
 }
 
 // CPUState contains cumulative CPU counters used to calculate utilization.
@@ -66,6 +78,7 @@ type Policy struct {
 	CompressorCriticalPayloadBytes int64
 	CompressorCriticalGrowthBytes  int64
 	ReservedCPUUnits               int
+	MaxCPUUtilizationPercent       float64
 	ConsecutiveCPUSamples          int
 	AdmissionWindow                time.Duration
 	EphemeralWarningGrace          time.Duration
@@ -83,7 +96,7 @@ var DevelopmentPolicy = Policy{
 	SwapOutWarningBytes: 128 * MiB, SwapOutCriticalBytes: 512 * MiB,
 	CompressorWarningPayloadBytes: 12 * GiB, CompressorWarningGrowthBytes: 1 * GiB,
 	CompressorCriticalPayloadBytes: 16 * GiB, CompressorCriticalGrowthBytes: 2 * GiB,
-	ReservedCPUUnits: 2, ConsecutiveCPUSamples: 3,
+	ReservedCPUUnits: 2, MaxCPUUtilizationPercent: 85, ConsecutiveCPUSamples: 3,
 	AdmissionWindow: 15 * time.Second, EphemeralWarningGrace: 10 * time.Second,
 	ServiceWarningGrace: 30 * time.Second, TerminationGrace: 10 * time.Second,
 	LeaseWait: 5 * time.Minute, SampleInterval: time.Second,
@@ -96,6 +109,7 @@ type Assessment struct {
 	Reason                      string  `json:"reason"`
 	State                       string  `json:"state"`
 	StorageBlocked              bool    `json:"storageBlocked"`
+	SwapState                   string  `json:"swapState,omitempty"`
 }
 
 func ptrFinite[T ~int | ~int64](value *T) bool {
@@ -104,11 +118,19 @@ func ptrFinite[T ~int | ~int64](value *T) bool {
 
 // EssentialReadingsValid reports whether required admission evidence is usable.
 func EssentialReadingsValid(sample Sample) bool {
-	validLevel := sample.MemoryPressureLevel != nil && (*sample.MemoryPressureLevel == 1 || *sample.MemoryPressureLevel == 2 || *sample.MemoryPressureLevel == 4)
 	_, timeError := time.Parse(time.RFC3339Nano, sample.MeasuredAt)
-	return ptrFinite(sample.AvailableNonCompressedEstimateBytes) && validLevel && sample.CompressorAvailable != nil &&
-		ptrFinite(sample.CompressorPayloadBytes) && timeError == nil && sample.PageSizeBytes != nil && *sample.PageSizeBytes > 0 &&
-		ptrFinite(sample.SwapOuts) && sample.AvailableParallelism > 0
+	return ptrFinite(availableMemory(sample)) && timeError == nil && sample.DiskFreeBytes != nil && sample.AvailableParallelism > 0
+}
+
+func availableMemory(sample Sample) *int64 {
+	if sample.AvailableMemoryBytes != nil {
+		return sample.AvailableMemoryBytes
+	}
+	return sample.AvailableNonCompressedEstimateBytes
+}
+
+func hasCapability(sample Sample, expected string) bool {
+	return slices.Contains(sample.Capabilities, expected)
 }
 
 // MemoryState classifies memory evidence as normal, warning, or critical.
@@ -116,10 +138,16 @@ func MemoryState(sample Sample, policy Policy) string {
 	if !EssentialReadingsValid(sample) {
 		return stateCritical
 	}
-	if *sample.MemoryPressureLevel == 4 || !*sample.CompressorAvailable || *sample.AvailableNonCompressedEstimateBytes < policy.CriticalMemoryBytes {
+	available := availableMemory(sample)
+	criticalPressure := sample.MemoryPressureLevel != nil && *sample.MemoryPressureLevel == 4
+	compressorFailed := sample.CompressorAvailable != nil && !*sample.CompressorAvailable && (sample.Platform == "" || hasCapability(sample, "compressor"))
+	psiCritical := sample.MemoryPSISomeAvg10 != nil && *sample.MemoryPSISomeAvg10 >= 25 || sample.MemoryPSIFullAvg10 != nil && *sample.MemoryPSIFullAvg10 >= 5
+	if criticalPressure || compressorFailed || psiCritical || *available < policy.CriticalMemoryBytes {
 		return stateCritical
 	}
-	if *sample.MemoryPressureLevel == 2 || *sample.AvailableNonCompressedEstimateBytes < policy.AdmissionMemoryBytes {
+	warningPressure := sample.MemoryPressureLevel != nil && *sample.MemoryPressureLevel == 2
+	psiWarning := sample.MemoryPSISomeAvg10 != nil && *sample.MemoryPSISomeAvg10 >= 10
+	if warningPressure || psiWarning || *available < policy.AdmissionMemoryBytes {
 		return stateWarning
 	}
 	return stateNormal
@@ -130,8 +158,11 @@ func CPUAdmissionReady(sample Sample, policy Policy) bool {
 	if sample.CPUUtilizationPercent == nil || math.IsNaN(*sample.CPUUtilizationPercent) || math.IsInf(*sample.CPUUtilizationPercent, 0) || sample.AvailableParallelism <= 0 {
 		return false
 	}
-	reserved := min(policy.ReservedCPUUnits, sample.AvailableParallelism)
-	ceiling := 100 * (1 - float64(reserved)/float64(sample.AvailableParallelism))
+	ceiling := policy.MaxCPUUtilizationPercent
+	if ceiling <= 0 {
+		reserved := min(policy.ReservedCPUUnits, sample.AvailableParallelism)
+		ceiling = 100 * (1 - float64(reserved)/float64(sample.AvailableParallelism))
+	}
 	return *sample.CPUUtilizationPercent <= ceiling
 }
 
@@ -159,7 +190,7 @@ func scaledWindowDelta(samples []Sample, value func(Sample) *int64, multiplier i
 }
 
 // ResourceAssessment classifies the newest sample and bounded pressure trends.
-func ResourceAssessment(samples []Sample, policy Policy) Assessment {
+func ResourceAssessment(samples []Sample, policy Policy) Assessment { //nolint:cyclop // Ordered independent resource signals must remain visibly auditable.
 	if len(samples) == 0 {
 		return Assessment{Reason: "missing-sample", State: stateCritical}
 	}
@@ -171,7 +202,7 @@ func ResourceAssessment(samples []Sample, policy Policy) Assessment {
 	result := Assessment{
 		CompressorGrowthWindowBytes: scaledWindowDelta(samples, func(s Sample) *int64 { return s.CompressorPayloadBytes }, 1, policy),
 		SwapOutWindowBytes:          scaledWindowDelta(samples, func(s Sample) *int64 { return s.SwapOuts }, pageSize, policy),
-		Reason:                      stateNormal, State: stateNormal,
+		Reason:                      stateNormal, State: stateNormal, SwapState: current.SwapState,
 	}
 	if current.DiskFreeBytes == nil {
 		result.Reason, result.State, result.StorageBlocked = "disk-unavailable", stateCritical, true
@@ -180,17 +211,31 @@ func ResourceAssessment(samples []Sample, policy Policy) Assessment {
 	result.StorageBlocked = *current.DiskFreeBytes < policy.DiskWarningBytes
 	type candidate struct{ reason, state string }
 	candidates := []candidate{}
+	if len(samples) > 1 {
+		previous := samples[len(samples)-2]
+		oomIncreased := current.OOMEvents != nil && previous.OOMEvents != nil && *current.OOMEvents > *previous.OOMEvents
+		oomKillIncreased := current.OOMKillEvents != nil && previous.OOMKillEvents != nil && *current.OOMKillEvents > *previous.OOMKillEvents
+		if oomIncreased || oomKillIncreased {
+			candidates = append(candidates, candidate{"memory-oom", stateCritical})
+		}
+	}
 	if *current.DiskFreeBytes < policy.DiskCriticalBytes {
 		candidates = append(candidates, candidate{"disk-critical", stateCritical})
 	} else if result.StorageBlocked {
 		candidates = append(candidates, candidate{"disk-warning", stateWarning})
 	}
 	if state := MemoryState(current, policy); state != stateNormal {
-		candidates = append(candidates, candidate{"memory-" + state, state})
+		reason := "memory-" + state
+		if current.MemoryPSISomeAvg10 != nil && *current.MemoryPSISomeAvg10 >= 10 || current.MemoryPSIFullAvg10 != nil && *current.MemoryPSIFullAvg10 >= 5 {
+			reason = "memory-psi"
+		}
+		candidates = append(candidates, candidate{reason, state})
 	}
-	if result.SwapOutWindowBytes >= float64(policy.SwapOutCriticalBytes) {
+	if current.SwapState != swapUnavailableState && result.SwapOutWindowBytes >= float64(policy.SwapOutCriticalBytes) {
+		result.SwapState = "stressed"
 		candidates = append(candidates, candidate{"swap-critical", stateCritical})
-	} else if result.SwapOutWindowBytes >= float64(policy.SwapOutWarningBytes) {
+	} else if current.SwapState != swapUnavailableState && result.SwapOutWindowBytes >= float64(policy.SwapOutWarningBytes) {
+		result.SwapState = "stressed"
 		candidates = append(candidates, candidate{"swap-warning", stateWarning})
 	}
 	if current.CompressorPayloadBytes != nil && *current.CompressorPayloadBytes >= policy.CompressorCriticalPayloadBytes && result.CompressorGrowthWindowBytes >= float64(policy.CompressorCriticalGrowthBytes) {
@@ -237,22 +282,24 @@ func Percentile(values []float64, proportion float64) *float64 {
 
 // ReleaseSummary contains aggregate release-monitor evidence.
 type ReleaseSummary struct {
-	SchemaVersion                          int     `json:"schemaVersion"`
-	SampleCount                            int     `json:"sampleCount"`
-	AvailableParallelism                   int     `json:"availableParallelism"`
-	AvailableNonCompressedEstimateMinBytes int64   `json:"availableNonCompressedEstimateMinBytes"`
-	MemoryPressureLevelMax                 int     `json:"memoryPressureLevelMax"`
-	CompressorAvailableAll                 bool    `json:"compressorAvailableAll"`
-	CompressorPayloadPeakBytes             int64   `json:"compressorPayloadPeakBytes"`
-	PhysicalMemoryBytes                    int64   `json:"physicalMemoryBytes,omitempty"`
-	CPUUtilizationP95Percent               float64 `json:"cpuUtilizationP95Percent"`
-	ServiceRSSPeakBytes                    int64   `json:"serviceRssPeakBytes,omitempty"`
-	DiskFreeMinBytes                       int64   `json:"diskFreeMinBytes"`
-	SwapInsDelta                           int64   `json:"swapInsDelta"`
-	SwapOutsDelta                          int64   `json:"swapOutsDelta"`
-	SwapFreeMinBytes                       int64   `json:"swapFreeMinBytes"`
-	CaddyHealthLatencyP95Ms                float64 `json:"caddyHealthLatencyP95Ms,omitempty"`
-	HealthFailures                         int     `json:"healthFailures"`
+	SchemaVersion                          int      `json:"schemaVersion"`
+	Platform                               string   `json:"platform,omitempty"`
+	Capabilities                           []string `json:"capabilities,omitempty"`
+	SampleCount                            int      `json:"sampleCount"`
+	AvailableParallelism                   int      `json:"availableParallelism"`
+	AvailableNonCompressedEstimateMinBytes int64    `json:"availableNonCompressedEstimateMinBytes"`
+	MemoryPressureLevelMax                 int      `json:"memoryPressureLevelMax"`
+	CompressorAvailableAll                 bool     `json:"compressorAvailableAll"`
+	CompressorPayloadPeakBytes             int64    `json:"compressorPayloadPeakBytes"`
+	PhysicalMemoryBytes                    int64    `json:"physicalMemoryBytes,omitempty"`
+	CPUUtilizationP95Percent               float64  `json:"cpuUtilizationP95Percent"`
+	ServiceRSSPeakBytes                    int64    `json:"serviceRssPeakBytes,omitempty"`
+	DiskFreeMinBytes                       int64    `json:"diskFreeMinBytes"`
+	SwapInsDelta                           int64    `json:"swapInsDelta"`
+	SwapOutsDelta                          int64    `json:"swapOutsDelta"`
+	SwapFreeMinBytes                       int64    `json:"swapFreeMinBytes"`
+	CaddyHealthLatencyP95Ms                float64  `json:"caddyHealthLatencyP95Ms,omitempty"`
+	HealthFailures                         int      `json:"healthFailures"`
 }
 
 // ReleaseHeadroomAvailable validates aggregate capacity for release overlap.
@@ -262,10 +309,13 @@ func ReleaseHeadroomAvailable(summary ReleaseSummary) bool {
 		return false
 	}
 	ceiling := 100 * (1 - 2/float64(summary.AvailableParallelism))
-	return summary.SampleCount > 0 && summary.AvailableNonCompressedEstimateMinBytes >= 2*GiB && summary.MemoryPressureLevelMax == 1 && summary.CompressorAvailableAll && !swapPressure && summary.CPUUtilizationP95Percent <= ceiling && summary.HealthFailures == 0
+	compressorHealthy := summary.Platform != "darwin" && summary.Platform != "" || summary.CompressorAvailableAll
+	return summary.SampleCount > 0 && summary.AvailableNonCompressedEstimateMinBytes >= 2*GiB && summary.MemoryPressureLevelMax == 1 && compressorHealthy && !swapPressure && summary.CPUUtilizationP95Percent <= ceiling && summary.HealthFailures == 0
 }
 
 // ReleaseMemoryAvailable reports whether one sample preserves release memory headroom.
 func ReleaseMemoryAvailable(sample Sample) bool {
-	return sample.AvailableNonCompressedEstimateBytes != nil && *sample.AvailableNonCompressedEstimateBytes >= 9*GiB && sample.MemoryPressureLevel != nil && *sample.MemoryPressureLevel == 1 && sample.CompressorAvailable != nil && *sample.CompressorAvailable
+	available := availableMemory(sample)
+	compressorHealthy := sample.Platform != "darwin" || sample.CompressorAvailable != nil && *sample.CompressorAvailable
+	return available != nil && *available >= 9*GiB && sample.MemoryPressureLevel != nil && *sample.MemoryPressureLevel == 1 && compressorHealthy
 }

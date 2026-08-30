@@ -2,10 +2,10 @@ Feature: Release resource ownership
   Release orchestration delegates host resource decisions and monitoring to the Go guard.
 
   @e2e-exempt
-  Scenario: Release admission reserves six CPU units
-    Given a release host with eight execution units and safe memory
+  Scenario: Release admission preserves the requested capacity envelope
+    Given a release host below its requested balanced capacity
     When release admission is assessed
-    Then three CPU samples at or below 25 percent are required
+    Then the release requires replanning instead of automatic fallback
 
   @e2e-exempt
   Scenario: Release overlap rejects failed health evidence

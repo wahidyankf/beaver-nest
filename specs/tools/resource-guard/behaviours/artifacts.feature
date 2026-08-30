@@ -18,3 +18,10 @@ Feature: Resource guard build artifacts
     Given four historical bootstrap generations
     When the current bootstrap generation runs
     Then only the current and two recent generations remain
+
+  @unit-exempt @e2e-exempt
+  Scenario: Machine-local configuration and binaries stay private
+    Given the resource guard artifact policy
+    When tracked and ignored paths are inspected
+    Then local config and compiled binaries are rejected from Git
+    And the local config example remains tracked

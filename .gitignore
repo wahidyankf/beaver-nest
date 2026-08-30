@@ -27,6 +27,7 @@ npm-debug.log*
 /tools/resource-guard/.cache/
 /tools/resource-guard/dist/
 /tools/resource-guard/coverage/
+/tools/resource-guard/resource-guard.local.json
 
 # .NET / F#
 **/bin/

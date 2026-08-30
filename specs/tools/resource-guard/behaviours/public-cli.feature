@@ -4,7 +4,13 @@ Feature: Public resource guard CLI
   Scenario: JSON status exposes the stable evidence schema
     Given the compiled resource guard binary
     When JSON status is requested for an existing path
-    Then status returns schema version 2 and a resource assessment
+    Then status returns schema version 3 with profile and capability evidence
+
+  @e2e-exempt
+  Scenario: Invalid explicit configuration is actionable
+    Given an explicit resource guard config with an unknown field
+    When JSON status is requested with that config
+    Then configuration fails with exit 78
 
   Scenario: Run validates its command boundary
     Given the compiled resource guard binary

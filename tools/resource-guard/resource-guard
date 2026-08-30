@@ -6,12 +6,24 @@ cache_root=${BNEST_RESOURCE_BUILD_CACHE:-"$tool_dir/.cache"}
 goos=$(go env GOOS)
 goarch=$(go env GOARCH)
 
+hash_stream() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$@"
+  else
+    shasum -a 256 "$@"
+  fi
+}
+
+modified_time() {
+  stat -f '%m' "$1" 2>/dev/null || stat -c '%Y' "$1"
+}
+
 source_hash=$(
   cd "$tool_dir"
-  find cmd internal -type f -name '*.go' -print | LC_ALL=C sort | xargs shasum -a 256
-  shasum -a 256 go.mod go.sum 2>/dev/null || shasum -a 256 go.mod
+  find cmd internal -type f -name '*.go' -print | LC_ALL=C sort | while IFS= read -r source_file; do hash_stream "$source_file"; done
+  hash_stream go.mod go.sum 2>/dev/null || hash_stream go.mod
 )
-source_hash=$(printf '%s' "$source_hash" | shasum -a 256 | awk '{print $1}')
+source_hash=$(printf '%s' "$source_hash" | hash_stream | awk '{print $1}')
 binary_dir="$cache_root/$goos-$goarch/$source_hash"
 binary="$binary_dir/resource-guard"
 lock="$binary_dir.lock"
@@ -62,7 +74,7 @@ prune_cache() {
         ''|*[!0-9a-f]*) continue ;;
       esac
       [ "${#candidate}" -eq 64 ] || continue
-      modified=$(stat -f '%m' "$candidate_path") || continue
+      modified=$(modified_time "$candidate_path") || continue
       printf '%s %s\n' "$modified" "$candidate"
     done
   ) | LC_ALL=C sort -rn > "$candidates"
@@ -126,4 +138,6 @@ if [ ! -x "$binary" ]; then
 fi
 
 prune_cache
+RESOURCE_GUARD_DEFAULT_CONFIG=${RESOURCE_GUARD_DEFAULT_CONFIG:-"$tool_dir/resource-guard.local.json"}
+export RESOURCE_GUARD_DEFAULT_CONFIG
 exec "$binary" "$@"

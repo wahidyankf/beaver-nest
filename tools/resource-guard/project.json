@@ -10,6 +10,11 @@
       "outputs": ["{projectRoot}/dist"],
       "cache": false
     },
+    "build:platforms": {
+      "command": "for platform in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do GOOS=${platform%/*} GOARCH=${platform#*/} go build -p=1 -trimpath -o /dev/null ./cmd/resource-guard && GOOS=${platform%/*} GOARCH=${platform#*/} go test -c -o /dev/null ./tests/unit; done",
+      "options": { "cwd": "tools/resource-guard" },
+      "cache": false
+    },
     "typecheck": {
       "command": "go test -run '^$' ./...",
       "inputs": [
@@ -57,8 +62,13 @@
       "options": { "cwd": "tools/resource-guard" },
       "cache": false
     },
+    "test:artifacts": {
+      "command": "./tests/artifacts/run.sh",
+      "options": { "cwd": "tools/resource-guard" },
+      "cache": false
+    },
     "test:coverage:unit": {
-      "command": "mkdir -p coverage && go test -count=1 -coverpkg=./internal/policy -coverprofile=coverage/unit.out ./tests/unit && go run ./tests/coverage --profile coverage/unit.out --files internal/policy/policy.go --minimum 99",
+      "command": "mkdir -p coverage && go test -count=1 -coverpkg=./internal/policy,./internal/config,./internal/host -coverprofile=coverage/unit.out ./tests/unit && go run ./tests/coverage --profile coverage/unit.out --directories internal/policy,internal/config --files internal/host/collector.go,internal/host/linux_parsers.go --minimum 99",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
@@ -151,6 +161,10 @@
           {
             "command": "npm exec -- nx run -p resource-guard -t test:e2e",
             "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:artifacts",
+            "forwardAllArgs": false
           }
         ],
         "forwardAllArgs": false,
@@ -167,6 +181,10 @@
             "forwardAllArgs": false
           },
           {
+            "command": "npm exec -- nx run -p resource-guard -t build:platforms",
+            "forwardAllArgs": false
+          },
+          {
             "command": "npm exec -- nx run -p resource-guard -t lint",
             "forwardAllArgs": false
           },
@@ -180,6 +198,10 @@
           },
           {
             "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:artifacts",
             "forwardAllArgs": false
           }
         ],

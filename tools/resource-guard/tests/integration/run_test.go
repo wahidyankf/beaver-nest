@@ -79,3 +79,15 @@ func TestGuardShedsCriticalEphemeralChild(t *testing.T) {
 		t.Fatalf("exit=%d error=%v", code, err)
 	}
 }
+
+func TestGuardInjectsResolvedConcurrencyWithoutOverwritingCaller(t *testing.T) {
+	base := time.Now()
+	collector := &integrationCollector{samples: []guard.Sample{integrationSample(base), integrationSample(base.Add(time.Millisecond)), integrationSample(base.Add(2 * time.Millisecond))}}
+	resolution := guard.Resolution{RequestedProfile: "balanced", ResolvedProfile: "minimal", FallbackChain: []string{"balanced", "constrained", "minimal"}, Concurrency: 1}
+	command := `[ "$RESOURCE_GUARD_PROFILE" = minimal ] && [ "$RESOURCE_GUARD_CONCURRENCY" = 1 ] && [ "$NX_PARALLEL" = 7 ] && [ "$GOMAXPROCS" = 6 ] && [ "$DOTNET_PROCESSOR_COUNT" = 5 ]`
+	environment := []string{"PATH=" + os.Getenv("PATH"), "NX_PARALLEL=7", "GOMAXPROCS=6", "DOTNET_PROCESSOR_COUNT=5"}
+	code, err := guard.Run(guard.RunConfig{Command: "/bin/sh", Arguments: []string{"-c", command}, TaskClass: "ephemeral", EvidenceRoot: t.TempDir(), DiskPath: ".", Collector: collector, Policy: fastPolicy(), Resolution: resolution, Sleep: func(time.Duration) {}, Now: time.Now, Stderr: &bytes.Buffer{}, Environment: environment})
+	if err != nil || code != 0 {
+		t.Fatalf("exit=%d error=%v", code, err)
+	}
+}
