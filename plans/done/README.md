@@ -11,6 +11,7 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [Multi-harness repository support](2026-08-28__multi-agent-repository-support/README.md) completed one canonical coding-agent contract for Codex, Claude Code, and OpenCode with deterministic Badakmini enforcement.
 - [Bnest SQLite storage](2026-08-29__bnest-sqlite-storage/README.md) completed the headless flat-file-to-SQLite migration, optional admin folder selection, and a verified active-service cutover.
 - [Resource-aware development](2026-08-29__resource-aware-development/README.md) completed evidence-backed host-pressure admission, owned-process shedding, shared release metrics, and guarded repository workflows.
+- [Bn​est daily backups and schedules](2026-08-30__bnest-daily-backups-and-schedules/README.md) completed durable contextual schedules, verified daily SQLite backups, typed admin settings, and a no-downtime production rollout.
 
 ## Directory Map
 
@@ -19,3 +20,4 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [Multi-harness repository support](2026-08-28__multi-agent-repository-support/README.md) contains the completed cross-harness governance and validation record.
 - [Bnest SQLite storage](2026-08-29__bnest-sqlite-storage/README.md) contains the completed SQLite storage migration and cutover delivery record.
 - [Resource-aware development](2026-08-29__resource-aware-development/README.md) contains the completed resource-aware development and release-monitoring delivery record.
+- [Bn​est daily backups and schedules](2026-08-30__bnest-daily-backups-and-schedules/README.md) contains the completed scheduler, backup, admin settings, and production rollout record.

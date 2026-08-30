@@ -6,4 +6,4 @@ Start work by moving one folder from [`../backlogs/`](../backlogs/README.md) wit
 
 ## Directory Map
 
-- [`bnest-daily-backups-and-schedules/`](bnest-daily-backups-and-schedules/README.md) — active delivery of contextual schedules, verified daily SQLite backups, and typed admin settings.
+This directory currently has no plans in progress.

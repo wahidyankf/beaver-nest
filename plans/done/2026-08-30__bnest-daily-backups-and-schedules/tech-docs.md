@@ -120,7 +120,8 @@ CREATE TABLE bnest_schedules (
   schedule_context TEXT NOT NULL CHECK
     (schedule_context IN ('family', 'admin_system')),
   cadence TEXT NOT NULL CHECK (cadence = 'daily'),
-  daily_at_utc TEXT NOT NULL,
+  daily_at_utc TEXT NOT NULL CHECK
+    (daily_at_utc GLOB '[0-2][0-9]:[0-5][0-9]'),
   enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
   expiration_kind TEXT NOT NULL CHECK
     (expiration_kind IN ('never', 'at', 'after_occurrences')),
@@ -360,7 +361,7 @@ The receipt contains schema version, schedule/run identity, UTC time, source gen
 1. The task reads the claimed schedule/run identity; the destination is never passed in logs or persisted run payloads.
 2. It confirms `sqlite_primary` and production profile, reads the current private destination, and validates its marker. A setup claim proceeds only when its `setup:<destination ID>` key matches that marker; a later destination change safely skips the stale setup claim and creates/reuses the new destination's claim.
 3. It requires destination free space of at least twice the current source database byte size plus 256 MiB, creates an exact owned partial name, and runs `VACUUM INTO` through the authoritative repo. Raw file copy is forbidden.
-4. It opens the candidate independently, runs `PRAGMA quick_check`, compares schema versions and value-free logical checksums through an extracted storage-proof module, then fsyncs and atomically renames the artifact.
+4. It opens the candidate independently, runs `PRAGMA quick_check`, compares schema versions, and computes a value-free logical checksum in the backup proof routine, then fsyncs and atomically renames the artifact.
 5. It writes the receipt atomically and marks the run `verified`. It keeps the newest verified owned pair for each of the current and previous six WIB dates, removing older-date and superseded same-date owned pairs only after verification. Unknown, unowned partial, mismatched, or previous-folder files remain untouched.
 6. Invalid destination policy or an ownership-marker mismatch records `skipped` with a safe category. Transient availability, capacity, or SQLite failures become retryable. A corrupt candidate is removed only by its exact owned partial path; the last verified backup remains.
 
@@ -439,7 +440,7 @@ Tests never read production records or expose configured paths or payloads. Each
 
 ## Active-Service Rollout
 
-Follow [live-service continuity](../../../repo-governance/development/live-service-continuity.md). Baseline the active Caddy route and SQLite readiness. The managed `release:run` transaction builds the immutable artifact, applies and verifies `bnest-persistent-schedules-v1` through its approved release adapter under the storage lock, then starts an independent candidate whose readiness proves schedule schema, coordinator liveness, and allowlist reconciliation. Promote through Caddy, prove intended revision plus connected LiveView/WebSocket recovery without refresh, drain five minutes, and retain the previous artifact until the first isolated scheduled-backup smoke succeeds. A scheduler, backup, or dashboard failure rolls the route back without changing Tailscale; backup files and expanded tables remain safe.
+Follow [live-service continuity](../../../repo-governance/development/live-service-continuity.md). Baseline the active Caddy route and SQLite readiness. The managed `release:run` transaction builds the immutable artifact, applies and verifies `bnest-persistent-schedules-v1` through its approved release adapter under the storage lock, then starts an independent candidate whose readiness proves schedule schema, coordinator liveness, and allowlist reconciliation. Each slot receives `BNEST_REPOSITORY_ROOT` for the permanent checkout, so runtime-relative backup defaults never inherit the detached build worktree that is removed before candidate startup. Promote through Caddy, prove intended revision plus connected LiveView/WebSocket recovery without refresh, drain five minutes, and retain the previous artifact until the first isolated scheduled-backup smoke succeeds. A scheduler, backup, or dashboard failure rolls the route back without changing Tailscale; backup files and expanded tables remain safe.
 
 ## Specification Changes
 
@@ -497,10 +498,10 @@ No existing scenario changes because this is a new feature file.
 ## File Impact
 
 ```text
-apps/bnest-app/config/test.exs                                             [E]
 apps/bnest-app/assets/css/app.css                                          [E]
 apps/bnest-app/lib/bnest_app/application.ex                               [E]
 apps/bnest-app/lib/bnest_app/admin_config/registry.ex                     [N]
+apps/bnest-app/lib/bnest_app/data_repository/storage_coordinator.ex      [E]
 apps/bnest-app/lib/bnest_app/release/migrations/persistent_schedules.ex   [N]
 apps/bnest-app/lib/bnest_app/scheduler.ex                                 [N]
 apps/bnest-app/lib/bnest_app/scheduler/registry.ex                        [N]
@@ -511,15 +512,15 @@ apps/bnest-app/lib/bnest_app/backup/config.ex                             [N]
 apps/bnest-app/lib/bnest_app/backup/location.ex                           [N]
 apps/bnest-app/lib/bnest_app/backup/receipt.ex                            [N]
 apps/bnest-app/lib/bnest_app/backup/run.ex                                [N]
-apps/bnest-app/lib/bnest_app/storage/proof.ex                             [N]
-apps/bnest-app/lib/bnest_app/storage/relocation.ex                        [E]
 apps/bnest-app/lib/bnest_app_web/controllers/health_controller.ex        [E]
 apps/bnest-app/lib/bnest_app_web/user_auth.ex                             [E]
 apps/bnest-app/lib/bnest_app_web/live/admin_settings_live.ex              [N]
 apps/bnest-app/lib/bnest_app_web/live/admin_schedule_settings_live.ex     [N]
 apps/bnest-app/lib/bnest_app_web/router.ex                                [E]
 apps/bnest-app/lib/bnest_app_web/controllers/page_html/home.html.heex     [E]
+apps/bnest-app/mix.exs                                                     [E]
 apps/bnest-app/priv/sqlite_repo/migrations/20260830000000_add_persistent_schedules.exs [N]
+apps/bnest-app/tools/deployment.mjs                                       [E]
 apps/bnest-app/tools/release.mjs                                          [E]
 apps/bnest-app/tools/release.test.mjs                                     [E]
 apps/bnest-app/README.md                                                   [E]
@@ -537,7 +538,6 @@ apps/bnest-app/test/integration/bnest_app/scheduled_backup_test.exs       [N]
 apps/bnest-app/test/integration/bnest_app/persistent_schedules_migration_test.exs [N]
 apps/bnest-app/test/integration/bnest_app/sqlite_storage_test.exs        [E]
 apps/bnest-app/test/integration/bnest_app_web/admin_settings_live_test.exs [N]
-apps/bnest-app/test/integration/bnest_app_web/admin_schedule_settings_live_test.exs [N]
 apps/bnest-app/test/integration/bnest_app_web/health_controller_test.exs  [E]
 apps/bnest-app-e2e/README.md                                               [E]
 apps/bnest-app-e2e/tests/steps/scheduled-backups.steps.ts                 [N]

@@ -6,11 +6,14 @@
 - 2026-08-30: Baseline passed: local and routed Caddy were ready on the active blue slot, SQLite readiness was green, ten anonymous LiveViews reconnected without refresh, and the repository volume had 98 GiB available. No application file had been edited.
 - 2026-08-30: Phase 1 red established: recursive behavior coverage bound all 12 scheduled-backup scenarios in unit, integration, and E2E; focused unit execution failed in 17 expected places because scheduler policy and behavior outcomes do not exist yet.
 - 2026-08-30: Phase 1 checkpoint passed: app formatting, E2E lint/typecheck, Badakmini repository validation, and diff checks were green. The root hook correctly rejected an intentionally red checkpoint commit, so the contract and implementation are checkpointed together only after all required gates became green.
-- 2026-08-30: Phases 2 and 3 passed: additive migration/seed reconciliation, contextual claiming, bounded retries, renewable leases, attempt fencing, verified SQLite snapshots, owned retention, admin-only LiveViews, and typed panel discovery are implemented. Unit coverage is 99.24%, integration coverage is 100%, 231 integration tests pass, and all 37 focused desktop/tablet/mobile browser cases pass with connected LiveView.
+- 2026-08-30: Phases 2 and 3 passed: additive migration/seed reconciliation, contextual claiming, bounded retries, renewable leases, attempt fencing, verified SQLite snapshots, owned retention, admin-only LiveViews, and typed panel discovery are implemented. Unit coverage is 99.24%, integration coverage is 100%, 234 integration tests pass, and all 37 focused desktop/tablet/mobile browser cases pass with connected LiveView.
 - 2026-08-30: Rules propagation added the exact ignored backup-root ownership and retention contract to the canonical runtime-data convention; the existing harness routes already point to that source, and the repository idempotence/links/maps/Mermaid gate passed.
 - 2026-08-30: The first managed rollout stopped fail-closed at migration proof before candidate startup because release eval had not started Ecto's repository registry. The active route remained healthy and unchanged. The adapter now starts its database dependencies before the repo, preserves a repo owned by a running Bnest application, closes a repo owned by standalone release eval, and has an exact `--no-start` regression test. Unit, integration, lint, typecheck, and release-tooling gates pass before retry.
 - 2026-08-30: The retry stopped fail-closed in pre-artifact integration gates on the reproduced SQLite WAL lifecycle race: the sidecar disappeared between `exists?` and strict `chmod!`. Storage protection now treats only `ENOENT` as a valid transient sidecar outcome, preserves all other permission failures, and proves 25 serial restart cycles before another release attempt.
 - 2026-08-30: Revision `272841d4` passed the complete managed rollout, including applied migration, candidate, Caddy promotion, routed LiveView, five-minute drain, and cleanup. Post-cutover proof found the first scheduled backup safely retrying with `default_not_ignored`: the compiled default still named the removed build worktree. Runtime backup resolution now receives the permanent checkout explicitly and has an isolated Git-ignore regression before the corrective release.
+- 2026-08-30: Corrective revision `f840d980` passed all managed gates, applied the manifest-bound migration idempotently, promoted through Caddy, proved routed LiveView recovery, drained for five minutes, and removed the inactive listener. Routed readiness reports the intended revision with SQLite and scheduler green.
+- 2026-08-30: A value-free production setup claim created one verified artifact/receipt pair. The receipt shape and ownership, recomputed SHA-256, non-empty size, `quick_check`, and exact schema versions passed; a separate read-only reopen repeated integrity and schema proof. The running Dropbox client had observed both final files, while remote synchronization remains explicitly non-authoritative.
+- 2026-08-30: Completion reconciliation passed the plan quality gate: one active technical shape, exact schema and field guide, mapped safe assets, aligned specifications/file impact, no overlapping idea, clean process inventory, and green links, maps, harness, word-budget, and Mermaid validation.
 
 ## Execution Rules
 
@@ -106,27 +109,28 @@
   - Action: record value-free baseline evidence; stop immediately if health is not green.
   - Outcome: promotion and recovery have an authoritative comparison point.
   - Proof: routed health and revision evidence are captured.
-- [ ] **[AI] [AC-01..11] Apply expansion and start an independent candidate**
+- [x] **[AI] [AC-01..11] Apply expansion and start an independent candidate**
   - Input: approved `bnest-persistent-schedules-v1` adapter and built release artifact.
   - Action: use managed `release:run` to apply/retry/verify the manifest-bound adapter under the release/storage locks, start the candidate separately, and prove schema, scheduler liveness, allowlist reconciliation, admin denial, and isolated backup smoke.
   - Outcome: candidate is compatible before receiving active traffic.
   - Proof: candidate health/revision plus direct schedule/backup evidence pass.
-- [ ] **[AI] [AC-06, AC-07, AC-10] Promote through Caddy and prove recovery**
+- [x] **[AI] [AC-06, AC-07, AC-10] Promote through Caddy and prove recovery**
   - Input: healthy candidate and connected admin LiveView session.
   - Action: switch Caddy, verify intended routed revision, observe LiveView/WebSocket reconnect and authoritative socket-state recovery without refresh, then run admin/non-admin journeys.
   - Outcome: active users retain compatible state and only the intended candidate serves traffic.
   - Proof: routed revision, WebSocket, state recovery, and role-boundary evidence pass.
-- [ ] **[AI] [AC-01..11] Drain and clean the successful promotion**
+- [x] **[AI] [AC-01..11] Drain and clean the successful promotion**
   - Input: green routed revision, reconnect proof, and five-minute bounded drain.
   - Action: drain the old slot, stop unneeded candidates/watchers/proxies, and retain only the active route plus the approved previous artifact.
   - Outcome: the promoted service remains healthy with no orphan process or temporary route.
   - Proof: final routed health/revision is green and process/route inventory is clean.
-- [ ] **[AI] [AC-01..11] Roll back only if promotion proof fails**
+- [x] **[AI] [AC-01..11] Roll back only if promotion proof fails**
   - Input: trigger evidence from any failed routed health, revision, LiveView/WebSocket recovery, role-boundary, or backup smoke check and the previous compatible artifact.
   - Action: restore Caddy to the previous release without deleting expanded tables or backup artifacts, then stop the rejected candidate after bounded drain.
   - Outcome: the last healthy release serves users and all recoverable schedule/backup state remains intact; if no trigger occurs, record `Not triggered` with the successful proof.
   - Proof: previous routed revision and critical journey are green, or the reconciliation records evidence-backed `Not triggered`.
-- [ ] **[AI] [AC-01..11] Checkpoint phase 4**
+  - Disposition: **Not triggered** on 2026-08-30; revision, routed readiness, LiveView recovery, role-boundary gates, backup smoke, drain, and cleanup all passed.
+- [x] **[AI] [AC-01..11] Checkpoint phase 4**
   - Input: final routed evidence, clean process inventory, and rollback disposition.
   - Action: block advancement unless the active revision, WebSocket recovery, role boundary, and isolated backup smoke are green.
   - Outcome: production rollout has one healthy route and an explicit rollback result.
@@ -134,12 +138,12 @@
 
 ## Phase 5 — Completion
 
-- [ ] **[AI] [AC-01..11] Reconcile documentation and evidence**
+- [x] **[AI] [AC-01..11] Reconcile documentation and evidence**
   - Input: implementation diff, accepted criteria, release evidence, and value-free first-backup receipt.
   - Action: update plan docs, application/E2E READMEs, runtime-data governance through rules propagation, specs, maps, and learnings; verify the existing `/data/*` ignore rule covers the backup root and remove stale assumptions.
   - Outcome: repository documentation matches delivered behavior.
   - Proof: links, maps, plan gate, repo tests, and affected quality gates pass.
-- [ ] **[AI] [AC-01..11] Checkpoint phase 5**
+- [x] **[AI] [AC-01..11] Checkpoint phase 5**
   - Input: every acceptance criterion, conditional disposition, final evidence, and clean working process inventory.
   - Action: rerun the plan quality gate and repository hooks, and block archival while any required task or conditional remains unresolved.
   - Outcome: the completed active-stage record is self-consistent and authorized for its atomic lifecycle move.
@@ -147,8 +151,8 @@
 
 ## Archival
 
-- [ ] **[AI] [AC-01..11] Move the completed plan**
+- [x] **[AI] [AC-01..11] Move the completed plan**
   - Input: passed phase 5 checkpoint and a non-existing dated done destination.
-  - Action: move the whole plan directory atomically from backlog to done, update both indexes, and verify links/maps against the dated destination.
-  - Outcome: no stale backlog copy remains and the completed plan has exactly one archived stage.
+  - Action: move the whole plan directory atomically from in progress to done, update both indexes, and verify links/maps against the dated destination.
+  - Outcome: no stale in-progress copy remains and the completed plan has exactly one archived stage.
   - Proof: lifecycle checks pass and the final thematic commit records the verified move.

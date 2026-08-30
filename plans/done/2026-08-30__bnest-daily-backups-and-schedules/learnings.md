@@ -33,12 +33,12 @@
 - SQLite WAL/SHM sidecars may disappear at any point after repo startup. Permission hardening must ignore only `ENOENT` from the atomic `chmod` attempt rather than prechecking existence, while surfacing every other filesystem error.
 - Any repository-relative runtime destination must come from the permanent checkout injected at slot preparation. Compile-time `__DIR__` may belong to the detached release worktree, which is intentionally deleted before candidate startup.
 
-## Delivery Questions
+## Resolved Delivery Evidence
 
-- Record the chosen destination's storage medium, free-space baseline, and recovery ownership without committing its absolute path.
-- Confirm Dropbox has completed syncing the first final artifact using value-free filename/size evidence; never inspect or commit its payload.
-- Measure production database size and backup duration before deciding whether same-host storage remains adequate.
-- Record the first verified artifact receipt and isolated restore proof using value-free evidence only.
+- 2026-08-30: The repository volume had 98 GiB free before delivery. The default ignored destination passed the runtime capacity floor, and the application administrator plus Bnest release operator retain recovery ownership; no absolute path is recorded.
+- 2026-08-30: The Dropbox client was running and had attached its observation metadata to both final files. This proves local client observation, not remote durability; Bnest intentionally treats synchronization as non-authoritative and makes no stronger claim.
+- 2026-08-30: The production smoke completed inside the bounded release-eval journey and produced a non-empty artifact. Current capacity is adequate for the verified snapshot; materially larger databases remain a revisit trigger.
+- 2026-08-30: The first final receipt passed exact shape, destination ownership, recomputed SHA-256, byte-size, `quick_check`, and schema-version checks. A separate read-only open of the finalized SQLite file repeated the integrity and exact-version proof without reading application records.
 
 ## Capture Practice
 
