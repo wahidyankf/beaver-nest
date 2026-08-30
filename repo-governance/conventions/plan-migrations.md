@@ -6,6 +6,12 @@ Use this convention when a formal plan moves, copies, normalizes, replaces, or r
 
 In an unsplit plan, sections of `tech-docs.md` identify current state separately from the proposed target and own exact old/new shapes when schemas change. In a naturally split technical set, use mapped `tech-docs/migration-design.md` and `tech-docs/data-contracts.md` companions when migration flow and data contracts have distinct reader jobs. Inventory every affected source with its location/key, readers and writers, accepted shape/version and limits, owner, destination, compatibility behavior, and disposition proof. Link repository evidence where safe; never copy private values into the plan.
 
+### Data-Model Visualization
+
+Every formal plan that adds, changes, or removes a persistent database schema must place a readable data-model visualization beside the exact schema contract. Use an ERD for a relational model and show affected entities, primary/foreign/unique keys, relationships, and cardinalities; a single-entity change still shows that entity and the keys or adjacent ownership context needed to understand it. For a document, key/value, event, graph, or other non-relational model, use the equivalent diagram that shows affected records, keys, references, and ownership boundaries.
+
+The diagram aids comprehension but never replaces exact old/new fields, types, constraints, defaults, compatibility, validation, migration, rollback, or tests. Keep critical meaning searchable in surrounding prose and follow the repository's [Markdown visualization convention](markdown-visualizations.md).
+
 Describe the transition in this order:
 
 1. **Expand:** add the new reader, writer, schema, or location without removing the old one.
