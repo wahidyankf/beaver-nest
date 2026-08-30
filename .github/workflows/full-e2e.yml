@@ -14,6 +14,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  resource-guard-platforms:
+    name: Resource guard (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: tools/resource-guard/go.mod
+          cache-dependency-path: tools/resource-guard/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install npm dependencies
+        run: tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm ci
+
+      - name: Run resource guard platform suite
+        run: tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p resource-guard -t test
+
   badakmini-test-symphony:
     name: Badakmini test symphony
     runs-on: ubuntu-24.04
@@ -28,19 +58,25 @@ jobs:
           node-version: "24"
           cache: npm
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: tools/resource-guard/go.mod
+          cache-dependency-path: tools/resource-guard/go.sum
+
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.107"
 
       - name: Install npm dependencies
-        run: npm ci
+        run: tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm ci
 
       - name: Run local integration suite
-        run: npm exec -- nx run -p badakmini-cli -t test:coverage:integration
+        run: tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:coverage:integration
 
       - name: Run process end-to-end suite
-        run: npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
+        run: tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 
   bnest-test-symphony:
     name: Bnest test symphony
@@ -56,6 +92,12 @@ jobs:
           node-version: "24"
           cache: npm
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: tools/resource-guard/go.mod
+          cache-dependency-path: tools/resource-guard/go.sum
+
       - name: Set up Erlang and Elixir
         uses: erlef/setup-beam@v1
         with:
@@ -64,17 +106,16 @@ jobs:
           version-type: strict
 
       - name: Install npm dependencies
-        run: npm ci
+        run: tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm ci
 
       - name: Install Phoenix dependencies
-        run: mix deps.get
-        working-directory: apps/bnest-app
+        run: tools/resource-guard/resource-guard run --class ephemeral --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
       - name: Run local integration suite
-        run: npm exec -- nx run -p bnest-app -t test:coverage:integration
+        run: tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:integration
 
       - name: Install Chromium and system dependencies
-        run: npm exec -- playwright install --with-deps chromium
+        run: tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- playwright install --with-deps chromium
 
       - name: Run complete end-to-end suite
-        run: npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1
+        run: tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1
