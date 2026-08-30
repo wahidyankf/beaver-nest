@@ -10,10 +10,6 @@ ideas/ → backlogs/ → in-progress/ → done/
 
 `plans/` artifacts require explicit user request; Plan mode never authorizes repository plan docs.
 
-## Concurrent Changes
-
-Parallel work may create, update, move, or delete artifacts anywhere under `plans/`. Before changing that tree, refresh its state; treat unfamiliar concurrent changes as expected work owned by another task, preserve them, and reconcile around them rather than reverting or overwriting them.
-
 ## Ideas
 
 Store rough two-pagers at `plans/ideas/<quadrant>/<slug>.md`; select q1–q4 from dated urgency/importance evidence.
