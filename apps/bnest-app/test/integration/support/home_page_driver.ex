@@ -248,6 +248,38 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def repository_access_read_only?(context) do
+    has_element?(context.view, "[data-role=repository-access][data-mode=read-only]")
+  end
+
+  @impl true
+  def repository_access_write_enabled?(context) do
+    has_element?(context.view, "[data-role=repository-access][data-mode=workspace-write]")
+  end
+
+  @impl true
+  def repository_write_control_available?(context) do
+    has_element?(context.view, "[data-role=repository-write-toggle]:not([disabled])")
+  end
+
+  @impl true
+  def repository_write_control_hidden?(context) do
+    not has_element?(context.view, "[data-role=repository-write-toggle]")
+  end
+
+  @impl true
+  def enable_repository_writes(context) do
+    render_click(context.view, "set_repository_write", %{"enabled" => "true"})
+    context
+  end
+
+  @impl true
+  def disable_repository_writes(context) do
+    render_click(context.view, "set_repository_write", %{"enabled" => "false"})
+    context
+  end
+
+  @impl true
   def attempt_empty_message(context) do
     render_submit(context.view, "send", %{"chat" => %{"prompt" => "   "}})
     context
@@ -494,6 +526,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def reload(%{conn: conn, persisted_chat: persisted_chat} = context) do
     conn = put_connect_params(conn, %{"chat" => persisted_chat})
+    {:ok, view, _html} = live(conn, "/chat")
+    Map.put(context, :view, view)
+  end
+
+  def reload(%{conn: conn, route: "/chat"} = context) do
     {:ok, view, _html} = live(conn, "/chat")
     Map.put(context, :view, view)
   end
@@ -1545,6 +1582,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   defp roles_for(:child), do: ["children"]
+  defp roles_for(:child_admin), do: ["children", "admin"]
   defp roles_for(:parent), do: ["parents"]
   defp roles_for(_role), do: ["admin"]
 

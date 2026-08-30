@@ -19,6 +19,10 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
     context.behaviour_driver.establish_identity(context, :child)
   end
 
+  step "an approved child administrator is logged in", context do
+    context.behaviour_driver.establish_identity(context, :child_admin)
+  end
+
   step("a visitor has no authenticated Bnest session", context,
     do: prepare(context, :unauthenticated)
   )

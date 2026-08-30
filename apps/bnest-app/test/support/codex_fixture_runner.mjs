@@ -11,6 +11,7 @@ const prompts = [];
 const model = process.argv[3];
 const reasoningEffort = process.argv[4];
 const resumedThreadId = process.argv[5];
+const sandboxMode = process.argv[6];
 const newThreadId = `fixture-${process.pid}`;
 const expectedSettings = new Map([
   ["After model switch", ["gpt-5.6-luna", "high"]],
@@ -18,6 +19,10 @@ const expectedSettings = new Map([
   ["After reload", ["gpt-5.6-luna", "high"]],
   ["Fresh start", ["gpt-5.6-luna", "high"]],
 ]);
+
+if (!["read-only", "workspace-write"].includes(sandboxMode)) {
+  throw new Error("Fixture runner received an invalid sandbox mode.");
+}
 
 for await (const line of lines) {
   const message = JSON.parse(line);
@@ -117,6 +122,16 @@ for await (const line of lines) {
         type: "assistant_update",
         item_id: "fixture-final",
         text: "Fixture final answer",
+      });
+      output({ type: "turn_completed" });
+      continue;
+    }
+
+    if (message.prompt === "Report sandbox mode") {
+      output({
+        type: "assistant_update",
+        item_id: "fixture-sandbox-mode",
+        text: `Fixture sandbox: ${sandboxMode}`,
       });
       output({ type: "turn_completed" });
       continue;

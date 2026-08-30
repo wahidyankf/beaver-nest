@@ -156,11 +156,13 @@ flowchart TB
             chat_live["Component<br/><b>Chat LiveView</b><br/>BnestAppWeb.ChatLive"]
             chat["Component<br/><b>Chat domain</b><br/>BnestApp.Chat"]
             catalog["Component<br/><b>Model catalog</b><br/>GenServer"]
+            access["Component<br/><b>Repository access policy</b><br/>Role-derived sandbox"]
             session["Component<br/><b>Codex session port</b><br/>Session / PortSession"]
 
             chat_live -->|State transitions| chat
             chat_live -->|Model capabilities| catalog
-            chat_live -->|Session lifecycle| session
+            chat_live -->|Role and toggle| access
+            chat_live -->|Sandbox lifecycle| session
         end
 
         subgraph learning_area["Learning components"]
@@ -197,7 +199,7 @@ flowchart TB
     classDef process fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
     classDef data fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
     class browser external
-    class identity,auth,repository,imports,settings,scheduler,tasks,backups,chat_live,chat,catalog,session,sifat_live,sifat component
+    class identity,auth,repository,imports,settings,scheduler,tasks,backups,chat_live,chat,catalog,access,session,sifat_live,sifat component
     class bridge process
     class legacy data
 ```
@@ -205,7 +207,7 @@ flowchart TB
 ## Architectural Constraints
 
 - Phoenix binds to blue/green loopback endpoints; Caddy owns the stable loopback route and Tailscale Serve forwards only to Caddy.
-- Chat runners use read-only sandbox access, approval policy `never`, and disabled network and web search.
+- Chat runners default to read-only, retain approval policy `never` and disabled network and web search, and accept only server-derived `read-only` or `workspace-write`. Only an account containing `admin` without `children` can explicitly enable writes; any `children` role wins, parent-only accounts remain read-only, and reconnect or clear resets read-only.
 - The chat runner forwards only public reasoning summaries and generic activity status with stable item IDs; raw private reasoning and tool input remain outside the transcript. Chat retains these progress entries beside the final assistant answer across reconnects.
 - Every protected route and data operation resolves an unrevoked opaque-cookie session and current user before repository access.
 - Bootstrap, username indexes, accounts, and browser sessions use the phase-aware repository; SQLite authority never reads a retired flat identity source.

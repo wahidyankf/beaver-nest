@@ -4,7 +4,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @behaviour BnestApp.Behaviour.Driver
 
   alias BnestApp.Chat
-  alias BnestApp.Codex.{FixtureModels, ModelAccess}
+  alias BnestApp.Codex.{FixtureModels, ModelAccess, RepositoryAccess}
   alias BnestApp.Identity.Authorization
   alias BnestApp.Identity.CredentialVerifier
   alias BnestApp.SifatAllah
@@ -201,8 +201,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def chat_controls_arranged?(context) do
     page = context.page
 
-    LazyHTML.query(page, ".chat-actions > *") |> Enum.count() == 3 and
+    LazyHTML.query(page, ".chat-actions > *") |> Enum.count() == 4 and
       not Enum.empty?(LazyHTML.query(page, ".chat-actions > .model-badge")) and
+      not Enum.empty?(LazyHTML.query(page, ".chat-actions > .repository-access-badge")) and
       not Enum.empty?(LazyHTML.query(page, ".chat-actions > .chat-theme-control")) and
       not Enum.empty?(
         LazyHTML.query(
@@ -211,6 +212,38 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         )
       )
   end
+
+  @impl true
+  def repository_access_read_only?(context) do
+    not Enum.empty?(
+      LazyHTML.query(context.page, "[data-role=repository-access][data-mode=read-only]")
+    )
+  end
+
+  @impl true
+  def repository_access_write_enabled?(context) do
+    not Enum.empty?(
+      LazyHTML.query(context.page, "[data-role=repository-access][data-mode=workspace-write]")
+    )
+  end
+
+  @impl true
+  def repository_write_control_available?(context) do
+    controls = LazyHTML.query(context.page, "[data-role=repository-write-toggle]")
+    not Enum.empty?(controls) and controls |> LazyHTML.attribute("disabled") |> Enum.empty?()
+  end
+
+  @impl true
+  def repository_write_control_hidden?(context),
+    do: context.page |> LazyHTML.query("[data-role=repository-write-toggle]") |> Enum.empty?()
+
+  @impl true
+  def enable_repository_writes(context),
+    do: context |> Map.put(:repo_write_enabled?, true) |> render_chat(context.chat)
+
+  @impl true
+  def disable_repository_writes(context),
+    do: context |> Map.put(:repo_write_enabled?, false) |> render_chat(context.chat)
 
   @impl true
   def attempt_empty_message(context) do
@@ -436,7 +469,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
           ),
         else: chat
 
-    render_chat(context, chat)
+    context
+    |> Map.put(:repo_write_enabled?, false)
+    |> render_chat(chat)
+  end
+
+  def reload(%{chat: chat} = context) do
+    context
+    |> Map.put(:repo_write_enabled?, false)
+    |> render_chat(chat)
   end
 
   def reload(%{sifat: state} = context) do
@@ -447,6 +488,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def clear_chat(context) do
     context
     |> Map.delete(:persisted_chat)
+    |> Map.put(:repo_write_enabled?, false)
     |> render_chat(Chat.new(context.chat.model, context.chat.reasoning_effort))
   end
 
@@ -730,11 +772,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   defp render_chat(context, chat, model_access \\ full_access()) do
+    user = identity(context)
+    write_enabled? = Map.get(context, :repo_write_enabled?, false)
+    repository_mode = RepositoryAccess.mode(user, write_enabled?)
+
     page =
       %{
         chat: chat,
         models: FixtureModels.all(),
         model_access: model_access,
+        repository_write_allowed?: RepositoryAccess.can_enable_write?(user),
+        repository_write_enabled?: repository_mode == :workspace_write,
+        repository_access_mode: repository_mode,
         form: Phoenix.Component.to_form(%{"prompt" => Map.get(context, :draft, "")}, as: :chat)
       }
       |> BnestAppWeb.ChatLive.render()
@@ -748,6 +797,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   defp identity(%{identity_role: :child}), do: %{"roles" => ["children"]}
+  defp identity(%{identity_role: :child_admin}), do: %{"roles" => ["children", "admin"]}
   defp identity(%{identity_role: :parent}), do: %{"roles" => ["parents"]}
   defp identity(_context), do: %{"roles" => ["admin"]}
 

@@ -11,10 +11,16 @@ const workingDirectory = process.argv[2];
 const model = process.argv[3];
 const modelReasoningEffort = process.argv[4];
 const resumedThreadId = process.argv[5];
+const sandboxMode = process.argv[6];
 
-if (!workingDirectory || !model || !modelReasoningEffort) {
+if (
+  !workingDirectory ||
+  !model ||
+  !modelReasoningEffort ||
+  !["read-only", "workspace-write"].includes(sandboxMode)
+) {
   throw new Error(
-    "The Codex runner requires a working directory, model, and reasoning effort.",
+    "The Codex runner requires a working directory, model, reasoning effort, and allowed sandbox mode.",
   );
 }
 
@@ -27,7 +33,7 @@ const codex = new Codex();
 const threadOptions = {
   model,
   modelReasoningEffort,
-  sandboxMode: "read-only",
+  sandboxMode,
   approvalPolicy: "never",
   networkAccessEnabled: false,
   webSearchMode: "disabled",

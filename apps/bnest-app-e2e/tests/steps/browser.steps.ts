@@ -116,7 +116,7 @@ Then("the chat controls do not overlap", async ({ page }) => {
     }),
   );
 
-  expect(rectangles).toHaveLength(3);
+  expect(rectangles).toHaveLength(4);
 
   for (const rectangle of rectangles) {
     expect(rectangle.width).toBeGreaterThan(0);

@@ -13,6 +13,10 @@ const identities = {
       username: "test-user-e2e-desktop-child",
       password: "Synthetic E2E Desktop Child!",
     },
+    childAdmin: {
+      username: "test-user-e2e-desk-child-admin",
+      password: "Synthetic E2E Desktop Admin!",
+    },
     parent: {
       username: "test-user-e2e-desktop-parent",
       password: "Synthetic E2E Desktop Parent!",
@@ -27,6 +31,10 @@ const identities = {
       username: "test-user-e2e-tablet-child",
       password: "Synthetic E2E Tablet Child!",
     },
+    childAdmin: {
+      username: "test-user-e2e-tablet-child-admin",
+      password: "Synthetic E2E Tablet Admin!",
+    },
     parent: {
       username: "test-user-e2e-tablet-parent",
       password: "Synthetic E2E Tablet Parent!",
@@ -40,6 +48,10 @@ const identities = {
     child: {
       username: "test-user-e2e-mobile-child",
       password: "Synthetic E2E Mobile Child!",
+    },
+    childAdmin: {
+      username: "test-user-e2e-mobile-child-admin",
+      password: "Synthetic E2E Mobile Admin!",
     },
     parent: {
       username: "test-user-e2e-mobile-parent",
@@ -73,6 +85,10 @@ export function isolatedTestIdentity(testInfo: TestInfo): TestIdentity {
       username: `test-user-${digest}-child`,
       password: base.child.password,
     },
+    childAdmin: {
+      username: `test-user-${digest}-child-admin`,
+      password: base.childAdmin.password,
+    },
     parent: {
       username: `test-user-${digest}-parent`,
       password: base.parent.password,
@@ -81,6 +97,12 @@ export function isolatedTestIdentity(testInfo: TestInfo): TestIdentity {
 
   seedAccount(base.admin.username, identity.admin.username, digest, "admin");
   seedAccount(base.child.username, identity.child.username, digest, "child");
+  seedAccount(
+    base.admin.username,
+    identity.childAdmin.username,
+    digest,
+    "childAdmin",
+  );
   seedAccount(base.parent.username, identity.parent.username, digest, "parent");
   return identity;
 }
@@ -116,7 +138,7 @@ function seedAccount(
   sourceUsername: string,
   username: string,
   digest: string,
-  role: "admin" | "child" | "parent",
+  role: "admin" | "child" | "childAdmin" | "parent",
 ): void {
   const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
   if (!root) throw new Error("Missing marked E2E runtime root");
@@ -161,8 +183,9 @@ function readJson(file: string): Record<string, unknown> {
   return JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
 }
 
-function rolesFor(role: "admin" | "child" | "parent"): string[] {
+function rolesFor(role: "admin" | "child" | "childAdmin" | "parent"): string[] {
   if (role === "admin") return ["admin", "parents"];
+  if (role === "childAdmin") return ["children", "admin"];
   if (role === "parent") return ["parents"];
   return ["children"];
 }

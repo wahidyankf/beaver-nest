@@ -5,9 +5,13 @@ defmodule BnestApp.Codex.PortSession do
   use GenServer
 
   @impl BnestApp.Codex.Session
-  def open(owner, thread_id, model, reasoning_effort) do
-    GenServer.start(__MODULE__, {owner, thread_id, model, reasoning_effort})
+  def open(owner, thread_id, model, reasoning_effort, repository_mode)
+      when repository_mode in [:read_only, :workspace_write] do
+    GenServer.start(__MODULE__, {owner, thread_id, model, reasoning_effort, repository_mode})
   end
+
+  def open(_owner, _thread_id, _model, _reasoning_effort, _repository_mode),
+    do: {:error, :invalid_repository_mode}
 
   @impl BnestApp.Codex.Session
   def send_prompt(session, prompt) do
@@ -27,14 +31,14 @@ defmodule BnestApp.Codex.PortSession do
   end
 
   @impl GenServer
-  def init({owner, thread_id, model, reasoning_effort}) do
+  def init({owner, thread_id, model, reasoning_effort, repository_mode}) do
     monitor = Process.monitor(owner)
 
     {:ok,
      %{
        owner: owner,
        monitor: monitor,
-       port: open_port(thread_id, model, reasoning_effort)
+       port: open_port(thread_id, model, reasoning_effort, repository_mode)
      }}
   end
 
@@ -75,7 +79,7 @@ defmodule BnestApp.Codex.PortSession do
 
   def terminate(_reason, _state), do: :ok
 
-  defp open_port(thread_id, model, reasoning_effort) do
+  defp open_port(thread_id, model, reasoning_effort, repository_mode) do
     config = Application.fetch_env!(:bnest_app, :codex)
 
     runner =
@@ -97,7 +101,8 @@ defmodule BnestApp.Codex.PortSession do
              working_directory,
              model,
              reasoning_effort,
-             thread_id || ""
+             thread_id || "",
+             sandbox_mode(repository_mode)
            ],
            &String.to_charlist/1
          )},
@@ -105,6 +110,9 @@ defmodule BnestApp.Codex.PortSession do
       ]
     )
   end
+
+  defp sandbox_mode(:read_only), do: "read-only"
+  defp sandbox_mode(:workspace_write), do: "workspace-write"
 
   defp port_command(port, payload) do
     Port.command(port, payload)

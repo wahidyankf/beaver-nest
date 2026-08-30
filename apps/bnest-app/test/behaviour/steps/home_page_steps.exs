@@ -130,6 +130,34 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "repository access is shown as read-only", context do
+    assert context.behaviour_driver.repository_access_read_only?(context)
+    context
+  end
+
+  step "repository access is shown as write enabled", context do
+    assert context.behaviour_driver.repository_access_write_enabled?(context)
+    context
+  end
+
+  step "the repository write control is available", context do
+    assert context.behaviour_driver.repository_write_control_available?(context)
+    context
+  end
+
+  step "the repository write control is not shown", context do
+    assert context.behaviour_driver.repository_write_control_hidden?(context)
+    context
+  end
+
+  step "the visitor enables repository writes", context do
+    context.behaviour_driver.enable_repository_writes(context)
+  end
+
+  step "the visitor disables repository writes", context do
+    context.behaviour_driver.disable_repository_writes(context)
+  end
+
   step "the visitor attempts to send an empty message", context do
     context.behaviour_driver.attempt_empty_message(context)
   end

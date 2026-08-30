@@ -114,6 +114,7 @@ defmodule BnestAppWeb.ChatLiveTest do
         central_record: nil,
         codex_session: :failed_session,
         current_user: %{"userId" => "user-test-resume-fallback"},
+        repository_access_mode: :read_only,
         session_adapter: FixtureSession
       }
     }
@@ -154,7 +155,8 @@ defmodule BnestAppWeb.ChatLiveTest do
                self(),
                "unavailable-thread",
                "gpt-5.6-terra",
-               "medium"
+               "medium",
+               :read_only
              )
 
     assert :ok = PortSession.send_prompt(session, "Continue")
@@ -177,7 +179,7 @@ defmodule BnestAppWeb.ChatLiveTest do
     end)
 
     assert {:ok, session} =
-             PortSession.open(self(), nil, "gpt-5.6-terra", "medium")
+             PortSession.open(self(), nil, "gpt-5.6-terra", "medium", :read_only)
 
     assert :ok = PortSession.send_prompt(session, "Show progress")
 
@@ -199,6 +201,38 @@ defmodule BnestAppWeb.ChatLiveTest do
     assert :ok = PortSession.close(session)
   end
 
+  test "PortSession passes allowlisted repository modes to fresh and resumed runners" do
+    runner = Path.expand("../../support/codex_fixture_runner.mjs", __DIR__)
+    previous = System.get_env("BNEST_CODEX_RUNNER")
+    System.put_env("BNEST_CODEX_RUNNER", runner)
+
+    on_exit(fn ->
+      if previous,
+        do: System.put_env("BNEST_CODEX_RUNNER", previous),
+        else: System.delete_env("BNEST_CODEX_RUNNER")
+    end)
+
+    for {thread_id, mode, expected} <- [
+          {nil, :read_only, "Fixture sandbox: read-only"},
+          {"fixture-resumed-thread", :workspace_write, "Fixture sandbox: workspace-write"}
+        ] do
+      assert {:ok, session} =
+               PortSession.open(self(), thread_id, "gpt-5.6-terra", "medium", mode)
+
+      assert :ok = PortSession.send_prompt(session, "Report sandbox mode")
+      assert_receive {:codex, ^session, {:thread_started, _thread_id}}, 2_000
+
+      assert_receive {:codex, ^session, {:assistant_update, "fixture-sandbox-mode", ^expected}},
+                     2_000
+
+      assert_receive {:codex, ^session, :turn_completed}, 2_000
+      assert :ok = PortSession.close(session)
+    end
+
+    assert {:error, :invalid_repository_mode} =
+             PortSession.open(self(), nil, "gpt-5.6-terra", "medium", :danger_full_access)
+  end
+
   test "the production runner loads its SDK after release-style relocation" do
     codex_config = Application.fetch_env!(:bnest_app, :codex)
     runner = PortSession.bundled_runner()
@@ -216,7 +250,15 @@ defmodule BnestAppWeb.ChatLiveTest do
     probe =
       """
       process.stdin.push(null);
-      process.argv.splice(2, 0, #{inspect(working_directory)}, "gpt-5.6-terra", "medium");
+      process.argv.splice(
+        2,
+        0,
+        #{inspect(working_directory)},
+        "gpt-5.6-terra",
+        "medium",
+        "",
+        "read-only",
+      );
       await import(process.argv[1]);
       """
 

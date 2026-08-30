@@ -2,7 +2,7 @@ defmodule BnestAppWeb.ChatLive do
   use BnestAppWeb, :live_view
 
   alias BnestApp.Chat
-  alias BnestApp.Codex.{ModelAccess, ModelCatalog, Settings}
+  alias BnestApp.Codex.{ModelAccess, ModelCatalog, RepositoryAccess, Settings}
   alias BnestApp.DataRepository
 
   @max_snapshot_bytes 500_000
@@ -27,6 +27,12 @@ defmodule BnestAppWeb.ChatLive do
       |> assign(:chat, chat)
       |> assign(:models, model_access.models)
       |> assign(:model_access, model_access)
+      |> assign(
+        :repository_write_allowed?,
+        RepositoryAccess.can_enable_write?(socket.assigns.current_user)
+      )
+      |> assign(:repository_write_enabled?, false)
+      |> assign(:repository_access_mode, :read_only)
       |> assign(:form, prompt_form())
       |> assign(:central_record, central_record)
       |> assign(:session_adapter, nil)
@@ -72,6 +78,23 @@ defmodule BnestAppWeb.ChatLive do
 
   def handle_event("ignore_effort_recovery", _params, socket), do: {:noreply, socket}
 
+  def handle_event(
+        "set_repository_write",
+        %{"enabled" => enabled},
+        %{assigns: %{chat: %{busy: false}}} = socket
+      )
+      when enabled in ["true", "false"] do
+    requested? = enabled == "true"
+
+    if not requested? or socket.assigns.repository_write_allowed? do
+      {:noreply, switch_repository_access(socket, requested?)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("set_repository_write", _params, socket), do: {:noreply, socket}
+
   def handle_event("recover_draft", %{"chat" => %{"prompt" => prompt}}, socket) do
     {:noreply, assign(socket, :form, prompt_form(prompt))}
   end
@@ -114,6 +137,11 @@ defmodule BnestAppWeb.ChatLive do
 
     socket =
       socket
+      |> assign(
+        repository_write_enabled?: false,
+        repository_access_mode: :read_only,
+        codex_session: nil
+      )
       |> assign(
         :chat,
         Chat.new(socket.assigns.chat.model, socket.assigns.chat.reasoning_effort)
@@ -207,7 +235,8 @@ defmodule BnestAppWeb.ChatLive do
            self(),
            nil,
            fresh.model,
-           fresh.reasoning_effort
+           fresh.reasoning_effort,
+           socket.assigns.repository_access_mode
          ) do
       {:ok, replacement} ->
         socket = assign(socket, chat: fresh, codex_session: replacement)
@@ -309,6 +338,31 @@ defmodule BnestAppWeb.ChatLive do
             >
               {Settings.label(model_display_name(@models, @chat.model), @chat.reasoning_effort)}
             </span>
+            <span
+              class={[
+                "repository-access-badge",
+                @repository_write_enabled? && "repository-access-badge-write"
+              ]}
+              data-role="repository-access"
+              data-mode={repository_mode_value(@repository_access_mode)}
+              aria-live="polite"
+            >
+              {if @repository_write_enabled?, do: "Repo write enabled", else: "Repo read-only"}
+            </span>
+            <button
+              :if={@repository_write_allowed?}
+              type="button"
+              class="repository-write-toggle"
+              data-role="repository-write-toggle"
+              phx-click="set_repository_write"
+              phx-value-enabled={to_string(not @repository_write_enabled?)}
+              aria-pressed={to_string(@repository_write_enabled?)}
+              disabled={@chat.busy}
+            >
+              {if @repository_write_enabled?,
+                do: "Disable repo writes",
+                else: "Enable repo writes"}
+            </button>
             <nav class="chat-theme-control" aria-label="Color theme">
               <Layouts.theme_toggle />
             </nav>
@@ -405,7 +459,13 @@ defmodule BnestAppWeb.ChatLive do
   defp connect_codex(socket, chat) do
     adapter = Application.get_env(:bnest_app, :codex_session, BnestApp.Codex.PortSession)
 
-    case adapter.open(self(), chat.thread_id, chat.model, chat.reasoning_effort) do
+    case adapter.open(
+           self(),
+           chat.thread_id,
+           chat.model,
+           chat.reasoning_effort,
+           socket.assigns.repository_access_mode
+         ) do
       {:ok, session} ->
         socket = assign(socket, session_adapter: adapter, codex_session: session)
         recover_pending_turn(socket)
@@ -418,7 +478,13 @@ defmodule BnestAppWeb.ChatLive do
               "The previous Codex conversation was unavailable. Your transcript is preserved in a fresh conversation."
         }
 
-        case adapter.open(self(), nil, fresh.model, fresh.reasoning_effort) do
+        case adapter.open(
+               self(),
+               nil,
+               fresh.model,
+               fresh.reasoning_effort,
+               socket.assigns.repository_access_mode
+             ) do
           {:ok, session} ->
             socket = assign(socket, chat: fresh, session_adapter: adapter, codex_session: session)
             {:ok, persist_chat(socket)}
@@ -578,6 +644,40 @@ defmodule BnestAppWeb.ChatLive do
     persist_chat(socket)
   end
 
+  defp switch_repository_access(socket, requested?) do
+    socket.assigns.session_adapter.close(socket.assigns.codex_session)
+
+    mode = RepositoryAccess.mode(socket.assigns.current_user, requested?)
+
+    socket =
+      assign(socket,
+        repository_write_enabled?: mode == :workspace_write,
+        repository_access_mode: mode,
+        codex_session: nil
+      )
+
+    {:ok, switched} = connect_codex(socket, socket.assigns.chat)
+
+    if mode == :workspace_write and is_nil(switched.assigns.codex_session) do
+      fallback =
+        switched
+        |> assign(
+          repository_write_enabled?: false,
+          repository_access_mode: :read_only,
+          codex_session: nil
+        )
+        |> update(
+          :chat,
+          &Chat.fail(&1, "Repository write access could not be enabled. Chat remains read-only.")
+        )
+
+      {:ok, read_only} = connect_codex(fallback, fallback.assigns.chat)
+      read_only
+    else
+      switched
+    end
+  end
+
   defp prompt_form(prompt \\ ""), do: to_form(%{"prompt" => prompt}, as: :chat)
 
   defp new_chat(model), do: Chat.new(model.id, ModelCatalog.reasoning_effort(model))
@@ -608,6 +708,9 @@ defmodule BnestAppWeb.ChatLive do
   defp progress_label(:reasoning), do: "Reasoning"
   defp progress_label(:activity), do: "Working"
   defp progress_label(:status), do: "Progress"
+
+  defp repository_mode_value(:workspace_write), do: "workspace-write"
+  defp repository_mode_value(_mode), do: "read-only"
 
   defp message_class(%{role: :visitor}), do: "message message-visitor"
   defp message_class(%{role: :assistant}), do: "message message-assistant"

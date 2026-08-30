@@ -88,6 +88,38 @@ Then("the reasoning effort selector is not shown", async ({ page }) => {
   await expect(page.getByLabel("Reasoning effort")).toHaveCount(0);
 });
 
+Then("repository access is shown as read-only", async ({ page }) => {
+  await expect(
+    page.locator("[data-role=repository-access][data-mode=read-only]"),
+  ).toContainText("Repo read-only");
+});
+
+Then("repository access is shown as write enabled", async ({ page }) => {
+  await expect(
+    page.locator("[data-role=repository-access][data-mode=workspace-write]"),
+  ).toContainText("Repo write enabled");
+});
+
+Then("the repository write control is available", async ({ page }) => {
+  await expect(
+    page.locator("[data-role=repository-write-toggle]"),
+  ).toBeEnabled();
+});
+
+Then("the repository write control is not shown", async ({ page }) => {
+  await expect(page.locator("[data-role=repository-write-toggle]")).toHaveCount(
+    0,
+  );
+});
+
+When("the visitor enables repository writes", async ({ page }) => {
+  await page.getByRole("button", { name: "Enable repo writes" }).click();
+});
+
+When("the visitor disables repository writes", async ({ page }) => {
+  await page.getByRole("button", { name: "Disable repo writes" }).click();
+});
+
 When(
   "the visitor selects the model {string}",
   async ({ page }, model: string) => {

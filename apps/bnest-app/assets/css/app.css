@@ -573,6 +573,46 @@ body {
   font-weight: 700;
 }
 
+.repository-access-badge {
+  flex: none;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  color: var(--bnest-ink);
+  background: var(--bnest-paper);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.repository-access-badge-write {
+  color: var(--bnest-paper);
+  background: var(--bnest-coral-ink);
+}
+
+.repository-write-toggle {
+  border: 2px solid var(--bnest-ink);
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  color: var(--bnest-paper);
+  background: var(--bnest-coral);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.repository-write-toggle:hover,
+.repository-write-toggle:focus-visible {
+  color: var(--bnest-ink);
+  background: var(--bnest-sun-light);
+  outline: 3px solid var(--bnest-coral);
+  outline-offset: 2px;
+}
+
+.repository-write-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .chat-actions {
   display: flex;
   width: 100%;

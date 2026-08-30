@@ -49,6 +49,14 @@ Given("an approved child is logged in", async ({ page, $testInfo }) => {
 });
 
 Given(
+  "an approved child administrator is logged in",
+  async ({ page, $testInfo }) => {
+    activeIdentity = isolatedTestIdentity($testInfo);
+    await login(page, activeIdentity.childAdmin);
+  },
+);
+
+Given(
   "a visitor has no authenticated Bnest session",
   async ({ page, $testInfo }) => {
     activeIdentity = isolatedTestIdentity($testInfo);

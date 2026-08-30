@@ -35,6 +35,8 @@ Feature: Beaver Nest chat
     When a visitor opens "/chat"
     Then the page displays the heading "Beaver Nest"
     And the page displays the text "Terra · medium"
+    And repository access is shown as read-only
+    And the repository write control is available
     And the model selector lists every available Codex model
     And the selected model is "GPT-5.6-Terra"
     And the reasoning effort selector lists every effort supported by the selected model
@@ -193,6 +195,8 @@ Feature: Beaver Nest chat
     Given an approved child is logged in
     When a visitor opens "/chat"
     Then the page displays the text "Luna · medium"
+    And repository access is shown as read-only
+    And the repository write control is not shown
     And the selected model is "GPT-5.6-Luna"
     And the selected reasoning effort is "Medium"
     And the model selector is not shown
@@ -203,7 +207,31 @@ Feature: Beaver Nest chat
     Given an approved parent is logged in
     When a visitor opens "/chat"
     Then the page displays the text "Terra · medium"
+    And repository access is shown as read-only
+    And the repository write control is not shown
     And the selected model is "GPT-5.6-Terra"
     And the selected reasoning effort is "Medium"
     And the model selector is not shown
     And the reasoning effort selector is not shown
+
+  Scenario: An administrator explicitly enables repository writes
+    Given an approved admin is logged in
+    When a visitor opens "/chat"
+    Then repository access is shown as read-only
+    And the repository write control is available
+    When the visitor enables repository writes
+    Then repository access is shown as write enabled
+    When the visitor disables repository writes
+    Then repository access is shown as read-only
+    When the visitor enables repository writes
+    And the visitor reloads the page
+    Then repository access is shown as read-only
+    When the visitor enables repository writes
+    And the visitor clears the chat
+    Then repository access is shown as read-only
+
+  Scenario: A child administrator remains read-only
+    Given an approved child administrator is logged in
+    When a visitor opens "/chat"
+    Then repository access is shown as read-only
+    And the repository write control is not shown
