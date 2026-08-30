@@ -1062,6 +1062,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :commit_authority_switch, _args),
     do: Map.put(context, :storage_config, %{"phase" => "sqlite_primary"})
 
+  def perform_behaviour(context, :retire_flat_identity_sources, _args),
+    do: Map.put(context, :flat_identity_retired?, true)
+
   def perform_behaviour(context, :verify_migration, _args),
     do: Map.put(context, :migration_run_result, %{accepted: 0, blocked: 1})
 
@@ -1166,7 +1169,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: context.storage_config["phase"] == "sqlite_primary"
 
   def behaviour_outcome?(_context, :writes_compatible_with_rollback, _args), do: true
-  def behaviour_outcome?(_context, :journeys_survive_restart, _args), do: true
+
+  def behaviour_outcome?(context, :journeys_survive_restart, _args),
+    do:
+      context.storage_config["phase"] == "sqlite_primary" and
+        context.flat_identity_retired?
 
   def behaviour_outcome?(context, :sqlite_not_authoritative, _args),
     do: context.migration_run_result.blocked > 0

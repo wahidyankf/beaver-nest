@@ -9,16 +9,17 @@ defmodule BnestApp.Identity do
   alias BnestApp.Identity.CredentialVerifier
   alias BnestApp.Identity.FileStore
   alias BnestApp.Identity.Session
+  alias BnestApp.Storage.Config, as: StorageConfig
 
   def start_link(options), do: GenServer.start_link(__MODULE__, options, name: __MODULE__)
   def bootstrap(accounts), do: GenServer.call(__MODULE__, {:bootstrap, accounts}, :infinity)
   def setup_status, do: GenServer.call(__MODULE__, :setup_status)
 
-  def login(username, password), do: login(DataRepository.store(), username, password)
-  def current_user(token), do: Session.current_user(DataRepository.store(), token)
+  def login(username, password), do: login(active_store(), username, password)
+  def current_user(token), do: Session.current_user(active_store(), token)
 
   def logout(token) do
-    case Session.revoke(DataRepository.store(), token) do
+    case Session.revoke(active_store(), token) do
       {:ok, digest} ->
         BnestAppWeb.Endpoint.broadcast("identity:#{digest}", "disconnect", %{})
         :ok
@@ -32,19 +33,24 @@ defmodule BnestApp.Identity do
 
   @impl GenServer
   def init(options) do
-    store = Keyword.get_lazy(options, :store, &DataRepository.store/0)
+    source =
+      case Keyword.fetch(options, :store) do
+        {:ok, store} -> {:fixed, store}
+        :error -> :active
+      end
 
-    case Bootstrap.recover(store) do
-      :ok -> {:ok, store}
+    case Bootstrap.recover(resolve_store(source)) do
+      :ok -> {:ok, source}
       {:error, reason} -> {:stop, {:identity_recovery_failed, reason}}
     end
   end
 
   @impl GenServer
-  def handle_call({:bootstrap, accounts}, _from, store),
-    do: {:reply, Bootstrap.create(store, accounts), store}
+  def handle_call({:bootstrap, accounts}, _from, source),
+    do: {:reply, Bootstrap.create(resolve_store(source), accounts), source}
 
-  def handle_call(:setup_status, _from, store), do: {:reply, Bootstrap.status(store), store}
+  def handle_call(:setup_status, _from, source),
+    do: {:reply, Bootstrap.status(resolve_store(source)), source}
 
   defp login(store, username, password) do
     with {:ok, {_display, normalized}} <- FileStore.normalize_username(username),
@@ -63,5 +69,15 @@ defmodule BnestApp.Identity do
   defp invalid_login do
     CredentialVerifier.no_user_verify()
     {:error, :invalid_credentials}
+  end
+
+  defp resolve_store({:fixed, store}), do: store
+  defp resolve_store(:active), do: active_store()
+
+  defp active_store do
+    case StorageConfig.phase() do
+      :sqlite_primary -> DataRepository
+      :flat_primary -> DataRepository.store()
+    end
   end
 end

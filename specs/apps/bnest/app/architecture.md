@@ -172,6 +172,7 @@ flowchart TB
         end
 
         identity --> auth
+        identity -->|Accounts and sessions| repository
         auth --> repository
         imports --> repository
         settings --> scheduler
@@ -207,6 +208,7 @@ flowchart TB
 - Chat runners use read-only sandbox access, approval policy `never`, and disabled network and web search.
 - The chat runner forwards only public reasoning summaries and generic activity status with stable item IDs; raw private reasoning and tool input remain outside the transcript. Chat retains these progress entries beside the final assistant answer across reconnects.
 - Every protected route and data operation resolves an unrevoked opaque-cookie session and current user before repository access.
+- Bootstrap, username indexes, accounts, and browser sessions use the phase-aware repository; SQLite authority never reads a retired flat identity source.
 - Roles may contain `children`, `parents`, and `admin`; capabilities still default-deny cross-user access.
 - Codex model access is role-scoped server-side: admins receive the discovered catalog, parents use Terra at medium effort, and children use Luna at medium effort. A missing required model disables that role's chat instead of substituting another model.
 - Durable chat, Sifat Allah progress, and explicit theme state live in the authenticated user's SQLite records after accepted import.

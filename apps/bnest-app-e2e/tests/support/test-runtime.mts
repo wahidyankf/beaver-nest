@@ -10,7 +10,7 @@ import {
 import path from "node:path";
 import os from "node:os";
 
-type TestRuntime = { path: string; sqlitePath: string; runId: string };
+export type TestRuntime = { path: string; sqlitePath: string; runId: string };
 
 const repositoryRoot = path.resolve(process.cwd());
 const runsRoot = path.join(repositoryRoot, "data/test/runs");

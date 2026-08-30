@@ -131,6 +131,10 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: outcome(context, :writes_compatible_with_rollback)
   )
 
+  step("verified flat-file identity sources are retired", context,
+    do: perform(context, :retire_flat_identity_sources)
+  )
+
   step("chat, learning, theme, login, and logout survive an application restart", context,
     do: outcome(context, :journeys_survive_restart)
   )

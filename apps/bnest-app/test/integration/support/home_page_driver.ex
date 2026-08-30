@@ -814,11 +814,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     context = prepare_behaviour(context, :no_storage_configuration, [])
     runtime = TestRuntimeRoot.create!("sqlite-storage-migration")
     ExUnit.Callbacks.on_exit(fn -> TestRuntimeRoot.cleanup!(runtime) end)
-    seed_flat_fixtures!(runtime.path)
+    identity = seed_flat_fixtures!(runtime.path)
 
     context
     |> Map.put(:flat_root, runtime.path)
     |> Map.put(:sqlite_database_path, Path.join(runtime.sqlite_path, "bnest.sqlite3"))
+    |> Map.put(:migration_identity, identity)
   end
 
   def prepare_behaviour(context, :no_incompatible_writer, _args), do: context
@@ -833,7 +834,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def prepare_behaviour(context, :all_verification_checks_pass, _args) do
     context = prepare_behaviour(context, :flat_primary_default_location, [])
-    StorageConfig.ensure_default!()
+
+    {:ok, _config} =
+      StorageConfig.persist_directory(Path.dirname(context.sqlite_database_path))
+
     repo = sqlite_repo_started!(context.sqlite_database_path)
     Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
     result = StorageMigration.run(context.flat_root, repo)
@@ -1055,6 +1059,21 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :storage_config, elem(StorageConfig.read(), 1))
   end
 
+  def perform_behaviour(context, :retire_flat_identity_sources, _args) do
+    identity = context.migration_identity
+
+    Enum.each(
+      [
+        "system/bootstrap.json",
+        "system/accounts/#{identity.user_id}.json",
+        "system/usernames/#{identity.username}.json"
+      ],
+      fn relative -> File.rm!(Path.join(context.flat_root, relative)) end
+    )
+
+    Map.put(context, :flat_identity_retired?, true)
+  end
+
   def perform_behaviour(context, :verify_migration, _args) do
     repo = sqlite_repo_started!(context.sqlite_database_path)
     Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
@@ -1240,9 +1259,27 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def behaviour_outcome?(context, :journeys_survive_restart, _args) do
     StorageCoordinator.stop()
-    repo = sqlite_repo_started!(context.sqlite_database_path)
-    %{rows: [[count]]} = repo.query!("SELECT count(*) FROM bnest_records")
-    count > 0
+    _repo = sqlite_repo_started!(context.sqlite_database_path)
+    identity = context.migration_identity
+
+    with true <- context.flat_identity_retired?,
+         :closed <- BnestApp.Identity.setup_status(),
+         {:ok, token} <- BnestApp.Identity.login(identity.username, identity.password),
+         {:ok, %{"normalizedUsername" => username}} <- BnestApp.Identity.current_user(token),
+         true <- username == identity.username,
+         admin_conn <-
+           Plug.Test.put_req_cookie(
+             Phoenix.ConnTest.build_conn(),
+             "_bnest_identity",
+             token
+           ),
+         %{status: 200} <- get(admin_conn, "/admin/settings"),
+         :ok <- BnestApp.Identity.logout(token),
+         {:error, :unauthenticated} <- BnestApp.Identity.current_user(token) do
+      true
+    else
+      _failure -> false
+    end
   end
 
   def behaviour_outcome?(_context, :sqlite_not_authoritative, _args),
@@ -1443,6 +1480,27 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   defp seed_flat_fixtures!(root) do
     now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
     user_id = "user-" <> unique_suffix()
+    username = "test-user-sqlite-" <> String.downcase(unique_suffix())
+    password = "Synthetic SQLite Password 123!"
+    {:ok, verifier} = CredentialVerifier.hash(password)
+
+    account = %{
+      "schemaVersion" => 1,
+      "recordType" => "account",
+      "userId" => user_id,
+      "displayUsername" => username,
+      "normalizedUsername" => username,
+      "roles" => ["admin"],
+      "passwordVerifier" => verifier,
+      "createdAt" => now
+    }
+
+    index = %{
+      "schemaVersion" => 1,
+      "recordType" => "username-index",
+      "normalizedUsername" => username,
+      "userId" => user_id
+    }
 
     write_fixture!(root, "system/bootstrap.json", %{
       "schemaVersion" => 1,
@@ -1454,12 +1512,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       "accounts" => [
         %{
           "userId" => user_id,
-          "normalizedUsername" => "fixtureuser",
-          "accountSha256" => String.duplicate("a", 64),
-          "indexSha256" => String.duplicate("b", 64)
+          "normalizedUsername" => username,
+          "accountSha256" => digest(account),
+          "indexSha256" => digest(index)
         }
       ]
     })
+
+    write_fixture!(root, "system/accounts/#{user_id}.json", account)
+    write_fixture!(root, "system/usernames/#{username}.json", index)
 
     write_fixture!(root, "users/#{user_id}/preferences/theme.json", %{
       "schemaVersion" => 1,
@@ -1471,8 +1532,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       "updatedAt" => now
     })
 
-    :ok
+    %{user_id: user_id, username: username, password: password}
   end
+
+  defp digest(record),
+    do: :crypto.hash(:sha256, Jason.encode!(record)) |> Base.encode16(case: :lower)
 
   defp write_fixture!(root, relative_path, record) do
     path = Path.join(root, relative_path)

@@ -43,6 +43,8 @@ The `test:e2e` target first enforces behavior coverage and rebuilds browser asse
 
 The scheduled-backup feature also exercises admin discovery, grouped schedule presentation, backup configuration guidance, direct non-admin denial, and connected LiveView rendering across desktop, tablet, and mobile. Durable claim, migration, snapshot, receipt, and retention mechanics remain focused integration boundaries in `bnest-app`; the browser adapter proves only behavior that crosses the routed UI and authorization boundary.
 
+The SQLite authority scenario starts a fresh BEAM process against a paired marked runtime, creates only synthetic identity records, migrates them, removes their flat-file sources, and then proves login, session lookup, logout, and closed bootstrap state through the authoritative database. This regression journey prevents a storage cutover from leaving identity on the retired adapter.
+
 Chat assertions deliberately avoid exact assistant prose. The fixtures emit a stable picker-visible catalog and multiple transport updates, while the browser contract checks deterministic protocol and UI outcomes: complete admin model options, Terra/medium defaulting, locked admin selectors during turns, child Luna/medium and parent Terra/medium sessions without selectors, incremental completion, same-tab reload restoration, model changes applied to a resumed thread, and a fresh thread after **Clear chat**. The fixture rejects a switched-model prompt unless Luna/medium receives the existing thread ID, rejects reload continuation without a resumed ID, and rejects a fresh-start prompt if Clear retained that ID. The Sifat Allah browser journeys also verify a confirmed browser-progress reset that persists after reload, version-2 browser-progress compatibility across a live update, browser Back returning an active exercise to its mission dashboard, an answer locking all choices before automatic five-second advancement, every answered question immediately moving between the learned and difficult repeat queues, and the exam skipping learned questions until all 120 are learned. Semantic model quality is outside deterministic browser acceptance and belongs in representative evals with outcome-based graders.
 
 ## Structure
@@ -55,6 +57,7 @@ Chat assertions deliberately avoid exact assistant prose. The fixtures emit a st
 - `tests/support/authentication.ts` owns connected-LiveView setup/login helpers and scenario-scoped synthetic identities.
 - `tests/support/centralized-data.ts` owns safe browser-source fixtures and user-scoped record evidence.
 - `tests/support/scheduled-backups.ts` owns the isolated admin/non-admin settings journey and responsive UI assertions.
+- `tests/support/sqlite-identity.ts` owns the fresh-process SQLite identity retirement journey.
 - `tests/support/test-runtime.mts` owns paired marked runtime-root creation and exact cleanup.
 - `tools/run-e2e.mts` owns the guarded runtime lifecycle around the canonical Playwright target.
 - `.features-gen/` contains ignored, disposable generated Playwright tests.

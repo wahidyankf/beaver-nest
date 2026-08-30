@@ -25,12 +25,12 @@ defmodule BnestApp.Identity.Bootstrap do
 
   @spec recover(map()) :: :ok | {:error, atom()}
   def recover(store) do
-    :global.trans({{__MODULE__, store.root}, self()}, fn -> recover_locked(store) end)
+    :global.trans({transaction_key(store), self()}, fn -> recover_locked(store) end)
   end
 
   @spec create(map(), [map()]) :: {:ok, [map()]} | {:error, atom()}
   def create(store, accounts) do
-    :global.trans({{__MODULE__, store.root}, self()}, fn -> create_locked(store, accounts) end)
+    :global.trans({transaction_key(store), self()}, fn -> create_locked(store, accounts) end)
   end
 
   defp create_locked(store, account_inputs) do
@@ -226,4 +226,7 @@ defmodule BnestApp.Identity.Bootstrap do
     suffix = :crypto.strong_rand_bytes(18) |> Base.url_encode64(padding: false)
     "#{prefix}-#{suffix}"
   end
+
+  defp transaction_key(BnestApp.DataRepository), do: {__MODULE__, :active_repository}
+  defp transaction_key(%{root: root}), do: {__MODULE__, root}
 end

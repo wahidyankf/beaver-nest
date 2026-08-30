@@ -50,6 +50,7 @@ Feature: Bnest SQLite storage
     When the managed migration commits the storage authority switch without UI confirmation
     Then future reads use SQLite
     And future writes remain compatible with the rollback reader
+    And verified flat-file identity sources are retired
     And chat, learning, theme, login, and logout survive an application restart
 
   Scenario: Invalid or changed source blocks cutover without data loss
