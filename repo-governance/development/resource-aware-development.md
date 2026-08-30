@@ -1,11 +1,12 @@
 # Resource-Aware Development
 
-Apply this standard to every current or future Nx project under `apps/` and `libs/`, plus repository-owned tools. It covers development commands that compile, build, lint, test, run coverage, execute E2E, validate the repository, or start a development server. It reduces this host's measured memory-pressure risk; it does not control unrelated applications or prove that macOS cannot restart.
+Apply this standard to compute-bearing Nx work under `apps/`, `libs/`, and repository-owned tools. It reduces measured host pressure; it neither controls unrelated applications nor guarantees macOS cannot restart.
 
 ## Required Behavior
 
-- Run compute-bearing Nx work through the resource guard. Exit `75` is a transient capacity outcome, not a task or test failure and not permission to abandon the objective.
-- After exit `75`, wait for recovery, then retry the same canonical guarded command sequentially and let the guard reassess admission. Treat a shed attempt as incomplete and rerun it from the beginning. Never bypass the guard, retry concurrently, weaken the gate, or change task class merely to gain admission.
+- Run compute-bearing Nx work through the guard. Exit `75` is transient capacity, not task or test failure: wait for recovery, then retry the same command serially from the beginning.
+- Never abandon the objective, bypass the guard, retry concurrently, weaken gates, or change class for admission.
+- Exit `73` means storage-blocked. Safely free space before retrying; cooldown alone cannot remediate it.
 - The stable development `serve`, managed release, and pre-push hook enter the guard automatically. Recovery, proxy status, rollback, retire, and tailnet controls remain directly available.
 - Use `transactional` admission for storage mutation or another command that must not be killed after starting. Never use that class to exempt ordinary build or test work.
 - The guard may signal only the child process group it created. It must never stop production Bnest, Caddy, Tailscale, another application, or an unverified PID.
@@ -16,15 +17,22 @@ Canonical guarded execution is:
 npm run resource:run -- --class ephemeral -- npm exec -- nx run -p <project> -t <target>
 ```
 
-The plugin-free `resource-guard` Nx project owns lint and test lifecycle targets. Root `npm run resource:status`, `resource:monitor`, and `resource:run` remain direct Node bootstrap entry points so admission occurs before Nx starts the protected workload.
-
-Repository agents additionally retain the required `rtk` prefix. Use `service` only for a non-production long-running server and `transactional` only for an admitted mutation.
+The plugin-free `resource-guard` project owns lifecycle targets. Root `resource:status`, `resource:monitor`, and `resource:run` remain direct Node bootstrap entry points so admission precedes Nx. Repository agents retain the required `rtk` prefix. Use `service` only for a non-production long-running server and `transactional` only for an admitted mutation.
 
 ## Admission and Shedding
 
-Admission requires exported macOS memory pressure to be normal, the compressor to report available, the available non-compressed estimate to remain at least 9 GiB, and three interval CPU samples to preserve two execution units. A protected task waits at most five minutes for the heavy-work lease and fifteen seconds for capacity.
+Admission requires normal macOS pressure, an available compressor, at least 9 GiB available non-compressed estimate, at least 30 GiB disk free, and three CPU samples preserving two execution units. Missing or lower disk headroom immediately exits `73`. Lease wait is five minutes; transient admission wait is fifteen seconds.
 
-Critical pressure, compressor unavailability, an invalid essential reading, or an estimate below 4 GiB sheds ordinary guarded work immediately. A warning sustained for ten seconds sheds ephemeral work; development serve receives thirty seconds. CPU affects admission only and never sheds running work. Transactional work records pressure but remains responsible for its own safe completion.
+| Signal             | Warning                                      | Critical                                     |
+| ------------------ | -------------------------------------------- | -------------------------------------------- |
+| Memory estimate    | Below 9 GiB                                  | Below 4 GiB                                  |
+| Disk free          | Below 30 GiB                                 | Below 20 GiB                                 |
+| Swap-out           | 128 MiB normalized per fifteen seconds       | 512 MiB normalized per fifteen seconds       |
+| Compressor payload | 12 GiB and growing 1 GiB per fifteen seconds | 16 GiB and growing 2 GiB per fifteen seconds |
+
+Critical pressure, compressor unavailability, or invalid essential readings shed ordinary work immediately. Warning grace is ten seconds for ephemeral work and thirty for development serve. Storage shedding exits `73`; other shedding exits `75`. CPU affects admission only. Transactional work records pressure but completes safely.
+
+Swap-out converts rolling page deltas to bytes using sampled page size. Persistent swap usage and stable compressor payload are evidence only.
 
 These numbers are Bnest host-local policy, not Apple, Node, or Erlang standards. Recalibrate after hardware, RAM, macOS, or representative workload changes.
 
@@ -34,8 +42,8 @@ XNU maps internal memory state to exported dispatch-compatible normal `1`, warni
 
 ## Evidence and Cleanup
 
-The shared collector derives CPU from cumulative CPU-time deltas. It records exported pressure, compressor availability, an explicitly named available non-compressed estimate, compressor payload, VM pages, swap-in/out and free space, disk, RSS, and applicable health latency. Compressor payload is evidence, never a fullness percentage.
+The collector derives CPU from cumulative CPU-time deltas and records pressure, compressor, available estimate, VM, swap, disk, RSS, and applicable health evidence. Compressor payload is not a fullness percentage.
 
-Development evidence defaults to private `~/bnest/runtime/resource-guard/` state. Raw samples expire after seven days, summaries after thirty days, and total files remain below 50 MiB. Evidence contains no command arguments, origins, application paths, credentials, or user data.
+Private evidence defaults to `~/bnest/runtime/resource-guard/`. Raw samples expire after seven days, summaries after thirty, and files remain below 50 MiB total. Evidence excludes arguments, origins, application paths, credentials, and user data.
 
 Verify changes through `resource-guard:test`, affected guarded Nx gates, and the repository gate. Use deterministic fake pressure in tests; never endanger the host to prove shedding.

@@ -8,9 +8,11 @@ import {
 import { readHostSample } from "./metrics.mjs";
 import {
   admissionReady,
-  developmentMemoryState,
   developmentPolicy,
+  developmentResourceAssessment,
 } from "./policy.mjs";
+
+export const storageBlockedExitCode = 73;
 import { acquireSession, releaseSession } from "./session.mjs";
 
 const sleep = (milliseconds) =>
@@ -38,10 +40,14 @@ async function collectAdmission(writer, options) {
     previousCpuTimes = reading.cpuTimes;
     writer.append(reading.sample);
     samples.push(reading.sample);
-    if (admissionReady(samples)) return { admitted: true, previousCpuTimes };
+    const resource = developmentResourceAssessment(samples, options.policy);
+    if (resource.storageBlocked)
+      return { admitted: false, previousCpuTimes, resource, samples };
+    if (admissionReady(samples, options.policy))
+      return { admitted: true, previousCpuTimes, resource, samples };
     await options.sleep(1000);
   }
-  return { admitted: false, previousCpuTimes };
+  return { admitted: false, previousCpuTimes, samples };
 }
 
 export async function runGuardedCommand({
@@ -52,8 +58,13 @@ export async function runGuardedCommand({
   taskClass = "ephemeral",
   dependencies = {},
 }) {
+  const sampleHost = dependencies.readHostSample ?? readHostSample;
   const collect =
-    dependencies.collect ?? ((previous) => readHostSample(previous));
+    dependencies.collect ??
+    ((previous) =>
+      sampleHost(previous, {
+        diskPath: dependencies.diskPath ?? process.cwd(),
+      }));
   const pause = dependencies.sleep ?? sleep;
   const now = dependencies.now ?? Date.now;
   const policy = { ...developmentPolicy, ...dependencies.policy };
@@ -96,6 +107,14 @@ export async function runGuardedCommand({
       sleep: pause,
     });
     if (!admission.admitted) {
+      if (admission.resource?.storageBlocked) {
+        outcome = "storage-blocked";
+        process.stderr.write(
+          `Resource guard blocked task: ${admission.resource.reason}; storage inspection or cleanup is required.\n`,
+        );
+        writer.finalize({ taskClass, outcome });
+        return storageBlockedExitCode;
+      }
       process.stderr.write(
         "Resource guard deferred task: safe admission was not reached.\n",
       );
@@ -109,15 +128,22 @@ export async function runGuardedCommand({
       stdio: "inherit",
     });
     let previousCpuTimes = admission.previousCpuTimes;
+    let samples = admission.samples;
     let warningSince = null;
     let shed = false;
+    let shedExitCode = 75;
     let forceTimer = null;
     let forwardedSignal = null;
     const observe = () => {
       const reading = collect(previousCpuTimes);
       previousCpuTimes = reading.cpuTimes;
       writer.append(reading.sample);
-      const state = developmentMemoryState(reading.sample);
+      samples.push(reading.sample);
+      const sampleLimit =
+        Math.ceil(policy.trendWindowMs / (policy.sampleIntervalMs ?? 1000)) + 2;
+      samples = samples.slice(-sampleLimit);
+      const resource = developmentResourceAssessment(samples, policy);
+      const { state } = resource;
       if (state === "normal") warningSince = null;
       else if (state === "warning") warningSince ??= now();
       if (taskClass === "transactional" || shed) return;
@@ -130,9 +156,10 @@ export async function runGuardedCommand({
         (warningSince !== null && now() - warningSince >= warningGrace)
       ) {
         shed = true;
-        outcome = "pressure-shed";
+        shedExitCode = resource.storageBlocked ? storageBlockedExitCode : 75;
+        outcome = resource.storageBlocked ? "storage-shed" : "pressure-shed";
         process.stderr.write(
-          `Resource guard shedding ${taskClass} child after ${state} pressure.\n`,
+          `Resource guard shedding ${taskClass} child after ${resource.reason}.\n`,
         );
         signalProcessGroup(child, "SIGTERM");
         forceTimer = setTimeout_(
@@ -170,7 +197,7 @@ export async function runGuardedCommand({
     writer.finalize({ taskClass, outcome });
     cleanupEvidence(evidenceRoot);
     return shed
-      ? 75
+      ? shedExitCode
       : (exit.code ?? signalExitCode(exit.signal ?? forwardedSignal));
   } finally {
     releaseSession(evidenceRoot, session);

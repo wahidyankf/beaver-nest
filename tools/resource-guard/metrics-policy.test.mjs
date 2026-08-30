@@ -16,6 +16,7 @@ import {
   cpuAdmissionReady,
   developmentPolicy,
   developmentMemoryState,
+  developmentResourceAssessment,
   essentialReadingsValid,
   percentile,
   releaseResourceHeadroomAvailable,
@@ -34,7 +35,7 @@ function sample(overrides = {}) {
     physicalMemoryBytes: 32 * gib,
     availableParallelism: 12,
     cpuUtilizationPercent: 40,
-    diskFreeBytes: 20 * gib,
+    diskFreeBytes: 40 * gib,
     pageSizeBytes: 16_384,
     compressorStoredPages: 1,
     compressorOccupiedPages: 1,
@@ -231,6 +232,10 @@ test("requires three safe interval CPU samples for admission", () => {
     essentialReadingsValid(sample({ availableParallelism: 0 })),
     false,
   );
+  assert.equal(
+    essentialReadingsValid(sample({ compressorPayloadBytes: null })),
+    false,
+  );
 });
 
 test("computes finite nearest-rank percentiles", () => {
@@ -238,7 +243,141 @@ test("computes finite nearest-rank percentiles", () => {
   assert.equal(percentile([], 0.95), null);
 });
 
+test("classifies disk headroom as a non-transient storage condition", () => {
+  assert.equal(
+    developmentResourceAssessment([sample({ diskFreeBytes: 30 * gib })]).state,
+    "normal",
+  );
+  assert.equal(
+    developmentResourceAssessment([sample({ diskFreeBytes: 20 * gib })]).state,
+    "warning",
+  );
+  assert.deepEqual(
+    developmentResourceAssessment([sample({ diskFreeBytes: 29 * gib })]),
+    {
+      compressorGrowthWindowBytes: 0,
+      reason: "disk-warning",
+      state: "warning",
+      storageBlocked: true,
+      swapOutWindowBytes: 0,
+    },
+  );
+  assert.equal(
+    developmentResourceAssessment([sample({ diskFreeBytes: 19 * gib })]).state,
+    "critical",
+  );
+  assert.equal(
+    developmentResourceAssessment([sample({ diskFreeBytes: null })]).reason,
+    "disk-unavailable",
+  );
+  assert.deepEqual(
+    developmentResourceAssessment([
+      sample({
+        availableNonCompressedEstimateBytes: 3 * gib,
+        diskFreeBytes: 19 * gib,
+      }),
+    ]),
+    {
+      compressorGrowthWindowBytes: 0,
+      reason: "disk-critical",
+      state: "critical",
+      storageBlocked: true,
+      swapOutWindowBytes: 0,
+    },
+  );
+});
+
+test("uses rolling swap-out bytes instead of persistent swap usage", () => {
+  const baseline = sample({
+    measuredAt: "2026-08-29T00:00:00.000Z",
+    swapOuts: 100,
+    swapUsedBytes: 3 * gib,
+  });
+  const stable = sample({
+    measuredAt: "2026-08-29T00:00:15.000Z",
+    swapOuts: 100,
+    swapUsedBytes: 4 * gib,
+  });
+  assert.equal(
+    developmentResourceAssessment([baseline, stable]).state,
+    "normal",
+  );
+
+  const warning = sample({
+    measuredAt: "2026-08-29T00:00:15.000Z",
+    swapOuts: 100 + 8192,
+  });
+  const critical = sample({
+    measuredAt: "2026-08-29T00:00:15.000Z",
+    swapOuts: 100 + 32_768,
+  });
+  assert.equal(
+    developmentResourceAssessment([baseline, warning]).reason,
+    "swap-warning",
+  );
+  assert.equal(
+    developmentResourceAssessment([
+      baseline,
+      sample({
+        measuredAt: "2026-08-29T00:00:07.500Z",
+        swapOuts: 100 + 4096,
+      }),
+    ]).reason,
+    "swap-warning",
+  );
+  assert.equal(
+    developmentResourceAssessment([baseline, critical]).reason,
+    "swap-critical",
+  );
+});
+
+test("requires both compressor payload and growth thresholds", () => {
+  const baseline = sample({
+    measuredAt: "2026-08-29T00:00:00.000Z",
+    compressorPayloadBytes: 11 * gib,
+  });
+  const stableLargePayload = sample({
+    measuredAt: "2026-08-29T00:00:15.000Z",
+    compressorPayloadBytes: 16 * gib,
+  });
+  assert.equal(
+    developmentResourceAssessment([
+      sample({ ...baseline, compressorPayloadBytes: 16 * gib }),
+      stableLargePayload,
+    ]).state,
+    "normal",
+  );
+  assert.equal(
+    developmentResourceAssessment([
+      baseline,
+      sample({
+        measuredAt: "2026-08-29T00:00:15.000Z",
+        compressorPayloadBytes: 12 * gib,
+      }),
+    ]).reason,
+    "compressor-warning",
+  );
+  assert.equal(
+    developmentResourceAssessment([
+      baseline,
+      sample({
+        measuredAt: "2026-08-29T00:00:15.000Z",
+        compressorPayloadBytes: 16 * gib,
+      }),
+    ]).reason,
+    "compressor-critical",
+  );
+});
+
 test("keeps the documented warning grace periods distinct by task class", () => {
+  assert.equal(developmentPolicy.diskWarningBytes, 30 * gib);
+  assert.equal(developmentPolicy.diskCriticalBytes, 20 * gib);
+  assert.equal(developmentPolicy.swapOutWarningBytes, 128 * 1024 ** 2);
+  assert.equal(developmentPolicy.swapOutCriticalBytes, 512 * 1024 ** 2);
+  assert.equal(developmentPolicy.compressorWarningPayloadBytes, 12 * gib);
+  assert.equal(developmentPolicy.compressorWarningGrowthBytes, 1 * gib);
+  assert.equal(developmentPolicy.compressorCriticalPayloadBytes, 16 * gib);
+  assert.equal(developmentPolicy.compressorCriticalGrowthBytes, 2 * gib);
   assert.equal(developmentPolicy.ephemeralWarningGraceMs, 10_000);
   assert.equal(developmentPolicy.serviceWarningGraceMs, 30_000);
 });
@@ -289,6 +428,20 @@ test("orchestrates status output without real host sampling", async () => {
   assert.equal(JSON.parse(logs.pop()).schemaVersion, 2);
   assert.equal(await runCli({ arguments_: ["status"], dependencies }), 0);
   assert.match(logs.pop(), /state=normal .*cpu=12\.3%/u);
+
+  assert.equal(
+    await runCli({
+      arguments_: ["status", "--json"],
+      dependencies: {
+        diskPath: "/fixture",
+        log: (message) => logs.push(message),
+        readHostSample: () => reading,
+        sleep: async () => {},
+      },
+    }),
+    0,
+  );
+  assert.equal(JSON.parse(logs.pop()).resource.state, "normal");
 });
 
 test("monitors only state transitions and clears its interval on signal", async () => {
@@ -315,7 +468,9 @@ test("monitors only state transitions and clears its interval on signal", async 
   intervalCallback();
   signalSource.emit("SIGTERM");
   assert.equal(await monitored, 0);
-  assert.deepEqual(logs, ["2026-08-29T00:00:00.000Z state=normal"]);
+  assert.deepEqual(logs, [
+    "2026-08-29T00:00:00.000Z state=normal reason=normal",
+  ]);
   assert.equal(cleared, interval);
 });
 

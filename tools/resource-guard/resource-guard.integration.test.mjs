@@ -50,7 +50,7 @@ function sample(overrides = {}) {
     physicalMemoryBytes: 32 * gib,
     availableParallelism: 12,
     cpuUtilizationPercent: 40,
-    diskFreeBytes: 20 * gib,
+    diskFreeBytes: 40 * gib,
     pageSizeBytes: 16_384,
     compressorStoredPages: 1,
     compressorOccupiedPages: 1,
@@ -239,6 +239,114 @@ test("defers immediately when the admission window cannot become safe", async (t
   assert.equal(existsSync(join(root, "heavy.lock")), false);
 });
 
+test("blocks low-disk admission as cleanup-required rather than cooldown", async (t) => {
+  const root = temporaryRoot(t, "bnest-resource-storage-blocked-");
+  let spawned = false;
+  const exitCode = await runGuardedCommand({
+    command: "unused",
+    arguments_: [],
+    evidenceRoot: root,
+    dependencies: {
+      collect: () => ({
+        cpuTimes: [{ idle: 1 }],
+        sample: sample({ diskFreeBytes: 29 * gib }),
+      }),
+      spawn: () => {
+        spawned = true;
+      },
+    },
+  });
+  assert.equal(exitCode, 73);
+  assert.equal(spawned, false);
+  const summaryPath = readdirSync(root)
+    .filter((entry) => entry.endsWith(".summary.json"))
+    .map((entry) => join(root, entry))
+    .at(-1);
+  assert.equal(
+    JSON.parse(readFileSync(summaryPath, "utf8")).outcome,
+    "storage-blocked",
+  );
+});
+
+test("sheds running work with a storage-specific exit code", async (t) => {
+  const root = temporaryRoot(t, "bnest-resource-storage-shed-");
+  let count = 0;
+  const exitCode = await runGuardedCommand({
+    command: process.execPath,
+    arguments_: ["-e", "setInterval(() => {}, 1000)"],
+    evidenceRoot: root,
+    dependencies: {
+      collect: () => ({
+        cpuTimes: [{ idle: count }],
+        sample: sample(count++ < 3 ? {} : { diskFreeBytes: 19 * gib }),
+      }),
+      policy: {
+        admissionWindowMs: 100,
+        sampleIntervalMs: 2,
+        terminationGraceMs: 20,
+      },
+      sleep: async () => {},
+    },
+  });
+  assert.equal(exitCode, 73);
+  const summaryPath = readdirSync(root)
+    .filter((entry) => entry.endsWith(".summary.json"))
+    .map((entry) => join(root, entry))
+    .at(-1);
+  assert.equal(
+    JSON.parse(readFileSync(summaryPath, "utf8")).outcome,
+    "storage-shed",
+  );
+});
+
+test("sheds swap and compressor spikes as transient pressure", async (t) => {
+  const fixtures = [
+    {
+      name: "swap",
+      observed: { swapOuts: 10 + 32_768 },
+      steady: { compressorPayloadBytes: 11 * gib, swapOuts: 10 },
+    },
+    {
+      name: "compressor",
+      observed: { compressorPayloadBytes: 16 * gib },
+      steady: { compressorPayloadBytes: 11 * gib, swapOuts: 10 },
+    },
+  ];
+  for (const fixture of fixtures) {
+    const root = temporaryRoot(t, `bnest-resource-${fixture.name}-spike-`);
+    let count = 0;
+    const exitCode = await runGuardedCommand({
+      command: process.execPath,
+      arguments_: ["-e", "setInterval(() => {}, 1000)"],
+      evidenceRoot: root,
+      dependencies: {
+        collect: () => {
+          const observed = count >= 3;
+          const measuredAt = new Date(
+            Date.UTC(2026, 7, 29, 0, 0, observed ? 15 : count),
+          ).toISOString();
+          count += 1;
+          return {
+            cpuTimes: [{ idle: count }],
+            sample: sample({
+              ...fixture.steady,
+              ...(observed ? fixture.observed : {}),
+              measuredAt,
+            }),
+          };
+        },
+        policy: {
+          admissionWindowMs: 100,
+          sampleIntervalMs: 2,
+          terminationGraceMs: 20,
+        },
+        sleep: async () => {},
+      },
+    });
+    assert.equal(exitCode, 75, fixture.name);
+  }
+});
+
 test("defers while another live heavy lease owns capacity", async (t) => {
   const root = temporaryRoot(t, "bnest-resource-busy-");
   const owner = await acquireSession(root, { waitMs: 0 });
@@ -326,8 +434,12 @@ test("records ordinary child failure without translating it to capacity", async 
     arguments_: ["-e", "process.exit(9)"],
     evidenceRoot: root,
     dependencies: {
-      collect: () => ({ cpuTimes: [{ idle: 1 }], sample: sample() }),
+      diskPath: "/fixture",
       policy: { admissionWindowMs: 100 },
+      readHostSample: () => ({
+        cpuTimes: [{ idle: 1 }],
+        sample: sample(),
+      }),
       sleep: async () => {},
     },
   });

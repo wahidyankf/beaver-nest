@@ -28,6 +28,20 @@ The plain ESM sources have no separate type-check target. `lint` performs Node s
 
 `test:coverage` composes unit and integration coverage slices, each of which fails below 99% line coverage. The unit slice covers `metrics.mjs`, `policy.mjs`, and `cli-application.mjs`. The integration slice covers `evidence.mjs`, `session.mjs`, and `guard.mjs`. The thin `cli.mjs` process adapter is excluded from numeric instrumentation and exercised through a subprocess integration test, matching the repository allowance for adapter exclusions that have a separate boundary test.
 
+## Resource thresholds
+
+Memory and CPU retain the canonical policy in [resource-aware development](../../repo-governance/development/resource-aware-development.md). The additional host-local signals are:
+
+| Signal             | Warning                                         | Critical                                        |
+| ------------------ | ----------------------------------------------- | ----------------------------------------------- |
+| Disk free          | Below 30 GiB                                    | Below 20 GiB                                    |
+| Swap-out           | At least 128 MiB normalized per fifteen seconds | At least 512 MiB normalized per fifteen seconds |
+| Compressor payload | At least 12 GiB and growing 1 GiB per window    | At least 16 GiB and growing 2 GiB per window    |
+
+Disk warning or an unavailable disk reading blocks admission immediately with exit `73`; cleanup is required before retry. Eligible running work receives its class warning grace above 20 GiB and is shed immediately below 20 GiB, also with exit `73`. Swap and compressor pressure remain transient and use exit `75`. Absolute swap usage and a stable compressor payload remain evidence only.
+
+Human-readable status and monitor output include the aggregate state and reason. JSON status adds a `resource` assessment containing the state, reason, storage-blocked flag, normalized swap-out bytes, and normalized compressor-growth bytes.
+
 ## Structure
 
 - `cli.mjs` is the process adapter for `status`, `monitor`, and `run`.

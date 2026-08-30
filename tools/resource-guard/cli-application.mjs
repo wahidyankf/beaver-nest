@@ -1,5 +1,5 @@
 import { readHostSample, defaultEvidenceRoot } from "./metrics.mjs";
-import { developmentMemoryState } from "./policy.mjs";
+import { developmentPolicy, developmentResourceAssessment } from "./policy.mjs";
 import { runGuardedCommand } from "./guard.mjs";
 
 const delay = (milliseconds) =>
@@ -11,7 +11,13 @@ export async function runCli({
   dependencies = {},
 } = {}) {
   const [subcommand, ...subcommandArguments] = arguments_;
-  const collect = dependencies.collect ?? readHostSample;
+  const sampleHost = dependencies.readHostSample ?? readHostSample;
+  const collect =
+    dependencies.collect ??
+    ((previous) =>
+      sampleHost(previous, {
+        diskPath: dependencies.diskPath ?? process.cwd(),
+      }));
   const log = dependencies.log ?? console.log;
   const pause = dependencies.sleep ?? delay;
   const run = dependencies.run ?? runGuardedCommand;
@@ -24,11 +30,17 @@ export async function runCli({
     const first = collect();
     await pause(1000);
     const sample = collect(first.cpuTimes).sample;
-    if (subcommandArguments.includes("--json")) log(JSON.stringify(sample));
+    const resource = developmentResourceAssessment(
+      [first.sample, sample],
+      developmentPolicy,
+    );
+    if (subcommandArguments.includes("--json"))
+      log(JSON.stringify({ ...sample, resource }));
     else
       log(
-        `state=${developmentMemoryState(sample)} pressure=${sample.memoryPressureLevel} ` +
+        `state=${resource.state} reason=${resource.reason} pressure=${sample.memoryPressureLevel} ` +
           `availableEstimateGiB=${(sample.availableNonCompressedEstimateBytes / 1024 ** 3).toFixed(2)} ` +
+          `diskFreeGiB=${(sample.diskFreeBytes / 1024 ** 3).toFixed(2)} ` +
           `cpu=${sample.cpuUtilizationPercent.toFixed(1)}% compressorAvailable=${sample.compressorAvailable}`,
       );
     return 0;
@@ -36,12 +48,18 @@ export async function runCli({
   if (subcommand === "monitor") {
     let previous = null;
     let priorState = null;
+    let samples = [];
     const observe = () => {
       const reading = collect(previous);
       previous = reading.cpuTimes;
-      const state = developmentMemoryState(reading.sample);
+      samples.push(reading.sample);
+      samples = samples.slice(-17);
+      const resource = developmentResourceAssessment(samples);
+      const state = `${resource.state}:${resource.reason}`;
       if (state !== priorState) {
-        log(`${reading.sample.measuredAt} state=${state}`);
+        log(
+          `${reading.sample.measuredAt} state=${resource.state} reason=${resource.reason}`,
+        );
         priorState = state;
       }
     };
