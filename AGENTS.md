@@ -31,11 +31,11 @@
 
 ## Governance
 
-- Keep Codex, Claude Code, and OpenCode on the same repository-owned rules, skills, agents, and required capabilities under the [coding-harness contract](repo-governance/conventions/coding-harness-contract.md).
+- Keep all coding harnesses aligned under [the contract](repo-governance/conventions/coding-harness-contract.md).
 - [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); [track tasks](repo-governance/conventions/task-tracking.md). Expect parallel changes to `plans/`, repository rules, and `repo-governance/`; preserve unfamiliar changes.
-- `plans/`: user request only—not Plan mode. Make the why, options, decision, execution, and proof clear; file/directory shape is only a reader-serving mechanism. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
+- `plans/` require user request, not Plan mode; clarify why, options, decision, execution, proof, and reader-serving shape. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
 - Schema-changing plans include a relational ERD or storage-appropriate data-model diagram plus a field-by-field guide under the [migration convention](repo-governance/conventions/plan-migrations.md); they supplement the exact schema and migration contract.
 - Authority-changing migrations must prove fresh-process product journeys with the prior source unavailable; counts or parity alone are insufficient under the [migration convention](repo-governance/conventions/plan-migrations.md).
 - Bnest active-service plans require Caddy candidate/promotion/rollback, continuous routed-responsiveness proof from preflight through drain, compatible LiveView reconnect, authoritative socket-state recovery, and routed WebSocket/revision proof; never assume refresh.
@@ -54,9 +54,8 @@
 - Separate server/proxy lifecycles; follow [restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep [quality gates](repo-governance/development/quality-gates.md) green.
 - Guard all compute-bearing Nx work under `apps/`, `libs/`, and repository-owned tools with [resource-aware development](repo-governance/development/resource-aware-development.md). Exit `75` is transient capacity, not task/test failure: wait, then retry the same guarded command serially without abandoning the objective. Exit `73` requires storage cleanup before retrying; never blind-retry it. Exit `78` means an explicit strict profile or local configuration requires replanning; ordinary work must automatically fall back through `minimal`. Never bypass, parallel-retry, weaken gates, or change class for admission. Recovery/status controls remain direct.
-- Keep `test:e2e` outside `test:quick`; run affected cases and UI-accessibility states only. Wait for connected LiveView before interaction, and isolate user-owned records across parallel workers. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
+- Keep `test:e2e` outside `test:quick`; run only affected/UI-accessibility states at the exact origin, wait for connected LiveView, isolate user records, and close task-created tabs/contexts except explicit handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
 - Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at the exact origin and supported viewports before completion; tests/inference never substitute.
-- Match each E2E browser origin exactly to its served application origin so LiveView/WebSocket checks are real.
 - Never test real users; use isolated `test-user-` [identities](repo-governance/development/test-identities.md); inspect production schemas read-only.
 - **Project rule** (except `libs/ex-bdd`): assess/update all relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
 - Update affected project [READMEs](repo-governance/conventions/project-readmes.md).

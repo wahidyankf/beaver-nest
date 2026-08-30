@@ -4,6 +4,8 @@ Use end-to-end tests sparingly because they are slower and more expensive than n
 
 Authenticated journeys must follow the [test-identity standard](test-identities.md): `test-user-` usernames, isolated runtime roots and browser profiles, and exact validated cleanup after each run.
 
+Every automated or AI-operated Playwright run must close every page, tab, and browser context it created through guaranteed cleanup that also runs after failure. Before completion, inspect controlled tabs and close test or navigation tabs; retain only a tab explicitly requested as a handoff or deliverable. Never close unrelated user-owned tabs. Cleanup failure fails the run. Formal plans using Playwright must include a `delivery.md` task for this cleanup and its proof.
+
 ## Development Runs
 
 - Run `test:e2e` only when a change can affect a covered end-to-end journey.
