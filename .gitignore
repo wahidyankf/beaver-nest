@@ -24,10 +24,10 @@ npm-debug.log*
 .nx/
 
 # Resource guard bootstrap and development outputs
-/tools/resource-guard/.cache/
-/tools/resource-guard/dist/
-/tools/resource-guard/coverage/
-/tools/resource-guard/resource-guard.local.json
+/apps/resource-guard/.cache/
+/apps/resource-guard/dist/
+/apps/resource-guard/coverage/
+/apps/resource-guard/resource-guard.local.json
 
 # .NET / F#
 **/bin/

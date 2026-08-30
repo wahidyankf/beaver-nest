@@ -9,7 +9,7 @@ Beaver Nest is in its first implementation stage.
 - A Phoenix LiveView chat streams local Codex responses through the official SDK, discovers the models available to the local Codex installation, and can switch models without discarding the current thread.
 - Isolated, non-routed local development can opt into hot reload.
 - A persistent Tailscale Serve route reaches a stable loopback Caddy proxy, which promotes immutable Phoenix releases without a manual browser refresh. Bnest now has one-time family-account setup, persistent per-browser login, centralized chat/learning/theme records, and recoverable browser import.
-- Centralized records move from flat files into a private local SQLite database through a headless, checksum-verified migration (`tools/resource-guard/resource-guard run --class transactional -- npm exec -- nx run -p bnest-app -t storage:migrate -- --activate`). The stable pointer remains configuration at `~/.config/bnest/storage.json`, production data defaults to `~/bnest/data/prod/bnest.sqlite3`, and verified legacy flat files are retired only after the routed service proves the relocated database generation.
+- Centralized records move from flat files into a private local SQLite database through a headless, checksum-verified migration (`apps/resource-guard/resource-guard run --class transactional -- npm exec -- nx run -p bnest-app -t storage:migrate -- --activate`). The stable pointer remains configuration at `~/.config/bnest/storage.json`, production data defaults to `~/bnest/data/prod/bnest.sqlite3`, and verified legacy flat files are retired only after the routed service proves the relocated database generation.
 
 ## Run locally
 
@@ -32,7 +32,7 @@ npm start
 
 Open [http://localhost:4020](http://localhost:4020). Development leases `4020`–`4029`; production remains on `4000`/`4001`, browser E2E on `4010`–`4019`, and Caddy on `4100`.
 
-The stable development server enters the repository resource guard automatically. Inspect current host state with `tools/resource-guard/resource-guard status --json --disk-path .`, or monitor transitions with `tools/resource-guard/resource-guard monitor --disk-path .`. Run compute-bearing Nx work through `tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx ...`; exit `75` is transient capacity, so wait and retry the same guarded command serially, while exit `73` requires storage cleanup before retrying. The plugin-free Go [`resource-guard`](tools/resource-guard/README.md) project owns its Nx development lifecycle while its direct bootstrap preserves pre-Node admission. The guard controls only its own child process group and keeps private evidence bounded below `~/bnest/runtime/resource-guard/`.
+The stable development server enters the repository resource guard automatically. Inspect current host state with `apps/resource-guard/resource-guard status --json --disk-path .`, or monitor transitions with `apps/resource-guard/resource-guard monitor --disk-path .`. Run compute-bearing Nx work through `apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx ...`; exit `75` is transient capacity, so wait and retry the same guarded command serially, while exit `73` requires storage cleanup before retrying. The plugin-free Go [`resource-guard`](apps/resource-guard/README.md) project owns its Nx development lifecycle while its direct bootstrap preserves pre-Node admission. The guard controls only its own child process group and keeps private evidence bounded below `~/bnest/runtime/resource-guard/`.
 
 To keep private HTTPS routing available independently from Phoenix, install Caddy once, then expose its stable loopback endpoint through Tailscale without storing the machine-derived URL in the repository:
 
@@ -56,11 +56,11 @@ The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only s
 
 ```sh
 npm test
-tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app -t test:integration
-tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour
-tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
-tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:integration
-tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
+apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app -t test:integration
+apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour
+apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
+apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:integration
+apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 ```
 
 `npm test` runs the Phoenix unit suite through Nx. Bnest's unit, integration, and browser adapters consume the same recursively discovered feature corpus; `test:coverage:behaviour` statically proves that every adapter implements it completely. Run only affected end-to-end cases during development. Scheduled GitHub Actions jobs run each local integration suite before its complete E2E suite at 06:00 and 18:00 WIB.
@@ -72,10 +72,9 @@ apps/bnest-app/  Phoenix LiveView application
 apps/bnest-app-e2e/  Playwright end-to-end tests
 apps/badakmini-cli/  F# governance CLI with unit and integration tests
 apps/badakmini-cli-e2e/  Process end-to-end tests for the CLI
+apps/resource-guard/  Plugin-free Go host admission and process guard
 libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
-tools/resource-guard/  Plugin-free Nx project for host admission and process guarding
 specs/apps/  Canonical application architecture and behavior specifications
-specs/tools/  Canonical tool behavior specifications
 data/        Ignored legacy production sources and isolated flat-file test fixtures
 docs/        Diátaxis-organized, non-rule documentation
 plans/       Ideas and plans organized by delivery lifecycle

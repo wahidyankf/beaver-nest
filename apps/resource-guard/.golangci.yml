@@ -1,0 +1,125 @@
+# Keep resource-guard developer tooling explicit and local to this Go module.
+version: "2"
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      extra:
+        group-params: true
+
+linters:
+  default: all
+  disable:
+    # Stable sentinel identity is not part of this command-line tool's public contract.
+    - err113
+    # Partial policy and evidence fixtures should remain resilient when structs gain fields.
+    - exhaustruct
+    # The v5 successor imposes the same brittle complete-literal requirement.
+    - exhaustruct_v5
+    # Method placement is organized by lifecycle flow, not export visibility.
+    - funcorder
+    # Immutable policies and command metadata are clearer as package-level declarations.
+    - gochecknoglobals
+    # gomodguard is deprecated; its maintained gomodguard_v2 replacement stays enabled.
+    - gomodguard
+    # gofmt deliberately does not wrap long declarations or composite literals.
+    - lll
+    # Numeric values are protocol fields, parser arities, and colocated resource-policy contracts.
+    - mnd
+    # gofumpt owns whitespace; mandatory blank lines before returns add no signal.
+    - nlreturn
+    # Splitting short error checks into declarations adds scope without clarifying the flow.
+    - noinlineerr
+    # Local host probes and supervised process groups have no request context to propagate.
+    - noctx
+    # Filesystem and process lifecycle tests are intentionally serialized.
+    - paralleltest
+    # Evidence and session formats intentionally use camelCase JSON protocol fields.
+    - tagliatelle
+    # wsl is deprecated; gofumpt owns whitespace and statement layout.
+    - wsl
+    # Subjective statement cuddling adds churn without correctness value.
+    - wsl_v5
+    # Boundaries intentionally preserve native filesystem, process, and collector error identity.
+    - wrapcheck
+  settings:
+    cyclop:
+      max-complexity: 25
+      package-average: 0
+    depguard:
+      rules:
+        production:
+          files:
+            - $all
+            - "!$test"
+            - "!**/tests/**/*.go"
+          allow:
+            - $gostd
+            - github.com/wahidyankf/beaver-nest/apps/resource-guard
+            - golang.org/x/sys
+        test-support:
+          files:
+            - $test
+            - "**/tests/**/*.go"
+          allow:
+            - $gostd
+            - github.com/cucumber/godog
+            - github.com/cucumber/messages/go/v34
+            - github.com/wahidyankf/beaver-nest/apps/resource-guard
+    goconst:
+      # Scenario data should state its inputs instead of hiding them behind production constants.
+      ignore-tests: true
+    gosec:
+      excludes:
+        # The guard exists to launch an explicitly supplied command.
+        - G204
+        # Guard-owned and caller-selected local paths are the intended interface.
+        - G304
+        # Private directories and executable test fixtures require owner execute permission.
+        - G302
+        - G306
+    funlen:
+      lines: 120
+      statements: 80
+    gocognit:
+      min-complexity: 30
+    nolintlint:
+      allow-unused: false
+      require-explanation: true
+      require-specific: true
+    revive:
+      # Keep ordinary defaults while making exported documentation a hard failure.
+      enable-default-rules: true
+      severity: error
+      rules:
+        - name: exported
+          severity: error
+  exclusions:
+    generated: strict
+    warn-unused: true
+    rules:
+      # The guarded-process state machine is branch-heavy by design and separately behavior tested.
+      - path: ^internal/guard/run\.go$
+        linters:
+          - cyclop
+          - funlen
+          - gocognit
+          - gocyclo
+          - maintidx
+          # Deferred cleanup must be able to promote its failure into the process result.
+          - nonamedreturns
+      # A nil session with no error is the explicit transient-capacity result consumed as exit 75.
+      - path: ^internal/guard/lease\.go$
+        linters:
+          - nilnil
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  modules-download-mode: readonly
+  relative-path-mode: gomod

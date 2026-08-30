@@ -1,0 +1,215 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "resource-guard",
+  "projectType": "application",
+  "root": "apps/resource-guard",
+  "targets": {
+    "build": {
+      "command": "mkdir -p dist && go build -p=1 -trimpath -o dist/resource-guard ./cmd/resource-guard",
+      "options": { "cwd": "apps/resource-guard" },
+      "outputs": ["{projectRoot}/dist"],
+      "cache": false
+    },
+    "build:platforms": {
+      "command": "for platform in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do GOOS=${platform%/*} GOARCH=${platform#*/} go build -p=1 -trimpath -o /dev/null ./cmd/resource-guard && GOOS=${platform%/*} GOARCH=${platform#*/} go test -c -o /dev/null ./tests/unit; done",
+      "options": { "cwd": "apps/resource-guard" },
+      "cache": false
+    },
+    "typecheck": {
+      "command": "go test -run '^$' ./...",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "apps/resource-guard" }
+    },
+    "format": {
+      "command": "go tool golangci-lint fmt",
+      "options": { "cwd": "apps/resource-guard" }
+    },
+    "lint": {
+      "command": "go tool golangci-lint run",
+      "options": { "cwd": "apps/resource-guard" }
+    },
+    "security": {
+      "command": "go tool govulncheck ./...",
+      "options": { "cwd": "apps/resource-guard" },
+      "cache": false
+    },
+    "test:unit": {
+      "command": "go test -count=1 ./tests/unit",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "apps/resource-guard" }
+    },
+    "test:integration": {
+      "command": "go test -count=1 ./tests/integration",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "apps/resource-guard" },
+      "cache": false
+    },
+    "test:e2e": {
+      "command": "./tests/e2e/run.sh",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "apps/resource-guard" },
+      "cache": false
+    },
+    "test:artifacts": {
+      "command": "./tests/artifacts/run.sh",
+      "options": { "cwd": "apps/resource-guard" },
+      "cache": false
+    },
+    "test:coverage:unit": {
+      "command": "mkdir -p coverage && go test -count=1 -coverpkg=./internal/policy,./internal/config,./internal/host -coverprofile=coverage/unit.out ./tests/unit && go run ./tests/coverage --profile coverage/unit.out --directories internal/policy,internal/config --files internal/host/collector.go,internal/host/linux_parsers.go --minimum 99",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "apps/resource-guard" },
+      "outputs": ["{projectRoot}/coverage/unit.out"]
+    },
+    "test:coverage:behaviour:unit": {
+      "command": "RESOURCE_GUARD_BDD_ADAPTER=unit go test -count=1 ./tests/bdd",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "apps/resource-guard" }
+    },
+    "test:coverage:behaviour:integration": {
+      "command": "RESOURCE_GUARD_BDD_ADAPTER=integration go test -count=1 ./tests/bdd",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "apps/resource-guard" },
+      "cache": false
+    },
+    "test:coverage:behaviour:e2e": {
+      "command": "RESOURCE_GUARD_BDD_ADAPTER=e2e go test -count=1 ./tests/bdd",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "apps/resource-guard" },
+      "cache": false
+    },
+    "test:coverage:behaviour": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour:integration",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour:e2e",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    },
+    "test:coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:integration",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:e2e",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:artifacts",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    },
+    "test:quick": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p resource-guard -t typecheck",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t build:platforms",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t lint",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:artifacts",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    }
+  },
+  "tags": ["type:tool", "scope:workspace"]
+}

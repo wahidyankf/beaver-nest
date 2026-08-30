@@ -35,7 +35,7 @@ Root instruction files such as `AGENTS.md` should remain concise and link to the
 The `badakmini-cli` application enforces this limit for root `AGENTS.md` and every Markdown file in this directory, along with the governance navigation requirements. Run it manually with:
 
 ```sh
-tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
+apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
 ```
 
 The repository's pre-push hook follows the [push-hook verification convention](conventions/push-hook-verification.md). It runs resource-guarded, sequential [`test:quick` quality gates](development/quality-gates.md) for affected projects, and also runs governance, recursive maps, and Mermaid checks when pushed commits change Markdown, a mapped tree, Badakmini source or adapters, or the hook itself.

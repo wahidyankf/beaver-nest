@@ -2,7 +2,7 @@
 
 ## Entry Point
 
-Add a root `tools/resource-guard/` module set with collector, policies, private evidence, verified session lease, child supervisor, and CLI. Canonical Nx targets remain the public task interface; stable serve, managed release, npm test entry points, and pre-push enter automatically, while other compute-bearing targets use the documented wrapper.
+Add a root `apps/resource-guard/` module set with collector, policies, private evidence, verified session lease, child supervisor, and CLI. Canonical Nx targets remain the public task interface; stable serve, managed release, npm test entry points, and pre-push enter automatically, while other compute-bearing targets use the documented wrapper.
 
 ## Measurements
 
@@ -41,7 +41,7 @@ Update Bnest architecture and release documentation to describe exported pressur
 
 ## File Impact
 
-- `[N] tools/resource-guard/**`: shared collector, policy, CLI, process lifecycle, and tests.
+- `[N] apps/resource-guard/**`: shared collector, policy, CLI, process lifecycle, and tests.
 - `[E] package.json`, project target definitions, and `.husky/pre-push`: Nx entry-point wiring and bounded parallelism.
 - `[E] apps/bnest-app/tools/release.mjs`, resource monitor, release tests, and serve launcher: shared metrics and guarded lifecycle.
 - `[E] AGENTS.md`, Nx task skill, development governance/map, Bnest README, and architecture specification: canonical rule and truthful documentation.

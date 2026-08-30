@@ -15,7 +15,7 @@ Apply this standard to compute-bearing Nx work under `apps/`, `libs/`, and repos
 Canonical guarded execution is:
 
 ```sh
-tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p <project> -t <target>
+apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p <project> -t <target>
 ```
 
 The plugin-free `resource-guard` project owns Nx targets. Its POSIX bootstrap executes a content-addressed Go binary so admission precedes Node and Nx. Repository agents retain the required `rtk` prefix. Use `service` only for a non-production server and `transactional` only for an admitted mutation.
@@ -34,7 +34,7 @@ The percentage is clamped to the stated range. Disk below the immutable 256 MiB 
 
 Critical pressure sheds ordinary work immediately. Warning grace is ten seconds for ephemeral work and thirty for development serve. Storage shedding exits `73`; other shedding exits `75`. Transactional work records post-start pressure but completes safely.
 
-Local machine policy may be copied from `tools/resource-guard/resource-guard.local.json.example` to the ignored `resource-guard.local.json`. CLI `--config`, `RESOURCE_GUARD_CONFIG`, and the repository-local file are checked in that order. Strict JSON overrides cannot weaken compiled safety floors.
+Local machine policy may be copied from `apps/resource-guard/resource-guard.local.json.example` to the ignored `resource-guard.local.json`. CLI `--config`, `RESOURCE_GUARD_CONFIG`, and the repository-local file are checked in that order. Strict JSON overrides cannot weaken compiled safety floors.
 
 ## Evidence Basis
 

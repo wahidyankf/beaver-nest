@@ -22,7 +22,7 @@ A library without integration must own no filesystem, database, process, or simi
 
 ## Shared Requirements
 
-- Keep application corpora in `specs/apps/`, library corpora in `specs/libs/`, and tool corpora in `specs/tools/`; discover `.feature` files recursively without registration.
+- Keep executable application corpora in `specs/apps/` and library corpora in `specs/libs/`; discover `.feature` files recursively without registration.
 - Every scenario needs an explicit `When` and `Then`; reject empty features and undefined or ambiguous steps.
 - Keep bindings thin and reusable operations or state in support modules.
 - Run every feature, expanded scenario, and step in each applicable adapter. Exempt only a specific adapter when its boundary makes the step impossible and document why; never exempt all adapters.
