@@ -1,6 +1,6 @@
 # Behaviour-Driven Development
 
-Every application and library below `apps/` or `libs/` must express observable behavior in canonical Gherkin `.feature` files. Dedicated E2E harnesses implement their owning application's corpus, not an independent specification. Only the `libs/ex-bdd` runner is exempt.
+Every application, library, and Nx tool below `apps/`, `libs/`, or `tools/` must express observable behavior in canonical Gherkin `.feature` files. Dedicated E2E harnesses implement their owning application's corpus, not an independent specification. Only the `libs/ex-bdd` runner is exempt.
 
 ## Iron Rule
 
@@ -14,6 +14,7 @@ For refactors or implementation-only changes, preserve Gherkin, establish a gree
 | ----------------- | -------------------------------------------------------------------------------------------------------------- |
 | Application       | Unit, local-only integration, and E2E in a dedicated Nx project; all use the same corpus.                      |
 | Library           | Unit; add local-only integration only when it owns a real local resource boundary. Never add E2E to a library. |
+| Executable tool   | Unit; add local integration for owned local resources and E2E for a public process boundary.                   |
 | Dedicated E2E app | E2E for its owning application's corpus; never an independent behavior owner.                                  |
 | `libs/ex-bdd`     | Exempt.                                                                                                        |
 
@@ -21,7 +22,7 @@ A library without integration must own no filesystem, database, process, or simi
 
 ## Shared Requirements
 
-- Keep application corpora in `specs/apps/` and library corpora in `specs/libs/`; discover `.feature` files recursively without registration.
+- Keep application corpora in `specs/apps/`, library corpora in `specs/libs/`, and tool corpora in `specs/tools/`; discover `.feature` files recursively without registration.
 - Every scenario needs an explicit `When` and `Then`; reject empty features and undefined or ambiguous steps.
 - Keep bindings thin and reusable operations or state in support modules.
 - Run every feature, expanded scenario, and step in each applicable adapter. Exempt only a specific adapter when its boundary makes the step impossible and document why; never exempt all adapters.
