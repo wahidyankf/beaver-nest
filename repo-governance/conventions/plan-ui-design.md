@@ -4,9 +4,9 @@ Apply this convention when an explicitly requested formal plan creates or materi
 
 ## Required Exploration
 
-Store project-bound design assets under the plan-level `assets/` directory and link its required `README.md` from the plan map and technical document. Assets never justify creating `tech-docs/`; apply the plan lifecycle's 400-line check to `tech-docs.md` normally.
+Store project-bound design assets under the plan-level `assets/` directory and link its required `README.md` from the plan map and technical document. Assets alone do not justify `tech-docs/`; choose the technical shape through the plan lifecycle's reader, cohesion, and navigation criteria.
 
-Embed all nine lo-fi assets and all three selected hi-fi assets in the UI Design section of `tech-docs.md`, or `tech-docs/ui-design.md` after a required length split. Label each alternative and image group as selected or not selected, and show the decision rationale beside the comparison. The plan README displays at least one selected hi-fi preview and links the full comparison.
+Embed all nine lo-fi assets and all three selected hi-fi assets in the UI Design section of `tech-docs.md`, or a mapped `tech-docs/ui-design.md` companion when UI design has a distinct reader job. Label each alternative and image group as selected or not selected, and show the decision rationale beside the comparison. The plan README displays at least one selected hi-fi preview and links the full comparison.
 
 Use two fidelity stages for the same representative task and content:
 
@@ -22,7 +22,7 @@ Name assets `ui-<option>-<fidelity>-<device>.svg`, where fidelity is `lofi` or `
 
 ## Plan Documentation
 
-The UI Design section of `tech-docs.md`, or `tech-docs/ui-design.md` after a required length split, must state:
+The UI Design section of `tech-docs.md`, or its mapped `tech-docs/ui-design.md` companion, must state:
 
 - the UI's user, job, states, and real product copy;
 - the three alternatives and their device behavior;

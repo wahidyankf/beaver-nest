@@ -4,7 +4,7 @@ Use this convention when a formal plan moves, copies, normalizes, replaces, or r
 
 ## Technical Documentation
 
-In an unsplit plan, sections of `tech-docs.md` identify current state separately from the proposed target and own exact old/new shapes when schemas change. Above the lifecycle's 400-line threshold, move those jobs to `tech-docs/migration-design.md` and `tech-docs/data-contracts.md`, linked from `tech-docs/README.md`. Inventory every affected source with its location/key, readers and writers, accepted shape/version and limits, owner, destination, compatibility behavior, and disposition proof. Link repository evidence where safe; never copy private values into the plan.
+In an unsplit plan, sections of `tech-docs.md` identify current state separately from the proposed target and own exact old/new shapes when schemas change. In a naturally split technical set, use mapped `tech-docs/migration-design.md` and `tech-docs/data-contracts.md` companions when migration flow and data contracts have distinct reader jobs. Inventory every affected source with its location/key, readers and writers, accepted shape/version and limits, owner, destination, compatibility behavior, and disposition proof. Link repository evidence where safe; never copy private values into the plan.
 
 Describe the transition in this order:
 

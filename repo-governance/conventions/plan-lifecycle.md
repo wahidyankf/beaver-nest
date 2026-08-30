@@ -20,16 +20,18 @@ Include summary, evidence, timing, prior art, direction, scope/non-goals, risks,
 
 Use `plans/backlogs/<slug>/` for queued, `plans/in-progress/<slug>/` for active, and `plans/done/YYYY-MM-DD__<slug>/` for completed work. Use kebab-case.
 
+Plan documentation exists so a reader can understand why the plan exists, its intended outcome, the options and trade-offs considered, the selected decision, and how delivery and proof will work. Organization should feel natural because it serves that communication goal. Split and unsplit technical documents are only presentation mechanisms, never quality outcomes by themselves.
+
 Each formal plan contains:
 
 - `README.md`: status, context, scope, approach, dependencies, navigation;
 - `brd.md`: goal, roles, outcomes, non-goals, risks;
 - `prd.md`: personas, stories, Gherkin criteria, scope, risks;
-- `tech-docs.md`: technical entry point, architecture, decisions;
+- `tech-docs.md`, or `tech-docs/README.md` with mapped companions: technical entry point, architecture, decisions;
 - `delivery.md`: ordered tasks, executors, proof, phases, gates; and
 - `learnings.md`: capture approach and transient observations.
 
-Start with `tech-docs.md`; one document or assets never justify `tech-docs/`. Check manually with `wc -l`: keep through 400 lines; at 401, split into `tech-docs/README.md` and mapped companions. A split's `wc -l <plan>/tech-docs/*.md` total must be 401 or more; otherwise collapse it. Never keep both shapes, pre-create the folder, evade the threshold, or add an enforcement script. Follow [minimal sufficiency](../principles/minimal-sufficiency.md).
+Use exactly one technical shape: a single `tech-docs.md`, or `tech-docs/README.md` with mapped companions. Choose by reader needs, cohesion, and navigation: keep one document while it remains coherent; split when distinct responsibilities benefit from their own reading order and ownership; collapse fragments with no distinct job. File length is a review signal, never a requirement or prohibition for either shape. Never keep both shapes or pre-create empty companions. Follow [minimal sufficiency](../principles/minimal-sufficiency.md).
 
 Follow [maps](directory-maps.md); plans have no word limit but exclude secrets and sensitive runtime data. Write for juniors. File Impact: exact `[E]` update, `[N]` new, `[M]` moved, `[D]` deleted paths; discover unknowns. Follow applicable [migration](plan-migrations.md), [specification-change](plan-specification-changes.md), [UI-design](plan-ui-design.md) conventions.
 

@@ -4,7 +4,7 @@ Use this convention when a formal plan changes observable behavior, architecture
 
 ## Technical Documentation
 
-In an unsplit plan, a `tech-docs.md` section owns planned specification work. Above the lifecycle's 400-line threshold, move the section to `tech-docs/specification-changes.md` and link it from `tech-docs/README.md`. For every affected C4 or Gherkin file, list its exact repository-relative path and one `[E]` update, `[N]` new, `[M]` moved, or `[D]` deleted label.
+In an unsplit plan, a `tech-docs.md` section owns planned specification work. In a naturally split technical set, use mapped `tech-docs/specification-changes.md` when specification work has a distinct reader job. For every affected C4 or Gherkin file, list its exact repository-relative path and one `[E]` update, `[N]` new, `[M]` moved, or `[D]` deleted label.
 
 PRD Gherkin is plan-level acceptance language, not an automatic request to duplicate every scenario in canonical specifications. Before the file list, state which PRD outcomes become durable C4/Gherkin contracts and which remain plan-only. For every plan-only outcome, give its reason and exact `delivery.md` verification task; for every selected contract, name its target specification below.
 
@@ -21,6 +21,6 @@ For each C4 file, state the exact view, node, relationship, data store, or const
 
 ## File Impact
 
-The File Impact section of `tech-docs.md`, or `tech-docs/file-impact.md` above the 400-line threshold, must list every expected code, test, specification, documentation, configuration, and runtime path exactly. Do not use a directory, ellipsis, glob, or generic area as a substitute for a file. A runtime-instance template such as `<user-id>` is allowed only when the document defines who generates it and its fixed path shape. If an unmade human decision prevents naming a necessary file, make that decision a prerequisite and block execution; do not hide it in the tree.
+The File Impact section of `tech-docs.md`, or a mapped `tech-docs/file-impact.md` companion when that inventory benefits from a distinct reader job, must list every expected code, test, specification, documentation, configuration, and runtime path exactly. Do not use a directory, ellipsis, glob, or generic area as a substitute for a file. A runtime-instance template such as `<user-id>` is allowed only when the document defines who generates it and its fixed path shape. If an unmade human decision prevents naming a necessary file, make that decision a prerequisite and block execution; do not hide it in the tree.
 
 Group a large File Impact tree into short area-specific blocks. Align concise annotations within each block; keep detailed behavior in the planned specification and architecture sections instead of creating an unreadable horizontal list.
