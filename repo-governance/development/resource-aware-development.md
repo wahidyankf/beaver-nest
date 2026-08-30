@@ -14,10 +14,10 @@ Apply this standard to compute-bearing Nx work under `apps/`, `libs/`, and repos
 Canonical guarded execution is:
 
 ```sh
-npm run resource:run -- --class ephemeral -- npm exec -- nx run -p <project> -t <target>
+tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p <project> -t <target>
 ```
 
-The plugin-free `resource-guard` project owns lifecycle targets. Root `resource:status`, `resource:monitor`, and `resource:run` remain direct Node bootstrap entry points so admission precedes Nx. Repository agents retain the required `rtk` prefix. Use `service` only for a non-production long-running server and `transactional` only for an admitted mutation.
+The plugin-free `resource-guard` project owns Nx lifecycle targets. Its direct POSIX bootstrap builds and executes a content-addressed Go binary so admission precedes Node and Nx. Repository agents retain the required `rtk` prefix. Use `service` only for a non-production long-running server and `transactional` only for an admitted mutation.
 
 ## Admission and Shedding
 
@@ -38,12 +38,12 @@ These numbers are Bnest host-local policy, not Apple, Node, or Erlang standards.
 
 ## Evidence Basis
 
-XNU maps internal memory state to exported dispatch-compatible normal `1`, warning `2`, and critical `4` flags before exposing the sysctl ([XNU conversion](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_memorystatus_notify.c), [dispatch flags](https://github.com/swiftlang/swift-corelibs-libdispatch/blob/main/dispatch/source.h)). XNU describes available non-compressed memory as an estimate derived from active, inactive, free, and speculative pages, so the guard does not call it free RAM ([memory-status model](https://github.com/apple-oss-distributions/xnu/blob/main/doc/vm/memorystatus_notify.md)). Node exposes cumulative per-CPU time counters suitable for interval deltas and separately defines available parallelism as a scheduling estimate, not idle cores ([Node OS API](https://nodejs.org/api/os.html)). XNU compressor accounting shows payload bytes are not a compressor-capacity percentage ([compressor implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/vm/vm_compressor.c)).
+XNU maps internal memory state to exported dispatch-compatible normal `1`, warning `2`, and critical `4` flags before exposing the sysctl ([XNU conversion](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_memorystatus_notify.c), [dispatch flags](https://github.com/swiftlang/swift-corelibs-libdispatch/blob/main/dispatch/source.h)). XNU describes available non-compressed memory as an estimate derived from active, inactive, free, and speculative pages, so the guard does not call it free RAM ([memory-status model](https://github.com/apple-oss-distributions/xnu/blob/main/doc/vm/memorystatus_notify.md)). XNU compressor accounting shows payload bytes are not a compressor-capacity percentage ([compressor implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/vm/vm_compressor.c)).
 
 ## Evidence and Cleanup
 
-The collector derives CPU from cumulative CPU-time deltas and records pressure, compressor, available estimate, VM, swap, disk, RSS, and applicable health evidence. Compressor payload is not a fullness percentage.
+The collector normalizes process CPU use across the host's logical execution units and records pressure, compressor, available estimate, VM, swap, disk, RSS, and applicable health evidence. Compressor payload is not a fullness percentage.
 
 Private evidence defaults to `~/bnest/runtime/resource-guard/`. Raw samples expire after seven days, summaries after thirty, and files remain below 50 MiB total. Evidence excludes arguments, origins, application paths, credentials, and user data.
 
-Verify changes through `resource-guard:test`, affected guarded Nx gates, and the repository gate. Use deterministic fake pressure in tests; never endanger the host to prove shedding.
+Verify changes through guarded resource-guard Nx targets, affected guarded Nx gates, and the repository gate. Use deterministic fake pressure in tests; never endanger the host to prove shedding.
