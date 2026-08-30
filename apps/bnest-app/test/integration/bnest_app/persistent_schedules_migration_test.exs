@@ -93,6 +93,16 @@ defmodule BnestApp.PersistentSchedulesMigrationTest do
     end
   end
 
+  test "repeat reconciliation accepts a valid configured schedule revision" do
+    assert :ok = PersistentSchedules.apply_and_verify!(~U[2026-08-30 10:00:00Z])
+
+    BnestApp.SqliteRepo.query!(
+      "UPDATE bnest_schedules SET revision = 2 WHERE schedule_key = 'prod-sqlite-backup-daily'"
+    )
+
+    assert :ok = PersistentSchedules.apply_and_verify!(~U[2026-08-30 10:00:00Z])
+  end
+
   defp schema do
     SqliteRepo.query!(
       "SELECT type, name, sql FROM sqlite_master WHERE name LIKE 'bnest_schedule%' ORDER BY name"

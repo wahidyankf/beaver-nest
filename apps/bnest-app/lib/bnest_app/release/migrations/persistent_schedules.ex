@@ -122,18 +122,23 @@ defmodule BnestApp.Release.Migrations.PersistentSchedules do
         [@schedule_key]
       )
 
-    unless seed == [
-             "prod_sqlite_backup",
-             "admin_system",
-             "daily",
-             "19:00",
-             1,
-             "never",
-             nil,
-             nil,
-             1
-           ] do
-      raise "persistent schedules seed policy is incompatible"
+    case seed do
+      [
+        "prod_sqlite_backup",
+        "admin_system",
+        "daily",
+        "19:00",
+        1,
+        "never",
+        nil,
+        nil,
+        revision
+      ]
+      when is_integer(revision) and revision >= 1 ->
+        :ok
+
+      _incompatible ->
+        raise "persistent schedules seed policy is incompatible"
     end
 
     :ok
