@@ -19,18 +19,49 @@ defmodule BnestApp.Release.Migrations.PersistentSchedules do
 
   @spec apply_and_verify!(DateTime.t()) :: :ok
   def apply_and_verify!(%DateTime{} = now) do
-    if is_nil(Process.whereis(SqliteRepo)), do: StorageCoordinator.ensure_started!()
-
-    Lock.with_exclusive(fn ->
-      Ecto.Migrator.run(SqliteRepo, migrations_path(), :up, all: true)
-      reconcile_seed!(now)
-      verify!()
+    with_repository(fn ->
+      Lock.with_exclusive(fn ->
+        Ecto.Migrator.run(SqliteRepo, migrations_path(), :up, all: true)
+        reconcile_seed!(now)
+        verify!()
+      end)
     end)
   end
 
   @spec rollback!() :: no_return() | [integer()]
   def rollback! do
-    Ecto.Migrator.run(SqliteRepo, migrations_path(), :down, step: 1)
+    with_repository(fn -> Ecto.Migrator.run(SqliteRepo, migrations_path(), :down, step: 1) end)
+  end
+
+  defp with_repository(operation) do
+    ensure_database_apps_started!()
+    standalone? = not application_started?(:bnest_app)
+    started_here? = is_nil(Process.whereis(SqliteRepo))
+    if started_here?, do: StorageCoordinator.ensure_started!()
+
+    try do
+      operation.()
+    after
+      if standalone? and started_here?, do: StorageCoordinator.stop()
+    end
+  end
+
+  defp application_started?(application) do
+    Enum.any?(Application.started_applications(), fn {started, _description, _version} ->
+      started == application
+    end)
+  end
+
+  defp ensure_database_apps_started! do
+    Enum.each([:ecto_sql, :exqlite], fn application ->
+      case Application.ensure_all_started(application) do
+        {:ok, _started} ->
+          :ok
+
+        {:error, {_failed_application, reason}} ->
+          raise "could not start #{application} for persistent schedules migration: #{inspect(reason)}"
+      end
+    end)
   end
 
   defp reconcile_seed!(now) do

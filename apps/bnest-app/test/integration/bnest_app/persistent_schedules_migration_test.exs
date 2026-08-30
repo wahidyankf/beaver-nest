@@ -8,14 +8,60 @@ defmodule BnestApp.PersistentSchedulesMigrationTest do
 
   setup do
     runtime = TestRuntimeRoot.create!("persistent-schedules-migration")
-    :ok = StorageCoordinator.ensure_started!(Path.join(runtime.sqlite_path, "bnest.sqlite3"))
+    database_path = Path.join(runtime.sqlite_path, "bnest.sqlite3")
+    :ok = StorageCoordinator.ensure_started!(database_path)
 
     on_exit(fn ->
       StorageCoordinator.stop()
       TestRuntimeRoot.cleanup!(runtime)
     end)
 
-    :ok
+    {:ok, database_path: database_path, runtime: runtime}
+  end
+
+  test "starts database dependencies and owns the repo in a release eval", %{
+    database_path: database_path,
+    runtime: runtime
+  } do
+    storage_config_path = Path.join(runtime.path, "release-storage.json")
+
+    File.write!(
+      storage_config_path,
+      JSON.encode!(%{
+        "schemaVersion" => 1,
+        "databaseDirectory" => runtime.sqlite_path,
+        "databaseFilename" => "bnest.sqlite3",
+        "phase" => "sqlite_primary",
+        "migrationId" => "flat-files-v1-to-sqlite-v1"
+      })
+    )
+
+    :ok = StorageCoordinator.stop()
+
+    expression = """
+    :ok = BnestApp.Release.Migrations.PersistentSchedules.apply_and_verify!(~U[2026-08-30 10:00:00Z])
+    if Process.whereis(BnestApp.SqliteRepo), do: raise("standalone migration retained repo")
+    """
+
+    {_output, status} =
+      System.cmd("mix", ["run", "--no-start", "--no-compile", "-e", expression],
+        cd: Path.expand("../../..", __DIR__),
+        env: [
+          {"MIX_ENV", "test"},
+          {"BNEST_TEST_LAYER", "unit"},
+          {"BNEST_STORAGE_CONFIG", storage_config_path}
+        ],
+        stderr_to_stdout: true
+      )
+
+    assert status == 0
+    :ok = StorageCoordinator.ensure_started!(database_path)
+
+    assert %{rows: [[20_260_830_000_000]]} =
+             SqliteRepo.query!(
+               "SELECT version FROM schema_migrations WHERE version = ?",
+               [20_260_830_000_000]
+             )
   end
 
   test "expands and verifies the schedule schema idempotently" do

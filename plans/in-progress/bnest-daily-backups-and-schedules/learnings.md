@@ -29,6 +29,7 @@
 - SQLite `VACUUM INTO` creates a consistent snapshot, but interrupted output may be incomplete and therefore requires partial naming plus independent verification.
 - The existing `/data/*` ignore rule already covers `data/backup/`; execution verifies it with `git check-ignore` rather than adding a redundant ignore pattern.
 - The first seeded slot must be the latest eligible daily instant at or before expansion so a headless rollout catches up once instead of waiting a day.
+- A release `bin ... eval` loads runtime configuration without starting the Bnest or Ecto applications. A standalone migration adapter must start `ecto_sql` and `exqlite` before starting the repo, then close only the repo it owns; a running application retains its existing or recovered repo.
 
 ## Delivery Questions
 

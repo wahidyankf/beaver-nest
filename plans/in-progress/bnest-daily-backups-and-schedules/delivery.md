@@ -8,6 +8,7 @@
 - 2026-08-30: Phase 1 checkpoint passed: app formatting, E2E lint/typecheck, Badakmini repository validation, and diff checks were green. The root hook correctly rejected an intentionally red checkpoint commit, so the contract and implementation are checkpointed together only after all required gates became green.
 - 2026-08-30: Phases 2 and 3 passed: additive migration/seed reconciliation, contextual claiming, bounded retries, renewable leases, attempt fencing, verified SQLite snapshots, owned retention, admin-only LiveViews, and typed panel discovery are implemented. Unit coverage is 99.24%, integration coverage is 100%, 231 integration tests pass, and all 37 focused desktop/tablet/mobile browser cases pass with connected LiveView.
 - 2026-08-30: Rules propagation added the exact ignored backup-root ownership and retention contract to the canonical runtime-data convention; the existing harness routes already point to that source, and the repository idempotence/links/maps/Mermaid gate passed.
+- 2026-08-30: The first managed rollout stopped fail-closed at migration proof before candidate startup because release eval had not started Ecto's repository registry. The active route remained healthy and unchanged. The adapter now starts its database dependencies before the repo, preserves a repo owned by a running Bnest application, closes a repo owned by standalone release eval, and has an exact `--no-start` regression test. Unit, integration, lint, typecheck, and release-tooling gates pass before retry.
 
 ## Execution Rules
 
