@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Schedule timeline lo-fi desktop</title>
+  <desc id="desc">Desktop wireframe comparing contextual daily jobs and expiry across a seven-day timeline.</desc>
+  <rect width="1440" height="900" fill="#f3f3f3"/>
+  <text x="64" y="88" font-family="sans-serif" font-size="36">Seven-day schedule</text>
+  <rect x="64" y="130" width="1312" height="590" rx="12" fill="#fff" stroke="#777" stroke-width="2"/>
+  <path d="M240 130V720M400 130V720M560 130V720M720 130V720M880 130V720M1040 130V720M1200 130V720" stroke="#aaa"/>
+  <text x="96" y="178" font-family="sans-serif" font-size="18">Mon</text>
+  <text x="266" y="178" font-family="sans-serif" font-size="18">Tue</text>
+  <text x="426" y="178" font-family="sans-serif" font-size="18">Wed</text>
+  <text x="586" y="178" font-family="sans-serif" font-size="18">Thu</text>
+  <text x="746" y="178" font-family="sans-serif" font-size="18">Fri</text>
+  <text x="906" y="178" font-family="sans-serif" font-size="18">Sat</text>
+  <text x="1066" y="178" font-family="sans-serif" font-size="18">Sun</text>
+  <g fill="#c8c8c8"><circle cx="150" cy="320" r="28"/><circle cx="320" cy="320" r="28"/><circle cx="480" cy="320" r="28"/><circle cx="640" cy="320" r="28"/><circle cx="800" cy="320" r="28"/><circle cx="960" cy="320" r="28"/><circle cx="1120" cy="320" r="28"/></g>
+  <text x="86" y="390" font-family="sans-serif" font-size="16">02:00 Admin/system · Backup · Never expires</text>
+</svg>

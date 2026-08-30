@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="834" height="1112" viewBox="0 0 834 1112" role="img" aria-labelledby="title desc">
+  <title id="title">Schedule timeline lo-fi tablet</title>
+  <desc id="desc">Tablet wireframe with vertically scrolling contextual schedules and expiry.</desc>
+  <rect width="834" height="1112" fill="#f3f3f3"/>
+  <text x="40" y="82" font-family="sans-serif" font-size="32">Seven-day schedule</text>
+  <rect x="40" y="120" width="754" height="880" rx="12" fill="#fff" stroke="#777" stroke-width="2"/>
+  <path d="M80 240H754M80 360H754M80 480H754M80 600H754M80 720H754M80 840H754" stroke="#aaa"/>
+  <text x="76" y="190" font-family="sans-serif" font-size="20">Monday</text>
+  <text x="300" y="190" font-family="sans-serif" font-size="16">02:00 · Admin/system backup</text>
+  <text x="76" y="310" font-family="sans-serif" font-size="20">Tuesday</text>
+  <text x="300" y="310" font-family="sans-serif" font-size="16">02:00 · Production backup</text>
+  <text x="76" y="430" font-family="sans-serif" font-size="20">Wednesday</text>
+  <text x="300" y="430" font-family="sans-serif" font-size="16">02:00 · Production backup</text>
+</svg>

@@ -8,4 +8,8 @@ Before starting work, confirm that the plan still matches current repository evi
 
 ## Backlog Plans
 
+- [Bn​est daily backups and schedules](bnest-daily-backups-and-schedules/README.md) — reusable contextual OTP/SQLite schedules, verified daily production backups, and typed admin settings.
+
 ## Directory Map
+
+- [`bnest-daily-backups-and-schedules/`](bnest-daily-backups-and-schedules/README.md)

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Schedule cards lo-fi desktop</title>
+  <desc id="desc">Desktop wireframe with contextual cards for status, expiration, and settings.</desc>
+  <rect width="1440" height="900" fill="#f3f3f3"/>
+  <text x="64" y="88" font-family="sans-serif" font-size="36">Daily schedule cards</text>
+  <g fill="#fff" stroke="#777" stroke-width="2">
+    <rect x="64" y="132" width="400" height="300" rx="14"/>
+    <rect x="500" y="132" width="400" height="300" rx="14"/>
+    <rect x="936" y="132" width="400" height="300" rx="14"/>
+  </g>
+  <text x="94" y="188" font-family="sans-serif" font-size="21">Admin/system · Backup</text>
+  <text x="94" y="248" font-family="sans-serif" font-size="18">Verified</text>
+  <text x="94" y="294" font-family="sans-serif" font-size="16">02:00 WIB · Never expires</text>
+  <rect x="94" y="342" width="170" height="48" rx="6" fill="#bbb"/>
+  <text x="118" y="372" font-family="sans-serif" font-size="15">View settings</text>
+</svg>

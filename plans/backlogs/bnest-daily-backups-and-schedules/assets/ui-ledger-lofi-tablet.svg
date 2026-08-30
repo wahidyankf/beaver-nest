@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="834" height="1112" viewBox="0 0 834 1112" role="img" aria-labelledby="title desc">
+  <title id="title">Context settings ledger lo-fi tablet</title>
+  <desc id="desc">Tablet wireframe with contextual schedule groups, expiry, and stacked admin settings.</desc>
+  <rect width="834" height="1112" fill="#f3f3f3"/>
+  <rect x="32" y="28" width="770" height="58" rx="8" fill="#d5d5d5"/>
+  <text x="56" y="64" font-family="sans-serif" font-size="18">← Admin settings</text>
+  <text x="40" y="142" font-family="sans-serif" font-size="32">Schedules &amp; backups</text>
+  <rect x="40" y="180" width="754" height="380" rx="12" fill="#fff" stroke="#777" stroke-width="2"/>
+  <text x="68" y="226" font-family="sans-serif" font-size="20">Family schedules · None</text>
+  <path d="M68 260H766M68 350H766" stroke="#aaa" stroke-width="2"/>
+  <text x="84" y="308" font-family="sans-serif" font-size="18">Admin/system · Production backup</text>
+  <text x="540" y="308" font-family="sans-serif" font-size="16">Never expires</text>
+  <rect x="40" y="592" width="754" height="404" rx="12" fill="#fff" stroke="#777" stroke-width="2"/>
+  <text x="68" y="642" font-family="sans-serif" font-size="20">Backup settings</text>
+  <rect x="68" y="692" width="698" height="56" rx="6" fill="#eee" stroke="#888"/>
+  <text x="84" y="726" font-family="sans-serif" font-size="16">@data/backup/ · 7 days</text>
+  <rect x="68" y="780" width="264" height="56" rx="6" fill="#bbb"/>
+  <text x="90" y="814" font-family="sans-serif" font-size="16">Save and create first backup</text>
+</svg>

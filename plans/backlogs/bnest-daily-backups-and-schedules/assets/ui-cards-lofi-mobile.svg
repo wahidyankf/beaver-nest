@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" role="img" aria-labelledby="title desc">
+  <title id="title">Schedule cards lo-fi mobile</title>
+  <desc id="desc">Mobile wireframe with contextual schedule status and expiration cards.</desc>
+  <rect width="390" height="844" fill="#f3f3f3"/>
+  <text x="20" y="58" font-family="sans-serif" font-size="27">Daily schedule cards</text>
+  <g fill="#fff" stroke="#777" stroke-width="2">
+    <rect x="20" y="94" width="350" height="240" rx="14"/>
+    <rect x="20" y="358" width="350" height="190" rx="14"/>
+    <rect x="20" y="572" width="350" height="190" rx="14"/>
+  </g>
+  <text x="44" y="142" font-family="sans-serif" font-size="18">Admin/system · Backup</text>
+  <text x="44" y="194" font-family="sans-serif" font-size="16">✓ Verified</text>
+  <text x="44" y="234" font-family="sans-serif" font-size="15">02:00 WIB · Never expires</text>
+  <rect x="44" y="270" width="150" height="42" rx="6" fill="#bbb"/>
+</svg>

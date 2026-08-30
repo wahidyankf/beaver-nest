@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" role="img" aria-labelledby="title desc">
+  <title id="title">Context settings ledger lo-fi mobile</title>
+  <desc id="desc">Mobile wireframe with contextual schedule card, expiry, and stacked admin settings.</desc>
+  <rect width="390" height="844" fill="#f3f3f3"/>
+  <rect x="16" y="16" width="358" height="48" rx="8" fill="#d5d5d5"/>
+  <text x="32" y="46" font-family="sans-serif" font-size="15">← Admin settings</text>
+  <text x="20" y="108" font-family="sans-serif" font-size="27">Schedules &amp; backups</text>
+  <rect x="20" y="138" width="350" height="238" rx="12" fill="#fff" stroke="#777" stroke-width="2"/>
+  <text x="40" y="176" font-family="sans-serif" font-size="17">Admin/system · Backup</text>
+  <text x="40" y="218" font-family="sans-serif" font-size="14">Cadence</text>
+  <text x="178" y="218" font-family="sans-serif" font-size="14">Daily · 02:00 WIB</text>
+  <text x="40" y="256" font-family="sans-serif" font-size="14">Status</text>
+  <text x="178" y="256" font-family="sans-serif" font-size="14">Verified</text>
+  <text x="40" y="294" font-family="sans-serif" font-size="14">Expiration</text>
+  <text x="178" y="294" font-family="sans-serif" font-size="14">Never</text>
+  <rect x="20" y="400" width="350" height="366" rx="12" fill="#fff" stroke="#777" stroke-width="2"/>
+  <text x="40" y="440" font-family="sans-serif" font-size="17">Backup settings</text>
+  <rect x="40" y="480" width="310" height="52" rx="6" fill="#eee" stroke="#888"/>
+  <text x="54" y="512" font-family="sans-serif" font-size="14">@data/backup/ · 7 days</text>
+  <rect x="40" y="558" width="310" height="54" rx="6" fill="#bbb"/>
+  <text x="86" y="591" font-family="sans-serif" font-size="14">Save and create first backup</text>
+</svg>

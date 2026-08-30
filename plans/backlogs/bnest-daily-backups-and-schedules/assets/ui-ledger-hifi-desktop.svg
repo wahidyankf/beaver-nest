@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Selected contextual settings ledger hi-fi desktop</title>
+  <desc id="desc">Nest workshop desktop settings design with family and admin-system groups, expiry, and backup parameters.</desc>
+  <rect width="1440" height="900" fill="#d8f1ec"/>
+  <rect x="36" y="28" width="1368" height="72" rx="18" fill="#fff9ed" stroke="#153f42" stroke-width="3"/>
+  <text x="68" y="72" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#153f42">BNEST</text>
+  <text x="1192" y="72" font-family="Arial,sans-serif" font-size="18" fill="#153f42">Admin settings</text>
+  <text x="64" y="158" font-family="Arial,sans-serif" font-size="16" fill="#153f42">Admin home / Settings / Schedules</text>
+  <text x="64" y="210" font-family="Arial,sans-serif" font-size="42" font-weight="700" fill="#153f42">Schedules &amp; backups</text>
+  <text x="64" y="246" font-family="Arial,sans-serif" font-size="18" fill="#153f42">Daily jobs and verified production protection</text>
+  <rect x="64" y="286" width="830" height="506" rx="22" fill="#fff9ed" stroke="#153f42" stroke-width="3"/>
+  <text x="96" y="338" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#153f42">Family schedules · None</text>
+  <text x="96" y="382" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#153f42">Admin/system schedules</text>
+  <rect x="92" y="398" width="774" height="126" rx="16" fill="#fff" stroke="#80c5b8" stroke-width="3"/>
+  <circle cx="126" cy="440" r="13" fill="#029e73"/>
+  <text x="154" y="447" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#153f42">Production database backup</text>
+  <text x="154" y="484" font-family="Arial,sans-serif" font-size="16" fill="#153f42">Every day at 02:00 WIB</text>
+  <rect x="694" y="422" width="138" height="40" rx="20" fill="#d8f1ec"/>
+  <text x="726" y="448" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#153f42">✓ Verified</text>
+  <text x="96" y="574" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#153f42">Next run</text>
+  <text x="246" y="574" font-family="Arial,sans-serif" font-size="16" fill="#153f42">Tomorrow, 02:00 WIB</text>
+  <text x="96" y="622" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#153f42">Last result</text>
+  <text x="246" y="622" font-family="Arial,sans-serif" font-size="16" fill="#153f42">Verified · Never expires</text>
+  <rect x="926" y="286" width="450" height="506" rx="22" fill="#fff9ed" stroke="#153f42" stroke-width="3"/>
+  <text x="958" y="338" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#153f42">Backup settings</text>
+  <text x="958" y="384" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#153f42">Backup folder</text>
+  <rect x="958" y="402" width="386" height="58" rx="10" fill="#fff" stroke="#153f42" stroke-width="2"/>
+  <text x="976" y="438" font-family="Arial,sans-serif" font-size="15" fill="#586b6c">@data/backup/</text>
+  <text x="958" y="494" font-family="Arial,sans-serif" font-size="15" fill="#153f42">02:00 WIB · One/day · 7 days</text>
+  <rect x="958" y="532" width="318" height="58" rx="12" fill="#f7b84b" stroke="#153f42" stroke-width="3"/>
+  <text x="982" y="568" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#153f42">Save override &amp; create backup</text>
+</svg>

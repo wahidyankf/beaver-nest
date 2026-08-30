@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" role="img" aria-labelledby="title desc">
+  <title id="title">Selected contextual settings ledger hi-fi mobile</title>
+  <desc id="desc">Nest workshop mobile settings design with contextual schedule card, expiry, and backup parameters.</desc>
+  <rect width="390" height="844" fill="#d8f1ec"/>
+  <rect x="14" y="14" width="362" height="54" rx="14" fill="#fff9ed" stroke="#153f42" stroke-width="3"/>
+  <text x="32" y="48" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#153f42">BNEST</text>
+  <text x="272" y="48" font-family="Arial,sans-serif" font-size="14" fill="#153f42">Settings</text>
+  <text x="18" y="104" font-family="Arial,sans-serif" font-size="13" fill="#153f42">← Admin settings</text>
+  <text x="18" y="142" font-family="Arial,sans-serif" font-size="29" font-weight="700" fill="#153f42">Schedules &amp; backups</text>
+  <text x="18" y="174" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#153f42">Family schedules · None</text>
+  <rect x="18" y="194" width="354" height="264" rx="18" fill="#fff9ed" stroke="#153f42" stroke-width="3"/>
+  <text x="40" y="234" font-family="Arial,sans-serif" font-size="17" font-weight="700" fill="#153f42">Admin/system · Backup</text>
+  <rect x="40" y="254" width="118" height="34" rx="17" fill="#d8f1ec"/>
+  <text x="60" y="277" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#153f42">✓ Verified</text>
+  <text x="40" y="324" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#153f42">Cadence</text>
+  <text x="150" y="324" font-family="Arial,sans-serif" font-size="14" fill="#153f42">Daily · 02:00 WIB</text>
+  <text x="40" y="364" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#153f42">Next run</text>
+  <text x="150" y="364" font-family="Arial,sans-serif" font-size="14" fill="#153f42">Tomorrow</text>
+  <text x="40" y="404" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#153f42">Expiration</text>
+  <text x="150" y="404" font-family="Arial,sans-serif" font-size="14" fill="#153f42">Never</text>
+  <rect x="18" y="480" width="354" height="342" rx="18" fill="#fff9ed" stroke="#153f42" stroke-width="3"/>
+  <text x="40" y="524" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#153f42">Backup settings</text>
+  <text x="40" y="564" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#153f42">Backup folder</text>
+  <rect x="40" y="578" width="310" height="52" rx="9" fill="#fff" stroke="#153f42" stroke-width="2"/>
+  <text x="54" y="610" font-family="Arial,sans-serif" font-size="13" fill="#586b6c">@data/backup/</text>
+  <text x="40" y="666" font-family="Arial,sans-serif" font-size="14" fill="#153f42">02:00 WIB · One/day · 7 days</text>
+  <rect x="40" y="698" width="310" height="56" rx="11" fill="#f7b84b" stroke="#153f42" stroke-width="3"/>
+  <text x="74" y="733" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#153f42">Save override &amp; create backup</text>
+</svg>
