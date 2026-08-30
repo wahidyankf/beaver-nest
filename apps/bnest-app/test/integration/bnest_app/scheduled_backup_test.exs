@@ -35,7 +35,27 @@ defmodule BnestApp.ScheduledBackupTest do
       TestRuntimeRoot.cleanup!(runtime)
     end)
 
-    %{backup_directory: backup_directory}
+    %{backup_directory: backup_directory, runtime: runtime}
+  end
+
+  test "resolves the ignored default from the runtime repository checkout", context do
+    repository = Path.join(context.runtime.path, "release-checkout")
+    File.mkdir_p!(repository)
+    File.write!(Path.join(repository, ".gitignore"), "/data/*\n")
+    {_output, 0} = System.cmd("git", ["init", "--quiet", repository])
+    previous_root = System.get_env("BNEST_REPOSITORY_ROOT")
+    System.put_env("BNEST_REPOSITORY_ROOT", repository)
+
+    on_exit(fn ->
+      case previous_root do
+        nil -> System.delete_env("BNEST_REPOSITORY_ROOT")
+        root -> System.put_env("BNEST_REPOSITORY_ROOT", root)
+      end
+    end)
+
+    expected = Path.join(repository, "data/backup")
+    assert Config.default_directory() == expected
+    assert {:ok, %{directory: ^expected}} = Config.resolve()
   end
 
   test "writes and independently verifies one private owned pair", context do

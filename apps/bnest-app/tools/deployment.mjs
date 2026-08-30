@@ -426,6 +426,7 @@ function launchAgent(
     PORT: String(slots[slot]),
     BNEST_STABLE: "true",
     BNEST_RUNTIME_ROOT: runtimeRoot,
+    BNEST_REPOSITORY_ROOT: repositoryRoot,
     BNEST_CODEX_WORKING_DIRECTORY: repositoryRoot,
     BNEST_COOKIE_SECURE: "true",
     BNEST_RELEASE_REVISION: revision,

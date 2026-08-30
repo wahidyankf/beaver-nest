@@ -31,6 +31,7 @@
 - The first seeded slot must be the latest eligible daily instant at or before expansion so a headless rollout catches up once instead of waiting a day.
 - A release `bin ... eval` loads runtime configuration without starting the Bnest or Ecto applications. A standalone migration adapter must start `ecto_sql` and `exqlite` before starting the repo, then close only the repo it owns; a running application retains its existing or recovered repo.
 - SQLite WAL/SHM sidecars may disappear at any point after repo startup. Permission hardening must ignore only `ENOENT` from the atomic `chmod` attempt rather than prechecking existence, while surfacing every other filesystem error.
+- Any repository-relative runtime destination must come from the permanent checkout injected at slot preparation. Compile-time `__DIR__` may belong to the detached release worktree, which is intentionally deleted before candidate startup.
 
 ## Delivery Questions
 

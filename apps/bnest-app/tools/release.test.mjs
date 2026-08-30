@@ -411,6 +411,7 @@ test("runs the persistent schedules adapter from the immutable release", () => {
     source,
     /PersistentSchedules\.apply_and_verify!\(DateTime\.utc_now\(\)\)/u,
   );
+  assert.match(source, /BNEST_REPOSITORY_ROOT: repositoryRoot/u);
 });
 
 test("accepts only a bare HTTPS production origin", () => {

@@ -3,8 +3,7 @@ defmodule BnestApp.Backup.Config do
 
   alias BnestApp.Backup.Location
 
-  @repo_root Path.expand("../../../../..", __DIR__)
-  @default_directory Path.join(@repo_root, "data/backup")
+  @compiled_repository_root Path.expand("../../../../..", __DIR__)
 
   @spec save(String.t()) :: {:ok, map()} | {:error, atom()}
   def save(directory) do
@@ -21,7 +20,7 @@ defmodule BnestApp.Backup.Config do
     directory =
       case File.read(config_path()) do
         {:ok, bytes} -> decode_directory(bytes)
-        {:error, :enoent} -> {:ok, @default_directory}
+        {:error, :enoent} -> {:ok, default_directory()}
         {:error, _reason} -> {:error, :unavailable}
       end
 
@@ -31,7 +30,12 @@ defmodule BnestApp.Backup.Config do
   end
 
   @spec default_directory() :: String.t()
-  def default_directory, do: @default_directory
+  def default_directory, do: Path.join(repository_root(), "data/backup")
+
+  @spec repository_root() :: String.t()
+  def repository_root do
+    System.get_env("BNEST_REPOSITORY_ROOT") || @compiled_repository_root
+  end
 
   @spec config_path() :: String.t()
   def config_path do

@@ -5,9 +5,6 @@ defmodule BnestApp.Backup.Location do
 
   @marker ".bnest-backup-root.json"
   @scope "bnest-production-backups-v1"
-  @repo_root Path.expand("../../../../..", __DIR__)
-  @default_directory Path.join(@repo_root, "data/backup")
-
   @spec ensure(String.t(), DateTime.t()) :: {:ok, map()} | {:error, atom()}
   def ensure(directory, %DateTime{} = now) do
     with {:ok, directory} <- validate(directory),
@@ -35,13 +32,15 @@ defmodule BnestApp.Backup.Location do
   @spec validate(String.t()) :: {:ok, String.t()} | {:error, atom()}
   def validate(directory) when is_binary(directory) do
     expanded = Path.expand(directory)
+    repository_root = BnestApp.Backup.Config.repository_root()
+    default_directory = BnestApp.Backup.Config.default_directory()
 
     with :ok <- require_absolute(directory),
          :ok <- reject_symlink(expanded),
          :ok <- reject_source_overlap(expanded),
          :ok <- reject_config_overlap(expanded),
-         :ok <- restrict_repository_destination(expanded),
-         :ok <- require_ignored_default(expanded) do
+         :ok <- restrict_repository_destination(expanded, repository_root, default_directory),
+         :ok <- require_ignored_default(expanded, repository_root, default_directory) do
       {:ok, expanded}
     end
   end
@@ -64,17 +63,18 @@ defmodule BnestApp.Backup.Location do
     if overlaps_config?(directory), do: {:error, :config_overlap}, else: :ok
   end
 
-  defp restrict_repository_destination(directory) do
-    if inside?(directory, @repo_root) and directory != @default_directory,
+  defp restrict_repository_destination(directory, repository_root, default_directory) do
+    if inside?(directory, repository_root) and directory != default_directory,
       do: {:error, :repository_path},
       else: :ok
   end
 
-  defp require_ignored_default(@default_directory) do
-    if default_ignored?(), do: :ok, else: {:error, :default_not_ignored}
+  defp require_ignored_default(directory, repository_root, default_directory)
+       when directory == default_directory do
+    if default_ignored?(repository_root), do: :ok, else: {:error, :default_not_ignored}
   end
 
-  defp require_ignored_default(_directory), do: :ok
+  defp require_ignored_default(_directory, _repository_root, _default_directory), do: :ok
 
   defp read_or_create_marker(directory, now) do
     case read_marker(directory) do
@@ -139,8 +139,8 @@ defmodule BnestApp.Backup.Location do
     inside?(config_path, directory)
   end
 
-  defp default_ignored? do
-    case System.cmd("git", ["-C", @repo_root, "check-ignore", "-q", "data/backup"]) do
+  defp default_ignored?(repository_root) do
+    case System.cmd("git", ["-C", repository_root, "check-ignore", "-q", "data/backup"]) do
       {_output, 0} -> true
       {_output, _status} -> false
     end
