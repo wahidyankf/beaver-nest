@@ -99,6 +99,8 @@ erDiagram
     }
 ```
 
+In the ERD, `PK` means the column participates in the primary key, `FK` points to a parent row, `||` means exactly one parent schedule, and `o{` means zero or many run rows.
+
 One schedule owns many historical run slots. The composite run key `(schedule_key, scheduled_for)` is the duplicate barrier; retries update that slot's attempt and state rather than creating another occurrence.
 
 ```sql
@@ -158,6 +160,53 @@ CREATE INDEX bnest_schedules_expiry_idx
 CREATE INDEX bnest_schedule_runs_retry_idx
   ON bnest_schedule_runs(state, next_attempt_at, lease_expires_at);
 ```
+
+### Column Guide
+
+Except for `daily_at_utc`, every time column stores a full UTC ISO 8601 instant. `daily_at_utc` stores only strict `HH:MM`; `display_timezone` explains how the UI presents that daily time.
+
+#### `bnest_schedules`
+
+| Column                | Purpose                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `schedule_key`        | Stable code-owned identifier for one application schedule; run rows reference it.                                          |
+| `label`               | Human-readable name shown in the admin inventory.                                                                          |
+| `handler_key`         | Safe allowlist key resolved to executable code; it is never a module or function supplied by the database.                 |
+| `schedule_context`    | Classifies the schedule as `family` or `admin_system` for policy-bound reads and grouped presentation.                     |
+| `cadence`             | Recurrence kind. This version accepts only `daily`.                                                                        |
+| `daily_at_utc`        | UTC `HH:MM` at which each daily slot becomes due; `02:00 WIB` is stored as `19:00` UTC.                                    |
+| `display_timezone`    | Code-approved timezone label used to convert and explain the time in the UI, initially `WIB (UTC+07:00)`.                  |
+| `enabled`             | Controls whether the coordinator may create new run claims. Disabling preserves definition and history.                    |
+| `expiration_kind`     | Selects `never`, absolute `at`, or `after_occurrences` expiration behavior.                                                |
+| `expires_at`          | Exclusive UTC cutoff for `at`; claims at or after this instant are blocked. Null for other expiration kinds.               |
+| `max_occurrences`     | Maximum unique scheduled slots allowed for `after_occurrences`. Null for other expiration kinds.                           |
+| `claimed_occurrences` | Unique slots claimed in the current lifecycle; retries never increment it. A validated reactivation resets it.             |
+| `expired_at`          | UTC instant when the coordinator marked the lifecycle expired. Null while it remains eligible.                             |
+| `next_run_at`         | Exact next UTC slot considered by due reconciliation; a schedule is due when this is at or before `now`.                   |
+| `revision`            | Optimistic-concurrency version incremented by a validated configuration or reactivation change and copied into each claim. |
+| `inserted_at`         | UTC instant when the schedule row was first created.                                                                       |
+| `updated_at`          | UTC instant of the latest accepted schedule-row change.                                                                    |
+
+#### `bnest_schedule_runs`
+
+| Column              | Purpose                                                                                                                       |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `schedule_key`      | Parent schedule identifier and first half of the composite primary key.                                                       |
+| `scheduled_for`     | Logical UTC slot being executed and second half of the composite key; this makes one row the duplicate barrier for that slot. |
+| `schedule_revision` | Snapshot of the schedule revision at claim time, preserving which configuration produced the run.                             |
+| `occurrence_number` | One-based unique-slot number within the schedule lifecycle; every retry retains the same value.                               |
+| `attempt`           | One-based attempt currently represented by the row; incremented for a retry and capped at three.                              |
+| `state`             | Current safe lifecycle result: `running`, `retryable`, `verified`, `failed`, or `skipped`.                                    |
+| `lease_expires_at`  | UTC deadline protecting a running attempt from overlap; after it passes, reconciliation may recover the abandoned work.       |
+| `next_attempt_at`   | Earliest UTC instant when a `retryable` row may run again; null outside retry waiting.                                        |
+| `artifact_basename` | Safe filename of a verified backup artifact, never an absolute path; null for non-artifact or unfinished runs.                |
+| `artifact_sha256`   | SHA-256 digest of the verified final artifact; null until verification succeeds.                                              |
+| `artifact_bytes`    | Verified final artifact size in bytes; null until verification succeeds.                                                      |
+| `failure_category`  | Allowlisted value-free reason for retry, failure, or skip; never contains a path, payload, or exception dump.                 |
+| `started_at`        | UTC instant when the current or latest attempt began; a retry replaces it with that attempt's start.                          |
+| `finished_at`       | UTC instant when the current or latest attempt ended; null while that attempt is running.                                     |
+
+The due, context, expiry, and retry indexes keep coordinator and dashboard queries bounded as history grows; they do not change the ownership or uniqueness rules above.
 
 The release seeds `prod-sqlite-backup-daily` with handler `prod_sqlite_backup`, context `admin_system`, UTC time `19:00`, display timezone `WIB (UTC+07:00)`, expiration `never`, zero claimed occurrences, and revision `1`. Production backup's registry policy fixes expiration to `never` so protection cannot silently stop. Another schedule may expose `never`, an absolute `at` entered/displayed in WIB and stored in UTC, or positive `after_occurrences` through its typed admin panel.
 

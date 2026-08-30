@@ -12,6 +12,12 @@ Every formal plan that adds, changes, or removes a persistent database schema mu
 
 The diagram aids comprehension but never replaces exact old/new fields, types, constraints, defaults, compatibility, validation, migration, rollback, or tests. Keep critical meaning searchable in surrounding prose and follow the repository's [Markdown visualization convention](markdown-visualizations.md).
 
+### Field Guide
+
+Every schema contract must include a field-by-field guide for every column, property, or key in each affected resulting table or record. Explain each field's purpose in plain language and document any non-obvious value shape, unit or timezone, owner or producer, required/null/default behavior, and creation, update, clearing, or retention lifecycle. Identify primary, foreign, and unique keys, references, sensitive values, and fields whose counters or lifecycle semantics could otherwise be misread.
+
+The guide supplements rather than repeats the exact schema: use plain language for intent and lifecycle while DDL or the equivalent contract remains authoritative for types and constraints. Do not rely on a field name alone to convey meaning.
+
 Describe the transition in this order:
 
 1. **Expand:** add the new reader, writer, schema, or location without removing the old one.
