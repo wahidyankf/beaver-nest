@@ -91,6 +91,19 @@ test("isolates release gates from production runtime configuration", () => {
     assert.equal(environment[name], undefined);
 });
 
+test("passes the exact routed origin to the private release monitor", () => {
+  const source = readFileSync(
+    new URL("./release.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /BNEST_PRODUCTION_ORIGIN: this\.productionOrigin/u);
+  assert.match(source, /"release",\s*"monitor"/u);
+  assert.match(
+    source,
+    /assessment\.status === 75 \? "capacity" : "continuity"/u,
+  );
+});
+
 function fakeHost(overrides = {}) {
   const calls = [];
   const host = {

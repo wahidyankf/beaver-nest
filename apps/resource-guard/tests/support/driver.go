@@ -300,7 +300,7 @@ func (driver *Driver) requireValidation() error {
 }
 
 func healthySummary() guard.ReleaseSummary {
-	return guard.ReleaseSummary{SchemaVersion: 2, SampleCount: 3, AvailableParallelism: 12, AvailableNonCompressedEstimateMinBytes: 13 * guard.GiB, MemoryPressureLevelMax: 1, CompressorAvailableAll: true, CompressorPayloadPeakBytes: 7 * guard.GiB, CPUUtilizationP95Percent: 50, DiskFreeMinBytes: 30 * guard.GiB, SwapFreeMinBytes: 2 * guard.GiB}
+	return guard.ReleaseSummary{SchemaVersion: 4, SampleCount: 3, AvailableParallelism: 12, AvailableNonCompressedEstimateMinBytes: 13 * guard.GiB, MemoryPressureLevelMax: 1, CompressorAvailableAll: true, CompressorPayloadPeakBytes: 7 * guard.GiB, CPUUtilizationP95Percent: 50, DiskFreeMinBytes: 30 * guard.GiB, SwapFreeMinBytes: 2 * guard.GiB, RoutedJourneyLatencyP95Ms: 50, RoutedJourneyLatencyMaxMs: 100}
 }
 
 func (driver *Driver) summary(healthFailures int) error {
@@ -353,6 +353,24 @@ func (driver *Driver) requireReleaseCPU() error {
 	return nil
 }
 func (driver *Driver) failedSummary() error { return driver.summary(1) }
+func (driver *Driver) slowRoutedSummary() error {
+	directory, err := os.MkdirTemp("", "resource-guard-bdd-")
+	if err != nil {
+		return err
+	}
+	driver.temporaryPaths = append(driver.temporaryPaths, directory)
+	driver.summaryPath = filepath.Join(directory, "summary.json")
+	summary := healthySummary()
+	summary.SchemaVersion = 4
+	summary.RoutedJourneyLatencyP95Ms = 501
+	summary.RoutedJourneyLatencyMaxMs = 2_001
+	value, err := json.Marshal(summary)
+	if err != nil {
+		return fmt.Errorf("encode release summary: %w", err)
+	}
+	return os.WriteFile(driver.summaryPath, value, 0o600)
+}
+
 func (driver *Driver) requireRejected() error {
 	if driver.accepted {
 		return errors.New("release evidence was accepted")

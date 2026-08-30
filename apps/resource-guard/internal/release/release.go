@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -70,11 +71,11 @@ func AssessFile(path string) (guard.ReleaseSummary, error) {
 	if err = json.Unmarshal(data, &summary); err != nil {
 		return guard.ReleaseSummary{}, err
 	}
-	if summary.SchemaVersion != 2 && summary.SchemaVersion != 3 || summary.SampleCount <= 0 || summary.AvailableParallelism <= 0 {
+	if summary.SchemaVersion != 2 && summary.SchemaVersion != 3 && summary.SchemaVersion != 4 || summary.SampleCount <= 0 || summary.AvailableParallelism <= 0 {
 		return summary, errors.New("resource evidence summary is invalid")
 	}
 	if !guard.ReleaseHeadroomAvailable(summary) {
-		return summary, errors.New("release overlap exhausted resource headroom")
+		return summary, errors.New("release overlap exhausted resource or routed responsiveness headroom")
 	}
 	return summary, nil
 }
@@ -87,15 +88,19 @@ type MonitorConfig struct {
 	Interval                                time.Duration
 	ServiceRSS                              func() int64
 	Health                                  func() (int, float64)
+	RoutedHealth                            func() (int, float64)
+	RoutedOrigin                            string
 	LoadAverage                             func() float64
 }
 type releaseSample struct {
 	guard.Sample
 
-	OneMinuteLoad        float64 `json:"oneMinuteLoad"`
-	ServiceRSSBytes      int64   `json:"serviceRssBytes"`
-	CaddyHealthStatus    int     `json:"caddyHealthStatus"`
-	CaddyHealthLatencyMs float64 `json:"caddyHealthLatencyMs"`
+	OneMinuteLoad          float64 `json:"oneMinuteLoad"`
+	ServiceRSSBytes        int64   `json:"serviceRssBytes"`
+	CaddyHealthStatus      int     `json:"caddyHealthStatus"`
+	CaddyHealthLatencyMs   float64 `json:"caddyHealthLatencyMs"`
+	RoutedJourneyStatus    int     `json:"routedJourneyStatus"`
+	RoutedJourneyLatencyMs float64 `json:"routedJourneyLatencyMs"`
 }
 
 func output(command string, arguments ...string) string {
@@ -128,8 +133,8 @@ func serviceRSSBytes() int64 {
 	return total
 }
 
-func caddyHealth() (int, float64) {
-	value := output("curl", "-sS", "--max-time", "3", "-o", "/dev/null", "-w", "%{http_code} %{time_total}", "http://127.0.0.1:4100/health/ready")
+func probeHTTP(target string) (int, float64) {
+	value := output("curl", "-sS", "--max-time", "3", "-o", "/dev/null", "-w", "%{http_code} %{time_total}", target)
 	fields := strings.Fields(value)
 	if len(fields) != 2 {
 		return 0, 3000
@@ -140,6 +145,19 @@ func caddyHealth() (int, float64) {
 		return 0, 3000
 	}
 	return status, seconds * 1000
+}
+
+func caddyHealth() (int, float64) {
+	return probeHTTP("http://127.0.0.1:4100/health/ready")
+}
+
+func routedHealth(origin string) (func() (int, float64), error) {
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != "" && parsed.Path != "/" {
+		return nil, errors.New("bare HTTPS routed origin is required for release monitoring")
+	}
+	target := strings.TrimSuffix(origin, "/") + "/"
+	return func() (int, float64) { return probeHTTP(target) }, nil
 }
 
 func oneMinuteLoad() float64 {
@@ -176,6 +194,13 @@ func RunMonitor(config MonitorConfig) error {
 	if config.Health == nil {
 		config.Health = caddyHealth
 	}
+	if config.RoutedHealth == nil {
+		probe, probeError := routedHealth(config.RoutedOrigin)
+		if probeError != nil {
+			return probeError
+		}
+		config.RoutedHealth = probe
+	}
 	if config.LoadAverage == nil {
 		config.LoadAverage = oneMinuteLoad
 	}
@@ -203,7 +228,8 @@ func RunMonitor(config MonitorConfig) error {
 		}
 		previous = reading.CPUState
 		status, latency := config.Health()
-		value := releaseSample{Sample: reading.Sample, OneMinuteLoad: config.LoadAverage(), ServiceRSSBytes: config.ServiceRSS(), CaddyHealthStatus: status, CaddyHealthLatencyMs: latency}
+		routedStatus, routedLatency := config.RoutedHealth()
+		value := releaseSample{Sample: reading.Sample, OneMinuteLoad: config.LoadAverage(), ServiceRSSBytes: config.ServiceRSS(), CaddyHealthStatus: status, CaddyHealthLatencyMs: latency, RoutedJourneyStatus: routedStatus, RoutedJourneyLatencyMs: routedLatency}
 		samples = append(samples, value)
 		encoded, marshalError := json.Marshal(value)
 		if marshalError != nil {
@@ -245,12 +271,20 @@ loop:
 	return writeSummary(config.SummaryPath, samples)
 }
 
+func recordRoutedEvidence(summary *guard.ReleaseSummary, latencies *[]float64, sample releaseSample) {
+	*latencies = append(*latencies, sample.RoutedJourneyLatencyMs)
+	summary.RoutedJourneyLatencyMaxMs = max(summary.RoutedJourneyLatencyMaxMs, sample.RoutedJourneyLatencyMs)
+	if sample.RoutedJourneyStatus != 200 {
+		summary.RoutedJourneyFailures++
+	}
+}
+
 func writeSummary(path string, samples []releaseSample) error {
 	if len(samples) == 0 {
 		return errors.New("release monitor has no samples")
 	}
-	summary := guard.ReleaseSummary{SchemaVersion: 3, Platform: samples[0].Platform, Capabilities: append([]string(nil), samples[0].Capabilities...), SampleCount: len(samples), AvailableParallelism: samples[0].AvailableParallelism, CompressorAvailableAll: true, MemoryPressureLevelMax: 0, AvailableNonCompressedEstimateMinBytes: math.MaxInt64, DiskFreeMinBytes: math.MaxInt64, SwapFreeMinBytes: math.MaxInt64}
-	cpu, latency := []float64{}, []float64{}
+	summary := guard.ReleaseSummary{SchemaVersion: 4, Platform: samples[0].Platform, Capabilities: append([]string(nil), samples[0].Capabilities...), SampleCount: len(samples), AvailableParallelism: samples[0].AvailableParallelism, CompressorAvailableAll: true, MemoryPressureLevelMax: 0, AvailableNonCompressedEstimateMinBytes: math.MaxInt64, DiskFreeMinBytes: math.MaxInt64, SwapFreeMinBytes: math.MaxInt64}
+	cpu, latency, routedLatency := []float64{}, []float64{}, []float64{}
 	first, last := samples[0], samples[len(samples)-1]
 	for _, sample := range samples {
 		available := sample.AvailableMemoryBytes
@@ -283,6 +317,7 @@ func writeSummary(path string, samples []releaseSample) error {
 		if sample.CaddyHealthStatus != 200 {
 			summary.HealthFailures++
 		}
+		recordRoutedEvidence(&summary, &routedLatency, sample)
 	}
 	summary.PhysicalMemoryBytes = first.PhysicalMemoryBytes
 	if first.SwapIns != nil && last.SwapIns != nil {
@@ -296,6 +331,9 @@ func writeSummary(path string, samples []releaseSample) error {
 	}
 	if value := guard.Percentile(latency, .95); value != nil {
 		summary.CaddyHealthLatencyP95Ms = *value
+	}
+	if value := guard.Percentile(routedLatency, .95); value != nil {
+		summary.RoutedJourneyLatencyP95Ms = *value
 	}
 	encoded, err := json.MarshalIndent(summary, "", "  ")
 	if err != nil {

@@ -19,7 +19,7 @@ func TestReleaseMonitorWritesAndAssessesPrivateEvidence(t *testing.T) {
 		swapIn, swapOut, swapFree := int64(index), int64(index), 2*guard.GiB
 		samples[index].SwapIns, samples[index].SwapOuts, samples[index].SwapFreeBytes = &swapIn, &swapOut, &swapFree
 	}
-	err := releaseguard.RunMonitor(releaseguard.MonitorConfig{OutputPath: outputPath, SummaryPath: summaryPath, DeploymentRoot: root, Duration: 3 * time.Millisecond, Interval: time.Millisecond, Collector: &integrationCollector{samples: samples}, ServiceRSS: func() int64 { return 4096 }, Health: func() (int, float64) { return 200, 2.5 }, LoadAverage: func() float64 { return 1.5 }})
+	err := releaseguard.RunMonitor(releaseguard.MonitorConfig{OutputPath: outputPath, SummaryPath: summaryPath, DeploymentRoot: root, Duration: 3 * time.Millisecond, Interval: time.Millisecond, Collector: &integrationCollector{samples: samples}, ServiceRSS: func() int64 { return 4096 }, Health: func() (int, float64) { return 200, 2.5 }, RoutedHealth: func() (int, float64) { return 200, 75 }, LoadAverage: func() float64 { return 1.5 }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,13 +30,21 @@ func TestReleaseMonitorWritesAndAssessesPrivateEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if summary.SchemaVersion != 3 || summary.SampleCount < 2 || summary.ServiceRSSPeakBytes != 4096 || summary.HealthFailures != 0 {
+	if summary.SchemaVersion != 4 || summary.SampleCount < 2 || summary.ServiceRSSPeakBytes != 4096 || summary.HealthFailures != 0 || summary.RoutedJourneyFailures != 0 || summary.RoutedJourneyLatencyP95Ms != 75 || summary.RoutedJourneyLatencyMaxMs != 75 {
 		t.Fatalf("unexpected summary %+v", summary)
 	}
 }
 
 func TestReleaseAssessmentRejectsInvalidAndUnhealthyEvidence(t *testing.T) {
 	root := t.TempDir()
+	legacy := filepath.Join(root, "legacy.json")
+	legacyData := []byte(`{"schemaVersion":3,"sampleCount":1,"availableParallelism":12,"availableNonCompressedEstimateMinBytes":13958643712,"memoryPressureLevelMax":1,"compressorAvailableAll":true,"cpuUtilizationP95Percent":10,"healthFailures":0}`)
+	if err := os.WriteFile(legacy, legacyData, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := releaseguard.AssessFile(legacy); err != nil {
+		t.Fatalf("legacy summary rejected: %v", err)
+	}
 	invalid := filepath.Join(root, "invalid.json")
 	if err := os.WriteFile(invalid, []byte("{}"), 0o600); err != nil {
 		t.Fatal(err)

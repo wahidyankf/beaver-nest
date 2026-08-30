@@ -51,6 +51,7 @@ func (driver *Driver) Initialize(scenarioContext *godog.ScenarioContext) {
 		driver.failedSummary,
 		driver.assessSummary,
 		driver.requireRejected,
+		driver.slowRoutedSummary,
 		driver.nxBuildConfiguration,
 		driver.inspectBuildCaching,
 		driver.requireBuildCacheDisabled,

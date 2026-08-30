@@ -37,7 +37,7 @@ Follow [maps](directory-maps.md); plans have no word limit but exclude secrets a
 
 PRD Gherkin accepts the plan, not `specs/`; technical docs select durable contracts and delivery proves operational, migration, and rollout criteria.
 
-Active-service plans: the technical document set and `delivery.md` apply [continuity](../development/live-service-continuity.md) and deployment workflow. Bnest plans name Caddy, candidate/revision health, LiveView/WebSocket reconnect, drain/cleanup, mixed-version safety, routed proof, rollback; never stop sole backend, repoint Tailscale, or require refresh.
+Active-service plans: the technical document set and `delivery.md` apply [continuity](../development/live-service-continuity.md) and deployment workflow. Bnest plans name Caddy, candidate/revision health, continuous exact-origin responsiveness with numeric p95 and per-sample maximum acceptance criteria from preflight through drain, LiveView/WebSocket reconnect, drain/cleanup, mixed-version safety, routed proof, and the responsiveness rollback trigger; never stop the sole backend, repoint Tailscale, require refresh, or accept 2xx status alone as responsiveness proof.
 
 ## Delivery Ownership
 

@@ -680,7 +680,13 @@ export class MachineHost {
         "--deployment-root",
         this.deploymentRoot,
       ],
-      { stdio: "ignore" },
+      {
+        stdio: "ignore",
+        env: {
+          ...this.environment,
+          BNEST_PRODUCTION_ORIGIN: this.productionOrigin,
+        },
+      },
     );
   }
 
@@ -696,14 +702,21 @@ export class MachineHost {
         this.log("resource evidence summary missing");
         return null;
       }
-      throw new ReleaseError("cleanup", "Resource evidence summary is missing");
+      throw new ReleaseError(
+        "continuity",
+        "Resource evidence summary is missing",
+      );
     }
 
     let summary;
     try {
       summary = readPrivateJson(this.resourceSummaryPath);
     } catch (error) {
-      if (required) throw error;
+      if (required)
+        throw new ReleaseError(
+          "continuity",
+          "Resource evidence summary is unreadable",
+        );
       this.log("resource evidence summary unreadable");
       return null;
     }
@@ -715,7 +728,7 @@ export class MachineHost {
     if (assessment.status !== 0) {
       if (required)
         throw new ReleaseError(
-          assessment.status === 75 ? "capacity" : "cleanup",
+          assessment.status === 75 ? "capacity" : "continuity",
           assessment.stderr.trim() || "Resource evidence summary is invalid",
         );
       this.log("resource evidence summary rejected");

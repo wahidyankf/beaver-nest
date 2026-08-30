@@ -160,6 +160,28 @@ func TestAdmissionPercentileAndReleasePolicies(t *testing.T) {
 	if !guard.ReleaseHeadroomAvailable(healthy) {
 		t.Fatal("healthy release rejected")
 	}
+	healthyRouted := healthy
+	healthyRouted.SchemaVersion = 4
+	healthyRouted.RoutedJourneyLatencyP95Ms = guard.ReleaseRoutedLatencyP95BudgetMs
+	healthyRouted.RoutedJourneyLatencyMaxMs = guard.ReleaseRoutedLatencyMaxBudgetMs
+	if !guard.ReleaseHeadroomAvailable(healthyRouted) {
+		t.Fatal("healthy routed release rejected")
+	}
+	slowRouted := healthyRouted
+	slowRouted.RoutedJourneyLatencyP95Ms++
+	if guard.ReleaseHeadroomAvailable(slowRouted) {
+		t.Fatal("slow routed p95 accepted")
+	}
+	spikyRouted := healthyRouted
+	spikyRouted.RoutedJourneyLatencyMaxMs++
+	if guard.ReleaseHeadroomAvailable(spikyRouted) {
+		t.Fatal("slow routed maximum accepted")
+	}
+	failedRouted := healthyRouted
+	failedRouted.RoutedJourneyFailures = 1
+	if guard.ReleaseHeadroomAvailable(failedRouted) {
+		t.Fatal("failed routed request accepted")
+	}
 	invalidParallelism := healthy
 	invalidParallelism.AvailableParallelism = 0
 	if guard.ReleaseHeadroomAvailable(invalidParallelism) {

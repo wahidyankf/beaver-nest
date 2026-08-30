@@ -46,7 +46,7 @@ System-call adapters, process boundaries, and the thin `main` entry are exercise
 
 Ordinary work resolves `balanced` → `constrained` → `minimal` from effective memory, available memory, disk, CPU, and swap capability. `minimal` uses concurrency one and avoids rejecting a small runner solely from a static estimate. Transactional and release work are strict and exit `78` rather than silently downgrading. Linux PSI and new OOM events, macOS pressure/compressor trends, swap-out rate, and the 256 MiB hard disk floor remain active safety signals.
 
-Copy [`resource-guard.local.json.example`](resource-guard.local.json.example) to the ignored `resource-guard.local.json` for machine-local profile selection or stricter limits. `--config` overrides `RESOURCE_GUARD_CONFIG`, which overrides that local file. Unknown fields, duplicates, cycles, unsafe floors, and unsupported schemas fail with exit `78`. Evidence is schema 3; schema-2 release summaries remain readable during retention.
+Copy [`resource-guard.local.json.example`](resource-guard.local.json.example) to the ignored `resource-guard.local.json` for machine-local profile selection or stricter limits. `--config` overrides `RESOURCE_GUARD_CONFIG`, which overrides that local file. Unknown fields, duplicates, cycles, unsafe floors, and unsupported schemas fail with exit `78`. Evidence is schema 4. Release overlap continuously samples both local Caddy health and the exact routed user surface; it rejects any routed failure, p95 latency above 500 ms, or individual sample above 2 seconds. Schema-2 and schema-3 release summaries remain readable during retention.
 
 ## Structure
 

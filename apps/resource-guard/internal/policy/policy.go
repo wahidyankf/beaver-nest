@@ -16,6 +16,10 @@ const (
 	stateWarning         = "warning"
 	stateCritical        = "critical"
 	swapUnavailableState = "unavailable"
+	// ReleaseRoutedLatencyP95BudgetMs is the hard routed-user-surface p95 ceiling during release overlap.
+	ReleaseRoutedLatencyP95BudgetMs = 500.0
+	// ReleaseRoutedLatencyMaxBudgetMs is the hard single routed-user-surface sample ceiling during release overlap.
+	ReleaseRoutedLatencyMaxBudgetMs = 2_000.0
 )
 
 // Sample is one timestamped host resource observation.
@@ -300,6 +304,9 @@ type ReleaseSummary struct {
 	SwapFreeMinBytes                       int64    `json:"swapFreeMinBytes"`
 	CaddyHealthLatencyP95Ms                float64  `json:"caddyHealthLatencyP95Ms,omitempty"`
 	HealthFailures                         int      `json:"healthFailures"`
+	RoutedJourneyLatencyP95Ms              float64  `json:"routedJourneyLatencyP95Ms,omitempty"`
+	RoutedJourneyLatencyMaxMs              float64  `json:"routedJourneyLatencyMaxMs,omitempty"`
+	RoutedJourneyFailures                  int      `json:"routedJourneyFailures,omitempty"`
 }
 
 // ReleaseHeadroomAvailable validates aggregate capacity for release overlap.
@@ -310,7 +317,13 @@ func ReleaseHeadroomAvailable(summary ReleaseSummary) bool {
 	}
 	ceiling := 100 * (1 - 2/float64(summary.AvailableParallelism))
 	compressorHealthy := summary.Platform != "darwin" && summary.Platform != "" || summary.CompressorAvailableAll
-	return summary.SampleCount > 0 && summary.AvailableNonCompressedEstimateMinBytes >= 2*GiB && summary.MemoryPressureLevelMax == 1 && compressorHealthy && !swapPressure && summary.CPUUtilizationP95Percent <= ceiling && summary.HealthFailures == 0
+	routedHealthy := summary.SchemaVersion < 4 ||
+		summary.RoutedJourneyFailures == 0 &&
+			summary.RoutedJourneyLatencyP95Ms > 0 &&
+			summary.RoutedJourneyLatencyP95Ms <= ReleaseRoutedLatencyP95BudgetMs &&
+			summary.RoutedJourneyLatencyMaxMs > 0 &&
+			summary.RoutedJourneyLatencyMaxMs <= ReleaseRoutedLatencyMaxBudgetMs
+	return summary.SampleCount > 0 && summary.AvailableNonCompressedEstimateMinBytes >= 2*GiB && summary.MemoryPressureLevelMax == 1 && compressorHealthy && !swapPressure && summary.CPUUtilizationP95Percent <= ceiling && summary.HealthFailures == 0 && routedHealthy
 }
 
 // ReleaseMemoryAvailable reports whether one sample preserves release memory headroom.

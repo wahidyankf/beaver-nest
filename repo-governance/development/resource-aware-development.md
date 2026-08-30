@@ -44,6 +44,6 @@ XNU maps internal memory state to exported dispatch-compatible normal `1`, warni
 
 The collector normalizes CPU, effective memory, pressure capabilities, swap state, disk, RSS, and applicable health evidence. Linux uses `/proc`, PSI, and cgroup v2; macOS keeps memory-pressure and compressor evidence. Compressor payload is not a fullness percentage.
 
-Private schema-v3 evidence defaults to `~/bnest/runtime/resource-guard/`. Raw samples expire after seven days, summaries after thirty, and files remain below 50 MiB total. Evidence stores only the local-config hash and resolved profile, excluding config contents, arguments, origins, application paths, credentials, and user data. Schema-v2 release summaries remain readable during retention.
+Samples use schema v3; release summaries use v4. They default to `~/bnest/runtime/resource-guard/`; samples expire in seven days, summaries in thirty, and files stay below 50 MiB. Evidence stores the config hash and profile, never contents, arguments, origins, paths, credentials, or user data. Schema-v2/v3 release summaries remain readable during retention.
 
 Verify changes through guarded resource-guard Nx targets, affected guarded Nx gates, and the repository gate. Use deterministic fake pressure in tests; never endanger the host to prove shedding.

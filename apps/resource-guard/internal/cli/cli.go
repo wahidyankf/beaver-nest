@@ -382,7 +382,7 @@ func (application Application) release(arguments []string) (int, error) { //noli
 		if _, configError := application.loadConfig(*configPath); configError != nil {
 			return guard.ReplanRequiredExitCode, fmt.Errorf("resource configuration: %w", configError)
 		}
-		err := releaseguard.RunMonitor(releaseguard.MonitorConfig{OutputPath: *outputPath, SummaryPath: *summaryPath, DeploymentRoot: *deploymentRoot, Duration: time.Duration(*durationMs) * time.Millisecond, Collector: application.Collector})
+		err := releaseguard.RunMonitor(releaseguard.MonitorConfig{OutputPath: *outputPath, SummaryPath: *summaryPath, DeploymentRoot: *deploymentRoot, Duration: time.Duration(*durationMs) * time.Millisecond, Collector: application.Collector, RoutedOrigin: os.Getenv("BNEST_PRODUCTION_ORIGIN")})
 		if err != nil {
 			return 1, err
 		}

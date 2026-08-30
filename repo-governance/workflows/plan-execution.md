@@ -7,7 +7,7 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 1. Select one backlog or in-progress plan and repair it through the [quality gate](plan-quality-gate.md).
 2. If backlogged, move it with status and stage maps to `plans/in-progress/<slug>/`; never copy it.
 3. Read `learnings.md`. Mirror each unchecked executable delivery item into the task list with wording, label, order, and references. Keep conditional recovery dormant until triggered.
-4. Detect affected active services. Apply [live-service continuity](../development/live-service-continuity.md), baseline local/routed health, and activate continuity/rollback work before editing. For Bnest deployments, use the [Caddy workflow](development-caddy-deployment.md): preserve the stable route, prepare an independent revision-verified candidate, promote through Caddy, prove routed LiveView/WebSocket reconnect, then retire only after the bounded drain. Do not treat a browser refresh or Tailscale repoint as a normal-release recovery path.
+4. Detect affected active services. Apply [live-service continuity](../development/live-service-continuity.md), baseline local/routed health and responsiveness against the plan's numeric budget, and activate continuity/rollback work before editing. For Bnest deployments, use the [Caddy workflow](development-caddy-deployment.md): preserve the stable route, continuously monitor the exact routed origin, prepare an independent revision-verified candidate, promote through Caddy, prove routed LiveView/WebSocket reconnect, then retire only after the bounded drain and responsiveness proof. Do not treat a browser refresh or Tailscale repoint as a normal-release recovery path.
 
 ## Execute
 
@@ -17,7 +17,7 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 4. Capture learnings. Search `plans/ideas/`; merge overlap or create one distinct mapped brief and link it.
 5. Run required automation and manual AI journeys. Record safe evidence without secrets or sensitive runtime data.
 6. Apply all applicable rules; plans and task lists expand no authority.
-7. A degraded endpoint or incomplete cutover stops the line. Restore and verify the usable local/routed journey, update delivery/learnings, then resume.
+7. A degraded endpoint, exceeded routed-responsiveness budget, or incomplete cutover stops the line. Restore and verify the usable local/routed journey and its numeric budget, update delivery/learnings, then resume.
 
 ## Complete and Archive
 

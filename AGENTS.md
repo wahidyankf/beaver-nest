@@ -37,7 +37,7 @@
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); [track tasks](repo-governance/conventions/task-tracking.md). Expect parallel changes to `plans/`, repository rules, and `repo-governance/`; preserve unfamiliar changes.
 - `plans/`: user request only—not Plan mode. Make the why, options, decision, execution, and proof clear; file/directory shape is only a reader-serving mechanism. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
 - Schema-changing plans include a relational ERD or storage-appropriate data-model diagram plus a field-by-field guide under the [migration convention](repo-governance/conventions/plan-migrations.md); they supplement the exact schema and migration contract.
-- Bnest active-service plans require Caddy candidate/promotion/rollback, compatible LiveView reconnect, authoritative socket-state recovery, and routed WebSocket/revision proof; never assume refresh.
+- Bnest active-service plans require Caddy candidate/promotion/rollback, continuous routed-responsiveness proof from preflight through drain, compatible LiveView reconnect, authoritative socket-state recovery, and routed WebSocket/revision proof; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
 - Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases.
 - [Ask last](repo-governance/conventions/last-resort-questions.md); stop after the minimal verified change.

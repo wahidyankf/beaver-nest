@@ -9,6 +9,10 @@ const (
 	MiB = core.MiB
 	// ReplanRequiredExitCode indicates strict configuration or capacity incompatibility.
 	ReplanRequiredExitCode = core.ReplanRequiredExitCode
+	// ReleaseRoutedLatencyP95BudgetMs is the hard routed-user-surface p95 ceiling during release overlap.
+	ReleaseRoutedLatencyP95BudgetMs = core.ReleaseRoutedLatencyP95BudgetMs
+	// ReleaseRoutedLatencyMaxBudgetMs is the hard single routed-user-surface sample ceiling during release overlap.
+	ReleaseRoutedLatencyMaxBudgetMs = core.ReleaseRoutedLatencyMaxBudgetMs
 )
 
 type (
