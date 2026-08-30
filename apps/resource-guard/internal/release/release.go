@@ -134,7 +134,16 @@ func serviceRSSBytes() int64 {
 }
 
 func probeHTTP(target string) (int, float64) {
-	value := output("curl", "-sS", "--max-time", "3", "-o", "/dev/null", "-w", "%{http_code} %{time_total}", target)
+	return probeHTTPWithRedirects(target, false)
+}
+
+func probeRoutedHTTP(target string) (int, float64) {
+	return probeHTTPWithRedirects(target, true)
+}
+
+func probeHTTPWithRedirects(target string, followRedirects bool) (int, float64) {
+	arguments := HTTPProbeArguments(target, followRedirects)
+	value := output("curl", arguments...)
 	fields := strings.Fields(value)
 	if len(fields) != 2 {
 		return 0, 3000
@@ -147,6 +156,16 @@ func probeHTTP(target string) (int, float64) {
 	return status, seconds * 1000
 }
 
+// HTTPProbeArguments returns the bounded curl arguments for one health or routed probe.
+func HTTPProbeArguments(target string, followRedirects bool) []string {
+	arguments := []string{"-sS"}
+	if followRedirects {
+		arguments = append(arguments, "--location", "--max-redirs", "3")
+	}
+	arguments = append(arguments, "--max-time", "3", "-o", "/dev/null", "-w", "%{http_code} %{time_total}", target)
+	return arguments
+}
+
 func caddyHealth() (int, float64) {
 	return probeHTTP("http://127.0.0.1:4100/health/ready")
 }
@@ -157,7 +176,7 @@ func routedHealth(origin string) (func() (int, float64), error) {
 		return nil, errors.New("bare HTTPS routed origin is required for release monitoring")
 	}
 	target := strings.TrimSuffix(origin, "/") + "/"
-	return func() (int, float64) { return probeHTTP(target) }, nil
+	return func() (int, float64) { return probeRoutedHTTP(target) }, nil
 }
 
 func oneMinuteLoad() float64 {

@@ -7,6 +7,7 @@ defmodule BnestApp.Behaviour.Driver do
   @callback heading_visible?(map(), String.t()) :: boolean()
   @callback text_visible?(map(), String.t()) :: boolean()
   @callback chat_entry_link_visible?(map(), String.t(), String.t()) :: boolean()
+  @callback home_controls_arranged?(map()) :: boolean()
   @callback follow_brand_home_link(map()) :: map()
   @callback data_migration_entry_absent?(map()) :: boolean()
   @callback model_selector_lists_all?(map()) :: boolean()

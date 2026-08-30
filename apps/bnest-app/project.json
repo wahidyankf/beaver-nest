@@ -5,6 +5,13 @@
   "root": "apps/bnest-app",
   "implicitDependencies": ["ex-bdd", "resource-guard"],
   "targets": {
+    "assets:build": {
+      "command": "MIX_ENV=test mix assets.build",
+      "options": {
+        "cwd": "apps/bnest-app"
+      },
+      "cache": false
+    },
     "serve": {
       "command": "BNEST_STABLE=${BNEST_STABLE:-true} PORT=${BNEST_DEV_PORT:-4020} ../resource-guard/resource-guard run --class service --disk-path ../.. --lease-port ${BNEST_DEV_PORT:-4020} --lease-owner development --lease-min 4020 --lease-max 4029 -- mix phx.server",
       "options": {

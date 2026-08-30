@@ -32,6 +32,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the home header and hero do not overlap", context do
+    assert context.behaviour_driver.home_controls_arranged?(context)
+    context
+  end
+
   step "the visitor follows the Beaver Nest home link", context do
     context.behaviour_driver.follow_brand_home_link(context)
   end

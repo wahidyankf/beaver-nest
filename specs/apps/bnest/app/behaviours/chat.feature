@@ -17,6 +17,10 @@ Feature: Beaver Nest chat
     Then the page displays the heading "Beaver Nest"
     And the page offers the "Start chatting" link to "/chat"
 
+  Scenario: Home controls and content remain visually separated
+    When a visitor opens "/"
+    Then the home header and hero do not overlap
+
   Scenario: A visitor returns home through the Beaver Nest brand
     Given a visitor opens "/chat"
     When the visitor follows the Beaver Nest home link

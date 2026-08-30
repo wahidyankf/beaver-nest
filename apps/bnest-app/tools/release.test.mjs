@@ -104,6 +104,14 @@ test("passes the exact routed origin to the private release monitor", () => {
   );
 });
 
+test("enables account identity cutover in every managed slot", () => {
+  const source = readFileSync(
+    new URL("./deployment.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /BNEST_IDENTITY_CUTOVER: "true"/u);
+});
+
 function fakeHost(overrides = {}) {
   const calls = [];
   const host = {

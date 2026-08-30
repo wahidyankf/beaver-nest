@@ -6,6 +6,13 @@ Feature: Bnest authentication
     Then Bnest redirects the visitor to login
     And Bnest does not read or write user data
 
+  Scenario: Logged-out home presents login instead of protected actions
+    Given a visitor has no authenticated Bnest session
+    When the visitor opens the protected route "/"
+    Then Bnest redirects the visitor to login
+    And the login form replaces protected home actions
+    And Bnest does not read or write user data
+
   Scenario: Initial setup warns about unavailable account recovery, creates all initial accounts once, and closes registration
     Given Bnest has no bootstrap journal
     When the maintainer submits all initial accounts including an administrator

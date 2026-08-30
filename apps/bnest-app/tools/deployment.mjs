@@ -429,6 +429,7 @@ function launchAgent(
     BNEST_REPOSITORY_ROOT: repositoryRoot,
     BNEST_CODEX_WORKING_DIRECTORY: repositoryRoot,
     BNEST_COOKIE_SECURE: "true",
+    BNEST_IDENTITY_CUTOVER: "true",
     BNEST_RELEASE_REVISION: revision,
     BNEST_DEPLOY_SLOT: slot,
     PHX_HOST: productionHost,

@@ -71,6 +71,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
+  def home_controls_arranged?(context) do
+    page = context.page
+
+    not Enum.empty?(LazyHTML.query(page, ".home-header > .home-brand")) and
+      not Enum.empty?(LazyHTML.query(page, ".home-header > .home-account")) and
+      not Enum.empty?(LazyHTML.query(page, ".home-hero"))
+  end
+
+  @impl true
   def follow_brand_home_link(context) do
     if context.page
        |> LazyHTML.query("a[aria-label='Beaver Nest home'][href='/']")
@@ -921,8 +930,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: Map.merge(context, %{pending_behaviour_state: state, pending_behaviour_args: args})
 
   @impl true
-  def perform_behaviour(context, :open_protected_route, [route]),
-    do: Map.merge(context, %{attempted_route: route, redirected: not context.authenticated})
+  def perform_behaviour(context, :open_protected_route, [route]) do
+    redirected = not context.authenticated
+
+    Map.merge(context, %{
+      attempted_route: route,
+      redirected: redirected,
+      login_form_only: redirected and route == "/"
+    })
+  end
 
   def perform_behaviour(context, :bootstrap_accounts, _args) do
     accepts_short? = CredentialVerifier.valid_password?("a_1")
@@ -1079,6 +1095,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def behaviour_outcome?(context, :redirected_to_login, _args), do: context.redirected
+  def behaviour_outcome?(context, :login_form_only, _args), do: context.login_form_only
   def behaviour_outcome?(context, :no_user_data_access, _args), do: context.redirected
   def behaviour_outcome?(context, :irreversible_warning, _args), do: context.setup_warning
   def behaviour_outcome?(context, :accounts_created_once, _args), do: context.created_once

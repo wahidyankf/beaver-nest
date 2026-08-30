@@ -37,7 +37,7 @@
       "cache": false
     },
     "test:unit": {
-      "command": "go test -count=1 ./tests/unit",
+      "command": "go test -count=1 ./internal/release ./tests/unit",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/apps/resource-guard/behaviours/**/*"

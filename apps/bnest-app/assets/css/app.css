@@ -384,7 +384,6 @@ body {
   align-self: center;
   gap: 1.5rem;
   margin: auto;
-  transform: translateY(-2.25rem);
 }
 
 .home-copy {
@@ -826,7 +825,6 @@ body {
 
   .home-hero {
     gap: 1.25rem;
-    transform: none;
   }
 
   .home-copy {

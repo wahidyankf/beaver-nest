@@ -70,6 +70,15 @@ Then("Bnest redirects the visitor to login", async ({ page }) => {
   await expect(page).toHaveURL(/\/login\?return_to=/u);
 });
 
+Then("the login form replaces protected home actions", async ({ page }) => {
+  await expect(page.locator("#login-form")).toBeVisible();
+  await expect(page.locator("[data-role=chat-entry]")).toHaveCount(0);
+  await expect(page.locator("[data-role=admin-settings-entry]")).toHaveCount(0);
+  await expect(page.locator("[data-role=admin-schedules-entry]")).toHaveCount(
+    0,
+  );
+});
+
 Then("Bnest does not read or write user data", ({ page }) => {
   void page;
   expect(

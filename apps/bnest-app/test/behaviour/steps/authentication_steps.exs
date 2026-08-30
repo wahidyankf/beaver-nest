@@ -31,6 +31,10 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
     do: outcome(context, :redirected_to_login)
   )
 
+  step("the login form replaces protected home actions", context,
+    do: outcome(context, :login_form_only)
+  )
+
   step("Bnest does not read or write user data", context,
     do: outcome(context, :no_user_data_access)
   )

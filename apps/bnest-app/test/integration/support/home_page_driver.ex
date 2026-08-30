@@ -91,6 +91,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
+  def home_controls_arranged?(context) do
+    page = context.page
+
+    not Enum.empty?(LazyHTML.query(page, ".home-header > .home-brand")) and
+      not Enum.empty?(LazyHTML.query(page, ".home-header > .home-account")) and
+      not Enum.empty?(LazyHTML.query(page, ".home-hero"))
+  end
+
+  @impl true
   def follow_brand_home_link(context) do
     if has_element?(context.view, "a[aria-label='Beaver Nest home'][href='/']") do
       open(Map.delete(context, :view), "/")
@@ -888,7 +897,24 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
     response = get(context.conn, route)
-    Map.merge(context, %{response: response, redirected: response.status == 302})
+    redirected = response.status == 302
+
+    login_response =
+      if redirected,
+        do: response |> recycle() |> get(redirected_to(response)),
+        else: response
+
+    login_form_only =
+      route == "/" and login_response.status == 200 and
+        String.contains?(login_response.resp_body, ~s(id="login-form")) and
+        not String.contains?(login_response.resp_body, ~s(data-role="admin-settings-entry")) and
+        not String.contains?(login_response.resp_body, ~s(data-role="chat-entry"))
+
+    Map.merge(context, %{
+      response: response,
+      redirected: redirected,
+      login_form_only: login_form_only
+    })
   end
 
   def perform_behaviour(context, :bootstrap_accounts, _args) do
@@ -1116,6 +1142,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def behaviour_outcome?(context, :redirected_to_login, _args), do: context.redirected
+  def behaviour_outcome?(context, :login_form_only, _args), do: context.login_form_only
   def behaviour_outcome?(context, :no_user_data_access, _args), do: context.redirected
   def behaviour_outcome?(context, :irreversible_warning, _args), do: context.setup_warning
   def behaviour_outcome?(context, :accounts_created_once, _args), do: context.created_once
