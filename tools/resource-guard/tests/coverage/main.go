@@ -9,13 +9,13 @@ import (
 	"strings"
 )
 
-func main() {
+func run() int {
 	profile := flag.String("profile", "", "Go coverage profile")
 	files := flag.String("files", "", "comma-separated production files")
 	minimum := flag.Float64("minimum", 99, "minimum covered statement percentage")
 	flag.Parse()
 	selected := map[string]bool{}
-	for _, file := range strings.Split(*files, ",") {
+	for file := range strings.SplitSeq(*files, ",") {
 		selected[strings.TrimSpace(file)] = true
 	}
 	input, err := os.Open(*profile)
@@ -66,8 +66,11 @@ func main() {
 		panic("coverage selection matched no statements")
 	}
 	percentage := float64(covered) * 100 / float64(total)
-	fmt.Printf("selected production line coverage: %.2f%% (%d/%d statements)\n", percentage, covered, total)
+	_, _ = fmt.Fprintf(os.Stdout, "selected production line coverage: %.2f%% (%d/%d statements)\n", percentage, covered, total)
 	if percentage < *minimum {
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
+
+func main() { os.Exit(run()) }

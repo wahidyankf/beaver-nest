@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/cucumber/godog v0.16.0
+	github.com/cucumber/messages/go/v34 v34.2.0
 	golang.org/x/sys v0.47.0
 )
 
@@ -61,7 +62,6 @@ require (
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cucumber/gherkin/go/v42 v42.0.0 // indirect
-	github.com/cucumber/messages/go/v34 v34.2.0 // indirect
 	github.com/curioswitch/go-reassign v0.3.0 // indirect
 	github.com/daixiang0/gci v0.13.7 // indirect
 	github.com/dave/dst v0.27.3 // indirect

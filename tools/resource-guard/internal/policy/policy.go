@@ -7,10 +7,16 @@ import (
 )
 
 const (
+	// GiB is one binary gibibyte.
 	GiB = int64(1024 * 1024 * 1024)
-	MiB = int64(1024 * 1024)
+	// MiB is one binary mebibyte.
+	MiB           = int64(1024 * 1024)
+	stateNormal   = "normal"
+	stateWarning  = "warning"
+	stateCritical = "critical"
 )
 
+// Sample is one timestamped host resource observation.
 type Sample struct {
 	SchemaVersion                       int      `json:"schemaVersion"`
 	MeasuredAt                          string   `json:"measuredAt"`
@@ -32,17 +38,21 @@ type Sample struct {
 	SwapFreeBytes                       *int64   `json:"swapFreeBytes"`
 }
 
+// CPUState contains cumulative CPU counters used to calculate utilization.
 type CPUState []uint64
 
+// Reading combines one sample with the counters needed by the next collection.
 type Reading struct {
 	CPUState CPUState
 	Sample   Sample
 }
 
+// Collector produces host readings for admission and monitoring.
 type Collector interface {
 	Collect(previous CPUState, diskPath string) (Reading, error)
 }
 
+// Policy defines thresholds, timing, and resource reservations.
 type Policy struct {
 	AdmissionMemoryBytes           int64
 	CriticalMemoryBytes            int64
@@ -65,6 +75,7 @@ type Policy struct {
 	SampleInterval                 time.Duration
 }
 
+// DevelopmentPolicy is the repository's canonical guarded-development policy.
 var DevelopmentPolicy = Policy{
 	AdmissionMemoryBytes: 9 * GiB, CriticalMemoryBytes: 4 * GiB,
 	DiskWarningBytes: 30 * GiB, DiskCriticalBytes: 20 * GiB,
@@ -78,6 +89,7 @@ var DevelopmentPolicy = Policy{
 	LeaseWait: 5 * time.Minute, SampleInterval: time.Second,
 }
 
+// Assessment classifies current and trend-based resource evidence.
 type Assessment struct {
 	CompressorGrowthWindowBytes float64 `json:"compressorGrowthWindowBytes"`
 	SwapOutWindowBytes          float64 `json:"swapOutWindowBytes"`
@@ -90,6 +102,7 @@ func ptrFinite[T ~int | ~int64](value *T) bool {
 	return value != nil
 }
 
+// EssentialReadingsValid reports whether required admission evidence is usable.
 func EssentialReadingsValid(sample Sample) bool {
 	validLevel := sample.MemoryPressureLevel != nil && (*sample.MemoryPressureLevel == 1 || *sample.MemoryPressureLevel == 2 || *sample.MemoryPressureLevel == 4)
 	_, timeError := time.Parse(time.RFC3339Nano, sample.MeasuredAt)
@@ -98,19 +111,21 @@ func EssentialReadingsValid(sample Sample) bool {
 		ptrFinite(sample.SwapOuts) && sample.AvailableParallelism > 0
 }
 
+// MemoryState classifies memory evidence as normal, warning, or critical.
 func MemoryState(sample Sample, policy Policy) string {
 	if !EssentialReadingsValid(sample) {
-		return "critical"
+		return stateCritical
 	}
 	if *sample.MemoryPressureLevel == 4 || !*sample.CompressorAvailable || *sample.AvailableNonCompressedEstimateBytes < policy.CriticalMemoryBytes {
-		return "critical"
+		return stateCritical
 	}
 	if *sample.MemoryPressureLevel == 2 || *sample.AvailableNonCompressedEstimateBytes < policy.AdmissionMemoryBytes {
-		return "warning"
+		return stateWarning
 	}
-	return "normal"
+	return stateNormal
 }
 
+// CPUAdmissionReady reports whether utilization preserves reserved execution units.
 func CPUAdmissionReady(sample Sample, policy Policy) bool {
 	if sample.CPUUtilizationPercent == nil || math.IsNaN(*sample.CPUUtilizationPercent) || math.IsInf(*sample.CPUUtilizationPercent, 0) || sample.AvailableParallelism <= 0 {
 		return false
@@ -143,9 +158,10 @@ func scaledWindowDelta(samples []Sample, value func(Sample) *int64, multiplier i
 	return 0
 }
 
+// ResourceAssessment classifies the newest sample and bounded pressure trends.
 func ResourceAssessment(samples []Sample, policy Policy) Assessment {
 	if len(samples) == 0 {
-		return Assessment{Reason: "missing-sample", State: "critical"}
+		return Assessment{Reason: "missing-sample", State: stateCritical}
 	}
 	current := samples[len(samples)-1]
 	pageSize := int64(0)
@@ -155,34 +171,34 @@ func ResourceAssessment(samples []Sample, policy Policy) Assessment {
 	result := Assessment{
 		CompressorGrowthWindowBytes: scaledWindowDelta(samples, func(s Sample) *int64 { return s.CompressorPayloadBytes }, 1, policy),
 		SwapOutWindowBytes:          scaledWindowDelta(samples, func(s Sample) *int64 { return s.SwapOuts }, pageSize, policy),
-		Reason:                      "normal", State: "normal",
+		Reason:                      stateNormal, State: stateNormal,
 	}
 	if current.DiskFreeBytes == nil {
-		result.Reason, result.State, result.StorageBlocked = "disk-unavailable", "critical", true
+		result.Reason, result.State, result.StorageBlocked = "disk-unavailable", stateCritical, true
 		return result
 	}
 	result.StorageBlocked = *current.DiskFreeBytes < policy.DiskWarningBytes
 	type candidate struct{ reason, state string }
 	candidates := []candidate{}
 	if *current.DiskFreeBytes < policy.DiskCriticalBytes {
-		candidates = append(candidates, candidate{"disk-critical", "critical"})
+		candidates = append(candidates, candidate{"disk-critical", stateCritical})
 	} else if result.StorageBlocked {
-		candidates = append(candidates, candidate{"disk-warning", "warning"})
+		candidates = append(candidates, candidate{"disk-warning", stateWarning})
 	}
-	if state := MemoryState(current, policy); state != "normal" {
+	if state := MemoryState(current, policy); state != stateNormal {
 		candidates = append(candidates, candidate{"memory-" + state, state})
 	}
 	if result.SwapOutWindowBytes >= float64(policy.SwapOutCriticalBytes) {
-		candidates = append(candidates, candidate{"swap-critical", "critical"})
+		candidates = append(candidates, candidate{"swap-critical", stateCritical})
 	} else if result.SwapOutWindowBytes >= float64(policy.SwapOutWarningBytes) {
-		candidates = append(candidates, candidate{"swap-warning", "warning"})
+		candidates = append(candidates, candidate{"swap-warning", stateWarning})
 	}
 	if current.CompressorPayloadBytes != nil && *current.CompressorPayloadBytes >= policy.CompressorCriticalPayloadBytes && result.CompressorGrowthWindowBytes >= float64(policy.CompressorCriticalGrowthBytes) {
-		candidates = append(candidates, candidate{"compressor-critical", "critical"})
+		candidates = append(candidates, candidate{"compressor-critical", stateCritical})
 	} else if current.CompressorPayloadBytes != nil && *current.CompressorPayloadBytes >= policy.CompressorWarningPayloadBytes && result.CompressorGrowthWindowBytes >= float64(policy.CompressorWarningGrowthBytes) {
-		candidates = append(candidates, candidate{"compressor-warning", "warning"})
+		candidates = append(candidates, candidate{"compressor-warning", stateWarning})
 	}
-	severity := map[string]int{"normal": 0, "warning": 1, "critical": 2}
+	severity := map[string]int{stateNormal: 0, stateWarning: 1, stateCritical: 2}
 	sort.SliceStable(candidates, func(i, j int) bool { return severity[candidates[i].state] > severity[candidates[j].state] })
 	if len(candidates) > 0 {
 		result.Reason, result.State = candidates[0].reason, candidates[0].state
@@ -190,8 +206,9 @@ func ResourceAssessment(samples []Sample, policy Policy) Assessment {
 	return result
 }
 
+// AdmissionReady requires a normal assessment and consecutive safe CPU samples.
 func AdmissionReady(samples []Sample, policy Policy) bool {
-	if ResourceAssessment(samples, policy).State != "normal" || len(samples) < policy.ConsecutiveCPUSamples {
+	if ResourceAssessment(samples, policy).State != stateNormal || len(samples) < policy.ConsecutiveCPUSamples {
 		return false
 	}
 	for _, sample := range samples[len(samples)-policy.ConsecutiveCPUSamples:] {
@@ -202,6 +219,7 @@ func AdmissionReady(samples []Sample, policy Policy) bool {
 	return true
 }
 
+// Percentile returns the nearest-rank finite percentile, or nil for no finite values.
 func Percentile(values []float64, proportion float64) *float64 {
 	finite := make([]float64, 0, len(values))
 	for _, value := range values {
@@ -217,6 +235,7 @@ func Percentile(values []float64, proportion float64) *float64 {
 	return &finite[index]
 }
 
+// ReleaseSummary contains aggregate release-monitor evidence.
 type ReleaseSummary struct {
 	SchemaVersion                          int     `json:"schemaVersion"`
 	SampleCount                            int     `json:"sampleCount"`
@@ -236,6 +255,7 @@ type ReleaseSummary struct {
 	HealthFailures                         int     `json:"healthFailures"`
 }
 
+// ReleaseHeadroomAvailable validates aggregate capacity for release overlap.
 func ReleaseHeadroomAvailable(summary ReleaseSummary) bool {
 	swapPressure := (summary.SwapInsDelta > 0 || summary.SwapOutsDelta > 0) && summary.AvailableNonCompressedEstimateMinBytes < 4*GiB
 	if summary.AvailableParallelism <= 0 {
@@ -245,6 +265,7 @@ func ReleaseHeadroomAvailable(summary ReleaseSummary) bool {
 	return summary.SampleCount > 0 && summary.AvailableNonCompressedEstimateMinBytes >= 2*GiB && summary.MemoryPressureLevelMax == 1 && summary.CompressorAvailableAll && !swapPressure && summary.CPUUtilizationP95Percent <= ceiling && summary.HealthFailures == 0
 }
 
+// ReleaseMemoryAvailable reports whether one sample preserves release memory headroom.
 func ReleaseMemoryAvailable(sample Sample) bool {
 	return sample.AvailableNonCompressedEstimateBytes != nil && *sample.AvailableNonCompressedEstimateBytes >= 9*GiB && sample.MemoryPressureLevel != nil && *sample.MemoryPressureLevel == 1 && sample.CompressorAvailable != nil && *sample.CompressorAvailable
 }

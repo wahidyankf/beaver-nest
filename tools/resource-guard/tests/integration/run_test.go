@@ -19,11 +19,13 @@ func (collector *integrationCollector) Collect(previous guard.CPUState, _ string
 	collector.index++
 	return guard.Reading{CPUState: previous, Sample: collector.samples[index]}, nil
 }
+
 func integrationSample(at time.Time) guard.Sample {
-	available, payload, disk, page, swaps := int64(12*guard.GiB), int64(7*guard.GiB), int64(40*guard.GiB), int64(16_384), int64(0)
+	available, payload, disk, page, swaps := 12*guard.GiB, 7*guard.GiB, 40*guard.GiB, int64(16_384), int64(0)
 	level, compressor, cpu := 1, true, 10.0
 	return guard.Sample{SchemaVersion: 2, MeasuredAt: at.UTC().Format(time.RFC3339Nano), AvailableNonCompressedEstimateBytes: &available, MemoryPressureLevel: &level, CompressorAvailable: &compressor, CompressorPayloadBytes: &payload, AvailableParallelism: 12, CPUUtilizationPercent: &cpu, DiskFreeBytes: &disk, PageSizeBytes: &page, SwapOuts: &swaps}
 }
+
 func fastPolicy() guard.Policy {
 	policy := guard.DevelopmentPolicy
 	policy.SampleInterval = time.Millisecond
@@ -44,7 +46,7 @@ func TestGuardPreservesChildExitAndWritesEvidence(t *testing.T) {
 
 func TestGuardReturnsStorageCodeBeforeStartingChild(t *testing.T) {
 	sample := integrationSample(time.Now())
-	disk := int64(29 * guard.GiB)
+	disk := 29 * guard.GiB
 	sample.DiskFreeBytes = &disk
 	code, err := guard.Run(guard.RunConfig{Command: "/bin/sh", Arguments: []string{"-c", "exit 99"}, TaskClass: "ephemeral", EvidenceRoot: t.TempDir(), DiskPath: ".", Collector: &integrationCollector{samples: []guard.Sample{sample}}, Policy: fastPolicy(), Sleep: func(time.Duration) {}, Now: time.Now, Stderr: &bytes.Buffer{}, Environment: os.Environ()})
 	if err != nil || code != guard.StorageBlockedExitCode {

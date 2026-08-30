@@ -2,90 +2,89 @@ package bdd_test
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/wahidyankf/beaver-nest/tools/resource-guard/tests/contract"
 	"github.com/wahidyankf/beaver-nest/tools/resource-guard/tests/support"
 )
 
-func TestFeatureCorpusAndBindingsAreComplete(t *testing.T) {
-	root := "../../../../specs/tools/resource-guard/behaviours"
-	features := []string{}
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkError error) error {
-		if walkError != nil {
-			return walkError
+var _ contract.Driver = (*support.Driver)(nil)
+
+func TestFeatureCompliance(t *testing.T) {
+	requested := os.Getenv("RESOURCE_GUARD_BDD_ADAPTER")
+	if requested != "" {
+		adapter, err := contract.AdapterByName(requested)
+		if err != nil {
+			t.Fatal(err)
 		}
-		if !entry.IsDir() && filepath.Ext(path) == ".feature" {
-			features = append(features, path)
-		}
-		return nil
-	})
+		verifyAdapter(t, adapter)
+		return
+	}
+	for _, adapter := range contract.Adapters() {
+		t.Run(adapter.Name, func(t *testing.T) { verifyAdapter(t, adapter) })
+	}
+}
+
+func TestScenarioWithoutActionAndOutcomeIsRejected(t *testing.T) {
+	err := contract.ValidateScenarioStructure("incomplete", []string{"Context", "Context"})
+	if err == nil {
+		t.Fatal("scenario without explicit When and Then was accepted")
+	}
+}
+
+func TestUndefinedBindingIsRejected(t *testing.T) {
+	errorsFound := contract.ValidateBindings(
+		[]contract.StepDefinition{{Pattern: `^known$`}},
+		[]string{"known", "unknown"},
+	)
+	requireErrorContaining(t, errorsFound, "undefined behavior step")
+}
+
+func TestAmbiguousBindingIsRejected(t *testing.T) {
+	errorsFound := contract.ValidateBindings(
+		[]contract.StepDefinition{{Pattern: `^duplicate$`}, {Pattern: `^duplicate$`}},
+		[]string{"duplicate"},
+	)
+	requireErrorContaining(t, errorsFound, "ambiguous behavior step")
+}
+
+func TestUnusedBindingIsRejected(t *testing.T) {
+	errorsFound := contract.ValidateBindings(
+		[]contract.StepDefinition{{Pattern: `^used$`}, {Pattern: `^unused$`}},
+		[]string{"used"},
+	)
+	requireErrorContaining(t, errorsFound, "unused behavior binding")
+}
+
+func TestUnapprovedExemptionIsRejected(t *testing.T) {
+	adapter, err := contract.AdapterByName(contract.Integration)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(features) != 5 {
-		t.Fatalf("expected exact recursive corpus of five features, got %d", len(features))
+	errorsFound := contract.ValidateExemptions(adapter, []contract.Scenario{{
+		Name: "unapproved",
+		Tags: []string{"@integration-exempt"},
+	}})
+	requireErrorContaining(t, errorsFound, "unknown exemption tag")
+}
+
+func verifyAdapter(t *testing.T, adapter contract.Adapter) {
+	t.Helper()
+	if !contract.SuiteOptions(adapter).Strict {
+		t.Fatalf("%s adapter is not strict", adapter.Name)
 	}
-	used := make([]bool, len(support.Definitions))
-	for _, path := range features {
-		data, readError := os.ReadFile(path)
-		if readError != nil {
-			t.Fatal(readError)
-		}
-		lines := strings.Split(string(data), "\n")
-		scenario, when, then := "", false, false
-		finish := func() {
-			if scenario != "" && (!when || !then) {
-				t.Errorf("%s scenario %q requires explicit When and Then", path, scenario)
-			}
-		}
-		for _, raw := range lines {
-			line := strings.TrimSpace(raw)
-			if strings.HasPrefix(line, "Scenario:") {
-				finish()
-				scenario = strings.TrimSpace(strings.TrimPrefix(line, "Scenario:"))
-				when, then = false, false
-				if scenario == "" {
-					t.Errorf("%s has empty scenario", path)
-				}
-				continue
-			}
-			prefixes := []string{"Given ", "When ", "Then ", "And "}
-			step := ""
-			for _, prefix := range prefixes {
-				if strings.HasPrefix(line, prefix) {
-					step = strings.TrimPrefix(line, prefix)
-					if prefix == "When " {
-						when = true
-					}
-					if prefix == "Then " {
-						then = true
-					}
-					break
-				}
-			}
-			if step == "" {
-				continue
-			}
-			for _, adapter := range []string{"unit", "integration", "e2e"} {
-				if count := support.MatchCount(step, adapter); count != 1 {
-					t.Errorf("%s step %q resolves %d times in %s", path, step, count, adapter)
-				}
-			}
-			for index, definition := range support.Definitions {
-				if support.MatchCount(step, "unit") == 1 && definition.Adapters["unit"] { // exact registry use is checked by pattern text below
-					if strings.Trim(definition.Pattern, "^$") == step {
-						used[index] = true
-					}
-				}
-			}
-		}
-		finish()
+	if err := contract.Verify(adapter); err != nil {
+		t.Fatal(err)
 	}
-	for index, wasUsed := range used {
-		if !wasUsed {
-			t.Errorf("unused binding %q", support.Definitions[index].Pattern)
+}
+
+func requireErrorContaining(t *testing.T, errorsFound []error, expected string) {
+	t.Helper()
+	for _, err := range errorsFound {
+		if strings.Contains(err.Error(), expected) {
+			return
 		}
 	}
+	t.Fatalf("expected error containing %q, got %v", expected, errorsFound)
 }

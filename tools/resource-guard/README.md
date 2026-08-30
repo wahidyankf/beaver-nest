@@ -24,18 +24,19 @@ The bootstrap hashes `cmd/`, `internal/`, `go.mod`, and `go.sum`, then builds a 
 
 ## Quality gates
 
-The canonical Gherkin corpus is [`specs/tools/resource-guard/behaviours`](../../specs/tools/resource-guard/behaviours/README.md). Unit and local integration adapters run every capable scenario. The compiled-binary E2E adapter runs only safe public-boundary scenarios; incapable adapters carry explicit exemption tags while lifecycle scenarios remain mandatory in integration. Static behavior coverage rejects missing features, scenarios without explicit `When` and `Then`, undefined or ambiguous steps, and unused bindings.
+The canonical Gherkin corpus is [`specs/tools/resource-guard/behaviours`](../../specs/tools/resource-guard/behaviours/README.md). A shared contract uses Godog's parser, an exact reviewed exemption inventory with reasons, and strict step resolution for unit, integration, and compiled-binary E2E adapters. Compliance rejects missing features, scenarios without explicit `When` and `Then`, undefined or ambiguous steps, unused bindings, unknown exemptions, and exemption drift. The three adapter checks run serially through commands declared in this project's `project.json`.
 
-| Target             | Contract                                                                                                    |
-| ------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `typecheck`        | Compile every package and test without running scenarios.                                                   |
-| `lint`             | Require `gofmt`, `go vet`, and the pinned Go linter suite.                                                  |
-| `security`         | Scan reachable dependency and standard-library code for known vulnerabilities.                              |
-| `test:unit`        | Run deterministic policy and unit Gherkin cases.                                                            |
-| `test:integration` | Exercise local files, leases, evidence, processes, and integration Gherkin cases without network.           |
-| `test:e2e`         | Build a temporary public binary, exercise it safely, and remove it on every exit.                           |
-| `test:coverage`    | Enforce numeric production coverage at 99% and complete behavior bindings.                                  |
-| `test:quick`       | Run typecheck, lint, unit, numeric unit coverage, and behavior coverage; integration and E2E stay separate. |
+| Target             | Contract                                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `typecheck`        | Compile every package and test without running scenarios.                                                |
+| `lint`             | Run every available pinned Go linter and formatter with documented project-local exceptions.             |
+| `security`         | Scan reachable dependency and standard-library code for known vulnerabilities.                           |
+| `test:unit`        | Run deterministic policy and unit Gherkin cases.                                                         |
+| `test:integration` | Exercise local files, leases, evidence, processes, and integration Gherkin cases without network.        |
+| `test:e2e`         | Build a temporary public binary, exercise it safely, and remove it on every exit.                        |
+| `test:coverage`    | Enforce numeric production coverage at 99% and all three behavior compliance adapters.                   |
+| `test:quick`       | Run typecheck, lint, unit, numeric coverage, and all compliance adapters; full integration/E2E stay out. |
+| `test`             | Run unit, integration, coverage/compliance, and the full temporary-binary E2E suite serially.            |
 
 System-command adapters and the thin `main` entry are excluded from numeric instrumentation and exercised through integration or compiled-binary E2E boundaries. Production policy remains under the 99% numeric gate.
 
@@ -59,7 +60,10 @@ Absolute swap use and a stable compressor payload remain evidence only. Evidence
 - `internal/policy/` owns pure development and release decisions.
 - `internal/guard/` owns evidence, leases, and child supervision.
 - `internal/release/` owns release checks, monitoring, and summary assessment.
-- `tests/` contains behavior, unit, integration, E2E, and coverage adapters.
+- `tests/contract/` owns the shared strict suite configuration, binding registry, and compliance policy.
+- `tests/support/` keeps thin Gherkin bindings separate from the scenario driver implementation.
+- `tests/unit/`, `tests/integration/`, and `tests/e2e/` contain the three adapters; E2E remains inside this project.
+- `tests/coverage/` enforces numeric production coverage.
 - `project.json` defines the plugin-free Nx lifecycle.
 
 See [resource-aware development](../../repo-governance/development/resource-aware-development.md) for the canonical agent procedure.

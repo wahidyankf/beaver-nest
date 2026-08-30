@@ -15,10 +15,13 @@ import (
 )
 
 const (
-	StorageBlockedExitCode   = 73
+	// StorageBlockedExitCode indicates cleanup is required before retrying.
+	StorageBlockedExitCode = 73
+	// CapacityDeferredExitCode indicates transient pressure that should be retried.
 	CapacityDeferredExitCode = 75
 )
 
+// RunConfig describes one guarded child process and its resource policy.
 type RunConfig struct {
 	Command                               string
 	Arguments                             []string
@@ -62,8 +65,7 @@ func waitStatusCode(err error) int {
 	if err == nil {
 		return 0
 	}
-	var exitError *exec.ExitError
-	if errors.As(err, &exitError) {
+	if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
 		if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
 			if status.Signaled() {
 				return 128 + int(status.Signal())
@@ -91,6 +93,7 @@ func directChild(config RunConfig, environment []string) int {
 	return waitStatusCode(command.Run())
 }
 
+// Run admits, supervises, and records one child process without touching unrelated processes.
 func Run(config RunConfig) (exitCode int, returnError error) {
 	if config.Command == "" {
 		return 1, errors.New("guarded command is empty")
@@ -228,7 +231,7 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 		return 1, startError
 	}
 
-	context_, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	signalContext, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
 	exited := make(chan error, 1)
 	go func() { exited <- command.Wait() }()
@@ -259,7 +262,7 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 				return shedCode, nil
 			}
 			return waitStatusCode(waitError), nil
-		case <-context_.Done():
+		case <-signalContext.Done():
 			signalGroup(command.Process, syscall.SIGTERM)
 		case <-ticker.C:
 			reading, collectError := config.Collector.Collect(previous, config.DiskPath)

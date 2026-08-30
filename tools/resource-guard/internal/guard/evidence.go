@@ -14,6 +14,7 @@ import (
 
 const maximumEvidenceBytes int64 = 50 * 1024 * 1024
 
+// CleanupEvidence removes expired or excess evidence while preserving active paths.
 func CleanupEvidence(root string, now time.Time, preserve ...string) error {
 	if root == "" {
 		return errors.New("evidence root is empty")
@@ -79,12 +80,14 @@ func CleanupEvidence(root string, now time.Time, preserve ...string) error {
 	return nil
 }
 
+// EvidenceWriter appends private samples and produces one bounded summary.
 type EvidenceWriter struct {
 	outputPath, summaryPath string
 	output                  *os.File
 	samples                 []Sample
 }
 
+// NewEvidenceWriter creates an exclusive evidence stream below root.
 func NewEvidenceWriter(root, identifier string) (*EvidenceWriter, error) {
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		return nil, err
@@ -100,6 +103,7 @@ func NewEvidenceWriter(root, identifier string) (*EvidenceWriter, error) {
 	return &EvidenceWriter{outputPath: outputPath, summaryPath: filepath.Join(root, identifier+".summary.json"), output: output}, nil
 }
 
+// Append records one sample in the evidence stream.
 func (writer *EvidenceWriter) Append(sample Sample) error {
 	encoded, err := json.Marshal(sample)
 	if err != nil {
@@ -112,6 +116,7 @@ func (writer *EvidenceWriter) Append(sample Sample) error {
 	return nil
 }
 
+// EvidenceSummary captures bounded aggregate evidence for one guarded task.
 type EvidenceSummary struct {
 	SchemaVersion                          int     `json:"schemaVersion"`
 	SampleCount                            int     `json:"sampleCount"`
@@ -134,32 +139,35 @@ func minInt64(values []*int64) *int64 {
 	var result *int64
 	for _, value := range values {
 		if value != nil && (result == nil || *value < *result) {
-			copy := *value
-			result = &copy
+			candidate := *value
+			result = &candidate
 		}
 	}
 	return result
 }
+
 func maxInt64(values []*int64) *int64 {
 	var result *int64
 	for _, value := range values {
 		if value != nil && (result == nil || *value > *result) {
-			copy := *value
-			result = &copy
+			candidate := *value
+			result = &candidate
 		}
 	}
 	return result
 }
+
 func maxInt(values []*int) *int {
 	var result *int
 	for _, value := range values {
 		if value != nil && (result == nil || *value > *result) {
-			copy := *value
-			result = &copy
+			candidate := *value
+			result = &candidate
 		}
 	}
 	return result
 }
+
 func delta(first, last *int64) int64 {
 	if first == nil || last == nil || *last <= *first {
 		return 0
@@ -167,6 +175,7 @@ func delta(first, last *int64) int64 {
 	return *last - *first
 }
 
+// Finalize closes the sample stream and writes its aggregate summary once.
 func (writer *EvidenceWriter) Finalize(taskClass, outcome string, healthFailures int) (EvidenceSummary, error) {
 	if writer.output == nil {
 		return EvidenceSummary{}, errors.New("evidence writer is closed")
@@ -230,6 +239,7 @@ func (writer *EvidenceWriter) Finalize(taskClass, outcome string, healthFailures
 
 var unsafeIdentifier = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
 
+// EvidenceIdentifier returns a filesystem-safe, process-specific evidence name.
 func EvidenceIdentifier(prefix string, now time.Time, pid int) string {
 	return unsafeIdentifier.ReplaceAllString(fmt.Sprintf("%s-%d-%d", prefix, now.UnixMilli(), pid), "-")
 }

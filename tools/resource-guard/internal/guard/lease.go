@@ -20,10 +20,14 @@ type leaseOwner struct {
 	Port          int    `json:"port,omitempty"`
 	Owner         string `json:"owner,omitempty"`
 }
+
+// Session identifies an owned or inherited heavy-work lease.
 type Session struct {
 	Inherited   bool
 	Path, Token string
 }
+
+// PortLease identifies ownership of one bounded service port.
 type PortLease struct {
 	Path, Owner string
 	Port        int
@@ -36,6 +40,7 @@ func livePID(pid int) bool {
 	err := syscall.Kill(pid, 0)
 	return err == nil || errors.Is(err, syscall.EPERM)
 }
+
 func readLeaseOwner(path string) (*leaseOwner, error) {
 	data, err := os.ReadFile(filepath.Join(path, "owner.json"))
 	if err != nil {
@@ -47,6 +52,7 @@ func readLeaseOwner(path string) (*leaseOwner, error) {
 	}
 	return &owner, nil
 }
+
 func writeLeaseOwner(path string, owner leaseOwner) error {
 	data, err := json.Marshal(owner)
 	if err != nil {
@@ -54,6 +60,7 @@ func writeLeaseOwner(path string, owner leaseOwner) error {
 	}
 	return os.WriteFile(filepath.Join(path, "owner.json"), append(data, '\n'), 0o600)
 }
+
 func token() (string, error) {
 	bytes := make([]byte, 16)
 	if _, err := rand.Read(bytes); err != nil {
@@ -62,6 +69,7 @@ func token() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+// InheritedSession reports whether candidate belongs to the live heavy-work owner.
 func InheritedSession(root, candidate string) bool {
 	if candidate == "" {
 		return false
@@ -70,6 +78,7 @@ func InheritedSession(root, candidate string) bool {
 	return err == nil && owner.SchemaVersion == 1 && owner.Token == candidate && livePID(owner.PID)
 }
 
+// AcquireSession obtains the heavy-work lease, returning nil after capacity wait expires.
 func AcquireSession(root, inheritedToken string, wait time.Duration, pause func(time.Duration)) (*Session, error) {
 	if InheritedSession(root, inheritedToken) {
 		return &Session{Inherited: true, Token: inheritedToken}, nil
@@ -106,6 +115,7 @@ func AcquireSession(root, inheritedToken string, wait time.Duration, pause func(
 	return nil, nil
 }
 
+// ReleaseSession removes only the heavy-work lease owned by session.
 func ReleaseSession(root string, session *Session) error {
 	if session == nil || session.Inherited {
 		return nil
@@ -126,6 +136,7 @@ func ReleaseSession(root string, session *Session) error {
 
 var portOwnerPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 
+// AcquirePortLease obtains one validated port lease and reclaims a stale owner once.
 func AcquirePortLease(root string, port int, ownerName string, minimum, maximum int) (*PortLease, error) {
 	if port < minimum || port > maximum {
 		return nil, fmt.Errorf("port must be between %d and %d", minimum, maximum)
@@ -137,7 +148,7 @@ func AcquirePortLease(root string, port int, ownerName string, minimum, maximum 
 		return nil, err
 	}
 	path := filepath.Join(root, fmt.Sprintf("%d.lock", port))
-	for attempt := 0; attempt < 2; attempt++ {
+	for range 2 {
 		if err := os.Mkdir(path, 0o700); err == nil {
 			if writeError := writeLeaseOwner(path, leaseOwner{SchemaVersion: 1, PID: os.Getpid(), Port: port, Owner: ownerName}); writeError != nil {
 				_ = os.RemoveAll(path)
@@ -158,6 +169,7 @@ func AcquirePortLease(root string, port int, ownerName string, minimum, maximum 
 	return nil, fmt.Errorf("port %d could not be leased", port)
 }
 
+// ReleasePortLease removes only the port marker owned by lease.
 func ReleasePortLease(root string, lease *PortLease) error {
 	if lease == nil {
 		return nil

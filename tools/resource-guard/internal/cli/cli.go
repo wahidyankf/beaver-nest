@@ -18,6 +18,9 @@ import (
 	releaseguard "github.com/wahidyankf/beaver-nest/tools/resource-guard/internal/release"
 )
 
+const unavailableValue = "unavailable"
+
+// Application supplies the command's injectable host and I/O dependencies.
 type Application struct {
 	Stdout, Stderr io.Writer
 	Environment    []string
@@ -38,6 +41,7 @@ func environmentMap(environment []string) map[string]string {
 	}
 	return result
 }
+
 func (application Application) defaults() Application {
 	if application.Stdout == nil {
 		application.Stdout = os.Stdout
@@ -60,6 +64,7 @@ func (application Application) defaults() Application {
 	return application
 }
 
+// Run executes one resource-guard command and returns its process exit code.
 func (application Application) Run(arguments []string) (int, error) {
 	application = application.defaults()
 	if len(arguments) == 0 {
@@ -108,13 +113,17 @@ func (application Application) status(arguments []string) (int, error) {
 	if *jsonOutput {
 		payload := struct {
 			guard.Sample
+
 			Resource guard.Assessment `json:"resource"`
 		}{second.Sample, assessment}
-		encoded, _ := json.Marshal(payload)
+		encoded, marshalError := json.Marshal(payload)
+		if marshalError != nil {
+			return 1, fmt.Errorf("encode status JSON: %w", marshalError)
+		}
 		_, err = fmt.Fprintln(application.Stdout, string(encoded))
 		return 0, err
 	}
-	available, disk, cpu := "unavailable", "unavailable", "unavailable"
+	available, disk, cpu := unavailableValue, unavailableValue, unavailableValue
 	if second.Sample.AvailableNonCompressedEstimateBytes != nil {
 		available = fmt.Sprintf("%.2f", float64(*second.Sample.AvailableNonCompressedEstimateBytes)/float64(guard.GiB))
 	}
@@ -127,6 +136,7 @@ func (application Application) status(arguments []string) (int, error) {
 	_, err = fmt.Fprintf(application.Stdout, "state=%s reason=%s pressure=%v availableEstimateGiB=%s diskFreeGiB=%s cpu=%s compressorAvailable=%v\n", assessment.State, assessment.Reason, value(second.Sample.MemoryPressureLevel), available, disk, cpu, value(second.Sample.CompressorAvailable))
 	return 0, err
 }
+
 func value[T any](pointer *T) any {
 	if pointer == nil {
 		return nil
@@ -259,7 +269,10 @@ func (application Application) release(arguments []string) (int, error) {
 		}
 		summary, err := releaseguard.AssessFile(*summaryPath)
 		accepted := err == nil
-		encoded, _ := json.Marshal(map[string]any{"accepted": accepted, "schemaVersion": summary.SchemaVersion})
+		encoded, marshalError := json.Marshal(map[string]any{"accepted": accepted, "schemaVersion": summary.SchemaVersion})
+		if marshalError != nil {
+			return 1, fmt.Errorf("encode release assessment JSON: %w", marshalError)
+		}
 		if _, writeError := fmt.Fprintln(application.Stdout, string(encoded)); writeError != nil {
 			return 1, writeError
 		}
@@ -290,6 +303,7 @@ func (application Application) release(arguments []string) (int, error) {
 	}
 }
 
+// Execute runs the production application and writes command errors to stderr.
 func Execute(arguments []string) int {
 	code, err := (Application{}).Run(arguments)
 	if err != nil {
@@ -301,6 +315,7 @@ func Execute(arguments []string) int {
 	return code
 }
 
+// ParsePositiveInt parses an integer greater than zero.
 func ParsePositiveInt(value string) (int, error) {
 	parsed, err := strconv.Atoi(value)
 	if err != nil || parsed <= 0 {

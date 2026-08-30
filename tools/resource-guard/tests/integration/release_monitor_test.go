@@ -16,7 +16,7 @@ func TestReleaseMonitorWritesAndAssessesPrivateEvidence(t *testing.T) {
 	base := time.Now()
 	samples := []guard.Sample{integrationSample(base), integrationSample(base.Add(time.Millisecond)), integrationSample(base.Add(2 * time.Millisecond))}
 	for index := range samples {
-		swapIn, swapOut, swapFree := int64(index), int64(index), int64(2*guard.GiB)
+		swapIn, swapOut, swapFree := int64(index), int64(index), 2*guard.GiB
 		samples[index].SwapIns, samples[index].SwapOuts, samples[index].SwapFreeBytes = &swapIn, &swapOut, &swapFree
 	}
 	err := releaseguard.RunMonitor(releaseguard.MonitorConfig{OutputPath: outputPath, SummaryPath: summaryPath, DeploymentRoot: root, Duration: 3 * time.Millisecond, Interval: time.Millisecond, Collector: &integrationCollector{samples: samples}, ServiceRSS: func() int64 { return 4096 }, Health: func() (int, float64) { return 200, 2.5 }, LoadAverage: func() float64 { return 1.5 }})

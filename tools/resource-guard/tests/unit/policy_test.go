@@ -8,10 +8,8 @@ import (
 	"github.com/wahidyankf/beaver-nest/tools/resource-guard/internal/guard"
 )
 
-func ptr[T any](value T) *T { return &value }
-
 func policySample(at time.Time) guard.Sample {
-	return guard.Sample{SchemaVersion: 2, MeasuredAt: at.UTC().Format(time.RFC3339Nano), AvailableNonCompressedEstimateBytes: ptr(int64(12 * guard.GiB)), MemoryPressureLevel: ptr(1), CompressorAvailable: ptr(true), CompressorPayloadBytes: ptr(int64(7 * guard.GiB)), AvailableParallelism: 12, CPUUtilizationPercent: ptr(20.0), DiskFreeBytes: ptr(int64(40 * guard.GiB)), PageSizeBytes: ptr(int64(16_384)), SwapOuts: ptr(int64(0))}
+	return guard.Sample{SchemaVersion: 2, MeasuredAt: at.UTC().Format(time.RFC3339Nano), AvailableNonCompressedEstimateBytes: new(12 * guard.GiB), MemoryPressureLevel: new(1), CompressorAvailable: new(true), CompressorPayloadBytes: new(7 * guard.GiB), AvailableParallelism: 12, CPUUtilizationPercent: new(20.0), DiskFreeBytes: new(40 * guard.GiB), PageSizeBytes: new(int64(16_384)), SwapOuts: new(int64(0))}
 }
 
 func TestEssentialReadingsAndMemoryStates(t *testing.T) {
@@ -25,27 +23,27 @@ func TestEssentialReadingsAndMemoryStates(t *testing.T) {
 		t.Fatal("invalid sample accepted")
 	}
 	critical := healthy
-	critical.MemoryPressureLevel = ptr(4)
+	critical.MemoryPressureLevel = new(4)
 	if guard.MemoryState(critical, guard.DevelopmentPolicy) != "critical" {
 		t.Fatal("critical pressure ignored")
 	}
 	compressor := healthy
-	compressor.CompressorAvailable = ptr(false)
+	compressor.CompressorAvailable = new(false)
 	if guard.MemoryState(compressor, guard.DevelopmentPolicy) != "critical" {
 		t.Fatal("compressor failure ignored")
 	}
 	low := healthy
-	low.AvailableNonCompressedEstimateBytes = ptr(int64(3 * guard.GiB))
+	low.AvailableNonCompressedEstimateBytes = new(3 * guard.GiB)
 	if guard.MemoryState(low, guard.DevelopmentPolicy) != "critical" {
 		t.Fatal("critical memory ignored")
 	}
 	warning := healthy
-	warning.MemoryPressureLevel = ptr(2)
+	warning.MemoryPressureLevel = new(2)
 	if guard.MemoryState(warning, guard.DevelopmentPolicy) != "warning" {
 		t.Fatal("warning pressure ignored")
 	}
 	warning = healthy
-	warning.AvailableNonCompressedEstimateBytes = ptr(int64(8 * guard.GiB))
+	warning.AvailableNonCompressedEstimateBytes = new(8 * guard.GiB)
 	if guard.MemoryState(warning, guard.DevelopmentPolicy) != "warning" {
 		t.Fatal("warning memory ignored")
 	}
@@ -53,17 +51,17 @@ func TestEssentialReadingsAndMemoryStates(t *testing.T) {
 
 func TestCPUAdmissionBoundaries(t *testing.T) {
 	sample := policySample(time.Unix(0, 0))
-	sample.CPUUtilizationPercent = ptr(100 * (1 - 2.0/12))
+	sample.CPUUtilizationPercent = new(100 * (1 - 2.0/12))
 	if !guard.CPUAdmissionReady(sample, guard.DevelopmentPolicy) {
 		t.Fatal("ceiling should be inclusive")
 	}
-	for _, value := range []*float64{nil, ptr(math.NaN()), ptr(math.Inf(1))} {
+	for _, value := range []*float64{nil, new(math.NaN()), new(math.Inf(1))} {
 		sample.CPUUtilizationPercent = value
 		if guard.CPUAdmissionReady(sample, guard.DevelopmentPolicy) {
 			t.Fatal("invalid CPU accepted")
 		}
 	}
-	sample.CPUUtilizationPercent = ptr(0.0)
+	sample.CPUUtilizationPercent = new(0.0)
 	sample.AvailableParallelism = 0
 	if guard.CPUAdmissionReady(sample, guard.DevelopmentPolicy) {
 		t.Fatal("zero parallelism accepted")
@@ -86,24 +84,24 @@ func TestResourceAssessmentBranches(t *testing.T) {
 		t.Fatalf("unexpected missing disk %+v", got)
 	}
 	diskCritical := policySample(base)
-	diskCritical.DiskFreeBytes = ptr(int64(19 * guard.GiB))
-	diskCritical.MemoryPressureLevel = ptr(2)
+	diskCritical.DiskFreeBytes = new(19 * guard.GiB)
+	diskCritical.MemoryPressureLevel = new(2)
 	if got := guard.ResourceAssessment([]guard.Sample{diskCritical}, policy); got.Reason != "disk-critical" || got.State != "critical" {
 		t.Fatalf("unexpected critical disk %+v", got)
 	}
 	memoryWarning := policySample(base)
-	memoryWarning.MemoryPressureLevel = ptr(2)
+	memoryWarning.MemoryPressureLevel = new(2)
 	if got := guard.ResourceAssessment([]guard.Sample{memoryWarning}, policy); got.Reason != "memory-warning" {
 		t.Fatalf("unexpected memory warning %+v", got)
 	}
 	first, second := policySample(base), policySample(base.Add(15*time.Second))
-	second.SwapOuts = ptr(int64(512 * guard.MiB / 16_384))
+	second.SwapOuts = new(512 * guard.MiB / 16_384)
 	if got := guard.ResourceAssessment([]guard.Sample{first, second}, policy); got.Reason != "swap-critical" {
 		t.Fatalf("unexpected swap critical %+v", got)
 	}
 	first, second = policySample(base), policySample(base.Add(15*time.Second))
-	first.CompressorPayloadBytes = ptr(int64(14 * guard.GiB))
-	second.CompressorPayloadBytes = ptr(int64(16 * guard.GiB))
+	first.CompressorPayloadBytes = new(14 * guard.GiB)
+	second.CompressorPayloadBytes = new(16 * guard.GiB)
 	if got := guard.ResourceAssessment([]guard.Sample{first, second}, policy); got.Reason != "compressor-critical" {
 		t.Fatalf("unexpected compressor critical %+v", got)
 	}
@@ -122,9 +120,9 @@ func TestResourceAssessmentBranches(t *testing.T) {
 	old := policySample(base.Add(-20 * time.Second))
 	_ = guard.ResourceAssessment([]guard.Sample{invalidStart, nilStart, future, old, current}, policy)
 	decreasing := policySample(base.Add(time.Second))
-	decreasing.SwapOuts = ptr(int64(0))
+	decreasing.SwapOuts = new(int64(0))
 	increasedStart := policySample(base)
-	increasedStart.SwapOuts = ptr(int64(10))
+	increasedStart.SwapOuts = new(int64(10))
 	_ = guard.ResourceAssessment([]guard.Sample{increasedStart, decreasing}, policy)
 }
 
@@ -134,7 +132,7 @@ func TestAdmissionPercentileAndReleasePolicies(t *testing.T) {
 	if !guard.AdmissionReady(samples, guard.DevelopmentPolicy) {
 		t.Fatal("healthy tail rejected")
 	}
-	samples[2].CPUUtilizationPercent = ptr(100.0)
+	samples[2].CPUUtilizationPercent = new(100.0)
 	if guard.AdmissionReady(samples, guard.DevelopmentPolicy) {
 		t.Fatal("busy tail accepted")
 	}

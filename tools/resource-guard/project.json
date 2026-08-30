@@ -19,11 +19,11 @@
       "options": { "cwd": "tools/resource-guard" }
     },
     "format": {
-      "command": "gofmt -w .",
+      "command": "go tool golangci-lint fmt",
       "options": { "cwd": "tools/resource-guard" }
     },
     "lint": {
-      "command": "test -z \"$(gofmt -l .)\" && go vet ./... && go tool golangci-lint run ./...",
+      "command": "go tool golangci-lint run",
       "options": { "cwd": "tools/resource-guard" }
     },
     "security": {
@@ -66,13 +66,53 @@
       "options": { "cwd": "tools/resource-guard" },
       "outputs": ["{projectRoot}/coverage/unit.out"]
     },
-    "test:coverage:behaviour": {
-      "command": "go test -count=1 ./tests/bdd",
+    "test:coverage:behaviour:unit": {
+      "command": "RESOURCE_GUARD_BDD_ADAPTER=unit go test -count=1 ./tests/bdd",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
       ],
       "options": { "cwd": "tools/resource-guard" }
+    },
+    "test:coverage:behaviour:integration": {
+      "command": "RESOURCE_GUARD_BDD_ADAPTER=integration go test -count=1 ./tests/bdd",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "tools/resource-guard" },
+      "cache": false
+    },
+    "test:coverage:behaviour:e2e": {
+      "command": "RESOURCE_GUARD_BDD_ADAPTER=e2e go test -count=1 ./tests/bdd",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "tools/resource-guard" },
+      "cache": false
+    },
+    "test:coverage:behaviour": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour:integration",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour:e2e",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
     },
     "test:coverage": {
       "executor": "nx:run-commands",
@@ -106,6 +146,10 @@
           },
           {
             "command": "npm exec -- nx run -p resource-guard -t test:coverage",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:e2e",
             "forwardAllArgs": false
           }
         ],

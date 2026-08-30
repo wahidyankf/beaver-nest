@@ -18,6 +18,7 @@ import (
 	"github.com/wahidyankf/beaver-nest/tools/resource-guard/internal/guard"
 )
 
+// Check requires consecutive CPU samples plus release memory and disk reserves.
 func Check(collector guard.Collector, diskPath string, pause func(time.Duration)) error {
 	if collector == nil {
 		return errors.New("host collector is required")
@@ -27,7 +28,7 @@ func Check(collector guard.Collector, diskPath string, pause func(time.Duration)
 	}
 	var previous guard.CPUState
 	consecutive := 0
-	for attempt := 0; attempt < 31; attempt++ {
+	for attempt := range 31 {
 		reading, err := collector.Collect(previous, diskPath)
 		if err != nil {
 			return err
@@ -58,6 +59,7 @@ func Check(collector guard.Collector, diskPath string, pause func(time.Duration)
 	return errors.New("CPU use does not leave release and safety headroom")
 }
 
+// AssessFile validates one completed release summary.
 func AssessFile(path string) (guard.ReleaseSummary, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -76,6 +78,7 @@ func AssessFile(path string) (guard.ReleaseSummary, error) {
 	return summary, nil
 }
 
+// MonitorConfig describes one bounded release-monitoring session.
 type MonitorConfig struct {
 	OutputPath, SummaryPath, DeploymentRoot string
 	Duration                                time.Duration
@@ -87,6 +90,7 @@ type MonitorConfig struct {
 }
 type releaseSample struct {
 	guard.Sample
+
 	OneMinuteLoad        float64 `json:"oneMinuteLoad"`
 	ServiceRSSBytes      int64   `json:"serviceRssBytes"`
 	CaddyHealthStatus    int     `json:"caddyHealthStatus"`
@@ -100,10 +104,11 @@ func output(command string, arguments ...string) string {
 	}
 	return strings.TrimSpace(string(value))
 }
+
 func serviceRSSBytes() int64 {
 	pids := map[string]bool{}
 	for _, port := range []int{4000, 4001, 4100} {
-		for _, pid := range strings.Fields(output("lsof", "-nP", fmt.Sprintf("-iTCP:%d", port), "-sTCP:LISTEN", "-t")) {
+		for pid := range strings.FieldsSeq(output("lsof", "-nP", fmt.Sprintf("-iTCP:%d", port), "-sTCP:LISTEN", "-t")) {
 			pids[pid] = true
 		}
 	}
@@ -115,12 +120,13 @@ func serviceRSSBytes() int64 {
 		list = append(list, pid)
 	}
 	var total int64
-	for _, field := range strings.Fields(output("ps", "-o", "rss=", "-p", strings.Join(list, ","))) {
+	for field := range strings.FieldsSeq(output("ps", "-o", "rss=", "-p", strings.Join(list, ","))) {
 		value, _ := strconv.ParseInt(field, 10, 64)
 		total += value * 1024
 	}
 	return total
 }
+
 func caddyHealth() (int, float64) {
 	value := output("curl", "-sS", "--max-time", "3", "-o", "/dev/null", "-w", "%{http_code} %{time_total}", "http://127.0.0.1:4100/health/ready")
 	fields := strings.Fields(value)
@@ -147,6 +153,7 @@ func oneMinuteLoad() float64 {
 	return value
 }
 
+// RunMonitor records release overlap samples until duration or signal completion.
 func RunMonitor(config MonitorConfig) error {
 	if config.OutputPath == "" || config.SummaryPath == "" || config.DeploymentRoot == "" {
 		return errors.New("output, summary, and deployment root are required")

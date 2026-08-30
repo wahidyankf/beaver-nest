@@ -10,6 +10,15 @@ import (
 	"github.com/wahidyankf/beaver-nest/tools/resource-guard/internal/guard"
 )
 
+func marshalJSON(t *testing.T, value any) []byte {
+	t.Helper()
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
 func TestHeavyLeaseLifecycleAndInheritance(t *testing.T) {
 	root := t.TempDir()
 	session, err := guard.AcquireSession(root, "", time.Second, func(time.Duration) {})
@@ -45,7 +54,7 @@ func TestHeavyLeaseRejectsInvalidReleaseAndReclaimsStaleOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 	marker := map[string]any{"schemaVersion": 1, "pid": 2_147_483_647, "token": "stale"}
-	data, _ := json.Marshal(marker)
+	data := marshalJSON(t, marker)
 	if err := os.WriteFile(filepath.Join(lock, "owner.json"), data, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -63,13 +72,13 @@ func TestHeavyLeaseRejectsInvalidReleaseAndReclaimsStaleOwner(t *testing.T) {
 	var owner map[string]any
 	_ = json.Unmarshal(ownerData, &owner)
 	owner["token"] = "other"
-	ownerData, _ = json.Marshal(owner)
+	ownerData = marshalJSON(t, owner)
 	_ = os.WriteFile(ownerPath, ownerData, 0o600)
 	if guard.ReleaseSession(root, session) == nil {
 		t.Fatal("foreign owner release accepted")
 	}
 	owner["token"] = session.Token
-	ownerData, _ = json.Marshal(owner)
+	ownerData = marshalJSON(t, owner)
 	_ = os.WriteFile(ownerPath, ownerData, 0o600)
 	if err := guard.ReleaseSession(root, session); err != nil {
 		t.Fatal(err)
@@ -101,13 +110,13 @@ func TestPortLeaseLifecycleValidationAndStaleRecovery(t *testing.T) {
 	var owner map[string]any
 	_ = json.Unmarshal(data, &owner)
 	owner["owner"] = "other"
-	data, _ = json.Marshal(owner)
+	data = marshalJSON(t, owner)
 	_ = os.WriteFile(ownerPath, data, 0o600)
 	if guard.ReleasePortLease(root, lease) == nil {
 		t.Fatal("foreign port release accepted")
 	}
 	owner["owner"] = lease.Owner
-	data, _ = json.Marshal(owner)
+	data = marshalJSON(t, owner)
 	_ = os.WriteFile(ownerPath, data, 0o600)
 	if err := guard.ReleasePortLease(root, lease); err != nil {
 		t.Fatal(err)
@@ -117,7 +126,7 @@ func TestPortLeaseLifecycleValidationAndStaleRecovery(t *testing.T) {
 	}
 	stalePath := filepath.Join(root, "26.lock")
 	_ = os.Mkdir(stalePath, 0o700)
-	stale, _ := json.Marshal(map[string]any{"schemaVersion": 1, "pid": 2_147_483_647, "port": 26, "owner": "stale"})
+	stale := marshalJSON(t, map[string]any{"schemaVersion": 1, "pid": 2_147_483_647, "port": 26, "owner": "stale"})
 	_ = os.WriteFile(filepath.Join(stalePath, "owner.json"), stale, 0o600)
 	replacement, err := guard.AcquirePortLease(root, 26, "replacement", 20, 30)
 	if err != nil {
