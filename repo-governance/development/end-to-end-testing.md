@@ -18,6 +18,8 @@ Authenticated journeys must follow the [test-identity standard](test-identities.
 
 For rendered-UI changes, audit affected routes, states, layouts, and themes. Check the accessibility tree, controls, keyboard/focus, non-color cues, narrow reflow, and contrast; run Lighthouse when available. Functional E2E success does not waive a finding.
 
+After automation, manually inspect every affected rendered state in a browser at the exact served origin and each supported viewport class. Exercise the changed interaction and confirm layout, content, focus, and responsive behavior. Code inspection, inferred CSS behavior, test results, and design assets are supporting evidence, never substitutes for this rendered check. Record the route, state, viewport class, and pass/fail without private values.
+
 Do not expand this into an unrelated full-site audit. Use synthetic identities and marked cleanup; record only route/state and pass/fail, never private values.
 
 For example:

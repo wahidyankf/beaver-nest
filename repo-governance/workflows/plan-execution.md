@@ -15,7 +15,7 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 2. Update delivery at start, material progress, and completion. Check an item only after outcome and proof pass; add dated notes.
 3. Synchronize both lists and activate triggered conditionals. Add discoveries to both only for an existing outcome; label and explain them.
 4. Capture learnings. Search `plans/ideas/`; merge overlap or create one distinct mapped brief and link it.
-5. Run required automation and manual AI journeys. Record safe evidence without secrets or sensitive runtime data.
+5. Run required automation and manual AI journeys. For UI work, execute the planned exact-origin route/state/viewport matrix after implementation and record each pass/fail; inference and automation cannot replace it. Record safe evidence without secrets or sensitive runtime data.
 6. Apply all applicable rules; plans and task lists expand no authority.
 7. A degraded endpoint, exceeded routed-responsiveness budget, or incomplete cutover stops the line. Restore and verify the usable local/routed journey and its numeric budget, update delivery/learnings, then resume.
 

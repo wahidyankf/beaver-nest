@@ -30,4 +30,4 @@ The UI Design section of `tech-docs.md`, or its mapped `tech-docs/ui-design.md` 
 - keyboard, focus, error, empty, loading, reduced-motion, and responsive expectations; and
 - exact implementation, test, specification, and asset paths through the File Impact section or its split companion.
 
-`delivery.md` must trace exploration, selection, implementation, accessibility checks, and affected-device manual verification to PRD acceptance criteria. Never include real accounts, credentials, cookies, private identifiers, or user data in an asset.
+Each UI-affecting PRD acceptance criterion names its affected routes, rendered states, and supported viewport classes. `delivery.md` traces exploration, selection, implementation, accessibility checks, and a post-implementation manual browser check of that matrix at the exact served origin. Automation, code inspection, inferred layout behavior, and static assets supplement but never replace this proof. Record route, state, viewport class, and pass/fail without private values. Never include real accounts, credentials, cookies, private identifiers, or user data in an asset or evidence.
