@@ -7,7 +7,8 @@
     "build": {
       "command": "mkdir -p dist && go build -p=1 -trimpath -o dist/resource-guard ./cmd/resource-guard",
       "options": { "cwd": "tools/resource-guard" },
-      "outputs": ["{projectRoot}/dist"]
+      "outputs": ["{projectRoot}/dist"],
+      "cache": false
     },
     "typecheck": {
       "command": "go test -run '^$' ./...",
@@ -31,7 +32,7 @@
       "cache": false
     },
     "test:unit": {
-      "command": "go test ./tests/unit",
+      "command": "go test -count=1 ./tests/unit",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
@@ -39,7 +40,7 @@
       "options": { "cwd": "tools/resource-guard" }
     },
     "test:integration": {
-      "command": "go test ./tests/integration",
+      "command": "go test -count=1 ./tests/integration",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
@@ -48,8 +49,7 @@
       "cache": false
     },
     "test:e2e": {
-      "dependsOn": ["build"],
-      "command": "RESOURCE_GUARD_BIN=$PWD/dist/resource-guard go test ./tests/e2e",
+      "command": "./tests/e2e/run.sh",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
@@ -58,7 +58,7 @@
       "cache": false
     },
     "test:coverage:unit": {
-      "command": "mkdir -p coverage && go test -coverpkg=./internal/policy -coverprofile=coverage/unit.out ./tests/unit && go run ./tests/coverage --profile coverage/unit.out --files internal/policy/policy.go --minimum 99",
+      "command": "mkdir -p coverage && go test -count=1 -coverpkg=./internal/policy -coverprofile=coverage/unit.out ./tests/unit && go run ./tests/coverage --profile coverage/unit.out --files internal/policy/policy.go --minimum 99",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
@@ -67,7 +67,7 @@
       "outputs": ["{projectRoot}/coverage/unit.out"]
     },
     "test:coverage:behaviour": {
-      "command": "go test ./tests/bdd",
+      "command": "go test -count=1 ./tests/bdd",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"

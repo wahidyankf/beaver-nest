@@ -20,11 +20,11 @@ Exit `75` means transient capacity: wait for cooling down, then retry the identi
 
 ## Bootstrap and artifacts
 
-The bootstrap hashes `cmd/`, `internal/`, `go.mod`, and `go.sum`, then builds a content-addressed binary below ignored `.cache/<goos>-<goarch>/<hash>/`. A directory lock serializes concurrent builds; compilation uses `GOMAXPROCS=2`, `go build -p=1 -trimpath`, a temporary output, and atomic rename. `dist/`, `.cache/`, and `coverage/` are ignored; no compiled binary belongs in Git.
+The bootstrap hashes `cmd/`, `internal/`, `go.mod`, and `go.sum`, then builds a content-addressed binary below ignored `.cache/<goos>-<goarch>/<hash>/`. A directory lock serializes concurrent builds; compilation uses `GOMAXPROCS=2`, `go build -p=1 -trimpath`, a temporary output, and atomic rename. Retention keeps the current generation plus the two most recently used historical generations. The Nx build target deliberately disables output caching, while E2E compiles into an automatically removed temporary directory. `dist/`, `.cache/`, and `coverage/` are ignored; no compiled binary belongs in Git.
 
 ## Quality gates
 
-The canonical Gherkin corpus is [`specs/tools/resource-guard/behaviours`](../../specs/tools/resource-guard/behaviours/README.md). Unit and local integration adapters run every scenario. The compiled-binary E2E adapter runs only safe public-boundary scenarios; dangerous synthetic-pressure scenarios carry a documented `@e2e-exempt` tag but remain mandatory in the other adapters. Static behavior coverage rejects missing features, scenarios without explicit `When` and `Then`, undefined or ambiguous steps, and unused bindings.
+The canonical Gherkin corpus is [`specs/tools/resource-guard/behaviours`](../../specs/tools/resource-guard/behaviours/README.md). Unit and local integration adapters run every capable scenario. The compiled-binary E2E adapter runs only safe public-boundary scenarios; incapable adapters carry explicit exemption tags while lifecycle scenarios remain mandatory in integration. Static behavior coverage rejects missing features, scenarios without explicit `When` and `Then`, undefined or ambiguous steps, and unused bindings.
 
 | Target             | Contract                                                                                                    |
 | ------------------ | ----------------------------------------------------------------------------------------------------------- |
@@ -33,7 +33,7 @@ The canonical Gherkin corpus is [`specs/tools/resource-guard/behaviours`](../../
 | `security`         | Scan reachable dependency and standard-library code for known vulnerabilities.                              |
 | `test:unit`        | Run deterministic policy and unit Gherkin cases.                                                            |
 | `test:integration` | Exercise local files, leases, evidence, processes, and integration Gherkin cases without network.           |
-| `test:e2e`         | Build and exercise the public binary safely.                                                                |
+| `test:e2e`         | Build a temporary public binary, exercise it safely, and remove it on every exit.                           |
 | `test:coverage`    | Enforce numeric production coverage at 99% and complete behavior bindings.                                  |
 | `test:quick`       | Run typecheck, lint, unit, numeric unit coverage, and behavior coverage; integration and E2E stay separate. |
 

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -40,6 +41,9 @@ var Definitions = []StepDefinition{
 	{`^a healthy release summary file$`, all()}, {`^release summary assessment is requested$`, all()}, {`^the release evidence is accepted$`, all()},
 	{`^a release host with eight execution units and safe memory$`, all()}, {`^release admission is assessed$`, all()}, {`^three CPU samples at or below 25 percent are required$`, all()},
 	{`^a release summary with one health failure$`, all()}, {`^release overlap evidence is assessed$`, all()}, {`^the release evidence is rejected$`, all()},
+	{`^the resource guard Nx build configuration$`, all()}, {`^build artifact caching is inspected$`, all()}, {`^compiled binaries are excluded from the Nx cache$`, all()},
+	{`^the resource guard end-to-end harness$`, all()}, {`^its compiled binary lifecycle is inspected$`, all()}, {`^the end-to-end binary is removed after the run$`, all()},
+	{`^four historical bootstrap generations$`, all()}, {`^the current bootstrap generation runs$`, all()}, {`^only the current and two recent generations remain$`, all()},
 }
 
 func all() map[string]bool { return map[string]bool{"unit": true, "integration": true, "e2e": true} }
@@ -66,6 +70,10 @@ type Driver struct {
 	exitCode            int
 	output, errorOutput string
 	binary, summaryPath string
+	temporaryPaths      []string
+	lifecycleOK         bool
+	cacheRoot           string
+	historicalCaches    []string
 }
 
 func pointer[T any](value T) *T { return &value }
@@ -74,11 +82,47 @@ func healthySample(at time.Time) guard.Sample {
 }
 
 func (driver *Driver) reset() {
+	driver.cleanup()
 	mode := driver.Mode
 	*driver = Driver{Mode: mode}
 	if mode == "e2e" {
 		driver.binary = os.Getenv("RESOURCE_GUARD_BIN")
 	}
+}
+
+func (driver *Driver) cleanup() {
+	for _, path := range driver.temporaryPaths {
+		_ = os.RemoveAll(path)
+	}
+	driver.temporaryPaths = nil
+}
+
+func (driver *Driver) Close() { driver.cleanup() }
+
+func toolRoot() string { return filepath.Clean(filepath.Join("..", "..")) }
+
+func environmentWith(values map[string]string) []string {
+	prefixes := make([]string, 0, len(values))
+	for name := range values {
+		prefixes = append(prefixes, name+"=")
+	}
+	environment := make([]string, 0, len(os.Environ())+len(values))
+	for _, value := range os.Environ() {
+		replaced := false
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(value, prefix) {
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			environment = append(environment, value)
+		}
+	}
+	for name, value := range values {
+		environment = append(environment, name+"="+value)
+	}
+	return environment
 }
 func (driver *Driver) threeHealthy() {
 	base := time.Unix(0, 0)
@@ -239,6 +283,7 @@ func (driver *Driver) summary(healthFailures int) error {
 	if err != nil {
 		return err
 	}
+	driver.temporaryPaths = append(driver.temporaryPaths, directory)
 	driver.summaryPath = filepath.Join(directory, "summary.json")
 	summary := healthySummary()
 	summary.HealthFailures = healthFailures
@@ -287,6 +332,207 @@ func (driver *Driver) requireRejected() error {
 	return nil
 }
 
+func (driver *Driver) nxBuildConfiguration() {}
+
+func (driver *Driver) inspectBuildCaching() error {
+	data, err := os.ReadFile(filepath.Join(toolRoot(), "project.json"))
+	if err != nil {
+		return err
+	}
+	var project struct {
+		Targets map[string]struct {
+			Cache *bool `json:"cache"`
+		} `json:"targets"`
+	}
+	if err := json.Unmarshal(data, &project); err != nil {
+		return err
+	}
+	build, exists := project.Targets["build"]
+	driver.lifecycleOK = exists && build.Cache != nil && !*build.Cache
+	return nil
+}
+
+func (driver *Driver) requireBuildCacheDisabled() error {
+	if !driver.lifecycleOK {
+		return errors.New("resource-guard build output caching is not explicitly disabled")
+	}
+	return nil
+}
+
+func (driver *Driver) e2eHarness() {}
+
+func (driver *Driver) runTemporaryHarness(testExit int) error {
+	temporaryParent, err := os.MkdirTemp("", "resource-guard-e2e-parent-")
+	if err != nil {
+		return err
+	}
+	fakeDirectory, err := os.MkdirTemp("", "resource-guard-fake-go-")
+	if err != nil {
+		_ = os.RemoveAll(temporaryParent)
+		return err
+	}
+	driver.temporaryPaths = append(driver.temporaryPaths, temporaryParent, fakeDirectory)
+	fakeGo := filepath.Join(fakeDirectory, "go")
+	program := `#!/bin/sh
+set -eu
+case "$1" in
+  build)
+    shift
+    output=
+    while [ "$#" -gt 0 ]; do
+      if [ "$1" = "-o" ]; then
+        output=$2
+        break
+      fi
+      shift
+    done
+    [ -n "$output" ]
+    printf '#!/bin/sh\nexit 0\n' > "$output"
+    chmod 700 "$output"
+    ;;
+  test)
+    [ -x "${RESOURCE_GUARD_BIN:-}" ]
+    exit "${FAKE_GO_TEST_EXIT:-0}"
+    ;;
+  *) exit 64 ;;
+esac
+`
+	if err := os.WriteFile(fakeGo, []byte(program), 0o700); err != nil {
+		return err
+	}
+	command := exec.Command(filepath.Join(toolRoot(), "tests", "e2e", "run.sh"))
+	command.Env = environmentWith(map[string]string{
+		"FAKE_GO_TEST_EXIT":              fmt.Sprintf("%d", testExit),
+		"RESOURCE_GUARD_E2E_TEMP_PARENT": temporaryParent,
+		"RESOURCE_GUARD_GO_BINARY":       fakeGo,
+	})
+	output, runError := command.CombinedOutput()
+	if testExit == 0 && runError != nil {
+		return fmt.Errorf("temporary E2E harness failed: %w: %s", runError, output)
+	}
+	if testExit != 0 {
+		var exitError *exec.ExitError
+		if !errors.As(runError, &exitError) || exitError.ExitCode() != testExit {
+			return fmt.Errorf("temporary E2E harness returned %v, want exit %d: %s", runError, testExit, output)
+		}
+	}
+	entries, err := os.ReadDir(temporaryParent)
+	if err != nil {
+		return err
+	}
+	if len(entries) != 0 {
+		return fmt.Errorf("temporary E2E parent retained %d artifact(s)", len(entries))
+	}
+	return nil
+}
+
+func (driver *Driver) inspectE2ELifecycle() error {
+	if err := driver.runTemporaryHarness(0); err != nil {
+		return err
+	}
+	if err := driver.runTemporaryHarness(23); err != nil {
+		return err
+	}
+	driver.lifecycleOK = true
+	return nil
+}
+
+func (driver *Driver) requireE2ECleanup() error {
+	if !driver.lifecycleOK {
+		return errors.New("temporary E2E binary was not removed after every outcome")
+	}
+	return nil
+}
+
+func (driver *Driver) historicalGenerations() error {
+	if runtime.GOOS != "darwin" {
+		return fmt.Errorf("bootstrap retention requires darwin, got %s", runtime.GOOS)
+	}
+	cacheRoot, err := os.MkdirTemp("", "resource-guard-cache-")
+	if err != nil {
+		return err
+	}
+	driver.cacheRoot = cacheRoot
+	driver.temporaryPaths = append(driver.temporaryPaths, cacheRoot)
+	platform := filepath.Join(cacheRoot, runtime.GOOS+"-"+runtime.GOARCH)
+	if err := os.MkdirAll(platform, 0o700); err != nil {
+		return err
+	}
+	for index, character := range []string{"1", "2", "3", "4"} {
+		name := strings.Repeat(character, 64)
+		directory := filepath.Join(platform, name)
+		if err := os.Mkdir(directory, 0o700); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(directory, "resource-guard"), []byte("historical"), 0o700); err != nil {
+			return err
+		}
+		modified := time.Unix(int64(index+1), 0)
+		if err := os.Chtimes(directory, modified, modified); err != nil {
+			return err
+		}
+		driver.historicalCaches = append(driver.historicalCaches, name)
+	}
+	retentionLock := filepath.Join(platform, ".retention.lock")
+	if err := os.Mkdir(retentionLock, 0o700); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(retentionLock, "pid"), []byte("999999999\n"), 0o600); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (driver *Driver) runCurrentBootstrap() error {
+	if driver.cacheRoot == "" {
+		return errors.New("bootstrap cache root was not prepared")
+	}
+	summaryPath := filepath.Join(driver.cacheRoot, "healthy-summary.json")
+	value, err := json.Marshal(healthySummary())
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(summaryPath, value, 0o600); err != nil {
+		return err
+	}
+	command := exec.Command(filepath.Join(toolRoot(), "resource-guard"), "release", "assess", "--summary", summaryPath)
+	command.Env = environmentWith(map[string]string{"BNEST_RESOURCE_BUILD_CACHE": driver.cacheRoot})
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("current bootstrap failed: %w: %s", err, output)
+	}
+	platform := filepath.Join(driver.cacheRoot, runtime.GOOS+"-"+runtime.GOARCH)
+	entries, err := os.ReadDir(platform)
+	if err != nil {
+		return err
+	}
+	remaining := map[string]bool{}
+	generation := regexp.MustCompile(`^[0-9a-f]{64}$`)
+	for _, entry := range entries {
+		if entry.IsDir() && generation.MatchString(entry.Name()) {
+			remaining[entry.Name()] = true
+		}
+	}
+	if len(remaining) != 3 {
+		return fmt.Errorf("retained %d bootstrap generations, want 3", len(remaining))
+	}
+	if remaining[driver.historicalCaches[0]] || remaining[driver.historicalCaches[1]] {
+		return errors.New("oldest bootstrap generations were retained")
+	}
+	if !remaining[driver.historicalCaches[2]] || !remaining[driver.historicalCaches[3]] {
+		return errors.New("two most recent historical generations were removed")
+	}
+	driver.lifecycleOK = true
+	return nil
+}
+
+func (driver *Driver) requireRetention() error {
+	if !driver.lifecycleOK {
+		return errors.New("bootstrap retention did not keep current plus two recent generations")
+	}
+	return nil
+}
+
 func (driver *Driver) Initialize(context_ *godog.ScenarioContext) {
 	context_.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) { driver.reset(); return ctx, nil })
 	steps := []struct {
@@ -300,6 +546,9 @@ func (driver *Driver) Initialize(context_ *godog.ScenarioContext) {
 		{Definitions[19].Pattern, driver.criticalChild}, {Definitions[20].Pattern, driver.observeCritical}, {Definitions[21].Pattern, driver.requireShed}, {Definitions[22].Pattern, driver.compiledBinary}, {Definitions[23].Pattern, driver.jsonStatus}, {Definitions[24].Pattern, driver.requireStatus},
 		{Definitions[25].Pattern, driver.invalidRun}, {Definitions[26].Pattern, driver.requireValidation}, {Definitions[27].Pattern, func() error { return driver.summary(0) }}, {Definitions[28].Pattern, driver.assessSummary}, {Definitions[29].Pattern, driver.requireAccepted},
 		{Definitions[30].Pattern, driver.releaseHost}, {Definitions[31].Pattern, driver.assessRelease}, {Definitions[32].Pattern, driver.requireReleaseCPU}, {Definitions[33].Pattern, driver.failedSummary}, {Definitions[34].Pattern, driver.assessSummary}, {Definitions[35].Pattern, driver.requireRejected},
+		{Definitions[36].Pattern, driver.nxBuildConfiguration}, {Definitions[37].Pattern, driver.inspectBuildCaching}, {Definitions[38].Pattern, driver.requireBuildCacheDisabled},
+		{Definitions[39].Pattern, driver.e2eHarness}, {Definitions[40].Pattern, driver.inspectE2ELifecycle}, {Definitions[41].Pattern, driver.requireE2ECleanup},
+		{Definitions[42].Pattern, driver.historicalGenerations}, {Definitions[43].Pattern, driver.runCurrentBootstrap}, {Definitions[44].Pattern, driver.requireRetention},
 	}
 	for _, step := range steps {
 		context_.Step(step.pattern, step.function)

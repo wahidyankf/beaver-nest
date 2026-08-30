@@ -9,7 +9,8 @@ import (
 
 func TestUnitBehaviours(t *testing.T) {
 	driver := &support.Driver{Mode: "unit"}
-	status := godog.TestSuite{Name: "resource-guard-unit", ScenarioInitializer: driver.Initialize, Options: &godog.Options{Format: "progress", Paths: []string{support.FeaturePath}, TestingT: t}}.Run()
+	defer driver.Close()
+	status := godog.TestSuite{Name: "resource-guard-unit", ScenarioInitializer: driver.Initialize, Options: &godog.Options{Format: "progress", Paths: []string{support.FeaturePath}, Tags: "~@unit-exempt", TestingT: t}}.Run()
 	if status != 0 {
 		t.Fatalf("unit behaviour suite exited %d", status)
 	}

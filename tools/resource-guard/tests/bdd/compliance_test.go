@@ -24,8 +24,8 @@ func TestFeatureCorpusAndBindingsAreComplete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(features) != 4 {
-		t.Fatalf("expected exact recursive corpus of four features, got %d", len(features))
+	if len(features) != 5 {
+		t.Fatalf("expected exact recursive corpus of five features, got %d", len(features))
 	}
 	used := make([]bool, len(support.Definitions))
 	for _, path := range features {

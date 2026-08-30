@@ -15,6 +15,74 @@ source_hash=$(printf '%s' "$source_hash" | shasum -a 256 | awk '{print $1}')
 binary_dir="$cache_root/$goos-$goarch/$source_hash"
 binary="$binary_dir/resource-guard"
 lock="$binary_dir.lock"
+platform_cache="$cache_root/$goos-$goarch"
+retention_lock="$platform_cache/.retention.lock"
+
+acquire_retention_lock() {
+  if mkdir "$retention_lock" 2>/dev/null; then
+    printf '%s\n' "$$" > "$retention_lock/pid"
+    return 0
+  fi
+
+  if [ -f "$retention_lock/pid" ]; then
+    retention_pid=$(sed -n '1p' "$retention_lock/pid" 2>/dev/null || true)
+    case "$retention_pid" in
+      ''|*[!0-9]*) return 1 ;;
+      *)
+        if kill -0 "$retention_pid" 2>/dev/null; then
+          return 1
+        fi
+        ;;
+    esac
+    rm -f -- "$retention_lock/candidates" "$retention_lock/pid"
+    rmdir "$retention_lock" 2>/dev/null || return 1
+    if mkdir "$retention_lock" 2>/dev/null; then
+      printf '%s\n' "$$" > "$retention_lock/pid"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+prune_cache() {
+  touch "$binary_dir"
+  if ! acquire_retention_lock; then
+    return 0
+  fi
+
+  candidates="$retention_lock/candidates"
+  trap 'rm -f -- "$retention_lock/candidates" "$retention_lock/pid"; rmdir "$retention_lock" 2>/dev/null || true' EXIT HUP INT TERM
+  (
+    cd "$platform_cache"
+    for candidate_path in ./*; do
+      [ -d "$candidate_path" ] || continue
+      candidate=${candidate_path#./}
+      case "$candidate" in
+        ''|*[!0-9a-f]*) continue ;;
+      esac
+      [ "${#candidate}" -eq 64 ] || continue
+      modified=$(stat -f '%m' "$candidate_path") || continue
+      printf '%s %s\n' "$modified" "$candidate"
+    done
+  ) | LC_ALL=C sort -rn > "$candidates"
+
+  recent=0
+  while IFS=' ' read -r _ candidate; do
+    [ -n "$candidate" ] || continue
+    if [ "$candidate" = "$source_hash" ]; then
+      continue
+    fi
+    recent=$((recent + 1))
+    if [ "$recent" -gt 2 ]; then
+      rm -rf -- "$platform_cache/$candidate"
+    fi
+  done < "$candidates"
+
+  rm -f -- "$candidates" "$retention_lock/pid"
+  rmdir "$retention_lock"
+  trap - EXIT HUP INT TERM
+}
 
 if [ ! -x "$binary" ]; then
   mkdir -p "$cache_root/$goos-$goarch"
@@ -57,4 +125,5 @@ if [ ! -x "$binary" ]; then
   trap - EXIT HUP INT TERM
 fi
 
+prune_cache
 exec "$binary" "$@"
