@@ -26,14 +26,14 @@ The managed migrator uses `~/.config/bnest/` without requiring anyone to visit t
 - Make the default-path migration headless; keep setup/admin UI optional for a pre-migration custom folder and status review.
 - Migrate all current system and user-owned record types, not only chat and learning data.
 - Make SQLite authoritative automatically in the same managed run after source inventory, checksummed copy, normal read-back, restore rehearsal, and parity proof pass; require no UI confirmation.
-- Keep the flat-file reader and compatible mirror only until the separately gated [flat-file retirement plan](../../backlogs/bnest-flat-file-retirement/README.md) can run immediately after this plan completes.
+- Keep the flat-file reader and compatible mirror only until separately gated flat-file retirement work can run immediately after this plan completes.
 - Integrate the migration with release manifests, the host migration lock, Caddy rollout, revision proof, and LiveView/WebSocket reconnect.
 
 ## Non-goals
 
 - Cloud or networked databases, multi-host replication, public registration, account-management features, or arbitrary SQL access.
 - A general database browser or file picker with access to client-device paths.
-- Deleting legacy flat files or removing their reader inside this migration plan; the explicitly authorized [retirement plan](../../backlogs/bnest-flat-file-retirement/README.md) owns that later destructive contraction. Moving an initialized database also remains out of scope.
+- Deleting legacy flat files or removing their reader inside this migration plan; explicitly authorized retirement work owns that later destructive contraction. Moving an initialized database also remains out of scope.
 - Redesigning chat, Sifat Allah, theme, or browser-import product flows.
 
 ## Approach
@@ -42,7 +42,7 @@ The managed migrator uses `~/.config/bnest/` without requiring anyone to visit t
 2. Let managed release/headless tooling resolve the default directory and run the versioned DDL; an authorized UI may persist a custom directory before that transition.
 3. Inventory and backfill supported records in deterministic path order with per-item checksums and resumable outcomes.
 4. Verify domain reads, isolated restore, and parity, then atomically activate SQLite in the same headless run without waiting for UI.
-5. Promote through Caddy, prove routed revision and LiveView reconnect, drain and clean up, then unblock the separate exact-source retirement plan.
+5. Promote through Caddy, prove routed revision and LiveView reconnect, drain and clean up, then unblock the separate exact-source retirement work.
 
 ## Dependencies
 

@@ -136,4 +136,4 @@ Scenario: Routed client reconnects across compatible SQLite rollout
 
 In scope: server-local folder selection, configuration pointer, SQLite DDL, all supported record types, idempotent backfill, rollback compatibility, health/readiness, docs, specifications, tests, and Caddy rollout.
 
-Out of scope here: deletion of legacy records, which is queued in the separately gated [flat-file retirement plan](../../backlogs/bnest-flat-file-retirement/README.md); database relocation after initialization; feature-level relational redesign; cloud storage; real-user tests; and public host-path disclosure.
+Out of scope here: deletion of legacy records, which requires separately gated flat-file retirement work; database relocation after initialization; feature-level relational redesign; cloud storage; real-user tests; and public host-path disclosure.

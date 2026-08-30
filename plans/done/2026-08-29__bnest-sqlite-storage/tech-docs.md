@@ -31,7 +31,7 @@ Inventory follows only these exact templates, rejects symlinks, and validates th
 5. The committed DDL file is `apps/bnest-app/priv/sqlite_repo/migrations/20260829000000_create_bnest_storage.exs`. DDL never scans flat files. Data copying is owned by adapter `flat-files-v1-to-sqlite-v1`, called by the UI or the reproducible `bnest-app:storage:migrate` Nx target through the same domain module.
 6. Schema migration never runs implicitly on ordinary application startup. Managed release/headless tooling is the default caller of `Ecto.Migrator.with_repo/3`; optional UI calls the same domain module only for a custom pre-migration location or retry.
 7. SQLite uses WAL, foreign keys, `synchronous: :full`, an execution-measured bounded busy timeout, and a small pool. Exact pool/timeout values are accepted only after overlap tests; initial test candidates are pool 5 and 5,000 ms.
-8. SQLite becomes primary automatically after the incompatible slot retires and all migration proofs pass, without UI confirmation. Flat compatibility remains only until the separately gated [retirement plan](../../backlogs/bnest-flat-file-retirement/README.md) removes it.
+8. SQLite becomes primary automatically after the incompatible slot retires and all migration proofs pass, without UI confirmation. Flat compatibility remains only until separately gated retirement work removes it.
 
 ## Target Architecture
 
@@ -200,7 +200,7 @@ SQLite integrity proof runs `PRAGMA quick_check`; parity compares the full suppo
 1. **Expand:** update specs and Gherkin first; add Ecto dependencies, migration file, adapters, coordinator, UI, release manifest support, and tests. Deploy while `flat_primary`; the candidate must remain compatible when SQLite is not configured.
 2. **Migrate:** after Caddy promotes the expand revision and the incompatible slot drains and retires, managed tooling uses the default unless an admin previously saved a custom folder. The coordinator acquires the host lock, applies DDL, inventories sources, and backfills idempotently. Ordinary startup never owns this transition.
 3. **Verify:** prove schema checksum, normal reads, parity, quick check, isolated restore, restart, representative synthetic user flows, and rollback-reader compatibility. The same managed run then atomically changes the pointer to `sqlite_primary` without UI confirmation and proves the journeys again.
-4. **Contract:** keep the flat reader and compatibility mirror only until this plan passes and the explicitly authorized [flat-file retirement plan](../../backlogs/bnest-flat-file-retirement/README.md) establishes an SQLite-only rollback floor; that later plan owns deletion.
+4. **Contract:** keep the flat reader and compatibility mirror only until this plan passes and explicitly authorized flat-file retirement work establishes an SQLite-only rollback floor; that later work owns deletion.
 
 During `flat_primary`, flat files are authoritative and SQLite is a verified mirror. During `sqlite_primary`, SQLite is authoritative; compatibility writes remain observable and block rollback eligibility when mirror parity is pending. If cross-store synchronization cannot be made failure-atomic, implement a SQLite outbox and reconciler rather than acknowledging a write that makes rollback silently stale.
 
