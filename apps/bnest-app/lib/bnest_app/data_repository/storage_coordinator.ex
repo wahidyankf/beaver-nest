@@ -62,7 +62,16 @@ defmodule BnestApp.DataRepository.StorageCoordinator do
 
   defp protect_database_files(database_path) do
     Enum.each([database_path, database_path <> "-wal", database_path <> "-shm"], fn path ->
-      if File.exists?(path), do: File.chmod!(path, 0o600)
+      case File.chmod(path, 0o600) do
+        :ok ->
+          :ok
+
+        {:error, :enoent} ->
+          :ok
+
+        {:error, reason} ->
+          raise File.Error, reason: reason, action: "change mode for", path: path
+      end
     end)
   end
 

@@ -31,7 +31,16 @@ defmodule BnestApp.SqliteStorageTest do
       TestRuntimeRoot.cleanup!(runtime)
     end)
 
-    :ok
+    {:ok, database_path: database_path}
+  end
+
+  test "restarts while transient SQLite sidecar files appear and disappear", %{
+    database_path: database_path
+  } do
+    Enum.each(1..25, fn _attempt ->
+      :ok = StorageCoordinator.stop()
+      :ok = StorageCoordinator.ensure_started!(database_path)
+    end)
   end
 
   test "creates every declared table and index exactly once" do
