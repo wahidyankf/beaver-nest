@@ -17,7 +17,7 @@ For each Gherkin file, state:
 - the exact unit, integration, and E2E binding/support/test file paths that change for it, or the specific incapable adapter and reason; and
 - the target that proves the changed corpus and the focused journey that proves it at runtime.
 
-For each C4 file, state the exact view, node, relationship, data store, or constraint that changes and why. Keep proposed design in plan documents; update `specs/` only with the final as-built result during execution.
+For each C4 file, state the exact view, node, relationship, data store, or constraint that changes and why. Keep proposed design in plan documents; update `specs/` only with the final as-built result during execution. The relevant implementation phase in `delivery.md` must contain an `[AI]` task naming that canonical path and affected elements, with synchronized as-built content as its outcome and architecture/specification gates as proof; do not defer all C4 work to a generic documentation-cleanup task.
 
 ## File Impact
 
