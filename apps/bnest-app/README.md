@@ -48,7 +48,7 @@ Run project tasks from the repository root:
 | Purge legacy production test records | `npm exec -- nx run -p bnest-app -t storage:purge-test-data -- --generation <generation>`      |
 | Clean stale isolated test data       | `npm exec -- nx run -p bnest-app -t test-data:cleanup`                                         |
 
-Run compute-bearing rows through `npm run resource:run -- --class ephemeral -- <command>` and the repository [resource guard](../../repo-governance/development/resource-aware-development.md); `serve`, managed release, and pre-push enter it automatically. Use the `transactional` class for storage mutations so admitted work is never killed mid-transaction. Recovery, proxy status, rollback, retire, and tailnet controls remain direct.
+Run compute-bearing rows through `tools/resource-guard/resource-guard run --class ephemeral -- <command>` and the repository [resource guard](../../repo-governance/development/resource-aware-development.md); `serve`, managed release, and pre-push enter it automatically. Use the `transactional` class for storage mutations so admitted work is never killed mid-transaction. Recovery, proxy status, rollback, retire, and tailnet controls remain direct.
 
 `test:quick` runs type checking, linting, unit execution, unit coverage, and static behavior completeness. It intentionally excludes integration runtime and E2E execution. Both numeric coverage slices use Mix line coverage and fail below 99%.
 
@@ -135,9 +135,9 @@ The test environment substitutes a deterministic model catalog and session, and 
 - `config/` contains compile-time and runtime environment configuration.
 - `tools/deployment.mjs` owns machine-local Caddy, release-slot, and rollback primitives.
 - `tools/release.mjs` owns the deterministic release transaction; its adjacent tests and continuity contract prove recovery, serialization, and future resumable multi-client state.
-- `tools/resource-monitor.mjs` adds routed-service evidence to the shared root resource collector and writes a bounded schema-v2 release summary.
+- The repository Go resource guard adds routed-service evidence and writes a bounded schema-v2 release summary.
 - `tools/production-origin.mjs` validates the routed HTTPS origin and exposes only its normalized origin and hostname.
-- `tools/port-lease.mjs` owns bounded development and E2E listener leases; `tools/serve.mjs` starts development on that contract.
+- The repository Go resource guard owns bounded development and E2E listener leases before either runtime starts.
 - `priv/` contains static assets and translations.
 - `test/behaviour/` contains the shared driver contract, bindings, adapter hooks, and static completeness check.
 - `test/unit/` contains unit tests and the system-resource-free unit driver.

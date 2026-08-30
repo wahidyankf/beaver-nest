@@ -1,21 +1,15 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
   boundedReleaseEnvironment,
-  cpuHeadroomAvailable,
   executeRelease,
   gateManifest,
   ReleaseError,
-  releaseAdmissionMemoryAvailable,
-  releaseResourceHeadroomAvailable,
   verifyMigrationManifest,
 } from "./release.mjs";
-import { acquirePortLease, releasePortLease } from "./port-lease.mjs";
 import { normalizeProductionOrigin } from "./production-origin.mjs";
 
 const revision = "0123456789abcdef0123456789abcdef01234567";
@@ -95,112 +89,6 @@ test("isolates release gates from production runtime configuration", () => {
     "PORT",
   ])
     assert.equal(environment[name], undefined);
-});
-
-test("waits for gate teardown before declaring CPU contention", () => {
-  const transientSamples = [70, 55, 49, 48, 47];
-  let pauses = 0;
-  assert.equal(
-    cpuHeadroomAvailable(
-      12,
-      () => transientSamples.shift(),
-      () => {
-        pauses += 1;
-      },
-    ),
-    true,
-  );
-  assert.equal(pauses, 4);
-  assert.equal(
-    cpuHeadroomAvailable(
-      12,
-      () => 50.1,
-      () => {},
-    ),
-    false,
-  );
-});
-
-test("distinguishes background swap counters from release memory pressure", () => {
-  const healthy = {
-    availableParallelism: 12,
-    availableNonCompressedEstimateMinBytes: 13.12 * 1024 ** 3,
-    memoryPressureLevelMax: 1,
-    compressorAvailableAll: true,
-    cpuUtilizationP95Percent: 75.17,
-    swapInsDelta: 36,
-    swapOutsDelta: 20,
-    healthFailures: 0,
-  };
-
-  assert.equal(releaseResourceHeadroomAvailable(healthy), true);
-  assert.equal(
-    releaseResourceHeadroomAvailable({
-      ...healthy,
-      availableNonCompressedEstimateMinBytes: 3 * 1024 ** 3,
-    }),
-    false,
-  );
-  assert.equal(
-    releaseResourceHeadroomAvailable({
-      ...healthy,
-      memoryPressureLevelMax: 2,
-    }),
-    false,
-  );
-  assert.equal(
-    releaseResourceHeadroomAvailable({
-      ...healthy,
-      compressorAvailableAll: false,
-    }),
-    false,
-  );
-  assert.equal(
-    releaseResourceHeadroomAvailable({
-      ...healthy,
-      availableNonCompressedEstimateMinBytes: 1.9 * 1024 ** 3,
-      swapInsDelta: 0,
-      swapOutsDelta: 0,
-    }),
-    false,
-  );
-  assert.equal(
-    releaseResourceHeadroomAvailable({
-      ...healthy,
-      cpuUtilizationP95Percent: 83.4,
-      swapInsDelta: 0,
-      swapOutsDelta: 0,
-    }),
-    false,
-  );
-});
-
-test("admits release work only below measured memory pressure limits", () => {
-  const healthy = {
-    availableNonCompressedEstimateBytes: 13 * 1024 ** 3,
-    memoryPressureLevel: 1,
-    compressorAvailable: true,
-  };
-
-  assert.equal(releaseAdmissionMemoryAvailable(healthy), true);
-  assert.equal(
-    releaseAdmissionMemoryAvailable({
-      ...healthy,
-      availableNonCompressedEstimateBytes: 8.9 * 1024 ** 3,
-    }),
-    false,
-  );
-  assert.equal(
-    releaseAdmissionMemoryAvailable({ ...healthy, memoryPressureLevel: 2 }),
-    false,
-  );
-  assert.equal(
-    releaseAdmissionMemoryAvailable({
-      ...healthy,
-      compressorAvailable: false,
-    }),
-    false,
-  );
 });
 
 function fakeHost(overrides = {}) {
@@ -493,33 +381,4 @@ test("accepts only a bare HTTPS production origin", () => {
     "not-an-origin",
   ])
     assert.throws(() => normalizeProductionOrigin(value), /HTTPS origin/u);
-});
-
-test("port leases exclude a second owner and release exactly", () => {
-  const lease = acquirePortLease(45_321, "release-test", 45_000, 46_000);
-  assert.throws(
-    () => acquirePortLease(45_321, "second-test", 45_000, 46_000),
-    /already leased/u,
-  );
-  releasePortLease(lease);
-  const replacement = acquirePortLease(45_321, "second-test", 45_000, 46_000);
-  releasePortLease(replacement);
-});
-
-test("port leases recover an exact stale process marker", () => {
-  const port = 45_322;
-  const leasePath = join(tmpdir(), "bnest-port-leases", `${port}.lock`);
-  mkdirSync(leasePath, { recursive: true, mode: 0o700 });
-  writeFileSync(
-    join(leasePath, "owner.json"),
-    `${JSON.stringify({
-      schemaVersion: 1,
-      port,
-      owner: "stale-test",
-      pid: 2_147_483_647,
-    })}\n`,
-    { encoding: "utf8", mode: 0o600 },
-  );
-  const lease = acquirePortLease(port, "replacement-test", 45_000, 46_000);
-  releasePortLease(lease);
 });

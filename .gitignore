@@ -23,6 +23,11 @@ node_modules/
 npm-debug.log*
 .nx/
 
+# Resource guard bootstrap and development outputs
+/tools/resource-guard/.cache/
+/tools/resource-guard/dist/
+/tools/resource-guard/coverage/
+
 # .NET / F#
 **/bin/
 **/obj/

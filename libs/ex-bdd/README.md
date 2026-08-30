@@ -26,11 +26,11 @@ ExBdd.compile_features!(
 Run tasks from the repository root through the workspace [resource guard](../../repo-governance/development/resource-aware-development.md):
 
 ```sh
-npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t typecheck
-npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t lint
-npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:unit
-npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage
-npm run resource:run -- --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:quick
+tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t typecheck
+tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t lint
+tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:unit
+tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage
+tools/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:quick
 ```
 
 The coverage target includes the complete retained production engine and must remain at least 99% line-covered. Test-only support modules are excluded from the production denominator.

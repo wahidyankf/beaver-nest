@@ -5,20 +5,14 @@ import {
   cleanupTestRuntime,
   createTestRuntime,
 } from "../tests/support/test-runtime.mts";
-import {
-  acquirePortLease,
-  releasePortLease,
-} from "../../bnest-app/tools/port-lease.mjs";
 import { cleanupStaleTestData } from "../../bnest-app/tools/test-data-cleanup.mjs";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "../../..");
 cleanupStaleTestData();
 const runtime = createTestRuntime("e2e");
 const port = Number(process.env["BNEST_E2E_PORT"] ?? "4010");
-let lease: ReturnType<typeof acquirePortLease> | undefined;
 
 try {
-  lease = acquirePortLease(port, "e2e", 4010, 4019);
   const result = spawnSync(
     "npm",
     [
@@ -45,9 +39,5 @@ try {
   if (result.error) throw result.error;
   process.exitCode = result.status ?? 1;
 } finally {
-  try {
-    if (existsSync(runtime.path)) cleanupTestRuntime(runtime);
-  } finally {
-    if (lease) releasePortLease(lease);
-  }
+  if (existsSync(runtime.path)) cleanupTestRuntime(runtime);
 }

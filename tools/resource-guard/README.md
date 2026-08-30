@@ -1,58 +1,65 @@
 # resource-guard
 
-`resource-guard` is the repository bootstrap tool that admits compute-bearing work only when the macOS host has safe memory and CPU headroom. It owns shared host metrics, admission and shedding policy, the heavy-work lease, private evidence, child-process supervision, and the direct CLI.
+`resource-guard` is the repository bootstrap application for macOS host admission, pressure monitoring, heavy-work serialization, port leases, private evidence, child-process supervision, and release resource checks. It controls only the process group it starts and never stops unrelated or production processes.
 
-It does not own Bnest-specific release health, Caddy checks, or service RSS monitoring; those remain in [`apps/bnest-app/tools/resource-monitor.mjs`](../../apps/bnest-app/tools/resource-monitor.mjs). It also does not control production or unrelated processes.
+The production runtime is Go. The Go module belongs at this project root; there is intentionally no nested `package.json` and no Nx language plugin. Nx owns development lifecycle targets, while the POSIX [`resource-guard`](resource-guard) bootstrap remains the canonical runtime entry so admission happens before Node or Nx starts.
 
-## Bootstrap boundary
+## Usage
 
-Admission must happen before Nx starts the protected workload. Keep the root `npm run resource:status`, `resource:monitor`, and `resource:run` scripts as direct Node entry points. The Nx project owns discovery and development lifecycle targets, but it must not become the only route to the guard.
+Run from the repository root. Repository agents retain the required `rtk` prefix.
 
-## Usage and tasks
+| Purpose                 | Command                                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Inspect host state      | `tools/resource-guard/resource-guard status --json --disk-path .`                                                               |
+| Monitor transitions     | `tools/resource-guard/resource-guard monitor --disk-path .`                                                                     |
+| Guard an Nx task        | `tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p <project> -t <target>`        |
+| Guard a transaction     | `tools/resource-guard/resource-guard run --class transactional --disk-path . -- <command>`                                      |
+| Run fast project checks | `tools/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p resource-guard -t test:quick` |
 
-Run from the repository root. Repository agents additionally retain the required `rtk` prefix.
+Exit `75` means transient capacity: wait for cooling down, then retry the identical guarded command serially. Exit `73` means storage admission or shedding: inspect and clean storage before retrying. Neither code authorizes bypassing the guard, weakening a gate, parallel retry, or abandoning the objective.
 
-| Purpose                  | Command                                                                                                 |
-| ------------------------ | ------------------------------------------------------------------------------------------------------- |
-| Inspect host state       | `npm run resource:status -- --json`                                                                     |
-| Monitor state changes    | `npm run resource:monitor`                                                                              |
-| Guard an Nx task         | `npm run resource:run -- --class ephemeral -- npm exec -- nx run -p <project> -t <target>`              |
-| Check source and format  | `npm run resource:run -- --class ephemeral -- npm exec -- nx run -p resource-guard -t lint`             |
-| Run pure unit tests      | `npm run resource:run -- --class ephemeral -- npm exec -- nx run -p resource-guard -t test:unit`        |
-| Run process integration  | `npm run resource:run -- --class ephemeral -- npm exec -- nx run -p resource-guard -t test:integration` |
-| Enforce all coverage     | `npm run resource:run -- --class ephemeral -- npm exec -- nx run -p resource-guard -t test:coverage`    |
-| Run the complete suite   | `npm run resource:run -- --class ephemeral -- npm exec -- nx run -p resource-guard -t test`             |
-| Run the fast local suite | `npm run resource:run -- --class ephemeral -- npm exec -- nx run -p resource-guard -t test:quick`       |
+## Bootstrap and artifacts
 
-The plain ESM sources have no separate type-check target. `lint` performs Node syntax and Prettier checks for the guard plus syntax checks for its direct Bnest and pre-push integration entry points. Pure parser, policy, host-sampling seam, and CLI-orchestration cases run as unit tests; filesystem, lease, signal, and child-process behavior runs as local integration tests. `test:quick` intentionally excludes integration work.
+The bootstrap hashes `cmd/`, `internal/`, `go.mod`, and `go.sum`, then builds a content-addressed binary below ignored `.cache/<goos>-<goarch>/<hash>/`. A directory lock serializes concurrent builds; compilation uses `GOMAXPROCS=2`, `go build -p=1 -trimpath`, a temporary output, and atomic rename. `dist/`, `.cache/`, and `coverage/` are ignored; no compiled binary belongs in Git.
 
-`test:coverage` composes unit and integration coverage slices, each of which fails below 99% line coverage. The unit slice covers `metrics.mjs`, `policy.mjs`, and `cli-application.mjs`. The integration slice covers `evidence.mjs`, `session.mjs`, and `guard.mjs`. The thin `cli.mjs` process adapter is excluded from numeric instrumentation and exercised through a subprocess integration test, matching the repository allowance for adapter exclusions that have a separate boundary test.
+## Quality gates
 
-## Resource thresholds
+The canonical Gherkin corpus is [`specs/tools/resource-guard/behaviours`](../../specs/tools/resource-guard/behaviours/README.md). Unit and local integration adapters run every scenario. The compiled-binary E2E adapter runs only safe public-boundary scenarios; dangerous synthetic-pressure scenarios carry a documented `@e2e-exempt` tag but remain mandatory in the other adapters. Static behavior coverage rejects missing features, scenarios without explicit `When` and `Then`, undefined or ambiguous steps, and unused bindings.
 
-Memory and CPU retain the canonical policy in [resource-aware development](../../repo-governance/development/resource-aware-development.md). The additional host-local signals are:
+| Target             | Contract                                                                                                    |
+| ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `typecheck`        | Compile every package and test without running scenarios.                                                   |
+| `lint`             | Require `gofmt`, `go vet`, and the pinned Go linter suite.                                                  |
+| `security`         | Scan reachable dependency and standard-library code for known vulnerabilities.                              |
+| `test:unit`        | Run deterministic policy and unit Gherkin cases.                                                            |
+| `test:integration` | Exercise local files, leases, evidence, processes, and integration Gherkin cases without network.           |
+| `test:e2e`         | Build and exercise the public binary safely.                                                                |
+| `test:coverage`    | Enforce numeric production coverage at 99% and complete behavior bindings.                                  |
+| `test:quick`       | Run typecheck, lint, unit, numeric unit coverage, and behavior coverage; integration and E2E stay separate. |
 
-| Signal             | Warning                                         | Critical                                        |
-| ------------------ | ----------------------------------------------- | ----------------------------------------------- |
-| Disk free          | Below 30 GiB                                    | Below 20 GiB                                    |
-| Swap-out           | At least 128 MiB normalized per fifteen seconds | At least 512 MiB normalized per fifteen seconds |
-| Compressor payload | At least 12 GiB and growing 1 GiB per window    | At least 16 GiB and growing 2 GiB per window    |
+System-command adapters and the thin `main` entry are excluded from numeric instrumentation and exercised through integration or compiled-binary E2E boundaries. Production policy remains under the 99% numeric gate.
 
-Disk warning or an unavailable disk reading blocks admission immediately with exit `73`; cleanup is required before retry. Eligible running work receives its class warning grace above 20 GiB and is shed immediately below 20 GiB, also with exit `73`. Swap and compressor pressure remain transient and use exit `75`. Absolute swap usage and a stable compressor payload remain evidence only.
+## Resource policy
 
-Human-readable status and monitor output include the aggregate state and reason. JSON status adds a `resource` assessment containing the state, reason, storage-blocked flag, normalized swap-out bytes, and normalized compressor-growth bytes.
+Memory admission requires 9 GiB of the macOS non-compressed availability estimate, treats less than 4 GiB as critical, reserves two CPU units, and requires three consecutive safe samples. Release admission reserves six CPU units and at least 13 GiB of deployment disk.
+
+| Signal             | Warning                                      | Critical                                     |
+| ------------------ | -------------------------------------------- | -------------------------------------------- |
+| Disk free          | Below 30 GiB                                 | Below 20 GiB                                 |
+| Swap-out           | At least 128 MiB normalized per 15 seconds   | At least 512 MiB normalized per 15 seconds   |
+| Compressor payload | At least 12 GiB and growing 1 GiB per window | At least 16 GiB and growing 2 GiB per window |
+
+Absolute swap use and a stable compressor payload remain evidence only. Evidence schema stays at version 2, session and port markers at version 1, and private bounded evidence defaults to `~/bnest/runtime/resource-guard/`.
 
 ## Structure
 
-- `cli.mjs` is the process adapter for `status`, `monitor`, and `run`.
-- `cli-application.mjs` owns testable CLI orchestration and validation.
-- `metrics.mjs` collects host readings without classifying them as free RAM.
-- `policy.mjs` owns development and release headroom decisions.
-- `guard.mjs` supervises the admitted child process group.
-- `session.mjs` serializes heavy repository work across shells.
-- `evidence.mjs` writes bounded private samples and summaries.
-- `metrics-policy.test.mjs` covers pure parsing and policy behavior.
-- `resource-guard.integration.test.mjs` covers local filesystem and process boundaries.
-- `project.json` defines the plugin-free Nx project.
+- `cmd/resource-guard/` is the thin executable entry.
+- `internal/cli/` owns argument validation and output.
+- `internal/host/` collects macOS metrics.
+- `internal/policy/` owns pure development and release decisions.
+- `internal/guard/` owns evidence, leases, and child supervision.
+- `internal/release/` owns release checks, monitoring, and summary assessment.
+- `tests/` contains behavior, unit, integration, E2E, and coverage adapters.
+- `project.json` defines the plugin-free Nx lifecycle.
 
-See [resource-aware development](../../repo-governance/development/resource-aware-development.md) for the canonical operating rules and the [root README](../../README.md) for workspace-wide usage.
+See [resource-aware development](../../repo-governance/development/resource-aware-development.md) for the canonical agent procedure.

@@ -8,32 +8,18 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
-  statfsSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { availableParallelism, cpus, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { normalizeProductionOrigin } from "./production-origin.mjs";
-import {
-  cpuUtilizationPercent,
-  defaultEvidenceRoot,
-  readHostSample,
-} from "../../../tools/resource-guard/metrics.mjs";
-import { releaseResourceHeadroomAvailable as sharedReleaseResourceHeadroomAvailable } from "../../../tools/resource-guard/policy.mjs";
-import { cleanupEvidence } from "../../../tools/resource-guard/evidence.mjs";
-import {
-  acquireSession,
-  releaseSession,
-} from "../../../tools/resource-guard/session.mjs";
-
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const applicationRoot = resolve(import.meta.dirname, "..");
 const deploymentTool = join(import.meta.dirname, "deployment.mjs");
 const liveViewProofTool = join(import.meta.dirname, "verify-liveview.mjs");
-const resourceMonitorTool = join(import.meta.dirname, "resource-monitor.mjs");
 const slots = { blue: 4000, green: 4001 };
 
 export const gateManifest = [
@@ -410,8 +396,10 @@ export class MachineHost {
     this.logPath = null;
     this.resourceMonitor = null;
     this.resourceSummaryPath = null;
-    this.resourceGuardRoot = defaultEvidenceRoot(environment);
-    this.resourceGuardSession = null;
+    this.resourceGuardBinary = requiredValue(
+      environment,
+      "BNEST_RESOURCE_GUARD_BIN",
+    );
   }
 
   async preflight(requestedRevision) {
@@ -433,18 +421,6 @@ export class MachineHost {
       );
     }
     rmSync(this.queuePath, { force: true });
-
-    this.resourceGuardSession = await acquireSession(this.resourceGuardRoot);
-    if (!this.resourceGuardSession)
-      throw new ReleaseError(
-        "capacity",
-        "Repository-owned development work did not release the resource lease",
-        "deferred",
-      );
-    this.environment = {
-      ...this.environment,
-      BNEST_RESOURCE_SESSION: this.resourceGuardSession.token,
-    };
 
     mkdirSync(this.logsPath, { recursive: true });
     this.logPath = join(this.logsPath, `release-${revision}.log`);
@@ -640,11 +616,6 @@ export class MachineHost {
         "continuity",
         "Caddy health failed during the release window",
       );
-    if (!releaseResourceHeadroomAvailable(resourceSummary))
-      throw new ReleaseError(
-        "capacity",
-        "Release overlap exhausted resource headroom",
-      );
     this.deployment("deploy:retire", ["--slot", priorSlot]);
     this.retainArtifacts(revision);
     this.log(`cleanup passed ${revision}`);
@@ -656,11 +627,7 @@ export class MachineHost {
   }
 
   async releaseLock() {
-    if (!this.lockOwned) {
-      releaseSession(this.resourceGuardRoot, this.resourceGuardSession);
-      this.resourceGuardSession = null;
-      return;
-    }
+    if (!this.lockOwned) return;
     const marker = readPrivateJson(join(this.lockPath, "owner.json"));
     if (marker.pid !== process.pid)
       throw new ReleaseError(
@@ -670,26 +637,21 @@ export class MachineHost {
     try {
       this.stopResourceMonitor();
     } finally {
-      try {
-        releaseSession(this.resourceGuardRoot, this.resourceGuardSession);
-        this.resourceGuardSession = null;
-      } finally {
-        rmSync(this.lockPath, { recursive: true });
-        this.lockOwned = false;
-      }
+      rmSync(this.lockPath, { recursive: true });
+      this.lockOwned = false;
     }
   }
 
   startResourceMonitor(revision) {
     const metricsPath = join(this.deploymentRoot, "metrics");
-    cleanupEvidence(metricsPath);
     const identifier = `${revision}-${Date.now()}-${process.pid}`;
     const outputPath = join(metricsPath, `${identifier}.jsonl`);
     this.resourceSummaryPath = join(metricsPath, `${identifier}.summary.json`);
     this.resourceMonitor = spawn(
-      process.execPath,
+      this.resourceGuardBinary,
       [
-        resourceMonitorTool,
+        "release",
+        "monitor",
         "--output",
         outputPath,
         "--summary",
@@ -724,17 +686,21 @@ export class MachineHost {
       this.log("resource evidence summary unreadable");
       return null;
     }
-    if (!validResourceSummary(summary)) {
+    const assessment = spawnSync(
+      this.resourceGuardBinary,
+      ["release", "assess", "--summary", this.resourceSummaryPath],
+      { encoding: "utf8" },
+    );
+    if (assessment.status !== 0) {
       if (required)
         throw new ReleaseError(
-          "cleanup",
-          "Resource evidence summary is invalid",
+          assessment.status === 75 ? "capacity" : "cleanup",
+          assessment.stderr.trim() || "Resource evidence summary is invalid",
         );
-      this.log("resource evidence summary invalid");
+      this.log("resource evidence summary rejected");
       return null;
     }
     this.log(`resource evidence ${basename(this.resourceSummaryPath)}`);
-    cleanupEvidence(dirname(this.resourceSummaryPath));
     return summary;
   }
 
@@ -797,31 +763,15 @@ export class MachineHost {
   }
 
   assertCapacity() {
-    const memory = readHostSample().sample;
-    if (!releaseAdmissionMemoryAvailable(memory))
+    const capacity = spawnSync(
+      this.resourceGuardBinary,
+      ["release", "check", "--disk-path", this.deploymentRoot],
+      { encoding: "utf8" },
+    );
+    if (capacity.status !== 0)
       throw new ReleaseError(
-        "capacity",
-        "Memory pressure does not leave safe release headroom",
-        "deferred",
-      );
-    const parallelism = availableParallelism();
-    if (parallelism < 8)
-      throw new ReleaseError(
-        "capacity",
-        "Fewer than eight parallel execution units are available",
-        "deferred",
-      );
-    if (!cpuHeadroomAvailable(parallelism))
-      throw new ReleaseError(
-        "capacity",
-        "CPU use does not leave release and safety headroom",
-        "deferred",
-      );
-    const disk = statfsSync(this.deploymentRoot);
-    if (disk.bavail * disk.bsize < 13 * 1024 ** 3)
-      throw new ReleaseError(
-        "capacity",
-        "Less than 13 GiB release disk is available",
+        capacity.status === 75 ? "capacity" : "configuration",
+        capacity.stderr.trim() || "Resource capacity check failed",
         "deferred",
       );
   }
@@ -996,18 +946,6 @@ function writePrivateJson(path, value) {
   });
 }
 
-export function releaseResourceHeadroomAvailable(summary) {
-  return sharedReleaseResourceHeadroomAvailable(summary);
-}
-
-export function releaseAdmissionMemoryAvailable(snapshot) {
-  return (
-    snapshot.availableNonCompressedEstimateBytes >= 9 * 1024 ** 3 &&
-    snapshot.memoryPressureLevel === 1 &&
-    snapshot.compressorAvailable === true
-  );
-}
-
 function staleProcessMarker(path) {
   try {
     const marker = readPrivateJson(path);
@@ -1022,33 +960,6 @@ function staleProcessMarker(path) {
   } catch {
     return false;
   }
-}
-
-function validResourceSummary(summary) {
-  const numericFields = [
-    "sampleCount",
-    "availableParallelism",
-    "availableNonCompressedEstimateMinBytes",
-    "memoryPressureLevelMax",
-    "compressorPayloadPeakBytes",
-    "physicalMemoryBytes",
-    "cpuUtilizationP95Percent",
-    "serviceRssPeakBytes",
-    "diskFreeMinBytes",
-    "swapInsDelta",
-    "swapOutsDelta",
-    "swapFreeMinBytes",
-    "caddyHealthLatencyP95Ms",
-    "healthFailures",
-  ];
-  return (
-    summary?.schemaVersion === 2 &&
-    typeof summary.compressorAvailableAll === "boolean" &&
-    numericFields.every(
-      (field) => Number.isFinite(summary[field]) && summary[field] >= 0,
-    ) &&
-    summary.sampleCount > 0
-  );
 }
 
 function readPrivateJson(path) {
@@ -1082,36 +993,6 @@ function digestDirectory(root) {
 
   walk(root);
   return digest.digest("hex");
-}
-
-function intervalCpuSampler() {
-  let previous = cpus().map(({ times }) => ({ ...times }));
-  return () => {
-    const current = cpus().map(({ times }) => ({ ...times }));
-    const utilization = cpuUtilizationPercent(previous, current);
-    previous = current;
-    return utilization;
-  };
-}
-
-export function cpuHeadroomAvailable(
-  parallelism,
-  sample = intervalCpuSampler(),
-  pause = (milliseconds) =>
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds),
-) {
-  const threshold = Math.max(0, (100 * (parallelism - 6)) / parallelism);
-  let consecutive = 0;
-  for (let attempt = 0; attempt < 31; attempt += 1) {
-    const utilization = sample();
-    consecutive =
-      Number.isFinite(utilization) && utilization <= threshold
-        ? consecutive + 1
-        : 0;
-    if (consecutive >= 3) return true;
-    if (attempt < 30) pause(500);
-  }
-  return false;
 }
 
 export function boundedReleaseEnvironment(environment) {

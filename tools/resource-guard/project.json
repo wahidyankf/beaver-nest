@@ -1,94 +1,78 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "name": "resource-guard",
+  "projectType": "application",
   "root": "tools/resource-guard",
   "targets": {
-    "status": {
-      "command": "node cli.mjs status",
-      "options": {
-        "cwd": "tools/resource-guard",
-        "forwardAllArgs": true
-      },
-      "cache": false
+    "build": {
+      "command": "mkdir -p dist && go build -p=1 -trimpath -o dist/resource-guard ./cmd/resource-guard",
+      "options": { "cwd": "tools/resource-guard" },
+      "outputs": ["{projectRoot}/dist"]
     },
-    "monitor": {
-      "command": "node cli.mjs monitor",
-      "options": {
-        "cwd": "tools/resource-guard"
-      },
-      "continuous": true,
-      "cache": false
-    },
-    "run": {
-      "command": "node cli.mjs run",
-      "options": {
-        "cwd": "tools/resource-guard",
-        "forwardAllArgs": true
-      },
-      "cache": false
-    },
-    "format": {
-      "command": "npm exec -- prettier --write . ../../apps/bnest-app/tools/release.mjs ../../apps/bnest-app/tools/resource-monitor.mjs ../../apps/bnest-app/tools/serve.mjs",
-      "options": {
-        "cwd": "tools/resource-guard"
-      }
-    },
-    "lint": {
-      "executor": "nx:run-commands",
+    "typecheck": {
+      "command": "go test -run '^$' ./...",
       "inputs": [
         "default",
-        "{workspaceRoot}/apps/bnest-app/tools/release.mjs",
-        "{workspaceRoot}/apps/bnest-app/tools/resource-monitor.mjs",
-        "{workspaceRoot}/apps/bnest-app/tools/serve.mjs",
-        "{workspaceRoot}/.husky/pre-push"
+        "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
       ],
-      "options": {
-        "commands": [
-          {
-            "command": "node --check metrics.mjs && node --check policy.mjs && node --check evidence.mjs && node --check session.mjs && node --check guard.mjs && node --check cli-application.mjs && node --check cli.mjs && node --check metrics-policy.test.mjs && node --check resource-guard.integration.test.mjs",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "node --check ../../apps/bnest-app/tools/release.mjs && node --check ../../apps/bnest-app/tools/resource-monitor.mjs && node --check ../../apps/bnest-app/tools/serve.mjs && zsh -n ../../.husky/pre-push",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "npm exec -- prettier --check . ../../apps/bnest-app/tools/release.mjs ../../apps/bnest-app/tools/resource-monitor.mjs ../../apps/bnest-app/tools/serve.mjs",
-            "forwardAllArgs": false
-          }
-        ],
-        "cwd": "tools/resource-guard",
-        "forwardAllArgs": false,
-        "parallel": false
-      }
+      "options": { "cwd": "tools/resource-guard" }
+    },
+    "format": {
+      "command": "gofmt -w .",
+      "options": { "cwd": "tools/resource-guard" }
+    },
+    "lint": {
+      "command": "test -z \"$(gofmt -l .)\" && go vet ./... && go tool golangci-lint run ./...",
+      "options": { "cwd": "tools/resource-guard" }
+    },
+    "security": {
+      "command": "go tool govulncheck ./...",
+      "options": { "cwd": "tools/resource-guard" },
+      "cache": false
     },
     "test:unit": {
-      "command": "node --test metrics-policy.test.mjs",
-      "options": {
-        "cwd": "tools/resource-guard"
-      },
-      "cache": true
+      "command": "go test ./tests/unit",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "tools/resource-guard" }
     },
     "test:integration": {
-      "command": "node --test resource-guard.integration.test.mjs",
-      "options": {
-        "cwd": "tools/resource-guard"
-      },
+      "command": "go test ./tests/integration",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "tools/resource-guard" },
+      "cache": false
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "command": "RESOURCE_GUARD_BIN=$PWD/dist/resource-guard go test ./tests/e2e",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "tools/resource-guard" },
       "cache": false
     },
     "test:coverage:unit": {
-      "command": "node --experimental-test-coverage --test --test-coverage-include=metrics.mjs --test-coverage-include=policy.mjs --test-coverage-include=cli-application.mjs --test-coverage-lines=99 metrics-policy.test.mjs",
-      "options": {
-        "cwd": "tools/resource-guard"
-      },
-      "cache": true
+      "command": "mkdir -p coverage && go test -coverpkg=./internal/policy -coverprofile=coverage/unit.out ./tests/unit && go run ./tests/coverage --profile coverage/unit.out --files internal/policy/policy.go --minimum 99",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "tools/resource-guard" },
+      "outputs": ["{projectRoot}/coverage/unit.out"]
     },
-    "test:coverage:integration": {
-      "command": "node --experimental-test-coverage --test --test-coverage-include=evidence.mjs --test-coverage-include=guard.mjs --test-coverage-include=session.mjs --test-coverage-lines=99 resource-guard.integration.test.mjs",
-      "options": {
-        "cwd": "tools/resource-guard"
-      },
-      "cache": false
+    "test:coverage:behaviour": {
+      "command": "go test ./tests/bdd",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/tools/resource-guard/behaviours/**/*"
+      ],
+      "options": { "cwd": "tools/resource-guard" }
     },
     "test:coverage": {
       "executor": "nx:run-commands",
@@ -99,7 +83,7 @@
             "forwardAllArgs": false
           },
           {
-            "command": "npm exec -- nx run -p resource-guard -t test:coverage:integration",
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour",
             "forwardAllArgs": false
           }
         ],
@@ -135,6 +119,10 @@
       "options": {
         "commands": [
           {
+            "command": "npm exec -- nx run -p resource-guard -t typecheck",
+            "forwardAllArgs": false
+          },
+          {
             "command": "npm exec -- nx run -p resource-guard -t lint",
             "forwardAllArgs": false
           },
@@ -144,6 +132,10 @@
           },
           {
             "command": "npm exec -- nx run -p resource-guard -t test:coverage:unit",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p resource-guard -t test:coverage:behaviour",
             "forwardAllArgs": false
           }
         ],

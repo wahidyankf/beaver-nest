@@ -1,0 +1,60 @@
+#!/bin/sh
+set -eu
+
+tool_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cache_root=${BNEST_RESOURCE_BUILD_CACHE:-"$tool_dir/.cache"}
+goos=$(go env GOOS)
+goarch=$(go env GOARCH)
+
+source_hash=$(
+  cd "$tool_dir"
+  find cmd internal -type f -name '*.go' -print | LC_ALL=C sort | xargs shasum -a 256
+  shasum -a 256 go.mod go.sum 2>/dev/null || shasum -a 256 go.mod
+)
+source_hash=$(printf '%s' "$source_hash" | shasum -a 256 | awk '{print $1}')
+binary_dir="$cache_root/$goos-$goarch/$source_hash"
+binary="$binary_dir/resource-guard"
+lock="$binary_dir.lock"
+
+if [ ! -x "$binary" ]; then
+  mkdir -p "$cache_root/$goos-$goarch"
+  attempts=0
+  while ! mkdir "$lock" 2>/dev/null; do
+    if [ -f "$lock/pid" ]; then
+      lock_pid=$(sed -n '1p' "$lock/pid" 2>/dev/null || true)
+      case "$lock_pid" in
+        ''|*[!0-9]*) ;;
+        *)
+          if ! kill -0 "$lock_pid" 2>/dev/null; then
+            rm -f -- "$lock/pid"
+            rmdir "$lock" 2>/dev/null || true
+            continue
+          fi
+          ;;
+      esac
+    fi
+    attempts=$((attempts + 1))
+    if [ "$attempts" -ge 300 ]; then
+      echo "resource-guard bootstrap timed out waiting for its build lock" >&2
+      exit 75
+    fi
+    sleep 1
+  done
+  printf '%s\n' "$$" > "$lock/pid"
+  trap 'rm -f -- "$lock/pid"; rmdir "$lock" 2>/dev/null || true' EXIT HUP INT TERM
+  if [ ! -x "$binary" ]; then
+    mkdir -p "$binary_dir"
+    temporary="$binary.tmp.$$"
+    (
+      cd "$tool_dir"
+      GOMAXPROCS=2 go build -p=1 -trimpath -o "$temporary" ./cmd/resource-guard
+    )
+    chmod 700 "$temporary"
+    mv "$temporary" "$binary"
+  fi
+  rm -f -- "$lock/pid"
+  rmdir "$lock"
+  trap - EXIT HUP INT TERM
+fi
+
+exec "$binary" "$@"

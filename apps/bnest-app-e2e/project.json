@@ -55,7 +55,7 @@
       "cache": false
     },
     "test:e2e": {
-      "command": "node apps/bnest-app-e2e/tools/run-e2e.mts",
+      "command": "BNEST_E2E_PORT=${BNEST_E2E_PORT:-4010} tools/resource-guard/resource-guard run --class ephemeral --lease-port ${BNEST_E2E_PORT:-4010} --lease-owner e2e --lease-min 4010 --lease-max 4019 -- node apps/bnest-app-e2e/tools/run-e2e.mts",
       "dependsOn": ["test:coverage:behaviour"],
       "cache": false
     },

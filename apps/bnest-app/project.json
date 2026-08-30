@@ -6,7 +6,7 @@
   "implicitDependencies": ["ex-bdd", "resource-guard"],
   "targets": {
     "serve": {
-      "command": "node tools/serve.mjs",
+      "command": "BNEST_STABLE=${BNEST_STABLE:-true} PORT=${BNEST_DEV_PORT:-4020} ../../tools/resource-guard/resource-guard run --class service --disk-path ../.. --lease-port ${BNEST_DEV_PORT:-4020} --lease-owner development --lease-min 4020 --lease-max 4029 -- mix phx.server",
       "options": {
         "cwd": "apps/bnest-app"
       },
@@ -26,15 +26,7 @@
             "forwardAllArgs": false
           },
           {
-            "command": "node --check tools/serve.mjs",
-            "forwardAllArgs": false
-          },
-          {
             "command": "node --check tools/verify-liveview.mjs",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "node --check tools/resource-monitor.mjs",
             "forwardAllArgs": false
           }
         ],
@@ -45,7 +37,7 @@
       "cache": false
     },
     "release:run": {
-      "command": "node tools/release.mjs",
+      "command": "../../tools/resource-guard/resource-guard run --class transactional --disk-path ../.. -- node tools/release.mjs",
       "options": {
         "cwd": "apps/bnest-app",
         "forwardAllArgs": true
