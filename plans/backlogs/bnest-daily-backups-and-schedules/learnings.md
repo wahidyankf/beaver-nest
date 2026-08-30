@@ -13,6 +13,9 @@
 - 2026-08-30: Expiration supports `never`, absolute UTC time, and a unique-occurrence limit. Retries do not consume extra occurrences; production backup is fixed `never`.
 - 2026-08-30: Backup defaults to Git-ignored repository `data/backup/` so immutable completed snapshots sync through Dropbox while live SQLite remains outside it; admins may choose a safe override.
 - 2026-08-30: Retention is fixed to the newest verified owned pair on each of the latest seven WIB dates, preventing repeated same-day setup runs from growing the folder.
+- 2026-08-30: The current managed release rejects non-empty migration manifests without an approved adapter, so execution adds `bnest-persistent-schedules-v1` and proves it before candidate startup.
+- 2026-08-30: Destination ownership is an exact marker/receipt contract joined by a random destination ID; an absent marker never causes pre-existing files to be adopted.
+- 2026-08-30: Presentation labels and fixed WIB metadata remain code-owned in the scheduler registry instead of being duplicated in SQLite.
 
 ## Technical Findings
 
@@ -23,6 +26,8 @@
 - Expiry and occurrence increments belong in the same immediate claim transaction as the unique slot barrier.
 - WIB is fixed at UTC+07:00 and has no daylight-saving transition, allowing deterministic daily arithmetic without an IANA timezone package.
 - SQLite `VACUUM INTO` creates a consistent snapshot, but interrupted output may be incomplete and therefore requires partial naming plus independent verification.
+- The existing `/data/*` ignore rule already covers `data/backup/`; execution verifies it with `git check-ignore` rather than adding a redundant ignore pattern.
+- The first seeded slot must be the latest eligible daily instant at or before expansion so a headless rollout catches up once instead of waiting a day.
 
 ## Delivery Questions
 

@@ -30,7 +30,7 @@
 
 - [ ] **[AI] [AC-02, AC-03, AC-05, AC-06, AC-09, AC-11] Expand the SQLite schema**
   - Input: persistent schedule/run model and release migration adapter.
-  - Action: add contextual schedules, expiration/counter constraints, run occurrences, due/context indexes, seed/reconcile the fixed-never-expiring backup schedule, and refuse destructive down migration with records.
+  - Action: add contextual schedules, expiration/counter constraints, unique run IDs, run occurrences, due/context indexes, and the approved `bnest-persistent-schedules-v1` release adapter; seed/reconcile the fixed-never-expiring backup schedule from the latest eligible slot and refuse destructive down migration with records.
   - Outcome: current release ignores compatible tables; candidate can prove them before startup.
   - Proof: migration tests cover empty upgrade, repeat reconciliation, incompatible rows, and protected rollback.
 - [ ] **[AI] [AC-02, AC-03, AC-05, AC-09, AC-11] Implement generic OTP coordination**
@@ -52,8 +52,8 @@
 ## Phase 3 — Verified Backup and Admin Dashboard
 
 - [ ] **[AI] [AC-01, AC-04, AC-05, AC-08] Implement private backup ownership**
-  - Input: `@data/backup/` default, optional pointer, protected-root exception, Git-ignore rule, permissions, marker, naming, and seven-WIB-day policy.
-  - Action: add headless default resolution, atomic override, exact-repository-path validation, private partial/final ownership, receipts, one-pair-per-date retention, and current-folder-only cleanup.
+  - Input: `@data/backup/` default, optional pointer, protected-root exception, existing `/data/*` Git-ignore rule, exact JSON contracts, permissions, marker, naming, and seven-WIB-day policy.
+  - Action: add headless default resolution, atomic override, exact-repository-path validation, destination-ID-bound partial/final ownership, receipts, one-pair-per-date retention, current-folder-only cleanup, and `git check-ignore` release/readiness proof.
   - Outcome: closed snapshots sync through Dropbox while Bnest writes/deletes only exact ignored owned files; live SQLite stays outside Dropbox.
   - Proof: tests cover missing config default, tracked-file rejection, symlinks, other repository paths, source overlap, partial sync/recovery, same-day supersession, date boundaries, unknown files, repeated saves, and destination changes.
 - [ ] **[AI] [AC-01, AC-04, AC-05] Implement the backup handler**
@@ -78,7 +78,7 @@
   - Proof: rules-propagation verification and guarded repository gate pass.
 - [ ] **[AI] [AC-01..11] Update the canonical Bnest C4 model**
   - Input: final as-built settings, scheduler, live SQLite, Dropbox-synced backup folder, authorization, and Caddy relationships.
-  - Action: update `specs/apps/bnest/app/architecture.md` system-context, container, component, data-store, sync/trust-boundary, and searchable constraint content in the same implementation phase.
+  - Action: update `specs/apps/bnest/app/architecture.md` System Context with Administrator/Dropbox sync, Container View with the backup folder and schedule rows, Component View with settings/coordinator/supervisor/registry/backup proof, and Architectural Constraints with source, authorization, additive overlap, ownership, and no-download rules.
   - Outcome: the canonical C4 model describes only the delivered architecture and links the new durable behavior.
   - Proof: architecture/specification maintenance checks and guarded repository gate pass.
 - [ ] **[AI] [AC-01..11] Checkpoint phase 3**
@@ -96,7 +96,7 @@
   - Proof: routed health and revision evidence are captured.
 - [ ] **[AI] [AC-01..11] Apply expansion and start an independent candidate**
   - Input: approved `bnest-persistent-schedules-v1` adapter and built release artifact.
-  - Action: apply/verify schema expansion, start candidate separately, and prove schema, scheduler liveness, allowlist reconciliation, admin denial, and isolated backup smoke.
+  - Action: use managed `release:run` to apply/retry/verify the manifest-bound adapter under the release/storage locks, start the candidate separately, and prove schema, scheduler liveness, allowlist reconciliation, admin denial, and isolated backup smoke.
   - Outcome: candidate is compatible before receiving active traffic.
   - Proof: candidate health/revision plus direct schedule/backup evidence pass.
 - [ ] **[AI] [AC-06, AC-07, AC-10] Promote through Caddy and prove recovery**
@@ -124,7 +124,7 @@
 
 - [ ] **[AI] [AC-01..11] Reconcile documentation and evidence**
   - Input: implementation diff, accepted criteria, release evidence, and value-free first-backup receipt.
-  - Action: update plan docs, application/E2E READMEs, `.gitignore`, runtime-data governance through rules propagation, specs, maps, and learnings; remove stale assumptions.
+  - Action: update plan docs, application/E2E READMEs, runtime-data governance through rules propagation, specs, maps, and learnings; verify the existing `/data/*` ignore rule covers the backup root and remove stale assumptions.
   - Outcome: repository documentation matches delivered behavior.
   - Proof: links, maps, plan gate, repo tests, and affected quality gates pass.
 - [ ] **[AI] [AC-01..11] Checkpoint phase 5**

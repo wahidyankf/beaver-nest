@@ -1,7 +1,9 @@
 # Bnest Daily Backups and Schedules
 
-**Status:** Backlog  
-**Created:** 2026-08-30
+- **Status:** Backlog
+- **Created:** 2026-08-30
+- **Last reviewed:** 2026-08-30 against current `main`
+- **Readiness:** Ready for execution; plan quality gate passed 2026-08-30
 
 ## Context
 
@@ -25,7 +27,7 @@ Bn​est's production SQLite database is authoritative but has no application-ma
 
 ## Approach
 
-An OTP coordinator uses a process timer only to wake up. SQLite remains authoritative for contextual schedule definitions, unique run claims, leases, retry state, and safe outcomes. Every allowlisted daily handler in either context reuses the same coordinator, tables, and supervised runner. The backup handler creates a transactionally consistent SQLite snapshot with `VACUUM INTO`, verifies it independently, writes a value-free receipt, and retains only owned artifacts.
+An OTP coordinator uses a process timer only to wake up. SQLite remains authoritative for contextual schedule definitions, unique run claims, leases, retry state, and safe outcomes. Every allowlisted daily handler in either context reuses the same coordinator, tables, and supervised runner. The backup handler creates a transactionally consistent SQLite snapshot with `VACUUM INTO`, verifies it independently, writes a value-free receipt, and retains only artifacts tied to the current destination marker.
 
 The admin home renders a role-gated **Admin settings** tile plus a **Schedules & backups** shortcut. `/admin/settings` indexes all code-declared admin configuration areas; `/admin/settings/schedules` groups **Family schedules** and **Admin/system schedules** and owns backup parameters. The documented alias `@data/backup/` means repository-root `data/backup/`; completed immutable snapshots there are Dropbox-synced, ignored by Git, and distinct from the live SQLite database outside Dropbox.
 
@@ -33,7 +35,8 @@ No new external dependency is planned. `02:00 WIB` is persisted as the fixed UTC
 
 ## Dependencies
 
-- Existing SQLite authority, storage proof/relocation logic, admin-role enforcement, LiveView, Caddy candidate release flow, and release schema adapters.
+- Existing SQLite authority, storage proof/relocation logic, admin-role enforcement, LiveView, and Caddy candidate release flow.
+- A new approved `bnest-persistent-schedules-v1` release adapter; the current release controller intentionally rejects undeclared non-empty migration sets.
 - A private writable repository `data/backup/` default or safe admin-selected override.
 - No package-manifest or lockfile change.
 
