@@ -65,11 +65,13 @@ defmodule BnestAppWeb.Router do
   end
 
   scope "/", BnestAppWeb do
-    pipe_through [:browser, :authenticated_browser, :admin_only]
+    pipe_through [:browser, :admin_only, :authenticated_browser]
 
     live_session :storage_admin,
-      on_mount: [{BnestAppWeb.UserAuth, :require_authenticated_user}] do
+      on_mount: [{BnestAppWeb.UserAuth, :require_admin_user}] do
       live "/storage", StorageLive
+      live "/admin/settings", AdminSettingsLive
+      live "/admin/settings/schedules", AdminScheduleSettingsLive
     end
   end
 

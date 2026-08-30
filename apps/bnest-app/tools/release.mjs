@@ -20,6 +20,20 @@ const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const applicationRoot = resolve(import.meta.dirname, "..");
 const deploymentTool = join(import.meta.dirname, "deployment.mjs");
 const liveViewProofTool = join(import.meta.dirname, "verify-liveview.mjs");
+const persistentSchedulesMigration = {
+  id: "bnest-persistent-schedules-v1",
+  version: 20260830000000,
+  checksum: createHash("sha256")
+    .update(
+      readFileSync(
+        join(
+          applicationRoot,
+          "priv/sqlite_repo/migrations/20260830000000_add_persistent_schedules.exs",
+        ),
+      ),
+    )
+    .digest("hex"),
+};
 const slots = { blue: 4000, green: 4001 };
 
 export const gateManifest = [
@@ -497,9 +511,11 @@ export class MachineHost {
       releaseRevision: revision,
       artifactDigest: digestDirectory(artifact),
       gateEvidenceIds: evidenceIds,
-      compatibleSchemaRange: { minimum: 1, maximum: 1 },
-      migrations: [],
-      migrationSetChecksum: createHash("sha256").update("[]").digest("hex"),
+      compatibleSchemaRange: { minimum: 1, maximum: 2 },
+      migrations: [persistentSchedulesMigration],
+      migrationSetChecksum: createHash("sha256")
+        .update(JSON.stringify([persistentSchedulesMigration]))
+        .digest("hex"),
       nodeVersion: process.version,
     };
     writePrivateJson(join(this.manifestsPath, `${revision}.json`), manifest);
@@ -512,6 +528,11 @@ export class MachineHost {
       join(this.manifestsPath, `${revision}.json`),
     );
     const migrationState = verifyMigrationManifest(manifest);
+    if (migrationState === "declared") {
+      this.deployment("release:migrate", ["--revision", revision]);
+      this.log(`migration applied ${revision}`);
+      return "applied";
+    }
     this.log(`migration ${migrationState} ${revision}`);
     return migrationState;
   }
@@ -867,7 +888,10 @@ export class MachineHost {
 // activation step, so declaring one here never makes a release run it:
 // slot startup must never run migrations implicitly (see
 // BnestApp.Storage.Migration and the `mix bnest.storage.migrate` task).
-const APPROVED_MIGRATION_ADAPTERS = new Set(["flat-files-v1-to-sqlite-v1"]);
+const APPROVED_MIGRATION_ADAPTERS = new Set([
+  "flat-files-v1-to-sqlite-v1",
+  "bnest-persistent-schedules-v1",
+]);
 
 export function verifyMigrationManifest(manifest) {
   const checksum = createHash("sha256")
@@ -886,6 +910,20 @@ export function verifyMigrationManifest(manifest) {
     throw new ReleaseError(
       "migration",
       "Concrete migrations require an approved migration adapter",
+    );
+
+  const persistentScheduleEntries = manifest.migrations.filter(
+    (migration) => migration.id === persistentSchedulesMigration.id,
+  );
+  if (
+    persistentScheduleEntries.length > 1 ||
+    (persistentScheduleEntries.length === 1 &&
+      JSON.stringify(persistentScheduleEntries[0]) !==
+        JSON.stringify(persistentSchedulesMigration))
+  )
+    throw new ReleaseError(
+      "migration",
+      "Persistent schedules migration identity does not match the immutable adapter",
     );
   return "declared";
 }

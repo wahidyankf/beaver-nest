@@ -4,7 +4,9 @@
 
 ## Scope
 
-This project owns the OTP application, Phoenix endpoint and router, LiveViews, Codex process bridge, server-rendered UI, browser assets, Progressive Web App (PWA) manifest and service worker, and the unit and local-only integration adapters for Bnest's canonical Gherkin behavior. It includes the child-friendly `/apps/sifat-allah` revision activity. Browser-level acceptance belongs to [bnest-app-e2e](../bnest-app-e2e/README.md); the reusable Elixir BDD engine belongs to [ex-bdd](../../libs/ex-bdd/README.md).
+This project owns the OTP application, Phoenix endpoint and router, LiveViews, Codex process bridge, server-rendered UI, browser assets, Progressive Web App (PWA) manifest and service worker, and the unit and local-only integration adapters for Bnest's canonical Gherkin behavior. It includes the child-friendly `/apps/sifat-allah` revision activity, the SQLite-backed daily scheduler, and independently verified production SQLite backups. Browser-level acceptance belongs to [bnest-app-e2e](../bnest-app-e2e/README.md); the reusable Elixir BDD engine belongs to [ex-bdd](../../libs/ex-bdd/README.md).
+
+The generic scheduler persists contextual definitions and run claims in authoritative SQLite, dispatches only code-allowlisted handlers through one supervised task pool, renews leases, and fences file publication by attempt. The production backup handler reads the active SQLite source, defaults to the ignored repository `data/backup/`, and accepts a safe absolute override through private `~/.config/bnest/backup.json`. Only admins can open `/admin/settings` or `/admin/settings/schedules`; configuration panels remain code-owned and each domain validates and saves only its allowlisted fields.
 
 ## Setup and Development
 
@@ -127,14 +129,17 @@ The test environment substitutes a deterministic model catalog and session, and 
 - `lib/bnest_app/` contains the OTP application, identity boundary, and typed data repository.
 - `lib/bnest_app/codex/` owns the SDK subprocess protocol and resumable session lifecycle.
 - `lib/bnest_app/storage/` and `lib/bnest_app/data_repository/sqlite_store.ex` own SQLite location validation, the storage pointer, the flat-file backfill adapter, and the phase-aware storage coordinator.
+- `lib/bnest_app/scheduler/` and `lib/bnest_app/scheduler.ex` own daily policy, durable claims, policy-bound inventory, retries, leases, registry dispatch, and coordination.
+- `lib/bnest_app/backup/` owns the private destination pointer, marker, independent snapshot proof, fenced publication, receipts, and seven-WIB-day retention.
+- `lib/bnest_app/admin_config/` declares the typed Admin settings panel registry without storing domain values.
 - `lib/mix/tasks/bnest.storage.*.ex` runs headless migration, relocation, and verified retirement without a browser visit.
-- `lib/bnest_app_web/` contains the endpoint, protected router, authentication/import controllers and LiveViews, chat/learning LiveViews, the admin-only storage LiveView, and components.
+- `lib/bnest_app_web/` contains the endpoint, protected router, authentication/import controllers and LiveViews, chat/learning LiveViews, admin-only storage/settings/schedule LiveViews, and components.
 - `priv/codex/` contains the SDK chat runner and the app-server model discovery helper.
-- `priv/sqlite_repo/migrations/` contains the versioned, committed SQLite DDL.
+- `priv/sqlite_repo/migrations/` contains the versioned, committed SQLite DDL, including persistent schedule and run ledgers.
 - `assets/` contains browser JavaScript, CSS, and declaration boundaries used for strict checking.
 - `config/` contains compile-time and runtime environment configuration.
 - `tools/deployment.mjs` owns machine-local Caddy, release-slot, and rollback primitives.
-- `tools/release.mjs` owns the deterministic release transaction; its adjacent tests and continuity contract prove recovery, serialization, and future resumable multi-client state.
+- `tools/release.mjs` owns the deterministic release transaction and immutable migration identity; its adjacent tests and continuity contract prove recovery, serialization, and future resumable multi-client state.
 - The repository Go resource guard adds routed-service evidence and writes a bounded schema-v2 release summary.
 - `tools/production-origin.mjs` validates the routed HTTPS origin and exposes only its normalized origin and hostname.
 - The repository Go resource guard owns bounded development and E2E listener leases before either runtime starts.

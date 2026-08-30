@@ -6,6 +6,7 @@ defmodule BnestAppWeb.UserAuth do
 
   alias BnestApp.DataRepository
   alias BnestApp.Identity
+  alias BnestApp.Identity.FileStore
 
   @identity_cookie "_bnest_identity"
   @legacy_transition_user %{
@@ -85,6 +86,22 @@ defmodule BnestAppWeb.UserAuth do
 
       _missing ->
         {:halt, Phoenix.LiveView.redirect(socket, to: "/login")}
+    end
+  end
+
+  def on_mount(:require_admin_user, _params, session, socket) do
+    with %{"userId" => user_id} <- session["current_user"],
+         {:ok, %{"roles" => roles} = user} <-
+           FileStore.read_account(DataRepository.store(), user_id),
+         true <- "admin" in roles do
+      {:cont,
+       Phoenix.Component.assign(
+         socket,
+         :current_user,
+         Map.take(user, ~w(userId displayUsername roles))
+       )}
+    else
+      _not_admin -> {:halt, Phoenix.LiveView.redirect(socket, to: "/")}
     end
   end
 

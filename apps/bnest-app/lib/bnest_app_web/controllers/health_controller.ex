@@ -19,6 +19,7 @@ defmodule BnestAppWeb.HealthController do
         conn,
         health
         |> Map.put(:sqliteReady, sqlite_primary?())
+        |> Map.put(:schedulerReady, scheduler_ready?())
         |> Map.put(:storageGeneration, StorageConfig.database_generation())
       )
     else
@@ -44,11 +45,20 @@ defmodule BnestAppWeb.HealthController do
   end
 
   defp storage_query_ready do
-    case SqliteRepo.query("SELECT 1") do
-      {:ok, _result} -> :ok
-      _error -> {:error, :sqlite_not_ready}
+    case SqliteRepo.query("""
+         SELECT COUNT(*) FROM bnest_schedules
+         WHERE schedule_key = 'prod-sqlite-backup-daily'
+           AND handler_key = 'prod_sqlite_backup'
+           AND expiration_kind = 'never'
+         """) do
+      {:ok, %{rows: [[1]]}} ->
+        if scheduler_ready?(), do: :ok, else: {:error, :scheduler_not_ready}
+
+      _error ->
+        {:error, :sqlite_not_ready}
     end
   end
 
+  defp scheduler_ready?, do: BnestApp.Scheduler.ready?()
   defp sqlite_primary?, do: StorageConfig.phase() == :sqlite_primary
 end

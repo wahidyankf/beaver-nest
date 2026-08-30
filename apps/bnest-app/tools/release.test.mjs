@@ -325,7 +325,7 @@ test("returns a non-mutating queued result for lock contention", async () => {
   assert.deepEqual(host.calls, ["preflight", "unlock"]);
 });
 
-test("accepts only an empty checksum-verified migration set", () => {
+test("accepts only checksum-verified approved migration sets", () => {
   const emptyChecksum = createHash("sha256").update("[]").digest("hex");
   assert.equal(
     verifyMigrationManifest({
@@ -342,7 +342,23 @@ test("accepts only an empty checksum-verified migration set", () => {
       }),
     /checksum does not match/u,
   );
-  const approvedMigrations = [{ id: "flat-files-v1-to-sqlite-v1" }];
+  const approvedMigrations = [
+    { id: "flat-files-v1-to-sqlite-v1" },
+    {
+      id: "bnest-persistent-schedules-v1",
+      version: 20260830000000,
+      checksum: createHash("sha256")
+        .update(
+          readFileSync(
+            new URL(
+              "../priv/sqlite_repo/migrations/20260830000000_add_persistent_schedules.exs",
+              import.meta.url,
+            ),
+          ),
+        )
+        .digest("hex"),
+    },
+  ];
   const approvedChecksum = createHash("sha256")
     .update(JSON.stringify(approvedMigrations))
     .digest("hex");
@@ -352,6 +368,23 @@ test("accepts only an empty checksum-verified migration set", () => {
       migrationSetChecksum: approvedChecksum,
     }),
     "declared",
+  );
+  const mismatchedMigrations = [
+    {
+      id: "bnest-persistent-schedules-v1",
+      version: 20260830000000,
+      checksum: "stale",
+    },
+  ];
+  assert.throws(
+    () =>
+      verifyMigrationManifest({
+        migrations: mismatchedMigrations,
+        migrationSetChecksum: createHash("sha256")
+          .update(JSON.stringify(mismatchedMigrations))
+          .digest("hex"),
+      }),
+    /immutable adapter/u,
   );
   const declaredMigrations = [{ id: "expand-1" }];
   const declaredChecksum = createHash("sha256")
@@ -364,6 +397,19 @@ test("accepts only an empty checksum-verified migration set", () => {
         migrationSetChecksum: declaredChecksum,
       }),
     /approved migration adapter/u,
+  );
+});
+
+test("runs the persistent schedules adapter from the immutable release", () => {
+  const source = readFileSync(
+    new URL("./deployment.mjs", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /case "release:migrate"/u);
+  assert.match(
+    source,
+    /PersistentSchedules\.apply_and_verify!\(DateTime\.utc_now\(\)\)/u,
   );
 });
 

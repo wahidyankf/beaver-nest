@@ -66,6 +66,29 @@
       <span class="chat-entry-arrow" aria-hidden="true">→</span>
     </a>
 
+    <div :if={"admin" in (@current_user["roles"] || [])} class="admin-home-actions">
+      <a href="/admin/settings" class="chat-entry" data-role="admin-settings-entry">
+        <span class="chat-entry-mark" aria-hidden="true"><span>⚙</span></span>
+        <span class="chat-entry-copy">
+          <strong>Admin settings</strong>
+          <small>Review application-owned configuration</small>
+        </span>
+        <span class="chat-entry-arrow" aria-hidden="true">→</span>
+      </a>
+      <a
+        href="/admin/settings/schedules"
+        class="chat-entry"
+        data-role="admin-schedules-entry"
+      >
+        <span class="chat-entry-mark" aria-hidden="true"><span>◷</span></span>
+        <span class="chat-entry-copy">
+          <strong>Schedules &amp; backups</strong>
+          <small>Daily jobs and production database protection</small>
+        </span>
+        <span class="chat-entry-arrow" aria-hidden="true">→</span>
+      </a>
+    </div>
+
     <p :if={@current_user["migrationMode"]} class="home-note">
       Your existing chat and learning progress remain in this browser during migration.
     </p>

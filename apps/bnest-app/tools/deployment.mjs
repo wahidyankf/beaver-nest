@@ -40,6 +40,9 @@ switch (command) {
   case "release:build":
     buildRelease();
     break;
+  case "release:migrate":
+    migrateRelease();
+    break;
   case "deploy:prepare":
     prepareSlot(requiredSlot());
     break;
@@ -352,6 +355,40 @@ function prepareSlot(slot) {
   run("launchctl", ["bootstrap", domain, plistPath]);
   awaitReady(slot, revision);
   writeAtomic(slotMetadataPath(slot), JSON.stringify({ revision }) + "\n");
+}
+
+function migrateRelease() {
+  const revision =
+    argumentValue("--revision") ||
+    fail("--revision is required; run release:build first.");
+  const runtimeRoot = requiredEnvironment("BNEST_RUNTIME_ROOT");
+  const cookieFile = requiredEnvironment("BNEST_DEPLOY_COOKIE_FILE");
+  const secretKeyBaseFile = requiredEnvironment(
+    "BNEST_DEPLOY_SECRET_KEY_BASE_FILE",
+  );
+  const productionOrigin = requiredProductionOrigin();
+  const release = join(paths.releases, revision);
+  if (!existsSync(release)) fail(`Release ${revision} does not exist.`);
+
+  run(
+    join(release, "bin", "bnest_app"),
+    [
+      "eval",
+      "BnestApp.Release.Migrations.PersistentSchedules.apply_and_verify!(DateTime.utc_now())",
+    ],
+    {
+      env: {
+        ...process.env,
+        BNEST_STABLE: "true",
+        BNEST_RUNTIME_ROOT: runtimeRoot,
+        BNEST_COOKIE_SECURE: "true",
+        PHX_HOST: productionOrigin.host,
+        RELEASE_DISTRIBUTION: "none",
+        RELEASE_COOKIE: readFileSync(cookieFile, "utf8").trim(),
+        SECRET_KEY_BASE: readFileSync(secretKeyBaseFile, "utf8").trim(),
+      },
+    },
+  );
 }
 
 function slotMetadataPath(slot) {

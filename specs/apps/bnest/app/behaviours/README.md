@@ -9,3 +9,4 @@ The `.feature` files in this directory form the canonical executable behavior co
 - [Centralized data](centralized_data.feature) specifies confirmed browser import and server-owned continuation.
 - [Sifat Allah](sifat_allah.feature) specifies the authenticated user-owned learning activity.
 - [SQLite storage](sqlite_storage.feature) specifies config/data separation, local database migration, relocation, activation, and verified legacy cleanup.
+- [Scheduled backups](scheduled_backups.feature) specifies contextual daily schedules, verified SQLite backups, retention, typed admin configuration, and authorization.

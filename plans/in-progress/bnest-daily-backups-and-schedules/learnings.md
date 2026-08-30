@@ -19,8 +19,9 @@
 
 ## Technical Findings
 
+- 2026-08-30 execution baseline: active blue route, local/routed readiness, SQLite readiness, and ten-client LiveView reconnect were green before application edits; 98 GiB repository-volume space was available.
 - Process timers are ephemeral; persistence must come from SQLite reconciliation, not from a timer surviving restart.
-- A unique `(schedule_key, scheduled_for)` claim plus a short immediate SQLite transaction is the duplicate barrier during Caddy blue/green overlap.
+- A unique `(schedule_key, claim_key)` claim plus a short immediate SQLite transaction is the duplicate barrier during Caddy blue/green overlap; scheduled claims derive `claim_key` from `scheduled_for`.
 - A code allowlist must resolve stored handler keys so database content can never select arbitrary modules or functions.
 - Context is persisted classification and an enforced presentation boundary, not a replacement for server-side role authorization.
 - Expiry and occurrence increments belong in the same immediate claim transaction as the unique slot barrier.

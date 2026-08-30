@@ -1,9 +1,9 @@
 # Bnest Daily Backups and Schedules
 
-- **Status:** Backlog
+- **Status:** In progress
 - **Created:** 2026-08-30
 - **Last reviewed:** 2026-08-30 against current `main`
-- **Readiness:** Ready for execution; plan quality gate passed 2026-08-30
+- **Readiness:** Execution started 2026-08-30 after the plan quality gate passed
 
 ## Context
 

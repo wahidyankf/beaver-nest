@@ -31,8 +31,16 @@ defmodule BnestApp.Application do
 
   defp repository_children do
     case Application.get_env(:bnest_app, :runtime_root) do
-      nil -> []
-      root -> [{BnestApp.DataRepository, root: root}, BnestApp.Identity]
+      nil ->
+        []
+
+      root ->
+        [
+          {BnestApp.DataRepository, root: root},
+          BnestApp.Identity,
+          {Task.Supervisor, name: BnestApp.Scheduler.Tasks},
+          BnestApp.Scheduler
+        ]
     end
   end
 end

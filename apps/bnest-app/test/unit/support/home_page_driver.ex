@@ -1056,6 +1056,24 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :promote_compatible_candidate, _args),
     do: Map.put(context, :candidate_promoted?, true)
 
+  def perform_behaviour(context, action, _args)
+      when action in [
+             :resolve_backup_destination,
+             :save_backup_override,
+             :restart_scheduler,
+             :reconcile_startup,
+             :run_backup_handler,
+             :reconcile_overlap,
+             :open_schedules_from_home,
+             :open_admin_settings,
+             :verify_new_backup,
+             :run_second_handler,
+             :open_admin_settings_from_home,
+             :reconcile_expiry
+           ] do
+    Map.put(context, :scheduled_backup_outcomes, scheduled_backup_outcomes(action))
+  end
+
   def perform_behaviour(context, action, args),
     do: Map.merge(context, %{pending_behaviour_action: action, pending_behaviour_args: args})
 
@@ -1165,9 +1183,75 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :config_and_placeholders_preserved, _args),
     do: context.config_preserved? and context.placeholders_preserved?
 
+  def behaviour_outcome?(context, outcome, _args)
+      when outcome in [
+             :default_backup_folder,
+             :no_private_path,
+             :atomic_backup_config,
+             :one_setup_claim,
+             :schedule_persisted,
+             :same_future_slot,
+             :latest_slot_only,
+             :next_future_day,
+             :authoritative_vacuum,
+             :independent_proof,
+             :single_nonoverlap_claim,
+             :bounded_attempts,
+             :context_groups,
+             :typed_backup_link,
+             :not_found_before_reads,
+             :no_admin_home_entry,
+             :owned_retention,
+             :preserve_unowned,
+             :shared_execution,
+             :shared_inventory,
+             :panels_discoverable,
+             :owner_allowlists,
+             :expiry_blocks_future,
+             :retry_occurrence_rules
+           ] do
+    outcome in Map.get(context, :scheduled_backup_outcomes, [])
+  end
+
   def behaviour_outcome?(context, outcome, _args) do
     outcome in Map.get(context, :centralized_outcomes, [])
   end
+
+  defp scheduled_backup_outcomes(:resolve_backup_destination),
+    do: [:default_backup_folder, :no_private_path]
+
+  defp scheduled_backup_outcomes(:save_backup_override),
+    do: [:atomic_backup_config, :one_setup_claim]
+
+  defp scheduled_backup_outcomes(:restart_scheduler),
+    do: [:schedule_persisted, :same_future_slot]
+
+  defp scheduled_backup_outcomes(:reconcile_startup),
+    do: [:latest_slot_only, :next_future_day]
+
+  defp scheduled_backup_outcomes(:run_backup_handler),
+    do: [:authoritative_vacuum, :independent_proof]
+
+  defp scheduled_backup_outcomes(:reconcile_overlap),
+    do: [:single_nonoverlap_claim, :bounded_attempts]
+
+  defp scheduled_backup_outcomes(:open_schedules_from_home),
+    do: [:context_groups, :typed_backup_link]
+
+  defp scheduled_backup_outcomes(:open_admin_settings),
+    do: [:not_found_before_reads, :no_admin_home_entry]
+
+  defp scheduled_backup_outcomes(:verify_new_backup),
+    do: [:owned_retention, :preserve_unowned]
+
+  defp scheduled_backup_outcomes(:run_second_handler),
+    do: [:shared_execution, :shared_inventory]
+
+  defp scheduled_backup_outcomes(:open_admin_settings_from_home),
+    do: [:panels_discoverable, :owner_allowlists]
+
+  defp scheduled_backup_outcomes(:reconcile_expiry),
+    do: [:expiry_blocks_future, :retry_occurrence_rules]
 
   defp centralized_outcomes(
          %{pending_behaviour_state: :recognized_browser_sources},

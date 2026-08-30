@@ -4,7 +4,7 @@ defmodule BnestAppWeb.HealthControllerTest do
   import Phoenix.ConnTest
 
   alias BnestApp.DataRepository.StorageCoordinator
-  alias BnestApp.SqliteRepo
+  alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Storage.Config, as: StorageConfig
   alias BnestApp.TestRuntimeRoot
 
@@ -40,14 +40,11 @@ defmodule BnestAppWeb.HealthControllerTest do
     database_path = Path.join(runtime.sqlite_path, "bnest.sqlite3")
     :ok = StorageCoordinator.ensure_started!(database_path)
 
-    migrations_path = Application.app_dir(:bnest_app, "priv/sqlite_repo/migrations")
-
-    {:ok, _versions, _apps} =
-      Ecto.Migrator.with_repo(SqliteRepo, &Ecto.Migrator.run(&1, migrations_path, :up, all: true))
+    :ok = PersistentSchedules.apply_and_verify!(DateTime.utc_now())
 
     pointer = %{
       "schemaVersion" => 1,
-      "databaseDirectory" => runtime.path,
+      "databaseDirectory" => runtime.sqlite_path,
       "databaseFilename" => "bnest.sqlite3",
       "phase" => "sqlite_primary",
       "migrationId" => "flat-files-v1-to-sqlite-v1"

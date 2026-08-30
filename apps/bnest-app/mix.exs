@@ -121,7 +121,12 @@ defmodule BnestApp.MixProject do
     ]
 
     boundary_adapters = [
+      BnestApp.AdminConfig.Registry,
       BnestApp.Application,
+      BnestApp.Backup.Config,
+      BnestApp.Backup.Location,
+      BnestApp.Backup.Receipt,
+      BnestApp.Backup.Run,
       BnestApp.DataRepository.Backup,
       BnestApp.DataRepository.Import,
       BnestApp.DataRepository.Manifest,
@@ -135,6 +140,11 @@ defmodule BnestApp.MixProject do
       BnestApp.Identity.CredentialVerifier,
       BnestApp.Identity.FileStore,
       BnestApp.Identity.Session,
+      BnestApp.Release.Migrations.PersistentSchedules,
+      BnestApp.Scheduler,
+      BnestApp.Scheduler.Registry,
+      BnestApp.Scheduler.Run,
+      BnestApp.Scheduler.Store,
       BnestApp.SqliteRepo,
       BnestApp.Storage.Config,
       BnestApp.Storage.Location,
@@ -145,6 +155,8 @@ defmodule BnestApp.MixProject do
       BnestApp.Storage.Retirement,
       BnestApp.Storage.TestDataCleanup,
       BnestAppWeb.BootstrapController,
+      BnestAppWeb.AdminScheduleSettingsLive,
+      BnestAppWeb.AdminSettingsLive,
       BnestAppWeb.ChatLive,
       BnestAppWeb.DataMigrationLive,
       BnestAppWeb.HealthController,
@@ -184,6 +196,7 @@ defmodule BnestApp.MixProject do
              BnestApp.DataRepository.Normalizer,
              BnestApp.DataRepository.Schema,
              BnestApp.Identity.Authorization,
+             BnestApp.Scheduler.Policy,
              BnestApp.SifatAllah,
              BnestAppWeb.ErrorJSON
            ]}

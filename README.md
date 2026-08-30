@@ -10,6 +10,7 @@ Beaver Nest is in its first implementation stage.
 - Isolated, non-routed local development can opt into hot reload.
 - A persistent Tailscale Serve route reaches a stable loopback Caddy proxy, which promotes immutable Phoenix releases without a manual browser refresh. Bnest now has one-time family-account setup, persistent per-browser login, centralized chat/learning/theme records, and recoverable browser import.
 - Centralized records move from flat files into a private local SQLite database through a headless, checksum-verified migration (`apps/resource-guard/resource-guard run --class transactional -- npm exec -- nx run -p bnest-app -t storage:migrate -- --activate`). The stable pointer remains configuration at `~/.config/bnest/storage.json`, production data defaults to `~/bnest/data/prod/bnest.sqlite3`, and verified legacy flat files are retired only after the routed service proves the relocated database generation.
+- A persistent OTP scheduler stores daily claims, retries, and safe results in SQLite. The never-expiring production backup schedule verifies an independent `VACUUM INTO` snapshot before publishing an owned artifact/receipt pair to the ignored `data/backup/` default; admins manage its WIB time and private destination from **Admin settings → Schedules & backups**.
 
 ## Run locally
 
@@ -84,7 +85,7 @@ plans/       Ideas and plans organized by delivery lifecycle
 
 The app is intended for private access by family devices on a Tailscale network. The development endpoint remains bound to loopback, and the independently managed Tailscale Serve proxy provides private HTTPS access without exposing Phoenix directly to the LAN or public internet.
 
-Never commit user data, documents, database files, credentials, Tailscale auth keys, or backups. The `data/` directory is intentionally ignored except for its directory placeholders; its layout and write rules follow the [runtime flat-file-data convention](repo-governance/conventions/runtime-flat-file-data.md).
+Never commit user data, documents, database files, credentials, Tailscale auth keys, or backups. The `data/` directory is intentionally ignored except for its directory placeholders. `data/backup/` may contain only Bnest-owned verified production SQLite pairs and is synchronized by the host's Dropbox client without becoming authoritative storage; its ownership, retention, and validation rules follow the [runtime flat-file-data convention](repo-governance/conventions/runtime-flat-file-data.md).
 
 For the current architecture, see the [Bnest C4 specification](specs/apps/bnest/app/architecture.md). Proposed future changes belong in the [plans lifecycle](plans/README.md).
 

@@ -6,10 +6,6 @@ Every plan must clearly communicate why it exists, the options and selected deci
 
 Before starting work, confirm that the plan still matches current repository evidence and specifications. Move its folder unchanged to [`../in-progress/`](../in-progress/README.md), update its status, and update both stage indexes in the same change.
 
-## Backlog Plans
-
-- [Bn​est daily backups and schedules](bnest-daily-backups-and-schedules/README.md) — reusable contextual OTP/SQLite schedules, verified daily production backups, and typed admin settings.
-
 ## Directory Map
 
-- [`bnest-daily-backups-and-schedules/`](bnest-daily-backups-and-schedules/README.md)
+This directory currently has no backlog plans.

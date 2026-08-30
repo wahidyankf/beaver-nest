@@ -5,7 +5,14 @@ defmodule BnestApp.SqliteStorageTest do
   alias BnestApp.SqliteRepo
   alias BnestApp.TestRuntimeRoot
 
-  @expected_tables ~w(bnest_records bnest_recovery_sources bnest_migration_runs bnest_migration_items)
+  @expected_tables ~w(
+    bnest_records
+    bnest_recovery_sources
+    bnest_migration_runs
+    bnest_migration_items
+    bnest_schedules
+    bnest_schedule_runs
+  )
   @insert_record_sql """
   INSERT INTO bnest_records
     (record_type, record_key, owner_id, schema_version, revision, payload_json, payload_sha256, inserted_at, updated_at)
@@ -47,7 +54,7 @@ defmodule BnestApp.SqliteStorageTest do
     assert before_schema != []
     assert before_schema == after_schema
     assert before_versions == after_versions
-    assert length(after_versions) == 1
+    assert length(after_versions) == 2
   end
 
   test "accepts a well-formed record and returns it unchanged" do

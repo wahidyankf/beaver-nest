@@ -18,6 +18,122 @@
   themes: false;
 }
 
+.admin-home-actions {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-settings-shell {
+  width: min(72rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+  color: #153f42;
+}
+
+.admin-settings-shell a {
+  color: inherit;
+}
+
+.admin-settings-kicker {
+  margin-top: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.admin-settings-grid,
+.schedule-group {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.admin-settings-panel,
+.schedule-row,
+.settings-form-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border: 2px solid #153f42;
+  border-radius: 1rem;
+  background: #fff9ed;
+  box-shadow: 0.35rem 0.35rem 0 #80c5b8;
+}
+
+.admin-settings-panel span {
+  display: block;
+}
+
+.schedule-row dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.schedule-row dl div {
+  min-width: 0;
+}
+
+.schedule-row dt {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.schedule-row dd {
+  overflow-wrap: anywhere;
+}
+
+.settings-form-card {
+  margin-top: 1.5rem;
+}
+
+.settings-form-card form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.settings-form-card input[type="text"],
+.settings-form-card input[type="time"] {
+  min-height: 2.75rem;
+  border: 2px solid #153f42;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+.settings-form-card button {
+  width: fit-content;
+  min-height: 2.75rem;
+  border-radius: 999px;
+  background: #153f42;
+  color: #fff9ed;
+  padding: 0.65rem 1rem;
+  font-weight: 800;
+}
+
+.admin-settings-error,
+.admin-settings-status {
+  margin-top: 1rem;
+  border-left: 0.4rem solid #e5633d;
+  background: #fff9ed;
+  padding: 0.8rem;
+}
+
+.admin-settings-status {
+  border-left-color: #029e73;
+}
+
+@media (max-width: 52rem) {
+  .schedule-row dl {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 38rem) {
+  .schedule-row dl {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* daisyUI theme plugin.
   We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
   on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */

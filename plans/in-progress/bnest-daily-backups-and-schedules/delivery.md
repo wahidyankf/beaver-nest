@@ -1,5 +1,14 @@
 # Delivery Plan
 
+## Execution Record
+
+- 2026-08-30: Moved from backlog to in progress after the plan quality gate passed; active-service baseline is the blocking prerequisite before application edits.
+- 2026-08-30: Baseline passed: local and routed Caddy were ready on the active blue slot, SQLite readiness was green, ten anonymous LiveViews reconnected without refresh, and the repository volume had 98 GiB available. No application file had been edited.
+- 2026-08-30: Phase 1 red established: recursive behavior coverage bound all 12 scheduled-backup scenarios in unit, integration, and E2E; focused unit execution failed in 17 expected places because scheduler policy and behavior outcomes do not exist yet.
+- 2026-08-30: Phase 1 checkpoint passed: app formatting, E2E lint/typecheck, Badakmini repository validation, and diff checks were green. The root hook correctly rejected an intentionally red checkpoint commit, so the contract and implementation are checkpointed together only after all required gates became green.
+- 2026-08-30: Phases 2 and 3 passed: additive migration/seed reconciliation, contextual claiming, bounded retries, renewable leases, attempt fencing, verified SQLite snapshots, owned retention, admin-only LiveViews, and typed panel discovery are implemented. Unit coverage is 99.24%, integration coverage is 100%, 231 integration tests pass, and all 37 focused desktop/tablet/mobile browser cases pass with connected LiveView.
+- 2026-08-30: Rules propagation added the exact ignored backup-root ownership and retention contract to the canonical runtime-data convention; the existing harness routes already point to that source, and the repository idempotence/links/maps/Mermaid gate passed.
+
 ## Execution Rules
 
 - Execute through the repository plan workflow and keep one task in progress at a time.
@@ -10,17 +19,17 @@
 
 ## Phase 1 — Contracts and Baseline
 
-- [ ] **[AI] [AC-01..11] Add executable behavior contracts**
+- [x] **[AI] [AC-01..11] Add executable behavior contracts**
   - Input: [product requirements](prd.md), current behavior architecture, and adapter conventions.
   - Action: add `scheduled_backups.feature`, both app bindings, exact-origin E2E bindings, and behavior maps; prove every step is bound.
   - Outcome: authorization, context reuse, expiry, typed configuration, persistence, claiming, backup proof, dashboard, and retention are durable specifications.
   - Proof: guarded `bnest-app:test:quick` and affected behavior coverage fail only for missing behavior.
-- [ ] **[AI] [AC-01..11] Add focused red tests**
+- [x] **[AI] [AC-01..11] Add focused red tests**
   - Input: injected clock, isolated SQLite databases, marked temporary destinations, and synthetic identities.
   - Action: cover startup reconciliation, immediate claims, overlap, leases/retries, both contexts, synthetic second handlers, every expiry mode, typed panel allowlists, source selection, receipts, cleanup, route denial, and responsive states.
   - Outcome: tests define the narrow implementation surface without touching production data.
   - Proof: guarded affected Nx targets show the expected red assertions.
-- [ ] **[AI] [AC-01..11] Checkpoint phase 1**
+- [x] **[AI] [AC-01..11] Checkpoint phase 1**
   - Input: complete red contract inventory and rendered UI assets.
   - Action: reconcile file impact, links, maps, and accessibility expectations.
   - Outcome: implementation can proceed without inventing product or failure behavior.
@@ -28,22 +37,22 @@
 
 ## Phase 2 — Persistent Scheduler Expansion
 
-- [ ] **[AI] [AC-02, AC-03, AC-05, AC-06, AC-09, AC-11] Expand the SQLite schema**
+- [x] **[AI] [AC-02, AC-03, AC-05, AC-06, AC-09, AC-11] Expand the SQLite schema**
   - Input: persistent schedule/run model and release migration adapter.
   - Action: add contextual schedules, expiration/counter constraints, unique run IDs, run occurrences, due/context indexes, and the approved `bnest-persistent-schedules-v1` release adapter; seed/reconcile the fixed-never-expiring backup schedule from the latest eligible slot and refuse destructive down migration with records.
   - Outcome: current release ignores compatible tables; candidate can prove them before startup.
   - Proof: migration tests cover empty upgrade, repeat reconciliation, incompatible rows, and protected rollback.
-- [ ] **[AI] [AC-02, AC-03, AC-05, AC-09, AC-11] Implement generic OTP coordination**
+- [x] **[AI] [AC-02, AC-03, AC-05, AC-09, AC-11] Implement generic OTP coordination**
   - Input: `GenServer`, `Process.send_after/3`, named `Task.Supervisor`, injected clock, and code allowlist.
   - Action: implement startup/minute reconciliation, generic registry dispatch, short claims, future advancement, eligible catch-up, absolute/occurrence expiry, leases, no-overlap, and bounded retries.
   - Outcome: SQLite remains authoritative; both contexts share one core and process loss cannot lose, recount, or duplicate work.
   - Proof: coordinator tests pass across restart, two instances, retries, expiry boundaries, and synthetic handlers in both contexts.
-- [ ] **[AI] [AC-06, AC-07, AC-09, AC-11] Expose policy-bound scheduler reads**
+- [x] **[AI] [AC-06, AC-07, AC-09, AC-11] Expose policy-bound scheduler reads**
   - Input: persisted schedules and safe run fields.
   - Action: add admin-grouped and family-only reads for context, cadence, expiry/progress, next run, active state, and last safe result; expose no unscoped public list or path/payload.
   - Outcome: admin inventory is persistent and future family surfaces can reuse only the permitted context.
   - Proof: queries cover both/empty groups, cross-context denial, all expiry modes, enabled, disabled, never-run, retrying, failed, expired, and verified states.
-- [ ] **[AI] [AC-02, AC-03, AC-05, AC-06, AC-07, AC-09, AC-11] Checkpoint phase 2**
+- [x] **[AI] [AC-02, AC-03, AC-05, AC-06, AC-07, AC-09, AC-11] Checkpoint phase 2**
   - Input: green scheduler schema and coordinator tests.
   - Action: run affected guarded quality gates and inspect migration/release compatibility.
   - Outcome: durable scheduling is independently shippable but remains inactive until the backup handler is ready.
@@ -51,37 +60,37 @@
 
 ## Phase 3 — Verified Backup and Admin Dashboard
 
-- [ ] **[AI] [AC-01, AC-04, AC-05, AC-08] Implement private backup ownership**
+- [x] **[AI] [AC-01, AC-04, AC-05, AC-08] Implement private backup ownership**
   - Input: `@data/backup/` default, optional pointer, protected-root exception, existing `/data/*` Git-ignore rule, exact JSON contracts, permissions, marker, naming, and seven-WIB-day policy.
   - Action: add headless default resolution, atomic override, exact-repository-path validation, destination-ID-bound partial/final ownership, receipts, one-pair-per-date retention, current-folder-only cleanup, and `git check-ignore` release/readiness proof.
   - Outcome: closed snapshots sync through Dropbox while Bnest writes/deletes only exact ignored owned files; live SQLite stays outside Dropbox.
   - Proof: tests cover missing config default, tracked-file rejection, symlinks, other repository paths, source overlap, partial sync/recovery, same-day supersession, date boundaries, unknown files, repeated saves, and destination changes.
-- [ ] **[AI] [AC-01, AC-04, AC-05] Implement the backup handler**
+- [x] **[AI] [AC-01, AC-04, AC-05] Implement the backup handler**
   - Input: accepted run claim and authoritative `sqlite_primary` storage config.
   - Action: use `VACUUM INTO`, independent `quick_check`, schema/logical proof, fsync, atomic rename, safe receipts, and classified retry outcomes.
   - Outcome: only a fully verified SQLite snapshot becomes the latest backup.
   - Proof: focused tests interrupt every boundary and preserve the last verified pair.
-- [ ] **[AI] [AC-01, AC-02, AC-06, AC-07, AC-09, AC-10, AC-11] Build Admin settings and schedules**
+- [x] **[AI] [AC-01, AC-02, AC-06, AC-07, AC-09, AC-10, AC-11] Build Admin settings and schedules**
   - Input: selected responsive assets, code-owned panel registry, policy-bound reads, and existing admin-only pipeline.
   - Action: add `/admin/settings`, `/admin/settings/schedules`, role-gated home entries, family/admin-system groups, expiry summaries, independent schedule/backup forms, setup claim, status announcements, and focus handling.
   - Outcome: admins discover all declared settings from home; each owner saves atomically and only admins inspect or change schedules.
   - Proof: LiveView tests cover panel discovery/allowlists, home navigation, contexts, expiry, separate form failures, all states, and pre-read denial for every non-admin class.
-- [ ] **[AI] [AC-01, AC-06, AC-07, AC-09, AC-10, AC-11] Prove the routed journey**
+- [x] **[AI] [AC-01, AC-06, AC-07, AC-09, AC-10, AC-11] Prove the routed journey**
   - Input: exact served application origin and isolated admin/non-admin identities.
   - Action: navigate home → settings → schedules and the shortcut; exercise both context groups, expiry summaries/controls, independent save failures, desktop/tablet/mobile, keyboard, zoom, reduced motion, reconnect, setup/run/failure states, non-admin omission, and direct denial.
   - Outcome: the selected UI works accessibly through real LiveView/WebSocket behavior.
   - Proof: focused guarded E2E passes with connected LiveView and zero real-user access.
-- [ ] **[AI] [AC-01, AC-08, AC-09, AC-10, AC-11] Apply rule propagation**
+- [x] **[AI] [AC-01, AC-08, AC-09, AC-10, AC-11] Apply rule propagation**
   - Input: implemented runtime-backup rule changes and every other rule delta discovered during execution, including a verified empty remainder.
   - Action: apply [rules propagation](../../../repo-governance/workflows/rules-propagation.md), including `repo-governance/conventions/runtime-flat-file-data.md`, and reconcile canonical ownership/harness routes through its idempotence gate.
   - Outcome: the ignored `data/backup/` runtime contract and any other necessary rule changes match implemented behavior exactly; otherwise the relevant delta records a verified no-op.
   - Proof: rules-propagation verification and guarded repository gate pass.
-- [ ] **[AI] [AC-01..11] Update the canonical Bnest C4 model**
+- [x] **[AI] [AC-01..11] Update the canonical Bnest C4 model**
   - Input: final as-built settings, scheduler, live SQLite, Dropbox-synced backup folder, authorization, and Caddy relationships.
   - Action: update `specs/apps/bnest/app/architecture.md` System Context with Administrator/Dropbox sync, Container View with the backup folder and schedule rows, Component View with settings/coordinator/supervisor/registry/backup proof, and Architectural Constraints with source, authorization, additive overlap, ownership, and no-download rules.
   - Outcome: the canonical C4 model describes only the delivered architecture and links the new durable behavior.
   - Proof: architecture/specification maintenance checks and guarded repository gate pass.
-- [ ] **[AI] [AC-01..11] Checkpoint phase 3**
+- [x] **[AI] [AC-01..11] Checkpoint phase 3**
   - Input: green scheduler, backup, route, and UI behavior.
   - Action: update affected project READMEs/spec maps and run affected guarded gates serially.
   - Outcome: implementation is release-ready with documentation synchronized.
@@ -89,7 +98,7 @@
 
 ## Phase 4 — No-downtime Production Rollout
 
-- [ ] **[AI] [AC-01..11] Baseline the active service**
+- [x] **[AI] [AC-01..11] Baseline the active service**
   - Input: current Caddy route, active revision, health, WebSocket, database mode, and free space.
   - Action: record value-free baseline evidence; stop immediately if health is not green.
   - Outcome: promotion and recovery have an authoritative comparison point.
