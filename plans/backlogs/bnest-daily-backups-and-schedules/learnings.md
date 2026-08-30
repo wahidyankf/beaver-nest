@@ -7,6 +7,7 @@
 - 2026-08-30: The schedules dashboard is visible only to a current server-authorized admin.
 - 2026-08-30: Built-in Elixir/OTP owns wake-up, supervision, and task execution. Persistent definitions, claims, leases, retries, and results live in SQLite.
 - 2026-08-30: No Oban, Quantum, cron parser, or timezone dependency is justified for one fixed daily WIB schedule.
+- 2026-08-30: Host cron is also rejected because it would split operational ownership while Bnest would still need the same durable claims, context, history, configuration, and blue/green overlap protection.
 - 2026-08-30: The scheduler core is shared. Persisted `family` and `admin_system` contexts separate product-purpose jobs from operational jobs; production backup is `admin_system`.
 - 2026-08-30: Admin home routes to one typed Admin settings registry; each domain keeps its own validation and persistence rather than a generic key/value store.
 - 2026-08-30: Expiration supports `never`, absolute UTC time, and a unique-occurrence limit. Retries do not consume extra occurrences; production backup is fixed `never`.

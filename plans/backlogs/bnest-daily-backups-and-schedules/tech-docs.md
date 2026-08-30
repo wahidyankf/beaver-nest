@@ -27,6 +27,14 @@ This is smaller than adopting a job framework for allowlisted daily workloads an
 
 Use a code-owned `AdminConfig.Registry` to enumerate typed settings panels. The registry stores no values and accepts no dynamic modules. Each panel declares its key, label, admin authorization, owner module, editable fields, and safe summary in code; its domain performs reads, validation, and atomic save. The initial index registers existing **Data storage** as a link to its owner and **Schedules & backups** as the new panel. Schedule enabled/time and permitted expiry stay in SQLite. An optional destination override stays in private `backup.json`; seven-day retention is code-owned, not editable. Separate owner forms prevent a cross-store partial save.
 
+### Scheduler Alternatives
+
+| Option                                | Benefit                                                                        | Cost or gap                                                                                         | Decision                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| OTP wake-up plus SQLite ledger        | Reuses the runtime and makes claims, history, context, and admin reads durable | Bnest owns a small daily-only coordinator                                                           | Selected for the approved scope             |
+| Oban, Quantum, or another job package | Supplies broader scheduling features                                           | Adds dependencies and abstractions not needed by allowlisted daily jobs                             | Revisit only when scope triggers justify it |
+| Host cron invoking Bnest              | Simple outside-process wake-up                                                 | Splits ownership and still needs in-app claims, context, history, configuration, and overlap safety | Rejected                                    |
+
 ## Architecture
 
 ```mermaid
@@ -60,6 +68,38 @@ flowchart TB
 ## Persistent Scheduling Model
 
 Add an expand-only Ecto migration with these logical tables:
+
+### Logical ERD
+
+```mermaid
+erDiagram
+    direction TB
+    BNEST_SCHEDULES ||--o{ BNEST_SCHEDULE_RUNS : owns
+
+    BNEST_SCHEDULES {
+        text schedule_key PK
+        text handler_key
+        text schedule_context
+        text cadence
+        text expiration_kind
+        integer claimed_occurrences
+        text next_run_at
+        integer revision
+    }
+
+    BNEST_SCHEDULE_RUNS {
+        text schedule_key PK, FK
+        text scheduled_for PK
+        integer schedule_revision
+        integer occurrence_number
+        integer attempt
+        text state
+        text lease_expires_at
+        text artifact_basename
+    }
+```
+
+One schedule owns many historical run slots. The composite run key `(schedule_key, scheduled_for)` is the duplicate barrier; retries update that slot's attempt and state rather than creating another occurrence.
 
 ```sql
 CREATE TABLE bnest_schedules (
@@ -130,6 +170,18 @@ Registry policy declares which schedule fields an admin may edit. Saving enabled
 Every minute, and once at startup, the coordinator opens `Repo.transaction(mode: :immediate)` to serialize writers. It first expires absolute policies whose instant has arrived, without catch-up. It then finds due enabled, unexpired schedules or retryable/expired leases, inserts the unique run claim, increments `claimed_occurrences` once per slot, and advances `next_run_at` atomically. A final `after_occurrences` claim also sets `expired_at` but still dispatches that final run. Retry attempts reuse the occurrence number and never increment it.
 
 When multiple days were missed, startup creates at most one latest-slot catch-up only if the schedule is still unexpired, then moves `next_run_at` forward; it never manufactures obsolete snapshots. A running lease prevents overlap. An expired lease becomes retryable, transient failures receive at most three attempts, and permanent/configuration failures become `failed` or `skipped`. An explicitly editable expired schedule can start a new revision only through a validated admin action that sets a new policy, resets the lifecycle occurrence counter, recomputes the next future run, and explicitly enables it; history remains in the run ledger.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> Running
+    Running --> Verified: proof passes
+    Running --> Retryable: transient failure
+    Retryable --> Running: retry due
+    Running --> Failed: permanent failure
+    Running --> Skipped: policy blocks
+    Retryable --> Failed: attempt limit
+```
 
 Rows contain no absolute path, payload, or user identity. The down migration refuses while schedule/run records exist. Release manifests declare `bnest-persistent-schedules-v1`; managed release applies and verifies expansion before candidate startup, never at slot boot.
 
