@@ -31,3 +31,5 @@ The UI Design section of `tech-docs.md`, or its mapped `tech-docs/ui-design.md` 
 - exact implementation, test, specification, and asset paths through the File Impact section or its split companion.
 
 Each UI-affecting PRD acceptance criterion names its affected routes, rendered states, and supported viewport classes. `delivery.md` traces exploration, selection, implementation, accessibility checks, and a post-implementation manual browser check of that matrix at the exact served origin. Automation, code inspection, inferred layout behavior, and static assets supplement but never replace this proof. Record route, state, viewport class, and pass/fail without private values. Never include real accounts, credentials, cookies, private identifiers, or user data in an asset or evidence.
+
+`delivery.md` also includes the [exploratory and usability passes](../workflows/exploratory-and-usability-testing.md) as required tasks with their `learnings.md` proof; every UI-affecting plan carries them regardless of size.
