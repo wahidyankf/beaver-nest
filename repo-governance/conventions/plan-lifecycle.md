@@ -48,6 +48,8 @@ Every executable non-archived checkbox carries relevant `[AC-...]` labels and:
 
 Prefer `[AI]`; never use `[HUMAN]` to postpone discovery or settled decisions. Split mixed tasks. Each task names input, action, outcome, and proof for a junior. End every phase with a blocking checkpoint.
 
+A checklist item that ships code must express its [red-green-refactor cycle](../workflows/red-green-refactor.md) as separate RED, GREEN, and REFACTOR checkboxes, each naming the exact test path, command, and expected failure or pass; never combine the cycle into one checkbox or into prose.
+
 Give recovery/rollback checkboxes an explicit trigger. Keep them dormant until triggered; otherwise record an evidence-backed `Not triggered` disposition at reconciliation. The verified move completes the separate archival checkbox.
 
 When execution may create, change, move, or delete a repository rule, `delivery.md` must include an `[AI]` task that applies the [rules-propagation workflow](../workflows/rules-propagation.md) to the resulting rule change and records its verification; the workflow's idempotence gate may produce a verified no-op. When execution changes a documented C4 element, `delivery.md` must include an `[AI]` task that updates the exact affected canonical file and view with the final as-built model under the [plan specification-change convention](plan-specification-changes.md).
