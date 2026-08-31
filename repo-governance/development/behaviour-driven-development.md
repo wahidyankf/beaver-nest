@@ -36,7 +36,7 @@ Before completing an observable feature, manually confirm each affected public b
 
 - Use Playwright MCP for affected browser flows against the running application.
 - Use `curl` for affected HTTP endpoints or APIs; when both browser and HTTP/API boundaries change, test both.
-- When a plan adds or changes a live API boundary, make this a required `delivery.md` task: verify each changed endpoint against its declared contract when one exists, and probe its authorization boundary with both an authorized and an unauthorized isolated test identity.
+- When a plan adds or changes a live API boundary, make this a required `delivery.md` task: use `curl` to verify each changed endpoint against its declared contract when one exists, and to probe its authorization boundary with both an authorized and an unauthorized isolated test identity's session.
 - No check is needed when neither boundary is affected; say so in the delivery report.
 - In the handoff, record each check's route or command and observed result.
 

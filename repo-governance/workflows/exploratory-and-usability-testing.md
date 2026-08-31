@@ -1,6 +1,6 @@
 # Exploratory and Usability Testing
 
-Required for any [UI-affecting plan](../conventions/plan-ui-design.md) before completion: two independent passes over the running application, kept in separately labeled sections so a reader always knows which lens produced a finding. Both are passive and non-destructive under [live-service continuity](../development/live-service-continuity.md) and use isolated [test identities](../development/test-identities.md); neither may mutate shared or production state.
+Required for any [UI-affecting plan](../conventions/plan-ui-design.md) before completion: two independent passes over the running application, kept in separately labeled sections so a reader always knows which lens produced a finding. Drive both passes with Playwright MCP against the running application at its exact served origin, across every supported viewport class. Both are passive and non-destructive under [live-service continuity](../development/live-service-continuity.md) and use isolated [test identities](../development/test-identities.md); neither may mutate shared or production state.
 
 ## Exploratory Pass
 
@@ -10,7 +10,7 @@ When a finding reveals correct-but-unspecced behavior, propose it as a new Gherk
 
 ## Usability Pass
 
-Spec-blind. Deliberately ignore specs, source, and design assets; judge only first-time-user perception against Nielsen's ten usability heuristics, a cognitive walkthrough, edge-case UX states (empty, loading, error, zero-result), and responsive usability across every supported viewport class. Record findings under a separate `## Usability findings` section in `learnings.md`; never merge them with exploratory findings.
+Spec-blind. Deliberately ignore specs, source, and design assets; judge only first-time-user perception against Nielsen's ten usability heuristics, a cognitive walkthrough, edge-case UX states (empty, loading, error, zero-result), and responsive usability. Record findings under a separate `## Usability findings` section in `learnings.md`; never merge them with exploratory findings.
 
 When an exploratory and a usability finding describe the same underlying defect, add a short cross-reference note in both sections so the shared root cause is fixed once. A usability-driven spec suggestion follows the same Iron Rule reconciliation as an exploratory spec-gap, labeled separately as usability-sourced.
 
