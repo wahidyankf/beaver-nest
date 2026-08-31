@@ -36,11 +36,10 @@
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); [track tasks](repo-governance/conventions/task-tracking.md). Expect parallel changes to `plans/`, repository rules, and `repo-governance/`; preserve unfamiliar changes.
 - `plans/` require user request, not Plan mode; clarify why, options, decision, execution, proof, and reader-serving shape. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
-- Schema-changing plans include a relational ERD or storage-appropriate data-model diagram plus a field-by-field guide under the [migration convention](repo-governance/conventions/plan-migrations.md); they supplement the exact schema and migration contract.
-- Authority-changing migrations must prove fresh-process product journeys with the prior source unavailable; counts or parity alone are insufficient under the [migration convention](repo-governance/conventions/plan-migrations.md).
+- Under the [migration convention](repo-governance/conventions/plan-migrations.md): schema-changing plans include a relational ERD or storage-appropriate data-model diagram plus a field-by-field guide supplementing the exact schema and migration contract; authority-changing migrations must prove fresh-process product journeys with the prior source unavailable, and counts or parity alone are insufficient.
 - Bnest active-service plans require Caddy candidate/promotion/rollback, continuous routed-responsiveness proof from preflight through drain, compatible LiveView reconnect, authoritative socket-state recovery, and routed WebSocket/revision proof; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
-- Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases.
+- Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases; code-shipping items need RED/GREEN/REFACTOR checkboxes.
 - [Ask last](repo-governance/conventions/last-resort-questions.md); stop after the minimal verified change.
 
 ## Development
@@ -55,7 +54,7 @@
 - Keep [quality gates](repo-governance/development/quality-gates.md) green.
 - Guard all compute-bearing Nx work under `apps/`, `libs/`, and repository-owned tools with [resource-aware development](repo-governance/development/resource-aware-development.md). Exit `75` is transient capacity, not task/test failure: wait, then retry the same guarded command serially without abandoning the objective. Exit `73` requires storage cleanup before retrying; never blind-retry it. Exit `78` means an explicit strict profile or local configuration requires replanning; ordinary work must automatically fall back through `minimal`. Never bypass, parallel-retry, weaken gates, or change class for admission. Recovery/status controls remain direct.
 - Keep `test:e2e` outside `test:quick`; run only affected/UI-accessibility states at the exact origin, wait for connected LiveView, isolate user records, and close task-created tabs/contexts except explicit handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
-- Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at the exact origin and supported viewports before completion; tests/inference never substitute.
+- Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at the exact origin and supported viewports before completion; tests/inference never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/exploratory-and-usability-testing.md).
 - Never test real users; use isolated `test-user-` [identities](repo-governance/development/test-identities.md); inspect production schemas read-only.
 - **Project rule** (except `libs/ex-bdd`): assess/update all relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
 - Update affected project [READMEs](repo-governance/conventions/project-readmes.md).
