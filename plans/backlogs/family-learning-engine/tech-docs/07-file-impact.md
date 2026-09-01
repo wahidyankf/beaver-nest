@@ -127,6 +127,7 @@ apps/bnest-app/test/integration/bnest_app/learning/schema_test.exs              
 apps/bnest-app/test/integration/bnest_app/event_log/event_log_test.exs            [N] append-only triggers, stream version, domain scoping
 apps/bnest-app/test/integration/bnest_app/event_log/dispatcher_test.exs           [N] cursors, resume, idempotence
 apps/bnest-app/test/integration/bnest_app/learning/rebuild_test.exs               [N] byte-identical replay
+apps/bnest-app/test/unit/bnest_app/event_log/catalog_spec_test.exs                [N] registry and catalogue agree
 apps/bnest-app/test/integration/bnest_app/event_log/upcaster_test.exs             [N] event version chain
 apps/bnest-app/test/integration/bnest_app/learning/content_test.exs               [N] sync diff, rejection, retirement
 apps/bnest-app/test/integration/bnest_app/learning/progress_test.exs              [N] mastery, streaks, review
@@ -159,6 +160,8 @@ apps/bnest-app-e2e/README.md                                              [E] do
 ## Specifications and documentation
 
 ```text
+specs/apps/bnest/app/event-catalog.md                                     [N] as-built event vocabulary
+specs/apps/bnest/app/README.md                                            [E] directory map entry
 specs/apps/bnest/app/behaviours/learning.feature                          [N] canonical corpus
 specs/apps/bnest/app/behaviours/sifat_allah.feature                       [E] route change only
 specs/apps/bnest/app/behaviours/README.md                                 [E] directory map entry

@@ -8,9 +8,11 @@ Durable Gherkin contracts: content sync behaviour (AC-01), mission reuse and sin
 
 Durable C4 changes: the new learning context, its data stores, the GraphQL boundary, the event bus relationship, and the removal of the Sifat Allah component.
 
+Durable reference contract: the event catalogue. Event names are a cross-domain vocabulary that later features append against, so the list of legitimate names outlives this plan and belongs in `specs/`, not in a plan document that is archived on completion.
+
 Plan-only outcomes, with their verification task:
 
-- **AC-07 event log as the source of truth** and **AC-07b rebuild from the log.** These are internal guarantees with no user-observable behaviour of their own: a learner cannot tell whether a row was projected or stored directly. They are proven by integration tests rather than product Gherkin. Verified by the Phase 2 event-store, projector-determinism, and rebuild tasks in `delivery.md`.
+- **AC-07 event log as the source of truth** and **AC-07b rebuild from the log.** These are internal guarantees with no user-observable behaviour of their own: a learner cannot tell whether a row was projected or stored directly. They are proven by integration tests rather than product Gherkin. Verified by the Phase 2 event-store, projector-determinism, and rebuild tasks in `delivery.md`. The event catalogue is the exception within AC-07: the vocabulary itself is a durable contract and gets the specification file below.
 - **AC-10 Sifat Allah parity.** This is a statement about an existing corpus, not a new behaviour. Verified by the Phase 4 parity task, which runs the unchanged corpus against the generic runner.
 - **AC-12 active-service rollout.** Deployment behaviour, not product behaviour. Verified by the Phase 6 rollout tasks.
 
@@ -73,6 +75,27 @@ The corpus is preserved as the parity bar for the generic runner. Only its route
 - **Behaviour Traceability:** map the new `learning.feature` and the re-routed `sifat_allah.feature`.
 
 The component-view and constraint updates are owned by the Phase 4 architecture task in `delivery.md`; the removal of the Sifat Allah elements is owned by the Phase 5 contract task, so `specs/` always describes the system as built at that moment.
+
+## `specs/apps/bnest/app/event-catalog.md` `[N]`
+
+The as-built list of every event any domain may append to `bnest_events`. One heading per domain, one table row per event.
+
+```diff
++# Bnest Event Catalog
++
++| Event | Version | Stream | Appended by | Payload | Consumers |
++| ----- | ------- | ------ | ----------- | ------- | --------- |
+```
+
+- Scope: every domain, not only `learning`. This plan writes the `learning` section and the introduction that binds the file to the registry; a later domain adds its own heading to the same file.
+- Authority: `BnestApp.EventLog.Registry` decides what may be appended. This file is the readable projection of that registry, and the drift test keeps the two identical rather than merely similar.
+- = Preserve: no payload example may contain a learner answer or any other real value; examples are synthetic.
+- → Bindings: `apps/bnest-app/test/unit/bnest_app/event_log/catalog_spec_test.exs` parses the tables and compares them with the registry in both directions.
+- ✓ Proof: `GUARD nx run -p bnest-app -t test:unit` fails when an event exists in code but not in the file, and when the file names an event the registry does not register.
+
+## `specs/apps/bnest/app/README.md` `[E]`
+
+- Add an event-catalog entry to the directory map in the same change that adds the file.
 
 ## `specs/apps/bnest/app/behaviours/README.md` `[E]`
 

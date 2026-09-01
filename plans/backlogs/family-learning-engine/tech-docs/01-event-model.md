@@ -82,6 +82,8 @@ An integration test asserts this directly: run a representative workload, checks
 
 Every name below is registered for the `learning` domain. The database checks the `domain.thing` shape; this registry is what makes a name legitimate.
 
+This table is a proposal and dies with the plan. The durable list is `specs/apps/bnest/app/event-catalog.md`, the as-built catalogue for every domain that ever writes to `bnest_events`, and its authority is `BnestApp.EventLog.Registry`, which the append path validates against. A test compares the two in both directions, so an event added in code without a specification row fails, and a documented event with no registration fails too. See [the specification changes](06-specification-changes.md).
+
 Content stream:
 
 | Event                    | Payload                                                                                                 |
