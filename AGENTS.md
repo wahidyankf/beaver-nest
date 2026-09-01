@@ -22,7 +22,7 @@
 ## Version Control
 
 - Push `main` directly under [integration](repo-governance/conventions/integration-path.md).
-- Only `main` persists; delete non-`main` branches/worktrees immediately after integration or abandonment under [integration](repo-governance/conventions/integration-path.md).
+- Only `main` persists; delete non-`main` branches/worktrees immediately after integration or abandonment.
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md). Before committing, inspect and remove prohibited data under [data safety](repo-governance/conventions/public-repository-data-safety.md).
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.
@@ -35,7 +35,7 @@
 - [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); [track tasks](repo-governance/conventions/task-tracking.md); preserve unfamiliar parallel changes under `plans/` and `repo-governance/`.
-- `plans/` require user request, not Plan mode; clarify why, options, decision, execution, proof, and reader-serving shape. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
+- `plans/` require user request, not Plan mode; clarify why, options, decision, execution, proof, and reader-serving shape. Number split tech-doc companions `01-`. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
 - Under the [migration convention](repo-governance/conventions/plan-migrations.md): schema-changing plans need a data-model diagram and field-by-field guide beside the exact contract; authority cutovers must prove fresh-process product journeys with the prior source unavailable, never counts or parity alone.
 - Bnest active-service plans require Caddy candidate/promotion/rollback, continuous routed-responsiveness proof from preflight through drain, compatible LiveView reconnect, authoritative socket-state recovery, and routed WebSocket/revision proof; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
@@ -44,7 +44,7 @@
 
 ## Development
 
-- Prefix shell commands with `rtk` under [the shared RTK instructions](RTK.md), preserving every repository-mandated command form and safety rule.
+- Prefix shell commands with `rtk` under [the shared RTK instructions](RTK.md), preserving repository-mandated command forms and safety rules.
 - Use [English](repo-governance/conventions/language.md).
 - Prefer the standard library and existing repository mechanisms; add an external dependency only under the [dependency-selection standard](repo-governance/development/dependency-selection.md).
 - New tables need [audit columns](repo-governance/conventions/database-audit-columns.md); event logs and projections are exempt.
@@ -57,6 +57,6 @@
 - Keep `test:e2e` outside `test:quick`; run only affected/UI-accessibility states at the exact origin, wait for connected LiveView, isolate user records, and close task-created tabs/contexts except explicit handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
 - Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at the exact origin and supported viewports before completion; tests/inference never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/exploratory-and-usability-testing.md).
 - Never test real users; use isolated `test-user-` [identities](repo-governance/development/test-identities.md); inspect production schemas read-only.
-- **Project rule** (except `libs/ex-bdd`): assess/update all relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
+- **Project rule** (except `libs/ex-bdd`): assess/update relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
 - Update affected project [READMEs](repo-governance/conventions/project-readmes.md).
 - Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md); visible node/state segments are at most 32 graphemes and edge/transition segments at most 24. Scope Badakmini to changed files.

@@ -33,6 +33,8 @@ Each formal plan contains:
 
 Use exactly one technical shape: a single `tech-docs.md`, or `tech-docs/README.md` with mapped companions. Choose by reader needs, cohesion, and navigation: keep one document while it remains coherent; split when distinct responsibilities benefit from their own reading order and ownership; collapse fragments with no distinct job. File length is a review signal, never a requirement or prohibition for either shape. Never keep both shapes or pre-create empty companions. Follow [minimal sufficiency](../principles/minimal-sufficiency.md).
 
+Split companions carry a two-digit reading-order prefix (`01-event-model.md`); `README.md` reads first. Renumber on insertion; order navigation and maps by number. Existing plans adopt this when next materially changed.
+
 Follow [maps](directory-maps.md); plans have no word limit but exclude secrets and sensitive runtime data. Write for juniors. File Impact: exact `[E]` update, `[N]` new, `[M]` moved, `[D]` deleted paths; discover unknowns. Follow applicable [migration](plan-migrations.md), [specification-change](plan-specification-changes.md), [UI-design](plan-ui-design.md) conventions.
 
 PRD Gherkin accepts the plan, not `specs/`; technical docs select durable contracts and delivery proves operational, migration, and rollout criteria.
