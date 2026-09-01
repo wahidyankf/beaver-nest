@@ -6,4 +6,4 @@ See the [Diátaxis reference guidance](https://diataxis.fr/reference/) for the c
 
 ## Directory Map
 
-This directory currently has no entries other than this README.
+- [Glossary](glossary.md) defines the terms used across repository rules, plans, and projects.
