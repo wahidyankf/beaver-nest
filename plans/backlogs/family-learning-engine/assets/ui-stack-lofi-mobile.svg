@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 780" width="390" height="780" role="img" aria-labelledby="t d">
+  <title id="t">Stack alternative, mobile</title>
+  <desc id="d">Lo-fi wireframe of the card-stack alternative for the mission runner: a swipeable deck of question cards with peeking cards behind, answer choices inside the card, and progress and coins deferred until the end of the session.</desc>
+  <rect width="390" height="780" fill="#FFFFFF"/>
+  <rect x="14" y="14" width="362" height="46" rx="6" fill="#F2F2F2" stroke="#333333" stroke-width="2"/>
+  <text x="28" y="43" font-family="system-ui, sans-serif" font-size="15" font-weight="bold" fill="#111111" text-anchor="start">Aqidah Dasar  ·  Sifat Wajib Allah</text>
+  <circle cx="298" cy="37" r="11" fill="#E0E0E0" stroke="#333333" stroke-width="2"/>
+  <text x="316" y="42" font-family="system-ui, sans-serif" font-size="14" font-weight="normal" fill="#111111" text-anchor="start">120 koin</text>
+  <rect x="32" y="98" width="326" height="300" rx="6" fill="#E0E0E0" stroke="#333333" stroke-width="2"/>
+  <rect x="23" y="91" width="344" height="300" rx="6" fill="#F2F2F2" stroke="#333333" stroke-width="2"/>
+  <rect x="14" y="84" width="362" height="300" rx="6" fill="#FFFFFF" stroke="#333333" stroke-width="2"/>
+  <text x="34" y="140" font-family="system-ui, sans-serif" font-size="17" font-weight="bold" fill="#111111" text-anchor="start">Apa arti sifat Wujud?</text>
+  <text x="34" y="170" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#555555" text-anchor="start">Geser untuk soal berikutnya.</text>
+  <rect x="34" y="194" width="322" height="40" rx="6" fill="#F2F2F2" stroke="#333333" stroke-width="2"/>
+  <text x="48" y="220" font-family="system-ui, sans-serif" font-size="15" font-weight="normal" fill="#111111" text-anchor="start">Ada</text>
+  <rect x="34" y="240" width="322" height="40" rx="6" fill="#F2F2F2" stroke="#333333" stroke-width="2"/>
+  <text x="48" y="266" font-family="system-ui, sans-serif" font-size="15" font-weight="normal" fill="#111111" text-anchor="start">Dahulu</text>
+  <rect x="34" y="286" width="322" height="40" rx="6" fill="#F2F2F2" stroke="#333333" stroke-width="2"/>
+  <text x="48" y="312" font-family="system-ui, sans-serif" font-size="15" font-weight="normal" fill="#111111" text-anchor="start">Kekal</text>
+  <rect x="34" y="332" width="322" height="40" rx="6" fill="#F2F2F2" stroke="#333333" stroke-width="2"/>
+  <text x="48" y="358" font-family="system-ui, sans-serif" font-size="15" font-weight="normal" fill="#111111" text-anchor="start">Esa</text>
+  <text x="14" y="434" font-family="system-ui, sans-serif" font-size="15" font-weight="normal" fill="#555555" text-anchor="start">‹  geser  ›</text>
+  <rect x="226" y="414" width="150" height="44" rx="6" fill="#E0E0E0" stroke="#333333" stroke-width="2"/>
+  <text x="301" y="442" font-family="system-ui, sans-serif" font-size="16" font-weight="bold" fill="#111111" text-anchor="middle">Periksa</text>
+  <rect x="14" y="706" width="362" height="44" rx="6" fill="#F2F2F2" stroke="#333333" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="28" y="734" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#555555" text-anchor="start">Kemajuan &amp; koin disembunyikan sampai sesi selesai</text>
+  <text x="14" y="768" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#555555" text-anchor="start">Alternatif C — Tumpukan kartu</text>
+</svg>

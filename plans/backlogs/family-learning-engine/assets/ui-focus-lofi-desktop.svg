@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" width="1280" height="800" role="img" aria-labelledby="t d">
+  <title id="t">Focus alternative, desktop</title>
+  <desc id="d">Lo-fi wireframe of the single-column focus alternative for the mission runner: a top bar with course and coins, a progress bar, one question card, four answer choices stacked vertically, and one primary action. No topic trail is visible.</desc>
+  <rect width="1280" height="800" fill="#FFFFFF"/>
+  <rect x="24" y="24" width="1232" height="46" rx="6" fill="#F2F2F2" stroke="#333333" stroke-width="2"/>
+  <text x="38" y="53" font-family="system-ui, sans-serif" font-size="15" font-weight="bold" fill="#111111" text-anchor="start">Aqidah Dasar  ·  Sifat Wajib Allah</text>
+  <circle cx="1178" cy="47" r="11" fill="#E0E0E0" stroke="#333333" stroke-width="2"/>
+  <text x="1196" y="52" font-family="system-ui, sans-serif" font-size="14" font-weight="normal" fill="#111111" text-anchor="start">120 koin</text>
+  <rect x="360" y="94" width="560" height="12" rx="6" fill="#E0E0E0" stroke="#333333" stroke-width="2"/>
+  <rect x="360" y="94" width="308" height="12" rx="6" fill="#333333" stroke="#333333" stroke-width="2"/>
+  <text x="360" y="126" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#555555" text-anchor="start">Misi 3 dari 8</text>
+  <rect x="360" y="150" width="560" height="120" rx="6" fill="#F2F2F2" stroke="#333333" stroke-width="2"/>
+  <text x="378" y="196" font-family="system-ui, sans-serif" font-size="20" font-weight="bold" fill="#111111" text-anchor="start">Apa arti sifat Wujud?</text>
+  <text x="378" y="228" font-family="system-ui, sans-serif" font-size="14" font-weight="normal" fill="#555555" text-anchor="start">Pilih satu jawaban.</text>
+  <rect x="360" y="292" width="560" height="52" rx="6" fill="#FFFFFF" stroke="#333333" stroke-width="2"/>
+  <text x="378" y="323" font-family="system-ui, sans-serif" font-size="16" font-weight="normal" fill="#111111" text-anchor="start">Ada</text>
+  <rect x="360" y="356" width="560" height="52" rx="6" fill="#FFFFFF" stroke="#333333" stroke-width="2"/>
+  <text x="378" y="387" font-family="system-ui, sans-serif" font-size="16" font-weight="normal" fill="#111111" text-anchor="start">Dahulu</text>
+  <rect x="360" y="420" width="560" height="52" rx="6" fill="#FFFFFF" stroke="#333333" stroke-width="2"/>
+  <text x="378" y="451" font-family="system-ui, sans-serif" font-size="16" font-weight="normal" fill="#111111" text-anchor="start">Kekal</text>
+  <rect x="360" y="484" width="560" height="52" rx="6" fill="#FFFFFF" stroke="#333333" stroke-width="2"/>
+  <text x="378" y="515" font-family="system-ui, sans-serif" font-size="16" font-weight="normal" fill="#111111" text-anchor="start">Esa</text>
+  <rect x="360" y="556" width="560" height="52" rx="6" fill="#E0E0E0" stroke="#333333" stroke-width="2"/>
+  <text x="640" y="588" font-family="system-ui, sans-serif" font-size="17" font-weight="bold" fill="#111111" text-anchor="middle">Periksa</text>
+  <text x="360" y="780" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#555555" text-anchor="start">Alternatif A — Fokus tunggal, tanpa jalur</text>
+</svg>

@@ -8,4 +8,4 @@ Before starting work, confirm that the plan still matches current repository evi
 
 ## Directory Map
 
-This directory currently has no backlog plans.
+- [`family-learning-engine/`](family-learning-engine/README.md) — reusable course, topic, and mission learning engine with coin earning, a GraphQL boundary, a generic mission runner, and the Sifat Allah cutover.

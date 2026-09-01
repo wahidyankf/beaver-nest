@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 780" width="390" height="780" role="img" aria-labelledby="t d">
+  <title id="t">Trail alternative, mobile</title>
+  <desc id="d">Hi-fi design of the selected trail alternative for the mission runner on mobile: course and coin bar, a topic trail showing mastered, current, and upcoming missions with shape and check markers as well as colour, a progress bar, one focused question card, answer choices, and one primary action.</desc>
+  <rect width="390" height="780" fill="#FFFFFF"/>
+  <rect x="14" y="14" width="362" height="46" rx="6" fill="#EAF2F8" stroke="#000000" stroke-width="2"/>
+  <text x="28" y="43" font-family="system-ui, sans-serif" font-size="15" font-weight="bold" fill="#111111" text-anchor="start">Aqidah Dasar  ·  Sifat Wajib Allah</text>
+  <circle cx="298" cy="37" r="11" fill="#CA9161" stroke="#000000" stroke-width="2"/>
+  <text x="316" y="42" font-family="system-ui, sans-serif" font-size="14" font-weight="normal" fill="#111111" text-anchor="start">120 koin</text>
+  <rect x="14" y="84" width="362" height="54" rx="6" fill="#EAF2F8" stroke="#000000" stroke-width="2"/>
+  <text x="28" y="106" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#444444" text-anchor="start">Jalur topik</text>
+  <circle cx="38" cy="122" r="10" fill="#029E73" stroke="#000000" stroke-width="2"/>
+  <text x="38" y="127" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle">✓</text>
+  <line x1="48" y1="122" x2="92" y2="122" stroke="#000000" stroke-width="2" stroke-dasharray="4 4"/>
+  <circle cx="102" cy="122" r="10" fill="#029E73" stroke="#000000" stroke-width="2"/>
+  <text x="102" y="127" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle">✓</text>
+  <line x1="112" y1="122" x2="156" y2="122" stroke="#000000" stroke-width="2" stroke-dasharray="4 4"/>
+  <circle cx="166" cy="122" r="10" fill="#0173B2" stroke="#000000" stroke-width="2"/>
+  <text x="166" y="126" font-family="system-ui, sans-serif" font-size="9" font-weight="bold" fill="#FFFFFF" text-anchor="middle">▶</text>
+  <line x1="176" y1="122" x2="220" y2="122" stroke="#000000" stroke-width="2" stroke-dasharray="4 4"/>
+  <circle cx="230" cy="122" r="10" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
+  <line x1="240" y1="122" x2="284" y2="122" stroke="#000000" stroke-width="2" stroke-dasharray="4 4"/>
+  <circle cx="294" cy="122" r="10" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
+  <rect x="14" y="162" width="362" height="12" rx="6" fill="#D6E9E2" stroke="#000000" stroke-width="2"/>
+  <rect x="14" y="162" width="199" height="12" rx="6" fill="#0173B2" stroke="#000000" stroke-width="2"/>
+  <text x="14" y="194" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#444444" text-anchor="start">Misi 3 dari 8</text>
+  <rect x="14" y="218" width="362" height="96" rx="6" fill="#EAF2F8" stroke="#000000" stroke-width="2"/>
+  <text x="32" y="262" font-family="system-ui, sans-serif" font-size="17" font-weight="bold" fill="#111111" text-anchor="start">Apa arti sifat Wujud?</text>
+  <text x="32" y="292" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#444444" text-anchor="start">Pilih satu jawaban.</text>
+  <rect x="14" y="332" width="348" height="46" rx="6" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
+  <text x="30" y="360" font-family="system-ui, sans-serif" font-size="16" font-weight="normal" fill="#111111" text-anchor="start">Ada</text>
+  <rect x="14" y="390" width="348" height="46" rx="6" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
+  <text x="30" y="418" font-family="system-ui, sans-serif" font-size="16" font-weight="normal" fill="#111111" text-anchor="start">Dahulu</text>
+  <rect x="14" y="448" width="348" height="46" rx="6" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
+  <text x="30" y="476" font-family="system-ui, sans-serif" font-size="16" font-weight="normal" fill="#111111" text-anchor="start">Kekal</text>
+  <rect x="14" y="506" width="348" height="46" rx="6" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
+  <text x="30" y="534" font-family="system-ui, sans-serif" font-size="16" font-weight="normal" fill="#111111" text-anchor="start">Esa</text>
+  <rect x="14" y="574" width="362" height="52" rx="6" fill="#0173B2" stroke="#000000" stroke-width="2"/>
+  <text x="195" y="606" font-family="system-ui, sans-serif" font-size="17" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Periksa</text>
+  <circle cx="24" cy="650" r="9" fill="#029E73" stroke="#000000" stroke-width="2"/>
+  <text x="24" y="654" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle">✓</text>
+  <text x="40" y="655" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#444444" text-anchor="start">dikuasai</text>
+  <circle cx="132" cy="650" r="9" fill="#0173B2" stroke="#000000" stroke-width="2"/>
+  <text x="132" y="654" font-family="system-ui, sans-serif" font-size="9" font-weight="bold" fill="#FFFFFF" text-anchor="middle">▶</text>
+  <text x="148" y="655" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#444444" text-anchor="start">sekarang</text>
+  <circle cx="246" cy="650" r="9" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
+  <text x="262" y="655" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#444444" text-anchor="start">belum</text>
+  <text x="14" y="762" font-family="system-ui, sans-serif" font-size="13" font-weight="normal" fill="#444444" text-anchor="start">Terpilih</text>
+</svg>
