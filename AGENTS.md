@@ -26,7 +26,7 @@
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md). Before committing, inspect and remove prohibited data under [data safety](repo-governance/conventions/public-repository-data-safety.md).
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.
-- Fix root [push hooks](repo-governance/conventions/push-hook-verification.md); never use `--no-verify` without authorization.
+- Fix root [push hooks](repo-governance/conventions/push-hook-verification.md); never use unauthorized `--no-verify`.
 - Space [GitHub polls](repo-governance/conventions/github-polling.md) two minutes.
 
 ## Governance
@@ -34,9 +34,9 @@
 - Keep all coding harnesses aligned under [the contract](repo-governance/conventions/coding-harness-contract.md).
 - [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
-- Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); [track tasks](repo-governance/conventions/task-tracking.md). Expect parallel changes to `plans/`, repository rules, and `repo-governance/`; preserve unfamiliar changes.
+- Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); [track tasks](repo-governance/conventions/task-tracking.md); preserve unfamiliar parallel changes under `plans/` and `repo-governance/`.
 - `plans/` require user request, not Plan mode; clarify why, options, decision, execution, proof, and reader-serving shape. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
-- Under the [migration convention](repo-governance/conventions/plan-migrations.md): schema-changing plans include a relational ERD or storage-appropriate data-model diagram plus a field-by-field guide supplementing the exact schema and migration contract; authority-changing migrations must prove fresh-process product journeys with the prior source unavailable, and counts or parity alone are insufficient.
+- Under the [migration convention](repo-governance/conventions/plan-migrations.md): schema-changing plans need a data-model diagram and field-by-field guide beside the exact contract; authority cutovers must prove fresh-process product journeys with the prior source unavailable, never counts or parity alone.
 - Bnest active-service plans require Caddy candidate/promotion/rollback, continuous routed-responsiveness proof from preflight through drain, compatible LiveView reconnect, authoritative socket-state recovery, and routed WebSocket/revision proof; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
 - Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases; code-shipping items need RED/GREEN/REFACTOR checkboxes.
@@ -47,6 +47,7 @@
 - Prefix shell commands with `rtk` under [the shared RTK instructions](RTK.md), preserving every repository-mandated command form and safety rule.
 - Use [English](repo-governance/conventions/language.md).
 - Prefer the standard library and existing repository mechanisms; add an external dependency only under the [dependency-selection standard](repo-governance/development/dependency-selection.md).
+- New tables need [audit columns](repo-governance/conventions/database-audit-columns.md); event logs and projections are exempt.
 - Bnest is 24/7; obey [continuity](repo-governance/development/live-service-continuity.md); failed health stops work.
 - A commit or push is not a deployment. Before reporting an active-service change complete, verify the routed backend serves the intended revision or behavior; otherwise perform a no-downtime candidate cutover.
 - Before completion, stop unneeded non-production servers, watchers, candidates, and temporary proxies; retain only the active route and bounded drain.

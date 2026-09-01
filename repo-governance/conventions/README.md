@@ -19,6 +19,7 @@ Prefer one canonical convention over repeating the same rule in several document
 
 - [Coding-harness contract](coding-harness-contract.md) keeps repository-owned rules, skills, custom agents, and required capabilities equivalent across supported coding harnesses.
 - [Commit authorization](commit-authorization.md) defines when commits and pushes may be performed.
+- [Database audit columns](database-audit-columns.md) require creation, change, and deletion provenance on every new relational table.
 - [Documentation architecture](documentation-architecture.md) organizes general non-rule documentation under `docs/` with Diátaxis.
 - [GitHub polling](github-polling.md) limits repeated status requests to GitHub to avoid rate-limit pressure.
 - [Directory maps](directory-maps.md) keep governance, documentation, and specification trees self-describing and navigable.
