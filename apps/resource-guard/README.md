@@ -58,7 +58,8 @@ Copy [`resource-guard.local.json.example`](resource-guard.local.json.example) to
 - `internal/guard/` owns evidence, leases, and child supervision. The `heavy.lock` lease serializes `ephemeral` and
   `transactional` work only. A `service` records an inheritable session under `sessions/` without taking that lease, so a
   running development server or a release candidate never starves guarded gates, and two services may run at once. A
-  lease-deferred exit `75` names the holding process and class instead of failing silently.
+  lease-deferred exit `75` names the holding process and class instead of failing silently. An operator interrupt is
+  forwarded to the child group exactly once and escalates to `SIGKILL` after the termination grace.
 - `internal/release/` owns release checks, monitoring, and summary assessment.
 - `tests/contract/` owns the shared strict suite configuration, binding registry, and compliance policy.
 - `tests/support/` keeps thin Gherkin bindings separate from the scenario driver implementation.

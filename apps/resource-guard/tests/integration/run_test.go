@@ -3,6 +3,7 @@ package integration_test
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -89,5 +90,37 @@ func TestGuardInjectsResolvedConcurrencyWithoutOverwritingCaller(t *testing.T) {
 	code, err := guard.Run(guard.RunConfig{Command: "/bin/sh", Arguments: []string{"-c", command}, TaskClass: "ephemeral", EvidenceRoot: t.TempDir(), DiskPath: ".", Collector: collector, Policy: fastPolicy(), Resolution: resolution, Sleep: func(time.Duration) {}, Now: time.Now, Stderr: &bytes.Buffer{}, Environment: environment})
 	if err != nil || code != 0 {
 		t.Fatalf("exit=%d error=%v", code, err)
+	}
+}
+
+func TestInterruptedGuardSignalsOnceThenForceStops(t *testing.T) {
+	base := time.Now()
+	collector := &integrationCollector{samples: []guard.Sample{integrationSample(base), integrationSample(base.Add(time.Millisecond)), integrationSample(base.Add(2 * time.Millisecond))}}
+	policy := fastPolicy()
+	policy.TerminationGrace = 200 * time.Millisecond
+	marker := filepath.Join(t.TempDir(), "terminations")
+	interrupt := make(chan struct{})
+	time.AfterFunc(300*time.Millisecond, func() { close(interrupt) })
+	started := time.Now()
+	_, err := guard.Run(guard.RunConfig{
+		Command:   "/bin/sh",
+		Arguments: []string{"-c", `trap 'printf x >> "$GUARD_TERM_MARKER"' TERM; for attempt in $(seq 1 40); do sleep 0.05; done`},
+		TaskClass: "ephemeral", EvidenceRoot: t.TempDir(), DiskPath: ".", Collector: collector,
+		Policy: policy, Sleep: func(time.Duration) {}, Now: time.Now, Stderr: &bytes.Buffer{},
+		Environment: append(os.Environ(), "GUARD_TERM_MARKER="+marker), Interrupt: interrupt,
+	})
+	elapsed := time.Since(started)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delivered, readError := os.ReadFile(marker)
+	if readError != nil {
+		t.Fatalf("child recorded no termination signal: %v", readError)
+	}
+	if len(delivered) != 1 {
+		t.Fatalf("guard delivered %d termination signals, want exactly 1", len(delivered))
+	}
+	if elapsed > 1500*time.Millisecond {
+		t.Fatalf("a child ignoring SIGTERM was not force-stopped: guard returned after %s", elapsed)
 	}
 }

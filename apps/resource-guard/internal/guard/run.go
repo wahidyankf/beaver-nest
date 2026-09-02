@@ -24,12 +24,14 @@ const (
 
 // RunConfig describes one guarded child process and its resource policy.
 type RunConfig struct {
-	Command                               string
-	Arguments                             []string
-	TaskClass                             string
-	WorkingDirectory                      string
-	Environment                           []string
-	EvidenceRoot                          string
+	Command          string
+	Arguments        []string
+	TaskClass        string
+	WorkingDirectory string
+	Environment      []string
+	EvidenceRoot     string
+	// Interrupt replaces operator signal delivery when set, for deterministic tests.
+	Interrupt                             <-chan struct{}
 	DiskPath                              string
 	LeasePort, LeaseMinimum, LeaseMaximum int
 	LeaseOwner                            string
@@ -259,6 +261,12 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 
 	signalContext, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
+	// A cancelled context keeps its channel closed, so this case must be disabled
+	// after the first delivery or the loop would resignal the child continuously.
+	operatorSignal := signalContext.Done()
+	if config.Interrupt != nil {
+		operatorSignal = config.Interrupt
+	}
 	exited := make(chan error, 1)
 	go func() { exited <- command.Wait() }()
 	ticker := time.NewTicker(config.Policy.SampleInterval)
@@ -288,8 +296,16 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 				return shedCode, nil
 			}
 			return waitStatusCode(waitError), nil
-		case <-signalContext.Done():
+		case <-operatorSignal:
+			operatorSignal = nil
 			signalGroup(command.Process, syscall.SIGTERM)
+			if forceTimer == nil {
+				forceTimer = time.AfterFunc(config.Policy.TerminationGrace, func() {
+					if !childExited.Load() {
+						signalGroup(command.Process, syscall.SIGKILL)
+					}
+				})
+			}
 		case <-ticker.C:
 			reading, collectError := config.Collector.Collect(previous, config.DiskPath)
 			if collectError != nil {

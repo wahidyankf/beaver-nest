@@ -67,6 +67,8 @@ type Driver struct {
 	heavySession        *guard.Session
 	serviceSessions     []*guard.Session
 	inheritedSessions   bool
+	forceStopElapsed    time.Duration
+	terminationSignals  int
 }
 
 // NewDriver returns isolated scenario state for one behavior adapter.
@@ -336,6 +338,57 @@ func (driver *Driver) require17() error {
 	}
 	return nil
 }
+
+func (driver *Driver) stubbornChild() error {
+	root, err := driver.temporaryRoot()
+	if err != nil {
+		return err
+	}
+	driver.leaseRoot = root
+	return nil
+}
+
+func (driver *Driver) interruptGuard() error {
+	base := time.Now()
+	policy := guard.DevelopmentPolicy
+	policy.SampleInterval = time.Millisecond
+	policy.AdmissionWindow = time.Second
+	policy.TerminationGrace = 200 * time.Millisecond
+	policy.LeaseWait = time.Second
+	marker := filepath.Join(driver.leaseRoot, "terminations")
+	interrupt := make(chan struct{})
+	time.AfterFunc(300*time.Millisecond, func() { close(interrupt) })
+	started := time.Now()
+	_, err := guard.Run(guard.RunConfig{
+		Command:   "/bin/sh",
+		Arguments: []string{"-c", `trap 'printf x >> "$GUARD_TERM_MARKER"' TERM; for attempt in $(seq 1 40); do sleep 0.05; done`},
+		TaskClass: "ephemeral", EvidenceRoot: driver.leaseRoot, DiskPath: ".",
+		Collector: &sequenceCollector{samples: []guard.Sample{healthySample(base), healthySample(base.Add(time.Millisecond)), healthySample(base.Add(2 * time.Millisecond))}},
+		Policy:    policy, Sleep: func(time.Duration) {}, Now: time.Now, Stderr: &bytes.Buffer{},
+		Environment: append(os.Environ(), "GUARD_TERM_MARKER="+marker), Interrupt: interrupt,
+	})
+	driver.forceStopElapsed = time.Since(started)
+	if err != nil {
+		return err
+	}
+	delivered, readError := os.ReadFile(marker)
+	if readError != nil {
+		return fmt.Errorf("child recorded no termination signal: %w", readError)
+	}
+	driver.terminationSignals = len(delivered)
+	return nil
+}
+
+func (driver *Driver) requireForceStopped() error {
+	if driver.terminationSignals != 1 {
+		return fmt.Errorf("guard delivered %d termination signals, want exactly 1", driver.terminationSignals)
+	}
+	if driver.forceStopElapsed > 1500*time.Millisecond {
+		return fmt.Errorf("a child ignoring SIGTERM was not force-stopped: guard returned after %s", driver.forceStopElapsed)
+	}
+	return nil
+}
+
 func (driver *Driver) criticalChild()   { driver.exitCode = 75 }
 func (driver *Driver) observeCritical() {}
 func (driver *Driver) requireShed() error {

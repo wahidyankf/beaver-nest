@@ -31,6 +31,12 @@ Feature: Guarded process execution
     Then the guard exits with code 17
 
   @e2e-exempt
+  Scenario: An interrupted guard signals once and then force-stops the child
+    Given an admitted child that ignores termination
+    When the guard is interrupted
+    Then the child is signalled once and force-stopped within the grace
+
+  @e2e-exempt
   Scenario: Critical pressure sheds eligible work
     Given an admitted ephemeral child encounters critical pressure
     When the guard observes the critical sample
