@@ -38,7 +38,6 @@ A verification decision is appended to the **child's** stream, because it change
 Every append carries an expected `stream_version`. `UNIQUE (domain, stream_id, stream_version)` rejects the second writer, which retries by reloading and re-deciding. This replaces row locking and the `revision` column the projections previously carried.
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73
 flowchart TB
     Cmd["Command<br/>Answer, verify, sync"] --> Load["Load learner state<br/>From projection"]
     Load --> Decide["Decide<br/>Invariants checked here"]

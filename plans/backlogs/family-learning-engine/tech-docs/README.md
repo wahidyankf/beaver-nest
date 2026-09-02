@@ -9,7 +9,6 @@ The engine is one new bounded context, `BnestApp.Learning`, on the existing `Bne
 The log itself is shared Bnest infrastructure rather than a learning table. `BnestApp.EventLog` owns appending, cursors, and dispatch for any domain; learning is its first writer.
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73, gray #808080
 flowchart TB
     Corpus["priv/learning corpus<br/>Command input, not truth"] --> Sync["Learning.Content<br/>Sync command handler"]
     Runner["LearnLive<br/>Mission runner"] --> Cmd["Learning.Command<br/>Decide and append"]

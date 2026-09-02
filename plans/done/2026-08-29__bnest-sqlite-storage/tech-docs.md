@@ -36,7 +36,6 @@ Inventory follows only these exact templates, rejects symlinks, and validates th
 ## Target Architecture
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73, gray #808080
 flowchart LR
     admin([Family administrator])
     ui[Storage setup UI]

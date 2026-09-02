@@ -5,7 +5,6 @@ This is the canonical as-built C4 model for Bnest. Maintain it under the reposit
 ## System Context
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, gray #808080
 flowchart TB
     visitor(["Person<br/><b>Family member</b><br/>Uses the private<br/>family application"])
     admin(["Person<br/><b>Administrator</b><br/>Manages schedules<br/>and backup settings"])
@@ -37,7 +36,6 @@ Bnest is a 24/7 family service, private to the local host and family devices rou
 ## Container View
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73, gray #808080
 flowchart TB
     visitor(["Person<br/><b>Family member</b>"])
     admin(["Person<br/><b>Administrator</b>"])
@@ -89,7 +87,6 @@ The Phoenix server, SQLite storage, temporary flat-file migration source, backup
 The managed release controller serializes each clean `origin/main` revision through one fail-closed transaction. Production slots own `4000` and `4001`, Caddy owns `4100`, isolated E2E leases `4010`–`4019`, and development leases `4020`–`4029`. Every managed slot enables secure cookies and account identity cutover, so a logged-out root request follows the login boundary instead of receiving a synthetic legacy user. The controller creates no artifact until every fixed gate passes, refuses an undeclared migration adapter, and leaves the proven route active when only final cleanup needs retrying. A private release-overlap monitor follows the logged-out root-to-login journey while sampling local Caddy health and the exact routed user surface from preflight through drain; schema-v4 evidence rejects any routed failure, p95 latency above 500 ms, or individual sample above 2 seconds without persisting the private origin.
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73
 flowchart TD
     source[Clean origin main] --> gates[Fixed uncached gates]
     gates --> artifact[Immutable artifact]
@@ -112,7 +109,6 @@ flowchart TD
 Current chat continuity combines durable server records with LiveView form auto-recovery: a compatible transport reconnect restores the same route, completed or in-progress conversation, Codex session identity, and unsent composer draft without calling `page.reload()`. An in-progress restored turn retains its pending continuation while policy-driven model normalization remains valid; it is never treated as a user model-selection event. Future multiplayer must use the executable continuity contract below; the contract exists now as a tested release fixture, but no multiplayer product is implemented.
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73
 flowchart TD
     browser[Browser route and draft] --> gateway[LiveView or Channel]
     browser -->|stable session id| session[Authoritative session]
@@ -133,7 +129,6 @@ flowchart TD
 ## Component View
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73, gray #808080
 flowchart TB
     browser(["External container<br/><b>Browser / installed PWA</b>"])
     legacy[("External data store<br/><b>Allow-listed browser sources</b>")]

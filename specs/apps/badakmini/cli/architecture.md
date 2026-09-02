@@ -5,7 +5,6 @@ This is the canonical as-built C4 model for the Badakmini command-line applicati
 ## System Context
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, gray #808080
 flowchart TB
     contributor(["Person<br/><b>Repository contributor</b><br/>Maintains repository content<br/>and runs checks"])
     automation{{"External system<br/><b>Nx tasks and Git hooks</b><br/>Run checks during development<br/>and before pushes"}}
@@ -29,7 +28,6 @@ Badakmini is a local, network-free governance system. Contributors may invoke it
 ## Container View
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, gray #808080
 flowchart TB
     contributor(["Person<br/><b>Repository contributor</b>"])
     automation{{"External system<br/><b>Nx tasks and Git hooks</b>"}}
@@ -56,7 +54,6 @@ The compiled CLI is the only runtime container. It does not write inspected repo
 ## Component View
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, gray #808080
 flowchart TB
     caller(["Person / external system<br/><b>Contributor or automation</b>"])
     repository[("External data store<br/><b>Repository tree</b>")]

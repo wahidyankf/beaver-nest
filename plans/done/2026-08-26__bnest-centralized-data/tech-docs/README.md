@@ -41,7 +41,6 @@ Phoenix LiveView remains the public boundary. Authentication resolves the curren
 
 ```mermaid
 flowchart LR
-  %% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73, gray #808080
   Browser([Browser<br/>opaque cookie only]):::gray
   LiveView[Phoenix LiveView]:::blue
   Auth{{Session, role,<br/>and ownership checks}}:::orange

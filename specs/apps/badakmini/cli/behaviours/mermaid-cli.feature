@@ -102,14 +102,13 @@ Feature: Mermaid accessibility command behavior
       | RGB function color      |
       | HSL function color      |
 
-  Scenario Outline: Colored diagrams require one accurate palette comment
+  Scenario Outline: Palette comments are neither required nor inspected
     Given the repository contains Mermaid sample "<sample>" at "docs/diagram.md"
     When I run the "mermaid" validator
-    Then the exit code is 1
+    Then the exit code is 0
 
     Examples:
       | sample                     |
-      | missing palette comment    |
       | duplicate palette comments |
       | inaccurate palette comment |
 

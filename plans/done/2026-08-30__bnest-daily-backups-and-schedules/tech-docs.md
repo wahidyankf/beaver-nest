@@ -40,7 +40,6 @@ Use a code-owned `AdminConfig.Registry` to enumerate typed settings panels. The 
 ## Architecture
 
 ```mermaid
-%% Accessible palette: blue #0173B2, orange #DE8F05, teal #029E73, gray #808080
 flowchart TB
     admin[Admin browser] --> home[Admin home]
     home --> settings[Admin settings]

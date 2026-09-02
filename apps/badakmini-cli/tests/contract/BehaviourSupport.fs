@@ -25,7 +25,7 @@ let private mermaidSample sample =
 
     let invalidClass definition =
         mermaid
-            $"%%%% Accessible palette: orange #DE8F05\nflowchart LR\n    A[Node]\n    {definition}\n    class A invalid"
+            $"flowchart LR\n    A[Node]\n    {definition}\n    class A invalid"
 
     match sample with
     | "YAML front matter before an unsafe flowchart" ->
@@ -34,34 +34,31 @@ let private mermaidSample sample =
     | "no diagram declaration" -> mermaid "%% This block has no diagram declaration"
     | "accessible colored class" ->
         mermaid
-            "%% Accessible palette: orange #DE8F05\nflowchart LR\n    A[Node]\n    classDef accessible fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px\n    class A accessible"
+            "flowchart LR\n    A[Node]\n    classDef accessible fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px\n    class A accessible"
     | "style declaration color" ->
         mermaid
-            "%% Accessible palette: blue #0173B2, orange #DE8F05, purple #CC78BC\nflowchart LR\n    A --> B\n    style A fill:#DE8F05,stroke:#000000,color:#000000"
+            "flowchart LR\n    A --> B\n    style A fill:#DE8F05,stroke:#000000,color:#000000"
     | "linkStyle declaration color" ->
         mermaid
-            "%% Accessible palette: blue #0173B2, orange #DE8F05, purple #CC78BC\nflowchart LR\n    A --> B\n    linkStyle 0 stroke:#CC78BC,stroke-width:2px"
+            "flowchart LR\n    A --> B\n    linkStyle 0 stroke:#CC78BC,stroke-width:2px"
     | "initialization directive color" ->
         mermaid
-            "%% Accessible palette: blue #0173B2, orange #DE8F05, purple #CC78BC\nflowchart LR\n    A --> B\n    %%{init: {'themeVariables': {'primaryColor': '#0173B2'}}}%%"
+            "flowchart LR\n    A --> B\n    %%{init: {'themeVariables': {'primaryColor': '#0173B2'}}}%%"
     | "named color" ->
         mermaid
-            "%% Accessible palette: orange #DE8F05\nflowchart LR\n    A[Node]\n    classDef unsafe fill:red,stroke:#000000,color:#000000\n    class A unsafe"
+            "flowchart LR\n    A[Node]\n    classDef unsafe fill:red,stroke:#000000,color:#000000\n    class A unsafe"
     | "three-digit hex color" ->
         mermaid
-            "%% Accessible palette: orange #DE8F05\nflowchart LR\n    A[Node]\n    classDef unsafe fill:#f00,stroke:#000000,color:#000000\n    class A unsafe"
+            "flowchart LR\n    A[Node]\n    classDef unsafe fill:#f00,stroke:#000000,color:#000000\n    class A unsafe"
     | "eight-digit hex color" ->
         mermaid
-            "%% Accessible palette: orange #DE8F05\nflowchart LR\n    A[Node]\n    classDef unsafe fill:#DE8F05FF,stroke:#000000,color:#000000\n    class A unsafe"
+            "flowchart LR\n    A[Node]\n    classDef unsafe fill:#DE8F05FF,stroke:#000000,color:#000000\n    class A unsafe"
     | "RGB function color" ->
         mermaid
-            "%% Accessible palette: orange #DE8F05\nflowchart LR\n    A[Node]\n    classDef unsafe fill:rgb(222,143,5),stroke:#000000,color:#000000\n    class A unsafe"
+            "flowchart LR\n    A[Node]\n    classDef unsafe fill:rgb(222,143,5),stroke:#000000,color:#000000\n    class A unsafe"
     | "HSL function color" ->
         mermaid
-            "%% Accessible palette: orange #DE8F05\nflowchart LR\n    A[Node]\n    classDef unsafe fill:hsl(38,96%,45%),stroke:#000000,color:#000000\n    class A unsafe"
-    | "missing palette comment" ->
-        mermaid
-            "flowchart LR\n    A[Node]\n    classDef accessible fill:#DE8F05,stroke:#000000,color:#000000\n    class A accessible"
+            "flowchart LR\n    A[Node]\n    classDef unsafe fill:hsl(38,96%,45%),stroke:#000000,color:#000000\n    class A unsafe"
     | "duplicate palette comments" ->
         mermaid
             "%% Accessible palette: orange #DE8F05\n%% Accessible palette: orange #DE8F05\nflowchart LR\n    A[Node]\n    classDef accessible fill:#DE8F05,stroke:#000000,color:#000000\n    class A accessible"
@@ -76,7 +73,7 @@ let private mermaidSample sample =
     | "insufficient text contrast" -> invalidClass "classDef invalid fill:#DE8F05,stroke:#000000,color:#FFFFFF"
     | "accessible stroke-only class" ->
         mermaid
-            "%% Accessible palette: purple #CC78BC\nflowchart LR\n    A e1@--> B\n    classDef accessibleEdge stroke:#CC78BC,stroke-width:2px,stroke-dasharray:5\\,5\n    class e1 accessibleEdge"
+            "flowchart LR\n    A e1@--> B\n    classDef accessibleEdge stroke:#CC78BC,stroke-width:2px,stroke-dasharray:5\\,5\n    class e1 accessibleEdge"
     | "text-only class" -> mermaid "flowchart LR\n    A --> B\n    classDef textOnly color:#000000"
     | "inaccessible stroke-only class" ->
         mermaid "flowchart LR\n    A --> B\n    classDef unsafeEdge stroke:#FF0000,stroke-width:2px"

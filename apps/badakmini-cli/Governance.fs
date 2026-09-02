@@ -122,9 +122,6 @@ module Governance =
     let private stylePropertyPattern =
         Regex(@"(?<name>[a-zA-Z-]+)\s*:\s*(?<value>[^,\s;]+)", RegexOptions.Compiled)
 
-    [<Literal>]
-    let private PaletteCommentPrefix = "%% Accessible palette:"
-
     let private fillColors =
         set [ "#0173B2"; "#DE8F05"; "#029E73"; "#CC78BC"; "#CA9161"; "#808080" ]
 
@@ -497,19 +494,7 @@ module Governance =
                               $"Mermaid edge stroke {value} must use a six-digit accessible palette color"
                   | _ -> () ]
 
-        let semanticColors =
-            seq {
-                match normalizedFill with
-                | Some color when Set.contains color fillColors -> yield color
-                | _ -> ()
-
-                match normalizedFill, normalizedStroke with
-                | None, Some color when Set.contains color fillColors -> yield color
-                | _ -> ()
-            }
-            |> Set.ofSeq
-
-        violations, semanticColors
+        violations
 
     let private containsColorOutsideClassDef (line: string) =
         hexColorPattern.IsMatch(line)
@@ -518,60 +503,23 @@ module Governance =
              || line.TrimStart().StartsWith("linkStyle ", StringComparison.OrdinalIgnoreCase))
             && stylePropertyPattern.IsMatch(line))
 
+    let private isLineComment (line: string) =
+        let trimmed = line.TrimStart()
+
+        trimmed.StartsWith("%%", StringComparison.Ordinal)
+        && not (trimmed.StartsWith("%%{", StringComparison.Ordinal))
+
     let private validateMermaidBlock (block: MermaidBlock) =
-        let paletteComments =
-            block.Lines
-            |> List.filter (fun (_, line) ->
-                line.TrimStart().StartsWith(PaletteCommentPrefix, StringComparison.OrdinalIgnoreCase))
-
-        let mutable semanticColors = Set.empty
-
         let classDefViolations =
             [ for lineNumber, line in block.Lines do
                   let classDefinition = classDefPattern.Match line
 
                   if classDefinition.Success then
-                      let violations, colors =
-                          validateClassDef block lineNumber classDefinition.Groups["properties"].Value
-
-                      semanticColors <- Set.union semanticColors colors
-                      yield! violations
-                  elif
-                      not (line.TrimStart().StartsWith(PaletteCommentPrefix, StringComparison.OrdinalIgnoreCase))
-                      && containsColorOutsideClassDef line
-                  then
+                      yield! validateClassDef block lineNumber classDefinition.Groups["properties"].Value
+                  elif not (isLineComment line) && containsColorOutsideClassDef line then
                       yield issue block lineNumber "Mermaid custom colors must be declared with classDef" ]
 
-        let paletteViolations =
-            if Set.isEmpty semanticColors then
-                match paletteComments with
-                | [] -> []
-                | (lineNumber, _) :: _ ->
-                    [ issue block lineNumber "Mermaid palette comment does not correspond to accessible classDef colors" ]
-            elif paletteComments.Length <> 1 then
-                [ issue
-                      block
-                      block.StartLine
-                      "Colored Mermaid diagrams require exactly one '%% Accessible palette:' comment" ]
-            else
-                let lineNumber, comment = paletteComments.Head
-
-                let documentedColors =
-                    hexColorPattern.Matches(comment)
-                    |> Seq.cast<Match>
-                    |> Seq.choose (fun color -> normalizeHexColor color.Value)
-                    |> Seq.filter fillColors.Contains
-                    |> Set.ofSeq
-
-                if documentedColors = semanticColors then
-                    []
-                else
-                    [ issue
-                          block
-                          lineNumber
-                          "Mermaid palette comment must list exactly the accessible colors used by classDef" ]
-
-        classDefViolations @ paletteViolations @ validateMermaidLegibility block
+        classDefViolations @ validateMermaidLegibility block
 
     let private inspectMermaidAccessibilityCore fileSystem fullRoot markdownFiles =
         let blocks =

@@ -17,7 +17,6 @@ Every directory in this tree follows the [governance directory-map convention](c
 The precedence hierarchy is:
 
 ```mermaid
-%% Accessible palette: blue #0173B2
 flowchart TD
     Vision --> Principles
     Principles --> Conventions

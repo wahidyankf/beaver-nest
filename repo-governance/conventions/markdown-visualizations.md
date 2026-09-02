@@ -20,7 +20,7 @@ Every Mermaid diagram must remain understandable to color-blind readers and legi
 - Do not use red, green, yellow, bright magenta, or light red/pink as diagram colors, including for success, failure, or warning semantics.
 - Define colors with `classDef` and hex values rather than CSS color names or scattered inline styles. Use black borders for shape definition, white text on dark fills, and black text on light fills.
 - Meet WCAG AA contrast ratios: at least 4.5:1 for normal text and 3:1 for large text.
-- Include exactly one `%%` Mermaid comment identifying the palette used by each colored diagram.
+- Do not annotate the palette in a `%%` Mermaid comment; some editors fail to render a diagram whose first line is a comment. State color meaning in the surrounding prose when it needs explanation.
 - When adding or materially changing a colored diagram, render it in light and dark modes, check its contrast, and review it with at least one color-blindness simulation before publication.
 
 Badakmini enforces colored `classDef` declarations in `flowchart`, `graph`, `classDiagram`, `stateDiagram`, `stateDiagram-v2`, `erDiagram`, `requirementDiagram`, and `block`. Unstyled diagrams pass. Other types remain human-reviewed because their styling semantics differ or are unstable. Automated checks require 4.5:1 contrast because rendered text size cannot be proven statically.
