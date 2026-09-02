@@ -44,6 +44,13 @@ var Definitions = []StepDefinition{
 	{`^another live process owns the heavy lease$`},
 	{`^a second owner waits for the lease$`},
 	{`^the second owner is deferred with exit 75$`},
+	{`^the deferral names the process holding the lease$`},
+	{`^a live service session owns its resource lease$`},
+	{`^heavy work requests the lease$`},
+	{`^the heavy owner acquires the lease immediately$`},
+	{`^two live service sessions on separate ports$`},
+	{`^each service child validates its inherited session$`},
+	{`^both inherited sessions remain valid$`},
 	{`^a valid inherited resource session$`},
 	{`^a guarded child exits successfully$`},
 	{`^the child exit code is preserved$`},
@@ -124,6 +131,9 @@ type Exemption struct {
 	Reason   string
 }
 
+// liveLeaseExemption explains scenarios that cannot mutate real lease ownership.
+const liveLeaseExemption = "would mutate live lease ownership"
+
 // ApprovedExemptions is the reviewed, exact adapter exemption inventory.
 var ApprovedExemptions = map[string][]Exemption{
 	Unit: {
@@ -146,7 +156,9 @@ var ApprovedExemptions = map[string][]Exemption{
 		{"Linux cgroup memory limits host capacity", "requires synthetic proc and cgroup files"},
 		{"Linux without swap remains usable", "requires synthetic swap capabilities"},
 		{"Linux PSI detects active memory contention", "requires synthetic PSI evidence"},
-		{"A live heavy lease defers a second owner", "would mutate live lease ownership"},
+		{"A live heavy lease defers a second owner", liveLeaseExemption},
+		{"A long-lived service never holds the heavy-work lease", liveLeaseExemption},
+		{"Concurrent services keep their own inheritable sessions", liveLeaseExemption},
 		{"Critical pressure sheds eligible work", "requires synthetic critical pressure and process signaling"},
 		{"Release admission preserves the requested capacity envelope", "requires synthetic release host samples"},
 		{"Release overlap rejects failed health evidence", "requires synthetic failed health evidence"},

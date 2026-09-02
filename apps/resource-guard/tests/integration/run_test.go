@@ -56,7 +56,7 @@ func TestGuardReturnsStorageCodeBeforeStartingChild(t *testing.T) {
 
 func TestInheritedGuardRunsDirectlyAndKeepsPortLease(t *testing.T) {
 	root, portRoot := t.TempDir(), t.TempDir()
-	session, err := guard.AcquireSession(root, "", time.Second, func(time.Duration) {})
+	session, err := guard.AcquireSession(root, "", "ephemeral", time.Second, func(time.Duration) {})
 	if err != nil {
 		t.Fatal(err)
 	}

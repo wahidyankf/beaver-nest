@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -19,13 +20,26 @@ type leaseOwner struct {
 	Token         string `json:"token,omitempty"`
 	Port          int    `json:"port,omitempty"`
 	Owner         string `json:"owner,omitempty"`
+	Class         string `json:"class,omitempty"`
 }
 
-// Session identifies an owned or inherited heavy-work lease.
+// Session identifies an owned or inherited guarded session.
 type Session struct {
 	Inherited   bool
 	Path, Token string
+	RecordPath  string
 }
+
+// Task classes understood by the guard.
+const (
+	ClassEphemeral     = "ephemeral"
+	ClassService       = "service"
+	ClassTransactional = "transactional"
+)
+
+// SerializesHeavyWork reports whether class competes for the single heavy-work lease.
+// Long-lived services stay outside that lease so they never starve guarded gates.
+func SerializesHeavyWork(class string) bool { return class != ClassService }
 
 // PortLease identifies ownership of one bounded service port.
 type PortLease struct {
@@ -69,37 +83,114 @@ func token() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// InheritedSession reports whether candidate belongs to the live heavy-work owner.
+var sessionTokenPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
+
+func sessionRecordPath(root, sessionToken string) (string, bool) {
+	if !sessionTokenPattern.MatchString(sessionToken) {
+		return "", false
+	}
+	return filepath.Join(root, "sessions", sessionToken+".json"), true
+}
+
+func readSessionRecord(root, sessionToken string) (*leaseOwner, error) {
+	path, valid := sessionRecordPath(root, sessionToken)
+	if !valid {
+		return nil, errors.New("invalid resource session token")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var owner leaseOwner
+	if err = json.Unmarshal(data, &owner); err != nil {
+		return nil, err
+	}
+	return &owner, nil
+}
+
+func writeSessionRecord(root string, owner leaseOwner) (string, error) {
+	path, valid := sessionRecordPath(root, owner.Token)
+	if !valid {
+		return "", errors.New("invalid resource session token")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(owner)
+	if err != nil {
+		return "", err
+	}
+	if err = os.WriteFile(path, append(data, '\n'), 0o600); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// pruneSessionRecords removes records whose owning process is gone.
+func pruneSessionRecords(root string) {
+	directory := filepath.Join(root, "sessions")
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		recordToken := strings.TrimSuffix(entry.Name(), ".json")
+		owner, readError := readSessionRecord(root, recordToken)
+		if readError != nil || !livePID(owner.PID) {
+			_ = os.Remove(filepath.Join(directory, entry.Name()))
+		}
+	}
+}
+
+// InheritedSession reports whether candidate belongs to a live guarded owner.
 func InheritedSession(root, candidate string) bool {
 	if candidate == "" {
 		return false
+	}
+	if owner, err := readSessionRecord(root, candidate); err == nil &&
+		owner.SchemaVersion == 1 && owner.Token == candidate && livePID(owner.PID) {
+		return true
 	}
 	owner, err := readLeaseOwner(filepath.Join(root, "heavy.lock"))
 	return err == nil && owner.SchemaVersion == 1 && owner.Token == candidate && livePID(owner.PID)
 }
 
-// AcquireSession obtains the heavy-work lease, returning nil after capacity wait expires.
-func AcquireSession(root, inheritedToken string, wait time.Duration, pause func(time.Duration)) (*Session, error) {
+// DescribeHeavyLease explains who holds the heavy-work lease, for actionable deferrals.
+func DescribeHeavyLease(root string) string {
+	owner, err := readLeaseOwner(filepath.Join(root, "heavy.lock"))
+	if err != nil || !livePID(owner.PID) {
+		return "the heavy-work lease reports no live owner"
+	}
+	class := owner.Class
+	if class == "" {
+		class = "unknown"
+	}
+	return fmt.Sprintf("the heavy-work lease is held by pid %d (class %s)", owner.PID, class)
+}
+
+// AcquireSession obtains a guarded session, returning nil after the lease wait expires.
+// Heavy classes serialize on one lease; services record an inheritable session only.
+func AcquireSession(root, inheritedToken, class string, wait time.Duration, pause func(time.Duration)) (*Session, error) {
 	if InheritedSession(root, inheritedToken) {
 		return &Session{Inherited: true, Token: inheritedToken}, nil
 	}
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		return nil, err
 	}
+	pruneSessionRecords(root)
+	if !SerializesHeavyWork(class) {
+		return registerSession(root, "", class)
+	}
 	lockPath := filepath.Join(root, "heavy.lock")
 	deadline := time.Now().Add(wait)
 	for !time.Now().After(deadline) {
 		if err := os.Mkdir(lockPath, 0o700); err == nil {
-			value, tokenError := token()
-			if tokenError != nil {
-				_ = os.Remove(lockPath)
-				return nil, tokenError
-			}
-			if writeError := writeLeaseOwner(lockPath, leaseOwner{SchemaVersion: 1, PID: os.Getpid(), Token: value}); writeError != nil {
+			session, registerError := registerSession(root, lockPath, class)
+			if registerError != nil {
 				_ = os.RemoveAll(lockPath)
-				return nil, writeError
+				return nil, registerError
 			}
-			return &Session{Path: lockPath, Token: value}, nil
+			return session, nil
 		} else if !errors.Is(err, os.ErrExist) {
 			return nil, err
 		}
@@ -115,9 +206,40 @@ func AcquireSession(root, inheritedToken string, wait time.Duration, pause func(
 	return nil, nil
 }
 
-// ReleaseSession removes only the heavy-work lease owned by session.
+// registerSession mints one session, recording it on the heavy lease when lockPath is set.
+func registerSession(root, lockPath, class string) (*Session, error) {
+	value, tokenError := token()
+	if tokenError != nil {
+		return nil, tokenError
+	}
+	owner := leaseOwner{SchemaVersion: 1, PID: os.Getpid(), Token: value, Class: class}
+	if lockPath != "" {
+		if writeError := writeLeaseOwner(lockPath, owner); writeError != nil {
+			return nil, writeError
+		}
+	}
+	recordPath, recordError := writeSessionRecord(root, owner)
+	if recordError != nil {
+		return nil, recordError
+	}
+	return &Session{Path: lockPath, Token: value, RecordPath: recordPath}, nil
+}
+
+// ReleaseSession removes only the session record and heavy-work lease owned by session.
 func ReleaseSession(root string, session *Session) error {
 	if session == nil || session.Inherited {
+		return nil
+	}
+	if session.RecordPath != "" {
+		expectedRecord, valid := sessionRecordPath(root, session.Token)
+		if !valid || session.RecordPath != expectedRecord {
+			return errors.New("refusing to release an invalid resource session")
+		}
+		if err := os.Remove(session.RecordPath); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	if session.Path == "" {
 		return nil
 	}
 	expected := filepath.Join(root, "heavy.lock")

@@ -122,9 +122,9 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 		return 1, errors.New("guarded command is empty")
 	}
 	if config.TaskClass == "" {
-		config.TaskClass = "ephemeral"
+		config.TaskClass = ClassEphemeral
 	}
-	if config.TaskClass != "ephemeral" && config.TaskClass != "service" && config.TaskClass != "transactional" {
+	if config.TaskClass != ClassEphemeral && config.TaskClass != ClassService && config.TaskClass != ClassTransactional {
 		return 1, errors.New("class must be ephemeral, service, or transactional")
 	}
 	if config.Policy.SampleInterval == 0 {
@@ -155,11 +155,12 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 	if err := CleanupEvidence(config.EvidenceRoot, config.Now()); err != nil {
 		return 1, err
 	}
-	session, err := AcquireSession(config.EvidenceRoot, environmentValue(config.Environment, "BNEST_RESOURCE_SESSION"), config.Policy.LeaseWait, config.Sleep)
+	session, err := AcquireSession(config.EvidenceRoot, environmentValue(config.Environment, "BNEST_RESOURCE_SESSION"), config.TaskClass, config.Policy.LeaseWait, config.Sleep)
 	if err != nil {
 		return 1, err
 	}
 	if session == nil {
+		_, _ = fmt.Fprintf(config.Stderr, "Resource guard deferred task: %s; it must exit before this work is admitted.\n", DescribeHeavyLease(config.EvidenceRoot))
 		return CapacityDeferredExitCode, nil
 	}
 	defer func() {

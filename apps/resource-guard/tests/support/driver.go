@@ -62,6 +62,11 @@ type Driver struct {
 	privateArtifacts    bool
 	exampleTracked      bool
 	applicationLayout   bool
+	leaseRoot           string
+	leaseHolder         int
+	heavySession        *guard.Session
+	serviceSessions     []*guard.Session
+	inheritedSessions   bool
 }
 
 // NewDriver returns isolated scenario state for one behavior adapter.
@@ -191,14 +196,130 @@ func (driver *Driver) requireReason(reason string) error {
 	return nil
 }
 
-func (driver *Driver) liveLease() { driver.exitCode = 75 }
-func (driver *Driver) waitLease() {}
+func (driver *Driver) temporaryRoot() (string, error) {
+	directory, err := os.MkdirTemp("", "resource-guard-lease-")
+	if err != nil {
+		return "", err
+	}
+	driver.temporaryPaths = append(driver.temporaryPaths, directory)
+	return directory, nil
+}
+
+func (driver *Driver) liveLease() error {
+	root, err := driver.temporaryRoot()
+	if err != nil {
+		return err
+	}
+	driver.leaseRoot = root
+	driver.leaseHolder = os.Getpid()
+	holder, err := guard.AcquireSession(root, "", "ephemeral", time.Second, func(time.Duration) {})
+	if err != nil {
+		return err
+	}
+	if holder == nil {
+		return errors.New("the first heavy owner was deferred")
+	}
+	driver.heavySession = holder
+	return nil
+}
+
+func (driver *Driver) waitLease() error {
+	second, err := guard.AcquireSession(driver.leaseRoot, "", "ephemeral", 200*time.Millisecond, func(time.Duration) {})
+	if err != nil {
+		return err
+	}
+	if second != nil {
+		driver.exitCode = 0
+		return nil
+	}
+	driver.exitCode = guard.CapacityDeferredExitCode
+	driver.errorOutput = guard.DescribeHeavyLease(driver.leaseRoot)
+	return nil
+}
+
 func (driver *Driver) requireDeferred() error {
 	if driver.exitCode != 75 {
 		return fmt.Errorf("got exit %d", driver.exitCode)
 	}
 	return nil
 }
+
+func (driver *Driver) requireDeferralNamesHolder() error {
+	if !strings.Contains(driver.errorOutput, "heavy-work lease") ||
+		!strings.Contains(driver.errorOutput, strconv.Itoa(driver.leaseHolder)) {
+		return fmt.Errorf("deferral did not name the holder: %q", driver.errorOutput)
+	}
+	return nil
+}
+
+func (driver *Driver) liveServiceLease() error {
+	root, err := driver.temporaryRoot()
+	if err != nil {
+		return err
+	}
+	driver.leaseRoot = root
+	service, err := guard.AcquireSession(root, "", "service", time.Second, func(time.Duration) {})
+	if err != nil {
+		return err
+	}
+	if service == nil {
+		return errors.New("service session was deferred")
+	}
+	driver.serviceSessions = []*guard.Session{service}
+	return nil
+}
+
+func (driver *Driver) heavyRequestsLease() error {
+	heavy, err := guard.AcquireSession(driver.leaseRoot, "", "ephemeral", time.Second, func(time.Duration) {})
+	if err != nil {
+		return err
+	}
+	driver.heavySession = heavy
+	return nil
+}
+
+func (driver *Driver) requireHeavyAcquired() error {
+	if driver.heavySession == nil {
+		return errors.New("heavy work was deferred by a service lease")
+	}
+	return nil
+}
+
+func (driver *Driver) twoServiceSessions() error {
+	root, err := driver.temporaryRoot()
+	if err != nil {
+		return err
+	}
+	driver.leaseRoot = root
+	for range 2 {
+		service, acquireError := guard.AcquireSession(root, "", "service", time.Second, func(time.Duration) {})
+		if acquireError != nil {
+			return acquireError
+		}
+		if service == nil {
+			return errors.New("a concurrent service session was deferred")
+		}
+		driver.serviceSessions = append(driver.serviceSessions, service)
+	}
+	return nil
+}
+
+func (driver *Driver) validateInheritedSessions() {
+	driver.inheritedSessions = true
+	for _, service := range driver.serviceSessions {
+		if !guard.InheritedSession(driver.leaseRoot, service.Token) {
+			driver.inheritedSessions = false
+		}
+	}
+}
+
+func (driver *Driver) requireInheritedSessionsValid() error {
+	if len(driver.serviceSessions) != 2 || !driver.inheritedSessions {
+		return errors.New("concurrent service sessions were not independently inheritable")
+	}
+	return nil
+}
+
 func (driver *Driver) inherited()       { driver.exitCode = 0 }
 func (driver *Driver) successfulChild() {}
 func (driver *Driver) requirePreserved() error {

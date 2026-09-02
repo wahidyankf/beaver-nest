@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,18 +23,18 @@ func marshalJSON(t *testing.T, value any) []byte {
 
 func TestHeavyLeaseLifecycleAndInheritance(t *testing.T) {
 	root := t.TempDir()
-	session, err := guard.AcquireSession(root, "", time.Second, func(time.Duration) {})
+	session, err := guard.AcquireSession(root, "", "ephemeral", time.Second, func(time.Duration) {})
 	if err != nil || session == nil || session.Inherited {
 		t.Fatalf("acquire failed: session=%+v error=%v", session, err)
 	}
 	if !guard.InheritedSession(root, session.Token) || guard.InheritedSession(root, "") || guard.InheritedSession(root, "wrong") {
 		t.Fatal("inheritance validation failed")
 	}
-	inherited, err := guard.AcquireSession(root, session.Token, 0, func(time.Duration) {})
+	inherited, err := guard.AcquireSession(root, session.Token, "ephemeral", 0, func(time.Duration) {})
 	if err != nil || !inherited.Inherited {
 		t.Fatalf("inherit failed: %+v %v", inherited, err)
 	}
-	deferred, err := guard.AcquireSession(root, "wrong", 0, func(time.Duration) {})
+	deferred, err := guard.AcquireSession(root, "wrong", "ephemeral", 0, func(time.Duration) {})
 	if err != nil || deferred != nil {
 		t.Fatalf("second owner was not deferred: %+v %v", deferred, err)
 	}
@@ -58,7 +60,7 @@ func TestHeavyLeaseRejectsInvalidReleaseAndReclaimsStaleOwner(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(lock, "owner.json"), data, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	session, err := guard.AcquireSession(root, "", time.Second, func(time.Duration) {})
+	session, err := guard.AcquireSession(root, "", "ephemeral", time.Second, func(time.Duration) {})
 	if err != nil || session == nil {
 		t.Fatalf("stale reclaim failed: %+v %v", session, err)
 	}
@@ -194,5 +196,67 @@ func TestEvidenceLifecycleSummaryAndCleanup(t *testing.T) {
 	}
 	if _, err := writer.Finalize("ephemeral", "passed", 0); err == nil {
 		t.Fatal("second finalize accepted")
+	}
+}
+
+func TestServiceSessionsDoNotHoldTheHeavyLease(t *testing.T) {
+	root := t.TempDir()
+	pause := func(time.Duration) {}
+	service, err := guard.AcquireSession(root, "", "service", time.Second, pause)
+	if err != nil || service == nil {
+		t.Fatalf("service acquire failed: session=%+v error=%v", service, err)
+	}
+	if _, statError := os.Stat(filepath.Join(root, "heavy.lock")); !os.IsNotExist(statError) {
+		t.Fatal("a service session took the heavy-work lease")
+	}
+	heavy, err := guard.AcquireSession(root, "", "ephemeral", time.Second, pause)
+	if err != nil || heavy == nil {
+		t.Fatalf("heavy work was deferred by a live service: session=%+v error=%v", heavy, err)
+	}
+	if !guard.InheritedSession(root, service.Token) {
+		t.Fatal("a service child could not inherit its own session")
+	}
+	if !guard.InheritedSession(root, heavy.Token) {
+		t.Fatal("a heavy child could not inherit its own session")
+	}
+	second, err := guard.AcquireSession(root, "", "service", time.Second, pause)
+	if err != nil || second == nil {
+		t.Fatalf("a concurrent service was deferred: session=%+v error=%v", second, err)
+	}
+	if second.Token == service.Token {
+		t.Fatal("concurrent services shared one session token")
+	}
+	for _, owned := range []*guard.Session{service, second, heavy} {
+		if releaseError := guard.ReleaseSession(root, owned); releaseError != nil {
+			t.Fatal(releaseError)
+		}
+	}
+	if guard.InheritedSession(root, service.Token) {
+		t.Fatal("a released service session stayed inheritable")
+	}
+}
+
+func TestHeavyLeaseDeferralDescribesItsHolder(t *testing.T) {
+	root := t.TempDir()
+	pause := func(time.Duration) {}
+	holder, err := guard.AcquireSession(root, "", "ephemeral", time.Second, pause)
+	if err != nil || holder == nil {
+		t.Fatalf("acquire failed: session=%+v error=%v", holder, err)
+	}
+	deferred, err := guard.AcquireSession(root, "", "ephemeral", 200*time.Millisecond, pause)
+	if err != nil || deferred != nil {
+		t.Fatalf("second heavy owner was not deferred: %+v %v", deferred, err)
+	}
+	description := guard.DescribeHeavyLease(root)
+	if !strings.Contains(description, "heavy-work lease") ||
+		!strings.Contains(description, strconv.Itoa(os.Getpid())) ||
+		!strings.Contains(description, "ephemeral") {
+		t.Fatalf("deferral description did not name the holder: %q", description)
+	}
+	if err := guard.ReleaseSession(root, holder); err != nil {
+		t.Fatal(err)
+	}
+	if empty := guard.DescribeHeavyLease(root); !strings.Contains(empty, "no live") {
+		t.Fatalf("released lease was still described as held: %q", empty)
 	}
 }

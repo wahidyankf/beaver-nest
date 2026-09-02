@@ -1,6 +1,6 @@
 # resource-guard
 
-`resource-guard` is the repository bootstrap application for adaptive macOS and Linux admission, pressure monitoring, heavy-work serialization, port leases, private evidence, child-process supervision, and release resource checks. It understands finite cgroup v2 memory, swap, and CPU limits. It controls only the process group it starts and never stops unrelated or production processes.
+`resource-guard` is the repository bootstrap application for adaptive macOS and Linux admission, pressure monitoring, heavy-work serialization, inheritable sessions, port leases, private evidence, child-process supervision, and release resource checks. It understands finite cgroup v2 memory, swap, and CPU limits. It controls only the process group it starts and never stops unrelated or production processes.
 
 The production runtime is Go. The Go module belongs at this project root; there is intentionally no nested `package.json` and no Nx language plugin. Nx owns development lifecycle targets, while the POSIX [`resource-guard`](resource-guard) bootstrap remains the canonical runtime entry so admission happens before Node or Nx starts.
 
@@ -55,7 +55,10 @@ Copy [`resource-guard.local.json.example`](resource-guard.local.json.example) to
 - `internal/config/` loads strict machine-local profile overrides.
 - `internal/host/` normalizes macOS, Linux, cgroup, swap, and PSI metrics.
 - `internal/policy/` owns pure development and release decisions.
-- `internal/guard/` owns evidence, leases, and child supervision.
+- `internal/guard/` owns evidence, leases, and child supervision. The `heavy.lock` lease serializes `ephemeral` and
+  `transactional` work only. A `service` records an inheritable session under `sessions/` without taking that lease, so a
+  running development server or a release candidate never starves guarded gates, and two services may run at once. A
+  lease-deferred exit `75` names the holding process and class instead of failing silently.
 - `internal/release/` owns release checks, monitoring, and summary assessment.
 - `tests/contract/` owns the shared strict suite configuration, binding registry, and compliance policy.
 - `tests/support/` keeps thin Gherkin bindings separate from the scenario driver implementation.
