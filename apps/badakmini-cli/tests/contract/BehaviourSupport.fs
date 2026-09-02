@@ -24,8 +24,7 @@ let private mermaidSample sample =
     let encodedBoundary = String.replicate 4 "&amp;&lt;&gt;&quot;&apos;&#39;&#x61;&#97;"
 
     let invalidClass definition =
-        mermaid
-            $"flowchart LR\n    A[Node]\n    {definition}\n    class A invalid"
+        mermaid $"flowchart LR\n    A[Node]\n    {definition}\n    class A invalid"
 
     match sample with
     | "YAML front matter before an unsafe flowchart" ->
@@ -36,14 +35,11 @@ let private mermaidSample sample =
         mermaid
             "flowchart LR\n    A[Node]\n    classDef accessible fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px\n    class A accessible"
     | "style declaration color" ->
-        mermaid
-            "flowchart LR\n    A --> B\n    style A fill:#DE8F05,stroke:#000000,color:#000000"
+        mermaid "flowchart LR\n    A --> B\n    style A fill:#DE8F05,stroke:#000000,color:#000000"
     | "linkStyle declaration color" ->
-        mermaid
-            "flowchart LR\n    A --> B\n    linkStyle 0 stroke:#CC78BC,stroke-width:2px"
+        mermaid "flowchart LR\n    A --> B\n    linkStyle 0 stroke:#CC78BC,stroke-width:2px"
     | "initialization directive color" ->
-        mermaid
-            "flowchart LR\n    A --> B\n    %%{init: {'themeVariables': {'primaryColor': '#0173B2'}}}%%"
+        mermaid "flowchart LR\n    A --> B\n    %%{init: {'themeVariables': {'primaryColor': '#0173B2'}}}%%"
     | "named color" ->
         mermaid
             "flowchart LR\n    A[Node]\n    classDef unsafe fill:red,stroke:#000000,color:#000000\n    class A unsafe"
