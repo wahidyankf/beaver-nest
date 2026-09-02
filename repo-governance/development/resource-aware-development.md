@@ -5,7 +5,8 @@ Apply this standard to compute-bearing Nx work under `apps/`, `libs/`, and repos
 ## Required Behavior
 
 - Run compute-bearing Nx work through the guard. Exit `75` is transient capacity, not task or test failure: wait for recovery, then retry the same command serially from the beginning.
-- Never abandon the objective, bypass the guard, retry concurrently, weaken gates, or change class for admission.
+- Confirm the previous guarded run has exited before retrying. Stacked `ephemeral` runs queue for one admission slot and starve each other, producing no output for minutes; that silence is contention, not a hung target, and must never be answered with another concurrent run. Check with `ps` and read `resource-guard status`, whose `state=normal` proves capacity is not the constraint.
+- Never abandon the objective, bypass the guard, retry concurrently, background a retry loop, weaken gates, or change class for admission.
 - Exit `73` is storage-blocked. Safely free space before retrying; cooldown cannot fix it.
 - Exit `78` means invalid configuration or a strict transactional/release profile mismatch. Replan; do not cooldown-loop it.
 - The stable development `serve`, managed release, and pre-push hook enter the guard automatically. Recovery, proxy status, rollback, retire, and tailnet controls remain directly available.
