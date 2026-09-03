@@ -1,6 +1,6 @@
 # Development Server Restart
 
-Use this workflow when a running development server must be restarted after a configuration, dependency, runtime, or supervision-tree change. Apply the [live-service continuity standard](../development/live-service-continuity.md) first when users can reach the service.
+Use this workflow whenever a development server must be started or restarted, including after a failed start or a configuration, dependency, runtime, or supervision-tree change. Apply the [live-service continuity standard](../development/live-service-continuity.md) first when users can reach the service.
 
 Do not stop or reconfigure an independently managed tailnet proxy during the restart; follow the [development tailnet proxy workflow](development-tailnet-proxy.md) for that lifecycle.
 
@@ -10,7 +10,7 @@ Do not stop or reconfigure an independently managed tailnet proxy during the res
 2. List tmux panes and identify the existing server pane from its working directory, current process, and captured output. Do not guess or silently create a competing server on the same port.
 3. Stop the server in that pane and wait until its shell prompt returns. If Erlang opens its BREAK menu, send `a` separately to abort, then wait for the prompt before sending another command.
 4. When stable/candidate mode changes compile-time endpoint settings, compile with the exact environment that will start the server before invoking its Nx `serve` target. Any Nx target that starts Mix in that same development build while the stable backend serves must declare that same environment. A compile-environment mismatch disqualifies the candidate; leave routing on the healthy backend, rebuild, and reverify instead of bypassing validation.
-5. Restart the applicable Nx `serve` target in the same pane, prefixed with the workspace package manager.
+5. Start the applicable Nx `serve` target in the same pane, prefixed with the workspace package manager. Never run a development server as an agent-owned background process: its output leaves the pane the user watches, and its lifetime follows the agent session instead of that pane.
 6. Verify startup from the pane output and make read-only requests to the expected local endpoint and one critical route. For a candidate release, promote only after both pass through Caddy, then verify routed HTTP and LiveView/WebSocket behavior. Do not restart Caddy or Tailscale during application promotion.
 
 Do not leave a running code reloader to discover changed dependency or configuration inputs from a user request; restart or replace it immediately as part of the same change batch.

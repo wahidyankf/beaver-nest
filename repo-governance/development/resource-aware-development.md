@@ -1,11 +1,11 @@
 # Resource-Aware Development
 
-Apply this standard to compute-bearing Nx work under `apps/`, `libs/`, and repository-owned tools. It reduces macOS or Linux pressure without controlling unrelated applications or guaranteeing host survival.
+Apply this standard to compute-bearing Nx work under `apps/`, `libs/`, and repository-owned tools. It reduces macOS or Linux pressure without guaranteeing host survival.
 
 ## Required Behavior
 
-- Run compute-bearing Nx work through the guard. Exit `75` is transient capacity or a held heavy-work lease, not task or test failure: wait, then retry the same command serially from the beginning.
-- Confirm the previous guarded run exited first. Stacked `ephemeral` runs starve one admission slot and fall silent, which reads as a hung target. `resource-guard status` samples host capacity only, so `state=normal` cannot rule out a lease; the guard's deferral message names the holder, and `service` runs never hold one.
+- Run this work through the guard. Exit `75` is transient capacity or a held heavy-work lease, not task or test failure: wait, then retry the same command serially from the beginning.
+- Confirm the previous guarded run exited first; stacked `ephemeral` runs starve one admission slot and fall silent, reading as a hung target. A lease deferral names its holder; `service` runs never hold one. "Safe admission was not reached" names none. `resource-guard status` is one later sample and rules out neither cause; the newest evidence summary names the deciding signal.
 - Never abandon the objective, bypass the guard, retry concurrently, background a retry loop, weaken gates, or change class for admission.
 - Exit `73` is storage-blocked. Safely free space before retrying; cooldown cannot fix it.
 - Exit `78` means invalid configuration or a strict transactional/release profile mismatch. Replan; do not cooldown-loop it.
@@ -19,8 +19,6 @@ Canonical guarded execution is:
 apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p <project> -t <target>
 ```
 
-The plugin-free `resource-guard` project owns Nx targets; its POSIX bootstrap executes a content-addressed Go binary so admission precedes Node and Nx. Repository agents keep the `rtk` prefix.
-
 ## Admission and Shedding
 
 The guard resolves effective memory and CPU capacity from the host and finite cgroup v2 limits. Ordinary work follows `balanced` → `constrained` → `minimal`; the final profile uses concurrency one and still attempts admission when static estimates are below its reserve but pressure is not critical. Transactional and release work stay strict.
@@ -33,13 +31,13 @@ The guard resolves effective memory and CPU capacity from the host and finite cg
 
 Percentages clamp to the stated range. Disk below the immutable 256 MiB floor exits `73`. Linux without usable swap is a supported capability state, not invalid evidence. Swap-out warning/critical rates are clamped to 0.4%/1.6% of effective memory with 64–128 MiB and 256–512 MiB bounds per fifteen seconds. macOS compressor payload and growth use 37.5%/3.125% warning and 50%/6.25% critical ratios. Linux memory PSI warns at `some avg10 >= 10%` and is critical at `some >= 25%`, `full >= 5%`, or a new OOM event.
 
-Critical pressure sheds ordinary work immediately. Warning grace is ten seconds for ephemeral work and thirty for development serve. Storage shedding exits `73`; other shedding exits `75`. Transactional work records post-start pressure but completes safely.
+Admission needs a sustained normal assessment, so warning pressure alone withholds it regardless of headroom. Critical pressure sheds ordinary work immediately. Warning grace is ten seconds for ephemeral work and thirty for development serve. Storage shedding exits `73`; other shedding exits `75`. Transactional work records post-start pressure but completes safely.
 
 Copy `apps/resource-guard/resource-guard.local.json.example` to the ignored `resource-guard.local.json` for machine policy. `--config`, `RESOURCE_GUARD_CONFIG`, then that file apply in order, and cannot weaken compiled safety floors.
 
 ## Evidence Basis
 
-XNU maps internal memory state to exported dispatch-compatible normal `1`, warning `2`, and critical `4` flags before exposing the sysctl ([XNU conversion](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_memorystatus_notify.c), [dispatch flags](https://github.com/swiftlang/swift-corelibs-libdispatch/blob/main/dispatch/source.h)). XNU describes available non-compressed memory as an estimate from active, inactive, free, and speculative pages, not free RAM ([memory-status model](https://github.com/apple-oss-distributions/xnu/blob/main/doc/vm/memorystatus_notify.md)). XNU compressor accounting shows payload bytes are not a compressor-capacity percentage ([compressor implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/vm/vm_compressor.c)).
+XNU maps internal memory state to normal `1`, warning `2`, and critical `4` flags before exposing the sysctl ([XNU conversion](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_memorystatus_notify.c), [dispatch flags](https://github.com/swiftlang/swift-corelibs-libdispatch/blob/main/dispatch/source.h)). XNU describes available non-compressed memory as an estimate from active, inactive, free, and speculative pages, not free RAM ([memory-status model](https://github.com/apple-oss-distributions/xnu/blob/main/doc/vm/memorystatus_notify.md)). XNU compressor accounting shows payload bytes are not a compressor-capacity percentage ([compressor implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/vm/vm_compressor.c)).
 
 ## Evidence and Cleanup
 
