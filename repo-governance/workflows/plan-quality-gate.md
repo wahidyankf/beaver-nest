@@ -1,33 +1,47 @@
 # Plan Quality Gate
 
-Use before execution, after changes, and at completion. Repair gaps before advancing.
+Produce exactly one terminal result—`PASS` or one `BLOCKED_*` variant—for one formal plan's semantic readiness. Run before execution, after material plan changes, and at completion. Never recurse or automatically start another run.
 
-Do not duplicate hooks; they own links, maps, word budgets, Mermaid accessibility, and automation. This workflow evaluates meaning and readiness.
+## Sufficiency and Ownership
 
-## Inputs
+A `PASS` means good enough for the authorized scope, known risks, and applicable rules—not perfect, exhaustive, or future-proof. Do not block on stylistic preference, speculative hardening, optional detail, or an improvement that can wait without making execution unsafe or ambiguous. Apply [minimal sufficiency](../principles/minimal-sufficiency.md).
 
-One active/backlog plan, current repository/specifications/governance, scope, and unresolved decisions.
+This workflow evaluates meaning, consistency, safety, executability, and proof. Deterministic tooling owns machine-decidable checks, including links, directory maps, word budgets, Mermaid, harness parity, and later automated contracts. Do not manually reproduce, sample, or second-guess those checks.
 
-## Procedure
+Run canonical tooling only in verification and consume its findings. For a check delivered by the plan, verify that `delivery.md` has an executable implementation and proof task; do not simulate the future tool. At completion, its target must exist and pass.
 
-1. Confirm one non-archived stage, [required files](../conventions/plan-lifecycle.md#formal-plans), and the [single technical shape rule](../conventions/plan-lifecycle.md#formal-plans).
-2. Inventory recursively. Read every document; inspect each asset's purpose, safety, owner. Follow every map and internal link.
-3. Resolve unlinked, empty, stale, duplicate, or unrelated material. Repair links, remove orphans, assign asset reader/purpose/owner, and reject both technical shapes or a shape chosen to satisfy a numeric threshold instead of reader needs.
-4. Apply [minimal sufficiency](../principles/minimal-sufficiency.md). First require a reader to understand why the plan exists, its options and selected decision, and how it will be executed and proved. Keep only artifacts required for that clarity, scope, safety, correctness, or execution. Treat split/unsplit shape only as a mechanism: split mixed reader jobs when navigation improves; merge needless fragments.
-5. Check README status, context, scope, dependencies, technical route, map. Align BRD/PRD goals, roles, stories, Gherkin, scope, non-goals, risks, decisions.
-6. Read the technical set as one design. Require junior-readable context, decisions, architecture, components, flow, verification. A split also needs reading order and distinct companion ownership.
-7. Schemas need exact old/new shapes, validation, defaults, compatibility, migration, rollback, and tests. Require an ERD for every relational database schema change, or a storage-appropriate data-model diagram for a non-relational persistent model; it must show affected entities/records, keys, relationships or references, cardinality where applicable, and ownership context without replacing the exact contract. Require a field-by-field guide for every column, property, or key in the affected resulting model; it explains purpose and any non-obvious shape, unit/timezone, owner/producer, null/default behavior, lifecycle, key/reference role, or sensitivity. Migrations name every source/reader/writer/owner/destination, expand→migrate→verify→contract, recovery, and no-loss proof. Authority cutovers require fresh-process product journeys with the prior source unavailable; structural parity alone is insufficient. Apply [migration](../conventions/plan-migrations.md).
-8. Keep Specification Changes and File Impact in `tech-docs.md` or mapped companions with distinct reader jobs. Require exact C4/Gherkin deltas, scenarios, bindings/adapters, proof, and every expected `[E]`, `[N]`, `[M]`, or `[D]` path; apply [specification changes](../conventions/plan-specification-changes.md).
-9. UI work needs selected design, alternatives, states, responsive/accessibility behavior, displayed safe assets, implementation paths, and device proof. Require PRD acceptance criteria and delivery tasks for a post-implementation manual browser check of every affected route/state and supported viewport class at the exact served origin. At completion, reject code-, test-, inference-, or asset-only proof. Keep assets under the plan-level `assets/` directory; apply [UI design](../conventions/plan-ui-design.md). Flag missing or merged [exploratory/usability](exploratory-and-usability-testing.md) findings as HIGH.
-10. `delivery.md` needs ordered `[AC-...]` tasks with input, action, outcome, proof, checkpoints; split mixed work. Prefer `[AI]` over `[HUMAN]`. Include rules propagation when possible, exact canonical C4 updates for documented architecture, and Playwright tab/context cleanup proof when used. Flag code-shipping items missing RED/GREEN/REFACTOR checkboxes as HIGH.
-11. Active-service plans link [continuity](../development/live-service-continuity.md) and name baseline health and responsiveness, independent candidate, Caddy promotion, revision readiness, LiveView/WebSocket proof, drain/cleanup, and rollback. Require acceptance criteria and delivery proof for continuous exact-origin responsiveness from preflight through compute gates, candidate qualification, promotion, and drain: a numeric p95 budget, numeric per-sample maximum, zero routed failures, representative user journey, and an explicit rollback trigger. A 2xx-only health check is insufficient. Reject sole-backend stops, normal-release Tailscale repoints, or required refresh.
-12. Apply the [software-quality map](../development/software-quality-enforcement.md): technical docs list applicable rows; `delivery.md` assigns each route a task and proof. Testing names layer targets, setup, results, cleanup, safe AI steps. Use isolated identities. Flag missing API operation inventory or manual REST/GraphQL `curl` evidence HIGH.
-13. `learnings.md` defines timing, safe evidence, and destination. Search `plans/ideas/`; merge overlap or create only a distinct brief.
-14. Compare claims with C4, Gherkin, implementation, governance, active plans. Resolve staleness, duplication, secrets, gaps, contradictions canonically.
-15. Repeat until the recursive inventory is reachable, necessary, consistent, junior-executable, and orphan-free.
+## Snapshot and Ledger
 
-## Exit Criteria
+Freeze the plan path and stage, Git revision plus dirty paths, scope, relevant specification and governance paths, unresolved decisions, and cycle `1`. A material external input change ends the run as `BLOCKED_INPUT_CHANGED`; it never causes an automatic restart. Recorded repairs remain inside this run and do not trigger another quality-gate run.
 
-Pass only when documentation reconciles, artifacts are necessary/discoverable, decisions/dependencies explicit, delivery safe, and no implementer must invent product, security, migration, UI, test, or rollback behavior.
+Audit before editing. Create a finite ledger containing `ID`, canonical rule, location, material gap, required repair, proof, and status: `OPEN`, `FIXED`, `NOT_APPLICABLE`, or `BLOCKED`. Only gaps that violate a rule or make scoped execution unsafe, ambiguous, or unprovable enter the ledger. Mandatory findings cannot be waived; `NOT_APPLICABLE` requires evidence. Preserve the snapshot, cycle, ledger, pending verification, and authorization through compaction or handoff under [governance continuity](../principles/governance-continuity.md).
 
-Passing authorizes neither execution nor commit/push. Use [plan execution](plan-execution.md) only after explicit direction.
+## Bounded Procedure
+
+1. Recursively inventory and read the plan, assets, relevant implementation, specifications, and governance. Do not validate machine-owned concerns.
+2. Complete one semantic audit without edits. Check:
+   - the formal [plan lifecycle](../conventions/plan-lifecycle.md): one stage, required documents, one technical shape, and truthful status;
+   - coherent purpose, decision, scope, risks, acceptance, and a junior-readable route from BRD/PRD through design and delivery;
+   - necessary, non-placeholder artifacts with distinct reader jobs;
+   - synchronized architecture, Gherkin, file impact, dependencies, and applicable [software-quality routes](../development/software-quality-enforcement.md);
+   - executable ownership, acceptance traceability, RED/GREEN/REFACTOR tasks, checkpoints, evidence, cleanup, recovery, and rollback;
+   - applicable [migration](../conventions/plan-migrations.md), [UI](../conventions/plan-ui-design.md), [API](../development/api-testing.md), test-isolation, and live-service contracts; and
+   - conflicts with current specifications, governance, implementation, or active plans.
+3. Freeze the initial ledger. Repair only its findings in dependency and safety order. Each repair must close an `OPEN` row without expanding product scope. Missing decisions, authority, or irreconcilable rules become `BLOCKED`, never invented answers.
+4. Verify semantically in read-only mode, reviewing only repaired meaning and cross-document effects. Then run:
+
+   ```sh
+   ./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
+   ```
+
+5. Return `PASS` when no row is `OPEN` or `BLOCKED`, tooling passes, no new material semantic gap appears, and the snapshot changed only through recorded repairs.
+6. Otherwise allow exactly one stabilization cycle. Add only repair-caused semantic gaps and deterministic-tool findings, set cycle `2`, repair them once, and repeat step 4. A fixed finding cannot reopen without changed input; changed input yields `BLOCKED_INPUT_CHANGED`.
+7. After cycle `2`, return `PASS` if step 5 holds. Otherwise return `BLOCKED_NON_CONVERGENT` with the remaining ledger and evidence. Do not repair, restart, or invoke this workflow again automatically.
+
+Resource-guard recovery required by its canonical standard is infrastructure handling, not another quality-gate cycle.
+
+If canonical recovery cannot obtain a deterministic verdict, return `BLOCKED_TOOLING` with the failure evidence. Never simulate the check or retry it without bound.
+
+## Terminal Contract
+
+`PASS` authorizes neither execution nor commit/push. Any `BLOCKED_*` result names the reason, remaining rows, and required external change. Resume only after new input or authority starts a fresh run through [plan execution](plan-execution.md).

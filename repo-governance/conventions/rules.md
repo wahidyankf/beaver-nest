@@ -13,6 +13,6 @@ A rule's scope may identify people, agents, files, components, or tasks directly
 
 ## Authority
 
-Every rule must have one canonical source. Its governance level and precedence are determined by that source under the repository [governance hierarchy](../README.md). Concise references at points of use must link to the canonical rule rather than restating it.
+Every rule must have one canonical source. Its governance level and precedence are determined by that source under the repository [governance hierarchy](../README.md). Concise references at points of use must link to the canonical rule rather than restating it. A rule change is ready only when [rules propagation](../workflows/rules-propagation.md), including its read-only [quality gate](../workflows/rules-quality-gate.md), returns `PASS_NO_CHANGE` or `PASS_CHANGED`.
 
 Creating, adding, updating, moving, deleting, or otherwise changing a rule automatically invokes the [rules-propagation workflow](../workflows/rules-propagation.md), even when it is not explicitly requested.

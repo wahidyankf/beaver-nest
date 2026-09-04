@@ -29,6 +29,7 @@ When composing workflows:
 - [Exploratory and usability testing](exploratory-and-usability-testing.md) runs the spec-aware exploratory pass and the spec-blind usability pass over a running UI-affecting plan.
 - [Gherkin implementation review](gherkin-implementation-review.md) requires an agent to inspect every scenario and adapter for real production behavior and independent evidence instead of trusting binding counts.
 - [Plan execution](plan-execution.md) moves an explicitly selected plan through active delivery, synchronized task tracking, and dated archival.
-- [Plan quality gate](plan-quality-gate.md) checks and repairs a formal plan before execution or completion reconciliation.
+- [Plan quality gate](plan-quality-gate.md) performs a bounded semantic audit and repair, ending in `PASS` or evidence-backed `BLOCKED`.
 - [Red–green–refactor](red-green-refactor.md) defines the repeatable TDD cycle for application and library behavior.
 - [Rules propagation](rules-propagation.md) automatically governs every repository rule change while preserving hierarchy, concision, and a single canonical source.
+- [Rules quality gate](rules-quality-gate.md) provides bounded, read-only semantic verdicts before and after propagation without duplicating deterministic checks.

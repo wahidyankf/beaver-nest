@@ -1,41 +1,40 @@
 # Rules Propagation
 
-Apply this workflow automatically whenever a repository [rule](../conventions/rules.md) is created, changed, moved, or deleted, even without an explicit request.
+Apply this workflow automatically whenever a repository [rule](../conventions/rules.md) is created, changed, moved, or deleted, even without an explicit request. It is the sole writer for rule propagation and composes the read-only [rules quality gate](rules-quality-gate.md). Neither workflow invokes itself; edits inside one propagation transaction do not start another transaction.
 
-## Inputs
+## Inputs and Transaction
 
 - the proposed rule and rationale;
-- the people, agents, files, or tasks in scope.
+- its intended mandatory, expected, or permitted strength;
+- the people, agents, files, or tasks in scope; and
+- known enforcement and evidence routes.
 
-## Idempotence Gate
+Freeze those inputs, the Git revision and dirty paths, affected entry points, relevant canonical sources, and cycle `1`. Preserve the snapshot, gate ledgers, cycle, pending verification, and authorization through compaction or handoff. Material external input change ends the transaction as `BLOCKED_INPUT_CHANGED`; it never causes an automatic restart.
 
-Before editing, compare the requested outcome with the effective rule by meaning, not wording. The existing rule is sufficient only when all are true:
+## Bounded Procedure
 
-- the requested outcome is stated with its intended mandatory, expected, or permitted strength;
-- scope, required or prohibited actions, boundaries, and exceptions are explicit;
-- a reasonable reader need not reconcile conflicts or infer missing conditions; and
-- one correctly placed canonical source and any needed point-of-use route exist.
+1. Run the [rules quality gate](rules-quality-gate.md) in `PROPOSAL` mode with the frozen inputs.
+   - On `PASS_NO_CHANGE`, make no edits and return `PASS_NO_CHANGE`.
+   - On `PASS_READY`, continue with its finite ledger.
+   - On any `BLOCKED_*`, preserve the evidence and stop.
+2. Apply one propagation cycle, changing only what the accepted outcome and ledger require:
+   - put the shortest actionable form at each applicable `AGENTS.md` or equivalent point of use, keeping non-negotiable constraints visible;
+   - keep self-contained canonical detail there only when it remains concise; otherwise link to the correct governance level;
+   - place outcomes and boundaries in vision, durable constraints in principles, repository choices in conventions, engineering standards in development, and procedures in workflows;
+   - compare authority in order: `vision > principles > conventions > development > workflows`, resolving lower-level conflicts;
+   - keep one canonical statement, merge unique meaning, replace copies with concise links, and apply [progressive disclosure](../principles/progressive-disclosure.md);
+   - inspect affected guidance top to bottom and change only stale, misplaced, overlapping, or repeated content implicated by the ledger; and
+   - name truthful enforcement under the [software-quality map](../development/software-quality-enforcement.md), adding machinery only for an explicit need or demonstrated risk.
+3. Run the rules quality gate in `EFFECTIVE` mode.
+   - On `PASS_EFFECTIVE`, return `PASS_CHANGED`.
+   - On `BLOCKED_TOOLING` or `BLOCKED_INPUT_CHANGED`, stop with its evidence.
+   - On `BLOCKED_SEMANTIC`, allow exactly one stabilization cycle only when every remaining finding is within the accepted outcome or was caused by the first-cycle edits.
+   - Otherwise stop with the gate's blocker and evidence.
+4. Freeze the combined proposal and effective ledgers as the stabilization repair set, set cycle `2`, and repair only that set. Do not expand scope, revisit a closed preference, or invent missing authority.
+5. Run the gate once more in `EFFECTIVE` mode. Return `PASS_CHANGED` on `PASS_EFFECTIVE`. Otherwise return `BLOCKED_NON_CONVERGENT` with the remaining ledger and evidence; do not repair, restart, or invoke either workflow again automatically.
 
-If all pass, change no repository content. Wording, order, style, or personal preference is not a gap. Run verification read-only and report a no-op. Otherwise record each material gap and change only enough to close it.
+Canonical resource-guard recovery required by its standard is infrastructure handling, not another propagation or quality cycle.
 
-## Procedure
+## Terminal Contract
 
-Continue only when the gate identifies a material gap.
-
-1. **Start at use.** Put the shortest actionable form in the relevant `AGENTS.md` or similar instruction file. Keep non-negotiable constraints visible.
-2. **Check the entry point.** A self-contained, non-duplicative rule may stay there when the file remains within its limit; otherwise continue with canonical detail.
-3. **Stay proportional.** Apply [minimal sufficiency](../principles/minimal-sufficiency.md). Add only necessary rules, links, and files. Add enforcement only for an explicit need, higher rule, or demonstrated risk.
-4. **Tidy affected guidance.** Read governance top to bottom. Consolidate only stale, misplaced, overlapping, or repeated content directly implicated by the gap; leave unrelated and sufficient rules unchanged.
-5. **Choose the canonical level.** Put outcomes and boundaries in vision, durable constraints in principles, repository choices in conventions, engineering standards in development, and procedures in workflows.
-6. **Check hierarchy.** Compare higher levels in order: `vision > principles > conventions > development > workflows`. Change any lower-level conflict.
-7. **Deduplicate.** Search equivalent guidance. Keep one correctly placed canonical statement, merge unique detail, and replace copies with concise links.
-8. **Disclose progressively.** Follow [progressive disclosure](../principles/progressive-disclosure.md): keep the shortest useful directive and link at use; place supporting detail canonically.
-9. **Verify.** Confirm links, affected [directory maps](../conventions/directory-maps.md), canonical ownership, lower-level alignment, and preserved existing intent. Run:
-
-   ```sh
-   ./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
-   ```
-
-## Outcome
-
-The result is either a verified no-op or the smallest patch that makes the rule visible where relevant, detailed at the correct level, consistent with higher authority, deduplicated, and within word limits. Repeating the workflow with unchanged inputs and repository state produces no diff.
+`PASS_NO_CHANGE` and `PASS_CHANGED` mean good enough, not perfect or future-proof. They authorize neither commit nor push. Every `BLOCKED_*` result names the remaining rows and external change required before a fresh transaction may begin. One transaction invokes the quality gate at most three times. With unchanged inputs and repository state, another authorized transaction produces no diff.

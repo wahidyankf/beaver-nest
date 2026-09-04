@@ -1,6 +1,6 @@
 # Software Quality Enforcement
 
-Every repository change must apply this map to its software-quality obligations. Detailed requirements remain canonical in the linked standards; this document owns enforcement classification and routing.
+Apply this map to every repository change. Linked standards own detailed requirements; this document owns enforcement classification and routing.
 
 ## Enforcement Classes
 
@@ -8,14 +8,14 @@ Every repository change must apply this map to its software-quality obligations.
 - **Commit gate** runs automatically and blocks `git commit` on failure.
 - **Push gate** runs automatically and blocks `git push` on failure.
 - **Scheduled detection** finds regressions on its declared cadence but does not block an earlier push.
-- **Required evidence** is a mandatory human or agent review whose recorded result blocks completion; it is not automated enforcement.
+- **Required evidence** is a mandatory human or agent review whose result blocks completion; it is not automation.
 - **Runtime guard** fails closed before unsafe test or deployment behavior starts.
 
-Every applicable quality rule must identify a class and concrete route. Never present a required gate, scheduled detection, or evidence review as a push gate. Missing automation does not weaken a mandatory rule.
+Every applicable rule must name its class and route. Never mislabel required gates, scheduled detection, or evidence reviews as push gates. Missing automation does not weaken a mandatory rule.
 
-“Applicable” means the change can alter the governed outcome, boundary, artifact, or mechanism. Before completion, identify every applicable row, run its narrowest target, and record non-automated evidence. Scheduled coverage supplements this proof; it never excuses a required local gate.
+A row applies when a change can alter its outcome, boundary, artifact, or mechanism. Before completion, run its narrowest targets and record required evidence. Scheduled coverage never replaces local proof.
 
-Under [governance continuity](../principles/governance-continuity.md), applicable rows, gate results, and outstanding evidence are durable task state. Preserve them through compaction or handoff and reload this map before resuming repository action.
+Preserve applicable rows, results, and outstanding evidence through compaction or handoff under [governance continuity](../principles/governance-continuity.md); reload this map before resuming.
 
 ## Enforcement Map
 
@@ -30,7 +30,8 @@ Under [governance continuity](../principles/governance-continuity.md), applicabl
 | Synthetic, isolated test data that cannot fall back to production    | [Test identities](test-identities.md)                                                                                                                               | **Runtime guard:** harnesses validate roots and identities before startup. **Required gate:** policy tests reject unsafe paths. **Required evidence:** Gherkin review checks isolation. Cleanup failure fails the run.                                          | Every automated or manual test.                                             |
 | Accessible, usable rendered UI                                       | [E2E testing](end-to-end-testing.md)                                                                                                                                | **Required gate:** affected E2E. **Required evidence:** exact-origin inspection and the [exploratory/usability workflow](../workflows/exploratory-and-usability-testing.md) for UI plans.                                                                       | Before completing UI work.                                                  |
 | Synchronized specifications, architecture, and project documentation | [Specification maintenance](specification-maintenance.md), [architecture](architecture-specifications.md), and [project READMEs](../conventions/project-readmes.md) | **Required evidence:** impact review and semantic reconciliation. **Required gate:** `badakmini-cli:test:repo` checks structure. **Push gate:** it runs conditionally.                                                                                          | Every stated artifact scope.                                                |
-| Consistent, discoverable repository rules                            | [Rules propagation](../workflows/rules-propagation.md)                                                                                                              | **Required evidence:** propagation and hierarchy review. **Required gate:** `badakmini-cli:test:repo` checks configured governance contracts. **Push gate:** it runs conditionally.                                                                             | Every rule change.                                                          |
+| Executable, provable formal plans                                    | [Plan lifecycle](../conventions/plan-lifecycle.md) and [plan quality gate](../workflows/plan-quality-gate.md)                                                       | **Required evidence:** semantic gate returns `PASS`. **Required gate:** `badakmini-cli:test:repo` owns machine checks. No commit/push gate.                                                                                                                     | Before execution, after material change, and at completion.                 |
+| Sufficient, consistent repository rules                              | [Rules quality gate](../workflows/rules-quality-gate.md) and [propagation](../workflows/rules-propagation.md)                                                       | **Required evidence:** semantic gate and propagation. **Required gate:** `badakmini-cli:test:repo` owns machine checks. **Push gate:** conditional.                                                                                                             | Every rule change.                                                          |
 | Safe active-service behavior and intended routed revision            | [Live-service continuity](live-service-continuity.md)                                                                                                               | **Runtime guard:** unsafe qualification or health stops promotion. **Required evidence:** responsiveness, routed journey/revision, drain, and rollback proof. A commit or push is not enforcement.                                                              | Every active-service-affecting change.                                      |
 | Necessary, maintained, reproducibly locked dependencies              | [Dependency selection](dependency-selection.md)                                                                                                                     | **Required evidence:** recorded selection review plus affected gates. Ecosystem locks provide reproducibility; the repository currently has no universal automated vulnerability gate.                                                                          | Every dependency addition or material change.                               |
 
