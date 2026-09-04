@@ -12,6 +12,10 @@
 .swiftpm/
 migrate_working_dir/
 
+# Local development and agent artifacts
+/local-tmp/
+/generated-output/
+
 # IntelliJ related
 *.iml
 *.ipr

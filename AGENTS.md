@@ -35,6 +35,7 @@
 - [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); [track tasks](repo-governance/conventions/task-tracking.md); preserve unfamiliar parallel changes under `plans/` and `repo-governance/`.
+- Use ignored `local-tmp/` for disposable development or agent scratch work and ignored `generated-output/` for user-requested, non-authoritative audits or reports before any plan work. Neither directory is a source of truth or plan content.
 - `plans/` require user request, not Plan mode; clarify why, options, decision, execution, proof, and reader-serving shape. Number split tech-doc companions `01-`. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
 - Under the [migration convention](repo-governance/conventions/plan-migrations.md): schema-changing plans need a data-model diagram and field-by-field guide beside the exact contract; authority cutovers must prove fresh-process product journeys with the prior source unavailable, never counts or parity alone.
 - Bnest active-service plans require Caddy candidate/promotion/rollback, continuous routed-responsiveness proof from preflight through drain, compatible LiveView reconnect, authoritative socket-state recovery, and routed WebSocket/revision proof; never assume refresh.

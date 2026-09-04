@@ -78,6 +78,8 @@ libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
 specs/apps/  Canonical application architecture and behavior specifications
 data/        Ignored legacy production sources and isolated flat-file test fixtures
 docs/        Diátaxis-organized, non-rule documentation
+generated-output/  Ignored user-requested, non-authoritative audits and reports
+local-tmp/    Ignored disposable development and agent scratch work
 plans/       Ideas and plans organized by delivery lifecycle
 ```
 
