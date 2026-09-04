@@ -35,6 +35,12 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: perform(context, :enter_valid_folder)
   )
 
+  step(
+    "the administrator enters a private folder beneath a sticky shared directory",
+    context,
+    do: perform(context, :enter_private_folder_beneath_sticky_shared_directory)
+  )
+
   step("Bnest normalizes the folder and appends the fixed database filename", context,
     do: outcome(context, :folder_normalized_with_fixed_filename)
   )

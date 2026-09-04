@@ -32,26 +32,34 @@ defmodule BnestApp.Storage.Location do
   end
 
   @spec validate(String.t()) :: {:ok, String.t()} | {:error, atom()}
-  def validate(directory) when is_binary(directory) do
+  def validate(directory) do
+    filesystem = %{lstat: &File.lstat/1, stat: &File.stat/1}
+
+    validate(directory, filesystem)
+  end
+
+  @doc false
+  @spec validate(String.t(), map()) :: {:ok, String.t()} | {:error, atom()}
+  def validate(directory, filesystem) when is_binary(directory) do
     expanded = Path.expand(directory)
 
     cond do
       not absolute_input?(directory) -> {:error, :not_absolute}
-      symlink_component?(expanded) -> {:error, :symlink}
+      symlink_component?(expanded, filesystem) -> {:error, :symlink}
       overlaps_boundary?(expanded) -> {:error, :unsafe_location}
-      world_writable_parent?(expanded) -> {:error, :world_writable}
+      unsafe_world_writable_location?(expanded, filesystem) -> {:error, :world_writable}
       true -> {:ok, expanded}
     end
   end
 
-  def validate(_directory), do: {:error, :not_absolute}
+  def validate(_directory, _filesystem), do: {:error, :not_absolute}
 
   defp absolute_input?(directory),
     do: String.starts_with?(directory, "/") or String.starts_with?(directory, "~")
 
-  defp symlink_component?(path) do
+  defp symlink_component?(path, %{lstat: lstat}) do
     Enum.any?([path, Path.dirname(path)], fn candidate ->
-      match?({:ok, %File.Stat{type: :symlink}}, File.lstat(candidate))
+      match?({:ok, %{type: :symlink}}, lstat.(candidate))
     end)
   end
 
@@ -68,9 +76,23 @@ defmodule BnestApp.Storage.Location do
     )
   end
 
-  defp world_writable_parent?(path) do
-    case File.stat(Path.dirname(path)) do
-      {:ok, %File.Stat{mode: mode}} -> Bitwise.band(mode, 0o002) != 0
+  defp unsafe_world_writable_location?(path, filesystem),
+    do:
+      world_writable?(path, filesystem) or
+        non_sticky_world_writable?(Path.dirname(path), filesystem)
+
+  defp world_writable?(path, filesystem),
+    do: mode_matches?(path, filesystem, &(Bitwise.band(&1, 0o002) != 0))
+
+  defp non_sticky_world_writable?(path, filesystem) do
+    mode_matches?(path, filesystem, fn mode ->
+      Bitwise.band(mode, 0o002) != 0 and Bitwise.band(mode, 0o1000) == 0
+    end)
+  end
+
+  defp mode_matches?(path, %{stat: stat}, predicate) do
+    case stat.(path) do
+      {:ok, %{mode: mode}} -> predicate.(mode)
       {:error, _reason} -> false
     end
   end

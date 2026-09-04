@@ -47,7 +47,7 @@ const desktopOnlyLoadScenario =
 // project's own run of the same pointer, so — like the one-time setup
 // scenario — sqlite storage runs on chromium only.
 const sqliteStorageScenario =
-  /private default without storage UI|valid custom database folder|Unsafe database folder is rejected|expected schema once|every recognized flat-file record|resumes idempotently|authoritative only after complete verification|blocks cutover without data loss|Non-admin cannot configure storage|reconnects across compatible SQLite rollout|Authoritative SQLite relocates|Verified legacy flat-file storage/u;
+  /private default without storage UI|valid custom database folder|Private custom storage|Unsafe database folder is rejected|expected schema once|every recognized flat-file record|resumes idempotently|authoritative only after complete verification|blocks cutover without data loss|Non-admin cannot configure storage|reconnects across compatible SQLite rollout|Authoritative SQLite relocates|Verified legacy flat-file storage/u;
 
 export default defineConfig({
   testDir,

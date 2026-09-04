@@ -85,6 +85,26 @@ defmodule BnestApp.Storage.ConfigTest do
       assert Config.persist_directory(Path.join(root, "other")) == {:error, :immutable}
     end
 
+    test "accepts a private directory beneath a sticky world-writable parent", %{root: root} do
+      shared = Path.join(root, "shared")
+      custom = Path.join(shared, "private")
+      File.mkdir_p!(custom)
+      {_output, 0} = System.cmd("chmod", ["1777", shared])
+      File.chmod!(custom, 0o700)
+
+      assert {:ok, config} = Config.persist_directory(custom)
+      assert config["databaseDirectory"] == custom
+    end
+
+    test "rejects an existing world-writable directory", %{root: root} do
+      custom = Path.join(root, "world-writable")
+      File.mkdir_p!(custom)
+      File.chmod!(custom, 0o777)
+
+      assert Config.persist_directory(custom) == {:error, :world_writable}
+      assert Config.read() == {:error, :absent}
+    end
+
     test "rejects a relative directory without mutation" do
       assert Config.persist_directory("relative/path") == {:error, :not_absolute}
       assert Config.read() == {:error, :absent}

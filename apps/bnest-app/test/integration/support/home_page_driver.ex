@@ -1023,12 +1023,20 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, :storage_ui_not_visited, _args),
     do: Map.put(context, :storage_ui_visits, 0)
 
-  def prepare_behaviour(context, :migration_not_started, _args),
-    do: Map.put(context, :migration_attempts, 0)
+  def prepare_behaviour(%{view: view} = context, :migration_not_started, _args) do
+    unless has_element?(view, "section[aria-label='Migration status']", "Not started") do
+      raise "storage migration already started"
+    end
+
+    Map.put(context, :migration_not_started?, true)
+  end
 
   def prepare_behaviour(context, :admin_opened_storage_settings, _args) do
     context = prepare_behaviour(context, :no_storage_configuration, [])
-    establish_identity(context, :admin)
+
+    context
+    |> establish_identity(:admin)
+    |> open("/storage")
   end
 
   def prepare_behaviour(context, :empty_isolated_database, _args) do
@@ -1282,14 +1290,35 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     File.mkdir_p!(custom)
     ExUnit.Callbacks.on_exit(fn -> File.rm_rf(custom) end)
 
-    context
-    |> Map.put(:requested_directory, custom)
-    |> Map.put(:persist_result, StorageConfig.persist_directory(custom))
+    persist_storage_from_view(context, custom)
+  end
+
+  def perform_behaviour(
+        %{identity_role: :admin, migration_not_started?: true, view: _view} = context,
+        :enter_private_folder_beneath_sticky_shared_directory,
+        _args
+      ) do
+    shared = Path.join(System.tmp_dir!(), "bnest-storage-shared-" <> unique_suffix())
+    custom = Path.join(shared, "private")
+    File.mkdir_p!(custom)
+    {_output, 0} = System.cmd("chmod", ["1777", shared])
+    File.chmod!(custom, 0o700)
+    ExUnit.Callbacks.on_exit(fn -> File.rm_rf(shared) end)
+
+    persist_storage_from_view(context, custom)
   end
 
   def perform_behaviour(context, :enter_unsafe_folder, _args) do
     unsafe = "relative/unsafe/path"
-    Map.put(context, :persist_result, StorageConfig.persist_directory(unsafe))
+
+    html =
+      context.view
+      |> form("form[phx-submit=check_folder]", %{"directory" => unsafe})
+      |> render_submit()
+
+    context
+    |> Map.put(:unsafe_response, LazyHTML.from_fragment(html))
+    |> Map.put(:requested_directory, unsafe)
   end
 
   def perform_behaviour(context, :apply_migration_set_twice, _args) do
@@ -1575,9 +1604,14 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: context.storage_ui_visits == 0
 
   def behaviour_outcome?(context, :folder_normalized_with_fixed_filename, _args) do
-    match?({:ok, %{"databaseFilename" => "bnest.sqlite3"}}, context.persist_result) and
-      elem(context.persist_result, 1)["databaseDirectory"] ==
-        Path.expand(context.requested_directory)
+    case StorageConfig.read() do
+      {:ok, config} ->
+        config["databaseFilename"] == StorageLocation.filename() and
+          config["databaseDirectory"] == Path.expand(context.requested_directory)
+
+      {:error, _reason} ->
+        false
+    end
   end
 
   def behaviour_outcome?(_context, :validated_location_stored_privately, _args) do
@@ -1586,7 +1620,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def behaviour_outcome?(context, :safe_correction_explained, _args),
-    do: match?({:error, _reason}, context.persist_result)
+    do:
+      context.unsafe_response
+      |> LazyHTML.query("[role=alert]")
+      |> LazyHTML.text()
+      |> String.contains?("Enter an absolute server-local folder")
 
   def behaviour_outcome?(_context, :no_storage_created, _args),
     do: StorageConfig.read() == {:error, :absent}
@@ -1967,6 +2005,23 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     File.mkdir_p!(dir)
     ExUnit.Callbacks.on_exit(fn -> File.rm_rf(dir) end)
     Path.join(dir, "storage.json")
+  end
+
+  defp persist_storage_from_view(context, directory) do
+    checked_html =
+      context.view
+      |> form("form[phx-submit=check_folder]", %{"directory" => directory})
+      |> render_submit()
+
+    unless checked_html =~ "Folder looks safe to use." do
+      raise "storage folder validation did not succeed"
+    end
+
+    context.view
+    |> form("form[phx-submit=create_database]", %{"directory" => directory})
+    |> render_submit()
+
+    Map.put(context, :requested_directory, directory)
   end
 
   defp unique_suffix, do: Base.url_encode64(:crypto.strong_rand_bytes(6), padding: false)

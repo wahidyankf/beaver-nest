@@ -50,8 +50,20 @@ defmodule BnestApp.Storage.Config do
 
   @spec persist_directory(String.t()) :: {:ok, map()} | {:error, atom()}
   def persist_directory(directory) do
-    with {:error, :absent} <- guard_immutable(),
-         {:ok, validated} <- Location.validate(directory) do
+    dependencies = %{
+      read: &read/0,
+      validate: &Location.validate/1,
+      write: &write!/1
+    }
+
+    persist_directory(directory, dependencies)
+  end
+
+  @doc false
+  @spec persist_directory(String.t(), map()) :: {:ok, map()} | {:error, atom()}
+  def persist_directory(directory, %{read: read, validate: validate, write: write}) do
+    with {:error, :absent} <- guard_immutable(read),
+         {:ok, validated} <- validate.(directory) do
       config = %{
         "schemaVersion" => @schema_version,
         "databaseDirectory" => validated,
@@ -60,7 +72,8 @@ defmodule BnestApp.Storage.Config do
         "migrationId" => "flat-files-v1-to-sqlite-v1"
       }
 
-      write!(config)
+      write.(config)
+
       {:ok, config}
     else
       {:ok, _existing} -> {:error, :immutable}
@@ -137,8 +150,8 @@ defmodule BnestApp.Storage.Config do
     end
   end
 
-  defp guard_immutable do
-    case read() do
+  defp guard_immutable(read) do
+    case read.() do
       {:ok, _config} -> {:ok, :exists}
       {:error, :absent} -> {:error, :absent}
       {:error, :invalid} -> {:error, :invalid}

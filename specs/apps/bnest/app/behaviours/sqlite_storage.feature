@@ -18,6 +18,13 @@ Feature: Bnest SQLite storage
     Then Bnest normalizes the folder and appends the fixed database filename
     And Bnest stores only the validated absolute location in private machine state
 
+  Scenario: Private custom storage survives a sticky shared ancestor
+    Given an authenticated user with the admin role opened storage settings
+    And migration has not started
+    When the administrator enters a private folder beneath a sticky shared directory
+    Then Bnest normalizes the folder and appends the fixed database filename
+    And Bnest stores only the validated absolute location in private machine state
+
   Scenario: Unsafe database folder is rejected without mutation
     Given an authenticated user with the admin role opened storage settings
     When the folder is relative, symlinked, world-writable, inside the repository, or overlaps a migration source

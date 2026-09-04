@@ -1,22 +1,45 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import { login } from "../support/authentication";
 import { isolatedTestIdentity } from "../support/test-identity";
 import { readLivePointer } from "../support/sqlite-storage";
 import { captureStorageAuthority } from "../support/storage-authority";
 
-// Admin storage LiveView folder-selection flows (feature scenarios 2, 3).
+// Admin storage LiveView folder-selection flows (feature scenarios 2 through 4).
 // Split out of sqlite_storage.steps.ts to stay under the repository's
 // 300-line step-file budget.
 
-const { Given, Then, When } = createBdd();
+const { After, Given, Then, When } = createBdd();
 
 const repositoryRoot = process.cwd();
 
 let customFolder = "";
+let customFolderCleanupRoot = "";
 let livePointerBefore: Record<string, unknown> | undefined;
+
+After(() => {
+  if (customFolderCleanupRoot !== "") {
+    rmSync(customFolderCleanupRoot, { recursive: true, force: true });
+    customFolderCleanupRoot = "";
+  }
+});
+
+async function persistCustomFolder(page: Page): Promise<void> {
+  await page
+    .getByRole("textbox", { name: "Database folder" })
+    .fill(customFolder);
+  await page.getByRole("button", { name: "Check folder" }).click();
+  await expect(page.getByText("Folder looks safe to use.")).toBeVisible();
+  await page.getByRole("button", { name: "Create database" }).click();
+  // create_database is a LiveView event; its persist happens server-side
+  // after the click resolves client-side, so poll for the write to land.
+  await expect
+    .poll(() => readLivePointer()?.["databaseDirectory"])
+    .toBe(path.resolve(customFolder));
+}
 
 // --- Scenario 2: admin selects a valid custom folder ------------------------
 
@@ -24,10 +47,9 @@ Given(
   "an authenticated user with the admin role opened storage settings",
   async ({ page, $testInfo }) => {
     captureStorageAuthority();
-    // Registers this scenario's isolated identity digest so it never
-    // collides with another scenario's fixtures; the admin session itself
-    // comes from the project's shared storageState, not a login here.
-    isolatedTestIdentity($testInfo);
+    const identity = isolatedTestIdentity($testInfo);
+    await page.context().clearCookies();
+    await login(page, identity.admin);
     livePointerBefore = readLivePointer();
     const response = await page.goto("/storage");
     expect(response?.status()).toBe(200);
@@ -47,17 +69,24 @@ When(
     customFolder = mkdtempSync(
       path.join(os.tmpdir(), "bnest-e2e-storage-custom-"),
     );
-    await page
-      .getByRole("textbox", { name: "Database folder" })
-      .fill(customFolder);
-    await page.getByRole("button", { name: "Check folder" }).click();
-    await expect(page.getByText("Folder looks safe to use.")).toBeVisible();
-    await page.getByRole("button", { name: "Create database" }).click();
-    // create_database is a LiveView event; its persist happens server-side
-    // after the click resolves client-side, so poll for the write to land.
-    await expect
-      .poll(() => readLivePointer()?.["databaseDirectory"])
-      .toBe(path.resolve(customFolder));
+    customFolderCleanupRoot = customFolder;
+
+    await persistCustomFolder(page);
+  },
+);
+
+When(
+  "the administrator enters a private folder beneath a sticky shared directory",
+  async ({ page }) => {
+    const shared = mkdtempSync(
+      path.join(os.tmpdir(), "bnest-e2e-storage-shared-"),
+    );
+    customFolderCleanupRoot = shared;
+    chmodSync(shared, 0o1777);
+    customFolder = path.join(shared, "private");
+    mkdirSync(customFolder, { mode: 0o700 });
+
+    await persistCustomFolder(page);
   },
 );
 
@@ -84,7 +113,6 @@ Then(
       ].toSorted(),
     );
     expect(String(pointer?.["databaseDirectory"])).toMatch(/^\//u);
-    rmSync(customFolder, { recursive: true, force: true });
   },
 );
 

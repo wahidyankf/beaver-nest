@@ -102,6 +102,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Identity.{Authorization, Bootstrap, CredentialVerifier, Session}
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
+  alias BnestApp.Storage.Config, as: StorageConfig
   alias BnestApp.Storage.Location, as: StorageLocation
   alias BnestAppWeb.SifatAllahLive
   alias Phoenix.HTML.Safe
@@ -1432,6 +1433,49 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
+  def perform_behaviour(
+        %{
+          authenticated: true,
+          migration_attempts: 0,
+          storage_admin?: true,
+          storage_config: nil
+        } = context,
+        :enter_private_folder_beneath_sticky_shared_directory,
+        _args
+      ) do
+    shared = "/synthetic/bnest-storage/shared"
+    candidate = shared <> "/private"
+    {:ok, storage_pointer} = Agent.start_link(fn -> nil end)
+
+    filesystem = %{
+      lstat: fn _path -> {:error, :enoent} end,
+      stat: fn
+        ^candidate -> {:ok, %{mode: 0o700}}
+        ^shared -> {:ok, %{mode: 0o1777}}
+        _path -> {:error, :enoent}
+      end
+    }
+
+    dependencies = %{
+      read: fn ->
+        case Agent.get(storage_pointer, & &1) do
+          nil -> {:error, :absent}
+          config -> {:ok, config}
+        end
+      end,
+      validate: &StorageLocation.validate(&1, filesystem),
+      write: fn config -> Agent.update(storage_pointer, fn _current -> config end) end
+    }
+
+    persist_result = StorageConfig.persist_directory(candidate, dependencies)
+
+    Map.merge(context, %{
+      requested_directory: candidate,
+      persist_result: persist_result,
+      storage_pointer: storage_pointer
+    })
+  end
+
   def perform_behaviour(context, :enter_unsafe_folder, _args),
     do:
       Map.merge(context, %{
@@ -1683,8 +1727,26 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :no_browser_confirmation, _args),
     do: context.migration_origin == :headless and context.storage_ui_visits == 0
 
+  def behaviour_outcome?(
+        %{storage_pointer: pointer} = context,
+        :folder_normalized_with_fixed_filename,
+        _args
+      ) do
+    stored = Agent.get(pointer, & &1)
+
+    stored["databaseDirectory"] == context.requested_directory and
+      stored["databaseFilename"] == StorageLocation.filename()
+  end
+
   def behaviour_outcome?(context, :folder_normalized_with_fixed_filename, _args),
     do: match?({:ok, %{"databaseFilename" => "bnest.sqlite3"}}, context.persist_result)
+
+  def behaviour_outcome?(%{storage_pointer: pointer}, :validated_location_stored_privately, _args) do
+    stored = Agent.get(pointer, & &1)
+
+    Enum.sort(Map.keys(stored)) ==
+      Enum.sort(~w(databaseDirectory databaseFilename migrationId phase schemaVersion))
+  end
 
   def behaviour_outcome?(context, :validated_location_stored_privately, _args),
     do: is_binary(elem(context.persist_result, 1)["databaseDirectory"])
