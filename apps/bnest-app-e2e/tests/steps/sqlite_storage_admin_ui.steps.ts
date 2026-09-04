@@ -6,7 +6,10 @@ import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
 import { isolatedTestIdentity } from "../support/test-identity";
 import { readLivePointer } from "../support/sqlite-storage";
-import { captureStorageAuthority } from "../support/storage-authority";
+import {
+  captureStorageAuthority,
+  restoreStorageAuthority,
+} from "../support/storage-authority";
 
 // Admin storage LiveView folder-selection flows (feature scenarios 2 through 4).
 // Split out of sqlite_storage.steps.ts to stay under the repository's
@@ -19,11 +22,19 @@ const repositoryRoot = process.cwd();
 let customFolder = "";
 let customFolderCleanupRoot = "";
 let livePointerBefore: Record<string, unknown> | undefined;
+let adminStorageAuthorityCaptured = false;
 
 After(() => {
-  if (customFolderCleanupRoot !== "") {
-    rmSync(customFolderCleanupRoot, { recursive: true, force: true });
+  try {
+    if (customFolderCleanupRoot !== "") {
+      rmSync(customFolderCleanupRoot, { recursive: true, force: true });
+    }
+  } finally {
     customFolderCleanupRoot = "";
+    if (adminStorageAuthorityCaptured) {
+      adminStorageAuthorityCaptured = false;
+      restoreStorageAuthority();
+    }
   }
 });
 
@@ -47,6 +58,7 @@ Given(
   "an authenticated user with the admin role opened storage settings",
   async ({ page, $testInfo }) => {
     captureStorageAuthority();
+    adminStorageAuthorityCaptured = true;
     const identity = isolatedTestIdentity($testInfo);
     await page.context().clearCookies();
     await login(page, identity.admin);
