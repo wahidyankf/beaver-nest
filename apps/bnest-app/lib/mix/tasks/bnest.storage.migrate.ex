@@ -6,6 +6,7 @@ defmodule Mix.Tasks.Bnest.Storage.Migrate do
   alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Config, as: StorageConfig
+  alias BnestApp.Storage.Lock, as: StorageLock
   alias BnestApp.Storage.Migration, as: StorageMigration
 
   @shortdoc "Runs the managed flat-file to SQLite storage migration without a browser visit"
@@ -26,6 +27,10 @@ defmodule Mix.Tasks.Bnest.Storage.Migrate do
     flat_root = options[:root] || Application.fetch_env!(:bnest_app, :runtime_root)
     activate? = Keyword.get(options, :activate, false)
 
+    StorageLock.with_exclusive(fn -> migrate_and_maybe_activate!(flat_root, activate?) end)
+  end
+
+  defp migrate_and_maybe_activate!(flat_root, activate?) do
     config = StorageConfig.ensure_default!()
     database_path = Path.join(config["databaseDirectory"], config["databaseFilename"])
 
