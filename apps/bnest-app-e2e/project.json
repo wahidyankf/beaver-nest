@@ -66,12 +66,6 @@
       "cache": false
     },
     "test:quick": {
-      "dependsOn": [
-        {
-          "projects": ["bnest-app"],
-          "target": "test:quick"
-        }
-      ],
       "executor": "nx:run-commands",
       "options": {
         "commands": [
@@ -81,6 +75,10 @@
           },
           {
             "command": "npm exec -- nx run -p bnest-app-e2e -t lint",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app-e2e -t test:coverage:behaviour",
             "forwardAllArgs": false
           }
         ],

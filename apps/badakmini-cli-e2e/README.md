@@ -14,7 +14,7 @@ Run from the repository root through `./resource-guard run --class ephemeral -- 
 | Type-check the test assembly | `npm exec -- nx run -p badakmini-cli-e2e -t typecheck`               |
 | Lint and format-check F#     | `npm exec -- nx run -p badakmini-cli-e2e -t lint`                    |
 
-`test:e2e` builds `badakmini-cli`, checks behavior completeness across unit, integration, and E2E adapters, then executes every canonical scenario. `test:quick` never launches the CLI process; it runs type checking, linting, and static behavior completeness only.
+`test:e2e` builds `badakmini-cli`, checks behavior completeness across unit, integration, and E2E adapters, then executes every canonical scenario. `test:quick` never launches the CLI process; it owns and sequentially runs type checking, linting, and static behavior completeness without depending on the CLI application's complete quick gate.
 
 ## Shared Specification
 
@@ -24,7 +24,7 @@ The same feature, expanded scenario, and step must execute at unit, local-only i
 
 ## Scheduling
 
-The independent **Badakmini test symphony** job in the [scheduled workflow](../../.github/workflows/full-e2e.yml) runs network-free integration coverage before this process E2E suite at 06:00 and 18:00 WIB. Runtime E2E remains outside `test:quick` and Git hooks.
+The independent **Badakmini test symphony** job in the [scheduled quality-gates workflow](../../.github/workflows/scheduled-quality-gates.yml) runs network-free integration coverage before this process E2E suite at 06:00 and 18:00 WIB. Runtime E2E remains outside `test:quick` and Git hooks.
 
 ## Structure
 

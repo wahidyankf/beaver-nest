@@ -34,7 +34,7 @@
 - [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md), [track tasks](repo-governance/conventions/task-tracking.md), and retain unfamiliar parallel changes under `plans/` and `repo-governance/`.
-- Use ignored `local-tmp/` for disposable scratch and `generated-output/` for requested, non-authoritative pre-plan audits/reports; neither is authoritative or a plan.
+- Use ignored `local-tmp/` for disposable scratch and `generated-reports/` for requested, non-authoritative pre-plan audits/reports; neither is authoritative or a plan.
 - User-requested plans must explain why, options, decision, execution, proof, and reader-serving shape; Plan mode alone is insufficient. Number split tech-doc companions `01-`. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
 - [Migration plans](repo-governance/conventions/plan-migrations.md) need a data-model diagram and field guide beside schema contracts; authority cutovers require fresh-process journeys with the prior source unavailable, never parity alone.
 - Bnest active-service plans require Caddy candidate/promotion/rollback, routed responsiveness through drain, compatible LiveView reconnect, authoritative socket recovery, and routed WebSocket/revision proof; never assume refresh.
@@ -54,6 +54,7 @@
 - Before completion, stop unneeded non-production servers, watchers, candidates, and temporary proxies; retain only the active route and bounded drain.
 - Separate server/proxy lifecycles; follow [start/restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep [quality gates](repo-governance/development/quality-gates.md) green.
+- Keep executable tests in layer-specific directories; put public-boundary E2E in a dedicated Nx app.
 - Guard compute-bearing Nx work under `apps/`, `libs/`, and repository tools through the checksum-pinned `./resource-guard` consumer via [resource-aware development](repo-governance/development/resource-aware-development.md); source, specs, and enforcement live upstream. Exit `75`: read the deferral, confirm any named holder exited, and retry serially. Exit `73`: clean storage. Exit `78`: replan; ordinary work falls through `minimal`. Never bypass, parallel-retry, weaken gates, change class, or abandon; recovery/status remain direct.
 - Keep `test:e2e` outside `test:quick`; at the exact origin run only affected/UI-accessibility states, await LiveView, isolate users, and close task-created tabs/contexts except handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
 - Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at exact origins/viewports; tests never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/exploratory-and-usability-testing.md).

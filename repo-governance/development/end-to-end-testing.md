@@ -34,6 +34,6 @@ For example:
 
 ## Full Suite
 
-The complete suites run in [GitHub Actions](../../.github/workflows/full-e2e.yml) every day at 06:00 and 18:00 in `Asia/Jakarta` (WIB). Each job runs its network-free local integration coverage before its E2E suite. Manual dispatch supports exceptional broad validation or recovery, but routine development must use affected cases.
+The complete suites run in the [scheduled quality-gates workflow](../../.github/workflows/scheduled-quality-gates.yml) every day at 06:00 and 18:00 in `Asia/Jakarta` (WIB). ExBdd runs its complete unit, integration, and engine coverage aggregate; each project with an E2E harness runs network-free integration coverage before its complete E2E suite. Manual dispatch supports exceptional broad validation or recovery, but routine development must use affected cases.
 
 Keep the scheduled workflow pointed at the canonical `test:e2e` Nx target without case filters. Treat a scheduled failure as a real quality-gate failure: reproduce it, identify the root cause, fix the earliest responsible layer, and rerun the relevant verification without weakening or bypassing the test.

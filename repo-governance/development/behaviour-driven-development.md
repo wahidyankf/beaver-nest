@@ -28,7 +28,7 @@ A library without integration must own no filesystem, database, process, or simi
 - Run every feature, expanded scenario, and step in each applicable adapter. Exempt only a specific adapter when its boundary makes the step impossible and document why; never exempt all adapters.
 - `test:coverage:behaviour` must prove the exact recursive corpus, complete driver contract, exactly-one step binding, and no unused binding. Deleting behavior requires removing stale bindings.
 - Make the corpus an Nx input of its owner and E2E harness. `test:quick` runs unit scenarios and static behavior coverage, never integration or E2E runtime; follow the [quality-gate](quality-gates.md) and [E2E](end-to-end-testing.md) standards.
-- Unit uses doubles; integration uses isolated local resources without network; E2E exercises public production-like boundaries.
+- Apply the canonical layer boundaries and folder ownership from the [quality-gate standard](quality-gates.md); boundary setup and assertions count when classifying a test.
 
 ## Manual Public-Boundary Confirmation
 

@@ -62,9 +62,10 @@ npm test
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:integration
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
+./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage
 ```
 
-`npm test` runs the Phoenix unit suite through Nx. Bnest's unit, integration, and browser adapters consume the same recursively discovered feature corpus; `test:coverage:behaviour` statically proves that every adapter implements it completely. Run only affected end-to-end cases during development. Scheduled GitHub Actions jobs run each local integration suite before its complete E2E suite at 06:00 and 18:00 WIB.
+`npm test` runs the Phoenix unit suite through Nx. Executable unit and integration tests live in separate layer directories; public-boundary E2E tests live in dedicated Nx apps. Bnest's unit, integration, and browser adapters consume the same recursively discovered feature corpus; `test:coverage:behaviour` statically proves that every adapter implements it completely. Run only affected end-to-end cases during development. At 06:00 and 18:00 WIB, scheduled GitHub Actions runs complete ExBdd coverage and each application's integration coverage before its complete E2E suite.
 
 ## Repository layout
 
@@ -77,7 +78,7 @@ libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
 specs/apps/  Canonical application architecture and behavior specifications
 data/        Ignored legacy production sources and isolated flat-file test fixtures
 docs/        Diátaxis-organized, non-rule documentation
-generated-output/  Ignored user-requested, non-authoritative audits and reports
+generated-reports/ Ignored user-requested, non-authoritative audits and reports
 local-tmp/    Ignored disposable development and agent scratch work
 plans/       Ideas and plans organized by delivery lifecycle
 ```

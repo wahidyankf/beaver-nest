@@ -14,7 +14,7 @@ migrate_working_dir/
 
 # Local development and agent artifacts
 /local-tmp/
-/generated-output/
+/generated-reports/
 
 # IntelliJ related
 *.iml

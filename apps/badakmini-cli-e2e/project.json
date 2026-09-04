@@ -65,12 +65,6 @@
       "outputs": ["{projectRoot}/bin", "{projectRoot}/obj"]
     },
     "test:quick": {
-      "dependsOn": [
-        {
-          "projects": ["badakmini-cli"],
-          "target": "test:quick"
-        }
-      ],
       "executor": "nx:run-commands",
       "inputs": [
         "default",
@@ -85,6 +79,10 @@
           },
           {
             "command": "npm exec -- nx run -p badakmini-cli-e2e -t lint",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p badakmini-cli-e2e -t test:coverage:behaviour",
             "forwardAllArgs": false
           }
         ],

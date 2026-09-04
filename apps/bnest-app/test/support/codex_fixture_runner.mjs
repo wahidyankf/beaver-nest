@@ -113,6 +113,9 @@ for await (const line of lines) {
         item_id: "fixture-reasoning",
         text: "Fixture reasoning summary",
       });
+      // Preserve the real event boundary so the public progress state is observable
+      // before the final answer closes the streaming disclosure.
+      await new Promise((resolve) => setTimeout(resolve, 500));
       output({
         type: "assistant_update",
         item_id: "fixture-progress",
@@ -123,6 +126,7 @@ for await (const line of lines) {
         item_id: "fixture-final",
         text: "Fixture final answer",
       });
+      await new Promise((resolve) => setTimeout(resolve, 500));
       output({ type: "turn_completed" });
       continue;
     }

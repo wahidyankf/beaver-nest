@@ -1,4 +1,4 @@
-name: Full end-to-end tests
+name: Scheduled quality gates
 
 on:
   schedule:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: full-e2e
+  group: scheduled-quality-gates
   cancel-in-progress: false
 
 jobs:
@@ -34,6 +34,36 @@ jobs:
 
       - name: Inspect runner capacity
         run: ./resource-guard status --json --disk-path .
+
+  ex-bdd-coverage:
+    name: ExBdd unit and integration coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3.3"
+          elixir-version: "1.18.3"
+          version-type: strict
+
+      - name: Install npm dependencies
+        run: ./resource-guard run --class ephemeral --disk-path . -- npm ci
+
+      - name: Install ExBdd dependencies
+        run: ./resource-guard run --class ephemeral --cwd libs/ex-bdd --disk-path libs/ex-bdd -- mix deps.get
+
+      - name: Run complete ExBdd coverage
+        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
 
   badakmini-test-symphony:
     name: Badakmini test symphony

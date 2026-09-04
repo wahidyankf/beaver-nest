@@ -14,14 +14,7 @@ defmodule ExBdd.MixProject do
       deps: deps(),
       aliases: aliases(),
       description: @description,
-      test_coverage: [
-        summary: [threshold: 99],
-        ignore_modules: [
-          ~r/^ExBdd\.BehaviorCase/,
-          ~r/^ExBdd\.CckApproval/,
-          ExBdd.ReloadableHooks
-        ]
-      ],
+      test_coverage: test_coverage(),
       # Step and support files are loaded by ExBdd discovery, not ExUnit.
       test_ignore_filters: [
         ~r/features\/step_definitions/,
@@ -47,6 +40,59 @@ defmodule ExBdd.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp test_coverage do
+    test_scaffolding = [
+      ~r/^ExBdd\.BehaviorCase/,
+      ~r/^ExBdd\.CckApproval/,
+      ExBdd.ReloadableHooks
+    ]
+
+    integration_owned = [
+      ExBdd,
+      ExBdd.BeforeAllError,
+      ExBdd.Compiler,
+      ExBdd.Discovery,
+      ExBdd.Gherkin.Markdown,
+      ExBdd.Gherkin.NimbleParser,
+      ExBdd.Gherkin.ParseError,
+      ExBdd.Gherkin.Parser,
+      ExBdd.Hooks,
+      ExBdd.Messages,
+      ExBdd.Messages.Emitter,
+      ExBdd.ParameterTypes,
+      ExBdd.PendingStepError,
+      ExBdd.RunCoordinator,
+      ExBdd.Runtime,
+      ExBdd.VerificationError,
+      ExBdd.Verifier
+    ]
+
+    unit_owned = [
+      ExBdd.Expression,
+      ExBdd.Gherkin.NimbleParser,
+      ExBdd.Gherkin.Pickles,
+      ExBdd.Hooks,
+      ExBdd.Messages,
+      ExBdd.Runtime,
+      ExBdd.StepError,
+      ExBdd.UndefinedParameterTypeError
+    ]
+
+    {output, layer_exclusions} =
+      case System.get_env("EX_BDD_TEST_LAYER") do
+        "unit" -> {"cover/unit", integration_owned}
+        "integration" -> {"cover/integration", unit_owned}
+        "engine" -> {"cover/engine", []}
+        _other -> {"cover", []}
+      end
+
+    [
+      output: output,
+      summary: [threshold: 99],
+      ignore_modules: test_scaffolding ++ layer_exclusions
+    ]
+  end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do

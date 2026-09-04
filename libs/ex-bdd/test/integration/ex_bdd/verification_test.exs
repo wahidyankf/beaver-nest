@@ -1,7 +1,7 @@
 defmodule ExBdd.VerificationTest do
   use ExUnit.Case, async: false
 
-  @fixture_root Path.expand("../fixtures/verification", __DIR__)
+  @fixture_root Path.expand("../../fixtures/verification", __DIR__)
 
   test "verifies and counts the complete expanded corpus" do
     result =

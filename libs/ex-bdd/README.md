@@ -29,16 +29,24 @@ Run tasks from the repository root through the workspace [resource guard](../../
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t typecheck
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t lint
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:unit
+./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:integration
+./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage:unit
+./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage:integration
+./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage:engine
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:quick
 ```
 
-The coverage target includes the complete retained production engine and must remain at least 99% line-covered. Test-only support modules are excluded from the production denominator.
+`test:unit` executes only `test/unit/`: in-process tests whose OS-facing dependencies are replaced by doubles. `test:integration` executes only `test/integration/`: real fixture discovery, file output, code loading, and same-machine process coordination, with no network. The integration bootstrap compiles the vendored feature corpus only in that layer. `test:quick` runs typecheck, lint, unit execution, and unit coverage; integration remains scheduled and outside pre-push quick checks. ExBdd owns no public system journey, so an E2E project and `test:e2e` target are intentionally inapplicable.
+
+Every numeric slice fails below 99% total line coverage. The unit denominator owns expression matching, step-definition and step-error behavior, pickle expansion, verification delegation, and production data/error values. The integration denominator owns discovery, compilation, parsing, parameter registration, message emission, run coordination, and public verification. Cross-layer orchestration modules that cannot independently reach 99% in either boundary-correct slice remain included in `test:coverage:engine`; that target runs both layer trees and enforces 99% over the complete retained production engine, so scoped exclusions cannot create an unmeasured gap. `test:coverage` sequentially composes all three named slices. Test-only support modules are excluded from every production denominator. Reports are written to `cover/unit/`, `cover/integration/`, and `cover/engine/`.
 
 Important paths:
 
 - `lib/ex_bdd/` contains discovery, parsing, verification, compilation, and runtime code.
-- `test/ex_bdd/` contains unit, behavior, message, and compatibility-kit tests.
+- `test/unit/ex_bdd/` contains executable resource-free unit tests.
+- `test/integration/ex_bdd/` contains executable local-resource integration tests.
+- `test/features/`, `test/fixtures/`, and `test/support/` contain shared non-executable corpus, fixtures, bindings, and support.
 - `test/fixtures/cck/` contains the retained Cucumber Compatibility Kit fixtures.
 - `UPSTREAM.md` records the exact fork provenance and divergence policy.
 

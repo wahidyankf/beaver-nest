@@ -16,7 +16,7 @@ npm exec -- playwright install chromium
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:quick
 ```
 
-`test:quick` runs these fail-fast checks in order:
+`test:quick` owns and runs these fail-fast checks in order, without depending on the application's complete quick gate:
 
 1. `typecheck` checks every `.ts` file with TypeScript strict mode, rejects implicit and explicit `any`, and emits no files.
 2. `lint` runs Oxlint's correctness, suspicious, pedantic, and performance rules and rejects explicit `any`.

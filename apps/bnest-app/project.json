@@ -234,7 +234,7 @@
     },
     "test:integration": {
       "dependsOn": ["test-data:cleanup"],
-      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors test/integration",
+      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --max-cases 1 test/integration",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
@@ -255,7 +255,8 @@
       "outputs": ["{projectRoot}/cover/unit"]
     },
     "test:coverage:integration": {
-      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover test/integration",
+      "dependsOn": ["test-data:cleanup"],
+      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover --max-cases 1 test/integration",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
