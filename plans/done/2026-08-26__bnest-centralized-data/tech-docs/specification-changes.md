@@ -1,10 +1,10 @@
 # Specification Change Record
 
-This record selects the durable product contracts implemented by the plan. It does not copy every PRD acceptance criterion into canonical Gherkin. The C4 and feature changes below passed their unit, integration, behavior, and browser bindings; live setup/import remains a delivery gate.
+This record selects the durable product contracts implemented by the plan. It does not copy every PRD acceptance criterion into canonical Gherkin. The C4 and feature changes below passed their unit, integration, behaviour, and browser bindings; live setup/import remains a delivery gate.
 
 ## PRD Boundary
 
-- **Canonical product behavior:** protected access, one-time setup, persistent independent browser sessions, self-owned multi-role access, user isolation, confirmed browser import, retry safety, accepted-key cleanup, centralized continuation, and failed Codex-resume fallback.
+- **Canonical product behaviour:** protected access, one-time setup, persistent independent browser sessions, self-owned multi-role access, user isolation, confirmed browser import, retry safety, accepted-key cleanup, centralized continuation, and failed Codex-resume fallback.
 - **Delivery-only proof:** root-level private inventory, immutable legacy-copy rehearsal, read-only production schema audit, marked test-root safety, exact cleanup, and live promotion/rollback. These remain in [delivery](../delivery.md), not product-language scenarios.
 
 ## Gherkin Changes
@@ -28,7 +28,7 @@ This record selects the durable product contracts implemented by the plan. It do
 
 - Existing chat interactions keep their prior observable outcomes under the authenticated background.
 - The public PWA scenario remains outside authentication.
-- Bindings: `[E] apps/bnest-app/test/behaviour/driver.ex`, `[E] apps/bnest-app/test/behaviour/support/integration.exs`, and `[E] apps/bnest-app-e2e/tests/steps/browser.steps.ts`; shared login/import behavior comes from the new binding files below.
+- Bindings: `[E] apps/bnest-app/test/behaviour/driver.ex`, `[E] apps/bnest-app/test/behaviour/support/integration.exs`, and `[E] apps/bnest-app-e2e/tests/steps/browser.steps.ts`; shared login/import behaviour comes from the new binding files below.
 
 ### `[E] specs/apps/bnest/app/behaviours/sifat_allah.feature`
 
@@ -90,7 +90,7 @@ The existing independent Tailscale proxy and local Codex boundaries remain uncha
 
 ## Proof
 
-- Behavior coverage: 4 features, 55 scenarios, 434 steps, and 118 bindings in each application adapter, with the browser adapter complete.
+- Behaviour coverage: 4 features, 55 scenarios, 434 steps, and 118 bindings in each application adapter, with the browser adapter complete.
 - Numeric coverage: unit 99.63% and integration 100%, both above the unchanged 99% threshold.
 - Browser coverage: all 163 generated desktop, tablet, and mobile cases passed with isolated scenario identities.
 - Manual browser proof: setup, login, import, chat, learning, and theme states exposed named semantics; affected Lighthouse accessibility checks reached 100 after contrast correction.

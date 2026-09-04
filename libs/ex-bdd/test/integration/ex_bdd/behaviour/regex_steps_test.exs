@@ -1,11 +1,11 @@
-defmodule ExBdd.RegexStepsBehaviorTest do
+defmodule ExBdd.RegexStepsBehaviourTest do
   @moduledoc """
-  Behavior tests for regular expression step definitions (#24).
+  Behaviour tests for regular expression step definitions (#24).
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defmodule RegexSteps do
     use ExBdd.StepDefinition

@@ -64,5 +64,5 @@ Harness UI, model choice, credentials, local memory, approval prompts, and user-
 - [Business requirements](brd.md) states the repository-development need and constraints.
 - [Delivery](delivery.md) owns the ordered implementation and verification checklist.
 - [Learnings](learnings.md) records safe observations and their disposition.
-- [Product requirements](prd.md) defines plan-level acceptance behavior.
+- [Product requirements](prd.md) defines plan-level acceptance behaviour.
 - [Technical design](tech-docs.md) owns the architecture, deterministic validator, specification changes, and exact file impact.

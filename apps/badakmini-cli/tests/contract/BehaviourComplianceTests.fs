@@ -16,23 +16,23 @@ type FeatureComplianceTests() =
     [<Fact>]
     member _.``feature and scenario tags remain available``() =
         let source =
-            "@documentation\nFeature: Compliance example\n\n  @smoke\n  Scenario: Tagged behavior\n    Given a precondition\n    When an action occurs\n    Then an outcome is observed"
+            "@documentation\nFeature: Compliance example\n\n  @smoke\n  Scenario: Tagged behaviour\n    Given a precondition\n    When an action occurs\n    Then an outcome is observed"
 
         Assert.Equal(Ok(), FeatureCompliance.validate "example.feature" source)
 
     [<Fact>]
     member _.``documented higher-layer exemption is accepted``() =
         let source =
-            "Feature: Compliance example\n\n  # Exemption(integration): browser geometry needs a layout engine; alternative-proof: example-e2e:test:e2e / Tagged behavior\n  @integration-exempt\n  Scenario: Tagged behavior\n    Given a precondition\n    When an action occurs\n    Then an outcome is observed"
+            "Feature: Compliance example\n\n  # Exemption(integration): browser geometry needs a layout engine; alternative-proof: example-e2e:test:e2e / Tagged behaviour\n  @integration-exempt\n  Scenario: Tagged behaviour\n    Given a precondition\n    When an action occurs\n    Then an outcome is observed"
 
         Assert.Equal(Ok(), FeatureCompliance.validate "example.feature" source)
 
     [<Fact>]
     member _.``unit legacy broad and undocumented exemptions are rejected``() =
-        [ "@unit-exempt\n  Scenario: Tagged behavior"
-          "@no-e2e\n  Scenario: Tagged behavior"
-          "@e2e-exempt\nFeature: Tagged behavior"
-          "@integration-exempt\n  Scenario: Tagged behavior" ]
+        [ "@unit-exempt\n  Scenario: Tagged behaviour"
+          "@no-e2e\n  Scenario: Tagged behaviour"
+          "@e2e-exempt\nFeature: Tagged behaviour"
+          "@integration-exempt\n  Scenario: Tagged behaviour" ]
         |> List.iter (fun declaration ->
             let source =
                 $"Feature: Compliance example\n\n  {declaration}\n    Given a precondition\n    When an action occurs\n    Then an outcome is observed"
@@ -129,7 +129,7 @@ type FeatureComplianceTests() =
         Assert.Equal<string array>(diskNames, FeatureCatalog.resourceNames assembly)
 
     [<Fact>]
-    member _.``adapter implements the complete behavior driver contract``() =
+    member _.``adapter implements the complete behaviour driver contract``() =
         let contractType = typeof<IBehaviourDriver>
 
         let adapterTypes =
@@ -153,7 +153,7 @@ type FeatureComplianceTests() =
                 [ { Kind = WhenBinding
                     Text = "an undefined action" } ]
 
-        Assert.Contains(errors, fun error -> error.Contains("Undefined behavior step"))
+        Assert.Contains(errors, fun error -> error.Contains("Undefined behaviour step"))
 
     [<Fact>]
     member _.``ambiguous bindings are rejected``() =
@@ -171,7 +171,7 @@ type FeatureComplianceTests() =
                 [ { Kind = ThenBinding
                     Text = "the result is good" } ]
 
-        Assert.Contains(errors, fun error -> error.Contains("Ambiguous behavior step"))
+        Assert.Contains(errors, fun error -> error.Contains("Ambiguous behaviour step"))
 
     [<Fact>]
     member _.``unused binding is rejected``() =
@@ -189,7 +189,7 @@ type FeatureComplianceTests() =
                 [ { Kind = GivenBinding
                     Text = "a used precondition" } ]
 
-        Assert.Contains(errors, fun error -> error.Contains("Unused behavior binding: unused"))
+        Assert.Contains(errors, fun error -> error.Contains("Unused behaviour binding: unused"))
 
     [<Fact>]
     member _.``incomplete driver contract is rejected``() =

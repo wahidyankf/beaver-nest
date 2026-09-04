@@ -1,14 +1,14 @@
 defmodule ExBdd.PickleSemanticsTest do
   @moduledoc """
-  Behavior tests for pickle compilation semantics that reach the runner
+  Behaviour tests for pickle compilation semantics that reach the runner
   (#28): background steps stay verbatim under scenario outlines, and a
   scenario with no steps of its own is an empty test case — its
   background does not run.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defmodule Steps do
     use ExBdd.StepDefinition

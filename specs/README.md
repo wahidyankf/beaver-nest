@@ -4,4 +4,4 @@ This tree contains canonical, implementation-independent specifications shared b
 
 ## Directory Map
 
-- [Application specifications](apps/README.md) contain canonical architecture models and executable behavior corpora for logical applications.
+- [Application specifications](apps/README.md) contain canonical architecture models and executable behaviour corpora for logical applications.

@@ -63,7 +63,7 @@ Show username, masked password, submit state, and one generic invalid-credential
 
 ### Import and migration status
 
-After login, show only recognized sources found in that browser. For each source, explain what will be copied, that the source remains until read-back, and the final client-cleanup behavior. Status cards distinguish `ready`, `copying`, `verifying`, `accepted`, `retryable`, and `rejected` using icon, text, and color. Retry never asks the user to re-enter data.
+After login, show only recognized sources found in that browser. For each source, explain what will be copied, that the source remains until read-back, and the final client-cleanup behaviour. Status cards distinguish `ready`, `copying`, `verifying`, `accepted`, `retryable`, and `rejected` using icon, text, and color. Retry never asks the user to re-enter data.
 
 Shared implementation surfaces are account cards, role checkboxes, add/remove controls, irreversible confirmation, login form, source confirmation cards, status alerts, and retry actions.
 

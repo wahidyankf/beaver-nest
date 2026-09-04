@@ -22,7 +22,7 @@ Prevent repository-owned development and release work from materially increasing
 
 - A host-wide daemon, controlling unrelated applications, or proving all future restarts impossible.
 - Treating undocumented numeric thresholds as Apple, Node, or Erlang standards.
-- Changing public Bnest product behavior or storage data.
+- Changing public Bnest product behaviour or storage data.
 
 ## Risks and Controls
 

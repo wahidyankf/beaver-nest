@@ -22,7 +22,7 @@ This work does not promise literal zero interruption for every incompatible sche
 
 A release may cause a brief transport interruption only when the browser resolves it automatically. The page must reconnect or update itself, return to a usable state, and preserve the user's current route, acknowledged data, and recoverable in-progress work. Asking the user to reload, re-enter input, repeat completed learning work, or reconstruct a chat is not an acceptable release outcome.
 
-For future multiplayer behavior, preserving state means reconstructing authoritative game state outside the replaced socket process. Reconnect must resume a versioned session, catch up ordered events, and apply near-cutover commands at most once. Merely keeping a WebSocket open or remounting a blank LiveView does not satisfy the outcome.
+For future multiplayer behaviour, preserving state means reconstructing authoritative game state outside the replaced socket process. Reconnect must resume a versioned session, catch up ordered events, and apply near-cutover commands at most once. Merely keeping a WebSocket open or remounting a blank LiveView does not satisfy the outcome.
 
 ## Determinism Limitation
 

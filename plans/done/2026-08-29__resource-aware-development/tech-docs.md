@@ -37,7 +37,7 @@ Default root is `~/bnest/runtime/resource-guard/`, private directories are `0700
 
 ## Specification Changes
 
-Update Bnest architecture and release documentation to describe exported pressure state, normalized CPU, compressor availability, evidence-only compressor payload, and the development guard. No application Gherkin changes are required because browser/runtime behavior is unchanged.
+Update Bnest architecture and release documentation to describe exported pressure state, normalized CPU, compressor availability, evidence-only compressor payload, and the development guard. No application Gherkin changes are required because browser/runtime behaviour is unchanged.
 
 ## File Impact
 
@@ -49,4 +49,4 @@ Update Bnest architecture and release documentation to describe exported pressur
 
 ## Verification and Continuity
 
-Use deterministic fakes for pressure and signals; never create real host pressure. Run focused tool, release, affected quick, repository, and isolated E2E gates. Check routed health before and after material work. No production cutover is required because application runtime behavior does not change.
+Use deterministic fakes for pressure and signals; never create real host pressure. Run focused tool, release, affected quick, repository, and isolated E2E gates. Check routed health before and after material work. No production cutover is required because application runtime behaviour does not change.

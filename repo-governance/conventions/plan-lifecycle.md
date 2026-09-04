@@ -62,4 +62,4 @@ Run the [plan quality gate](../workflows/plan-quality-gate.md) before execution,
 
 Move, never copy; update indexes and status together. Refuse an existing dated destination. Archive only after acceptance, verification, learnings, and conditional items are reconciled; then run the deterministic repository gate.
 
-Plans may propose architecture and behavior, but `specs/` remains as-built truth. Execution updates every affected specification with implementation under [specification maintenance](../development/specification-maintenance.md).
+Plans may propose architecture and behaviour, but `specs/` remains as-built truth. Execution updates every affected specification with implementation under [specification maintenance](../development/specification-maintenance.md).

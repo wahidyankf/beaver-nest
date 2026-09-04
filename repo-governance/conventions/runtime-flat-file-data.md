@@ -22,4 +22,4 @@ Use local flat files only for small, private runtime data below `data/`. This co
 - Persist UTF-8 JSON with an explicit schema version, validate it when reading, and use atomic replacement when writing.
 - Never derive a file path directly from browser or other external input.
 
-Production flat files are migration sources, not an ongoing rollback mirror. Retire them only when every source checksum is accepted by the authoritative SQLite migration evidence and the routed service proves the expected database generation. Flat-file test fixtures remain supported where they exercise migration behavior.
+Production flat files are migration sources, not an ongoing rollback mirror. Retire them only when every source checksum is accepted by the authoritative SQLite migration evidence and the routed service proves the expected database generation. Flat-file test fixtures remain supported where they exercise migration behaviour.

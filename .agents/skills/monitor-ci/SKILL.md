@@ -17,7 +17,7 @@ You are the orchestrator for monitoring Nx Cloud CI pipeline executions and hand
 
 $ARGUMENTS
 
-**Important:** If user provides specific instructions, respect them over default behaviors described below.
+**Important:** If user provides specific instructions, respect them over default behaviours described below.
 
 ## Configuration Defaults
 
@@ -65,7 +65,7 @@ The decision script handles message formatting based on verbosity. When printing
 
 ## Anti-Patterns
 
-These behaviors cause real problems — racing with self-healing, losing CI progress, or wasting context:
+These behaviours cause real problems — racing with self-healing, losing CI progress, or wasting context:
 
 | Anti-Pattern                                                                                    | Why It's Bad                                                       |
 | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -81,7 +81,7 @@ These behaviors cause real problems — racing with self-healing, losing CI prog
 2. Immediately delegate to this skill with gathered context
 3. Do not continue polling on main agent — it wastes context tokens and bypasses self-healing
 
-## Session Context Behavior
+## Session Context Behaviour
 
 If the user previously ran `/monitor-ci` in this session, you may have prior state (poll counts, last CI Attempt URL, etc.). Resume from that state unless `--fresh` is set, in which case discard it and start from Step 1.
 
@@ -90,22 +90,22 @@ If the user previously ran `/monitor-ci` in this session, you may have prior sta
 Three field sets control polling efficiency — use the lightest set that gives you what you need:
 
 ```yaml
-WAIT_FIELDS: 'cipeUrl,commitSha,cipeStatus'
-LIGHT_FIELDS: 'cipeStatus,cipeUrl,branch,commitSha,selfHealingStatus,verificationStatus,userAction,failedTaskIds,verifiedTaskIds,selfHealingEnabled,failureClassification,couldAutoApplyTasks,autoApplySkipped,autoApplySkipReason,shortLink,confidence,confidenceReasoning,hints,selfHealingSkippedReason,selfHealingSkipMessage'
-HEAVY_FIELDS: 'taskOutputSummary,suggestedFix,suggestedFixReasoning,suggestedFixDescription'
+WAIT_FIELDS: "cipeUrl,commitSha,cipeStatus"
+LIGHT_FIELDS: "cipeStatus,cipeUrl,branch,commitSha,selfHealingStatus,verificationStatus,userAction,failedTaskIds,verifiedTaskIds,selfHealingEnabled,failureClassification,couldAutoApplyTasks,autoApplySkipped,autoApplySkipReason,shortLink,confidence,confidenceReasoning,hints,selfHealingSkippedReason,selfHealingSkipMessage"
+HEAVY_FIELDS: "taskOutputSummary,suggestedFix,suggestedFixReasoning,suggestedFixDescription"
 ```
 
 The `ci_information` tool accepts `branch` (optional, defaults to current git branch), `select` (comma-separated field names), and `pageToken` (0-based pagination for long strings).
 
 The `update_self_healing_fix` tool accepts a `shortLink` and an action: `APPLY`, `REJECT`, or `RERUN_ENVIRONMENT_STATE`.
 
-## Default Behaviors by Status
+## Default Behaviours by Status
 
-The decision script returns one of the following statuses. This table defines the **default behavior** for each. User instructions can override any of these.
+The decision script returns one of the following statuses. This table defines the **default behaviour** for each. User instructions can override any of these.
 
 **Simple exits** — just report and exit:
 
-| Status                  | Default Behavior                                                                                                 |
+| Status                  | Default Behaviour                                                                                                |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `ci_success`            | Exit with success                                                                                                |
 | `cipe_canceled`         | Exit, CI was canceled                                                                                            |
@@ -221,7 +221,7 @@ When decision script returns `action == "done"`:
 
 1. Run cycle-check (Step 4) **before** handling the code
 2. Check the returned `code`
-3. Look up default behavior in the table above
+3. Look up default behaviour in the table above
 4. Check if user instructions override the default
 5. Execute the appropriate action
 6. **If action expects new CI Attempt**, update tracking (see Step 3a)
@@ -291,7 +291,7 @@ The script returns `{ cycleCount, agentTriggered, envRerunCount, approachingLimi
 
 ## User Instruction Examples
 
-Users can override default behaviors:
+Users can override default behaviours:
 
 | Instruction                                      | Effect                                              |
 | ------------------------------------------------ | --------------------------------------------------- |

@@ -30,7 +30,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Markdown visualizations](markdown-visualizations.md) prefer useful Mermaid diagrams and require accessible color, contrast, and non-color cues.
 - [Plan lifecycle](plan-lifecycle.md) moves rough ideas through backlogs, active execution, and completion while keeping as-built truth in specifications.
 - [Plan migrations](plan-migrations.md) makes planned data transitions preserve sources, map compatibility, and prove recovery.
-- [Plan specification changes](plan-specification-changes.md) makes behavior, C4, test-binding, and file-impact work executable before implementation.
+- [Plan specification changes](plan-specification-changes.md) makes behaviour, C4, test-binding, and file-impact work executable before implementation.
 - [Plan UI design](plan-ui-design.md) requires lo-fi comparison and selected-direction hi-fi assets for UI-affecting formal plans.
 - [Project READMEs](project-readmes.md) make every application and library independently understandable and operable.
 - [Public repository data safety](public-repository-data-safety.md) prevents secrets and machine-local identifiers from entering public history.

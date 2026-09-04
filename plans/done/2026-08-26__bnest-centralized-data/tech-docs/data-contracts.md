@@ -329,7 +329,7 @@ The marker `runId` must equal the directory name. Cleanup re-resolves the path, 
 
 ## Source Compatibility
 
-| Source                  | Accepted current form                                            | Target behavior                                                                                      |
+| Source                  | Accepted current form                                            | Target behaviour                                                                                     |
 | ----------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Chat version 1          | `thread_id`, messages; current 500,000-byte connect limit.       | Purely add default model/reasoning, validate as current chat version 2, retain raw envelope.         |
 | Chat version 2          | Current `BnestApp.Chat` snapshot.                                | Validate and wrap as central chat record without altering transcript/thread values.                  |

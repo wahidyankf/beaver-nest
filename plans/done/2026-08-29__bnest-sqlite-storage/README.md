@@ -14,7 +14,7 @@
 
 ## Context
 
-Bnest currently persists accounts, sessions, import records, chat, Sifat Allah progress, and theme preferences as versioned JSON below one `data/prod/`-shaped runtime root. Flat files were an intentional interim store. This plan moves every supported Bnest record into one machine-local SQLite database while preserving the current repository facade, immutable recovery evidence, browser behavior, and blue/green continuity.
+Bnest currently persists accounts, sessions, import records, chat, Sifat Allah progress, and theme preferences as versioned JSON below one `data/prod/`-shaped runtime root. Flat files were an intentional interim store. This plan moves every supported Bnest record into one machine-local SQLite database while preserving the current repository facade, immutable recovery evidence, browser behaviour, and blue/green continuity.
 
 The managed migrator uses `~/.config/bnest/` without requiring anyone to visit the storage UI; the path resolves on the server to the service account's home directory and the fixed database filename is `bnest.sqlite3`. Before migration starts, an administrator may optionally open the storage UI to replace that default with another valid server-local folder. Existing installations can also use that screen to review progress and safe outcomes.
 

@@ -17,7 +17,7 @@ Install the repository's npm dependencies and the .NET 10 SDK. Run tasks from th
 | Run local-only integration tests      | `npm exec -- nx run -p badakmini-cli -t test:integration`          |
 | Enforce unit-core coverage            | `npm exec -- nx run -p badakmini-cli -t test:coverage:unit`        |
 | Enforce full-app integration coverage | `npm exec -- nx run -p badakmini-cli -t test:coverage:integration` |
-| Enforce behavior completeness         | `npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour`   |
+| Enforce behaviour completeness        | `npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour`   |
 | Enforce all coverage                  | `npm exec -- nx run -p badakmini-cli -t test:coverage`             |
 | Run quick verification                | `npm exec -- nx run -p badakmini-cli -t test:quick`                |
 | Type-check the F# projects            | `npm exec -- nx run -p badakmini-cli -t typecheck`                 |
@@ -27,7 +27,7 @@ The `test:repo` target builds once, then concurrently runs word-budget validatio
 
 The `typecheck` target compiles both test projects and their CLI reference into isolated temporary artifact directories, then removes them.
 
-Coverage uses Coverlet Debug instrumentation. `test:coverage:unit` requires at least 99% line coverage over `Governance.fs`, `HarnessContract.fs`, and `Cli.fs`; concrete runtime and entry-point files belong to the integration slice. `test:coverage:integration` requires at least 99% across the complete application. Reports go to `coverage/unit-core/` and `coverage/integration-application/`. `test:coverage` composes both numeric slices and static behavior completeness.
+Coverage uses Coverlet Debug instrumentation. `test:coverage:unit` requires at least 99% line coverage over `Governance.fs`, `HarnessContract.fs`, and `Cli.fs`; concrete runtime and entry-point files belong to the integration slice. `test:coverage:integration` requires at least 99% across the complete application. Reports go to `coverage/unit-core/` and `coverage/integration-application/`. `test:coverage` composes both numeric slices and static behaviour completeness.
 
 The `test:quick` target runs `typecheck`, `lint`, `test:unit`, `test:coverage:unit`, and `test:coverage:behaviour` sequentially. It stops immediately when a stage fails.
 
@@ -39,7 +39,7 @@ The unit driver uses an in-memory filesystem and injected output only. The integ
 
 Keep inputs in feature tables or DocStrings. TickSpec 2.0.5 treats every literal `#` in a feature as the start of a comment, including inside those values; use `{hash}` in inline Markdown and let the binding expand it.
 
-The suite runs serially for deterministic adapter state and emits standard test-runner output. Follow the repository [BDD standard](../../repo-governance/development/behaviour-driven-development.md) when changing behavior.
+The suite runs serially for deterministic adapter state and emits standard test-runner output. Follow the repository [BDD standard](../../repo-governance/development/behaviour-driven-development.md) when changing behaviour.
 
 ## Commands
 

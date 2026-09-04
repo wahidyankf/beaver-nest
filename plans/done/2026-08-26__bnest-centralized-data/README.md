@@ -8,7 +8,7 @@
 
 ## Context
 
-At execution start, Bnest had no authentication or server-side application data. Chat state stayed in the current tab's `sessionStorage`; Sifat Allah progress and explicit light/dark theme preference stayed in browser `localStorage`. The implementation passed synthetic unit, integration, behavior, E2E, schema, and browser-accessibility proof. Authorized live setup and browser imports were then confirmed; the final primary backend passed local and routed checks, and the temporary compatibility backends were retired. No source was discarded.
+At execution start, Bnest had no authentication or server-side application data. Chat state stayed in the current tab's `sessionStorage`; Sifat Allah progress and explicit light/dark theme preference stayed in browser `localStorage`. The implementation passed synthetic unit, integration, behaviour, E2E, schema, and browser-accessibility proof. Authorized live setup and browser imports were then confirmed; the final primary backend passed local and routed checks, and the temporary compatibility backends were retired. No source was discarded.
 
 The canonical as-built system is the [Bnest C4 architecture specification](../../../specs/apps/bnest/app/architecture.md). This delivery record is ready for the final quality gate and collision-safe archival; it does not replace the as-built specification.
 

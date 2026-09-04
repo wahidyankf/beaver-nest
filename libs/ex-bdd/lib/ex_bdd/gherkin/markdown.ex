@@ -38,7 +38,7 @@ defmodule ExBdd.Gherkin.Markdown do
       as steps.
     * The reference captures prose that follows a GFM separator row as a
       section description — an emergent quirk of its error-tolerant token
-      matching, not MDG behavior. This parser captures no descriptions.
+      matching, not MDG behaviour. This parser captures no descriptions.
     * The reference treats any line *containing* a backticked tag span as
       a tag line; here a tag line must consist solely of tag spans, so
       prose that merely mentions `` `@wip` `` stays prose.

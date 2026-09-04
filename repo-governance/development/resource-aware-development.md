@@ -2,7 +2,7 @@
 
 Apply this to compute-bearing Nx work under `apps/`, `libs/`, and repository tools. It reduces host pressure without guaranteeing survival.
 
-## Required Behavior
+## Required Behaviour
 
 - Run this work through the guard. Exit `75` is transient capacity or a held heavy-work lease, not failure: wait, then retry the same command serially from the beginning.
 - Confirm the previous run exited; stacked `ephemeral` runs starve admission. Lease deferrals name holders. For admission evidence, read the newest summary rather than a later `status` sample.

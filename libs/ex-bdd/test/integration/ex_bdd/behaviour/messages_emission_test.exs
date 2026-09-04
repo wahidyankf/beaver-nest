@@ -1,13 +1,13 @@
-defmodule ExBdd.Behavior.MessagesEmissionTest do
+defmodule ExBdd.Behaviour.MessagesEmissionTest do
   @moduledoc """
-  Behavior tests for the dynamic ExBdd Messages layer: given a feature
+  Behaviour tests for the dynamic ExBdd Messages layer: given a feature
   and step definitions run with the message sink enabled, the emitted
   NDJSON stream has the right envelopes, in the right order, with the right
   statuses — including for failing, pending, skipped, undefined, ambiguous,
   retried, and crashed scenarios.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
   defmodule Steps do
     use ExBdd.StepDefinition
@@ -970,7 +970,7 @@ defmodule ExBdd.Behavior.MessagesEmissionTest do
 
     modules = ExBdd.Compiler.compile_discovery!(discovery)
 
-    {result, _output} = ExBdd.BehaviorCase.run_isolated(modules)
+    {result, _output} = ExBdd.BehaviourCase.run_isolated(modules)
     assert result.failures == 1
 
     messages =

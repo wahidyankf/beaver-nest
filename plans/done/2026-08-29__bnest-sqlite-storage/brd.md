@@ -8,7 +8,7 @@ Replace Bnest's interim production flat-file store with a private, configurable 
 
 - **Family member:** keeps using chat, learning, theme, login, and logout without understanding storage internals.
 - **Administrator:** optionally replaces the default server-side database folder before migration and reviews value-free status or retry outcomes.
-- **Maintainer:** deploys compatible revisions, verifies recovery and routed behavior, and retains rollback capacity.
+- **Maintainer:** deploys compatible revisions, verifies recovery and routed behaviour, and retains rollback capacity.
 - **Bnest application:** validates storage configuration, serializes migration, preserves sources, and refuses unsafe authority changes.
 
 ## Required Outcomes
@@ -48,6 +48,6 @@ Replace Bnest's interim production flat-file store with a private, configurable 
 
 - All accepted inventory items have matching source and target checksums and normal repository read-back.
 - A second migration run produces no duplicate records or data changes.
-- Fresh and migrated installations pass unit, integration, behavior, focused E2E, restart, and routed revision checks.
+- Fresh and migrated installations pass unit, integration, behaviour, focused E2E, restart, and routed revision checks.
 - The active route stays healthy throughout rollout; old clients reconnect without `page.reload()`.
 - No production runtime record, database file, sidecar, path value, or credential enters Git.

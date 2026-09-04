@@ -101,7 +101,7 @@ defmodule ExBdd.VerificationTest do
         support: []
       )
 
-    {result, _output} = ExBdd.BehaviorCase.run_isolated([module])
+    {result, _output} = ExBdd.BehaviourCase.run_isolated([module])
 
     assert result.total == 1
     assert result.failures == 0

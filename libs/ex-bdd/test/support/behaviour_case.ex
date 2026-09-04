@@ -1,8 +1,8 @@
-defmodule ExBdd.BehaviorCase do
+defmodule ExBdd.BehaviourCase do
   @moduledoc """
-  Test-case template for behavior-level tests of the ExBdd pipeline.
+  Test-case template for behaviour-level tests of the ExBdd pipeline.
 
-  A behavior test expresses: *this feature source, run against these step
+  A behaviour test expresses: *this feature source, run against these step
   definition modules, produces exactly this outcome* — including failing,
   undefined, and otherwise broken scenarios that can never live in the live
   `test/features/` suite.
@@ -13,14 +13,14 @@ defmodule ExBdd.BehaviorCase do
 
   ## Usage
 
-      defmodule MyBehaviorTest do
-        use ExBdd.BehaviorCase
+      defmodule MyBehaviourTest do
+        use ExBdd.BehaviourCase
 
         defmodule Steps do
           use ExBdd.StepDefinition
 
           step "a passing step", _context do
-            ExBdd.BehaviorCase.Collector.record(:passing_step)
+            ExBdd.BehaviourCase.Collector.record(:passing_step)
             :ok
           end
         end
@@ -58,7 +58,7 @@ defmodule ExBdd.BehaviorCase do
 
   using do
     quote do
-      import ExBdd.BehaviorCase,
+      import ExBdd.BehaviourCase,
         only: [
           run_feature: 1,
           run_feature: 2,
@@ -69,17 +69,17 @@ defmodule ExBdd.BehaviorCase do
           count: 2
         ]
 
-      alias ExBdd.BehaviorCase.Collector
+      alias ExBdd.BehaviourCase.Collector
     end
   end
 
   defmodule Collector do
     @moduledoc """
-    Global event collector for behavior tests.
+    Global event collector for behaviour tests.
 
     Step definitions and hooks record events with `record/1`; the harness
     resets it before each `run_feature/2` and returns the collected events in
-    the result. A single named Agent is safe because behavior tests are
+    the result. A single named Agent is safe because behaviour tests are
     synchronous and runs never overlap.
     """
 
@@ -141,7 +141,7 @@ defmodule ExBdd.BehaviorCase do
 
   @doc """
   Like `run_feature/2`, but compiles several feature sources into separate
-  modules and executes them in one nested run — for behaviors that span
+  modules and executes them in one nested run — for behaviours that span
   feature modules (e.g. run-level hooks).
 
   The `:file` option, when given, names the first source; the rest get
@@ -157,7 +157,7 @@ defmodule ExBdd.BehaviorCase do
 
     # Each run_feature call is its own isolated cucumber run: reset the
     # coordinator so run-level state (before_all/after_all) from a previous
-    # behavior test can't leak in.
+    # behaviour test can't leak in.
     ExBdd.RunCoordinator.ensure_started()
     Collector.reset()
 
@@ -274,7 +274,7 @@ defmodule ExBdd.BehaviorCase do
   end
 
   defp unique_feature_path do
-    "test/fixtures/generated/behavior_#{System.unique_integer([:positive])}.feature"
+    "test/fixtures/generated/behaviour_#{System.unique_integer([:positive])}.feature"
   end
 
   @doc """

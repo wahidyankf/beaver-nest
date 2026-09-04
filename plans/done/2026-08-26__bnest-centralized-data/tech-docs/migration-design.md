@@ -57,7 +57,7 @@ This companion to [technical documentation](README.md) defines how current brows
 ### 1. Expand
 
 1. Add identity, repository, versioned readers, manifests, immutable recovery sources, and the `data/prod/` layout while old browser readers still work.
-2. Keep an explicit legacy-browser compatibility principal while one-time setup/cutover is disabled; it may use only the existing browser-backed behavior and must not become an owner of centralized records.
+2. Keep an explicit legacy-browser compatibility principal while one-time setup/cutover is disabled; it may use only the existing browser-backed behaviour and must not become an owner of centralized records.
 3. Start Bnest with one resolved runtime root and fail before supervision when it is invalid.
 4. Add central writers behind an import/cutover state; do not remove browser writes yet.
 5. Add read-only inventory for legacy root-level sources and produce no mutation.

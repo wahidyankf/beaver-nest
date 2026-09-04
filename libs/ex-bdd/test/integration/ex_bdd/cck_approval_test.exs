@@ -17,11 +17,11 @@ defmodule ExBdd.CckApprovalTest do
     * `unknown-parameter-type` — the reference implementation runs the
       scenario and emits an `undefinedParameterType` envelope; this
       implementation raises `ExBdd.UndefinedParameterTypeError` at
-      discovery, before a run exists (behavior covered in
-      `test/ex_bdd/behavior/parameter_types_test.exs`)
+      discovery, before a run exists (behaviour covered in
+      `test/ex_bdd/behaviour/parameter_types_test.exs`)
     * `pending-exception`, `skipped-exception` — pending/skipped are
       return values here (`:pending`/`:skipped`), not throwable
-      exceptions; the equivalent behavior is approved via the `pending`
+      exceptions; the equivalent behaviour is approved via the `pending`
       and `skipped` samples
     * `test-run-exception` — simulates a runner-internal crash via the
       reference CLI's `--error` flag; no equivalent injection point
@@ -35,7 +35,7 @@ defmodule ExBdd.CckApprovalTest do
   / `:drop_step_definition_patterns` options below) are documented inline.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
   alias ExBdd.CckApproval
   alias ExBdd.CckApproval.Definitions
@@ -132,7 +132,7 @@ defmodule ExBdd.CckApprovalTest do
      ]},
     # The reference stream's feature description ("| boz | boo |") is an
     # emergent quirk of the reference tokenizer's error recovery, not MDG
-    # behavior — ExBdd.Gherkin.Markdown deliberately captures no markdown
+    # behaviour — ExBdd.Gherkin.Markdown deliberately captures no markdown
     # descriptions (see its moduledoc), so that one field is excluded.
     {"markdown",
      steps: [Definitions.Markdown], files: ["markdown.feature.md"], drop_feature_description: true}

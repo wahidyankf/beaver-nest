@@ -25,7 +25,7 @@ Split the model when any of these conditions is present:
 
 - independent subsystem, component, deployment, or dynamic views serve different reader needs and make the entry point difficult to scan;
 - a diagram requires zooming and cannot be simplified without losing material boundaries or relationships;
-- unrelated areas need separate constraints or behavior traceability; or
+- unrelated areas need separate constraints or behaviour traceability; or
 - independently evolving areas repeatedly create unrelated review noise or merge conflicts.
 
 Do not split for anticipated growth alone. When splitting:
@@ -33,7 +33,7 @@ Do not split for anticipated growth alone. When splitting:
 - retain `architecture.md` as the canonical entry point containing the scope, system context, shared constraints, and an index;
 - place detailed files below `architecture/`, named by view or domain, such as `architecture/containers.md` or `architecture/components/chat.md`;
 - give every statement and diagram one canonical home instead of duplicating it; and
-- link each detail file back to the entry point and to its relevant behaviors and implementing projects.
+- link each detail file back to the entry point and to its relevant behaviours and implementing projects.
 
 ## Change Discipline
 
@@ -41,6 +41,6 @@ Before changing application production code, read the canonical architecture mod
 
 Update `architecture.md` in the same change whenever the implemented system changes a documented actor, system, container, component responsibility, relationship, interface, runtime or deployment boundary, data store, data flow, or security boundary. Keep the model synchronized with the final implemented state, including all affected views and prose.
 
-Behavior-only changes and implementation details below the documented component level do not require diagram churn when every architectural statement remains accurate. Record the architecture impact check in the delivery report either way.
+Behaviour-only changes and implementation details below the documented component level do not require diagram churn when every architectural statement remains accurate. Record the architecture impact check in the delivery report either way.
 
 Architecture maintenance complements the repository [BDD](behaviour-driven-development.md) and [TDD](test-driven-development.md) standards; it does not replace executable specifications or tests.

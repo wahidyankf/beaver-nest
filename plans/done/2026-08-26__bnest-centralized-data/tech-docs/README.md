@@ -172,7 +172,7 @@ sequenceDiagram
   L-->>B: Render without client persistence
 ```
 
-Import adds a confirmed compatibility step between login and the normal read. The exact state machine and failure behavior live in [migration design](migration-design.md).
+Import adds a confirmed compatibility step between login and the normal read. The exact state machine and failure behaviour live in [migration design](migration-design.md).
 
 ## Test and Safety Boundaries
 
@@ -184,7 +184,7 @@ Development may run `bnest-app:schema:audit` against production only for read-on
 
 - Unit tests prove validation, authorization, digest/session handling, paths, locks, atomic replacement, idempotency, and safe error projection.
 - Integration tests use isolated roots for bootstrap, import, retry, recovery-source restore, and cleanup.
-- Behavior coverage binds every selected Gherkin scenario in each applicable adapter.
+- Behaviour coverage binds every selected Gherkin scenario in each applicable adapter.
 - Focused E2E journeys prove setup closure, login persistence, two-browser independence, import/read-back/client cleanup, and cross-user denial.
 - Manual AI verification uses a marked test root, isolated profiles, synthetic fixtures, and the selected three viewports.
 - Changed setup/login/import/chat/learning/theme states receive accessibility-tree, keyboard, reflow, contrast, and light/dark checks; affected Lighthouse accessibility must pass.

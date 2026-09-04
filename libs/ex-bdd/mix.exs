@@ -43,7 +43,7 @@ defmodule ExBdd.MixProject do
 
   defp test_coverage do
     test_scaffolding = [
-      ~r/^ExBdd\.BehaviorCase/,
+      ~r/^ExBdd\.BehaviourCase/,
       ~r/^ExBdd\.CckApproval/,
       ExBdd.ReloadableHooks
     ]

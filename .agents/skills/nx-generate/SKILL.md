@@ -79,7 +79,7 @@ Buildable libs:
 
 - Know exactly what files will be created/modified and where
 - Understand side effects (updating configs, installing deps, etc.)
-- Identify behaviors and options not obvious from the schema
+- Identify behaviours and options not obvious from the schema
 - Understand how options interact with each other
 
 To find generator source code:
@@ -90,7 +90,7 @@ To find generator source code:
 
 After reading the source, reconsider: Is this the right generator? If not, go back to step 2.
 
-> **⚠️ `--directory` flag behavior can be misleading.**
+> **⚠️ `--directory` flag behaviour can be misleading.**
 > It should specify the full path of the generated library or component, not the parent path that it will be generated in.
 >
 > ```bash

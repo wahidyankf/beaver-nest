@@ -1,6 +1,6 @@
 defmodule ExBdd.PendingSkippedTest do
   @moduledoc """
-  Behavior tests for pending and skipped step results (#21), driven by the
+  Behaviour tests for pending and skipped step results (#21), driven by the
   vendored CCK `pending`, `skipped`, `hooks-skipped`, `skipped-failing-hook`,
   and `all-statuses` samples plus inline features for the Elixir-specific
   surface (`{:pending, message}` / `{:skipped, reason}`, backgrounds,
@@ -11,11 +11,11 @@ defmodule ExBdd.PendingSkippedTest do
   cross-scenario ordering.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
   import ExUnit.CaptureIO
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defmodule Steps do
     use ExBdd.StepDefinition

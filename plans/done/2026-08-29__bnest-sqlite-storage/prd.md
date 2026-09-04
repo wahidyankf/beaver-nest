@@ -4,7 +4,7 @@
 
 - **New household administrator:** wants storage to work at a safe default without a separate storage screen.
 - **Existing household administrator:** may override the default before migration, but otherwise wants the move to run without UI.
-- **Family member:** expects existing Bnest behavior and sessions to continue unchanged.
+- **Family member:** expects existing Bnest behaviour and sessions to continue unchanged.
 - **Maintainer:** needs deterministic migration, recovery, and deployment evidence.
 
 ## User Stories

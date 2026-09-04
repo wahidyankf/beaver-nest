@@ -50,7 +50,7 @@
 - Comment non-obvious shell safety invariants and lifecycle boundaries; avoid line-by-line narration.
 - New tables need [audit columns](repo-governance/conventions/database-audit-columns.md); event logs and projections are exempt.
 - Bnest is 24/7; obey [continuity](repo-governance/development/live-service-continuity.md); failed health stops work.
-- Commit/push is not deployment. Before reporting active-service completion, verify the routed backend serves the intended revision/behavior; otherwise perform a no-downtime candidate cutover.
+- Commit/push is not deployment. Before reporting active-service completion, verify the routed backend serves the intended revision/behaviour; otherwise perform a no-downtime candidate cutover.
 - Before completion, stop unneeded non-production servers, watchers, candidates, and temporary proxies; retain only the active route and bounded drain.
 - Separate server/proxy lifecycles; follow [start/restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - [Software quality](repo-governance/development/software-quality-enforcement.md): pass required gates; manually `curl` affected REST/GraphQL operations.

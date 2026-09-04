@@ -129,7 +129,7 @@ Feature: Assess the Bnest single-machine release process
 
 ## Scope
 
-The acceptance criteria govern the plan assessment only. Application behavior, data schemas, routes, ports, and user interface are unchanged. The multiplayer and database clauses are forward compatibility requirements, not approval to build either feature.
+The acceptance criteria govern the plan assessment only. Application behaviour, data schemas, routes, ports, and user interface are unchanged. The multiplayer and database clauses are forward compatibility requirements, not approval to build either feature.
 
 ## Risks
 

@@ -1,6 +1,6 @@
 defmodule ExBdd.RetryTest do
   @moduledoc """
-  Behavior tests for retry (#26), driven by the vendored CCK `retry`,
+  Behaviour tests for retry (#26), driven by the vendored CCK `retry`,
   `retry-undefined`, `retry-ambiguous`, and `retry-pending` samples plus
   inline features for the Elixir-specific surface (`@retry-n` tags, fresh
   context per attempt, hook re-runs).
@@ -12,9 +12,9 @@ defmodule ExBdd.RetryTest do
   module-level counters.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defp with_retry_config(retries, fun) do
     Application.put_env(:ex_bdd, :retry, retries)

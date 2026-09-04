@@ -1,6 +1,6 @@
 defmodule ExBdd.AttachmentsTest do
   @moduledoc """
-  Behavior tests for the attachments API (#25), driven by the vendored CCK
+  Behaviour tests for the attachments API (#25), driven by the vendored CCK
   `attachments` sample plus inline features for hook attribution and
   async isolation.
 
@@ -9,7 +9,7 @@ defmodule ExBdd.AttachmentsTest do
   and surface in step-failure output.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
   alias ExBdd.Attachment
 

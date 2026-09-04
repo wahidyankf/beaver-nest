@@ -15,7 +15,7 @@ No automated or manual test may read, write, authenticate against, migrate, back
 
 ## Production Schema Inspection
 
-Development may read `data/prod/` only through a read-only structural audit that compares schema versions, record types, field names, and value types with synthetic test records. This is inspection, not a behavior test: never authenticate as a real user, invoke a real session, copy a production record into test data, or read a payload to derive a fixture.
+Development may read `data/prod/` only through a read-only structural audit that compares schema versions, record types, field names, and value types with synthetic test records. This is inspection, not a behaviour test: never authenticate as a real user, invoke a real session, copy a production record into test data, or read a payload to derive a fixture.
 
 The audit must not write, lock for mutation, normalize, migrate, or repair production. Its output contains only pass/fail by public record type and schema version—never usernames, user IDs, paths containing identifiers, counts, hashes, password verifiers, sessions, chat, learning, preferences, or field values. Follow [public-repository data safety](../conventions/public-repository-data-safety.md) for all evidence.
 

@@ -23,7 +23,7 @@ The intended steady state is Tailscale Serve, Caddy, and one Phoenix release. A 
 
 - Establish the current release topology, lifecycle, safeguards, and resource shape from repository evidence.
 - Compare plausible one-machine operating models against continuity, simplicity, rollback, and resource constraints.
-- Give every alternative its own port-labelled diagram, expected process/memory/disk formula, option-specific tests, WebSocket effect, and data/schema migration behavior.
+- Give every alternative its own port-labelled diagram, expected process/memory/disk formula, option-specific tests, WebSocket effect, and data/schema migration behaviour.
 - Treat Caddy as replaceable or removable when a chosen model preserves the availability properties users need with less total operating cost.
 - Define a deterministic release state machine with ordered pre-artifact, candidate, routed, rollback, and cleanup gates.
 - Define a deterministic Badakmini label-legibility prerequisite so clipped Mermaid text cannot obscure release decisions before push.
@@ -40,7 +40,7 @@ The intended steady state is Tailscale Serve, Caddy, and one Phoenix release. A 
 
 - The live service must be healthy before any later release-process implementation begins; follow [live-service continuity](../../../repo-governance/development/live-service-continuity.md).
 - Machine-local deployment paths, runtime root, release cookie, and secret-key-base file remain outside the repository and must never be recorded here.
-- A later release choice must preserve mixed-version safety for the shared flat-file runtime root and compatible LiveView reconnect behavior.
+- A later release choice must preserve mixed-version safety for the shared flat-file runtime root and compatible LiveView reconnect behaviour.
 - A later release choice must preserve acknowledged and in-progress user state across an automatic reconnect or page self-update; requiring a manual reload, re-entry, or repetition of completed work is a blocking failure.
 - Future multiplayer state must be authoritative outside one socket process and resume by versioned session identity, ordered events, and idempotent commands without a reload.
 - Development, production, rolling candidate, and test listeners must follow the [port contract](tech-docs/alternatives.md#port-contract) and refuse collisions.

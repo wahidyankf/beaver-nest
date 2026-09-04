@@ -59,7 +59,7 @@ defmodule ExBdd.Compiler do
   # them run-wide. When `messages_path` is set, builds the run's static
   # envelopes and enables the coordinator's message sink; the runner and the
   # after_suite flush do the rest. Shared by compile_features!/1 and
-  # ExBdd.BehaviorCase.
+  # ExBdd.BehaviourCase.
   @spec compile_all!([map()], map(), [module()], map(), String.t() | nil, keyword()) :: [module()]
   def compile_all!(
         features,
@@ -100,7 +100,7 @@ defmodule ExBdd.Compiler do
   end
 
   @doc false
-  # Public so test harnesses (e.g. ExBdd.BehaviorCase) can compile a single
+  # Public so test harnesses (e.g. ExBdd.BehaviourCase) can compile a single
   # parsed feature against an explicit step registry, bypassing discovery.
   # The feature must carry a `:file` key (as set by ExBdd.Discovery).
   # `:compilation` accepts a precomputed `ExBdd.Gherkin.Pickles.Compilation` (used

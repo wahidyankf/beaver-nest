@@ -1,6 +1,6 @@
 # Plans
 
-Plans are temporary working records for proposed and delivered changes. They explain why work exists, how it will be executed, and what will prove it complete. Current system behavior and architecture remain canonical under [`specs/`](../specs/README.md).
+Plans are temporary working records for proposed and delivered changes. They explain why work exists, how it will be executed, and what will prove it complete. Current system behaviour and architecture remain canonical under [`specs/`](../specs/README.md).
 
 Follow the repository [plan lifecycle convention](../repo-governance/conventions/plan-lifecycle.md).
 

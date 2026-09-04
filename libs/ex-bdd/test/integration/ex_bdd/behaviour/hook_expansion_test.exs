@@ -1,6 +1,6 @@
 defmodule ExBdd.HookExpansionTest do
   @moduledoc """
-  Behavior tests for run-level hooks (BeforeAll/AfterAll), step hooks, and
+  Behaviour tests for run-level hooks (BeforeAll/AfterAll), step hooks, and
   named hooks (#27), driven by the vendored CCK `global-hooks`,
   `global-hooks-beforeall-error`, `global-hooks-afterall-error`,
   `hooks-named`, and `hooks-conditional` samples plus inline features.
@@ -9,9 +9,9 @@ defmodule ExBdd.HookExpansionTest do
   `ExUnit.run` (the same `ExUnit.after_suite` callback as a real run).
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defmodule Steps do
     use ExBdd.StepDefinition

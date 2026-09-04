@@ -86,7 +86,7 @@ For the daily cadence, evidence also reports `overlapMinutesPerRelease`, `releas
 
 ### Test Impact by Alternative
 
-All options retain the fixed quick, integration, behavior, repository, and isolated E2E gates in the [release contract](release-contract.md#exact-pre-artifact-manifest). The rows below are additional option-specific proof, not replacements.
+All options retain the fixed quick, integration, behaviour, repository, and isolated E2E gates in the [release contract](release-contract.md#exact-pre-artifact-manifest). The rows below are additional option-specific proof, not replacements.
 
 | Alternative | Additional deterministic tests and evidence                                                                                                                                                                                                                                                  |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -127,9 +127,9 @@ Build and tests must run at a priority/concurrency that leaves the active route 
 | Alternative | Connected-session and future multiplayer consequence                                                                                                                                                                                  |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A           | Existing sockets may drain on the prior slot while new or reconnected sockets reach the promoted slot. Manual retirement must wait for bounded proof; shared authoritative state and cross-version event compatibility are mandatory. |
-| B           | Same network behavior as A, but the transaction automatically runs multi-browser reconnect/catch-up proof before retirement and rolls back on sequence, state, or duplicate-action failure.                                           |
+| B           | Same network behaviour as A, but the transaction automatically runs multi-browser reconnect/catch-up proof before retirement and rolls back on sequence, state, or duplicate-action failure.                                          |
 | C           | Sessions can remain on either warm slot for long periods. Protocol and data compatibility are continuously required, and a bounded policy must prevent stale sockets from keeping an obsolete revision indefinitely.                  |
-| D           | Tailscale Service drain may preserve existing connections while pausing new ones; target-change behavior is unproven. Multi-browser tests must cover one retained socket and one reconnecting socket before this option qualifies.    |
+| D           | Tailscale Service drain may preserve existing connections while pausing new ones; target-change behaviour is unproven. Multi-browser tests must cover one retained socket and one reconnecting socket before this option qualifies.   |
 | E           | Every socket loses its backend during stop/start. All active games must resume from authoritative state within the measured interruption window; this is the strongest reconnect and thundering-herd burden.                          |
 | F           | A soft upgrade may retain sockets but can change code under stateful processes; emulator upgrades disconnect all sockets. Version-pair tests must prove process-state conversion and external session recovery.                       |
 | G           | Start-first containers behave like blue/green slots, but ingress drain and container termination must be configured and tested. Game state cannot live only in a container filesystem or process.                                     |
@@ -206,7 +206,7 @@ flowchart LR
 
 **Resources and burden:** One Phoenix VM is normal and two overlap during release, with no Caddy process. In exchange, the host needs a named Service, tag-based identity, approval policy, configuration ownership, and new rollback tooling. This is not a drop-in edit of the current device Serve target.
 
-**Qualification:** A disposable exact-origin experiment must prove target-change atomicity or a bounded connection gap, behavior of existing WebSockets, automatic LiveView recovery, unchanged access controls/identity headers, revision proof, and deterministic reversal. If changing the target terminates drained streams or leaves new connections unserved beyond the accepted window, this option fails.
+**Qualification:** A disposable exact-origin experiment must prove target-change atomicity or a bounded connection gap, behaviour of existing WebSockets, automatic LiveView recovery, unchanged access controls/identity headers, revision proof, and deterministic reversal. If changing the target terminates drained streams or leaves new connections unserved beyond the accepted window, this option fails.
 
 **Decision:** Conditional second choice only if measured Caddy cost is material and the additional Tailscale Service control-plane requirements are acceptable.
 
@@ -245,7 +245,7 @@ flowchart LR
     install -. failure .-> recovery[Downgrade or restart]
 ```
 
-**Shape:** Keep one running Phoenix VM and load a new release into it using version-specific OTP release handling. This is not a normal `mix release` capability: changed applications need `.appup` instructions, the release needs `.relup`, and stateful processes need compatible code-change behavior.
+**Shape:** Keep one running Phoenix VM and load a new release into it using version-specific OTP release handling. This is not a normal `mix release` capability: changed applications need `.appup` instructions, the release needs `.relup`, and stateful processes need compatible code-change behaviour.
 
 **Release and recovery:** Each adjacent version pair needs tested upgrade and downgrade paths. Some dependency changes require application restarts; changes to ERTS or core OTP applications restart the emulator, so the browser recovery contract remains necessary. A bad state transformation can affect the only running VM before rollback begins.
 
@@ -268,10 +268,10 @@ flowchart LR
 
 **Shape:** Package each immutable release as a container and add a local container runtime or single-node orchestrator to start, health-check, route, and roll back replicas. Tailscale still needs a stable target, so this does not automatically remove the routing problem.
 
-**Release and recovery:** A start-first update can overlap old and new containers and reverse to the prior image. The design must still prove application readiness, exact revision, WebSocket behavior, shared-data compatibility, routed page recovery, drain, and cleanup. A one-replica stop-first policy degrades to Alternative E.
+**Release and recovery:** A start-first update can overlap old and new containers and reverse to the prior image. The design must still prove application readiness, exact revision, WebSocket behaviour, shared-data compatibility, routed page recovery, drain, and cleanup. A one-replica stop-first policy degrades to Alternative E.
 
 **Resources and burden:** Normal operation can use one application container, but a daemon, image store, networking, configuration, and lifecycle policy are added; rollout normally duplicates the application temporarily. Resource limits are available but do not remove the need to measure host capacity.
 
-**Qualification:** Adopt only if containers solve another demonstrated host-management problem—such as required isolation or already-standard image operations—and their measured total cost and recovery behavior beat the existing release/LaunchAgent path.
+**Qualification:** Adopt only if containers solve another demonstrated host-management problem—such as required isolation or already-standard image operations—and their measured total cost and recovery behaviour beat the existing release/LaunchAgent path.
 
 **Decision:** Not recommended for release simplification alone because it recreates the existing slot lifecycle behind more infrastructure.

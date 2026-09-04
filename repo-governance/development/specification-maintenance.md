@@ -2,7 +2,7 @@
 
 Application specifications under `specs/` must remain synchronized with the implemented system. Before changing application production code, tests, configuration, or user-facing project documentation, inspect the relevant specification subtree and assess every artifact in it for impact.
 
-Update every affected specification file in the same change and before implementation. A file is affected when the change would make any of its behavior, actor, boundary, responsibility, relationship, interface, data flow, data store, constraint, example, vocabulary, or ownership statements inaccurate, incomplete, or contradictory.
+Update every affected specification file in the same change and before implementation. A file is affected when the change would make any of its behaviour, actor, boundary, responsibility, relationship, interface, data flow, data store, constraint, example, vocabulary, or ownership statements inaccurate, incomplete, or contradictory.
 
 Applicable artifacts include:
 
@@ -13,7 +13,7 @@ Applicable artifacts include:
 
 Do not churn an unaffected specification merely because its sibling changed. When adding, removing, moving, or renaming a specification artifact, update its directory map in the same change.
 
-Follow each artifact's more specific ordering and verification requirements. In particular, observable behavior still follows Gherkin and red bindings before implementation, while architectural changes keep every affected C4 view and constraint synchronized with the final as-built state.
+Follow each artifact's more specific ordering and verification requirements. In particular, observable behaviour still follows Gherkin and red bindings before implementation, while architectural changes keep every affected C4 view and constraint synchronized with the final as-built state.
 
 Run applicable project tests and the repository specification-map gate:
 

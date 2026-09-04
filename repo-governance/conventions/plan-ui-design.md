@@ -1,6 +1,6 @@
 # Plan UI Design
 
-Apply this convention when an explicitly requested formal plan creates or materially changes user interface behavior. The goal is to make complex UI work reviewable before implementation without turning every working plan into a repository artifact.
+Apply this convention when an explicitly requested formal plan creates or materially changes user interface behaviour. The goal is to make complex UI work reviewable before implementation without turning every working plan into a repository artifact.
 
 ## Required Exploration
 
@@ -25,11 +25,11 @@ Name assets `ui-<option>-<fidelity>-<device>.svg`, where fidelity is `lofi` or `
 The UI Design section of `tech-docs.md`, or its mapped `tech-docs/ui-design.md` companion, must state:
 
 - the UI's user, job, states, and real product copy;
-- the three alternatives and their device behavior;
+- the three alternatives and their device behaviour;
 - the selected alternative, trade-offs, palette/type/layout tokens, and reusable components;
 - keyboard, focus, error, empty, loading, reduced-motion, and responsive expectations; and
 - exact implementation, test, specification, and asset paths through the File Impact section or its split companion.
 
-Each UI-affecting PRD acceptance criterion names its affected routes, rendered states, and supported viewport classes. `delivery.md` traces exploration, selection, implementation, accessibility checks, and a post-implementation manual browser check of that matrix at the exact served origin. Automation, code inspection, inferred layout behavior, and static assets supplement but never replace this proof. Record route, state, viewport class, and pass/fail without private values. Never include real accounts, credentials, cookies, private identifiers, or user data in an asset or evidence.
+Each UI-affecting PRD acceptance criterion names its affected routes, rendered states, and supported viewport classes. `delivery.md` traces exploration, selection, implementation, accessibility checks, and a post-implementation manual browser check of that matrix at the exact served origin. Automation, code inspection, inferred layout behaviour, and static assets supplement but never replace this proof. Record route, state, viewport class, and pass/fail without private values. Never include real accounts, credentials, cookies, private identifiers, or user data in an asset or evidence.
 
 `delivery.md` also includes the [exploratory and usability passes](../workflows/exploratory-and-usability-testing.md) as required tasks with their `learnings.md` proof; every UI-affecting plan carries them regardless of size.

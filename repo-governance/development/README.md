@@ -9,7 +9,7 @@ When a standard requires an ordered procedure, link to a reusable workflow inste
 A development standard should identify:
 
 - the changes or components it applies to;
-- the required behavior or quality bar;
+- the required behaviour or quality bar;
 - how compliance is verified; and
 - justified exceptions, when permitted.
 
@@ -25,5 +25,5 @@ A development standard should identify:
 - [Resource-aware development](resource-aware-development.md) admits and sheds only repository-owned work under unsafe host pressure.
 - [Software quality enforcement](software-quality-enforcement.md) maps each maintained quality outcome to its blocking, scheduled, runtime, or evidence route.
 - [Specification maintenance](specification-maintenance.md) keeps every relevant artifact under `specs/` synchronized with application changes.
-- [Test-driven development](test-driven-development.md) requires app and library behavior to be developed through red–green–refactor cycles.
+- [Test-driven development](test-driven-development.md) requires app and library behaviour to be developed through red–green–refactor cycles.
 - [Test identities](test-identities.md) isolates synthetic accounts and makes cleanup safe and deterministic.

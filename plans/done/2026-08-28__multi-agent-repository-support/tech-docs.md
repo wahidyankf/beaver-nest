@@ -36,9 +36,9 @@ The repository will support Codex, Claude Code, and OpenCode through one canonic
 | Custom agents        | `.agents/agents/`        | `.codex/agents/` wrapper | `.claude/agents/` wrapper         | `.opencode/agents/` wrapper |
 | Nx tools             | `npx nx mcp` declaration | `.codex/config.toml`     | `.mcp.json`                       | `opencode.json`             |
 | Safety and authority | `AGENTS.md` links        | Shared rules             | Imported rules                    | Shared rules                |
-| Nx task behavior     | Resolved Nx targets      | Shared CLI               | Shared CLI                        | Shared CLI                  |
+| Nx task behaviour    | Resolved Nx targets      | Shared CLI               | Shared CLI                        | Shared CLI                  |
 | Repository gates     | Nx plus Husky            | Shared hook              | Shared hook                       | Shared hook                 |
-| RTK behavior         | `RTK.md` plus onboarding | Codex integration        | Claude hook                       | OpenCode plugin             |
+| RTK behaviour        | `RTK.md` plus onboarding | Codex integration        | Claude hook                       | OpenCode plugin             |
 
 ### Instructions
 
@@ -48,7 +48,7 @@ Root `AGENTS.md` will route every harness to the canonical multi-harness convent
 
 The initial contract permits only the root `AGENTS.md`. Nested `AGENTS.md`, `AGENTS.override.md`, additional `CLAUDE.md`, and `.claude/rules/**/*.md` are rejected because Claude would not receive an equivalent route. A later need for scoped rules must first extend the convention and validator.
 
-OpenCode config may contain MCP and other non-instruction settings, but any repository `opencode.json` or `opencode.jsonc` with a non-empty `instructions` array is rejected. V1 would append those instructions while V2 currently retains but does not resolve them, creating version-dependent behavior.
+OpenCode config may contain MCP and other non-instruction settings, but any repository `opencode.json` or `opencode.jsonc` with a non-empty `instructions` array is rejected. V1 would append those instructions while V2 currently retains but does not resolve them, creating version-dependent behaviour.
 
 ### Skills
 
@@ -152,7 +152,7 @@ Minimum finding kinds are missing canonical source, invalid instruction adapter,
 2. Prove Nx red for the new scenarios before production implementation.
 3. Unit-test byte normalization, canonical and aggregate digests, supporting-resource ordering, changed descriptions, extra wrapper/agent instructions, weakened permissions, sorted findings, exclusions, JSONC, minimal TOML sections, and exact adapter reconciliation using the in-memory filesystem.
 4. Integration-test real temporary files without network or child processes.
-5. E2E-test the built CLI's text/JSON shape, exit codes, and read-only filesystem behavior.
+5. E2E-test the built CLI's text/JSON shape, exit codes, and read-only filesystem behaviour.
 6. Run `test:coverage:behaviour`, unit/integration coverage, `test:quick`, focused E2E, and `test:repo` through Nx.
 7. Manually start each already-authenticated harness only for a read-only discovery smoke: inspect instructions, skills, both custom agents, Nx MCP, and the effective web-researcher restrictions. Record pass/fail without prompts, credentials, paths, session content, or model output. If authentication or a required web capability is unavailable, the implementation remains unaccepted rather than weakening deterministic checks.
 
@@ -244,7 +244,7 @@ PRD outcomes AC-01–AC-06 become durable Badakmini contracts. AC-07 remains pla
 ### Badakmini implementation and tests
 
 - `[N] apps/badakmini-cli/HarnessContract.fs` — add contract models, parsers, reconciliation, findings, and formatting behind the existing filesystem port.
-- `[E] apps/badakmini-cli/Cli.fs` — expose text/JSON command behavior.
+- `[E] apps/badakmini-cli/Cli.fs` — expose text/JSON command behaviour.
 - `[E] apps/badakmini-cli/project.json` — add `test:repo` invocation and complete cache inputs.
 - `[E] apps/badakmini-cli/README.md` — document scope, command, output, and tests.
 - `[E] apps/badakmini-cli/tests/contract/BehaviourContract.fs` — add driver operations and scenario state.
@@ -256,7 +256,7 @@ PRD outcomes AC-01–AC-06 become durable Badakmini contracts. AC-07 remains pla
 - `[E] apps/badakmini-cli/tests/integration/IntegrationPolicyTests.fs` — retain and expand no-network/no-process source policy if new parser sources require it.
 - `[E] apps/badakmini-cli-e2e/E2eDriver.fs` — translate public JSON findings for process scenarios.
 - `[E] specs/apps/badakmini/cli/architecture.md` — update inspection responsibility.
-- `[N] specs/apps/badakmini/cli/behaviours/harness-contract.feature` — specify parity behavior.
+- `[N] specs/apps/badakmini/cli/behaviours/harness-contract.feature` — specify parity behaviour.
 - `[E] specs/apps/badakmini/cli/behaviours/cli-contract.feature` — extend the public command matrix.
 - `[E] specs/apps/badakmini/cli/behaviours/README.md` — map the new feature.
 - `[E] .husky/pre-push` — select every harness-contract path for repository validation.

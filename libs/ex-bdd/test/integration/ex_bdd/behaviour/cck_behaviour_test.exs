@@ -1,18 +1,18 @@
-defmodule ExBdd.CckBehaviorTest do
+defmodule ExBdd.CckBehaviourTest do
   @moduledoc """
-  Behavior tests driven by vendored ExBdd Compatibility Kit samples
+  Behaviour tests driven by vendored ExBdd Compatibility Kit samples
   (`test/fixtures/cck/`). Each test runs a CCK feature against Elixir step
   definitions equivalent to the kit's reference TypeScript step definitions
   and asserts the outcome the reference implementation produces.
 
-  Samples for behaviors this implementation does not support correctly yet
+  Samples for behaviours this implementation does not support correctly yet
   (ambiguous, pending, skipped, retry, attachments, hooks variants, rules...)
   are added by the issues that implement them — see issues #17–#29.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defmodule MinimalSteps do
     use ExBdd.StepDefinition
@@ -293,7 +293,7 @@ defmodule ExBdd.CckBehaviorTest do
 
   describe "CCK: hooks-skipped (parse-only until skip semantics land)" do
     test "the feature with scenario descriptions parses and undefined skip steps fail" do
-      # Full skip behavior arrives with issue #21; today this fixture proves
+      # Full skip behaviour arrives with issue #21; today this fixture proves
       # the parser handles its scenario descriptions (issue #17) and the
       # undefined skip steps fail rather than silently pass.
       run = run_feature(fixture("hooks-skipped"), steps: [])

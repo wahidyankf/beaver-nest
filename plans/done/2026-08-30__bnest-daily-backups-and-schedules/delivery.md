@@ -4,7 +4,7 @@
 
 - 2026-08-30: Moved from backlog to in progress after the plan quality gate passed; active-service baseline is the blocking prerequisite before application edits.
 - 2026-08-30: Baseline passed: local and routed Caddy were ready on the active blue slot, SQLite readiness was green, ten anonymous LiveViews reconnected without refresh, and the repository volume had 98 GiB available. No application file had been edited.
-- 2026-08-30: Phase 1 red established: recursive behavior coverage bound all 12 scheduled-backup scenarios in unit, integration, and E2E; focused unit execution failed in 17 expected places because scheduler policy and behavior outcomes do not exist yet.
+- 2026-08-30: Phase 1 red established: recursive behaviour coverage bound all 12 scheduled-backup scenarios in unit, integration, and E2E; focused unit execution failed in 17 expected places because scheduler policy and behaviour outcomes do not exist yet.
 - 2026-08-30: Phase 1 checkpoint passed: app formatting, E2E lint/typecheck, Badakmini repository validation, and diff checks were green. The root hook correctly rejected an intentionally red checkpoint commit, so the contract and implementation are checkpointed together only after all required gates became green.
 - 2026-08-30: Phases 2 and 3 passed: additive migration/seed reconciliation, contextual claiming, bounded retries, renewable leases, attempt fencing, verified SQLite snapshots, owned retention, admin-only LiveViews, and typed panel discovery are implemented. Unit coverage is 99.24%, integration coverage is 100%, 234 integration tests pass, and all 37 focused desktop/tablet/mobile browser cases pass with connected LiveView.
 - 2026-08-30: Rules propagation added the exact ignored backup-root ownership and retention contract to the canonical runtime-data convention; the existing harness routes already point to that source, and the repository idempotence/links/maps/Mermaid gate passed.
@@ -19,17 +19,17 @@
 
 - Execute through the repository plan workflow and keep one task in progress at a time.
 - Apply [live-service continuity](../../../repo-governance/development/live-service-continuity.md) to every candidate, route, drain, recovery, and cleanup action.
-- Develop durable behavior as Gherkin, failing bindings, guarded Nx red, implementation, focused integration/E2E, then manual smoke.
+- Develop durable behaviour as Gherkin, failing bindings, guarded Nx red, implementation, focused integration/E2E, then manual smoke.
 - Use isolated test databases, marked backup roots, and `test-user-` identities; never read or mutate real user records in tests.
 - Checkpoint each completed phase with thematic commits. Do not deploy merely because a commit was pushed.
 
 ## Phase 1 — Contracts and Baseline
 
-- [x] **[AI] [AC-01..11] Add executable behavior contracts**
-  - Input: [product requirements](prd.md), current behavior architecture, and adapter conventions.
-  - Action: add `scheduled_backups.feature`, both app bindings, exact-origin E2E bindings, and behavior maps; prove every step is bound.
+- [x] **[AI] [AC-01..11] Add executable behaviour contracts**
+  - Input: [product requirements](prd.md), current behaviour architecture, and adapter conventions.
+  - Action: add `scheduled_backups.feature`, both app bindings, exact-origin E2E bindings, and behaviour maps; prove every step is bound.
   - Outcome: authorization, context reuse, expiry, typed configuration, persistence, claiming, backup proof, dashboard, and retention are durable specifications.
-  - Proof: guarded `bnest-app:test:quick` and affected behavior coverage fail only for missing behavior.
+  - Proof: guarded `bnest-app:test:quick` and affected behaviour coverage fail only for missing behaviour.
 - [x] **[AI] [AC-01..11] Add focused red tests**
   - Input: injected clock, isolated SQLite databases, marked temporary destinations, and synthetic identities.
   - Action: cover startup reconciliation, immediate claims, overlap, leases/retries, both contexts, synthetic second handlers, every expiry mode, typed panel allowlists, source selection, receipts, cleanup, route denial, and responsive states.
@@ -38,7 +38,7 @@
 - [x] **[AI] [AC-01..11] Checkpoint phase 1**
   - Input: complete red contract inventory and rendered UI assets.
   - Action: reconcile file impact, links, maps, and accessibility expectations.
-  - Outcome: implementation can proceed without inventing product or failure behavior.
+  - Outcome: implementation can proceed without inventing product or failure behaviour.
   - Proof: plan gate passes; record intentional red evidence.
 
 ## Phase 2 — Persistent Scheduler Expansion
@@ -84,20 +84,20 @@
 - [x] **[AI] [AC-01, AC-06, AC-07, AC-09, AC-10, AC-11] Prove the routed journey**
   - Input: exact served application origin and isolated admin/non-admin identities.
   - Action: navigate home → settings → schedules and the shortcut; exercise both context groups, expiry summaries/controls, independent save failures, desktop/tablet/mobile, keyboard, zoom, reduced motion, reconnect, setup/run/failure states, non-admin omission, and direct denial.
-  - Outcome: the selected UI works accessibly through real LiveView/WebSocket behavior.
+  - Outcome: the selected UI works accessibly through real LiveView/WebSocket behaviour.
   - Proof: focused guarded E2E passes with connected LiveView and zero real-user access.
 - [x] **[AI] [AC-01, AC-08, AC-09, AC-10, AC-11] Apply rule propagation**
   - Input: implemented runtime-backup rule changes and every other rule delta discovered during execution, including a verified empty remainder.
   - Action: apply [rules propagation](../../../repo-governance/workflows/rules-propagation.md), including `repo-governance/conventions/runtime-flat-file-data.md`, and reconcile canonical ownership/harness routes through its idempotence gate.
-  - Outcome: the ignored `data/backup/` runtime contract and any other necessary rule changes match implemented behavior exactly; otherwise the relevant delta records a verified no-op.
+  - Outcome: the ignored `data/backup/` runtime contract and any other necessary rule changes match implemented behaviour exactly; otherwise the relevant delta records a verified no-op.
   - Proof: rules-propagation verification and guarded repository gate pass.
 - [x] **[AI] [AC-01..11] Update the canonical Bnest C4 model**
   - Input: final as-built settings, scheduler, live SQLite, Dropbox-synced backup folder, authorization, and Caddy relationships.
   - Action: update `specs/apps/bnest/app/architecture.md` System Context with Administrator/Dropbox sync, Container View with the backup folder and schedule rows, Component View with settings/coordinator/supervisor/registry/backup proof, and Architectural Constraints with source, authorization, additive overlap, ownership, and no-download rules.
-  - Outcome: the canonical C4 model describes only the delivered architecture and links the new durable behavior.
+  - Outcome: the canonical C4 model describes only the delivered architecture and links the new durable behaviour.
   - Proof: architecture/specification maintenance checks and guarded repository gate pass.
 - [x] **[AI] [AC-01..11] Checkpoint phase 3**
-  - Input: green scheduler, backup, route, and UI behavior.
+  - Input: green scheduler, backup, route, and UI behaviour.
   - Action: update affected project READMEs/spec maps and run affected guarded gates serially.
   - Outcome: implementation is release-ready with documentation synchronized.
   - Proof: affected lint, typecheck, test, build, and Badakmini checks pass.
@@ -141,7 +141,7 @@
 - [x] **[AI] [AC-01..11] Reconcile documentation and evidence**
   - Input: implementation diff, accepted criteria, release evidence, and value-free first-backup receipt.
   - Action: update plan docs, application/E2E READMEs, runtime-data governance through rules propagation, specs, maps, and learnings; verify the existing `/data/*` ignore rule covers the backup root and remove stale assumptions.
-  - Outcome: repository documentation matches delivered behavior.
+  - Outcome: repository documentation matches delivered behaviour.
   - Proof: links, maps, plan gate, repo tests, and affected quality gates pass.
 - [x] **[AI] [AC-01..11] Checkpoint phase 5**
   - Input: every acceptance criterion, conditional disposition, final evidence, and clean working process inventory.

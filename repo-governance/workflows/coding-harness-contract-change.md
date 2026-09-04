@@ -18,7 +18,7 @@ Choose every affected concern, then edit its canonical source before any adapter
 - **Rules:** edit root `AGENTS.md`. Keep root `CLAUDE.md` as the exact `@AGENTS.md` import. Do not add nested or harness-specific instruction files unless the convention and validator first define equivalent routing.
 - **Skills:** edit the complete `.agents/skills/<name>/` bundle, including `SKILL.md` and supporting resources. The directory and frontmatter `name` must match.
 - **Agents:** edit `.agents/agents/<name>.md`, including its prompt and semantic `requires`, `denies`, and `constraints`.
-- **Required capabilities:** define the credential-free executable behavior in the convention and validator before changing harness-native declarations.
+- **Required capabilities:** define the credential-free executable behaviour in the convention and validator before changing harness-native declarations.
 
 ### 2. Reconcile the adapters
 
@@ -48,19 +48,19 @@ For a required MCP capability, update every owned declaration together:
 - Claude Code: `.mcp.json`; and
 - OpenCode: `opencode.json`.
 
-Compare executable vectors and workspace behavior, not vendor syntax. Never commit credentials or populated environment values. Adding or removing a required capability also requires validator, specification, and fixture changes.
+Compare executable vectors and workspace behaviour, not vendor syntax. Never commit credentials or populated environment values. Adding or removing a required capability also requires validator, specification, and fixture changes.
 
 ### 3. Update enforcement when the contract shape changes
 
 A content-only change that retains names, descriptions, routes, semantics, and native schemas needs no validator code change. Badakmini reads and hashes the canonical content dynamically.
 
-When topology, accepted frontmatter, semantic capability mappings, native schema, finding behavior, or capability declarations change:
+When topology, accepted frontmatter, semantic capability mappings, native schema, finding behaviour, or capability declarations change:
 
 1. update the affected Gherkin scenarios and shared bindings;
 2. implement every unit, integration, and E2E driver member;
 3. prove the new scenario red through Nx;
 4. change Badakmini at the narrowest responsible layer; and
-5. update the Badakmini C4 specification and project README when responsibility or public behavior changes.
+5. update the Badakmini C4 specification and project README when responsibility or public behaviour changes.
 
 ### 4. Verify
 

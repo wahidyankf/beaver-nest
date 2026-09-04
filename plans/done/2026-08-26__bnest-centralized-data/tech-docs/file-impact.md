@@ -89,15 +89,15 @@ apps/bnest-app/test/
 │   │   ├── [N] authentication_steps.exs                          # Bind eight identity/session scenarios.
 │   │   └── [N] centralized_data_steps.exs                        # Bind seven import/persistence/resume scenarios.
 │   └── support/
-│       └── [E] integration.exs                                   # Dispatch new behavior through isolated real components.
+│       └── [E] integration.exs                                   # Dispatch new behaviour through isolated real components.
 ├── integration/
 │   ├── support/
 │   │   ├── [E] codex_fixture_session.ex                          # Exercise successful and unavailable resume outcomes.
-│   │   └── [E] home_page_driver.ex                               # Drive authenticated behavior and user-scoped evidence.
+│   │   └── [E] home_page_driver.ex                               # Drive authenticated behaviour and user-scoped evidence.
 │   ├── bnest_app/
 │   │   ├── [E] application_test.exs                              # Prove immutable startup root and production-root rejection.
-│   │   ├── [N] backup_test.exs                                   # Prove immutable collision/checksum/restore behavior.
-│   │   ├── [N] browser_import_test.exs                           # Prove allow-list, idempotency, stale/rejected, and recovery behavior.
+│   │   ├── [N] backup_test.exs                                   # Prove immutable collision/checksum/restore behaviour.
+│   │   ├── [N] browser_import_test.exs                           # Prove allow-list, idempotency, stale/rejected, and recovery behaviour.
 │   │   ├── [N] data_repository_test.exs                          # Prove contracts, typed paths, races, failures, facade, and cleanup.
 │   │   ├── [N] identity_test.exs                                 # Prove bootstrap, hash, sessions, recovery, roles, and facade failures.
 │   │   └── [N] schema_audit_test.exs                             # Prove value-free read-only structural output.
@@ -113,7 +113,7 @@ apps/bnest-app/test/
 │   └── [N] test_runtime_root.ex                                  # Mark, validate, reject production, and clean one exact root.
 └── unit/
     ├── support/
-    │   └── [E] home_page_driver.ex                               # Bind new behavior with resource-free doubles.
+    │   └── [E] home_page_driver.ex                               # Bind new behaviour with resource-free doubles.
     ├── bnest_app/
     │   ├── [E] chat_test.exs                                     # Cover nil-thread transcript preservation.
     │   ├── [N] data_normalizer_test.exs                           # Cover allow-listed values, safe fallback, and rejection.
@@ -169,7 +169,7 @@ specs/apps/bnest/app/
     ├── [N] authentication.feature          # Eight identity/session/authorization scenarios.
     ├── [N] centralized_data.feature        # Seven import/persistence/recovery scenarios.
     ├── [E] chat.feature                    # Keep public PWA separate; authenticate user-owned chat.
-    └── [E] sifat_allah.feature             # Authenticate centralized learning behavior.
+    └── [E] sifat_allah.feature             # Authenticate centralized learning behaviour.
 
 repo-governance/
 ├── development/

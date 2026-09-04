@@ -27,7 +27,7 @@ Scope includes stable/candidate process ownership, port selection, readiness, pr
 ## Risks & Open Questions
 
 - Two app versions must not write incompatible records to the same flat-file root.
-- LiveView connections on the old backend need drain behavior or an explicit reconnect proof.
+- LiveView connections on the old backend need drain behaviour or an explicit reconnect proof.
 - Candidate artifacts and processes need bounded, ownership-checked cleanup.
 - The promoter must distinguish a healthy HTML response from a usable authenticated/legacy journey.
 

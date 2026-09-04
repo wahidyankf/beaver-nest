@@ -1,6 +1,6 @@
 defmodule ExBdd do
   @moduledoc """
-  A behavior-driven development (BDD) testing framework for Elixir using ExBdd.Gherkin syntax.
+  A behaviour-driven development (BDD) testing framework for Elixir using ExBdd.Gherkin syntax.
 
   ExBdd is a testing framework that allows you to write executable specifications
   in natural language. It bridges the gap between technical and non-technical stakeholders

@@ -26,7 +26,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Verify pinned bootstrap behavior
+      - name: Verify pinned bootstrap behaviour
         run: ./.github/scripts/test-resource-guard-bootstrap.sh
 
       - name: Install and identify the pinned release

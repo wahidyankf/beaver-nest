@@ -9,7 +9,7 @@ Use a visualization in Markdown when it makes relationships, sequence, state, hi
 - Place the diagram near the prose it supports and give nodes, edges, actors, and states meaningful labels.
 - Include enough surrounding text that critical meaning remains understandable and searchable without relying on the image alone.
 - Keep Mermaid source readable and compatible with the Markdown renderer used by the repository.
-- Update a diagram in the same change when the documented behavior or structure it represents changes.
+- Update a diagram in the same change when the documented behaviour or structure it represents changes.
 
 ## Mermaid Accessibility
 

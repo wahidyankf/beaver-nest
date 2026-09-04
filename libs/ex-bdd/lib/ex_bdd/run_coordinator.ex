@@ -32,7 +32,7 @@ defmodule ExBdd.RunCoordinator do
       callbacks fire on *every* `ExUnit.run/1` — the sink flushes (and
       disables itself) when the first run in the VM completes, so a project
       that invokes a nested `ExUnit.run/1` mid-suite with the sink enabled
-      gets the stream truncated at that point (`ExBdd.BehaviorCase`
+      gets the stream truncated at that point (`ExBdd.BehaviourCase`
       relies on exactly this per-run firing to capture streams in tests).
   """
 

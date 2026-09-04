@@ -25,7 +25,7 @@ Allow repository work to begin from Codex, Claude Code, or OpenCode while preser
 - Equalize proprietary system prompts, built-in tools, model quality, approval UX, or billing.
 - Copy user-global preferences into the repository.
 - Replace existing Nx targets with harness-specific scripts.
-- Change Bnest end-user behavior or its Codex SDK runtime.
+- Change Bnest end-user behaviour or its Codex SDK runtime.
 
 ## Constraints
 
@@ -33,8 +33,8 @@ Allow repository work to begin from Codex, Claude Code, or OpenCode while preser
 - Canonical content must not be duplicated merely to satisfy a harness adapter.
 - Adapter formats may differ, but their declared source, identity, and required capability must reconcile deterministically.
 - The web-research workflow must check repository evidence first, prefer primary sources, cite claims, expose conflicts and gaps, and never edit files.
-- Existing Codex behavior must remain supported while Claude Code and OpenCode are added.
-- New Badakmini behavior follows Gherkin-first implementation with complete unit, integration, and E2E adapters.
+- Existing Codex behaviour must remain supported while Claude Code and OpenCode are added.
+- New Badakmini behaviour follows Gherkin-first implementation with complete unit, integration, and E2E adapters.
 
 ## Risks
 
@@ -43,8 +43,8 @@ Allow repository work to begin from Codex, Claude Code, or OpenCode while preser
 - Harnesses expose different agent permission primitives; the implementation must encode the strongest equivalent read-only restriction each supports and document any vendor-owned enforcement boundary.
 - Claude's lack of native `.agents/skills/` discovery can create wrapper drift without validation.
 - Parsing too much vendor configuration would turn Badakmini into a general-purpose config interpreter.
-- User-global instructions can still add or override behavior beyond the repository-owned baseline.
+- User-global instructions can still add or override behaviour beyond the repository-owned baseline.
 
 ## Success
 
-Success means all three harnesses have a documented, committed route to the same canonical repository contract, the focused Badakmini command and full repository gate pass, deliberate drift fixtures fail at every test layer, and no implementation claims equality for machine-local or vendor-owned behavior.
+Success means all three harnesses have a documented, committed route to the same canonical repository contract, the focused Badakmini command and full repository gate pass, deliberate drift fixtures fail at every test layer, and no implementation claims equality for machine-local or vendor-owned behaviour.

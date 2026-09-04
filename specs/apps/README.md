@@ -1,6 +1,6 @@
 # Application Specifications
 
-Each child tree represents one logical application and keeps its architecture model beside its executable behavior corpus.
+Each child tree represents one logical application and keeps its architecture model beside its executable behaviour corpus.
 
 ## Directory Map
 

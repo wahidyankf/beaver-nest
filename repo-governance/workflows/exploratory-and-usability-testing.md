@@ -10,9 +10,9 @@ Run the exploratory pass first and finish recording it before the usability pass
 
 ## Exploratory Pass
 
-Spec-aware. Compare live behavior against the affected `specs/**` Gherkin. Actively probe edge cases, boundary conditions, URL/route structure, and passive security signals (exposed identifiers, missing authorization checks) beyond the scripted E2E cases. Record each finding with its route/state and category in `learnings.md` under `## Exploratory findings`.
+Spec-aware. Compare live behaviour against the affected `specs/**` Gherkin. Actively probe edge cases, boundary conditions, URL/route structure, and passive security signals (exposed identifiers, missing authorization checks) beyond the scripted E2E cases. Record each finding with its route/state and category in `learnings.md` under `## Exploratory findings`.
 
-When a finding reveals correct-but-unspecced behavior, propose it as a new Gherkin scenario and reconcile it through the [BDD Iron Rule](../development/behaviour-driven-development.md#iron-rule): update the spec, bind failing steps, confirm red, then implement, as its own `delivery.md` task. Never merge an unreconciled proposal into `specs/**` directly.
+When a finding reveals correct-but-unspecced behaviour, propose it as a new Gherkin scenario and reconcile it through the [BDD Iron Rule](../development/behaviour-driven-development.md#iron-rule): update the spec, bind failing steps, confirm red, then implement, as its own `delivery.md` task. Never merge an unreconciled proposal into `specs/**` directly.
 
 ## Usability Pass
 

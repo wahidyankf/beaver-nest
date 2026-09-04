@@ -1,13 +1,13 @@
-defmodule ExBdd.Behavior.MarkdownTest do
+defmodule ExBdd.Behaviour.MarkdownTest do
   @moduledoc """
-  Behavior tests for Markdown feature files (#29): a `.feature.md` source
+  Behaviour tests for Markdown feature files (#29): a `.feature.md` source
   compiles and runs exactly like its plain ExBdd.Gherkin equivalent — outlines
   expand, backgrounds run first, docstrings and data tables reach the step
   context, failures point at the Markdown source line, and the ExBdd
   Messages stream carries the Markdown media type.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
   defmodule Steps do
     use ExBdd.StepDefinition
@@ -197,6 +197,6 @@ defmodule ExBdd.Behavior.MarkdownTest do
   end
 
   defp unique_markdown_path do
-    "test/fixtures/generated/behavior_#{System.unique_integer([:positive])}.feature.md"
+    "test/fixtures/generated/behaviour_#{System.unique_integer([:positive])}.feature.md"
   end
 end

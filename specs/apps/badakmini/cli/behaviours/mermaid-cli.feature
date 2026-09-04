@@ -1,4 +1,4 @@
-Feature: Mermaid accessibility command behavior
+Feature: Mermaid accessibility command behaviour
 
   Scenario: File scope excludes unrelated diagrams
     Given the repository contains Mermaid sample "accessible colored class" at "docs/selected.md"

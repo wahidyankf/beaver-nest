@@ -9,7 +9,7 @@ These plan-owned synthetic SVGs let product reviewers and implementers compare t
 - `ui-cards-lofi-*.svg`: rejected independent status cards.
 - `ui-ledger-hifi-*.svg`: selected Nest workshop treatment.
 
-Each family includes desktop, tablet, and mobile widths. Source copy and behavior are canonical in [technical design](../tech-docs.md).
+Each family includes desktop, tablet, and mobile widths. Source copy and behaviour are canonical in [technical design](../tech-docs.md).
 
 ## Directory Map
 

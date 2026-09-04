@@ -1,12 +1,12 @@
 defmodule ExBdd.AmbiguityAndStacktraceTest do
   @moduledoc """
-  Behavior tests for ambiguous step detection (#20) and feature-file stack
+  Behaviour tests for ambiguous step detection (#20) and feature-file stack
   frames (#22).
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defmodule AmbiguousSteps do
     use ExBdd.StepDefinition

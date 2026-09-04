@@ -13,7 +13,7 @@
 - As a contributor, I can use the Nx MCP-dependent workflows and the CI monitor through equivalent declared capabilities.
 - As a contributor, I can delegate current or uncertain facts to the same read-only, source-grounded web-research workflow from any supported harness.
 - As a maintainer, I can run one Badakmini validator to find parity drift without invoking any harness.
-- As a reviewer, I can distinguish guaranteed repository parity from intentionally local or vendor-specific behavior.
+- As a reviewer, I can distinguish guaranteed repository parity from intentionally local or vendor-specific behaviour.
 
 ## Acceptance Criteria
 
@@ -23,7 +23,7 @@
 - **AC-04 — Required capabilities:** each harness declares the same repository-required `nx-mcp` command without credentials or absolute paths.
 - **AC-05 — Deterministic validation:** Badakmini normalizes content, builds logical contract records, computes stable SHA-256 content digests, compares harness projections field by field, emits stable text and JSON findings, and returns `0` for parity, `1` for findings, and `2` for invocation or unreadable-config errors.
 - **AC-06 — Gate integration:** the focused validator, `test:repo`, Badakmini quality gates, and affected pre-push selection cover all contract paths.
-- **AC-07 — Honest boundary:** docs exclude models, provider auth, user-global settings, ignored local memory, and proprietary approval behavior from the parity claim.
+- **AC-07 — Honest boundary:** docs exclude models, provider auth, user-global settings, ignored local memory, and proprietary approval behaviour from the parity claim.
 
 ## Plan-Level Gherkin
 
@@ -58,7 +58,7 @@ Feature: Work through any supported coding harness
     When Badakmini validates the harness contract
     Then validation fails with the changed field and both related paths
 
-  Scenario: An agent adapter changes effective behavior
+  Scenario: An agent adapter changes effective behaviour
     Given an agent adapter adds prompt content or weakens a canonical deny
     When Badakmini validates the harness contract
     Then validation fails with the agent, harness, and divergent semantic field

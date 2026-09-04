@@ -6,11 +6,11 @@ Feature files and reference `.ndjson` message streams vendored from the
 contributors. `attachments/document.pdf` is the binary the attachments
 sample attaches.
 
-These are the canonical behavior sources for this implementation's behavior
-tests (see `ExBdd.BehaviorCase`). Each sample directory mirrors the CCK
+These are the canonical behaviour sources for this implementation's behaviour
+tests (see `ExBdd.BehaviourCase`). Each sample directory mirrors the CCK
 layout; the Elixir step definitions equivalent to the kit's reference
-TypeScript step definitions live alongside the behavior tests in
-`test/ex_bdd/behavior/` and, for the approval suite, in
+TypeScript step definitions live alongside the behaviour tests in
+`test/ex_bdd/behaviour/` and, for the approval suite, in
 `test/support/cck/approval_definitions.ex`.
 
 The approval suite (`test/ex_bdd/cck_approval_test.exs`) runs every

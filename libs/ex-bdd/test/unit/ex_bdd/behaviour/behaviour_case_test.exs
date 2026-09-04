@@ -1,7 +1,7 @@
-defmodule ExBdd.BehaviorCaseTest do
-  use ExBdd.BehaviorCase
+defmodule ExBdd.BehaviourCaseTest do
+  use ExBdd.BehaviourCase
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defmodule BasicSteps do
     use ExBdd.StepDefinition

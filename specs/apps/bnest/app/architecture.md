@@ -220,4 +220,4 @@ flowchart TB
 
 ## Behaviour Traceability
 
-Executable behavior is specified in [`behaviours/`](behaviours/). Unit, local-only integration, and browser E2E adapters must implement that exact recursive corpus.
+Executable behaviour is specified in [`behaviours/`](behaviours/). Unit, local-only integration, and browser E2E adapters must implement that exact recursive corpus.

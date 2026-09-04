@@ -29,7 +29,7 @@ Confirm the intended sources and adapters before interpreting the gate:
 - every `.agents/agents/<name>.md` and one matching adapter per harness; and
 - `.codex/config.toml`, `.mcp.json`, and `opencode.json` declarations for the credential-free `npx nx mcp` capability.
 
-Do not infer parity from matching names or counts. Content digests, canonical routes, native permissions, denies, constraints, and executable behavior remain authoritative.
+Do not infer parity from matching names or counts. Content digests, canonical routes, native permissions, denies, constraints, and executable behaviour remain authoritative.
 
 ### 3. Run the deterministic repository proof
 
@@ -43,7 +43,7 @@ Record the exit status, contract digest, harness count, skill count, agent count
 
 ### 4. Evaluate the enforcement when needed
 
-When the request includes evaluating the validator itself, run its unit, integration, and process-level behavior proof:
+When the request includes evaluating the validator itself, run its unit, integration, and process-level behaviour proof:
 
 ```sh
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour --skipNxCache
@@ -53,7 +53,7 @@ This additional target is optional for a routine parity check when a current mat
 
 ### 5. Bound runtime claims
 
-CLI presence and versions may be recorded as a local availability smoke check. Do not present them as proof that vendor discovery, model behavior, or user-global integrations honor the repository contract. Report runtime discovery as separately verified, not assessed, unavailable, or failed.
+CLI presence and versions may be recorded as a local availability smoke check. Do not present them as proof that vendor discovery, model behaviour, or user-global integrations honor the repository contract. Report runtime discovery as separately verified, not assessed, unavailable, or failed.
 
 ### 6. Report the verdict
 
@@ -64,7 +64,7 @@ Report repository parity as:
 - **blocked** when the gate cannot execute or required evidence is unreadable; or
 - **not assessed** when verification was not run.
 
-Include the commands run, digest and reconciled counts, worktree state, optional behavior-test results, runtime-discovery scope, and unresolved risks. Do not broaden a repository-parity pass into a claim about excluded vendor or local state.
+Include the commands run, digest and reconciled counts, worktree state, optional behaviour-test results, runtime-discovery scope, and unresolved risks. Do not broaden a repository-parity pass into a claim about excluded vendor or local state.
 
 ## Recovery
 

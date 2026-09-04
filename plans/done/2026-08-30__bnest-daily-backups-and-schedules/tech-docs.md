@@ -193,7 +193,7 @@ Except for `daily_at_utc`, every time column stores a full UTC ISO 8601 instant.
 | `cadence`             | Recurrence kind. This version accepts only `daily`.                                                                        |
 | `daily_at_utc`        | UTC `HH:MM` at which each daily slot becomes due; `02:00 WIB` is stored as `19:00` UTC.                                    |
 | `enabled`             | Controls whether the coordinator may create new run claims. Disabling preserves definition and history.                    |
-| `expiration_kind`     | Selects `never`, absolute `at`, or `after_occurrences` expiration behavior.                                                |
+| `expiration_kind`     | Selects `never`, absolute `at`, or `after_occurrences` expiration behaviour.                                               |
 | `expires_at`          | Exclusive UTC cutoff for `at`; claims at or after this instant are blocked. Null for other expiration kinds.               |
 | `max_occurrences`     | Maximum unique scheduled slots allowed for `after_occurrences`. Null for other expiration kinds.                           |
 | `claimed_occurrences` | Unique slots claimed in the current lifecycle; retries never increment it. A validated reactivation resets it.             |
@@ -432,7 +432,7 @@ Logs, telemetry, errors, and committed fixtures use schedule keys and safe categ
 
 - **Unit — `bnest-app:test:unit`:** prove daily-time arithmetic, context/handler allowlists, expiry boundaries, occurrence counting, retry classification, receipt parsing, and retention selection with an injected clock and synthetic names.
 - **Integration — `bnest-app:test:integration`:** use an isolated migrated SQLite database and marked temporary backup root to prove immediate claims, restart/catch-up, two-coordinator overlap, leases, `VACUUM INTO`, independent verification, atomic artifacts, and safe cleanup.
-- **Behavior — `bnest-app:test:coverage:behaviour`:** bind every selected canonical scenario through both app adapters and the E2E compliance adapter; no step may be undefined or exempted.
+- **Behaviour — `bnest-app:test:coverage:behaviour`:** bind every selected canonical scenario through both app adapters and the E2E compliance adapter; no step may be undefined or exempted.
 - **E2E — `bnest-app-e2e:test:e2e`:** run only the affected exact-origin admin journey with unique `test-user-<run-id>` identities, connected LiveView/WebSocket, desktop/tablet/mobile viewports, reconnect, and non-admin direct-route denial.
 
 Tests never read production records or expose configured paths or payloads. Each run records only value-free pass/fail, schedule keys, synthetic artifact basenames, and revision evidence. Its finalizer stops browsers and test servers, then removes only the exact validated marked SQLite and backup roots; cleanup failure fails the gate.
@@ -443,7 +443,7 @@ Follow [live-service continuity](../../../repo-governance/development/live-servi
 
 ## Specification Changes
 
-AC-01 through AC-11 become durable contracts because they change storage ownership, reusable scheduling, context/expiry policy, authorization, failure behavior, admin configuration, and UI. Rollout mechanics remain plan-level operational criteria proved in `delivery.md`.
+AC-01 through AC-11 become durable contracts because they change storage ownership, reusable scheduling, context/expiry policy, authorization, failure behaviour, admin configuration, and UI. Rollout mechanics remain plan-level operational criteria proved in `delivery.md`.
 
 ### [E] `specs/apps/bnest/app/architecture.md`
 

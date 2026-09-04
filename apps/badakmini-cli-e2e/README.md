@@ -8,13 +8,13 @@ Run from the repository root through `./resource-guard run --class ephemeral -- 
 
 | Task                         | Command                                                              |
 | ---------------------------- | -------------------------------------------------------------------- |
-| Check behavior completeness  | `npm exec -- nx run -p badakmini-cli-e2e -t test:coverage:behaviour` |
+| Check behaviour completeness | `npm exec -- nx run -p badakmini-cli-e2e -t test:coverage:behaviour` |
 | Run process E2E scenarios    | `npm exec -- nx run -p badakmini-cli-e2e -t test:e2e`                |
 | Run fast harness checks      | `npm exec -- nx run -p badakmini-cli-e2e -t test:quick`              |
 | Type-check the test assembly | `npm exec -- nx run -p badakmini-cli-e2e -t typecheck`               |
 | Lint and format-check F#     | `npm exec -- nx run -p badakmini-cli-e2e -t lint`                    |
 
-`test:e2e` builds `badakmini-cli`, checks behavior completeness across unit, integration, and E2E adapters, then executes every canonical scenario. `test:quick` never launches the CLI process; it owns and sequentially runs type checking, linting, and static behavior completeness without depending on the CLI application's complete quick gate.
+`test:e2e` builds `badakmini-cli`, checks behaviour completeness across unit, integration, and E2E adapters, then executes every canonical scenario. `test:quick` never launches the CLI process; it owns and sequentially runs type checking, linting, and static behaviour completeness without depending on the CLI application's complete quick gate.
 
 ## Shared Specification
 
@@ -30,4 +30,4 @@ The independent **Badakmini test symphony** job in the [scheduled quality-gates 
 
 - `Badakmini.Cli.E2eTests.fsproj` embeds shared specifications and links the shared executable `BehaviourTests.fs` test cases into this assembly; the absence of a local `*Tests.fs` file does not mean the suite is empty.
 - `E2eDriver.fs` manages temporary repositories and child-process observations.
-- `project.json` exposes Nx typecheck, lint, behavior, quick, and E2E targets.
+- `project.json` exposes Nx typecheck, lint, behaviour, quick, and E2E targets.

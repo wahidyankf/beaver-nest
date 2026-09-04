@@ -5,9 +5,9 @@ defmodule ExBdd.CckApproval.Definitions do
   used by the approval tests in `test/ex_bdd/cck_approval_test.exs`.
 
   Each nested module mirrors one sample's definition file as closely as
-  the two languages allow: same patterns, same behavior, same failure
+  the two languages allow: same patterns, same behaviour, same failure
   messages. Do not add test instrumentation here — the approval
-  comparison depends on these producing exactly the reference behavior.
+  comparison depends on these producing exactly the reference behaviour.
   """
 
   defmodule Minimal do
@@ -490,7 +490,7 @@ defmodule ExBdd.CckApproval.Definitions do
     end
 
     # The reference uses module-global attempt counters; `retry_attempt`
-    # (1-based) expresses the same "fails until the Nth run" behavior.
+    # (1-based) expresses the same "fails until the Nth run" behaviour.
     step "a step that passes the second time", context do
       if context.retry_attempt < 2, do: raise("Exception in step"), else: :ok
     end

@@ -196,7 +196,7 @@ module FeatureCatalog =
         use stream = assembly.GetManifestResourceStream resourceName
 
         if isNull stream then
-            invalidOp $"Embedded behavior resource '{resourceName}' could not be opened."
+            invalidOp $"Embedded behaviour resource '{resourceName}' could not be opened."
 
         use reader = new StreamReader(stream)
         reader.ReadToEnd()
@@ -205,7 +205,7 @@ module FeatureCatalog =
         let resources = resourceNames assembly
 
         if resources.Length = 0 then
-            invalidOp $"No embedded behavior resources were found below '{ResourcePrefix}'."
+            invalidOp $"No embedded behaviour resources were found below '{ResourcePrefix}'."
 
         resources
         |> Array.map (fun resourceName ->
@@ -284,12 +284,12 @@ module BindingCompliance =
 
             match matches with
             | [ binding ] -> used.Add binding |> ignore
-            | [] -> errors.Add($"Undefined behavior step: {step.Text}")
-            | _ -> errors.Add($"Ambiguous behavior step: {step.Text}")
+            | [] -> errors.Add($"Undefined behaviour step: {step.Text}")
+            | _ -> errors.Add($"Ambiguous behaviour step: {step.Text}")
 
         for binding in bindings do
             if not (used.Contains binding) then
-                errors.Add($"Unused behavior binding: {binding.MethodName} / {binding.Pattern}")
+                errors.Add($"Unused behaviour binding: {binding.MethodName} / {binding.Pattern}")
 
         errors |> Seq.toList
 

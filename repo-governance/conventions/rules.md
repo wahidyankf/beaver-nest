@@ -1,11 +1,11 @@
 # Rules
 
-A rule is a repository statement that directs or constrains a decision, behavior, standard, or procedure within a stated scope. It tells people or agents what is required, prohibited, expected, recommended, or permitted.
+A rule is a repository statement that directs or constrains a decision, behaviour, standard, or procedure within a stated scope. It tells people or agents what is required, prohibited, expected, recommended, or permitted.
 
 ## Interpretation
 
 - **Must** and **must not** identify mandatory requirements or prohibitions.
-- **Should** and **should not** identify expected behavior; deviation requires a justified reason.
+- **Should** and **should not** identify expected behaviour; deviation requires a justified reason.
 - **May** identifies permission, not an obligation.
 - A direct imperative, such as “run the check,” is mandatory unless its context explicitly makes it optional.
 

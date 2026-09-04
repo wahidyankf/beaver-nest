@@ -1,13 +1,13 @@
-defmodule ExBdd.ParameterTypesBehaviorTest do
+defmodule ExBdd.ParameterTypesBehaviourTest do
   @moduledoc """
-  Behavior tests for custom parameter types (#23), driven by the CCK
+  Behaviour tests for custom parameter types (#23), driven by the CCK
   `parameter-types` and `unknown-parameter-type` samples plus the issue
   checklist.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defmodule Types do
     use ExBdd.ParameterTypes

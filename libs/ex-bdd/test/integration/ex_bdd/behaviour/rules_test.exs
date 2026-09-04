@@ -1,12 +1,12 @@
-defmodule ExBdd.RulesBehaviorTest do
+defmodule ExBdd.RulesBehaviourTest do
   @moduledoc """
-  Behavior tests for the Rule keyword (#19), driven by the CCK `rules` and
+  Behaviour tests for the Rule keyword (#19), driven by the CCK `rules` and
   `rules-backgrounds` samples plus targeted cases from the issue checklist.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defmodule ChocolateSteps do
     use ExBdd.StepDefinition

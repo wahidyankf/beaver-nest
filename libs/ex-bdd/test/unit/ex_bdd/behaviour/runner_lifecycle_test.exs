@@ -1,13 +1,13 @@
 defmodule ExBdd.RunnerLifecycleTest do
   @moduledoc """
-  Behavior tests pinning the scenario lifecycle now owned by
+  Behaviour tests pinning the scenario lifecycle now owned by
   `ExBdd.Runtime.run_scenario/3`: hook ordering, hook error handling,
   background execution and attribution, and after-hook context.
   """
 
-  use ExBdd.BehaviorCase
+  use ExBdd.BehaviourCase
 
-  alias ExBdd.BehaviorCase.Collector
+  alias ExBdd.BehaviourCase.Collector
 
   defmodule Steps do
     use ExBdd.StepDefinition

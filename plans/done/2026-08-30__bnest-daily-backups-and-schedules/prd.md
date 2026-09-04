@@ -2,7 +2,7 @@
 
 ## Product Story
 
-As a Bnest administrator, I want the production database backed up every day and one settings dashboard for contextual schedules and admin-owned parameters, so I can manage operational behavior without shell access or hidden URLs.
+As a Bnest administrator, I want the production database backed up every day and one settings dashboard for contextual schedules and admin-owned parameters, so I can manage operational behaviour without shell access or hidden URLs.
 
 ## Acceptance Criteria
 

@@ -219,7 +219,7 @@ Mixed-version boundary: exactly one release slot may write. A flat-only slot and
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Unit        | path validation, config encoding, key mapping, canonical JSON, phase transitions, manifest checksum, retry decisions, privacy projection                                                  |
 | Integration | DDL twice, constraints, transactions, busy timeout, concurrent revisions, every source type, interruption/retry, parity, quick check, backup/restore, startup/restart                     |
-| Behavior    | all `sqlite_storage.feature` scenarios bound in unit, integration, and E2E adapters                                                                                                       |
+| Behaviour   | all `sqlite_storage.feature` scenarios bound in unit, integration, and E2E adapters                                                                                                       |
 | Focused E2E | default/custom setup, admin migration, non-admin denial, error/retry, post-restart chat/learning/theme/session                                                                            |
 | Release     | manifest adapter, lock exclusion, flat-primary candidate, Caddy promotion, revision readiness, routed exact-origin LiveView/WebSocket reconnect, bounded drain, cleanup, guarded rollback |
 
@@ -227,7 +227,7 @@ Run package-manager-prefixed targets: `bnest-app:test:unit`, `test:integration`,
 
 ## Specification Changes
 
-Plan acceptance AC-01 through AC-08 becomes durable behavior or architecture because each changes an observable setup, authorization, storage, migration, or continuity contract. Only the visual-alternative comparison stays plan-only, because choosing between wireframes is a review decision rather than product behavior; the Phase 4 asset/accessibility task and the Phase 5 manual device checks in [`delivery.md`](delivery.md) verify it.
+Plan acceptance AC-01 through AC-08 becomes durable behaviour or architecture because each changes an observable setup, authorization, storage, migration, or continuity contract. Only the visual-alternative comparison stays plan-only, because choosing between wireframes is a review decision rather than product behaviour; the Phase 4 asset/accessibility task and the Phase 5 manual device checks in [`delivery.md`](delivery.md) verify it.
 
 `centralized_data.feature` and `authentication.feature` are deliberately **not** changed. Their current text already describes server-owned persistence and one-time setup without naming a storage backend, so no scenario there is added, updated, moved, or deleted. Their adapters still change, because the E2E steps and support helpers assert flat-file paths directly; those exact binding paths appear in File Impact.
 
@@ -266,7 +266,7 @@ Each new scenario's user, preconditions, action, and expected outcome are the id
 + Routed client reconnects across compatible SQLite rollout.                (AC-08)
 ```
 
-- → Bindings: `apps/bnest-app/test/behaviour/steps/sqlite_storage_steps.exs`, both behavior support adapters, and `apps/bnest-app-e2e/tests/steps/sqlite_storage.steps.ts` with its support helper.
+- → Bindings: `apps/bnest-app/test/behaviour/steps/sqlite_storage_steps.exs`, both behaviour support adapters, and `apps/bnest-app-e2e/tests/steps/sqlite_storage.steps.ts` with its support helper.
 - ✓ Proof: `bnest-app:test:coverage:behaviour`, focused exact-origin E2E, and release reconnect proof.
 
 ### [E] `specs/apps/bnest/app/behaviours/README.md`
