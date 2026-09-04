@@ -54,11 +54,11 @@
 - Before completion, stop unneeded non-production servers, watchers, candidates, and temporary proxies; retain only the active route and bounded drain.
 - Separate server/proxy lifecycles; follow [start/restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep [quality gates](repo-governance/development/quality-gates.md) green.
-- Keep executable tests in layer-specific directories; put public-boundary E2E in a dedicated Nx app.
+- Layer-specific test directories; dedicated public-E2E Nx app.
 - Guard compute-bearing Nx work under `apps/`, `libs/`, and repository tools through the checksum-pinned `./resource-guard` consumer via [resource-aware development](repo-governance/development/resource-aware-development.md); source, specs, and enforcement live upstream. Exit `75`: read the deferral, confirm any named holder exited, and retry serially. Exit `73`: clean storage. Exit `78`: replan; ordinary work falls through `minimal`. Never bypass, parallel-retry, weaken gates, change class, or abandon; recovery/status remain direct.
 - Keep `test:e2e` outside `test:quick`; at the exact origin run only affected/UI-accessibility states, await LiveView, isolate users, and close task-created tabs/contexts except handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
 - Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at exact origins/viewports; tests never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/exploratory-and-usability-testing.md).
 - Never test real users; use isolated `test-user-` [identities](repo-governance/development/test-identities.md); inspect production schemas read-only.
-- **Project rule** (except `libs/ex-bdd`): assess/update relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
-- Update affected project [READMEs](repo-governance/conventions/project-readmes.md).
+- **Project rule** (except `libs/ex-bdd`): update [specifications](repo-governance/development/specification-maintenance.md); Gherkin → bindings → Nx red → code → smoke. Require evidence; reject placeholders/no-ops/outcome tables. Unit mandatory. Document tags `@integration-exempt`/`@e2e-exempt`; run the [manual review](repo-governance/workflows/gherkin-implementation-review.md).
+- Update project [READMEs](repo-governance/conventions/project-readmes.md).
 - Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md): node/state segments ≤32 graphemes; edge/transition segments ≤24. Scope Badakmini to changed files.
