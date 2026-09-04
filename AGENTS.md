@@ -46,7 +46,7 @@
 
 - Prefix shell commands with `rtk` under [the shared RTK instructions](RTK.md), preserving repository-mandated command forms and safety rules.
 - Use [English](repo-governance/conventions/language.md).
-- Prefer the standard library and existing repository mechanisms; add an external dependency only under the [dependency-selection standard](repo-governance/development/dependency-selection.md).
+- Follow [minimal sufficiency](repo-governance/principles/minimal-sufficiency.md): understand, reuse, minimize, verify; follow [dependency selection](repo-governance/development/dependency-selection.md).
 - Comment non-obvious shell safety invariants and lifecycle boundaries; avoid line-by-line narration.
 - New tables need [audit columns](repo-governance/conventions/database-audit-columns.md); event logs and projections are exempt.
 - Bnest is 24/7; obey [continuity](repo-governance/development/live-service-continuity.md); failed health stops work.
