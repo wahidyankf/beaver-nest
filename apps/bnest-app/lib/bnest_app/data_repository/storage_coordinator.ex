@@ -6,6 +6,8 @@ defmodule BnestApp.DataRepository.StorageCoordinator do
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Config
 
+  @repo_shutdown_timeout_ms 5_000
+
   @spec active_backend(Store.t()) :: {module(), term()}
   def active_backend(flat_store) do
     case Config.phase() do
@@ -82,15 +84,12 @@ defmodule BnestApp.DataRepository.StorageCoordinator do
         :ok
 
       pid ->
-        reference = Process.monitor(pid)
         Process.unlink(pid)
-        Process.exit(pid, :kill)
-
-        receive do
-          {:DOWN, ^reference, :process, ^pid, _reason} -> :ok
-        after
-          2_000 -> :ok
-        end
+        Supervisor.stop(pid, :normal, @repo_shutdown_timeout_ms)
     end
+  catch
+    :exit, {:noproc, _details} ->
+      # Another lifecycle owner completed the same stop between lookup and shutdown.
+      :ok
   end
 end

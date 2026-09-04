@@ -1,6 +1,8 @@
 defmodule BnestApp.SqliteStorageTest do
   use ExUnit.Case, async: false
 
+  import ExUnit.CaptureLog
+
   alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.SqliteRepo
   alias BnestApp.TestRuntimeRoot
@@ -34,13 +36,20 @@ defmodule BnestApp.SqliteStorageTest do
     {:ok, database_path: database_path}
   end
 
-  test "restarts while transient SQLite sidecar files appear and disappear", %{
+  @tag :sqlite_shutdown
+  test "restarts cleanly while transient SQLite sidecar files appear and disappear", %{
     database_path: database_path
   } do
-    Enum.each(1..25, fn _attempt ->
-      :ok = StorageCoordinator.stop()
-      :ok = StorageCoordinator.ensure_started!(database_path)
-    end)
+    log =
+      capture_log(fn ->
+        Enum.each(1..25, fn _attempt ->
+          :ok = StorageCoordinator.stop()
+          :ok = StorageCoordinator.ensure_started!(database_path)
+        end)
+      end)
+
+    refute log =~ "** (stop) killed"
+    refute log =~ "database is locked"
   end
 
   test "creates every declared table and index exactly once" do
