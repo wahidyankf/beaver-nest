@@ -1,11 +1,11 @@
 # Quality Gates
 
-Define applicable project gates as Nx targets, invoke them through Nx with the workspace package manager, and document them in the project `README.md`.
+Define project gates as documented Nx targets invoked through the workspace package manager. The [enforcement map](software-quality-enforcement.md) classifies their blocking, scheduled, runtime, and evidence routes.
 
 ## Test Boundaries
 
-- **Unit** tests run in-process against the subject and replace filesystem, database, environment, clock, randomness, child-process, network, and other OS-facing dependencies with injected doubles. A mocking framework is optional; focused fakes and stubs are valid. Test setup and assertions must not access those real resources.
-- **Integration** tests may use real OS resources and same-machine processes, including isolated files, directories, SQLite databases, environment state, child processes, stdin, stdout, and stderr. They must never use a network, including HTTP, TCP, UDP, loopback, `localhost`, `127.0.0.1`, or a locally started server. Isolate and clean every resource deterministically.
+- **Unit** tests run in-process and replace filesystem, database, environment, clock, randomness, child-process, network, and other OS-facing dependencies with injected mocks, fakes, or stubs. Setup and assertions must not access those real resources.
+- **Integration** tests may use real OS resources and same-machine processes: isolated files, SQLite, environment state, child processes, stdin, stdout, and stderr. They must never use a network, including HTTP, TCP, UDP, loopback, `localhost`, `127.0.0.1`, or a local server. Isolate and clean every resource deterministically.
 - **End-to-end** tests exercise a public system boundary and may use OS resources, processes, and network communication when the journey requires them. They remain subject to the [test-data iron rule](test-identities.md#iron-rule): use synthetic identities and isolated data, never production users or data. Uncontrolled external services require explicit authorization.
 
 Classify each test by the strongest real boundary touched by its setup, subject, or assertions. E2E is defined by public-boundary observation, not merely by permission to use more resources. Keep executable tests in separate `unit`, `integration`, and E2E project directories; shared contracts, bindings, fixtures, and non-executable support may remain shared. Put E2E in a dedicated Nx app when a project has a public browser, HTTP, or process boundary. Review topology during changes; do not add a repository-wide topology validator unless a demonstrated risk justifies it.
@@ -28,7 +28,7 @@ Classify each test by the strongest real boundary touched by its setup, subject,
 
 ## Application
 
-- Run the narrowest relevant gate during development and keep applicable gates green before completion.
+- Run the narrowest relevant gate during development and keep every gate applicable under the [enforcement map](software-quality-enforcement.md) green before completion.
 - Invoke compute-bearing local gates through [resource-aware development](resource-aware-development.md); capacity deferral is not a test failure and must not be bypassed.
 - A deliberate failing test during the red phase of [TDD](test-driven-development.md) is temporary evidence, not a completed state.
 - Run `test:quick` after the final red–green–refactor cycle. Select `test:e2e` cases according to the [end-to-end testing standard](end-to-end-testing.md).
@@ -39,4 +39,4 @@ Classify each test by the strongest real boundary touched by its setup, subject,
 - Fix failures at their root cause. Do not disable, weaken, bypass, or superficially satisfy a gate to obtain a passing result.
 - Do not invent an inapplicable target merely for naming symmetry; explain legitimate omissions in the project README.
 
-This standard follows [minimal sufficiency](../principles/minimal-sufficiency.md), the [project README convention](../conventions/project-readmes.md), and the [TDD standard](test-driven-development.md).
+This standard follows [minimal sufficiency](../principles/minimal-sufficiency.md), [project READMEs](../conventions/project-readmes.md), and [TDD](test-driven-development.md).

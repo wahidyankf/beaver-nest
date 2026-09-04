@@ -38,8 +38,7 @@ A library without integration must own no filesystem, database, process, or simi
 Before completing an observable feature, manually confirm each affected public boundary after automated Gherkin, unit, integration, and E2E coverage. This supplements, never replaces, those layers.
 
 - Use Playwright MCP for affected browser flows against the running application.
-- Use `curl` for affected HTTP endpoints or APIs; when both browser and HTTP/API boundaries change, test both.
-- When a plan adds or changes a live API boundary, make this a required `delivery.md` task: use `curl` to verify each changed endpoint against its declared contract when one exists, and to probe its authorization boundary with both an authorized and an unauthorized isolated test identity's session.
+- For affected REST, GraphQL, or other HTTP API operations, follow the [API testing standard](api-testing.md); manual `curl` confirmation is mandatory. When browser and API boundaries both change, test both.
 - No check is needed when neither boundary is affected; say so in the delivery report.
 - In the handoff, record each check's route or command and observed result.
 

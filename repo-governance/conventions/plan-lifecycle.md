@@ -28,7 +28,7 @@ Each formal plan contains:
 - `brd.md`: goal, roles, outcomes, non-goals, risks;
 - `prd.md`: personas, stories, Gherkin criteria, scope, risks;
 - `tech-docs.md`, or `tech-docs/README.md` with mapped companions: technical entry point, architecture, decisions;
-- `delivery.md`: ordered tasks, executors, proof, phases, gates; and
+- `delivery.md`: ordered tasks, executors, quality routes, proof, checkpoints; and
 - `learnings.md`: capture approach and transient observations.
 
 Use exactly one technical shape: a single `tech-docs.md`, or `tech-docs/README.md` with mapped companions. Choose by reader needs, cohesion, and navigation: keep one document while it remains coherent; split when distinct responsibilities benefit from their own reading order and ownership; collapse fragments with no distinct job. File length is a review signal, never a requirement or prohibition for either shape. Never keep both shapes or pre-create empty companions. Follow [minimal sufficiency](../principles/minimal-sufficiency.md).
@@ -37,7 +37,7 @@ Split companions carry a two-digit reading-order prefix (`01-event-model.md`); `
 
 Follow [maps](directory-maps.md); plans have no word limit but exclude secrets and sensitive runtime data. Write for juniors. File Impact: exact `[E]` update, `[N]` new, `[M]` moved, `[D]` deleted paths; discover unknowns. Follow applicable [migration](plan-migrations.md), [specification-change](plan-specification-changes.md), [UI-design](plan-ui-design.md) conventions.
 
-PRD Gherkin accepts the plan, not `specs/`; technical docs select durable contracts and delivery proves operational, migration, and rollout criteria.
+PRD Gherkin accepts the plan, not `specs/`; technical docs select contracts and delivery proves operational, migration, and rollout criteria.
 
 Active-service plans: the technical document set and `delivery.md` apply [continuity](../development/live-service-continuity.md) and deployment workflow. Bnest plans name Caddy, candidate/revision health, continuous exact-origin responsiveness with numeric p95 and per-sample maximum acceptance criteria from preflight through drain, LiveView/WebSocket reconnect, drain/cleanup, mixed-version safety, routed proof, and the responsiveness rollback trigger; never stop the sole backend, repoint Tailscale, require refresh, or accept 2xx status alone as responsiveness proof.
 

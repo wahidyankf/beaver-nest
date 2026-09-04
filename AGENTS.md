@@ -53,8 +53,7 @@
 - Commit/push is not deployment. Before reporting active-service completion, verify the routed backend serves the intended revision/behavior; otherwise perform a no-downtime candidate cutover.
 - Before completion, stop unneeded non-production servers, watchers, candidates, and temporary proxies; retain only the active route and bounded drain.
 - Separate server/proxy lifecycles; follow [start/restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
-- Keep [quality gates](repo-governance/development/quality-gates.md) green.
-- Layer-specific test directories; dedicated public-E2E Nx app.
+- [Software quality](repo-governance/development/software-quality-enforcement.md): pass required gates; manually `curl` affected REST/GraphQL operations.
 - Guard compute-bearing Nx work under `apps/`, `libs/`, and repository tools through the checksum-pinned `./resource-guard` consumer via [resource-aware development](repo-governance/development/resource-aware-development.md); source, specs, and enforcement live upstream. Exit `75`: read the deferral, confirm any named holder exited, and retry serially. Exit `73`: clean storage. Exit `78`: replan; ordinary work falls through `minimal`. Never bypass, parallel-retry, weaken gates, change class, or abandon; recovery/status remain direct.
 - Keep `test:e2e` outside `test:quick`; at the exact origin run only affected/UI-accessibility states, await LiveView, isolate users, and close task-created tabs/contexts except handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
 - Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at exact origins/viewports; tests never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/exploratory-and-usability-testing.md).
