@@ -1,6 +1,8 @@
 # Plan Quality Gate
 
-Produce exactly one terminal result—`PASS` or one `BLOCKED_*` variant—for one formal plan's semantic readiness. Run before execution, after material plan changes, and at completion. Never recurse or automatically start another run.
+Run only when the user explicitly names this gate or unambiguously directs its semantic audit. Do not infer authorization from creating, editing, reviewing, or executing a plan, Plan mode, or another workflow. An instruction may authorize multiple named checkpoints; otherwise it authorizes one run.
+
+Produce exactly one terminal result—`PASS` or one `BLOCKED_*` variant—for one formal plan's semantic readiness. When authorized, run at the directed pre-execution, post-material-change, or completion checkpoint. Never recurse or automatically start another run.
 
 ## Sufficiency and Ownership
 
@@ -44,4 +46,4 @@ If canonical recovery cannot obtain a deterministic verdict, return `BLOCKED_TOO
 
 ## Terminal Contract
 
-`PASS` authorizes neither execution nor commit/push. Any `BLOCKED_*` result names the reason, remaining rows, and required external change. Resume only after new input or authority starts a fresh run through [plan execution](plan-execution.md).
+`PASS` authorizes neither execution nor commit/push. Any `BLOCKED_*` result names the reason, remaining rows, and required external change. Resume only after new input and explicit user direction authorize a fresh gate run; [plan execution](plan-execution.md) consumes its result but never starts it.

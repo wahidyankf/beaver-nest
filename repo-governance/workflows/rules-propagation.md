@@ -1,23 +1,21 @@
 # Rules Propagation
 
-Apply this workflow automatically whenever a repository [rule](../conventions/rules.md) is created, changed, moved, or deleted, even without an explicit request. It is the sole writer for rule propagation and composes the read-only [rules quality gate](rules-quality-gate.md). Neither workflow invokes itself; edits inside one propagation transaction do not start another transaction.
+Apply this workflow automatically whenever a repository [rule](../conventions/rules.md) is created, changed, moved, or deleted, or an explicitly requested [rules quality gate](rules-quality-gate.md) emits `NEEDS_PROPAGATION`. No separate user instruction is required. Propagation is the sole writer, never invokes the quality gate, and consumes its frozen ledger when supplied. Edits inside one transaction do not start another transaction.
 
 ## Inputs and Transaction
 
 - the proposed rule and rationale;
 - its intended mandatory, expected, or permitted strength;
 - the people, agents, files, or tasks in scope; and
-- known enforcement and evidence routes.
+- known enforcement and evidence routes; and
+- an optional frozen quality-gate ledger and evidence.
 
-Freeze those inputs, the Git revision and dirty paths, affected entry points, relevant canonical sources, and cycle `1`. Preserve the snapshot, gate ledgers, cycle, pending verification, and authorization through compaction or handoff. Material external input change ends the transaction as `BLOCKED_INPUT_CHANGED`; it never causes an automatic restart.
+Freeze those inputs, the Git revision and dirty paths, affected entry points, relevant canonical sources, pending verification, and authorization. Preserve them through compaction or handoff. Material external input change returns `BLOCKED_INPUT_CHANGED`; it never restarts the transaction.
 
-## Bounded Procedure
+## Finite Procedure
 
-1. Run the [rules quality gate](rules-quality-gate.md) in `PROPOSAL` mode with the frozen inputs.
-   - On `PASS_NO_CHANGE`, make no edits and return `PASS_NO_CHANGE`.
-   - On `PASS_READY`, continue with its finite ledger.
-   - On any `BLOCKED_*`, preserve the evidence and stop.
-2. Apply one propagation cycle, changing only what the accepted outcome and ledger require:
+1. Build one finite ledger from the requested outcome and any supplied gate ledger. Inspect only the affected rule, its points of use, higher authority, and directly overlapping guidance. Record each material gap as `OPEN`, `RESOLVED`, `NOT_APPLICABLE`, or `BLOCKED`; do not add style preferences, speculative hardening, or machine-owned checks.
+2. Before editing, return `BLOCKED_INPUT` for a missing decision or authority and `BLOCKED_CONFLICT` for an irreconcilable higher-authority conflict. Otherwise apply the minimum repair needed to close every `OPEN` row:
    - put the shortest actionable form at each applicable `AGENTS.md` or equivalent point of use, keeping non-negotiable constraints visible;
    - keep self-contained canonical detail there only when it remains concise; otherwise link to the correct governance level;
    - place outcomes and boundaries in vision, durable constraints in principles, repository choices in conventions, engineering standards in development, and procedures in workflows;
@@ -25,16 +23,17 @@ Freeze those inputs, the Git revision and dirty paths, affected entry points, re
    - keep one canonical statement, merge unique meaning, replace copies with concise links, and apply [progressive disclosure](../principles/progressive-disclosure.md);
    - inspect affected guidance top to bottom and change only stale, misplaced, overlapping, or repeated content implicated by the ledger; and
    - name truthful enforcement under the [software-quality map](../development/software-quality-enforcement.md), adding machinery only for an explicit need or demonstrated risk.
-3. Run the rules quality gate in `EFFECTIVE` mode.
-   - On `PASS_EFFECTIVE`, return `PASS_CHANGED`.
-   - On `BLOCKED_TOOLING` or `BLOCKED_INPUT_CHANGED`, stop with its evidence.
-   - On `BLOCKED_SEMANTIC`, allow exactly one stabilization cycle only when every remaining finding is within the accepted outcome or was caused by the first-cycle edits.
-   - Otherwise stop with the gate's blocker and evidence.
-4. Freeze the combined proposal and effective ledgers as the stabilization repair set, set cycle `2`, and repair only that set. Do not expand scope, revisit a closed preference, or invent missing authority.
-5. Run the gate once more in `EFFECTIVE` mode. Return `PASS_CHANGED` on `PASS_EFFECTIVE`. Otherwise return `BLOCKED_NON_CONVERGENT` with the remaining ledger and evidence; do not repair, restart, or invoke either workflow again automatically.
+3. Read the repaired surfaces once for semantic closure. Resolve only repair-caused conflicts, using hierarchy and [minimal sufficiency](../principles/minimal-sufficiency.md); never broaden the ledger, reopen a settled preference, or seek perfection. Every semantic row must now be closed or have returned the specific blocker from step 2.
+4. Run:
 
-Canonical resource-guard recovery required by its standard is infrastructure handling, not another propagation or quality cycle.
+   ```sh
+   ./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
+   ```
+
+5. On success, return `PASS_NO_CHANGE` when no edit was necessary or `PASS_CHANGED` otherwise. For transaction-caused deterministic findings, freeze their exact set, repair mechanically, and rerun step 4 only while the ordered measure of failing checks and reported violations or overage strictly decreases and no new failure class appears. Because that nonnegative measure decreases, recovery terminates. Return `BLOCKED_TOOLING` if progress stops, a new or unrelated failure appears, or canonical recovery cannot obtain a verdict.
+
+Canonical resource-guard recovery is infrastructure handling, not another propagation transaction.
 
 ## Terminal Contract
 
-`PASS_NO_CHANGE` and `PASS_CHANGED` mean good enough, not perfect or future-proof. They authorize neither commit nor push. Every `BLOCKED_*` result names the remaining rows and external change required before a fresh transaction may begin. One transaction invokes the quality gate at most three times. With unchanged inputs and repository state, another authorized transaction produces no diff.
+The only results are `PASS_NO_CHANGE`, `PASS_CHANGED`, `BLOCKED_INPUT`, `BLOCKED_CONFLICT`, `BLOCKED_TOOLING`, and `BLOCKED_INPUT_CHANGED`. Propagation repairs every authorized semantic row; anything it cannot decide or verify maps to a specific external blocker. Passing means good enough, not perfect or future-proof, and authorizes neither commit nor push. Deterministic recovery obeys the strictly decreasing measure above. With unchanged inputs and repository state, another transaction produces no diff.

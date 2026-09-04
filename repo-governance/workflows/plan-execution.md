@@ -4,7 +4,7 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 
 ## Start
 
-1. Select one backlog or in-progress plan and run the [quality gate](plan-quality-gate.md). Continue only on `PASS`; preserve a `BLOCKED` ledger and stop without automatically rerunning it.
+1. Select one backlog or in-progress plan. Require a current `PASS` from an explicitly user-directed [quality-gate](plan-quality-gate.md) run; execution authority does not authorize that gate. If absent or blocked, stop without starting or rerunning it.
 2. If backlogged, move it with status and stage maps to `plans/in-progress/<slug>/`; never copy it.
 3. Read `learnings.md`. Mirror each unchecked executable delivery item into the task list with wording, label, order, and references. Keep conditional recovery dormant until triggered.
 4. Detect affected active services. Apply [live-service continuity](../development/live-service-continuity.md), baseline local/routed health and responsiveness against the plan's numeric budget, and activate continuity/rollback work before editing. For Bnest deployments, use the [Caddy workflow](development-caddy-deployment.md): preserve the stable route, continuously monitor the exact routed origin, prepare an independent revision-verified candidate, promote through Caddy, prove routed LiveView/WebSocket reconnect, then retire only after the bounded drain and responsiveness proof. Do not treat a browser refresh or Tailscale repoint as a normal-release recovery path.
@@ -21,7 +21,7 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 
 ## Complete and Archive
 
-1. Start a fresh quality-gate run. Continue only on `PASS`; reconcile all items, criteria, learnings, specifications, documentation, rules, and tests with delivery.
+1. Require explicit user direction for a fresh completion quality-gate run. Continue only on `PASS`; do not start it from this workflow. Reconcile all items, criteria, learnings, specifications, documentation, rules, and tests with delivery.
 2. After any required drain, stop every unneeded non-production server, watcher, candidate, and temporary proxy; retain only the active route and intentional rollback capacity. Record proof or stay in progress.
 3. Give dormant conditionals a dated, evidenced `Not triggered`; never claim execution. Stay in progress while any required outcome, activated conditional, gate, dependency, or human action remains.
 4. Use the final-checkpoint local date for README `Completed` and `plans/done/YYYY-MM-DD__<slug>/`. Refuse an existing destination; never merge, overwrite, or add a suffix.
@@ -31,4 +31,4 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 
 ## Recovery
 
-Leave interrupted work accurately in progress and resume only after a fresh quality-gate `PASS`. If archival verification fails, restore folder, status, and maps. Never leave split copies or archive incomplete work.
+Leave interrupted work accurately in progress and resume only after an explicitly directed fresh quality-gate `PASS`. If archival verification fails, restore folder, status, and maps. Never leave split copies or archive incomplete work.

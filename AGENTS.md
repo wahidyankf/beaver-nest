@@ -30,9 +30,9 @@
 
 ## Governance
 
-- Keep all coding harnesses aligned under [the contract](repo-governance/conventions/coding-harness-contract.md).
-- [Propagate rules](repo-governance/workflows/rules-propagation.md).
-- Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
+- Align harnesses under [contract](repo-governance/conventions/coding-harness-contract.md).
+- [Propagate rules](repo-governance/workflows/rules-propagation.md); plan/rules quality gates require explicit requests.
+- Apply [Diátaxis](repo-governance/conventions/documentation-architecture.md).
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md), [track tasks](repo-governance/conventions/task-tracking.md), and retain unfamiliar parallel changes under `plans/` and `repo-governance/`.
 - Use ignored `local-tmp/` for disposable scratch and `generated-reports/` for requested, non-authoritative pre-plan audits/reports; neither is authoritative or a plan.
 - User-requested plans must explain why, options, decision, execution, proof, and reader-serving shape; Plan mode alone is insufficient. Number split tech-doc companions `01-`. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).

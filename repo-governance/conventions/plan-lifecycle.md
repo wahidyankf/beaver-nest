@@ -56,7 +56,7 @@ Give recovery/rollback checkboxes an explicit trigger. Keep them dormant until t
 
 When execution may create, change, move, or delete a repository rule, `delivery.md` must include an `[AI]` task that applies the bounded [rules-propagation workflow](../workflows/rules-propagation.md) to the resulting rule change and records its terminal result; it may return `PASS_NO_CHANGE`. When execution changes a documented C4 element, `delivery.md` must include an `[AI]` task that updates the exact affected canonical file and view with the final as-built model under the [plan specification-change convention](plan-specification-changes.md).
 
-Run the [plan quality gate](../workflows/plan-quality-gate.md) before execution, after material changes, and at completion. After explicit direction, [execute](../workflows/plan-execution.md), synchronize delivery, and archive.
+Run the [plan quality gate](../workflows/plan-quality-gate.md) before execution, after material changes, and at completion, only on explicit user direction. Separately authorize [execution](../workflows/plan-execution.md).
 
 ## Transitions and Specifications
 

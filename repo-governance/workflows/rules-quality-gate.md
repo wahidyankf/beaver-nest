@@ -1,6 +1,8 @@
 # Rules Quality Gate
 
-Produce one read-only semantic verdict for one proposed or effective repository rule state. This workflow never edits rules, invokes [rules propagation](rules-propagation.md), or starts another gate run. Propagation is the sole writer.
+Run only when the user explicitly names this gate or unambiguously directs its semantic audit. Do not infer authorization from a rule change, review request, propagation, or another workflow.
+
+Produce one read-only semantic verdict for one proposed or effective repository rule state. This workflow never edits rules or starts another gate run. [Rules propagation](rules-propagation.md) is the sole writer and mandatory continuation for any non-passing finding.
 
 ## Sufficiency and Ownership
 
@@ -37,13 +39,12 @@ Inspect only the affected rule, its point-of-use routes, relevant higher authori
 
 Do not audit unrelated governance or rerun checks owned by deterministic tooling.
 
-## Terminal Results
+## Results and Mandatory Handoff
 
 In `PROPOSAL` mode:
 
 - run the canonical repository gate and return `PASS_NO_CHANGE` when current effective meaning already satisfies the request;
-- return `PASS_READY` when a material change is necessary and fully specified; or
-- return `BLOCKED_INPUT`, `BLOCKED_CONFLICT`, `BLOCKED_TOOLING`, or `BLOCKED_INPUT_CHANGED` with the finite ledger, evidence, and required external decision.
+- otherwise emit `NEEDS_PROPAGATION` with the finite ledger, evidence, and any required external decision.
 
 In `EFFECTIVE` mode, run:
 
@@ -51,4 +52,6 @@ In `EFFECTIVE` mode, run:
 ./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
 ```
 
-Return `PASS_EFFECTIVE` only when the semantic ledger is clear and tooling passes. Otherwise return `BLOCKED_SEMANTIC`, `BLOCKED_TOOLING`, or `BLOCKED_INPUT_CHANGED` with evidence. Canonical resource-guard recovery is infrastructure handling, not another gate run. Every result ends this invocation; the gate never repairs, retries without bound, or authorizes commit/push.
+Return `PASS_EFFECTIVE` only when the semantic ledger is clear and tooling passes. Otherwise emit `NEEDS_PROPAGATION` with the ledger and evidence. Canonical resource-guard recovery is infrastructure handling, not another gate run.
+
+`NEEDS_PROPAGATION` is a non-terminal handoff, never a blocked result. The caller must immediately run propagation with the frozen outcome, ledger, and evidence without another user instruction, then report only propagation's terminal result. Consequently this gate can end only in `PASS_NO_CHANGE` or `PASS_EFFECTIVE`; it never ends blocked, repairs rules, reruns itself, or authorizes commit/push. Propagation owns any specific input, conflict, input-change, or tooling blocker it cannot resolve.
