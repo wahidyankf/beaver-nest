@@ -6,6 +6,7 @@ Represent repository work as a granular task list or to-do list, and keep that l
 
 - Create or refresh the task list before beginning execution.
 - Split work into small, concrete items with one observable outcome each. An item should be independently actionable and verifiable; split it again when it combines distinct actions or outcomes.
+- For new or changed application/library behaviour and bug fixes, represent each [red–green–refactor](../workflows/red-green-refactor.md) increment as separate RED, GREEN, and REFACTOR items. Preserve the test path and Nx target, the expected behavioural RED reason before production implementation, and the final GREEN and REFACTOR-green results. Pure refactors follow the green-baseline and characterization rule in [TDD](../development/test-driven-development.md).
 - Include discovery, implementation, validation, documentation, and delivery items when they are part of the requested scope. Do not hide required work inside a broad item.
 - Record each item as pending, in progress, completed, or blocked. Keep at most one item in progress unless work is genuinely proceeding in parallel.
 - Update status promptly whenever work starts, completes, becomes blocked, or returns for revision. Add, remove, split, merge, or reorder items when understanding or scope changes.

@@ -39,7 +39,7 @@
 - [Migration plans](repo-governance/conventions/plan-migrations.md) need a data-model diagram and field guide beside schema contracts; authority cutovers require fresh-process journeys with the prior source unavailable, never parity alone.
 - Bnest active-service plans require Caddy candidate/promotion/rollback, routed responsiveness through drain, compatible LiveView reconnect, authoritative socket recovery, and routed WebSocket/revision proof; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
-- Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases; code-shipping items need RED/GREEN/REFACTOR checkboxes.
+- Delivery: `[AI]`/`[HUMAN]` tasks, checkpoints, and evidenced [TDD](repo-governance/development/test-driven-development.md) RED/GREEN/REFACTOR cycles.
 - [Ask last](repo-governance/conventions/last-resort-questions.md); stop after the minimal verified change.
 
 ## Development
