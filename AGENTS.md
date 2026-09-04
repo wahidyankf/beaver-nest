@@ -21,8 +21,7 @@
 
 ## Version Control
 
-- Push `main` directly under [integration](repo-governance/conventions/integration-path.md).
-- Only `main` persists; delete non-`main` branches/worktrees immediately after integration or abandonment.
+- Only `main` persists; push it directly under [integration](repo-governance/conventions/integration-path.md), and delete other branches/worktrees after integration or abandonment.
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md). Before committing, inspect and remove prohibited data under [data safety](repo-governance/conventions/public-repository-data-safety.md).
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.
@@ -34,11 +33,11 @@
 - Keep all coding harnesses aligned under [the contract](repo-governance/conventions/coding-harness-contract.md).
 - [Propagate rules](repo-governance/workflows/rules-propagation.md).
 - Use [Diátaxis](repo-governance/conventions/documentation-architecture.md) for non-rule docs.
-- Preserve rules through [compaction](repo-governance/principles/governance-continuity.md); [track tasks](repo-governance/conventions/task-tracking.md); preserve unfamiliar parallel changes under `plans/` and `repo-governance/`.
-- Use ignored `local-tmp/` for disposable development or agent scratch work and ignored `generated-output/` for user-requested, non-authoritative audits or reports before any plan work. Neither directory is a source of truth or plan content.
-- `plans/` require user request, not Plan mode; clarify why, options, decision, execution, proof, and reader-serving shape. Number split tech-doc companions `01-`. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
-- Under the [migration convention](repo-governance/conventions/plan-migrations.md): schema-changing plans need a data-model diagram and field-by-field guide beside the exact contract; authority cutovers must prove fresh-process product journeys with the prior source unavailable, never counts or parity alone.
-- Bnest active-service plans require Caddy candidate/promotion/rollback, continuous routed-responsiveness proof from preflight through drain, compatible LiveView reconnect, authoritative socket-state recovery, and routed WebSocket/revision proof; never assume refresh.
+- Preserve rules through [compaction](repo-governance/principles/governance-continuity.md), [track tasks](repo-governance/conventions/task-tracking.md), and retain unfamiliar parallel changes under `plans/` and `repo-governance/`.
+- Use ignored `local-tmp/` for disposable scratch and `generated-output/` for requested, non-authoritative pre-plan audits/reports; neither is authoritative or a plan.
+- User-requested plans must explain why, options, decision, execution, proof, and reader-serving shape; Plan mode alone is insufficient. Number split tech-doc companions `01-`. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
+- [Migration plans](repo-governance/conventions/plan-migrations.md) need a data-model diagram and field guide beside schema contracts; authority cutovers require fresh-process journeys with the prior source unavailable, never parity alone.
+- Bnest active-service plans require Caddy candidate/promotion/rollback, routed responsiveness through drain, compatible LiveView reconnect, authoritative socket recovery, and routed WebSocket/revision proof; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
 - Label delivery tasks `[AI]`/`[HUMAN]`; prefer AI; checkpoint phases; code-shipping items need RED/GREEN/REFACTOR checkboxes.
 - [Ask last](repo-governance/conventions/last-resort-questions.md); stop after the minimal verified change.
@@ -54,10 +53,10 @@
 - Before completion, stop unneeded non-production servers, watchers, candidates, and temporary proxies; retain only the active route and bounded drain.
 - Separate server/proxy lifecycles; follow [start/restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
 - Keep [quality gates](repo-governance/development/quality-gates.md) green.
-- Guard compute-bearing Nx work under `apps/`, `libs/`, and repository-owned tools with [resource-aware development](repo-governance/development/resource-aware-development.md). Exit `75` is transient capacity or a held heavy-work lease, not task/test failure: read the deferral message, confirm any named holder exited, then retry serially; never abandon the objective. Exit `73` requires storage cleanup first; never blind-retry it. Exit `78` means a strict profile or local config requires replanning; ordinary work falls back through `minimal`. Never bypass, parallel-retry, weaken gates, or change class; recovery/status controls remain direct.
-- Keep `test:e2e` outside `test:quick`; run only affected/UI-accessibility states at the exact origin, wait for connected LiveView, isolate user records, and close task-created tabs/contexts except explicit handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
-- Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at the exact origin and supported viewports before completion; tests/inference never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/exploratory-and-usability-testing.md).
+- Guard compute-bearing Nx work under `apps/`, `libs/`, and repository tools via [resource-aware development](repo-governance/development/resource-aware-development.md). Exit `75`: read the deferral, confirm any named holder exited, and retry serially. Exit `73`: clean storage. Exit `78`: replan; ordinary work falls through `minimal`. Never bypass, parallel-retry, weaken gates, change class, or abandon; recovery/status remain direct.
+- Keep `test:e2e` outside `test:quick`; at the exact origin run only affected/UI-accessibility states, await LiveView, isolate users, and close task-created tabs/contexts except handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
+- Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at exact origins/viewports; tests never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/exploratory-and-usability-testing.md).
 - Never test real users; use isolated `test-user-` [identities](repo-governance/development/test-identities.md); inspect production schemas read-only.
 - **Project rule** (except `libs/ex-bdd`): assess/update relevant [specifications](repo-governance/development/specification-maintenance.md); Gherkin → failing bindings → Nx red → implementation → manual smoke. Implement every step; exempt incapable adapters.
 - Update affected project [READMEs](repo-governance/conventions/project-readmes.md).
-- Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md); visible node/state segments are at most 32 graphemes and edge/transition segments at most 24. Scope Badakmini to changed files.
+- Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md): node/state segments ≤32 graphemes; edge/transition segments ≤24. Scope Badakmini to changed files.

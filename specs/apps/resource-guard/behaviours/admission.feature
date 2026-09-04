@@ -8,6 +8,24 @@ Feature: Resource-aware admission
     Then the work is admitted
 
   @e2e-exempt
+  Scenario: Stable macOS warning admits degraded work
+    Given a full stable Darwin warning window with safe headroom
+    When development admission is assessed
+    Then ephemeral work is admitted with concurrency one
+
+  @e2e-exempt
+  Scenario: Growing pressure defers degraded work
+    Given Darwin warning samples with excessive compressor growth
+    When development admission is assessed
+    Then degraded work is deferred
+
+  @e2e-exempt
+  Scenario: Strict work never uses degraded admission
+    Given stable Darwin warning samples for a transactional task
+    When development admission is assessed
+    Then degraded work is deferred
+
+  @e2e-exempt
   Scenario: Balanced work falls back on a small runner
     Given a healthy 5 GiB runner without swap
     When development admission is assessed

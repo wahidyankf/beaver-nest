@@ -23,6 +23,8 @@ const (
 	Integration = "integration"
 	// E2E identifies the compiled public-binary adapter.
 	E2E = "e2e"
+	// syntheticHostPressureReason documents scenarios that require deterministic host samples.
+	syntheticHostPressureReason = "requires synthetic host pressure samples"
 )
 
 // StepDefinition declares one canonical Godog expression.
@@ -35,6 +37,11 @@ var Definitions = []StepDefinition{
 	{`^three healthy host samples$`},
 	{`^development admission is assessed$`},
 	{`^the work is admitted$`},
+	{`^a full stable Darwin warning window with safe headroom$`},
+	{`^ephemeral work is admitted with concurrency one$`},
+	{`^Darwin warning samples with excessive compressor growth$`},
+	{`^degraded work is deferred$`},
+	{`^stable Darwin warning samples for a transactional task$`},
 	{`^admission is storage blocked with exit 73$`},
 	{`^swap-outs grow by 128 MiB over 15 seconds$`},
 	{`^development pressure is assessed$`},
@@ -63,6 +70,9 @@ var Definitions = []StepDefinition{
 	{`^an admitted ephemeral child encounters critical pressure$`},
 	{`^the guard observes the critical sample$`},
 	{`^only the guarded child group is terminated with exit 75$`},
+	{`^an admitted degraded ephemeral child encounters growing compressor pressure$`},
+	{`^the guard observes warning through the grace$`},
+	{`^the degraded child starts and is terminated with exit 75$`},
 	{`^the compiled resource guard binary$`},
 	{`^JSON status is requested for an existing path$`},
 	{`^status returns schema version 3 with profile and capability evidence$`},
@@ -149,7 +159,10 @@ var ApprovedExemptions = map[string][]Exemption{
 	},
 	Integration: {},
 	E2E: {
-		{"Healthy consecutive samples admit work", "requires synthetic host pressure samples"},
+		{"Healthy consecutive samples admit work", syntheticHostPressureReason},
+		{"Stable macOS warning admits degraded work", syntheticHostPressureReason},
+		{"Growing pressure defers degraded work", "requires synthetic compressor counters"},
+		{"Strict work never uses degraded admission", syntheticHostPressureReason},
 		{"Balanced work falls back on a small runner", "requires synthetic host capacity"},
 		{"Minimal work still runs on a tiny machine", "requires synthetic host capacity"},
 		{"Exhausted storage requires cleanup", "requires synthetic disk evidence"},
@@ -164,6 +177,7 @@ var ApprovedExemptions = map[string][]Exemption{
 		{"Concurrent services keep their own inheritable sessions", liveLeaseExemption},
 		{"An interrupted guard signals once and then force-stops the child", "requires synthetic interrupt delivery and process signaling"},
 		{"Critical pressure sheds eligible work", "requires synthetic critical pressure and process signaling"},
+		{"Worsening warning sheds degraded work", "requires synthetic warning pressure and process signaling"},
 		{"Release admission preserves the requested capacity envelope", "requires synthetic release host samples"},
 		{"Release overlap rejects failed health evidence", "requires synthetic failed health evidence"},
 		{"Release overlap rejects an unresponsive routed journey", "requires synthetic routed-latency evidence"},

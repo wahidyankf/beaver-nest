@@ -29,7 +29,7 @@ func TestAdaptiveProfileSelectionAndThresholds(t *testing.T) { //nolint:cyclop /
 	if err != nil || balanced.ResolvedProfile != "balanced" || balanced.MemoryReserve != 4*guard.GiB || balanced.Concurrency != 3 {
 		t.Fatalf("unexpected balanced resolution %+v error=%v", balanced, err)
 	}
-	if balanced.Policy.SwapOutWarningBytes != 128*guard.MiB || balanced.Policy.SwapOutCriticalBytes != 512*guard.MiB || balanced.Policy.CompressorWarningPayloadBytes != 12*guard.GiB || balanced.Policy.CompressorCriticalPayloadBytes != 16*guard.GiB {
+	if balanced.Policy.WarningAdmissionMemoryBytes != 8*guard.GiB || balanced.Policy.SwapOutWarningBytes != 128*guard.MiB || balanced.Policy.SwapOutCriticalBytes != 512*guard.MiB || balanced.Policy.CompressorWarningPayloadBytes != 12*guard.GiB || balanced.Policy.CompressorCriticalPayloadBytes != 16*guard.GiB {
 		t.Fatalf("unexpected dynamic signal thresholds %+v", balanced.Policy)
 	}
 	constrained, err := catalog.Resolve("balanced", "ephemeral", adaptiveSample(5*guard.GiB, 800*guard.MiB, 12*guard.GiB, 14*guard.GiB, "unavailable"))

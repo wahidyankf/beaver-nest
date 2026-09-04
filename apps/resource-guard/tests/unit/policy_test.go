@@ -214,3 +214,57 @@ func TestAdmissionPercentileAndReleasePolicies(t *testing.T) {
 		t.Fatal("missing release memory accepted")
 	}
 }
+
+func warningAdmissionSamples() []guard.Sample {
+	samples := make([]guard.Sample, 16)
+	for index := range samples {
+		sample := policySample(time.Unix(int64(index), 0))
+		level, available, oom := 2, 8*guard.GiB, int64(0)
+		sample.Platform = "darwin"
+		sample.EffectiveMemoryLimitBytes = 32 * guard.GiB
+		sample.AvailableMemoryBytes = &available
+		sample.AvailableNonCompressedEstimateBytes = &available
+		sample.OOMEvents = &oom
+		sample.OOMKillEvents = &oom
+		sample.MemoryPressureLevel = &level
+		samples[index] = sample
+	}
+	return samples
+}
+
+func TestWarningAdmissionRequiresStableDarwinHeadroom(t *testing.T) {
+	policy := guard.DevelopmentPolicy
+	baseline := warningAdmissionSamples()
+	if !guard.WarningAdmissionReady(baseline, policy) {
+		t.Fatal("stable Darwin warning was not admitted")
+	}
+	short := append([]guard.Sample(nil), baseline[:len(baseline)-1]...)
+	if guard.WarningAdmissionReady(short, policy) {
+		t.Fatal("short warning window was admitted")
+	}
+	zeroFloor := policy
+	zeroFloor.WarningAdmissionMemoryBytes = 0
+	if guard.WarningAdmissionReady(baseline, zeroFloor) {
+		t.Fatal("missing warning floor was admitted")
+	}
+	cases := map[string]func([]guard.Sample){
+		"low memory":              func(samples []guard.Sample) { samples[4].AvailableMemoryBytes = new(7 * guard.GiB) },
+		"critical pressure":       func(samples []guard.Sample) { samples[4].MemoryPressureLevel = new(4) },
+		"mixed platform":          func(samples []guard.Sample) { samples[4].Platform = "linux" },
+		"compressor unavailable":  func(samples []guard.Sample) { samples[4].CompressorAvailable = new(false) },
+		"disk below reserve":      func(samples []guard.Sample) { samples[4].DiskFreeBytes = new(29 * guard.GiB) },
+		"busy CPU":                func(samples []guard.Sample) { samples[len(samples)-1].CPUUtilizationPercent = new(100.0) },
+		"OOM event":               func(samples []guard.Sample) { samples[4].OOMEvents = new(int64(1)) },
+		"OOM kill":                func(samples []guard.Sample) { samples[4].OOMKillEvents = new(int64(1)) },
+		"swap growth":             func(samples []guard.Sample) { samples[len(samples)-1].SwapOuts = new(128 * guard.MiB / 16_384) },
+		"compressor growth":       func(samples []guard.Sample) { samples[len(samples)-1].CompressorPayloadBytes = new(8 * guard.GiB) },
+		"normal current pressure": func(samples []guard.Sample) { samples[len(samples)-1].MemoryPressureLevel = new(1) },
+	}
+	for name, mutate := range cases {
+		samples := append([]guard.Sample(nil), baseline...)
+		mutate(samples)
+		if guard.WarningAdmissionReady(samples, policy) {
+			t.Errorf("%s was admitted", name)
+		}
+	}
+}

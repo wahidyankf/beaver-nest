@@ -115,6 +115,7 @@ func profilePolicy(profile Profile, sample Sample) (Policy, int64, int64, int) {
 	}
 	policy := DevelopmentPolicy
 	policy.AdmissionMemoryBytes = memoryReserve
+	policy.WarningAdmissionMemoryBytes = clampPercent(memoryCapacity, 25, 4*GiB, 8*GiB)
 	policy.CriticalMemoryBytes = max(64*MiB, memoryReserve/2)
 	policy.DiskWarningBytes = diskReserve
 	policy.DiskCriticalBytes = HardDiskFloorBytes

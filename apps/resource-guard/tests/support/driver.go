@@ -21,6 +21,11 @@ import (
 	"github.com/wahidyankf/beaver-nest/apps/resource-guard/tests/contract"
 )
 
+const (
+	taskClassEphemeral = "ephemeral"
+	profileBalanced    = "balanced"
+)
+
 type sequenceCollector struct {
 	samples []guard.Sample
 	index   int
@@ -69,6 +74,7 @@ type Driver struct {
 	inheritedSessions   bool
 	forceStopElapsed    time.Duration
 	terminationSignals  int
+	childStarted        bool
 }
 
 // NewDriver returns isolated scenario state for one behavior adapter.
@@ -130,6 +136,36 @@ func (driver *Driver) threeHealthy() {
 	driver.samples = []guard.Sample{healthySample(base), healthySample(base.Add(time.Second)), healthySample(base.Add(2 * time.Second))}
 }
 
+func stableWarningSamples(base time.Time, interval time.Duration) []guard.Sample {
+	samples := make([]guard.Sample, 16)
+	for index := range samples {
+		sample := healthySample(base.Add(time.Duration(index) * interval))
+		level := 2
+		available := 8 * guard.GiB
+		sample.MemoryPressureLevel = &level
+		sample.AvailableMemoryBytes = &available
+		sample.AvailableNonCompressedEstimateBytes = &available
+		samples[index] = sample
+	}
+	return samples
+}
+
+func (driver *Driver) stableDarwinWarning() {
+	driver.taskClass = taskClassEphemeral
+	driver.samples = stableWarningSamples(time.Unix(0, 0), time.Second)
+}
+
+func (driver *Driver) growingDarwinWarning() {
+	driver.stableDarwinWarning()
+	payload := *driver.samples[0].CompressorPayloadBytes + 2*guard.GiB
+	driver.samples[len(driver.samples)-1].CompressorPayloadBytes = &payload
+}
+
+func (driver *Driver) strictDarwinWarning() {
+	driver.stableDarwinWarning()
+	driver.taskClass = "transactional"
+}
+
 func (driver *Driver) swapGrowth() {
 	first := healthySample(time.Unix(0, 0))
 	second := healthySample(time.Unix(15, 0))
@@ -161,6 +197,10 @@ func (driver *Driver) assessAdmission() {
 	driver.exitCode = resolution.ExitCode
 	driver.assessment = guard.ResourceAssessment(driver.samples, resolution.Policy)
 	driver.admitted = resolution.ExitCode == 0 && guard.AdmissionReady(driver.samples, resolution.Policy)
+	if !driver.admitted && driver.taskClass == taskClassEphemeral && resolution.ResolvedProfile == profileBalanced && guard.WarningAdmissionReady(driver.samples, resolution.Policy) {
+		driver.resolution.Concurrency = 1
+		driver.admitted = true
+	}
 }
 
 func (driver *Driver) assessPressure() {
@@ -180,6 +220,20 @@ func (driver *Driver) assessPressure() {
 func (driver *Driver) requireAdmitted() error {
 	if !driver.admitted {
 		return errors.New("work was not admitted")
+	}
+	return nil
+}
+
+func (driver *Driver) requireDegradedAdmitted() error {
+	if !driver.admitted || driver.resolution.Concurrency != 1 {
+		return fmt.Errorf("got admitted=%t resolution=%+v", driver.admitted, driver.resolution)
+	}
+	return nil
+}
+
+func (driver *Driver) requireDegradedDeferred() error {
+	if driver.admitted {
+		return fmt.Errorf("unsafe degraded work was admitted with %+v", driver.resolution)
 	}
 	return nil
 }
@@ -214,7 +268,7 @@ func (driver *Driver) liveLease() error {
 	}
 	driver.leaseRoot = root
 	driver.leaseHolder = os.Getpid()
-	holder, err := guard.AcquireSession(root, "", "ephemeral", time.Second, func(time.Duration) {})
+	holder, err := guard.AcquireSession(root, "", taskClassEphemeral, time.Second, func(time.Duration) {})
 	if err != nil {
 		return err
 	}
@@ -226,7 +280,7 @@ func (driver *Driver) liveLease() error {
 }
 
 func (driver *Driver) waitLease() error {
-	second, err := guard.AcquireSession(driver.leaseRoot, "", "ephemeral", 200*time.Millisecond, func(time.Duration) {})
+	second, err := guard.AcquireSession(driver.leaseRoot, "", taskClassEphemeral, 200*time.Millisecond, func(time.Duration) {})
 	if err != nil {
 		return err
 	}
@@ -272,7 +326,7 @@ func (driver *Driver) liveServiceLease() error {
 }
 
 func (driver *Driver) heavyRequestsLease() error {
-	heavy, err := guard.AcquireSession(driver.leaseRoot, "", "ephemeral", time.Second, func(time.Duration) {})
+	heavy, err := guard.AcquireSession(driver.leaseRoot, "", taskClassEphemeral, time.Second, func(time.Duration) {})
 	if err != nil {
 		return err
 	}
@@ -362,7 +416,7 @@ func (driver *Driver) interruptGuard() error {
 	_, err := guard.Run(guard.RunConfig{
 		Command:   "/bin/sh",
 		Arguments: []string{"-c", `trap 'printf x >> "$GUARD_TERM_MARKER"' TERM; for attempt in $(seq 1 40); do sleep 0.05; done`},
-		TaskClass: "ephemeral", EvidenceRoot: driver.leaseRoot, DiskPath: ".",
+		TaskClass: taskClassEphemeral, EvidenceRoot: driver.leaseRoot, DiskPath: ".",
 		Collector: &sequenceCollector{samples: []guard.Sample{healthySample(base), healthySample(base.Add(time.Millisecond)), healthySample(base.Add(2 * time.Millisecond))}},
 		Policy:    policy, Sleep: func(time.Duration) {}, Now: time.Now, Stderr: &bytes.Buffer{},
 		Environment: append(os.Environ(), "GUARD_TERM_MARKER="+marker), Interrupt: interrupt,
@@ -394,6 +448,56 @@ func (driver *Driver) observeCritical() {}
 func (driver *Driver) requireShed() error {
 	if driver.exitCode != 75 {
 		return fmt.Errorf("got exit %d", driver.exitCode)
+	}
+	return nil
+}
+
+func (driver *Driver) degradedGrowthChild() error {
+	root, err := driver.temporaryRoot()
+	if err != nil {
+		return err
+	}
+	driver.leaseRoot = root
+	return nil
+}
+
+func (driver *Driver) observeDegradedWarning() error {
+	base := time.Now()
+	policy := guard.DevelopmentPolicy
+	policy.SampleInterval = time.Millisecond
+	policy.TrendWindow = 15 * time.Millisecond
+	policy.AdmissionWindow = 30 * time.Millisecond
+	policy.EphemeralWarningGrace = 3 * time.Millisecond
+	policy.TerminationGrace = time.Millisecond
+	policy.LeaseWait = time.Second
+	samples := stableWarningSamples(base, time.Millisecond)
+	for index := range 20 {
+		sample := samples[len(samples)-1]
+		sample.MeasuredAt = base.Add(time.Duration(16+index) * time.Millisecond).UTC().Format(time.RFC3339Nano)
+		payload := *samples[0].CompressorPayloadBytes + 2*guard.GiB
+		sample.CompressorPayloadBytes = &payload
+		samples = append(samples, sample)
+	}
+	marker := filepath.Join(driver.leaseRoot, "started")
+	stderr := &bytes.Buffer{}
+	code, runError := guard.Run(guard.RunConfig{
+		Command: "/bin/sh", Arguments: []string{"-c", `[ "$RESOURCE_GUARD_CONCURRENCY" = 1 ] && [ "$NX_PARALLEL" = 1 ] && [ "$GOMAXPROCS" = 1 ] && [ "$DOTNET_PROCESSOR_COUNT" = 1 ] && printf x > "$GUARD_STARTED"; sleep 5`},
+		TaskClass: taskClassEphemeral, EvidenceRoot: driver.leaseRoot, DiskPath: ".",
+		Collector: &sequenceCollector{samples: samples}, Policy: policy,
+		Resolution: guard.Resolution{RequestedProfile: profileBalanced, ResolvedProfile: profileBalanced, FallbackChain: []string{profileBalanced}, Concurrency: 7},
+		Sleep:      func(time.Duration) {}, Now: time.Now, Stderr: stderr,
+		Environment: append(os.Environ(), "GUARD_STARTED="+marker),
+	})
+	driver.exitCode = code
+	driver.errorOutput = stderr.String()
+	_, statError := os.Stat(marker)
+	driver.childStarted = statError == nil
+	return runError
+}
+
+func (driver *Driver) requireDegradedShed() error {
+	if !driver.childStarted || driver.exitCode != guard.CapacityDeferredExitCode || !strings.Contains(driver.errorOutput, "shedding") {
+		return fmt.Errorf("started=%t exit=%d stderr=%q", driver.childStarted, driver.exitCode, driver.errorOutput)
 	}
 	return nil
 }
@@ -455,10 +559,10 @@ func (driver *Driver) requireStatus() error {
 
 func (driver *Driver) invalidRun() error {
 	if driver.mode == contract.E2E {
-		driver.runBinary("run", "--class", "ephemeral")
+		driver.runBinary("run", "--class", taskClassEphemeral)
 		return nil
 	}
-	_, err := (cli.Application{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Collector: &sequenceCollector{}}).Run([]string{"run", "--class", "ephemeral"})
+	_, err := (cli.Application{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Collector: &sequenceCollector{}}).Run([]string{"run", "--class", taskClassEphemeral})
 	if err != nil {
 		driver.errorOutput = err.Error()
 		driver.exitCode = 1
@@ -516,7 +620,7 @@ func (driver *Driver) releaseHost() {
 }
 
 func (driver *Driver) assessRelease() {
-	driver.resolution, _ = guard.BuiltinCatalog().Resolve("balanced", "release", driver.samples[len(driver.samples)-1])
+	driver.resolution, _ = guard.BuiltinCatalog().Resolve(profileBalanced, "release", driver.samples[len(driver.samples)-1])
 	driver.exitCode = driver.resolution.ExitCode
 }
 

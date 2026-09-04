@@ -65,6 +65,11 @@ func AdmissionReady(samples []Sample, policy Policy) bool {
 	return core.AdmissionReady(samples, policy)
 }
 
+// WarningAdmissionReady permits a full, stable Darwin warning window with conservative headroom.
+func WarningAdmissionReady(samples []Sample, policy Policy) bool {
+	return core.WarningAdmissionReady(samples, policy)
+}
+
 // Percentile returns the nearest-rank finite percentile, or nil for no finite values.
 func Percentile(values []float64, proportion float64) *float64 {
 	return core.Percentile(values, proportion)

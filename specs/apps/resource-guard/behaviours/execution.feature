@@ -41,3 +41,9 @@ Feature: Guarded process execution
     Given an admitted ephemeral child encounters critical pressure
     When the guard observes the critical sample
     Then only the guarded child group is terminated with exit 75
+
+  @e2e-exempt
+  Scenario: Worsening warning sheds degraded work
+    Given an admitted degraded ephemeral child encounters growing compressor pressure
+    When the guard observes warning through the grace
+    Then the degraded child starts and is terminated with exit 75

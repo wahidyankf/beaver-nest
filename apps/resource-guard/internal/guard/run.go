@@ -73,7 +73,7 @@ func withEnvironmentIfMissing(environment []string, name, value string) []string
 	return withEnvironment(environment, name, value)
 }
 
-func resolvedEnvironment(environment []string, resolution Resolution) []string {
+func resolvedEnvironment(environment []string, resolution Resolution, forceConcurrency bool) []string {
 	if resolution.ResolvedProfile == "" || resolution.Concurrency <= 0 {
 		return environment
 	}
@@ -81,7 +81,11 @@ func resolvedEnvironment(environment []string, resolution Resolution) []string {
 	environment = withEnvironment(environment, "RESOURCE_GUARD_PROFILE", resolution.ResolvedProfile)
 	environment = withEnvironment(environment, "RESOURCE_GUARD_CONCURRENCY", concurrency)
 	for _, name := range []string{"NX_PARALLEL", "GOMAXPROCS", "DOTNET_PROCESSOR_COUNT"} {
-		environment = withEnvironmentIfMissing(environment, name, concurrency)
+		if forceConcurrency {
+			environment = withEnvironment(environment, name, concurrency)
+		} else {
+			environment = withEnvironmentIfMissing(environment, name, concurrency)
+		}
 	}
 	return environment
 }
@@ -147,7 +151,7 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 	if config.Environment == nil {
 		config.Environment = os.Environ()
 	}
-	config.Environment = resolvedEnvironment(config.Environment, config.Resolution)
+	config.Environment = resolvedEnvironment(config.Environment, config.Resolution, false)
 	if config.DiskPath == "" {
 		config.DiskPath = config.WorkingDirectory
 	}
@@ -218,7 +222,8 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 	deadline := config.Now().Add(config.Policy.AdmissionWindow)
 	var previous CPUState
 	samples := []Sample{}
-	for !config.Now().After(deadline) {
+	admitted, degraded := false, false
+	for {
 		reading, collectError := config.Collector.Collect(previous, config.DiskPath)
 		if collectError != nil {
 			return 1, collectError
@@ -235,11 +240,23 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 			return StorageBlockedExitCode, nil
 		}
 		if AdmissionReady(samples, config.Policy) {
+			admitted = true
+			break
+		}
+		if config.TaskClass == ClassEphemeral && config.Resolution.ResolvedProfile == "balanced" && WarningAdmissionReady(samples, config.Policy) {
+			admitted, degraded = true, true
+			config.Resolution.Concurrency = 1
+			config.Environment = resolvedEnvironment(config.Environment, config.Resolution, true)
+			writer.SetContext(config.Resolution, config.ConfigHash)
+			_, _ = fmt.Fprintln(config.Stderr, "Resource guard admitting ephemeral child under stable macOS warning pressure with concurrency 1.")
+			break
+		}
+		if !config.Now().Before(deadline) {
 			break
 		}
 		config.Sleep(config.Policy.SampleInterval)
 	}
-	if !AdmissionReady(samples, config.Policy) {
+	if !admitted {
 		_, _ = fmt.Fprintln(config.Stderr, "Resource guard deferred task: safe admission was not reached.")
 		return CapacityDeferredExitCode, nil
 	}
@@ -323,7 +340,8 @@ func Run(config RunConfig) (exitCode int, returnError error) {
 				return 1, appendError
 			}
 			assessment := ResourceAssessment(samples, config.Policy)
-			if assessment.State == "normal" {
+			stableDegradedWarning := degraded && WarningAdmissionReady(samples, config.Policy)
+			if assessment.State == "normal" || stableDegradedWarning {
 				warningSince = nil
 			} else if assessment.State == "warning" && warningSince == nil {
 				value := config.Now()

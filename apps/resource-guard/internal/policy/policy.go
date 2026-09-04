@@ -16,6 +16,7 @@ const (
 	stateWarning         = "warning"
 	stateCritical        = "critical"
 	swapUnavailableState = "unavailable"
+	platformDarwin       = "darwin"
 	// ReleaseRoutedLatencyP95BudgetMs is the hard routed-user-surface p95 ceiling during release overlap.
 	ReleaseRoutedLatencyP95BudgetMs = 500.0
 	// ReleaseRoutedLatencyMaxBudgetMs is the hard single routed-user-surface sample ceiling during release overlap.
@@ -71,6 +72,7 @@ type Collector interface {
 // Policy defines thresholds, timing, and resource reservations.
 type Policy struct {
 	AdmissionMemoryBytes           int64
+	WarningAdmissionMemoryBytes    int64
 	CriticalMemoryBytes            int64
 	DiskWarningBytes               int64
 	DiskCriticalBytes              int64
@@ -94,14 +96,14 @@ type Policy struct {
 
 // DevelopmentPolicy is the repository's canonical guarded-development policy.
 var DevelopmentPolicy = Policy{
-	AdmissionMemoryBytes: 9 * GiB, CriticalMemoryBytes: 4 * GiB,
+	AdmissionMemoryBytes: 9 * GiB, WarningAdmissionMemoryBytes: 8 * GiB, CriticalMemoryBytes: 4 * GiB,
 	DiskWarningBytes: 30 * GiB, DiskCriticalBytes: 20 * GiB,
 	TrendWindow:         15 * time.Second,
 	SwapOutWarningBytes: 128 * MiB, SwapOutCriticalBytes: 512 * MiB,
 	CompressorWarningPayloadBytes: 12 * GiB, CompressorWarningGrowthBytes: 1 * GiB,
 	CompressorCriticalPayloadBytes: 16 * GiB, CompressorCriticalGrowthBytes: 2 * GiB,
 	ReservedCPUUnits: 2, MaxCPUUtilizationPercent: 85, ConsecutiveCPUSamples: 3,
-	AdmissionWindow: 15 * time.Second, EphemeralWarningGrace: 10 * time.Second,
+	AdmissionWindow: 16 * time.Second, EphemeralWarningGrace: 10 * time.Second,
 	ServiceWarningGrace: 30 * time.Second, TerminationGrace: 10 * time.Second,
 	LeaseWait: 5 * time.Minute, SampleInterval: time.Second,
 }
@@ -268,6 +270,55 @@ func AdmissionReady(samples []Sample, policy Policy) bool {
 	return true
 }
 
+func warningWindowReady(samples []Sample, policy Policy) bool {
+	if len(samples) < policy.ConsecutiveCPUSamples || policy.TrendWindow <= 0 || policy.WarningAdmissionMemoryBytes <= 0 {
+		return false
+	}
+	firstTime, firstError := time.Parse(time.RFC3339Nano, samples[0].MeasuredAt)
+	lastTime, lastError := time.Parse(time.RFC3339Nano, samples[len(samples)-1].MeasuredAt)
+	return firstError == nil && lastError == nil && lastTime.Sub(firstTime) >= policy.TrendWindow
+}
+
+// WarningAdmissionReady permits only a full, stable Darwin warning window with conservative headroom.
+func WarningAdmissionReady(samples []Sample, policy Policy) bool { //nolint:cyclop // Every independent safety signal remains visible.
+	if !warningWindowReady(samples, policy) {
+		return false
+	}
+	current := samples[len(samples)-1]
+	if current.Platform != platformDarwin || current.MemoryPressureLevel == nil || *current.MemoryPressureLevel != 2 {
+		return false
+	}
+	assessment := ResourceAssessment(samples, policy)
+	if assessment.State == stateCritical || assessment.StorageBlocked ||
+		assessment.SwapOutWindowBytes >= float64(policy.SwapOutWarningBytes) ||
+		assessment.CompressorGrowthWindowBytes >= float64(policy.CompressorWarningGrowthBytes) {
+		return false
+	}
+	for index, sample := range samples {
+		available := availableMemory(sample)
+		if sample.Platform != platformDarwin || !EssentialReadingsValid(sample) || available == nil || *available < policy.WarningAdmissionMemoryBytes ||
+			sample.MemoryPressureLevel == nil || *sample.MemoryPressureLevel == 4 ||
+			sample.CompressorAvailable == nil || !*sample.CompressorAvailable ||
+			sample.DiskFreeBytes == nil || *sample.DiskFreeBytes < policy.DiskWarningBytes {
+			return false
+		}
+		if index > 0 {
+			previous := samples[index-1]
+			oomIncreased := sample.OOMEvents != nil && previous.OOMEvents != nil && *sample.OOMEvents > *previous.OOMEvents
+			oomKillIncreased := sample.OOMKillEvents != nil && previous.OOMKillEvents != nil && *sample.OOMKillEvents > *previous.OOMKillEvents
+			if oomIncreased || oomKillIncreased {
+				return false
+			}
+		}
+	}
+	for _, sample := range samples[len(samples)-policy.ConsecutiveCPUSamples:] {
+		if !CPUAdmissionReady(sample, policy) {
+			return false
+		}
+	}
+	return true
+}
+
 // Percentile returns the nearest-rank finite percentile, or nil for no finite values.
 func Percentile(values []float64, proportion float64) *float64 {
 	finite := make([]float64, 0, len(values))
@@ -316,7 +367,7 @@ func ReleaseHeadroomAvailable(summary ReleaseSummary) bool {
 		return false
 	}
 	ceiling := 100 * (1 - 2/float64(summary.AvailableParallelism))
-	compressorHealthy := summary.Platform != "darwin" && summary.Platform != "" || summary.CompressorAvailableAll
+	compressorHealthy := summary.Platform != platformDarwin && summary.Platform != "" || summary.CompressorAvailableAll
 	routedHealthy := summary.SchemaVersion < 4 ||
 		summary.RoutedJourneyFailures == 0 &&
 			summary.RoutedJourneyLatencyP95Ms > 0 &&
@@ -329,6 +380,6 @@ func ReleaseHeadroomAvailable(summary ReleaseSummary) bool {
 // ReleaseMemoryAvailable reports whether one sample preserves release memory headroom.
 func ReleaseMemoryAvailable(sample Sample) bool {
 	available := availableMemory(sample)
-	compressorHealthy := sample.Platform != "darwin" || sample.CompressorAvailable != nil && *sample.CompressorAvailable
+	compressorHealthy := sample.Platform != platformDarwin || sample.CompressorAvailable != nil && *sample.CompressorAvailable
 	return available != nil && *available >= 9*GiB && sample.MemoryPressureLevel != nil && *sample.MemoryPressureLevel == 1 && compressorHealthy
 }

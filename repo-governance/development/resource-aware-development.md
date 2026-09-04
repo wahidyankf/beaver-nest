@@ -1,15 +1,15 @@
 # Resource-Aware Development
 
-Apply this standard to compute-bearing Nx work under `apps/`, `libs/`, and repository-owned tools. It reduces macOS or Linux pressure without guaranteeing host survival.
+Apply this to compute-bearing Nx work under `apps/`, `libs/`, and repository tools. It reduces host pressure without guaranteeing survival.
 
 ## Required Behavior
 
-- Run this work through the guard. Exit `75` is transient capacity or a held heavy-work lease, not task or test failure: wait, then retry the same command serially from the beginning.
-- Confirm the previous guarded run exited first; stacked `ephemeral` runs starve one admission slot and fall silent, reading as a hung target. A lease deferral names its holder; `service` runs never hold one. "Safe admission was not reached" names none. `resource-guard status` is one later sample and rules out neither cause; the newest evidence summary names the deciding signal.
+- Run this work through the guard. Exit `75` is transient capacity or a held heavy-work lease, not failure: wait, then retry the same command serially from the beginning.
+- Confirm the previous run exited; stacked `ephemeral` runs starve admission. Lease deferrals name holders; `service` holds none. "Safe admission was not reached" names none. `resource-guard status` is only a later sample; the newest evidence summary names the deciding signal.
 - Never abandon the objective, bypass the guard, retry concurrently, background a retry loop, weaken gates, or change class for admission.
 - Exit `73` is storage-blocked. Safely free space before retrying; cooldown cannot fix it.
 - Exit `78` means invalid configuration or a strict transactional/release profile mismatch. Replan; do not cooldown-loop it.
-- The stable development `serve`, managed release, and pre-push hook enter the guard automatically. Recovery, proxy status, rollback, retire, and tailnet controls remain directly available.
+- Stable `serve`, managed release, and pre-push enter automatically. Recovery, proxy status, rollback, retire, and tailnet controls remain direct.
 - Use `transactional` for a mutation that must not be killed after starting; never to exempt ordinary build or test work.
 - The guard signals only the child process group it created, never production Bnest, Caddy, Tailscale, another application, or an unverified PID.
 
@@ -21,7 +21,7 @@ apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm ex
 
 ## Admission and Shedding
 
-The guard resolves effective memory and CPU capacity from the host and finite cgroup v2 limits. Ordinary work follows `balanced` → `constrained` → `minimal`; the final profile uses concurrency one and still attempts admission when static estimates are below its reserve but pressure is not critical. Transactional and release work stay strict.
+The guard resolves host and finite cgroup v2 capacity. Ordinary work follows `balanced` → `constrained` → `minimal`; the last uses concurrency one and may admit below its static reserve when pressure is not critical. Transactions and releases stay strict.
 
 | Profile       | Memory reserve     | No-swap reserve    | Disk reserve      | CPU admission |
 | ------------- | ------------------ | ------------------ | ----------------- | ------------- |
@@ -29,9 +29,9 @@ The guard resolves effective memory and CPU capacity from the host and finite cg
 | `constrained` | 10%, 512 MiB–2 GiB | 15%, 512 MiB–2 GiB | 5%, 1–8 GiB       | 92%           |
 | `minimal`     | 5%, 128–512 MiB    | 10%, 256–768 MiB   | 2%, 256 MiB–1 GiB | 98%           |
 
-Percentages clamp to the stated range. Disk below the immutable 256 MiB floor exits `73`. Linux without usable swap is a supported capability state, not invalid evidence. Swap-out warning/critical rates are clamped to 0.4%/1.6% of effective memory with 64–128 MiB and 256–512 MiB bounds per fifteen seconds. macOS compressor payload and growth use 37.5%/3.125% warning and 50%/6.25% critical ratios. Linux memory PSI warns at `some avg10 >= 10%` and is critical at `some >= 25%`, `full >= 5%`, or a new OOM event.
+Percentages clamp to the table. Disk below the immutable 256 MiB floor exits `73`. No Linux swap is supported evidence. Per fifteen seconds, swap-out warning/critical rates are 0.4%/1.6% of memory, clamped to 64–128 MiB and 256–512 MiB. macOS compressor payload/growth ratios are 37.5%/3.125% warning and 50%/6.25% critical. Linux PSI warns at `some avg10 >= 10%`; `some >= 25%`, `full >= 5%`, or new OOM is critical.
 
-Admission needs a sustained normal assessment, so warning pressure alone withholds it regardless of headroom. Critical pressure sheds ordinary work immediately. Warning grace is ten seconds for ephemeral work and thirty for development serve. Storage shedding exits `73`; other shedding exits `75`. Transactional work records post-start pressure but completes safely.
+Admission requires normal evidence, except balanced Darwin ephemeral work may admit after 15 stable warning seconds with 25% available memory (4–8 GiB clamp), balanced CPU/disk headroom, and no OOM or warning-level swap/compressor growth; tool concurrency is forced to one. Services, fallbacks, Linux PSI, transactions, and releases are excluded. Unsafe warning gets ten seconds for ephemeral and thirty for services; critical pressure sheds immediately. Storage shedding exits `73`; other shedding exits `75`. Transactions record pressure but complete.
 
 Copy `apps/resource-guard/resource-guard.local.json.example` to the ignored `resource-guard.local.json` for machine policy. `--config`, `RESOURCE_GUARD_CONFIG`, then that file apply in order, and cannot weaken compiled safety floors.
 
@@ -41,7 +41,7 @@ XNU maps internal memory state to normal `1`, warning `2`, and critical `4` flag
 
 ## Evidence and Cleanup
 
-The collector normalizes CPU, effective memory, pressure capabilities, swap state, disk, RSS, and health evidence. Linux uses `/proc`, PSI, and cgroup v2; macOS keeps memory-pressure and compressor evidence.
+The collector normalizes CPU, memory, pressure, swap, disk, RSS, and health. Linux uses `/proc`, PSI, and cgroup v2; macOS keeps pressure/compressor evidence.
 
 Samples use schema v3; release summaries use v4. They default to `~/bnest/runtime/resource-guard/`; samples expire in seven days, summaries in thirty, and files stay below 50 MiB. Evidence stores the config hash and profile, never contents, arguments, origins, paths, credentials, or user data. Schema-v2/v3 release summaries remain readable during retention.
 
