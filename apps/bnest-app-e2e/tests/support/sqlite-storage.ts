@@ -26,6 +26,7 @@ export type StorageScenario = {
 
 const repositoryRoot = process.cwd();
 const appDirectory = path.join(repositoryRoot, "apps/bnest-app");
+let discoveredMixHome = "";
 
 export function isolatedStorageScenario(
   testInfo: TestInfo,
@@ -100,6 +101,7 @@ export function runStorageCommand(
     ...process.env,
     MIX_ENV: "test",
     HOME: scenario.homeDirectory,
+    MIX_HOME: process.env["MIX_HOME"] ?? resolveMixHome(),
     BNEST_TEST_RUN_ID: scenario.runId,
     ASDF_DIR: process.env["ASDF_DIR"] ?? path.join(realHome, ".asdf"),
     ASDF_DATA_DIR: process.env["ASDF_DATA_DIR"] ?? path.join(realHome, ".asdf"),
@@ -117,6 +119,23 @@ export function runStorageCommand(
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? "",
   };
+}
+
+function resolveMixHome(): string {
+  if (discoveredMixHome !== "") return discoveredMixHome;
+
+  const result = spawnSync(
+    "elixir",
+    ["-e", "Mix.start(); IO.write(Mix.Utils.mix_home())"],
+    { cwd: os.tmpdir(), env: process.env, encoding: "utf8" },
+  );
+  const resolved = result.stdout?.trim() ?? "";
+  if (result.error) throw result.error;
+  if (result.status !== 0 || resolved === "") {
+    throw new Error(`failed to resolve Mix home: ${result.stderr}`);
+  }
+  discoveredMixHome = resolved;
+  return discoveredMixHome;
 }
 
 export function readPointer(

@@ -57,7 +57,7 @@ When("managed migration starts", () => {
 });
 
 Then("Bnest keeps the storage pointer under the configuration home", () => {
-  expect(migrateResult.status).toBe(0);
+  expect(migrateResult.status, migrateResult.stderr).toBe(0);
   expect(readDefaultPointer(scenario)).toBeDefined();
 });
 
@@ -87,8 +87,8 @@ When("the committed migration set is applied twice", () => {
 });
 
 Then("the schema version and indexes match the declared checksum", () => {
-  expect(migrateResult.status).toBe(0);
-  expect(secondMigrateResult.status).toBe(0);
+  expect(migrateResult.status, migrateResult.stderr).toBe(0);
+  expect(secondMigrateResult.status, secondMigrateResult.stderr).toBe(0);
 });
 
 Then(
@@ -116,7 +116,7 @@ When("managed storage migration runs without a UI visit", () => {
 });
 
 Then("Bnest inventories records in deterministic path order", () => {
-  expect(migrateResult.status).toBe(0);
+  expect(migrateResult.status, migrateResult.stderr).toBe(0);
   expect(migrateResult.stdout).toContain("accepted=1 blocked=0");
 });
 
@@ -131,7 +131,7 @@ Then(
   "each accepted item has immutable source and target checksum evidence",
   () => {
     const repeat = runStorageMigrate(scenario, []);
-    expect(repeat.status).toBe(0);
+    expect(repeat.status, repeat.stderr).toBe(0);
     expect(repeat.stdout).toContain("accepted=1 blocked=0");
   },
 );
@@ -147,7 +147,7 @@ Given("migration stopped after at least one accepted item", ({ $testInfo }) => {
   scenario = isolatedStorageScenario($testInfo, "retry");
   writeThemeFixture(scenario);
   migrateResult = runStorageMigrate(scenario, []);
-  expect(migrateResult.status).toBe(0);
+  expect(migrateResult.status, migrateResult.stderr).toBe(0);
   expect(migrateResult.stdout).toContain("accepted=1 blocked=0");
 });
 
@@ -156,7 +156,7 @@ When("the administrator retries the same migration identifier", () => {
 });
 
 Then("accepted matching items are not rewritten or duplicated", () => {
-  expect(secondMigrateResult.status).toBe(0);
+  expect(secondMigrateResult.status, secondMigrateResult.stderr).toBe(0);
   expect(secondMigrateResult.stdout).toContain("accepted=1 blocked=0");
 });
 
@@ -188,7 +188,7 @@ Given(
     expect(bootstrap.status, bootstrap.stderr).toBe(0);
     writeThemeFixture(scenario);
     migrateResult = runStorageMigrate(scenario, []);
-    expect(migrateResult.status).toBe(0);
+    expect(migrateResult.status, migrateResult.stderr).toBe(0);
     expect(migrateResult.stdout).toContain("accepted=4 blocked=0");
   },
 );
@@ -201,7 +201,7 @@ When(
 );
 
 Then("future reads use SQLite", () => {
-  expect(secondMigrateResult.status).toBe(0);
+  expect(secondMigrateResult.status, secondMigrateResult.stderr).toBe(0);
   expect(secondMigrateResult.stdout).toContain(
     "storage authority switched to sqlite_primary",
   );

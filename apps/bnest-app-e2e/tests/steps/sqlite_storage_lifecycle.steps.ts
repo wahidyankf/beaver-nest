@@ -29,7 +29,7 @@ Given(
     const legacyDirectory = path.join(scenario.homeDirectory, ".config/bnest");
     writePointer(scenario, legacyDirectory);
     result = runStorageMigrate(scenario, ["--activate"]);
-    expect(result.status).toBe(0);
+    expect(result.status, result.stderr).toBe(0);
     legacyDatabase = path.join(
       scenario.homeDirectory,
       ".config/bnest/bnest.sqlite3",
@@ -45,7 +45,7 @@ When("managed storage relocation runs", () => {
 Then(
   "the storage pointer resolves the production data directory atomically",
   () => {
-    expect(result.status).toBe(0);
+    expect(result.status, result.stderr).toBe(0);
     const pointer = readPointer(scenario);
     expect(pointer?.["databaseDirectory"]).toBe(
       defaultDatabaseDirectory(scenario),
@@ -76,10 +76,14 @@ Given(
     writeThemeFixture(scenario);
     writeFileSync(path.join(scenario.flatRoot, ".gitkeep"), "");
     writePointer(scenario, path.join(scenario.homeDirectory, ".config/bnest"));
-    expect(runStorageMigrate(scenario, ["--activate"]).status).toBe(0);
-    expect(
-      runStorageCommand(scenario, "bnest.storage.relocate", []).status,
-    ).toBe(0);
+    const activation = runStorageMigrate(scenario, ["--activate"]);
+    expect(activation.status, activation.stderr).toBe(0);
+    const relocation = runStorageCommand(
+      scenario,
+      "bnest.storage.relocate",
+      [],
+    );
+    expect(relocation.status, relocation.stderr).toBe(0);
     const pointer = readPointer(scenario);
     generation = String(pointer?.["databaseGeneration"] ?? "");
     legacyDatabase = path.join(
