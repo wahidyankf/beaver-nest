@@ -2,6 +2,10 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import {
+  stopChildProcesses,
+  terminateChildProcesses,
+} from "./process-lifecycle";
+import {
   captureStorageAuthority,
   restoreStorageAuthority,
   routedStorageConfigPath,
@@ -26,6 +30,7 @@ const candidates = new Map<number, ChildProcess>();
 const candidateLogs = new Map<number, string>();
 let routedPort = primaryPort;
 let storageActivated = false;
+process.once("exit", () => terminateChildProcesses(candidates.values()));
 
 export async function promoteCompatibleCandidate(page: Page): Promise<{
   previousRevision: string;
@@ -47,7 +52,9 @@ export async function restorePrimaryRoute(page: Page): Promise<void> {
     await reloadRoute(page, primaryPort, false);
   }
   if (storageActivated) {
-    stopCandidates();
+    // A candidate can still flush SQLite after SIGTERM. Do not restore the
+    // captured authority until every task-owned process has actually exited.
+    await stopChildProcesses(candidates.values());
     candidates.clear();
     storageActivated = false;
   }
@@ -141,9 +148,6 @@ async function ensureCandidate(port: number): Promise<void> {
   candidate.stderr?.on("data", (chunk: Buffer) =>
     appendCandidateLog(port, chunk),
   );
-  process.once("exit", stopCandidates);
-  process.once("SIGINT", stopCandidates);
-  process.once("SIGTERM", stopCandidates);
   await waitForCandidate(candidate, port, 100, "no response");
 }
 
@@ -250,12 +254,6 @@ function appendCandidateLog(port: number, chunk: Buffer): void {
     port,
     ((candidateLogs.get(port) ?? "") + chunk.toString("utf8")).slice(-8_000),
   );
-}
-
-function stopCandidates(): void {
-  for (const candidate of candidates.values()) {
-    if (candidate.exitCode === null) candidate.kill("SIGTERM");
-  }
 }
 
 function optionalPort(name: string, fallback: number): number {

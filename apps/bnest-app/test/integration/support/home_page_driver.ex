@@ -1081,8 +1081,6 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, :non_admin_family_member, _args),
     do: establish_identity(context, :child)
 
-  def prepare_behaviour(context, :healthy_route_with_acknowledged_state, _args), do: context
-
   def prepare_behaviour(context, :legacy_authoritative_sqlite, _args) do
     context = prepare_behaviour(context, :no_storage_configuration, [])
     runtime = TestRuntimeRoot.create!("sqlite-storage-lifecycle")
@@ -1364,8 +1362,6 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def perform_behaviour(context, :open_storage_settings_route, _args) do
     Map.put(context, :response, get(context.conn, "/storage"))
   end
-
-  def perform_behaviour(context, :promote_compatible_candidate, _args), do: context
 
   def perform_behaviour(context, :relocate_storage, _args),
     do:
@@ -1677,18 +1673,6 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def behaviour_outcome?(context, :no_host_path_or_inventory_revealed, _args),
     do: context.response.resp_body == "Not found"
-
-  def behaviour_outcome?(_context, outcome, _args)
-      when outcome in [
-             :routed_revision_and_readiness_proven,
-             :liveview_reconnects_without_refresh,
-             :acknowledged_state_and_draft_available
-           ] do
-    Code.ensure_loaded?(BnestApp.DataRepository.SqliteStore) and
-      Code.ensure_loaded?(BnestApp.DataRepository.Store) and
-      function_exported?(BnestApp.DataRepository.SqliteStore, :read, 3) and
-      function_exported?(BnestApp.DataRepository.Store, :read, 3)
-  end
 
   def behaviour_outcome?(context, :pointer_relocated_atomically, _args),
     do:

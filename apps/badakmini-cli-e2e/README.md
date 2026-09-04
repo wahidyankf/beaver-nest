@@ -28,6 +28,6 @@ The independent **Badakmini test symphony** job in the [scheduled quality-gates 
 
 ## Structure
 
-- `Badakmini.Cli.E2eTests.fsproj` embeds shared specifications and builds the test assembly.
+- `Badakmini.Cli.E2eTests.fsproj` embeds shared specifications and links the shared executable `BehaviourTests.fs` test cases into this assembly; the absence of a local `*Tests.fs` file does not mean the suite is empty.
 - `E2eDriver.fs` manages temporary repositories and child-process observations.
 - `project.json` exposes Nx typecheck, lint, behavior, quick, and E2E targets.

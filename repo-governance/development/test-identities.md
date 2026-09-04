@@ -1,6 +1,8 @@
 # Test Identities
 
-Use synthetic identities for every automated or manual test that creates an account, session, or user-owned runtime record. Never reuse a real person's username, account, browser profile, session, or data root.
+## Iron Rule
+
+No automated or manual test may read, write, authenticate against, migrate, back up, lock, derive fixtures from, or otherwise touch a production user, production data, or a production user context. Every test must use synthetic identities and payloads inside validated per-run test roots. If isolation cannot be proven before the subject starts, fail closed. An exemption, debug session, local environment, or convenient fixture cannot relax this rule.
 
 ## Identity and Isolation
 

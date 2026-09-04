@@ -17,6 +17,47 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
       Path.expand("../../../data/test/runs/#{run_id}", __DIR__)
 
   sqlite_root = Path.expand("~/bnest/data/test/runs/#{run_id}")
+  flat_runs_root = Path.expand("../../../data/test/runs", __DIR__)
+  sqlite_runs_root = Path.expand("~/bnest/data/test/runs")
+
+  # Test config runs before application modules are available. Enforce the same
+  # exact-child invariant here before creating or writing either runtime root.
+  Enum.each(
+    [{runtime_root, flat_runs_root}, {sqlite_root, sqlite_runs_root}],
+    fn {candidate, parent} ->
+      candidate = Path.expand(candidate)
+
+      if Path.dirname(candidate) != parent or Path.basename(candidate) != run_id or
+           candidate == parent do
+        raise "test runtime must be one run-id child of its dedicated test root"
+      end
+
+      case File.lstat(candidate) do
+        {:ok, %File.Stat{type: :symlink}} ->
+          raise "test runtime cannot be a symlink"
+
+        {:ok, %File.Stat{type: :directory}} ->
+          marker_path = Path.join(candidate, ".bnest-test-run.json")
+
+          marker =
+            case File.read(marker_path) do
+              {:ok, bytes} -> JSON.decode!(bytes)
+              {:error, _reason} -> raise "existing test runtime has no readable marker"
+            end
+
+          if marker["schemaVersion"] != 1 or marker["recordType"] != "bnest-test-run" or
+               marker["runId"] != run_id or marker["owner"] != "bnest-test-harness" do
+            raise "existing test runtime marker is invalid"
+          end
+
+        {:ok, _not_directory} ->
+          raise "test runtime must be a directory"
+
+        _not_symlink ->
+          :ok
+      end
+    end
+  )
 
   marker = %{
     "schemaVersion" => 1,

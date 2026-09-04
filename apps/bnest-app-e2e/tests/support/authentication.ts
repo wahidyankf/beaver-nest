@@ -164,12 +164,14 @@ async function rejectPasswordMissingRequirement(
     .first()
     .fill("password1");
   await confirmAndSubmitSetup(page);
-  await expect(page.locator("#setup-error")).toContainText(
+  const setupError = page.locator("#setup-error");
+  await expect(setupError).toContainText(
     "Each password needs a letter, number, and punctuation mark, such as _.",
   );
+  const requirementsRejected = await setupError.isVisible();
   await verifyAndRestorePasswords(page, accounts);
 
-  return true;
+  return requirementsRejected;
 }
 
 async function confirmAndSubmitSetup(page: Page): Promise<void> {
