@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-tool_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+tool_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 lock_file="$tool_dir/resource-guard.lock"
 
 # Every lock key must resolve exactly once. Ambiguous pins fail as invalid
@@ -129,7 +129,7 @@ prune_cache() {
     fi
     recent=$((recent + 1))
     if [ "$recent" -gt 2 ]; then
-      rm -rf -- "$cache_root/$candidate"
+      rm -rf -- "${cache_root:?}/$candidate"
     fi
   done
   rm -f -- "$inventory"
@@ -179,4 +179,19 @@ fi
 # policy is optional and remains consumer-owned.
 RESOURCE_GUARD_DEFAULT_CONFIG=${RESOURCE_GUARD_DEFAULT_CONFIG:-"$tool_dir/resource-guard.local.json"}
 export RESOURCE_GUARD_DEFAULT_CONFIG
-exec "$binary" "$@"
+
+# The upstream binary stays ecosystem-neutral. This consumer wrapper maps its
+# resolved concurrency into the worker controls used by Beaver Nest's tools.
+case "${1:-}" in
+  run)
+    shift
+    exec "$binary" run \
+      --concurrency-env NX_PARALLEL \
+      --concurrency-env GOMAXPROCS \
+      --concurrency-env DOTNET_PROCESSOR_COUNT \
+      "$@"
+    ;;
+  *)
+    exec "$binary" "$@"
+    ;;
+esac

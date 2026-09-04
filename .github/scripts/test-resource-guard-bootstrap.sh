@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 temporary_root=$(mktemp -d)
 trap 'rm -rf -- "$temporary_root"' EXIT HUP INT TERM
 
@@ -18,6 +18,13 @@ cat > "$temporary_root/payload/resource-guard" <<EOF
 #!/bin/sh
 if [ "\${1:-}" = version ] && [ "\${2:-}" = --json ]; then
   printf '%s\n' '{"schemaVersion":1,"version":"$test_version","commit":"$test_commit"}'
+elif [ "\${1:-}" = run ]; then
+  shift
+  : > "\$RESOURCE_GUARD_TEST_ARGUMENTS"
+  for argument in "\$@"; do
+    printf '%s\n' "\$argument" >> "\$RESOURCE_GUARD_TEST_ARGUMENTS"
+  done
+  printf '%s\n' 'run-ok'
 else
   printf '%s\n' 'probe-ok'
 fi
@@ -87,6 +94,25 @@ result=$(PATH="$test_path" RESOURCE_GUARD_INSTALL_CACHE="$cache_root" RESOURCE_G
 result=$(PATH="$test_path" RESOURCE_GUARD_INSTALL_CACHE="$cache_root" RESOURCE_GUARD_TEST_CURL_FAIL=1 "$subject" probe)
 [ "$result" = probe-ok ]
 [ "$(sed -n '1p' "$curl_count")" = 1 ]
+
+# Repository-specific worker mappings belong in this consumer wrapper. Verify
+# all mappings precede the original run arguments without changing their order.
+arguments_file="$temporary_root/run-arguments"
+result=$(PATH="$test_path" RESOURCE_GUARD_INSTALL_CACHE="$cache_root" RESOURCE_GUARD_TEST_CURL_FAIL=1 RESOURCE_GUARD_TEST_ARGUMENTS="$arguments_file" "$subject" run --class ephemeral -- printf '%s\n' ok)
+[ "$result" = run-ok ]
+expected_arguments='--concurrency-env
+NX_PARALLEL
+--concurrency-env
+GOMAXPROCS
+--concurrency-env
+DOTNET_PROCESSOR_COUNT
+--class
+ephemeral
+--
+printf
+%s\n
+ok'
+[ "$(sed -n '1,$p' "$arguments_file")" = "$expected_arguments" ]
 
 # Integrity and unsupported-platform failures are configuration errors and
 # must stop before executing an untrusted payload.
