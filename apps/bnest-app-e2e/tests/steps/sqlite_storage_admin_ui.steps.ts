@@ -5,6 +5,7 @@ import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { isolatedTestIdentity } from "../support/test-identity";
 import { readLivePointer } from "../support/sqlite-storage";
+import { captureStorageAuthority } from "../support/storage-authority";
 
 // Admin storage LiveView folder-selection flows (feature scenarios 2, 3).
 // Split out of sqlite_storage.steps.ts to stay under the repository's
@@ -22,6 +23,7 @@ let livePointerBefore: Record<string, unknown> | undefined;
 Given(
   "an authenticated user with the admin role opened storage settings",
   async ({ page, $testInfo }) => {
+    captureStorageAuthority();
     // Registers this scenario's isolated identity digest so it never
     // collides with another scenario's fixtures; the admin session itself
     // comes from the project's shared storageState, not a login here.

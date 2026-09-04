@@ -1,21 +1,97 @@
+import { createHash } from "node:crypto";
+import {
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { login } from "./authentication";
+import { ensureLiveSqlite, runLiveMix } from "./routed-rollout";
 import { isolatedTestIdentity, type TestIdentity } from "./test-identity";
 
 export type ScheduledBackupWorld = {
-  prepared?: string;
-  action?: string;
+  backupConfig?: Record<string, unknown>;
+  backupConfigPath?: string;
+  backupDirectory?: string;
+  backupMarker?: Record<string, unknown>;
+  contextualScheduleKey?: string;
   identity?: TestIdentity;
+  responseBody?: string;
   responseStatus?: number;
+  setupClaimCount?: number;
 };
 
-export function prepareScheduledBackup(
+export async function prepareScheduledBackup(
+  page: Page,
   world: ScheduledBackupWorld,
   state: string,
   testInfo: TestInfo,
-): void {
+): Promise<void> {
   world.identity = isolatedTestIdentity(testInfo);
-  world.prepared = state;
+
+  if (state === "denied_visitor") return;
+
+  await page.context().clearCookies();
+  await login(page, world.identity.admin);
+
+  if (state === "admin_opened_schedules")
+    return prepareBackupOverride(page, world, testInfo);
+  if (state === "contextual_schedules")
+    return prepareContextualSchedules(world, testInfo);
+
+  if (state === "typed_panels") return;
+  throw new Error(`unknown scheduled backup preparation: ${state}`);
+}
+
+async function prepareBackupOverride(
+  page: Page,
+  world: ScheduledBackupWorld,
+  testInfo: TestInfo,
+): Promise<void> {
+  ensureLiveSqlite();
+  const digest = createHash("sha256")
+    .update(`${testInfo.project.name}:${testInfo.title}`)
+    .digest("hex")
+    .slice(0, 12);
+  const directory = path.join(
+    realpathSync(os.tmpdir()),
+    `bnest-e2e-backup-${digest}`,
+  );
+  rmSync(directory, { recursive: true, force: true });
+  mkdirSync(path.dirname(directory), { recursive: true });
+  process.once("exit", () =>
+    rmSync(directory, { recursive: true, force: true }),
+  );
+  world.backupDirectory = directory;
+  world.backupConfigPath = path.join(
+    requiredRuntimeRoot(),
+    "storage-config",
+    "backup.json",
+  );
+  await page.goto("/admin/settings/schedules");
+  await connected(page);
+}
+
+function prepareContextualSchedules(
+  world: ScheduledBackupWorld,
+  testInfo: TestInfo,
+): void {
+  ensureLiveSqlite();
+  const key = `e2e-family-${createHash("sha256")
+    .update(testInfo.title)
+    .digest("hex")
+    .slice(0, 12)}`;
+  const result = runLiveMix(
+    `:ok = BnestApp.Scheduler.Store.put_test_schedule("${key}", "family", "fixture", DateTime.utc_now()); IO.puts("schedule-created")`,
+  );
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stdout).toContain("schedule-created");
+  world.contextualScheduleKey = key;
 }
 
 export async function performScheduledBackup(
@@ -23,20 +99,9 @@ export async function performScheduledBackup(
   world: ScheduledBackupWorld,
   action: string,
 ): Promise<void> {
-  world.action = action;
-
-  if (action === "open_admin_settings") {
-    if (!world.identity) throw new Error("missing isolated identity");
-    await page.context().clearCookies();
-    await login(page, world.identity.child);
-    const home = await page.goto("/");
-    expect(home?.status()).toBe(200);
-    await expect(page.locator("[data-role=admin-settings-entry]")).toHaveCount(
-      0,
-    );
-    world.responseStatus = (await page.request.get("/admin/settings")).status();
-    return;
-  }
+  if (action === "save_backup_override") return saveBackupOverride(page, world);
+  if (action === "open_admin_settings")
+    return openDeniedAdminSettings(page, world);
 
   if (action === "open_schedules_from_home") {
     await page.goto("/");
@@ -45,58 +110,156 @@ export async function performScheduledBackup(
     await page.goto("/");
     await page.getByRole("link", { name: /Admin settings/u }).click();
   } else {
-    await page.goto("/admin/settings/schedules");
+    throw new Error(`unknown scheduled backup action: ${action}`);
   }
 
-  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+  await connected(page);
 }
 
-export async function expectScheduledBackup(
+async function saveBackupOverride(
   page: Page,
   world: ScheduledBackupWorld,
-  outcome: string,
 ): Promise<void> {
-  expect(world.prepared).toBeTruthy();
-  expect(world.action).toBeTruthy();
+  const directory = required(world.backupDirectory, "backup directory");
+  await page.getByLabel("Private destination override").fill(directory);
+  const save = page.getByRole("button", {
+    name: "Save and create first backup",
+  });
+  await save.click();
+  await expect(page.getByText(/first verification was queued/u)).toBeVisible();
+  await save.click();
+  await expect(page.getByText(/first verification was queued/u)).toBeVisible();
 
-  if (outcome === "not_found") {
-    expect(world.responseStatus).toBe(404);
-    return;
-  }
+  const configPath = required(world.backupConfigPath, "backup config path");
+  world.backupConfig = readJson(configPath);
+  world.backupMarker = readJson(
+    path.join(directory, ".bnest-backup-root.json"),
+  );
+  const destinationId = String(world.backupMarker["destinationId"] ?? "");
+  const result = runLiveMix(
+    `count = BnestApp.SqliteRepo.query!("SELECT COUNT(*) FROM bnest_schedule_runs WHERE claim_key = ?", ["setup:${destinationId}"]).rows |> hd() |> hd(); IO.puts("claim-count=#{count}")`,
+  );
+  expect(result.status, result.stderr).toBe(0);
+  world.setupClaimCount = Number(
+    /claim-count=(\d+)/u.exec(result.stdout)?.[1] ?? "NaN",
+  );
+}
 
-  if (outcome === "no_entry") {
-    await expect(page.locator("[data-role=admin-settings-entry]")).toHaveCount(
-      0,
-    );
-    return;
-  }
+async function openDeniedAdminSettings(
+  page: Page,
+  world: ScheduledBackupWorld,
+): Promise<void> {
+  const identity = required(world.identity, "isolated identity");
+  await page.context().clearCookies();
+  await login(page, identity.child);
+  await page.goto("/");
+  await expect(page.locator("[data-role=admin-settings-entry]")).toHaveCount(0);
+  const response = await page.request.get("/admin/settings");
+  world.responseStatus = response.status();
+  world.responseBody = await response.text();
+}
 
-  const expectedText = new Map<string, RegExp>([
-    ["default_backup_folder", /Default: @data\/backup\//u],
-    ["no_private_path", /Keep one per day for 7 days/u],
-    ["atomic_backup_config", /Private destination override/u],
-    ["one_setup_claim", /Save and create first backup/u],
-    ["schedule_persisted", /Enabled/u],
-    ["same_future_slot", /Daily time \(WIB\)/u],
-    ["latest_slot_only", /Daily time \(WIB\)/u],
-    ["next_future_day", /Daily time \(WIB\)/u],
-    ["vacuum", /Production database backup/u],
-    ["proof", /Production database backup/u],
-    ["single_claim", /Schedules & backups/u],
-    ["attempts", /Enabled/u],
-    ["groups", /Family schedules/u],
-    ["typed_link", /Production database backup/u],
-    ["retention", /Keep one per day for 7 days/u],
-    ["preserve", /Backup folder/u],
-    ["shared_execution", /Family schedules/u],
-    ["shared_inventory", /Admin\/system schedules/u],
-    ["panels", /Data storage/u],
-    ["allowlists", /Each area validates and saves/u],
-    ["expiry", /Expiration/u],
-    ["occurrences", /Expiration: Never/u],
-  ]);
+export function expectOneSetupClaim(world: ScheduledBackupWorld): void {
+  expect(world.setupClaimCount).toBe(1);
+}
 
-  const text = expectedText.get(outcome);
-  if (!text) throw new Error(`unknown scheduled backup outcome: ${outcome}`);
-  await expect(page.locator("body")).toContainText(text);
+export function expectAtomicBackupConfig(world: ScheduledBackupWorld): void {
+  const configPath = required(world.backupConfigPath, "backup config path");
+  expect(world.backupConfig).toEqual({
+    destinationDirectory: world.backupDirectory,
+    schemaVersion: 1,
+  });
+  expect(statSync(configPath).mode & 0o777).toBe(0o600);
+  expect(
+    readdirSync(path.dirname(configPath)).filter((entry) =>
+      entry.startsWith(`${path.basename(configPath)}.partial-`),
+    ),
+  ).toEqual([]);
+}
+
+export async function expectScheduleGroups(
+  page: Page,
+  world: ScheduledBackupWorld,
+): Promise<void> {
+  await expect(
+    page.getByRole("heading", { name: "Family schedules" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Admin/system schedules" }),
+  ).toBeVisible();
+  await expect(
+    page.locator(
+      `[data-schedule-key="${required(world.contextualScheduleKey, "schedule key")}"]`,
+    ),
+  ).toContainText(/Enabled|Running|Verified|Never run/u);
+}
+
+export async function expectTypedBackupLink(page: Page): Promise<void> {
+  await expect(
+    page.locator('[data-schedule-key="prod-sqlite-backup-daily"] a'),
+  ).toHaveAttribute("href", "/admin/settings/schedules");
+}
+
+export function expectDeniedSettings(world: ScheduledBackupWorld): void {
+  expect(world.responseStatus).toBe(404);
+  expect(world.responseBody).toBe("Not found");
+}
+
+export async function expectNoAdminEntry(page: Page): Promise<void> {
+  await expect(page.locator("[data-role=admin-settings-entry]")).toHaveCount(0);
+  await expect(page.locator("[data-role=admin-schedules-entry]")).toHaveCount(
+    0,
+  );
+}
+
+export async function expectAdminPanels(page: Page): Promise<void> {
+  await expect(
+    page.getByRole("link", { name: /Data storage/u }),
+  ).toHaveAttribute("href", "/storage");
+  await expect(
+    page.getByRole("link", { name: /Schedules & backups/u }),
+  ).toHaveAttribute("href", "/admin/settings/schedules");
+}
+
+export async function expectOwnerAllowlists(page: Page): Promise<void> {
+  await expect(
+    page.getByText(
+      /Each area validates and saves only the fields owned by its domain/u,
+    ),
+  ).toBeVisible();
+  const panels = page.locator(".admin-settings-panel");
+  await expect(panels).toHaveCount(2);
+  await expect(panels.nth(0)).toHaveAttribute("data-editable-fields", "");
+  await expect(panels.nth(1)).toHaveAttribute(
+    "data-editable-fields",
+    "destination_directory,enabled,daily_time_wib",
+  );
+  await expect(panels.nth(0)).toHaveAttribute(
+    "data-config-owner",
+    /Storage\.Config/u,
+  );
+  await expect(panels.nth(1)).toHaveAttribute(
+    "data-config-owner",
+    /Backup\.Config/u,
+  );
+}
+
+function connected(page: Page): Promise<void> {
+  return expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+}
+
+function readJson(file: string): Record<string, unknown> {
+  return JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+}
+
+function required<T>(value: T | undefined, name: string): T {
+  if (value === undefined) throw new Error(`missing ${name}`);
+  return value;
+}
+
+function requiredRuntimeRoot(): string {
+  const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
+  if (root === undefined || root === "")
+    throw new Error("missing marked E2E runtime root");
+  return root;
 }

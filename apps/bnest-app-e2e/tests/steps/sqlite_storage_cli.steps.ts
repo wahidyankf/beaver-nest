@@ -111,12 +111,6 @@ Given(
   },
 );
 
-Given("no incompatible release slot can write", () => {
-  // Release-slot exclusivity is enforced by release:run's host-wide lock and
-  // proven separately by tools/release.test.mjs; this managed migration path
-  // runs headlessly outside any release, so no slot contends for the write.
-});
-
 When("managed storage migration runs without a UI visit", () => {
   migrateResult = runStorageMigrate(scenario, []);
 });

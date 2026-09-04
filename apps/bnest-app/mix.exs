@@ -112,6 +112,7 @@ defmodule BnestApp.MixProject do
       BnestApp.Behaviour.BoundaryPolicy,
       BnestApp.Behaviour.Driver,
       BnestApp.Behaviour.IntegrationHomePageDriver,
+      BnestApp.Behaviour.MemoryBackend,
       BnestApp.Behaviour.UnitHomePageDriver,
       BnestApp.Codex.FixtureModels,
       BnestApp.Codex.FixtureSession,
@@ -193,6 +194,7 @@ defmodule BnestApp.MixProject do
            [
              BnestApp.Chat,
              BnestApp.Codex.ModelAccess,
+             BnestApp.DataRepository.Backend,
              BnestApp.DataRepository.Normalizer,
              BnestApp.DataRepository.Schema,
              BnestApp.Identity.Authorization,

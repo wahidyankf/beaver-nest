@@ -3,7 +3,9 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
 
   use BnestAppWeb, :live_view
 
+  alias BnestApp.AdminConfig.Registry, as: AdminConfigRegistry
   alias BnestApp.Backup.Config, as: BackupConfig
+  alias BnestApp.Scheduler.Registry, as: SchedulerRegistry
   alias BnestApp.Scheduler.Run
   alias BnestApp.Scheduler.Store
 
@@ -132,9 +134,18 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
   end
 
   defp schedule_row(assigns) do
+    assigns = assign(assigns, :settings_path, settings_path(assigns.schedule))
+
     ~H"""
-    <article class="schedule-row" data-schedule-key={@schedule.schedule_key}>
-      <h3>{schedule_label(@schedule)}</h3>
+    <article
+      class="schedule-row"
+      data-schedule-key={@schedule.schedule_key}
+      data-last-run-state={@schedule.last_run_state || "never"}
+    >
+      <h3>
+        <a :if={@settings_path} href={@settings_path}>{schedule_label(@schedule)}</a>
+        <span :if={!@settings_path}>{schedule_label(@schedule)}</span>
+      </h3>
       <dl>
         <div>
           <dt>Cadence</dt><dd>Daily at {utc_to_wib(@schedule.daily_at_utc)} WIB</dd>
@@ -154,6 +165,16 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
       </dl>
     </article>
     """
+  end
+
+  defp settings_path(schedule) do
+    with {:ok, %{settings_key: settings_key}} when is_binary(settings_key) <-
+           SchedulerRegistry.fetch(schedule.handler_key),
+         {:ok, %{path: path}} <- AdminConfigRegistry.fetch(settings_key) do
+      path
+    else
+      _no_typed_settings -> nil
+    end
   end
 
   defp refresh(socket) do

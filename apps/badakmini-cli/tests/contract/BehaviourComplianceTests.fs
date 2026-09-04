@@ -21,6 +21,27 @@ type FeatureComplianceTests() =
         Assert.Equal(Ok(), FeatureCompliance.validate "example.feature" source)
 
     [<Fact>]
+    member _.``documented higher-layer exemption is accepted``() =
+        let source =
+            "Feature: Compliance example\n\n  # Exemption(integration): browser geometry needs a layout engine; alternative-proof: example-e2e:test:e2e / Tagged behavior\n  @integration-exempt\n  Scenario: Tagged behavior\n    Given a precondition\n    When an action occurs\n    Then an outcome is observed"
+
+        Assert.Equal(Ok(), FeatureCompliance.validate "example.feature" source)
+
+    [<Fact>]
+    member _.``unit legacy broad and undocumented exemptions are rejected``() =
+        [ "@unit-exempt\n  Scenario: Tagged behavior"
+          "@no-e2e\n  Scenario: Tagged behavior"
+          "@e2e-exempt\nFeature: Tagged behavior"
+          "@integration-exempt\n  Scenario: Tagged behavior" ]
+        |> List.iter (fun declaration ->
+            let source =
+                $"Feature: Compliance example\n\n  {declaration}\n    Given a precondition\n    When an action occurs\n    Then an outcome is observed"
+
+            match FeatureCompliance.validate "example.feature" source with
+            | Error _ -> ()
+            | Ok() -> failwithf "Expected exemption policy failure for %s" declaration)
+
+    [<Fact>]
     member _.``missing feature declaration is rejected``() =
         "Scenario: Orphan\n  When an action occurs\n  Then an outcome is observed"
         |> assertErrorContains "missing Feature:"

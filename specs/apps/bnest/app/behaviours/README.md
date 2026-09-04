@@ -2,6 +2,8 @@
 
 The `.feature` files in this directory form the canonical executable behavior corpus shared by every Bnest test adapter.
 
+Unit implements every scenario. A scenario may omit only Integration or E2E when its boundary fundamentally cannot express the behavior, using the documented `@integration-exempt` or `@e2e-exempt` format from the repository [BDD standard](../../../../../repo-governance/development/behaviour-driven-development.md). Binding counts are necessary but not sufficient; adapter changes require the [manual implementation review](../../../../../repo-governance/workflows/gherkin-implementation-review.md).
+
 ## Directory Map
 
 - [Chat](chat.feature) specifies the local Codex conversation experience.

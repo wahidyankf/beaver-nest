@@ -69,3 +69,82 @@ test("does not treat doc-string content as scenario steps", () => {
   assert.ok(errors.some((error) => error.includes("requires a When")));
   assert.ok(errors.some((error) => error.includes("requires a Then")));
 });
+
+test("accepts a documented higher-layer exemption", () => {
+  const source = validFeature.replace(
+    "  Scenario: Observable behaviour",
+    "  # Exemption(integration): browser geometry needs a layout engine; alternative-proof: example-e2e:test:e2e / Observable behaviour\n" +
+      "  @integration-exempt\n" +
+      "  Scenario: Observable behaviour",
+  );
+
+  assert.deepEqual(validateFeatureSource("example.feature", source), []);
+});
+
+test("rejects unit exemptions and legacy exemption names", () => {
+  for (const tag of [
+    "@unit-exempt",
+    "@no-unit",
+    "@no-integration",
+    "@no-e2e",
+  ]) {
+    const source = validFeature.replace(
+      "  Scenario: Observable behaviour",
+      `  ${tag}\n  Scenario: Observable behaviour`,
+    );
+    assert.ok(
+      validateFeatureSource("example.feature", source).some((error) =>
+        error.includes("is forbidden"),
+      ),
+    );
+  }
+});
+
+test("rejects undocumented, broad, and double exemptions", () => {
+  const undocumented = validFeature.replace(
+    "  Scenario: Observable behaviour",
+    "  @integration-exempt\n  Scenario: Observable behaviour",
+  );
+  assert.ok(
+    validateFeatureSource("example.feature", undocumented).some((error) =>
+      error.includes("immediately preceding comment"),
+    ),
+  );
+
+  const broad = validFeature.replace(
+    "Feature: Compliance example",
+    "@e2e-exempt\nFeature: Compliance example",
+  );
+  assert.ok(
+    validateFeatureSource("example.feature", broad).some((error) =>
+      error.includes("only annotate"),
+    ),
+  );
+
+  const doubled = validFeature.replace(
+    "  Scenario: Observable behaviour",
+    "  # Exemption(integration): browser geometry needs a layout engine; alternative-proof: example-e2e:test:e2e / Observable behaviour\n" +
+      "  @integration-exempt @e2e-exempt\n" +
+      "  Scenario: Observable behaviour",
+  );
+  assert.ok(
+    validateFeatureSource("example.feature", doubled).some((error) =>
+      error.includes("cannot be both"),
+    ),
+  );
+});
+
+test("rejects exemptions for unfinished or flaky work", () => {
+  const source = validFeature.replace(
+    "  Scenario: Observable behaviour",
+    "  # Exemption(e2e): too flaky and not yet implemented; alternative-proof: example:test:integration / Observable behaviour\n" +
+      "  @e2e-exempt\n" +
+      "  Scenario: Observable behaviour",
+  );
+
+  assert.ok(
+    validateFeatureSource("example.feature", source).some((error) =>
+      error.includes("cannot be justified"),
+    ),
+  );
+});

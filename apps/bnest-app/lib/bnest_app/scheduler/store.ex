@@ -42,7 +42,7 @@ defmodule BnestApp.Scheduler.Store do
     if Regex.match?(~r/^[A-Za-z0-9_-]+$/, destination_id) do
       transaction(fn ->
         schedule = get_schedule!(schedule_key)
-        claim_key = "setup:" <> destination_id
+        claim_key = setup_claim_key(destination_id)
         run_id = run_id()
         now_iso = iso8601(now)
 
@@ -72,6 +72,10 @@ defmodule BnestApp.Scheduler.Store do
       {:error, :invalid_destination_id}
     end
   end
+
+  @doc false
+  @spec setup_claim_key(String.t()) :: String.t()
+  def setup_claim_key(destination_id), do: "setup:" <> destination_id
 
   @spec fail_attempt(String.t(), pos_integer(), atom(), DateTime.t()) ::
           {:retryable | :failed, map()} | {:error, :stale_attempt}

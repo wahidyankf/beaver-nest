@@ -6,6 +6,7 @@ import {
   isolatedTestIdentity,
   type TestIdentity,
 } from "../support/test-identity";
+import { promoteCompatibleCandidate } from "../support/routed-rollout";
 
 // Non-admin denial and post-rollout reconnect flows (feature scenarios 9,
 // 10). Split out of sqlite_storage.steps.ts to stay under the repository's
@@ -18,6 +19,7 @@ const repositoryRoot = process.cwd();
 let activeIdentity: TestIdentity;
 let deniedRouteStatus = 0;
 let deniedRouteBody = "";
+let rolloutRevisions: { previousRevision: string; revision: string };
 
 // --- Scenario 9: non-admin cannot configure storage --------------------------
 
@@ -65,15 +67,7 @@ Given(
 );
 
 When("a revision-compatible candidate is promoted", async ({ page }) => {
-  await page.evaluate(() => {
-    const liveSocket = (
-      window as unknown as {
-        liveSocket: { connect: () => void; disconnect: () => void };
-      }
-    ).liveSocket;
-    liveSocket.disconnect();
-    liveSocket.connect();
-  });
+  rolloutRevisions = await promoteCompatibleCandidate(page);
 });
 
 Then(
@@ -82,8 +76,9 @@ Then(
     const ready = await page.request.get("/health/ready");
     expect(ready.status()).toBe(200);
     const body = await ready.json();
-    expect(typeof body.revision).toBe("string");
-    expect(typeof body.sqliteReady).toBe("boolean");
+    expect(body.revision).toBe(rolloutRevisions.revision);
+    expect(body.revision).not.toBe(rolloutRevisions.previousRevision);
+    expect(body.sqliteReady).toBe(true);
   },
 );
 

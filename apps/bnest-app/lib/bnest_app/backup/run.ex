@@ -9,8 +9,6 @@ defmodule BnestApp.Backup.Run do
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Config, as: StorageConfig
 
-  @scope "bnest-production-backups-v1"
-
   @spec execute(map(), DateTime.t()) :: {:ok, map()} | {:skipped, atom()} | {:error, atom()}
   def execute(claim, %DateTime{} = now) do
     with {:ok, location} <- Config.resolve(),
@@ -71,7 +69,17 @@ defmodule BnestApp.Backup.Run do
       ensure_active_attempt!(claim, now)
       File.rename!(partial_path, artifact_path)
 
-      receipt = build_receipt(claim, location, now, artifact_basename, artifact_path, proof)
+      receipt =
+        Receipt.build(claim, location, now, %{
+          source_generation: StorageConfig.database_generation(),
+          basename: artifact_basename,
+          sha256: sha256_file(artifact_path),
+          bytes: File.stat!(artifact_path).size,
+          quick_check: "ok",
+          schema_versions: proof.schema_versions,
+          logical_proof_sha256: proof.logical_sha256
+        })
+
       receipt_path = String.replace_suffix(artifact_path, ".sqlite3", ".receipt.json")
       atomic_json!(receipt_path, receipt)
       {:ok, receipt}
@@ -80,28 +88,6 @@ defmodule BnestApp.Backup.Run do
         File.rm(partial_path)
         {:error, :backup_failed}
     end
-  end
-
-  defp build_receipt(claim, location, now, basename, artifact_path, proof) do
-    %{
-      "schemaVersion" => 1,
-      "ownershipScope" => @scope,
-      "destinationId" => location.destination_id,
-      "scheduleKey" => claim.schedule_key,
-      "claimKind" => claim.claim_kind,
-      "claimKey" => claim.claim_key,
-      "scheduledFor" => nullable_iso(claim.scheduled_for),
-      "runId" => claim.run_id,
-      "scheduleRevision" => claim.schedule_revision,
-      "createdAt" => iso8601(now),
-      "sourceGeneration" => BnestApp.Storage.Config.database_generation(),
-      "artifactBasename" => basename,
-      "artifactSha256" => sha256_file(artifact_path),
-      "artifactBytes" => File.stat!(artifact_path).size,
-      "quickCheck" => "ok",
-      "schemaVersions" => proof.schema_versions,
-      "logicalProofSha256" => proof.logical_sha256
-    }
   end
 
   defp independent_proof!(path) do
@@ -154,13 +140,7 @@ defmodule BnestApp.Backup.Run do
   defp retain_owned(directory) do
     receipts = owned_receipts(directory)
 
-    kept =
-      receipts
-      |> Enum.group_by(&(&1["createdAt"] |> Policy.parse_datetime!() |> Policy.wib_date()))
-      |> Enum.sort_by(fn {date, _receipts} -> date end, {:desc, Date})
-      |> Enum.take(7)
-      |> Enum.map(fn {_date, [newest | _older]} -> newest["runId"] end)
-      |> MapSet.new()
+    kept = retained_run_ids(receipts)
 
     Enum.each(receipts, fn receipt ->
       unless MapSet.member?(kept, receipt["runId"]) do
@@ -171,6 +151,17 @@ defmodule BnestApp.Backup.Run do
         |> then(&File.rm(Path.join(directory, &1)))
       end
     end)
+  end
+
+  @doc false
+  @spec retained_run_ids([map()]) :: MapSet.t(String.t())
+  def retained_run_ids(receipts) do
+    receipts
+    |> Enum.group_by(&(&1["createdAt"] |> Policy.parse_datetime!() |> Policy.wib_date()))
+    |> Enum.sort_by(fn {date, _receipts} -> date end, {:desc, Date})
+    |> Enum.take(7)
+    |> Enum.map(fn {_date, [newest | _older]} -> newest["runId"] end)
+    |> MapSet.new()
   end
 
   defp read_owned_receipt(path, directory, destination_id) do
@@ -247,8 +238,4 @@ defmodule BnestApp.Backup.Run do
       {:error, reason} -> raise "backup digest failed: #{inspect(reason)}"
     end
   end
-
-  defp nullable_iso(nil), do: nil
-  defp nullable_iso(value), do: iso8601(value)
-  defp iso8601(value), do: value |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 end

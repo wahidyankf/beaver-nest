@@ -16,6 +16,30 @@ defmodule BnestApp.Backup.Receipt do
 
   def valid?(_receipt, _destination_id), do: false
 
+  @doc false
+  @spec build(map(), map(), DateTime.t(), map()) :: map()
+  def build(claim, location, %DateTime{} = now, artifact) do
+    %{
+      "schemaVersion" => 1,
+      "ownershipScope" => @scope,
+      "destinationId" => location.destination_id,
+      "scheduleKey" => claim.schedule_key,
+      "claimKind" => claim.claim_kind,
+      "claimKey" => claim.claim_key,
+      "scheduledFor" => nullable_iso(claim.scheduled_for),
+      "runId" => claim.run_id,
+      "scheduleRevision" => claim.schedule_revision,
+      "createdAt" => now |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+      "sourceGeneration" => artifact.source_generation,
+      "artifactBasename" => artifact.basename,
+      "artifactSha256" => artifact.sha256,
+      "artifactBytes" => artifact.bytes,
+      "quickCheck" => artifact.quick_check,
+      "schemaVersions" => artifact.schema_versions,
+      "logicalProofSha256" => artifact.logical_proof_sha256
+    }
+  end
+
   defp valid_shape?(receipt), do: Enum.sort(Map.keys(receipt)) == Enum.sort(@required_keys)
 
   defp valid_owner?(receipt, destination_id) do
@@ -42,4 +66,7 @@ defmodule BnestApp.Backup.Receipt do
   rescue
     FunctionClauseError -> false
   end
+
+  defp nullable_iso(nil), do: nil
+  defp nullable_iso(value), do: value |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 end

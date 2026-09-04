@@ -7,10 +7,16 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   import Phoenix.ConnTest
   import Phoenix.LiveViewTest
 
+  alias BnestApp.AdminConfig.Registry, as: AdminRegistry
+  alias BnestApp.Backup.{Config, Run}
+  alias BnestApp.{Chat, DataRepository}
   alias BnestApp.Codex.FixtureModels
+  alias BnestApp.DataRepository.Import
   alias BnestApp.DataRepository.StorageCoordinator
-  alias BnestApp.Identity.Authorization
-  alias BnestApp.Identity.CredentialVerifier
+  alias BnestApp.DataRepository.Store, as: RecordStore
+  alias BnestApp.Identity.{Authorization, Bootstrap, CredentialVerifier, FileStore}
+  alias BnestApp.Release.Migrations.PersistentSchedules
+  alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Config, as: StorageConfig
@@ -19,6 +25,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Storage.Relocation, as: StorageRelocation
   alias BnestApp.Storage.Retirement, as: StorageRetirement
   alias BnestApp.TestRuntimeRoot
+
+  @behaviour_now ~U[2026-08-30 20:00:00Z]
 
   @impl true
   def open(%{conn: conn} = context, "/") do
@@ -791,11 +799,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       )
 
     Process.put(:bnest_behaviour_user_id, identity.user_id)
+    {:ok, token} = BnestApp.Identity.login(identity.username, identity.password)
 
     Map.merge(context, %{
-      conn: conn,
+      conn: Plug.Test.put_req_cookie(conn, "_bnest_identity", token),
       identity_role: role,
       authenticated: true,
+      token: token,
       user_id: identity.user_id
     })
   end
@@ -804,13 +814,33 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, :unauthenticated, _args),
     do: Map.merge(context, %{authenticated: false, conn: Phoenix.ConnTest.build_conn()})
 
-  def prepare_behaviour(context, :uninitialized, _args), do: Map.put(context, :setup_open, true)
+  def prepare_behaviour(context, :uninitialized, _args) do
+    runtime = TestRuntimeRoot.create!("authentication-bootstrap")
+    ExUnit.Callbacks.on_exit(fn -> TestRuntimeRoot.cleanup!(runtime) end)
+
+    Map.merge(context, %{
+      setup_open: true,
+      identity_store: RecordStore.new!(runtime.path),
+      identity_runtime: runtime
+    })
+  end
 
   def prepare_behaviour(context, :approved_account, _args),
     do: Map.put(context, :account_exists, true)
 
-  def prepare_behaviour(context, :approved_argon2_account, _args),
-    do: Map.merge(context, %{account_exists: true, verifier: "$argon2id$"})
+  def prepare_behaviour(context, :approved_argon2_account, _args) do
+    {username, password} = BnestAppWeb.ConnCase.test_credentials()
+    store = DataRepository.store()
+    {:ok, %{"userId" => user_id}} = FileStore.read_username(store, username)
+    {:ok, account} = FileStore.read_account(store, user_id)
+
+    Map.merge(context, %{
+      account_exists: true,
+      identity_password: password,
+      identity_store: store,
+      verifier: account["passwordVerifier"]
+    })
+  end
 
   def prepare_behaviour(context, :two_browser_sessions, _args) do
     {username, password} = BnestAppWeb.ConnCase.test_credentials()
@@ -825,6 +855,164 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, :two_isolated_users, _args),
     do: Map.merge(context, %{owner_a: "user-a", owner_b: "user-b"})
 
+  def prepare_behaviour(context, :recognized_browser_sources, _args),
+    do:
+      Map.merge(context, %{
+        central_store: DataRepository.store(),
+        browser_sources: recognized_browser_sources()
+      })
+
+  def prepare_behaviour(context, :absent_theme_source, _args),
+    do:
+      Map.merge(context, %{
+        central_store: DataRepository.store(),
+        browser_sources: [],
+        pending_behaviour_state: :absent_theme_source
+      })
+
+  def prepare_behaviour(context, :invalid_browser_source, _args) do
+    store = DataRepository.store()
+    {:ok, accepted} = Import.browser(store, context.user_id, chat_source())
+
+    Map.merge(context, %{
+      central_store: store,
+      accepted_before: RecordStore.read(store, :chat, context.user_id),
+      accepted_import: accepted,
+      browser_sources: [
+        %{"storageArea" => "localStorage", "storageKey" => "unknown", "payload" => "opaque"}
+      ]
+    })
+  end
+
+  def prepare_behaviour(context, :interrupted_import, _args) do
+    store = DataRepository.store()
+    {:ok, first} = Import.browser(store, context.user_id, chat_source())
+    Map.merge(context, %{central_store: store, first_import_id: first.import_id})
+  end
+
+  def prepare_behaviour(context, :stale_browser_revision, _args) do
+    store = DataRepository.store()
+    {:ok, _accepted} = Import.browser(store, context.user_id, chat_source())
+    {:ok, newer} = RecordStore.read(store, :chat, context.user_id)
+
+    stale_payload =
+      chat_source()["payload"] |> Jason.decode!() |> Map.put("model", "stale") |> Jason.encode!()
+
+    Map.merge(context, %{
+      central_store: store,
+      centralized_before: newer,
+      browser_sources: [Map.put(chat_source(), "payload", stale_payload)]
+    })
+  end
+
+  def prepare_behaviour(context, :recognized_and_unrelated_keys, _args) do
+    Map.merge(context, %{
+      central_store: DataRepository.store(),
+      browser_sources: [chat_source()],
+      browser_keys: %{"bnest.chat.v1" => chat_source()["payload"], "unrelated" => "keep"}
+    })
+  end
+
+  def prepare_behaviour(context, :unavailable_codex_thread, _args) do
+    {:ok, chat} = Chat.new("fixture-model", "medium") |> Chat.submit("Remember this transcript")
+
+    chat =
+      chat
+      |> Chat.update_assistant("Saved response")
+      |> Chat.complete()
+      |> Chat.put_thread_id("unavailable-thread")
+
+    Map.merge(context, %{centralized_chat: chat, transcript_before: chat.messages})
+  end
+
+  def prepare_behaviour(context, :no_backup_override, _args), do: prepare_default_backup(context)
+
+  def prepare_behaviour(context, :admin_opened_schedules, _args),
+    do: prepare_backup_destination(context)
+
+  def prepare_behaviour(context, :saved_daily_schedule, _args) do
+    ensure_scheduler_storage()
+    key = schedule_key("restart")
+    :ok = Store.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    future_wib = now |> DateTime.add(8 * 60 * 60) |> Calendar.strftime("%H:%M")
+
+    {:ok, _schedule} =
+      Store.update_daily(
+        key,
+        %{"daily_time_wib" => future_wib, "enabled" => "true", "revision" => "1"},
+        now
+      )
+
+    Map.merge(context, %{schedule_key: key, schedule_before_restart: Store.get_schedule(key)})
+  end
+
+  def prepare_behaviour(context, :multiple_missed_slots, _args) do
+    ensure_scheduler_storage()
+    key = schedule_key("catchup")
+    :ok = Store.put_test_schedule(key, "family", "fixture", @behaviour_now)
+    Map.put(context, :schedule_key, key)
+  end
+
+  def prepare_behaviour(context, :accepted_backup_claim, _args) do
+    ensure_scheduler_storage()
+    context = prepare_backup_destination(context)
+    key = schedule_key("backup")
+    :ok = Store.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
+    {:ok, location} = Config.save(context.backup_directory)
+    {:ok, claim} = Store.claim_setup(key, location.destination_id, @behaviour_now)
+    Map.merge(context, %{backup_claim: claim, backup_location: location})
+  end
+
+  def prepare_behaviour(context, :overlapping_coordinators, _args) do
+    ensure_scheduler_storage()
+    key = schedule_key("overlap")
+    :ok = Store.put_test_schedule(key, "family", "fixture", @behaviour_now)
+    Map.put(context, :schedule_key, key)
+  end
+
+  def prepare_behaviour(context, :contextual_schedules, _args) do
+    ensure_scheduler_storage()
+    key = schedule_key("family")
+    :ok = Store.put_test_schedule(key, "family", "fixture", @behaviour_now)
+    Map.put(context, :schedule_key, key)
+  end
+
+  def prepare_behaviour(context, :retention_fixture, _args) do
+    context = prepare_backup_destination(context)
+    unknown = Path.join(context.backup_directory, "keep-me.txt")
+    File.mkdir_p!(context.backup_directory)
+    File.write!(unknown, "synthetic-unowned")
+    previous = context.backup_directory <> "-previous"
+    File.mkdir_p!(previous)
+    File.write!(Path.join(previous, "previous-destination.txt"), "retain")
+    Map.merge(context, %{unknown_backup_file: unknown, previous_destination: previous})
+  end
+
+  def prepare_behaviour(context, :second_family_handler, _args) do
+    ensure_scheduler_storage()
+    key = schedule_key("second-family")
+    :ok = Store.put_test_schedule(key, "family", "fixture", @behaviour_now)
+    Map.put(context, :schedule_key, key)
+  end
+
+  def prepare_behaviour(context, :typed_settings_panels, _args),
+    do: Map.put(context, :declared_panels, AdminRegistry.panels())
+
+  def prepare_behaviour(context, :expiry_policies, _args) do
+    ensure_scheduler_storage()
+    key = schedule_key("expires")
+    :ok = Store.put_test_schedule(key, "family", "fixture", @behaviour_now, max_occurrences: 1)
+
+    policies = [
+      %{expiration_kind: "never"},
+      %{expiration_kind: "at", expires_at: DateTime.add(@behaviour_now, 60)},
+      %{expiration_kind: "after_occurrences", claimed_occurrences: 0, max_occurrences: 1}
+    ]
+
+    Map.merge(context, %{schedule_key: key, expiration_policies: policies})
+  end
+
   def prepare_behaviour(context, :no_storage_configuration, _args) do
     pointer = sqlite_storage_pointer_path()
     System.put_env("BNEST_STORAGE_CONFIG", pointer)
@@ -832,8 +1020,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :storage_pointer, pointer)
   end
 
-  def prepare_behaviour(context, :storage_ui_not_visited, _args), do: context
-  def prepare_behaviour(context, :migration_not_started, _args), do: context
+  def prepare_behaviour(context, :storage_ui_not_visited, _args),
+    do: Map.put(context, :storage_ui_visits, 0)
+
+  def prepare_behaviour(context, :migration_not_started, _args),
+    do: Map.put(context, :migration_attempts, 0)
 
   def prepare_behaviour(context, :admin_opened_storage_settings, _args) do
     context = prepare_behaviour(context, :no_storage_configuration, [])
@@ -858,8 +1049,6 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     |> Map.put(:sqlite_database_path, Path.join(runtime.sqlite_path, "bnest.sqlite3"))
     |> Map.put(:migration_identity, identity)
   end
-
-  def prepare_behaviour(context, :no_incompatible_writer, _args), do: context
 
   def prepare_behaviour(context, :migration_stopped_after_progress, _args) do
     context = prepare_behaviour(context, :flat_primary_default_location, [])
@@ -932,9 +1121,6 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, :denied_settings_visitor, _args),
     do: establish_identity(context, :child)
 
-  def prepare_behaviour(context, state, args),
-    do: Map.merge(context, %{pending_behaviour_state: state, pending_behaviour_args: args})
-
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
     response = get(context.conn, route)
@@ -967,10 +1153,19 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
         not CredentialVerifier.valid_password?(password)
       end)
 
+    accounts = [
+      %{"username" => "FamilyAdmin", "password" => "a_1", "roles" => ["admin"]},
+      %{"username" => "FamilyChild", "password" => "é_1", "roles" => ["children"]}
+    ]
+
+    first_result = Bootstrap.create(context.identity_store, accounts)
+    second_result = Bootstrap.create(context.identity_store, accounts)
+
     Map.merge(context, %{
       setup_open: false,
       setup_warning: true,
-      created_once: accepts_short? and accepts_long?,
+      bootstrap_first_result: first_result,
+      bootstrap_second_result: second_result,
       passwords_without_length_rule: accepts_short? and accepts_long?,
       password_requirements_enforced: rejects_missing_requirement?
     })
@@ -987,7 +1182,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :authenticated, false)
   end
 
-  def perform_behaviour(context, :reload_same_browser, _args), do: context
+  def perform_behaviour(context, :reload_same_browser, _args),
+    do: Map.put(context, :reload_result, BnestApp.Identity.current_user(context.token))
 
   def perform_behaviour(context, :logout_browser_a, _args) do
     :ok = BnestApp.Identity.logout(context.token_a)
@@ -1021,15 +1217,62 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     )
   end
 
-  def perform_behaviour(context, action, _args)
-      when action in [
-             :confirm_imports,
-             :retry_import,
-             :write_stale_record,
-             :accept_and_read_back,
-             :continue_chat
-           ] do
-    Map.put(context, :centralized_outcomes, centralized_outcomes(context, action))
+  def perform_behaviour(
+        %{pending_behaviour_state: :absent_theme_source} = context,
+        :confirm_imports,
+        _args
+      ) do
+    Map.put(context, :import_results, [
+      Import.absent_theme(context.central_store, context.user_id)
+    ])
+  end
+
+  def perform_behaviour(context, :confirm_imports, _args) do
+    results =
+      Enum.map(
+        context.browser_sources,
+        &Import.browser(context.central_store, context.user_id, &1)
+      )
+
+    Map.put(context, :import_results, results)
+  end
+
+  def perform_behaviour(context, :retry_import, _args) do
+    before = import_envelope_count(context.central_store, context.user_id)
+    result = Import.browser(context.central_store, context.user_id, chat_source())
+    Map.merge(context, %{envelopes_before_retry: before, retry_result: result})
+  end
+
+  def perform_behaviour(context, :write_stale_record, _args) do
+    [source] = context.browser_sources
+
+    Map.put(
+      context,
+      :stale_result,
+      Import.browser(context.central_store, context.user_id, source)
+    )
+  end
+
+  def perform_behaviour(context, :accept_and_read_back, _args) do
+    [source] = context.browser_sources
+    result = Import.browser(context.central_store, context.user_id, source)
+
+    keys =
+      if match?({:ok, _}, result),
+        do: Map.delete(context.browser_keys, source["storageKey"]),
+        else: context.browser_keys
+
+    Map.merge(context, %{accepted_result: result, browser_keys_after: keys})
+  end
+
+  def perform_behaviour(context, :continue_chat, _args) do
+    chat =
+      Chat.fail(
+        context.centralized_chat,
+        "The previous Codex thread was unavailable; started a fresh conversation."
+      )
+
+    Map.put(context, :continued_chat, %{chat | thread_id: nil})
   end
 
   def perform_behaviour(context, :start_managed_migration, _args) do
@@ -1143,66 +1386,153 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def perform_behaviour(context, :open_admin_settings, _args) do
     response = get(context.conn, "/admin/settings")
     home = get(context.conn, "/")
-
-    outcomes =
-      if response.status == 404 and
-           not String.contains?(home.resp_body, "Admin settings") and
-           not String.contains?(home.resp_body, "Schedules &amp; backups"),
-         do: [:not_found_before_reads, :no_admin_home_entry],
-         else: []
-
-    Map.merge(context, %{response: response, scheduled_backup_outcomes: outcomes})
+    Map.merge(context, %{response: response, home_response: home})
   end
 
   def perform_behaviour(context, :open_schedules_from_home, _args) do
     response = get(context.conn, "/admin/settings/schedules")
-
-    outcomes =
-      if response.status == 200 and String.contains?(response.resp_body, "Family schedules") and
-           String.contains?(response.resp_body, "Admin/system schedules"),
-         do: [:context_groups, :typed_backup_link],
-         else: []
-
-    Map.merge(context, %{response: response, scheduled_backup_outcomes: outcomes})
+    Map.put(context, :response, response)
   end
 
   def perform_behaviour(context, :open_admin_settings_from_home, _args) do
     response = get(context.conn, "/admin/settings")
-
-    outcomes =
-      if response.status == 200 and String.contains?(response.resp_body, "Data storage") and
-           String.contains?(response.resp_body, "Schedules &amp; backups"),
-         do: [:panels_discoverable, :owner_allowlists],
-         else: []
-
-    Map.merge(context, %{response: response, scheduled_backup_outcomes: outcomes})
+    Map.put(context, :response, response)
   end
 
-  def perform_behaviour(context, action, _args)
-      when action in [
-             :resolve_backup_destination,
-             :save_backup_override,
-             :restart_scheduler,
-             :reconcile_startup,
-             :run_backup_handler,
-             :reconcile_overlap,
-             :verify_new_backup,
-             :run_second_handler,
-             :reconcile_expiry
-           ] do
-    Map.put(context, :scheduled_backup_outcomes, scheduled_backup_outcomes(action))
+  def perform_behaviour(context, :resolve_backup_destination, _args) do
+    result = Config.resolve()
+
+    public_result =
+      case result do
+        {:ok, location} -> %{destination_id: location.destination_id}
+        {:error, reason} -> %{error: reason}
+      end
+
+    Map.merge(context, %{backup_resolution: result, public_backup_result: public_result})
   end
 
-  def perform_behaviour(context, action, args),
-    do: Map.merge(context, %{pending_behaviour_action: action, pending_behaviour_args: args})
+  def perform_behaviour(context, :save_backup_override, _args) do
+    result = Config.save(context.backup_directory)
+    {:ok, location} = result
+    key = schedule_key("save")
+    :ok = Store.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
+    before = Store.run_count()
+    {:ok, first} = Store.claim_setup(key, location.destination_id, @behaviour_now)
+    {:ok, second} = Store.claim_setup(key, location.destination_id, @behaviour_now)
+
+    Map.merge(context, %{
+      backup_save_result: result,
+      first_setup_claim: first,
+      second_setup_claim: second,
+      setup_run_delta: Store.run_count() - before
+    })
+  end
+
+  def perform_behaviour(context, :restart_scheduler, _args) do
+    before = context.schedule_before_restart
+    supervisor = Process.whereis(BnestApp.Supervisor)
+    scheduler = Process.whereis(BnestApp.Scheduler)
+    if is_pid(scheduler), do: Process.exit(scheduler, :kill)
+    await_scheduler_restart(supervisor, scheduler, 100)
+
+    Map.merge(context, %{
+      schedule_after_restart: Store.get_schedule(context.schedule_key),
+      scheduler_restarted?: true,
+      schedule_before_restart: before
+    })
+  end
+
+  def perform_behaviour(context, :reconcile_startup, _args) do
+    claims = Store.claim_due(@behaviour_now)
+    claim = Enum.find(claims, &(&1.schedule_key == context.schedule_key))
+
+    Map.merge(context, %{
+      reconciled_claim: claim,
+      reconciled_schedule: Store.get_schedule(context.schedule_key)
+    })
+  end
+
+  def perform_behaviour(context, :run_backup_handler, _args),
+    do: Map.put(context, :backup_execution, Run.execute(context.backup_claim, @behaviour_now))
+
+  def perform_behaviour(context, :reconcile_overlap, _args) do
+    claims =
+      1..2
+      |> Task.async_stream(fn _coordinator -> Store.claim_due(@behaviour_now) end,
+        max_concurrency: 2
+      )
+      |> Enum.flat_map(fn {:ok, rows} ->
+        Enum.filter(rows, &(&1.schedule_key == context.schedule_key))
+      end)
+
+    [claim] = claims
+
+    {:retryable, attempt_2} =
+      Store.fail_attempt(claim.run_id, claim.attempt, :capacity, @behaviour_now)
+
+    at_2 = DateTime.add(@behaviour_now, 5 * 60)
+    retried_2 = Enum.find(Store.claim_due(at_2), &(&1.run_id == claim.run_id))
+    {:retryable, attempt_3} = Store.fail_attempt(claim.run_id, retried_2.attempt, :capacity, at_2)
+    at_3 = DateTime.add(at_2, 30 * 60)
+    retried_3 = Enum.find(Store.claim_due(at_3), &(&1.run_id == claim.run_id))
+    {:failed, failed} = Store.fail_attempt(claim.run_id, retried_3.attempt, :capacity, at_3)
+
+    Map.merge(context, %{overlap_claims: claims, retry_attempts: [attempt_2, attempt_3, failed]})
+  end
+
+  def perform_behaviour(context, :verify_new_backup, _args) do
+    {:ok, location} = Config.save(context.backup_directory)
+    key = schedule_key("retention")
+    :ok = Store.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
+
+    receipts =
+      Enum.map(0..8, fn days ->
+        at = DateTime.add(@behaviour_now, -days * 86_400)
+        {:ok, claim} = Store.claim_setup(key, "#{location.destination_id}-#{days}", at)
+        {:ok, receipt} = Run.execute(claim, at)
+        receipt
+      end)
+
+    Map.put(context, :retention_receipts, receipts)
+  end
+
+  def perform_behaviour(context, :run_second_handler, _args) do
+    claim = Enum.find(Store.claim_due(@behaviour_now), &(&1.schedule_key == context.schedule_key))
+    result = Registry.execute(claim, @behaviour_now)
+    Map.merge(context, %{family_handler_claim: claim, family_handler_result: result})
+  end
+
+  def perform_behaviour(context, :reconcile_expiry, _args) do
+    initial = Store.claim_due(@behaviour_now)
+    first = Enum.find(initial, &(&1.schedule_key == context.schedule_key))
+
+    {:retryable, retry} =
+      Store.fail_attempt(first.run_id, first.attempt, :capacity, @behaviour_now)
+
+    later = Store.claim_due(DateTime.add(@behaviour_now, 86_400))
+
+    Map.merge(context, %{
+      expiration_eligibility:
+        Enum.map(context.expiration_policies, &Policy.eligible?(&1, @behaviour_now)),
+      expiration_first_claim: first,
+      expiration_retry: retry,
+      expiration_later_claims: later
+    })
+  end
 
   @impl true
   def behaviour_outcome?(context, :redirected_to_login, _args), do: context.redirected
   def behaviour_outcome?(context, :login_form_only, _args), do: context.login_form_only
   def behaviour_outcome?(context, :no_user_data_access, _args), do: context.redirected
   def behaviour_outcome?(context, :irreversible_warning, _args), do: context.setup_warning
-  def behaviour_outcome?(context, :accounts_created_once, _args), do: context.created_once
-  def behaviour_outcome?(context, :setup_closed, _args), do: not context.setup_open
+
+  def behaviour_outcome?(context, :accounts_created_once, _args),
+    do:
+      match?({:ok, [_admin, _child]}, context.bootstrap_first_result) and
+        context.bootstrap_second_result == {:error, :closed}
+
+  def behaviour_outcome?(context, :setup_closed, _args),
+    do: not context.setup_open and Bootstrap.status(context.identity_store) == :closed
 
   def behaviour_outcome?(context, :passwords_without_length_rule, _args),
     do: context.passwords_without_length_rule
@@ -1215,8 +1545,21 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :current_browser_logged_out, _args),
     do: not context.authenticated
 
-  def behaviour_outcome?(%{verifier: "$argon2id$"}, :no_plaintext_password, _args), do: true
-  def behaviour_outcome?(context, :same_browser_authenticated, _args), do: context.authenticated
+  def behaviour_outcome?(context, :no_plaintext_password, _args) do
+    bytes =
+      context.identity_store.root
+      |> Path.join("**/*.json")
+      |> Path.wildcard()
+      |> Enum.map_join(&File.read!/1)
+
+    String.starts_with?(context.verifier, "$argon2id$") and
+      CredentialVerifier.verify(context.identity_password, context.verifier) and
+      not String.contains?(bytes, context.identity_password)
+  end
+
+  def behaviour_outcome?(context, :same_browser_authenticated, _args),
+    do: match?({:ok, %{"userId" => _user_id}}, context.reload_result)
+
   def behaviour_outcome?(context, :browser_a_logged_out, _args), do: not context.browser_a
   def behaviour_outcome?(context, :browser_b_authenticated, _args), do: context.browser_b
   def behaviour_outcome?(context, :operation_allowed, _args), do: context.operation_allowed
@@ -1232,7 +1575,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :sqlite_under_production_data, _args),
     do: context.storage_config["databaseDirectory"] == StorageLocation.default_directory()
 
-  def behaviour_outcome?(_context, :no_browser_confirmation, _args), do: true
+  def behaviour_outcome?(context, :no_browser_confirmation, _args),
+    do: context.storage_ui_visits == 0
 
   def behaviour_outcome?(context, :folder_normalized_with_fixed_filename, _args) do
     match?({:ok, %{"databaseFilename" => "bnest.sqlite3"}}, context.persist_result) and
@@ -1370,93 +1714,229 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     ) and File.exists?(Path.join(context.flat_root, ".gitkeep"))
   end
 
-  def behaviour_outcome?(context, outcome, _args)
-      when outcome in [
-             :default_backup_folder,
-             :no_private_path,
-             :atomic_backup_config,
-             :one_setup_claim,
-             :schedule_persisted,
-             :same_future_slot,
-             :latest_slot_only,
-             :next_future_day,
-             :authoritative_vacuum,
-             :independent_proof,
-             :single_nonoverlap_claim,
-             :bounded_attempts,
-             :context_groups,
-             :typed_backup_link,
-             :not_found_before_reads,
-             :no_admin_home_entry,
-             :owned_retention,
-             :preserve_unowned,
-             :shared_execution,
-             :shared_inventory,
-             :panels_discoverable,
-             :owner_allowlists,
-             :expiry_blocks_future,
-             :retry_occurrence_rules
-           ] do
-    outcome in Map.get(context, :scheduled_backup_outcomes, [])
+  def behaviour_outcome?(context, :immutable_envelopes, _args) do
+    Enum.all?(context.import_results, fn
+      {:ok, %{import_id: import_id}} ->
+        match?(
+          {:ok, %{"payloadEncoding" => "utf8-string"}},
+          RecordStore.read(context.central_store, :browser_import, {context.user_id, import_id})
+        )
+
+      _failure ->
+        false
+    end)
   end
 
-  def behaviour_outcome?(context, outcome, _args) do
-    outcome in Map.get(context, :centralized_outcomes, [])
+  def behaviour_outcome?(context, :normalized_records_read, _args) do
+    Enum.all?([:chat, :sifat_allah, :theme], fn type ->
+      case RecordStore.read(context.central_store, type, context.user_id) do
+        {:ok, %{"ownerId" => owner}} -> owner == context.user_id
+        _missing -> false
+      end
+    end)
   end
 
-  defp scheduled_backup_outcomes(:resolve_backup_destination),
-    do: [:default_backup_folder, :no_private_path]
+  def behaviour_outcome?(context, :absent_theme_recorded, _args) do
+    with [{:ok, %{import_id: import_id}}] <- context.import_results,
+         {:ok, %{"recoverySource" => %{"kind" => "browser-absence"}}} <-
+           RecordStore.read(context.central_store, :manifest, import_id) do
+      true
+    else
+      _failure -> false
+    end
+  end
 
-  defp scheduled_backup_outcomes(:save_backup_override),
-    do: [:atomic_backup_config, :one_setup_claim]
+  def behaviour_outcome?(context, :no_theme_preference, _args),
+    do: RecordStore.read(context.central_store, :theme, context.user_id) == {:error, :missing}
 
-  defp scheduled_backup_outcomes(:restart_scheduler),
-    do: [:schedule_persisted, :same_future_slot]
+  def behaviour_outcome?(context, :safe_rejected_import, _args),
+    do: match?([{:error, :unsupported_source, _manifest}], context.import_results)
 
-  defp scheduled_backup_outcomes(:reconcile_startup),
-    do: [:latest_slot_only, :next_future_day]
+  def behaviour_outcome?(context, :source_and_record_unchanged, _args),
+    do: RecordStore.read(context.central_store, :chat, context.user_id) == context.accepted_before
 
-  defp scheduled_backup_outcomes(:run_backup_handler),
-    do: [:authoritative_vacuum, :independent_proof]
+  def behaviour_outcome?(context, :idempotent_import_identity, _args),
+    do: match?({:ok, %{import_id: id}} when id == context.first_import_id, context.retry_result)
 
-  defp scheduled_backup_outcomes(:reconcile_overlap),
-    do: [:single_nonoverlap_claim, :bounded_attempts]
+  def behaviour_outcome?(context, :accepted_data_preserved, _args),
+    do:
+      import_envelope_count(context.central_store, context.user_id) ==
+        context.envelopes_before_retry and
+        match?(
+          {:ok, %{"recordType" => "chat"}},
+          RecordStore.read(context.central_store, :chat, context.user_id)
+        )
 
-  defp scheduled_backup_outcomes(:verify_new_backup),
-    do: [:owned_retention, :preserve_unowned]
+  def behaviour_outcome?(context, :newer_record_preserved, _args),
+    do:
+      RecordStore.read(context.central_store, :chat, context.user_id) ==
+        {:ok, context.centralized_before}
 
-  defp scheduled_backup_outcomes(:run_second_handler),
-    do: [:shared_execution, :shared_inventory]
+  def behaviour_outcome?(context, :refresh_required, _args),
+    do: match?({:error, :stale_revision, %{"status" => "retryable"}}, context.stale_result)
 
-  defp scheduled_backup_outcomes(:reconcile_expiry),
-    do: [:expiry_blocks_future, :retry_occurrence_rules]
+  def behaviour_outcome?(context, :only_accepted_key_cleared, _args),
+    do: context.browser_keys_after == %{"unrelated" => "keep"}
 
-  defp centralized_outcomes(
-         %{pending_behaviour_state: :recognized_browser_sources},
-         :confirm_imports
-       ),
-       do: [:immutable_envelopes, :normalized_records_read]
+  def behaviour_outcome?(context, :server_only_persistence, _args),
+    do:
+      match?(
+        {:ok, %{"recordType" => "chat"}},
+        RecordStore.read(context.central_store, :chat, context.user_id)
+      )
 
-  defp centralized_outcomes(%{pending_behaviour_state: :absent_theme_source}, :confirm_imports),
-    do: [:absent_theme_recorded, :no_theme_preference]
+  def behaviour_outcome?(context, :transcript_preserved, _args),
+    do: context.continued_chat.messages == context.transcript_before
 
-  defp centralized_outcomes(
-         %{pending_behaviour_state: :invalid_browser_source},
-         :confirm_imports
-       ),
-       do: [:safe_rejected_import, :source_and_record_unchanged]
+  def behaviour_outcome?(context, :fresh_conversation_reported, _args),
+    do:
+      is_nil(context.continued_chat.thread_id) and
+        String.contains?(context.continued_chat.error, "fresh conversation")
 
-  defp centralized_outcomes(_context, :retry_import),
-    do: [:idempotent_import_identity, :accepted_data_preserved]
+  def behaviour_outcome?(context, :default_backup_folder, _args),
+    do:
+      match?(
+        {:ok, %{directory: directory}} when directory == context.default_backup_directory,
+        context.backup_resolution
+      )
 
-  defp centralized_outcomes(_context, :write_stale_record),
-    do: [:newer_record_preserved, :refresh_required]
+  def behaviour_outcome?(context, :no_private_path, _args),
+    do:
+      not String.contains?(
+        inspect(context.public_backup_result),
+        context.default_backup_directory
+      ) and
+        not Map.has_key?(context.public_backup_result, :directory)
 
-  defp centralized_outcomes(_context, :accept_and_read_back),
-    do: [:only_accepted_key_cleared, :server_only_persistence]
+  def behaviour_outcome?(context, :atomic_backup_config, _args) do
+    with {:ok, location} <- context.backup_save_result,
+         {:ok, bytes} <- File.read(context.backup_config_path),
+         {:ok, %{"destinationDirectory" => directory, "schemaVersion" => 1}} <-
+           Jason.decode(bytes),
+         %File.Stat{mode: mode} <- File.stat!(context.backup_config_path) do
+      directory == location.directory and Bitwise.band(mode, 0o777) == 0o600 and
+        Path.wildcard(context.backup_config_path <> ".partial-*") == []
+    else
+      _failure -> false
+    end
+  end
 
-  defp centralized_outcomes(_context, :continue_chat),
-    do: [:transcript_preserved, :fresh_conversation_reported]
+  def behaviour_outcome?(context, :one_setup_claim, _args),
+    do:
+      context.first_setup_claim.run_id == context.second_setup_claim.run_id and
+        context.setup_run_delta == 1
+
+  def behaviour_outcome?(context, :schedule_persisted, _args),
+    do: context.scheduler_restarted? and context.schedule_after_restart.enabled
+
+  def behaviour_outcome?(context, :same_future_slot, _args),
+    do: context.schedule_after_restart.next_run_at == context.schedule_before_restart.next_run_at
+
+  def behaviour_outcome?(context, :latest_slot_only, _args),
+    do:
+      context.reconciled_claim.scheduled_for ==
+        Policy.latest_slot(context.reconciled_schedule.daily_at_utc, @behaviour_now)
+
+  def behaviour_outcome?(context, :next_future_day, _args),
+    do:
+      context.reconciled_schedule.next_run_at ==
+        Policy.next_slot(context.reconciled_schedule.daily_at_utc, @behaviour_now)
+
+  def behaviour_outcome?(context, :authoritative_vacuum, _args) do
+    case context.backup_execution do
+      {:ok, receipt} ->
+        File.regular?(Path.join(context.backup_location.directory, receipt["artifactBasename"])) and
+          receipt["sourceGeneration"] == StorageConfig.database_generation()
+
+      _failure ->
+        false
+    end
+  end
+
+  def behaviour_outcome?(context, :independent_proof, _args),
+    do:
+      match?(
+        {:ok, %{"quickCheck" => "ok", "logicalProofSha256" => proof}} when byte_size(proof) == 64,
+        context.backup_execution
+      )
+
+  def behaviour_outcome?(context, :single_nonoverlap_claim, _args),
+    do: length(context.overlap_claims) == 1
+
+  def behaviour_outcome?(context, :bounded_attempts, _args),
+    do:
+      Enum.map(context.retry_attempts, & &1.attempt) == [2, 3, 3] and
+        List.last(context.retry_attempts).state == "failed"
+
+  def behaviour_outcome?(context, :context_groups, _args),
+    do:
+      context.response.status == 200 and
+        String.contains?(context.response.resp_body, "Family schedules") and
+        String.contains?(context.response.resp_body, "Admin/system schedules")
+
+  def behaviour_outcome?(context, :typed_backup_link, _args),
+    do:
+      String.contains?(
+        context.response.resp_body,
+        ~s(href="/admin/settings/schedules")
+      )
+
+  def behaviour_outcome?(context, :not_found_before_reads, _args),
+    do: context.response.status == 404 and context.response.resp_body == "Not found"
+
+  def behaviour_outcome?(context, :no_admin_home_entry, _args),
+    do:
+      not String.contains?(context.home_response.resp_body, "Admin settings") and
+        not String.contains?(context.home_response.resp_body, "Schedules &amp; backups")
+
+  def behaviour_outcome?(context, :owned_retention, _args),
+    do: length(Run.owned_receipts(context.backup_directory)) == 7
+
+  def behaviour_outcome?(context, :preserve_unowned, _args),
+    do:
+      File.exists?(context.unknown_backup_file) and
+        File.exists?(Path.join(context.previous_destination, "previous-destination.txt"))
+
+  def behaviour_outcome?(context, :shared_execution, _args),
+    do: match?({:ok, %{"artifactBasename" => nil}}, context.family_handler_result)
+
+  def behaviour_outcome?(context, :shared_inventory, _args),
+    do:
+      Enum.any?(Store.family_inventory(), fn schedule ->
+        schedule.schedule_key == context.schedule_key and schedule.last_run_state == "verified"
+      end)
+
+  def behaviour_outcome?(context, :panels_discoverable, _args),
+    do:
+      context.response.status == 200 and
+        Enum.all?(context.declared_panels, fn panel ->
+          String.contains?(context.response.resp_body, String.replace(panel.label, "&", "&amp;"))
+        end)
+
+  def behaviour_outcome?(context, :owner_allowlists, _args),
+    do:
+      Enum.all?(context.declared_panels, fn panel ->
+        is_atom(panel.owner) and is_list(panel.editable_fields) and
+          Enum.uniq(panel.editable_fields) == panel.editable_fields
+      end)
+
+  def behaviour_outcome?(context, :expiry_blocks_future, _args) do
+    same_schedule_claims =
+      Enum.filter(context.expiration_later_claims, &(&1.schedule_key == context.schedule_key))
+
+    context.expiration_eligibility == [true, true, true] and
+      match?(
+        [%{run_id: run_id, occurrence_number: 1, attempt: 2}]
+        when run_id == context.expiration_first_claim.run_id,
+        same_schedule_claims
+      )
+  end
+
+  def behaviour_outcome?(context, :retry_occurrence_rules, _args),
+    do:
+      context.expiration_retry.occurrence_number ==
+        context.expiration_first_claim.occurrence_number and
+        context.expiration_retry.attempt == 2
 
   defp await_push_event(_view, "persist-chat") do
     user_id = Process.get(:bnest_behaviour_user_id)
@@ -1594,4 +2074,97 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   defp effort_label("xhigh"), do: "XHigh"
   defp effort_label(effort), do: String.capitalize(effort)
+
+  defp import_envelope_count(store, owner_id) do
+    store.root
+    |> Path.join("users/#{owner_id}/imports/*.json")
+    |> Path.wildcard()
+    |> length()
+  end
+
+  defp recognized_browser_sources, do: [chat_source(), learning_source(), theme_source()]
+
+  defp chat_source do
+    %{
+      "storageArea" => "sessionStorage",
+      "storageKey" => "bnest.chat.v1",
+      "payload" =>
+        Jason.encode!(%{
+          "version" => 2,
+          "thread_id" => nil,
+          "model" => "fixture-model",
+          "reasoning_effort" => "medium",
+          "messages" => []
+        })
+    }
+  end
+
+  defp learning_source do
+    %{
+      "storageArea" => "localStorage",
+      "storageKey" => "bnest.sifat-allah.v1",
+      "payload" =>
+        Jason.encode!(Map.put(SifatAllah.progress(), "session", %{"mode" => "dashboard"}))
+    }
+  end
+
+  defp theme_source,
+    do: %{"storageArea" => "localStorage", "storageKey" => "phx:theme", "payload" => "dark"}
+
+  defp prepare_default_backup(context) do
+    context = prepare_backup_destination(context)
+    repository = Path.join(context.backup_fixture_root, "repository")
+    File.mkdir_p!(repository)
+    File.write!(Path.join(repository, ".gitignore"), "/data/*\n")
+    {_output, 0} = System.cmd("git", ["init", "--quiet", repository])
+    previous = System.get_env("BNEST_REPOSITORY_ROOT")
+    System.put_env("BNEST_REPOSITORY_ROOT", repository)
+    ExUnit.Callbacks.on_exit(fn -> restore_environment("BNEST_REPOSITORY_ROOT", previous) end)
+
+    Map.put(context, :default_backup_directory, Path.join(repository, "data/backup"))
+  end
+
+  defp prepare_backup_destination(context) do
+    ensure_scheduler_storage()
+    {temporary_root, 0} = System.cmd("realpath", [System.tmp_dir!()])
+    root = Path.join(String.trim(temporary_root), "bnest-behaviour-backup-" <> unique_suffix())
+    backup_directory = Path.join(root, "destination")
+    config_path = Path.join(root, "configuration/backup.json")
+    previous = System.get_env("BNEST_BACKUP_CONFIG")
+    System.put_env("BNEST_BACKUP_CONFIG", config_path)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      restore_environment("BNEST_BACKUP_CONFIG", previous)
+      File.rm_rf(root)
+    end)
+
+    Map.merge(context, %{
+      backup_config_path: config_path,
+      backup_directory: backup_directory,
+      backup_fixture_root: root
+    })
+  end
+
+  defp restore_environment(name, nil), do: System.delete_env(name)
+  defp restore_environment(name, value), do: System.put_env(name, value)
+  defp schedule_key(prefix), do: "bdd-#{prefix}-#{unique_suffix()}"
+
+  defp ensure_scheduler_storage do
+    :ok = StorageCoordinator.ensure_started!(StorageConfig.resolved_database_path())
+    :ok = PersistentSchedules.apply_and_verify!(@behaviour_now)
+  end
+
+  defp await_scheduler_restart(_supervisor, _old_scheduler, 0),
+    do: raise("scheduler did not restart")
+
+  defp await_scheduler_restart(supervisor, old_scheduler, attempts) do
+    scheduler = Process.whereis(BnestApp.Scheduler)
+
+    if is_pid(supervisor) and is_pid(scheduler) and scheduler != old_scheduler do
+      scheduler
+    else
+      Process.sleep(10)
+      await_scheduler_restart(supervisor, old_scheduler, attempts - 1)
+    end
+  end
 end

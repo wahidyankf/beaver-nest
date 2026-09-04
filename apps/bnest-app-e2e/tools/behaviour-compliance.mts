@@ -2,6 +2,17 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 const scenarioPattern = /^(?:Scenario(?: Outline| Template)?|Example):/iu;
+const exemptionTags = new Set(["integration-exempt", "e2e-exempt"]);
+const forbiddenTags = new Set([
+  "unit-exempt",
+  "no-unit",
+  "no-integration",
+  "no-e2e",
+]);
+const exemptionCommentPattern =
+  /^# Exemption\((integration|e2e)\): (.+); alternative-proof: (.+)$/u;
+const invalidReasonPattern =
+  /\b(?:hard|slow|flaky|not yet implemented|todo)\b/iu;
 
 interface FeatureState {
   currentScenario?: string;
@@ -97,6 +108,7 @@ export function validateFeatureSource(
   }
 
   finishScenario(resourceName, state, errors);
+  errors.push(...validateExemptionPolicy(resourceName, source));
 
   if (!state.hasFeature) {
     errors.push(`${resourceName}: missing Feature: declaration.`);
@@ -107,6 +119,124 @@ export function validateFeatureSource(
   }
 
   return errors;
+}
+
+type TagReference = { line: number; name: string };
+
+function validateExemptionPolicy(
+  resourceName: string,
+  source: string,
+): string[] {
+  const errors: string[] = [];
+  const lines = source
+    .replaceAll("\r\n", "\n")
+    .replaceAll("\r", "\n")
+    .split("\n");
+  let pending: TagReference[] = [];
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    const lineNumber = index + 1;
+    if (trimmed.startsWith("@")) {
+      pending.push(
+        ...validateTagLine(resourceName, trimmed, lineNumber, errors),
+      );
+      return;
+    }
+    if (gherkinDeclaration(trimmed)) {
+      errors.push(
+        ...declarationErrors(resourceName, lines, pending, trimmed, lineNumber),
+      );
+      pending = [];
+      return;
+    }
+    if (trimmed !== "" && !trimmed.startsWith("#") && pending.length > 0) {
+      errors.push(
+        `${resourceName}:${lineNumber}: tags must be followed by their Gherkin declaration.`,
+      );
+      pending = [];
+    }
+  });
+
+  if (pending.length > 0)
+    errors.push(
+      `${resourceName}: dangling tags are not attached to a scenario.`,
+    );
+  return errors;
+}
+
+function validateTagLine(
+  resourceName: string,
+  line: string,
+  lineNumber: number,
+  errors: string[],
+): TagReference[] {
+  return line
+    .split(/\s+/u)
+    .filter((part) => part.startsWith("@"))
+    .map((part) => part.slice(1))
+    .map((name) => {
+      if (forbiddenTags.has(name))
+        errors.push(
+          `${resourceName}:${lineNumber}: @${name} is forbidden; unit has no exemption and higher layers use @integration-exempt or @e2e-exempt.`,
+        );
+      return { line: lineNumber, name };
+    });
+}
+
+function declarationErrors(
+  resourceName: string,
+  lines: string[],
+  pending: TagReference[],
+  declaration: string,
+  lineNumber: number,
+): string[] {
+  const exemptions = pending.filter(({ name }) => exemptionTags.has(name));
+  if (exemptions.length === 0) return [];
+  const errors = exemptions.flatMap((tag) =>
+    documentedExemptionErrors(resourceName, lines, tag),
+  );
+  if (!scenarioPattern.test(declaration))
+    errors.push(
+      `${resourceName}:${lineNumber}: exemption tags may only annotate a Scenario or Scenario Outline.`,
+    );
+  if (new Set(exemptions.map(({ name }) => name)).size > 1)
+    errors.push(
+      `${resourceName}:${lineNumber}: a scenario cannot be both @integration-exempt and @e2e-exempt.`,
+    );
+  return errors;
+}
+
+function documentedExemptionErrors(
+  resourceName: string,
+  lines: string[],
+  exemption: TagReference,
+): string[] {
+  const match = exemptionCommentPattern.exec(
+    lines[exemption.line - 2]?.trim() ?? "",
+  );
+  const layer = exemption.name.replace("-exempt", "");
+  if (match === null || match[1] !== layer)
+    return [
+      `${resourceName}:${exemption.line}: @${exemption.name} requires the immediately preceding comment ` +
+        `'# Exemption(${layer}): <reason>; alternative-proof: <Nx target/scenario>'.`,
+    ];
+  const errors: string[] = [];
+  if (invalidReasonPattern.test(match[2] ?? ""))
+    errors.push(
+      `${resourceName}:${exemption.line}: an exemption cannot be justified by difficulty, speed, flakiness, or missing implementation.`,
+    );
+  if (!/^[a-z0-9-]+:test(?::[a-z0-9-]+)*\s+\/\s+\S/iu.test(match[3] ?? ""))
+    errors.push(
+      `${resourceName}:${exemption.line}: alternative-proof must name an Nx test target and scenario after ' / '.`,
+    );
+  return errors;
+}
+
+function gherkinDeclaration(line: string): boolean {
+  return /^(?:Feature|Rule|Background|Scenario(?: Outline| Template)?|Examples?|Example):/iu.test(
+    line,
+  );
 }
 
 export async function findFiles(

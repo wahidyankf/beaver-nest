@@ -52,7 +52,8 @@ defmodule BnestApp.Identity do
   def handle_call(:setup_status, _from, source),
     do: {:reply, Bootstrap.status(resolve_store(source)), source}
 
-  defp login(store, username, password) do
+  @doc false
+  def login(store, username, password) do
     with {:ok, {_display, normalized}} <- FileStore.normalize_username(username),
          {:ok, %{"userId" => user_id}} <- FileStore.read_username(store, normalized),
          {:ok, account} <- FileStore.read_account(store, user_id),

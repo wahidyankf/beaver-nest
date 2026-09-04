@@ -1,7 +1,7 @@
 defmodule BnestApp.DataRepository.Manifest do
   @moduledoc false
 
-  alias BnestApp.DataRepository.Store
+  alias BnestApp.DataRepository.Backend
 
   @spec identity(String.t(), String.t(), String.t(), String.t()) :: {String.t(), String.t()}
   def identity(owner_id, storage_area, storage_key, payload) do
@@ -20,7 +20,7 @@ defmodule BnestApp.DataRepository.Manifest do
     {import_id, checksum} = identity(owner_id, storage_area, storage_key, payload)
     record = record(import_id, owner_id, storage_key, checksum, "pending", 1, nil)
 
-    case Store.put_new(store, :manifest, import_id, record) do
+    case Backend.put_new(store, :manifest, import_id, record) do
       {:ok, manifest} -> {:ok, manifest}
       {:error, :exists} -> resume(store, record)
       {:error, _reason} -> {:error, :write_failed}
@@ -38,7 +38,7 @@ defmodule BnestApp.DataRepository.Manifest do
         "completedAt" => completed_at
     }
 
-    case Store.replace(store, :manifest, manifest["importId"], updated) do
+    case Backend.replace(store, :manifest, manifest["importId"], updated) do
       {:ok, result} -> {:ok, result}
       {:error, _reason} -> {:error, :write_failed}
     end
@@ -50,9 +50,9 @@ defmodule BnestApp.DataRepository.Manifest do
     {import_id, checksum} = identity(owner_id, storage_area, storage_key, payload)
     record = record(import_id, owner_id, storage_key, checksum, "rejected", 1, failure)
 
-    case Store.put_new(store, :manifest, import_id, record) do
+    case Backend.put_new(store, :manifest, import_id, record) do
       {:ok, manifest} -> {:ok, manifest}
-      {:error, :exists} -> Store.read(store, :manifest, import_id)
+      {:error, :exists} -> Backend.read(store, :manifest, import_id)
       {:error, _reason} -> {:error, :write_failed}
     end
   end
@@ -67,9 +67,9 @@ defmodule BnestApp.DataRepository.Manifest do
       |> put_in(["recoverySource", "kind"], "browser-absence")
       |> put_in(["recoverySource", "relativePathTemplate"], "browser/localStorage/phx:theme")
 
-    case Store.put_new(store, :manifest, import_id, record) do
+    case Backend.put_new(store, :manifest, import_id, record) do
       {:ok, manifest} -> {:ok, manifest}
-      {:error, :exists} -> Store.read(store, :manifest, import_id)
+      {:error, :exists} -> Backend.read(store, :manifest, import_id)
       {:error, _reason} -> {:error, :write_failed}
     end
   end
@@ -77,7 +77,7 @@ defmodule BnestApp.DataRepository.Manifest do
   defp resume(store, expected) do
     import_id = expected["importId"]
 
-    case Store.read(store, :manifest, import_id) do
+    case Backend.read(store, :manifest, import_id) do
       {:ok, %{"status" => "accepted"} = manifest} ->
         {:accepted, manifest}
 
@@ -91,7 +91,7 @@ defmodule BnestApp.DataRepository.Manifest do
             "failureCategory" => nil
         }
 
-        case Store.replace(store, :manifest, import_id, resumed) do
+        case Backend.replace(store, :manifest, import_id, resumed) do
           {:ok, result} -> {:ok, result}
           {:error, _reason} -> {:error, :write_failed}
         end

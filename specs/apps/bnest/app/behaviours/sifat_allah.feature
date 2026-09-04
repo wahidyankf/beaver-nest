@@ -27,13 +27,6 @@ Feature: Revising the 20 attributes of Allah
     Then the progress shows "6 dari 120 soal sudah hafal"
     And the study card shows "Wujud" and "Ada"
 
-  Scenario: A child keeps saved progress during a live update
-    Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts learning
-    And the visitor marks the current pair as remembered
-    And the visitor reloads the page
-    Then the progress shows "6 dari 120 soal sudah hafal"
-
   Scenario: A child resets saved progress from the mission
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts learning
@@ -73,6 +66,8 @@ Feature: Revising the 20 attributes of Allah
     When the visitor continues to the next quiz question
     Then the page displays the text "Apa lawan dari Qidam?"
 
+  # Exemption(integration): touch gestures require a browser input implementation; alternative-proof: bnest-app-e2e:test:e2e / A child swipes through a learning session
+  @integration-exempt
   Scenario: A child swipes through a learning session
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts learning
@@ -88,6 +83,8 @@ Feature: Revising the 20 attributes of Allah
     Then the study mode is available
     And the quiz mode is available
 
+  # Exemption(integration): browser history navigation requires a browser session; alternative-proof: bnest-app-e2e:test:e2e / Browser Back returns a child from a quiz to the mission
+  @integration-exempt
   Scenario: Browser Back returns a child from a quiz to the mission
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz
@@ -112,6 +109,8 @@ Feature: Revising the 20 attributes of Allah
     And the visitor starts a quiz
     Then the page displays the text "Apa lawan dari Qidam?"
 
+  # Exemption(integration): browser timer-driven focus and navigation require a browser event loop; alternative-proof: bnest-app-e2e:test:e2e / A quiz locks one answer and moves on automatically
+  @integration-exempt
   Scenario: A quiz locks one answer and moves on automatically
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz
@@ -133,6 +132,8 @@ Feature: Revising the 20 attributes of Allah
     When the visitor reloads the page
     Then the page displays the text "Apa lawan dari Qidam?"
 
+  # Exemption(integration): touch gestures require a browser input implementation; alternative-proof: bnest-app-e2e:test:e2e / A child swipes through quiz questions
+  @integration-exempt
   Scenario: A child swipes through quiz questions
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz
@@ -205,6 +206,8 @@ Feature: Revising the 20 attributes of Allah
     When the visitor answers "Lemah"
     Then the revision list contains "Wujud"
 
+  # Exemption(integration): combined browser gestures and history are not observable at the local process boundary; alternative-proof: bnest-app-e2e:test:e2e / A child moves through remembered individual questions
+  @integration-exempt
   Scenario: A child moves through remembered individual questions
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts learning

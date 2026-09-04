@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { TestInfo } from "@playwright/test";
@@ -104,6 +105,7 @@ export function isolatedTestIdentity(testInfo: TestInfo): TestIdentity {
     "childAdmin",
   );
   seedAccount(base.parent.username, identity.parent.username, digest, "parent");
+  syncAuthoritativeSqlite();
   return identity;
 }
 
@@ -112,7 +114,7 @@ export function isolatedLoadIdentities(
   count: number,
 ): Array<{ password: string; username: string }> {
   const source = testIdentityForProject(testInfo.project.name).admin;
-  return Array.from({ length: count }, (_, index) => {
+  const loadIdentities = Array.from({ length: count }, (_, index) => {
     const digest = createHash("sha256")
       .update(
         `${testInfo.project.name}:${testInfo.file}:${testInfo.title}:load:${index}`,
@@ -123,6 +125,8 @@ export function isolatedLoadIdentities(
     seedAccount(source.username, username, digest, "admin");
     return { password: source.password, username };
   });
+  syncAuthoritativeSqlite();
+  return loadIdentities;
 }
 
 export function userDataRelativePath(username: string): string {
@@ -181,6 +185,34 @@ function seedAccount(
 
 function readJson(file: string): Record<string, unknown> {
   return JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+}
+
+function syncAuthoritativeSqlite(): void {
+  const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
+  if (!root) return;
+  const pointerPath =
+    process.env["BNEST_STORAGE_CONFIG"] ??
+    path.join(root, "storage-config", "storage.json");
+  if (!existsSync(pointerPath)) return;
+  if (readJson(pointerPath)["phase"] !== "sqlite_primary") return;
+
+  const result = spawnSync("mix", ["bnest.storage.migrate", "--root", root], {
+    cwd: path.join(process.cwd(), "apps/bnest-app"),
+    env: {
+      ...process.env,
+      BNEST_RUNTIME_ROOT: root,
+      BNEST_STORAGE_CONFIG: pointerPath,
+      BNEST_TEST_LAYER: "integration",
+      MIX_ENV: "test",
+    },
+    encoding: "utf8",
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(
+      `failed to sync E2E identity into SQLite: ${result.stderr}`,
+    );
+  }
 }
 
 function rolesFor(role: "admin" | "child" | "childAdmin" | "parent"): string[] {

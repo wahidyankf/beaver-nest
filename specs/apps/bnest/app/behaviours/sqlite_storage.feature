@@ -32,7 +32,6 @@ Feature: Bnest SQLite storage
 
   Scenario: Managed migration moves every recognized flat-file record
     Given a flat-primary installation has no custom storage location
-    And no incompatible release slot can write
     When managed storage migration runs without a UI visit
     Then Bnest inventories records in deterministic path order
     And Bnest writes the database under the resolved storage directory
@@ -66,6 +65,8 @@ Feature: Bnest SQLite storage
     Then Bnest denies the operation
     And Bnest reveals no host path or migration inventory
 
+  # Exemption(integration): routed promotion and automatic reconnect cross the network boundary; alternative-proof: bnest-app-e2e:test:e2e / Routed client reconnects across compatible SQLite rollout
+  @integration-exempt
   Scenario: Routed client reconnects across compatible SQLite rollout
     Given the current Caddy route is healthy and a connected user has acknowledged state
     When a revision-compatible candidate is promoted

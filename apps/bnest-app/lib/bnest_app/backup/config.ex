@@ -30,7 +30,16 @@ defmodule BnestApp.Backup.Config do
   end
 
   @spec default_directory() :: String.t()
-  def default_directory, do: Path.join(repository_root(), "data/backup")
+  def default_directory, do: default_directory(repository_root())
+
+  @doc false
+  @spec default_directory(String.t()) :: String.t()
+  def default_directory(repository_root), do: Path.join(repository_root, "data/backup")
+
+  @doc false
+  @spec document(String.t()) :: map()
+  def document(directory),
+    do: %{"schemaVersion" => 1, "destinationDirectory" => directory}
 
   @spec repository_root() :: String.t()
   def repository_root do
@@ -67,7 +76,7 @@ defmodule BnestApp.Backup.Config do
 
     File.write!(
       temporary,
-      Jason.encode!(%{"schemaVersion" => 1, "destinationDirectory" => directory})
+      Jason.encode!(document(directory))
     )
 
     File.chmod!(temporary, 0o600)

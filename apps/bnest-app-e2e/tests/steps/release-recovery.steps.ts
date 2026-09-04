@@ -8,6 +8,7 @@ import {
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
 import { isolatedLoadIdentities } from "../support/test-identity";
+import { promoteCompatibleCandidate } from "../support/routed-rollout";
 
 type RecoveryClient = {
   context: BrowserContext;
@@ -42,19 +43,24 @@ Given(
   },
 );
 
-When(
-  "every recovery-group visitor reconnects after a deployment",
-  async ({ page }) => {
-    void page;
-    try {
-      await setRecoveryClientConnections(false);
-      await setRecoveryClientConnections(true);
-    } catch (error) {
-      await closeRecoveryClients();
-      throw error;
-    }
-  },
-);
+When("every recovery-group visitor reconnects after a deployment", async () => {
+  try {
+    const observer = recoveryClients[0]?.page;
+    if (!observer) throw new Error("recovery clients were not prepared");
+    const rollout = await promoteCompatibleCandidate(observer);
+    expect(rollout.revision).not.toBe(rollout.previousRevision);
+    await Promise.all(
+      recoveryClients.map(({ page: clientPage }) =>
+        expect(clientPage.locator("[data-phx-main]")).toHaveClass(
+          /phx-connected/u,
+        ),
+      ),
+    );
+  } catch (error) {
+    await closeRecoveryClients();
+    throw error;
+  }
+});
 
 Then(
   "every recovery-group visitor keeps its route and draft",
@@ -131,25 +137,26 @@ async function prepareRecoveryClients(
   }
 
   const identities = isolatedLoadIdentities(testInfo, clientCount);
-  const attempts = await Promise.allSettled(
-    identities.map((identity, index) =>
-      createRecoveryClient(
-        browser,
-        new URL(baseURL).origin,
-        identity,
-        index,
-        groupCount,
-        route,
-      ),
-    ),
-  );
-  const clients = attempts.flatMap((attempt) =>
-    attempt.status === "fulfilled" ? [attempt.value] : [],
-  );
-  const failure = attempts.find((attempt) => attempt.status === "rejected");
-  if (failure?.status !== "rejected") return clients;
-  await Promise.all(clients.map(({ context }) => context.close()));
-  throw failure.reason;
+  const clients: RecoveryClient[] = [];
+  try {
+    for (const [index, identity] of identities.entries()) {
+      clients.push(
+        // eslint-disable-next-line no-await-in-loop -- serial login avoids saturating Argon2 while concurrency remains under test during rollout.
+        await createRecoveryClient(
+          browser,
+          new URL(baseURL).origin,
+          identity,
+          index,
+          groupCount,
+          route,
+        ),
+      );
+    }
+    return clients;
+  } catch (error) {
+    await Promise.all(clients.map(({ context }) => context.close()));
+    throw error;
+  }
 }
 
 async function createRecoveryClient(
@@ -173,28 +180,6 @@ async function createRecoveryClient(
     await context.close();
     throw error;
   }
-}
-
-async function setRecoveryClientConnections(connected: boolean): Promise<void> {
-  await Promise.all(
-    recoveryClients.map(({ page }) =>
-      page.evaluate((shouldConnect) => {
-        const liveSocket = (
-          window as unknown as {
-            liveSocket: { connect: () => void; disconnect: () => void };
-          }
-        ).liveSocket;
-        if (shouldConnect) liveSocket.connect();
-        else liveSocket.disconnect();
-      }, connected),
-    ),
-  );
-  const expectedClass = connected ? /phx-connected/u : /phx-client-error/u;
-  await Promise.all(
-    recoveryClients.map(({ page }) =>
-      expect(page.locator("[data-phx-main]")).toHaveClass(expectedClass),
-    ),
-  );
 }
 
 async function closeRecoveryClients(): Promise<void> {

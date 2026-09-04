@@ -10,7 +10,11 @@ defmodule BnestApp.Storage.Location do
   def config_directory, do: Path.expand("~/.config/bnest")
 
   @spec production_data_directory() :: String.t()
-  def production_data_directory, do: Path.expand("~/bnest/data/prod")
+  def production_data_directory, do: production_data_directory(Path.expand("~"))
+
+  @spec production_data_directory(String.t()) :: String.t()
+  def production_data_directory(home_directory) when is_binary(home_directory),
+    do: Path.join(home_directory, "bnest/data/prod")
 
   @spec test_data_directory(String.t()) :: String.t()
   def test_data_directory(run_id) when is_binary(run_id) and run_id != "" do

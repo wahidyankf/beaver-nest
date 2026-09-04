@@ -75,10 +75,6 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: prepare(context, :flat_primary_default_location)
   )
 
-  step("no incompatible release slot can write", context,
-    do: prepare(context, :no_incompatible_writer)
-  )
-
   step("managed storage migration runs without a UI visit", context,
     do: perform(context, :run_managed_storage_migration)
   )

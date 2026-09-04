@@ -126,5 +126,19 @@ jobs:
       - name: Install Chromium and system dependencies
         run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- playwright install --with-deps chromium
 
+      - name: Install pinned Caddy for routed rollout tests
+        env:
+          CADDY_VERSION: "2.11.4"
+          CADDY_LINUX_AMD64_SHA512: "8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9"
+        run: |
+          archive="${RUNNER_TEMP}/caddy.tar.gz"
+          curl --fail --location --silent --show-error \
+            "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz" \
+            --output "${archive}"
+          printf '%s  %s\n' "${CADDY_LINUX_AMD64_SHA512}" "${archive}" | sha512sum --check --strict
+          tar --extract --gzip --file "${archive}" --directory "${RUNNER_TEMP}" caddy
+          install -m 0755 "${RUNNER_TEMP}/caddy" "${RUNNER_TEMP}/caddy-bin"
+          printf '%s\n' "BNEST_E2E_CADDY_BIN=${RUNNER_TEMP}/caddy-bin" >> "${GITHUB_ENV}"
+
       - name: Run complete end-to-end suite
         run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1

@@ -1,9 +1,9 @@
 defmodule BnestApp.DataRepository.Import do
   @moduledoc false
 
+  alias BnestApp.DataRepository.Backend
   alias BnestApp.DataRepository.Manifest
   alias BnestApp.DataRepository.Normalizer
-  alias BnestApp.DataRepository.Store
 
   @sources %{
     {"sessionStorage", "bnest.chat.v1"} => 500_000,
@@ -80,7 +80,7 @@ defmodule BnestApp.DataRepository.Import do
       "integrity" => %{"sha256" => checksum, "capturedAt" => timestamp()}
     }
 
-    case Store.put_new(store, :browser_import, {owner_id, import_id}, envelope) do
+    case Backend.put_new(store, :browser_import, {owner_id, import_id}, envelope) do
       {:ok, _saved} -> :ok
       {:error, :exists} -> verify_existing_envelope(store, owner_id, import_id, envelope)
       {:error, _reason} -> {:error, :write_failed}
@@ -88,7 +88,7 @@ defmodule BnestApp.DataRepository.Import do
   end
 
   defp verify_existing_envelope(store, owner_id, import_id, expected) do
-    case Store.read(store, :browser_import, {owner_id, import_id}) do
+    case Backend.read(store, :browser_import, {owner_id, import_id}) do
       {:ok, ^expected} ->
         :ok
 
@@ -109,8 +109,8 @@ defmodule BnestApp.DataRepository.Import do
     with {:ok, type, candidate} <- Normalizer.normalize(area, key, payload, import_id),
          {:ok, expected_revision} <- import_revision(store, type, owner_id, import_id),
          candidate <- Map.put(candidate, "ownerId", owner_id),
-         {:ok, record} <- Store.write(store, type, owner_id, expected_revision, candidate),
-         {:ok, ^record} <- Store.read(store, type, owner_id),
+         {:ok, record} <- Backend.write(store, type, owner_id, expected_revision, candidate),
+         {:ok, ^record} <- Backend.read(store, type, owner_id),
          {:ok, accepted} <- Manifest.finish(store, manifest, "accepted", nil) do
       {:ok, result(accepted, key, record)}
     else
@@ -138,7 +138,7 @@ defmodule BnestApp.DataRepository.Import do
   end
 
   defp import_revision(store, type, owner_id, import_id) do
-    case Store.read(store, type, owner_id) do
+    case Backend.read(store, type, owner_id) do
       {:error, :missing} -> {:ok, nil}
       {:ok, %{"sourceImportId" => ^import_id, "revision" => revision}} -> {:ok, revision}
       {:ok, _newer_or_other_source} -> {:error, :stale}

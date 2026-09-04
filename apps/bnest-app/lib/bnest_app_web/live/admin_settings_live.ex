@@ -20,7 +20,13 @@ defmodule BnestAppWeb.AdminSettingsLive do
       <p>Each area validates and saves only the fields owned by its domain.</p>
 
       <div class="admin-settings-grid" aria-label="Configuration areas">
-        <a :for={panel <- @panels} href={panel.path} class="admin-settings-panel">
+        <a
+          :for={panel <- @panels}
+          href={panel.path}
+          class="admin-settings-panel"
+          data-config-owner={inspect(panel.owner)}
+          data-editable-fields={Enum.join(panel.editable_fields, ",")}
+        >
           <strong>{panel.label}</strong>
           <span>{panel.description}</span>
         </a>

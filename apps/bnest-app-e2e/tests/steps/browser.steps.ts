@@ -1,7 +1,15 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import {
+  promoteCompatibleCandidate,
+  restorePrimaryRoute,
+} from "../support/routed-rollout";
 
-const { Then, When } = createBdd();
+const { After, Then, When } = createBdd();
+
+After(async ({ page }) => {
+  await restorePrimaryRoute(page);
+});
 
 When("a visitor opens {string}", async ({ page }, route: string) => {
   await page.goto(route);
@@ -258,25 +266,8 @@ Then(
 );
 
 When("the visitor reconnects after a deployment", async ({ page }) => {
-  await page.evaluate(() => {
-    const liveSocket = (
-      window as unknown as { liveSocket: { disconnect: () => void } }
-    ).liveSocket;
-    liveSocket.disconnect();
-  });
-  await expect(page.locator("[data-phx-main]")).not.toHaveClass(
-    /phx-connected/u,
-  );
-  await expect(page.locator("[data-phx-main]")).toHaveClass(
-    /phx-client-error/u,
-  );
-  await page.evaluate(() => {
-    const liveSocket = (
-      window as unknown as { liveSocket: { connect: () => void } }
-    ).liveSocket;
-    liveSocket.connect();
-  });
-  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+  const rollout = await promoteCompatibleCandidate(page);
+  expect(rollout.revision).not.toBe(rollout.previousRevision);
 });
 
 When("the visitor reloads the page", ({ page }) => page.reload());

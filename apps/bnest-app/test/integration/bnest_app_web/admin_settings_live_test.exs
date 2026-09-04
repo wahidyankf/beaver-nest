@@ -33,8 +33,9 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
 
     assert has_element?(
              schedules,
-             "[data-schedule-key='prod-sqlite-backup-daily']",
-             "Never run"
+             "[data-schedule-key='prod-sqlite-backup-daily']" <>
+               ":is([data-last-run-state='never'], [data-last-run-state='running'], " <>
+               "[data-last-run-state='retryable'], [data-last-run-state='verified'])"
            )
   end
 

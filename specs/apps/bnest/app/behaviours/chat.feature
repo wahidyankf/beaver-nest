@@ -2,6 +2,8 @@ Feature: Beaver Nest chat
 
   Rule: Public application installation
 
+  # Exemption(integration): browser installability is not observable without a browser; alternative-proof: bnest-app-e2e:test:e2e / A visitor can install Beaver Nest as an app
+  @integration-exempt
   Scenario: A visitor can install Beaver Nest as an app
     When a visitor opens "/"
     Then the page displays the Beaver Nest logo
@@ -17,6 +19,8 @@ Feature: Beaver Nest chat
     Then the page displays the heading "Beaver Nest"
     And the page offers the "Start chatting" link to "/chat"
 
+  # Exemption(integration): rendered geometry is not observable without a browser layout engine; alternative-proof: bnest-app-e2e:test:e2e / Home controls and content remain visually separated
+  @integration-exempt
   Scenario: Home controls and content remain visually separated
     When a visitor opens "/"
     Then the home header and hero do not overlap
@@ -67,6 +71,8 @@ Feature: Beaver Nest chat
     And the model selector is available
     And the reasoning effort selector is available
 
+  # Exemption(integration): physical keyboard chord handling belongs to the browser boundary; alternative-proof: bnest-app-e2e:test:e2e / A visitor sends a message with Shift+Enter
+  @integration-exempt
   Scenario: A visitor sends a message with Shift+Enter
     Given a visitor opens "/chat"
     When the visitor submits "Keyboard message" with Shift+Enter
@@ -140,6 +146,8 @@ Feature: Beaver Nest chat
     Then the page displays the alert "Turn failed."
     And the message composer is available
 
+  # Exemption(integration): automatic socket recovery crosses the browser and routed server boundary; alternative-proof: bnest-app-e2e:test:e2e / An automatic LiveView reconnect preserves a completed user-owned conversation and Codex session
+  @integration-exempt
   Scenario: An automatic LiveView reconnect preserves a completed user-owned conversation and Codex session
     Given a visitor opens "/chat"
     When the visitor selects the model "GPT-5.6-Luna"
@@ -159,6 +167,8 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     And the conversation displays a second Codex response
 
+  # Exemption(integration): automatic socket recovery crosses the browser and routed server boundary; alternative-proof: bnest-app-e2e:test:e2e / An automatic LiveView reconnect safely restores a persisted in-progress user-owned turn
+  @integration-exempt
   Scenario: An automatic LiveView reconnect safely restores a persisted in-progress user-owned turn
     Given a visitor opens "/chat"
     When the visitor sends "Resume after deployment"
@@ -168,6 +178,8 @@ Feature: Beaver Nest chat
     And the in-progress turn resumes once or fails safely without duplication
     Then the message composer is available
 
+  # Exemption(integration): concurrent browser isolation and recovery require real browser contexts; alternative-proof: bnest-app-e2e:test:e2e / Ten synthetic visitors preserve recoverable state across three groups
+  @integration-exempt
   Scenario: Ten synthetic visitors preserve recoverable state across three groups
     Given 10 synthetic visitors across 3 recovery groups have distinct drafts on "/chat"
     When every recovery-group visitor reconnects after a deployment

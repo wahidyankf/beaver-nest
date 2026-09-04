@@ -8,6 +8,20 @@ open TickSpec
 open TickSpec.Xunit
 
 module FeatureCompliance =
+    let private exemptionTags = set [ "integration-exempt"; "e2e-exempt" ]
+
+    let private forbiddenTags =
+        set [ "unit-exempt"; "no-unit"; "no-integration"; "no-e2e" ]
+
+    let private exemptionComment =
+        Regex("^# Exemption\\((integration|e2e)\\): (.+); alternative-proof: (.+)$", RegexOptions.CultureInvariant)
+
+    let private invalidReason =
+        Regex(
+            "\\b(?:hard|slow|flaky|not yet implemented|todo)\\b",
+            RegexOptions.IgnoreCase ||| RegexOptions.CultureInvariant
+        )
+
     let private startsWith (prefix: string) (value: string) =
         value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
 
@@ -53,6 +67,96 @@ module FeatureCompliance =
 
         errors |> Seq.toList
 
+    let private exemptionErrors resourceName (lines: string array) =
+        let errors = ResizeArray<string>()
+        let mutable pending: (int * string) list = []
+
+        let finishPending declaration lineNumber =
+            let exemptions =
+                pending |> List.filter (fun (_, name) -> exemptionTags.Contains name)
+
+            if not exemptions.IsEmpty then
+                if not (startsWith "Scenario" declaration || startsWith "Story" declaration) then
+                    errors.Add(
+                        $"{resourceName}:{lineNumber}: exemption tags may only annotate a Scenario or Scenario Outline."
+                    )
+
+                if exemptions |> List.map snd |> Set.ofList |> Set.count > 1 then
+                    errors.Add(
+                        $"{resourceName}:{lineNumber}: a scenario cannot be both @integration-exempt and @e2e-exempt."
+                    )
+
+                for tagLine, tagName in exemptions do
+                    let comment = if tagLine >= 2 then lines[tagLine - 2].Trim() else ""
+                    let matched = exemptionComment.Match comment
+                    let layer = tagName.Replace("-exempt", "")
+
+                    if not matched.Success || matched.Groups[1].Value <> layer then
+                        errors.Add(
+                            $"{resourceName}:{tagLine}: @{tagName} requires the immediately preceding comment '# Exemption({layer}): <reason>; alternative-proof: <Nx target/scenario>'."
+                        )
+                    else
+                        if invalidReason.IsMatch matched.Groups[2].Value then
+                            errors.Add(
+                                $"{resourceName}:{tagLine}: an exemption cannot be justified by difficulty, speed, flakiness, or missing implementation."
+                            )
+
+                        if
+                            not (
+                                Regex.IsMatch(
+                                    matched.Groups[3].Value,
+                                    "^[a-z0-9-]+:test(?::[a-z0-9-]+)*\\s+/\\s+\\S",
+                                    RegexOptions.IgnoreCase ||| RegexOptions.CultureInvariant
+                                )
+                            )
+                        then
+                            errors.Add(
+                                $"{resourceName}:{tagLine}: alternative-proof must name an Nx test target and scenario after ' / '."
+                            )
+
+            pending <- []
+
+        for index, line in lines |> Array.indexed do
+            let trimmed = line.Trim()
+            let lineNumber = index + 1
+
+            if trimmed.StartsWith("@", StringComparison.Ordinal) then
+                let names =
+                    trimmed.Split([| ' '; '\t' |], StringSplitOptions.RemoveEmptyEntries)
+                    |> Array.filter (fun part -> part.StartsWith("@", StringComparison.Ordinal))
+                    |> Array.map (fun part -> part.Substring 1)
+
+                for name in names do
+                    if forbiddenTags.Contains name then
+                        errors.Add(
+                            $"{resourceName}:{lineNumber}: @{name} is forbidden; unit has no exemption and higher layers use @integration-exempt or @e2e-exempt."
+                        )
+
+                    pending <- pending @ [ lineNumber, name ]
+            elif
+                [ "Feature:"
+                  "Rule:"
+                  "Background:"
+                  "Scenario"
+                  "Story:"
+                  "Examples:"
+                  "Example:" ]
+                |> List.exists (fun prefix -> startsWith prefix trimmed)
+            then
+                finishPending trimmed lineNumber
+            elif
+                trimmed <> ""
+                && not (trimmed.StartsWith("#", StringComparison.Ordinal))
+                && not pending.IsEmpty
+            then
+                errors.Add($"{resourceName}:{lineNumber}: tags must be followed by their Gherkin declaration.")
+                pending <- []
+
+        if not pending.IsEmpty then
+            errors.Add($"{resourceName}: dangling tags are not attached to a scenario.")
+
+        errors |> Seq.toList
+
     let validate (resourceName: string) (source: string) : Result<unit, string list> =
         let lines = source.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n')
 
@@ -66,6 +170,7 @@ module FeatureCompliance =
         | Some _ -> ()
 
         scenarioErrors resourceName lines |> List.iter errors.Add
+        exemptionErrors resourceName lines |> List.iter errors.Add
 
         if errors.Count > 0 then
             Error(errors |> Seq.toList)
