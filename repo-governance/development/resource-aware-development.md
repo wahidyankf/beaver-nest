@@ -16,7 +16,7 @@ Apply this to compute-bearing Nx work under `apps/`, `libs/`, and repository too
 Canonical guarded execution is:
 
 ```sh
-apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p <project> -t <target>
+./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p <project> -t <target>
 ```
 
 ## Admission and Shedding
@@ -33,7 +33,7 @@ Percentages clamp to the table. Disk below the immutable 256 MiB floor exits `73
 
 Admission requires normal evidence, except balanced Darwin ephemeral work may admit after 15 stable warning seconds with 25% available memory (4–8 GiB clamp), balanced CPU/disk headroom, and no OOM or warning-level swap/compressor growth; tool concurrency is forced to one. Services, fallbacks, Linux PSI, transactions, and releases are excluded. Unsafe warning gets ten seconds for ephemeral and thirty for services; critical pressure sheds immediately. Storage shedding exits `73`; other shedding exits `75`. Transactions record pressure but complete.
 
-Copy `apps/resource-guard/resource-guard.local.json.example` to the ignored `resource-guard.local.json` for machine policy. `--config`, `RESOURCE_GUARD_CONFIG`, then that file apply in order, and cannot weaken compiled safety floors.
+The `./resource-guard` bootstrap and `resource-guard.lock` pin an immutable, checksummed release from the public [resource-guard repository](https://github.com/wahidyankf/resource-guard). Source, executable specifications, and enforcement live upstream; Beaver Nest owns only its pin, bootstrap behavior, machine-policy example, and product-specific invocation. Copy `./resource-guard.local.json.example` to the ignored `resource-guard.local.json` for machine policy. `--config`, `RESOURCE_GUARD_CONFIG`, then that file apply in order, and cannot weaken compiled safety floors.
 
 ## Evidence Basis
 
@@ -43,6 +43,6 @@ XNU maps internal memory state to normal `1`, warning `2`, and critical `4` flag
 
 The collector normalizes CPU, memory, pressure, swap, disk, RSS, and health. Linux uses `/proc`, PSI, and cgroup v2; macOS keeps pressure/compressor evidence.
 
-Samples use schema v3; release summaries use v4. They default to `~/bnest/runtime/resource-guard/`; samples expire in seven days, summaries in thirty, and files stay below 50 MiB. Evidence stores the config hash and profile, never contents, arguments, origins, paths, credentials, or user data. Schema-v2/v3 release summaries remain readable during retention.
+Samples use schema v3; release summaries use v5. They default to `~/Library/Application Support/resource-guard/` on macOS and `${XDG_STATE_HOME:-$HOME/.local/state}/resource-guard/` on Linux; samples expire in seven days, summaries in thirty, and files stay below 50 MiB. Evidence stores the config hash and profile, never contents, arguments, origins, paths, credentials, or user data. Retained schema-v2 through schema-v4 release summaries remain readable.
 
 Verify changes through guarded resource-guard Nx targets, affected guarded gates, and the repository gate. Use deterministic fake pressure in tests; never endanger the host to prove shedding.

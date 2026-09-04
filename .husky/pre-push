@@ -3,13 +3,17 @@ set -e
 zero_oid=0000000000000000000000000000000000000000
 run_repository_check=
 
+# Each pushed commit range receives the same serialized, resource-guarded
+# affected quick gate; deleted refs intentionally schedule no work.
 quick_checks_for_head() {
-  NX_NO_CLOUD=true apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- \
+  NX_NO_CLOUD=true ./resource-guard run --class ephemeral --disk-path . -- \
     npm exec -- nx affected -t test:quick --parallel=1 \
     --base=origin/main --head="$1"
 }
 
 validation_changes_for_range() {
+  # New branches compare all local-only commits; existing branches include
+  # both working-tree range names and committed history for reliable routing.
   if [ "$2" = "$zero_oid" ]; then
     git log --format= --name-only "$1" --not --remotes -- \
       ':(icase,glob)**/*.md' \
@@ -46,10 +50,12 @@ while read -r _local_ref local_oid _remote_ref remote_oid; do
   fi
 done
 
+# The heavier repository documentation contract runs once per push, only when
+# governed content or its enforcement changed in any pushed range.
 if [ -z "$run_repository_check" ]; then
   echo "Skipping repository validation: pushed commits do not affect governed content or its validators."
   exit 0
 fi
 
-NX_NO_CLOUD=true apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- \
+NX_NO_CLOUD=true ./resource-guard run --class ephemeral --disk-path . -- \
   npm exec -- nx run -p badakmini-cli -t test:repo

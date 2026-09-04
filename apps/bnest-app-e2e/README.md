@@ -13,7 +13,7 @@ Install the repository dependencies and Playwright's Chromium browser, then run 
 ```sh
 npm install
 npm exec -- playwright install chromium
-apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:quick
+./resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:quick
 ```
 
 `test:quick` runs these fail-fast checks in order:
@@ -35,8 +35,8 @@ Every feature must contain a scenario, and every scenario must contain an explic
 During development, follow the [end-to-end testing standard](../../repo-governance/development/end-to-end-testing.md) and run only cases plausibly affected by the change. Pass a scenario-title or tag `--grep` filter through the Nx target:
 
 ```sh
-apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect"
-apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --project chromium --grep "Ten synthetic visitors preserve recoverable state"
+./resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect"
+./resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --project chromium --grep "Ten synthetic visitors preserve recoverable state"
 ```
 
 The `test:e2e` target first enforces behavior coverage and rebuilds browser assets from the current source, preventing stale generated CSS or JavaScript from masking a UI regression. It then cleans stale marked roots, creates paired flat-file and SQLite roots with the same run marker, leases `4010` by default from the exclusive `4010`–`4019` E2E pool, and uses [playwright.config.mts](playwright.config.mts) to start an isolated `bnest-app` at that exact `http://localhost:<port>` origin. The flat fixture lives below repository `data/test/runs/`; SQLite lives below `~/bnest/data/test/runs/`. Set `BNEST_E2E_PORT` to select another port in the pool; occupied or concurrently leased ports fail before server startup. Every scenario creates its own `test-user-` identity and user-owned paths within the marked run; desktop, tablet, mobile, and parallel workers never assert mutable aggregate counts. The ten-client release-load scenario creates ten distinct identities and browser contexts across three declared recovery groups and runs once on desktop Chromium to bound host cost; the ordinary reconnect scenario still runs on desktop, tablet, and mobile. The harness never reuses a development server or production data, waits for connected LiveView state before interacting, disconnects and reconnects the LiveView transport without `page.reload()` for release recovery, cleans only its validated paired roots, and records a trace on first retry.

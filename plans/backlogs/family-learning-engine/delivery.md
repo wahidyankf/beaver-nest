@@ -4,7 +4,7 @@ All work below is pending. Each checkbox is independently verifiable, and a fail
 
 Every phase applies [live-service continuity](../../../repo-governance/development/live-service-continuity.md): Bnest stays routed throughout, the sole backend is never stopped, Tailscale is never repointed for a normal release, only one release slot may write at a time, and no compatible client is required to refresh. A failed active-route health check stops all other work until the route is restored.
 
-Commands run through the workspace resource guard. `GUARD` below stands for `apps/resource-guard/resource-guard run --class ephemeral -- npm exec --`. Exit 75 is transient capacity: wait and retry the same guarded command serially. Exit 73 requires storage cleanup first. Exit 78 requires replanning, never a bypass.
+Commands run through the workspace resource guard. `GUARD` below stands for `./resource-guard run --class ephemeral -- npm exec --`. Exit 75 is transient capacity: wait and retry the same guarded command serially. Exit 73 requires storage cleanup first. Exit 78 requires replanning, never a bypass.
 
 ## Phase 1 — Baseline, contracts, and dependency approval
 

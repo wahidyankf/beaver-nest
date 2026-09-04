@@ -6,4 +6,3 @@ Each child tree represents one logical application and keeps its architecture mo
 
 - [Badakmini](badakmini/README.md) specifies the repository-governance command-line application.
 - [Bnest](bnest/README.md) specifies the private family application.
-- [Resource guard](resource-guard/README.md) specifies host admission and guarded process execution.

@@ -39,5 +39,5 @@ Use the normal `wc -w <path>` command to check a document while authoring. The r
 The `badakmini-cli` check enforces README presence and directory-map completeness under governance, documentation, specification, and planning trees, plus applicable word limits:
 
 ```sh
-apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
+./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
 ```

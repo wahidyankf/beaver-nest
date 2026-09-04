@@ -91,13 +91,19 @@ test("isolates release gates from production runtime configuration", () => {
     assert.equal(environment[name], undefined);
 });
 
-test("passes the exact routed origin to the private release monitor", () => {
+test("passes explicit health inputs to the release monitor", () => {
   const source = readFileSync(
     new URL("./release.mjs", import.meta.url),
     "utf8",
   );
-  assert.match(source, /BNEST_PRODUCTION_ORIGIN: this\.productionOrigin/u);
   assert.match(source, /"release",\s*"monitor"/u);
+  assert.match(
+    source,
+    /"--health-url",\s*"http:\/\/127\.0\.0\.1:4100\/health\/ready"/u,
+  );
+  assert.match(source, /"--routed-origin",\s*this\.productionOrigin/u);
+  for (const port of ["4000", "4001", "4100"])
+    assert.match(source, new RegExp(`"--service-port",\\s*"${port}"`, "u"));
   assert.match(
     source,
     /assessment\.status === 75 \? "capacity" : "continuity"/u,

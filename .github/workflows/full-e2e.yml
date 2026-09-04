@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  resource-guard-platforms:
-    name: Resource guard (${{ matrix.os }})
+  resource-guard-consumer:
+    name: Resource guard consumer (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -26,23 +26,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: apps/resource-guard/go.mod
-          cache-dependency-path: apps/resource-guard/go.sum
+      - name: Verify pinned bootstrap behavior
+        run: ./.github/scripts/test-resource-guard-bootstrap.sh
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
+      - name: Install and identify the pinned release
+        run: ./resource-guard version --json
 
-      - name: Install npm dependencies
-        run: apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm ci
-
-      - name: Run resource guard platform suite
-        run: apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p resource-guard -t test
+      - name: Inspect runner capacity
+        run: ./resource-guard status --json --disk-path .
 
   badakmini-test-symphony:
     name: Badakmini test symphony
@@ -58,25 +49,19 @@ jobs:
           node-version: "24"
           cache: npm
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: apps/resource-guard/go.mod
-          cache-dependency-path: apps/resource-guard/go.sum
-
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.107"
 
       - name: Install npm dependencies
-        run: apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm ci
+        run: ./resource-guard run --class ephemeral --disk-path . -- npm ci
 
       - name: Run local integration suite
-        run: apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:coverage:integration
+        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:coverage:integration
 
       - name: Run process end-to-end suite
-        run: apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
+        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 
   bnest-test-symphony:
     name: Bnest test symphony
@@ -92,12 +77,6 @@ jobs:
           node-version: "24"
           cache: npm
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: apps/resource-guard/go.mod
-          cache-dependency-path: apps/resource-guard/go.sum
-
       - name: Set up Erlang and Elixir
         uses: erlef/setup-beam@v1
         with:
@@ -106,16 +85,16 @@ jobs:
           version-type: strict
 
       - name: Install npm dependencies
-        run: apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm ci
+        run: ./resource-guard run --class ephemeral --disk-path . -- npm ci
 
       - name: Install Phoenix dependencies
-        run: apps/resource-guard/resource-guard run --class ephemeral --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
+        run: ./resource-guard run --class ephemeral --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
       - name: Run local integration suite
-        run: apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:integration
+        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:integration
 
       - name: Install Chromium and system dependencies
-        run: apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- playwright install --with-deps chromium
+        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- playwright install --with-deps chromium
 
       - name: Run complete end-to-end suite
-        run: apps/resource-guard/resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1
+        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1

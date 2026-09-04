@@ -27,11 +27,8 @@ node_modules/
 npm-debug.log*
 .nx/
 
-# Resource guard bootstrap and development outputs
-/apps/resource-guard/.cache/
-/apps/resource-guard/dist/
-/apps/resource-guard/coverage/
-/apps/resource-guard/resource-guard.local.json
+# Resource guard machine policy
+/resource-guard.local.json
 
 # .NET / F#
 **/bin/

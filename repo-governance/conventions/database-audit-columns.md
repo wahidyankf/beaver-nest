@@ -49,5 +49,5 @@ This convention applies to tables created after it is adopted. A table that pred
 Review every new or changed migration against this convention. Verification passes when each new table defines all six columns or names its exemption and the reason, actor values follow the vocabulary above, paired deletion columns are constrained together, every soft-deletable unique value uses a partial index, and reads exclude deleted rows. Run the affected project's tests and the repository documentation gate:
 
 ```sh
-apps/resource-guard/resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
+./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
 ```

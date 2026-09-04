@@ -410,10 +410,7 @@ export class MachineHost {
     this.logPath = null;
     this.resourceMonitor = null;
     this.resourceSummaryPath = null;
-    this.resourceGuardBinary = requiredValue(
-      environment,
-      "BNEST_RESOURCE_GUARD_BIN",
-    );
+    this.resourceGuardBinary = requiredValue(environment, "RESOURCE_GUARD_BIN");
   }
 
   async preflight(requestedRevision) {
@@ -679,13 +676,20 @@ export class MachineHost {
         this.resourceSummaryPath,
         "--deployment-root",
         this.deploymentRoot,
+        "--health-url",
+        "http://127.0.0.1:4100/health/ready",
+        "--routed-origin",
+        this.productionOrigin,
+        "--service-port",
+        "4000",
+        "--service-port",
+        "4001",
+        "--service-port",
+        "4100",
       ],
       {
         stdio: "ignore",
-        env: {
-          ...this.environment,
-          BNEST_PRODUCTION_ORIGIN: this.productionOrigin,
-        },
+        env: this.environment,
       },
     );
   }
