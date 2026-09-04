@@ -23,18 +23,18 @@ ExBdd.compile_features!(
 
 `ExBdd.verify_features!/1` performs the static completeness check without executing scenarios. It requires non-empty features, expanded scenarios with explicit `When` and `Then`, exactly one binding per step, and no unused binding. `:case_template` lets an integration adapter use a project-specific ExUnit case template such as a Phoenix connection case.
 
-Run tasks from the repository root through the workspace [resource guard](../../repo-governance/development/resource-aware-development.md):
+Run tasks from the repository root through the workspace [HIPPO](../../repo-governance/development/resource-aware-development.md):
 
 ```sh
-./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t typecheck
-./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t lint
-./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:unit
-./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:integration
-./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage:unit
-./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage:integration
-./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage:engine
-./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage
-./resource-guard run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:quick
+./hippo run --class ephemeral -- npm exec -- nx run -p ex-bdd -t typecheck
+./hippo run --class ephemeral -- npm exec -- nx run -p ex-bdd -t lint
+./hippo run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:unit
+./hippo run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:integration
+./hippo run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage:unit
+./hippo run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage:integration
+./hippo run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage:engine
+./hippo run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:coverage
+./hippo run --class ephemeral -- npm exec -- nx run -p ex-bdd -t test:quick
 ```
 
 `test:unit` executes only `test/unit/`: in-process tests whose OS-facing dependencies are replaced by doubles. `test:integration` executes only `test/integration/`: real fixture discovery, file output, code loading, and same-machine process coordination, with no network. The integration bootstrap compiles the vendored feature corpus only in that layer. `test:quick` runs typecheck, lint, unit execution, and unit coverage; integration remains scheduled and outside pre-push quick checks. ExBdd owns no public system journey, so an E2E project and `test:e2e` target are intentionally inapplicable.

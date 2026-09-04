@@ -4,7 +4,7 @@ This Nx app owns process-level end-to-end tests for `badakmini-cli`. It launches
 
 ## Tasks
 
-Run from the repository root through `./resource-guard run --class ephemeral -- <command>` and the workspace [resource guard](../../repo-governance/development/resource-aware-development.md):
+Run from the repository root through `./hippo run --class ephemeral -- <command>` and the workspace [HIPPO](../../repo-governance/development/resource-aware-development.md):
 
 | Task                         | Command                                                              |
 | ---------------------------- | -------------------------------------------------------------------- |

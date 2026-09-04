@@ -29,7 +29,7 @@ Use an agent to perform the review. Do not replace the one-by-one inspection wit
 
 ## Verification
 
-Run the applicable project behaviour targets and the repository governance gate through resource-guarded Nx. Confirm that the report row count equals the expanded scenario count multiplied by its required adapters, minus no rows for exemptions: exempt rows remain explicit and are counted as `EXEMPT`.
+Run the applicable project behaviour targets and the repository governance gate through HIPPO-guarded Nx. Confirm that the report row count equals the expanded scenario count multiplied by its required adapters, minus no rows for exemptions: exempt rows remain explicit and are counted as `EXEMPT`.
 
 Review the final diff for placeholder patterns again after fixes. Static checks may reject known forms, but the agent's semantic inspection remains authoritative for this workflow.
 

@@ -13,12 +13,12 @@
   ],
   "scripts": {
     "prepare": "husky",
-    "start": "BNEST_STABLE=${BNEST_STABLE:-true} PORT=${BNEST_DEV_PORT:-4020} ./resource-guard run --class service --disk-path . --cwd apps/bnest-app --lease-port ${BNEST_DEV_PORT:-4020} --lease-owner development --lease-min 4020 --lease-max 4029 -- mix phx.server",
+    "start": "BNEST_STABLE=${BNEST_STABLE:-true} PORT=${BNEST_DEV_PORT:-4020} ./hippo run --class service --disk-path . --cwd apps/bnest-app --lease-port ${BNEST_DEV_PORT:-4020} --lease-owner development --lease-min 4020 --lease-max 4029 -- mix phx.server",
     "tailnet:up": "npm exec -- nx run -p bnest-app -t tailnet:up",
     "tailnet:status": "npm exec -- nx run -p bnest-app -t tailnet:status",
     "tailnet:down": "npm exec -- nx run -p bnest-app -t tailnet:down",
-    "test": "./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:unit",
-    "test:e2e": "./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e"
+    "test": "./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:unit",
+    "test:e2e": "./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e"
   },
   "repository": {
     "type": "git",

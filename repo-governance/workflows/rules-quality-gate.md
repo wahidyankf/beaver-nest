@@ -49,9 +49,9 @@ In `PROPOSAL` mode:
 In `EFFECTIVE` mode, run:
 
 ```sh
-./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
+./hippo run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
 ```
 
-Return `PASS_EFFECTIVE` only when the semantic ledger is clear and tooling passes. Otherwise emit `NEEDS_PROPAGATION` with the ledger and evidence. Canonical resource-guard recovery is infrastructure handling, not another gate run.
+Return `PASS_EFFECTIVE` only when the semantic ledger is clear and tooling passes. Otherwise emit `NEEDS_PROPAGATION` with the ledger and evidence. Canonical HIPPO recovery is infrastructure handling, not another gate run.
 
 `NEEDS_PROPAGATION` is a non-terminal handoff, never a blocked result. The caller must immediately run propagation with the frozen outcome, ledger, and evidence without another user instruction, then report only propagation's terminal result. Consequently this gate can end only in `PASS_NO_CHANGE` or `PASS_EFFECTIVE`; it never ends blocked, repairs rules, reruns itself, or authorizes commit/push. Propagation owns any specific input, conflict, input-change, or tooling blocker it cannot resolve.

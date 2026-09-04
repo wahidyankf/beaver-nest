@@ -27,7 +27,7 @@ Do not expand this into an unrelated full-site audit. Use synthetic identities a
 For example:
 
 ```sh
-./resource-guard run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --project chromium --grep "A visitor opens a fresh chat"
+./hippo run --class ephemeral -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --project chromium --grep "A visitor opens a fresh chat"
 ```
 
 `bnest-app-e2e` drives the browser from the same recursively discovered Gherkin used by Bnest unit and local-only integration tests. `badakmini-cli-e2e` launches the built CLI as a child process and observes only public commands, exit codes, stdout, stderr, and local filesystem effects. Both keep fast `test:coverage:behaviour` in `test:quick` and runtime E2E outside it.

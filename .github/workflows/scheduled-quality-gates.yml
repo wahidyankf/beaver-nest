@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  resource-guard-consumer:
-    name: Resource guard consumer (${{ matrix.os }})
+  hippo-consumer:
+    name: HIPPO consumer (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -27,13 +27,13 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Verify pinned bootstrap behaviour
-        run: ./.github/scripts/test-resource-guard-bootstrap.sh
+        run: ./.github/scripts/test-hippo-bootstrap.sh
 
       - name: Install and identify the pinned release
-        run: ./resource-guard version --json
+        run: ./hippo version --json
 
       - name: Inspect runner capacity
-        run: ./resource-guard status --json --disk-path .
+        run: ./hippo status --json --disk-path .
 
   ex-bdd-coverage:
     name: ExBdd unit and integration coverage
@@ -57,13 +57,13 @@ jobs:
           version-type: strict
 
       - name: Install npm dependencies
-        run: ./resource-guard run --class ephemeral --disk-path . -- npm ci
+        run: ./hippo run --class ephemeral --disk-path . -- npm ci
 
       - name: Install ExBdd dependencies
-        run: ./resource-guard run --class ephemeral --cwd libs/ex-bdd --disk-path libs/ex-bdd -- mix deps.get
+        run: ./hippo run --class ephemeral --cwd libs/ex-bdd --disk-path libs/ex-bdd -- mix deps.get
 
       - name: Run complete ExBdd coverage
-        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
+        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
 
   badakmini-test-symphony:
     name: Badakmini test symphony
@@ -85,13 +85,13 @@ jobs:
           dotnet-version: "10.0.107"
 
       - name: Install npm dependencies
-        run: ./resource-guard run --class ephemeral --disk-path . -- npm ci
+        run: ./hippo run --class ephemeral --disk-path . -- npm ci
 
       - name: Run local integration suite
-        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:coverage:integration
+        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:coverage:integration
 
       - name: Run process end-to-end suite
-        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
+        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
 
   bnest-test-symphony:
     name: Bnest test symphony
@@ -115,16 +115,16 @@ jobs:
           version-type: strict
 
       - name: Install npm dependencies
-        run: ./resource-guard run --class ephemeral --disk-path . -- npm ci
+        run: ./hippo run --class ephemeral --disk-path . -- npm ci
 
       - name: Install Phoenix dependencies
-        run: ./resource-guard run --class ephemeral --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
+        run: ./hippo run --class ephemeral --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
       - name: Run local integration suite
-        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:integration
+        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:integration
 
       - name: Install Chromium and system dependencies
-        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- playwright install --with-deps chromium
+        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- playwright install --with-deps chromium
 
       - name: Install pinned Caddy for routed rollout tests
         env:
@@ -141,4 +141,4 @@ jobs:
           printf '%s\n' "BNEST_E2E_CADDY_BIN=${RUNNER_TEMP}/caddy-bin" >> "${GITHUB_ENV}"
 
       - name: Run complete end-to-end suite
-        run: ./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1
+        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1

@@ -1,5 +1,9 @@
 # Technical Design
 
+> Historical identity note (2026-09-05): Resource Guard was renamed to HIPPO — Host
+> Infrastructure Pressure & Process Orchestrator — in `v0.3.0`. Names below describe the design at
+> the time this completed plan was executed.
+
 ## Entry Point
 
 Add a root `apps/resource-guard/` module set with collector, policies, private evidence, verified session lease, child supervisor, and CLI. Canonical Nx targets remain the public task interface; stable serve, managed release, npm test entry points, and pre-push enter automatically, while other compute-bearing targets use the documented wrapper.

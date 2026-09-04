@@ -27,12 +27,12 @@ Freeze those inputs, the Git revision and dirty paths, affected entry points, re
 4. Run:
 
    ```sh
-   ./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
+   ./hippo run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
    ```
 
 5. On success, return `PASS_NO_CHANGE` when no edit was necessary or `PASS_CHANGED` otherwise. For transaction-caused deterministic findings, freeze their exact set, repair mechanically, and rerun step 4 only while the ordered measure of failing checks and reported violations or overage strictly decreases and no new failure class appears. Because that nonnegative measure decreases, recovery terminates. Return `BLOCKED_TOOLING` if progress stops, a new or unrelated failure appears, or canonical recovery cannot obtain a verdict.
 
-Canonical resource-guard recovery is infrastructure handling, not another propagation transaction.
+Canonical HIPPO recovery is infrastructure handling, not another propagation transaction.
 
 ## Terminal Contract
 

@@ -410,7 +410,7 @@ export class MachineHost {
     this.logPath = null;
     this.resourceMonitor = null;
     this.resourceSummaryPath = null;
-    this.resourceGuardBinary = requiredValue(environment, "RESOURCE_GUARD_BIN");
+    this.hippoBinary = requiredValue(environment, "HIPPO_BIN");
   }
 
   async preflight(requestedRevision) {
@@ -666,7 +666,7 @@ export class MachineHost {
     const outputPath = join(metricsPath, `${identifier}.jsonl`);
     this.resourceSummaryPath = join(metricsPath, `${identifier}.summary.json`);
     this.resourceMonitor = spawn(
-      this.resourceGuardBinary,
+      this.hippoBinary,
       [
         "release",
         "monitor",
@@ -725,7 +725,7 @@ export class MachineHost {
       return null;
     }
     const assessment = spawnSync(
-      this.resourceGuardBinary,
+      this.hippoBinary,
       ["release", "assess", "--summary", this.resourceSummaryPath],
       { encoding: "utf8" },
     );
@@ -802,7 +802,7 @@ export class MachineHost {
 
   assertCapacity() {
     const capacity = spawnSync(
-      this.resourceGuardBinary,
+      this.hippoBinary,
       ["release", "check", "--disk-path", this.deploymentRoot],
       { encoding: "utf8" },
     );

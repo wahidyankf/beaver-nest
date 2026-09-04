@@ -1,6 +1,7 @@
 # Resource-Aware Development
 
-Apply this to compute-bearing Nx work under `apps/`, `libs/`, and repository tools. It reduces host pressure without guaranteeing survival.
+**HIPPO** — **H**ost **I**nfrastructure **P**ressure & **P**rocess **O**rchestrator — guards
+compute-bearing Nx work under `apps/`, `libs/`, and repository tools without guaranteeing survival.
 
 ## Required Behaviour
 
@@ -16,10 +17,10 @@ Apply this to compute-bearing Nx work under `apps/`, `libs/`, and repository too
 Canonical guarded execution is:
 
 ```sh
-./resource-guard run --class ephemeral --disk-path . -- npm exec -- nx run -p <project> -t <target>
+./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p <project> -t <target>
 ```
 
-Upstream exports canonical `RESOURCE_GUARD_PROFILE` and `RESOURCE_GUARD_CONCURRENCY` values. This wrapper maps concurrency to `NX_PARALLEL`, `GOMAXPROCS`, and `DOTNET_PROCESSOR_COUNT` through repeatable `--concurrency-env` flags. Ordinary admission preserves caller values; degraded admission forces selected mappings to one. The consumer owns these ecosystem choices, so upstream stays generic.
+Upstream exports canonical `HIPPO_PROFILE` and `HIPPO_CONCURRENCY` values. This wrapper maps concurrency to `NX_PARALLEL`, `GOMAXPROCS`, and `DOTNET_PROCESSOR_COUNT` through repeatable `--concurrency-env` flags. Ordinary admission preserves caller values; degraded admission forces selected mappings to one. The consumer owns these ecosystem choices, so upstream stays generic.
 
 ## Admission and Shedding
 
@@ -35,7 +36,7 @@ Percentages clamp to the table. Disk below 256 MiB exits `73`; no Linux swap is 
 
 Admission requires normal evidence, except balanced Darwin ephemeral work may admit after 15 stable warning seconds with 25% available memory (4–8 GiB clamp), balanced CPU/disk headroom, and no OOM or warning-level swap/compressor growth; canonical concurrency and the wrapper-selected tool mappings are forced to one. Services, fallbacks, Linux PSI, transactions, and releases are excluded. Unsafe warning gets ten seconds for ephemeral and thirty for services; critical pressure sheds immediately. Storage shedding exits `73`; other shedding exits `75`. Transactions record pressure but complete.
 
-The bootstrap and lock pin a checksummed release from the public [resource-guard repository](https://github.com/wahidyankf/resource-guard), which owns source, specifications, and enforcement. Beaver Nest owns its pin, wrapper, policy example, and invocations. Copy the example to ignored `resource-guard.local.json` for machine policy. Precedence is `--config`, `RESOURCE_GUARD_CONFIG`, then that file; none can weaken safety floors.
+The bootstrap and lock pin a checksummed release from the public [hippo repository](https://github.com/wahidyankf/hippo), which owns source, specifications, and enforcement. Beaver Nest owns its pin, wrapper, policy example, and invocations. Copy the example to ignored `hippo.local.json` for machine policy. Precedence is `--config`, `HIPPO_CONFIG`, then that file; none can weaken safety floors.
 
 ## Evidence Basis
 
@@ -45,6 +46,6 @@ XNU exposes normal `1`, warning `2`, and critical `4` memory states ([conversion
 
 The collector normalizes CPU, memory, pressure, swap, disk, RSS, and health. Linux uses `/proc`, PSI, and cgroup v2; macOS keeps pressure/compressor evidence.
 
-Samples use schema v3; release summaries use v5. State defaults to `~/Library/Application Support/resource-guard/` on macOS and `${XDG_STATE_HOME:-$HOME/.local/state}/resource-guard/` on Linux. Samples expire in seven days, summaries in thirty, and files stay below 50 MiB. Evidence excludes contents, arguments, origins, paths, credentials, and user data. Summary schemas v2–v4 remain readable.
+Samples use schema v3; release summaries use v5. State defaults to `~/Library/Application Support/hippo/` on macOS and `${XDG_STATE_HOME:-$HOME/.local/state}/hippo/` on Linux. Samples expire in seven days, summaries in thirty, and files stay below 50 MiB. Evidence excludes contents, arguments, origins, paths, credentials, and user data. Summary schemas v2–v4 remain readable.
 
-Verify changes through guarded resource-guard Nx targets, affected guarded gates, and the repository gate. Use deterministic fake pressure in tests; never endanger the host to prove shedding.
+Verify changes through HIPPO-guarded Nx targets, affected guarded gates, and the repository gate. Use deterministic fake pressure in tests; never endanger the host to prove shedding.

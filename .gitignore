@@ -27,8 +27,8 @@ node_modules/
 npm-debug.log*
 .nx/
 
-# Resource guard machine policy
-/resource-guard.local.json
+# HIPPO machine policy
+/hippo.local.json
 
 # .NET / F#
 **/bin/

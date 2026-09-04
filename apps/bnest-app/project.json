@@ -13,7 +13,7 @@
       "cache": false
     },
     "serve": {
-      "command": "BNEST_STABLE=${BNEST_STABLE:-true} PORT=${BNEST_DEV_PORT:-4020} ../../resource-guard run --class service --disk-path ../.. --lease-port ${BNEST_DEV_PORT:-4020} --lease-owner development --lease-min 4020 --lease-max 4029 -- mix phx.server",
+      "command": "BNEST_STABLE=${BNEST_STABLE:-true} PORT=${BNEST_DEV_PORT:-4020} ../../hippo run --class service --disk-path ../.. --lease-port ${BNEST_DEV_PORT:-4020} --lease-owner development --lease-min 4020 --lease-max 4029 -- mix phx.server",
       "options": {
         "cwd": "apps/bnest-app"
       },
@@ -44,7 +44,7 @@
       "cache": false
     },
     "release:run": {
-      "command": "../../resource-guard run --class transactional --disk-path ../.. -- node tools/release.mjs",
+      "command": "../../hippo run --class transactional --disk-path ../.. -- node tools/release.mjs",
       "options": {
         "cwd": "apps/bnest-app",
         "forwardAllArgs": true

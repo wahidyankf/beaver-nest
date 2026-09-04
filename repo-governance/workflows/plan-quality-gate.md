@@ -33,14 +33,14 @@ Audit before editing. Create a finite ledger containing `ID`, canonical rule, lo
 4. Verify semantically in read-only mode, reviewing only repaired meaning and cross-document effects. Then run:
 
    ```sh
-   ./resource-guard run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
+   ./hippo run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
    ```
 
 5. Return `PASS` when no row is `OPEN` or `BLOCKED`, tooling passes, no new material semantic gap appears, and the snapshot changed only through recorded repairs.
 6. Otherwise allow exactly one stabilization cycle. Add only repair-caused semantic gaps and deterministic-tool findings, set cycle `2`, repair them once, and repeat step 4. A fixed finding cannot reopen without changed input; changed input yields `BLOCKED_INPUT_CHANGED`.
 7. After cycle `2`, return `PASS` if step 5 holds. Otherwise return `BLOCKED_NON_CONVERGENT` with the remaining ledger and evidence. Do not repair, restart, or invoke this workflow again automatically.
 
-Resource-guard recovery required by its canonical standard is infrastructure handling, not another quality-gate cycle.
+HIPPO recovery required by its canonical standard is infrastructure handling, not another quality-gate cycle.
 
 If canonical recovery cannot obtain a deterministic verdict, return `BLOCKED_TOOLING` with the failure evidence. Never simulate the check or retry it without bound.
 

@@ -4,7 +4,7 @@ Terms used across Beaver Nest's rules, plans, projects, and commit messages. Eac
 
 ## Execution and capacity
 
-- **Resource guard** — the wrapper every compute-bearing Nx command runs through, so work is admitted only when the host has capacity. See [resource-aware development](../../repo-governance/development/resource-aware-development.md).
+- **HIPPO** — Host Infrastructure Pressure & Process Orchestrator; the wrapper every compute-bearing Nx command runs through, so work is admitted only when the host has capacity. See [resource-aware development](../../repo-governance/development/resource-aware-development.md).
 - **Class** — what kind of work is being admitted: `ephemeral` for ordinary build and test work, `service` for a non-production server, `transactional` for a mutation that must not be killed once started. Never changed to get admitted.
 - **Profile** — how much headroom the guard reserves. Ordinary work falls back `balanced` → `constrained` → `minimal`; transactional and release work keep their requested profile strictly.
 - **Exit 75** — transient capacity. Not a test failure: wait, then retry the same command serially.
