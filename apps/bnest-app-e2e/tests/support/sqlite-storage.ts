@@ -72,6 +72,11 @@ export function defaultDatabaseDirectory(scenario: StorageScenario): string {
 
 type MigrateResult = { status: number; stdout: string; stderr: string };
 
+export type StorageMigrationEvidence = {
+  items: [string, string, string, string][];
+  record: Record<string, unknown>;
+};
+
 // By default the isolated pointer path is used (BNEST_STORAGE_CONFIG set).
 // Pass useDefaultPointer to exercise Location.default_directory() instead,
 // scoped safely under scenario.homeDirectory via a HOME override so the
@@ -119,6 +124,32 @@ export function runStorageCommand(
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? "",
   };
+}
+
+export function inspectStorageMigration(
+  scenario: StorageScenario,
+): StorageMigrationEvidence {
+  const marker = "BNEST_E2E_STORAGE_EVIDENCE=";
+  const expression = `
+    alias BnestApp.DataRepository.{SqliteStore, StorageCoordinator}
+    alias BnestApp.SqliteRepo
+    :ok = StorageCoordinator.ensure_started!()
+    items = SqliteRepo.query!("SELECT source_relative_path, source_sha256, target_sha256, outcome FROM bnest_migration_items ORDER BY rowid").rows
+    {:ok, record} = SqliteStore.read(SqliteStore.new(SqliteRepo), :theme, "user-fixture-001")
+    IO.puts("${marker}" <> Jason.encode!(%{items: items, record: record}))
+  `;
+  const result = runStorageCommand(scenario, "run", ["-e", expression]);
+  if (result.status !== 0) {
+    throw new Error(`storage evidence read failed: ${result.stderr}`);
+  }
+
+  const encoded = result.stdout
+    .split("\n")
+    .find((line) => line.startsWith(marker))
+    ?.slice(marker.length);
+  if (!encoded) throw new Error("storage evidence marker was absent");
+
+  return JSON.parse(encoded) as StorageMigrationEvidence;
 }
 
 function resolveMixHome(): string {

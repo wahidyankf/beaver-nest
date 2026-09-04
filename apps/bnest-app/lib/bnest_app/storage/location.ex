@@ -6,6 +6,11 @@ defmodule BnestApp.Storage.Location do
   @spec filename() :: String.t()
   def filename, do: @filename
 
+  @spec database_path(String.t(), String.t()) :: String.t()
+  def database_path(directory, filename \\ @filename)
+      when is_binary(directory) and is_binary(filename),
+      do: Path.join(directory, filename)
+
   @spec config_directory() :: String.t()
   def config_directory, do: Path.expand("~/.config/bnest")
 

@@ -1042,14 +1042,24 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, :empty_isolated_database, _args) do
     context = prepare_behaviour(context, :no_storage_configuration, [])
     runtime = TestRuntimeRoot.create!("sqlite-storage-schema")
-    ExUnit.Callbacks.on_exit(fn -> TestRuntimeRoot.cleanup!(runtime) end)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      StorageCoordinator.stop()
+      TestRuntimeRoot.cleanup!(runtime)
+    end)
+
     Map.put(context, :sqlite_database_path, Path.join(runtime.sqlite_path, "bnest.sqlite3"))
   end
 
   def prepare_behaviour(context, :flat_primary_default_location, _args) do
     context = prepare_behaviour(context, :no_storage_configuration, [])
     runtime = TestRuntimeRoot.create!("sqlite-storage-migration")
-    ExUnit.Callbacks.on_exit(fn -> TestRuntimeRoot.cleanup!(runtime) end)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      StorageCoordinator.stop()
+      TestRuntimeRoot.cleanup!(runtime)
+    end)
+
     identity = seed_flat_fixtures!(runtime.path)
 
     context
@@ -1643,6 +1653,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :database_under_resolved_directory, _args),
     do: File.exists?(context.sqlite_database_path)
 
+  def behaviour_outcome?(context, :all_valid_items_accepted, _args) do
+    inventory_count = context.flat_root |> StorageMigration.inventory() |> length()
+
+    context.migration_run_result.blocked == 0 and
+      context.migration_run_result.accepted == inventory_count
+  end
+
   def behaviour_outcome?(context, :checksum_evidence_present, _args) do
     repo = sqlite_repo_started!(context.sqlite_database_path)
 
@@ -2025,6 +2042,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   defp unique_suffix, do: Base.url_encode64(:crypto.strong_rand_bytes(6), padding: false)
+  defp username_suffix, do: Base.encode16(:crypto.strong_rand_bytes(6), case: :lower)
 
   defp sqlite_migrations_path, do: Application.app_dir(:bnest_app, "priv/sqlite_repo/migrations")
 
@@ -2036,7 +2054,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   defp seed_flat_fixtures!(root) do
     now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
     user_id = "user-" <> unique_suffix()
-    username = "test-user-sqlite-" <> String.downcase(unique_suffix())
+    username = "test-user-sqlite-" <> username_suffix()
     password = "Synthetic SQLite Password 123!"
     {:ok, verifier} = CredentialVerifier.hash(password)
 

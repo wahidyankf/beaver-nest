@@ -93,6 +93,10 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: outcome(context, :database_under_resolved_directory)
   )
 
+  step("every recognized valid item is accepted without a block", context,
+    do: outcome(context, :all_valid_items_accepted)
+  )
+
   step("each accepted item has immutable source and target checksum evidence", context,
     do: outcome(context, :checksum_evidence_present)
   )

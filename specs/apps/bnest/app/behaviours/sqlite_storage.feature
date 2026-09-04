@@ -42,6 +42,7 @@ Feature: Bnest SQLite storage
     When managed storage migration runs without a UI visit
     Then Bnest inventories records in deterministic path order
     And Bnest writes the database under the resolved storage directory
+    And every recognized valid item is accepted without a block
     And each accepted item has immutable source and target checksum evidence
     And normal repository reads return the same validated record
 

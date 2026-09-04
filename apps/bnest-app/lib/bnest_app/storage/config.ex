@@ -27,8 +27,11 @@ defmodule BnestApp.Storage.Config do
   @spec resolved_database_path() :: String.t()
   def resolved_database_path do
     case read() do
-      {:ok, config} -> Path.join(config["databaseDirectory"], config["databaseFilename"])
-      {:error, _reason} -> Path.join(Location.default_directory(), Location.filename())
+      {:ok, config} ->
+        Location.database_path(config["databaseDirectory"], config["databaseFilename"])
+
+      {:error, _reason} ->
+        Location.database_path(Location.default_directory())
     end
   end
 

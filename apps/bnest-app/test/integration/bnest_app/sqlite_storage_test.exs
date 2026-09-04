@@ -50,6 +50,15 @@ defmodule BnestApp.SqliteStorageTest do
 
     refute log =~ "** (stop) killed"
     refute log =~ "database is locked"
+
+    assert SqliteRepo.query!("PRAGMA journal_mode").rows == [["wal"]]
+
+    Enum.each([database_path, database_path <> "-wal", database_path <> "-shm"], fn path ->
+      if File.exists?(path) do
+        stat = File.stat!(path)
+        assert Bitwise.band(stat.mode, 0o777) == 0o600
+      end
+    end)
   end
 
   test "creates every declared table and index exactly once" do

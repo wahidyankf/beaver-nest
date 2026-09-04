@@ -5,7 +5,9 @@ defmodule BnestApp.DataRepository.StorageCoordinator do
   alias BnestApp.DataRepository.Store
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Config
+  alias Exqlite.Sqlite3
 
+  @database_startup_timeout_ms 5_000
   @repo_shutdown_timeout_ms 5_000
 
   @spec active_backend(Store.t()) :: {module(), term()}
@@ -44,6 +46,8 @@ defmodule BnestApp.DataRepository.StorageCoordinator do
     directory = Path.dirname(database_path)
     File.mkdir_p!(directory)
     File.chmod!(directory, 0o700)
+    prepare_journal!(database_path)
+    protect_database_files(database_path)
 
     Application.put_env(
       :bnest_app,
@@ -59,6 +63,17 @@ defmodule BnestApp.DataRepository.StorageCoordinator do
 
       {:error, {:already_started, _pid}} ->
         :ok
+    end
+  end
+
+  defp prepare_journal!(database_path) do
+    {:ok, database} = Sqlite3.open(database_path)
+
+    try do
+      :ok = Sqlite3.set_busy_timeout(database, @database_startup_timeout_ms)
+      :ok = Sqlite3.execute(database, "PRAGMA journal_mode=WAL")
+    after
+      :ok = Sqlite3.close(database)
     end
   end
 

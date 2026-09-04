@@ -1,10 +1,12 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   cleanupStorageScenario,
   defaultDatabaseDirectory,
   digestFile,
+  inspectStorageMigration,
   isolatedStorageScenario,
   readDefaultPointer,
   readPointer,
@@ -12,6 +14,7 @@ import {
   seedMalformedBootstrap,
   writeThemeFixture,
   type StorageScenario,
+  type StorageMigrationEvidence,
 } from "../support/sqlite-storage";
 import {
   cleanupIdentityStorageScenario,
@@ -34,6 +37,7 @@ let migrateResult: { status: number; stdout: string; stderr: string };
 let secondMigrateResult: { status: number; stdout: string; stderr: string };
 let fixtureFile = "";
 let fixtureDigestBefore = "";
+let migrationEvidence: StorageMigrationEvidence;
 const sqliteIdentity = {
   username: "test-user-sqlite-retired",
   password: "Synthetic SQLite Password 123!",
@@ -107,6 +111,7 @@ Given(
   ({ $testInfo }) => {
     scenario = isolatedStorageScenario($testInfo, "backfill");
     fixtureFile = writeThemeFixture(scenario);
+    writeThemeFixture(scenario, "user-aaa-fixture");
     fixtureDigestBefore = digestFile(fixtureFile);
   },
 );
@@ -117,7 +122,11 @@ When("managed storage migration runs without a UI visit", () => {
 
 Then("Bnest inventories records in deterministic path order", () => {
   expect(migrateResult.status, migrateResult.stderr).toBe(0);
-  expect(migrateResult.stdout).toContain("accepted=1 blocked=0");
+  migrationEvidence = inspectStorageMigration(scenario);
+  const inventory = migrationEvidence.items.map(
+    ([relativePath]) => relativePath,
+  );
+  expect(inventory).toEqual(inventory.toSorted());
 });
 
 Then("Bnest writes the database under the resolved storage directory", () => {
@@ -127,17 +136,34 @@ Then("Bnest writes the database under the resolved storage directory", () => {
   );
 });
 
+Then("every recognized valid item is accepted without a block", () => {
+  expect(migrateResult.status, migrateResult.stderr).toBe(0);
+  expect(migrateResult.stdout).toContain("accepted=2 blocked=0");
+  expect(migrationEvidence.items).toHaveLength(2);
+  expect(migrationEvidence.items.every((item) => item[3] === "accepted")).toBe(
+    true,
+  );
+});
+
 Then(
   "each accepted item has immutable source and target checksum evidence",
   () => {
-    const repeat = runStorageMigrate(scenario, []);
-    expect(repeat.status, repeat.stderr).toBe(0);
-    expect(repeat.stdout).toContain("accepted=1 blocked=0");
+    const checksum = /^[0-9a-f]{64}$/u;
+    expect(
+      migrationEvidence.items.every(
+        ([, sourceChecksum, targetChecksum]) =>
+          checksum.test(sourceChecksum) && checksum.test(targetChecksum),
+      ),
+    ).toBe(true);
   },
 );
 
 Then("normal repository reads return the same validated record", () => {
-  expect(digestFile(fixtureFile)).toBe(fixtureDigestBefore);
+  const sourceRecord = JSON.parse(readFileSync(fixtureFile, "utf8")) as Record<
+    string,
+    unknown
+  >;
+  expect(migrationEvidence.record).toEqual(sourceRecord);
   cleanupStorageScenario(scenario);
 });
 

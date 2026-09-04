@@ -23,8 +23,11 @@ defmodule BnestApp.Storage.Migration do
     |> Path.wildcard()
     |> Enum.map(&Path.relative_to(&1, flat_root))
     |> Enum.filter(&match?({:ok, _classification}, classify_source(&1)))
-    |> Enum.sort()
+    |> order_inventory()
   end
+
+  @spec order_inventory([String.t()]) :: [String.t()]
+  def order_inventory(relative_paths), do: Enum.sort(relative_paths)
 
   @spec source_fingerprint([String.t()], String.t()) :: String.t()
   def source_fingerprint(relative_paths, flat_root) do
@@ -48,9 +51,7 @@ defmodule BnestApp.Storage.Migration do
     ensure_run!(repo, fingerprint, now)
 
     outcomes = Enum.map(relative_paths, &process_item(repo, flat_root, &1))
-
-    accepted = Enum.count(outcomes, &(&1 == :accepted))
-    blocked = Enum.count(outcomes, &(&1 in [:invalid, :changed]))
+    %{accepted: accepted, blocked: blocked, unsupported: unsupported} = outcome_counts(outcomes)
 
     state = migration_state(blocked)
     update_run_state!(repo, fingerprint, state)
@@ -59,8 +60,44 @@ defmodule BnestApp.Storage.Migration do
       migration_id: @migration_id,
       accepted: accepted,
       blocked: blocked,
-      unsupported: 0,
+      unsupported: unsupported,
       state: state
+    }
+  end
+
+  @spec assess_record(String.t(), binary()) ::
+          {:accepted,
+           %{
+             classification: map(),
+             identity: term(),
+             record: map(),
+             source_sha256: String.t(),
+             target_sha256: String.t()
+           }}
+          | {:invalid, %{classification: map(), source_sha256: String.t()}}
+          | {:unsupported, %{source_sha256: String.t()}}
+  def assess_record(relative_path, source_bytes) do
+    source_sha256 = sha256(source_bytes)
+
+    case RecordMap.classify(relative_path) do
+      {:ok, classification} ->
+        assess_recognized_record(classification, source_bytes, source_sha256)
+
+      {:error, :unsupported_source} ->
+        {:unsupported, %{source_sha256: source_sha256}}
+    end
+  end
+
+  @spec outcome_counts([:accepted | :invalid | :changed | :failed | :unsupported]) :: %{
+          accepted: non_neg_integer(),
+          blocked: non_neg_integer(),
+          unsupported: non_neg_integer()
+        }
+  def outcome_counts(outcomes) do
+    %{
+      accepted: Enum.count(outcomes, &(&1 == :accepted)),
+      blocked: Enum.count(outcomes, &(&1 in [:invalid, :changed, :failed])),
+      unsupported: Enum.count(outcomes, &(&1 == :unsupported))
     }
   end
 
@@ -137,39 +174,46 @@ defmodule BnestApp.Storage.Migration do
   defp accept_or_reject(
          repo,
          relative_path,
-         {:record, classification},
+         {:record, _classification},
          source_bytes,
-         source_sha256
+         _source_sha256
        ) do
-    with {:ok, record} <- Jason.decode(source_bytes),
-         {:ok, ^record} <- Schema.validate(record) do
-      target_sha256 = CanonicalJson.sha256(record)
-      write_record!(repo, classification, record, target_sha256)
+    case assess_record(relative_path, source_bytes) do
+      {:accepted, evidence} ->
+        write_record!(
+          repo,
+          evidence.classification,
+          evidence.record,
+          evidence.target_sha256
+        )
 
-      upsert_item!(
-        repo,
-        relative_path,
-        classification,
-        source_sha256,
-        target_sha256,
-        "accepted",
-        nil
-      )
-
-      :accepted
-    else
-      _invalid ->
         upsert_item!(
           repo,
           relative_path,
-          classification,
-          source_sha256,
+          evidence.classification,
+          evidence.source_sha256,
+          evidence.target_sha256,
+          "accepted",
+          nil
+        )
+
+        :accepted
+
+      {:invalid, evidence} ->
+        upsert_item!(
+          repo,
+          relative_path,
+          evidence.classification,
+          evidence.source_sha256,
           nil,
           "invalid",
           "malformed"
         )
 
         :invalid
+
+      {:unsupported, _evidence} ->
+        raise "recognized migration record became unsupported"
     end
   end
 
@@ -347,6 +391,22 @@ defmodule BnestApp.Storage.Migration do
       target_record == source_record or phase == :sqlite_primary
     else
       _mismatch -> false
+    end
+  end
+
+  defp assess_recognized_record(classification, source_bytes, source_sha256) do
+    with {:ok, record} <- Jason.decode(source_bytes),
+         {:ok, ^record} <- Schema.validate(record) do
+      {:accepted,
+       %{
+         classification: classification,
+         identity: identity_of(classification),
+         record: record,
+         source_sha256: source_sha256,
+         target_sha256: CanonicalJson.sha256(record)
+       }}
+    else
+      _invalid -> {:invalid, %{classification: classification, source_sha256: source_sha256}}
     end
   end
 

@@ -39,7 +39,8 @@ defmodule BnestApp.Application do
           {BnestApp.DataRepository, root: root},
           BnestApp.Identity,
           {Task.Supervisor, name: BnestApp.Scheduler.Tasks},
-          BnestApp.Scheduler
+          {BnestApp.Scheduler,
+           automatic?: Application.get_env(:bnest_app, :scheduler_automatic?, true)}
         ]
     end
   end

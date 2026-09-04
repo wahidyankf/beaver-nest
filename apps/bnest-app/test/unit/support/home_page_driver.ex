@@ -104,6 +104,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.SifatAllah
   alias BnestApp.Storage.Config, as: StorageConfig
   alias BnestApp.Storage.Location, as: StorageLocation
+  alias BnestApp.Storage.Migration, as: StorageMigration
   alias BnestAppWeb.SifatAllahLive
   alias Phoenix.HTML.Safe
 
@@ -1135,14 +1136,17 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: Map.put(context, :schema_objects, [])
 
   def prepare_behaviour(context, :flat_primary_default_location, _args) do
-    sources = sqlite_storage_fixture_sources()
+    entries = sqlite_storage_fixture_entries()
+    sources = Enum.map(entries, &elem(&1, 0))
 
     Map.merge(context, %{
       storage_config: %{"phase" => "flat_primary"},
       flat_sources: sources,
+      flat_source_records: Map.new(entries),
       flat_source_snapshot: sources,
       migration_items: [],
-      resolved_database_path: "/var/lib/bnest/" <> StorageLocation.filename()
+      migration_store: MemoryBackend.start(),
+      resolved_database_directory: "/var/lib/bnest"
     })
   end
 
@@ -1495,17 +1499,43 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def perform_behaviour(context, :run_managed_storage_migration, _args) do
-    accepted =
-      Enum.map(context.flat_sources, fn path ->
-        digest = :crypto.hash(:sha256, path) |> Base.encode16(case: :lower)
-        %{path: path, source_sha256: digest, target_sha256: digest, outcome: :accepted}
+    assessments =
+      context.flat_sources
+      |> StorageMigration.order_inventory()
+      |> Enum.map(fn path ->
+        source_bytes = context.flat_source_records |> Map.fetch!(path) |> Jason.encode!()
+        {path, StorageMigration.assess_record(path, source_bytes)}
       end)
+
+    accepted =
+      Enum.map(assessments, fn
+        {path, {:accepted, evidence}} ->
+          record = evidence.record
+
+          {:ok, ^record} =
+            Backend.put_new(
+              context.migration_store,
+              evidence.classification.type,
+              evidence.identity,
+              record
+            )
+
+          Map.merge(evidence, %{path: path, outcome: :accepted})
+
+        {_path, {outcome, _evidence}} ->
+          raise "valid unit migration fixture produced #{inspect(outcome)}"
+      end)
+
+    counts =
+      assessments
+      |> Enum.map(fn {_path, {outcome, _evidence}} -> outcome end)
+      |> StorageMigration.outcome_counts()
 
     Map.merge(context, %{
       migration_items: accepted,
       migrated_sources: Enum.map(accepted, & &1.path),
-      migration_run_result: %{accepted: length(accepted), blocked: 0},
-      database_path: context.resolved_database_path
+      migration_run_result: counts,
+      database_path: StorageLocation.database_path(context.resolved_database_directory)
     })
   end
 
@@ -1762,10 +1792,19 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       do: context.schema_before_second_apply == context.schema_after_second_apply
 
   def behaviour_outcome?(context, :deterministic_inventory, _args),
-    do: context.flat_sources == Enum.sort(context.flat_sources)
+    do:
+      context.flat_sources != Enum.sort(context.flat_sources) and
+        context.migrated_sources == StorageMigration.order_inventory(context.flat_sources)
 
   def behaviour_outcome?(context, :database_under_resolved_directory, _args),
-    do: context.database_path == context.resolved_database_path
+    do:
+      context.database_path ==
+        context.resolved_database_directory <> "/" <> StorageLocation.filename()
+
+  def behaviour_outcome?(context, :all_valid_items_accepted, _args),
+    do:
+      context.migration_run_result.blocked == 0 and
+        context.migration_run_result.accepted == length(context.flat_sources)
 
   def behaviour_outcome?(context, :checksum_evidence_present, _args),
     do:
@@ -1774,7 +1813,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       end)
 
   def behaviour_outcome?(context, :normal_reads_match, _args),
-    do: context.migrated_sources == context.flat_sources
+    do:
+      Enum.all?(context.migration_items, fn item ->
+        Backend.read(
+          context.migration_store,
+          item.classification.type,
+          item.identity
+        ) == {:ok, item.record}
+      end)
 
   def behaviour_outcome?(context, :accepted_items_not_duplicated, _args),
     do: context.item_count_before_retry == context.item_count_after_retry
@@ -2074,7 +2120,28 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   defp effort_label(effort), do: String.capitalize(effort)
 
   defp sqlite_storage_fixture_sources,
-    do: Enum.sort(["system/bootstrap.json", "users/fixture-user/preferences/theme.json"])
+    do: sqlite_storage_fixture_entries() |> Enum.map(&elem(&1, 0))
+
+  defp sqlite_storage_fixture_entries do
+    [
+      {"users/z-fixture-user/preferences/theme.json",
+       sqlite_storage_theme_fixture("z-fixture-user", "light")},
+      {"users/a-fixture-user/preferences/theme.json",
+       sqlite_storage_theme_fixture("a-fixture-user", "dark")}
+    ]
+  end
+
+  defp sqlite_storage_theme_fixture(owner_id, theme) do
+    %{
+      "schemaVersion" => 1,
+      "recordType" => "theme-preference",
+      "ownerId" => owner_id,
+      "sourceImportId" => nil,
+      "revision" => 1,
+      "theme" => theme,
+      "updatedAt" => "2026-09-04T12:00:00Z"
+    }
+  end
 
   defp central_context(context, sources) do
     Map.merge(context, %{

@@ -1,6 +1,7 @@
 import Config
 
 config :bnest_app, :identity_cutover_enabled, true
+config :bnest_app, :scheduler_automatic?, false
 
 config :bnest_app, :storage_profile, {:test, System.get_env("BNEST_TEST_RUN_ID")}
 

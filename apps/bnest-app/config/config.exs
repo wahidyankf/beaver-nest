@@ -91,7 +91,9 @@ config :phoenix, :json_library, Jason
 
 config :bnest_app, BnestApp.SqliteRepo,
   pool_size: 5,
-  journal_mode: :wal,
+  # StorageCoordinator establishes WAL once before the pool starts so pooled
+  # connections do not race on the database-wide journal transition.
+  journal_mode: nil,
   busy_timeout: 5_000,
   foreign_keys: :on,
   synchronous: :full,
