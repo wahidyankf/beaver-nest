@@ -38,17 +38,6 @@ subject="$temporary_root/consumer/hippo"
 mkdir -p "$temporary_root/consumer" "$temporary_root/fake-bin" "$temporary_root/payload"
 cp "$repository_root/hippo" "$subject"
 
-# Timestamp reads must go through the platform-branching helper. The BSD form
-# `stat -f` means "filesystem status" to GNU coreutils, which writes a block of
-# filesystem detail to stdout before failing, so a `stat -f ... || stat -c ...`
-# fallback chain captures that detail alongside the real value and yields a
-# non-numeric result. Retention then silently treats every release as undatable
-# and reclaims nothing. That failure is invisible on macOS, so assert the shape
-# here rather than waiting for a Linux-only run to catch it.
-if grep -qE "stat -[fc] .*\|\| *stat -[fc] " "$repository_root/hippo"; then
-	echo "hippo must read timestamps through file_modified_epoch, not a stat fallback chain" >&2
-	exit 1
-fi
 chmod 755 "$subject"
 
 # The suite runs on both Linux and macOS runners. Pinning the fake uname to one
@@ -290,6 +279,7 @@ Concurrent stale reclaimers preserve a replacement live owner
 Install guard storage stays bounded across release versions
 Retention never deletes a release another consumer is installing
 Retention never evicts a release another repository still uses
+Release ranking reads real timestamps on every supported platform
 Retention reclaims releases left idle beyond its window'
 actual_scenarios=$(awk '/^[[:space:]]*Scenario: / { sub(/^[[:space:]]*Scenario: /, ""); print }' "$feature_file")
 [ "$actual_scenarios" = "$expected_scenarios" ]
@@ -677,6 +667,26 @@ run_bounded_install_guard_storage() {
 	rm -rf -- "$cache_root"
 }
 
+# The BSD form `stat -f` means "filesystem status" to GNU coreutils, which writes
+# a block of filesystem detail to stdout before failing on the format operand, so
+# a `stat -f ... || stat -c ...` fallback chain captures that detail alongside the
+# real value. Retention then ranks releases by prose instead of by time. The fault
+# is invisible on macOS, where the BSD form succeeds, so a single-platform run can
+# only honour "on every supported platform" by asserting that no timestamp read
+# takes a platform-fragile path.
+run_release_ranking_reads_real_timestamps() {
+	if grep -qE "stat -[fc] .*\|\| *stat -[fc] " "$repository_root/hippo"; then
+		echo "hippo must read timestamps through a platform branch, not a stat fallback chain" >&2
+		exit 1
+	fi
+	# A lone BSD or GNU read means a new call site skipped the branch entirely,
+	# which fails on exactly one platform and passes on the other.
+	bsd_reads=$(grep -cE '^[[:space:]]*stat -f ' "$repository_root/hippo")
+	gnu_reads=$(grep -cE '^[[:space:]]*stat -c ' "$repository_root/hippo")
+	[ "$bsd_reads" -eq "$gnu_reads" ]
+	[ "$bsd_reads" -gt 0 ]
+}
+
 while IFS= read -r scenario; do
 	case "$scenario" in
 	'Tampered warm-cache payload never executes') run_tampered_warm_cache ;;
@@ -691,6 +701,7 @@ while IFS= read -r scenario; do
 	'Install guard storage stays bounded across release versions') run_bounded_install_guard_storage ;;
 	'Retention never deletes a release another consumer is installing') run_retention_protects_installing_release ;;
 	'Retention never evicts a release another repository still uses') run_retention_keeps_releases_other_repositories_use ;;
+	'Release ranking reads real timestamps on every supported platform') run_release_ranking_reads_real_timestamps ;;
 	'Retention reclaims releases left idle beyond its window') run_retention_reclaims_idle_releases ;;
 	*) exit 1 ;;
 	esac
