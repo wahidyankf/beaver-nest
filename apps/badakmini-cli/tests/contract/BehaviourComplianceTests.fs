@@ -28,6 +28,13 @@ type FeatureComplianceTests() =
         Assert.Equal(Ok(), FeatureCompliance.validate "example.feature" source)
 
     [<Fact>]
+    member _.``independently documented integration and E2E exemptions are accepted``() =
+        let source =
+            "Feature: Compliance example\n\n  # Exemption(integration): the local boundary cannot inject the private invariant failure; alternative-proof: example:test:unit / Tagged behaviour\n  @integration-exempt\n  # Exemption(e2e): no public trigger can inject the private invariant failure; alternative-proof: example:test:unit / Tagged behaviour\n  @e2e-exempt\n  Scenario: Tagged behaviour\n    Given a precondition\n    When an action occurs\n    Then an outcome is observed"
+
+        Assert.Equal(Ok(), FeatureCompliance.validate "example.feature" source)
+
+    [<Fact>]
     member _.``unit legacy broad and undocumented exemptions are rejected``() =
         [ "@unit-exempt\n  Scenario: Tagged behaviour"
           "@no-e2e\n  Scenario: Tagged behaviour"
@@ -40,6 +47,15 @@ type FeatureComplianceTests() =
             match FeatureCompliance.validate "example.feature" source with
             | Error _ -> ()
             | Ok() -> failwithf "Expected exemption policy failure for %s" declaration)
+
+    [<Fact>]
+    member _.``unfinished flaky or costly work cannot justify an exemption``() =
+        [ "too flaky and not yet implemented"; "too expensive to implement" ]
+        |> List.iter (fun reason ->
+            let source =
+                $"Feature: Compliance example\n\n  # Exemption(e2e): {reason}; alternative-proof: example:test:unit / Tagged behaviour\n  @e2e-exempt\n  Scenario: Tagged behaviour\n    Given a precondition\n    When an action occurs\n    Then an outcome is observed"
+
+            source |> assertErrorContains "cannot be justified")
 
     [<Fact>]
     member _.``missing feature declaration is rejected``() =

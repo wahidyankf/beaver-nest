@@ -18,7 +18,7 @@ module FeatureCompliance =
 
     let private invalidReason =
         Regex(
-            "\\b(?:hard|slow|flaky|not yet implemented|todo)\\b",
+            "\\b(?:hard|slow|flaky|cost(?:ly)?|expensive|not yet implemented|todo)\\b",
             RegexOptions.IgnoreCase ||| RegexOptions.CultureInvariant
         )
 
@@ -81,11 +81,6 @@ module FeatureCompliance =
                         $"{resourceName}:{lineNumber}: exemption tags may only annotate a Scenario or Scenario Outline."
                     )
 
-                if exemptions |> List.map snd |> Set.ofList |> Set.count > 1 then
-                    errors.Add(
-                        $"{resourceName}:{lineNumber}: a scenario cannot be both @integration-exempt and @e2e-exempt."
-                    )
-
                 for tagLine, tagName in exemptions do
                     let comment = if tagLine >= 2 then lines[tagLine - 2].Trim() else ""
                     let matched = exemptionComment.Match comment
@@ -98,7 +93,7 @@ module FeatureCompliance =
                     else
                         if invalidReason.IsMatch matched.Groups[2].Value then
                             errors.Add(
-                                $"{resourceName}:{tagLine}: an exemption cannot be justified by difficulty, speed, flakiness, or missing implementation."
+                                $"{resourceName}:{tagLine}: an exemption cannot be justified by difficulty, speed, cost, flakiness, or missing implementation."
                             )
 
                         if
@@ -129,7 +124,7 @@ module FeatureCompliance =
                 for name in names do
                     if forbiddenTags.Contains name then
                         errors.Add(
-                            $"{resourceName}:{lineNumber}: @{name} is forbidden; unit has no exemption and higher layers use @integration-exempt or @e2e-exempt."
+                            $"{resourceName}:{lineNumber}: @{name} is forbidden; unit has no exemption and higher layers use the layer-specific @integration-exempt and @e2e-exempt tags."
                         )
 
                     pending <- pending @ [ lineNumber, name ]

@@ -12,7 +12,7 @@ const forbiddenTags = new Set([
 const exemptionCommentPattern =
   /^# Exemption\((integration|e2e)\): (.+); alternative-proof: (.+)$/u;
 const invalidReasonPattern =
-  /\b(?:hard|slow|flaky|not yet implemented|todo)\b/iu;
+  /\b(?:hard|slow|flaky|cost(?:ly)?|expensive|not yet implemented|todo)\b/iu;
 
 interface FeatureState {
   currentScenario?: string;
@@ -178,7 +178,7 @@ function validateTagLine(
     .map((name) => {
       if (forbiddenTags.has(name))
         errors.push(
-          `${resourceName}:${lineNumber}: @${name} is forbidden; unit has no exemption and higher layers use @integration-exempt or @e2e-exempt.`,
+          `${resourceName}:${lineNumber}: @${name} is forbidden; unit has no exemption and higher layers use the layer-specific @integration-exempt and @e2e-exempt tags.`,
         );
       return { line: lineNumber, name };
     });
@@ -200,10 +200,6 @@ function declarationErrors(
     errors.push(
       `${resourceName}:${lineNumber}: exemption tags may only annotate a Scenario or Scenario Outline.`,
     );
-  if (new Set(exemptions.map(({ name }) => name)).size > 1)
-    errors.push(
-      `${resourceName}:${lineNumber}: a scenario cannot be both @integration-exempt and @e2e-exempt.`,
-    );
   return errors;
 }
 
@@ -224,7 +220,7 @@ function documentedExemptionErrors(
   const errors: string[] = [];
   if (invalidReasonPattern.test(match[2] ?? ""))
     errors.push(
-      `${resourceName}:${exemption.line}: an exemption cannot be justified by difficulty, speed, flakiness, or missing implementation.`,
+      `${resourceName}:${exemption.line}: an exemption cannot be justified by difficulty, speed, cost, flakiness, or missing implementation.`,
     );
   if (!/^[a-z0-9-]+:test(?::[a-z0-9-]+)*\s+\/\s+\S/iu.test(match[3] ?? ""))
     errors.push(
