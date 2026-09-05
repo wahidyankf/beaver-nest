@@ -11,7 +11,7 @@ For more details on any command, run it with `--help` (e.g. `nx run-many --help`
 
 ## Repository HIPPO
 
-When the workspace rule links `repo-governance/development/resource-aware-development.md`, wrap compute-bearing Nx commands for every project under `apps/` and `libs/` through its canonical HIPPO. This includes current and newly added applications, E2E adapters, libraries, and repository tools with compute-bearing targets. Preserve the package-manager-prefixed inner Nx command and any repository-required shell prefix. Do not bypass, immediately retry, or parallelize an exit `75`; it means host capacity was deferred or the guarded child was shed. Run recovery and read-only status controls directly so pressure protection cannot block service restoration.
+When the workspace rule links `repo-governance/development/resource-aware-development.md`, wrap compute-bearing Nx commands for every project under `apps/` and `libs/` through exactly one outer HIPPO boundary with explicit `--disk-path`. This includes current and newly added applications, E2E adapters, libraries, and repository tools with compute-bearing targets. A self-guarded target remains the sole boundary, so callers invoke it natively. Preserve the package-manager-prefixed inner Nx command, dependency and correctness ordering, and any repository-required shell prefix. Independent work may overlap through the fixed admitted allocation; never duplicate or concurrently retry one exit-`75` invocation. Wait for its stated FIFO deferral or shedding condition, then retry only that command. Run recovery and read-only status controls directly so pressure protection cannot block service restoration.
 
 ## Understand which tasks can be run
 

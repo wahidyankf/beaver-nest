@@ -7,7 +7,10 @@ Terms used across Beaver Nest's rules, plans, projects, and commit messages. Eac
 - **HIPPO** — Host Infrastructure Pressure & Process Orchestrator; the wrapper every compute-bearing Nx command runs through, so work is admitted only when the host has capacity. See [resource-aware development](../../repo-governance/development/resource-aware-development.md).
 - **Class** — what kind of work is being admitted: `ephemeral` for ordinary build and test work, `service` for a non-production server, `transactional` for a mutation that must not be killed once started. Never changed to get admitted.
 - **Profile** — how much headroom the guard reserves. Ordinary work falls back `balanced` → `constrained` → `minimal`; transactional and release work keep their requested profile strictly.
-- **Exit 75** — transient capacity. Not a test failure: wait, then retry the same command serially.
+- **Reservation** — one atomic CPU-and-memory request against the shared HIPPO root. Every admitted class consumes reservation capacity.
+- **Allocation** — the fixed CPU-and-memory vector an admitted invocation receives; worker mappings cannot exceed its CPU value.
+- **Waiter** — one deferred invocation holding its FIFO position until capacity fits or its bounded wait expires.
+- **Exit 75** — a retryable deferral or shed outcome for one invocation. Do not duplicate it; wait for its stated condition, then retry that same command.
 - **Exit 73** — storage-blocked. Free space before retrying; waiting cannot fix it.
 - **Exit 78** — invalid configuration or a strict-profile mismatch. Replan rather than retry.
 - **`rtk`** — the token-optimized CLI proxy that repository agents prefix onto shell commands. See [RTK instructions](../../RTK.md).

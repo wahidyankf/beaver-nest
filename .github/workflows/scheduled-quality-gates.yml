@@ -30,10 +30,111 @@ jobs:
         run: ./.github/scripts/test-hippo-bootstrap.sh
 
       - name: Install and identify the pinned release
-        run: ./hippo version --json
+        run: |
+          set -eu
+          ./hippo version --json > "${RUNNER_TEMP}/hippo-version.json"
+          node - "${RUNNER_TEMP}/hippo-version.json" hippo.lock <<'NODE'
+          const fs = require("node:fs");
+          const identity = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const lock = Object.fromEntries(
+            fs
+              .readFileSync(process.argv[3], "utf8")
+              .trim()
+              .split("\n")
+              .map((line) => line.split("=", 2)),
+          );
+          if (
+            identity.schemaVersion !== 1 ||
+            identity.version !== lock.version ||
+            identity.commit !== lock.commit
+          ) {
+            throw new Error("installed HIPPO identity differs from hippo.lock");
+          }
+          NODE
 
-      - name: Inspect runner capacity
-        run: ./hippo status --json --disk-path .
+      - name: Prove shared reservations mappings and cleanup
+        run: |
+          set -eu
+          shared_root=$(mktemp -d "${RUNNER_TEMP}/hippo-shared.XXXXXX")
+          release_file="${shared_root}/release"
+          owner_one=
+          owner_two=
+          cleanup() {
+            : > "${release_file}"
+            for owner_pid in ${owner_one} ${owner_two}; do
+              [ -n "${owner_pid}" ] || continue
+              kill "${owner_pid}" 2>/dev/null || true
+              wait "${owner_pid}" 2>/dev/null || true
+            done
+            rm -rf -- "${shared_root}"
+          }
+          trap cleanup EXIT HUP INT TERM
+
+          for owner in one two; do
+            # Variables in the single-quoted command expand inside the guarded child.
+            # shellcheck disable=SC2016
+            HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
+              ./hippo run --class ephemeral --reserve-cpu 1 --reserve-memory-mib 256 \
+              --disk-path . -- sh -c '
+                printf "%s\n%s\n%s\n" "$NX_PARALLEL" "$GOMAXPROCS" "$DOTNET_PROCESSOR_COUNT" > "$1"
+                : > "$2"
+                while [ ! -e "$3" ]; do sleep 0.1; done
+              ' sh "${shared_root}/${owner}.mappings" "${shared_root}/${owner}.ready" "${release_file}" &
+            if [ "${owner}" = one ]; then owner_one=$!; else owner_two=$!; fi
+          done
+
+          attempts=0
+          until [ -f "${shared_root}/one.ready" ] && [ -f "${shared_root}/two.ready" ]; do
+            kill -0 "${owner_one}" 2>/dev/null
+            kill -0 "${owner_two}" 2>/dev/null
+            attempts=$((attempts + 1))
+            [ "${attempts}" -lt 300 ]
+            sleep 0.1
+          done
+
+          HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
+            ./hippo status --json --disk-path . > "${shared_root}/active.json"
+          node - "${shared_root}/active.json" <<'NODE'
+          const fs = require("node:fs");
+          const status = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const coordination = status.coordination;
+          if (
+            status.schemaVersion !== 4 ||
+            coordination?.schemaVersion !== 4 ||
+            coordination.mode !== "reservation" ||
+            coordination.activeOwners !== 2 ||
+            coordination.waitingOwners !== 0 ||
+            coordination.allocated?.cpu !== 2 ||
+            coordination.allocated?.memoryBytes !== 536870912
+          ) {
+            throw new Error("active shared-root reservation evidence is incomplete");
+          }
+          NODE
+          printf '1\n1\n1\n' > "${shared_root}/expected.mappings"
+          diff -u "${shared_root}/expected.mappings" "${shared_root}/one.mappings"
+          diff -u "${shared_root}/expected.mappings" "${shared_root}/two.mappings"
+
+          : > "${release_file}"
+          wait "${owner_one}"
+          wait "${owner_two}"
+          owner_one=
+          owner_two=
+          HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
+            ./hippo status --json --disk-path . > "${shared_root}/released.json"
+          node - "${shared_root}/released.json" <<'NODE'
+          const fs = require("node:fs");
+          const status = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const coordination = status.coordination;
+          if (
+            status.schemaVersion !== 4 ||
+            coordination?.activeOwners !== 0 ||
+            coordination.waitingOwners !== 0 ||
+            coordination.allocated?.cpu !== 0 ||
+            coordination.allocated?.memoryBytes !== 0
+          ) {
+            throw new Error("released reservation remains in shared-root accounting");
+          }
+          NODE
 
   ex-bdd-coverage:
     name: ExBdd unit and integration coverage
@@ -141,4 +242,4 @@ jobs:
           printf '%s\n' "BNEST_E2E_CADDY_BIN=${RUNNER_TEMP}/caddy-bin" >> "${GITHUB_ENV}"
 
       - name: Run complete end-to-end suite
-        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1
+        run: npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1

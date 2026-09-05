@@ -23,7 +23,7 @@ A development standard should identify:
 - [GitHub Actions storage](github-actions-storage.md) bounds artifacts, Packages, and caches and requires an externally verified zero-dollar Actions hard stop.
 - [Live-service continuity](live-service-continuity.md) prevents working-tree changes and incomplete cutovers from taking an active user surface offline.
 - [Quality gates](quality-gates.md) define unit, local-only integration, dedicated-app E2E, coverage, and Git hook safeguards.
-- [Resource-aware development](resource-aware-development.md) admits and sheds only repository-owned work under unsafe host pressure.
+- [Resource-aware development](resource-aware-development.md) coordinates repository-owned work through shared vector reservations, FIFO admission, and targeted shedding.
 - [Software quality enforcement](software-quality-enforcement.md) maps each maintained quality outcome to its blocking, scheduled, runtime, or evidence route.
 - [Specification maintenance](specification-maintenance.md) keeps every relevant artifact under `specs/` synchronized with application changes.
 - [Test-driven development](test-driven-development.md) requires app and library behaviour to be developed through red–green–refactor cycles.

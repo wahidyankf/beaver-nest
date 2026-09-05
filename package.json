@@ -18,7 +18,7 @@
     "tailnet:status": "npm exec -- nx run -p bnest-app -t tailnet:status",
     "tailnet:down": "npm exec -- nx run -p bnest-app -t tailnet:down",
     "test": "./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:unit",
-    "test:e2e": "./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e"
+    "test:e2e": "npm exec -- nx run -p bnest-app-e2e -t test:e2e"
   },
   "repository": {
     "type": "git",

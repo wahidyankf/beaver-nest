@@ -1,6 +1,6 @@
 # Specification Maintenance
 
-Application specifications under `specs/` must remain synchronized with the implemented system. Before changing application production code, tests, configuration, or user-facing project documentation, inspect the relevant specification subtree and assess every artifact in it for impact.
+Application, library, and executable-tool specifications under `specs/` must remain synchronized with the implemented system. Before changing application or tool production code, tests, configuration, or user-facing project documentation, inspect the relevant specification subtree and assess every artifact in it for impact.
 
 Update every affected specification file in the same change and before implementation. A file is affected when the change would make any of its behaviour, actor, boundary, responsibility, relationship, interface, data flow, data store, constraint, example, vocabulary, or ownership statements inaccurate, incomplete, or contradictory.
 
@@ -18,7 +18,7 @@ Follow each artifact's more specific ordering and verification requirements. In 
 Run applicable project tests and the repository specification-map gate:
 
 ```sh
-./hippo run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
+./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:repo
 ```
 
 The delivery report must identify the specification files updated or state that the impact check found no required specification change.

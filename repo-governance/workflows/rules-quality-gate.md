@@ -49,7 +49,7 @@ In `PROPOSAL` mode:
 In `EFFECTIVE` mode, run:
 
 ```sh
-./hippo run --class ephemeral -- npm exec -- nx run -p badakmini-cli -t test:repo
+./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:repo
 ```
 
 Return `PASS_EFFECTIVE` only when the semantic ledger is clear and tooling passes. Otherwise emit `NEEDS_PROPAGATION` with the ledger and evidence. Canonical HIPPO recovery is infrastructure handling, not another gate run.

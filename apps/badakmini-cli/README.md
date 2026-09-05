@@ -8,7 +8,7 @@ This project owns governance inspection plus its unit and local-only integration
 
 ## Prerequisites and Tasks
 
-Install the repository's npm dependencies and the .NET 10 SDK. Run tasks from the repository root through `./hippo run --class ephemeral -- <command>` and the workspace [HIPPO](../../repo-governance/development/resource-aware-development.md):
+Install the repository's npm dependencies and the .NET 10 SDK. Run tasks from the repository root through `./hippo run --class ephemeral --disk-path . -- <command>` and the workspace [HIPPO](../../repo-governance/development/resource-aware-development.md):
 
 | Task                                  | Command                                                            |
 | ------------------------------------- | ------------------------------------------------------------------ |

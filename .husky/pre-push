@@ -3,11 +3,11 @@ set -e
 zero_oid=0000000000000000000000000000000000000000
 run_repository_check=
 
-# Each pushed commit range receives the same serialized, HIPPO-guarded
-# affected quick gate; deleted refs intentionally schedule no work.
+# Each pushed commit range receives the same HIPPO-guarded affected quick
+# graph; Nx uses the admitted allocation. Deleted refs schedule no work.
 quick_checks_for_head() {
 	NX_NO_CLOUD=true ./hippo run --class ephemeral --disk-path . -- \
-		npm exec -- nx affected -t test:quick --parallel=1 \
+		npm exec -- nx affected -t test:quick \
 		--base=origin/main --head="$1"
 }
 

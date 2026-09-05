@@ -51,7 +51,7 @@ Run project tasks from the repository root:
 | Purge legacy production test records | `npm exec -- nx run -p bnest-app -t storage:purge-test-data -- --generation <generation>`      |
 | Clean stale isolated test data       | `npm exec -- nx run -p bnest-app -t test-data:cleanup`                                         |
 
-Run compute-bearing rows through `./hippo run --class ephemeral -- <command>` and the repository [HIPPO](../../repo-governance/development/resource-aware-development.md); `serve`, managed release, and pre-push enter it automatically. Use the `transactional` class for storage mutations so admitted work is never killed mid-transaction. Recovery, proxy status, rollback, retire, and tailnet controls remain direct.
+Run compute-bearing rows through `./hippo run --class ephemeral --disk-path . -- <command>` and the repository [HIPPO](../../repo-governance/development/resource-aware-development.md); `serve`, managed release, and pre-push enter it automatically. Use the `transactional` class for storage mutations so admitted work is never killed mid-transaction. Recovery, proxy status, rollback, retire, and tailnet controls remain direct.
 
 `test:quick` runs type checking, linting, unit execution, unit coverage, and static behaviour completeness. It intentionally excludes integration runtime and E2E execution. Both numeric coverage slices use Mix line coverage and fail below 99%; integration runtime and coverage share stale isolated-data cleanup and run one ExUnit case at a time because migration modules and SQLite repository lifecycle are process-global within the test VM.
 
