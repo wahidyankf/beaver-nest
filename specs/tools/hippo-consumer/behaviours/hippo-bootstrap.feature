@@ -62,6 +62,12 @@ Feature: Safe HIPPO consumer bootstrap
     When every repository installs and prunes against its own distinct pinned version
     Then each repository keeps its release and none of them downloads a second time
 
+  Scenario: Release ranking reads real timestamps on every supported platform
+    Given a consumer cache holds release directories on a platform whose stat rejects the other
+      platform's timestamp format
+    When retention ranks those directories by how recently they were used
+    Then it ranks them by their real timestamps rather than by diagnostic output
+
   Scenario: Retention reclaims releases left idle beyond its window
     Given a cache root holds release directories left untouched past the idle window
     When a consumer installs its pinned release and retention runs
