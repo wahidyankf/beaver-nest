@@ -20,6 +20,7 @@ A development standard should identify:
 - [Behaviour-driven development](behaviour-driven-development.md) governs executable Gherkin specifications and adapter-specific binding contracts.
 - [Dependency selection](dependency-selection.md) prefers standard-library and existing mechanisms and limits external packages to necessary, established, maintained choices.
 - [End-to-end testing](end-to-end-testing.md) limits slow public-boundary tests to affected journeys during development and schedules full-suite coverage.
+- [GitHub Actions storage](github-actions-storage.md) bounds artifacts, Packages, and caches and requires an externally verified zero-dollar Actions hard stop.
 - [Live-service continuity](live-service-continuity.md) prevents working-tree changes and incomplete cutovers from taking an active user surface offline.
 - [Quality gates](quality-gates.md) define unit, local-only integration, dedicated-app E2E, coverage, and Git hook safeguards.
 - [Resource-aware development](resource-aware-development.md) admits and sheds only repository-owned work under unsafe host pressure.
