@@ -83,31 +83,7 @@ jobs:
           }
           trap cleanup EXIT HUP INT TERM
 
-          for owner in one two; do
-            # Variables in the single-quoted command expand inside the guarded child.
-            # shellcheck disable=SC2016
-            HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
-              ./hippo run --class ephemeral --reserve-cpu 1 --reserve-memory-mib 256 \
-              --disk-path . -- sh -c '
-                printf "%s\n%s\n%s\n" "$NX_PARALLEL" "$GOMAXPROCS" "$DOTNET_PROCESSOR_COUNT" > "$1"
-                : > "$2"
-                while [ ! -e "$3" ]; do sleep 0.1; done
-              ' sh "${shared_root}/${owner}.mappings" "${shared_root}/${owner}.ready" "${release_file}" &
-            if [ "${owner}" = one ]; then owner_one=$!; else owner_two=$!; fi
-          done
-
-          attempts=0
-          until [ -f "${shared_root}/one.ready" ] && [ -f "${shared_root}/two.ready" ]; do
-            kill -0 "${owner_one}" 2>/dev/null
-            kill -0 "${owner_two}" 2>/dev/null
-            attempts=$((attempts + 1))
-            [ "${attempts}" -lt 300 ]
-            sleep 0.1
-          done
-
-          HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
-            ./hippo status --json --disk-path . > "${shared_root}/active.json"
-          node - "${shared_root}/active.json" <<'NODE'
+          cat > "${shared_root}/assert-active.js" <<'NODE'
           const fs = require("node:fs");
           const status = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
           const coordination = status.coordination;
@@ -120,21 +96,12 @@ jobs:
             coordination.allocated?.cpu !== 2 ||
             coordination.allocated?.memoryBytes !== 536870912
           ) {
-            throw new Error("active shared-root reservation evidence is incomplete");
+            throw new Error(
+              "active shared-root reservation evidence is incomplete: " + JSON.stringify(coordination),
+            );
           }
           NODE
-          printf '1\n1\n1\n' > "${shared_root}/expected.mappings"
-          diff -u "${shared_root}/expected.mappings" "${shared_root}/one.mappings"
-          diff -u "${shared_root}/expected.mappings" "${shared_root}/two.mappings"
-
-          : > "${release_file}"
-          wait "${owner_one}"
-          wait "${owner_two}"
-          owner_one=
-          owner_two=
-          HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
-            ./hippo status --json --disk-path . > "${shared_root}/released.json"
-          node - "${shared_root}/released.json" <<'NODE'
+          cat > "${shared_root}/assert-released.js" <<'NODE'
           const fs = require("node:fs");
           const status = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
           const coordination = status.coordination;
@@ -145,6 +112,119 @@ jobs:
             coordination.allocated?.cpu !== 0 ||
             coordination.allocated?.memoryBytes !== 0
           ) {
-            throw new Error("released reservation remains in shared-root accounting");
+            throw new Error(
+              "released reservation remains in shared-root accounting: " + JSON.stringify(coordination),
+            );
           }
           NODE
+
+          # Poll rather than sample once. Both reads below observe a root that two live
+          # guarded children share, so a single sample can land inside a peer's bounded
+          # transaction. The property under test is unchanged and still enforced: the
+          # accounting must reach the expected vector, and this fails if it never does.
+          await_status() {
+            assertion=$1
+            attempts=0
+            while :; do
+              set +e
+              HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
+                ./hippo status --json --disk-path . \
+                > "${shared_root}/status.json" 2> "${shared_root}/status.err"
+              status_code=$?
+              if [ "${status_code}" -eq 0 ]; then
+                failure=$(node "${assertion}" "${shared_root}/status.json" 2>&1)
+                assert_code=$?
+              else
+                failure=$(cat "${shared_root}/status.err")
+                assert_code=1
+              fi
+              set -e
+              [ "${assert_code}" -ne 0 ] || return 0
+              attempts=$((attempts + 1))
+              if [ "${attempts}" -ge 100 ]; then
+                echo "${failure}" >&2
+                return 1
+              fi
+              sleep 0.1
+            done
+          }
+
+          # Exit 75 is HIPPO's documented retryable deferral, and an owner can receive it
+          # after its child is already running: activation records the supervised process
+          # group once the child exists, and a child whose process group was never
+          # recorded cannot be selected under critical pressure, so HIPPO stops it rather
+          # than leave an unsheddable owner behind. Every repository on the host shares
+          # one coordination root, so losing that bounded window is ordinary contention
+          # and the caller retries. Treating the deferral as an admission is what made
+          # this step fail on Linux while passing on macOS.
+          launch_owner() {
+            owner_name=$1
+            mappings="${shared_root}/${owner_name}.mappings"
+            ready="${shared_root}/${owner_name}.ready"
+            deferrals=0
+            while :; do
+              # The readiness marker only ever means "an admitted child is running now",
+              # so a deferred attempt must not leave its marker behind for the next one.
+              rm -f "${ready}"
+              set +e
+              # Variables in the single-quoted command expand inside the guarded child.
+              # shellcheck disable=SC2016
+              HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
+                ./hippo run --class ephemeral --reserve-cpu 1 --reserve-memory-mib 256 \
+                --disk-path . -- sh -c '
+                  printf "%s\n%s\n%s\n" "$NX_PARALLEL" "$GOMAXPROCS" "$DOTNET_PROCESSOR_COUNT" > "$1"
+                  : > "$2"
+                  while [ ! -e "$3" ]; do sleep 0.1; done
+                ' sh "${mappings}" "${ready}" "${release_file}"
+              owner_code=$?
+              set -e
+              if [ "${owner_code}" -ne 75 ]; then
+                return "${owner_code}"
+              fi
+              deferrals=$((deferrals + 1))
+              if [ "${deferrals}" -ge 20 ]; then
+                echo "owner ${owner_name} was deferred ${deferrals} times without admission" >&2
+                return 75
+              fi
+              sleep 0.2
+            done
+          }
+
+          launch_owner one &
+          owner_one=$!
+          launch_owner two &
+          owner_two=$!
+
+          attempts=0
+          until [ -f "${shared_root}/one.ready" ] && [ -f "${shared_root}/two.ready" ]; do
+            if ! kill -0 "${owner_one}" 2>/dev/null || ! kill -0 "${owner_two}" 2>/dev/null; then
+              echo "an owner exited before both reservations were admitted" >&2
+              exit 1
+            fi
+            attempts=$((attempts + 1))
+            if [ "${attempts}" -ge 600 ]; then
+              echo "owners did not both reach admission within the bounded wait" >&2
+              exit 1
+            fi
+            sleep 0.1
+          done
+
+          await_status "${shared_root}/assert-active.js"
+          printf '1\n1\n1\n' > "${shared_root}/expected.mappings"
+          diff -u "${shared_root}/expected.mappings" "${shared_root}/one.mappings"
+          diff -u "${shared_root}/expected.mappings" "${shared_root}/two.mappings"
+
+          : > "${release_file}"
+          set +e
+          wait "${owner_one}"
+          owner_one_code=$?
+          wait "${owner_two}"
+          owner_two_code=$?
+          set -e
+          owner_one=
+          owner_two=
+          if [ "${owner_one_code}" -ne 0 ] || [ "${owner_two_code}" -ne 0 ]; then
+            echo "owners exited ${owner_one_code} and ${owner_two_code}, want 0 and 0" >&2
+            exit 1
+          fi
+          await_status "${shared_root}/assert-released.js"

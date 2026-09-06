@@ -72,3 +72,8 @@ Feature: Safe HIPPO consumer bootstrap
     Given a cache root holds release directories left untouched past the idle window
     When a consumer installs its pinned release and retention runs
     Then only the pinned release and the most recent idle fallbacks remain
+
+  Scenario: Concurrent owners survive a retryable coordination deferral
+    Given a shared coordination root that defers one owner while it admits another
+    When the consumer proves that two owners hold reservations at the same time
+    Then it retries the deferred owner instead of reading the deferral as an admission
