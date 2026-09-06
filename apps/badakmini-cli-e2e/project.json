@@ -36,20 +36,9 @@
       }
     },
     "test:coverage:behaviour": {
-      "command": "npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour",
-      "inputs": [
-        "default",
-        "^default",
-        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
-      ],
-      "outputs": [
-        "{projectRoot}/bin",
-        "{projectRoot}/obj",
-        "{workspaceRoot}/apps/badakmini-cli/tests/unit/bin",
-        "{workspaceRoot}/apps/badakmini-cli/tests/unit/obj",
-        "{workspaceRoot}/apps/badakmini-cli/tests/integration/bin",
-        "{workspaceRoot}/apps/badakmini-cli/tests/integration/obj"
-      ]
+      "executor": "nx:noop",
+      "dependsOn": ["badakmini-cli:test:coverage:behaviour"],
+      "cache": false
     },
     "test:e2e": {
       "dependsOn": ["^build", "test:coverage:behaviour"],

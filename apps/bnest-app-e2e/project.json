@@ -51,7 +51,8 @@
       }
     },
     "test:coverage:behaviour": {
-      "command": "npm exec -- nx run -p bnest-app -t test:coverage:behaviour",
+      "executor": "nx:noop",
+      "dependsOn": ["bnest-app:test:coverage:behaviour"],
       "cache": false
     },
     "test:e2e": {
