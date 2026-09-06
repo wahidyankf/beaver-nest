@@ -99,6 +99,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Chat
   alias BnestApp.Codex.{FixtureModels, ModelAccess, RepositoryAccess}
   alias BnestApp.DataRepository.{Backend, Import, Schema}
+  alias BnestApp.Deployment
   alias BnestApp.Identity.{Authorization, Bootstrap, CredentialVerifier, Session}
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
@@ -1132,8 +1133,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def prepare_behaviour(context, :admin_opened_storage_settings, _args),
     do: Map.merge(context, %{storage_admin?: true, storage_config: nil, authenticated: true})
 
-  def prepare_behaviour(context, :empty_isolated_database, _args),
-    do: Map.put(context, :schema_objects, [])
+  def prepare_behaviour(context, :empty_isolated_database, _args) do
+    entries = sqlite_storage_fixture_entries()
+
+    Map.merge(context, %{
+      schema_objects: [],
+      flat_sources: Enum.map(entries, &elem(&1, 0)),
+      flat_source_records: Map.new(entries),
+      migration_store: MemoryBackend.start()
+    })
+  end
 
   def prepare_behaviour(context, :flat_primary_default_location, _args) do
     entries = sqlite_storage_fixture_entries()
@@ -1152,36 +1161,61 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def prepare_behaviour(context, :migration_stopped_after_progress, _args) do
     context = prepare_behaviour(context, :flat_primary_default_location, [])
-    Map.put(context, :migration_items, [%{path: hd(context.flat_sources), outcome: :accepted}])
+    [first_path | _rest] = StorageMigration.order_inventory(context.flat_sources)
+
+    {:accepted, evidence} =
+      StorageMigration.assess_record(first_path, source_bytes(context, first_path))
+
+    {:ok, _record} =
+      Backend.put_new(
+        context.migration_store,
+        evidence.classification.type,
+        evidence.identity,
+        evidence.record
+      )
+
+    Map.put(context, :migration_items, [%{path: first_path, outcome: :accepted}])
   end
 
   def prepare_behaviour(context, :all_verification_checks_pass, _args) do
     context = prepare_behaviour(context, :flat_primary_default_location, [])
 
-    Map.merge(context, %{
-      schema_ok?: true,
-      parity_ok?: true,
-      integrity_ok?: true,
-      restore_ok?: true
-    })
+    {:ok, _account} =
+      Backend.put_new(context.migration_store, :account, "unit-verified-account", %{
+        "schemaVersion" => 1,
+        "recordType" => "account",
+        "ownerId" => "unit-verified-account"
+      })
+
+    context
   end
 
   def prepare_behaviour(context, :malformed_or_changed_source, _args) do
     context = prepare_behaviour(context, :flat_primary_default_location, [])
-    Map.put(context, :has_blocking_source?, true)
+    malformed_path = "users/b-fixture-user/preferences/theme.json"
+
+    Map.merge(context, %{
+      has_blocking_source?: true,
+      flat_sources: context.flat_sources ++ [malformed_path],
+      flat_source_records:
+        Map.put(context.flat_source_records, malformed_path, %{"schemaVersion" => 99})
+    })
   end
 
   def prepare_behaviour(context, :non_admin_family_member, _args),
     do: Map.merge(context, %{storage_admin?: false, authenticated: true})
 
-  def prepare_behaviour(context, :healthy_route_with_acknowledged_state, _args),
-    do:
-      Map.merge(context, %{
-        routed_revision: "blue",
-        sqlite_ready?: true,
-        acknowledged_state: %{message: "saved"},
-        draft: "unsent draft"
-      })
+  # A real connected client: the chat route is rendered through production and a draft is
+  # typed into the rendered composer, so reconnect evidence comes from re-rendered HTML.
+  def prepare_behaviour(context, :healthy_route_with_acknowledged_state, _args) do
+    context
+    |> open("/chat")
+    |> type_draft("unsent draft")
+    |> Map.merge(%{
+      storage_config: %{"phase" => "sqlite_primary"},
+      routed_health_before: elem(Deployment.liveness(), 1)
+    })
+  end
 
   def prepare_behaviour(context, :legacy_authoritative_sqlite, _args),
     do:
@@ -1488,14 +1522,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       })
 
   def perform_behaviour(context, :apply_migration_set_twice, _args) do
-    objects = [
-      :bnest_records,
-      :bnest_recovery_sources,
-      :bnest_migration_runs,
-      :bnest_migration_items
-    ]
+    {_first_counts, first_inserted, schema_before} = migration_pass(context)
+    {_second_counts, second_inserted, schema_after} = migration_pass(context)
 
-    Map.merge(context, %{schema_before_second_apply: objects, schema_after_second_apply: objects})
+    Map.merge(context, %{
+      schema_before_second_apply: schema_before,
+      schema_after_second_apply: schema_after,
+      first_apply_inserted: first_inserted,
+      second_apply_inserted: second_inserted,
+      declared_migration_id: StorageMigration.migration_id()
+    })
   end
 
   def perform_behaviour(context, :run_managed_storage_migration, _args) do
@@ -1540,12 +1576,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def perform_behaviour(context, :retry_same_migration, _args) do
-    before_count = length(context.migration_items)
+    store_before = MemoryBackend.snapshot(context.migration_store)
+    {counts, _inserted, store_after} = migration_pass(context)
 
     Map.merge(context, %{
-      item_count_before_retry: before_count,
-      item_count_after_retry: before_count,
-      migration_run_result: %{accepted: before_count, blocked: 0}
+      migration_run_result: counts,
+      store_before_retry: store_before,
+      store_after_retry: store_after,
+      item_count_before_retry: map_size(store_before),
+      item_count_after_retry: map_size(store_after)
     })
   end
 
@@ -1559,15 +1598,41 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
-  def perform_behaviour(context, :retire_flat_identity_sources, _args),
-    do: Map.put(context, :flat_identity_retired?, true)
+  def perform_behaviour(context, :retire_flat_identity_sources, _args) do
+    store = context.migration_store
 
-  def perform_behaviour(context, :verify_migration, _args),
-    do:
-      Map.merge(context, %{
-        migration_run_result: %{accepted: 0, blocked: 1},
-        flat_sources_after_verification: context.flat_sources
-      })
+    Enum.each(MemoryBackend.snapshot(store), fn
+      {{type, identity}, record} when type in [:account, :username_index] ->
+        Backend.remove_exact(store, type, identity, record)
+
+      _other ->
+        :ok
+    end)
+
+    Map.put(context, :flat_identity_retired?, Backend.identity_files_empty?(store))
+  end
+
+  # Verification only classifies; it must not write, so the store snapshot is the evidence
+  # that the flat-primary service is untouched.
+  def perform_behaviour(context, :verify_migration, _args) do
+    store_before = MemoryBackend.snapshot(context.migration_store)
+
+    counts =
+      context.flat_sources
+      |> StorageMigration.order_inventory()
+      |> Enum.map(fn path ->
+        {outcome, _evidence} = StorageMigration.assess_record(path, source_bytes(context, path))
+        outcome
+      end)
+      |> StorageMigration.outcome_counts()
+
+    Map.merge(context, %{
+      migration_run_result: counts,
+      store_before_verification: store_before,
+      store_after_verification: MemoryBackend.snapshot(context.migration_store),
+      flat_sources_after_verification: context.flat_sources
+    })
+  end
 
   def perform_behaviour(context, :open_storage_settings_route, _args),
     do:
@@ -1577,12 +1642,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       })
 
   def perform_behaviour(context, :promote_compatible_candidate, _args) do
-    Map.merge(context, %{
-      routed_revision: "green",
-      reconnected?: context.sqlite_ready?,
-      acknowledged_state_after: context.acknowledged_state,
-      draft_after: context.draft
-    })
+    context
+    |> reconnect()
+    |> Map.put(:routed_health_after, elem(Deployment.liveness(), 1))
   end
 
   def perform_behaviour(context, :resolve_backup_destination, _args) do
@@ -1787,9 +1849,17 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :no_storage_created, _args),
     do: is_nil(context.storage_config)
 
-  def behaviour_outcome?(context, outcome, _args)
-      when outcome in [:schema_matches_checksum, :no_duplicate_schema_objects],
-      do: context.schema_before_second_apply == context.schema_after_second_apply
+  def behaviour_outcome?(context, :schema_matches_checksum, _args),
+    do:
+      context.declared_migration_id == StorageMigration.migration_id() and
+        context.first_apply_inserted == length(context.flat_sources)
+
+  # put_new refuses an existing key, so a second apply must insert nothing and leave the
+  # stored records byte-identical.
+  def behaviour_outcome?(context, :no_duplicate_schema_objects, _args),
+    do:
+      context.second_apply_inserted == 0 and
+        context.schema_before_second_apply == context.schema_after_second_apply
 
   def behaviour_outcome?(context, :deterministic_inventory, _args),
     do:
@@ -1823,7 +1893,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       end)
 
   def behaviour_outcome?(context, :accepted_items_not_duplicated, _args),
-    do: context.item_count_before_retry == context.item_count_after_retry
+    do:
+      Enum.all?(context.store_before_retry, fn {key, record} ->
+        Map.get(context.store_after_retry, key) == record
+      end) and
+        context.item_count_before_retry > 0 and
+        context.item_count_after_retry == length(context.flat_sources)
 
   def behaviour_outcome?(context, :remaining_items_continue, _args),
     do: context.migration_run_result.accepted > 0
@@ -1845,7 +1920,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: context.migration_run_result.blocked > 0
 
   def behaviour_outcome?(context, :source_and_service_unchanged, _args),
-    do: context.flat_sources_after_verification == context.flat_source_snapshot
+    do:
+      context.store_before_verification == context.store_after_verification and
+        Enum.all?(context.flat_source_snapshot, &(&1 in context.flat_sources_after_verification))
 
   def behaviour_outcome?(context, :value_free_retry_category, _args),
     do: context.migration_run_result.blocked > 0
@@ -1856,16 +1933,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :no_host_path_or_inventory_revealed, _args),
     do: context.storage_response_body == "Not found"
 
-  def behaviour_outcome?(context, :routed_revision_and_readiness_proven, _args),
-    do: context.routed_revision == "green" and context.sqlite_ready?
+  def behaviour_outcome?(context, :routed_revision_and_readiness_proven, _args) do
+    %{status: status, revision: revision, slot: slot} = context.routed_health_after
 
+    status == "live" and is_binary(revision) and revision != "" and is_binary(slot) and
+      context.storage_config["phase"] == "sqlite_primary"
+  end
+
+  # Reconnect must land on the same route without a reload step.
   def behaviour_outcome?(context, :liveview_reconnects_without_refresh, _args),
-    do: context.reconnected?
+    do: current_route?(context, "/chat")
 
+  # The draft is read back out of the re-rendered composer, not from planted context.
   def behaviour_outcome?(context, :acknowledged_state_and_draft_available, _args),
-    do:
-      context.acknowledged_state_after == context.acknowledged_state and
-        context.draft_after == context.draft
+    do: composer_contains?(context, "unsent draft")
 
   def behaviour_outcome?(context, :pointer_relocated_atomically, _args),
     do:
@@ -2121,6 +2202,42 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   defp sqlite_storage_fixture_sources,
     do: sqlite_storage_fixture_entries() |> Enum.map(&elem(&1, 0))
+
+  defp source_bytes(context, path),
+    do: context.flat_source_records |> Map.fetch!(path) |> Jason.encode!()
+
+  # One real migration pass: production classification, then production put_new into the
+  # injected store. Returns outcome counts, how many records were actually inserted, and
+  # the resulting store snapshot, so idempotency is observed rather than asserted.
+  defp migration_pass(context) do
+    results =
+      context.flat_sources
+      |> StorageMigration.order_inventory()
+      |> Enum.map(fn path ->
+        case StorageMigration.assess_record(path, source_bytes(context, path)) do
+          {:accepted, evidence} ->
+            inserted? =
+              match?(
+                {:ok, _record},
+                Backend.put_new(
+                  context.migration_store,
+                  evidence.classification.type,
+                  evidence.identity,
+                  evidence.record
+                )
+              )
+
+            {:accepted, inserted?}
+
+          {outcome, _evidence} ->
+            {outcome, false}
+        end
+      end)
+
+    counts = results |> Enum.map(&elem(&1, 0)) |> StorageMigration.outcome_counts()
+
+    {counts, Enum.count(results, &elem(&1, 1)), MemoryBackend.snapshot(context.migration_store)}
+  end
 
   defp sqlite_storage_fixture_entries do
     [

@@ -30,6 +30,9 @@ defmodule BnestApp.DataRepository.Backend do
   def remove_exact(state, type, identity, expected),
     do: implementation(state).remove_exact(state, type, identity, expected)
 
+  @spec identity_files_empty?(term()) :: boolean()
+  def identity_files_empty?(state), do: implementation(state).identity_files_empty?(state)
+
   defp implementation(%{backend: backend}) when is_atom(backend), do: backend
   defp implementation(_state), do: BnestApp.DataRepository.Store
 end
