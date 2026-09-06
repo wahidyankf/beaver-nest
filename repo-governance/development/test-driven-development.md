@@ -12,6 +12,7 @@ Treat test declarations and implementations as first-class living documentation.
 - Add only enough production code to make the test pass, then improve the design while keeping the tests green.
 - Include bug fixes: first add a test that reproduces the defect, then fix it through the same cycle.
 - Keep tests deterministic, focused on behaviour, and at the narrowest practical level that gives confidence.
+- Treat an intermittent test as a defect in the test or in the code under test, never as noise to tolerate. Reproduce it, identify what makes it nondeterministic — ordering, timing, shared state, real clocks, randomness, network or filesystem dependence, or leaked fixtures — and remove that source. Never mask one by retrying, sleeping, widening a timeout, loosening an assertion, reordering to hide it, skipping, or quarantining it. A flake that hides a genuine race in production code is a production defect and is fixed there.
 - Keep test declarations, support code, and production behaviour synchronized so the tests remain trustworthy documentation.
 - Run the relevant broader test targets after completing the cycles to detect regressions.
 

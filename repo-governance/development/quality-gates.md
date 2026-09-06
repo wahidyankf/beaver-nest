@@ -33,7 +33,7 @@ Classify each test by the strongest real boundary touched by its setup, subject,
 - Run `test:quick` after the final red–green–refactor cycle. Select `test:e2e` cases according to the [end-to-end testing standard](end-to-end-testing.md).
 - Do not duplicate tool commands outside their canonical Nx target. Aggregate gates must compose named targets.
 - `test:unit` is the only numeric gate. Exclude from its denominator only modules a unit test may not touch, and name them in the project README. Never split one project's behaviour check across projects or compose a coverage target across a project boundary; each project checks the adapters it owns.
-- Scheduled CI runs every applicable integration suite before the owning complete, unfiltered E2E target; integration and E2E remain outside `test:quick` and Git hooks.
+- Scheduled CI runs every applicable integration suite before the owning complete, unfiltered E2E target; integration and E2E remain outside `test:quick` and Git hooks. Before completing a change, run by hand the integration suites covering it; keep that in prose, never wired into `test:quick`, a dependency, or a hook.
 - An end-to-end harness has no `test:unit` or numeric coverage target; behaviour coverage is its only static gate.
 - Fix failures at their root cause. Do not disable, weaken, bypass, or superficially satisfy a gate to obtain a passing result.
 - Do not invent an inapplicable target merely for naming symmetry; explain legitimate omissions in the project README.

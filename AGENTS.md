@@ -34,7 +34,7 @@
 - [Propagate rules](repo-governance/workflows/rules-propagation.md); plan/rules quality gates require explicit requests.
 - Apply [Diátaxis](repo-governance/conventions/documentation-architecture.md).
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md), [track tasks](repo-governance/conventions/task-tracking.md), and retain unfamiliar parallel changes under `plans/` and `repo-governance/`.
-- Use ignored `local-tmp/` for disposable scratch and `generated-reports/` for requested, non-authoritative pre-plan audits/reports; neither is authoritative or a plan.
+- Use ignored `local-tmp/` for scratch and `generated-reports/` for requested pre-plan audits/reports; neither is authoritative or a plan.
 - User-requested plans must explain why, options, decision, execution, proof, and reader-serving shape; Plan mode alone is insufficient. Number split tech-doc companions `01-`. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
 - [Migration plans](repo-governance/conventions/plan-migrations.md) need a data-model diagram and field guide beside schema contracts; authority cutovers require fresh-process journeys with the prior source unavailable, never parity alone.
 - Bnest active-service plans require Caddy candidate/promotion/rollback, routed responsiveness through drain, compatible LiveView reconnect, authoritative socket recovery, and routed WebSocket/revision proof; never assume refresh.
@@ -58,6 +58,6 @@
 - Keep `test:e2e` outside `test:quick`; at the exact origin run only affected/UI-accessibility states, await LiveView, isolate users, and close task-created tabs/contexts except handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
 - Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at exact origins/viewports; tests never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/exploratory-and-usability-testing.md).
 - **Test-data iron rule:** tests use isolated roots and synthetic `test-user-` [identities](repo-governance/development/test-identities.md), never production users/data. Inspect production schemas read-only.
-- **Project rule** (except `libs/ex-bdd`): follow [specifications](repo-governance/development/specification-maintenance.md): Gherkin → bindings → Nx red → code → smoke. Reject placeholders/no-ops/outcome tables; unit mandatory. Exempt either/both layers for documented boundary mismatches; run the [manual review](repo-governance/workflows/gherkin-implementation-review.md).
+- **Project rule** (except `libs/ex-bdd`): follow [specifications](repo-governance/development/specification-maintenance.md): Gherkin → bindings → Nx red → code → smoke. Reject placeholders/no-ops/outcome tables; unit mandatory. Exempt either/both layers for documented boundary mismatches. Changed Gherkin/adapters need the [manual review](repo-governance/workflows/gherkin-implementation-review.md).
 - Update project [READMEs](repo-governance/conventions/project-readmes.md).
 - Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md): node/state segments ≤32 graphemes; edge/transition segments ≤24. Scope Badakmini to changed files.
