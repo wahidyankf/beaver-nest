@@ -5,8 +5,11 @@ open System.IO
 open global.Xunit
 
 type IntegrationPolicyTests() =
+    // Badakmini is a network-free governance system by design; this asserts that product
+    // invariant over its production sources. It is not the integration-layer boundary,
+    // which permits a loopback socket the test owns.
     [<Fact>]
-    member _.``integration runtime has no network dependency``() =
+    member _.``badakmini runtime has no network dependency``() =
         let forbidden =
             [ "System.Net"
               "HttpClient"

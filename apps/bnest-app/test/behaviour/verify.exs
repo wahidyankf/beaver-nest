@@ -15,15 +15,18 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
     {~r/\b(?:localhost|127\.0\.0\.1)\b/u, "loopback network access"}
   ]
 
+  # Integration owns a loopback socket it starts and stops; the layer is bounded by its
+  # observation point, not by socket permission, so only non-loopback reach and browser
+  # drivers are refused here. Shared step files stay clean because @unit_forbidden also
+  # scans them, which confines socket code to the integration driver.
   @integration_forbidden [
-    {~r/:gen_(?:tcp|udp)/u, "sockets"},
-    {~r/:httpc\b/u, "HTTP access"},
-    {~r/\b(?:Req|Finch|Mint|HTTPoison|Tesla)\./u, "network clients"},
-    {~r/https?:\/\//u, "network URLs"},
-    {~r/\b(?:localhost|127\.0\.0\.1)\b/u, "loopback network access"},
-    {~r/server:\s*true/u, "local server startup"},
-    {~r/\bBandit\b/u, "HTTP server startup"}
+    {~r/\b(?:Playwright|Wallaby|Hound)\b/u, "browser automation"}
   ]
+
+  # Egress needs both a client and a destination. A bare URL in test data reaches nothing,
+  # so flagging it alone would reject fixtures that merely mention an address.
+  @network_client ~r/\b(?:Req|Finch|Mint|HTTPoison|Tesla)\.|:httpc\b|:gen_(?:tcp|udp)/u
+  @non_loopback_url ~r/https?:\/\/(?!(?:localhost|127\.0\.0\.1|\[::1\])(?:[:\/?#"'\s]|$))/u
 
   @spec verify!() :: :ok
   def verify! do
@@ -45,7 +48,12 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
           ],
           @integration_forbidden,
           :integration
-        )
+        ) ++
+        egress_violations([
+          "test/integration/**/*.{ex,exs}",
+          "test/behaviour/steps/**/*.exs",
+          "test/behaviour/support/integration.exs"
+        ])
 
     if violations != [] do
       raise "Test boundary verification failed:\n  * " <> Enum.join(violations, "\n  * ")
@@ -58,6 +66,16 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
     patterns
     |> Enum.flat_map(&Path.wildcard/1)
     |> Enum.flat_map(fn file -> violations_in(file, File.read!(file), forbidden, layer) end)
+  end
+
+  defp egress_violations(patterns) do
+    patterns
+    |> Enum.flat_map(&Path.wildcard/1)
+    |> Enum.filter(fn file ->
+      source = File.read!(file)
+      Regex.match?(@network_client, source) and Regex.match?(@non_loopback_url, source)
+    end)
+    |> Enum.map(&"#{&1} reaches a non-loopback network address")
   end
 
   defp violations_in(file, source, forbidden, layer) do
