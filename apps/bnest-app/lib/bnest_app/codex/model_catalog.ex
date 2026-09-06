@@ -5,6 +5,7 @@ defmodule BnestApp.Codex.ModelCatalog do
 
   require Logger
 
+  alias BnestApp.Codex.ModelDiscovery
   alias BnestApp.Codex.Settings
 
   @efforts ~w(none minimal low medium high xhigh max ultra)
@@ -41,11 +42,6 @@ defmodule BnestApp.Codex.ModelCatalog do
 
   @spec default() :: model()
   def default(server \\ __MODULE__), do: GenServer.call(server, :default)
-
-  @spec bundled_models_runner() :: String.t()
-  def bundled_models_runner do
-    Application.app_dir(:bnest_app, "priv/codex/list_models.mjs")
-  end
 
   @spec reasoning_effort(model(), String.t()) :: String.t()
   def reasoning_effort(model, requested \\ Settings.preferred_reasoning_effort()) do
@@ -107,31 +103,17 @@ defmodule BnestApp.Codex.ModelCatalog do
   end
 
   defp discover_models(options) do
-    config = Application.fetch_env!(:bnest_app, :codex)
+    case discovery(options).discover(options) do
+      {:ok, models} ->
+        normalize_or_fallback(models)
 
-    runner =
-      Keyword.get(options, :models_runner) || System.get_env("BNEST_CODEX_MODELS_RUNNER") ||
-        Keyword.get(config, :models_runner, bundled_models_runner())
-
-    working_directory =
-      Keyword.get(options, :working_directory, Keyword.fetch!(config, :working_directory))
-
-    executable = Keyword.get_lazy(options, :node, fn -> System.find_executable("node") end)
-
-    with executable when is_binary(executable) <- executable,
-         {output, 0} <-
-           System.cmd(executable, [runner],
-             cd: working_directory,
-             stderr_to_stdout: true
-           ),
-         {:ok, models} <- Jason.decode(output) do
-      normalize_or_fallback(models)
-    else
-      _reason ->
+      :error ->
         Logger.warning("Codex model discovery failed; using the Terra fallback")
         @fallback
     end
   end
+
+  defp discovery(options), do: Keyword.get(options, :discovery, ModelDiscovery)
 
   defp normalize_or_fallback(models) when is_list(models) do
     normalized =

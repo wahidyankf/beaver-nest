@@ -5,6 +5,8 @@ defmodule BnestApp.Application do
 
   use Application
 
+  alias BnestApp.DataRepository.Store
+
   @impl true
   def start(_type, _args) do
     children =
@@ -36,7 +38,7 @@ defmodule BnestApp.Application do
 
       root ->
         [
-          {BnestApp.DataRepository, root: root},
+          {BnestApp.DataRepository, store: Store.new!(root)},
           BnestApp.Identity,
           {Task.Supervisor, name: BnestApp.Scheduler.Tasks},
           {BnestApp.Scheduler,

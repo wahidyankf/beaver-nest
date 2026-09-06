@@ -100,7 +100,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Codex.{FixtureModels, ModelAccess, RepositoryAccess}
   alias BnestApp.DataRepository.{Backend, Import, Schema}
   alias BnestApp.Deployment
-  alias BnestApp.Identity.{Authorization, Bootstrap, CredentialVerifier, Session}
+  alias BnestApp.Identity.{Authorization, Bootstrap, CredentialVerifier, Login, Session}
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
   alias BnestApp.Storage.Config, as: StorageConfig
@@ -1035,7 +1035,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context = authenticated_memory_context(context)
 
     {:ok, token_b} =
-      BnestApp.Identity.login(
+      Login.authenticate(
         context.identity_store,
         context.identity_username,
         context.identity_password
@@ -1325,7 +1325,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def perform_behaviour(context, :login, _args) do
     result =
-      BnestApp.Identity.login(
+      Login.authenticate(
         context.identity_store,
         context.identity_username,
         context.identity_password
@@ -2278,7 +2278,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         %{"username" => username, "password" => password, "roles" => ["admin"]}
       ])
 
-    {:ok, token} = BnestApp.Identity.login(store, username, password)
+    {:ok, token} = Login.authenticate(store, username, password)
 
     Map.merge(context, %{
       account_exists: true,

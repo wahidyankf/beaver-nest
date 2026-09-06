@@ -126,12 +126,11 @@ defmodule BnestApp.MixProject do
     boundary_adapters = [
       BnestApp.AdminConfig.Registry,
       BnestApp.Application,
-      BnestApp.Codex.ModelCatalog,
+      BnestApp.Codex.ModelDiscovery,
       BnestApp.Backup.Config,
       BnestApp.Backup.Location,
       BnestApp.Backup.Receipt,
       BnestApp.Backup.Run,
-      BnestApp.DataRepository,
       BnestApp.DataRepository.Backup,
       BnestApp.DataRepository.Import,
       BnestApp.DataRepository.Manifest,

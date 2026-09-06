@@ -4,6 +4,7 @@ defmodule BnestApp.Codex.ModelCatalogTest do
   import ExUnit.CaptureLog
 
   alias BnestApp.Codex.ModelCatalog
+  alias BnestApp.Codex.ModelDiscovery
 
   @workspace Path.expand("../../../../../..", __DIR__)
   @fixture_runner Path.join(@workspace, "apps/bnest-app/test/support/codex_fixture_models.mjs")
@@ -51,7 +52,7 @@ defmodule BnestApp.Codex.ModelCatalogTest do
   end
 
   test "the production model runner is located in the packaged application" do
-    assert ModelCatalog.bundled_models_runner() ==
+    assert ModelDiscovery.bundled_models_runner() ==
              Application.app_dir(:bnest_app, "priv/codex/list_models.mjs")
   end
 
