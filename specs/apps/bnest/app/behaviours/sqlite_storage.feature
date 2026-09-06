@@ -73,7 +73,7 @@ Feature: Bnest SQLite storage
     Then Bnest denies the operation
     And Bnest reveals no host path or migration inventory
 
-  # Exemption(integration): routed promotion and automatic reconnect cross the network boundary; alternative-proof: bnest-app-e2e:test:e2e / Routed client reconnects across compatible SQLite rollout
+  # Exemption(integration): client-side LiveView auto-reconnect and DOM draft recovery run in the browser JS client and are not observable from Phoenix.LiveViewTest; alternative-proof: bnest-app-e2e:test:e2e / Routed client reconnects across compatible SQLite rollout
   @integration-exempt
   Scenario: Routed client reconnects across compatible SQLite rollout
     Given the current Caddy route is healthy and a connected user has acknowledged state

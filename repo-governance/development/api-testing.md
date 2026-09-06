@@ -7,7 +7,7 @@ Apply this standard to every change that can affect an externally reachable API,
 API behaviour follows the repository [BDD](behaviour-driven-development.md), [test boundaries](quality-gates.md#test-boundaries), 99% coverage, and [test-data iron rule](test-identities.md#iron-rule).
 
 - Unit tests prove business rules, validation, authorization decisions, mapping, and error behaviour through injected dependencies without OS or network access.
-- Integration tests exercise routing, request parsing, schema validation, serialization, middleware, and real isolated local stores in-process without opening a network listener.
+- Integration tests exercise routing, request parsing, schema validation, serialization, middleware, and real isolated local stores, either in-process or through a loopback listener the test starts, owns, and stops. They never observe the routed public origin.
 - E2E tests exercise representative operations through the exact served public origin. They prove transport configuration and cross-boundary behaviour that narrower layers cannot.
 - Contract assertions cover request method or operation, path, headers, content type, payload or variables, response status, response headers, body shape, declared errors, and observable side effects.
 - Cover success, malformed or invalid input, expected failure, and authentication or authorization boundaries when applicable. Test idempotency and duplicate delivery for operations that promise them.
