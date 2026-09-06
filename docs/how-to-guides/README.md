@@ -7,3 +7,4 @@ See the [Diátaxis how-to guidance](https://diataxis.fr/how-to-guides/) for the 
 ## Directory Map
 
 - [Coding harnesses](coding-harnesses.md) configures Codex, Claude Code, or OpenCode against the shared repository contract.
+- [Releasing Bnest](releasing-bnest.md) runs the managed no-downtime release on a provisioned host.

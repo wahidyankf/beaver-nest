@@ -23,4 +23,4 @@ Before a material change, identify the active server and proxy, record safe base
 
 If any active check fails or the routed responsiveness budget is exceeded, stop unrelated implementation immediately. Restore or route back to the last healthy backend, verify the user journey and budget, capture a safe learning, and only then resume. Never continue a plan while the live surface remains degraded.
 
-Use the [server restart](../workflows/development-server-restart.md) and [tailnet proxy](../workflows/development-tailnet-proxy.md) workflows for the concrete lifecycle. Plans involving cutover must make continuity and rollback explicit in delivery checkpoints.
+Use the [server restart](../workflows/development-server-restart.md) and [tailnet proxy](../workflows/development-tailnet-proxy.md) workflows for the concrete lifecycle, and the [Caddy deployment workflow](../workflows/development-caddy-deployment.md) for a Bnest cutover. Plans involving cutover must make continuity and rollback explicit in delivery checkpoints.

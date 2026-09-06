@@ -52,7 +52,7 @@ npm run tailnet:up
 npm run tailnet:status
 ```
 
-Use `npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>` for a routine deterministic release; do not stop Caddy or reconfigure Tailscale for normal deploys. Caddy stays bound to loopback while accepting the Host header forwarded by Tailscale Serve. Run `npm run tailnet:down` when private HTTPS access should be removed. The first `tailnet:up` may require tailnet approval for HTTPS certificates; see the [Caddy deployment workflow](repo-governance/workflows/development-caddy-deployment.md).
+Use `npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>` for a routine deterministic release, following the [release how-to guide](docs/how-to-guides/releasing-bnest.md); do not stop Caddy or reconfigure Tailscale for normal deploys. Caddy stays bound to loopback while accepting the Host header forwarded by Tailscale Serve. Run `npm run tailnet:down` when private HTTPS access should be removed. The first `tailnet:up` may require tailnet approval for HTTPS certificates; see the [Caddy deployment workflow](repo-governance/workflows/development-caddy-deployment.md).
 
 An explicitly isolated `BNEST_STABLE=false` server may recompile normal Elixir and HEEx changes and run asset watchers. The default stable server and configuration, dependency, or supervision changes follow the [development-server restart workflow](repo-governance/workflows/development-server-restart.md).
 
