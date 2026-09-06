@@ -35,12 +35,9 @@ Run project tasks from the repository root:
 | Inspect the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:status`                                            |
 | Disable the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:down`                                              |
 | Run the complete quick suite         | `npm exec -- nx run -p bnest-app -t test:quick`                                                |
-| Run unit scenarios                   | `npm exec -- nx run -p bnest-app -t test:unit`                                                 |
+| Run unit scenarios with coverage     | `npm exec -- nx run -p bnest-app -t test:unit`                                                 |
 | Run local-only integration scenarios | `npm exec -- nx run -p bnest-app -t test:integration`                                          |
-| Cover the unit slice                 | `npm exec -- nx run -p bnest-app -t test:coverage:unit`                                        |
-| Cover the integration slice          | `npm exec -- nx run -p bnest-app -t test:coverage:integration`                                 |
 | Verify every behaviour adapter       | `npm exec -- nx run -p bnest-app -t test:coverage:behaviour`                                   |
-| Run all application coverage slices  | `npm exec -- nx run -p bnest-app -t test:coverage`                                             |
 | Run static type analysis             | `npm exec -- nx run -p bnest-app -t typecheck`                                                 |
 | Run all linters                      | `npm exec -- nx run -p bnest-app -t lint`                                                      |
 | Check Elixir and HEEx formatting     | `npm exec -- nx run -p bnest-app -t format`                                                    |
@@ -71,7 +68,7 @@ The canonical [C4 architecture model](../../specs/apps/bnest/app/architecture.md
 
 `test:coverage:behaviour` statically checks the unit, integration, and E2E adapters against the exact corpus. It rejects empty features, scenarios without explicit `When` and `Then`, undefined or ambiguous steps, unused bindings, incomplete drivers, invalid exemption tags, and unit or integration boundary-policy violations. Unit runs every scenario. Integration skips only scenarios carrying a valid scenario-level `@integration-exempt`; the browser project applies `@e2e-exempt`, and both may annotate one scenario when independently justified. Static completeness does not prove that a binding is substantive, so changes to behaviour or adapters also follow the repository's [one-by-one implementation review](../../repo-governance/workflows/gherkin-implementation-review.md).
 
-The unit slice measures resource-free domain code: chat, learning, Codex model access/session/settings, browser-source normalization, authorization, PWA metadata, and JSON rendering. The integration slice measures the repository and identity application facades plus model catalog, endpoint, and telemetry wiring. Generated/static Phoenix code, test scaffolding, CLI tasks, HTTP/LiveView adapters, filesystem stores, Argon2, bootstrap/import transactions, and session-record adapters are excluded from numeric line coverage because their behaviour is exercised by integration, behaviour, E2E, schema-audit, identity-benchmark, and manual-browser gates. Both numeric slices remain at least 99%; layer exclusions leave the owning slice and all functional tests intact.
+`test:unit` is the only numeric gate and must stay at least 99%. It measures resource-free domain code: chat, learning, Codex model access/session/settings, browser-source normalization, authorization, PWA metadata, and JSON rendering. Generated Phoenix code, test scaffolding, CLI tasks, HTTP/LiveView adapters, filesystem stores, Argon2, and the repository, identity, and model-catalog facades sit outside that denominator because a unit test may not touch the resources they exist to wrap. `test:integration` still executes them; it reports a pass or fail rather than a measured percentage.
 
 Type checking treats Elixir compiler warnings as errors, runs Dialyzer through Dialyxir, and strictly checks browser JavaScript without emitting files. Linting checks formatting, runs Credo in strict mode, runs Oxlint on browser JavaScript, and rejects unused locked dependencies without changing the lockfile.
 

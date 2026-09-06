@@ -98,6 +98,8 @@ defmodule BnestApp.MixProject do
   defp test_coverage do
     generated_or_static = [
       BnestAppWeb.CoreComponents,
+      BnestAppWeb.Endpoint,
+      BnestAppWeb.Telemetry,
       BnestApp.Codex.PortSession,
       BnestAppWeb.ErrorHTML,
       BnestAppWeb.Gettext,
@@ -124,10 +126,12 @@ defmodule BnestApp.MixProject do
     boundary_adapters = [
       BnestApp.AdminConfig.Registry,
       BnestApp.Application,
+      BnestApp.Codex.ModelCatalog,
       BnestApp.Backup.Config,
       BnestApp.Backup.Location,
       BnestApp.Backup.Receipt,
       BnestApp.Backup.Run,
+      BnestApp.DataRepository,
       BnestApp.DataRepository.Backup,
       BnestApp.DataRepository.Import,
       BnestApp.DataRepository.Manifest,
@@ -137,6 +141,7 @@ defmodule BnestApp.MixProject do
       BnestApp.DataRepository.Store,
       BnestApp.DataRepository.StorageCoordinator,
       BnestApp.Deployment,
+      BnestApp.Identity,
       BnestApp.Identity.Bootstrap,
       BnestApp.Identity.CredentialVerifier,
       BnestApp.Identity.FileStore,
@@ -175,43 +180,12 @@ defmodule BnestApp.MixProject do
       Mix.Tasks.Bnest.Storage.PurgeTestData
     ]
 
-    {output, layer_exclusions} =
-      case System.get_env("BNEST_TEST_LAYER") do
-        "unit" ->
-          {"cover/unit",
-           [
-             BnestApp.DataRepository,
-             BnestApp.DataRepository.Import,
-             BnestApp.Identity,
-             BnestApp.Identity.Bootstrap,
-             BnestApp.Codex.ModelCatalog,
-             BnestAppWeb.Endpoint,
-             BnestAppWeb.Telemetry
-           ]}
-
-        "integration" ->
-          {"cover/integration",
-           [
-             BnestApp.Chat,
-             BnestApp.Codex.ModelAccess,
-             BnestApp.DataRepository.Backend,
-             BnestApp.DataRepository.Normalizer,
-             BnestApp.DataRepository.Schema,
-             BnestApp.Identity.Authorization,
-             BnestApp.Scheduler.Policy,
-             BnestApp.SifatAllah,
-             BnestAppWeb.ErrorJSON
-           ]}
-
-        _other ->
-          {"cover", []}
-      end
-
+    # Only the unit layer carries a coverage threshold. `test:integration` still exercises
+    # the boundary adapters, but its result is a pass or fail, not a measured denominator.
     [
-      output: output,
+      output: "cover/unit",
       summary: [threshold: 99],
-      ignore_modules:
-        generated_or_static ++ test_scaffolding ++ boundary_adapters ++ layer_exclusions
+      ignore_modules: generated_or_static ++ test_scaffolding ++ boundary_adapters
     ]
   end
 

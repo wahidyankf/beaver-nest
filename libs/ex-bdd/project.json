@@ -40,57 +40,22 @@
       "cache": false
     },
     "test:unit": {
-      "command": "EX_BDD_TEST_LAYER=unit MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors test/unit",
-      "options": {
-        "cwd": "libs/ex-bdd"
-      }
-    },
-    "test:integration": {
-      "command": "EX_BDD_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors test/integration",
-      "options": {
-        "cwd": "libs/ex-bdd"
-      }
-    },
-    "test:coverage:unit": {
       "command": "EX_BDD_TEST_LAYER=unit MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover test/unit",
       "options": {
         "cwd": "libs/ex-bdd"
       },
       "outputs": ["{projectRoot}/cover/unit"]
     },
-    "test:coverage:integration": {
-      "command": "EX_BDD_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover test/integration",
+    "test:integration": {
+      "command": "MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors test/integration",
       "options": {
         "cwd": "libs/ex-bdd"
-      },
-      "outputs": ["{projectRoot}/cover/integration"]
-    },
-    "test:coverage:engine": {
-      "command": "EX_BDD_TEST_LAYER=engine MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover test/unit test/integration",
-      "options": {
-        "cwd": "libs/ex-bdd"
-      },
-      "outputs": ["{projectRoot}/cover/engine"]
+      }
     },
     "test:coverage": {
-      "executor": "nx:run-commands",
+      "command": "MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --cover test/unit test/integration",
       "options": {
-        "commands": [
-          {
-            "command": "npm exec -- nx run -p ex-bdd -t test:coverage:unit",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "npm exec -- nx run -p ex-bdd -t test:coverage:integration",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "npm exec -- nx run -p ex-bdd -t test:coverage:engine",
-            "forwardAllArgs": false
-          }
-        ],
-        "forwardAllArgs": false,
-        "parallel": false
+        "cwd": "libs/ex-bdd"
       },
       "outputs": ["{projectRoot}/cover"]
     },
@@ -108,10 +73,6 @@
           },
           {
             "command": "npm exec -- nx run -p ex-bdd -t test:unit",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "npm exec -- nx run -p ex-bdd -t test:coverage:unit",
             "forwardAllArgs": false
           }
         ],

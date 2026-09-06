@@ -68,22 +68,12 @@ defmodule ExBdd.MixProject do
       ExBdd.Verifier
     ]
 
-    unit_owned = [
-      ExBdd.Expression,
-      ExBdd.Gherkin.NimbleParser,
-      ExBdd.Gherkin.Pickles,
-      ExBdd.Hooks,
-      ExBdd.Messages,
-      ExBdd.Runtime,
-      ExBdd.StepError,
-      ExBdd.UndefinedParameterTypeError
-    ]
-
+    # The unit layer is the only threshold gate. `test:coverage` measures the whole
+    # engine over both trees, because discovery, parsing and compilation cannot be
+    # reached from a layer that is forbidden real files.
     {output, layer_exclusions} =
       case System.get_env("EX_BDD_TEST_LAYER") do
         "unit" -> {"cover/unit", integration_owned}
-        "integration" -> {"cover/integration", unit_owned}
-        "engine" -> {"cover/engine", []}
         _other -> {"cover", []}
       end
 

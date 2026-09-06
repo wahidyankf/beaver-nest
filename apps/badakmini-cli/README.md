@@ -10,26 +10,23 @@ This project owns governance inspection plus its unit and local-only integration
 
 Install the repository's npm dependencies and the .NET 10 SDK. Run tasks from the repository root through `./hippo run --class ephemeral --disk-path . -- <command>` and the workspace [HIPPO](../../repo-governance/development/resource-aware-development.md):
 
-| Task                                  | Command                                                            |
-| ------------------------------------- | ------------------------------------------------------------------ |
-| Validate repository governance        | `npm exec -- nx run -p badakmini-cli -t test:repo`                 |
-| Run fake-only unit specifications     | `npm exec -- nx run -p badakmini-cli -t test:unit`                 |
-| Run local-only integration tests      | `npm exec -- nx run -p badakmini-cli -t test:integration`          |
-| Enforce unit-core coverage            | `npm exec -- nx run -p badakmini-cli -t test:coverage:unit`        |
-| Enforce full-app integration coverage | `npm exec -- nx run -p badakmini-cli -t test:coverage:integration` |
-| Enforce behaviour completeness        | `npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour`   |
-| Enforce all coverage                  | `npm exec -- nx run -p badakmini-cli -t test:coverage`             |
-| Run quick verification                | `npm exec -- nx run -p badakmini-cli -t test:quick`                |
-| Type-check the F# projects            | `npm exec -- nx run -p badakmini-cli -t typecheck`                 |
-| Build the release configuration       | `npm exec -- nx run -p badakmini-cli -t build`                     |
+| Task                                 | Command                                                          |
+| ------------------------------------ | ---------------------------------------------------------------- |
+| Validate repository governance       | `npm exec -- nx run -p badakmini-cli -t test:repo`               |
+| Run unit specifications and coverage | `npm exec -- nx run -p badakmini-cli -t test:unit`               |
+| Run local-only integration tests     | `npm exec -- nx run -p badakmini-cli -t test:integration`        |
+| Enforce behaviour completeness       | `npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour` |
+| Run quick verification               | `npm exec -- nx run -p badakmini-cli -t test:quick`              |
+| Type-check the F# projects           | `npm exec -- nx run -p badakmini-cli -t typecheck`               |
+| Build the release configuration      | `npm exec -- nx run -p badakmini-cli -t build`                   |
 
 The `test:repo` target builds once, then concurrently runs word-budget validation, directory-map validation for `repo-governance/`, `docs/`, `specs/`, and `plans/`, internal-link validation, coding-harness reconciliation, and Mermaid validation with prefixed output. It exits nonzero if any invocation fails.
 
 The `typecheck` target compiles both test projects and their CLI reference into isolated temporary artifact directories, then removes them.
 
-Coverage uses Coverlet Debug instrumentation. `test:coverage:unit` requires at least 99% line coverage over `Governance.fs`, `HarnessContract.fs`, and `Cli.fs`; concrete runtime and entry-point files belong to the integration slice. `test:coverage:integration` requires at least 99% across the complete application. Reports go to `coverage/unit-core/` and `coverage/integration-application/`. `test:coverage` composes both numeric slices and static behaviour completeness.
+`test:unit` is the only numeric gate. It uses Coverlet Debug instrumentation and requires at least 99% line coverage over `Governance.fs`, `HarnessContract.fs`, and `Cli.fs`, writing its report to `coverage/unit-core/`. `Runtime.fs` and `Program.fs` stay excluded: the IO shim and entry point hold 43 lines that no unit test can reach, and `test:integration` still executes them.
 
-The `test:quick` target runs `typecheck`, `lint`, `test:unit`, `test:coverage:unit`, and `test:coverage:behaviour` sequentially. It stops immediately when a stage fails.
+The `test:quick` target runs `typecheck`, `lint`, `test:unit`, and `test:coverage:behaviour` sequentially. It stops immediately when a stage fails.
 
 ## Behaviour Specifications
 

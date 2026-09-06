@@ -30,16 +30,15 @@ Run tasks from the repository root through the workspace [HIPPO](../../repo-gove
 ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t lint
 ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:unit
 ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:integration
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage:unit
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage:integration
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage:engine
 ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
 ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:quick
 ```
 
-`test:unit` executes only `test/unit/`: in-process tests whose OS-facing dependencies are replaced by doubles. `test:integration` executes only `test/integration/`: real fixture discovery, file output, code loading, and same-machine process coordination. ExBdd reaches no network at all, though the layer would permit a loopback socket it owns; `ExBdd.BoundaryPolicyTest` enforces both layer boundaries. The integration bootstrap compiles the vendored feature corpus only in that layer. `test:quick` runs typecheck, lint, unit execution, and unit coverage; integration remains scheduled and outside pre-push quick checks. ExBdd owns no public system journey, so an E2E project and `test:e2e` target are intentionally inapplicable.
+`test:unit` executes only `test/unit/`: in-process tests whose OS-facing dependencies are replaced by doubles. `test:integration` executes only `test/integration/`: real fixture discovery, file output, code loading, and same-machine process coordination. ExBdd reaches no network at all, though the layer would permit a loopback socket it owns; `ExBdd.BoundaryPolicyTest` enforces both layer boundaries. The integration bootstrap compiles the vendored feature corpus only in that layer. `test:quick` runs typecheck, lint, and unit execution, which now carries its own coverage threshold; integration remains scheduled and outside pre-push quick checks. ExBdd owns no public system journey, so an E2E project and `test:e2e` target are intentionally inapplicable.
 
-Every numeric slice fails below 99% total line coverage. The unit denominator owns expression matching, step-definition and step-error behaviour, pickle expansion, verification delegation, and production data/error values. The integration denominator owns discovery, compilation, parsing, parameter registration, message emission, run coordination, and public verification. Cross-layer orchestration modules that cannot independently reach 99% in either boundary-correct slice remain included in `test:coverage:engine`; that target runs both layer trees and enforces 99% over the complete retained production engine, so scoped exclusions cannot create an unmeasured gap. `test:coverage` sequentially composes all three named slices. Test-only support modules are excluded from every production denominator. Reports are written to `cover/unit/`, `cover/integration/`, and `cover/engine/`.
+Both numeric targets fail below 99% total line coverage. `test:unit` measures the unit denominator alone: expression matching, step-definition and step-error behaviour, pickle expansion, verification delegation, and production data/error values. Its report goes to `cover/unit/`.
+
+ExBdd keeps a `test:coverage` target where the applications do not, because discovery, compilation, and parsing are 78% of the library and a unit test forbidden real files cannot reach them. That target runs both layer trees with no module exclusions and enforces 99% over the complete retained production engine, so no scoped exclusion can leave an unmeasured gap. It runs integration scenarios, so it stays scheduled and outside `test:quick`. Its report goes to `cover/`. Test-only support modules are excluded from every production denominator.
 
 Important paths:
 
