@@ -20,7 +20,7 @@ npm exec -- playwright install chromium
 
 1. `typecheck` checks every `.ts` file with TypeScript strict mode, rejects implicit and explicit `any`, and emits no files.
 2. `lint` runs Oxlint's correctness, suspicious, pedantic, and performance rules and rejects explicit `any`.
-3. `test:coverage:behaviour` checks the unit, integration, and browser adapters against the exact recursive corpus. Its local `test:coverage:behaviour:e2e` slice runs the compliance self-tests, generates Playwright tests, and rejects undefined, ambiguous, unused, or incorrectly shaped browser bindings and scenarios.
+3. `test:coverage:behaviour` checks the browser adapter this project owns against the exact recursive corpus. It runs the compliance self-tests, generates Playwright tests, and rejects undefined, ambiguous, unused, or incorrectly shaped browser bindings and scenarios. `bnest-app` runs the matching check for its unit and integration adapters.
 
 The managed Bnest release uses `test:release-quick` after the application quick gate. It runs this project's typecheck and lint without needlessly repeating the already-passed application quick and shared behaviour checks.
 

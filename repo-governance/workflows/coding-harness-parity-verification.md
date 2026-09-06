@@ -47,9 +47,10 @@ When the request includes evaluating the validator itself, run its unit, integra
 
 ```sh
 ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour --skipNxCache
+./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli-e2e -t test:coverage:behaviour --skipNxCache
 ```
 
-This additional target is optional for a routine parity check when a current matching result already exists and neither the validator nor its specifications changed.
+Each project proves the adapters it owns, so both commands are needed for the process level. They are optional for a routine parity check when a current matching result already exists and neither the validator nor its specifications changed.
 
 ### 5. Bound runtime claims
 

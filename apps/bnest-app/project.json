@@ -244,7 +244,7 @@
         "cwd": "apps/bnest-app"
       }
     },
-    "test:coverage:behaviour:app": {
+    "test:coverage:behaviour": {
       "command": "MIX_ENV=test mix run --no-start test/behaviour/verify.exs",
       "inputs": [
         "default",
@@ -252,27 +252,6 @@
       ],
       "options": {
         "cwd": "apps/bnest-app"
-      }
-    },
-    "test:coverage:behaviour": {
-      "executor": "nx:run-commands",
-      "inputs": [
-        "default",
-        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
-      ],
-      "options": {
-        "commands": [
-          {
-            "command": "npm exec -- nx run -p bnest-app -t test:coverage:behaviour:app",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "npm exec -- nx run -p bnest-app-e2e -t test:coverage:behaviour:e2e",
-            "forwardAllArgs": false
-          }
-        ],
-        "forwardAllArgs": false,
-        "parallel": false
       }
     },
     "test:quick": {

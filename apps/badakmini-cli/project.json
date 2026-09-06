@@ -54,10 +54,7 @@
       "executor": "nx:run-commands",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*",
-        "{workspaceRoot}/apps/badakmini-cli-e2e/*.fs",
-        "{workspaceRoot}/apps/badakmini-cli-e2e/*.fsproj",
-        "{workspaceRoot}/apps/badakmini-cli-e2e/project.json"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "commands": [
@@ -67,10 +64,6 @@
           },
           {
             "command": "dotnet test tests/integration/Badakmini.Cli.IntegrationTests.fsproj --configuration Release --filter 'FullyQualifiedName~FeatureComplianceTests|FullyQualifiedName~IntegrationPolicyTests'",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "dotnet test ../badakmini-cli-e2e/Badakmini.Cli.E2eTests.fsproj --configuration Release --filter FullyQualifiedName~FeatureComplianceTests",
             "forwardAllArgs": false
           }
         ],
@@ -82,19 +75,14 @@
         "{projectRoot}/tests/unit/bin",
         "{projectRoot}/tests/unit/obj",
         "{projectRoot}/tests/integration/bin",
-        "{projectRoot}/tests/integration/obj",
-        "{workspaceRoot}/apps/badakmini-cli-e2e/bin",
-        "{workspaceRoot}/apps/badakmini-cli-e2e/obj"
+        "{projectRoot}/tests/integration/obj"
       ]
     },
     "test:quick": {
       "executor": "nx:run-commands",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*",
-        "{workspaceRoot}/apps/badakmini-cli-e2e/*.fs",
-        "{workspaceRoot}/apps/badakmini-cli-e2e/*.fsproj",
-        "{workspaceRoot}/apps/badakmini-cli-e2e/project.json"
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
       ],
       "options": {
         "commands": [

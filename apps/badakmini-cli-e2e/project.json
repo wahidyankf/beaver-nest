@@ -36,9 +36,16 @@
       }
     },
     "test:coverage:behaviour": {
-      "executor": "nx:noop",
-      "dependsOn": ["badakmini-cli:test:coverage:behaviour"],
-      "cache": false
+      "command": "dotnet test Badakmini.Cli.E2eTests.fsproj --configuration Release --filter FullyQualifiedName~FeatureComplianceTests",
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/specs/apps/badakmini/cli/behaviours/**/*"
+      ],
+      "options": {
+        "cwd": "apps/badakmini-cli-e2e"
+      },
+      "outputs": ["{projectRoot}/bin", "{projectRoot}/obj"]
     },
     "test:e2e": {
       "dependsOn": ["^build", "test:coverage:behaviour"],

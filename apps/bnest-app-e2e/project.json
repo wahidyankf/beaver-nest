@@ -25,7 +25,7 @@
     "lint": {
       "command": "npm exec -- oxlint --deny correctness --deny suspicious --deny pedantic --deny perf --deny typescript/no-explicit-any --deny-warnings --report-unused-disable-directives apps/bnest-app-e2e"
     },
-    "test:coverage:behaviour:e2e": {
+    "test:coverage:behaviour": {
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": [
@@ -49,11 +49,6 @@
         "forwardAllArgs": false,
         "parallel": false
       }
-    },
-    "test:coverage:behaviour": {
-      "executor": "nx:noop",
-      "dependsOn": ["bnest-app:test:coverage:behaviour"],
-      "cache": false
     },
     "test:e2e": {
       "command": "BNEST_E2E_PORT=${BNEST_E2E_PORT:-4010} ./hippo run --class ephemeral --disk-path . --lease-port ${BNEST_E2E_PORT:-4010} --lease-owner e2e --lease-min 4010 --lease-max 4019 -- node apps/bnest-app-e2e/tools/run-e2e.mts",
