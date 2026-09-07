@@ -7,3 +7,5 @@ wrappers that do not belong to an application or library domain.
 
 - [HIPPO consumer](hippo-consumer/README.md) specifies the portable repository bootstrap around the
   independently released HIPPO executable.
+- [RHINO consumer](rhino-consumer/README.md) specifies the portable repository bootstrap around the
+  independently released RHINO executable.
