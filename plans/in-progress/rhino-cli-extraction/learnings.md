@@ -258,3 +258,29 @@ Plus **25 additions** — 3 in `cli-contract`, 5 in `harness-parity`, 2 in
 | word-budget                             | 7      | 7       |
 | repo-config (new)                       | 0      | 12      |
 | **Total**                               | **81** | **107** |
+
+- 2026-09-07 — Gherkin implementation review result, per feature file (AC-03). The review ran as three independent one-by-one inspections over all eight files, expanding every Scenario Outline into its executable rows, as the workflow requires — not a scenario count, not a grep, not a green test run. First pass over 197 expanded rows: **151 PASS, 46 FAIL**.
+
+| Feature file         | Rows    | First pass       | After fixes            |
+| -------------------- | ------- | ---------------- | ---------------------- |
+| `cli-contract`       | 62 → 64 | 30 PASS, 32 FAIL | all PASS               |
+| `repo-config`        | 13      | 11 PASS, 2 FAIL  | all PASS               |
+| `harness-parity`     | 22      | 19 PASS, 3 FAIL  | all PASS               |
+| `directory-map`      | 13      | 11 PASS, 2 FAIL  | all PASS               |
+| `mermaid-cli`        | 47      | 47 PASS          | unchanged              |
+| `mermaid-legibility` | 24      | 24 PASS          | unchanged              |
+| `word-budget`        | 7       | 7 PASS           | unchanged, one renamed |
+| `internal-link`      | 9       | 2 PASS, 7 FAIL   | all PASS               |
+
+Every FAIL was fixed rather than accepted, and the changed scenarios were re-reviewed independently, which found one more and it was fixed too. The binding registry and the step vocabulary were clean on the first pass in all three reviews: 108 scenarios bound exactly once at each adapter, no orphan binding, no scenario written in a sentence outside the vocabulary. The generic-tool rule was clean of the failure it was written for — no `750`, no `repo-governance`, no harness named in an assertion — which matters, because the failures were all the _opposite_ shape.
+
+- 2026-09-07 — What the failures had in common, and why the count is the wrong summary. Thirty-one of the forty-six were one parser defect, not thirty-one bad scenarios. Of the fifteen real ones, thirteen were the same species: **a scenario asserting a policy value that nothing had declared**. The de-policying pass removed BeaverNest's constants from the assertions and, in thirteen places, forgot to put a declaration back in the arrangement. `directory-map` planted an 800-word file to prove the map validator ignores word-budget concerns — but with no surface declared, 800 words violates nothing, so there was nothing to ignore and the scenario could not fail for its stated reason. The `800` was BeaverNest's `751` with the limit deleted and the number left behind. All seven `internal-link` scenarios established no configuration at all, and RHINO exits `2` when it cannot read one, so scenarios asserting `0` or `1` were unreachable rather than merely thin. The generalizable lesson: **removing a hard-coded policy from an assertion is only half the change; the other half is declaring it in the arrangement, and nothing mechanical catches the missing half.** An exact search for the literal passes either way.
+
+- 2026-09-07 — Three defects in the test harness's own parser, and the reason they were invisible (AC-03). The hand-written Gherkin reader was written to serve the static coverage check and the three adapters from one parse. It shipped with three faults, each of which silently changed what scenarios asserted.
+  1. **Escaped pipes were column separators.** The CLI corpus writes an argument vector as `governance\|word-budget\|validate` in a one-column table; the reader split on every `|`, so 31 expanded rows invoked the token `governance\` and threw the rest away. Half failed loudly. The other half — the rows asserting exit `2` — **passed**, because a truncated command is also an invalid one. Twelve rows were green while invoking nothing they named.
+  2. **`Background:` was discarded.** Four features declare their policy there. Every scenario in them was asserting against policy nothing had established — the exact failure the reword existed to remove, reintroduced by the harness rather than the corpus.
+  3. **Docstrings were discarded, and `#` opened a comment inside them.** A fixture whose first line is a Markdown heading vanished with the file it described, so every content-inspecting scenario inspected an empty tree.
+
+  None was catchable by reading the corpus, and none would have been caught by a green run, because at RED everything fails anyway and at GREEN they would have shifted the goalposts rather than broken. They were found by a reviewer compiling the repository's own reader and running it over the corpus instead of reading the feature files by eye. **The method lesson: a hand-written parser in the test harness is production code and needs its own tests before the corpus it parses is trusted.** Five now exist in the quick gate. Two are specific; three are general, and the general one worth keeping is that a step sentence ending in a colon must arrive carrying a table, a bullet list, or a docstring — a promised payload that arrives empty is the shape all three defects took, so it generalises past the three that were found.
+
+- 2026-09-07 — Ledger correction: the corpus is **108 scenarios, not 107**. The review found that `Repeated file selection and stdin are accepted by the Mermaid leaf` named stdin as a subject and never exercised it — there was no stdin sentence anywhere in the vocabulary. It splits into the repeated-`--file` scenario it actually was plus a new `The Mermaid leaf reads a diagram from standard input`, so `cli-contract` goes from 24 to 25 and the additions total from 25 to 26. The disposition of the 81 originals is unchanged: 77 kept or renamed, 2 merged into 1, 2 split into 4, 82 derived with none dropped. 82 + 26 = **108 scenarios, 199 expanded**.
