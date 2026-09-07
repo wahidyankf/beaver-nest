@@ -98,10 +98,14 @@ Scenario: The numeric budget gate keeps its counts
 
 ```gherkin
 Scenario: No rule or document names the retired validator
-  Given the repository rules, documentation, specifications, targets, and hooks
+  Given the rules, documentation, specifications, targets, and hooks of a
+    repository that has cut over
   When the cutover is complete
   Then every enforcement reference names the rhino command or target
-  And the rules-propagation workflow has recorded a terminal result for the rule change
+  And that repository's own rules-propagation workflow has recorded a terminal
+    result for the rule change
+  And this holds independently for beaver-nest and for grind-in-public
+  And hippo runs no such transaction, because adoption there changes no rule
 ```
 
 ### AC-08 — Portable, immutable releases

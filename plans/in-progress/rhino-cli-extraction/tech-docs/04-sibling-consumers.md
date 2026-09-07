@@ -73,6 +73,33 @@ BeaverNest first because its Badakmini is the source of the port, so its finding
 
 Every repository's adoption is gated on the one before it passing. A finding that requires a tool change sends the change back through the corpus first, and the earlier repositories are re-verified against the new binary before the next one proceeds.
 
+## File Impact
+
+[The cutover design](03-beaver-nest-cutover.md) carries BeaverNest's file impact and [the upstream design](01-rhino-repository.md) carries RHINO's whole tree as new files. The two siblings are listed here so that Phases 9 and 10 name exact paths rather than intentions. Paths are relative to each repository's own root, and every one is discovered against the tree at execution time rather than assumed from this table.
+
+**HIPPO** — additive only; nothing is deleted.
+
+| Disposition | Path                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| `[N]`       | `repo-config.yml`                                                                               |
+| `[N]`       | `rhino`, `rhino.lock`                                                                           |
+| `[E]`       | its quick-gate definition and `.husky/pre-push`, to invoke the new checks                       |
+| `[E]`       | `AGENTS.md` and any document naming the gates, only if adoption changes what a contributor runs |
+
+**grind-in-public** — adoption then retirement.
+
+| Disposition | Path                                                                                                                 |
+| ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| `[N]`       | `repo-config.yml`                                                                                                    |
+| `[N]`       | `rhino`, `rhino.lock`                                                                                                |
+| `[D]`       | `apps/badakmini-cli/`, `apps/badakmini-cli-e2e/` — both Go modules with their own `go.mod`                           |
+| `[D]`       | its Gherkin corpus for the retired validator, if it keeps one                                                        |
+| `[E]`       | the Nx targets invoking `instruction-size`, `markdown-links`, and `capability-parity`, repointed to the RHINO leaves |
+| `[E]`       | its hooks, and its Go toolchain setup in CI                                                                          |
+| `[E]`       | the thirteen governance surfaces naming the retired validator, through its own propagation transaction               |
+
+Its project-contract, governance-structure, workflow-contract, spelling, and HIPPO bootstrap checks appear in neither table, because this plan does not touch them.
+
 ## Propagation Is Per-Repository
 
 Two of the three siblings change what enforces their rules, so each runs its own rules-propagation transaction under its own governance, in its own history. Nothing propagates _across_ repositories: authority does not cross a repository boundary any more than commit authorization does, and a rule repaired here has no standing there.
