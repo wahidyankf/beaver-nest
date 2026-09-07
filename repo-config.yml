@@ -1,0 +1,239 @@
+# schema: rhino/repo-config/v1
+#
+# What this repository enforces about its own documentation, declared rather
+# than compiled in. Every value is transcribed from apps/badakmini-cli --
+# Governance.fs, HarnessContract.fs, and the eight invocations in its
+# project.json -- so the new gate checks what the old one checked, for the same
+# reasons, before the old one is retired.
+#
+# Nothing here is a runtime value. No host, no path outside the repository, no
+# credential: see repo-governance/conventions/public-repository-data-safety.md.
+
+governance-word-budget:
+  count: letters-and-digits
+  # Governance.fs: 750 words over AGENTS.md and every repo-governance document.
+  # No warn tier exists in the F#, so none is declared here.
+  surfaces:
+    - glob: "AGENTS.md"
+      fail: 750
+    - glob: "repo-governance/**/*.md"
+      fail: 750
+
+governance-directory-map:
+  # Governance.fs hard-codes `repo-governance` as its default, but the policy
+  # this repository actually runs is the four `--directory` invocations in
+  # apps/badakmini-cli/project.json. Declaring all four is what makes the two
+  # gates comparable: one target per tree becomes one list.
+  trees:
+    - path: repo-governance
+    - path: docs
+    - path: specs
+    - path: plans
+
+md-internal-link:
+  # Governance.fs skips archived plans as link *sources* only -- they stay
+  # valid targets. An archived plan deliberately references paths that no
+  # longer exist, and reporting those would make finishing a plan produce
+  # findings.
+  exclude-sources:
+    - "plans/done/**"
+
+md-mermaid:
+  node-label-graphemes: 32
+  edge-label-graphemes: 24
+  # The F# palette verbatim, including the plain grey RHINO's own configuration
+  # rejects. A repository may declare it; RHINO ships none.
+  fill-colors:
+    ["#0173B2", "#DE8F05", "#029E73", "#CC78BC", "#CA9161", "#808080"]
+  edge-colors:
+    [
+      "#0173B2",
+      "#DE8F05",
+      "#029E73",
+      "#CC78BC",
+      "#CA9161",
+      "#808080",
+      "#000000",
+    ]
+  text-colors: ["#000000", "#FFFFFF"]
+
+harness-parity:
+  canonical:
+    instruction: AGENTS.md
+    instruction-adapter: CLAUDE.md
+    skills-root: .agents/skills
+    skill-route: "Read {path} completely, resolve every relative resource from that skill directory, and follow it as authoritative before acting."
+    agents-root: .agents/agents
+    agent-route: "Before acting, read the complete canonical agent definition at the repository-root path {path} and follow it as authoritative. If it cannot be read, stop and report the missing path."
+    # HarnessContract.fs reads `requires`, `denies` and `constraints`, and
+    # requires `mode: subagent` on every canonical agent.
+    declaration:
+      grants: requires
+      denials: denies
+      limits: constraints
+      fixed: { mode: subagent }
+  harnesses:
+    - name: codex
+      agent-adapter:
+        path: ".codex/agents/{name}.toml"
+        format: toml
+        route-field: developer_instructions
+        identity: { name: name, description: description }
+        # validateCodexAdapter: the sandbox is fixed and a portable model
+        # selection may not be pinned here.
+        fixed: { sandbox_mode: read-only }
+        absent: [model]
+      capability:
+        file: .codex/config.toml
+        format: toml
+    - name: claude
+      agent-adapter:
+        path: ".claude/agents/{name}.md"
+        format: front-matter
+        route-field: body
+        identity: { name: name, description: description }
+        translations:
+          - { when: always, field: tools, members: [Read] }
+          - {
+              when: requires,
+              capability: repository-read,
+              field: tools,
+              members: [Glob, Grep],
+            }
+          - {
+              when: requires,
+              capability: web-search,
+              field: tools,
+              members: [WebSearch],
+            }
+          - {
+              when: requires,
+              capability: web-fetch,
+              field: tools,
+              members: [WebFetch],
+            }
+          - {
+              when: requires,
+              capability: nx-mcp,
+              field: tools,
+              member-prefix: "mcp__nx-mcp__",
+            }
+          - {
+              when: denies,
+              capability: repository-write,
+              field: tools,
+              absent-members: [Write, Edit],
+            }
+          - {
+              when: denies,
+              capability: shell,
+              field: tools,
+              absent-members: [Bash, PowerShell],
+            }
+          - {
+              when: denies,
+              capability: nested-agent,
+              field: tools,
+              absent-members: [Agent, Task],
+            }
+      skill-adapter:
+        path: ".claude/commands/{name}.md"
+        format: front-matter
+        route-field: body
+        identity: { description: description }
+        # parsed.Scalars.Count = 1 and no lists or nested maps: a wrapper
+        # declares its description and nothing else.
+        closed: true
+      capability:
+        file: .mcp.json
+        format: json
+    - name: opencode
+      agent-adapter:
+        path: ".opencode/agents/{name}.md"
+        format: front-matter
+        route-field: body
+        identity: { description: description }
+        fixed: { mode: subagent }
+        translations:
+          - { when: always, field: permission, entries: { read: allow } }
+          - {
+              when: requires,
+              capability: repository-read,
+              field: permission,
+              entries: { glob: allow, grep: allow },
+            }
+          - {
+              when: requires,
+              capability: web-search,
+              field: permission,
+              entries: { websearch: allow },
+            }
+          - {
+              when: requires,
+              capability: web-fetch,
+              field: permission,
+              entries: { webfetch: allow },
+            }
+          - {
+              when: requires,
+              capability: nx-mcp,
+              field: permission,
+              entry-prefix: "nx-mcp_",
+              entry-value: allow,
+            }
+          - {
+              when: denies,
+              capability: repository-write,
+              field: permission,
+              entries: { edit: deny },
+            }
+          - {
+              when: denies,
+              capability: shell,
+              field: permission,
+              entries: { bash: deny },
+            }
+          - {
+              when: denies,
+              capability: nested-agent,
+              field: permission,
+              entries: { task: deny },
+            }
+      capability:
+        file: opencode.json
+        format: json
+  required-mcp:
+    name: nx-mcp
+    command: npx
+    args: ["nx", "mcp"]
+  # The four shapes the F# treats as competing always-on instruction sources.
+  prohibited-instruction-sources:
+    - "**/AGENTS.md"
+    - "**/AGENTS.override.md"
+    - "**/CLAUDE.md"
+    - ".claude/rules/**/*.md"
+  capabilities:
+    - repository-read
+    - repository-write
+    - web-search
+    - web-fetch
+    - shell
+    - nested-agent
+    - nx-mcp
+  constraints:
+    - inline-result-only
+    - single-mcp-operation
+
+scan:
+  exclude-directories:
+    - .git
+    - .nx
+    - node_modules
+    - bin
+    - obj
+    - _build
+    - deps
+    - coverage
+    - playwright-report
+    - test-results
+    - worktrees
