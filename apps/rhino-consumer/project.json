@@ -1,0 +1,79 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rhino-consumer",
+  "projectType": "application",
+  "root": "apps/rhino-consumer",
+  "targets": {
+    "test:repo": {
+      "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/rhino",
+        "{workspaceRoot}/rhino.lock",
+        "{workspaceRoot}/repo-config.yml",
+        "{workspaceRoot}/**/*.md",
+        "{workspaceRoot}/.agents/**/*",
+        "{workspaceRoot}/.codex/**/*",
+        "{workspaceRoot}/.claude/**/*",
+        "{workspaceRoot}/.opencode/**/*",
+        "{workspaceRoot}/.mcp.json",
+        "{workspaceRoot}/CLAUDE.md",
+        "{workspaceRoot}/opencode.json",
+        "{workspaceRoot}/opencode.jsonc",
+        "{workspaceRoot}/plans/**/*",
+        "{workspaceRoot}/specs/**/*"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "./rhino repo-config validate",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "./rhino governance word-budget validate",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "./rhino governance directory-map validate",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "./rhino harness parity validate",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "./rhino md internal-link validate",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "./rhino md mermaid validate",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": true
+      }
+    },
+    "test:bootstrap": {
+      "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/rhino",
+        "{workspaceRoot}/rhino.lock",
+        "{workspaceRoot}/.github/scripts/test-rhino-bootstrap.sh",
+        "{workspaceRoot}/specs/tools/rhino-consumer/**/*"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "./.github/scripts/test-rhino-bootstrap.sh",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    }
+  },
+  "tags": []
+}
