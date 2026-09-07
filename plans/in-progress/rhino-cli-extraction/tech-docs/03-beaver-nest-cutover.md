@@ -1,6 +1,6 @@
 # BeaverNest Cutover
 
-BeaverNest becomes RHINO's first consumer and stops being Badakmini's host. The two halves happen in one change, because a repository running two validators of one contract is the condition this plan exists to remove.
+BeaverNest is the first repository to adopt RHINO through the pinned bootstrap — RHINO itself adopts earlier, but from a source build — and it stops being Badakmini's host in the same plan. The two halves happen in one change, because a repository running two validators of one contract is the condition this plan exists to remove.
 
 ## Consumer Bootstrap
 
@@ -61,7 +61,7 @@ Per the [plan-migrations convention](../../../../repo-governance/conventions/pla
 1. Delete `apps/badakmini-cli/`, `apps/badakmini-cli-e2e/`, `specs/apps/badakmini/`, and `beaver-nest.sln`, so no fallback validator exists in the tree.
 2. Clear the RHINO consumer cache, so the bootstrap performs a genuine cold download-and-verify rather than reusing a warm artifact from development.
 3. Run the full repository gate as a freshly started process, reading policy only from the persisted `repo-config.yml` and the pinned release from `rhino.lock`.
-4. Confirm it reports the same clean result across all five validators, over the same 49 word-budgeted files, four mapped trees, roughly 126 links, three-harness parity, and 25 Mermaid diagrams that Badakmini reported clean.
+4. Confirm it reports the same clean result across all five validators, over the same corpus Badakmini reported clean — 57 word-budgeted files, 47 directory maps across four trees, 155 link-checked Markdown files, three-harness parity over seven skills, two agents, and one capability declaration, and 33 Mermaid diagrams when this plan was written. The counts are re-read from the Phase 1 baseline run at cutover time, because the repository keeps changing.
 5. Confirm a deliberate injected violation of each kind is still detected, in a scratch copy under `local-tmp/`, so "clean" is proven to mean "checked" rather than "skipped".
 
 Step 5 matters more than step 4. A validator that silently found nothing to check would pass step 4 perfectly.
@@ -76,9 +76,13 @@ The same concern applies in principle to grapheme counting for Mermaid labels, w
 
 ## Rules and Documentation
 
-Badakmini is named as the enforcement mechanism in roughly a dozen rule files. Renaming an enforcement reference is a rule change, so the [rules-propagation workflow](../../../../repo-governance/workflows/rules-propagation.md) applies and its terminal result is recorded — `PASS_NO_CHANGE` is a legitimate outcome only if the ledger genuinely closes empty, which it will not here.
+Badakmini is named as the enforcement mechanism in seventeen surfaces. Renaming an enforcement reference is a rule change, so the [rules-propagation workflow](../../../../repo-governance/workflows/rules-propagation.md) applies — not as a tidy-up afterwards, but as the mechanism by which this repository learns that RHINO is now what enforces its rules. Its terminal result is recorded; `PASS_NO_CHANGE` is a legitimate outcome only if the ledger genuinely closes empty, which it will not here.
 
-Affected rules: `AGENTS.md`; `repo-governance/README.md`; the `directory-maps`, `markdown-links`, `markdown-visualizations`, `coding-harness-contract`, `push-hook-verification`, `documentation-architecture`, and `database-audit-columns` conventions; the `specification-maintenance`, `software-quality-enforcement`, and `end-to-end-testing` development standards; and the `coding-harness-contract-change`, `coding-harness-parity-verification`, `rules-propagation`, `rules-quality-gate`, and `plan-quality-gate` workflows.
+Eleven of those files embed the literal gate command `nx run -p badakmini-cli -t test:repo`, and one of them is `rules-propagation.md` itself: the workflow's own step-4 verification command names the project this plan deletes. The transaction therefore has to repair its own instrument, which sets the ordering — the ledger is built and the edits applied while the new target already works, so that the very first verification run of the repaired workflow exercises the repaired command. Running propagation before the consumer target exists would leave the workflow unable to verify itself.
+
+Two of those eleven are `rules-quality-gate.md` and `plan-quality-gate.md`. Propagation is the sole writer and never invokes the quality gate, so those files are edited as ordinary points of use inside this transaction; no quality gate is requested by this plan, and none is implied by having changed the documents that describe one.
+
+Affected rules: `AGENTS.md`; `repo-governance/README.md`; the `directory-maps`, `markdown-links`, `markdown-visualizations`, `coding-harness-contract`, `push-hook-verification`, `documentation-architecture`, and `database-audit-columns` conventions; the `specification-maintenance`, `software-quality-enforcement`, and `end-to-end-testing` development standards; and the `coding-harness-contract-change`, `coding-harness-parity-verification`, `rules-propagation`, `rules-quality-gate`, and `plan-quality-gate` workflows. `coding-harness-contract.md` and the two harness workflows additionally change command spelling, because `governance harness-contract validate` becomes `harness parity validate`.
 
 Two changes are more than a rename. `coding-harness-contract.md` currently states the canonical roster as prose fact; after cutover the roster is declared in `repo-config.yml`, so the convention must point at the declaration as the source of truth while keeping the parity requirement itself canonical. And `directory-maps.md` states the 750-word budget as a rule constant; the constant remains a rule, but the enforcement sentence must name where the enforced value is declared. Neither loosens a rule; both stop the document from being a second, drifting copy of a value.
 

@@ -38,13 +38,13 @@ erDiagram
     REPO_CONFIG ||--|| GOVERNANCE_DIRECTORY_MAP : declares
     REPO_CONFIG ||--|| MD_INTERNAL_LINK : declares
     REPO_CONFIG ||--|| MD_MERMAID : declares
-    REPO_CONFIG ||--|| GOVERNANCE_HARNESS_CONTRACT : declares
+    REPO_CONFIG ||--|| HARNESS_PARITY : declares
     REPO_CONFIG ||--|| SCAN : declares
     GOVERNANCE_WORD_BUDGET ||--|{ SURFACE : contains
     GOVERNANCE_DIRECTORY_MAP ||--|{ TREE : contains
-    GOVERNANCE_HARNESS_CONTRACT ||--|{ HARNESS : registers
-    GOVERNANCE_HARNESS_CONTRACT ||--|| CANONICAL : roots
-    GOVERNANCE_HARNESS_CONTRACT ||--|{ CAPABILITY : permits
+    HARNESS_PARITY ||--|{ HARNESS : registers
+    HARNESS_PARITY ||--|| CANONICAL : roots
+    HARNESS_PARITY ||--|{ CAPABILITY : permits
 
     REPO_CONFIG {
         string schema PK
@@ -63,6 +63,8 @@ erDiagram
         string agent_dir
         string agent_extension
         string command_dir
+        string capability_file
+        string capability_format
     }
     CANONICAL {
         string instruction PK
@@ -105,23 +107,29 @@ md-mermaid:
   node-label-graphemes: 32
   edge-label-graphemes: 24
 
-governance-harness-contract:
+harness-parity:
   canonical:
     instruction: AGENTS.md
-    instruction-adapter: CLAUDE.md
+    instruction-adapter: CLAUDE.md # optional; HIPPO declares no adapter
     skills-root: .agents/skills
     agents-root: .agents/agents
   harnesses:
     - name: codex
       agent-dir: .codex/agents
       agent-extension: .toml
+      capability-file: .codex/config.toml
+      capability-format: toml
     - name: claude
       agent-dir: .claude/agents
       agent-extension: .md
       command-dir: .claude/commands
+      capability-file: .mcp.json
+      capability-format: json
     - name: opencode
       agent-dir: .opencode/agents
       agent-extension: .md
+      capability-file: opencode.json
+      capability-format: json
   prohibited-instruction-sources:
     - "**/AGENTS.md"
     - "**/AGENTS.override.md"
@@ -164,26 +172,45 @@ The `capabilities`, `constraints`, and `required-mcp` values are elided above be
 
 **`md-mermaid.node-label-graphemes`** and **`md-mermaid.edge-label-graphemes`** — the maximum visible label length per segment, counted in Unicode grapheme clusters after markup removal and entity decoding, with `<br>`, `<br/>`, and escaped newlines splitting segments. Both required. Which diagram kinds are enforced and which colour rules apply are tool behaviour, not policy, and stay in the binary.
 
-**`governance-harness-contract.canonical.instruction`** — the single project-rule body every harness must reach. Required.
+**`harness-parity.canonical.instruction`** — the single project-rule body every harness must reach. Required.
 
-**`governance-harness-contract.canonical.instruction-adapter`** — the file permitted to contain nothing but an import of the instruction file. Required. RHINO derives the exact permitted content as `@<instruction>`, so this pair is what makes `CLAUDE.md` containing only `@AGENTS.md` legal and anything else a finding.
+**`harness-parity.canonical.instruction-adapter`** — the file permitted to contain nothing but an import of the instruction file. **Optional**, because HIPPO has no such file at all. When declared, RHINO derives the exact permitted content as `@<instruction>`, which is what makes `CLAUDE.md` containing only `@AGENTS.md` legal and anything else a finding. When omitted, no file may import the instruction file and the prohibition on competing always-on instruction sources still applies in full — an absent adapter weakens nothing, it simply means there is nothing to route.
 
-**`governance-harness-contract.canonical.skills-root`** / **`agents-root`** — the directories holding the one canonical skill bundle per skill and the one full agent prompt per agent. Required. Everything under a skill directory is part of that skill's hashed bundle.
+**`harness-parity.canonical.skills-root`** / **`agents-root`** — the directories holding the one canonical skill bundle per skill and the one full agent prompt per agent. Required. Everything under a skill directory is part of that skill's hashed bundle.
 
-**`governance-harness-contract.harnesses[]`** — the roster. Each entry must have exactly one native adapter per canonical agent, or it is a finding.
+**`harness-parity.harnesses[]`** — the roster, and the reason this validator generalizes at all. Every harness the repository supports is listed here as an equal: BeaverNest declares Codex, Claude, and OpenCode, and the tool holds no opinion about which exist or which is primary. Each entry must have exactly one native adapter per canonical agent, or it is a finding. Adding a fourth harness is one entry; a repository with a single harness declares one; the roster may not be empty, because a declared canonical skill and agent set with nowhere to reconcile it is a configuration error rather than a clean pass.
 
 - `name` — required. Appears in finding output; also the key used to report which harness diverged.
 - `agent-dir` — required. Where that harness's per-agent adapter files live.
 - `agent-extension` — required. `.toml` for Codex, `.md` for Claude and OpenCode. This is what makes the roster extensible without a code change: adding a fourth harness is one entry.
-- `command-dir` — optional. Only Claude has skill command wrappers today. When present, every canonical skill must have exactly one wrapper there mirroring its description and containing only the fixed canonical route.
+- `command-dir` — optional. Only Claude has skill command wrappers today. When present, every canonical skill must have exactly one wrapper there mirroring its description and containing only the fixed canonical route. It is per-harness rather than global precisely so that a second harness gaining skill wrappers is one line of configuration, not a code change.
+- `capability-file` and `capability-format` — required together. Where that harness declares its capabilities, and in which of `toml` or `json` it is written. This is what lets `required-mcp` be stated once and compared against all three of BeaverNest's harnesses, which keep the same declaration in three different files and three different shapes: `.codex/config.toml`, `.mcp.json`, and `opencode.json`. The comparison is semantic — executable vector and working directory — so a harness is not penalised for its own syntax.
 
-**`governance-harness-contract.prohibited-instruction-sources[]`** — globs for competing always-on instruction sources. Matches are findings, with the declared canonical `instruction` and `instruction-adapter` paths implicitly exempt. Required; this is the instruction boundary, and defaulting it to empty would silently drop a rule.
+**`harness-parity.prohibited-instruction-sources[]`** — globs for competing always-on instruction sources. Matches are findings, with the declared canonical `instruction` and `instruction-adapter` paths implicitly exempt. Required; this is the instruction boundary, and defaulting it to empty would silently drop a rule.
 
-**`governance-harness-contract.capabilities[]`** / **`constraints[]`** — the closed vocabulary of capability, deny, and constraint names an agent definition may use. An unknown name is a finding, which is what stops a typo from silently granting nothing. Required.
+**`harness-parity.capabilities[]`** / **`constraints[]`** — the closed vocabulary of capability, deny, and constraint names an agent definition may use. An unknown name is a finding, which is what stops a typo from silently granting nothing. Required.
 
-**`governance-harness-contract.required-mcp`** — the credential-free capability every harness must declare, compared semantically on executable vector and working directory rather than by raw vendor syntax. `name`, `command`, and `args` are required; no credential, token, or environment value may ever appear here, and RHINO rejects the file if one does.
+**`harness-parity.required-mcp`** — the credential-free capability every harness must declare, compared semantically on executable vector and working directory rather than by raw vendor syntax, in each harness's own `capability-file`. `name`, `command`, and `args` are required; no credential, token, or environment value may ever appear here, and RHINO rejects the file if one does. Badakmini hard-codes both the vector `npx nx mcp` and the three file paths it compares; here the vector is policy and the paths belong to the roster, which is the whole difference between a validator that serves one repository and one that serves four.
 
 **`scan.exclude-directories[]`** — directory _names_, matched at any depth, skipped by every scanner. Filesystem links and reparse points are always skipped regardless of this list, because following them can escape the repository. Required.
+
+## One Schema, Four Repositories
+
+The schema is not designed against BeaverNest and then hoped to fit elsewhere. Four real trees are described in it during delivery, and the differences between them are what the schema must express:
+
+| Declared as                        | rhino                    | hippo       | grind-in-public              | beaver-nest                  |
+| ---------------------------------- | ------------------------ | ----------- | ---------------------------- | ---------------------------- |
+| `canonical.instruction`            | `AGENTS.md`              | `AGENTS.md` | `AGENTS.md`                  | `AGENTS.md`                  |
+| `canonical.instruction-adapter`    | `CLAUDE.md`              | _omitted_   | `CLAUDE.md`                  | `CLAUDE.md`                  |
+| `harnesses[]`                      | empty                    | empty       | three                        | three                        |
+| `governance-directory-map.trees[]` | 2                        | 2           | 4                            | 4                            |
+| Visualization convention           | Mermaid                  | ASCII art   | ASCII art                    | Mermaid                      |
+| `md-mermaid` diagrams expected     | some                     | zero        | zero                         | 33                           |
+| Word-budget surfaces               | `AGENTS.md`, `README.md` | `AGENTS.md` | `AGENTS.md`, governance tree | `AGENTS.md`, governance tree |
+
+The exact values for each repository are transcribed during delivery from that repository's current validator or rules, never invented here. Where a sibling has no prior validator, its values come from its written rules and are confirmed with the maintainer before adoption.
+
+Two rows carry design weight. An omitted `instruction-adapter` is legal; an omitted `harnesses` list is not — a roster of zero is declared explicitly as empty, because the difference between "no harnesses" and "I forgot to configure harnesses" must be visible. And "zero Mermaid diagrams" must be reported as an explicit clean zero. Two of the four repositories use ASCII art instead of Mermaid, so zero is their correct and permanent answer — not a transitional state, not a warning, and not something a reader should be able to confuse with a directory walk that silently found nothing.
 
 ## Configuration Failure Behaviour
 
