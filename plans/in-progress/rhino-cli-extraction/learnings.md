@@ -391,3 +391,34 @@ The reviewers were given one question to ask of every row — _what single-line 
 **The corresponding fixture lesson is that a fixture must reach the branch it names.** The scenario for "a map entry may not reach past a sibling README" wrote a deep entry pointing at a file that was not there, so `resolve` had two independent reasons to refuse it and the scenario could not say which one it was testing. The one for "an unusable prohibited-source glob stops the instruction check" built the valid contract, which already has no violations, so `Then there are no violations` followed from the `Given` alone. Neither was a weak assertion; both were assertions about a branch the fixture never entered.
 
 **The stale-artifact hazard bit again, in the opposite direction.** Restoring `src/` with `shutil.copytree` preserves mtimes, so `cargo` judged a mutant build fresh and reused it. A correct scenario then failed for half an hour of investigation that ended at a probe proving the product was right all along. The rule recorded earlier — run the battery twice — is necessary but not sufficient: **a mutation harness must invalidate the build, not merely restore the source.** The restore step now touches every file. Seventeen mutants, two full passes, all killed.
+
+## A tool that cannot document itself has leaked an assumption
+
+_2026-09-08, Phase 4, `06d7abf`._
+
+Phase 4 exists to point RHINO at a repository that is not BeaverNest, and the plan expected the pressure to come from what RHINO's tree _lacks_ — no `repo-governance/`, no `plans/`, no multi-harness roster. Two assumptions did surface that way, and one of them was exactly that: `harness-parity.required-mcp` was mandatory even with an empty roster, so RHINO could not honestly describe itself. The schema already treated `skills-root` and `agents-root` as following the roster in both directions, and `required-mcp` had simply been left out of the rule.
+
+The second one came from somewhere the plan did not anticipate: **writing the documentation**. `harness parity validate` reported the new harness tutorial as an `unexpected-instruction-source`, because the page shows `@AGENTS.md` inside a fenced example and the rule was a plain `text.contains(&route)` over every file. A page that quotes the canonical route is documenting the adapter rule, not competing with it — but the check could not tell those apart, and so the only way to keep the tree clean was to not explain how adapters work.
+
+That is the transferable form: **a validator that cannot be documented without accusing its own documentation is over-broad, and the documentation is what proves it.** Running the tool against a second tree tests the configuration surface. Writing the tool's own pages tests something the configuration surface never reaches — whether the rules leave room for a repository to _talk about_ what they enforce. Four repositories were about to adopt this, all of them using `AGENTS.md`, and any of them writing a page about their harness contract would have hit it.
+
+The fix cost nothing structurally, which is its own evidence that the rule had been drawn carelessly rather than deliberately: `markdown::prose_lines` already existed, written for precisely this question, and the Markdown case now routes through it while non-Markdown files keep the whole-text check.
+
+**Two mutants, because one would have proved half of it.** Dropping the prose filter kills the new scenario; making Markdown never count as an import kills `With no adapter declared, no file may import the canonical instructions`. The second mutant is the one that matters — without it, the new scenario would be indistinguishable from having deleted the rule.
+
+## Executing a transcript is a different act from writing one
+
+_2026-09-08, Phase 4, `fe92642`._
+
+Twenty-one documentation pages, and the rule that every `console` block be reproduced against the built binary caught six that were wrong. None was a typo. Each was a plausible sentence written from knowledge of the code rather than from the code's output.
+
+The failure modes are worth separating, because they need different defences:
+
+- **Invented wording.** The gates guide printed `does-not-exist.md does not resolve inside the repository`. The real message is `` `does-not-exist.md` does not exist ``. The invented one is arguably clearer, which is exactly why it survived a re-read.
+- **Truncated output.** The `--help` block stopped after the Commands section. It was real output, up to the point where it silently was not, and the two sections it dropped are the ones a reader most needs.
+- **Real output that has since decayed.** Three counts in the CLI reference — `2 directories`, `11 links`, `682 words` — were captured before the documentation tree existed. They were true when written and false by the time the tree was finished, and nothing announced it. This is the decay RHINO exists to catch, occurring inside RHINO's own documentation about RHINO, in the same afternoon.
+- **A plausible line number.** The configuration reference named line 43. Reproduction gives line 31 — and 31 turned out to be the `harnesses:` line rather than a section header, which is a fact about the tool worth writing down and would never have been discovered by proofreading.
+
+The last two are the ones the practice earns its cost on. A transcript that was accurate when written is the hardest kind of documentation error to find later, because reviewing it feels like reading a fact.
+
+**The corresponding fixture lesson: run the script, not the command.** The gates guide prints a `scripts/hygiene.sh` loop that runs six validators and returns the worst status. Every individual transcript in that guide had been checked; the loop had not. Building a sandbox and executing it — exit 0 clean, exit 1 with a deliberate break — is what turned it from a plausible shell snippet into a verified one, and the aggregate exit code is now shown, because that number, not any single command's, is what a hook actually sees.
