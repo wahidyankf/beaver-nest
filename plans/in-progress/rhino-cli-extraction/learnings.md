@@ -123,3 +123,138 @@ Three things this baseline settles. First, the expectation stated up front in th
 - 2026-09-07 — A measurement-harness caveat that the Phase 11 after-table must respect (AC-12). Both baselines bracket each timed region with two `python3 -c` timestamp calls, which is consistent between the two repositories but is not an absolute cost. Measuring the identical three parallel grind invocations under `/usr/bin/time -l` instead reports **0.04 s real** against the bracketed **0.236 s** median — the difference is harness overhead, not validator time. The bracketed figures are therefore comparable to each other and to RHINO _measured the same way_, and must not be quoted as how long the gate takes. Phase 11 reuses these same scripts against RHINO rather than timing it a new way, and the after-table says which harness produced each number.
 
 - 2026-09-07 — grind-in-public is confirmed as the zero-diagram repository the plan needs (AC-05, and the reason Phase 5's "zero-diagram repositories are first-class" task exists). Its 198 tracked Markdown files contain **no `mermaid` fences at all**, against BeaverNest's 33 diagrams, and its harness contract is a much smaller shape too — 3 harnesses over **1 skill and 2 agents**, digest `a01c95f28fc51a88…`, where BeaverNest has 7 skills, 2 agents, and a capability declaration. So the two trees genuinely exercise opposite ends of the configuration contract, and a Mermaid validator that treats "found nothing to check" as anything other than a clean pass would fail here on day one. This is evidence for the schema, not just a count: the difference between "this repository has no diagrams" and "this repository's diagrams are all fine" must be one exit code and one message, and it is now testable against a real corpus rather than a fixture.
+- 2026-09-07 — Scenario disposition ledger for the Phase 2 corpus move (AC-03). This is the proof the delivery item asks for: every one of Badakmini's 81 scenarios accounted for by name, with each merge and each addition carrying its reason, and the resulting count stated rather than assumed. The corpus moved to eight files at **107 scenarios** — 77 kept or renamed, one merge turning two scenarios into one, one split turning two into four, so 82 derived, plus 25 additions. Renames are mechanical: a command spelling, a flag name, or wording that named a repository's tree. The table follows in full.
+
+Every one of Badakmini's 81 scenarios, accounted for. No scenario is dropped.
+Renames are mechanical (command spelling, flag name, or de-policied wording);
+merges and additions carry a reason.
+
+| #   | Original (feature :: scenario)                                                            | Disposition                                                                                                         |
+| --- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 1   | cli-contract :: Every canonical nested command path succeeds                              | Renamed — covers five leaves now, not four                                                                          |
+| 2   | cli-contract :: Word-budget validation is isolated                                        | Kept, de-policied                                                                                                   |
+| 3   | cli-contract :: Directory-map validation is isolated                                      | Kept, de-policied                                                                                                   |
+| 4   | cli-contract :: A complete selected docs tree passes directory-map validation             | Renamed — "docs" is a BeaverNest tree name                                                                          |
+| 5   | cli-contract :: A selected docs directory without a README fails                          | Renamed, same reason                                                                                                |
+| 6   | cli-contract :: An omitted selected docs sibling fails                                    | Renamed, same reason                                                                                                |
+| 7   | cli-contract :: A selected plans tree requires recursive README directory maps            | Renamed — "plans" is a BeaverNest tree name                                                                         |
+| 8   | cli-contract :: Mermaid accessibility validation is isolated                              | Kept, de-policied                                                                                                   |
+| 9   | cli-contract :: Root defaults to the current directory                                    | Kept                                                                                                                |
+| 10  | cli-contract :: Root is accepted before and after nested commands                         | Kept                                                                                                                |
+| 11  | cli-contract :: Leaf output has an atomic command-category prefix                         | Kept, de-policied                                                                                                   |
+| 12  | cli-contract :: Inspection errors use command-specific diagnostics                        | Kept — examples grow to five leaves                                                                                 |
+| 13  | cli-contract :: Help and version requests succeed                                         | **Split** — `--version` becomes a `version` subcommand, so help and identity are different contracts                |
+| 14  | cli-contract :: Invalid invocations return usage failure                                  | Kept — examples follow the renamed command paths                                                                    |
+| 15  | cli-contract :: A governed file above the limit returns validation failure                | Renamed — "its declared limit"                                                                                      |
+| 16  | cli-contract :: Invalid governance navigation returns validation failure                  | Renamed — "An incomplete directory map"                                                                             |
+| 17  | cli-contract :: Output format is recursive for every validator                            | Kept — `--format` becomes `--output`                                                                                |
+| 18  | cli-contract :: A file word count is observable as JSON                                   | Kept — `--format` becomes `--output`                                                                                |
+| 19  | cli-contract :: JSON validation failures retain the validation exit code                  | Kept                                                                                                                |
+| 20  | cli-contract :: Unsupported output formats return usage failure                           | Kept                                                                                                                |
+| 21  | directory-map :: Directory-map inspection ignores other governance concerns               | Renamed — "other validators' concerns"                                                                              |
+| 22  | directory-map :: Complete maps cover direct files and directories                         | Kept, de-policied                                                                                                   |
+| 23  | directory-map :: The selected directory must stay relative and inside the repository      | Kept                                                                                                                |
+| 24  | directory-map :: Query and fragment suffixes do not change a sibling target               | Kept, de-policied                                                                                                   |
+| 25  | directory-map :: Absolute URL and malformed map links are invalid                         | Kept, de-policied                                                                                                   |
+| 26  | directory-map :: Every governance directory needs a README                                | Renamed — "Every directory in a mapped tree"                                                                        |
+| 27  | directory-map :: Every README needs a Directory Map section                               | Kept, de-policied                                                                                                   |
+| 28  | directory-map :: Every direct sibling must appear in the map                              | Kept, de-policied                                                                                                   |
+| 29  | directory-map :: Independent inspections report independent violations                    | Kept, de-policied                                                                                                   |
+| 30  | directory-map :: A map entry must exist                                                   | Kept, de-policied                                                                                                   |
+| 31  | directory-map :: A map entry must be a direct sibling                                     | Kept, de-policied                                                                                                   |
+| 32  | harness-contract :: Canonical instructions skills agents and Nx capability pass           | Renamed — roster is declared, not "Nx" by name                                                                      |
+| 33  | harness-contract :: Claude imports only the canonical AGENTS file                         | Renamed — "The instruction adapter may contain only the canonical import"                                           |
+| 34  | harness-contract :: Rule adapter overlays or changed effective content fail               | Renamed — "A harness instruction overlay is a competing source"                                                     |
+| 35  | harness-contract :: Additional or nested instruction sources fail                         | Kept                                                                                                                |
+| 36  | harness-contract :: Every canonical skill has exactly one thin Claude adapter             | Renamed — a harness declaring a command directory, not Claude by name                                               |
+| 37  | harness-contract :: Skill descriptions and routes cannot drift                            | Kept, de-policied                                                                                                   |
+| 38  | harness-contract :: Skill bodies and supporting resources affect the contract digest      | Kept                                                                                                                |
+| 39  | harness-contract :: Malformed or duplicated canonical skills fail                         | Kept                                                                                                                |
+| 40  | harness-contract :: Every canonical custom agent has three equivalent adapters            | Renamed — "one adapter per declared harness"; three was a hard-coded count                                          |
+| 41  | harness-contract :: Missing stale or extra custom-agent adapters fail                     | Kept, de-policied                                                                                                   |
+| 42  | harness-contract :: Extra agent prompt content or semantic drift fails                    | Kept, de-policied                                                                                                   |
+| 43  | harness-contract :: Web researcher adapters preserve source and read-only constraints     | Renamed — the agent's identity is fixture detail                                                                    |
+| 44  | harness-contract :: Equivalent Nx MCP declarations pass in all harness configs            | Renamed — "required-capability … in every harness format"                                                           |
+| 45  | harness-contract :: Divergent or unreadable harness capability config fails closed        | **Split** — the original held two Given/When/Then blocks in one scenario, which is a defect regardless of this port |
+| 46  | harness-contract :: Inspection excludes generated trees local overrides and links         | Kept                                                                                                                |
+| 47  | harness-contract :: Findings are stable sorted and inspection is read-only                | Kept                                                                                                                |
+| 48  | markdown-links :: Existing local links and non-local links pass                           | Kept, de-policied                                                                                                   |
+| 49  | markdown-links :: Missing or out-of-repository local targets fail                         | Kept                                                                                                                |
+| 50  | markdown-links :: A reference-style definition with a missing target fails                | Kept                                                                                                                |
+| 51  | markdown-links :: Fragment links and fenced Markdown examples are ignored                 | Kept                                                                                                                |
+| 52  | markdown-links :: A malformed local target fails without stopping inspection              | Kept                                                                                                                |
+| 53  | markdown-links :: Archived plans are not link-validation sources                          | Renamed — "A declared excluded source is not a link source"                                                         |
+| 54  | mermaid-cli :: File scope excludes unrelated diagrams                                     | Kept, de-policied                                                                                                   |
+| 55  | mermaid-cli :: Compatible diagram types enforce class colors                              | Renamed — "Parseable", which is what the word means here                                                            |
+| 56  | mermaid-cli :: Incompatible diagram types are skipped                                     | Renamed — "Unparseable"                                                                                             |
+| 57  | mermaid-cli :: Tilde-fenced Mermaid diagrams are extracted                                | Kept, de-policied                                                                                                   |
+| 58  | mermaid-cli :: Diagram type is found after YAML front matter                              | Kept                                                                                                                |
+| 59  | mermaid-cli :: A Mermaid block without a diagram type is skipped                          | Kept                                                                                                                |
+| 60  | mermaid-cli :: Generated and dependency directories are excluded                          | Renamed — "Declared excluded directories"; the list was hard-coded                                                  |
+| 61  | mermaid-cli :: An accessible colored class passes                                         | Kept                                                                                                                |
+| 62  | mermaid-cli :: Colors outside classDef are rejected                                       | Kept                                                                                                                |
+| 63  | mermaid-cli :: Unsupported color formats are rejected                                     | Kept                                                                                                                |
+| 64  | mermaid-cli :: Palette comments are neither required nor inspected                        | Kept                                                                                                                |
+| 65  | mermaid-cli :: Node color roles and normal-text contrast are enforced                     | Kept — "non-black"/"unsupported" become "undeclared"                                                                |
+| 66  | mermaid-cli :: An accessible stroke-only class passes                                     | Kept                                                                                                                |
+| 67  | mermaid-cli :: Text-only and inaccessible stroke-only classes fail                        | Kept                                                                                                                |
+| 68  | mermaid-governance :: Mermaid inspection ignores other governance concerns                | Renamed — "other validators' concerns"                                                                              |
+| 69  | mermaid-governance :: Mermaid diagnostics identify the Markdown source line               | Kept, de-policied                                                                                                   |
+| 70  | mermaid-governance :: Every supported diagram type rejects an overlong visible node label | Renamed — "parseable"                                                                                               |
+| 71  | mermaid-governance :: Label segments use deterministic grapheme boundaries                | Kept — literal 32/33/24/25 become "the declared limit"                                                              |
+| 72  | mermaid-governance :: State transition semicolons are rejected                            | Kept                                                                                                                |
+| 73  | mermaid-governance :: Legibility JSON reports deterministic measurement fields            | Kept                                                                                                                |
+| 74  | mermaid-governance :: Non-label Mermaid declarations are excluded                         | Kept                                                                                                                |
+| 75  | word-budget :: Markdown punctuation does not create extra words                           | Kept                                                                                                                |
+| 76  | word-budget :: Only governed Markdown is scanned                                          | Renamed — "Only declared surfaces are scanned"                                                                      |
+| 77  | word-budget :: The 750-word boundary is inclusive                                         | Renamed — "The declared limit is inclusive"; 750 was the constant                                                   |
+| 78  | word-budget :: Optional governed paths may be absent                                      | Renamed — "A declared surface that matches nothing scans nothing"                                                   |
+| 79  | word-budget :: Specification Markdown has no word limit                                   | **Merged** into "Files outside every declared surface have no limit"                                                |
+| 80  | word-budget :: Planning Markdown has no word limit                                        | **Merged** — same behaviour as 79, differing only in which BeaverNest tree it names                                 |
+| 81  | word-budget :: Word-budget inspection ignores other governance concerns                   | Renamed — "other validators' concerns"                                                                              |
+
+## Additions
+
+Each covers contract behaviour that the BeaverNest-only corpus had no reason to
+state, and that a second repository would otherwise have found at cutover.
+
+| Feature                   | Added scenario                                                          | Why it did not exist before                                                                              |
+| ------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| word-budget               | A later surface overrides an earlier one for the same file              | Ordered last-match-wins arrives with the declared surface list; Badakmini had one hard-coded surface set |
+| internal-link             | An excluded source remains a valid link target                          | The field guide promises it; no scenario held it                                                         |
+| mermaid-cli               | A repository with no diagrams reports a clean explicit zero             | BeaverNest always has diagrams, so zero was never a case                                                 |
+| mermaid-cli               | A fill color the repository declared passes                             | The palette was compiled in, so "declared" had no meaning                                                |
+| mermaid-legibility        | A different declared limit moves the boundary                           | Same reason: 32 and 24 were constants                                                                    |
+| harness-parity            | A declared instruction adapter is optional                              | HIPPO has no `CLAUDE.md`; BeaverNest always does                                                         |
+| harness-parity            | With no adapter declared, no file may import the canonical instructions | The prohibition must survive the adapter being absent, or optionality would weaken a rule                |
+| harness-parity            | A harness declaring no command directory needs no wrappers              | Only Claude has wrappers today; the roster makes that per-harness                                        |
+| harness-parity            | An agent may declare only vocabulary the repository declared            | The vocabulary was a compiled-in set, so "declared" had no meaning                                       |
+| harness-parity            | A roster narrowed by flag still reports every finding it inspects       | `--harness` is new; a filter that could hide a finding would be worse than no filter                     |
+| cli-contract              | Word-count inspection never reports findings                            | `md word-count inspect` must never exit 1; nothing held that                                             |
+| cli-contract              | Global presentation flags are accepted by every leaf                    | `--quiet`, `--verbose`, `--no-color` are new from the ose-public alignment                               |
+| cli-contract              | Repeated file selection and stdin are accepted by the Mermaid leaf      | Repeated `--file` and `-` are new                                                                        |
+| repo-config (new feature) | Twelve scenarios                                                        | The configuration file itself is new; Badakmini had no configuration to validate                         |
+
+## Result
+
+Of the 81 originals: **77 kept or renamed one-to-one**, **2 merged into 1**
+(#79 and #80), and **2 split into 4** (#13 and #45). That is 82 scenarios
+derived from the 81, with none dropped.
+
+Plus **25 additions** — 3 in `cli-contract`, 5 in `harness-parity`, 2 in
+`mermaid-cli`, 1 each in `word-budget`, `internal-link`, and
+`mermaid-legibility`, and 12 in the new `repo-config` feature.
+
+**82 + 25 = 107 scenarios**, across eight feature files.
+
+| Feature                                 | Before | After   |
+| --------------------------------------- | ------ | ------- |
+| cli-contract                            | 20     | 24      |
+| directory-map                           | 11     | 11      |
+| harness-contract → harness-parity       | 16     | 22      |
+| markdown-links → internal-link          | 6      | 7       |
+| mermaid-cli                             | 14     | 16      |
+| mermaid-governance → mermaid-legibility | 7      | 8       |
+| word-budget                             | 7      | 7       |
+| repo-config (new)                       | 0      | 12      |
+| **Total**                               | **81** | **107** |
