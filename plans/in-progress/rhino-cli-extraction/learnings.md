@@ -322,3 +322,30 @@ The repair is structural rather than a list of stronger assertions. `Driver::inv
 **One asymmetry is stated rather than hidden.** Nineteen of the twenty mutants die at all three boundaries. The twentieth — a validator writing into the tree — dies at **E2E only**. At unit and integration `rhino::execute` runs inside the test process, so a write to a hard-coded relative path lands in the crate root rather than in the sandbox, and whichever scenario ran first would have created it before the read-only scenario looked. Only at E2E is the inspected repository also the process's working directory. The unit and integration rows still read genuine before-and-after evidence; they prove less, and `tests/support/world.rs` says so at the observation itself so a future reader does not mistake a backstop for a proof.
 
 **Four harness defects the review found outside the feature**, all fixed: `reseed_contract` left behind the files a previous contract shape owned, so a repository could hold both a `.json` and a `.toml` capability declaration for one harness; `steps::dispatch` was dead code returning `Unimplemented` for every sentence while the real dispatcher lived elsewhere; the exemption forbidden-word check scanned only the boundary field, so "too slow for CI" would have passed in the alternative-proof field; and `Report::inspected_one` carried a doc line describing a different method.
+
+## The CLI contract: a flag that changes which repository is read is the one to distrust
+
+_2026-09-07, Phase 3, `efc6b6a` and `053edb1`._
+
+The second mandated Gherkin implementation review ran over 195 rows and found one production defect worth the whole exercise. **`--root` inherited the caller's scan exclusions.** The tool read `repo-config.yml` from the working directory, applied that file's `scan.exclude-directories` to the tree, and only then rerooted — so a repository selected with `--root` was walked with a stranger's exclusion list. Reproduced end to end: cwd excluding `guides`, `--root` pointed at a repository that excludes nothing and holds a failing diagram, and the tool answered `checked 0 diagrams, no findings` with exit `0` where the control answered exit `1`.
+
+That is a false clean produced by the one flag whose entire purpose is to change which repository gets read, and it is the failure this tool exists to prevent. The shape is worth naming: **configuration read before the subject is chosen belongs to the wrong subject.** The fix gives `Tree` an `excluding` seam, removes the pre-emptive exclusion from the process entry point, applies exclusions only after the selected repository's own configuration is loaded, and makes a reroot deliberately not carry the previous root's list across.
+
+Three lesser defects fell out of the same review. `--file /rules/README.md` was silently reinterpreted as repository-relative while `--directory` was checked, so one of two sibling flags inspected a file the caller did not name. `--json` silently overrode an explicit `--output text`, which made the same two flags mean different things depending on the order a script assembled them. And `--help` short-circuits before flag validation — left as-is, because answering a help request is not a policy decision, but it now has a row of its own so the behaviour is written down rather than discovered.
+
+**The corpus was the larger failure, and it failed in one recognisable way: sixty-three rows asserted an exit code and nothing else.** Exit `0` is the single least discriminating observation a CLI makes, because it is what _correct_ looks like and also what _did nothing_ looks like.
+
+| Rows | What they asserted | What would have passed                        |
+| ---- | ------------------ | --------------------------------------------- |
+| 48   | help exits 0       | a build printing an empty help body           |
+| 9    | flags exit 0       | a build turning `--quiet` into a help request |
+| 3    | `--root` exits 0   | a `--root` that ignores its argument entirely |
+| 3    | validators exit 0  | a validator that walks nothing                |
+
+The last row is the general case of a lesson this plan has now learned twice: **a clean walk of nothing and a clean walk of something produce the same exit code**, so a fixture with nothing in it can only prove that the tool did not crash. The nothing-to-find fixture now carries a resolvable link and an accessible diagram for exactly that reason, and the scenarios assert the counts.
+
+The `--root` row is a subtler instance and worth its own note. Every `--root` scenario pointed the flag at the tree the run would have used anyway, so the flag was exercised without ever being _load-bearing_ — the prefix-stripping body of `MemoryTree::rooted_at` was executed by no scenario in the corpus. A flag has to be pointed somewhere the default would not have gone before its scenario means anything.
+
+**Proof: eleven mutants, all killed.** Nine die at all three boundaries. The remaining two are a matched pair, and their boundary-specificity is structural rather than an omission: `MemoryTree::rooted_at` is reachable only from unit and `DiskTree::rooted_at` only from integration and E2E, so a mutant of either can only die where that tree is in use. Together they cover `--root` at every boundary — which is a different claim from "one mutant survives somewhere", and the difference is worth stating rather than glossing.
+
+**Harness hygiene, third occurrence of the same species.** Three JSON readers in the test support were substring scanners: `json_number` could answer a question about the run with a member of the same name from inside a violation, `json_string` truncated at the first `"` and so silently cut every message containing an escaped quote, and `first_violation` split on the first `}` and so ended a record early whenever a message contained one. All three now parse structurally. A test harness that reads its subject's output with weaker machinery than the subject wrote it with can hide the subject's bugs behind its own.
