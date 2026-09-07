@@ -422,3 +422,17 @@ The failure modes are worth separating, because they need different defences:
 The last two are the ones the practice earns its cost on. A transcript that was accurate when written is the hardest kind of documentation error to find later, because reviewing it feels like reading a fact.
 
 **The corresponding fixture lesson: run the script, not the command.** The gates guide prints a `scripts/hygiene.sh` loop that runs six validators and returns the worst status. Every individual transcript in that guide had been checked; the loop had not. Building a sandbox and executing it — exit 0 clean, exit 1 with a deliberate break — is what turned it from a plausible shell snippet into a verified one, and the aggregate exit code is now shown, because that number, not any single command's, is what a hook actually sees.
+
+## The review's key question found what the fix's own mutants could not
+
+_2026-09-08, Phase 4, `d9ef52e`._
+
+The fenced-example fix shipped with two mutants, both killed, each by a different scenario. That felt like enough. The mandated Gherkin implementation review over the same three rows returned all PASS and one PARTIAL, and the PARTIAL was worth more than the three passes.
+
+The two mutants I chose tested the **sign** of the change — fenced content does not count, unfenced content does. Neither tested its **extent**. The reviewer asked the question the workflow puts at the centre — _what single-line change to `src/` would make this scenario wrong and still leave this binding green?_ — and found two that survive all three adapters: `.take(1)` after `.iter()`, so only the first prose line is read; and `line.trim() == route` instead of `contains`, so a route in the middle of a sentence stops counting. Both are real defects. Both survived because the sibling scenario's fixture was a one-line file containing nothing but the route, so it happened to satisfy every narrower reading of the branch.
+
+**The lesson generalises past mutation testing: a fixture that was sufficient for the old implementation is not automatically sufficient for the new one.** `text.contains(&route)` has no internal structure, so one line pinned it completely. The moment the check grew a line loop and a per-line match, two new properties existed that nothing in the corpus was watching — and the fixture that had been adequate for two years of the old rule became the reason two mutants lived. Changing an implementation silently changes which fixtures are load-bearing.
+
+**The review also found that the fix had traded one bug for another, in both directions at once.** A false negative: a fence that is never closed runs to the end of the file, so one stray opener — a four-backtick block a three-backtick line cannot close — hid every later line, including a genuine competing instruction source that a harness reading the file as text would still import. And a false positive left half-closed: a page writing the route inside inline backticks was still accused, which is the exact shape the fix set out to permit.
+
+Neither was visible from the corpus, from the passing gate, or from re-reading the diff. Both were visible to someone asked to attack the change on a real repository with a control file present to prove the run was live. **Two mutants of my own choosing, plus a green corpus, plus a clean self-validation, was three kinds of evidence that all shared one blind spot: they were all derived from the change I had already decided to make.**
