@@ -495,3 +495,34 @@ would have meant a failed release on an immutable tag, and the project's own
 rule is that a published tag is never replaced — so the recovery would have been
 `v0.1.1` existing solely to record a mistake in a size constant. **A dry run on a
 throwaway tag is worth its cost precisely on the pass where it fails.**
+
+- 2026-09-08 — Consumer half of distribution measured (AC-12), and it found more than it went looking for. Host: Apple Silicon, macOS 24.5.0, every timed run inside one `./hippo run --class ephemeral` lease. Two harnesses were used and both are named against every figure, because the Phase 1 caveat about bracketed timestamps still applies: the bracketed `python3 -c` harness is comparable to the baselines and carries roughly 0.17 s of its own cost, so it is used where a baseline comparison is wanted; `time.perf_counter()` around `subprocess.run` is used where a decomposition is wanted and adds nothing measurable. Where both were run they agree on the quantity that matters, which is a difference rather than an absolute.
+
+**Cold bootstrap.** Empty cache to a successful `rhino version --json`, n=5, each preceded by deleting the cache: **median 0.864 s** (min 0.825, max 1.499). Network: the public internet to GitHub Releases from a residential connection, downloading the 722,586-byte `rhino-aarch64-apple-darwin.tar.gz`. Against the baseline's toolchain acquisition — a 674 MB .NET SDK plus 5.035 s of restore and build — this is the part of the plan's claim that holds emphatically, and it is the only part of the distribution story that improved without qualification.
+
+**Cache footprint.** 1,476 KiB after installing one release for one platform. Bounded retention was then exercised deliberately rather than waited for: five idle releases were planted with about 9 MiB of filler and dated to the far past, taking the cache to 10,476 KiB, and a cold install forced a prune. The cache came back to **5,076 KiB with three release directories** — the pinned release and the two most recent idle fallbacks. Retention bounds what it claims to bound.
+
+**Warm resolution overhead, and the outcome check it triggers.** Through the bootstrap, `version` is 0.230 s bracketed / **55.8 ms** measured directly; the cached executable invoked directly is 0.174 s bracketed / **2.3 ms**. Both harnesses put the overhead at **~54 ms**, paid on every invocation forever. The plan's outcome check asks whether that is a material fraction of a validator run. It is not a fraction: `md internal-link validate` is **38.2 ms**, so the bootstrap costs more than the check it wraps.
+
+Decomposed: SHA-256 of the 1,464 KiB cached executable is **16.5 ms**, the extra `version --json` identity subprocess is **2.3 ms**, and the remaining ~35 ms is the wrapper's own twenty-odd process spawns — the lock parse, two `uname`, the `mktemp` release claim, `ps` plus a hash for the process identity, the `flock` guard, `date`, `stat`, `sed`, `find`.
+
+**The check says "fix the caching", and the honest answer is that the caching is not what is wrong.** Every component above is a safety property the corpus asserts: re-verifying the digest and the embedded identity on every warm run is the tamper defence, and the release claim has to be published before the retention window or a peer's prune can evict a release mid-use. Removing any of them to save 54 ms would trade a security property for a saving smaller than one leaf of the gate. What _is_ addressable is the call site rather than the cache: `test:repo` invokes `./rhino` six times and therefore pays the bootstrap six times, serialized against each other on the exclusive install guard — the six leaves in parallel cost **1.127 s** through the cached executable and **1.283 s** through the bootstrap, so the wiring turns 54 ms into 156 ms. A caller that resolved the executable once and then invoked it six times would pay 54 ms once. That is a follow-on idea rather than a change made here, because it needs a resolve-only mode in the wrapper and that is a new surface.
+
+**What the measurement actually found is a defect in RHINO, not in the bootstrap.** Per leaf, against the cached executable with the repository root as the working directory, n=10 after two discards:
+
+| Leaf                                | Median         |
+| ----------------------------------- | -------------- |
+| `repo-config validate`              | 2.8 ms         |
+| `governance word-budget validate`   | 31.7 ms        |
+| `governance directory-map validate` | **1,075.0 ms** |
+| `harness parity validate`           | 106.4 ms       |
+| `md internal-link validate`         | 33.2 ms        |
+| `md mermaid validate`               | 30.2 ms        |
+
+One leaf is thirty times every other and is the whole gate's critical path. It is not the declared-tree form: asked tree by tree the same command costs 148 ms for `repo-governance` (6 maps), 131 ms for `docs` (5), 297 ms for `specs` (13), and 544 ms for `plans` (25) — linear in mapped directories at about 22 ms each, and the four sum to the one.
+
+The cause is in the port rather than in the validator. `Tree::children()` has a default implementation that calls `self.files()`, a full recursive walk of the repository, and `DiskTree` does not override it — it overrides `is_directory` and `files` and stops there. `directory_map::siblings()` calls `children()` once per mapped directory, so answering forty-nine questions about one directory each walks the entire repository forty-nine times. The same command against RHINO's own tree is 8.4 ms for 7 directories, because that walk is small; the cost is mapped directories multiplied by walked-tree size, which is exactly why four trees were not enough to expose it and the largest one was.
+
+**This is a regression against the tool being retired, and it is recorded as one.** Badakmini's warm gate median was 0.392 s across eight invocations under the bracketed harness; RHINO's six leaves in parallel are 1.127 s under the low-overhead one. The harnesses differ and the two numbers are not directly comparable, but the gap is far larger than any harness difference can account for, and the whole of it is one leaf. Per the benchmarking document's own rule — a rewrite that is slower than what it replaced is a finding, not a footnote — the cutover in Phase 8 should not proceed over it. The fix is small and local: `DiskTree` gains a `children()` that reads one directory, preserving the three behaviours the default derives from the file list — filesystem links skipped, excluded directory names skipped, and a directory holding no files not counted as a child.
+
+**Method note for Phase 11.** The per-leaf and gate figures here were taken with `time.perf_counter()` rather than the bracketed harness, so the after-table must either re-take them bracketed or state the harness beside each number. They are recorded now because the defect they exposed is worth more than their comparability.
