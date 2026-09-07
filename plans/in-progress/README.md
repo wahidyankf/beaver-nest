@@ -6,4 +6,4 @@ Start work by moving one folder from [`../backlogs/`](../backlogs/README.md) wit
 
 ## Directory Map
 
-This directory currently has no plans in progress.
+- [`rhino-cli-extraction/`](rhino-cli-extraction/README.md) — extract Badakmini's governance validators into a standalone configuration-driven Rust CLI released from `wahidyankf/rhino`, and make this repository its first pinned consumer.
