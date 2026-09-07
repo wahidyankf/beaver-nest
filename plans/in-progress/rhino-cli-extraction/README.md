@@ -26,7 +26,7 @@ Behaviour parity is proved through the shared scenario corpus at all three adapt
 
 Adopt it in four repositories, because a tool is only generic once more than one tree has proved it. RHINO validates itself first from a source build, then the schema is hardened against all four target trees — nothing is tagged until it has met every one of them, because a published tag is never replaced. After the release, BeaverNest cuts over, HIPPO adopts additively, and grind-in-public cuts over, retiring both existing implementations so no repository is left running two validators of one contract.
 
-Measure it. The gate's wall-clock cost, startup, memory, and toolchain setup are recorded before any change and again after each cutover, so the claim that this is cheaper is a number rather than an intuition.
+Measure it. The gate's wall-clock cost, startup, memory, and toolchain setup are recorded before any change and again after each cutover, and the distribution path is measured end to end — what a consumer pays to go from a pinned lock line to a running check, not just how large the artifact is. The claim that this is cheaper becomes a number rather than an intuition, and a metric that got worse is reported as prominently as one that improved.
 
 `ose-public` and `ose-private` remain out of scope. Their adoption becomes possible because the tool is configuration-driven, and `ose-public` additionally needs a merge decision about its own `rhino-cli` that this plan deliberately does not make.
 
@@ -53,4 +53,4 @@ Measure it. The gate's wall-clock cost, startup, memory, and toolchain setup are
 - [`delivery.md`](delivery.md) — ordered tasks, red-green-refactor cycles, and blocking checkpoints.
 - [`learnings.md`](learnings.md) — dated evidence and decisions captured during delivery.
 - [`prd.md`](prd.md) — maintainer stories and executable acceptance criteria.
-- [`tech-docs/`](tech-docs/README.md) — technical entry point, upstream repository design, configuration contract, this repository's cutover, and the sibling consumers.
+- [`tech-docs/`](tech-docs/README.md) — technical entry point, upstream repository design, configuration contract, this repository's cutover, the sibling consumers, and the benchmarks.

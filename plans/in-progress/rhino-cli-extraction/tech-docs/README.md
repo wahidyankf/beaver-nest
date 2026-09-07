@@ -72,4 +72,4 @@ This plan changes no BeaverNest application code, storage, route, or deployment,
 - [`02-configuration-contract.md`](02-configuration-contract.md) — the `repo-config.yml` schema, its record model, its field guide, and the migration of hard-coded constants into it.
 - [`03-beaver-nest-cutover.md`](03-beaver-nest-cutover.md) — bootstrap, lock, Nx and hook wiring, authority cutover, retirement, and file impact.
 - [`04-sibling-consumers.md`](04-sibling-consumers.md) — the four target trees, the three command dialects being unified, HIPPO's additive adoption, grind-in-public's cutover, mutual pinning, and rollout order.
-- [`05-benchmarks.md`](05-benchmarks.md) — what is measured before and after, the method that keeps a cross-language comparison fair, and the two thresholds that gate the plan.
+- [`05-benchmarks.md`](05-benchmarks.md) — what is measured before and after, the method that keeps a cross-language comparison fair, and the thresholds that gate the plan.

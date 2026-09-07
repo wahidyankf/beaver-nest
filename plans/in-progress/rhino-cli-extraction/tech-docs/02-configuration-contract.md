@@ -176,9 +176,9 @@ The `capabilities`, `constraints`, and `required-mcp` values are elided above be
 
 **`harness-parity.canonical.instruction-adapter`** — the file permitted to contain nothing but an import of the instruction file. **Optional**, because HIPPO has no such file at all. When declared, RHINO derives the exact permitted content as `@<instruction>`, which is what makes `CLAUDE.md` containing only `@AGENTS.md` legal and anything else a finding. When omitted, no file may import the instruction file and the prohibition on competing always-on instruction sources still applies in full — an absent adapter weakens nothing, it simply means there is nothing to route.
 
-**`harness-parity.canonical.skills-root`** / **`agents-root`** — the directories holding the one canonical skill bundle per skill and the one full agent prompt per agent. Required. Everything under a skill directory is part of that skill's hashed bundle.
+**`harness-parity.canonical.skills-root`** / **`agents-root`** — the directories holding the one canonical skill bundle per skill and the one full agent prompt per agent. Required whenever the harness roster is non-empty, and omissible only alongside an empty roster. Everything under a skill directory is part of that skill's hashed bundle.
 
-**`harness-parity.harnesses[]`** — the roster, and the reason this validator generalizes at all. Every harness the repository supports is listed here as an equal: BeaverNest declares Codex, Claude, and OpenCode, and the tool holds no opinion about which exist or which is primary. Each entry must have exactly one native adapter per canonical agent, or it is a finding. Adding a fourth harness is one entry; a repository with a single harness declares one; the roster may not be empty, because a declared canonical skill and agent set with nowhere to reconcile it is a configuration error rather than a clean pass.
+**`harness-parity.harnesses[]`** — the roster, and the reason this validator generalizes at all. Every harness the repository supports is listed here as an equal: BeaverNest declares Codex, Claude, and OpenCode, and the tool holds no opinion about which exist or which is primary. Each entry must have exactly one native adapter per canonical agent, or it is a finding. Adding a fourth harness is one entry, and a repository with a single harness declares one. The key itself is required and an empty list is legal — that is how rhino and HIPPO declare having no harness adapters at all — but an empty roster alongside a declared canonical skill or agent is a configuration error, not a clean pass: canon with nowhere to reconcile it means the reconciliation was silently skipped. When the roster is empty, `skills-root` and `agents-root` may be omitted with it, and the validator checks the instruction boundary alone.
 
 - `name` — required. Appears in finding output; also the key used to report which harness diverged.
 - `agent-dir` — required. Where that harness's per-agent adapter files live.
@@ -216,7 +216,7 @@ Two rows carry design weight. An omitted `instruction-adapter` is legal; an omit
 
 Missing file, unreadable file, unknown schema, unknown key inside an owned section, missing required key, a non-integer where an integer is required, or a path that escapes the repository root each produce exit code `2` with a message naming the offending key and its file position. None of these degrade to a partial run: a validator that silently skipped a tree because its configuration was malformed would report a clean repository that was never checked.
 
-`rhino repo-config validate` performs exactly these checks and nothing else, so a configuration problem can be diagnosed without inferring it from a validator's behaviour.
+`rhino repo-config validate` performs exactly these checks and nothing else, so a configuration problem can be diagnosed without inferring it from a validator's behaviour. It reports them the same way — exit `2`, never `1` — so that exit `1` means "the repository violates its declared policy" whichever command produced it.
 
 ## Migration Shape
 

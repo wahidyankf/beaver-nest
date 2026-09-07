@@ -60,7 +60,7 @@ The Go baseline is the more demanding comparison and the more interesting one. G
 
 ## Regression Thresholds
 
-The measurement is not decorative — two of these gate the plan.
+The measurement is not decorative — three of these gate the plan, and the rest are recorded.
 
 - **The warm gate must not get slower.** If RHINO's median warm gate exceeds the baseline median in either cutover repository, that is a blocking finding: investigate and fix before retirement, or record an explicit, justified acceptance with the maintainer. It never passes silently.
 - **Peak memory must not exceed the baseline.** Same handling. The gate runs under HIPPO alongside other work, so regression here has a cost beyond this repository.

@@ -22,7 +22,7 @@ Own the repository-hygiene contract once, in one independently released tool, so
 - grind-in-public's `badak-mini` and its Go toolchain are gone from that repository on the same terms, while its repository-specific Node checks stay exactly where they are — RHINO takes over general hygiene, not another repository's own rules.
 - HIPPO adopts without losing anything: it has no validator to retire, and its existing gates are untouched.
 - The maintainer's published RHINO artifacts cover macOS and Linux on both `amd64` and `arm64`, and a release tag is never replaced.
-- The cost of the gate is measured before and after in both cutover repositories, and the change does not make it slower or heavier than what it replaced.
+- The cost of the gate is measured before and after in both cutover repositories, and the change does not make it slower or heavier than what it replaced. The distribution path is measured too — what a consumer pays to get from a pinned lock line to a running check — because a cheaper gate reached through an expensive bootstrap is not cheaper.
 - A repository adopting RHINO can learn it, use it, and look things up without reading its source, through the same documentation model HIPPO already proves; and RHINO's own repository passes the checks RHINO performs.
 
 ## Non-goals
