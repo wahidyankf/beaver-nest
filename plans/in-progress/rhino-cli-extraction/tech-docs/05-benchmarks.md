@@ -54,7 +54,7 @@ The baseline is captured in Phase 1, before a line is written, for two reasons. 
 Two baselines are needed, because two implementations are being replaced:
 
 - **BeaverNest** — `apps/badakmini-cli`, F# on .NET 10, invoked as eight `dotnet` commands over one build.
-- **grind-in-public** — `apps/badakmini-cli`, Go, invoked as three `badak-mini` commands.
+- **grind-in-public** — `apps/badakmini-cli`, Go, invoked as three `badak-mini` hygiene commands. Its repository-footprint figure is a partial removal, not a total one: `harness rule-change` shares the module and stays, so the Go toolchain is not shed there and must not be counted as if it were.
 
 The Go baseline is the more demanding comparison and the more interesting one. Go and Rust are both natively compiled with fast startup, so a large win there is unlikely and is not claimed; what a shared tool buys grind-in-public is one implementation instead of its own, not raw speed. Saying that up front stops the benchmark from being read as a promise it was never going to keep.
 

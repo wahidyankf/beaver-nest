@@ -14,6 +14,7 @@ These are the constants to be moved, with their present locations. Nothing else 
 | Internal-link exclusion              | `Governance.fs:718`                                      | `plans/done/` as a source tree                                                                           |
 | Scan exclusions                      | `Governance.fs:142-146`                                  | `node_modules` and siblings                                                                              |
 | Mermaid label limits                 | `Governance.fs`                                          | 32 graphemes for node and state segments, 24 for edge and transition segments                            |
+| Mermaid colour palette               | `Governance.fs:125-128`                                  | Six fill colours, those plus `#000000` for edges, and `#000000`/`#FFFFFF` for text                       |
 | Canonical instruction file           | `HarnessContract.fs:291-298`                             | `AGENTS.md`, with `CLAUDE.md` containing only `@AGENTS.md`                                               |
 | Canonical skill and agent roots      | `HarnessContract.fs:344,716`                             | `.agents/skills`, `.agents/agents`                                                                       |
 | Harness roster                       | `HarnessContract.fs:741-743`                             | `codex` → `.codex/agents/*.toml`, `claude` → `.claude/agents/*.md`, `opencode` → `.opencode/agents/*.md` |
@@ -106,6 +107,19 @@ md-internal-link:
 md-mermaid:
   node-label-graphemes: 32
   edge-label-graphemes: 24
+  fill-colors:
+    ["#0173B2", "#DE8F05", "#029E73", "#CC78BC", "#CA9161", "#808080"]
+  edge-colors:
+    [
+      "#0173B2",
+      "#DE8F05",
+      "#029E73",
+      "#CC78BC",
+      "#CA9161",
+      "#808080",
+      "#000000",
+    ]
+  text-colors: ["#000000", "#FFFFFF"]
 
 harness-parity:
   canonical:
@@ -135,25 +149,38 @@ harness-parity:
     - "**/AGENTS.override.md"
     - "**/CLAUDE.md"
     - ".claude/rules/**/*.md"
-  capabilities: [...]
-  constraints: [...]
+  capabilities: # transcribed exactly from HarnessContract.fs:71-79
+    - repository-read
+    - repository-write
+    - web-search
+    - web-fetch
+    - shell
+    - nested-agent
+    - nx-mcp
+  constraints: # transcribed exactly from HarnessContract.fs:81
+    - inline-result-only
+    - single-mcp-operation
   required-mcp:
     name: nx
     command: npx
     args: ["nx", "mcp"]
 
 scan:
-  exclude-directories:
-    - node_modules
-    - obj
-    - bin
-    - coverage
-    - dist
+  exclude-directories: # transcribed exactly from Governance.fs:142-155
     - .git
     - .nx
+    - node_modules
+    - bin
+    - obj
+    - _build
+    - deps
+    - coverage
+    - playwright-report
+    - test-results
+    - worktrees
 ```
 
-The `capabilities`, `constraints`, and `required-mcp` values are elided above because they are transcribed verbatim from `HarnessContract.fs:71-81` during delivery; inventing them here would create a second, wrong source of truth.
+Nothing above is elided. The `capabilities`, `constraints`, `scan.exclude-directories`, and Mermaid colour lists are transcribed character for character from the source lines named in their comments, because a schema with a placeholder in it is a schema a reader cannot check against the code.
 
 ## Field Guide
 
@@ -170,7 +197,9 @@ The `capabilities`, `constraints`, and `required-mcp` values are elided above be
 
 **`md-internal-link.exclude-sources[]`** — globs whose Markdown is not scanned _as a source of links_. Files under these globs remain valid link _targets_. BeaverNest excludes `plans/done/**` because archived plans deliberately reference paths that no longer exist. Optional; absent means every repository-owned Markdown file is a link source.
 
-**`md-mermaid.node-label-graphemes`** and **`md-mermaid.edge-label-graphemes`** — the maximum visible label length per segment, counted in Unicode grapheme clusters after markup removal and entity decoding, with `<br>`, `<br/>`, and escaped newlines splitting segments. Both required. Which diagram kinds are enforced and which colour rules apply are tool behaviour, not policy, and stay in the binary.
+**`md-mermaid.node-label-graphemes`** and **`md-mermaid.edge-label-graphemes`** — the maximum visible label length per segment, counted in Unicode grapheme clusters after markup removal and entity decoding, with `<br>`, `<br/>`, and escaped newlines splitting segments. Both required. Which diagram kinds the validator can parse is tool behaviour, not policy, and stays in the binary: the tool can only inspect syntax it understands, and no repository can configure that.
+
+**`md-mermaid.fill-colors`** / **`edge-colors`** / **`text-colors`** — the permitted `classDef` colour sets, checked with the contrast rule. These are policy and not tool behaviour, which is a correction to an earlier draft of this document: BeaverNest's six-colour palette is one repository's answer to colour-blind-safe diagramming, and a repository choosing a different accessible palette is making a legitimate choice rather than a mistake. Leaving the values in the binary would have hard-coded exactly the kind of constant this contract exists to move. All three lists are required alongside the grapheme limits, so a repository that declares a Mermaid policy declares all of it. Whether requiring them is tolerable for a repository with zero diagrams is a question Phase 5 answers empirically against HIPPO and grind-in-public rather than one this document decides in advance.
 
 **`harness-parity.canonical.instruction`** — the single project-rule body every harness must reach. Required.
 

@@ -37,7 +37,7 @@ Measure it. The gate's wall-clock cost, startup, memory, and toolchain setup are
 - The existing `./hippo` bootstrap as the proven reference implementation for safe pinned consumption.
 - `ose-public`'s `apps/rhino-cli` and `repo-config.yml` as the alignment reference for command spelling and configuration shape.
 - Local checkouts of `hippo` and `grind-in-public`, and authorization to commit in each, since both are separate repositories with their own history.
-- grind-in-public's `badak-mini` as the second retirement target, with its Node-script repository checks explicitly staying where they are.
+- grind-in-public's `badak-mini` hygiene checks as the second retirement target, with its Node-script repository checks and its `harness rule-change` trigger explicitly staying where they are.
 
 ## Navigation
 

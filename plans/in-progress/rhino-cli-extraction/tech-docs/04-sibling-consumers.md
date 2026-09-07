@@ -47,13 +47,13 @@ Two of the three already agree, and grind-in-public's own README states it is tr
 
 grind-in-public's repository gate runs more than `badak-mini`. It also runs Node scripts for a project contract, a governance-structure check, and a workflow contract, plus a British-spelling check and its own HIPPO bootstrap suite. **None of those move.** They are grind-in-public's repository-specific rules, not general repository hygiene, and pulling them into a tool shared by four repositories is exactly the mistake this plan exists to correct in the other direction.
 
-The retirement there is precise: `badak-mini`'s three commands are replaced; everything else in that gate stays where it is and keeps running.
+The retirement there is precise: `badak-mini`'s three hygiene commands are replaced; everything else in that gate stays where it is and keeps running. That includes a fourth command inside the same binary. `badak-mini harness rule-change validate` and its `hook` form read staged paths and harness pre-edit payloads on stdin, and trigger that repository's own rules-propagation and harness-alignment workflows by name. It is not general repository hygiene, it reaches Git state and standard input, and RHINO's read-only, process-free, network-free posture excludes it by design. So it stays — and because it lives in `internal/rulechange/` inside the same Go module as `internal/governance/`, `internal/markdownlinks/`, and `internal/parity/`, the module stays with it.
 
 ## Adoption Shapes
 
 **HIPPO — additive.** It has no validator to retire, so adoption is `./rhino`, `rhino.lock`, `repo-config.yml`, a CI step, and pre-push wiring. Nothing is removed, nothing is at risk, and its existing gates are untouched. HIPPO's contributor rules require documentation to stay true to the shipped binary and `docs/` to follow Diátaxis; RHINO now checks mechanically what that rule states in prose.
 
-**grind-in-public — cutover.** The same shape as BeaverNest's: adopt, reconcile findings against the current clean result, verify with a fresh process and the prior validator deleted, then remove `apps/badakmini-cli` and `apps/badakmini-cli-e2e`, repoint its Nx targets and hooks, and propagate the rule change through its own governance tree. Its Go toolchain leaves that repository along with the binary, exactly as .NET leaves BeaverNest.
+**grind-in-public — partial cutover.** The same shape as BeaverNest's up to a point: adopt, reconcile findings against the current clean result, verify with a fresh process and the retired checks removed, repoint its Nx targets and hooks, and propagate the rule change through its own governance tree. It differs at the retirement itself, and the difference is not cosmetic. BeaverNest's Badakmini is entirely hygiene, so deleting it removes .NET from that repository outright. grind-in-public's binary is not: `rule-change` shares its module, so what leaves is three packages, three commands, their bindings, and their scenarios — not the module, not `go.mod`, and not the Go toolchain. The plan previously claimed otherwise, and the claim was wrong rather than merely optimistic: it would have deleted a working pre-commit trigger that this plan has no intention of replacing.
 
 Each cutover keeps its own rollback: restore the deleted project and previous hook from Git, and re-run the prior gate. Neither repository's rollback touches the other, and neither touches a published RHINO tag.
 
@@ -92,10 +92,12 @@ Every repository's adoption is gated on the one before it passing. A finding tha
 | ----------- | -------------------------------------------------------------------------------------------------------------------- |
 | `[N]`       | `repo-config.yml`                                                                                                    |
 | `[N]`       | `rhino`, `rhino.lock`                                                                                                |
-| `[D]`       | `apps/badakmini-cli/`, `apps/badakmini-cli-e2e/` — both Go modules with their own `go.mod`                           |
+| `[D]`       | `apps/badakmini-cli/internal/governance/`, `internal/markdownlinks/`, `internal/parity/` and their tests             |
+| `[E]`       | `apps/badakmini-cli/` — the module survives; `internal/rulechange/`, `go.mod`, and the Go toolchain all stay         |
+| `[E]`       | `apps/badakmini-cli-e2e/` — the module survives; its `rule-change` bindings stay, the three hygiene ones go          |
 | `[D]`       | its Gherkin corpus for the retired validator, if it keeps one                                                        |
 | `[E]`       | the Nx targets invoking `instruction-size`, `markdown-links`, and `capability-parity`, repointed to the RHINO leaves |
-| `[E]`       | its hooks, and its Go toolchain setup in CI                                                                          |
+| `[E]`       | its hooks; its Go toolchain setup in CI is **not** removed, because `rule-change` still needs it                     |
 | `[E]`       | the thirteen governance surfaces naming the retired validator, through its own propagation transaction               |
 
 Its project-contract, governance-structure, workflow-contract, spelling, and HIPPO bootstrap checks appear in neither table, because this plan does not touch them.

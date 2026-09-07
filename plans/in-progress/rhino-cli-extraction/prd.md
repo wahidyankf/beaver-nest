@@ -8,7 +8,7 @@
 
 ## Stories
 
-- As a maintainer, I run one command in any of four repositories and get the findings that repository's own validator used to give me — without a .NET SDK in BeaverNest or a Go toolchain in grind-in-public.
+- As a maintainer, I run one command in any of four repositories and get the hygiene findings that repository's own validator used to give me — without a .NET SDK in BeaverNest, and without grind-in-public maintaining a second implementation of checks three other repositories already share.
 - As a maintainer, I change the governed word limit or add a validated tree by editing `repo-config.yml`, and no tool release is required.
 - As a maintainer, I can see what the rewrite actually bought me — gate time, memory, and setup cost, before and after — rather than taking it on faith.
 - As a maintainer, I pin a RHINO version, commit, and checksum, and a tampered or substituted binary never runs.
@@ -176,7 +176,7 @@ Scenario: Before-and-after evidence exists for every cutover
 
 ## Scope
 
-In scope: the upstream Rust repository, its specification corpus, its documentation tree, its release pipeline, and the configuration schema; adoption in four repositories — rhino, BeaverNest, HIPPO, and grind-in-public — including each one's bootstrap, lock, declared policy, gate wiring, and hooks; retirement of BeaverNest's F# Badakmini and grind-in-public's Go `badak-mini`; and every rule, document, specification, and map in either repository that names them.
+In scope: the upstream Rust repository, its specification corpus, its documentation tree, its release pipeline, and the configuration schema; adoption in four repositories — rhino, BeaverNest, HIPPO, and grind-in-public — including each one's bootstrap, lock, declared policy, gate wiring, and hooks; retirement of BeaverNest's F# Badakmini in full and of grind-in-public's three `badak-mini` hygiene checks, whose `harness rule-change` sibling and Go module stay; and every rule, document, specification, and map in either repository that names them.
 
 Out of scope: `ose-public` and `ose-private` adoption, any merge with `ose-public`'s `apps/rhino-cli`, grind-in-public's repository-specific Node and spelling checks, new validators, new output formats, and any change to governed content or to BeaverNest's product, storage, or deployment.
 
