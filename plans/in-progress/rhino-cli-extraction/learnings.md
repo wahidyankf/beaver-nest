@@ -436,3 +436,62 @@ The two mutants I chose tested the **sign** of the change — fenced content doe
 **The review also found that the fix had traded one bug for another, in both directions at once.** A false negative: a fence that is never closed runs to the end of the file, so one stray opener — a four-backtick block a three-backtick line cannot close — hid every later line, including a genuine competing instruction source that a harness reading the file as text would still import. And a false positive left half-closed: a page writing the route inside inline backticks was still accused, which is the exact shape the fix set out to permit.
 
 Neither was visible from the corpus, from the passing gate, or from re-reading the diff. Both were visible to someone asked to attack the change on a real repository with a control file present to prove the run was live. **Two mutants of my own choosing, plus a green corpus, plus a clean self-validation, was three kinds of evidence that all shared one blind spot: they were all derived from the change I had already decided to make.**
+
+## The distribution end result: four platforms, measured rather than estimated
+
+_2026-09-08, Phase 6, `v0.1.0` at `671af41`._
+
+The artifact half of the distribution claim (AC-08, AC-12). Every figure below is
+read off the published release or its build logs, not computed from one platform
+and scaled.
+
+| platform                    | stripped executable | gzipped archive | ceiling  |
+| --------------------------- | ------------------: | --------------: | -------- |
+| `aarch64-apple-darwin`      |           1,499,424 |         722,586 | 1.75 MiB |
+| `x86_64-apple-darwin`       |           1,759,232 |         769,000 | 2 MiB    |
+| `aarch64-unknown-linux-gnu` |           1,905,472 |         828,057 | 2.25 MiB |
+| `x86_64-unknown-linux-gnu`  |           2,140,760 |         856,473 | 2.5 MiB  |
+
+`checksums.txt` is 408 bytes and covers all four. A consumer downloads one
+archive and one digest file: 723 KiB to 837 KiB depending on platform.
+
+**Pipeline wall clock: 2 minutes 29 seconds**, tag push to published release.
+Provenance 6s; four native build legs in parallel — `ubuntu-24.04` 38s,
+`ubuntu-24.04-arm` 36s, `macos-15` 42s, `macos-15-intel` 109s; publish 21s. The
+Intel macOS runner is the critical path by a factor of two and a half, entirely
+in allocation rather than compilation.
+
+### What the numbers changed
+
+**A single size ceiling was the wrong shape, and only the rehearsal could show
+it.** The budget was first written as one constant, set from the only
+measurement available at the time — 1,499,424 on Apple Silicon. The first
+throwaway tag failed both Linux legs against it. The same source, the same
+release profile, and the same dependency set produce executables **43% apart**
+across four platforms; nothing about the first measurement predicted the fourth.
+
+The fix that looks obvious is to raise the one ceiling until the largest
+platform fits. That was rejected: a ceiling set at 2.5 MiB leaves the Apple
+Silicon build free to grow by three quarters before anything notices, which is a
+budget nobody holds. Each platform now carries its own measurement plus about a
+fifth.
+
+**Gzip compresses this binary to roughly 45% on every platform** — 48.2%, 43.7%,
+43.5%, 40.0% respectively. The ordering is preserved, so the archive a consumer
+downloads varies by only 16% even though the executables vary by 43%. Worth
+knowing before optimising: the download cost is much flatter than the build
+output suggests.
+
+### The lesson that generalises
+
+**A budget derived from one instance of a thing that has four instances is not a
+budget; it is a guess with a number in it.** The ceiling was written honestly —
+measured, not invented, and documented as "the first measured build plus about a
+fifth". It was still wrong, because the population it described had three
+members nobody had measured.
+
+The rehearsal tag is what made this cheap. Discovering it on the real `v0.1.0`
+would have meant a failed release on an immutable tag, and the project's own
+rule is that a published tag is never replaced — so the recovery would have been
+`v0.1.1` existing solely to record a mistake in a size constant. **A dry run on a
+throwaway tag is worth its cost precisely on the pass where it fails.**
