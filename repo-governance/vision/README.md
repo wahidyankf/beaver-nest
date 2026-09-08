@@ -8,6 +8,8 @@ Beaver Nest is a constituent project of [Open Sharia Enterprise (OSE Public)](ht
 
 Beaver Nest must preserve alignment with that broader purpose while applying this vision to the specific needs and protection of families, groups, and their members.
 
+Beaver Nest is one of the five **OSE Code Repositories** — with [ose-public](https://github.com/wahidyankf/ose-public), `ose-private`, [rhino](https://github.com/wahidyankf/rhino), and [hippo](https://github.com/wahidyankf/hippo) — and consumes the last two as checksum-pinned tools. That name is navigation, not coupling: the five are developed, versioned, and released independently, with no shared version number, no shared release cadence, no monorepo, and no parent repository above them. Membership names where to look for the rest of the project; it never obliges this repository to receive another's product, governance, agent, skill, workflow, or tool change, and no such change arrives here automatically.
+
 ## Commitments
 
 - Serve the well-being of families, groups, and their members.

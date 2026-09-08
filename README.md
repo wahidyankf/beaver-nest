@@ -2,6 +2,20 @@
 
 Beaver Nest is a private, always-available family application and a focused constituent project of [Open Sharia Enterprise (OSE Public)](https://github.com/wahidyankf/ose-public), the broader initiative for trustworthy, Sharia-compliant products. This separate repository gives Beaver Nest a focused development boundary while keeping its purpose and direction connected to OSE Public. The application uses Phoenix LiveView and Nx for rapid, safe iteration with Codex, Claude Code, or OpenCode under one [repository coding-harness contract](docs/how-to-guides/coding-harnesses.md).
 
+## Part of the OSE Code Repositories
+
+Beaver Nest is one of five repositories Open Sharia Enterprise is built and maintained in:
+
+| Repository                                               | What it does                               |
+| -------------------------------------------------------- | ------------------------------------------ |
+| [`ose-public`](https://github.com/wahidyankf/ose-public) | The OSE product platform and its research  |
+| `ose-private`                                            | Authorized operations, private             |
+| [`rhino`](https://github.com/wahidyankf/rhino)           | Repository hygiene — consumed here         |
+| [`hippo`](https://github.com/wahidyankf/hippo)           | Host resource coordination — consumed here |
+| **`beaver-nest`**                                        | This repository                            |
+
+That name is navigation, not coupling. The five are developed, versioned, and released independently — no shared version number, no shared release cadence, no monorepo, and no parent repository above them. Beaver Nest consumes RHINO and HIPPO as checksum-pinned tools through the tracked `./rhino` and `./hippo` bootstraps; beyond that, nothing propagates in either direction. See the [vision](repo-governance/vision/README.md#ose-public-relationship) for what membership does and does not oblige.
+
 ## Status
 
 Beaver Nest is in its first implementation stage.
