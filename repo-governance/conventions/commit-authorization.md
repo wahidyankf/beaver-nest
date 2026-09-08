@@ -10,6 +10,7 @@ Do not commit or push repository changes unless the action is explicitly authori
 - Do not infer authorization from a request to edit, fix, test, finish, stage, or otherwise complete work.
 - Do not carry authorization from a completed task into later work.
 - Without authorization, leave changes uncommitted or unpushed, report their status, and request confirmation when the action is needed.
+- Merging a pull request is not one of these actions. Its authority comes from the [pull-request merge convention](pull-request-merge.md) preconditions, which stand in for a per-merge prompt; the commits and pushes onto the branch remain separately authorized here.
 
 Examples:
 
