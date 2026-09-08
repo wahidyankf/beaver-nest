@@ -3,9 +3,10 @@ name: HIPPO Consumer Smoke
 on:
   # A Linux-only retention defect once reached main because this suite ran on no
   # per-push surface at all, only a twice-daily schedule that had not fired since
-  # the consumer was migrated. This repository delivers straight to main, so a
-  # push trigger is the earliest Linux signal available to it: the commit still
-  # lands, but Linux reports within minutes instead of up to twelve hours.
+  # the consumer was migrated. `pr-quality-gate.yml` now runs the same bootstrap
+  # suite on Linux before a pull request may merge, so this workflow is no longer
+  # the earliest signal. It keeps the post-merge push trigger and, more
+  # importantly, the macOS half of the matrix, which no pull-request gate covers.
   push:
     branches: [main]
     paths:
