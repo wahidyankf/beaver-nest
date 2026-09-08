@@ -75,3 +75,43 @@ A metric that gets worse is reported in the delivery record with the same promin
 Raw numbers and their conditions go in `learnings.md` as they are taken. The final reconciliation in Phase 11 assembles one before-and-after table covering both cutover repositories, every metric above, and the distribution figures for all four platforms, so the plan closes with the evidence in one place rather than scattered across dated entries.
 
 If the numbers turn out to be uninteresting — comparable performance, with the real win being one tool instead of three — that is the honest result and is recorded as such. The case for this plan does not rest on the benchmark.
+
+## The Assembled Result
+
+_Phase 11, 2026-09-08. One table, both cutover repositories, every metric above, and all four platforms. Each figure is traceable to a dated `learnings.md` entry; the conditions that differ between a before and its after are named in the row rather than averaged away._
+
+### The two cutover repositories
+
+| Metric                       | BeaverNest before (F#/.NET) |                    BeaverNest after (RHINO) |    grind-in-public before (Go) |            grind-in-public after (RHINO) |
+| ---------------------------- | --------------------------: | ------------------------------------------: | -----------------------------: | ---------------------------------------: |
+| Warm gate, **like-for-like** |      223 / 228 ms, 8 leaves | 220 / 229 / 221 ms, 6 leaves + 1 resolution | 0.373 s, 3 leaves via `go run` |                    **0.271 s**, 6 leaves |
+| Warm gate, bracketed harness |                     0.392 s |              0.423 s (0.373 s leaves alone) |         0.236 s (built binary) |                                  0.271 s |
+| Warm gate, already resolved  |                           — |                                166 / 173 ms |                              — |                                        — |
+| Single-validator startup     |                     0.277 s |             0.252 s wrapped, 0.198 s direct |                        0.215 s |                                  0.264 s |
+| **Peak resident memory**     |                **64.4 MiB** |                                 **8.4 MiB** |                   **12.1 MiB** |                              **8.2 MiB** |
+| Toolchain on disk            |  674 MB (.NET 10.0.107 SDK) |                        one verified archive | 258 MB GOROOT + 2.3 GB modules | unchanged — `rule-change` still needs it |
+| Validator source retired     |           5,044 lines of F# |                                           — |              3,949 lines of Go |                                        — |
+| Consumer added               |                           — |                                   836 lines |                              — |                                836 lines |
+
+Two rows gate the plan, and **both hold in both repositories**: the warm gate did not get slower on the like-for-like measurement, and peak memory did not rise. Everything else is recorded, not gated.
+
+**Read the wall-clock rows with their reasons, because the two repositories improved for opposite causes.** BeaverNest is **parity**, not a win: 220–229 ms against 223–228 ms is the same number, and the bracketed row's apparent 8% regression is the bootstrap's ~55 ms sitting inside a harness that charges 190 ms of its own interpreter startup. grind-in-public is **27% faster**, and not because Rust beat Go: its wired path compiled through `go run` on every invocation, and a pinned binary removes that step. Against grind's _built-binary_ figure RHINO is 15% slower — while doing six checks instead of three. Neither repository got a faster validator; one stopped paying for a compile.
+
+**The memory row is the one that improved on its own merits**, in both repositories and in opposite directions of prior size: 64.4 MiB to 8.4 MiB where the old tool was a runtime, and 12.1 MiB to 8.2 MiB where it was already a small native binary — the second doing twice the work. `harness parity` reads 1.9 MB where Badakmini read 98.9 MB.
+
+**The number the plan actually bought is the last two rows.** 5,044 lines of F# and 3,949 lines of Go stopped being maintained — 8,993 lines of independently written, separately tested, separately documented implementations of the same six checks — against one shared 597-line bootstrap plus each repository's own declared policy. That was the case for the plan, and the timing table's job was only to prove it cost nothing.
+
+### The distribution end result
+
+| Platform                    | Stripped executable | Gzipped archive | Ceiling  |
+| --------------------------- | ------------------: | --------------: | -------- |
+| `aarch64-apple-darwin`      |           1,499,424 |         722,586 | 1.75 MiB |
+| `x86_64-apple-darwin`       |           1,759,232 |         769,000 | 2 MiB    |
+| `aarch64-unknown-linux-gnu` |           1,905,472 |         828,057 | 2.25 MiB |
+| `x86_64-unknown-linux-gnu`  |           2,140,760 |         856,473 | 2.5 MiB  |
+
+`checksums.txt` is 408 bytes and covers all four; a consumer downloads 723–837 KiB. Release pipeline wall clock: **2 min 29 s** from tag push to published release, with `macos-15-intel` (109 s) the critical path by two and a half times, almost entirely in runner allocation. The same source produces executables **43% apart** across platforms, which is why each carries its own ceiling rather than sharing one set to the largest.
+
+### The honest summary
+
+The benchmark came out roughly where §Method predicted: **comparable performance, a large and real memory improvement, and the toolchain requirement gone in the repository that had a runtime.** The case for this plan never rested on speed, and the numbers do not let it. What four repositories have now is one implementation of six checks instead of three implementations of the same six, each pinned by checksum to the same released tag.

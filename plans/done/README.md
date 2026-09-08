@@ -12,6 +12,7 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [Bnest SQLite storage](2026-08-29__bnest-sqlite-storage/README.md) completed the headless flat-file-to-SQLite migration, optional admin folder selection, and a verified active-service cutover.
 - [Resource-aware development](2026-08-29__resource-aware-development/README.md) completed evidence-backed host-pressure admission, owned-process shedding, shared release metrics, and guarded repository workflows.
 - [Bn​est daily backups and schedules](2026-08-30__bnest-daily-backups-and-schedules/README.md) completed durable contextual schedules, verified daily SQLite backups, typed admin settings, and a no-downtime production rollout.
+- [RHINO CLI extraction](2026-09-08__rhino-cli-extraction/README.md) completed the configuration-driven Rust rewrite of two governance validators, its pinned distribution, and adoption across four repositories.
 
 ## Directory Map
 
@@ -21,3 +22,4 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [Bnest SQLite storage](2026-08-29__bnest-sqlite-storage/README.md) contains the completed SQLite storage migration and cutover delivery record.
 - [Resource-aware development](2026-08-29__resource-aware-development/README.md) contains the completed resource-aware development and release-monitoring delivery record.
 - [Bn​est daily backups and schedules](2026-08-30__bnest-daily-backups-and-schedules/README.md) contains the completed scheduler, backup, admin settings, and production rollout record.
+- [RHINO CLI extraction](2026-09-08__rhino-cli-extraction/README.md) contains the completed extraction, distribution, and four-repository adoption record.

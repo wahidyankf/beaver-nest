@@ -1,12 +1,12 @@
 # RHINO CLI Extraction
 
-**Status:** In Progress
+**Status:** Done
 
 **Created:** 2026-09-07
 
 **Started:** 2026-09-07
 
-**Completed:** —
+**Completed:** 2026-09-08
 
 **Scope:** Extract Badakmini's repository-governance validators into a standalone, configuration-driven Rust CLI released from `wahidyankf/rhino`, and adopt it in four repositories — rhino itself, BeaverNest, HIPPO, and grind-in-public — retiring the two existing validator implementations
 
