@@ -34,6 +34,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Plan UI design](plan-ui-design.md) requires lo-fi comparison and selected-direction hi-fi assets for UI-affecting formal plans.
 - [Project READMEs](project-readmes.md) make every application and library independently understandable and operable.
 - [Public repository data safety](public-repository-data-safety.md) prevents secrets and machine-local identifiers from entering public history.
+- [Pull request body](pull-request-body.md) states what every description must carry and requires it to be rewritten whenever a push moves the head.
 - [Pull request boundaries](pull-request-boundaries.md) map one branch to one pull request to one independently shippable delivery unit, split at natural seams.
 - [Pull request merge](pull-request-merge.md) states the five preconditions and the draft lifecycle every merge into `main` must satisfy.
 - [Push-hook verification](push-hook-verification.md) requires root-cause repair and prevents unauthorized bypass of push-time safeguards.

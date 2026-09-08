@@ -34,7 +34,7 @@ Units land sequentially in the one worktree the work provisions: land a unit, sy
 
 Bnest is a live service, so merge a unit only when the exact resulting `main` state is safe to deploy immediately. Complete user-reachable behaviour may be active. Incomplete behaviour must be complete and inert behind a temporary flag disabled in production, with both paths tested and its rollout, rollback, and removal recorded. A flag controls exposure of an otherwise complete increment; it never excuses half-built behaviour, a broken enabled path, a missing dependency, or an unsafe migration. Work that cannot meet this test stays inside the unit it depends on rather than merging as scaffolding a later pull request would make safe.
 
-The body justifies the seam and the deployable state, as the [merge convention](pull-request-merge.md) requires.
+The [body](pull-request-body.md) justifies the seam and the deployable state.
 
 ## Enforcement
 
