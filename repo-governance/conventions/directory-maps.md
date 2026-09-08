@@ -34,13 +34,9 @@ Root `AGENTS.md` and every Markdown file under `repo-governance/` must contain n
 
 Split or redistribute governance content when one document has distinct reader tasks, ownership, or navigation needs; do not split merely to use or avoid the budget. If a complete governance README would exceed 750 words, divide it into coherent subdirectories until every governed Markdown file complies. Every new subdirectory must follow this convention. Never omit a sibling to make a map fit.
 
-A word is a whitespace-separated token containing at least one letter or digit, which `repo-config.yml` declares as `count: letters-and-digits`. Check a document while authoring with a command that applies the same rule:
+No shell one-liner reproduces the count. `repo-config.yml` declares it as `count: letters-and-digits`, and the validator applies that rule to link syntax too, so a Markdown link contributes one word per path segment while a table's `|` and `---` separators contribute none. `wc -w` therefore understates a link-dense document and overstates a table-heavy one, in one measured case by more than ninety words in each direction. Use it for a rough sense of size only, and take the budget verdict from the gate below.
 
-```sh
-tr -s '[:space:]' '\n' < <path> | grep -c '[[:alnum:]]'
-```
-
-Do not judge a document by `wc -w`, which counts every `|` and `---` cell separator as a word and so overstates a table-heavy file by a wide margin; treat it only as a loose upper bound. The repository validator remains authoritative.
+Budget the headroom, not just the file. Several governed documents sit within a few words of the limit, so a point-of-use line added to a full one pushes it over. When that happens, state the rule in its canonical document and let the existing link reach it rather than compressing a neighbouring rule to make room.
 
 The `rhino-consumer` check enforces README presence and directory-map completeness under the mapped trees, plus applicable word limits. Which trees are mapped, which surfaces are governed, and the enforced limit are declared in `repo-config.yml`; the 750-word rule above is the rule, and that file is where the enforced value is written down:
 
