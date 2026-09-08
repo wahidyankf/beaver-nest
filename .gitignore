@@ -33,7 +33,6 @@ npm-debug.log*
 # .NET / F#
 **/bin/
 **/obj/
-/apps/badakmini-cli/coverage/
 *.user
 .ionide/
 .fake/

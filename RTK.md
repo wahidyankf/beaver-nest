@@ -8,7 +8,7 @@ Prefix shell commands with `rtk` while preserving repository-mandated command fo
 
 ```sh
 rtk git status
-rtk npm exec -- nx run badakmini-cli:test:repo
+rtk npm exec -- nx run rhino-consumer:test:repo
 rtk pytest -q
 ```
 

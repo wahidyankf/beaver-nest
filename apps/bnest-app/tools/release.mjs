@@ -109,7 +109,7 @@ export const gateManifest = [
     arguments: [
       "run",
       "-p",
-      "badakmini-cli",
+      "rhino-consumer",
       "-t",
       "test:repo",
       "--skip-nx-cache",

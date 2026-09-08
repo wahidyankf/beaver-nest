@@ -1,5 +1,4 @@
 {
-  "FSharp.workspacePath": "beaver-nest.sln",
   "elixirLS.projectDir": "apps/bnest-app",
   "elixirLS.mixEnv": "dev"
 }
