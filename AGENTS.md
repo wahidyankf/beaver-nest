@@ -26,7 +26,7 @@
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.
 - Fix root [push hooks](repo-governance/conventions/push-hook-verification.md); never use unauthorized `--no-verify`.
-- Space [GitHub polls](repo-governance/conventions/github-polling.md) two minutes.
+- Space [GitHub polls](repo-governance/conventions/github-polling.md) three minutes.
 
 ## Governance
 
