@@ -31,7 +31,7 @@
 ## Governance
 
 - Align harnesses under [contract](repo-governance/conventions/coding-harness-contract.md).
-- [Propagate rules](repo-governance/workflows/rules-propagation.md); plan/rules quality gates require explicit requests.
+- [Propagate rules](repo-governance/workflows/rules-propagation.md); [rules grooming](repo-governance/workflows/rules-grooming.md) and plan/rules quality gates require explicit requests.
 - Apply [Diátaxis](repo-governance/conventions/documentation-architecture.md).
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md), [track tasks](repo-governance/conventions/task-tracking.md), and retain unfamiliar parallel changes under `plans/` and `repo-governance/`.
 - Use ignored `local-tmp/` for scratch and `generated-reports/` for requested pre-plan audits/reports; neither is authoritative or a plan.
