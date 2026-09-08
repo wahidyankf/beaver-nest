@@ -34,6 +34,8 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Plan UI design](plan-ui-design.md) requires lo-fi comparison and selected-direction hi-fi assets for UI-affecting formal plans.
 - [Project READMEs](project-readmes.md) make every application and library independently understandable and operable.
 - [Public repository data safety](public-repository-data-safety.md) prevents secrets and machine-local identifiers from entering public history.
+- [Pull request boundaries](pull-request-boundaries.md) map one branch to one pull request to one independently shippable delivery unit, split at natural seams.
+- [Pull request merge](pull-request-merge.md) states the five preconditions and the draft lifecycle every merge into `main` must satisfy.
 - [Push-hook verification](push-hook-verification.md) requires root-cause repair and prevents unauthorized bypass of push-time safeguards.
 - [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.
 - [Runtime flat-file data](runtime-flat-file-data.md) defines the private `data/` layout and safe flat-file persistence boundaries.
