@@ -20,7 +20,9 @@ Include summary, evidence, timing, prior art, direction, scope/non-goals, risks,
 
 Use `plans/backlogs/<slug>/` for queued, `plans/in-progress/<slug>/` for active, and `plans/done/YYYY-MM-DD__<slug>/` for completed work. Use kebab-case.
 
-Plan documentation exists so a reader can understand why the plan exists, its intended outcome, the options and trade-offs considered, the selected decision, and how delivery and proof will work. Organization should feel natural because it serves that communication goal. Split and unsplit technical documents are only presentation mechanisms, never quality outcomes by themselves.
+Plan documentation exists so a reader can understand why the plan exists, its intended outcome, the options and trade-offs considered, the selected decision, and how delivery and proof will work.
+
+Cross-repository work is planned here; each affected repository then executes its own change under its own rules. A plan never edits another repository directly.
 
 Each formal plan contains:
 
