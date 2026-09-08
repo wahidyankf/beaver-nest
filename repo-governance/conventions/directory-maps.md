@@ -34,7 +34,13 @@ Root `AGENTS.md` and every Markdown file under `repo-governance/` must contain n
 
 Split or redistribute governance content when one document has distinct reader tasks, ownership, or navigation needs; do not split merely to use or avoid the budget. If a complete governance README would exceed 750 words, divide it into coherent subdirectories until every governed Markdown file complies. Every new subdirectory must follow this convention. Never omit a sibling to make a map fit.
 
-Use the normal `wc -w <path>` command to check a document while authoring. The repository validator is authoritative because it applies the repository's Unicode-aware word-counting rule to every governed Markdown file.
+A word is a whitespace-separated token containing at least one letter or digit, which `repo-config.yml` declares as `count: letters-and-digits`. Check a document while authoring with a command that applies the same rule:
+
+```sh
+tr -s '[:space:]' '\n' < <path> | grep -c '[[:alnum:]]'
+```
+
+Do not judge a document by `wc -w`, which counts every `|` and `---` cell separator as a word and so overstates a table-heavy file by a wide margin; treat it only as a loose upper bound. The repository validator remains authoritative.
 
 The `rhino-consumer` check enforces README presence and directory-map completeness under the mapped trees, plus applicable word limits. Which trees are mapped, which surfaces are governed, and the enforced limit are declared in `repo-config.yml`; the 750-word rule above is the rule, and that file is where the enforced value is written down:
 
