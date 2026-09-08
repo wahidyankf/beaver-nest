@@ -31,5 +31,6 @@ When composing workflows:
 - [Plan execution](plan-execution.md) moves an explicitly selected plan through active delivery, synchronized task tracking, and dated archival.
 - [Plan quality gate](plan-quality-gate.md) runs only on explicit user direction and performs a bounded semantic audit and repair.
 - [Red–green–refactor](red-green-refactor.md) defines the repeatable TDD cycle for application and library behaviour.
+- [Rules grooming](rules-grooming.md) sweeps the rule corpus for volume carrying no obligation and hands every approved reduction to propagation.
 - [Rules propagation](rules-propagation.md) automatically writes every rule change and consumes `NEEDS_PROPAGATION` ledgers without a non-convergence status.
 - [Rules quality gate](rules-quality-gate.md) runs only on explicit user direction and cannot end blocked; non-passing findings hand off to propagation.
