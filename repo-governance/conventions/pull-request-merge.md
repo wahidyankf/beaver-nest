@@ -20,6 +20,10 @@ A pull request is safe when two of those hold: its diff leaks nothing, and the `
 
 This is why the repository's testing and development practices carry weight rather than ceremony. Whatever the gate does not exercise, nothing checks. [Test-driven development](../development/test-driven-development.md), the [specification corpus](../development/specification-maintenance.md), unit coverage, integration and end-to-end suites, and the manual evidence the [software-quality map](../development/software-quality-enforcement.md) requires are what give the gate something to fail on. Weakening any of them does not merely lower quality; it silently widens what this convention is willing to call safe.
 
+## What the Body Must Carry
+
+The body states the outcome and the problem it solves rather than a list of edits; what is in scope and what is deliberately not, each with its reason; where to start reading and which paths to skip; what was verified, what risk remains, and the rollback; why this is one natural seam and which artefacts had to land together; and why the resulting state is deployable. A rules-and-documentation change carries this too, or most of this repository's traffic would justify nothing.
+
 ## Draft Lifecycle
 
 Open every pull request as a draft with `gh pr create --draft`. Iterate on the branch while it stays a draft, driving the exact-head gate green. Flip it to ready only when the work meets its done definition. Readiness is a statement that the work is finished; it is not a merge authorization, and no precondition is satisfied by it.

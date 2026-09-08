@@ -11,6 +11,17 @@ A **delivery unit** is the contiguous run of work ending at a point where what h
 - Independent work delivers separately. Grouping is permitted only along a dependency chain; folding two independent pieces into one pull request to reduce their number re-serializes work that was independent.
 - A ready increment is never held to batch it with later work, and an open pull request is never parked to merge with others at the end.
 
+## The Boundary Test
+
+A point in the work is a delivery boundary when all four hold:
+
+- **Coherent** — the accumulated increment is a complete unit of meaning: a capability, a migration step, a governance rule. Not half a refactor.
+- **Green alone** — every applicable gate passes on the increment by itself.
+- **Deployable** — the exact resulting `main` state satisfies the deployable-state rule below.
+- **Reviewable whole** — a reviewer can judge it without reading work that does not exist yet.
+
+Anything failing one of them is intermediate rather than a boundary: a schema nothing reads yet, a helper the next step consumes, a fixture the next step asserts on.
+
 ## Where to Draw the Seam
 
 Split at a natural cohesive seam: one independently useful purpose a reviewer can hold in mind, which this repository can build, verify, operate, and roll back without an unmerged sibling. Line counts and file counts never create, erase, or force a boundary — a large unit is right when its parts must land together, and a small diff carrying two unrelated purposes must still split.
@@ -23,7 +34,7 @@ Units land sequentially in the one worktree the work provisions: land a unit, sy
 
 Bnest is a live service, so merge a unit only when the exact resulting `main` state is safe to deploy immediately. Complete user-reachable behaviour may be active. Incomplete behaviour must be complete and inert behind a temporary flag disabled in production, with both paths tested and its rollout, rollback, and removal recorded. A flag controls exposure of an otherwise complete increment; it never excuses half-built behaviour, a broken enabled path, a missing dependency, or an unsafe migration. Work that cannot meet this test stays inside the unit it depends on rather than merging as scaffolding a later pull request would make safe.
 
-The pull request body names the seam, says why its artefacts must land together, states the resulting deployable state, and records proof and rollback.
+The body justifies the seam and the deployable state, as the [merge convention](pull-request-merge.md) requires.
 
 ## Enforcement
 
