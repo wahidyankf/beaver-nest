@@ -13,6 +13,7 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [Resource-aware development](2026-08-29__resource-aware-development/README.md) completed evidence-backed host-pressure admission, owned-process shedding, shared release metrics, and guarded repository workflows.
 - [Bn​est daily backups and schedules](2026-08-30__bnest-daily-backups-and-schedules/README.md) completed durable contextual schedules, verified daily SQLite backups, typed admin settings, and a no-downtime production rollout.
 - [RHINO CLI extraction](2026-09-08__rhino-cli-extraction/README.md) completed the configuration-driven Rust rewrite of two governance validators, its pinned distribution, and adoption across four repositories.
+- [HIPPO and RHINO governance adoption](2026-09-09__hippo-rhino-governance-adoption/README.md) completed a governance hierarchy, a three-harness contract, one merge-blocking pull-request gate, and a no-bypass default-branch ruleset in both CLI repositories.
 
 ## Directory Map
 
@@ -23,3 +24,4 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [Resource-aware development](2026-08-29__resource-aware-development/README.md) contains the completed resource-aware development and release-monitoring delivery record.
 - [Bn​est daily backups and schedules](2026-08-30__bnest-daily-backups-and-schedules/README.md) contains the completed scheduler, backup, admin settings, and production rollout record.
 - [RHINO CLI extraction](2026-09-08__rhino-cli-extraction/README.md) contains the completed extraction, distribution, and four-repository adoption record.
+- [HIPPO and RHINO governance adoption](2026-09-09__hippo-rhino-governance-adoption/README.md) contains the completed governance-adoption, harness-contract, gate, and ruleset delivery record.

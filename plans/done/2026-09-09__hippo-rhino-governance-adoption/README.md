@@ -1,12 +1,39 @@
 # HIPPO and RHINO Governance Adoption
 
-**Status:** In progress
+**Status:** Done
 
 **Created:** 2026-09-08
 
 **Started:** 2026-09-08
 
+**Completed:** 2026-09-09
+
 **Scope:** Give `wahidyankf/hippo` and `wahidyankf/rhino` a governance hierarchy extracted — not copied — from this repository, an in-repository `worktrees/` tree, a three-harness contract with no Nx and no MCP server, a `main` ruleset that refuses direct pushes from every actor including the owner, and one merge-blocking pull-request gate per repository that is a superset of the local `pre-commit`, `commit-msg`, and `pre-push` contracts
+
+## Outcome
+
+Both repositories now carry a governance hierarchy, one merge-blocking pull-request gate, and a `main`
+ruleset with no bypass actor: RHINO 49 documents at `5f7b75c`, HIPPO 51 at `065f200`. Every rule in the
+two flat `AGENTS.md` files reached exactly one destination — 26 of 26 and 17 of 17 — and six documents
+were authored beyond the adoption matrix because six of those rules had nowhere to land. Three
+harnesses reconcile against a non-empty canonical roster in each repository, with no Nx and no
+capability server. Every change landed through a pull request from `worktree/repo-rules-adoption`, and
+both direct-push probes were refused by the server, by name.
+
+Two criteria carry a stated qualification rather than a rounded-up pass, both in the
+[criterion table](learnings.md#acceptance-criterion-reconciliation). **AC-04 is deliberately unmet for
+HIPPO:** `go build` walks up out of a worktree and takes the outermost `.git` directory, so no ignore
+rule inside the repository can reach the reader that breaks — HIPPO's worktrees stay beside the
+checkout, and the reason is written where someone would otherwise undo it. **AC-05's HIPPO RED proved
+three distinct refusal reasons rather than four**, because the `Test` job stopped at the first
+violation it met instead of reaching the one written for it; the missing reason is evidenced locally
+in the same branch.
+
+Two defects were found by adopting the workflow rather than by testing it. A `pre-push` hook in a
+linked worktree exports `GIT_DIR`, and HIPPO's fixtures inherited it — 168 empty commits reached a
+live branch before anything noticed, and the repair is now held by a scenario. `go build` resolving
+the wrong repository root reversed a phase mid-flight and became the recorded deviation above rather
+than a silent workaround.
 
 ## Context
 
