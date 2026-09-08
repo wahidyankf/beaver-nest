@@ -4,6 +4,7 @@ Terms used across Beaver Nest's rules, plans, projects, and commit messages. Eac
 
 ## Execution and capacity
 
+- **OSE Code Repositories** — the five repositories Open Sharia Enterprise is built and maintained in: [`ose-public`](https://github.com/wahidyankf/ose-public), `ose-private`, [`rhino`](https://github.com/wahidyankf/rhino), [`hippo`](https://github.com/wahidyankf/hippo), and this one. Navigation, not coupling: independently versioned and released, with no parent repository above them, and no automatic propagation in either direction. See the [vision](../../repo-governance/vision/README.md#ose-public-relationship).
 - **HIPPO** — Host Infrastructure Pressure & Process Orchestrator; the wrapper every compute-bearing Nx command runs through, so work is admitted only when the host has capacity. See [resource-aware development](../../repo-governance/development/resource-aware-development.md).
 - **Class** — what kind of work is being admitted: `ephemeral` for ordinary build and test work, `service` for a non-production server, `transactional` for a mutation that must not be killed once started. Never changed to get admitted.
 - **Profile** — how much headroom the guard reserves. Ordinary work falls back `balanced` → `constrained` → `minimal`; transactional and release work keep their requested profile strictly.
