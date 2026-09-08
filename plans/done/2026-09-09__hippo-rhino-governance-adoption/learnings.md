@@ -126,11 +126,11 @@ The present row is identical to the pre-worktree baseline.
 
 This is the first concrete evidence for the plan's claim that a rename is never only a rename in these repositories.
 
-**The planned hook bypass turned out to be unnecessary, which is a finding about the gate itself.** This plan assumed RED would require `--no-verify`: the local hooks make an unformatted, non-conventional, quick-gate-failing commit impossible to *create* in a working tree. They do not make it impossible to *push*. A probe commit built with `git commit-tree` against the branch tip never touches the working tree, so `pre-push` ran `cargo xtask test-quick` on a genuinely clean checkout, passed honestly, and let the push through.
+**The planned hook bypass turned out to be unnecessary, which is a finding about the gate itself.** This plan assumed RED would require `--no-verify`: the local hooks make an unformatted, non-conventional, quick-gate-failing commit impossible to _create_ in a working tree. They do not make it impossible to _push_. A probe commit built with `git commit-tree` against the branch tip never touches the working tree, so `pre-push` ran `cargo xtask test-quick` on a genuinely clean checkout, passed honestly, and let the push through.
 
 No bypass was used anywhere in this phase. The evidence is stronger for it, because the probe now demonstrates the exact gap the gate exists to close: a hook can only attest to the checkout it ran in, and that checkout is not what the pull request contains.
 
-**The first skip-refusal probe passed, and proved nothing.** An `if: false` job was added to the workflow on the probe branch but left out of the aggregate's `needs` list. The aggregate never observed it and reported success. A probe that passes for the wrong reason is indistinguishable from a gate that works, and the only reason it was caught was that a *failing* aggregate was the expected result. Rewired, [run 34234034045](https://github.com/wahidyankf/rhino/actions/runs/34234034045) reported:
+**The first skip-refusal probe passed, and proved nothing.** An `if: false` job was added to the workflow on the probe branch but left out of the aggregate's `needs` list. The aggregate never observed it and reported success. A probe that passes for the wrong reason is indistinguishable from a gate that works, and the only reason it was caught was that a _failing_ aggregate was the expected result. Rewired, [run 34234034045](https://github.com/wahidyankf/rhino/actions/runs/34234034045) reported:
 
 ```
 Gate results: success success success success success skipped
@@ -139,12 +139,12 @@ A quality gate job did not succeed.
 
 **Three hook contracts, three independent refusals.** One probe commit violating all of them at once, [run 34234437170](https://github.com/wahidyankf/rhino/actions/runs/34234437170):
 
-| Job             | Result | Evidence                                                                    |
-| --------------- | ------ | --------------------------------------------------------------------------- |
-| Commit messages | fail   | `subject may not be empty`, `type may not be empty`                          |
-| Formatting      | fail   | `Code style issues found in the above file`                                  |
+| Job             | Result | Evidence                                                                         |
+| --------------- | ------ | -------------------------------------------------------------------------------- |
+| Commit messages | fail   | `subject may not be empty`, `type may not be empty`                              |
+| Formatting      | fail   | `Code style issues found in the above file`                                      |
 | Quick gate      | fail   | `assertion left == right failed: deliberate probe failure`, `1 passed; 1 failed` |
-| Quality gate    | fail   | aggregate                                                                    |
+| Quality gate    | fail   | aggregate                                                                        |
 
 `Pinned HIPPO bootstrap` and `Supply chain` passed, correctly — the probe touched nothing they check.
 
@@ -175,7 +175,7 @@ The local `pre-push` hook ran and passed first; the refusal is entirely the serv
 
 **2026-09-08 — the tree was invisible before it was declared.** With all 49 governance documents on disk and `repo-config.yml` unchanged, `cargo xtask self-validate` reported 2 budgeted files and 7 mapped directories — byte-identical to the phase-0 baseline taken when the tree did not exist. Declaring `repo-governance` as a mapped tree and adding the budget surfaces took it to 51 files and 13 directories.
 
-The RED here is not a finding. It is the *absence* of findings against 49 unchecked documents, which is the same failure mode as a skipped gate job: it looks exactly like passing.
+The RED here is not a finding. It is the _absence_ of findings against 49 unchecked documents, which is the same failure mode as a skipped gate job: it looks exactly like passing.
 
 **The declaration was proved load-bearing in both directions, by controlled toggle.** Removing one sibling from `workflows/README.md` reported `missing map entry for repo-governance/workflows/release-cut.md`. Setting the budget to 300 reported 24 documents over it. Both restored, gate clean.
 
@@ -199,14 +199,14 @@ The RED here is not a finding. It is the *absence* of findings against 49 unchec
 
 **2026-09-08 — all four open schema questions settled against the binary.**
 
-| Question | Answer | Evidence |
-| --- | --- | --- |
-| Skill adapter without an agent adapter, and the reverse? | Both accepted. `skill-adapter` is optional per harness. | A roster with one harness carrying both and one carrying only an agent adapter validates clean. |
-| Skill adapter with no `skills-root`? | Refused. | `line 24: skill-adapter: 'claude' declares a skill adapter, but no 'skills-root' names what it would express` |
-| Canonical instruction against its own prohibition glob? | Exempt, and the glob is not inert. | `**/AGENTS.md` prohibited with `canonical.instruction: AGENTS.md` validates clean; adding `docs/AGENTS.md` reports `unexpected-instruction-source`. |
-| `capabilities` non-empty with no `required-mcp`? | Accepted. | A four-name vocabulary with no `required-mcp` and no per-harness `capability` validates clean. |
+| Question                                                 | Answer                                                  | Evidence                                                                                                                                            |
+| -------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Skill adapter without an agent adapter, and the reverse? | Both accepted. `skill-adapter` is optional per harness. | A roster with one harness carrying both and one carrying only an agent adapter validates clean.                                                     |
+| Skill adapter with no `skills-root`?                     | Refused.                                                | `line 24: skill-adapter: 'claude' declares a skill adapter, but no 'skills-root' names what it would express`                                       |
+| Canonical instruction against its own prohibition glob?  | Exempt, and the glob is not inert.                      | `**/AGENTS.md` prohibited with `canonical.instruction: AGENTS.md` validates clean; adding `docs/AGENTS.md` reports `unexpected-instruction-source`. |
+| `capabilities` non-empty with no `required-mcp`?         | Accepted.                                               | A four-name vocabulary with no `required-mcp` and no per-harness `capability` validates clean.                                                      |
 
-**A fifth answer nobody asked for, and it is the important one.** `skills-root` declared with no `skill-adapter` on *any* harness is accepted — and a canonical skill sitting under that root then reconciles against nothing and reports clean. `canon 1 harnesses, 1 skills` with no findings. That is not a defect, because the two harnesses here genuinely read the canonical directory, but it means **a harness with no skill adapter has unverified skill coverage and the gate will not say so**. Anyone declaring `skills-root` has to know which harnesses they are choosing not to check.
+**A fifth answer nobody asked for, and it is the important one.** `skills-root` declared with no `skill-adapter` on _any_ harness is accepted — and a canonical skill sitting under that root then reconciles against nothing and reports clean. `canon 1 harnesses, 1 skills` with no findings. That is not a defect, because the two harnesses here genuinely read the canonical directory, but it means **a harness with no skill adapter has unverified skill coverage and the gate will not say so**. Anyone declaring `skills-root` has to know which harnesses they are choosing not to check.
 
 **The skill surfaces were established by inspection, and the sibling repository's answer is now out of date.** Current vendor documentation: Codex scans `.agents/skills` at the current directory, at parents, and at the repository root; OpenCode scans `.opencode/skills`, `.claude/skills`, and `.agents/skills` project-locally; Claude Code scans only `.claude/skills`. So Codex and OpenCode need no adapter — the canon is already their surface — and Claude Code needs exactly one, at `.claude/skills/{name}/SKILL.md`. The sibling repository routes Claude skills through `.claude/commands/{name}.md`, which predates Claude Code having a skills surface at all. This repository uses the current one, and that divergence is a decision.
 
@@ -216,13 +216,13 @@ Codex's own settings key for competing instructions was **not** established. Onl
 
 **GREEN and REFACTOR: every denial proved by breaking it.**
 
-| Weakening | Finding |
-| --- | --- |
-| `tools: Read, Glob, Grep, Bash` | `tools` grants `Bash`, which the canon denies |
-| `permission.bash: allow` | `permission.bash` is not `deny` |
-| `sandbox_mode = "workspace-write"` | `sandbox_mode` is not `read-only` |
-| `allowed-tools` added to a closed wrapper | beyond what a wrapper may declare |
-| canon copied into a wrapper | `body` is not the canonical route to `release-cut` |
+| Weakening                                 | Finding                                            |
+| ----------------------------------------- | -------------------------------------------------- |
+| `tools: Read, Glob, Grep, Bash`           | `tools` grants `Bash`, which the canon denies      |
+| `permission.bash: allow`                  | `permission.bash` is not `deny`                    |
+| `sandbox_mode = "workspace-write"`        | `sandbox_mode` is not `read-only`                  |
+| `allowed-tools` added to a closed wrapper | beyond what a wrapper may declare                  |
+| canon copied into a wrapper               | `body` is not the canonical route to `release-cut` |
 
 **The instruction prohibition proved in both forms, and in all four states.** A nested `AGENTS.md` is reported. `opencode.json` carrying `"instructions": ["docs/extra-rules.md"]` is reported in the vendor's own syntax. The same key written `[]` is not. The file present without the key is not. A file that cannot be parsed as JSON is reported as `the file is not readable in its declared format` rather than assumed clean.
 
@@ -241,14 +241,14 @@ A shim on `PATH` recorded the command Go actually runs and where it runs it:
 cwd=<repos>/hippo status=128 args=status --porcelain
 ```
 
-The path is written `<repos>/` because the shim printed this workstation's real one, and the pre-commit data-safety inspection caught it here rather than in review: evidence pasted verbatim from a tool carries whatever the tool knew about the machine. That is the bare repository, not the worktree. Go resolves the version-control root by walking up from the module and taking the **outermost** directory holding a `.git`, and it does not accept a `.git` *file* as one — so it walks past the worktree's own `.git` file and stops at `hippo/.git`, which is a bare repository where `git status` is fatal by definition.
+The path is written `<repos>/` because the shim printed this workstation's real one, and the pre-commit data-safety inspection caught it here rather than in review: evidence pasted verbatim from a tool carries whatever the tool knew about the machine. That is the bare repository, not the worktree. Go resolves the version-control root by walking up from the module and taking the **outermost** directory holding a `.git`, and it does not accept a `.git` _file_ as one — so it walks past the worktree's own `.git` file and stops at `hippo/.git`, which is a bare repository where `git status` is fatal by definition.
 
 The failure was not confined to this workstation's layout. A purpose-built ordinary clone — worktree inside, both checkouts committing — produced a binary stamped with the wrong revision and no error at all:
 
-| | |
-| --- | --- |
-| main checkout HEAD | `d9543145ddf64e27ac05c8e6febd77a53a7adc6e` |
-| worktree HEAD | `75fe89023e7be80fa2dc8485702efb2ea2ea4724` |
+|                              |                                            |
+| ---------------------------- | ------------------------------------------ |
+| main checkout HEAD           | `d9543145ddf64e27ac05c8e6febd77a53a7adc6e` |
+| worktree HEAD                | `75fe89023e7be80fa2dc8485702efb2ea2ea4724` |
 | `vcs.revision` in the binary | `d9543145ddf64e27ac05c8e6febd77a53a7adc6e` |
 
 `vcs.modified=true` came with it, because the main checkout sees the worktree directory as untracked. A Go binary built from a worktree inside its own repository carries the other checkout's provenance and calls itself dirty, and nothing says so.
@@ -261,10 +261,10 @@ So the containment change was reverted for HIPPO and the worktree moved back out
 
 A `pre-push` hook **in a linked worktree** exports `GIT_DIR`. In an ordinary checkout it does not. Two scratch repositories, the same hook printing its own environment:
 
-| Hook run from | `GIT_DIR` in the hook's environment |
-| --- | --- |
-| an ordinary checkout | absent |
-| a linked worktree | `.../repo/worktrees/wt` |
+| Hook run from        | `GIT_DIR` in the hook's environment |
+| -------------------- | ----------------------------------- |
+| an ordinary checkout | absent                              |
+| a linked worktree    | `.../repo/worktrees/wt`             |
 
 HIPPO's fixture helpers build their git commands with the ambient environment, and git prefers `GIT_DIR` over the directory a command was started in. So under `pre-push` every fixture `git init` re-initialises the repository under test and every fixture `git commit` lands on its checked-out branch. Reproduced from first principles:
 
@@ -276,7 +276,6 @@ $ GIT_DIR=../repo/.git git -c user.name="HIPPO fixture" ... commit --allow-empty
 ```
 
 The fixture directory stays empty and the real repository's HEAD moves. Every `t.TempDir()` in the suite is correct and irrelevant: the isolation is defeated by an environment variable, not by a path. The suite is hermetic when a human runs it, and not hermetic when a hook in a worktree does — which, after this plan, is the one caller that runs it before every push. The defect was latent for as long as it was, because it needs both conditions at once: fixtures that inherit the environment, and an integration path that works in worktrees. This plan supplied the second. Adopting a workflow is also a test of it.
-
 
 **The fix, and a first attempt at proving it that proved nothing.** Two layers, because there are two kinds of caller. `tests/support/git.go` builds every fixture Git command with `GIT_*` stripped from the environment — all of it, not the handful known to redirect a write today, since the set grows with Git and a fixture that quietly followed a new one would fail the same way for a new reason. `scripts/test-quick.sh`, `scripts/test.sh` and `scripts/build-release.sh` unset the same variables at the top, because the shell layer has its own exposure: `build-release.sh` runs `git -C "$source_root" checkout --detach`, and `-C` does not override `GIT_DIR`, so under a hook that detaches the real repository's HEAD.
 
@@ -291,7 +290,7 @@ Exit `128` because the fixture directory holds no repository at all — the comm
 
 ### Phase 7 — HIPPO's Pull-Request Gate
 
-**2026-09-08 — the RED had to be built with plumbing, and that is a finding about the hooks.** The four violations this phase needed — a non-conventional subject, an unformatted file, a failing quick check, a broken link — are exactly the four things HIPPO's hooks make impossible to *create* in a working tree, and `--no-verify` is prohibited here. A commit built with `git commit-tree` against a scratch index never touches the checkout, so `pre-push` ran the quick gate on a genuinely clean tree, passed honestly, and let the violating commit reach the pull request the gate had to refuse. The hooks were not bypassed; they were asked a different question.
+**2026-09-08 — the RED had to be built with plumbing, and that is a finding about the hooks.** The four violations this phase needed — a non-conventional subject, an unformatted file, a failing quick check, a broken link — are exactly the four things HIPPO's hooks make impossible to _create_ in a working tree, and `--no-verify` is prohibited here. A commit built with `git commit-tree` against a scratch index never touches the checkout, so `pre-push` ran the quick gate on a genuinely clean tree, passed honestly, and let the violating commit reach the pull request the gate had to refuse. The hooks were not bypassed; they were asked a different question.
 
 **The gate refused all four, and the aggregate refused the run.** [Run 34249416169](https://github.com/wahidyankf/hippo/actions/runs/34249416169): `subject may not be empty` and `type may not be empty`; `README.md` code style issues; `README.md:228: docs/does-not-exist.md does not exist` after 153 links; `Gate results: failure failure failure failure success success`. `Release build` and `Pinned RHINO bootstrap` passed, which is the correct answer for a probe that touched neither surface.
 
@@ -299,16 +298,15 @@ Exit `128` because the fixture directory holds no repository at all — the comm
 
 **Skip refusal, proved in isolation.** [Run 34250431194](https://github.com/wahidyankf/hippo/actions/runs/34250431194) carried an `if: false` job wired into the aggregate's `needs` and nothing else wrong. Every real job reported `success`, `Skip probe` reported `skipped`, and the aggregate refused: `Gate results: success success success success success success skipped`. Isolation mattered here — phase 2's first attempt at this in RHINO passed for the wrong reason, and a probe whose branch also carries an unrelated failure cannot tell you which one the aggregate objected to.
 
-**Dropping a requirement is the one edit that weakens a gate silently, so it was replaced by a stricter one.** Deleting `ci.yml` removed its `Validate pushed commits` job, and `tests/support/driver.go` asserted that job existed. The honest options were to keep a push-event job that re-lints history the gate has already approved, or to drop the assertion. Neither is good: the second quietly widens what the contributor gate is willing to accept. The scenario now asserts the gate's whole *trigger set* — `the quality gate runs on pull requests rather than pushes` — so reintroducing a push trigger is a reported failure. A dropped assertion should leave behind a stronger one, not a gap.
+**Dropping a requirement is the one edit that weakens a gate silently, so it was replaced by a stricter one.** Deleting `ci.yml` removed its `Validate pushed commits` job, and `tests/support/driver.go` asserted that job existed. The honest options were to keep a push-event job that re-lints history the gate has already approved, or to drop the assertion. Neither is good: the second quietly widens what the contributor gate is willing to accept. The scenario now asserts the gate's whole _trigger set_ — `the quality gate runs on pull requests rather than pushes` — so reintroducing a push trigger is a reported failure. A dropped assertion should leave behind a stronger one, not a gap.
 
 **A stale remote ref after a rebase merge is not a fast-forward, and force-updating it was refused.** Pull request #5 merged by rebase, so `main` gained a copy of the branch tip and the branch's own ref was left pointing at a commit no longer reachable. `--force-with-lease` was denied by this workstation's tooling. The refspec was retired in the same push that published the probe — one push, two refspecs, one pre-push quick gate — and the branch re-created fresh. The knock-on is recorded in `delivery.md`: GREEN was observed on the delivery pull request rather than on the RED one, because reaching GREEN in place needs a rewritten commit message and therefore a force update.
 
 **The hermetic fix held under its real caller.** Every push in this phase ran the `pre-push` quick gate from inside a linked worktree — the exact condition that wrote 168 commits in phase 6 — and each one recorded `repository history: unchanged` with the local head where it was left.
 
-
 ### Phases 8–10 — HIPPO's Ruleset, Hierarchy and Harness Contract
 
-**2026-09-08 — the ruleset, created after the check name existed.** Ruleset `22562053`, `bypass_actors: []`, `current_user_can_bypass: "never"`, requiring `Quality gate` from integration `15368` under a strict policy. A fast-forward commit with an *unchanged tree* — so no client-side rejection was possible and only the server could refuse it — was declined:
+**2026-09-08 — the ruleset, created after the check name existed.** Ruleset `22562053`, `bypass_actors: []`, `current_user_can_bypass: "never"`, requiring `Quality gate` from integration `15368` under a strict policy. A fast-forward commit with an _unchanged tree_ — so no client-side rejection was possible and only the server could refuse it — was declined:
 
 ```
 remote: - Changes must be made through a pull request.
@@ -319,12 +317,11 @@ remote: - Required status check "Quality gate" is expected.
 
 **A ruleset makes a carried finding impossible, and that moved a plan item.** The plan put `CLAUDE.md` in phase 9 and its prohibition finding in phase 10's RED. With `main` requiring a clean `Quality gate` and no bypass, a pull request carrying that finding cannot merge — so the finding has to be raised and resolved inside one delivery unit. `CLAUDE.md` moved to phase 10, where its RED and GREEN already lived. Ordering a plan's phases is also ordering what may be broken between them, and a no-bypass ruleset removes the slack a multi-phase RED assumes.
 
-**The prohibition set tightened while the prohibition was being lifted.** Moving `**/CLAUDE.md` to `canonical.instruction-adapter` reads like a loosening. In the same edit the list went from three globs to eight, `.cursorrules` widened to `**/.cursorrules`, `**/CLAUDE.md` *stayed* on the list — the validator exempts the canonical instruction and its declared adapter and keeps reporting every nested one — and `opencode.json`'s `instructions` array was added in field form. Six probes confirmed each half, including the two negatives that matter: `"instructions": []` is not a finding, and the file present without the key is not a finding.
+**The prohibition set tightened while the prohibition was being lifted.** Moving `**/CLAUDE.md` to `canonical.instruction-adapter` reads like a loosening. In the same edit the list went from three globs to eight, `.cursorrules` widened to `**/.cursorrules`, `**/CLAUDE.md` _stayed_ on the list — the validator exempts the canonical instruction and its declared adapter and keeps reporting every nested one — and `opencode.json`'s `instructions` array was added in field form. Six probes confirmed each half, including the two negatives that matter: `"instructions": []` is not a finding, and the file present without the key is not a finding.
 
 **The word budget did the job it exists for, on the one document nobody wanted to shorten.** Adding the integration path to `README.md` took it from 1583 counted words to 1743 against a 1600 limit. Trimming three words would have passed and left the document permanently at its ceiling. What actually fixed it was deleting what the README had no business restating: the contributor rules it now links to, and a "Popular entry points" list that duplicated `docs/README.md`, the Diátaxis landing page whose whole job that is. A budget is only useful if the answer to exceeding it is never a larger number.
 
 **A specification gap that predates this plan, found by assessing rather than by failing.** HIPPO's pinned RHINO gate has run since it was adopted and no scenario said so. A `docs-check.sh` that stopped asking one of its six questions would still have exited zero, and the check that no longer ran would have looked exactly like the check that passed. `Documentation hygiene wiring is complete` now names both properties — one shared definition, and every validator by name rather than by count. The C4 assessment for the same change was a verified no-op on content: a coding-harness roster is repository configuration and crosses no boundary in the guard.
-
 
 ## Rule Inventory Mapping
 
@@ -334,34 +331,34 @@ _Phase 0 produces the numbered inventories; phases 4 and 9 annotate each item wi
 
 Verified 2026-09-08 against `origin/main` at `b17503b`. Paths are relative to `repo-governance/`.
 
-| # | Rule | Destination |
-| --- | --- | --- |
-| R01 | A generic validator that owns no repository's answers | `vision/README.md` |
-| R02 | Ship no default a repository could decide differently | `vision/README.md` |
-| R03 | Name no repository, harness or organization in `src/` | `development/software-quality-enforcement.md` |
-| R04 | The policy/tool-behaviour line is whether a consumer could disagree and be right | `vision/README.md`, `workflows/rules-quality-gate.md` |
-| R05 | Exit `0`/`1`/`2` semantics; only validators report `1` | `development/public-contract.md` |
-| R06 | `version --json` shape is a public contract | `development/public-contract.md` |
-| R07 | No removal or rename without a major version | `development/public-contract.md` |
-| R08 | `specs/` canonical and at the root | `development/specification-maintenance.md` |
-| R09 | Assess Gherkin and C4 before every change; verified no-op over churn | `development/specification-maintenance.md`, `development/architecture-specifications.md` |
-| R10 | Gherkin-first; prove the binding fails for the stated reason | `workflows/gherkin-implementation-review.md`, `development/specification-maintenance.md` |
-| R11 | No unit exemption; integration and E2E exemptions name the concrete boundary and the alternative proof | `development/specification-maintenance.md`, `development/end-to-end-testing.md` |
-| R12 | Classify by the strongest real boundary touched; E2E is the process contract | `development/specification-maintenance.md`, `development/behaviour-driven-development.md` |
-| R13 | `test-quick` holds only what is fast enough for every push | `development/quality-gates.md` |
-| R14 | Validator-module line coverage ≥99% with two declared exclusions | `development/software-quality-enforcement.md` |
-| R15 | Read-only, network-free, process-free, path-contained, no loopback | `development/software-quality-enforcement.md` |
-| R16 | Understand, reuse, stop at the smallest verified change; a dependency needs need, alternatives, evidence and an owned consequence | `principles/minimal-sufficiency.md`, `development/dependency-selection.md` |
-| R17 | `#![forbid(unsafe_code)]` stays; `cargo deny check` gates | `development/dependency-selection.md`, `development/software-quality-enforcement.md` |
-| R18 | Documentation true to the built binary; Diátaxis; no unexecuted transcript; no contradiction of specs | `conventions/documentation-architecture.md` |
-| R19 | Phase separation by blank lines | `development/code-clarity.md` |
-| R20 | Comment safety invariants; no narration | `development/code-clarity.md` |
-| R21 | Release assets only through `cargo xtask dist`; digests only through `cargo xtask checksums`; tag reachable from the default branch | `workflows/release-cut.md` |
-| R22 | Never replace a tag; never weaken checksum verification | `workflows/release-cut.md` |
-| R23 | An archive per platform plus `checksums.txt`; embedded identity matching tag and commit | `workflows/release-cut.md` |
-| R24 | `npm ci` for locked tooling; hooks enforce commits, formatting and the quick gate | `development/quality-gates.md` |
-| R25 | Build output, coverage and scratch ignored | `conventions/working-tree.md` |
-| R26 | Never commit credentials, identifiers, absolute paths or private infrastructure values | `conventions/public-repository-data-safety.md` |
+| #   | Rule                                                                                                                                | Destination                                                                               |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| R01 | A generic validator that owns no repository's answers                                                                               | `vision/README.md`                                                                        |
+| R02 | Ship no default a repository could decide differently                                                                               | `vision/README.md`                                                                        |
+| R03 | Name no repository, harness or organization in `src/`                                                                               | `development/software-quality-enforcement.md`                                             |
+| R04 | The policy/tool-behaviour line is whether a consumer could disagree and be right                                                    | `vision/README.md`, `workflows/rules-quality-gate.md`                                     |
+| R05 | Exit `0`/`1`/`2` semantics; only validators report `1`                                                                              | `development/public-contract.md`                                                          |
+| R06 | `version --json` shape is a public contract                                                                                         | `development/public-contract.md`                                                          |
+| R07 | No removal or rename without a major version                                                                                        | `development/public-contract.md`                                                          |
+| R08 | `specs/` canonical and at the root                                                                                                  | `development/specification-maintenance.md`                                                |
+| R09 | Assess Gherkin and C4 before every change; verified no-op over churn                                                                | `development/specification-maintenance.md`, `development/architecture-specifications.md`  |
+| R10 | Gherkin-first; prove the binding fails for the stated reason                                                                        | `workflows/gherkin-implementation-review.md`, `development/specification-maintenance.md`  |
+| R11 | No unit exemption; integration and E2E exemptions name the concrete boundary and the alternative proof                              | `development/specification-maintenance.md`, `development/end-to-end-testing.md`           |
+| R12 | Classify by the strongest real boundary touched; E2E is the process contract                                                        | `development/specification-maintenance.md`, `development/behaviour-driven-development.md` |
+| R13 | `test-quick` holds only what is fast enough for every push                                                                          | `development/quality-gates.md`                                                            |
+| R14 | Validator-module line coverage ≥99% with two declared exclusions                                                                    | `development/software-quality-enforcement.md`                                             |
+| R15 | Read-only, network-free, process-free, path-contained, no loopback                                                                  | `development/software-quality-enforcement.md`                                             |
+| R16 | Understand, reuse, stop at the smallest verified change; a dependency needs need, alternatives, evidence and an owned consequence   | `principles/minimal-sufficiency.md`, `development/dependency-selection.md`                |
+| R17 | `#![forbid(unsafe_code)]` stays; `cargo deny check` gates                                                                           | `development/dependency-selection.md`, `development/software-quality-enforcement.md`      |
+| R18 | Documentation true to the built binary; Diátaxis; no unexecuted transcript; no contradiction of specs                               | `conventions/documentation-architecture.md`                                               |
+| R19 | Phase separation by blank lines                                                                                                     | `development/code-clarity.md`                                                             |
+| R20 | Comment safety invariants; no narration                                                                                             | `development/code-clarity.md`                                                             |
+| R21 | Release assets only through `cargo xtask dist`; digests only through `cargo xtask checksums`; tag reachable from the default branch | `workflows/release-cut.md`                                                                |
+| R22 | Never replace a tag; never weaken checksum verification                                                                             | `workflows/release-cut.md`                                                                |
+| R23 | An archive per platform plus `checksums.txt`; embedded identity matching tag and commit                                             | `workflows/release-cut.md`                                                                |
+| R24 | `npm ci` for locked tooling; hooks enforce commits, formatting and the quick gate                                                   | `development/quality-gates.md`                                                            |
+| R25 | Build output, coverage and scratch ignored                                                                                          | `conventions/working-tree.md`                                                             |
+| R26 | Never commit credentials, identifiers, absolute paths or private infrastructure values                                              | `conventions/public-repository-data-safety.md`                                            |
 
 No rule was dropped and none was softened. Three destinations are documents the adoption matrix did not allocate — `conventions/working-tree.md`, `development/public-contract.md`, `development/code-clarity.md` — recorded below as deviations.
 
@@ -369,25 +366,25 @@ No rule was dropped and none was softened. Three destinations are documents the 
 
 Verified 2026-09-08 against the tree at commit `4e478d2`. Paths are relative to `repo-governance/`.
 
-| # | Rule | Destination | Weakened? |
-| --- | --- | --- | --- |
-| H01 | Generic and repository-independent; no product-specific defaults | `principles/repository-independence.md` | No — restated as an absolute, with the reason a default cannot be retracted |
-| H02 | Preserve exit codes `73`/`75`/`78`, evidence readers, config compatibility | `development/public-contract.md` | No |
-| H03 | Assess both specification surfaces before every change | `development/specification-maintenance.md` | No |
-| H04 | README, `docs/` and CHANGELOG true to the binary; Diátaxis; no unexecuted transcript; `specs/` canonical | `conventions/documentation-architecture.md` | No |
-| H05 | Gherkin and C4 updated in the same change, Gherkin-first, prove the binding failure, strict adapters, verified no-op | `development/specification-maintenance.md`, `development/architecture-specifications.md`, `workflows/gherkin-implementation-review.md` | No — gains a named review workflow |
-| H06 | Every scenario through the unit adapter; no unit exemption; integration and E2E exemptions exact and named | `development/behaviour-driven-development.md`, `development/end-to-end-testing.md`, `development/specification-maintenance.md` | No — the exemption rule now names an accepted and a rejected reason |
-| H07 | `npm ci` for locked tooling; hooks enforce commits, staged formatting and the quick gate | `development/dependency-selection.md`, `development/quality-gates.md` | No |
-| H08 | Actions storage inside the free allowance, `$0` budget | `development/github-actions-storage.md` | No |
-| H09 | `test:quick` for fast verification, `npm test` before release, never Nx | `development/quality-gates.md` | No |
-| H10 | Documentation hygiene under the pinned RHINO; change the declaration, not the tool | `development/dependency-selection.md` | No |
-| H11 | Deterministic production core coverage at or above 99% | `development/quality-gates.md`, `development/test-driven-development.md` | No |
-| H12 | Phase separation in Go functions by blank lines | `development/code-clarity.md` | No |
-| H13 | Generated, coverage, local, runtime-evidence and scratch paths stay ignored | `conventions/working-tree.md` | No |
-| H14 | Never commit credentials, identifiers, absolute local paths or private infrastructure values | `conventions/public-repository-data-safety.md` | No |
-| H15 | Comment non-obvious shell safety invariants; no line-by-line narration | `development/code-clarity.md` | No |
-| H16 | Build release assets only through `scripts/build-release.sh` | `workflows/release-cut.md` | No |
-| H17 | Never replace a tag or weaken checksum verification | `workflows/release-cut.md` | No |
+| #   | Rule                                                                                                                 | Destination                                                                                                                            | Weakened?                                                                   |
+| --- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| H01 | Generic and repository-independent; no product-specific defaults                                                     | `principles/repository-independence.md`                                                                                                | No — restated as an absolute, with the reason a default cannot be retracted |
+| H02 | Preserve exit codes `73`/`75`/`78`, evidence readers, config compatibility                                           | `development/public-contract.md`                                                                                                       | No                                                                          |
+| H03 | Assess both specification surfaces before every change                                                               | `development/specification-maintenance.md`                                                                                             | No                                                                          |
+| H04 | README, `docs/` and CHANGELOG true to the binary; Diátaxis; no unexecuted transcript; `specs/` canonical             | `conventions/documentation-architecture.md`                                                                                            | No                                                                          |
+| H05 | Gherkin and C4 updated in the same change, Gherkin-first, prove the binding failure, strict adapters, verified no-op | `development/specification-maintenance.md`, `development/architecture-specifications.md`, `workflows/gherkin-implementation-review.md` | No — gains a named review workflow                                          |
+| H06 | Every scenario through the unit adapter; no unit exemption; integration and E2E exemptions exact and named           | `development/behaviour-driven-development.md`, `development/end-to-end-testing.md`, `development/specification-maintenance.md`         | No — the exemption rule now names an accepted and a rejected reason         |
+| H07 | `npm ci` for locked tooling; hooks enforce commits, staged formatting and the quick gate                             | `development/dependency-selection.md`, `development/quality-gates.md`                                                                  | No                                                                          |
+| H08 | Actions storage inside the free allowance, `$0` budget                                                               | `development/github-actions-storage.md`                                                                                                | No                                                                          |
+| H09 | `test:quick` for fast verification, `npm test` before release, never Nx                                              | `development/quality-gates.md`                                                                                                         | No                                                                          |
+| H10 | Documentation hygiene under the pinned RHINO; change the declaration, not the tool                                   | `development/dependency-selection.md`                                                                                                  | No                                                                          |
+| H11 | Deterministic production core coverage at or above 99%                                                               | `development/quality-gates.md`, `development/test-driven-development.md`                                                               | No                                                                          |
+| H12 | Phase separation in Go functions by blank lines                                                                      | `development/code-clarity.md`                                                                                                          | No                                                                          |
+| H13 | Generated, coverage, local, runtime-evidence and scratch paths stay ignored                                          | `conventions/working-tree.md`                                                                                                          | No                                                                          |
+| H14 | Never commit credentials, identifiers, absolute local paths or private infrastructure values                         | `conventions/public-repository-data-safety.md`                                                                                         | No                                                                          |
+| H15 | Comment non-obvious shell safety invariants; no line-by-line narration                                               | `development/code-clarity.md`                                                                                                          | No                                                                          |
+| H16 | Build release assets only through `scripts/build-release.sh`                                                         | `workflows/release-cut.md`                                                                                                             | No                                                                          |
+| H17 | Never replace a tag or weaken checksum verification                                                                  | `workflows/release-cut.md`                                                                                                             | No                                                                          |
 
 No rule was dropped and none was softened. Three destinations are documents the adoption matrix did not allocate; they are recorded below as deviations.
 
@@ -415,22 +412,21 @@ The corollary is that this plan's changes to RHINO and HIPPO are **not** propaga
 
 _Completed 2026-09-09. Each criterion is judged against recorded evidence, not against intent. RHINO is at `origin/main` `b17503b`; HIPPO at `065f200`._
 
-| Criterion | RHINO | HIPPO | Evidence |
-| --- | --- | --- | --- |
-| **AC-01** Governance extracted, verdict per document | MET | MET | 49 and 51 documents. Both rule inventories map completely — 26 of 26 and 17 of 17, tabled above. Six documents across the two repositories were authored beyond the adoption matrix because an inventoried rule had no destination; each is recorded as a deviation with its reason. |
-| **AC-02** Instruction file is an index; hierarchy navigable | MET | MET | Both `AGENTS.md` files state no rule of their own. RHINO: 51 budgeted files, 13 mapped directories, 511 links. HIPPO: 53 budgeted files, 8 mapped directories, 359 links. No findings in either. |
-| **AC-03** Workflows populated and executable | MET | MET | Both `workflows/` levels carry worktree-to-pull-request, harness-contract change, harness-parity verification, Gherkin-implementation review, red-green-refactor, rules propagation, rules grooming, rules quality gate, and a release cut naming that repository's real commands — `cargo xtask dist`/`cargo xtask checksums` for RHINO, `scripts/build-release.sh` for HIPPO. Every command named in HIPPO's tree resolves; `./hippo` appears only as the thing this repository is the exception to. |
-| **AC-04** Worktrees live in the repository and change no result | MET | **NOT MET, consciously** | RHINO tracks `worktrees/.gitkeep` with `/worktrees/*` ignored, and every gate reports its pre-worktree baseline. HIPPO's worktrees stay *outside* the checkout: `go build` walks up out of a worktree, takes the outermost `.git` **directory**, and runs `git status` in the bare repository, where it is fatal. No ignore rule reaches a reader outside the tree it governs. Recorded as an Adoption Matrix Deviation with the shimmed-`git` evidence rather than worked around. |
-| **AC-05** One merge-blocking gate, a superset of the hooks | MET | MET | RHINO run 34234034045; HIPPO run 34249416169 refused a non-conventional subject, an unformatted file and a broken link, with `Gate results: failure failure failure failure success success`. Skip refusal proved in isolation for both — HIPPO run 34250431194: `success success success success success success skipped` → refused. Every check from each retired `ci.yml` runs inside the new gate; `loaded-host.yml` stays nightly and never blocked a merge. **One caveat:** HIPPO's `Test` job failed at its formatting step before reaching the deliberately failing unit test, so the RED proved four failing jobs and three distinct reasons; the unit adapter's refusal is evidenced locally instead. |
-| **AC-06** Main refuses everybody | MET | MET | Rulesets `22550173` and `22562053`, both `bypass_actors: []`, `current_user_can_bypass: "never"`, requiring the observed name `Quality gate`. Both direct owner pushes refused by the server, naming both the pull-request rule and the required check. Both repositories then merged real pull requests through the ruleset. |
-| **AC-07** Three harnesses, no Nx, no MCP server | MET | MET | Both report `checked 3 harnesses, no findings`. RHINO `canon 3 harnesses, 7 skills, 2 agents`; HIPPO `canon 3 harnesses, 3 skills, 1 agents`. No `required-mcp`, no per-harness capability vector, no `.mcp.json` in either. `Nx` appears in HIPPO's tree only as a prohibition. Six probes confirmed the contract refuses a granted-too-much adapter, a dropped capability, a nested `AGENTS.md`, and a vendor settings field — and correctly stays silent on an empty field and an absent key. |
-| **AC-08** The workflow is exercised before it is required | MET | MET | Every change landed through a pull request from `worktree/repo-rules-adoption`: RHINO #1–#6, HIPPO #5 and #8–#11. Branch and worktree removal is the final cleanup item. **Partial on one clause:** the branch name is identical in all three repositories, but the worktree *path* is not — `worktrees/repo-rules-adoption` in beaver-nest and RHINO, `hippo-worktrees/repo-rules-adoption` beside HIPPO, for the AC-04 reason. The directory name is the same everywhere. |
-| **AC-09** Nothing already there is weakened | MET | MET | Coverage floors unchanged: RHINO ≥99% validator-module with its two declared exclusions, HIPPO 99.17% against a 99% floor. Exit-code contracts `0`/`1`/`2` and `73`/`75`/`78` restated at full force. Release immutability and checksum rules restated. Exemption boundaries tightened rather than relaxed — no unit exemption in either, and every E2E exemption names a concrete boundary and reason. The one dropped assertion, HIPPO's `Validate pushed commits`, was replaced in the same commit by a stricter one over the gate's whole trigger set. **The budget rule held under pressure:** `README.md` exceeded 1600 counted words and was resolved by removing restated rules and a duplicated entry-point list, never by raising the number. |
+| Criterion                                                       | RHINO | HIPPO                    | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --------------------------------------------------------------- | ----- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AC-01** Governance extracted, verdict per document            | MET   | MET                      | 49 and 51 documents. Both rule inventories map completely — 26 of 26 and 17 of 17, tabled above. Six documents across the two repositories were authored beyond the adoption matrix because an inventoried rule had no destination; each is recorded as a deviation with its reason.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **AC-02** Instruction file is an index; hierarchy navigable     | MET   | MET                      | Both `AGENTS.md` files state no rule of their own. RHINO: 51 budgeted files, 13 mapped directories, 511 links. HIPPO: 53 budgeted files, 8 mapped directories, 359 links. No findings in either.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **AC-03** Workflows populated and executable                    | MET   | MET                      | Both `workflows/` levels carry worktree-to-pull-request, harness-contract change, harness-parity verification, Gherkin-implementation review, red-green-refactor, rules propagation, rules grooming, rules quality gate, and a release cut naming that repository's real commands — `cargo xtask dist`/`cargo xtask checksums` for RHINO, `scripts/build-release.sh` for HIPPO. Every command named in HIPPO's tree resolves; `./hippo` appears only as the thing this repository is the exception to.                                                                                                                                                                                                                                                  |
+| **AC-04** Worktrees live in the repository and change no result | MET   | **NOT MET, consciously** | RHINO tracks `worktrees/.gitkeep` with `/worktrees/*` ignored, and every gate reports its pre-worktree baseline. HIPPO's worktrees stay _outside_ the checkout: `go build` walks up out of a worktree, takes the outermost `.git` **directory**, and runs `git status` in the bare repository, where it is fatal. No ignore rule reaches a reader outside the tree it governs. Recorded as an Adoption Matrix Deviation with the shimmed-`git` evidence rather than worked around.                                                                                                                                                                                                                                                                      |
+| **AC-05** One merge-blocking gate, a superset of the hooks      | MET   | MET                      | RHINO run 34234034045; HIPPO run 34249416169 refused a non-conventional subject, an unformatted file and a broken link, with `Gate results: failure failure failure failure success success`. Skip refusal proved in isolation for both — HIPPO run 34250431194: `success success success success success success skipped` → refused. Every check from each retired `ci.yml` runs inside the new gate; `loaded-host.yml` stays nightly and never blocked a merge. **One caveat:** HIPPO's `Test` job failed at its formatting step before reaching the deliberately failing unit test, so the RED proved four failing jobs and three distinct reasons; the unit adapter's refusal is evidenced locally instead.                                         |
+| **AC-06** Main refuses everybody                                | MET   | MET                      | Rulesets `22550173` and `22562053`, both `bypass_actors: []`, `current_user_can_bypass: "never"`, requiring the observed name `Quality gate`. Both direct owner pushes refused by the server, naming both the pull-request rule and the required check. Both repositories then merged real pull requests through the ruleset.                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **AC-07** Three harnesses, no Nx, no MCP server                 | MET   | MET                      | Both report `checked 3 harnesses, no findings`. RHINO `canon 3 harnesses, 7 skills, 2 agents`; HIPPO `canon 3 harnesses, 3 skills, 1 agents`. No `required-mcp`, no per-harness capability vector, no `.mcp.json` in either. `Nx` appears in HIPPO's tree only as a prohibition. Six probes confirmed the contract refuses a granted-too-much adapter, a dropped capability, a nested `AGENTS.md`, and a vendor settings field — and correctly stays silent on an empty field and an absent key.                                                                                                                                                                                                                                                        |
+| **AC-08** The workflow is exercised before it is required       | MET   | MET                      | Every change landed through a pull request from `worktree/repo-rules-adoption`: RHINO #1–#6, HIPPO #5 and #8–#11. Branch and worktree removal is the final cleanup item. **Partial on one clause:** the branch name is identical in all three repositories, but the worktree _path_ is not — `worktrees/repo-rules-adoption` in beaver-nest and RHINO, `hippo-worktrees/repo-rules-adoption` beside HIPPO, for the AC-04 reason. The directory name is the same everywhere.                                                                                                                                                                                                                                                                             |
+| **AC-09** Nothing already there is weakened                     | MET   | MET                      | Coverage floors unchanged: RHINO ≥99% validator-module with its two declared exclusions, HIPPO 99.17% against a 99% floor. Exit-code contracts `0`/`1`/`2` and `73`/`75`/`78` restated at full force. Release immutability and checksum rules restated. Exemption boundaries tightened rather than relaxed — no unit exemption in either, and every E2E exemption names a concrete boundary and reason. The one dropped assertion, HIPPO's `Validate pushed commits`, was replaced in the same commit by a stricter one over the gate's whole trigger set. **The budget rule held under pressure:** `README.md` exceeded 1600 counted words and was resolved by removing restated rules and a duplicated entry-point list, never by raising the number. |
 
 Two criteria carry a qualification rather than a clean pass, and both are stated above rather than rounded up: AC-04 is deliberately unmet for HIPPO, and AC-05's HIPPO RED proved one fewer distinct reason than planned.
 
 **Reconciliation found unfinished work, which is the only reason to do it separately from delivery.** RHINO's phases finished before HIPPO's, and by the time HIPPO's `README.md` was updated with the integration path the same task for RHINO had been carried past for two phases with its checkbox still unticked. Nothing else surfaced it: the gate was clean, both repositories reconciled three harnesses, and the criterion table was being filled in with real evidence for everything around it. The table was what caught it — writing "MET" beside AC-03 and AC-08 forced a read of the delivery items those labels point at, and one of them was open. It was reopened as a task and executed rather than absorbed into a criterion that was true of the other repository. A reconciliation pass that only confirms what you already believe has not been run.
-
 
 ## Adoption Matrix Deviations
 
@@ -438,14 +434,24 @@ _Any document whose verdict changes during execution is recorded here with the e
 
 **2026-09-08 — RHINO: three documents authored beyond the matrix.** The matrix allocated 38 inherited documents plus two authored workflows. Executing the inventory pass found three rules from RHINO's `AGENTS.md` with no destination among them, and a rule with no destination stops the phase by design:
 
-| Authored | Carries | Why no inherited document fits |
-| --- | --- | --- |
-| `conventions/working-tree.md` | `R25` — build output, coverage, and `local-tmp/` stay ignored | The sibling has no equivalent, and the worktree containment finding from phase 1 needed a home where the next person adding a tree-walking tool would find it. |
-| `development/public-contract.md` | `R05`, `R06`, `R07` — exit codes, `version --json`, no rename without a major version | The sibling ships no released artifact and has no consumer pinning it, so it has no document about a contract that must not move. |
-| `development/code-clarity.md` | `R19`, `R20` — phase separation, comment discipline | The sibling states both inline in `AGENTS.md` and nowhere else, so there was nothing to adopt. |
+| Authored                         | Carries                                                                               | Why no inherited document fits                                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `conventions/working-tree.md`    | `R25` — build output, coverage, and `local-tmp/` stay ignored                         | The sibling has no equivalent, and the worktree containment finding from phase 1 needed a home where the next person adding a tree-walking tool would find it. |
+| `development/public-contract.md` | `R05`, `R06`, `R07` — exit codes, `version --json`, no rename without a major version | The sibling ships no released artifact and has no consumer pinning it, so it has no document about a contract that must not move.                              |
+| `development/code-clarity.md`    | `R19`, `R20` — phase separation, comment discipline                                   | The sibling states both inline in `AGENTS.md` and nowhere else, so there was nothing to adopt.                                                                 |
 
 RHINO therefore receives 41 documents plus six READMEs — 49 files, of which 43 state rules. The matrix's verdicts on the 54 source documents are unchanged; this is addition, not revision.
 
 **2026-09-08 — RHINO: the Claude skill adapter path diverges from the sibling.** The matrix assumed the sibling's `.claude/commands/{name}.md` wrapper. Current vendor documentation puts Claude Code's native skill surface at `.claude/skills/{name}/SKILL.md`, and Codex and OpenCode both read `.agents/skills/` natively. RHINO declares one skill adapter, on Claude, at the current path. Recorded rather than silently adopted, because it is the drift policy working as designed: the sibling's choice was right when it was made.
 
 **2026-09-08 — HIPPO: worktrees stay outside the repository, and RHINO's containment does not transfer.** The matrix treated worktree containment as one decision applying to both repositories. It is a decision about a language toolchain. Cargo does not walk up out of a worktree looking for a version-control root; `go build` does, takes the outermost `.git` directory, and ignores the `.git` file a worktree actually has. In HIPPO's bare-repository layout that is a hard build failure; in an ordinary clone it is a binary stamped with the other checkout's revision. RHINO keeps `worktrees/` inside with ignore rules and a scan exclusion. HIPPO keeps its worktrees in `hippo-worktrees/` beside the checkout — the arrangement phase 6 had set out to retire — and states the reason where the next person would otherwise undo it. Acceptance criterion AC-04 is met for RHINO and consciously not met for HIPPO.
+
+## The Archival Pull Request Proved the Plan's Own Premise
+
+**2026-09-09 — the gate caught what the hooks could not, in this repository, on the last change this plan made.** The archival pull request failed its `Formatting` job. Not because the content was wrong, but because this worktree had no `node_modules`: `core.hooksPath` is `.husky/_`, that directory is generated by `npm install` and is ignored, and a fresh worktree therefore has a hooks path pointing at nothing. Git treats a missing hooks directory as no hooks. Every commit in this worktree, and the push that carried them, ran with `pre-commit`, `commit-msg` and `pre-push` silently absent — no error, no warning, nothing to notice.
+
+That is the exact contributor this plan wrote a merge-blocking gate for, stated in the plan's own context as "a contributor whose hooks never ran can open a pull request that skips a contract the maintainer believes is enforced." The difference is that the maintainer here was the plan, and the belief lasted until the gate said otherwise.
+
+Two things follow. First, a worktree is not a checkout until its dependencies are installed; RHINO's and HIPPO's worktree workflows both say to install and activate hooks as the first step, and this is the evidence for why that step is not ceremony. Second, `--no-verify` is not the only way to skip a hook — an uninstalled hooks path does it by default, and unlike `--no-verify` it leaves no trace in the command that ran. A rule that prohibits the flag does not cover the case; only the server-side gate does.
+
+The repair was `npm ci` under `./hippo run`, which materialized `.husky/_`, then `prettier --write` on the two files this plan had edited, then a re-push with the hooks actually running.
