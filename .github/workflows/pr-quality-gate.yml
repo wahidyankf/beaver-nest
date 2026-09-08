@@ -253,6 +253,34 @@ jobs:
         if: steps.route.outputs.hippo_consumer == 'true'
         run: ./hippo run --class ephemeral --disk-path . -- ./.github/scripts/test-hippo-bootstrap.sh
 
+      # Pinned to the version this workstation's `pre-push` hook runs. The
+      # runner image ships an older ShellCheck that still emits SC2015 for
+      # `A && B || continue`, an idiom `rhino` uses correctly; a mirror that
+      # fails on linter drift rather than on the code would train its readers to
+      # ignore it. Checksum-verified, following the pinned-Caddy precedent in
+      # `scheduled-quality-gates.yml`.
+      - name: Install the pinned ShellCheck
+        if: steps.route.outputs.rhino_consumer == 'true'
+        env:
+          SHELLCHECK_VERSION: "0.11.0"
+          SHELLCHECK_LINUX_X86_64_SHA512: "25df28923d7d89cfdb9fa8aeef762a887f2bd4ebfbcd43ae71068c60e9458d66250b0f8d6fd66b4bc03723e6cdd47983c547e3ab4f3ea2cbc4bc4028842cc7b9"
+        run: |
+          set -eu
+          archive="${RUNNER_TEMP}/shellcheck.tar.xz"
+          curl --fail --location --silent --show-error \
+            "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            --output "${archive}"
+          printf '%s  %s\n' "${SHELLCHECK_LINUX_X86_64_SHA512}" "${archive}" | sha512sum --check --strict
+          tar --extract --xz --file "${archive}" --directory "${RUNNER_TEMP}" \
+            "shellcheck-v${SHELLCHECK_VERSION}/shellcheck"
+          # A dedicated directory, not RUNNER_TEMP itself: prepending the whole
+          # scratch directory to PATH would make every file dropped there by any
+          # step resolvable as a command.
+          mkdir -p "${RUNNER_TEMP}/pinned-bin"
+          install -m 0755 "${RUNNER_TEMP}/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" \
+            "${RUNNER_TEMP}/pinned-bin/shellcheck"
+          printf '%s\n' "${RUNNER_TEMP}/pinned-bin" >> "${GITHUB_PATH}"
+
       - name: Verify the pinned RHINO bootstrap
         if: steps.route.outputs.rhino_consumer == 'true'
         run: |
