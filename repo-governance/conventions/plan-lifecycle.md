@@ -31,8 +31,6 @@ Each formal plan contains:
 - `delivery.md`: ordered tasks, executors, quality routes, proof, checkpoints; and
 - `learnings.md`: capture approach and transient observations.
 
-`README.md` names the `worktrees/<name>/` checkout the plan's execution uses, under the [integration path](integration-path.md). Execution never runs from the primary checkout, except the release invocation that convention exempts, and an invocation-selected branch is valid only inside that worktree. A plan predating this requirement records its location at execution start.
-
 Use exactly one technical shape: a single `tech-docs.md`, or `tech-docs/README.md` with mapped companions. Choose by reader needs, cohesion, and navigation: keep one document while it remains coherent; split when distinct responsibilities benefit from their own reading order and ownership; collapse fragments with no distinct job. File length is a review signal, never a requirement or prohibition for either shape. Never keep both shapes or pre-create empty companions. Follow [minimal sufficiency](../principles/minimal-sufficiency.md).
 
 Split companions carry a two-digit reading-order prefix (`01-event-model.md`); `README.md` reads first. Renumber on insertion; order navigation and maps by number. Existing plans adopt this when next materially changed.
