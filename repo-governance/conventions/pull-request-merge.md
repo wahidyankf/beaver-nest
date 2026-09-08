@@ -12,17 +12,11 @@ All five must hold at the moment of merge:
 - **Conversations.** Every review conversation is resolved, or dismissed by the user. A review is not required, but conversations one produced still bind.
 - **Surface gates.** Every gate the changed reachable behaviour requires has a passing terminal result. When no reachable behaviour changed, say so explicitly rather than leaving the question open.
 
-The `main` ruleset requires no approving review, because the sole maintainer cannot approve their own pull request and requiring one would block every merge. These preconditions, not a reviewer, are what stands in for that.
-
 ## What Safety Means Here
 
-A pull request is safe when two of those hold: its diff leaks nothing, and the `Quality gate` check passes on its exact head. Nothing else stands between a change and the trunk — no approving reviewer, and no human reading every line before merge. The remaining preconditions are integration hygiene: they keep history linear, conversations closed, and changed surfaces exercised, and they are not the safety claim.
+A pull request is safe when two of those preconditions hold: its diff leaks nothing, and the `Quality gate` check passes on its exact head. Nothing else stands between a change and the trunk. The ruleset requires no approving review, because the sole maintainer cannot approve their own pull request and requiring one would block every merge, so no human reads every line before merge and these preconditions stand in for the reviewer. The other three are integration hygiene: they keep history linear, conversations closed, and changed surfaces exercised, and they are not the safety claim.
 
 This is why the repository's testing and development practices carry weight rather than ceremony. Whatever the gate does not exercise, nothing checks. [Test-driven development](../development/test-driven-development.md), the [specification corpus](../development/specification-maintenance.md), unit coverage, integration and end-to-end suites, and the manual evidence the [software-quality map](../development/software-quality-enforcement.md) requires are what give the gate something to fail on. Weakening any of them does not merely lower quality; it silently widens what this convention is willing to call safe.
-
-## What the Body Must Carry
-
-The body states the outcome and the problem it solves rather than a list of edits; what is in scope and what is deliberately not, each with its reason; where to start reading and which paths to skip; what was verified, what risk remains, and the rollback; why this is one natural seam and which artefacts had to land together; and why the resulting state is deployable. A rules-and-documentation change carries this too, or most of this repository's traffic would justify nothing.
 
 ## Draft Lifecycle
 
