@@ -67,9 +67,10 @@ result for a tree nobody asked about.
 
 ### `test:bootstrap`
 
-Runs [the consumer bootstrap suite](../../.github/scripts/test-rhino-bootstrap.sh) — sixteen
-scenarios over cache integrity, install serialization, stale-owner reclamation, and bounded
-retention, against a synthetic release, so it touches neither GitHub nor the real cache. The
+Runs [the consumer bootstrap suite](../../.github/scripts/test-rhino-bootstrap.sh) — twenty-one
+scenarios over cache integrity, argument passthrough, install serialization, stale-owner
+reclamation, retention, and the disjointness of this wrapper's state from HIPPO's, against a
+synthetic release, so it touches neither GitHub nor the real cache. The
 pre-push hook runs it when a pushed range touches the consumer boundary; this target exists so it
 is also runnable on its own.
 

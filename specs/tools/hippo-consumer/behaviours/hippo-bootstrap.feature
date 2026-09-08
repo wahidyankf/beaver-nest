@@ -2,10 +2,26 @@ Feature: Safe HIPPO consumer bootstrap
   The repository consumer must serialize release installation without letting stale or corrupt
   ownership records block installation forever or disrupt a live installer.
 
+  Scenario: A cold cache installs once and a warm cache needs no transport
+    Given a consumer cache holding no copy of the pinned release
+    When the HIPPO consumer bootstrap runs, and then runs again with transport unavailable
+    Then the release is downloaded exactly once and both runs execute it
+
+  Scenario: Repository worker settings precede the caller's run arguments
+    Given a caller invoking the HIPPO consumer bootstrap with a guarded run and its own arguments
+    When the bootstrap executes the pinned release
+    Then every repository worker mapping arrives ahead of the caller's arguments, whose order is
+      unchanged
+
   Scenario: Tampered warm-cache payload never executes
     Given a cached executable has a wrong digest or embedded release identity
     When the HIPPO consumer bootstrap runs while release transport is unavailable
     Then it rejects the cached payload before that payload executes
+
+  Scenario: A downloaded archive whose digest misses the pin never executes
+    Given the consumer lock pins a checksum the published archive does not match
+    When the HIPPO consumer bootstrap downloads that archive
+    Then it exits as invalid configuration without publishing or executing the payload
 
   Scenario: Non-exact stable release version is rejected
     Given the consumer lock contains a malformed or path-shaped release version
@@ -16,6 +32,11 @@ Feature: Safe HIPPO consumer bootstrap
     Given a downloaded release reports a duplicated or additional identity field
     When the HIPPO consumer bootstrap validates the extracted executable
     Then it rejects the release without publishing it to the cache
+
+  Scenario: Unsupported platform is refused before any transport
+    Given a host whose operating system or architecture is outside the published release matrix
+    When the HIPPO consumer bootstrap resolves its platform
+    Then it exits as invalid configuration without reading a checksum or contacting transport
 
   Scenario: Matching live install-lock owner remains protected
     Given an install lock records a live process and its matching process-start identity
@@ -42,20 +63,30 @@ Feature: Safe HIPPO consumer bootstrap
     When another HIPPO consumer bootstrap tries to install the pinned release
     Then it reclaims only positively stale state while fresh or live preparations remain protected
 
+  Scenario: Concurrent cold callers install from exactly one verified download
+    Given two consumers start against a cache holding no copy of the pinned release
+    When both contend for the install
+    Then both execute the release from one download and no ownership record survives
+
   Scenario: Concurrent stale reclaimers preserve a replacement live owner
     Given a stale install record and two concurrent consumer contenders
     When one consumer reclaims the record and publishes live ownership during installation
     Then the replacement remains owned and the pinned release downloads exactly once
+
+  Scenario: A consumer never removes an install lock it did not publish
+    Given a consumer's install lock has been replaced by another live owner's record
+    When that consumer finishes installing and releases its lock
+    Then it leaves the replacement in place rather than admitting a third installer
 
   Scenario: Install guard storage stays bounded across release versions
     Given one consumer cache has installed several distinct pinned release versions
     When release-directory retention prunes superseded versions
     Then the cache retains exactly one install guard for the whole cache root
 
-  Scenario: Retention never deletes a release another consumer is installing
-    Given one consumer is publishing an install into its pinned release directory
+  Scenario: Retention never deletes a release another consumer is using
+    Given one consumer holds a live claim on the release it is running
     When another consumer with a different pinned version prunes superseded releases
-    Then the release being installed survives and both consumers keep verified executables
+    Then the claimed release survives and both consumers keep verified executables
 
   Scenario: Retention never evicts a release another repository still uses
     Given more repositories share one cache root than the ranked retention budget retains

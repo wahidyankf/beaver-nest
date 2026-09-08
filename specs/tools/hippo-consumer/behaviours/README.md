@@ -11,6 +11,9 @@ longer matches its implementations before the push rather than after it.
 
 ## Directory Map
 
-- [HIPPO bootstrap](hippo-bootstrap.feature) specifies safe install-lock ownership and
-  reclamation, plus the retention rules that keep one shared cache root safe for every
-  repository using it.
+- [HIPPO bootstrap](hippo-bootstrap.feature) specifies installing a pinned release exactly once and
+  serving it warm without transport, mapping this repository's worker settings ahead of the caller's
+  own run arguments, refusing a payload whose checksum or embedded identity misses its pin and a
+  host outside the published platform matrix, safe install-lock ownership and reclamation under
+  contention, and the retention rules that keep one shared cache root safe for every repository
+  using it.
