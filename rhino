@@ -554,7 +554,8 @@ if ! cached_binary_is_valid; then
 	trap - EXIT HUP INT TERM
 fi
 # Retention mutates the shared cache root, so it runs while the guard is still
-# held. Releasing first would let it delete a release a peer is publishing.
+# held and only one consumer prunes at a time. What keeps it off a release a
+# peer is publishing is that peer's claim, published before it took the guard.
 if [ -n "$installed_release" ]; then
 	prune_cache
 fi
