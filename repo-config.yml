@@ -1,10 +1,11 @@
 # schema: rhino/repo-config/v1
 #
 # What this repository enforces about its own documentation, declared rather
-# than compiled in. Every value is transcribed from apps/badakmini-cli --
-# Governance.fs, HarnessContract.fs, and the eight invocations in its
-# project.json -- so the new gate checks what the old one checked, for the same
-# reasons, before the old one is retired.
+# than compiled in. Every value was transcribed from the retired Badakmini
+# validator -- its Governance.fs, its HarnessContract.fs, and the eight
+# invocations its project.json composed -- so this gate checks what that one
+# checked, for the same reasons. That project no longer exists; the history is
+# in plans/, and these values are now the only statement of the policy.
 #
 # Nothing here is a runtime value. No host, no path outside the repository, no
 # credential: see repo-governance/conventions/public-repository-data-safety.md.
@@ -20,10 +21,10 @@ governance-word-budget:
       fail: 750
 
 governance-directory-map:
-  # Governance.fs hard-codes `repo-governance` as its default, but the policy
-  # this repository actually runs is the four `--directory` invocations in
-  # apps/badakmini-cli/project.json. Declaring all four is what makes the two
-  # gates comparable: one target per tree becomes one list.
+  # The retired validator defaulted to `repo-governance` alone, but the policy
+  # this repository actually ran was four separate `--directory` invocations.
+  # Declaring all four here is what made the two gates comparable: one target
+  # per tree became one list.
   trees:
     - path: repo-governance
     - path: docs
