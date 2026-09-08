@@ -14,7 +14,7 @@ Do not commit or push repository changes unless the action is explicitly authori
 Examples:
 
 - “Commit these changes” authorizes a commit but not a push.
-- “Push the existing commits to `origin/main`” authorizes that push but not a new commit.
+- “Push the existing commits to the task branch” authorizes that push but not a new commit.
 - “Commit and push” authorizes both actions within the current task's scope.
 
 This convention preserves user control over repository history and external side effects.
