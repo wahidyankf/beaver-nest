@@ -23,7 +23,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Documentation architecture](documentation-architecture.md) organizes general non-rule documentation under `docs/` with Diátaxis.
 - [GitHub polling](github-polling.md) limits repeated status requests to GitHub to avoid rate-limit pressure.
 - [Directory maps](directory-maps.md) keep governance, documentation, and specification trees self-describing and navigable.
-- [Integration path](integration-path.md) makes local `main` to `origin/main` the repository's only integration route and prohibits pull requests.
+- [Integration path](integration-path.md) routes every change through a `worktrees/` checkout and a pull request into `main`, the only persistent branch.
 - [Last-resort questions](last-resort-questions.md) require exhausting safe ways to proceed before asking the user.
 - [Language](language.md) makes English the repository's primary working language.
 - [Markdown links](markdown-links.md) keep internal links resolvable across repository-owned Markdown.
