@@ -26,6 +26,23 @@
 # rather than left to review.
 set -eu
 
+# The one argument this wrapper reads rather than forwards, and only in first
+# position. `--bootstrap-exec <command> [args...]` resolves and verifies the
+# pinned release once, then executes the caller's command with `RHINO_BIN`
+# naming the verified executable. A gate that runs several checks against one
+# release otherwise pays the whole resolution -- an exclusive install guard, a
+# digest of the payload, and a subprocess asking it for its identity -- once per
+# check, serialized against itself.
+bootstrap_exec=
+if [ "${1:-}" = --bootstrap-exec ]; then
+	bootstrap_exec=1
+	shift
+	if [ "$#" -eq 0 ]; then
+		echo "rhino --bootstrap-exec needs a command to run" >&2
+		exit 78
+	fi
+fi
+
 tool_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 lock_file="$tool_dir/rhino.lock"
 
@@ -560,6 +577,18 @@ if [ -n "$installed_release" ]; then
 	prune_cache
 fi
 release_install_guard
+
+# `exec` in both branches, and that is load-bearing rather than tidy: the
+# release claim published above names this process, and exec preserves both the
+# PID and its start time, so the claim stays truthful for exactly as long as the
+# work runs. A forked child would leave the claim owned by a process that had
+# already exited, and a peer's retention pass would be free to reclaim a release
+# still in use.
+if [ -n "$bootstrap_exec" ]; then
+	RHINO_BIN=$binary
+	export RHINO_BIN
+	exec "$@"
+fi
 
 # The vector goes through untouched. Nothing above knows what the commands are,
 # and a repository that wants a narrower invocation says so at the call site

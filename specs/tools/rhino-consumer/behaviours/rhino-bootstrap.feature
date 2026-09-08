@@ -9,9 +9,32 @@ Feature: Safe RHINO consumer bootstrap
     Then the release is downloaded exactly once and both runs execute it
 
   Scenario: The caller's argument vector reaches the release unchanged
-    Given a caller invoking the RHINO consumer bootstrap with a multi-word command and a flag
+    Given a caller invoking the RHINO consumer bootstrap with a multi-word command and a flag,
+      neither of which is the bootstrap's own resolve request
     When the bootstrap executes the pinned release
     Then the release receives exactly those arguments in order, with none added or removed
+
+  Scenario: One resolution serves a whole gate
+    Given a caller that must run several checks against the same pinned release
+    When it asks the RHINO consumer bootstrap to resolve once and run its command
+    Then the command runs with the verified executable's path in its environment, and the bootstrap
+      verifies that executable once rather than once per check
+
+  Scenario: A resolved run stays claimed for as long as its command runs
+    Given the RHINO consumer bootstrap resolving once for a caller's command
+    When that command inspects the cache while it is still running
+    Then a live release claim for the running process is present, so retention cannot reclaim the
+      release the command is about to use
+
+  Scenario: Resolving once does not skip payload verification
+    Given a cached executable has a wrong digest or embedded release identity
+    When a caller asks the RHINO consumer bootstrap to resolve once and run its command
+    Then the bootstrap refuses before the caller's command runs at all
+
+  Scenario: A resolve request without a command is refused
+    Given a caller that asks the RHINO consumer bootstrap to resolve once but names no command
+    When the bootstrap parses that request
+    Then it refuses as an invalid invocation and executes nothing
 
   Scenario: Tampered warm-cache payload never executes
     Given a cached executable has a wrong digest or embedded release identity

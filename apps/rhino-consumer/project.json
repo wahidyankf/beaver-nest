@@ -21,37 +21,18 @@
         "{workspaceRoot}/opencode.json",
         "{workspaceRoot}/opencode.jsonc",
         "{workspaceRoot}/plans/**/*",
-        "{workspaceRoot}/specs/**/*"
+        "{workspaceRoot}/specs/**/*",
+        "{workspaceRoot}/apps/rhino-consumer/repository-gate.sh"
       ],
       "options": {
         "commands": [
           {
-            "command": "./rhino repo-config validate",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "./rhino governance word-budget validate",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "./rhino governance directory-map validate",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "./rhino harness parity validate",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "./rhino md internal-link validate",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "./rhino md mermaid validate",
+            "command": "./rhino --bootstrap-exec apps/rhino-consumer/repository-gate.sh",
             "forwardAllArgs": false
           }
         ],
         "forwardAllArgs": false,
-        "parallel": true
+        "parallel": false
       }
     },
     "test:bootstrap": {

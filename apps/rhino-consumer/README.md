@@ -1,10 +1,11 @@
 # RHINO Consumer
 
-This project owns Beaver Nest's repository documentation gate. It has no source. It is a
-`project.json` and this README, composing invocations of the pinned
-[RHINO](https://github.com/wahidyankf/rhino) executable as Nx targets — the same shape the
-Badakmini project used to compose raw `dotnet` commands, and for the same reason: the tool is not
-an Nx-plugin language, so its targets are declared rather than inferred.
+This project owns Beaver Nest's repository documentation gate. It has no product source: a
+`project.json`, one short shell script that says which checks run together, and this README,
+composing invocations of the pinned [RHINO](https://github.com/wahidyankf/rhino) executable as Nx
+targets — the same shape the Badakmini project used to compose raw `dotnet` commands, and for the
+same reason: the tool is not an Nx-plugin language, so its targets are declared rather than
+inferred.
 
 ## What it owns, and what it does not
 
@@ -44,7 +45,8 @@ $ ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run rhino-consum
 
 ### `test:repo`
 
-Six validator invocations in parallel, failing the target if any of them fails:
+One resolution, then six validator invocations in parallel, failing the target if any of them
+fails:
 
 | Invocation                                | What it checks                                            |
 | ----------------------------------------- | --------------------------------------------------------- |
@@ -61,9 +63,16 @@ its four `--directory` calls became one, because the four mapped trees are now d
 addition, and it has no Badakmini counterpart — the policy only became a checkable artifact when it
 stopped being compiled into the validator.
 
-The commands are written as `./rhino …`, which resolves only from the repository root. That is
-deliberate: the alternative is a target that runs from the wrong directory and reports a clean
-result for a tree nobody asked about.
+The target runs `./rhino --bootstrap-exec apps/rhino-consumer/repository-gate.sh` rather than six
+`./rhino …` commands. Resolving the pinned release is not free — the bootstrap takes the shared
+install guard, digests the cached executable, and asks it for its embedded release identity — and
+six of those serialize against each other on the guard. `--bootstrap-exec` pays it once and names
+the verified executable in `RHINO_BIN`; measured on this repository, that took the warm gate from
+about 499 ms to about 348 ms. The bootstrap `exec`s the script rather than forking it, so the
+release claim it published stays truthful for as long as the checks run.
+
+Everything still resolves from the repository root. That is deliberate: the alternative is a gate
+that runs from the wrong directory and reports a clean result for a tree nobody asked about.
 
 ### `test:bootstrap`
 
@@ -79,6 +88,7 @@ is also runnable on its own.
 | Path                                      | What it is                         |
 | ----------------------------------------- | ---------------------------------- |
 | `apps/rhino-consumer/project.json`        | the targets                        |
+| `apps/rhino-consumer/repository-gate.sh`  | which checks run together          |
 | `repo-config.yml`                         | the declared policy                |
 | `rhino`                                   | the bootstrap                      |
 | `rhino.lock`                              | the pinned release and its digests |
