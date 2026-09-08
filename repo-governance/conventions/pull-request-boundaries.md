@@ -7,7 +7,7 @@ A **delivery unit** is the contiguous run of work ending at a point where what h
 ## Where a Pull Request Opens
 
 - A pull request opens at a delivery boundary, not at every phase. Work inside a unit still passes its own checkpoint, but opens nothing. Pushing the branch to `origin` for durability opens nothing either.
-- A plan declares its delivery boundaries when it is written, and the last change-producing phase is always one; otherwise the plan's final work never reaches `main`. A setup or baseline phase that produces nothing reviewable is never a boundary — move any reviewable work it acquired into the first real unit.
+- A plan declares its delivery boundaries and its work location — the `worktrees/<name>/` checkout its execution uses — when it is written, and a plan predating this requirement records both at execution start. Execution never runs from the primary checkout, except the release invocation the [integration path](integration-path.md) exempts, and a branch chosen at invocation is valid only inside that worktree. The last change-producing phase is always a boundary; otherwise the plan's final work never reaches `main`. A setup or baseline phase that produces nothing reviewable is never a boundary — move any reviewable work it acquired into the first real unit.
 - Independent work delivers separately. Grouping is permitted only along a dependency chain; folding two independent pieces into one pull request to reduce their number re-serializes work that was independent.
 - A ready increment is never held to batch it with later work, and an open pull request is never parked to merge with others at the end.
 

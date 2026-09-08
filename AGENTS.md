@@ -21,7 +21,7 @@
 
 ## Version Control
 
-- Only `main` persists; integrate `worktrees/` branches by PR under [integration](repo-governance/conventions/integration-path.md), never direct push; delete both afterward. Sync a task branch with `origin/main` before working and review what the sync brings in; keep it under two days; one worktree per plan or task. Open one PR per independently shippable unit at its [boundary](repo-governance/conventions/pull-request-boundaries.md); `[AI]` merges once [PR merge](repo-governance/conventions/pull-request-merge.md) preconditions hold.
+- Only `main` persists; integrate `worktrees/` branches by PR under [integration](repo-governance/conventions/integration-path.md), never direct push; delete both afterward.
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md). Before committing, inspect and remove prohibited data under [data safety](repo-governance/conventions/public-repository-data-safety.md).
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.
@@ -31,7 +31,7 @@
 ## Governance
 
 - Align harnesses under [contract](repo-governance/conventions/coding-harness-contract.md).
-- [Propagate rules](repo-governance/workflows/rules-propagation.md); [rules grooming](repo-governance/workflows/rules-grooming.md) and plan/rules quality gates require explicit requests.
+- [Propagate rules](repo-governance/workflows/rules-propagation.md); plan/rules quality gates require explicit requests.
 - Apply [Diátaxis](repo-governance/conventions/documentation-architecture.md).
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md), [track tasks](repo-governance/conventions/task-tracking.md), and retain unfamiliar parallel changes under `plans/` and `repo-governance/`.
 - Use ignored `local-tmp/` for scratch and `generated-reports/` for requested pre-plan audits/reports; neither is authoritative or a plan.
@@ -50,10 +50,10 @@
 - Comment non-obvious shell safety invariants and lifecycle boundaries; avoid line-by-line narration.
 - New tables need [audit columns](repo-governance/conventions/database-audit-columns.md); event logs and projections are exempt.
 - Bnest is 24/7; obey [continuity](repo-governance/development/live-service-continuity.md); failed health stops work.
-- Commit/push is not deployment. Before reporting active-service completion, verify the routed backend serves the intended revision/behaviour; otherwise perform a no-downtime candidate cutover. Release only from the primary checkout on local `main`, never a `worktrees/` checkout.
+- Commit/push is not deployment. Before reporting active-service completion, verify the routed backend serves the intended revision/behaviour; otherwise perform a no-downtime candidate cutover.
 - Before completion, stop unneeded non-production servers, watchers, candidates, and temporary proxies; retain only the active route and bounded drain.
 - Separate server/proxy lifecycles; follow [start/restart](repo-governance/workflows/development-server-restart.md) and [proxy](repo-governance/workflows/development-tailnet-proxy.md).
-- [Software quality](repo-governance/development/software-quality-enforcement.md): pass required gates; manually `curl` affected REST/GraphQL operations. A leak-free diff plus the exact-head gate is the entire PR safety claim, so weakening either weakens what counts as safe.
+- [Software quality](repo-governance/development/software-quality-enforcement.md): pass required gates; manually `curl` affected REST/GraphQL operations.
 - Guard local compute through checksum-pinned `./hippo` per [resource-aware development](repo-governance/development/resource-aware-development.md); implementation stays upstream. Independent work overlaps after fixed shared-root allocation; preserve dependency, output, transaction, port, release, storage, and correctness ordering. Exit `75`: retry only its FIFO invocation after the condition clears. Exit `73`: clean storage. Exit `78`: replan. Never bypass, duplicate-retry, weaken gates, change class, or abandon; recovery/status stay direct.
 - Keep `test:e2e` outside `test:quick`; at the exact origin run only affected/UI-accessibility states, await LiveView, isolate users, and close task-created tabs/contexts except handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
 - Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at exact origins/viewports; tests never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/exploratory-and-usability-testing.md).
