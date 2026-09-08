@@ -1,5 +1,7 @@
 # Integration Path
 
+This repository practises trunk-based development. `main` is the trunk, every branch off it is short-lived, and history stays linear. It takes the scaled variant, in which work reaches the trunk through a pull request rather than a direct commit, so the shorthand "commit to trunk" never applies here.
+
 Integrate every change through a pull request from a task branch into `main`. Local `main` has no executable path to `origin/main`: the repository's `main` ruleset refuses direct pushes, force pushes, and branch deletion for every actor, including the repository owner.
 
 ## Requirements
