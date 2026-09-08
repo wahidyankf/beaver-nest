@@ -40,7 +40,7 @@ For an agent, keep exactly one adapter in each of `.codex/agents/`, `.claude/age
 Before acting, read the complete canonical agent definition at the repository-root path .agents/agents/<name>.md and follow it as authoritative. If it cannot be read, stop and report the missing path.
 ```
 
-Use an existing adapter from the same harness as the schema example. Translate canonical capabilities and denies into that harness's strongest native controls; do not copy the canonical prompt, pin a provider model, append instructions, or omit a restriction. If a new semantic capability has no validated mapping, extend the convention, Badakmini schema, Gherkin, and fixtures before claiming parity.
+Use an existing adapter from the same harness as the schema example. Translate canonical capabilities and denies into that harness's strongest native controls; do not copy the canonical prompt, pin a provider model, append instructions, or omit a restriction. If a new semantic capability has no validated mapping, extend the convention and the `harness-parity` declarations in `repo-config.yml` before claiming parity. A mapping RHINO cannot express is an upstream change.
 
 For a required MCP capability, update every owned declaration together:
 
@@ -52,25 +52,24 @@ Compare executable vectors and workspace behaviour, not vendor syntax. Never com
 
 ### 3. Update enforcement when the contract shape changes
 
-A content-only change that retains names, descriptions, routes, semantics, and native schemas needs no validator code change. Badakmini reads and hashes the canonical content dynamically.
+A content-only change that retains names, descriptions, routes, semantics, and native schemas needs no validator or configuration change. RHINO reads and hashes the canonical content dynamically.
 
 When topology, accepted frontmatter, semantic capability mappings, native schema, finding behaviour, or capability declarations change:
 
-1. update the affected Gherkin scenarios and shared bindings;
-2. implement every unit, integration, and E2E driver member;
-3. prove the new scenario red through Nx;
-4. change Badakmini at the narrowest responsible layer; and
-5. update the Badakmini C4 specification and project README when responsibility or public behaviour changes.
+1. express it in `repo-config.yml`, and stop there if it can be declared;
+2. otherwise change RHINO in [its own repository](https://github.com/wahidyankf/rhino), against its corpus, at the narrowest responsible layer;
+3. release it, move `rhino.lock` to the new tag and digests, and prove the pin cold; and
+4. update the consumer project README when what the gate checks changes.
 
 ### 4. Verify
 
 Always run the deterministic repository gate uncached:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:repo --skipNxCache
+./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo --skipNxCache
 ```
 
-If Badakmini source, specifications, bindings, drivers, project configuration, or the push hook changed, also run the affected `test:quick`, coverage, and E2E targets required by the repository quality gates. Review findings by field and path; matching counts alone are not proof.
+If `repo-config.yml`, `rhino.lock`, the consumer project, or the push hook changed, also run the affected `test:quick` targets and the consumer bootstrap suite required by the repository quality gates. Review findings by field and path; matching counts alone are not proof.
 
 ## Recovery
 

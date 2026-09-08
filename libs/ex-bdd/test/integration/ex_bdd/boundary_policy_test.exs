@@ -4,7 +4,7 @@ defmodule ExBdd.BoundaryPolicyTest do
   `repo-governance/development/quality-gates.md` ("Test Boundaries").
 
   This test reads real source files, so it belongs to the integration layer by the same
-  rule it enforces. `bnest-app` and `badakmini-cli` already guard their boundaries; this
+  rule it enforces. `bnest-app` and `rhino-consumer` already guard their boundaries; this
   closes the equivalent gap for ExBdd.
   """
 

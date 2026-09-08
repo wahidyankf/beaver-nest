@@ -69,8 +69,7 @@ npm test
 ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:integration
 ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour
 npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:integration
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli-e2e -t test:e2e
+./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:bootstrap
 ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
 ```
 
@@ -81,8 +80,7 @@ npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView
 ```text
 apps/bnest-app/  Phoenix LiveView application
 apps/bnest-app-e2e/  Playwright end-to-end tests
-apps/badakmini-cli/  F# governance CLI with unit and integration tests
-apps/badakmini-cli-e2e/  Process end-to-end tests for the CLI
+apps/rhino-consumer/  Nx targets composing the pinned RHINO documentation gate
 libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
 specs/apps/  Canonical application architecture and behaviour specifications
 data/        Ignored legacy production sources and isolated flat-file test fixtures

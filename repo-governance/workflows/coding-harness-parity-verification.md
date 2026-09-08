@@ -6,7 +6,7 @@ Use this workflow to evaluate whether Codex, Claude Code, and OpenCode currently
 
 - Read the coding-harness contract and keep its repository-owned scope distinct from vendor prompts, models, credentials, plugins, local memory, and user-global configuration.
 - Record the current revision and worktree status. Existing changes remain user-owned and must not be modified by verification.
-- Use the resolved Nx target rather than invoking Badakmini's underlying build or test tools directly.
+- Use the resolved Nx target rather than invoking the pinned executable directly.
 
 ## Procedure
 
@@ -15,10 +15,10 @@ Use this workflow to evaluate whether Codex, Claude Code, and OpenCode currently
 Record `git status --short` and resolve the project configuration:
 
 ```sh
-npm exec -- nx show project badakmini-cli --json
+npm exec -- nx show project rhino-consumer --json
 ```
 
-Confirm that `test:repo` contains the `governance harness-contract validate` command. Treat later repository changes as invalidating results from this baseline.
+Confirm that `test:repo` contains the `harness parity validate` command. Treat later repository changes as invalidating results from this baseline.
 
 ### 2. Review the canonical topology
 
@@ -36,21 +36,20 @@ Do not infer parity from matching names or counts. Content digests, canonical ro
 Run the required gate without accepting cached results:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:repo --skipNxCache
+./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo --skipNxCache
 ```
 
 Record the exit status, contract digest, harness count, skill count, agent count, and capability count. On failure, review every finding by kind, field, harness, and path rather than stopping at the summary count.
 
 ### 4. Evaluate the enforcement when needed
 
-When the request includes evaluating the validator itself, run its unit, integration, and process-level behaviour proof:
+The validator is not built here, so this repository cannot evaluate it. What it can evaluate is the pin and the bootstrap that resolves it:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:coverage:behaviour --skipNxCache
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli-e2e -t test:coverage:behaviour --skipNxCache
+./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:bootstrap
 ```
 
-Each project proves the adapters it owns, so both commands are needed for the process level. They are optional for a routine parity check when a current matching result already exists and neither the validator nor its specifications changed.
+RHINO's own unit, integration, and process-level proof runs in [its repository](https://github.com/wahidyankf/rhino) against the release named in `rhino.lock`. A parity verdict here is a claim about this repository at that pinned release; it is not a claim about an unreleased change to the validator.
 
 ### 5. Bound runtime claims
 

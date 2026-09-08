@@ -60,4 +60,4 @@
 - **Test-data iron rule:** tests use isolated roots and synthetic `test-user-` [identities](repo-governance/development/test-identities.md), never production users/data. Inspect production schemas read-only.
 - **Project rule** (except `libs/ex-bdd`): follow [specifications](repo-governance/development/specification-maintenance.md): Gherkin → bindings → Nx red → code → smoke. Reject placeholders/no-ops/outcome tables; unit mandatory. Exempt either/both layers for documented boundary mismatches. Changed Gherkin/adapters need the [manual review](repo-governance/workflows/gherkin-implementation-review.md).
 - Update project [READMEs](repo-governance/conventions/project-readmes.md).
-- Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md): node/state segments ≤32 graphemes; edge/transition segments ≤24. Scope Badakmini to changed files.
+- Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md): node/state segments ≤32 graphemes; edge/transition segments ≤24. Scope RHINO to changed files.

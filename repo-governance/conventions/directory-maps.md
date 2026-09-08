@@ -36,8 +36,8 @@ Split or redistribute governance content when one document has distinct reader t
 
 Use the normal `wc -w <path>` command to check a document while authoring. The repository validator is authoritative because it applies the repository's Unicode-aware word-counting rule to every governed Markdown file.
 
-The `badakmini-cli` check enforces README presence and directory-map completeness under governance, documentation, specification, and planning trees, plus applicable word limits:
+The `rhino-consumer` check enforces README presence and directory-map completeness under the mapped trees, plus applicable word limits. Which trees are mapped, which surfaces are governed, and the enforced limit are declared in `repo-config.yml`; the 750-word rule above is the rule, and that file is where the enforced value is written down:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:repo
+./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
 ```

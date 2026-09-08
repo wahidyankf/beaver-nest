@@ -16,7 +16,7 @@ Every directory recursively under `docs/`, including `docs/` itself, must contai
 - state explicitly when no siblings exist; and
 - update the map in the same change as any direct sibling addition, removal, move, or rename.
 
-The `badakmini-cli` check enforces both documentation and governance maps. Pre-push runs that check when pushed commits change Markdown anywhere or any content under `docs/`.
+The `rhino-consumer` check enforces both documentation and governance maps. Pre-push runs that check when pushed commits change Markdown anywhere or any content under `docs/`.
 
 ## Diátaxis Categories
 

@@ -30,7 +30,7 @@ For example:
 npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --project chromium --grep "A visitor opens a fresh chat"
 ```
 
-The `bnest-app-e2e:test:e2e` target owns its one HIPPO boundary and exclusive port lease, so callers do not wrap it again. It drives the browser from the same recursively discovered Gherkin used by Bnest unit and local-only integration tests. `badakmini-cli-e2e` launches the built CLI as a child process and observes only public commands, exit codes, stdout, stderr, and local filesystem effects. Both keep fast `test:coverage:behaviour` in `test:quick` and runtime E2E outside it.
+The `bnest-app-e2e:test:e2e` target owns its one HIPPO boundary and exclusive port lease, so callers do not wrap it again. It drives the browser from the same recursively discovered Gherkin used by Bnest unit and local-only integration tests. It keeps fast `test:coverage:behaviour` in `test:quick` and runtime E2E outside it. The repository documentation gate has no end-to-end target of its own: RHINO's process-level proof runs in the repository that owns the executable.
 
 ## Full Suite
 

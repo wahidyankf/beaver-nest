@@ -4,5 +4,4 @@ Each child tree represents one logical application and keeps its architecture mo
 
 ## Directory Map
 
-- [Badakmini](badakmini/README.md) specifies the repository-governance command-line application.
 - [Bnest](bnest/README.md) specifies the private family application.

@@ -60,7 +60,7 @@ The arrow that matters is `config -->|Supplies policy| crate`. Today that arrow 
 
 ## Specification Changes
 
-The [Badakmini C4 model](../../../../specs/apps/badakmini/cli/architecture.md) and its [behaviour corpus](../../../../specs/apps/badakmini/cli/behaviours/README.md) describe a system that will no longer exist in this repository. Both move upstream and are rewritten there for the Rust containers and the configuration boundary. BeaverNest gains `specs/tools/rhino-consumer/`, mirroring the existing [HIPPO consumer specification](../../../../specs/tools/hippo-consumer/README.md), which owns only the bootstrap's observable behaviour. Follow the [plan specification-change convention](../../../../repo-governance/conventions/plan-specification-changes.md) and [specification maintenance](../../../../repo-governance/development/specification-maintenance.md).
+The Badakmini C4 model at `specs/apps/badakmini/cli/architecture.md` and its behaviour corpus described a system that will no longer exist in this repository. Both move upstream and are rewritten there for the Rust containers and the configuration boundary. BeaverNest gains `specs/tools/rhino-consumer/`, mirroring the existing [HIPPO consumer specification](../../../../specs/tools/hippo-consumer/README.md), which owns only the bootstrap's observable behaviour. Follow the [plan specification-change convention](../../../../repo-governance/conventions/plan-specification-changes.md) and [specification maintenance](../../../../repo-governance/development/specification-maintenance.md).
 
 ## Continuity
 

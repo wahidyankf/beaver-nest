@@ -31,10 +31,10 @@ The hierarchy flows from top to bottom: a lower level cannot contradict any leve
 
 Root instruction files such as `AGENTS.md` should remain concise and link to the relevant documents here. The [750-word governance budget](conventions/directory-maps.md#word-budget) sets the hard limit; progressive disclosure, clear ownership, and reader tasks determine when to split content earlier.
 
-The `badakmini-cli` application enforces this limit for root `AGENTS.md` and every Markdown file in this directory, along with the governance navigation requirements. Run it manually with:
+The `rhino-consumer` gate enforces this limit for root `AGENTS.md` and every Markdown file in this directory, along with the governance navigation requirements. Which surfaces carry the limit is declared in `repo-config.yml`. Run it manually with:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p badakmini-cli -t test:repo
+./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
 ```
 
-The repository's pre-push hook follows the [push-hook verification convention](conventions/push-hook-verification.md). It runs one HIPPO-guarded affected [`test:quick` graph](development/quality-gates.md); independent projects consume the admitted Nx allocation while dependency and target-order edges remain serialized. It also runs governance, recursive maps, and Mermaid checks when pushed commits change Markdown, a mapped tree, Badakmini source or adapters, or the hook itself, and the HIPPO consumer bootstrap suite when they change the consumer boundary.
+The repository's pre-push hook follows the [push-hook verification convention](conventions/push-hook-verification.md). It runs one HIPPO-guarded affected [`test:quick` graph](development/quality-gates.md); independent projects consume the admitted Nx allocation while dependency and target-order edges remain serialized. It also runs governance, recursive maps, and Mermaid checks when pushed commits change Markdown, a mapped tree, `repo-config.yml`, the RHINO consumer project, or the hook itself, and a consumer bootstrap suite when they change that consumer's boundary.
