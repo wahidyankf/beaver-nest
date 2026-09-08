@@ -1,0 +1,291 @@
+name: PR Quality Gate
+
+# Integration moved from direct pushes on local `main` to worktree-to-PR, so the
+# guarantees that used to rest solely on this workstation's Git hooks now need a
+# server-side mirror. Each job below reproduces one local hook: a change that
+# would have been refused by `pre-commit`, `commit-msg`, or `pre-push` must be
+# refused here too, because a pull request can be opened from any checkout.
+on:
+  # Pull requests only. Every job below derives its comparison range from
+  # `github.base_ref`, which no other event supplies, so a manual dispatch could
+  # not compute one and would fail for a reason unrelated to code quality.
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-quality-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Every gate mirrored here runs offline against the local hook contract.
+  NX_NO_CLOUD: "true"
+
+jobs:
+  commit-messages:
+    name: Commit messages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # The real head, not the synthetic merge commit: commitlint must read the
+      # messages this branch actually contributes. GitHub's merge commit carries
+      # a "Merge ... into ..." subject that no Conventional Commits rule accepts.
+      - name: Check out the pull request head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install npm dependencies
+        run: ./hippo run --class ephemeral --disk-path . -- npm ci
+
+      - name: Lint every commit this pull request adds
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -eu
+          git fetch --no-tags origin "${BASE_REF}"
+          # The fork point, not the base tip: a branch behind `main` would
+          # otherwise re-lint commits it never authored.
+          from=$(git merge-base FETCH_HEAD HEAD)
+          ./hippo run --class ephemeral --disk-path . -- \
+            npm exec -- commitlint --from "${from}" --to HEAD --verbose
+
+  formatting:
+    name: Formatting
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3.3"
+          elixir-version: "1.18.3"
+          version-type: strict
+
+      - name: Install npm dependencies
+        run: ./hippo run --class ephemeral --disk-path . -- npm ci
+
+      - name: Determine the files this pull request changes
+        id: changed
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -eu
+          git fetch --no-tags origin "${BASE_REF}"
+          # Added, copied, modified, renamed only: a deleted file has no content
+          # left to check, and passing its path to a formatter is an error.
+          git diff --name-only --diff-filter=ACMR FETCH_HEAD...HEAD > changed-files.txt
+          if grep -qE '^apps/bnest-app/.*\.(ex|exs|heex)$' changed-files.txt; then
+            echo "elixir=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "elixir=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      # `lint-staged` writes formatting locally; CI can only verify it, because a
+      # pull request may come from a checkout whose hooks never ran. Same file
+      # set, same Prettier, `--check` instead of `--write`.
+      - name: Verify Prettier formatting on changed files
+        run: |
+          set -eu
+          if [ ! -s changed-files.txt ]; then
+            echo "No added, copied, modified, or renamed files to check."
+            exit 0
+          fi
+          # --ignore-unknown mirrors the lint-staged command, so paths outside
+          # Prettier's languages are skipped rather than failing the gate.
+          tr '\n' '\0' < changed-files.txt |
+            xargs -0 -r ./hippo run --class ephemeral --disk-path . -- \
+              npm exec -- prettier --check --ignore-unknown
+
+      - name: Install Phoenix dependencies
+        if: steps.changed.outputs.elixir == 'true'
+        run: ./hippo run --class ephemeral --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
+
+      # The second half of the lint-staged contract for Elixir sources. Its unit
+      # suite is not repeated here; `affected-quick` already owns that.
+      - name: Verify Elixir formatting
+        if: steps.changed.outputs.elixir == 'true'
+        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run bnest-app:format
+
+  affected-quick:
+    name: Affected quick suites
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3.3"
+          elixir-version: "1.18.3"
+          version-type: strict
+
+      - name: Install npm dependencies
+        run: ./hippo run --class ephemeral --disk-path . -- npm ci
+
+      - name: Install Phoenix dependencies
+        run: ./hippo run --class ephemeral --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
+
+      - name: Install ExBdd dependencies
+        run: ./hippo run --class ephemeral --cwd libs/ex-bdd --disk-path libs/ex-bdd -- mix deps.get
+
+      # `test:quick` runs `mix dialyzer`, which rebuilds its PLT from the whole
+      # OTP and dependency set on a cold runner. Without this cache every pull
+      # request pays that cost again; the key tracks the exact toolchain and
+      # dependency set the PLT is derived from.
+      - name: Cache the Dialyzer PLT
+        uses: actions/cache@v4
+        with:
+          path: apps/bnest-app/_build/test/*.plt*
+          key: plt-bnest-app-otp27.3.3-ex1.18.3-${{ hashFiles('apps/bnest-app/mix.lock') }}
+          restore-keys: |
+            plt-bnest-app-otp27.3.3-ex1.18.3-
+
+      - name: Run the affected quick graph
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -eu
+          git fetch --no-tags origin "${BASE_REF}"
+          ./hippo run --class ephemeral --disk-path . -- \
+            npm exec -- nx affected -t test:quick --base=FETCH_HEAD --head=HEAD
+
+  repository-contract:
+    name: Repository and consumer contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install npm dependencies
+        run: ./hippo run --class ephemeral --disk-path . -- npm ci
+
+      # The same three path sets `.husky/pre-push` routes on, so a change that
+      # skips a suite locally skips it here and no other. Each set also includes
+      # this workflow, because an edit to the gate itself must re-prove it.
+      - name: Route the conditional suites
+        id: route
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -eu
+          git fetch --no-tags origin "${BASE_REF}"
+
+          changed_in() {
+            git diff --name-only FETCH_HEAD...HEAD -- "$@"
+          }
+
+          governed=$(changed_in \
+            ':(icase,glob)**/*.md' \
+            ':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
+            'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
+            ':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
+            '.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc' \
+            '.github/workflows/pr-quality-gate.yml')
+
+          hippo_consumer=$(changed_in \
+            hippo hippo.lock hippo.local.json.example \
+            '.github/scripts/test-hippo-bootstrap.sh' \
+            ':(glob)specs/tools/hippo-consumer/**' \
+            '.github/workflows/pr-quality-gate.yml')
+
+          rhino_consumer=$(changed_in \
+            rhino rhino.lock \
+            '.github/scripts/test-rhino-bootstrap.sh' \
+            ':(glob)specs/tools/rhino-consumer/**' \
+            '.github/workflows/pr-quality-gate.yml')
+
+          # Passed as an argument rather than resolved by name: each value is a
+          # newline-separated file list, which indirect expansion would split.
+          emit() {
+            if [ -n "$2" ]; then
+              echo "$1=true" >> "${GITHUB_OUTPUT}"
+            else
+              echo "$1=false" >> "${GITHUB_OUTPUT}"
+            fi
+          }
+
+          emit governed "${governed}"
+          emit hippo_consumer "${hippo_consumer}"
+          emit rhino_consumer "${rhino_consumer}"
+
+      - name: Verify the pinned HIPPO bootstrap
+        if: steps.route.outputs.hippo_consumer == 'true'
+        run: ./hippo run --class ephemeral --disk-path . -- ./.github/scripts/test-hippo-bootstrap.sh
+
+      - name: Verify the pinned RHINO bootstrap
+        if: steps.route.outputs.rhino_consumer == 'true'
+        run: |
+          ./hippo run --class ephemeral --disk-path . -- \
+            sh -c 'shellcheck rhino .github/scripts/test-rhino-bootstrap.sh &&
+              ./.github/scripts/test-rhino-bootstrap.sh'
+
+      - name: Verify the repository documentation contract
+        if: steps.route.outputs.governed == 'true'
+        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
+
+  quality-gate:
+    name: Quality gate
+    # The single required status check. Individual jobs may legitimately skip a
+    # suite, and a skipped required check never reports at all, so merge
+    # protection points at this aggregate instead of at each job.
+    needs: [commit-messages, formatting, affected-quick, repository-contract]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check every gate
+        env:
+          # A cancelled or skipped dependency is not a pass: only an explicit
+          # success from every job may open the merge button.
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          set -eu
+          echo "Gate results: ${RESULTS}"
+          for result in ${RESULTS}; do
+            if [ "${result}" != "success" ]; then
+              echo "A quality gate job did not succeed." >&2
+              exit 1
+            fi
+          done
+          echo "All quality gates passed."

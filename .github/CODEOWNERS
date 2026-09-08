@@ -1,0 +1,7 @@
+# Every path in this repository is owned by its sole maintainer.
+#
+# The `main` ruleset deliberately does not require code-owner review. A code
+# owner cannot approve their own pull request, so a solo-maintainer repository
+# that required it would block every merge permanently. This file exists so
+# ownership is declared and review requests route correctly, not to gate merges.
+* @wahidyankf
