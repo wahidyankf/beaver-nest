@@ -21,7 +21,7 @@
 
 ## Version Control
 
-- Only `main` persists; integrate `worktrees/` branches by PR under [integration](repo-governance/conventions/integration-path.md), never direct push; delete both afterward.
+- Only `main` persists; integrate `worktrees/` branches by PR under [integration](repo-governance/conventions/integration-path.md), never direct push; delete both afterward. Sync a task branch with `origin/main` before working and review what the sync brings in; keep it under two days; one worktree per plan or task.
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md). Before committing, inspect and remove prohibited data under [data safety](repo-governance/conventions/public-repository-data-safety.md).
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.
