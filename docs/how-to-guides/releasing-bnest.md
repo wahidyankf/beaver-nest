@@ -6,12 +6,13 @@ The managed `release:run` target is transactional. A single invocation runs the 
 
 ## 1. Confirm the source is releasable
 
-`release:run` re-asserts that the working tree is clean and that `HEAD` equals `origin/main` before and after **every** gate, and again at build. Any edit during the run aborts it.
+`release:run` re-asserts that the branch is `main`, that the working tree is clean, and that `HEAD` equals `origin/main` before and after **every** gate, and again at build. Any edit during the run aborts it. It reads the checkout it was invoked from, so release from the primary checkout; a `worktrees/` checkout is refused even when its branch already points at the released revision.
 
 Land documentation, rule, and code changes first, then release the resulting revision:
 
 ```sh
 git fetch origin main
+git branch --show-current        # must be main
 git rev-parse HEAD origin/main   # must match
 git status --porcelain           # must be empty
 ./hippo status                   # must report state=normal
