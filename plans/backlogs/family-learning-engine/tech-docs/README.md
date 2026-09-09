@@ -40,7 +40,7 @@ Every write takes the same path: a command handler loads the current state, deci
 
 ## Selected Decisions
 
-**The event log is the source of truth for everything the engine knows.** Learner facts and content both live in it, so there is exactly one authority, one rebuild story, and no boundary where "just replay it" silently stops working. The rejected alternative — state-authoritative tables with a transactional outbox — is cheaper and keeps SQL constraints as real protection, but its log cannot rebuild state. The accepted costs are stated plainly in [the event model](01-event-model.md): constraints on projections become assertions rather than protections, every event shape is permanent and needs versioning and upcasters from the first release, and a bug that writes a wrong event leaves a wrong event that only a compensating event can answer.
+**The event log is the source of truth for everything the engine knows.** Learner facts and content both live in it, so there is exactly one authority, one rebuild story, and no boundary where "just replay it" silently stops working. The rejected alternative — state-authoritative tables with a transactional outbox — is cheaper and keeps SQL constraints as real protection, but its log cannot rebuild state. The accepted costs are stated plainly in [the event model](001-event-model.md): constraints on projections become assertions rather than protections, every event shape is permanent and needs versioning and upcasters from the first release, and a bug that writes a wrong event leaves a wrong event that only a compensating event can answer.
 
 **Projections are written in the same transaction as the append.** This departs from the usual asynchronous diagram and removes the trade-off that would have damaged this product: a child must see whether an answer was right immediately, and a read after a write must not observe stale state. On a single-node SQLite database the asynchrony buys nothing.
 
@@ -96,20 +96,20 @@ This plan uses the standard vocabulary of event sourcing rather than inventing l
 
 ## Navigation
 
-- [Event model](01-event-model.md) — streams, concurrency, event catalogue, versioning, rebuild, and delivery.
-- [Data model](02-data-model.md) — ERD, exact DDL, field guide, and the authored corpus format.
-- [GraphQL API](03-graphql-api.md) — schema, authorization, limits, dependency decision, and test strategy.
-- [UI design](04-ui-design.md) — alternatives, selected direction, tokens, states, and accessibility.
-- [Migration design](05-migration-design.md) — Sifat Allah inventory, conversion, authority cutover, and rollback.
-- [Specification changes](06-specification-changes.md) — planned C4 and Gherkin deltas.
-- [File impact](07-file-impact.md) — every expected path.
+- [Event model](001-event-model.md) — streams, concurrency, event catalogue, versioning, rebuild, and delivery.
+- [Data model](002-data-model.md) — ERD, exact DDL, field guide, and the authored corpus format.
+- [GraphQL API](003-graphql-api.md) — schema, authorization, limits, dependency decision, and test strategy.
+- [UI design](004-ui-design.md) — alternatives, selected direction, tokens, states, and accessibility.
+- [Migration design](005-migration-design.md) — Sifat Allah inventory, conversion, authority cutover, and rollback.
+- [Specification changes](006-specification-changes.md) — planned C4 and Gherkin deltas.
+- [File impact](007-file-impact.md) — every expected path.
 
 ## Directory Map
 
-- [`01-event-model.md`](01-event-model.md) — event-sourcing write path, catalogue, and rebuild contract.
-- [`02-data-model.md`](02-data-model.md) — event log, projection schema, ERD, field guide, and corpus format.
-- [`03-graphql-api.md`](03-graphql-api.md) — GraphQL boundary, authorization, and dependency decision.
-- [`04-ui-design.md`](04-ui-design.md) — UI alternatives, selection, states, and accessibility.
-- [`05-migration-design.md`](05-migration-design.md) — Sifat Allah data migration and authority cutover.
-- [`06-specification-changes.md`](06-specification-changes.md) — planned specification deltas.
-- [`07-file-impact.md`](07-file-impact.md) — exact code, test, specification, and configuration paths.
+- [`001-event-model.md`](001-event-model.md) — event-sourcing write path, catalogue, and rebuild contract.
+- [`002-data-model.md`](002-data-model.md) — event log, projection schema, ERD, field guide, and corpus format.
+- [`003-graphql-api.md`](003-graphql-api.md) — GraphQL boundary, authorization, and dependency decision.
+- [`004-ui-design.md`](004-ui-design.md) — UI alternatives, selection, states, and accessibility.
+- [`005-migration-design.md`](005-migration-design.md) — Sifat Allah data migration and authority cutover.
+- [`006-specification-changes.md`](006-specification-changes.md) — planned specification deltas.
+- [`007-file-impact.md`](007-file-impact.md) — exact code, test, specification, and configuration paths.

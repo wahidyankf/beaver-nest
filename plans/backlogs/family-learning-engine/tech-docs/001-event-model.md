@@ -4,7 +4,7 @@ The learning engine is event sourced. `bnest_events` is the system of record for
 
 The log is shared rather than learning-specific. It carries a `domain` column, and this plan delivers it as Bnest infrastructure with learning as its first and only writer. Other domains adopting it is out of scope here; leaving the door open is not.
 
-This document owns the write path, the stream and concurrency contract, event versioning, projection rebuild, and delivery to subscribers. The tables themselves are in [the data model](02-data-model.md).
+This document owns the write path, the stream and concurrency contract, event versioning, projection rebuild, and delivery to subscribers. The tables themselves are in [the data model](002-data-model.md).
 
 ## What is authoritative
 
@@ -81,7 +81,7 @@ An integration test asserts this directly: run a representative workload, checks
 
 Every name below is registered for the `learning` domain. The database checks the `domain.thing` shape; this registry is what makes a name legitimate.
 
-This table is a proposal and dies with the plan. The durable list is `specs/apps/bnest/app/event-catalog.md`, the as-built catalogue for every domain that ever writes to `bnest_events`, and its authority is `BnestApp.EventLog.Registry`, which the append path validates against. A test compares the two in both directions, so an event added in code without a specification row fails, and a documented event with no registration fails too. See [the specification changes](06-specification-changes.md).
+This table is a proposal and dies with the plan. The durable list is `specs/apps/bnest/app/event-catalog.md`, the as-built catalogue for every domain that ever writes to `bnest_events`, and its authority is `BnestApp.EventLog.Registry`, which the append path validates against. A test compares the two in both directions, so an event added in code without a specification row fails, and a documented event with no registration fails too. See [the specification changes](006-specification-changes.md).
 
 Content stream:
 

@@ -98,4 +98,4 @@ Manual verification covers this matrix at the exact served origin, on desktop, t
 | `/learn/review`        | Learner         | loading, question, empty-review, error                               |
 | `/learn/verify`        | Parent or admin | loading, pending-list, empty, decided, error, and denial for a child |
 
-Implementation, test, specification, and asset paths for this UI are listed in [file impact](07-file-impact.md).
+Implementation, test, specification, and asset paths for this UI are listed in [file impact](007-file-impact.md).

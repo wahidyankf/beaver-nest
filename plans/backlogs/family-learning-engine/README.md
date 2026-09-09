@@ -52,7 +52,7 @@ Three structural facts drive the design. First, a mission is reusable: the same 
 
 - The existing SQLite authority and `BnestApp.SqliteRepo` delivered by [Bnest SQLite Storage](../../done/2026-08-29__bnest-sqlite-storage/README.md).
 - The existing identity roles `children`, `parents`, and `admin`, and the existing session boundary in `BnestAppWeb.UserAuth`.
-- `absinthe` and `absinthe_plug`, reviewed under the [dependency-selection standard](../../../repo-governance/development/dependency-selection.md); the decision record lives in [the GraphQL API document](tech-docs/03-graphql-api.md#dependency-decision).
+- `absinthe` and `absinthe_plug`, reviewed under the [dependency-selection standard](../../../repo-governance/development/dependency-selection.md); the decision record lives in [the GraphQL API document](tech-docs/003-graphql-api.md#dependency-decision).
 - The current Sifat Allah curriculum data in `BnestApp.SifatAllah` and the stored `sifat-allah-progress` records, which are this plan's migration source.
 
 ## Navigation

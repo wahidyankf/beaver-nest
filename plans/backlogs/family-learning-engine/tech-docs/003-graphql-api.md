@@ -6,13 +6,13 @@ One authenticated endpoint at `POST /api/graphql` answers the same facts the lea
 
 Adding GraphQL means adding `absinthe` and `absinthe_plug`, so the [dependency-selection standard](../../../../repo-governance/development/dependency-selection.md) applies and its four required records follow.
 
-**Requirement.** Reads are served entirely from the projections described in [the data model](02-data-model.md); the API never queries the event log to answer a request. The projected model is a graph whose useful questions are nested and varied: a course with its topics with each mission and this learner's progress and coin balance; a review queue with mission bodies; a pending verification queue across learners. Serving those from hand-written JSON controllers means either many narrow endpoints that grow with each screen, or one endpoint with ad-hoc query parameters that drifts into a worse query language.
+**Requirement.** Reads are served entirely from the projections described in [the data model](002-data-model.md); the API never queries the event log to answer a request. The projected model is a graph whose useful questions are nested and varied: a course with its topics with each mission and this learner's progress and coin balance; a review queue with mission bodies; a pending verification queue across learners. Serving those from hand-written JSON controllers means either many narrow endpoints that grow with each screen, or one endpoint with ad-hoc query parameters that drifts into a worse query language.
 
 **Built-in alternatives considered and rejected.** Phoenix JSON controllers with the standard library need no dependency and were the first choice, but they push per-screen shaping into route design and leave no schema for a maintainer to explore; each new question becomes a code change. An `iex` session against the context functions covers exploration but cannot be used as an assertion boundary from a browser test, which is the second half of the requirement. A single generic `POST /api/query` endpoint accepting a field list is a private query language with none of the tooling and all of the maintenance.
 
 **Community and maintenance evidence.** Absinthe is the established GraphQL implementation for Elixir and the one the Phoenix ecosystem documents. Before execution, delivery re-checks current primary sources for release recency, supported Elixir and OTP range against this repository's toolchain, and open security advisories, and records the pinned versions in `mix.exs` and `mix.lock`. If that check fails, the fallback is Phoenix JSON controllers scoped to the screens that exist, and this document is revised rather than the check waived.
 
-**Ownership impact.** Two runtime dependencies, a schema and resolver layer to keep aligned with the context, and per-field authorization that must be tested rather than assumed. The cost is bounded by keeping the schema small and read-mostly: no content mutations, no file uploads, no subscriptions. Absinthe's subscription support is deliberately unused; live updates come from the LiveView and the event bus described in [the event model](01-event-model.md), so the API stays request-response.
+**Ownership impact.** Two runtime dependencies, a schema and resolver layer to keep aligned with the context, and per-field authorization that must be tested rather than assumed. The cost is bounded by keeping the schema small and read-mostly: no content mutations, no file uploads, no subscriptions. Absinthe's subscription support is deliberately unused; live updates come from the LiveView and the event bus described in [the event model](001-event-model.md), so the API stays request-response.
 
 ## Schema
 
@@ -141,7 +141,7 @@ enum ProgressState {
 }
 ```
 
-`Mission.payload` is an opaque JSON scalar because its shape depends on `kind`; the runner and the sync share the kind contract in [the data model](02-data-model.md), and the API does not re-declare six payload types it would have to keep in step.
+`Mission.payload` is an opaque JSON scalar because its shape depends on `kind`; the runner and the sync share the kind contract in [the data model](002-data-model.md), and the API does not re-declare six payload types it would have to keep in step.
 
 There is no `createCourse`, `updateMission`, or any other content mutation, and no mutation that appends a raw event. Content changes enter through the sync command and every learner change enters through a command handler that decides before it appends, so a client can never dictate a fact. Absence from the schema, not a permission check, is what AC-08 asserts.
 
