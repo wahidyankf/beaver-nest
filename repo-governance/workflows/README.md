@@ -28,6 +28,7 @@ When composing workflows:
 - [Development tailnet proxy](development-tailnet-proxy.md) manages a persistent private HTTPS proxy independently from app-server restarts.
 - [Exploratory and usability testing](exploratory-and-usability-testing.md) runs the spec-aware exploratory pass and the spec-blind usability pass over a running UI-affecting plan.
 - [Gherkin implementation review](gherkin-implementation-review.md) requires an agent to inspect every scenario and adapter for real production behaviour and independent evidence instead of trusting binding counts.
+- [Git clean-up](git-clean-up.md) removes the worktree, both copies of the branch, and nothing else, then brings the primary checkout level with `origin/main`.
 - [Plan execution](plan-execution.md) moves an explicitly selected plan through active delivery, synchronized task tracking, and dated archival.
 - [Plan quality gate](plan-quality-gate.md) runs only on explicit user direction and performs a bounded semantic audit and repair.
 - [Red–green–refactor](red-green-refactor.md) defines the repeatable TDD cycle for application and library behaviour.
