@@ -6,7 +6,7 @@ There are three kinds of table here, and the differences matter more than any in
 
 - **`bnest_events` is the system of record, and it is shared.** Append-only, immutable, ordered, and not owned by learning: it carries a `domain` column so other Bnest domains can append to the same log later without new infrastructure. This plan is the first writer and delivers the shared table, its cursors, and its dispatcher.
 - **`bnest_projection_cursors` and `bnest_event_listeners` are shared bookkeeping.** They record how far each read model and each durable listener has consumed the log.
-- **Everything named `bnest_learning_*` is a projection.** Derived, droppable, rebuildable by replaying the log. Their constraints assert that replay produced a sane result; they do not protect an invariant, because the invariant was already settled by the command handler before the append. The write path and that split are described in [the event model](01-event-model.md).
+- **Everything named `bnest_learning_*` is a projection.** Derived, droppable, rebuildable by replaying the log. Their constraints assert that replay produced a sane result; they do not protect an invariant, because the invariant was already settled by the command handler before the append. The write path and that split are described in [the event model](001-event-model.md).
 
 SQLite suits this shape: an append-only single-writer log with concurrent readers is exactly what WAL mode is good at, and SQLite serialising writes is a fit rather than a limit for a household-scale event log.
 

@@ -66,7 +66,7 @@ Turn Bnest's single hard-coded revision subject into a reusable learning engine,
 - Sifat Allah runs entirely on the engine, `BnestApp.SifatAllah` and `BnestAppWeb.SifatAllahLive` are gone, and the existing behaviour corpus passes against the generic runner.
 - A second, unrelated subject is added by files and a sync alone, with no Elixir change.
 - Every migrated learner's mastered and difficult sets match their pre-migration values, verified through the product journey in a fresh process with the previous source unavailable.
-- Coin totals equal the sum of the rewards of the distinct missions each learner mastered through the engine, unchanged by a re-run of the sync or a repeated submission. Mastery carried over by the Sifat Allah migration credits nothing; the reasoning is recorded in [the migration design](tech-docs/05-migration-design.md).
+- Coin totals equal the sum of the rewards of the distinct missions each learner mastered through the engine, unchanged by a re-run of the sync or a repeated submission. Mastery carried over by the Sifat Allah migration credits nothing; the reasoning is recorded in [the migration design](tech-docs/005-migration-design.md).
 - Dropping every projection and replaying the log reproduces byte-identical projections, verified by checksum.
 - Every projection row traces to an event, and no writer can produce a projection row without one.
 - Application, integration, behaviour, and focused E2E gates are green, including the new `api` end-to-end project.

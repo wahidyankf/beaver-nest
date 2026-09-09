@@ -1,6 +1,6 @@
 # Family Learning Engine UI Assets
 
-These synthetic SVG wireframes and mockups compare three responsive directions for the mission runner, the screen a child sees most and the one that must carry all six mission kinds. They contain only fictional course content and a fictional coin total; no household member, credential, identifier, or runtime value appears. Design intent lives in [the UI design document](../tech-docs/04-ui-design.md); implementation stays under `apps/bnest-app/`.
+These synthetic SVG wireframes and mockups compare three responsive directions for the mission runner, the screen a child sees most and the one that must carry all six mission kinds. They contain only fictional course content and a fictional coin total; no household member, credential, identifier, or runtime value appears. Design intent lives in [the UI design document](../tech-docs/004-ui-design.md); implementation stays under `apps/bnest-app/`.
 
 Every asset carries a `<title>` and `<desc>` for assistive technology, and every state is distinguished by shape, marker, and text as well as colour.
 
