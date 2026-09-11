@@ -219,6 +219,7 @@ jobs:
             ':(icase,glob)**/*.md' \
             ':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
             'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
+            ':(glob)scripts/public-safety/**' \
             ':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
             '.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc' \
             '.github/workflows/pr-quality-gate.yml')
@@ -288,7 +289,10 @@ jobs:
             sh -c 'shellcheck rhino .github/scripts/test-rhino-bootstrap.sh &&
               ./.github/scripts/test-rhino-bootstrap.sh'
 
-      - name: Verify the repository documentation contract
+      # The `ci` surface, dispatched by name through the Nx target. What it runs
+      # is declared in repo-config.yml rather than repeated here, so a check
+      # added there reaches this job without anyone remembering to edit it.
+      - name: Verify the repository contract under the pinned RHINO
         if: steps.route.outputs.governed == 'true'
         run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
 

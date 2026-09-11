@@ -1,14 +1,195 @@
-# schema: rhino/repo-config/v1
+# Repository configuration -- ose/repo-config/v2
 #
-# What this repository enforces about its own documentation, declared rather
-# than compiled in. Every value was transcribed from the retired Badakmini
-# validator -- its Governance.fs, its HarnessContract.fs, and the eight
-# invocations its project.json composed -- so this gate checks what that one
-# checked, for the same reasons. That project no longer exists; the history is
-# in plans/, and these values are now the only statement of the policy.
+# What this repository enforces about its own documentation, and what must pass
+# before a change lands, declared rather than compiled in.
+#
+# Every validator value below is unchanged. The v1 file already carried them,
+# each one transcribed from the retired Badakmini validator -- its
+# Governance.fs, its HarnessContract.fs, and the eight invocations its
+# project.json composed -- and none of those reasons stopped being true because
+# the schema did. That project no longer exists; the history is in plans/, and
+# these values are still the only statement of the policy.
+#
+# What v2 adds is the two things v1 could only imply: who may read this
+# repository, and which checks run at which moment. Both were previously spread
+# across a shell script, an Nx target and three hooks, which is three places to
+# look and three places to forget.
+#
+# The key order is fixed by v2 rather than chosen here, so a reader comparing
+# two repositories' configurations compares like with like.
 #
 # Nothing here is a runtime value. No host, no path outside the repository, no
 # credential: see repo-governance/conventions/public-repository-data-safety.md.
+
+schema: ose/repo-config/v2
+
+# Public, and gated as public. Everything here -- the repository, its history,
+# its Actions logs -- is readable by anyone, so the safety gate below runs
+# first on every surface rather than last on one of them.
+visibility: public
+
+scan:
+  exclude-directories:
+    - .git
+    - .nx
+    - node_modules
+    - bin
+    - obj
+    - _build
+    - deps
+    - coverage
+    - playwright-report
+    - test-results
+    - worktrees
+
+harness-parity:
+  canonical:
+    instruction: AGENTS.md
+    instruction-adapter: CLAUDE.md
+    skills-root: .agents/skills
+    skill-route:
+      "Read {path} completely, resolve every relative resource from that skill
+      directory, and follow it as authoritative before acting."
+    agents-root: .agents/agents
+    agent-route:
+      "Before acting, read the complete canonical agent definition at the
+      repository-root path {path} and follow it as authoritative. If it cannot
+      be read, stop and report the missing path."
+    # HarnessContract.fs reads `requires`, `denies` and `constraints`, and
+    # requires `mode: subagent` on every canonical agent.
+    declaration:
+      grants: requires
+      denials: denies
+      limits: constraints
+      fixed: { mode: subagent }
+  harnesses:
+    - name: codex
+      agent-adapter:
+        path: ".codex/agents/{name}.toml"
+        format: toml
+        route-field: developer_instructions
+        identity: { name: name, description: description }
+        # validateCodexAdapter: the sandbox is fixed and a portable model
+        # selection may not be pinned here.
+        fixed: { sandbox_mode: read-only }
+        absent: [model]
+      capability:
+        file: .codex/config.toml
+        format: toml
+    - name: claude
+      agent-adapter:
+        path: ".claude/agents/{name}.md"
+        format: front-matter
+        route-field: body
+        identity: { name: name, description: description }
+        # Every translation below is the one the v1 file declared, rewritten
+        # from a flow mapping to a block mapping. Prettier wraps a flow mapping
+        # that will not fit the line, and the v2 reader stops reading keys at a
+        # flow collection spread over several lines -- which is how `gates`
+        # went missing from a file that plainly declares it.
+        translations:
+          - { when: always, field: tools, members: [Read] }
+          - when: requires
+            capability: repository-read
+            field: tools
+            members: [Glob, Grep]
+          - when: requires
+            capability: web-search
+            field: tools
+            members: [WebSearch]
+          - when: requires
+            capability: web-fetch
+            field: tools
+            members: [WebFetch]
+          - when: requires
+            capability: nx-mcp
+            field: tools
+            member-prefix: "mcp__nx-mcp__"
+          - when: denies
+            capability: repository-write
+            field: tools
+            absent-members: [Write, Edit]
+          - when: denies
+            capability: shell
+            field: tools
+            absent-members: [Bash, PowerShell]
+          - when: denies
+            capability: nested-agent
+            field: tools
+            absent-members: [Agent, Task]
+      skill-adapter:
+        path: ".claude/commands/{name}.md"
+        format: front-matter
+        route-field: body
+        identity: { description: description }
+        # parsed.Scalars.Count = 1 and no lists or nested maps: a wrapper
+        # declares its description and nothing else.
+        closed: true
+      capability:
+        file: .mcp.json
+        format: json
+    - name: opencode
+      agent-adapter:
+        path: ".opencode/agents/{name}.md"
+        format: front-matter
+        route-field: body
+        identity: { description: description }
+        fixed: { mode: subagent }
+        translations:
+          - { when: always, field: permission, entries: { read: allow } }
+          - when: requires
+            capability: repository-read
+            field: permission
+            entries: { glob: allow, grep: allow }
+          - when: requires
+            capability: web-search
+            field: permission
+            entries: { websearch: allow }
+          - when: requires
+            capability: web-fetch
+            field: permission
+            entries: { webfetch: allow }
+          - when: requires
+            capability: nx-mcp
+            field: permission
+            entry-prefix: "nx-mcp_"
+            entry-value: allow
+          - when: denies
+            capability: repository-write
+            field: permission
+            entries: { edit: deny }
+          - when: denies
+            capability: shell
+            field: permission
+            entries: { bash: deny }
+          - when: denies
+            capability: nested-agent
+            field: permission
+            entries: { task: deny }
+      capability:
+        file: opencode.json
+        format: json
+  required-mcp:
+    name: nx-mcp
+    command: npx
+    args: ["nx", "mcp"]
+  # The four shapes the F# treats as competing always-on instruction sources.
+  prohibited-instruction-sources:
+    - "**/AGENTS.md"
+    - "**/AGENTS.override.md"
+    - "**/CLAUDE.md"
+    - ".claude/rules/**/*.md"
+  capabilities:
+    - repository-read
+    - repository-write
+    - web-search
+    - web-fetch
+    - shell
+    - nested-agent
+    - nx-mcp
+  constraints:
+    - inline-result-only
+    - single-mcp-operation
 
 governance-word-budget:
   count: letters-and-digits
@@ -44,197 +225,140 @@ md-mermaid:
   edge-label-graphemes: 24
   # The F# palette verbatim, including the plain grey RHINO's own configuration
   # rejects. A repository may declare it; RHINO ships none.
+  #
+  # Block sequences rather than the flow collections v1 carried. Prettier wraps
+  # a flow sequence that will not fit the line, and a flow collection spread
+  # over several lines is not something the v2 reader accepts -- it stops
+  # reading keys there, and `gates` below it goes missing. The values are the
+  # same seven, in the same order.
   fill-colors:
-    ["#0173B2", "#DE8F05", "#029E73", "#CC78BC", "#CA9161", "#808080"]
+    - "#0173B2"
+    - "#DE8F05"
+    - "#029E73"
+    - "#CC78BC"
+    - "#CA9161"
+    - "#808080"
   edge-colors:
-    [
-      "#0173B2",
-      "#DE8F05",
-      "#029E73",
-      "#CC78BC",
-      "#CA9161",
-      "#808080",
-      "#000000",
-    ]
-  text-colors: ["#000000", "#FFFFFF"]
+    - "#0173B2"
+    - "#DE8F05"
+    - "#029E73"
+    - "#CC78BC"
+    - "#CA9161"
+    - "#808080"
+    - "#000000"
+  text-colors:
+    - "#000000"
+    - "#FFFFFF"
 
-harness-parity:
-  canonical:
-    instruction: AGENTS.md
-    instruction-adapter: CLAUDE.md
-    skills-root: .agents/skills
-    skill-route: "Read {path} completely, resolve every relative resource from that skill directory, and follow it as authoritative before acting."
-    agents-root: .agents/agents
-    agent-route: "Before acting, read the complete canonical agent definition at the repository-root path {path} and follow it as authoritative. If it cannot be read, stop and report the missing path."
-    # HarnessContract.fs reads `requires`, `denies` and `constraints`, and
-    # requires `mode: subagent` on every canonical agent.
-    declaration:
-      grants: requires
-      denials: denies
-      limits: constraints
-      fixed: { mode: subagent }
-  harnesses:
-    - name: codex
-      agent-adapter:
-        path: ".codex/agents/{name}.toml"
-        format: toml
-        route-field: developer_instructions
-        identity: { name: name, description: description }
-        # validateCodexAdapter: the sandbox is fixed and a portable model
-        # selection may not be pinned here.
-        fixed: { sandbox_mode: read-only }
-        absent: [model]
-      capability:
-        file: .codex/config.toml
-        format: toml
-    - name: claude
-      agent-adapter:
-        path: ".claude/agents/{name}.md"
-        format: front-matter
-        route-field: body
-        identity: { name: name, description: description }
-        translations:
-          - { when: always, field: tools, members: [Read] }
-          - {
-              when: requires,
-              capability: repository-read,
-              field: tools,
-              members: [Glob, Grep],
-            }
-          - {
-              when: requires,
-              capability: web-search,
-              field: tools,
-              members: [WebSearch],
-            }
-          - {
-              when: requires,
-              capability: web-fetch,
-              field: tools,
-              members: [WebFetch],
-            }
-          - {
-              when: requires,
-              capability: nx-mcp,
-              field: tools,
-              member-prefix: "mcp__nx-mcp__",
-            }
-          - {
-              when: denies,
-              capability: repository-write,
-              field: tools,
-              absent-members: [Write, Edit],
-            }
-          - {
-              when: denies,
-              capability: shell,
-              field: tools,
-              absent-members: [Bash, PowerShell],
-            }
-          - {
-              when: denies,
-              capability: nested-agent,
-              field: tools,
-              absent-members: [Agent, Task],
-            }
-      skill-adapter:
-        path: ".claude/commands/{name}.md"
-        format: front-matter
-        route-field: body
-        identity: { description: description }
-        # parsed.Scalars.Count = 1 and no lists or nested maps: a wrapper
-        # declares its description and nothing else.
-        closed: true
-      capability:
-        file: .mcp.json
-        format: json
-    - name: opencode
-      agent-adapter:
-        path: ".opencode/agents/{name}.md"
-        format: front-matter
-        route-field: body
-        identity: { description: description }
-        fixed: { mode: subagent }
-        translations:
-          - { when: always, field: permission, entries: { read: allow } }
-          - {
-              when: requires,
-              capability: repository-read,
-              field: permission,
-              entries: { glob: allow, grep: allow },
-            }
-          - {
-              when: requires,
-              capability: web-search,
-              field: permission,
-              entries: { websearch: allow },
-            }
-          - {
-              when: requires,
-              capability: web-fetch,
-              field: permission,
-              entries: { webfetch: allow },
-            }
-          - {
-              when: requires,
-              capability: nx-mcp,
-              field: permission,
-              entry-prefix: "nx-mcp_",
-              entry-value: allow,
-            }
-          - {
-              when: denies,
-              capability: repository-write,
-              field: permission,
-              entries: { edit: deny },
-            }
-          - {
-              when: denies,
-              capability: shell,
-              field: permission,
-              entries: { bash: deny },
-            }
-          - {
-              when: denies,
-              capability: nested-agent,
-              field: permission,
-              entries: { task: deny },
-            }
-      capability:
-        file: opencode.json
-        format: json
-  required-mcp:
-    name: nx-mcp
-    command: npx
-    args: ["nx", "mcp"]
-  # The four shapes the F# treats as competing always-on instruction sources.
-  prohibited-instruction-sources:
-    - "**/AGENTS.md"
-    - "**/AGENTS.override.md"
-    - "**/CLAUDE.md"
-    - ".claude/rules/**/*.md"
-  capabilities:
-    - repository-read
-    - repository-write
-    - web-search
-    - web-fetch
-    - shell
-    - nested-agent
-    - nx-mcp
-  constraints:
-    - inline-result-only
-    - single-mcp-operation
+# What runs, and when. `rhino gate run --surface <name>` resolves the pinned
+# release once and runs the gates that name the surface, in the order they are
+# declared here. That single resolution is what
+# `apps/rhino-consumer/repository-gate.sh` and the `--bootstrap-exec` flag in
+# this repository's forked bootstrap existed to obtain by hand; both retire
+# with this section.
+#
+# `public-safety` is first on every surface it appears on. A gate that screens
+# what leaves the repository is worth nothing if a cheaper check ahead of it
+# can pass the change through while it is still queued.
+gates:
+  - id: public-safety
+    kind: check
+    run:
+      - bash
+      - scripts/public-safety/check.sh
+    surfaces:
+      - commit-msg
+      - pre-commit
+      - pre-push
+      - ci
 
-scan:
-  exclude-directories:
-    - .git
-    - .nx
-    - node_modules
-    - bin
-    - obj
-    - _build
-    - deps
-    - coverage
-    - playwright-report
-    - test-results
-    - worktrees
+  - id: public-safety-tests
+    kind: check
+    run:
+      - bash
+      - scripts/public-safety/tests/run.sh
+    surfaces:
+      - ci
+
+  - id: commit-message
+    kind: check
+    run:
+      - npm
+      - exec
+      - --
+      - commitlint
+      - --edit
+    surfaces:
+      - commit-msg
+
+  - id: format-staged
+    kind: mutation
+    run:
+      - npm
+      - exec
+      - --
+      - lint-staged
+    surfaces:
+      - pre-commit
+
+  # The six checks `repository-gate.sh` ran, in the order it started them.
+  # Their combination was the only thing that file owned, and this is where
+  # that now lives.
+  - id: repo-config
+    kind: check
+    run:
+      - ./rhino
+      - repo-config
+      - validate
+    surfaces:
+      - ci
+
+  - id: word-budget
+    kind: check
+    run:
+      - ./rhino
+      - governance
+      - word-budget
+      - validate
+    surfaces:
+      - ci
+
+  - id: directory-map
+    kind: check
+    run:
+      - ./rhino
+      - governance
+      - directory-map
+      - validate
+    surfaces:
+      - ci
+
+  - id: harness-parity
+    kind: check
+    run:
+      - ./rhino
+      - harness
+      - parity
+      - validate
+    surfaces:
+      - ci
+
+  - id: internal-link
+    kind: check
+    run:
+      - ./rhino
+      - md
+      - internal-link
+      - validate
+    surfaces:
+      - ci
+
+  - id: mermaid
+    kind: check
+    run:
+      - ./rhino
+      - md
+      - mermaid
+      - validate
+    surfaces:
+      - ci
