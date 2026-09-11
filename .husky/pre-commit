@@ -1,3 +1,10 @@
 set -e
 
-npm exec -- lint-staged
+# One dispatch, one registry. The surface declares the order, and the order is
+# the point: the safety gate runs before the formatter, so a staged leak is
+# refused rather than tidied.
+#
+# Git's own arguments are deliberately not forwarded. Arguments after `--` reach
+# every gate on the surface, not only the one that wants them, and nothing
+# declared on this surface takes one.
+exec ./rhino gate run --surface pre-commit

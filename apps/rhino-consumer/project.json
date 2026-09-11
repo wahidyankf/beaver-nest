@@ -22,12 +22,12 @@
         "{workspaceRoot}/opencode.jsonc",
         "{workspaceRoot}/plans/**/*",
         "{workspaceRoot}/specs/**/*",
-        "{workspaceRoot}/apps/rhino-consumer/repository-gate.sh"
+        "{workspaceRoot}/scripts/public-safety/**/*"
       ],
       "options": {
         "commands": [
           {
-            "command": "./rhino --bootstrap-exec apps/rhino-consumer/repository-gate.sh",
+            "command": "./rhino gate run --surface ci",
             "forwardAllArgs": false
           }
         ],

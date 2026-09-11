@@ -82,9 +82,6 @@ test_commit=0123456789abcdef0123456789abcdef01234567
 cat >"$temporary_root/payload/rhino" <<EOF
 #!/bin/sh
 if [ "\${1:-}" = version ] && [ "\${2:-}" = --json ]; then
-  if [ -n "\${RHINO_TEST_VERIFY_COUNT:-}" ]; then
-    printf 'x\n' >> "\$RHINO_TEST_VERIFY_COUNT"
-  fi
   if [ -n "\${RHINO_TEST_IDENTITY:-}" ]; then
     printf '%s\n' "\$RHINO_TEST_IDENTITY"
   else
@@ -297,10 +294,6 @@ rm -f -- "$counter_probe" "$temporary_root/probe-one.tar.gz" "$temporary_root/pr
 feature_file="$repository_root/specs/tools/rhino-consumer/behaviours/rhino-bootstrap.feature"
 expected_scenarios='A cold cache installs once and a warm cache needs no transport
 The caller'"'"'s argument vector reaches the release unchanged
-One resolution serves a whole gate
-A resolved run stays claimed for as long as its command runs
-Resolving once does not skip payload verification
-A resolve request without a command is refused
 Tampered warm-cache payload never executes
 A downloaded archive whose digest misses the pin never executes
 Non-exact stable release version is rejected
@@ -321,7 +314,21 @@ Release ranking reads real timestamps on every supported platform
 Retention reclaims releases left idle beyond its window
 The two consumer bootstraps never reach each other'"'"'s state'
 actual_scenarios=$(awk '/^[[:space:]]*Scenario: / { sub(/^[[:space:]]*Scenario: /, ""); print }' "$feature_file")
-[ "$actual_scenarios" = "$expected_scenarios" ]
+# Said out loud rather than left to `set -e`. This assertion runs before the
+# first scenario name is printed, so a bare test exits with no output at all --
+# and the one change that trips it, editing the corpus, is also the one where a
+# silent exit reads as the whole suite being broken. The titles themselves are
+# published in the feature file, so naming them here discloses nothing.
+if [ "$actual_scenarios" != "$expected_scenarios" ]; then
+	printf 'the scenario corpus and this adapter disagree\n' >&2
+	printf '%s\n' "$actual_scenarios" | sort >"$temporary_root/corpus-actual"
+	printf '%s\n' "$expected_scenarios" | sort >"$temporary_root/corpus-expected"
+	printf 'only in the feature file:\n' >&2
+	comm -23 "$temporary_root/corpus-actual" "$temporary_root/corpus-expected" >&2
+	printf 'only in this adapter:\n' >&2
+	comm -13 "$temporary_root/corpus-actual" "$temporary_root/corpus-expected" >&2
+	exit 1
+fi
 
 prepare_legacy_install_lock() {
 	write_lock "$test_version" "$checksum"
@@ -400,127 +407,6 @@ inspect
 --file
 README.md'
 	[ "$(sed -n '1,$p' "$arguments_file")" = "$expected_arguments" ]
-}
-
-# The wrapper verifies its cached payload on every invocation -- a digest and an
-# embedded identity check, each a subprocess -- and holds an exclusive install
-# guard while doing it. A gate that runs six checks therefore paid that six
-# times, serialized. `--bootstrap-exec` resolves once and hands the verified
-# path to one command, which is only safe because the wrapper `exec`s that
-# command: the release claim is keyed to the wrapper's PID, and exec preserves
-# it, so the claim stays truthful for exactly as long as the checks run. A
-# forked child would leave the claim owned by a process that had already exited.
-run_one_resolution_serves_a_whole_gate() {
-	write_lock "$test_version" "$checksum"
-	rm -rf -- "$cache_root"
-	result=$(PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
-	[ "$result" = probe-ok ]
-
-	# Three separate invocations verify three times.
-	separate_count="$temporary_root/verify-count-separate"
-	: >"$separate_count"
-	for _ in 1 2 3; do
-		result=$(PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_CURL_FAIL=1 RHINO_TEST_VERIFY_COUNT="$separate_count" "$subject" probe)
-		[ "$result" = probe-ok ]
-	done
-	[ "$(wc -l <"$separate_count" | tr -d ' ')" -eq 3 ]
-
-	# One resolved run doing the same three checks verifies once.
-	resolved_count="$temporary_root/verify-count-resolved"
-	: >"$resolved_count"
-	resolved_output="$temporary_root/resolved-output"
-	# The inner script must not expand here: $1, $$ and $RHINO_BIN belong to the
-	# resolved command's own shell, which is what this scenario is inspecting.
-	# shellcheck disable=SC2016
-	PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_CURL_FAIL=1 RHINO_TEST_VERIFY_COUNT="$resolved_count" \
-		"$subject" --bootstrap-exec sh -c '
-			: >"$1"
-			for _ in 1 2 3; do "$RHINO_BIN" probe >>"$1"; done
-		' resolved-gate "$resolved_output"
-	[ "$(wc -l <"$resolved_output" | tr -d ' ')" -eq 3 ]
-	[ "$(sort -u "$resolved_output")" = probe-ok ]
-	[ "$(wc -l <"$resolved_count" | tr -d ' ')" -eq 1 ]
-}
-
-# Retention skips a release only while a *live* claim names it. The claim the
-# wrapper published names the wrapper's own PID, so a resolved run is protected
-# only if the caller's command inherited that PID rather than being forked
-# beneath it. The command therefore looks itself up by `$$`.
-run_resolved_run_stays_claimed() {
-	write_lock "$test_version" "$checksum"
-	rm -rf -- "$cache_root"
-	result=$(PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
-	[ "$result" = probe-ok ]
-
-	claim_report="$temporary_root/resolved-claim"
-	# The inner script must not expand here: $1, $$ and $RHINO_BIN belong to the
-	# resolved command's own shell, which is what this scenario is inspecting.
-	# shellcheck disable=SC2016
-	PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_CURL_FAIL=1 \
-		"$subject" --bootstrap-exec sh -c '
-			for claim in "$2/.release-claim.$$."*; do
-				[ -f "$claim" ] || continue
-				sed -n "1p" "$claim" >"$1"
-			done
-			printf "%s\n" "$$" >>"$1"
-		' resolved-claim "$claim_report" "$cache_root/$test_version"
-	# The claim's recorded PID and the running command's PID are the same process.
-	[ "$(sed -n '1p' "$claim_report")" = "$(sed -n '2p' "$claim_report")" ]
-	[ -n "$(sed -n '1p' "$claim_report")" ]
-}
-
-# Resolving once must not become trusting once. The payload is verified in the
-# resolving wrapper, before the caller's command exists.
-run_resolved_run_verifies_payload() {
-	write_lock "$test_version" "$checksum"
-	rm -rf -- "$cache_root"
-	result=$(PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
-	[ "$result" = probe-ok ]
-
-	resolved_marker="$temporary_root/resolved-command-ran"
-	rm -f -- "$resolved_marker"
-
-	# Positive control first. Without it the refusal below is not attributable:
-	# a wrapper that did not understand the request at all would also fail, and
-	# also leave no marker.
-	# shellcheck disable=SC2016
-	PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_CURL_FAIL=1 \
-		"$subject" --bootstrap-exec sh -c ': >"$1"' resolved-control "$resolved_marker"
-	[ -e "$resolved_marker" ]
-	rm -f -- "$resolved_marker"
-
-	cached_binary="$cache_root/$test_version/$host_platform/rhino"
-	printf '#!/bin/sh\nexit 0\n' >"$cached_binary"
-	chmod 755 "$cached_binary"
-	set +e
-	# The inner script must not expand here: $1, $$ and $RHINO_BIN belong to the
-	# resolved command's own shell, which is what this scenario is inspecting.
-	# shellcheck disable=SC2016
-	PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_CURL_FAIL=1 \
-		"$subject" --bootstrap-exec sh -c ': >"$1"' resolved-verify "$resolved_marker" >/dev/null 2>&1
-	resolved_status=$?
-	set -e
-	[ "$resolved_status" -ne 0 ]
-	[ ! -e "$resolved_marker" ]
-}
-
-# A resolve request names a command. Without one there is nothing to hand the
-# path to, and executing the release instead would silently run a gate nobody
-# asked for.
-run_resolve_without_command_refused() {
-	write_lock "$test_version" "$checksum"
-	rm -rf -- "$cache_root"
-	result=$(PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
-	[ "$result" = probe-ok ]
-
-	bare_output="$temporary_root/resolve-bare-output"
-	set +e
-	PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_CURL_FAIL=1 \
-		"$subject" --bootstrap-exec >"$bare_output" 2>/dev/null
-	bare_status=$?
-	set -e
-	[ "$bare_status" -eq 78 ]
-	[ ! -s "$bare_output" ]
 }
 
 run_tampered_warm_cache() {
@@ -1315,10 +1201,6 @@ while IFS= read -r scenario; do
 	case "$scenario" in
 	'A cold cache installs once and a warm cache needs no transport') run_cold_then_warm_cache ;;
 	"The caller's argument vector reaches the release unchanged") run_argument_vector_passthrough ;;
-	'One resolution serves a whole gate') run_one_resolution_serves_a_whole_gate ;;
-	'A resolved run stays claimed for as long as its command runs') run_resolved_run_stays_claimed ;;
-	'Resolving once does not skip payload verification') run_resolved_run_verifies_payload ;;
-	'A resolve request without a command is refused') run_resolve_without_command_refused ;;
 	'Tampered warm-cache payload never executes') run_tampered_warm_cache ;;
 	'A downloaded archive whose digest misses the pin never executes') run_download_digest_mismatch ;;
 	'Non-exact stable release version is rejected') run_non_exact_stable_version ;;

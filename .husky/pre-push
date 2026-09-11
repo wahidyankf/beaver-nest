@@ -1,5 +1,14 @@
 set -e
 
+# Git supplies the ref updates on stdin, and two consumers want them: the
+# declared `pre-push` surface, whose safety gate screens the refs and the commit
+# messages about to be published, and the loop below, which decides which
+# projects are affected. A pipe can only be drained once, so it is read once
+# here and each consumer is fed from that. Whichever ran first would otherwise
+# leave the second reading an empty stream and reporting a clean pass over
+# nothing.
+ref_updates=$(cat)
+
 zero_oid=0000000000000000000000000000000000000000
 run_repository_check=
 # Each consumer boundary has its own suite, tracked separately so an ordinary
@@ -23,6 +32,7 @@ validation_changes_for_range() {
 			':(icase,glob)**/*.md' \
 			':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
 			'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
+			':(glob)scripts/public-safety/**' \
 			':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
 			'.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
 	else
@@ -30,12 +40,14 @@ validation_changes_for_range() {
 			':(icase,glob)**/*.md' \
 			':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
 			'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
+			':(glob)scripts/public-safety/**' \
 			':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
 			'.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
 		git log --format= --name-only "$2..$1" -- \
 			':(icase,glob)**/*.md' \
 			':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
 			'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
+			':(glob)scripts/public-safety/**' \
 			':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
 			'.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
 	fi
@@ -79,7 +91,27 @@ rhino_consumer_changes_for_range() {
 	fi
 }
 
+# Screen before anything else on this surface. A gate that decides what may
+# leave the repository is worth nothing if a cheaper check ahead of it can spend
+# the push's time first, and worth less still if that check passes the change
+# through while the screen is still queued.
+#
+# Git's own arguments are deliberately not forwarded: arguments after `--` reach
+# every gate on the surface, and nothing declared here takes a remote name or a
+# URL. What the safety gate reads is the ref-update lines, which arrive on stdin
+# either way -- and the guard passes stdin through, so the admission boundary
+# the repository checks already run behind costs nothing here.
+printf '%s\n' "$ref_updates" | ./hippo run --class ephemeral --disk-path . -- \
+	./rhino gate run --surface pre-push
+
+# The heredoc keeps the loop in this shell, so the three decisions it records
+# survive it.
 while read -r _local_ref local_oid _remote_ref remote_oid; do
+	if [ -z "$_local_ref" ]; then
+		# The capture ends in a newline, so the last read yields a blank line.
+		continue
+	fi
+
 	if [ "$local_oid" = "$zero_oid" ]; then
 		continue
 	fi
@@ -100,7 +132,9 @@ while read -r _local_ref local_oid _remote_ref remote_oid; do
 		[ -n "$(rhino_consumer_changes_for_range "$local_oid" "$remote_oid")" ]; then
 		run_rhino_consumer_check=1
 	fi
-done
+done <<REFS
+$ref_updates
+REFS
 
 # The bootstrap suite is the only surface that inspects the pinned consumer
 # itself. It runs on this workstation, so it cannot observe Linux-only

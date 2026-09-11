@@ -45,8 +45,11 @@ $ ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run rhino-consum
 
 ### `test:repo`
 
-One resolution, then six validator invocations in parallel, failing the target if any of them
-fails:
+Dispatches the `ci` surface: `./rhino gate run --surface ci` runs the gates `repo-config.yml`
+declares for that surface, in the order declared there, stopping at the first failure.
+
+Two of them screen what may leave this repository — `public-safety`, which runs first on every
+surface, and the tests that prove it discriminates. The other six are the validators:
 
 | Invocation                                | What it checks                                            |
 | ----------------------------------------- | --------------------------------------------------------- |
@@ -63,13 +66,16 @@ its four `--directory` calls became one, because the four mapped trees are now d
 addition, and it has no Badakmini counterpart — the policy only became a checkable artifact when it
 stopped being compiled into the validator.
 
-The target runs `./rhino --bootstrap-exec apps/rhino-consumer/repository-gate.sh` rather than six
-`./rhino …` commands. Resolving the pinned release is not free — the bootstrap takes the shared
-install guard, digests the cached executable, and asks it for its embedded release identity — and
-six of those serialize against each other on the guard. `--bootstrap-exec` pays it once and names
-the verified executable in `RHINO_BIN`; measured on this repository, that took the warm gate from
-about 499 ms to about 348 ms. The bootstrap `exec`s the script rather than forking it, so the
-release claim it published stays truthful for as long as the checks run.
+Until this cutover the target ran `./rhino --bootstrap-exec apps/rhino-consumer/repository-gate.sh`,
+a local script naming six checks to run in parallel against one resolution. Both retire here. The
+combination they owned is now declared in `repo-config.yml`, where the hooks and CI read it from
+one place rather than three.
+
+The argument for the flag was cost: resolving the pinned release takes the shared install guard,
+digests the cached executable, and asks it for its embedded release identity, and six of those
+serialize. Measured again on a warm cache before removing it, the parallel resolved run took
+0.66 s and six separate resolutions took 0.64 s. The premise no longer holds, so the flag went with
+the script rather than outliving its reason.
 
 Everything still resolves from the repository root. That is deliberate: the alternative is a gate
 that runs from the wrong directory and reports a clean result for a tree nobody asked about.
@@ -88,8 +94,7 @@ is also runnable on its own.
 | Path                                      | What it is                         |
 | ----------------------------------------- | ---------------------------------- |
 | `apps/rhino-consumer/project.json`        | the targets                        |
-| `apps/rhino-consumer/repository-gate.sh`  | which checks run together          |
-| `repo-config.yml`                         | the declared policy                |
+| `repo-config.yml`                         | the declared policy and its gates  |
 | `rhino`                                   | the bootstrap                      |
 | `rhino.lock`                              | the pinned release and its digests |
 | `.github/scripts/test-rhino-bootstrap.sh` | the bootstrap suite                |
