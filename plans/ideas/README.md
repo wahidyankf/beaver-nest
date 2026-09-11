@@ -15,7 +15,7 @@ Each brief contains, in order:
 7. `Risks & open questions`; and
 8. `What success looks like + promotion signal`.
 
-Keep file-level design, Gherkin, detailed research, and delivery checklists out of the brief. When its important unknowns are resolved, replace it with a formal plan folder under [`../backlogs/`](../backlogs/README.md), carrying its evidence and decisions forward.
+Keep file-level design, Gherkin, detailed research, and delivery checklists out of the brief. When its important unknowns are resolved, replace it with a formal plan folder under [`../backlog/`](../backlog/README.md), carrying its evidence and decisions forward.
 
 ## Quadrants
 

@@ -28,10 +28,14 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Language](language.md) makes English the repository's primary working language.
 - [Markdown links](markdown-links.md) keep internal links resolvable across repository-owned Markdown.
 - [Markdown visualizations](markdown-visualizations.md) prefer useful Mermaid diagrams and require accessible color, contrast, and non-color cues.
-- [Plan lifecycle](plan-lifecycle.md) moves rough ideas through backlogs, active execution, and completion while keeping as-built truth in specifications.
+- [Plan lifecycle](plan-lifecycle.md) carries what this repository adds to the plans convention: idea quadrants, active-service clauses, and local delivery rules.
 - [Plan migrations](plan-migrations.md) makes planned data transitions preserve sources, map compatibility, and prove recovery.
 - [Plan specification changes](plan-specification-changes.md) makes behaviour, C4, test-binding, and file-impact work executable before implementation.
 - [Plan UI design](plan-ui-design.md) requires lo-fi comparison and selected-direction hi-fi assets for UI-affecting formal plans.
+- [Plan validator contract](plan-validator-contract.md) freezes what a plan-structure validator reads, the rule identifiers it emits, and the exits it returns.
+- [Plan validator contract modules](plan-validator-contract/README.md) hold the ordered modules of that contract.
+- [Plans](plans.md) defines the plan lifecycle, the six required documents, delivery, validation, evidence, and archival.
+- [Plans modules](plans/README.md) hold the ordered modules that carry the complete plans rule.
 - [Project READMEs](project-readmes.md) make every application and library independently understandable and operable.
 - [Public repository data safety](public-repository-data-safety.md) prevents secrets and machine-local identifiers from entering public history.
 - [Pull request body](pull-request-body.md) states what every description must carry and requires it to be rewritten whenever a push moves the head.
