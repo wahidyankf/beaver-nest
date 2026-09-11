@@ -6,8 +6,23 @@ Follow the [plans convention](../repo-governance/conventions/plans.md) and the l
 
 ## Lifecycle
 
-```text
-ideas/ → backlog/ → in-progress/ → done/
+```mermaid
+flowchart LR
+    accTitle: Plan lifecycle stages
+    accDescr: A plan moves one way through four stages -- ideas, backlog, in-progress, then done -- and is never copied between them.
+
+    Ideas["Ideas"] --> Backlog["Backlog"]
+    Backlog --> InProgress["In progress"]
+    InProgress --> Done["Done"]
+
+    classDef idea fill:#CC78BC,stroke:#000000,color:#000000,stroke-width:2px
+    classDef queued fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
+    classDef active fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+    classDef complete fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+    class Ideas idea
+    class Backlog queued
+    class InProgress active
+    class Done complete
 ```
 
 - [`ideas/`](ideas/README.md) contains rough two-pager briefs grouped by urgency and importance.
