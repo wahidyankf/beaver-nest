@@ -9,7 +9,7 @@ Beaver Nest is one of five repositories Open Sharia Enterprise is built and main
 | Repository                                               | What it does                               |
 | -------------------------------------------------------- | ------------------------------------------ |
 | [`ose-public`](https://github.com/wahidyankf/ose-public) | The OSE product platform and its research  |
-| `ose-private`                                            | Authorized operations, private             |
+| _(unnamed, private)_                                     | Authorized operations, private             |
 | [`rhino`](https://github.com/wahidyankf/rhino)           | Repository hygiene — consumed here         |
 | [`hippo`](https://github.com/wahidyankf/hippo)           | Host resource coordination — consumed here |
 | **`beaver-nest`**                                        | This repository                            |

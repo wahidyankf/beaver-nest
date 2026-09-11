@@ -28,7 +28,7 @@ Adopt it in four repositories, because a tool is only generic once more than one
 
 Measure it. The gate's wall-clock cost, startup, memory, and toolchain setup are recorded before any change and again after each cutover, and the distribution path is measured end to end — what a consumer pays to go from a pinned lock line to a running check, not just how large the artifact is. The claim that this is cheaper becomes a number rather than an intuition, and a metric that got worse is reported as prominently as one that improved.
 
-`ose-public` and `ose-private` remain out of scope. Their adoption becomes possible because the tool is configuration-driven, and `ose-public` additionally needs a merge decision about its own `rhino-cli` that this plan deliberately does not make.
+`ose-public` and the private operations repository remain out of scope. Their adoption becomes possible because the tool is configuration-driven, and `ose-public` additionally needs a merge decision about its own `rhino-cli` that this plan deliberately does not make.
 
 ## Dependencies
 

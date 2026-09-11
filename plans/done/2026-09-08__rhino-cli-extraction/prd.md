@@ -178,7 +178,7 @@ Scenario: Before-and-after evidence exists for every cutover
 
 In scope: the upstream Rust repository, its specification corpus, its documentation tree, its release pipeline, and the configuration schema; adoption in four repositories — rhino, BeaverNest, HIPPO, and grind-in-public — including each one's bootstrap, lock, declared policy, gate wiring, and hooks; retirement of BeaverNest's F# Badakmini in full and of grind-in-public's three `badak-mini` hygiene checks, whose `harness rule-change` sibling and Go module stay; and every rule, document, specification, and map in either repository that names them.
 
-Out of scope: `ose-public` and `ose-private` adoption, any merge with `ose-public`'s `apps/rhino-cli`, grind-in-public's repository-specific Node and spelling checks, new validators, new output formats, and any change to governed content or to BeaverNest's product, storage, or deployment.
+Out of scope: `ose-public` and private-operations-repository adoption, any merge with `ose-public`'s `apps/rhino-cli`, grind-in-public's repository-specific Node and spelling checks, new validators, new output formats, and any change to governed content or to BeaverNest's product, storage, or deployment.
 
 ## Risks
 

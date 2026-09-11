@@ -5,7 +5,7 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
 ## Ideas
 
 - [RHINO adoption across the OSE repositories](rhino-adoption-across-ose.md) extends the completed cutover to
-  `ose-public` and `ose-private`, and settles whether `ose-public`'s own `rhino-cli` merges into RHINO.
+  `ose-public` and the private operations repository, and settles whether `ose-public`'s own `rhino-cli` merges into RHINO.
 
 ## Directory Map
 
