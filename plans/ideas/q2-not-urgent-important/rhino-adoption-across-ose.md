@@ -1,6 +1,6 @@
 # RHINO Adoption Across the OSE Repositories
 
-Extend the four-repository RHINO cutover to `ose-public` and `ose-private`, and settle whether `ose-public`'s own
+Extend the four-repository RHINO cutover to `ose-public` and the private operations repository, and settle whether `ose-public`'s own
 `rhino-cli` merges into RHINO or stays.
 
 _Recorded 2026-09-08, on completion of [the RHINO CLI extraction plan](../../done/README.md). Every figure below is
@@ -62,12 +62,12 @@ Three questions in order, each answerable before the next is worth asking.
    each value's source recorded, reconcile both validators over the real tree before retiring anything, verify the
    cutover with injected violations, rehearse the rollback, and propagate through that repository's own rules.
 
-`ose-private` is a straight adoption with no retirement, on the Phase 9 (HIPPO) pattern, and does not depend on any
+The private operations repository is a straight adoption with no retirement, on the Phase 9 (HIPPO) pattern, and does not depend on any
 of the above.
 
 ## Rough Scope & Non-Goals
 
-**In scope:** the alignment decision for `rhino-cli`; RHINO adoption in `ose-public` and `ose-private`; whatever
+**In scope:** the alignment decision for `rhino-cli`; RHINO adoption in `ose-public` and the private operations repository; whatever
 upstream configuration keys those two trees prove RHINO is still missing.
 
 **Not in scope:** re-opening the eight recorded divergences as open questions — they have reasons, and a merge

@@ -36,7 +36,7 @@ The failure this prevents is specific and has already happened once in this fami
 - **Changing what either CLI does.** No product behaviour, command surface, exit code, configuration compatibility, or release artifact changes. Coverage floors, the `#![forbid(unsafe_code)]` rule, the exit-code contract, and the no-defaults rule are carried into the hierarchy unchanged.
 - **Weakening any existing check to make the restructure land.** If a governed document exceeds the word budget the repository adopts, it is split; the budget is not raised to fit it, and the document is not trimmed of substance to fit the budget.
 - **Adopting this repository's Nx-shaped quality-gate mechanics.** `nx affected`, project graphs, and Nx task routing do not enter either repository. The gate-routing idea survives; the tool does not.
-- **Adopting `ose-public`, `ose-private`, `grind-in-public`, or any other sibling.** This plan covers two repositories.
+- **Adopting `ose-public`, the private operations repository, `grind-in-public`, or any other sibling.** This plan covers two repositories.
 - **Retiring or rewriting either repository's existing `ci.yml` checks.** They are absorbed intact into the new gate; the change is where they live and what blocks merge, not what they verify.
 
 ## Risks and Controls

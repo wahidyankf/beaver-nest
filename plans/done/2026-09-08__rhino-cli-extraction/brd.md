@@ -27,7 +27,7 @@ Own the repository-hygiene contract once, in one independently released tool, so
 
 ## Non-goals
 
-- Adopting RHINO in `ose-public` or `ose-private`. Their adoption is enabled here and executed elsewhere.
+- Adopting RHINO in `ose-public` or the private operations repository. Their adoption is enabled here and executed elsewhere.
 - Retiring or merging `ose-public`'s existing `apps/rhino-cli`. This plan aligns with its surface so that a future merge is a configuration port; it does not perform that merge.
 - Absorbing any repository-specific check that is not general repository hygiene. grind-in-public's project-contract, governance-structure, workflow-contract, and spelling checks stay in grind-in-public.
 - Adding validators, output formats, or repository-hygiene concerns that Badakmini does not implement today.
