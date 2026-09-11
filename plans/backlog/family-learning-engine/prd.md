@@ -23,10 +23,12 @@ Product copy in this plan is written in Bahasa Indonesia because the household u
 
 ## Acceptance Criteria
 
+Each criterion is one heading. Its identifier is defined once, on the first scenario under that heading, and the remaining scenarios in the group elaborate the same criterion. A delivery item citing the identifier is promising the whole group.
+
 ### AC-01 — Content sync
 
 ```gherkin
-Scenario: Authored content enters the log exactly once
+Scenario: [AC-01] Authored content enters the log exactly once
   Given a learning corpus of courses, topics, and missions in the repository
   When the content sync runs twice against the same corpus
   Then the first run appends one defining event per item
@@ -52,7 +54,7 @@ Scenario: Removing content retires it instead of deleting it
 ### AC-02 — Reusable missions, single mastery
 
 ```gherkin
-Scenario: A mastered mission is not repeated in another course
+Scenario: [AC-02] A mastered mission is not repeated in another course
   Given mission "shared/tajwid/idgham" belongs to a topic in course "quran-dasar" and a topic in course "tahsin"
   And the learner has mastered that mission through "quran-dasar"
   When the learner opens "tahsin" at "/learn/tahsin" on desktop, tablet, and mobile
@@ -78,7 +80,7 @@ Scenario Outline: Each mission kind is completed by its declared pass rule
     | flashcard       | streak_two      |
     | parent_check    | parent_verified |
 
-Scenario: An unsatisfied pass rule keeps the mission open
+Scenario: [AC-03] An unsatisfied pass rule keeps the mission open
   Given a multiple-choice mission with pass rule "streak_two"
   And the learner has answered it correctly once
   When the learner answers it incorrectly
@@ -89,7 +91,7 @@ Scenario: An unsatisfied pass rule keeps the mission open
 ### AC-04 — Spaced review
 
 ```gherkin
-Scenario: Review surfaces only what is due for this learner
+Scenario: [AC-04] Review surfaces only what is due for this learner
   Given the learner mastered two missions with different review schedules
   And only one of them is due
   When the learner opens "/learn/review" on desktop, tablet, and mobile
@@ -106,7 +108,7 @@ Scenario: A wrong answer during review reschedules the mission sooner
 ### AC-05 — Parent verification
 
 ```gherkin
-Scenario: A parent verifies an in-person mission for a child
+Scenario: [AC-05] A parent verifies an in-person mission for a child
   Given a child submitted "hafalan/juz-30/an-naba" for verification
   When a user holding "parents" opens "/learn/verify" and approves that submission
   Then the attempt records the approving user and the decision time
@@ -128,7 +130,7 @@ Scenario: A child cannot open the verification queue
 ### AC-06 — Coin earning
 
 ```gherkin
-Scenario: First mastery credits the mission reward once
+Scenario: [AC-06] First mastery credits the mission reward once
   Given mission "sifat-allah/wujud/wajib-meaning" awards 5 coins
   And the learner has not mastered it
   When the learner masters it
@@ -145,7 +147,7 @@ Scenario: Repeating a mastered mission credits nothing
 ### AC-07 — Event log as the source of truth
 
 ```gherkin
-Scenario: Every state change exists first as an event
+Scenario: [AC-07] Every state change exists first as an event
   Given a learner masters a coin-bearing mission
   When the transaction commits
   Then the learner's stream holds a "mission.mastered" and a "coins.earned" event
@@ -176,10 +178,10 @@ Scenario: Concurrent writers cannot both append the same stream position
   And the other reloads, re-decides, and appends after it
 ```
 
-### AC-07b — Rebuild from the log
+### AC-13 — Rebuild from the log
 
 ```gherkin
-Scenario: Projections rebuild byte-identically
+Scenario: [AC-13] Projections rebuild byte-identically
   Given a learner has answered, mastered, reviewed, earned coins, and had a submission verified
   And content has been defined, reordered, and retired
   When every projection is dropped and the log is replayed from the first event
@@ -196,7 +198,7 @@ Scenario: A subscriber resumes where it stopped
 ### AC-08 — API scope and authorization
 
 ```gherkin
-Scenario: A learner reads only their own progress
+Scenario: [AC-08] A learner reads only their own progress
   Given a user holding only "children" is authenticated
   When the user queries another learner's progress through "/api/graphql"
   Then the request is denied with a value-free error
@@ -223,7 +225,7 @@ Scenario: The endpoint refuses an unauthenticated request
 ### AC-09 — Learner interface
 
 ```gherkin
-Scenario: A child moves from course to mission without deciding anything
+Scenario: [AC-09] A child moves from course to mission without deciding anything
   Given a learner has an unfinished course
   When the learner opens "/learn" on desktop, tablet, and mobile
   Then the course shows its topic trail and progress
@@ -255,7 +257,7 @@ Scenario Outline: Every runner state renders on every supported viewport
 ### AC-10 — Sifat Allah parity on the generic runner
 
 ```gherkin
-Scenario: The existing revision corpus passes against the generic runner
+Scenario: [AC-10] The existing revision corpus passes against the generic runner
   Given "specs/apps/bnest/app/behaviours/sifat_allah.feature" is unchanged except for its route
   When the corpus runs against the generic mission runner
   Then every scenario passes, including automatic advance, locked answers, browser Back to the mission dashboard, immediate queue movement, and the exam skipping learned questions
@@ -265,7 +267,7 @@ Scenario: The existing revision corpus passes against the generic runner
 ### AC-11 — Sifat Allah progress migration
 
 ```gherkin
-Scenario: Every learner's revision state survives the cutover
+Scenario: [AC-11] Every learner's revision state survives the cutover
   Given stored "sifat-allah-progress" records exist for household learners
   When the learning migration runs
   Then each learned, mastered, and difficult entry becomes an equivalent progress row
@@ -287,7 +289,7 @@ Scenario: A blocked source stops the cutover without data loss
 ### AC-12 — Active-service rollout
 
 ```gherkin
-Scenario: The routed household keeps working across the learning rollout
+Scenario: [AC-12] The routed household keeps working across the learning rollout
   Given the current Caddy route is healthy and a connected learner is mid-mission
   When a revision-compatible candidate is promoted
   Then the routed revision and readiness are proven at the exact origin

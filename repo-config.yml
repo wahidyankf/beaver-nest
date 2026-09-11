@@ -406,3 +406,14 @@ gates:
       - validate
     surfaces:
       - ci
+  # Declared once the live plans validated clean. Without it, structural decay
+  # in a plan is something a reader notices rather than something a surface
+  # refuses, which is the whole point of a structural validator.
+  - id: plan
+    kind: check
+    run:
+      - ./rhino
+      - plan
+      - validate
+    surfaces:
+      - ci
