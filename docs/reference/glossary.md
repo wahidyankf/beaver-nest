@@ -48,7 +48,7 @@ Terms used across Beaver Nest's rules, plans, projects, and commit messages. Eac
 
 ## Planning and governance
 
-- **Plan lifecycle** — `ideas/` → `backlogs/` → `in-progress/` → `done/`. A plan moves; it is never copied between stages. See [the convention](../../repo-governance/conventions/plan-lifecycle.md).
+- **Plan lifecycle** — `ideas/` → `backlog/` → `in-progress/` → `done/`. A plan moves; it is never copied between stages. See the [plans convention](../../repo-governance/conventions/plans.md) and the local [lifecycle](../../repo-governance/conventions/plan-lifecycle.md).
 - **`[AI]` / `[HUMAN]`** — who executes a delivery task. `[HUMAN]` is only for a decision, credential, physical action, or authority unavailable to an agent, never to postpone discovery.
 - **Blocking checkpoint** — the task that ends a delivery phase. Later phases do not start until it passes.
 - **Rules propagation** — the workflow that keeps a changed rule consistent everywhere it is referenced. See [the workflow](../../repo-governance/workflows/rules-propagation.md).

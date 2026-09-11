@@ -69,9 +69,20 @@ harness-parity:
         format: toml
         route-field: developer_instructions
         identity: { name: name, description: description }
-        # validateCodexAdapter: the sandbox is fixed and a portable model
-        # selection may not be pinned here.
-        fixed: { sandbox_mode: read-only }
+        # validateCodexAdapter pinned the sandbox because every agent this
+        # repository had denied repository-write. The plan maker does not, and
+        # a value fixed for every agent would claim read-only for an agent that
+        # writes -- so the field is translated from the canon instead. A
+        # portable adapter still may not pin a model, which `absent` keeps true.
+        translations:
+          - when: denies
+            capability: repository-write
+            field: sandbox_mode
+            members: [read-only]
+          - when: requires
+            capability: repository-write
+            field: sandbox_mode
+            members: [workspace-write]
         absent: [model]
       capability:
         file: .codex/config.toml
@@ -101,6 +112,14 @@ harness-parity:
             capability: web-fetch
             field: tools
             members: [WebFetch]
+          - when: requires
+            capability: repository-write
+            field: tools
+            members: [Write, Edit]
+          - when: requires
+            capability: shell
+            field: tools
+            members: [Bash]
           - when: requires
             capability: nx-mcp
             field: tools
@@ -149,6 +168,14 @@ harness-parity:
             capability: web-fetch
             field: permission
             entries: { webfetch: allow }
+          - when: requires
+            capability: repository-write
+            field: permission
+            entries: { edit: allow }
+          - when: requires
+            capability: shell
+            field: permission
+            entries: { bash: allow }
           - when: requires
             capability: nx-mcp
             field: permission
@@ -209,7 +236,16 @@ governance-directory-map:
   trees:
     - path: repo-governance
     - path: docs
-    - path: specs
+    # `specs/apps` and `specs/tools` rather than `specs`: a mapped tree is
+    # walked whole, and `specs/fixtures/plan-structure` is a copy verified
+    # against the catalog's digest. The READMEs the rule would demand inside it
+    # are bytes that must not change, and the rule has no exclusion -- so the
+    # narrower trees keep every directory this repository actually authors
+    # under it. The cost is `specs/README.md`'s own map, which is no longer
+    # checked for completeness; hippo accepted the same trade for the same
+    # reason.
+    - path: specs/apps
+    - path: specs/tools
     - path: plans
 
 md-internal-link:
@@ -217,7 +253,15 @@ md-internal-link:
   # valid targets. An archived plan deliberately references paths that no
   # longer exist, and reporting those would make finishing a plan produce
   # findings.
+  #
+  # The shared plan-structure corpus is excluded for a different reason:
+  # several of its rejected cases are documents carrying a deliberately broken
+  # link, which is the defect the case exists to make a validator report. The
+  # tree is verified against the catalog's digest rather than edited, so a link
+  # repaired here to satisfy this rule would break the comparison the corpus is
+  # for. Every member carrying the corpus excludes the same path.
   exclude-sources:
+    - "specs/fixtures/**"
     - "plans/done/**"
 
 md-mermaid:

@@ -1,67 +1,71 @@
 # Plan Lifecycle
 
-Keep each plan in one stage:
-
-```text
-ideas/ → backlogs/ → in-progress/ → done/
-```
+What this repository adds to the [Plans Convention](plans.md). The lifecycle roots, the six required documents, the
+technical shape and its three-digit ordered companions, the delivery contract, the terminal verdicts and the archival
+sequence are stated there once and are not restated here.
 
 ## Authorization
 
-`plans/` artifacts require explicit user request; Plan mode never authorizes repository plan docs.
+`plans/` artifacts require an explicit user request; Plan mode never authorizes a repository plan document.
 
 ## Ideas
 
-Store rough two-pagers at `plans/ideas/<quadrant>/<slug>.md`; select q1–q4 from dated urgency/importance evidence.
+Store rough two-pagers at `plans/ideas/<quadrant>/<slug>.md` and select `q1`–`q4` from dated urgency and importance
+evidence. The quadrant directory is this repository's own layout; the convention fixes the root, not what sits beneath
+it.
 
-Include summary, evidence, timing, prior art, direction, scope/non-goals, risks, success, and promotion signal. Exclude implementation detail, Gherkin, and delivery checklists; search and consolidate first.
+Include summary, evidence, timing, prior art, direction, scope and non-goals, risks, success, and promotion signal.
+Exclude implementation detail, Gherkin, and delivery checklists; search and consolidate first.
 
-## Formal Plans
+## Scope of a Plan
 
-Use `plans/backlogs/<slug>/` for queued, `plans/in-progress/<slug>/` for active, and `plans/done/YYYY-MM-DD__<slug>/` for completed work. Use kebab-case.
+Plan documentation exists so a reader can understand why the plan exists, its intended outcome, the options and
+trade-offs considered, the selected decision, and how delivery and proof will work.
 
-Plan documentation exists so a reader can understand why the plan exists, its intended outcome, the options and trade-offs considered, the selected decision, and how delivery and proof will work.
+Cross-repository work is planned here; each affected repository then executes its own change under its own rules. A plan
+never edits another repository directly.
 
-Cross-repository work is planned here; each affected repository then executes its own change under its own rules. A plan never edits another repository directly.
+Follow [maps](directory-maps.md). Plans have no word limit but exclude secrets and sensitive runtime data. Write for
+juniors. Record File Impact as exact paths: `[E]` updated, `[N]` new, `[M]` moved, `[D]` deleted; discover unknowns.
+Follow the applicable [migration](plan-migrations.md), [specification-change](plan-specification-changes.md) and
+[UI-design](plan-ui-design.md) conventions.
 
-Each formal plan contains:
+PRD Gherkin accepts the plan, not `specs/`; technical documents select contracts, and delivery proves operational,
+migration, and rollout criteria.
 
-- `README.md`: status, context, scope, approach, dependencies, navigation;
-- `brd.md`: goal, roles, outcomes, non-goals, risks;
-- `prd.md`: personas, stories, Gherkin criteria, scope, risks;
-- `tech-docs.md`, or `tech-docs/README.md` with mapped companions: technical entry point, architecture, decisions;
-- `delivery.md`: ordered tasks, executors, quality routes, proof, checkpoints; and
-- `learnings.md`: capture approach and transient observations.
+## Active-Service Plans
 
-Use exactly one technical shape: a single `tech-docs.md`, or `tech-docs/README.md` with mapped companions. Choose by reader needs, cohesion, and navigation: keep one document while it remains coherent; split when distinct responsibilities benefit from their own reading order and ownership; collapse fragments with no distinct job. File length is a review signal, never a requirement or prohibition for either shape. Never keep both shapes or pre-create empty companions. Follow [minimal sufficiency](../principles/minimal-sufficiency.md).
+The technical document set and `delivery.md` apply [continuity](../development/live-service-continuity.md) and the
+deployment workflow. Bnest plans name Caddy, candidate and revision health, continuous exact-origin responsiveness with
+numeric p95 and per-sample maximum acceptance criteria from preflight through drain, LiveView and WebSocket reconnect,
+drain and cleanup, mixed-version safety, routed proof, and the responsiveness rollback trigger. Never stop the sole
+backend, repoint Tailscale, require a refresh, or accept a 2xx status alone as responsiveness proof.
 
-Split companions carry a three-digit reading-order prefix (`001-event-model.md`); `README.md` reads first. Renumber on insertion; order navigation and maps by number. Existing plans adopt this when next materially changed.
+## Local Delivery Rules
 
-Follow [maps](directory-maps.md); plans have no word limit but exclude secrets and sensitive runtime data. Write for juniors. File Impact: exact `[E]` update, `[N]` new, `[M]` moved, `[D]` deleted paths; discover unknowns. Follow applicable [migration](plan-migrations.md), [specification-change](plan-specification-changes.md), [UI-design](plan-ui-design.md) conventions.
+A checklist item that ships code expresses its [red-green-refactor cycle](../workflows/red-green-refactor.md) as
+separate RED, GREEN, and REFACTOR checkboxes, each naming the exact test path, command, and expected failure or pass.
+Never combine the cycle into one checkbox or into prose.
 
-PRD Gherkin accepts the plan, not `specs/`; technical docs select contracts and delivery proves operational, migration, and rollout criteria.
+Give recovery and rollback checkboxes an explicit trigger. Keep them dormant until triggered; otherwise record an
+evidence-backed `Not triggered` disposition at reconciliation.
 
-Active-service plans: the technical document set and `delivery.md` apply [continuity](../development/live-service-continuity.md) and deployment workflow. Bnest plans name Caddy, candidate/revision health, continuous exact-origin responsiveness with numeric p95 and per-sample maximum acceptance criteria from preflight through drain, LiveView/WebSocket reconnect, drain/cleanup, mixed-version safety, routed proof, and the responsiveness rollback trigger; never stop the sole backend, repoint Tailscale, require refresh, or accept 2xx status alone as responsiveness proof.
+When execution may create, change, move, or delete a repository rule, `delivery.md` includes an `[AI]` task that applies
+the bounded [rules-propagation workflow](../workflows/rules-propagation.md) to the resulting rule change and records its
+terminal result; it may return `PASS_NO_CHANGE`. When execution changes a documented C4 element, `delivery.md` includes
+an `[AI]` task that updates the exact affected canonical file and view with the final as-built model under the
+[plan specification-change convention](plan-specification-changes.md).
 
-## Delivery Ownership
+End every phase with a blocking checkpoint.
 
-Every executable non-archived checkbox carries relevant `[AC-...]` labels and:
-
-- `[AI]` for work within available authority, tools, and safety boundaries;
-- `[HUMAN]` only for a decision, credential, physical action, production mutation, or external authority unavailable to AI.
-
-Prefer `[AI]`; never use `[HUMAN]` to postpone discovery or settled decisions. Split mixed tasks. Each task names input, action, outcome, and proof for a junior. End every phase with a blocking checkpoint.
-
-A checklist item that ships code must express its [red-green-refactor cycle](../workflows/red-green-refactor.md) as separate RED, GREEN, and REFACTOR checkboxes, each naming the exact test path, command, and expected failure or pass; never combine the cycle into one checkbox or into prose.
-
-Give recovery/rollback checkboxes an explicit trigger. Keep them dormant until triggered; otherwise record an evidence-backed `Not triggered` disposition at reconciliation. The verified move completes the separate archival checkbox.
-
-When execution may create, change, move, or delete a repository rule, `delivery.md` must include an `[AI]` task that applies the bounded [rules-propagation workflow](../workflows/rules-propagation.md) to the resulting rule change and records its terminal result; it may return `PASS_NO_CHANGE`. When execution changes a documented C4 element, `delivery.md` must include an `[AI]` task that updates the exact affected canonical file and view with the final as-built model under the [plan specification-change convention](plan-specification-changes.md).
-
-Run the [plan quality gate](../workflows/plan-quality-gate.md) before execution, after material changes, and at completion, only on explicit user direction. Separately authorize [execution](../workflows/plan-execution.md).
+Run the [plan quality gate](../workflows/plan-quality-gate.md) before execution, after material changes, and at
+completion, only on explicit user direction. Authorize [execution](../workflows/plan-execution.md) separately.
 
 ## Transitions and Specifications
 
-Move, never copy; update indexes and status together. Refuse an existing dated destination. Archive only after acceptance, verification, learnings, and conditional items are reconciled; then run the deterministic repository gate.
+Refuse an existing dated destination. Archive only after acceptance, verification, learnings, and conditional items are
+reconciled, then run the deterministic repository gate.
 
-Plans may propose architecture and behaviour, but `specs/` remains as-built truth. Execution updates every affected specification with implementation under [specification maintenance](../development/specification-maintenance.md).
+Plans may propose architecture and behaviour, but `specs/` remains as-built truth. Execution updates every affected
+specification with the implementation under
+[specification maintenance](../development/specification-maintenance.md).

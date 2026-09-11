@@ -35,11 +35,10 @@
 - Apply [Diátaxis](repo-governance/conventions/documentation-architecture.md).
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md), [track tasks](repo-governance/conventions/task-tracking.md), and retain unfamiliar parallel changes under `plans/` and `repo-governance/`.
 - Use ignored `local-tmp/` for scratch and `generated-reports/` for requested pre-plan audits/reports; neither is authoritative or a plan.
-- User-requested plans must explain why, options, decision, execution, proof, and reader-serving shape; Plan mode alone is insufficient. Number split tech-doc companions `01-`. [Lifecycle](repo-governance/conventions/plan-lifecycle.md), [execution](repo-governance/workflows/plan-execution.md), [minimalism](repo-governance/principles/minimal-sufficiency.md).
-- [Migration plans](repo-governance/conventions/plan-migrations.md) need a data-model diagram and field guide beside schema contracts; authority cutovers require fresh-process journeys with the prior source unavailable, never parity alone.
-- Bnest active-service plans require Caddy candidate/promotion/rollback, routed responsiveness through drain, compatible LiveView reconnect, authoritative socket recovery, and routed WebSocket/revision proof; never assume refresh.
+- Write under `plans/` only on an explicit user request; Plan mode alone never authorizes one. The [plans convention](repo-governance/conventions/plans.md) fixes the lifecycle roots, the six documents, and the three-digit ordinals every split companion set carries; the local [lifecycle](repo-governance/conventions/plan-lifecycle.md) adds what this repository needs, and [planning capabilities](repo-governance/development/planning-capabilities.md) rosters the seven workflows, six skills, and three agents covering it.
+- Bnest active-service plans carry the Caddy, drain, reconnect, and revision-proof clauses the lifecycle states; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
-- Delivery: `[AI]`/`[HUMAN]` tasks, checkpoints, and evidenced [TDD](repo-governance/development/test-driven-development.md) RED/GREEN/REFACTOR cycles.
+- Delivery items carry evidenced [TDD](repo-governance/development/test-driven-development.md) RED/GREEN/REFACTOR cycles; their executor labels and checkpoints are the plans convention's.
 - [Ask last](repo-governance/conventions/last-resort-questions.md); stop after the minimal verified change.
 
 ## Development

@@ -22,6 +22,8 @@ A development standard should identify:
 - [End-to-end testing](end-to-end-testing.md) limits slow public-boundary tests to affected journeys during development and schedules full-suite coverage.
 - [GitHub Actions storage](github-actions-storage.md) bounds artifacts, Packages, and caches and requires an externally verified zero-dollar Actions hard stop.
 - [Live-service continuity](live-service-continuity.md) prevents working-tree changes and incomplete cutovers from taking an active user surface offline.
+- [Planning capabilities](planning-capabilities.md) name the planning workflows, skills, and agents a repository publishes and the uniform contract each satisfies.
+- [Planning capabilities modules](planning-capabilities/README.md) hold the ordered modules of that roster.
 - [Quality gates](quality-gates.md) define unit, local-only integration, dedicated-app E2E, coverage, and Git hook safeguards.
 - [Resource-aware development](resource-aware-development.md) coordinates repository-owned work through shared vector reservations, FIFO admission, and targeted shedding.
 - [Software quality enforcement](software-quality-enforcement.md) maps each maintained quality outcome to its blocking, scheduled, runtime, or evidence route.
