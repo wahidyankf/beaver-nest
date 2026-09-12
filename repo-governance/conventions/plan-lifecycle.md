@@ -63,8 +63,9 @@ completion, only on explicit user direction. Authorize [execution](../workflows/
 
 ## Transitions and Specifications
 
-Refuse an existing dated destination. Archive only after acceptance, verification, learnings, and conditional items are
-reconciled, then run the deterministic repository gate.
+Refuse an existing dated destination: a second plan completing on the same date under the same slug is a collision,
+not an overwrite. What must be reconciled before archival, and the order of the archival transaction itself, are
+stated in [knowledge capture and archival](plans/008-knowledge-capture-and-archival.md).
 
 Plans may propose architecture and behaviour, but `specs/` remains as-built truth. Execution updates every affected
 specification with the implementation under
