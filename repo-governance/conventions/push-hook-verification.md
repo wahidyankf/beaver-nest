@@ -17,6 +17,7 @@ Do not pass `--no-verify` to `git push` unless the user explicitly authorizes by
 - Rerun the failed check and relevant verification after the fix, then use a normal verified push.
 - Convenience, time pressure, repeated failure, or difficulty diagnosing the cause never justify `--no-verify`.
 - If the root cause cannot be fixed within the authorized scope, report the evidence and unresolved blocker. Ask for direction only under the [last-resort questions convention](last-resort-questions.md).
+- A bypass never covers the public-safety screen, which `--no-verify` would otherwise skip. Before an authorized bypass push, run it for what is about to leave the machine, `OSE_GATE_SURFACE=pre-push scripts/public-safety/check.sh </dev/null`, and push only on exit `0`.
 - Even when bypass is explicitly authorized, disclose which safeguards will be skipped and any unresolved failure before pushing.
 
 This convention keeps repository safeguards effective through root-cause correction rather than bypasses or cosmetic fixes, while preserving the user's authority to approve a deliberate exception. It supplements the [commit-authorization convention](commit-authorization.md); neither permission implies the other.
