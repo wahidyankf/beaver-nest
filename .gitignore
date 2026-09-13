@@ -16,6 +16,12 @@ migrate_working_dir/
 /local-tmp/
 /generated-reports/
 
+# Real environment files hold local secrets that exist nowhere else. Only the
+# template is committable.
+.env
+.env.*
+!.env.example
+
 # IntelliJ related
 *.iml
 *.ipr
