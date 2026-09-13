@@ -128,6 +128,7 @@ bash scripts/public-safety/tests/run.sh 080        # one case by name fragment
 | `100-credential-finding-names-its-input` | a credential finding names its input, not a temporary copy                     |
 | `110-file-list-inputs`                   | listed files and names are screened and attributed; a bad list is a scan error |
 | `120-large-tree-dispatch`                | a tracked tree larger than the host's argument limit is still screened         |
+| `130-hook-environment-isolation`         | a suite started from a Git hook leaves the hook's own repository untouched     |
 
 Every probe value is assembled at run time from fragments, so no string this repository's own gate would flag exists in
 any test file — a test that hardcoded one would block the commit that added it. `assert_absent` reports only a length on

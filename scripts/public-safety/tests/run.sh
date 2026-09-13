@@ -12,6 +12,15 @@
 
 set -uo pipefail
 
+# A Git hook hands its repository's location to every child process: a hook in
+# a linked worktree exports GIT_DIR, and pre-commit adds GIT_INDEX_FILE. Cases
+# build fixture repositories, and under those variables every fixture command
+# would reach the repository whose hook started the suite instead. Drop each
+# variable Git itself names as repository-local before any case runs.
+while IFS= read -r variable; do
+	unset "$variable"
+done < <(git rev-parse --local-env-vars 2>/dev/null)
+
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 root=$(CDPATH= cd -- "$here/../../.." && pwd)
 export PUBLIC_SAFETY_ROOT="$root"
