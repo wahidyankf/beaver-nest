@@ -32,7 +32,8 @@ candidate as a finding only where its shape and its context establish that the v
 ## Steps
 
 1. Pin the head SHA. Everything below concerns that SHA and no other.
-2. Read the whole diff at it — not a summary, and not memory of what was written.
+2. Read the whole diff at it — not a summary, and not memory of what was written — and the
+   pull request's title and body, which are published too.
 3. Post one review carrying the record below, whatever the result: a pass nobody wrote down is
    indistinguishable from a review nobody ran.
 4. Read the review back and confirm its `commit_id` equals the pinned SHA.
