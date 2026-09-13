@@ -4,12 +4,19 @@
 # ==============================================================================
 # Usage:
 #   outbound-preflight.sh --surface <surface> [--text <string>]... [--file <path>]...
-#                         [--terms <path>]
+#                         [--file-list <path>]... [--names-list <path>]... [--terms <path>]
 #
-#   --surface  baseline | diff | commit | ref | pull-request | release | logs
-#   --text     an outbound string: a commit message, a branch name, a PR body
-#   --file     a file whose contents are outbound
-#   --terms    term set to screen against (default: shape-terms.txt beside this)
+#   --surface     baseline | diff | commit | ref | pull-request | release | logs
+#   --text        an outbound string: a commit message, a branch name, a PR body
+#   --file        a file whose contents are outbound
+#   --file-list   a NUL-delimited list of files whose contents are outbound; each
+#                 entry is an input named exactly as listed
+#   --names-list  a NUL-delimited list of outbound names, screened as one text
+#                 input holding one name per line
+#   --terms       term set to screen against (default: shape-terms.txt beside this)
+#
+# The two lists let a caller hand over a whole tracked tree without one argument
+# per path, which would overflow the host's argument limit on a large tree.
 #
 # Exit codes are the whole interface:
 #
@@ -98,6 +105,7 @@ FINDINGS_FILE="$WORK/findings.txt"
 # ------------------------------------------------------------------------------
 
 text_count=0
+names_count=0
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--surface)
@@ -114,6 +122,7 @@ while [[ $# -gt 0 ]]; do
 		[[ $# -ge 2 ]] || scan_error "--text needs a value"
 		text_count=$((text_count + 1))
 		printf '%s\n' "$2" >"$WORK/text-$text_count"
+		printf '%s' "<${surface:-input}-text-$text_count>" >"$WORK/text-$text_count.label"
 		input_labels+=("<${surface:-input}-text-$text_count>")
 		input_files+=("$WORK/text-$text_count")
 		shift 2
@@ -123,6 +132,29 @@ while [[ $# -gt 0 ]]; do
 		[[ -r "$2" ]] || scan_error "input file is not readable"
 		input_labels+=("$2")
 		input_files+=("$2")
+		shift 2
+		;;
+	--file-list)
+		[[ $# -ge 2 ]] || scan_error "--file-list needs a value"
+		[[ -r "$2" ]] || scan_error "input list is not readable"
+		while IFS= read -r -d '' entry || [[ -n "${entry:-}" ]]; do
+			[[ -z "$entry" ]] && continue
+			[[ -r "$entry" ]] || scan_error "input file is not readable"
+			input_labels+=("$entry")
+			input_files+=("$entry")
+		done <"$2"
+		shift 2
+		;;
+	--names-list)
+		[[ $# -ge 2 ]] || scan_error "--names-list needs a value"
+		[[ -r "$2" ]] || scan_error "names list is not readable"
+		names_count=$((names_count + 1))
+		tr '\0' '\n' <"$2" >"$WORK/names-$names_count" || scan_error "cannot stage the names list"
+		if [[ -s "$WORK/names-$names_count" ]]; then
+			printf '%s' "<${surface:-input}-names-$names_count>" >"$WORK/names-$names_count.label"
+			input_labels+=("<${surface:-input}-names-$names_count>")
+			input_files+=("$WORK/names-$names_count")
+		fi
 		shift 2
 		;;
 	*) scan_error "unrecognized argument" ;;
@@ -220,20 +252,46 @@ screen_path() {
 	printf '%s' "$candidate"
 }
 
-screen_terms() {
-	# screen_terms <label> <file>
-	local label=$1 file=$2 cls kind value hits path
-	path=$(screen_path "$label")
+label_for_file() {
+	# label_for_file <input-file>
+	#
+	# An input this script staged itself (`--text`, `--names-list`) keeps its label
+	# beside it; every other input is named by its own path.
+	if [[ "$1" == "$WORK/"* && -r "$1.label" ]]; then
+		printf '%s' "$(<"$1.label")"
+	else
+		printf '%s' "$1"
+	fi
+}
+
+screen_all_terms() {
+	# One pass per term over every input finds the inputs that match; only those
+	# are read again for line numbers. Screening input by input would start one
+	# grep per input per term, which on a large tracked tree is hundreds of
+	# thousands of processes.
+	local list="$WORK/screen.list" matched="$WORK/screen.matched" cls kind value mode file path hits n
+	printf '%s\0' "${input_files[@]}" >"$list"
 	while IFS=$'\t' read -r cls kind value; do
-		if [[ "$kind" == literal ]]; then
-			hits=$(grep -nF -- "$value" "$file" 2>/dev/null | cut -d: -f1)
-		else
-			hits=$(grep -nE -- "$value" "$file" 2>/dev/null | cut -d: -f1)
-		fi
-		[[ -z "$hits" ]] && continue
-		while IFS= read -r n; do
-			[[ -n "$n" ]] && emit_finding "$cls" "$path" "$n"
-		done <<<"$hits"
+		mode=F
+		[[ "$kind" == regex ]] && mode=E
+		# grep exits 1 when a batch has no match, which is not a failure; anything
+		# above that means a batch was never screened, and that blocks.
+		xargs -0 sh -c 'm=$1 v=$2; shift 2; grep -l"$m" --null -- "$v" "$@"; [ $? -le 1 ]' sh "$mode" "$value" \
+			<"$list" >"$matched" 2>/dev/null ||
+			scan_error "term screening did not run"
+		while IFS= read -r -d '' file; do
+			path=$(screen_path "$(label_for_file "$file")")
+			# Digits only: a match in a binary file yields a notice rather than a line
+			# number, and that notice names the file. It is reported at line 0 instead.
+			hits=$(grep -n"$mode" -- "$value" "$file" 2>/dev/null | cut -d: -f1 | grep -E '^[0-9]+$')
+			if [[ -z "$hits" ]]; then
+				emit_finding "$cls" "$path" 0
+				continue
+			fi
+			while IFS= read -r n; do
+				[[ -n "$n" ]] && emit_finding "$cls" "$path" "$n"
+			done <<<"$hits"
+		done <"$matched"
 	done <"$normalized"
 }
 
@@ -287,10 +345,27 @@ bootstrap_trufflehog() {
 	[[ -x "$TRUFFLEHOG_BIN" ]] || scan_error "the scanner is not executable after extraction"
 }
 
+input_label() {
+	# input_label <scanner-reported-path>
+	#
+	# The scanner reports the file it read, which is a staged copy under this
+	# run's temporary directory: a machine-specific absolute path that names
+	# nothing a reader can act on. Only the file name is kept, and a staged
+	# copy's `input-<i>` becomes the label its input was given. No directory
+	# prefix is compared, because the scanner normalises the path it was handed
+	# (a `TMPDIR` ending in `/` leaves `//` in it) before reporting it.
+	local name=${1##*/}
+	if [[ "$name" =~ ^input-([0-9]+)$ && -n "${input_labels[${BASH_REMATCH[1]}]+set}" ]]; then
+		printf '%s' "${input_labels[${BASH_REMATCH[1]}]}"
+	else
+		printf '%s' "$name"
+	fi
+}
+
 # Raw stdout flows only through this pipe into jq. No raw temporary file, no
 # artifact, no debug log. jq emits three fields; nothing else survives.
 credential_scan() {
-	# credential_scan <directory> <path-prefix-to-strip>
+	# credential_scan <directory>
 	local dir=$1 raw_err rc records detector path n
 	raw_err="$WORK/scanner.err"
 
@@ -319,8 +394,7 @@ credential_scan() {
 
 	while IFS=$'\t' read -r detector path n; do
 		[[ -z "${detector:-}" ]] && continue
-		path=${path#"$dir/"}
-		emit_finding "$detector" "$(screen_path "$path")" "${n:-0}"
+		emit_finding "$detector" "$(screen_path "$(input_label "$path")")" "${n:-0}"
 	done <<<"$records"
 }
 
@@ -382,16 +456,16 @@ run_canary() {
 bootstrap_trufflehog
 run_canary
 
-for i in "${!input_files[@]}"; do
-	screen_terms "${input_labels[$i]}" "${input_files[$i]}"
-done
+screen_all_terms
 
-# Every typed input is copied under one directory so the credential scan sees
-# text and files alike, under names that carry no private material.
+# Every typed input is staged under one directory so the credential scan sees
+# text and files alike, under names that carry no private material. A hard link
+# stages an input without copying it where both share a file system.
 scan_dir="$WORK/inputs"
 mkdir -p "$scan_dir"
 for i in "${!input_files[@]}"; do
-	cp "${input_files[$i]}" "$scan_dir/input-$i" 2>/dev/null ||
+	ln -- "${input_files[$i]}" "$scan_dir/input-$i" 2>/dev/null ||
+		cp -- "${input_files[$i]}" "$scan_dir/input-$i" 2>/dev/null ||
 		scan_error "cannot stage an outbound input for scanning"
 done
 credential_scan "$scan_dir"

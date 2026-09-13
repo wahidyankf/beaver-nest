@@ -58,23 +58,39 @@ cd "$root" || exit 2
 
 declare -a args=()
 
-add_tracked_tree() {
-	# Every tracked file, plus every tracked path as text: a name is outbound
+# Paths reach the leaf as NUL-delimited list files, never as one argument per
+# path: a large tracked tree overflows the host's argument limit, and a gate
+# that cannot start screens nothing.
+lists=$(mktemp -d "${TMPDIR:-/tmp}/public-safety-lists.XXXXXX") || {
+	printf '[public-safety] blocked scan-error cannot create a working directory\n' >&2
+	exit 2
+}
+trap 'rm -rf "$lists"' EXIT INT TERM
+list_count=0
+
+add_paths() {
+	# add_paths <command...>: the command prints NUL-delimited paths. Every
+	# existing file is content, and every path is a name: a name is outbound
 	# material too, and a directory named after something private leaks whether
 	# or not any file inside it does.
-	local f
-	while IFS= read -r f; do
-		[[ -f "$f" ]] && args+=(--file "$f")
-		args+=(--text "$f")
-	done < <(git ls-files)
+	local files names f
+	list_count=$((list_count + 1))
+	files="$lists/files-$list_count"
+	names="$lists/names-$list_count"
+	while IFS= read -r -d '' f; do
+		[[ -f "$f" ]] && printf '%s\0' "$f" >&3
+		printf '%s\0' "$f" >&4
+	done < <("$@") 3>"$files" 4>"$names"
+	[[ -s "$files" ]] && args+=(--file-list "$files")
+	[[ -s "$names" ]] && args+=(--names-list "$names")
+}
+
+add_tracked_tree() {
+	add_paths git ls-files -z
 }
 
 add_staged() {
-	local f
-	while IFS= read -r f; do
-		[[ -f "$f" ]] && args+=(--file "$f")
-		args+=(--text "$f")
-	done < <(git diff --cached --name-only --diff-filter=ACMR)
+	add_paths git diff --cached --name-only -z --diff-filter=ACMR
 }
 
 run_leaf() {
