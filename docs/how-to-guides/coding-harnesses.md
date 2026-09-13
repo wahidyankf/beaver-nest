@@ -1,6 +1,6 @@
 # Use a Supported Coding Harness
 
-Choose Codex, Claude Code, or OpenCode for repository work. The committed harness contract gives all three the same repository-owned rules, skills, custom-agent intent, safety boundaries, Nx task routes, and `nx-mcp` capability. Vendor models, built-in tools, credentials, local memory, plugins, and approval interfaces can still differ.
+Choose Codex, Claude Code, or OpenCode for repository work. The committed harness contract gives all three the same repository-owned rules, skills, and Nx task routes. Claude Code and OpenCode also get the custom agents, their safety boundaries, and a verified `nx-mcp` capability; Codex gets no project subagents, because it cannot enforce the nested-agent denial every agent declares. Vendor models, built-in tools, credentials, local memory, plugins, and approval interfaces can still differ.
 
 ## Prepare the Workspace
 
@@ -19,7 +19,7 @@ From the repository root, use the harness's native discovery or context view to 
 
 - root repository rules resolve through `AGENTS.md`; Claude's `CLAUDE.md` imports that file without an overlay;
 - the seven canonical workflows under `.agents/skills/` are available, with Claude exposing equivalent command wrappers;
-- `ci-monitor-subagent` and `web-researcher` are available as project subagents;
+- in Claude Code and OpenCode, `ci-monitor-subagent` and `web-researcher` are available as project subagents;
 - `nx-mcp` resolves to the local executable vector `npx nx mcp`; and
 - `web-researcher` can read repository context and use web search/fetch, but cannot edit files, run shell commands, or spawn another agent.
 

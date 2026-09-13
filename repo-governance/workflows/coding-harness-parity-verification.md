@@ -1,6 +1,6 @@
 # Coding-Harness Parity Verification
 
-Use this workflow to evaluate whether Codex, Claude Code, and OpenCode currently satisfy the repository-owned [coding-harness contract](../conventions/coding-harness-contract.md). It is a read-only verification workflow; use the [coding-harness contract change workflow](coding-harness-contract-change.md) when remediation or contract evolution is requested.
+Use this workflow to evaluate whether the harnesses `repo-config.yml` declares currently satisfy the repository-owned [coding-harness contract](../conventions/coding-harness-contract.md). It is a read-only verification workflow; use the [coding-harness contract change workflow](coding-harness-contract-change.md) when remediation or contract evolution is requested.
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ Confirm the intended sources and adapters before interpreting the gate:
 - root `AGENTS.md` and the exact root `CLAUDE.md` import;
 - every `.agents/skills/<name>/` bundle and its single Claude command wrapper;
 - every `.agents/agents/<name>.md` and one matching adapter per harness; and
-- `.codex/config.toml`, `.mcp.json`, and `opencode.json` declarations for the credential-free `npx nx mcp` capability.
+- `.mcp.json` and `opencode.json` declarations for the credential-free `npx nx mcp` capability; the `.codex/config.toml` entry is outside the reconciled roster.
 
 Do not infer parity from matching names or counts. Content digests, canonical routes, native permissions, denies, constraints, and executable behaviour remain authoritative.
 

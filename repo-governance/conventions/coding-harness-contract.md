@@ -1,6 +1,6 @@
 # Coding-Harness Contract
 
-Codex, Claude Code, and OpenCode must receive the same repository-owned rules, skill workflows, custom-agent intent, safety constraints, deterministic Nx task routes, and required MCP capabilities. Vendor system prompts, built-in tools, models, credentials, local memory, plugins, and approval interfaces are outside this equality claim.
+Codex, Claude Code, and OpenCode must receive the same repository-owned rules, skill workflows, and deterministic Nx task routes. Claude Code and OpenCode also receive the same custom-agent intent, safety constraints, and required MCP capabilities under deterministic proof; Codex receives no agent adapter, for the reason under [Codex](#codex). Vendor system prompts, built-in tools, models, credentials, local memory, plugins, and approval interfaces are outside this equality claim.
 
 Matching file names, paths, or counts is not sufficient. Parity means that each harness reaches the same effective canonical content and that every native adapter preserves the canonical semantics without adding instructions or weakening restrictions.
 
@@ -10,8 +10,8 @@ Matching file names, paths, or counts is not sufficient. Parity means that each 
 | --------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Rules                 | Every harness reaches the normalized root `AGENTS.md` body and no additional always-on repository instruction. | Exact Claude import, canonical-content digest, and rejection of competing instruction sources.                                                                      |
 | Skills                | Every canonical skill, including its complete supporting-resource bundle, is available in all three harnesses. | One-to-one adapter coverage where required, exact description and route, and a digest of `SKILL.md` plus every supporting file.                                     |
-| Agents                | Every canonical agent is available in all three harnesses with the same prompt intent and safety boundary.     | One-to-one native adapter coverage, exact canonical route, prompt digest, and equivalent identity, mode, capabilities, denies, constraints, and native permissions. |
-| Required capabilities | Every harness declares the same credential-free repository capability.                                         | Semantic comparison of the executable vector and working-directory behaviour rather than raw vendor syntax.                                                         |
+| Agents                | Every canonical agent is available in every declared harness with the same prompt intent and safety boundary.  | One-to-one native adapter coverage, exact canonical route, prompt digest, and equivalent identity, mode, capabilities, denies, constraints, and native permissions. |
+| Required capabilities | Every declared harness declares the same credential-free repository capability.                                | Semantic comparison of the executable vector and working-directory behaviour rather than raw vendor syntax.                                                         |
 
 An adapter fails parity when it is missing, stale, extra, malformed, routes to the wrong canonical source, copies or extends canonical instructions, changes effective content, or weakens a required capability or deny. Adding, renaming, changing, or removing a canonical skill or agent therefore requires all affected harness adapters and deterministic fixtures in the same change.
 
@@ -24,7 +24,11 @@ Follow the [coding-harness contract change workflow](../workflows/coding-harness
 - `.agents/agents/<name>.md` is the only full custom-agent prompt and semantic capability source.
 - The required committed MCP capability is the credential-free `npx nx mcp` executable vector rooted at the workspace.
 
-Adapters must route to these sources without copying, extending, or weakening them. Claude command wrappers mirror each canonical skill description and contain only the fixed canonical route. Each canonical custom agent has exactly one native adapter in `.codex/agents/`, `.claude/agents/`, and `.opencode/agents/`.
+Adapters must route to these sources without copying, extending, or weakening them. Claude command wrappers mirror each canonical skill description and contain only the fixed canonical route. Each canonical custom agent has exactly one native adapter in `.claude/agents/` and `.opencode/agents/`.
+
+## Codex
+
+Codex reads `AGENTS.md` and `.agents/skills/` natively, so rules and skills reach it without an adapter. It receives no agent adapter: its per-agent configuration has no control that enforces the nested-agent denial every canonical agent declares, and `.codex/config.toml` enables multi-agent work for the project, so an adapter would drop that denial and fail parity by definition. The roster requires an agent adapter on every declared harness, so Codex is not declared: its `nx-mcp` entry in `.codex/config.toml` stays but is not reconciled. Codex returns to the roster only once it can express that denial.
 
 ## Instruction Boundary
 
