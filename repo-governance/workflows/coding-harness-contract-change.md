@@ -1,6 +1,6 @@
 # Coding-Harness Contract Change
 
-Use this workflow whenever repository-owned rules, skills, custom agents, required harness capabilities, or their adapters are added, changed, renamed, or removed. The goal is one canonical edit with complete Codex, Claude Code, and OpenCode parity—not three independently maintained workflows.
+Use this workflow whenever repository-owned rules, skills, custom agents, required harness capabilities, or their adapters are added, changed, renamed, or removed. The goal is one canonical edit with complete parity across the harnesses the contract declares—not independently maintained workflows.
 
 ## Prerequisites
 
@@ -34,7 +34,7 @@ Read .agents/skills/<name>/SKILL.md completely, resolve every relative resource 
 
 Do not copy the skill body into the wrapper. A description change updates the wrapper; a rename or removal renames or removes the matching wrapper and leaves no stale adapter.
 
-For an agent, keep exactly one adapter in each of `.codex/agents/`, `.claude/agents/`, and `.opencode/agents/`. Each adapter contains only native identity, mode, tool/permission metadata, and this route:
+For an agent, keep exactly one adapter in each of `.claude/agents/` and `.opencode/agents/`. Each adapter contains only native identity, mode, tool/permission metadata, and this route:
 
 ```text
 Before acting, read the complete canonical agent definition at the repository-root path .agents/agents/<name>.md and follow it as authoritative. If it cannot be read, stop and report the missing path.

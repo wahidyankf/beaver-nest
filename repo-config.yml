@@ -63,30 +63,13 @@ harness-parity:
       limits: constraints
       fixed: { mode: subagent }
   harnesses:
-    - name: codex
-      agent-adapter:
-        path: ".codex/agents/{name}.toml"
-        format: toml
-        route-field: developer_instructions
-        identity: { name: name, description: description }
-        # validateCodexAdapter pinned the sandbox because every agent this
-        # repository had denied repository-write. The plan maker does not, and
-        # a value fixed for every agent would claim read-only for an agent that
-        # writes -- so the field is translated from the canon instead. A
-        # portable adapter still may not pin a model, which `absent` keeps true.
-        translations:
-          - when: denies
-            capability: repository-write
-            field: sandbox_mode
-            members: [read-only]
-          - when: requires
-            capability: repository-write
-            field: sandbox_mode
-            members: [workspace-write]
-        absent: [model]
-      capability:
-        file: .codex/config.toml
-        format: toml
+    # No `codex` entry. Codex reads `AGENTS.md` and `.agents/skills/` natively,
+    # but its per-agent configuration has no control that enforces the
+    # nested-agent denial every canonical agent declares, and the project
+    # config enables multi-agent work. An adapter that drops a denial fails
+    # parity by definition, and the roster needs an agent adapter on every
+    # declared harness, so Codex is not declared; its nx-mcp entry in
+    # .codex/config.toml stays, unreconciled.
     - name: claude
       agent-adapter:
         path: ".claude/agents/{name}.md"
