@@ -75,6 +75,11 @@ simply not detected.
 `shape-terms.txt` holds shapes, never values: an absolute home directory, a private address range, an internal hostname
 suffix. It is published, so a denylist of real names would publish exactly what it exists to protect.
 
+The shapes name machines, not ranges or identifiers. A private-range CIDR network prefix — last octet `0` followed by a
+prefix length — is left alone, because a range reads the same on every network that uses it; a bare address, a port, a
+URL path, and a prefix with host bits set still match. An underscore continues a token on both sides of a hostname, so a
+dotted API member that starts with a suffix word is code, not a host.
+
 A workspace that must also screen for named private identifiers keeps that list outside every public checkout and passes
 it with `--terms`. That second layer is the owner's, not this repository's.
 
@@ -129,6 +134,8 @@ bash scripts/public-safety/tests/run.sh 080        # one case by name fragment
 | `110-file-list-inputs`                   | listed files and names are screened and attributed; a bad list is a scan error |
 | `120-large-tree-dispatch`                | a tracked tree larger than the host's argument limit is still screened         |
 | `130-hook-environment-isolation`         | a suite started from a Git hook leaves the hook's own repository untouched     |
+| `140-cidr-network-prefix`                | a CIDR network prefix passes; host forms in every private range still block    |
+| `150-hostname-trailing-underscore`       | an underscore continues a hostname token; real hostnames still block           |
 
 Every probe value is assembled at run time from fragments, so no string this repository's own gate would flag exists in
 any test file — a test that hardcoded one would block the commit that added it. `assert_absent` reports only a length on

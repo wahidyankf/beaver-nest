@@ -24,10 +24,19 @@ maintainer-path	regex	(^|[^A-Za-z0-9_.-])/home/[a-z][a-z0-9._-]*/
 # Private address ranges: RFC 1918 and the CGNAT range mesh VPNs allocate from.
 # Matching by range rather than by address is the whole point — an address list
 # would be the private topology, written down.
-internal-address	regex	(^|[^0-9.])10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}([^0-9.]|$)
-internal-address	regex	(^|[^0-9.])192\.168\.[0-9]{1,3}\.[0-9]{1,3}([^0-9.]|$)
-internal-address	regex	(^|[^0-9.])172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}([^0-9.]|$)
-internal-address	regex	(^|[^0-9.])100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3}([^0-9.]|$)
+#
+# The rows look for a machine, so a CIDR network prefix is left alone: an address
+# whose last octet is `0`, followed by a prefix length, names a range that reads
+# the same on every network using it, and container, cluster, cloud, and SSRF
+# configuration is written in exactly that form. Every form that names a machine
+# still matches: a bare address (a network address without a prefix length
+# included), a port, a URL path, and a prefix whose host bits are set. POSIX ERE
+# has no lookahead, so the last octet spells out both cases: any octet not
+# followed by a prefix length, or a non-zero octet that is.
+internal-address	regex	(^|[^0-9.])10\.[0-9]{1,3}\.[0-9]{1,3}\.([0-9]{1,3}([^0-9./]|/[^0-9]|/?$)|([1-9][0-9]{0,2}|0[0-9]{1,2})/[0-9])
+internal-address	regex	(^|[^0-9.])192\.168\.[0-9]{1,3}\.([0-9]{1,3}([^0-9./]|/[^0-9]|/?$)|([1-9][0-9]{0,2}|0[0-9]{1,2})/[0-9])
+internal-address	regex	(^|[^0-9.])172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.([0-9]{1,3}([^0-9./]|/[^0-9]|/?$)|([1-9][0-9]{0,2}|0[0-9]{1,2})/[0-9])
+internal-address	regex	(^|[^0-9.])100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.([0-9]{1,3}([^0-9./]|/[^0-9]|/?$)|([1-9][0-9]{0,2}|0[0-9]{1,2})/[0-9])
 
 # Hostname suffixes that only resolve inside a network. A name ending in one of
 # these is a machine on someone's LAN, and publishing it publishes topology.
@@ -38,7 +47,11 @@ internal-address	regex	(^|[^0-9.])100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[
 # repositories have, blocking an ordinary sentence about configuration. Two
 # rows rather than one optional group because a middle label must not be
 # allowed to supply the boundary the first label is required to have: the
-# second row spells the extra labels out. The comments here name no host,
-# for the same reason the test cases assemble theirs at run time.
-internal-hostname	regex	(^|[^A-Za-z0-9_.-])[a-z0-9][a-z0-9-]+\.(local|internal|lan|intranet)([^A-Za-z0-9.-]|$)
-internal-hostname	regex	(^|[^A-Za-z0-9_.-])[a-z0-9][a-z0-9-]+(\.[a-z0-9][a-z0-9-]+)+\.(local|internal|lan|intranet)([^A-Za-z0-9.-]|$)
+# second row spells the extra labels out. Both rows also end at a token
+# boundary that an underscore does not supply: an underscore continues an
+# identifier, so a dotted API member that merely starts with a suffix word
+# (a Terraform local-file data source, a socket's local address accessor) is
+# code, not a host. The comments here name no host, for the same reason the
+# test cases assemble theirs at run time.
+internal-hostname	regex	(^|[^A-Za-z0-9_.-])[a-z0-9][a-z0-9-]+\.(local|internal|lan|intranet)([^A-Za-z0-9_.-]|$)
+internal-hostname	regex	(^|[^A-Za-z0-9_.-])[a-z0-9][a-z0-9-]+(\.[a-z0-9][a-z0-9-]+)+\.(local|internal|lan|intranet)([^A-Za-z0-9_.-]|$)
