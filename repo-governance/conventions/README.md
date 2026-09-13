@@ -28,6 +28,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Language](language.md) makes English the repository's primary working language.
 - [Markdown links](markdown-links.md) keep internal links resolvable across repository-owned Markdown.
 - [Markdown visualizations](markdown-visualizations.md) prefer useful Mermaid diagrams and require accessible color, contrast, and non-color cues.
+- [No destructive Git operations](no-destructive-git-operations.md) requires approval for any Git command that destroys work or history.
 - [Plan lifecycle](plan-lifecycle.md) carries what this repository adds to the plans convention: idea quadrants, active-service clauses, and local delivery rules.
 - [Plan migrations](plan-migrations.md) makes planned data transitions preserve sources, map compatibility, and prove recovery.
 - [Plan specification changes](plan-specification-changes.md) makes behaviour, C4, test-binding, and file-impact work executable before implementation.
