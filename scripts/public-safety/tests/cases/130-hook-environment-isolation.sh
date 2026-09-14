@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # A Git hook hands its repository's location to every child process: a hook in
 # a linked worktree exports GIT_DIR, and pre-commit adds GIT_INDEX_FILE. Cases
 # build fixture repositories, so a suite started from such a hook must still

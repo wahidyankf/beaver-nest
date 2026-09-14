@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # A term set that is not there blocks. It never degrades to "scan what we can".
 run() {
 	local out rc

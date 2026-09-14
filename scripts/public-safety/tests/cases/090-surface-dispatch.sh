@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # The gate takes its surface from the environment and refuses to invent one.
 # Every refusal here is exit 2: not screened is not the same as screened clean.
 run() {
@@ -9,7 +10,7 @@ run() {
 	assert_exit 2 "$rc" "exit code with no surface in the environment" || return 1
 	assert_contains "OSE_GATE_SURFACE" "$out" "diagnostic" || return 1
 
-	out=$(OSE_GATE_SURFACE= "$check" 2>&1)
+	out=$(OSE_GATE_SURFACE='' "$check" 2>&1)
 	rc=$?
 	assert_exit 2 "$rc" "exit code with an empty surface" || return 1
 

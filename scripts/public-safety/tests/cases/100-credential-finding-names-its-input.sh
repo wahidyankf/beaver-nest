@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # A credential finding must name the input it was found in, exactly as the
 # caller gave it. The scanner reads a staged copy under the preflight's
 # temporary directory, and that copy's path is machine-specific and names

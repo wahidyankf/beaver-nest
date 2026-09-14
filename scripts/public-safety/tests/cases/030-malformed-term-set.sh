@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Malformed blocks, and the diagnostic names the line number and nothing else.
 run() {
 	local terms out rc

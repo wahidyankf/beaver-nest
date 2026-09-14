@@ -140,3 +140,9 @@ bash scripts/public-safety/tests/run.sh 080        # one case by name fragment
 Every probe value is assembled at run time from fragments, so no string this repository's own gate would flag exists in
 any test file — a test that hardcoded one would block the commit that added it. `assert_absent` reports only a length on
 failure: naming the value would make a failing test the disclosure the test prevents.
+
+Every shell file here, the cases included, is clean under `shfmt -d` with default settings and
+`shellcheck --severity=warning`, so a repository whose own shell gates run those tools can adopt byte-identical copies.
+The synthetic term set is written with `printf` rather than a heredoc for the same reason: a formatter re-indenting a
+heredoc body would turn its tab separators into spaces. A case is sourced rather than executed, so it names its dialect
+with a `# shellcheck shell=bash` directive instead of a shebang.

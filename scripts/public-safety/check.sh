@@ -24,7 +24,7 @@
 
 set -uo pipefail
 
-here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 root=$(git -C "$here" rev-parse --show-toplevel 2>/dev/null) || {
 	printf '[public-safety] blocked scan-error not inside a Git repository\n' >&2
 	exit 2

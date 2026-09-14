@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Outbound text carrying a private term is blocked, and the diagnostic reports
 # the class and location without reproducing the term.
 run() {

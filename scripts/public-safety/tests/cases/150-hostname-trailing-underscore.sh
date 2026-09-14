@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # An underscore continues an identifier, so a dotted API name whose member
 # starts with a hostname suffix is not a hostname: a Terraform `local_file` data
 # source, a socket's `local_addr`, or an object's `internal_state`. The leading
