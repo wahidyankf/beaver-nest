@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # A NUL-delimited file list is as much an input as `--file`: every entry is
 # screened, a finding names the entry exactly as listed, and a list that cannot
 # be trusted is a scan error rather than a smaller scan.

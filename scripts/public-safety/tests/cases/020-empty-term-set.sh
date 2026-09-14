@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # An empty term set is indistinguishable from "no private terms exist", which
 # is the one wrong answer, so it blocks rather than passing everything.
 run() {

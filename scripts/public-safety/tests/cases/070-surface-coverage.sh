@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Every publication surface this plan can emit through is accepted, and a
 # surface outside the closed set is refused rather than silently scanned.
 run() {

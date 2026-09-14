@@ -64,7 +64,7 @@ readonly SURFACES=" baseline diff commit ref pull-request release logs "
 readonly TERM_CLASSES=" maintainer-path internal-address internal-hostname "
 readonly TERM_KINDS=" literal regex "
 
-here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 
 surface=""
 terms_file="$here/shape-terms.txt"
@@ -244,9 +244,15 @@ screen_path() {
 	local candidate=$1 cls kind value
 	while IFS=$'\t' read -r cls kind value; do
 		if [[ "$kind" == literal ]]; then
-			[[ "$candidate" == *"$value"* ]] && { printf '<blocked-path>'; return; }
+			[[ "$candidate" == *"$value"* ]] && {
+				printf '<blocked-path>'
+				return
+			}
 		else
-			printf '%s' "$candidate" | grep -qE -- "$value" && { printf '<blocked-path>'; return; }
+			printf '%s' "$candidate" | grep -qE -- "$value" && {
+				printf '<blocked-path>'
+				return
+			}
 		fi
 	done <"$normalized"
 	printf '%s' "$candidate"

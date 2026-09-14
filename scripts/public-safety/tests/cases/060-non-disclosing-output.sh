@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # The disclosure test. A blocked run must not reproduce what blocked it —
 # not the credential, not the private term, not raw scanner JSON.
 run() {

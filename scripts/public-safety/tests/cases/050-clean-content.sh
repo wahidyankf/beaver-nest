@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Clean content passes — against the synthetic set and against the real one,
 # which proves the tracked term set parses without ever showing a term.
 run() {

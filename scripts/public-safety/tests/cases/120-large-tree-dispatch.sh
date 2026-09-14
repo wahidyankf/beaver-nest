@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # The gate screens a tracked tree of any size. Handing the leaf one argument
 # per tracked path overflows the host's argument limit long before a large
 # repository runs out of files, and a gate that cannot start screens nothing.

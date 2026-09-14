@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # The tracked shape set must actually match the shapes it claims to. A term
 # file that matches nothing passes everything, and it looks identical to a
 # working one from the outside.

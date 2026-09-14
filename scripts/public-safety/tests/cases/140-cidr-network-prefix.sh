@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # A private-range CIDR network prefix names a range, not a machine, so the
 # tracked shape set leaves it alone, while every form that names a host stays
 # blocked: a prefix whose host bits are set, a network address written without a
