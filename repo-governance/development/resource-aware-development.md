@@ -53,6 +53,20 @@ Critical pressure selects the newest eligible ephemeral owner, then a service on
 Transactional owners are never shed after admission. Only the guard that owns a child may signal,
 reap, and release it; production services, Caddy, and unrelated processes are outside that boundary.
 
+## Enforcement
+
+The contract above was prose only, and prose did not hold: an unguarded Nx fan-out in a sibling
+repository forced a host restart. HIPPO cannot shed work it was never told about, so pressure went
+critical while the scheduler still reported `normal`.
+
+[`.claude/hooks/require-hippo-boundary.sh`](../../.claude/hooks/require-hippo-boundary.sh) refuses a
+compute-bearing command carrying no outer guard, before the process spawns. All three harnesses bind
+it, byte-identical to every other consuming repository's copy so a fix cannot miss one.
+
+It decides only whether a guard is present, never which class is right. Verbs match only in command
+position, so searching for a verb string is not refused. A verb reached through an interpreter or a
+Mix alias is not in command position and still passes.
+
 ## Configuration, Evidence, and Verification
 
 Copy [`hippo.local.json.example`](../../hippo.local.json.example) to ignored `hippo.local.json` for
