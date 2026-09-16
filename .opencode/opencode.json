@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "*npm install*": "deny",
+      "*npm ci*": "deny",
+      "*npm exec*": "deny",
+      "*npx *": "deny",
+      "*nx run*": "deny",
+      "*nx affected*": "deny",
+      "*mix deps.get*": "deny",
+      "*mix compile*": "deny",
+      "*mix test*": "deny",
+      "*mix phx.server*": "deny",
+      "*dotnet build*": "deny",
+      "*dotnet test*": "deny",
+      "*./hippo run*": "allow"
+    }
+  }
+}
