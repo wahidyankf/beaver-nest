@@ -7,7 +7,7 @@ Fragments and query strings do not alter the target-file check. External and pro
 RHINO enforces the rule across repository-owned Markdown through:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
 ```
 
 Update affected links in the same change as a move, rename, or deletion.

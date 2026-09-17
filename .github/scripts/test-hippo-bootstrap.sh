@@ -11,32 +11,47 @@ repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 temporary_root=$(mktemp -d)
 trap 'rm -rf -- "$temporary_root"' EXIT HUP INT TERM
 
-# The consumer policy example is an exact schema-2 reservation contract. Keep
-# its bounded owner count and automatic shares independent from release bytes.
-cat >"$temporary_root/expected-config.json" <<'EOF'
-{
-  "schemaVersion": 2,
-  "coordination": {
-    "mode": "reservation",
-    "maxActiveOwners": 20,
-    "automaticOwnerShares": {
-      "balanced": 4,
-      "constrained": 2,
-      "minimal": 1
-    }
-  },
-  "defaultProfile": "local-constrained",
-  "profiles": {
-    "local-constrained": {
-      "extends": "constrained",
-      "fallback": "minimal",
-      "strict": false,
-      "maxCpuUtilizationPercent": 90
-    }
-  }
-}
-EOF
-cmp "$temporary_root/expected-config.json" "$repository_root/hippo.local.json.example"
+jq -e '.schemaVersion == 1 and .source == "beaver-nest"' "$repository_root/hippo.identity.json" >/dev/null
+grep -Fxq 'version=v0.6.1' "$repository_root/hippo.lock"
+grep -Fq -- '--path-format=absolute --git-common-dir' "$repository_root/hippo"
+# Keep every tracked active example compatible with schema 3 and prevent the
+# self-contention caused by wrapping an already-guarded package script.
+tier_findings=$(git -C "$repository_root" grep -n -E \
+	'\./hippo run --class (ephemeral|service|transactional)' -- \
+	. ':(exclude)plans/done/**' ':(exclude).github/scripts/test-hippo-bootstrap.sh' | \
+	grep -v -- '--resource-tier' || true)
+if [ -n "$tier_findings" ]; then
+	printf '%s\n%s\n' 'HIPPO commands missing --resource-tier:' "$tier_findings" >&2
+	exit 1
+fi
+nested_findings=$(git -C "$repository_root" grep -n -E \
+	'\./hippo run .*-- (rtk )?npm (run|test)( |$)' -- \
+	. ':(exclude)plans/done/**' ':(exclude).github/scripts/test-hippo-bootstrap.sh' || true)
+if [ -n "$nested_findings" ]; then
+	printf '%s\n%s\n' 'HIPPO commands double-guard package scripts:' "$nested_findings" >&2
+	exit 1
+fi
+
+# The portable example must expose the complete schema-3 admission contract.
+jq -e '
+  .schemaVersion == 3 and
+  .coordination.mode == "reservation" and
+  .coordination.maxCpu == 8 and
+  .coordination.maxMemoryMiB == 16384 and
+  .coordination.baseActiveOwners == 2 and
+  .coordination.maxActiveOwners == 3 and
+  .coordination.emergencyAvailableMemoryMiB == 6144 and
+  .coordination.promotion == {
+    completedRuns: 25,
+    minimumSources: 3,
+    minimumAvailableMemoryMiB: 10240,
+    maximumCpuP95Percent: 75
+  } and
+  (.coordination.tiers | keys) == ["heavy", "light", "standard"] and
+  .coordination.tiers.light.queueDeadline == "30m" and
+  .coordination.tiers.standard.queueDeadline == "90m" and
+  .coordination.tiers.heavy.queueDeadline == "4h"
+' "$repository_root/hippo.local.json.example" >/dev/null
 
 # Build a synthetic tagged asset whose identity and digest are deterministic;
 # the test never depends on GitHub or the machine's real installation cache.

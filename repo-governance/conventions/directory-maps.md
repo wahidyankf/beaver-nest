@@ -41,5 +41,5 @@ Budget the headroom, not just the file. Several governed documents sit within a 
 The `rhino-consumer` check enforces README presence and directory-map completeness under the mapped trees, plus applicable word limits. Which trees are mapped, which surfaces are governed, and the enforced limit are declared in `repo-config.yml`; the 750-word rule above is the rule, and that file is where the enforced value is written down:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
 ```

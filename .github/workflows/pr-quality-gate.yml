@@ -46,7 +46,7 @@ jobs:
           cache: npm
 
       - name: Install npm dependencies
-        run: ./hippo run --class ephemeral --disk-path . -- npm ci
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
       - name: Lint every commit this pull request adds
         env:
@@ -57,7 +57,7 @@ jobs:
           # The fork point, not the base tip: a branch behind `main` would
           # otherwise re-lint commits it never authored.
           from=$(git merge-base FETCH_HEAD HEAD)
-          ./hippo run --class ephemeral --disk-path . -- \
+          ./hippo run --class ephemeral --resource-tier light --disk-path . -- \
             npm exec -- commitlint --from "${from}" --to HEAD --verbose
 
   formatting:
@@ -84,7 +84,7 @@ jobs:
           version-type: strict
 
       - name: Install npm dependencies
-        run: ./hippo run --class ephemeral --disk-path . -- npm ci
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
       - name: Determine the files this pull request changes
         id: changed
@@ -115,18 +115,18 @@ jobs:
           # --ignore-unknown mirrors the lint-staged command, so paths outside
           # Prettier's languages are skipped rather than failing the gate.
           tr '\n' '\0' < changed-files.txt |
-            xargs -0 -r ./hippo run --class ephemeral --disk-path . -- \
+            xargs -0 -r ./hippo run --class ephemeral --resource-tier light --disk-path . -- \
               npm exec -- prettier --check --ignore-unknown
 
       - name: Install Phoenix dependencies
         if: steps.changed.outputs.elixir == 'true'
-        run: ./hippo run --class ephemeral --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
+        run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
       # The second half of the lint-staged contract for Elixir sources. Its unit
       # suite is not repeated here; `affected-quick` already owns that.
       - name: Verify Elixir formatting
         if: steps.changed.outputs.elixir == 'true'
-        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run bnest-app:format
+        run: ./hippo run --class ephemeral --resource-tier light --disk-path . -- npm exec -- nx run bnest-app:format
 
   affected-quick:
     name: Affected quick suites
@@ -152,13 +152,13 @@ jobs:
           version-type: strict
 
       - name: Install npm dependencies
-        run: ./hippo run --class ephemeral --disk-path . -- npm ci
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
       - name: Install Phoenix dependencies
-        run: ./hippo run --class ephemeral --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
+        run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
       - name: Install ExBdd dependencies
-        run: ./hippo run --class ephemeral --cwd libs/ex-bdd --disk-path libs/ex-bdd -- mix deps.get
+        run: ./hippo run --class transactional --resource-tier standard --cwd libs/ex-bdd --disk-path libs/ex-bdd -- mix deps.get
 
       # `test:quick` runs `mix dialyzer`, which rebuilds its PLT from the whole
       # OTP and dependency set on a cold runner. Without this cache every pull
@@ -178,7 +178,7 @@ jobs:
         run: |
           set -eu
           git fetch --no-tags origin "${BASE_REF}"
-          ./hippo run --class ephemeral --disk-path . -- \
+          ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
             npm exec -- nx affected -t test:quick --base=FETCH_HEAD --head=HEAD
 
   repository-contract:
@@ -198,7 +198,7 @@ jobs:
           cache: npm
 
       - name: Install npm dependencies
-        run: ./hippo run --class ephemeral --disk-path . -- npm ci
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
       # The same three path sets `.husky/pre-push` routes on, so a change that
       # skips a suite locally skips it here and no other. Each set also includes
@@ -225,7 +225,7 @@ jobs:
             '.github/workflows/pr-quality-gate.yml')
 
           hippo_consumer=$(changed_in \
-            hippo hippo.lock hippo.local.json.example \
+            hippo hippo.lock hippo.identity.json hippo.local.json.example \
             '.github/scripts/test-hippo-bootstrap.sh' \
             ':(glob)specs/tools/hippo-consumer/**' \
             '.github/workflows/pr-quality-gate.yml')
@@ -252,7 +252,7 @@ jobs:
 
       - name: Verify the pinned HIPPO bootstrap
         if: steps.route.outputs.hippo_consumer == 'true'
-        run: ./hippo run --class ephemeral --disk-path . -- ./.github/scripts/test-hippo-bootstrap.sh
+        run: ./hippo run --class ephemeral --resource-tier light --disk-path . -- ./.github/scripts/test-hippo-bootstrap.sh
 
       # Pinned to the version this workstation's `pre-push` hook runs. The
       # runner image ships an older ShellCheck that still emits SC2015 for
@@ -285,7 +285,7 @@ jobs:
       - name: Verify the pinned RHINO bootstrap
         if: steps.route.outputs.rhino_consumer == 'true'
         run: |
-          ./hippo run --class ephemeral --disk-path . -- \
+          ./hippo run --class ephemeral --resource-tier light --disk-path . -- \
             sh -c 'shellcheck rhino .github/scripts/test-rhino-bootstrap.sh &&
               ./.github/scripts/test-rhino-bootstrap.sh'
 
@@ -294,7 +294,7 @@ jobs:
       # added there reaches this job without anyone remembering to edit it.
       - name: Verify the repository contract under the pinned RHINO
         if: steps.route.outputs.governed == 'true'
-        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
+        run: ./hippo run --class ephemeral --resource-tier heavy --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
 
   quality-gate:
     name: Quality gate

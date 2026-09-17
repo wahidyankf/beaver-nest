@@ -23,7 +23,7 @@ Beaver Nest is in its first implementation stage.
 - A Phoenix LiveView chat streams local Codex responses through the official SDK, discovers the models available to the local Codex installation, and can switch models without discarding the current thread.
 - Isolated, non-routed local development can opt into hot reload.
 - A persistent Tailscale Serve route reaches a stable loopback Caddy proxy, which promotes immutable Phoenix releases without a manual browser refresh. Bnest now has one-time family-account setup, persistent per-browser login, centralized chat/learning/theme records, and recoverable browser import.
-- Centralized records move from flat files into a private local SQLite database through a headless, checksum-verified migration (`./hippo run --class transactional --disk-path . -- npm exec -- nx run -p bnest-app -t storage:migrate -- --activate`). The stable pointer remains configuration at `~/.config/bnest/storage.json`, production data defaults to `~/bnest/data/prod/bnest.sqlite3`, and verified legacy flat files are retired only after the routed service proves the relocated database generation.
+- Centralized records move from flat files into a private local SQLite database through a headless, checksum-verified migration (`./hippo run --class transactional --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t storage:migrate -- --activate`). The stable pointer remains configuration at `~/.config/bnest/storage.json`, production data defaults to `~/bnest/data/prod/bnest.sqlite3`, and verified legacy flat files are retired only after the routed service proves the relocated database generation.
 - A persistent OTP scheduler stores daily claims, retries, and safe results in SQLite. The never-expiring production backup schedule verifies an independent `VACUUM INTO` snapshot before publishing an owned artifact/receipt pair to the ignored `data/backup/` default; admins manage its WIB time and private destination from **Admin settings → Schedules & backups**.
 
 ## Run locally
@@ -51,7 +51,7 @@ The stable development server enters **HIPPO** — **H**ost **I**nfrastructure *
 **P**rocess **O**rchestrator — automatically. Inspect current host state with
 `./hippo status --json --disk-path .`, or monitor transitions with
 `./hippo monitor --disk-path .`. Run compute-bearing Nx work through
-`./hippo run --class ephemeral --disk-path . -- npm exec -- nx ...`. Independent work may overlap
+`./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx ...`. Independent work may overlap
 only after HIPPO grants fixed CPU-and-memory allocations in FIFO order. Exit `75` defers one
 invocation, so wait and retry only that same command; exit `73` requires storage cleanup before
 retrying. The tracked bootstrap installs the checksum-pinned release from the public
@@ -80,11 +80,11 @@ The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only s
 
 ```sh
 npm test
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:integration
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:integration
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour
 npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:bootstrap
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:bootstrap
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
 ```
 
 `npm test` runs the Phoenix unit suite through Nx. Executable unit and integration tests live in separate layer directories; public-boundary E2E tests live in dedicated Nx apps. Bnest's unit, integration, and browser adapters consume the same recursively discovered feature corpus; each project's `test:coverage:behaviour` statically proves that the adapters it owns implement that corpus completely. Run only affected end-to-end cases during development. At 06:00 and 18:00 WIB, scheduled GitHub Actions runs complete ExBdd coverage and each application's integration suite before its complete E2E suite.

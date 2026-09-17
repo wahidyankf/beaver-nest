@@ -12,6 +12,7 @@ on:
     paths:
       - hippo
       - hippo.lock
+      - hippo.identity.json
       - hippo.local.json.example
       - .github/scripts/test-hippo-bootstrap.sh
       - .github/workflows/hippo-consumer-smoke.yml
@@ -89,8 +90,8 @@ jobs:
           const status = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
           const coordination = status.coordination;
           if (
-            status.schemaVersion !== 4 ||
-            coordination?.schemaVersion !== 4 ||
+            status.schemaVersion !== 5 ||
+            coordination?.schemaVersion !== 5 ||
             coordination.mode !== "reservation" ||
             coordination.activeOwners !== 2 ||
             coordination.waitingOwners !== 0 ||
@@ -107,7 +108,7 @@ jobs:
           const status = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
           const coordination = status.coordination;
           if (
-            status.schemaVersion !== 4 ||
+            status.schemaVersion !== 5 ||
             coordination?.activeOwners !== 0 ||
             coordination.waitingOwners !== 0 ||
             coordination.allocated?.cpu !== 0 ||
@@ -171,7 +172,7 @@ jobs:
               # Variables in the single-quoted command expand inside the guarded child.
               # shellcheck disable=SC2016
               HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
-                ./hippo run --class ephemeral --reserve-cpu 1 --reserve-memory-mib 256 \
+                ./hippo run --class ephemeral --resource-tier light --reserve-cpu 1 --reserve-memory-mib 1024 \
                 --disk-path . -- sh -c '
                   printf "%s\n%s\n%s\n" "$NX_PARALLEL" "$GOMAXPROCS" "$DOTNET_PROCESSOR_COUNT" > "$1"
                   : > "$2"

@@ -36,7 +36,7 @@ Do not infer parity from matching names or counts. Content digests, canonical ro
 Run the required gate without accepting cached results:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo --skipNxCache
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo --skipNxCache
 ```
 
 Record the exit status, contract digest, harness count, skill count, agent count, and capability count. On failure, review every finding by kind, field, harness, and path rather than stopping at the summary count.
@@ -46,7 +46,7 @@ Record the exit status, contract digest, harness count, skill count, agent count
 The validator is not built here, so this repository cannot evaluate it. What it can evaluate is the pin and the bootstrap that resolves it:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:bootstrap
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:bootstrap
 ```
 
 RHINO's own unit, integration, and process-level proof runs in [its repository](https://github.com/wahidyankf/rhino) against the release named in `rhino.lock`. A parity verdict here is a claim about this repository at that pinned release; it is not a claim about an unreleased change to the validator.

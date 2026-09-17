@@ -9,10 +9,10 @@ invocations.
 
 ## Execution Contract
 
-Give every local compute command exactly one outer guard with an explicit disk path:
+Give local compute exactly one guard with a disk path:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p <project> -t <target>
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p <project> -t <target>
 ```
 
 A target that must acquire a service or port lease owns that boundary; callers invoke the Nx target
@@ -23,6 +23,11 @@ Use `ephemeral` for ordinary build and test work, `service` for a non-production
 `transactional` only for a mutation that must not be killed after it starts. Every class consumes a
 fixed CPU-and-memory allocation. Never change class to obtain admission.
 
+Choose a resource tier independently: `light` for narrow static checks, `standard` for ordinary
+checks and writers, and `heavy` for full builds, full suites, browser suites, and complete gates.
+Schema 3 keeps one FIFO waiter, grants the largest safe vector within the tier, and starts the
+payload at most once.
+
 Independent repository and project DAG nodes may overlap only through HIPPO admission. Preserve Nx
 dependencies, shared-output writer/reader edges, ordered target stages, migrations, .NET/Mix build
 state, E2E port ownership, managed-release transactions, storage locks, and every other proven
@@ -30,11 +35,9 @@ correctness serialization.
 
 ## Reservations and Recovery
 
-Schema-2 policy enables one shared reservation ledger for all repositories using the same
-`HIPPO_ROOT`. CPU and memory fit atomically. Admission is strict FIFO: a smaller later waiter cannot
-bypass the head. `balanced`, `constrained`, and `minimal` automatic allocations divide available
-capacity across four, two, and one owner shares. Every live owner and waiter contributes its owner
-limit; the strictest live value applies.
+Schema-3 policy enables one shared reservation ledger for every repository and worktree using the
+default root. CPU and memory fit atomically. A two-owner base may promote to three only after the
+configured healthy overlapping evidence. A smaller later waiter cannot bypass the FIFO head.
 
 An admitted child receives immutable `HIPPO_CONCURRENCY` and `HIPPO_RESERVED_MEMORY_BYTES`. The
 BeaverNest wrapper maps concurrency, in order, to exactly `NX_PARALLEL`, `GOMAXPROCS`, and
@@ -42,16 +45,17 @@ BeaverNest wrapper maps concurrency, in order, to exactly `NX_PARALLEL`, `GOMAXP
 survive, higher values clamp, and malformed values require replanning. No fourth consumer mapping is
 allowed.
 
-- Exit `75` defers or sheds one invocation. Read its reason, wait for that condition, and retry only
-  the same command. Never create duplicate or background retry loops; unrelated admitted work may
-  continue.
+- Exit `75` requires its receipt or outcome. Requeue only `never-started`; pressure-shed,
+  storage-shed, and `started-safety-stop` require payload-specific recovery. Never create duplicate
+  or background retry loops; unrelated admitted work may continue.
 - Exit `73` is storage-blocked. Safely free space before retrying.
 - Exit `78` means invalid configuration, impossible reservation, invalid mapping, or a strict
   profile mismatch. Replan rather than cooldown-loop.
 
-Critical pressure selects the newest eligible ephemeral owner, then a service only when none remain.
-Transactional owners are never shed after admission. Only the guard that owns a child may signal,
-reap, and release it; production services, Caddy, and unrelated processes are outside that boundary.
+Ordinary critical pressure selects the newest eligible ephemeral owner, then a service. A
+transactional owner is eligible last only at the configured emergency floor. Only the guard that
+owns a child may signal, reap, and release it; production services, Caddy, and unrelated processes
+are outside that boundary.
 
 ## Enforcement
 
@@ -71,12 +75,16 @@ Mix alias is not in command position and still passes.
 
 Copy [`hippo.local.json.example`](../../hippo.local.json.example) to ignored `hippo.local.json` for
 machine policy. `--config` overrides `HIPPO_CONFIG`, which overrides the bootstrap default. The
-schema-2 example uses reservation mode, a maximum of twenty active owners, automatic 4/2/1 shares,
-and a constrained custom profile without an artificial one-worker cap.
+schema-3 example documents the shared pool, owner gate, resource tiers, deadlines, promotion gate,
+and emergency floor. A contained worktree with no local copy uses the primary checkout's ignored
+policy.
 
-State defaults to the platform HIPPO state directory; `HIPPO_ROOT` may select one shared private
-root. Evidence is bounded and excludes arguments, origins, paths, credentials, contents, and user
-data. Consumers use documented JSON and summary schemas, never runtime coordination files.
+`hippo.identity.json` labels BeaverNest in the shared queue and bounded history. Hippo discovers it
+from nested directories and contained `worktrees/<task>` checkouts; add privacy-safe
+`--tag checkout=worktree --tag plan=<slug>` overrides per run. Use `./hippo status`,
+`./hippo watch --source beaver-nest`, and `./hippo history --since 30d --source beaver-nest` directly.
+State defaults to one platform root; set `HIPPO_ROOT` only for isolated tests. Evidence excludes
+arguments, origins, paths, credentials, contents, and user data.
 
 Verify wrapper changes with `.github/scripts/test-hippo-bootstrap.sh`, then run the narrowest guarded
 Nx gates, affected guarded quick graph, and repository gate. Use isolated roots and deterministic
