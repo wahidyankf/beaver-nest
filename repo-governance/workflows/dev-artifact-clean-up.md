@@ -1,8 +1,8 @@
 # Dev Artifact Clean-Up
 
-## Goal and When to Use It
+## Goal
 
-Remove exactly the development artifacts one piece of work created, and bring the primary checkout's `main` back level with `origin/main`. The [integration path](../conventions/integration-path.md) states these as obligations; this workflow states the order and the checks that make deleting safe.
+Remove only task-created development artifacts and bring primary `main` level with `origin/main`. The [integration path](../conventions/integration-path.md) makes these obligations; this workflow gives the safe order.
 
 Run it once every delivery unit that used the worktree has landed, or once the work is deliberately abandoned. Not between units, because the worktree is reused. Never as a periodic sweep.
 
@@ -11,6 +11,8 @@ Run it once every delivery unit that used the worktree has landed, or once the w
 Five things, and nothing else: the worktree this work provisioned, its local branch, that branch on `origin`, the regenerable build output this work produced, and the primary checkout's `main` ref.
 
 Build output means `dist/`, `.next/`, and the build caches a documented command rebuilds — in the worktree, and the same regenerable output in the primary checkout. It never means a `.env*` file or any other local secret: those are not build output, exist nowhere else, and are out of scope in every location.
+
+An exact ignored, nonshared cache such as `.fvm-cache` may be scratch even when another task created it, but only after recorded regeneration, non-use, and secret-free evidence. This never makes a shared cache removable.
 
 Everything else on the machine belongs to someone else — a worktree this work did not create, a branch it did not open, another repository's state. That holds even when they look abandoned.
 
@@ -59,7 +61,7 @@ A deleted branch whose commits are unreachable is recoverable from `git reflog` 
 
 ## Never
 
-Never delete a `.env*` file or any other local secret. They are gitignored and unregenerable — nothing in the repository reconstructs one — so deleting one is permanent loss of the operator's own configuration, not a reclaimed artifact. That holds inside a worktree being removed too, which is part of why removal is never forced: `git worktree remove` refuses while untracked files remain, and that refusal is a signal to stop.
+Never delete a `.env*` file or any other local secret-bearing file or directory. They are gitignored and unregenerable — nothing in the repository reconstructs one — so deleting one is permanent loss of the operator's own configuration, not a reclaimed artifact. That holds inside a worktree being removed too, which is part of why removal is never forced: `git worktree remove` refuses while untracked files remain, and that refusal is a signal to stop.
 
 In the primary checkout, only regenerable build output is removable. Every other removal targets the worktree this work provisioned or the branch it opened. The primary checkout holds the only copies of gitignored secrets and local state, so a deletion there is unrecoverable. Never delete `main` itself, locally or on `origin`.
 
