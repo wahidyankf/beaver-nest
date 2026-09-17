@@ -66,7 +66,7 @@ When topology, accepted frontmatter, semantic capability mappings, native schema
 Always run the deterministic repository gate uncached:
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo --skipNxCache
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo --skipNxCache
 ```
 
 If `repo-config.yml`, `rhino.lock`, the consumer project, or the push hook changed, also run the affected `test:quick` targets and the consumer bootstrap suite required by the repository quality gates. Review findings by field and path; matching counts alone are not proof.

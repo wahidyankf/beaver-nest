@@ -19,7 +19,7 @@ run_rhino_consumer_check=
 # Each pushed commit range receives the same HIPPO-guarded affected quick
 # graph; Nx uses the admitted allocation. Deleted refs schedule no work.
 quick_checks_for_head() {
-	NX_NO_CLOUD=true ./hippo run --class ephemeral --disk-path . -- \
+	NX_NO_CLOUD=true ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
 		npm exec -- nx affected -t test:quick \
 		--base=origin/main --head="$1"
 }
@@ -58,16 +58,16 @@ validation_changes_for_range() {
 hippo_consumer_changes_for_range() {
 	if [ "$2" = "$zero_oid" ]; then
 		git log --format= --name-only "$1" --not --remotes -- \
-			hippo hippo.lock hippo.local.json.example \
+			hippo hippo.lock hippo.identity.json hippo.local.json.example \
 			'.github/scripts/test-hippo-bootstrap.sh' \
 			':(glob)specs/tools/hippo-consumer/**'
 	else
 		git diff --name-only "$2" "$1" -- \
-			hippo hippo.lock hippo.local.json.example \
+			hippo hippo.lock hippo.identity.json hippo.local.json.example \
 			'.github/scripts/test-hippo-bootstrap.sh' \
 			':(glob)specs/tools/hippo-consumer/**'
 		git log --format= --name-only "$2..$1" -- \
-			hippo hippo.lock hippo.local.json.example \
+			hippo hippo.lock hippo.identity.json hippo.local.json.example \
 			'.github/scripts/test-hippo-bootstrap.sh' \
 			':(glob)specs/tools/hippo-consumer/**'
 	fi
@@ -101,7 +101,7 @@ rhino_consumer_changes_for_range() {
 # URL. What the safety gate reads is the ref-update lines, which arrive on stdin
 # either way -- and the guard passes stdin through, so the admission boundary
 # the repository checks already run behind costs nothing here.
-printf '%s\n' "$ref_updates" | ./hippo run --class ephemeral --disk-path . -- \
+printf '%s\n' "$ref_updates" | ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
 	./rhino gate run --surface pre-push
 
 # The heredoc keeps the loop in this shell, so the three decisions it records
@@ -142,7 +142,7 @@ REFS
 # branch and a scenario corpus that no longer matches its implementations. Both
 # of those reached main once because nothing ran this before a push.
 if [ -n "$run_hippo_consumer_check" ]; then
-	NX_NO_CLOUD=true ./hippo run --class ephemeral --disk-path . -- \
+	NX_NO_CLOUD=true ./hippo run --class ephemeral --resource-tier light --disk-path . -- \
 		./.github/scripts/test-hippo-bootstrap.sh
 fi
 
@@ -150,7 +150,7 @@ fi
 # own fork of the bootstrap rather than a vendored upstream file, so no other
 # gate reads it.
 if [ -n "$run_rhino_consumer_check" ]; then
-	NX_NO_CLOUD=true ./hippo run --class ephemeral --disk-path . -- \
+	NX_NO_CLOUD=true ./hippo run --class ephemeral --resource-tier light --disk-path . -- \
 		sh -c 'shellcheck rhino .github/scripts/test-rhino-bootstrap.sh &&
 			./.github/scripts/test-rhino-bootstrap.sh'
 fi
@@ -162,5 +162,5 @@ if [ -z "$run_repository_check" ]; then
 	exit 0
 fi
 
-NX_NO_CLOUD=true ./hippo run --class ephemeral --disk-path . -- \
+NX_NO_CLOUD=true ./hippo run --class ephemeral --resource-tier heavy --disk-path . -- \
 	npm exec -- nx run -p rhino-consumer -t test:repo

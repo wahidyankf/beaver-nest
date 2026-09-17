@@ -26,12 +26,12 @@ ExBdd.compile_features!(
 Run tasks from the repository root through the workspace [HIPPO](../../repo-governance/development/resource-aware-development.md):
 
 ```sh
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t typecheck
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t lint
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:unit
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:integration
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:quick
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p ex-bdd -t typecheck
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p ex-bdd -t lint
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p ex-bdd -t test:unit
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p ex-bdd -t test:integration
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p ex-bdd -t test:quick
 ```
 
 `test:unit` executes only `test/unit/`: in-process tests whose OS-facing dependencies are replaced by doubles. `test:integration` executes only `test/integration/`: real fixture discovery, file output, code loading, and same-machine process coordination. ExBdd reaches no network at all, though the layer would permit a loopback socket it owns; `ExBdd.BoundaryPolicyTest` enforces both layer boundaries. The integration bootstrap compiles the vendored feature corpus only in that layer. `test:quick` runs typecheck, lint, and unit execution, which now carries its own coverage threshold; integration remains scheduled and outside pre-push quick checks. ExBdd owns no public system journey, so an E2E project and `test:e2e` target are intentionally inapplicable.

@@ -13,7 +13,7 @@ Install the repository dependencies and Playwright's Chromium browser, then run 
 ```sh
 npm install
 npm exec -- playwright install chromium
-./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:quick
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:quick
 ```
 
 `test:quick` owns and runs these fail-fast checks in order, without depending on the application's complete quick gate:

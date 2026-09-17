@@ -16,7 +16,7 @@ Run canonical tooling only in verification and consume its findings. For a check
 
 Freeze the plan path and stage, Git revision plus dirty paths, scope, relevant specification and governance paths, unresolved decisions, and cycle `1`. A material external input change ends the run as `BLOCKED_INPUT_CHANGED`; it never causes an automatic restart. Recorded repairs remain inside this run and do not trigger another quality-gate run.
 
-Audit before editing. Create a finite ledger containing `ID`, canonical rule, location, material gap, required repair, proof, and status: `OPEN`, `FIXED`, `NOT_APPLICABLE`, or `BLOCKED`. Only gaps that violate a rule or make scoped execution unsafe, ambiguous, or unprovable enter the ledger. Mandatory findings cannot be waived; `NOT_APPLICABLE` requires evidence. Preserve the snapshot, cycle, ledger, pending verification, and authorization through compaction or handoff under [governance continuity](../principles/governance-continuity.md).
+Audit first. Create a ledger containing `ID`, canonical rule, location, material gap, required repair, proof, and status: `OPEN`, `FIXED`, `NOT_APPLICABLE`, or `BLOCKED`. Only gaps that violate a rule or make scoped execution unsafe, ambiguous, or unprovable enter the ledger. Mandatory findings cannot be waived; `NOT_APPLICABLE` requires evidence. Preserve the snapshot, cycle, ledger, pending verification, and authorization through compaction or handoff under [governance continuity](../principles/governance-continuity.md).
 
 ## Bounded Procedure
 
@@ -33,7 +33,7 @@ Audit before editing. Create a finite ledger containing `ID`, canonical rule, lo
 4. Verify semantically in read-only mode, reviewing only repaired meaning and cross-document effects. Then run:
 
    ```sh
-   ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
+   ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
    ```
 
 5. Return `PASS` when no row is `OPEN` or `BLOCKED`, tooling passes, no new material semantic gap appears, and the snapshot changed only through recorded repairs. Return `PASS_WITH_FINDINGS` when the same holds but recorded non-blocking findings remain.

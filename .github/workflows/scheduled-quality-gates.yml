@@ -36,13 +36,13 @@ jobs:
           version-type: strict
 
       - name: Install npm dependencies
-        run: ./hippo run --class ephemeral --disk-path . -- npm ci
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
       - name: Install ExBdd dependencies
-        run: ./hippo run --class ephemeral --cwd libs/ex-bdd --disk-path libs/ex-bdd -- mix deps.get
+        run: ./hippo run --class transactional --resource-tier standard --cwd libs/ex-bdd --disk-path libs/ex-bdd -- mix deps.get
 
       - name: Run complete ExBdd coverage
-        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
+        run: ./hippo run --class ephemeral --resource-tier heavy --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
 
   bnest-test-symphony:
     name: Bnest test symphony
@@ -66,16 +66,16 @@ jobs:
           version-type: strict
 
       - name: Install npm dependencies
-        run: ./hippo run --class ephemeral --disk-path . -- npm ci
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
       - name: Install Phoenix dependencies
-        run: ./hippo run --class ephemeral --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
+        run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
       - name: Run local integration suite
-        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run -p bnest-app -t test:integration
+        run: ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:integration
 
       - name: Install Chromium and system dependencies
-        run: ./hippo run --class ephemeral --disk-path . -- npm exec -- playwright install --with-deps chromium
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm exec -- playwright install --with-deps chromium
 
       - name: Install pinned Caddy for routed rollout tests
         env:

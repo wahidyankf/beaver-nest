@@ -40,7 +40,7 @@ $ npm exec -- nx run rhino-consumer:test:bootstrap
 Heavy or repeated local runs go through the [HIPPO guard](../../repo-governance/development/resource-aware-development.md):
 
 ```console
-$ ./hippo run --class ephemeral --disk-path . -- npm exec -- nx run rhino-consumer:test:repo
+$ ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run rhino-consumer:test:repo
 ```
 
 ### `test:repo`
