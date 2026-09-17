@@ -12,8 +12,18 @@ temporary_root=$(mktemp -d)
 trap 'rm -rf -- "$temporary_root"' EXIT HUP INT TERM
 
 jq -e '.schemaVersion == 1 and .source == "beaver-nest"' "$repository_root/hippo.identity.json" >/dev/null
-grep -Fxq 'version=v0.6.1' "$repository_root/hippo.lock"
+grep -Eq '^version=v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' "$repository_root/hippo.lock"
+grep -Eq '^commit=[0-9a-f]{40}$' "$repository_root/hippo.lock"
 grep -Fq -- '--path-format=absolute --git-common-dir' "$repository_root/hippo"
+resource_rule="$repository_root/repo-governance/development/resource-aware-development.md"
+grep -Fqi 'exit `75`' "$resource_rule"
+grep -Fq 'never-started' "$resource_rule"
+grep -Fqi 'exit `76`' "$resource_rule"
+grep -Fq 'Never retry it' "$resource_rule"
+grep -Fq 'legacy client without distinct exit `76`' "$resource_rule"
+grep -Fq 'read the Hippo repository at the commit' "$resource_rule"
+grep -Fq '`hippo.lock`, then align' "$resource_rule"
+grep -Fq '30 days' "$resource_rule"
 # Keep every tracked active example compatible with schema 3 and prevent the
 # self-contention caused by wrapping an already-guarded package script.
 tier_findings=$(git -C "$repository_root" grep -n -E \
@@ -335,7 +345,8 @@ Retention never deletes a release another consumer is using
 Retention never evicts a release another repository still uses
 Release ranking reads real timestamps on every supported platform
 Retention reclaims releases left idle beyond its window
-Concurrent owners survive a retryable coordination deferral'
+Concurrent owners survive queued admission without client retry
+A protocol mismatch is never retried as capacity'
 actual_scenarios=$(awk '/^[[:space:]]*Scenario: / { sub(/^[[:space:]]*Scenario: /, ""); print }' "$feature_file")
 [ "$actual_scenarios" = "$expected_scenarios" ]
 
@@ -991,29 +1002,30 @@ run_bounded_install_guard_storage() {
 	rm -rf -- "$cache_root"
 }
 
-run_concurrent_owners_survive_retryable_deferral() {
+run_concurrent_owners_survive_queued_admission() {
 	workflow="$repository_root/.github/workflows/hippo-consumer-smoke.yml"
-	# Exit 75 is HIPPO's documented retryable deferral, and an owner can receive it
-	# after its child is already running: activation records the supervised process
-	# group once the child exists, and HIPPO stops a child whose process group it
-	# could not record rather than leave behind an owner critical pressure cannot
-	# shed. An owner that received 75 therefore holds no reservation, so a proof that
-	# reads the deferral as an admission fails on whichever platform loses the
-	# shared-root race. That is how this reached main and then failed only on Linux.
-	if ! grep -qE '(-ne|-eq) 75 \]' "$workflow"; then
-		echo "the shared-root proof must retry an owner that exits with the retryable 75" >&2
+	# v1 owns queueing inside one invocation. A client-side exit-code loop can
+	# duplicate a child or misclassify a child-owned reserved code.
+	if grep -qE '(-ne|-eq) (75|76) \]|deferrals=' "$workflow"; then
+		echo "the shared-root proof must not retry a reserved exit code" >&2
 		return 1
 	fi
-	# Every guarded owner must reach the background through that retry rather than
-	# being launched straight into it, or the retry protects nothing.
 	if [ "$(grep -cE '^[[:space:]]*\./hippo run .*&$' "$workflow")" -ne 0 ]; then
-		echo "a guarded owner reaches the background without the deferral retry" >&2
+		echo "a guarded owner bypasses the one-attempt launcher" >&2
 		return 1
 	fi
 	if [ "$(grep -cE '^[[:space:]]*launch_owner [a-z]+ &$' "$workflow")" -ne 2 ]; then
-		echo "the proof must launch exactly two owners through the deferral retry" >&2
+		echo "the proof must submit exactly two one-attempt owners" >&2
 		return 1
 	fi
+}
+
+run_protocol_mismatch_is_never_retried() {
+	resource_rule="$repository_root/repo-governance/development/resource-aware-development.md"
+	grep -Fq 'Exit `76`' "$resource_rule"
+	grep -Fq 'Never retry it' "$resource_rule"
+	grep -Fq './hippo status' "$resource_rule"
+	grep -Fq 'drain or' "$resource_rule"
 }
 
 # The BSD form `stat -f` means "filesystem status" to GNU coreutils, which writes
@@ -1094,7 +1106,8 @@ while IFS= read -r scenario; do
 	'Retention never evicts a release another repository still uses') run_retention_keeps_releases_other_repositories_use ;;
 	'Release ranking reads real timestamps on every supported platform') run_release_ranking_reads_real_timestamps ;;
 	'Retention reclaims releases left idle beyond its window') run_retention_reclaims_idle_releases ;;
-	'Concurrent owners survive a retryable coordination deferral') run_concurrent_owners_survive_retryable_deferral ;;
+	'Concurrent owners survive queued admission without client retry') run_concurrent_owners_survive_queued_admission ;;
+	'A protocol mismatch is never retried as capacity') run_protocol_mismatch_is_never_retried ;;
 	*) exit 1 ;;
 	esac
 done <<EOF

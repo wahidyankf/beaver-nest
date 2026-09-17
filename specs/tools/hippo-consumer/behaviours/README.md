@@ -16,4 +16,5 @@ longer matches its implementations before the push rather than after it.
   own run arguments, refusing a payload whose checksum or embedded identity misses its pin and a
   host outside the published platform matrix, safe install-lock ownership and reclamation under
   contention, and the retention rules that keep one shared cache root safe for every repository
-  using it.
+  using it. The existing concurrent-owner scenario also proves v1 queueing needs no client retry,
+  while the protocol-mismatch scenario makes exit `76` a one-attempt drain-or-upgrade result.
