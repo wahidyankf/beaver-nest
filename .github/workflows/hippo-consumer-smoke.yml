@@ -151,45 +151,22 @@ jobs:
             done
           }
 
-          # Exit 75 is HIPPO's documented retryable deferral, and an owner can receive it
-          # after its child is already running: activation records the supervised process
-          # group once the child exists, and a child whose process group was never
-          # recorded cannot be selected under critical pressure, so HIPPO stops it rather
-          # than leave an unsheddable owner behind. Every repository on the host shares
-          # one coordination root, so losing that bounded window is ordinary contention
-          # and the caller retries. Treating the deferral as an admission is what made
-          # this step fail on Linux while passing on macOS.
+          # Hippo v1 owns queueing inside one invocation and launches the child at most
+          # once. A client-side loop around exit 75 could duplicate a child or retry a
+          # child-owned code; exit 76 is a protocol mismatch and is never capacity.
           launch_owner() {
             owner_name=$1
             mappings="${shared_root}/${owner_name}.mappings"
             ready="${shared_root}/${owner_name}.ready"
-            deferrals=0
-            while :; do
-              # The readiness marker only ever means "an admitted child is running now",
-              # so a deferred attempt must not leave its marker behind for the next one.
-              rm -f "${ready}"
-              set +e
-              # Variables in the single-quoted command expand inside the guarded child.
-              # shellcheck disable=SC2016
-              HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
-                ./hippo run --class ephemeral --resource-tier light --reserve-cpu 1 --reserve-memory-mib 1024 \
-                --disk-path . -- sh -c '
-                  printf "%s\n%s\n%s\n" "$NX_PARALLEL" "$GOMAXPROCS" "$DOTNET_PROCESSOR_COUNT" > "$1"
-                  : > "$2"
-                  while [ ! -e "$3" ]; do sleep 0.1; done
-                ' sh "${mappings}" "${ready}" "${release_file}"
-              owner_code=$?
-              set -e
-              if [ "${owner_code}" -ne 75 ]; then
-                return "${owner_code}"
-              fi
-              deferrals=$((deferrals + 1))
-              if [ "${deferrals}" -ge 20 ]; then
-                echo "owner ${owner_name} was deferred ${deferrals} times without admission" >&2
-                return 75
-              fi
-              sleep 0.2
-            done
+            # Variables in the single-quoted command expand inside the guarded child.
+            # shellcheck disable=SC2016
+            HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
+              ./hippo run --class ephemeral --resource-tier light --reserve-cpu 1 --reserve-memory-mib 1024 \
+              --disk-path . -- sh -c '
+                printf "%s\n%s\n%s\n" "$NX_PARALLEL" "$GOMAXPROCS" "$DOTNET_PROCESSOR_COUNT" > "$1"
+                : > "$2"
+                while [ ! -e "$3" ]; do sleep 0.1; done
+              ' sh "${mappings}" "${ready}" "${release_file}"
           }
 
           launch_owner one &

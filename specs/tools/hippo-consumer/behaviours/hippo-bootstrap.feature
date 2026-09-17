@@ -104,7 +104,12 @@ Feature: Safe HIPPO consumer bootstrap
     When a consumer installs its pinned release and retention runs
     Then only the pinned release and the most recent idle fallbacks remain
 
-  Scenario: Concurrent owners survive a retryable coordination deferral
-    Given a shared coordination root that defers one owner while it admits another
-    When the consumer proves that two owners hold reservations at the same time
-    Then it retries the deferred owner instead of reading the deferral as an admission
+  Scenario: Concurrent owners survive queued admission without client retry
+    Given a shared coordination root that queues one owner while it admits another
+    When two consumers submit one guarded attempt each
+    Then both owners hold reservations without an exit-code retry loop
+
+  Scenario: A protocol mismatch is never retried as capacity
+    Given a consumer with distinct protocol-mismatch exit 76 receives it before its child starts
+    When the consumer applies the documented exit decision table
+    Then it stops after one attempt and directs the operator to status and drain-or-upgrade recovery
