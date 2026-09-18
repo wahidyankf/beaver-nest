@@ -1,5 +1,6 @@
 defmodule BnestAppWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :bnest_app
+  use Absinthe.Phoenix.Endpoint
 
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
@@ -14,6 +15,23 @@ defmodule BnestAppWeb.Endpoint do
   socket "/live", Phoenix.LiveView.Socket,
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
+
+  # `familyChatMessageCommitted` subscriptions. Identity is server-decoded from
+  # the same signed session cookie as HTTP (`connect_info: [session: ...]`);
+  # `UserSocket.connect/3` never trusts socket params for identity.
+  #
+  # `check_csrf: false`: Phoenix's `connect_info: [session: ...]` decoding
+  # defaults to requiring a `_csrf_token` *query param* matching the session
+  # (`Phoenix.Socket.Transport.connect_session/4`) — a plain WebSocket
+  # upgrade never carries one, so the session would silently decode to `nil`
+  # regardless of a genuinely valid identity cookie, and every handshake
+  # would be refused. Tech-doc 008 documents only session + origin defenses
+  # for this socket (never a CSRF token) — CSRF protection remains enforced
+  # separately, and unconditionally, for every GraphQL HTTP mutation via
+  # `BnestAppWeb.Plugs.GraphQLPipeline`.
+  socket "/api/graphql/socket", BnestAppWeb.UserSocket,
+    websocket: [connect_info: [session: @session_options], check_csrf: false],
+    longpoll: false
 
   # Serve at "/" the static files from "priv/static" directory.
   #

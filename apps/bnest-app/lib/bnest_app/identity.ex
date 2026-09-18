@@ -24,7 +24,21 @@ defmodule BnestApp.Identity do
 
   def login(username, password), do: Login.authenticate(active_store(), username, password)
   def current_user(token), do: Session.current_user(active_store(), token)
-  def logout(token), do: Login.revoke(active_store(), token, BnestAppWeb.Endpoint)
+
+  # Tech-doc 002: "Logout completes server deactivation before identity
+  # revocation. If deactivation fails, the authenticated session remains so
+  # the user can retry; partial logout is not reported as success." A raised
+  # error from `PushNotifications.disable_subscription/2` (e.g. an
+  # unavailable database) propagates out of this function before
+  # `Login.revoke/3` ever runs, so the session cookie/file stays valid for a
+  # retry rather than being revoked ahead of a failed deactivation.
+  def logout(token) do
+    with {:ok, %{"userId" => user_id}} <- Session.current_user(active_store(), token) do
+      BnestApp.PushNotifications.disable_subscription(user_id, Session.digest(token))
+    end
+
+    Login.revoke(active_store(), token, BnestAppWeb.Endpoint)
+  end
 
   def authorize(user, capability, owner_id), do: Authorization.allow?(user, capability, owner_id)
 

@@ -1,0 +1,100 @@
+<Layouts.flash_group flash={@flash} />
+<main
+  class="family-chat-shell"
+  data-role="family-chat-room"
+  aria-labelledby="family-chat-room-title"
+>
+  <header class="family-chat-header">
+    <a href="/" class="family-chat-brand" aria-label="Beaver Nest home">
+      <span aria-hidden="true">←</span>
+      <span>Family chat</span>
+    </a>
+    <h1 id="family-chat-room-title">{@room.name}</h1>
+    <div class="family-chat-push" data-role="family-chat-push">
+      <button
+        type="button"
+        class="family-chat-push-control"
+        data-role="family-chat-push-control"
+        disabled
+      >
+        Notifications unavailable in this browser
+      </button>
+      <button
+        type="button"
+        class="family-chat-push-disable"
+        data-role="family-chat-push-disable"
+        hidden
+      >
+        Turn off
+      </button>
+    </div>
+  </header>
+
+  <p
+    class="family-chat-offline-banner"
+    role="status"
+    data-role="family-chat-offline-banner"
+    hidden
+  >
+    You’re offline. Messages will send when you reconnect.
+  </p>
+
+  <div class="family-chat-history" data-role="family-chat-history">
+    <button
+      type="button"
+      class="family-chat-load-older"
+      data-role="family-chat-load-older"
+    >
+      Load older messages
+    </button>
+    <p class="family-chat-empty" data-role="family-chat-empty">
+      Start the family conversation.<br /><small>Messages from everyone at home will appear here.</small>
+    </p>
+    <ol
+      class="family-chat-messages"
+      data-role="family-chat-message-list"
+      role="log"
+      aria-label={"Conversation in " <> @room.name}
+    >
+    </ol>
+    <span
+      class="family-chat-scroll-anchor"
+      data-role="family-chat-scroll-anchor"
+      data-anchor-offset="0"
+      aria-hidden="true"
+    ></span>
+  </div>
+
+  <button
+    type="button"
+    class="family-chat-new-messages"
+    data-role="family-chat-new-messages"
+    hidden
+  >
+    New messages below
+  </button>
+
+  <p class="family-chat-live-region" role="status" data-role="family-chat-live-region"></p>
+
+  <form class="family-chat-composer" data-role="family-chat-composer">
+    <label for="family-chat-message-input">Message the family</label>
+    <textarea
+      id="family-chat-message-input"
+      name="body"
+      data-role="family-chat-message-input"
+      placeholder="Write a message"
+      disabled
+    ></textarea>
+    <button type="submit" class="family-chat-send" data-role="family-chat-send" disabled>
+      Send
+    </button>
+    <p
+      class="family-chat-remediation"
+      role="alert"
+      data-role="family-chat-remediation"
+      hidden
+    >
+    </p>
+    <p class="family-chat-outbox-status" data-role="family-chat-outbox-status"></p>
+  </form>
+</main>

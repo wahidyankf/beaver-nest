@@ -91,7 +91,20 @@ defmodule BnestApp.MixProject do
       {:bandit, "~> 1.5"},
       {:ecto, "~> 3.13"},
       {:ecto_sql, "~> 3.13"},
-      {:ecto_sqlite3, "~> 0.19"}
+      {:ecto_sqlite3, "~> 0.19"},
+      {:absinthe, "~> 1.12"},
+      {:absinthe_plug, "~> 1.5.10"},
+      {:absinthe_phoenix, "~> 2.0.5"},
+      # RFC 8291 payload encryption + RFC 8292 VAPID signing (tech-doc 004).
+      # Re-verified at Phase 5 against Phase 0's dependency-selection review:
+      # still hex.pm's only actively-maintained Web Push protocol library
+      # (`web_push_encryption` is abandoned), still 0.1.0/MIT as of this
+      # check. Only its `WebPush.Vapid`/`WebPush.Encryption` building blocks
+      # are used (see `BnestApp.PushNotifications.Sender`); the actual HTTP
+      # POST goes through `Req` (already a dependency) so this delivery's own
+      # redirect-disabled, bounded-timeout policy applies uniformly rather
+      # than depending on `WebPush.send/3`'s internal Finch pool config.
+      {:web_push, "~> 0.1.0"}
     ]
   end
 
@@ -107,17 +120,21 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.PageController,
       BnestAppWeb.PageHTML,
       BnestAppWeb.ReleaseHeaders,
-      BnestAppWeb.Router
+      BnestAppWeb.Router,
+      BnestAppWeb.FamilyChatHTML
     ]
 
     test_scaffolding = [
       BnestApp.Behaviour.BoundaryPolicy,
       BnestApp.Behaviour.Driver,
+      BnestApp.Behaviour.IntegrationFamilyChatDriver,
       BnestApp.Behaviour.IntegrationHomePageDriver,
       BnestApp.Behaviour.MemoryBackend,
+      BnestApp.Behaviour.UnitFamilyChatDriver,
       BnestApp.Behaviour.UnitHomePageDriver,
       BnestApp.Codex.FixtureModels,
       BnestApp.Codex.FixtureSession,
+      BnestApp.SchemaSourceScan,
       BnestApp.TestIdentity,
       BnestApp.TestRuntimeRoot,
       BnestAppWeb.ConnCase
@@ -127,6 +144,8 @@ defmodule BnestApp.MixProject do
       BnestApp.AdminConfig.Registry,
       BnestApp.Application,
       BnestApp.Codex.ModelDiscovery,
+      BnestApp.Backup,
+      BnestApp.Backup.Capacity,
       BnestApp.Backup.Config,
       BnestApp.Backup.Location,
       BnestApp.Backup.Receipt,
@@ -144,7 +163,13 @@ defmodule BnestApp.MixProject do
       BnestApp.Identity.Bootstrap,
       BnestApp.Identity.CredentialVerifier,
       BnestApp.Identity.FileStore,
+      BnestApp.FamilyChat.Store,
       BnestApp.Identity.Session,
+      BnestApp.PushNotifications,
+      BnestApp.PushNotifications.Dispatcher,
+      BnestApp.PushNotifications.RetentionJob,
+      BnestApp.PushNotifications.Sender,
+      BnestApp.Release.Migrations.FamilyChat,
       BnestApp.Release.Migrations.PersistentSchedules,
       BnestApp.Scheduler,
       BnestApp.Scheduler.Registry,
@@ -164,13 +189,21 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.AdminSettingsLive,
       BnestAppWeb.ChatLive,
       BnestAppWeb.DataMigrationLive,
+      BnestAppWeb.FamilyChatController,
       BnestAppWeb.HealthController,
       BnestAppWeb.LoginLive,
+      BnestAppWeb.Plugs.GraphQLPipeline,
       BnestAppWeb.SessionController,
       BnestAppWeb.SifatAllahLive,
       BnestAppWeb.StorageLive,
       BnestAppWeb.ThemeController,
       BnestAppWeb.UserAuth,
+      BnestAppWeb.Schema,
+      BnestAppWeb.Schema.Types.FamilyChatTypes,
+      BnestAppWeb.Schema.Types.WebPushTypes,
+      BnestAppWeb.Resolvers.FamilyChatResolver,
+      BnestAppWeb.Resolvers.WebPushResolver,
+      BnestAppWeb.UserSocket,
       Mix.Tasks.Bnest.Identity.Benchmark,
       Mix.Tasks.Bnest.Schema.Audit,
       Mix.Tasks.Bnest.Storage.Migrate,

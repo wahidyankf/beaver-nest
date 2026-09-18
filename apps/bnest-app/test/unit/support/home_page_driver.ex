@@ -100,6 +100,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Codex.{FixtureModels, ModelAccess, RepositoryAccess}
   alias BnestApp.DataRepository.{Backend, Import, Schema}
   alias BnestApp.Deployment
+  alias BnestApp.FamilyChat
   alias BnestApp.Identity.{Authorization, Bootstrap, CredentialVerifier, Login, Session}
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
@@ -122,6 +123,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def open(context, "/apps/sifat-allah") do
     render_sifat_allah(context, sifat_state())
+  end
+
+  def open(context, "/family-chat") do
+    render_family_chat_room(context, FamilyChat.canonical_room_slug())
+  end
+
+  def open(context, "/family-chat/" <> slug) do
+    render_family_chat_room(context, slug)
   end
 
   @impl true
@@ -915,6 +924,21 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :page, page)
   end
 
+  defp render_family_chat_room(context, slug) do
+    {:ok, room} = FamilyChat.get_room_for("test-user-unit", slug)
+
+    page =
+      %{flash: %{}, current_user: %{"displayUsername" => "test-user-unit"}, room: room}
+      |> BnestAppWeb.FamilyChatHTML.room()
+      |> Safe.to_iodata()
+      |> IO.iodata_to_binary()
+      |> LazyHTML.from_fragment()
+
+    context
+    |> Map.put(:route, "/family-chat/" <> room.slug)
+    |> Map.put(:page, page)
+  end
+
   defp render_sifat_allah(context, state) do
     page =
       state
@@ -1274,6 +1298,39 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def prepare_behaviour(context, :typed_settings_panels, _args),
     do: Map.put(context, :declared_panels, AdminRegistry.panels())
+
+  def prepare_behaviour(context, state, args)
+      when state in [
+             :room_has_known_history,
+             :sent_message_with_known_id,
+             :user_without_family_chat_capability,
+             :holds_subscription,
+             :message_committed_before_subscription,
+             :has_enabled_subscription,
+             :endpoint_configured_production,
+             :fresh_migrated_database,
+             :migration_applied,
+             :trusted_producer,
+             :three_members_with_subscriptions,
+             :delivery_will_fail_retryable,
+             :delivery_targets_gone_subscription,
+             :final_rows_older_than_7_days,
+             :nonfinal_rows_same_age,
+             :soft_deleted_rows_older_than_7_days,
+             :schedule_due,
+             :schedule_due_and_enabled,
+             :schedule_different_time,
+             :convergence_already_ran,
+             :operator_changed_schedule_time,
+             :insufficient_capacity,
+             :continuous_probes_running,
+             :backup_timeout_forced,
+             :verified_backup_artifact,
+             :two_independent_slots,
+             :routed_socket_on_prior_slot
+           ] do
+    BnestApp.Behaviour.UnitFamilyChatDriver.prepare_behaviour(context, state, args)
+  end
 
   def prepare_behaviour(context, :expiry_policies, _args) do
     policies = [
@@ -1677,6 +1734,23 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
+  # Step-binding collision fix (adapter change; see learnings.md's Phase 5
+  # entry -- "the backup handler runs" is shared verbatim by the pre-existing
+  # scheduled-backup feature (below) and by family_chat_operations.feature's
+  # capacity scenario, and ExBDD step text is matched globally across all
+  # `test/behaviour/steps/*.exs` files, not per feature file, so only one
+  # driver clause can own this exact text. The family-chat scenario's own
+  # `:insufficient_capacity` Given step is the unambiguous signal for which
+  # one applies.
+  def perform_behaviour(context, :run_backup_handler, _args)
+      when is_map_key(context, :family_chat_backup_capacity) do
+    BnestApp.Behaviour.UnitFamilyChatDriver.perform_behaviour(
+      context,
+      :backup_runs_full_duration,
+      []
+    )
+  end
+
   def perform_behaviour(context, :run_backup_handler, _args) do
     receipt =
       Receipt.build(
@@ -1750,6 +1824,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
     Map.merge(context, %{expiration_eligibility: eligibility, expiration_retries: retries})
   end
+
+  def perform_behaviour(context, action, args),
+    do: BnestApp.Behaviour.UnitFamilyChatDriver.perform_behaviour(context, action, args)
 
   @impl true
   def behaviour_outcome?(context, :redirected_to_login, _args), do: context.redirected
@@ -2131,6 +2208,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def behaviour_outcome?(context, :retry_occurrence_rules, _args),
     do: match?([%DateTime{}, %DateTime{}, nil], context.expiration_retries)
+
+  def behaviour_outcome?(context, expected, args),
+    do: BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?(context, expected, args)
 
   defp unit_backup_fixture do
     destination_id = "unit-destination"

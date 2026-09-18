@@ -12,6 +12,8 @@ config :bnest_app,
   storage_profile: :production,
   runtime_root: Path.expand("../../../data/prod", __DIR__),
   identity_cutover_enabled: false,
+  family_chat_enabled: false,
+  backup_timeout_ms: 1_800_000,
   session_cookie: [
     key: "_bnest_identity",
     secure: false,
@@ -58,8 +60,15 @@ config :bnest_app, BnestApp.Mailer, adapter: Swoosh.Adapters.Local
 config :esbuild,
   version: "0.25.4",
   bnest_app: [
+    # --external:node:fs / node:url: `family_chat/accessibility.js` reads
+    # the shipped template/stylesheet from disk, but only from FE_UNIT's
+    # Vitest (Node) process -- `family_chat.js`'s browser path never calls
+    # it (see its own `hasDocument` guard). These two Node built-ins are
+    # therefore legitimately never resolvable (or needed) in this browser
+    # bundle; marking them external leaves the dead import as an inert,
+    # never-executed reference instead of a bundle failure.
     args:
-      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --external:node:fs --external:node:url --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]

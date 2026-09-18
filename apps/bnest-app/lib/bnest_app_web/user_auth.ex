@@ -6,6 +6,7 @@ defmodule BnestAppWeb.UserAuth do
 
   alias BnestApp.DataRepository
   alias BnestApp.Identity
+  alias BnestApp.Identity.Session
 
   @identity_cookie "_bnest_identity"
   @legacy_transition_user %{
@@ -24,6 +25,12 @@ defmodule BnestAppWeb.UserAuth do
         |> assign(:current_user, user)
         |> assign(:current_theme, current_theme(user))
         |> assign(:theme_storage, :server)
+        # Web Push subscriptions bind per-session, not per-user (tech-doc
+        # 004): the raw session token is only ever available here, at the
+        # real cookie-authenticated path, so this is the one place able to
+        # derive it. Never the legacy/transition path below -- that
+        # synthetic identity has no real session token to digest.
+        |> assign(:session_digest, Session.digest(conn.cookies[@identity_cookie]))
         |> put_session(:current_user, user)
 
       {:error, :unauthenticated} ->
@@ -31,6 +38,7 @@ defmodule BnestAppWeb.UserAuth do
           nil ->
             conn
             |> assign(:current_user, nil)
+            |> assign(:session_digest, nil)
             |> assign(:current_theme, "system")
             |> assign(:theme_storage, :browser)
             |> delete_session(:current_user)
@@ -38,6 +46,7 @@ defmodule BnestAppWeb.UserAuth do
           user ->
             conn
             |> assign(:current_user, user)
+            |> assign(:session_digest, nil)
             |> assign(:current_theme, "system")
             |> assign(:theme_storage, :browser)
             |> put_session(:current_user, user)
@@ -77,6 +86,20 @@ defmodule BnestAppWeb.UserAuth do
   end
 
   def require_admin_role(conn, _options), do: conn |> send_resp(:not_found, "Not found") |> halt()
+
+  @doc false
+  def family_chat_enabled?, do: Application.get_env(:bnest_app, :family_chat_enabled, false)
+
+  # Runtime (not compile-time) gate, mirroring `cutover_enabled?/0`: the
+  # compatibility release ships this route/controller in code with the flag
+  # off (a genuinely dormant shell, not merely an unlinked page — a 404, the
+  # same "not found" shape every other role/flag gate in this module uses),
+  # and the later experience release flips it on without a redeploy.
+  def require_family_chat_enabled(conn, _options) do
+    if family_chat_enabled?(),
+      do: conn,
+      else: conn |> send_resp(:not_found, "Not found") |> halt()
+  end
 
   def on_mount(:require_authenticated_user, _params, session, socket) do
     case session["current_user"] do

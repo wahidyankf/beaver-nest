@@ -2,6 +2,27 @@ import Config
 
 config :bnest_app, :identity_cutover_enabled, true
 config :bnest_app, :scheduler_automatic?, false
+# On by default in test so unit/integration drivers can exercise the room
+# route/navigation without per-test overrides; the specific "flag genuinely
+# off" checkpoint scenario overrides this locally via
+# `Application.put_env/3` + `on_exit/1` (the same pattern used for other
+# per-test config overrides in this suite, e.g.
+# `test/integration/bnest_app_web/authentication_test.exs`).
+config :bnest_app, :family_chat_enabled, true
+
+# Fixed synthetic VAPID keypair (never a real deployment secret -- generated
+# once via `WebPush.Vapid.generate_keypair/0` and hardcoded here so test
+# runs are deterministic/reproducible). `push_notifications_test_provider?`
+# additionally allowlists the synthetic `push.allowed.example.com` provider
+# host so subscription-validation tests can use an https/allowlisted-shaped
+# endpoint without ever dialing a real Apple/Mozilla/Chromium provider.
+config :web_push, :vapid,
+  public_key:
+    "BPGxd0fDWxgSZ-Xx3woJ2NshVgXsIIZp3Y1kPEcR8tM3_MBfPIJRJmH8unEa3SWfcgTIdhWOT95xw6poaIffyuI",
+  private_key: "172QFip6G1cnH9jJ4ZCrCGNq33f6UFgjIe2MWzvsUlU",
+  subject: "mailto:test@example.com"
+
+config :bnest_app, :push_notifications_test_provider?, true
 
 config :bnest_app, :storage_profile, {:test, System.get_env("BNEST_TEST_RUN_ID")}
 
@@ -103,6 +124,20 @@ else
     storage_config_path: nil,
     test_runtime_owned: false
 end
+
+# Family Chat's SQLite tables are additive to the shared database but must never
+# resolve through the real `~/.config/bnest/storage.json` pointer during tests (that
+# file is shared/production-adjacent). Every test run (unit or integration) gets its
+# own isolated SQLite path here; `BnestApp.FamilyChat.Store` self-heals the connection
+# onto this path before each operation, independent of the legacy flat/sqlite phase.
+family_chat_run_id =
+  System.get_env("BNEST_TEST_RUN_ID") ||
+    "unit-" <>
+      (:crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false) |> String.downcase())
+
+config :bnest_app,
+  family_chat_sqlite_path:
+    Path.expand("~/bnest/data/test/family-chat/#{family_chat_run_id}/bnest.sqlite3")
 
 codex_session =
   if System.get_env("BNEST_CODEX_RUNNER"),
