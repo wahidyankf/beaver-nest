@@ -28,6 +28,11 @@ Feature: Safe RHINO consumer bootstrap
     When the RHINO consumer bootstrap validates the lock
     Then it exits as invalid configuration before transport or cache escape
 
+  Scenario: Exact candidate tag uses stable release identity
+    Given the consumer lock pins an exact candidate tag and the extracted release reports its stable product version
+    When the RHINO consumer bootstrap validates and installs that candidate
+    Then it verifies the stable identity, retains the exact candidate cache path, and executes the release
+
   Scenario: Release identity envelope must match exactly
     Given a downloaded release reports a duplicated or additional identity field
     When the RHINO consumer bootstrap validates the extracted executable
