@@ -53,5 +53,5 @@
     "target": "ES2023",
     "types": ["node"]
   },
-  "include": ["js/**/*", "types/**/*.d.ts"]
+  "include": ["js/**/*", "types/**/*.d.ts", "test/**/*", "vitest.config.mts"]
 }

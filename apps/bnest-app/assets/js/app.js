@@ -28,6 +28,7 @@ import { BrowserImport } from "./browser_import";
 import { initializeIdentitySetup } from "./identity_setup";
 import { celebrateSifatAnswer } from "./sifat_celebration";
 import { SifatHistory } from "./sifat_history";
+import { initRoom } from "./family_chat.js";
 
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -43,6 +44,15 @@ const browserPersistenceEnabled =
   document.documentElement.dataset["browserPersistence"] === "true";
 
 initializeIdentitySetup();
+
+// Family chat (tech-doc 005/007): a plain-controller page, deliberately
+// never a LiveView -- `initRoom` only ever runs when its route's own DOM
+// shell is present, so every other page (including this same bundle's
+// LiveView routes) is unaffected. The feature flag itself already keeps the
+// route (and this element) absent by default (`BNEST_FAMILY_CHAT_ENABLED`).
+if (document.querySelector('[data-role="family-chat-room"]')) {
+  void initRoom(window.location.pathname);
+}
 
 const storedChat = () => {
   if (!browserPersistenceEnabled) return "";
