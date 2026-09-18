@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="393" height="852" viewBox="0 0 393 852" role="img" aria-labelledby="title desc">
+  <title id="title">Family hearth lo-fi mobile</title>
+  <desc id="desc">Mobile edge-to-edge family chat wireframe with compact header, chronological bubbles, a new-message control, and safe-area composer.</desc>
+  <rect width="393" height="852" fill="#fff"/>
+  <rect width="393" height="104" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <circle cx="36" cy="42" r="19" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <text x="66" y="39" font-family="sans-serif" font-size="18" font-weight="700">Family chat</text>
+  <text x="66" y="63" font-family="sans-serif" font-size="14">Main</text>
+  <rect x="253" y="25" width="120" height="38" rx="19" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="271" y="49" font-family="sans-serif" font-size="13">Notifications</text>
+  <rect x="111" y="126" width="171" height="32" rx="16" fill="#e5e8e7"/>
+  <text x="135" y="147" font-family="sans-serif" font-size="12">Load older messages</text>
+  <rect x="18" y="194" width="280" height="76" rx="17" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="34" y="219" font-family="sans-serif" font-size="12" font-weight="700">Sam · 18:03</text>
+  <text x="34" y="248" font-family="sans-serif" font-size="16">Dinner is ready.</text>
+  <rect x="95" y="294" width="280" height="76" rx="17" fill="#596362"/>
+  <text x="111" y="319" font-family="sans-serif" font-size="12" fill="#fff" font-weight="700">You · 18:04</text>
+  <text x="111" y="348" font-family="sans-serif" font-size="16" fill="#fff">On my way!</text>
+  <rect x="205" y="640" width="170" height="40" rx="20" fill="#e5e8e7" stroke="#283433" stroke-width="2"/>
+  <text x="223" y="665" font-family="sans-serif" font-size="13" font-weight="700">New messages below</text>
+  <rect y="700" width="393" height="152" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <text x="18" y="730" font-family="sans-serif" font-size="13" font-weight="700">Message the family</text>
+  <rect x="18" y="744" width="268" height="70" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <rect x="300" y="744" width="75" height="70" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="319" y="785" font-family="sans-serif" font-size="15" font-weight="700">Send</text>
+</svg>

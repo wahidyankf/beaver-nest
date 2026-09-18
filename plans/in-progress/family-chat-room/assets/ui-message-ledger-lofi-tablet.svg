@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="1024" viewBox="0 0 768 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Message ledger lo-fi tablet</title>
+  <desc id="desc">Rejected tablet wireframe showing timestamp, sender, and message in compressed ledger rows above a wide composer.</desc>
+  <rect width="768" height="1024" fill="#eef1ef"/>
+  <rect x="24" y="24" width="720" height="976" rx="18" fill="#fff" stroke="#283433" stroke-width="4"/>
+  <text x="60" y="76" font-family="sans-serif" font-size="24" font-weight="700">Family chat</text>
+  <text x="60" y="104" font-family="sans-serif" font-size="15">Main</text>
+  <rect x="550" y="52" width="158" height="42" rx="21" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="574" y="78" font-family="sans-serif" font-size="14">Notifications</text>
+  <line x1="24" y1="132" x2="744" y2="132" stroke="#283433" stroke-width="3"/>
+  <rect x="48" y="168" width="672" height="86" fill="#f2f3f3"/>
+  <text x="66" y="202" font-family="monospace" font-size="14">18:03</text>
+  <text x="140" y="202" font-family="sans-serif" font-size="15" font-weight="700">Sam</text>
+  <text x="140" y="230" font-family="sans-serif" font-size="17">Dinner is ready.</text>
+  <rect x="48" y="254" width="672" height="86" fill="#fff"/>
+  <text x="66" y="288" font-family="monospace" font-size="14">18:04</text>
+  <text x="140" y="288" font-family="sans-serif" font-size="15" font-weight="700">You</text>
+  <text x="140" y="316" font-family="sans-serif" font-size="17">On my way!</text>
+  <line x1="24" y1="838" x2="744" y2="838" stroke="#283433" stroke-width="3"/>
+  <rect x="60" y="882" width="500" height="70" rx="8" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <rect x="580" y="882" width="128" height="70" rx="8" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <text x="620" y="924" font-family="sans-serif" font-size="16" font-weight="700">Send</text>
+</svg>

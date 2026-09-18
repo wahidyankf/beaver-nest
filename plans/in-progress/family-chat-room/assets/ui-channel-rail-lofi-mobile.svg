@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="393" height="852" viewBox="0 0 393 852" role="img" aria-labelledby="title desc">
+  <title id="title">Channel rail lo-fi mobile</title>
+  <desc id="desc">Rejected mobile wireframe with a channel drawer control that adds navigation despite the single available main channel.</desc>
+  <rect width="393" height="852" fill="#fff"/>
+  <rect width="393" height="106" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <rect x="16" y="24" width="44" height="44" rx="8" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <line x1="27" y1="37" x2="49" y2="37" stroke="#283433" stroke-width="3"/>
+  <line x1="27" y1="46" x2="49" y2="46" stroke="#283433" stroke-width="3"/>
+  <line x1="27" y1="55" x2="49" y2="55" stroke="#283433" stroke-width="3"/>
+  <text x="76" y="43" font-family="sans-serif" font-size="18" font-weight="700">Main</text>
+  <text x="76" y="64" font-family="sans-serif" font-size="13">Family chat</text>
+  <rect x="262" y="25" width="115" height="40" rx="20" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="278" y="50" font-family="sans-serif" font-size="13">Notifications</text>
+  <rect x="18" y="156" width="276" height="76" rx="17" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="34" y="181" font-family="sans-serif" font-size="12" font-weight="700">Sam · 18:03</text>
+  <text x="34" y="210" font-family="sans-serif" font-size="16">Dinner is ready.</text>
+  <rect x="99" y="258" width="276" height="76" rx="17" fill="#596362"/>
+  <text x="115" y="283" font-family="sans-serif" font-size="12" fill="#fff" font-weight="700">You · 18:04</text>
+  <text x="115" y="312" font-family="sans-serif" font-size="16" fill="#fff">On my way!</text>
+  <rect y="700" width="393" height="152" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <rect x="18" y="744" width="268" height="70" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <rect x="300" y="744" width="75" height="70" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="319" y="785" font-family="sans-serif" font-size="15" font-weight="700">Send</text>
+</svg>
