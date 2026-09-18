@@ -182,6 +182,96 @@ defmodule BnestApp.Scheduler.Store do
     count
   end
 
+  # Test-only seam: forces an EXISTING schedule row (seeded by a real
+  # migration/reconciliation elsewhere -- never inserted here) into an
+  # already-due, enabled state relative to an injected clock, so a
+  # deterministic behaviour-test clock (not real wall-clock time) controls
+  # whether `claim_due/1` picks it up. Mirrors `put_test_schedule/5`'s own
+  # `Policy.latest_slot/2` due-relative-to-`now` pattern.
+  @doc false
+  @spec force_due_for_test!(String.t(), DateTime.t()) :: :ok
+  def force_due_for_test!(schedule_key, %DateTime{} = now) do
+    SqliteRepo.query!(
+      "UPDATE bnest_schedules SET enabled = 1, next_run_at = ?, updated_at = ? WHERE schedule_key = ?",
+      [iso8601(now), iso8601(now), schedule_key]
+    )
+
+    :ok
+  end
+
+  # Test-only seam: simulates "an existing (pre-plan) production schedule
+  # still at its original, never-operator-edited value" -- sets
+  # `daily_at_utc` directly while leaving `revision` at whatever it already
+  # is, so a still-pristine (revision 1) row stays a valid CAS convergence
+  # target.
+  @doc false
+  @spec force_daily_time_for_test!(String.t(), String.t()) :: :ok
+  def force_daily_time_for_test!(schedule_key, daily_at_utc) do
+    SqliteRepo.query!("UPDATE bnest_schedules SET daily_at_utc = ? WHERE schedule_key = ?", [
+      daily_at_utc,
+      schedule_key
+    ])
+
+    :ok
+  end
+
+  # Test-only seam: simulates a genuine operator edit's one real, durable
+  # effect on CAS eligibility -- bumping `revision` -- without needing to
+  # drive the full `update_daily/3` WIB-conversion/validation path from a
+  # fixture.
+  @doc false
+  @spec force_operator_edit_for_test!(String.t(), String.t(), DateTime.t()) :: :ok
+  def force_operator_edit_for_test!(schedule_key, daily_at_utc, %DateTime{} = now) do
+    SqliteRepo.query!(
+      "UPDATE bnest_schedules SET daily_at_utc = ?, revision = revision + 1, updated_at = ? WHERE schedule_key = ?",
+      [daily_at_utc, iso8601(now), schedule_key]
+    )
+
+    :ok
+  end
+
+  # Test-only seam: several behaviour scenarios exercise different temporal
+  # states (pristine-but-different-time, just-converged, operator-edited) of
+  # the SAME singleton production schedule row ("prod-sqlite-backup-daily"),
+  # which every unit-layer scenario in a test run shares sequentially (one
+  # real SQLite database, no per-scenario transaction isolation -- see
+  # learnings.md's Phase 5 entry). Seeding-if-absent alone (as
+  # `PersistentSchedules.apply_and_verify!/1` does) leaves an EARLIER
+  # scenario's mutation (a bumped `revision`, an edited `daily_at_utc`) in
+  # place for a LATER scenario that assumes a pristine `revision = 1` start,
+  # making the suite's result depend on scenario execution order. This
+  # forces the row to the exact pristine precondition ("an existing schedule
+  # at revision 1, using this daily time, in this enabled state") a
+  # convergence-CAS scenario's `Given` describes, regardless of what any
+  # earlier scenario left behind -- ordinary fixture setup, not a change to
+  # what convergence itself does.
+  @doc false
+  @spec reset_schedule_for_test!(String.t(), String.t(), boolean(), DateTime.t()) :: :ok
+  def reset_schedule_for_test!(schedule_key, daily_at_utc, enabled, %DateTime{} = now) do
+    next_run_at = daily_at_utc |> Policy.latest_slot(now) |> iso8601()
+    timestamp = iso8601(now)
+    enabled_int = if enabled, do: 1, else: 0
+
+    SqliteRepo.query!(
+      """
+      INSERT INTO bnest_schedules (
+        schedule_key, handler_key, schedule_context, cadence, daily_at_utc, enabled,
+        expiration_kind, expires_at, max_occurrences, claimed_occurrences, expired_at,
+        next_run_at, revision, inserted_at, updated_at
+      ) VALUES (?, 'prod_sqlite_backup', 'admin_system', 'daily', ?, ?, 'never', NULL, NULL, 0, NULL, ?, 1, ?, ?)
+      ON CONFLICT (schedule_key) DO UPDATE SET
+        daily_at_utc = excluded.daily_at_utc,
+        enabled = excluded.enabled,
+        next_run_at = excluded.next_run_at,
+        revision = 1,
+        updated_at = excluded.updated_at
+      """,
+      [schedule_key, daily_at_utc, enabled_int, next_run_at, timestamp, timestamp]
+    )
+
+    :ok
+  end
+
   @spec put_test_schedule(String.t(), String.t(), String.t(), DateTime.t(), keyword()) :: :ok
   def put_test_schedule(key, context, handler, %DateTime{} = now, options \\ []) do
     max_occurrences = Keyword.get(options, :max_occurrences)
@@ -240,6 +330,42 @@ defmodule BnestApp.Scheduler.Store do
       false -> {:error, :not_editable}
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  # One-time CAS convergence (see `BnestApp.Scheduler.converge_backup_time!/2`
+  # for the full rationale): only ever matches a schedule row at its pristine
+  # `revision = 1`, so a second call (or a call against a row an operator has
+  # since edited via `update_daily/3`, which always bumps revision) is a
+  # true no-op that still returns the row's current state.
+  @spec converge_daily_time_if_pristine!(String.t(), String.t(), DateTime.t()) :: {:ok, map()}
+  def converge_daily_time_if_pristine!(schedule_key, daily_at_utc, %DateTime{} = now) do
+    transaction(fn ->
+      SqliteRepo.query!(
+        """
+        UPDATE bnest_schedules
+        SET daily_at_utc = ?, next_run_at = ?, revision = revision + 1, updated_at = ?
+        WHERE schedule_key = ? AND revision = 1
+        """,
+        [daily_at_utc, iso8601(Policy.next_slot(daily_at_utc, now)), iso8601(now), schedule_key]
+      )
+
+      {:ok, get_schedule!(schedule_key)}
+    end)
+  end
+
+  # Same CAS-on-`revision = 1` seam as `converge_daily_time_if_pristine!/3`
+  # (see `BnestApp.Scheduler.converge_backup_time!/2`'s moduledoc), applied
+  # to `enabled` instead of `daily_at_utc`: flips a still-pristine schedule
+  # from disabled to enabled exactly once, and is a no-op once any operator
+  # edit (which always bumps revision) has touched the row.
+  @spec activate_if_pristine!(String.t(), DateTime.t()) :: :ok
+  def activate_if_pristine!(schedule_key, %DateTime{} = now) do
+    SqliteRepo.query!(
+      "UPDATE bnest_schedules SET enabled = 1, revision = revision + 1, updated_at = ? WHERE schedule_key = ? AND revision = 1",
+      [iso8601(now), schedule_key]
+    )
+
+    :ok
   end
 
   defp claim_schedule(schedule, now) do
