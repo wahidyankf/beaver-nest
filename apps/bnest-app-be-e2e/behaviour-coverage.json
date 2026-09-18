@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "project": "bnest-app-be-e2e",
+  "ownedCorpusRoot": "specs/apps/bnest/app-be/behaviours",
+  "aggregateAdapterOwner": "bnest-app",
+  "generatedFrom": "plans/in-progress/family-chat-room/delivery.md Phase 1 Item 3",
+  "summary": {
+    "featureCount": 4,
+    "scenarioCount": 33,
+    "e2eExemptScenarioCount": 8,
+    "e2eCoveredScenarioCount": 25
+  },
+  "features": [
+    {
+      "file": "authentication.feature",
+      "featureName": "Bnest authentication",
+      "scenarios": [
+        {
+          "name": "Initial setup creates policy-valid accounts exactly once",
+          "e2eExempt": false
+        },
+        {
+          "name": "Login verifies a salted password hash without retaining plaintext",
+          "e2eExempt": false
+        },
+        {
+          "name": "Login persists across reload and browser restart until logout or browser data clearing",
+          "e2eExempt": false
+        },
+        {
+          "name": "One user can use independent simultaneous browser sessions",
+          "e2eExempt": false
+        },
+        {
+          "name": "A multi-role user receives only approved capabilities",
+          "e2eExempt": false
+        },
+        {
+          "name": "One authenticated user cannot read or write another user's data",
+          "e2eExempt": false
+        }
+      ]
+    },
+    {
+      "file": "centralized_data.feature",
+      "featureName": "Centralized Bnest data",
+      "scenarios": [
+        {
+          "name": "Authenticated user imports each recognized browser source",
+          "e2eExempt": false
+        },
+        {
+          "name": "Absent system theme is recorded without creating a preference",
+          "e2eExempt": false
+        },
+        {
+          "name": "Unknown, malformed, or oversized browser input is rejected without source deletion",
+          "e2eExempt": false
+        },
+        {
+          "name": "Retrying an interrupted import does not duplicate accepted data",
+          "e2eExempt": false
+        },
+        {
+          "name": "A stale browser cannot overwrite a newer centralized record",
+          "e2eExempt": false
+        },
+        {
+          "name": "Accepted browser import persists future changes only on the server",
+          "e2eExempt": false
+        },
+        {
+          "name": "Failed Codex-thread resume preserves the transcript",
+          "e2eExempt": false
+        }
+      ]
+    },
+    {
+      "file": "scheduled_backups.feature",
+      "featureName": "Bnest scheduled backups",
+      "scenarios": [
+        {
+          "name": "Use the Dropbox-synced default",
+          "e2eExempt": true
+        },
+        {
+          "name": "Save a safe override",
+          "e2eExempt": false
+        },
+        {
+          "name": "Persist a daily schedule across restart",
+          "e2eExempt": true
+        },
+        {
+          "name": "Catch up only the latest missed slot",
+          "e2eExempt": true
+        },
+        {
+          "name": "Back up authoritative SQLite",
+          "e2eExempt": true
+        },
+        {
+          "name": "Claim a slot once and recover",
+          "e2eExempt": true
+        },
+        {
+          "name": "Retain only owned verified artifacts",
+          "e2eExempt": true
+        },
+        {
+          "name": "Reuse one scheduler across contexts",
+          "e2eExempt": true
+        },
+        {
+          "name": "Expire schedules deterministically",
+          "e2eExempt": true
+        }
+      ]
+    },
+    {
+      "file": "sqlite_storage.feature",
+      "featureName": "Bnest SQLite storage",
+      "scenarios": [
+        {
+          "name": "Managed migration uses the private default without storage UI",
+          "e2eExempt": false
+        },
+        {
+          "name": "Administrator optionally selects a valid custom database folder",
+          "e2eExempt": false
+        },
+        {
+          "name": "Private custom storage survives a sticky shared ancestor",
+          "e2eExempt": false
+        },
+        {
+          "name": "Unsafe database folder is rejected without mutation",
+          "e2eExempt": false
+        },
+        {
+          "name": "Versioned SQLite migration creates the expected schema once",
+          "e2eExempt": false
+        },
+        {
+          "name": "Managed migration moves every recognized flat-file record",
+          "e2eExempt": false
+        },
+        {
+          "name": "Interrupted migration resumes idempotently",
+          "e2eExempt": false
+        },
+        {
+          "name": "SQLite becomes authoritative only after complete verification",
+          "e2eExempt": false
+        },
+        {
+          "name": "Invalid or changed source blocks cutover without data loss",
+          "e2eExempt": false
+        },
+        {
+          "name": "Authoritative SQLite relocates out of the configuration directory",
+          "e2eExempt": false
+        },
+        {
+          "name": "Verified legacy flat-file storage is retired",
+          "e2eExempt": false
+        }
+      ]
+    }
+  ]
+}

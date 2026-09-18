@@ -91,5 +91,8 @@ jobs:
           install -m 0755 "${RUNNER_TEMP}/caddy" "${RUNNER_TEMP}/caddy-bin"
           printf '%s\n' "BNEST_E2E_CADDY_BIN=${RUNNER_TEMP}/caddy-bin" >> "${GITHUB_ENV}"
 
-      - name: Run complete end-to-end suite
-        run: npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --workers=1
+      - name: Run backend end-to-end suite
+        run: npm exec -- nx run -p bnest-app-be-e2e -t test:e2e -- --workers=1
+
+      - name: Run frontend end-to-end suite
+        run: npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e -- --workers=1

@@ -85,7 +85,11 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
   end
 end
 
-behaviour_root = Path.expand("../../../../specs/apps/bnest/app/behaviours", __DIR__)
+behaviour_roots = [
+  Path.expand("../../../../specs/apps/bnest/app-be/behaviours", __DIR__),
+  Path.expand("../../../../specs/apps/bnest/app-fe/behaviours", __DIR__)
+]
+
 steps = [Path.join(__DIR__, "steps/**/*.exs")]
 
 :ok = BnestApp.Behaviour.BoundaryPolicy.verify!()
@@ -105,11 +109,14 @@ callbacks = BnestApp.Behaviour.Driver.behaviour_info(:callbacks)
 
 Enum.each(adapters, fn {layer, {support, driver}} ->
   verification =
-    ExBdd.verify_features!(
-      features: [Path.join(behaviour_root, "**/*.feature")],
+    [
+      features: Enum.map(behaviour_roots, &Path.join(&1, "**/*.feature")),
       steps: steps,
       support: [support]
-    )
+    ]
+    |> ExBdd.Discovery.discover()
+    |> BnestApp.Behaviour.FeVitestUnitScope.prune()
+    |> ExBdd.Verifier.verify!()
 
   unless Code.ensure_loaded?(driver) do
     raise "#{layer} behaviour driver #{inspect(driver)} could not be loaded"

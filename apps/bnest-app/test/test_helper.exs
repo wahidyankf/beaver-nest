@@ -1,6 +1,9 @@
 ExUnit.start()
 
-behaviour_root = Path.expand("../../../specs/apps/bnest/app/behaviours", __DIR__)
+behaviour_roots = [
+  Path.expand("../../../specs/apps/bnest/app-be/behaviours", __DIR__),
+  Path.expand("../../../specs/apps/bnest/app-fe/behaviours", __DIR__)
+]
 
 {case_template, support} =
   case System.get_env("BNEST_TEST_LAYER", "unit") do
@@ -14,12 +17,19 @@ behaviour_root = Path.expand("../../../specs/apps/bnest/app/behaviours", __DIR__
       raise "BNEST_TEST_LAYER must be unit or integration, got: #{inspect(layer)}"
   end
 
-ExBdd.compile_features!(
-  features: [Path.join(behaviour_root, "**/*.feature")],
+# `family_chat.feature`'s `@fe-vitest-unit` scenarios are proven by the
+# frontend Vitest+Gherkin harness instead of Elixir ExBdd; see
+# `BnestApp.Behaviour.FeVitestUnitScope`'s moduledoc for why this prune
+# happens here (compile_features!'s own internal path) rather than via a
+# `:features` glob or an ExBdd-native exemption tag.
+[
+  features: Enum.map(behaviour_roots, &Path.join(&1, "**/*.feature")),
   steps: [Path.join(__DIR__, "behaviour/steps/**/*.exs")],
-  support: [support],
-  case_template: case_template
-)
+  support: [support]
+]
+|> ExBdd.Discovery.discover()
+|> BnestApp.Behaviour.FeVitestUnitScope.prune()
+|> ExBdd.Compiler.compile_discovery!(case_template: case_template)
 
 if System.get_env("BNEST_TEST_LAYER") == "integration" and
      Application.get_env(:bnest_app, :test_runtime_owned) do

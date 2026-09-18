@@ -1,0 +1,291 @@
+{
+  "schemaVersion": 1,
+  "project": "bnest-app-fe-e2e",
+  "ownedCorpusRoot": "specs/apps/bnest/app-fe/behaviours",
+  "aggregateAdapterOwner": "bnest-app",
+  "generatedFrom": "plans/in-progress/family-chat-room/delivery.md Phase 1 Item 3",
+  "summary": {
+    "featureCount": 6,
+    "scenarioCount": 60,
+    "e2eExemptScenarioCount": 0,
+    "e2eCoveredScenarioCount": 60
+  },
+  "features": [
+    {
+      "file": "authentication.feature",
+      "featureName": "Bnest authentication",
+      "scenarios": [
+        {
+          "name": "Unauthenticated visitor is redirected before protected Bnest access",
+          "e2eExempt": false
+        },
+        {
+          "name": "Logged-out home presents login instead of protected actions",
+          "e2eExempt": false
+        },
+        {
+          "name": "Initial setup warns about unavailable recovery and closes registration",
+          "e2eExempt": false
+        },
+        {
+          "name": "Approved user logs in and logs out",
+          "e2eExempt": false
+        }
+      ]
+    },
+    {
+      "file": "centralized_data.feature",
+      "featureName": "Centralized Bnest data",
+      "scenarios": [
+        {
+          "name": "Accepted browser import clears only the accepted browser key",
+          "e2eExempt": false
+        },
+        {
+          "name": "Failed Codex-thread resume reports a fresh conversation",
+          "e2eExempt": false
+        }
+      ]
+    },
+    {
+      "file": "chat.feature",
+      "featureName": "Beaver Nest chat",
+      "scenarios": [
+        {
+          "name": "A visitor can install Beaver Nest as an app",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor enters chat from the home page",
+          "e2eExempt": false
+        },
+        {
+          "name": "Home controls and content remain visually separated",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor returns home through the Beaver Nest brand",
+          "e2eExempt": false
+        },
+        {
+          "name": "Completed browser migration is not offered from the home page",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor opens a fresh chat",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor cannot send an empty message",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor cannot overlap Codex turns",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor sends a message with Shift+Enter",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor retains public Codex progress beside the final answer",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor continues one page-scoped conversation",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor changes models within one Codex conversation",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor changes reasoning effort within one Codex conversation",
+          "e2eExempt": false
+        },
+        {
+          "name": "A model change falls back from an unsupported reasoning effort",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex session cannot accept a message",
+          "e2eExempt": false
+        },
+        {
+          "name": "Codex reports a failed turn",
+          "e2eExempt": false
+        },
+        {
+          "name": "An automatic LiveView reconnect preserves a completed user-owned conversation and Codex session",
+          "e2eExempt": false
+        },
+        {
+          "name": "An automatic LiveView reconnect safely restores a persisted in-progress user-owned turn",
+          "e2eExempt": false
+        },
+        {
+          "name": "Ten synthetic visitors preserve recoverable state across three groups",
+          "e2eExempt": false
+        },
+        {
+          "name": "A user clears normalized chat and starts a new Codex session",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child is limited to Luna at medium effort",
+          "e2eExempt": false
+        },
+        {
+          "name": "A parent is limited to Terra at medium effort",
+          "e2eExempt": false
+        },
+        {
+          "name": "An administrator explicitly enables repository writes",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child administrator remains read-only",
+          "e2eExempt": false
+        }
+      ]
+    },
+    {
+      "file": "scheduled_backups.feature",
+      "featureName": "Bnest scheduled backups",
+      "scenarios": [
+        {
+          "name": "Show contextual daily schedules",
+          "e2eExempt": false
+        },
+        {
+          "name": "Deny schedule and configuration access",
+          "e2eExempt": false
+        },
+        {
+          "name": "Discover typed admin configuration",
+          "e2eExempt": false
+        }
+      ]
+    },
+    {
+      "file": "sifat_allah.feature",
+      "featureName": "Revising the 20 attributes of Allah",
+      "scenarios": [
+        {
+          "name": "A child opens the revision dashboard",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child learns a pair and keeps the progress after a reload",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child resets saved progress from the mission",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child learns the earliest pair that is not remembered yet",
+          "e2eExempt": false
+        },
+        {
+          "name": "A quiz prioritizes individual questions that are not remembered yet",
+          "e2eExempt": false
+        },
+        {
+          "name": "A quiz continues as reinforcement after every pair is remembered",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child swipes through a learning session",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child can return to the mission while learning",
+          "e2eExempt": false
+        },
+        {
+          "name": "Browser Back returns a child from a quiz to the mission",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child receives kind feedback for a correct quiz answer",
+          "e2eExempt": false
+        },
+        {
+          "name": "A quiz skips an individual question that is already learned",
+          "e2eExempt": false
+        },
+        {
+          "name": "A quiz locks one answer and moves on automatically",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child sees correct answers in varied positions",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child keeps the current quiz question after a reload",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child swipes through quiz questions",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child practises the opposite attribute too",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child practises the meaning of an opposite attribute too",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child practises every relationship from the reverse direction too",
+          "e2eExempt": false
+        },
+        {
+          "name": "A difficult pair is kept for another try",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child retests a difficult pair until it is correct",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child retests a pair that is already remembered",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child moves through remembered individual questions",
+          "e2eExempt": false
+        },
+        {
+          "name": "Every answered question moves between the review queues immediately",
+          "e2eExempt": false
+        },
+        {
+          "name": "A pair moves between remembered and difficult review",
+          "e2eExempt": false
+        },
+        {
+          "name": "A child gets another difficult pair before repeating one",
+          "e2eExempt": false
+        }
+      ]
+    },
+    {
+      "file": "sqlite_storage.feature",
+      "featureName": "Bnest SQLite storage",
+      "scenarios": [
+        {
+          "name": "Non-admin cannot configure storage",
+          "e2eExempt": false
+        },
+        {
+          "name": "Routed client reconnects across compatible SQLite rollout",
+          "e2eExempt": false
+        }
+      ]
+    }
+  ]
+}
