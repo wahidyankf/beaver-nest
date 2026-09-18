@@ -148,7 +148,6 @@ function caddyfile(slot, healthChecked) {
 \treverse_proxy 127.0.0.1:${slots[slot]} {
 \t\theader_up X-Forwarded-Proto https
 ${healthCheck}
-\t\tstream_close_delay 5m
 \t}
 }
 `;

@@ -36,7 +36,8 @@ test("owns one fixed uncached gate manifest without duplicate application quick 
     [
       "bnest-quick",
       "bnest-integration",
-      "e2e-quick",
+      "be-e2e-quick",
+      "fe-e2e-quick",
       "release-recovery-e2e",
       "release-load-e2e",
       "repository",
@@ -47,8 +48,30 @@ test("owns one fixed uncached gate manifest without duplicate application quick 
       arguments_.includes("--skip-nx-cache"),
     ),
   );
+  // Each gate's `-p` project must be a real Nx project. `bnest-app-e2e` was
+  // split into `bnest-app-be-e2e`/`bnest-app-fe-e2e`, and a prior version of
+  // this manifest kept pointing at the deleted merged project name -- this
+  // test's own assertions did not previously check the `-p` argument at
+  // all, so that regression passed silently until a documentation audit
+  // caught it. Assert every gate's project explicitly now.
+  assert.deepEqual(
+    gateManifest.map(({ arguments: arguments_ }) => arguments_[2]),
+    [
+      "bnest-app",
+      "bnest-app",
+      "bnest-app-be-e2e",
+      "bnest-app-fe-e2e",
+      "bnest-app-fe-e2e",
+      "bnest-app-fe-e2e",
+      "rhino-consumer",
+    ],
+  );
   assert.equal(
-    gateManifest.find(({ id }) => id === "e2e-quick").arguments.at(-2),
+    gateManifest.find(({ id }) => id === "be-e2e-quick").arguments.at(-2),
+    "test:release-quick",
+  );
+  assert.equal(
+    gateManifest.find(({ id }) => id === "fe-e2e-quick").arguments.at(-2),
     "test:release-quick",
   );
   assert.deepEqual(
@@ -116,6 +139,47 @@ test("enables account identity cutover in every managed slot", () => {
     "utf8",
   );
   assert.match(source, /BNEST_IDENTITY_CUTOVER: "true"/u);
+});
+
+test("never configures a nonzero Caddy stream-close delay while keeping the shutdown grace period", () => {
+  // Family Chat plan requirement (tech-doc 007/009): a nonzero
+  // `stream_close_delay` would keep a browser's WebSocket bound to the
+  // unloaded prior proxy config for the whole delay, defeating the
+  // "old socket closes; reconnect <=10s" release invariant, since Blue/Green
+  // slots are independent `RELEASE_DISTRIBUTION=none` processes that never
+  // share PubSub. `grace_period` is a different, required directive (HTTP
+  // server shutdown during Caddy config changes/process stop) and must stay.
+  const source = readFileSync(
+    new URL("./deployment.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /stream_close_delay/u);
+  assert.match(source, /grace_period 5m/u);
+});
+
+test("launches every deployment slot through one shared RELEASE_DISTRIBUTION=none path", () => {
+  // Both Blue and Green are started through the same `launchAgent` function
+  // (a single call site parameterized by `slot`), so this one assertion
+  // structurally covers both slots at once -- there is no second,
+  // independently-written launch path that could omit it and silently
+  // reintroduce a cross-slot PubSub/Distributed-Erlang assumption.
+  const source = readFileSync(
+    new URL("./deployment.mjs", import.meta.url),
+    "utf8",
+  );
+  const definitions = source.match(/function launchAgent\(/gu) ?? [];
+  const allOccurrences = source.match(/launchAgent\(/gu) ?? [];
+  assert.equal(
+    definitions.length,
+    1,
+    "expected exactly one launchAgent implementation",
+  );
+  assert.equal(
+    allOccurrences.length - definitions.length,
+    1,
+    "expected exactly one call site sharing that one implementation across both slots",
+  );
+  assert.match(source, /RELEASE_DISTRIBUTION: "none"/u);
 });
 
 function fakeHost(overrides = {}) {
