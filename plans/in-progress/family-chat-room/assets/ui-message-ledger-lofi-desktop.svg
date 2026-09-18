@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Message ledger lo-fi desktop</title>
+  <desc id="desc">Rejected desktop wireframe showing the family conversation as dense full-width timestamped rows.</desc>
+  <rect width="1200" height="760" fill="#eef1ef"/>
+  <rect x="90" y="40" width="1020" height="680" rx="18" fill="#fff" stroke="#283433" stroke-width="4"/>
+  <text x="132" y="92" font-family="sans-serif" font-size="26" font-weight="700">Family chat</text>
+  <text x="132" y="120" font-family="sans-serif" font-size="16">Main</text>
+  <rect x="892" y="64" width="174" height="42" rx="21" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <text x="920" y="90" font-family="sans-serif" font-size="15">Notifications</text>
+  <line x1="90" y1="146" x2="1110" y2="146" stroke="#283433" stroke-width="3"/>
+  <rect x="116" y="180" width="968" height="74" fill="#f2f3f3"/>
+  <text x="138" y="224" font-family="monospace" font-size="15">18:03</text>
+  <text x="220" y="224" font-family="sans-serif" font-size="16" font-weight="700">Sam</text>
+  <text x="340" y="224" font-family="sans-serif" font-size="17">Dinner is ready.</text>
+  <line x1="116" y1="254" x2="1084" y2="254" stroke="#9da5a4"/>
+  <rect x="116" y="254" width="968" height="74" fill="#fff"/>
+  <text x="138" y="298" font-family="monospace" font-size="15">18:04</text>
+  <text x="220" y="298" font-family="sans-serif" font-size="16" font-weight="700">You</text>
+  <text x="340" y="298" font-family="sans-serif" font-size="17">On my way!</text>
+  <line x1="116" y1="328" x2="1084" y2="328" stroke="#9da5a4"/>
+  <line x1="90" y1="582" x2="1110" y2="582" stroke="#283433" stroke-width="3"/>
+  <rect x="132" y="620" width="746" height="58" rx="8" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <rect x="898" y="620" width="168" height="58" rx="8" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <text x="954" y="655" font-family="sans-serif" font-size="17" font-weight="700">Send</text>
+</svg>
