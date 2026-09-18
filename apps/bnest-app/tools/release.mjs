@@ -60,11 +60,22 @@ export const gateManifest = [
     ],
   },
   {
-    id: "e2e-quick",
+    id: "be-e2e-quick",
     arguments: [
       "run",
       "-p",
-      "bnest-app-e2e",
+      "bnest-app-be-e2e",
+      "-t",
+      "test:release-quick",
+      "--skip-nx-cache",
+    ],
+  },
+  {
+    id: "fe-e2e-quick",
+    arguments: [
+      "run",
+      "-p",
+      "bnest-app-fe-e2e",
       "-t",
       "test:release-quick",
       "--skip-nx-cache",
@@ -75,7 +86,7 @@ export const gateManifest = [
     arguments: [
       "run",
       "-p",
-      "bnest-app-e2e",
+      "bnest-app-fe-e2e",
       "-t",
       "test:e2e",
       "--skip-nx-cache",
@@ -91,7 +102,7 @@ export const gateManifest = [
     arguments: [
       "run",
       "-p",
-      "bnest-app-e2e",
+      "bnest-app-fe-e2e",
       "-t",
       "test:e2e",
       "--skip-nx-cache",

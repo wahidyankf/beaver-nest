@@ -28,6 +28,20 @@ lsof -nP -iTCP:4000 -iTCP:4001 -iTCP:4100 -sTCP:LISTEN
 
 `BNEST_DEPLOY_ROOT`, `BNEST_RUNTIME_ROOT`, `BNEST_DEPLOY_COOKIE_FILE`, `BNEST_DEPLOY_SECRET_KEY_BASE_FILE`, `BNEST_PRODUCTION_ORIGIN`, and `HIPPO_BIN` are machine-local. An unset shell does not mean they are unavailable: a provisioned host keeps them outside the repository between sessions, and the running blue or green launchd unit already names every one of them.
 
+`config/runtime.exs` also requires three Web Push variables unconditionally in `:prod`, independent of whether
+`BNEST_FAMILY_CHAT_ENABLED` is `true` or `false` — a compatibility-release slot fails to boot without them just like
+an experience-release slot does:
+
+| Variable                                 | Meaning                                                           |
+| ---------------------------------------- | ----------------------------------------------------------------- |
+| `BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE`  | Path to the VAPID public key file (protected deployment input)    |
+| `BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE` | Path to the VAPID private key file (secret; never commit or echo) |
+| `BNEST_WEB_PUSH_SUBJECT`                 | A `mailto:` or `https:` contact required by the Web Push protocol |
+
+Both key files must exist, be non-empty, and be machine-local like the cookie and secret-key-base files above; the
+runtime raises immediately in `:prod` if either is missing or empty, or if the subject does not match
+`mailto:`/`https:`. Add their paths to the same machine-local `deploy-env.sh` file below.
+
 Derive them rather than recalling them. The unit's `EnvironmentVariables` supply the runtime root and the served host; its `ProgramArguments` release path supplies the deploy root:
 
 ```sh
@@ -53,15 +67,20 @@ bnest_load_deploy_env() {
 
   BNEST_DEPLOY_COOKIE_FILE="$BNEST_DEPLOY_ROOT/release.cookie"
   BNEST_DEPLOY_SECRET_KEY_BASE_FILE="$BNEST_DEPLOY_ROOT/secret_key_base"
+  BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE="$BNEST_DEPLOY_ROOT/web_push_public_key"
+  BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE="$BNEST_DEPLOY_ROOT/web_push_private_key"
+  BNEST_WEB_PUSH_SUBJECT="mailto:<contact-address>"
   BNEST_PRODUCTION_ORIGIN="https://$host"
   HIPPO_BIN="<repository-root>/hippo"
 
-  for required in "$BNEST_DEPLOY_COOKIE_FILE" "$BNEST_DEPLOY_SECRET_KEY_BASE_FILE" "$HIPPO_BIN"; do
+  for required in "$BNEST_DEPLOY_COOKIE_FILE" "$BNEST_DEPLOY_SECRET_KEY_BASE_FILE" \
+    "$BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE" "$BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE" "$HIPPO_BIN"; do
     [ -f "$required" ] || { echo "missing file: $required" >&2; return 78; }
   done
 
   export BNEST_DEPLOY_ROOT BNEST_RUNTIME_ROOT BNEST_DEPLOY_COOKIE_FILE
   export BNEST_DEPLOY_SECRET_KEY_BASE_FILE BNEST_PRODUCTION_ORIGIN HIPPO_BIN
+  export BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE BNEST_WEB_PUSH_SUBJECT
   unset plist host binary required
 }
 bnest_load_deploy_env
