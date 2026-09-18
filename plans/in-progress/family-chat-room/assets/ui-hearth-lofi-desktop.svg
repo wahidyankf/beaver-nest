@@ -1,22 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
   <title id="title">Family hearth lo-fi desktop</title>
-  <desc id="desc">Desktop wireframe with one centered family chat panel, a compact main-channel header, chronological bubbles, and an anchored composer.</desc>
+  <desc id="desc">Desktop wireframe for Ruang Keluarga with an offline banner, chronological bubbles, explicit delivery states, and an anchored composer.</desc>
   <rect width="1200" height="760" fill="#eef1ef"/>
   <rect x="230" y="36" width="740" height="688" rx="28" fill="#fff" stroke="#283433" stroke-width="4"/>
   <rect x="230" y="36" width="740" height="92" rx="28" fill="#d9dfdd" stroke="#283433" stroke-width="4"/>
   <circle cx="282" cy="82" r="24" fill="#fff" stroke="#283433" stroke-width="3"/>
   <text x="320" y="78" font-family="sans-serif" font-size="22" font-weight="700">Family chat</text>
-  <text x="320" y="103" font-family="sans-serif" font-size="15">Main</text>
+  <text x="320" y="103" font-family="sans-serif" font-size="15">Ruang Keluarga</text>
   <rect x="790" y="62" width="146" height="40" rx="20" fill="#fff" stroke="#283433" stroke-width="3"/>
   <text x="814" y="88" font-family="sans-serif" font-size="15">Notifications</text>
-  <rect x="492" y="152" width="216" height="34" rx="17" fill="#e5e8e7"/>
-  <text x="526" y="174" font-family="sans-serif" font-size="14">Load older messages</text>
+  <rect x="270" y="144" width="660" height="34" rx="8" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="292" y="166" font-family="sans-serif" font-size="13" font-weight="700">You’re offline. Messages will send when you reconnect.</text>
+  <rect x="492" y="190" width="216" height="34" rx="17" fill="#e5e8e7"/>
+  <text x="526" y="212" font-family="sans-serif" font-size="14">Load older messages</text>
   <rect x="270" y="222" width="342" height="74" rx="18" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
   <text x="290" y="248" font-family="sans-serif" font-size="13" font-weight="700">Sam · 18:03</text>
   <text x="290" y="276" font-family="sans-serif" font-size="17">Dinner is ready.</text>
   <rect x="588" y="320" width="342" height="74" rx="18" fill="#596362"/>
   <text x="608" y="346" font-family="sans-serif" font-size="13" fill="#fff" font-weight="700">You · 18:04</text>
   <text x="608" y="374" font-family="sans-serif" font-size="17" fill="#fff">On my way!</text>
+  <text x="756" y="416" font-family="sans-serif" font-size="13" font-weight="700">Waiting for connection</text>
+  <text x="872" y="448" font-family="sans-serif" font-size="13">Sending</text>
   <rect x="230" y="598" width="740" height="126" fill="#d9dfdd" stroke="#283433" stroke-width="4"/>
   <text x="270" y="631" font-family="sans-serif" font-size="14" font-weight="700">Message the family</text>
   <rect x="270" y="647" width="520" height="50" rx="10" fill="#fff" stroke="#283433" stroke-width="3"/>

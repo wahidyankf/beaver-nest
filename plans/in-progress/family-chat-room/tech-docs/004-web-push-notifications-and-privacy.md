@@ -1,63 +1,59 @@
-# Web Push Notifications and Privacy
+# Web Push, GraphQL, and Privacy
 
-## Feasibility and Platform Boundary
+## Platform Boundary
 
-Standards-based Web Push uses the Push API, Notifications API, and a service worker. A subscription supplies a unique
-capability endpoint plus `p256dh` and `auth` key material. The server sends an encrypted payload to the browser-selected
-push service, which wakes the service worker when permitted.
+Web Push uses the Push API, Notifications API, service worker, RFC 8291 encryption, and RFC 8292 VAPID. Browser push
+providers transport encrypted payloads but never store authoritative chat history. Feature detection, not browser-name
+checks, controls UI. iOS/iPadOS requires an installed Home Screen web app and a user-triggered permission request.
 
-iOS and iPadOS support Web Push for apps added to the Home Screen from version 16.4. Permission must follow direct user
-interaction, and an Apple Developer membership is not required. The implementation uses feature detection rather than
-browser-name checks. Sources:
+Primary references:
 
 - [Web Push for Web Apps on iOS and iPadOS](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/)
 - [W3C Push API](https://www.w3.org/TR/push-api/)
-- [Web Push protocol encryption, RFC 8291](https://www.rfc-editor.org/rfc/rfc8291)
-- [VAPID, RFC 8292](https://www.rfc-editor.org/rfc/rfc8292)
+- [RFC 8291](https://www.rfc-editor.org/rfc/rfc8291)
+- [RFC 8292](https://www.rfc-editor.org/rfc/rfc8292)
 
-Tailscale HTTPS provides the secure origin for Bnest, but the host also needs outbound HTTPS to endpoints selected by
-Safari, Chrome, Firefox, or another supporting browser. Provider metadata leaves the home network; the message title and
-preview are encrypted for the subscription.
+## GraphQL Ownership
 
-## Permission and Subscription UX
+All UI-facing push operations use GraphQL:
 
-Page load never calls `Notification.requestPermission()` or `pushManager.subscribe()`. The selected UI shows a device
-status control:
+- `webPushConfiguration` returns only the public application key and supported/unavailable state;
+- `currentWebPushSubscription` describes whether this authenticated server-side session has a binding;
+- `upsertWebPushSubscription(input)` validates and binds one browser subscription to the current user/session; and
+- `disableCurrentWebPushSubscription` disables only the current session binding.
 
-- **Enable notifications** when service worker, PushManager, and Notifications API are available and permission is not
-  denied.
-- **Notifications on** with a **Turn off** action when the current endpoint is bound to the current session.
-- **Notifications blocked** with browser/OS settings guidance after denial; no repeated prompt.
-- **Install Beaver Nest first** for iOS/iPadOS when the page is not running as a Home Screen web app.
-- **Notifications unavailable in this browser** when feature detection fails.
+No LiveView push event or REST alternative exists. HTTP mutations require session cookie and CSRF. Resolvers ignore
+browser ownership fields and derive user ID and session digest from server context. GraphQL responses, variables, and
+errors are excluded from value-bearing logs.
 
-The browser sends `subscription.toJSON()` only through the authenticated LiveView. The server validates an HTTPS
-endpoint, URL-safe base64 keys within bounded lengths, nullable expiration, and exact accepted keys. It derives user ID,
-session digest, endpoint SHA-256, and audit actors itself.
+## Permission UX
 
-### Endpoint egress policy
+Page load never calls `Notification.requestPermission()` or `pushManager.subscribe()`. The room shows:
 
-A PushSubscription endpoint is untrusted request input and could otherwise become server-side request forgery. Before
-storage, policy parses the URL and requires all of the following:
+- **Enable notifications** when APIs are available and permission is not denied;
+- **Notifications on** plus **Turn off** when the current session binding exists;
+- **Notifications blocked** after denial, without repeated prompt;
+- **Install Beaver Nest first** when platform installation is required; or
+- **Notifications unavailable in this browser** after feature detection fails.
 
-- scheme `https`, no user information, no fragment, no IP literal, and no explicit port other than `443`;
-- a lower-case ASCII hostname matching exactly `fcm.googleapis.com`, exactly
-  `updates.push.services.mozilla.com`, or a proper subdomain of `push.apple.com` such as `web.push.apple.com`;
-- a total URL length at most 2,048 bytes and decoded `p256dh`/`auth` values of exactly 65/16 bytes; and
-- no unknown subscription JSON keys outside `endpoint`, `expirationTime`, and `keys.p256dh`/`keys.auth`.
+An unsupported or denied device still has complete chat behavior.
 
-The sender repeats the URL policy immediately before egress, issues one HTTPS `POST`, disables Req redirects, and treats
-every `3xx` as terminal `provider_redirect`; it never follows a provider-supplied location. Rejection stores nothing and
-makes no network request. Phase 0 revalidates the three code-owned provider patterns against current Apple, Mozilla, and
-Chromium primary documentation. Adding another provider requires a reviewed code/spec/test change, never a browser-
-supplied hostname or unrestricted environment override.
+## Endpoint Egress Policy
 
-The same browser PushSubscription may be rebound after logout/login. Logout computes the current opaque-session digest,
-soft-deactivates only rows carrying that digest, and only then revokes identity and clears cookies. If subscription
-storage fails, the response keeps the browser authenticated and asks the user to retry instead of claiming a partial
-logout. Other browser sessions and devices remain enabled.
+A subscription endpoint is untrusted. Before storage and again before egress, require HTTPS, no user information, no
+fragment, no IP literal, no non-443 port, bounded lengths, exact Web Push key shapes, and a code-owned browser-provider
+allowlist. Reject unknown input keys. The HTTP sender disables redirects; any `3xx` is terminal and its location is never
+requested. A rejected endpoint stores nothing and causes no network access.
 
-## Payload Contract
+Delivery revalidates current Apple, Mozilla, and Chromium endpoint guidance before manifest changes. Adding a provider
+requires reviewed code/spec/tests; no unrestricted environment host override is permitted.
+
+Validation order is pure parse/shape/allowlist first, database mutation second, egress only in the dispatcher. The
+allowlist compares normalized lower-case ASCII hostnames by exact match or explicitly approved suffix with a dot boundary;
+`evilpush.apple.com.example` and Unicode lookalikes do not match. DNS resolution is never used to expand authorization.
+The Req call sets a bounded connect/request timeout, sends one POST, and disables automatic redirects.
+
+## Payload
 
 ```json
 {
@@ -66,115 +62,103 @@ logout. Other browser sessions and devices remain enabled.
   "title": "Aisha",
   "body": "Dinner is ready. Please come downstairs…",
   "tag": "family-chat-message-123",
-  "url": "/family-chat"
+  "url": "/family-chat/ruang-keluarga"
 }
 ```
 
-- `title` is the immutable author display snapshot.
-- `body` collapses all whitespace runs to one space and truncates to at most 120 graphemes, adding one ellipsis only when
-  truncated.
-- The payload contains no user ID, channel database ID, endpoint, session digest, auth key, private origin, or VAPID
-  value.
-- `tag` is deterministic so an ambiguous retry replaces the same visible notification where the platform supports tags.
-- TTL is the remaining number of seconds before the one-hour absolute delivery deadline; it never extends on retry.
-- Urgency is `normal`. No collapse topic combines different messages.
+Title is the committed display snapshot. Body collapses whitespace and truncates to 120 graphemes with one ellipsis.
+The deterministic tag makes ambiguous provider retries replace the same visible notification where supported. The
+payload contains no user ID, room database ID, endpoint, session digest, key, private origin, or VAPID value.
 
-## Transactional Fan-Out
+## Delivery and Retention
 
-The message transaction selects active, unexpired subscriptions where `user_id != author_user_id`. Each target receives
-one `family_chat_push_deliveries` row protected by the unique message/subscription pair. Subscriptions created after the
-message commit do not receive historical notifications. Soft-deleted or expired subscriptions are not targeted.
+The message transaction creates one delivery row per active subscription belonging to another user. A system message
+targets all active user subscriptions. The sender dispatches encrypted requests under bounded leased work:
 
-The sender's other devices are excluded because exclusion is by authenticated user ID, not current session or endpoint.
-This prevents self-notification while allowing every enabled recipient device.
+| Result                          | State             | Action                          |
+| ------------------------------- | ----------------- | ------------------------------- |
+| `2xx`                           | delivered         | Stop and record acceptance time |
+| `404/410`                       | terminal/gone     | Disable subscription; no retry  |
+| `3xx`                           | terminal/redirect | Never follow                    |
+| other `4xx`                     | terminal/provider | No retry                        |
+| `429`, `5xx`, timeout, DNS, TLS | retryable         | Fixed server-side push waits    |
 
-## Leased Dispatcher
+Push uses five attempts: immediate, then 30 seconds, 2 minutes, 8 minutes, and 32 minutes after retryable failures, with
+an absolute one-hour ceiling. This is independent from the browser outbox's faster reconnect backoff.
 
-`BnestApp.PushNotifications.Dispatcher` ticks every five seconds and also reconciles immediately on startup. It claims at
-most the configured small batch, default 10, and starts each send under `BnestApp.PushNotifications.Tasks`. Claim and
-transition SQL is described in the data contract.
+The `family-chat-push-retention-daily` handler calls `PushNotifications.retain_deliveries/1`. Final rows are active seven
+days, soft-deleted seven more days, and then purged. Unfinished rows are never age-purged. Scheduler and handler expose
+aggregate counts only and contain no store alias or SQL.
 
-The lease is two minutes. A healthy task completes well before expiry; a killed task or slot becomes eligible only after
-expiry. A stale task cannot update a row whose attempt number or state has changed. This provides at-least-once provider
-requests with deterministic on-device tags, not an impossible exactly-once network claim.
+## VAPID and Dependencies
 
-## Retry Matrix
+The implementation adds a maintained Web Push protocol library rather than handwritten cryptography. Delivery repeats
+the dependency-selection review against the locked Elixir/OTP stack, checks checksum/license/advisories/RFC vectors, and
+records the chosen exact version before editing `mix.exs`. A failed requirement returns the plan for amendment; it does
+not authorize an improvised substitute.
 
-| Outcome                   | Transition                       | Next action                                       |
-| ------------------------- | -------------------------------- | ------------------------------------------------- |
-| Provider `2xx`            | `delivered`                      | Set accepted time; no retry                       |
-| Provider `404/410`        | `terminal` / `gone`              | Soft-deactivate subscription; no retry            |
-| Provider `3xx`            | `terminal` / `provider_redirect` | Never follow the redirect                         |
-| Other provider `4xx`      | `terminal` / `provider_4xx`      | No retry; never store response body               |
-| Provider `429`            | `retryable` / `rate_limited`     | Use fixed plan wait, not unbounded provider input |
-| Provider `5xx`            | `retryable` / `provider_5xx`     | Use fixed plan wait                               |
-| Timeout/DNS/TLS/transport | `retryable` / `network`          | Use fixed plan wait                               |
-| Attempt or age ceiling    | `terminal` / ceiling category    | No retry                                          |
+The private key and subject stay in machine-local protected configuration. Production readiness fails closed for missing
+or malformed values. Tests use deterministic synthetic keys and a loopback sender; evidence records only configured
+state. Key rotation remains out of scope because it invalidates subscriptions and needs its own user journey.
 
-The five attempts are fixed:
+## Logout, IndexedDB, and Cache Boundaries
 
-1. immediately after commit;
-2. 30 seconds after the first retryable failure;
-3. 2 minutes after the second;
-4. 8 minutes after the third; and
-5. 32 minutes after the fourth.
+Logout ordering is fail-closed:
 
-No sixth attempt occurs. Before each claim, the dispatcher also checks `created_at + 1 hour`; an overdue row becomes
-terminal without network access. Retry scheduling uses the server clock injected for tests.
+1. identify the current server-side session and browser user namespace;
+2. disable that session's push binding through GraphQL/service code;
+3. clear that user's family-chat IndexedDB outbox records;
+4. revoke identity and clear cookies; and
+5. navigate to logged-out UI.
 
-## Sender and Dependency Boundary
+If server deactivation fails, the authenticated session remains and the UI asks for retry. If local deletion fails, the
+browser blocks account switching in that tab until cleanup succeeds or the user explicitly clears site data; queued
+intent must not become available to another account.
 
-`web_push_ex` 0.2.x is selected for RFC 8291 `aes128gcm` request construction and VAPID signing. It is preferable to
-hand-written cryptography and to older libraries centered on the obsolete `aesgcm` encoding. The host uses the existing
-Req dependency for HTTP and owns timeouts, redaction, response classification, and supervision.
+The service worker cache is an explicit static allowlist for built CSS/JS, manifest, and owned icons. It excludes every
+navigation response, `/api/graphql`, `/api/graphql/socket`, authenticated HTML, messages, IndexedDB contents, health,
+and push payloads. Activate deletes only superseded Bnest cache names.
 
-Before changing `mix.exs`, delivery rechecks the Hex checksum, MIT license, release activity, OTP 27/Elixir 1.18
-compatibility, RFC test coverage, and open security issues. A materially failed check blocks implementation and returns
-the plan for amendment; it does not authorize a substitute dependency by improvisation.
+The fetch handler does not use a catch-all cache-first or stale-while-revalidate branch. Navigation and GraphQL requests
+always go to network and receive the normal offline failure. Static cache keys are same-origin build artifacts with a
+versioned cache name. `push` parses a bounded JSON object and ignores unknown keys; invalid data displays a generic
+**New family message** linking to `/family-chat/ruang-keluarga`. `notificationclick` accepts only that same-origin fixed
+path, closes the notification, focuses/navigates an existing Bnest client when possible, or opens a new one.
 
-## VAPID Configuration
+## Threat Model
 
-- Generate one P-256 keypair once through the selected library's supported task or verified equivalent.
-- Store public and private values in separate mode-`0600` files outside Git, runtime data, Dropbox evidence, and plan
-  artifacts.
-- Configure `BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE`, `BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE`, and
-  `BNEST_WEB_PUSH_SUBJECT` in the machine-local release environment.
-- `deployment.mjs` reads, validates, and passes runtime values to both slots without printing them.
-- Production startup/readiness requires valid values. Test uses deterministic fake values and a sender double; local dev
-  without values renders notifications unavailable.
-- Rotation is out of scope because changing the application server key invalidates existing subscriptions and needs a
-  user-visible re-subscription plan.
+| Threat                                | Boundary                      | Required control                                       | Proof                                 |
+| ------------------------------------- | ----------------------------- | ------------------------------------------------------ | ------------------------------------- |
+| Browser claims another sender         | GraphQL mutation              | Context-derived current user; no sender input          | Schema and resolver tests             |
+| Browser claims another session        | Push mutation/socket          | Server session digest from HTTP/socket                 | Two-session integration/E2E           |
+| CSRF sends a message/subscription     | Cookie-authenticated HTTP     | Same-origin CSRF validation on mutations               | Missing/invalid token API proof       |
+| Cross-site socket uses ambient cookie | WebSocket handshake           | Endpoint origin check and session connect info         | Rejected-origin handshake test        |
+| Push endpoint performs SSRF           | Subscription input/dispatcher | Strict provider allowlist twice; redirects off         | No-egress fixtures and loopback proof |
+| Queue crosses logout/login            | IndexedDB                     | Stable user namespace, fail-closed cleanup, auth pause | Two-user reload journey               |
+| Service worker leaks transcript       | Cache/fetch                   | Static allowlist; no navigation/GraphQL caching        | Cache Storage inspection              |
+| Logs leak body/keys/path              | Error/telemetry               | Allowlisted structured fields and redaction            | Captured-log negative assertions      |
+| Stale tab overwrites delivery state   | IndexedDB/network             | Server idempotency and connection generation           | Two-tab/reconnect tests               |
+| Old release claims unknown job        | Scheduler overlap             | Disabled seed until drain; public activation           | Release overlap tests                 |
 
-## Service Worker Contract
+## Data Classification and Lifetime
 
-Move from broad runtime caching to an explicit static allowlist. The new cache version contains only compiled CSS/JS,
-manifest, and owned icons. It excludes `/`, `/login`, `/family-chat`, every navigation response, LiveView traffic, health,
-and any request/response containing account or chat state.
+| Data                   | Location                 | Lifetime                                      | Output policy                            |
+| ---------------------- | ------------------------ | --------------------------------------------- | ---------------------------------------- |
+| Committed message      | SQLite only              | Permanent in v1                               | Authenticated room response/push preview |
+| Pending send           | IndexedDB only           | Ack/logout deletion; manual-only after 7 days | Current user's room UI only              |
+| Push endpoint/keys     | SQLite                   | Until disable/provider retirement             | Never returned/logged after input        |
+| VAPID private key      | Protected machine config | Until separately planned rotation             | Never in repository/evidence             |
+| Delivery row           | SQLite                   | 7 active + 7 soft-deleted days if final       | Aggregate operational evidence only      |
+| Static shell asset     | Cache Storage            | Until cache version retirement                | Public build content only                |
+| GraphQL/socket session | Cookie/server context    | Existing session lifetime                     | Never persisted in browser outbox        |
 
-On `push`, parse only the exact bounded payload contract and call `showNotification`. Invalid or absent data shows a
-generic **New family message** notification pointing to `/family-chat`; it never displays attacker-controlled HTML. On
-`notificationclick`, close the notification, focus/navigate an existing same-origin client when possible, otherwise
-open `/family-chat`.
+## Safe Evidence
 
-On activate, delete only superseded Beaver Nest cache names. No service-worker log includes payload data. A controlled
-test proves authenticated routes are absent from Cache Storage after chat, logout, and offline navigation attempts.
+Allowed telemetry fields are operation, stable safe error code, attempt number, duration bucket, queue counts, and
+configured/readiness booleans. Never record body or preview, GraphQL variables, endpoint or hash, browser keys, session
+digest, VAPID values, cookie, private origin, user value, provider response body, or absolute runtime path.
 
-## Observability and Health
-
-Allowlisted telemetry/log fields are operation (`subscribe`, `claim`, `send`), generic outcome, attempt, duration bucket,
-and queue state counts. Never record message or preview, endpoint or hash, browser keys, session digest, VAPID values,
-provider response body, private origin, or full user agent.
-
-Readiness proves configuration shape, dispatcher process, task supervisor, and exact SQLite objects. It does not call a
-real push provider. Health output adds only a boolean `webPushReady`; any value-level diagnosis stays local and private.
-
-## Verification Boundary
-
-Unit tests cover payload shaping, response classification, retry times, ceilings, and redaction. Integration uses a
-loopback HTTP push stub and real isolated SQLite to prove encrypted request construction, state transitions, restart,
-lease recovery, and two-dispatcher contention. Browser E2E proves notification UI and subscription lifecycle with the
-browser APIs available in its boundary.
-
-OS background delivery and notification activation require a physical installed PWA and receive a scenario-level E2E
-exemption with integration alternative proof plus a mandatory manual iOS or Android exact-origin pass. No production
-family account or message is used.
+Unit proof covers policy, payload, retry, redaction, GraphQL resolver authorization, and logout ordering. Integration
+uses real isolated SQLite and loopback HTTP/WebSocket. Backend E2E uses the routed GraphQL origin. Frontend E2E proves
+permission UX, service-worker push/click handling, and cache/outbox isolation. OS-owned background display on a physical
+device is outside plan completion; delivery ends at provider-boundary and service-worker evidence.

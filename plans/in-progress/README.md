@@ -6,8 +6,9 @@ Start work by moving one folder from [`../backlog/`](../backlog/README.md) witho
 
 ## Active Plan
 
-- [Family Chat Room](family-chat-room/README.md) — plan authored for an authenticated, SQLite-backed, realtime family
-  chat with upward history paging and opt-in PWA Web Push; delivery has not started.
+- [Family Chat Room](family-chat-room/README.md) — materially revised plan for an authenticated GraphQL room, durable
+  SQLite history, IndexedDB offline recovery, opt-in Web Push, low-impact whole-database backup, split BE/FE specifications,
+  and two-stage no-downtime release; a fresh quality gate and delivery have not started.
 
 Completed records live in [`../done/`](../done/README.md), and additional candidates are queued in
 [`../backlog/`](../backlog/README.md).
