@@ -17,6 +17,11 @@ export function createSystemClock() {
     now: () => Date.now(),
     random: () => Math.random(),
     setTimer: (fn, delayMs) => setTimeout(fn, delayMs),
-    clearTimer: (handle) => clearTimeout(handle),
+    // `setTimer` above returns whatever `setTimeout` returns for this lib
+    // target (`number` in the DOM lib this tsconfig selects); `clearTimer`'s
+    // own signature keeps that opaque as `unknown` so callers never depend
+    // on the underlying handle's shape, so this single cast back to the
+    // known real runtime type is the boundary where that opacity ends.
+    clearTimer: (handle) => clearTimeout(/** @type {number} */ (handle)),
   };
 }

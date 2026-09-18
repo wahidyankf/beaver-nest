@@ -11,7 +11,10 @@ export interface FakeClock {
   now: () => number;
   random: () => number;
   setTimer: (fn: () => void, delayMs: number) => number;
-  clearTimer: (handle: number) => void;
+  // Kept `unknown`, matching `family_chat/clock.js`'s real `Clock.clearTimer`
+  // signature exactly -- callers of the shared `Clock` shape never assume a
+  // concrete handle type, even though this fake's own handles are numbers.
+  clearTimer: (handle: unknown) => void;
   advance: (ms: number) => void;
 }
 

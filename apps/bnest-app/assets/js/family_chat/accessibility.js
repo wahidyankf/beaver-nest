@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+/** @param {string} relativeUrl */
 function readTextSafely(relativeUrl) {
   try {
     return readFileSync(
@@ -25,8 +26,8 @@ const ROOM_TEMPLATE_PATH =
 const APP_CSS_PATH = "../../css/app.css";
 
 /**
- * @param {{viewport?: string}} _options viewport is accepted for API
- *   compatibility with the E2E-layer proof; layout is not measurable here.
+ * @param {{viewport?: string | undefined}} _options viewport is accepted for
+ *   API compatibility with the E2E-layer proof; layout is not measurable here.
  */
 export function createAccessibility(_options = {}) {
   return {

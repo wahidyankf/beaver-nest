@@ -47,10 +47,12 @@ const namespaces = new Map();
  * @property {unknown} timerHandle
  */
 
+/** @param {string} userId @param {string} roomSlug */
 function namespaceKey(userId, roomSlug) {
   return `${userId}:${roomSlug}`;
 }
 
+/** @param {string} key */
 function getOrCreateNamespace(key) {
   let record = namespaces.get(key);
   if (!record) {
@@ -60,8 +62,10 @@ function getOrCreateNamespace(key) {
   return record;
 }
 
+/** @param {() => number} random */
 function generateClientMessageId(random) {
   const hex = () => Math.floor(random() * 16).toString(16);
+  /** @param {number} length */
   const block = (length) => Array.from({ length }, hex).join("");
   return `${block(8)}-${block(4)}-4${block(3)}-${(8 + Math.floor(random() * 4)).toString(16)}${block(3)}-${block(12)}`;
 }
@@ -73,6 +77,13 @@ function generateClientMessageId(random) {
  * @property {boolean} [authExpired] true when the server reported the session itself
  *   as no longer valid (GraphQL `UNAUTHENTICATED`), distinct from an ordinary
  *   retryable/terminal per-message failure.
+ * @property {object} [message] the server's committed message, present only when `ok`.
+ */
+
+/**
+ * @typedef {object} SendOptions
+ * @property {"retryable"|"non-retryable"} [simulateNetworkFailure] test-only
+ *   per-call override; see `attemptSend`'s own comment.
  */
 
 /**
@@ -113,6 +124,7 @@ export function createOutbox({
   // draining even if a *previous* instance's session had expired.
   let draining = true;
 
+  /** @param {QueuedMessage} message */
   function notify(message) {
     const forId = listeners.get(message.clientMessageId);
     if (forId) {
@@ -120,6 +132,7 @@ export function createOutbox({
     }
   }
 
+  /** @param {QueuedMessage} message */
   function isExpired(message) {
     return clock.now() - message.createdAt > SEVEN_DAYS_MS;
   }
@@ -130,10 +143,12 @@ export function createOutbox({
     ).length;
   }
 
+  /** @param {QueuedMessage} message */
   function scheduleDeletion(message) {
     clock.setTimer(() => namespace.messages.delete(message.clientMessageId), 0);
   }
 
+  /** @param {QueuedMessage} message */
   function scheduleRetry(message) {
     message.status = STATUS.RETRYING;
     notify(message);
@@ -146,6 +161,7 @@ export function createOutbox({
     }, delayMs);
   }
 
+  /** @param {QueuedMessage} message @param {SendOptions} opts */
   async function attemptSend(message, opts) {
     if (!draining) return;
 
@@ -233,7 +249,11 @@ export function createOutbox({
   resumeOnOpen();
 
   return {
-    /** @returns {Promise<string|null>} the new clientMessageId, or null if the room's queue is full. */
+    /**
+     * @param {string} body
+     * @param {SendOptions} [opts]
+     * @returns {Promise<string|null>} the new clientMessageId, or null if the room's queue is full.
+     */
     async send(body, opts = {}) {
       if (activeCount() >= MAX_QUEUED_PER_ROOM) {
         onQueueFull?.();
@@ -241,6 +261,7 @@ export function createOutbox({
       }
 
       const clientMessageId = generateClientMessageId(clock.random);
+      /** @type {QueuedMessage} */
       const message = {
         clientMessageId,
         body,
@@ -265,17 +286,22 @@ export function createOutbox({
       return clientMessageId;
     },
 
-    /** @returns {object|null} the real committed message once `send()` succeeded, else null. */
+    /** @param {string} clientMessageId @returns {object|null} the real committed message once `send()` succeeded, else null. */
     committedMessage(clientMessageId) {
       return committed.get(clientMessageId) ?? null;
     },
 
+    /** @param {string} clientMessageId */
     status(clientMessageId) {
       const message = namespace.messages.get(clientMessageId);
       return message ? message.status : "not-found";
     },
 
-    /** @returns {Promise<string>} resolves once the message reaches `expected` (or is already there). */
+    /**
+     * @param {string} clientMessageId
+     * @param {string} expected
+     * @returns {Promise<string>} resolves once the message reaches `expected` (or is already there).
+     */
     waitForStatus(clientMessageId, expected) {
       const current = namespace.messages.get(clientMessageId);
       if (current && current.status === expected)
@@ -283,6 +309,7 @@ export function createOutbox({
 
       return new Promise((resolve) => {
         const forId = listeners.get(clientMessageId) || new Set();
+        /** @param {string} status */
         const listener = (status) => {
           if (status === expected) {
             forId.delete(listener);
@@ -300,6 +327,8 @@ export function createOutbox({
      * then detaches) -- the DOM layer uses this to keep a pending row's
      * status text current across "Sending" -> "Retrying" -> "Sent" without
      * having to re-subscribe after each step.
+     * @param {string} clientMessageId
+     * @param {(status: string) => void} callback
      * @returns {() => void} unsubscribe
      */
     onChange(clientMessageId, callback) {
@@ -309,19 +338,23 @@ export function createOutbox({
       return () => forId.delete(callback);
     },
 
+    /** @param {string} clientMessageId */
     retryCount(clientMessageId) {
       return namespace.messages.get(clientMessageId)?.retryCount ?? 0;
     },
 
+    /** @param {string} clientMessageId */
     nextRetryEtaMs(clientMessageId) {
       const message = namespace.messages.get(clientMessageId);
       return message ? message.nextRetryAt - clock.now() : 0;
     },
 
+    /** @param {number} count */
     async fillWithQueuedMessages(count) {
       while (activeCount() < count) {
         const clientMessageId = generateClientMessageId(clock.random);
-        namespace.messages.set(clientMessageId, {
+        /** @type {QueuedMessage} */
+        const filler = {
           clientMessageId,
           body: "filler message",
           status: STATUS.RETRYING,
@@ -331,13 +364,15 @@ export function createOutbox({
           nextRetryAt: clock.now() + 60_000,
           neverSucceed: true,
           timerHandle: undefined,
-        });
+        };
+        namespace.messages.set(clientMessageId, filler);
       }
     },
 
     async queueWithPendingBackoff() {
       const clientMessageId = generateClientMessageId(clock.random);
       const delayMs = computeBackoffDelayMs(1, clock.random);
+      /** @type {QueuedMessage} */
       const message = {
         clientMessageId,
         body: "pending backoff message",
@@ -368,6 +403,7 @@ export function createOutbox({
       }
     },
 
+    /** @param {string} name */
     reportBrowserEvent(name) {
       if (name === "online") this.reportOnline();
     },
@@ -398,8 +434,10 @@ export function createOutbox({
       return draining;
     },
 
+    /** @param {number} times */
     async failRepeatedly(times) {
       const clientMessageId = generateClientMessageId(clock.random);
+      /** @type {QueuedMessage} */
       const message = {
         clientMessageId,
         body: "repeatedly failing message",
@@ -423,12 +461,14 @@ export function createOutbox({
       return delaysMs;
     },
 
+    /** @param {string} clientMessageId */
     isAutoRetrying(clientMessageId) {
       return (
         namespace.messages.get(clientMessageId)?.status === STATUS.RETRYING
       );
     },
 
+    /** @param {string} clientMessageId */
     canManuallyRetryOrDiscard(clientMessageId) {
       return namespace.messages.get(clientMessageId)?.status === STATUS.FAILED;
     },

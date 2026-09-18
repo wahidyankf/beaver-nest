@@ -32,7 +32,6 @@ import {
   createSubscriptionClient,
 } from "./family_chat/graphql.js";
 import {
-  FAMILY_CHAT_ROOM_QUERY,
   FAMILY_CHAT_MESSAGES_QUERY,
   SEND_FAMILY_CHAT_MESSAGE_MUTATION,
   FAMILY_CHAT_MESSAGE_COMMITTED_SUBSCRIPTION,
@@ -46,16 +45,37 @@ import {
 const CANONICAL_ROOM_SLUG = "ruang-keluarga";
 const BOTTOM_THRESHOLD_PX = 80;
 
+/**
+ * Shape shared by every message this module renders, whether a pending
+ * (outbox-owned, keyed by `clientMessageId`) or committed (server-owned,
+ * keyed by `id`) row -- see `messageNode`'s own `pending` flag for which
+ * fields a given call site actually has.
+ * @typedef {object} RenderableMessage
+ * @property {string} [id]
+ * @property {string} [clientMessageId]
+ * @property {string} body
+ * @property {string} [status]
+ * @property {string} [senderKind]
+ * @property {string} [senderDisplayName]
+ * @property {string} [committedAt]
+ */
+
+/** @param {string} path @returns {string} */
 function parseRoomSlug(path) {
   const match = /\/family-chat\/([^/?#]+)/u.exec(path);
-  return match ? match[1] : CANONICAL_ROOM_SLUG;
+  return match?.[1] ?? CANONICAL_ROOM_SLUG;
 }
 
 // --- transport -------------------------------------------------------------
 
 /** Real GraphQL-backed transport: the only path a production message ever
  * takes to actually reach the server. */
+/** @param {string} roomSlug */
 function createRealTransport(roomSlug) {
+  /**
+   * @param {{clientMessageId: string, body: string}} message
+   * @returns {Promise<import("./family_chat/outbox.js").TransportResult>}
+   */
   return async function realTransport({ clientMessageId, body }) {
     let response;
     try {
@@ -95,7 +115,12 @@ function createRealTransport(roomSlug) {
  * before this settles, the same way a real network response never resolves
  * within the same turn as the request that triggered it.
  */
+/** @param {import("./family_chat/clock.js").Clock} clock */
 function createTestTransport(clock) {
+  /**
+   * @param {{clientMessageId: string, body: string}} message
+   * @returns {Promise<import("./family_chat/outbox.js").TransportResult>}
+   */
   return function testTransport({ clientMessageId, body }) {
     return new Promise((resolve) => {
       clock.setTimer(
@@ -213,10 +238,40 @@ async function attemptPushDisable() {
 
 // --- real (browser) store: message list + scroll anchor + live region -----
 
-function createRealStore({ roomSlug, elements }) {
-  const rendered = new Map(); // clientMessageId|serverId -> <li>
+/**
+ * Every element the shipped `room.html.heex` template renders together as
+ * one static unit; `room` is the only field this module ever null-checks on
+ * its own (`mountBrowser`'s "not this route" early return) -- every sibling
+ * field is guaranteed present whenever `room` is, by construction of that
+ * same template, so the rest are typed non-null rather than repeating the
+ * same defensive check at every call site.
+ * @typedef {object} FamilyChatElements
+ * @property {HTMLElement | null} room
+ * @property {HTMLElement} offlineBanner
+ * @property {HTMLElement} history
+ * @property {HTMLButtonElement} loadOlder
+ * @property {HTMLElement} empty
+ * @property {HTMLElement} list
+ * @property {HTMLElement} newMessages
+ * @property {HTMLElement} liveRegion
+ * @property {HTMLFormElement} composer
+ * @property {HTMLInputElement} input
+ * @property {HTMLButtonElement} send
+ * @property {HTMLElement} remediation
+ * @property {HTMLElement} outboxStatus
+ * @property {HTMLButtonElement} pushControl
+ * @property {HTMLButtonElement} pushDisable
+ */
+
+/** @param {{roomSlug: string, elements: FamilyChatElements}} options */
+function createRealStore({ elements }) {
+  /** @type {Map<string, HTMLLIElement>} clientMessageId|serverId -> <li> */
+  const rendered = new Map();
+  /** @type {string | null} */
   let lastAnnouncement = null;
+  /** @type {string | null} */
   let newMessagesLabel = null;
+  /** @type {string | null} */
   let oldestKnownId = null;
   let atBottom = true;
 
@@ -229,11 +284,17 @@ function createRealStore({ roomSlug, elements }) {
     );
   }
 
+  /**
+   * @param {RenderableMessage} message
+   * @param {{pending: boolean}} state
+   */
   function messageNode(message, { pending }) {
     const li = document.createElement("li");
     li.className = "family-chat-message";
-    li.dataset.role = "family-chat-message";
-    li.dataset.deliveryState = pending ? message.status : "committed";
+    li.dataset["role"] = "family-chat-message";
+    li.dataset["deliveryState"] = pending
+      ? (message.status ?? "")
+      : "committed";
     if (message.senderKind === "system")
       li.classList.add("family-chat-message--system");
 
@@ -255,14 +316,15 @@ function createRealStore({ roomSlug, elements }) {
     if (pending) {
       const status = document.createElement("p");
       status.className = "family-chat-message-status";
-      status.dataset.role = "family-chat-message-status";
-      status.textContent = message.status;
+      status.dataset["role"] = "family-chat-message-status";
+      status.textContent = message.status ?? "";
       li.append(status);
     }
 
     return li;
   }
 
+  /** @param {string} value */
   function escapeHtml(value) {
     const div = document.createElement("div");
     div.textContent = value;
@@ -273,6 +335,7 @@ function createRealStore({ roomSlug, elements }) {
   // "Beginning of family chat", "Load older messages", and "New messages
   // below" -- the first replaces the second, and the button stops being
   // actionable, once the server reports no earlier page (`hasOlder: false`).
+  /** @param {boolean} hasOlder */
   function setHasOlder(hasOlder) {
     if (!elements.loadOlder) return;
     elements.loadOlder.disabled = !hasOlder;
@@ -286,14 +349,19 @@ function createRealStore({ roomSlug, elements }) {
       return rendered.size === 0;
     },
 
+    /**
+     * @param {RenderableMessage[]} messages
+     * @param {boolean} [hasOlder]
+     */
     renderInitial(messages, hasOlder) {
       elements.list.replaceChildren();
       rendered.clear();
       for (const message of messages) {
         const node = messageNode(message, { pending: false });
+        const key = message.id ?? message.clientMessageId ?? "";
         elements.list.append(node);
-        rendered.set(message.id, node);
-        oldestKnownId = oldestKnownId === null ? message.id : oldestKnownId;
+        rendered.set(key, node);
+        oldestKnownId = oldestKnownId === null ? key : oldestKnownId;
       }
       elements.empty.hidden = messages.length > 0;
       // An empty room has nothing earlier to load regardless of what the
@@ -303,6 +371,10 @@ function createRealStore({ roomSlug, elements }) {
       setHasOlder(messages.length === 0 ? false : (hasOlder ?? true));
     },
 
+    /**
+     * @param {RenderableMessage[]} messages
+     * @param {boolean} [hasOlder]
+     */
     prependOlder(messages, hasOlder) {
       setHasOlder(Boolean(hasOlder));
       if (messages.length === 0) return;
@@ -313,10 +385,10 @@ function createRealStore({ roomSlug, elements }) {
       for (const message of messages) {
         const node = messageNode(message, { pending: false });
         fragment.append(node);
-        rendered.set(message.id, node);
+        rendered.set(message.id ?? message.clientMessageId ?? "", node);
       }
       elements.list.prepend(fragment);
-      oldestKnownId = messages[0].id;
+      oldestKnownId = messages[0]?.id ?? oldestKnownId;
 
       if (anchor) {
         const newOffset = anchor.getBoundingClientRect().top;
@@ -328,26 +400,36 @@ function createRealStore({ roomSlug, elements }) {
       return true;
     },
 
+    /** @param {RenderableMessage} message */
     renderPending(message) {
       const node = messageNode(message, { pending: true });
       elements.list.append(node);
-      rendered.set(message.clientMessageId, node);
+      rendered.set(message.clientMessageId ?? "", node);
       if (isNearBottom())
         elements.history.scrollTop = elements.history.scrollHeight;
     },
 
+    /**
+     * @param {string} clientMessageId
+     * @param {string} status
+     */
     updatePendingStatus(clientMessageId, status) {
       const node = rendered.get(clientMessageId);
       const statusNode = node?.querySelector(
         '[data-role="family-chat-message-status"]',
       );
       if (statusNode) statusNode.textContent = status;
-      if (node) node.dataset.deliveryState = status;
+      if (node) node.dataset["deliveryState"] = status;
     },
 
+    /**
+     * @param {string} clientMessageId
+     * @param {RenderableMessage} committedMessage
+     */
     reconcile(clientMessageId, committedMessage) {
       const pendingNode = rendered.get(clientMessageId);
-      const existingCommittedNode = rendered.get(committedMessage.id);
+      const committedKey = committedMessage.id ?? "";
+      const existingCommittedNode = rendered.get(committedKey);
 
       if (existingCommittedNode) {
         // The subscription push for this same message already rendered it
@@ -368,15 +450,17 @@ function createRealStore({ roomSlug, elements }) {
         elements.list.append(node);
       }
       rendered.delete(clientMessageId);
-      rendered.set(committedMessage.id, node);
+      rendered.set(committedKey, node);
     },
 
+    /** @param {RenderableMessage} message */
     async receiveRemoteMessage(message) {
-      if (rendered.has(message.id)) return; // already reconciled from our own send
+      const key = message.id ?? "";
+      if (rendered.has(key)) return; // already reconciled from our own send
       const wasNearBottom = isNearBottom();
       const node = messageNode(message, { pending: false });
       elements.list.append(node);
-      rendered.set(message.id, node);
+      rendered.set(key, node);
 
       if (wasNearBottom) {
         atBottom = true;
@@ -415,6 +499,7 @@ function createRealStore({ roomSlug, elements }) {
       return oldestKnownId;
     },
 
+    /** @param {string} id */
     hasRendered(id) {
       return rendered.has(id);
     },
@@ -425,7 +510,15 @@ function createRealStore({ roomSlug, elements }) {
 
 /**
  * @param {string} path e.g. "/family-chat/ruang-keluarga"
- * @param {{user?: {id: string}, clock?: import("./family_chat/clock.js").Clock, viewport?: string, devicePushState?: string, activePushSubscription?: boolean}} options
+ * @param {{
+ *   user?: {id: string},
+ *   clock?: import("./family_chat/clock.js").Clock,
+ *   viewport?: string,
+ *   devicePushState?: string,
+ *   activePushSubscription?: boolean,
+ *   scrolledToOlderMessage?: boolean,
+ *   focusInComposer?: boolean,
+ * }} options
  */
 export async function initRoom(path, options = {}) {
   const roomSlug = parseRoomSlug(path);
@@ -433,6 +526,7 @@ export async function initRoom(path, options = {}) {
   const userId = options.user?.id ?? "anonymous";
   const clock = options.clock ?? createSystemClock();
 
+  /** @type {{remediationMessage: string | null}} */
   const composerState = { remediationMessage: null };
   const elements = hasDocument ? findElements() : null;
 
@@ -465,23 +559,32 @@ export async function initRoom(path, options = {}) {
       push.disable();
     },
     onAuthExpired: () => {
-      if (elements) elements.room.dataset.connectionState = "auth-expired";
+      if (elements?.room)
+        elements.room.dataset["connectionState"] = "auth-expired";
     },
   });
 
-  const store = hasDocument
-    ? createRealStore({ roomSlug, elements })
-    : createStore({
-        scrolledToOlderMessage: options.scrolledToOlderMessage,
-        focusInComposer: options.focusInComposer,
-      });
+  // `hasDocument` and `elements` are always both-true or both-false together
+  // (`elements` is set from `findElements()` exactly when `hasDocument`
+  // is), but TS tracks them as two independent variables; the `elements`
+  // check alone is what narrows the branch below, `hasDocument` is kept for
+  // readability at the call site.
+  const store =
+    hasDocument && elements
+      ? createRealStore({ roomSlug, elements })
+      : createStore({
+          scrolledToOlderMessage: options.scrolledToOlderMessage,
+          focusInComposer: options.focusInComposer,
+        });
 
   const subscriptionClient = hasDocument ? createSubscriptionClient() : null;
+  // `store`/`roomSlug` are deliberately not passed here: `createReconnect`
+  // (see `family_chat/reconnect.js`) only ever reads `clock`/`socketClient`
+  // from its options; the real store/room wiring happens later, through
+  // `_bindBrowserCallbacks` in `mountBrowser` below.
   const reconnect = createReconnect({
     clock,
     socketClient: subscriptionClient,
-    store,
-    roomSlug,
   });
   // `accessibility.js` reads the shipped template/stylesheet from disk via
   // `node:fs` -- meaningful only for FE_UNIT's Vitest (Node) process, never
@@ -509,48 +612,105 @@ export async function initRoom(path, options = {}) {
   };
 
   if (hasDocument && elements) {
-    await mountBrowser(room, elements, { roomSlug, subscriptionClient });
+    // `store`/`subscriptionClient` are guaranteed the real (non-null,
+    // browser) variants on this branch -- both were assigned from the same
+    // `hasDocument`-gated ternaries above -- but TS tracks each of those
+    // independently, so the casts below just assert what this branch's own
+    // construction already guarantees.
+    await mountBrowser(/** @type {MountableRoom} */ (room), elements, {
+      roomSlug,
+      subscriptionClient:
+        /** @type {ReturnType<typeof createSubscriptionClient>} */ (
+          subscriptionClient
+        ),
+    });
   }
 
   return room;
 }
 
+/**
+ * `room` is left as the raw, possibly-null query result -- the one field
+ * every caller checks before trusting the rest (see `FamilyChatElements`'s
+ * own doc comment). Every sibling field is cast to its real element type: it
+ * is guaranteed present by the same static template whenever `room` is, so
+ * asserting that here once is what lets every call site elsewhere in this
+ * module skip repeating the same null check the template itself already
+ * rules out.
+ * @returns {FamilyChatElements}
+ */
 function findElements() {
   return {
     room: document.querySelector('[data-role="family-chat-room"]'),
-    offlineBanner: document.querySelector(
-      '[data-role="family-chat-offline-banner"]',
+    offlineBanner: /** @type {HTMLElement} */ (
+      document.querySelector('[data-role="family-chat-offline-banner"]')
     ),
-    history: document.querySelector('[data-role="family-chat-history"]'),
-    loadOlder: document.querySelector('[data-role="family-chat-load-older"]'),
-    empty: document.querySelector('[data-role="family-chat-empty"]'),
-    list: document.querySelector('[data-role="family-chat-message-list"]'),
-    newMessages: document.querySelector(
-      '[data-role="family-chat-new-messages"]',
+    history: /** @type {HTMLElement} */ (
+      document.querySelector('[data-role="family-chat-history"]')
     ),
-    liveRegion: document.querySelector('[data-role="family-chat-live-region"]'),
-    composer: document.querySelector('[data-role="family-chat-composer"]'),
-    input: document.querySelector('[data-role="family-chat-message-input"]'),
-    send: document.querySelector('[data-role="family-chat-send"]'),
-    remediation: document.querySelector(
-      '[data-role="family-chat-remediation"]',
+    loadOlder: /** @type {HTMLButtonElement} */ (
+      document.querySelector('[data-role="family-chat-load-older"]')
     ),
-    outboxStatus: document.querySelector(
-      '[data-role="family-chat-outbox-status"]',
+    empty: /** @type {HTMLElement} */ (
+      document.querySelector('[data-role="family-chat-empty"]')
     ),
-    pushControl: document.querySelector(
-      '[data-role="family-chat-push-control"]',
+    list: /** @type {HTMLElement} */ (
+      document.querySelector('[data-role="family-chat-message-list"]')
     ),
-    pushDisable: document.querySelector(
-      '[data-role="family-chat-push-disable"]',
+    newMessages: /** @type {HTMLElement} */ (
+      document.querySelector('[data-role="family-chat-new-messages"]')
+    ),
+    liveRegion: /** @type {HTMLElement} */ (
+      document.querySelector('[data-role="family-chat-live-region"]')
+    ),
+    composer: /** @type {HTMLFormElement} */ (
+      document.querySelector('[data-role="family-chat-composer"]')
+    ),
+    input: /** @type {HTMLInputElement} */ (
+      document.querySelector('[data-role="family-chat-message-input"]')
+    ),
+    send: /** @type {HTMLButtonElement} */ (
+      document.querySelector('[data-role="family-chat-send"]')
+    ),
+    remediation: /** @type {HTMLElement} */ (
+      document.querySelector('[data-role="family-chat-remediation"]')
+    ),
+    outboxStatus: /** @type {HTMLElement} */ (
+      document.querySelector('[data-role="family-chat-outbox-status"]')
+    ),
+    pushControl: /** @type {HTMLButtonElement} */ (
+      document.querySelector('[data-role="family-chat-push-control"]')
+    ),
+    pushDisable: /** @type {HTMLButtonElement} */ (
+      document.querySelector('[data-role="family-chat-push-disable"]')
     ),
   };
 }
 
+/**
+ * Only the fields `mountBrowser` itself reads/writes -- `store` is narrowed
+ * to the real (browser) store specifically, since this function only ever
+ * runs on the `hasDocument` branch in `initRoom`.
+ * @typedef {object} MountableRoom
+ * @property {string} roomSlug
+ * @property {string} userId
+ * @property {ReturnType<typeof createOutbox>} outbox
+ * @property {ReturnType<typeof createRealStore>} store
+ * @property {ReturnType<typeof createPush>} push
+ * @property {ReturnType<typeof createReconnect>} reconnect
+ * @property {{remediationMessage: string | null}} composer
+ */
+
+/**
+ * @param {MountableRoom} room
+ * @param {FamilyChatElements} elements
+ * @param {{roomSlug: string, subscriptionClient: ReturnType<typeof createSubscriptionClient>}} context
+ */
 async function mountBrowser(room, elements, { roomSlug, subscriptionClient }) {
   if (!elements.room) return; // not the family chat route; nothing to mount
+  const roomElement = elements.room;
 
-  elements.room.dataset.connectionState = "booting";
+  roomElement.dataset["connectionState"] = "booting";
 
   function renderPushControl() {
     const text = room.push.controlText();
@@ -632,6 +792,7 @@ async function mountBrowser(room, elements, { roomSlug, subscriptionClient }) {
     watchPending(clientMessageId);
   }
 
+  /** @param {string} clientMessageId */
   function watchPending(clientMessageId) {
     const unsubscribe = room.outbox.onChange(clientMessageId, (status) => {
       room.store.updatePendingStatus(clientMessageId, status);
@@ -644,8 +805,14 @@ async function mountBrowser(room, elements, { roomSlug, subscriptionClient }) {
         // never guessed from a later subscription push, which never carries
         // the client-chosen ID at all (tech-doc 008).
         const committedMessage = room.outbox.committedMessage(clientMessageId);
+        // `outbox.js` deliberately types this loosely (`object`) since it has
+        // no knowledge of `RenderableMessage`'s shape; `family_chat.js` is
+        // the layer that knows every real committed message has it.
         if (committedMessage)
-          room.store.reconcile(clientMessageId, committedMessage);
+          room.store.reconcile(
+            clientMessageId,
+            /** @type {RenderableMessage} */ (committedMessage),
+          );
         unsubscribe();
       } else if (status === STATUS.FAILED) {
         unsubscribe();
@@ -664,7 +831,12 @@ async function mountBrowser(room, elements, { roomSlug, subscriptionClient }) {
     room.store.prependOlder(nodes, result.data?.familyChatMessages?.hasOlder);
   }
 
-  function handleSubscriptionData(result) {
+  /** @param {unknown} rawResult */
+  function handleSubscriptionData(rawResult) {
+    const result =
+      /** @type {{data?: {familyChatMessageCommitted?: RenderableMessage}}} */ (
+        rawResult
+      );
     const message = result?.data?.familyChatMessageCommitted;
     if (!message) return;
     room.reconnect.setHighestCommittedId(message.id);
@@ -676,7 +848,7 @@ async function mountBrowser(room, elements, { roomSlug, subscriptionClient }) {
     // handler only ever renders a genuinely new arrival; `hasRendered` also
     // absorbs the rare race where this push beats our own mutation response
     // (see `reconcile`'s matching guard in `createRealStore` for that race).
-    if (room.store.hasRendered(message.id)) return;
+    if (room.store.hasRendered(message.id ?? "")) return;
     void room.store.receiveRemoteMessage(message);
   }
 
@@ -688,8 +860,11 @@ async function mountBrowser(room, elements, { roomSlug, subscriptionClient }) {
     );
   }
 
-  /** Real gap-fill query for `reconnect.js`'s catch-up step: every message
-   * committed after the last one this room saw. */
+  /**
+   * Real gap-fill query for `reconnect.js`'s catch-up step: every message
+   * committed after the last one this room saw.
+   * @param {string | null} afterId
+   */
   async function fetchMissedMessages(afterId) {
     const result = await graphqlRequest(FAMILY_CHAT_MESSAGES_QUERY, {
       roomSlug,
@@ -699,13 +874,17 @@ async function mountBrowser(room, elements, { roomSlug, subscriptionClient }) {
     return result.data?.familyChatMessages?.nodes ?? [];
   }
 
-  /** Real merge-by-server-ID step: dedupes against whatever is already
+  /**
+   * Real merge-by-server-ID step: dedupes against whatever is already
    * rendered (including anything the live subscription already delivered
-   * while the catch-up query was in flight) before appending the rest. */
-  function mergeMissedMessages(messages) {
+   * while the catch-up query was in flight) before appending the rest.
+   * @param {unknown[]} rawMessages
+   */
+  async function mergeMissedMessages(rawMessages) {
+    const messages = /** @type {RenderableMessage[]} */ (rawMessages);
     for (const message of messages) {
-      room.reconnect.setHighestCommittedId(message.id);
-      if (!room.store.hasRendered(message.id))
+      room.reconnect.setHighestCommittedId(message.id ?? null);
+      if (!room.store.hasRendered(message.id ?? ""))
         void room.store.receiveRemoteMessage(message);
     }
   }
@@ -734,7 +913,7 @@ async function mountBrowser(room, elements, { roomSlug, subscriptionClient }) {
 
   elements.input.disabled = false;
   elements.send.disabled = false;
-  elements.room.dataset.connectionState = "ready";
+  roomElement.dataset["connectionState"] = "ready";
 
   try {
     await subscribeToRoom();
@@ -742,7 +921,7 @@ async function mountBrowser(room, elements, { roomSlug, subscriptionClient }) {
     // Subscription join failure never blocks the already-loaded room; the
     // browser still functions for read/send, just without live push until a
     // future reconnect attempt succeeds.
-    elements.room.dataset.connectionState = "ready";
+    roomElement.dataset["connectionState"] = "ready";
   }
 
   // A real socket reconnect (Caddy having cut over to a replacement slot, or
