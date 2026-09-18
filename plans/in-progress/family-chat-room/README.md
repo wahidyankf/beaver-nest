@@ -2,78 +2,85 @@
 
 ## Status
 
-**In progress — plan authored and quality-gated; delivery has not started.** This plan adds a private, authenticated
-family-to-family chat surface to Bnest. Future implementation provisions the repository-relative
-`worktrees/family-chat-room/` checkout and remains separately authorized through [`delivery.md`](delivery.md).
+**In progress — materially revised plan; product delivery has not started.** This documentation-only amendment performs
+no application code, migration, dependency, deployment, or production-data change. Integrating these plan documents does
+not authorize product delivery; that begins only after the separately authorized quality and execution checkpoints in
+[`delivery.md`](delivery.md).
 
 ## Outcome
 
-Every approved family member can open **Family chat** from the authenticated home page, exchange permanent plain-text
-messages in the shared `main` channel, receive committed messages in real time, and load older history by scrolling
-upward. An opted-in installed PWA can receive a phone notification for messages sent by another user.
+Bn​est gains the hierarchy **Family Chat → Room**. Version one exposes the single seeded room **Ruang Keluarga** at
+`/family-chat/ruang-keluarga`; `/family-chat` redirects there. Every UI-facing backend operation uses authenticated
+GraphQL query, mutation, or subscription operations. The browser persists unacknowledged sends in a per-user,
+per-room IndexedDB outbox and resumes them after reconnect or app reopen without storing committed history offline.
 
-The first release deliberately exposes one channel. Its storage and routing contracts name the channel explicitly so a
-later plan can add Slack- or Discord-style channel selection without migrating messages out of a single unscoped log.
+The data model, service boundaries, URL, and GraphQL arguments name rooms from the first release so a later plan can
+create rooms automatically without migrating an unscoped message log. Version one has no room creation or switcher.
 
 ## Scope Boundary
 
-Included: authenticated access for every existing role, one seeded channel, text messages, SQLite persistence, realtime
-fan-out, keyset history pagination, per-device Web Push subscriptions, bounded delivery retries, responsive UI,
-accessibility, behaviour specifications, tests, documentation, and a continuity-safe Bnest rollout.
+Included: authenticated family access; the seeded `ruang-keluarga` room; plain-text permanent messages; user and system
+sender identities; SQLite authority; GraphQL HTTP and Phoenix-socket subscriptions; keyset history; post-commit room
+events; a 100-record IndexedDB outbox per user and room; reconnect/catch-up/deduplication; per-device Web Push;
+seven-day active plus seven-day soft-deleted delivery-record retention; full-database daily backup at 01:00 WIB;
+capacity preflight and restore proof; split backend/frontend specifications and E2E projects; accessible responsive UI;
+documentation; and two-stage no-downtime production release.
 
-Excluded: WhatsApp import, attachments, rich text, Markdown, link previews, edits, deletion, reactions, threads,
-mentions, presence, typing indicators, read receipts, unread badges, search, channel management, private membership,
-moderation, and message-retention jobs.
+Excluded: room CRUD or switcher, calendar UI or producer, attachments, rich text, Markdown, link previews, edits,
+deletion, reactions, threads, mentions, presence, typing, read receipts, unread badges, search, moderation, message
+retention, offline transcript access, Background Sync, and a public system-message mutation.
 
 ## Locked Product Decisions
 
-| Decision              | Selected contract                                                                                     |
-| --------------------- | ----------------------------------------------------------------------------------------------------- |
-| Route and home label  | `/family-chat`; **Family chat**                                                                       |
-| Channel               | One seeded `main` channel; no switcher in v1                                                          |
-| History               | Permanent; newest messages at the bottom                                                              |
-| Initial/history page  | Latest 50, then 50 older per upward keyset request                                                    |
-| Content               | Escaped plain text, multiline, no formatting or linkification                                         |
-| Notification payload  | Sender display name plus a 120-grapheme message preview                                               |
-| Notification delivery | Per-device opt-in; never notify the sender                                                            |
-| Retry ceiling         | Five attempts within one hour: immediate, then waits of 30s, 2m, 8m, and 32m after retryable failures |
-| Unsupported push      | Chat remains usable and explains why notifications are unavailable                                    |
+| Decision              | Selected contract                                                                                                                                                      |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain hierarchy      | Family Chat → Room                                                                                                                                                     |
+| Canonical room        | `id = 1`, slug `ruang-keluarga`, name `Ruang Keluarga`, kind `conversation`                                                                                            |
+| Route                 | `/family-chat/ruang-keluarga`; `/family-chat` redirects there                                                                                                          |
+| UI backend boundary   | GraphQL only at `/api/graphql` and authenticated `/api/graphql/socket`                                                                                                 |
+| History               | Permanent; latest 50 and keyset pages of at most 50                                                                                                                    |
+| Offline send          | IndexedDB outbox, 100 records per user/room, seven-day expiry, no Background Sync                                                                                      |
+| Reconnect             | Subscribe first, query after last committed ID, dedupe by server ID, then drain FIFO                                                                                   |
+| Notification payload  | Sender display name plus a 120-grapheme preview                                                                                                                        |
+| Push delivery records | Final rows active 7 days, soft-deleted 7 more days, then purged                                                                                                        |
+| Backup                | One complete SQLite backup through `prod-sqlite-backup-daily` at 01:00 WIB (`18:00 UTC`)                                                                               |
+| Release               | Compatibility then experience; Caddy reload closes prior-slot sockets immediately, clients reconnect/catch up, and the warm prior slot retires after five-minute proof |
 
 ## Selected UI Direction
 
-The selected **Family hearth** direction keeps one chronological conversation central and quiet. It reuses Beaver Nest's
-ink, paper, lagoon, sun, and coral identity without copying the denser Codex controls. The composer remains anchored,
-history grows upward, and the channel name is present without pretending a channel switcher exists.
+The selected **Family hearth** direction keeps one chronological room central and quiet. Its updated mockups show **Ruang
+Keluarga**, an offline banner, and message states **Waiting for connection**, **Sending**, **Retrying in …**, **Sent**, and
+**Couldn’t send**. The composer remains anchored, history grows upward, and no empty room switcher is shown.
 
-![Selected Family hearth desktop chat showing the main channel, chronological family messages, notification control, and anchored composer](assets/ui-hearth-hifi-desktop.svg)
+![Selected Family hearth desktop chat for Ruang Keluarga with offline and delivery states](assets/ui-hearth-hifi-desktop.svg)
 
-See [UI Design](tech-docs/005-ui-design.md) for all three lo-fi alternatives, the comparison, responsive states, and
-the selected desktop, tablet, and mobile hi-fi set.
+See [UI Design](tech-docs/005-ui-design.md) for the alternatives, responsive behavior, offline states, and selected set.
 
 ## Reading Order
 
-1. [Business Requirements](brd.md) — why the family needs the capability and which outcomes matter.
-2. [Product Requirements](prd.md) — observable behavior, acceptance criteria, constraints, and non-goals.
-3. [Technical Documentation](tech-docs/README.md) — architecture, schemas, realtime behavior, push, UI, specs, and
-   operations.
-4. [Delivery](delivery.md) — exact execution order, commands, proof, recovery, and checkpoints.
-5. [Learnings](learnings.md) — discoveries captured during execution and routed before archival.
+1. [Business Requirements](brd.md) — why this is worth doing.
+2. [Product Requirements](prd.md) — what must be observably true.
+3. [Technical Documentation](tech-docs/README.md) — how the system, data, API, UI, tests, and operations fit together.
+4. [Delivery](delivery.md) — the exact implementation and proof sequence.
+5. [Learnings](learnings.md) — planning evidence and later execution discoveries.
 
 ## Dependencies and Authority
 
-- Bnest identity, SQLite authority, Caddy blue/green releases, Tailscale HTTPS, and the current PWA shell are retained.
-- Web Push requires machine-local VAPID keys and outbound HTTPS to browser-selected push services. No Apple Developer
-  membership is required for standards-based iOS/iPadOS Home Screen Web Push.
-- The implementation adds one reviewed Web Push protocol dependency; its rationale and ownership are in
-  [File Impact, Dependencies, and Operations](tech-docs/007-file-impact-dependencies-and-operations.md).
-- This plan does not authorize commit, push, production migration, or deployment by itself. Those actions occur only at
-  their explicit delivery checkpoints under repository governance.
+- Bnest identity, authoritative SQLite, persistent Scheduler, loopback Caddy, Tailscale HTTPS, and PWA shell remain.
+- `bnest-app` remains the production owner and aggregates boundary-specific specs under `specs/apps/bnest/app-be/` and
+  `specs/apps/bnest/app-fe/`.
+- Absinthe owns GraphQL execution and Phoenix subscriptions. Every runnable slot uses the code-owned subscription
+  `pool_size: 8`, but blue/green registries stay independent; Caddy reconnect plus SQLite catch-up bridges cutover.
+- SQLite and catch-up queries are authoritative. PubSub, subscriptions, Web Push, and IndexedDB are delivery/recovery
+  mechanisms, never committed-history authorities.
+- Scheduler handlers call public Backup or Push Notifications services. Scheduler and release adapters never access
+  backup or family-chat tables directly.
 
 ## Directory Map
 
-- [`assets/`](assets/README.md) — nine lo-fi and three selected hi-fi responsive design artifacts.
-- [`brd.md`](brd.md) — business need, outcomes, rules, risks, and success measures.
-- [`delivery.md`](delivery.md) — execution-grade checklist for a cold junior executor.
-- [`learnings.md`](learnings.md) — dated discoveries, evidence summaries, and execution deviations.
-- [`prd.md`](prd.md) — user stories, observable acceptance scenarios, constraints, and non-goals.
-- [`tech-docs/`](tech-docs/README.md) — ordered architecture, data, behavior, UI, and operations contracts.
+- [`assets/`](assets/README.md) — responsive design artifacts.
+- [`brd.md`](brd.md) — business need, outcomes, rules, risks, and measures.
+- [`delivery.md`](delivery.md) — ordered TDD, release, evidence, recovery, and cleanup checklist.
+- [`learnings.md`](learnings.md) — planning decisions and execution log.
+- [`prd.md`](prd.md) — user stories, acceptance scenarios, constraints, and non-goals.
+- [`tech-docs/`](tech-docs/README.md) — ordered technical contracts.

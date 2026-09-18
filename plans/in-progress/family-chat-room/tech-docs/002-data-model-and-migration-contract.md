@@ -4,90 +4,95 @@
 
 ```mermaid
 erDiagram
-    FAMILY_CHAT_CHANNELS ||--o{ FAMILY_CHAT_MESSAGES : contains
-    FAMILY_CHAT_MESSAGES ||--o{ FAMILY_CHAT_PUSH_DELIVERIES : creates
-    WEB_PUSH_SUBSCRIPTIONS ||--o{ FAMILY_CHAT_PUSH_DELIVERIES : targets
+    FAMILY_CHAT_ROOMS ||--o{ FAMILY_CHAT_MESSAGES : contains
+    FAMILY_CHAT_MESSAGES ||--o{ PUSH_DELIVERIES : creates
+    PUSH_SUBSCRIPTIONS ||--o{ PUSH_DELIVERIES : targets
 
-    FAMILY_CHAT_CHANNELS {
+    FAMILY_CHAT_ROOMS {
         integer id PK
         text slug UK
         text name
-        text created_at
-        text created_by
-        text updated_at
-        text updated_by
-        text deleted_at
-        text deleted_by
+        text room_kind
+        integer member_posting_enabled
     }
     FAMILY_CHAT_MESSAGES {
         integer id PK
-        integer channel_id FK
-        text author_user_id
-        text author_display_name
-        text client_message_id
+        integer room_id FK
+        text sender_kind
+        text sender_id
+        text sender_display_name
+        text idempotency_key
         text body
-        text created_at
-        text created_by
+        text committed_at
     }
-    WEB_PUSH_SUBSCRIPTIONS {
+    PUSH_SUBSCRIPTIONS {
         integer id PK
         text user_id
         text session_digest
         text endpoint_sha256 UK
-        text endpoint
-        text p256dh
-        text auth_secret
-        text expiration_time
-        text created_at
-        text created_by
-        text updated_at
-        text updated_by
-        text deleted_at
-        text deleted_by
     }
-    FAMILY_CHAT_PUSH_DELIVERIES {
+    PUSH_DELIVERIES {
         integer id PK
         integer message_id FK
         integer subscription_id FK
         text state
         integer attempt_count
-        text next_attempt_at
-        text lease_expires_at
-        text failure_category
-        text provider_accepted_at
-        text created_at
-        text created_by
-        text updated_at
-        text updated_by
         text deleted_at
-        text deleted_by
     }
 ```
 
-## Migration Identity
+## Migration and Seed
 
-Create `apps/bnest-app/priv/sqlite_repo/migrations/20260918000000_add_family_chat.exs`. It is additive and safe while
-the prior release continues serving. Its `up/0` creates all four tables, indexes, immutable-message triggers, and the
-`main` seed in one migration transaction.
+The authoring audit inspected the live migration inventory and locked the currently unused additive migration path
+`20260918000000_add_family_chat.exs`. Before creation, execution rechecks current `origin/main`; if that timestamp has
+since collided, it records a File Impact deviation and selects the next valid timestamp before any migration edit. The
+migration creates `family_chat_rooms`, `family_chat_messages`, `web_push_subscriptions`, and
+`family_chat_push_deliveries`, their indexes and immutable-message triggers, plus the disabled retention schedule seed.
 
-The seed is deterministic:
+The canonical room seed is exact:
 
-- `id = 1`
-- `slug = "main"`
-- `name = "Main"`
-- audit actor `system:migration`
-- the migration's one UTC timestamp is used for both created and updated values
+| Field                    | Value              |
+| ------------------------ | ------------------ |
+| `id`                     | `1`                |
+| `slug`                   | `ruang-keluarga`   |
+| `name`                   | `Ruang Keluarga`   |
+| `room_kind`              | `conversation`     |
+| `member_posting_enabled` | `1`                |
+| audit actor              | `system:migration` |
 
-`INSERT OR IGNORE` is allowed only with a following exact-value verification. An existing row with ID or slug collision
-but different content fails migration verification.
+The retention schedule seed is disabled during mixed-version overlap. The existing
+`prod-sqlite-backup-daily` row is not replaced and no chat-only backup row is created. After compatible code is active,
+the public Scheduler service reconciles both fresh and existing backup schedules to `daily_at_utc = 18:00` once. Later
+operator changes remain valid and are not overwritten by ordinary startup.
 
-## Exact Schema Contract
+The exact retention seed is:
+
+| Field              | Value                              |
+| ------------------ | ---------------------------------- |
+| `schedule_key`     | `family-chat-push-retention-daily` |
+| `handler_key`      | `family_chat_push_retention`       |
+| `schedule_context` | `admin_system`                     |
+| `cadence`          | `daily`                            |
+| `daily_at_utc`     | `17:15` (00:15 WIB)                |
+| `enabled`          | `0` until compatible-slot drain    |
+| expiration         | `never`                            |
+| `revision`         | `1`                                |
+
+`INSERT OR IGNORE` is permitted only when followed by exact-value verification. A colliding room or retention schedule
+with different immutable identity fails migration verification. Runtime verification allows only Scheduler-owned
+lifecycle fields to differ. The backup-time migration is an explicit release reconciliation tied to this compatibility
+revision, not a startup loop: it force-updates `prod-sqlite-backup-daily` once through Scheduler, records the resulting
+revision in sanitized release evidence, and never reapplies after an operator later edits the schedule.
+
+## Schema Contract
 
 ```sql
-CREATE TABLE family_chat_channels (
+CREATE TABLE family_chat_rooms (
   id INTEGER PRIMARY KEY,
   slug TEXT NOT NULL,
   name TEXT NOT NULL,
+  room_kind TEXT NOT NULL CHECK (room_kind IN ('conversation')),
+  member_posting_enabled INTEGER NOT NULL CHECK (member_posting_enabled IN (0, 1)),
   created_at TEXT NOT NULL,
   created_by TEXT NOT NULL,
   updated_at TEXT NOT NULL,
@@ -99,27 +104,28 @@ CREATE TABLE family_chat_channels (
   CHECK ((deleted_at IS NULL) = (deleted_by IS NULL))
 );
 
-CREATE UNIQUE INDEX family_chat_channels_active_slug
-  ON family_chat_channels(slug) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX family_chat_rooms_active_slug
+  ON family_chat_rooms(slug) WHERE deleted_at IS NULL;
 
 CREATE TABLE family_chat_messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  channel_id INTEGER NOT NULL REFERENCES family_chat_channels(id),
-  author_user_id TEXT NOT NULL,
-  author_display_name TEXT NOT NULL,
-  client_message_id TEXT NOT NULL,
+  room_id INTEGER NOT NULL REFERENCES family_chat_rooms(id),
+  sender_kind TEXT NOT NULL CHECK (sender_kind IN ('user', 'system')),
+  sender_id TEXT NOT NULL,
+  sender_display_name TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL,
   body TEXT NOT NULL,
-  created_at TEXT NOT NULL,
+  committed_at TEXT NOT NULL,
   created_by TEXT NOT NULL,
-  UNIQUE(author_user_id, client_message_id),
-  CHECK (length(author_user_id) BETWEEN 1 AND 128),
-  CHECK (length(author_display_name) BETWEEN 1 AND 32),
-  CHECK (length(client_message_id) BETWEEN 1 AND 64),
+  UNIQUE(room_id, sender_kind, sender_id, idempotency_key),
+  CHECK (length(sender_id) BETWEEN 1 AND 128),
+  CHECK (length(sender_display_name) BETWEEN 1 AND 80),
+  CHECK (length(idempotency_key) BETWEEN 1 AND 128),
   CHECK (length(CAST(body AS BLOB)) BETWEEN 1 AND 16384)
 );
 
-CREATE INDEX family_chat_messages_channel_id
-  ON family_chat_messages(channel_id, id DESC);
+CREATE INDEX family_chat_messages_room_id
+  ON family_chat_messages(room_id, id DESC);
 
 CREATE TRIGGER family_chat_messages_no_update
 BEFORE UPDATE ON family_chat_messages
@@ -176,6 +182,7 @@ CREATE TABLE family_chat_push_deliveries (
   deleted_by TEXT,
   UNIQUE(message_id, subscription_id),
   CHECK ((deleted_at IS NULL) = (deleted_by IS NULL)),
+  CHECK (deleted_at IS NULL OR state IN ('delivered','terminal')),
   CHECK ((state = 'claimed') = (lease_expires_at IS NOT NULL)),
   CHECK (state IN ('pending','retryable') OR next_attempt_at IS NULL)
 );
@@ -183,117 +190,136 @@ CREATE TABLE family_chat_push_deliveries (
 CREATE INDEX family_chat_push_deliveries_due
   ON family_chat_push_deliveries(state, next_attempt_at, lease_expires_at, id)
   WHERE deleted_at IS NULL;
+
+CREATE INDEX family_chat_push_deliveries_retention
+  ON family_chat_push_deliveries(updated_at, id)
+  WHERE deleted_at IS NULL AND state IN ('delivered','terminal');
+
+CREATE INDEX family_chat_push_deliveries_purge
+  ON family_chat_push_deliveries(deleted_at, id)
+  WHERE deleted_at IS NOT NULL;
 ```
 
-The application additionally enforces trimmed non-empty text and a 4,000-grapheme limit before the byte-level database
-constraint. SQLite cannot express Unicode grapheme length truthfully.
+Immutable triggers reject message update/delete. Messages are append-only event records and are exempt from mutable-row
+update/delete audit columns; `created_by` records `user:<stable-id>` or `system:<stable-id>`. Room, subscription, and
+delivery tables carry the repository's full audit columns. The existing push subscription and delivery constraints from
+the earlier plan remain, including unique message/subscription fan-out, leases, attempt ceiling, soft deletion, and
+retention indexes.
 
-## Field Guide
+## Field Semantics
 
-### `family_chat_channels`
+- `room_id` is always resolved from an authorized slug; v1 uses ID 1 but callers never hard-code it as authorization.
+- `sender_kind` distinguishes current authenticated users from internal trusted producers.
+- `sender_id` is a stable server-side account or producer identifier, never browser-selected.
+- `sender_display_name` is an immutable display snapshot.
+- `idempotency_key` is the browser's `clientMessageId` for users and a producer-owned stable key for system messages.
+- `committed_at` is the UTC commit time. Integer `id` remains the only ordering and cursor authority.
 
-- `id`: stable integer primary key referenced by messages; `1` is reserved for `main`.
-- `slug`: URL-safe lower-case product identity; unique only among active rows.
-- `name`: user-visible channel name.
-- audit columns: complete mutable-row history under the repository audit convention. V1 does not expose mutation.
+## Send Transactions
 
-### `family_chat_messages`
+### User message
 
-- `id`: authoritative server ordering and pagination cursor. Client clocks never order messages.
-- `channel_id`: required channel owner.
-- `author_user_id`: authenticated account identifier captured by the server.
-- `author_display_name`: immutable display snapshot so history remains intelligible if account presentation changes.
-- `client_message_id`: browser-generated UUID retained through one submission/reconnect; unique per author.
-- `body`: UTF-8 plain text after CRLF-to-LF normalization; never rendered as HTML or Markdown.
-- `created_at`: second-precision ISO-8601 UTC commit time.
-- `created_by`: `user:<author_user_id>`.
+1. Resolve and authorize the active room.
+2. Validate posting enabled, normalized text, 4,000 graphemes, 16 KiB, and UUID shape.
+3. Look up `(room_id, 'user', current_user_id, client_message_id)`.
+4. Return the existing row unchanged when found, even if the retried body differs.
+5. Otherwise insert the message and one delivery row for each active non-sender subscription in one transaction.
+6. Commit, return, then publish the subscription event.
 
-Messages are an append-only log and therefore exempt from `updated_*` and `deleted_*`. The migration states the exemption
-and enforces it with update/delete triggers. Correction requires a future compensating-message design, not mutation.
+### System message
 
-### `web_push_subscriptions`
+`post_system_message/…` performs the same transaction with a stable internal producer identity and idempotency key. It
+does not accept a browser session and is not reachable from GraphQL. Recipient selection includes every active user
+subscription because a system sender has no user-owned device.
 
-- `user_id`: current authenticated owner; never accepted from the browser.
-- `session_digest`: SHA-256 digest of the owning opaque browser session. Logout soft-deactivates only bindings for this
-  session, preserving independent devices and browser sessions.
-- `endpoint_sha256`: lower-case SHA-256 identity used for uniqueness and safe comparison; it may appear only where values
-  remain private, never in committed evidence.
-- `endpoint`: secret capability URL supplied by `PushSubscription`.
-- `p256dh` and `auth_secret`: Web Push encryption material; secret and value-redacted everywhere outside SQLite.
-- `expiration_time`: nullable browser-supplied ISO-8601 UTC time after validated conversion from epoch milliseconds.
-- audit columns: create/update/soft-delete actor and time. User actions use `user:<id>`; provider retirement uses
-  `system:web-push`.
+### Subscription upsert and disable
 
-### `family_chat_push_deliveries`
+- Parse and validate the complete endpoint/key input before opening a transaction. Derive `user_id`, `session_digest`,
+  endpoint digest, and audit actor server-side.
+- In one transaction, soft-deactivate any other active binding for `(user_id, session_digest)`, then insert/reactivate the
+  validated endpoint for that pair. Endpoint ownership moving between users is explicit rebind behavior after the old
+  session is disabled; it is never inferred from a user ID in input.
+- Disable selects only `(current_user_id, current_session_digest)`, sets both deletion audit fields, and returns disabled
+  even when already disabled.
+- Logout completes server deactivation before identity revocation. If deactivation fails, the authenticated session
+  remains so the user can retry; partial logout is not reported as success.
 
-- `message_id` and `subscription_id`: immutable fan-out identity; the unique pair prevents duplicate jobs.
-- `state`: lifecycle from pending/claimed to delivered or terminal.
-- `attempt_count`: increments atomically when a lease is acquired, never when a row is merely scanned.
-- `next_attempt_at`: next eligible UTC time for pending/retryable rows, calculated by adding the next fixed wait to the
-  recorded failure time; the waits are not absolute offsets from message creation.
-- `lease_expires_at`: bounded ownership for a claimed row; another slot may recover only after expiry.
-- `failure_category`: allowlisted value such as `network`, `rate_limited`, `provider_5xx`, `gone`, `provider_4xx`,
-  `attempt_limit`, or `age_limit`; never response bodies.
-- `provider_accepted_at`: set only for provider `2xx`.
-- audit columns: created by the message actor, updated by `system:web-push`. V1 retains terminal rows; deletion is not part
-  of this plan.
+### Delivery claim and transition
 
-## Transaction Contracts
+An immediate transaction selects the oldest due `pending`/`retryable` row or an expired `claimed` row, conditionally
+updates it to `claimed`, increments `attempt_count`, sets a two-minute lease, clears `next_attempt_at`, and returns work
+only when one row changed. Completion compares delivery ID, attempt number, and `claimed` state so a stale task cannot
+overwrite a recovered attempt. Provider `2xx` becomes `delivered`; `404/410`, redirects, and terminal `4xx` become
+`terminal`; retryable classes set the next fixed push time unless the five-attempt or one-hour ceiling is reached.
 
-### Send
+## IndexedDB Outbox
 
-1. Begin one SQLite transaction.
-2. Resolve active `main`; reject missing or ambiguous seed.
-3. Look up `(author_user_id, client_message_id)`.
-4. If present, return the existing row without creating new deliveries.
-5. Otherwise insert the message, select all active non-sender subscriptions, and insert one pending delivery per row.
-6. Commit; only then return and broadcast.
+Database name and schema version are code-owned. One record contains only:
 
-Any failure rolls back both message and deliveries. Zero target subscriptions is a successful message transaction.
+- stable user namespace hash, room slug, client message UUID, normalized body;
+- created time, next-attempt time, attempt number, and current local status;
+- last safe error category, never a server body, cookie, token, or endpoint.
 
-### Subscribe, disable, and logout
+The primary key is `(user_namespace, room_slug, client_message_id)` and an index orders
+`(user_namespace, room_slug, created_at, client_message_id)` for FIFO. A transaction counts the namespace before insert
+and refuses record 101. Acknowledgement deletes exactly that record. Logout deletes the current user namespace. Records
+older than seven elapsed days become manual-only; they are not silently deleted or automatically retried.
 
-- Enabling performs one transaction after pure validation: enforce the code-owned provider policy, soft-deactivate any
-  other active binding for `(user_id, session_digest)`, then insert or reactivate the submitted endpoint for that same
-  server-owned pair.
-- **Turn off** soft-deactivates all active rows for `(user_id, session_digest)`; it accepts no browser-owned user/session
-  selector.
-- Logout computes the digest from the presented opaque token and completes the same session deactivation before calling
-  identity revocation and clearing either cookie. If deactivation fails, the request returns a generic retry state and
-  preserves the authenticated session. This ordering is the cross-store fail-closed boundary.
+Committed messages, room lists, subscriptions, and GraphQL responses are never stored in IndexedDB or Cache Storage.
 
-### Claim
+The first schema version uses one object store, `pendingMessages`, with key path
+`[userNamespace, roomSlug, clientMessageId]`. Indexes are `byUserRoomCreated` on
+`[userNamespace, roomSlug, createdAt, clientMessageId]` and `byUser` on `userNamespace`. Times are UTC epoch
+milliseconds from an injected clock. Status values on disk are `waiting`, `retrying`, `failed`, or `expired`; `sending`
+is reconstructed as in-memory lease state after startup so a killed tab resumes safely rather than believing a request
+is still in flight. `sent` is presentation-only after acknowledgement and is never a durable queue state.
 
-Within one immediate transaction, select the oldest due or expired-claimed row and conditionally update it to `claimed`,
-increment `attempt_count`, set a bounded lease, clear `next_attempt_at`, and set `updated_by = 'system:web-push'`. Return
-work only when one row changed. Concurrent slots repeat until no row is claimable.
+The user namespace is derived from a stable, non-secret server-issued account discriminator embedded in the authenticated
+shell; it is not the cookie, token, display name, or reversible serialization of private identity. Database open/upgrade
+is blocked until identity is known. An unknown schema version fails closed and leaves the composer draft unsent.
 
-### Complete or fail
+## Delivery Retention
 
-Only the matching delivery ID, attempt number, and `claimed` state may transition. A stale task records nothing. Provider
-`2xx` becomes delivered; `404/410` becomes terminal and soft-deactivates the subscription in the same transaction; other
-terminal `4xx` becomes terminal; retryable failures receive the next fixed wait unless attempts or age reached the
-ceiling.
+Final `delivered` and `terminal` rows remain active for seven elapsed days from completion, then are soft-deleted in
+ascending-ID batches. Rows soft-deleted for seven more days are purged. `pending`, `claimed`, and `retryable` rows are
+reported by aggregate category but never age-purged. The public Push Notifications service fixes cutoffs once per run;
+the Scheduler handler contains no family-chat SQL.
+
+Each retention run fixes `active_cutoff` and `purge_cutoff` from one injected UTC instant. It processes ascending IDs in
+batches of at most 250 and one short immediate transaction per batch. A batch smaller than 250 terminates the stage;
+new concurrent rows cannot enter the fixed eligible set. The result returns only aggregate `soft_deleted`, `purged`, and
+`stale_nonfinal` counts. Repeating after scheduler retry is idempotent.
+
+## Disk Model
+
+Assumptions: 200 messages/day, 1 KiB average body, 2 KiB effective message-plus-index cost, eight devices, seven
+recipient delivery rows per message, 1 KiB per delivery row, and a 14-day delivery footprint.
+
+| Horizon             |        Live chat increment |          Seven backups |                 Peak during snapshot |
+| ------------------- | -------------------------: | ---------------------: | -----------------------------------: |
+| Year 1              |     approximately 0.17 GiB |  approximately 1.2 GiB | approximately 1.8 GiB; reserve 2 GiB |
+| Year 3              |     approximately 0.45 GiB |  approximately 3.2 GiB | approximately 4.3 GiB; reserve 5 GiB |
+| Stress at 2,000/day | approximately 3.8 GiB/year | approximately 26.6 GiB | approximately 34 GiB; reserve 36 GiB |
+
+These are chat-only increments. If the current database is `B0`, the same-volume peak is estimated as
+`9 × (B0 + chat_live) + WAL + 256 MiB`: live database, seven retained snapshots, one in-progress snapshot, WAL, and fixed
+headroom. Release records actual file bytes, page count, page size, WAL bytes, destination capacity, and the derived
+guard before backup. A failed guard stops before `VACUUM INTO`.
 
 ## Expand, Verify, and Rollback
 
-### Expand
+- **Expand:** additive tables, indexes, triggers, exact room seed, disabled retention seed, GraphQL/schema/socket, and
+  dormant UI. The prior release ignores all new objects.
+- **Verify:** exact objects and seed; foreign keys; idempotent user/system insert; pagination; retention; isolated restart;
+  `PRAGMA quick_check`; whole-backup restore; and no production data access.
+- **Rollback:** application rollback retains additive tables and messages. Before code without a new handler can claim,
+  disable that schedule through Scheduler. Destructive down migration refuses after any feature row exists.
 
-- Add tables, indexes, triggers, and seed without changing an existing table or reader.
-- Generalize release migration orchestration so all DDL runs once under the existing exclusive storage lock, then each
-  feature verifier checks its exact objects and seed.
-- The old release remains compatible because it neither references nor writes these tables.
+## Restore Proof
 
-### Verify
-
-- Check the migration version, all object names, trigger SQL presence, foreign-key enforcement, partial indexes, and exact
-  `main` seed.
-- Open a fresh application process on an isolated migrated database, make any flat source unavailable, and exercise
-  message insert, pagination, subscription, outbox claim, retry, restart, and read-back through normal boundaries.
-- Run `PRAGMA quick_check` and an isolated backup/restore read suite; do not rely on row counts alone.
-
-### Rollback and contraction
-
-Application rollback to the prior compatible release is allowed because the schema is additive. The migration `down/0`
-must refuse if any message, subscription, or delivery exists; an empty test-only schema may reverse in foreign-key-safe
-order. Production table or message deletion is out of scope and requires a separately authorized contraction plan.
+Restore never opens the live database. Copy the verified artifact into an isolated marked root, open it with a fresh
+application process, run `PRAGMA quick_check`, verify schema migration versions and exact room seed, then read structural
+examples through Family Chat, Push Notifications, and Scheduler service interfaces. Evidence may record counts, IDs from
+synthetic fixtures, state categories, checksums, and schedule time; it must not record message body, endpoint, key,
+session digest, private path, or production user information. Cleanup removes only the marked restore root and fails the
+gate if any owned file remains.

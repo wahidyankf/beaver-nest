@@ -5,17 +5,19 @@ origin, notification endpoint, key, cookie, path, or household content.
 
 ## Lo-fi Alternatives
 
-- `ui-hearth-lofi-{desktop,tablet,mobile}.svg` — selected focused conversation frame.
+- `ui-hearth-lofi-{desktop,tablet,mobile}.svg` — selected focused room frame with offline/delivery-state annotations.
 - `ui-channel-rail-lofi-{desktop,tablet,mobile}.svg` — rejected always-visible future channel navigation.
 - `ui-message-ledger-lofi-{desktop,tablet,mobile}.svg` — rejected dense row-oriented history.
 
 ## Selected Hi-fi
 
-- `ui-hearth-hifi-{desktop,tablet,mobile}.svg` — selected Beaver Nest visual direction using canonical ink, paper, canvas,
-  sun, coral, and lagoon tokens.
+- `ui-hearth-hifi-{desktop,tablet,mobile}.svg` — selected Beaver Nest **Ruang Keluarga** direction using canonical ink,
+  paper, canvas, sun, coral, and lagoon tokens. Across the set they show the offline banner and the complete Waiting,
+  Sending, Retrying, Sent, and Couldn't-send state family.
 
-Every SVG has a unique accessible title and description. The plan's [UI Design](../tech-docs/005-ui-design.md) embeds all
-twelve assets, records the comparison, and owns the selection rationale.
+Every SVG has a unique accessible title and description. The plan's [UI Design](../tech-docs/005-ui-design.md) embeds the
+selected responsive set, records all three alternatives, and owns the selection rationale. Rejected rail/ledger assets
+retain historical channel-oriented copy because they document alternatives that were not selected.
 
 ## Directory Map
 

@@ -2,195 +2,147 @@
 
 ## User and Job
 
-The user is an authenticated family member, including children. Their primary job is to enter one shared room, recognize
-who said what, read the newest conversation, write a short message, and move upward for older context. Notification setup
-is secondary and must not dominate the conversation.
+An authenticated family member, including a child, opens **Ruang Keluarga**, recognizes who said what, sends a short
+message, understands whether it has reached the server, and moves upward for history. Notification setup is secondary.
 
-The visual language remains Beaver Nest's playful workshop: firm ink outlines, paper surfaces, lagoon framing, one sun
-action color, and coral reserved for attention. The design avoids both a corporate Slack clone and a copy of the Codex
-chat, whose model and repository controls do not belong here.
+The selected visual language remains Beaver Nest's warm workshop: ink outlines, paper surfaces, lagoon framing, sun for
+primary actions, and coral for attention. It avoids both a workplace-chat clone and the controls of the existing Codex
+chat.
 
-## Real Product Copy
+## Product Copy
 
-- Home entry: **Family chat** / **Talk with everyone at home**
-- Page title: **Family chat**
-- Channel label: **Main**
-- Empty state: **Start the family conversation.** / **Messages from everyone at home will appear here.**
-- Composer label: **Message the family**
-- Placeholder: **Write a message**
-- Primary action: **Send**
-- History terminal: **Beginning of family chat**
-- Live arrival control: **New messages below**
-- Notification actions: **Enable notifications**, **Notifications on**, **Turn off**
+- Home: **Family chat** / **Talk with everyone at home**
+- Page and room: **Family chat** / **Ruang Keluarga**
+- Empty: **Start the family conversation.** / **Messages from everyone at home will appear here.**
+- Offline banner: **You’re offline. Messages will send when you reconnect.**
+- Composer: **Message the family** / **Write a message** / **Send**
+- Local delivery: **Waiting for connection**, **Sending**, **Retrying in …**, **Sent**, **Couldn’t send**
+- History: **Beginning of family chat**, **Load older messages**, **New messages below**
+- Terminal action: **Retry** / **Discard**
 - Validation: **Write a message first.** / **Keep messages under 4,000 characters.**
-- Storage error: **Your message was not saved. Keep it here and try again.**
 
-## Design Tokens
+## Selected Direction
 
-| Token    | Value     | Use                                       |
-| -------- | --------- | ----------------------------------------- |
-| Ink      | `#153f42` | Text, outlines, own-message surface       |
-| Soft ink | `#205c5d` | Secondary text and timestamps             |
-| Canvas   | `#d8f1ec` | Page field                                |
-| Paper    | `#fff9ed` | Conversation and incoming-message surface |
-| Sun      | `#f7b84b` | Send and new-message actions              |
-| Coral    | `#e5633d` | Focus and notification attention          |
-| Lagoon   | `#80c5b8` | Composer and structural separation        |
-
-Typography reuses `--bnest-display` for the page/channel identity and `--bnest-body` for messages and controls. Message
-measure remains below 70 characters on wide screens. Body size never falls below 1rem; metadata never falls below
-0.78rem. Existing asymmetric radii identify speech without adding decorative avatars.
-
-## Lo-fi Alternatives
-
-### Alternative A — Family hearth (selected)
-
-One centered conversation panel treats the transcript as the room itself. The compact header contains home identity,
-`Main`, and notification status. Messages occupy the flexible middle; the composer anchors the bottom. Desktop preserves
-a generous canvas, while mobile becomes edge-to-edge.
+**Family hearth** remains selected: one centered conversation panel, compact room identity, notification control,
+chronological message area, and anchored composer. The previous channel-rail alternative is rejected because v1 has no
+switcher; the message-ledger alternative is rejected because its dense metadata works against a child-friendly room.
 
 ```text
-+----------------------------------+
-| Beaver Nest   Main   Notify      |
-|----------------------------------|
-|          older messages          |
-| Sam  Dinner is ready             |
-|                  Great, coming!  |
-|----------------------------------|
-| Message the family        Send   |
-+----------------------------------+
++--------------------------------------+
+| Family chat        Enable alerts     |
+| Ruang Keluarga                       |
+| You’re offline. Messages will send…  |
+| Sam  Dinner is ready                 |
+|                    On my way!        |
+|                    Retrying in 4s    |
+|--------------------------------------|
+| Message the family             Send  |
++--------------------------------------+
 ```
 
-![Family hearth lo-fi desktop](../assets/ui-hearth-lofi-desktop.svg)
-![Family hearth lo-fi tablet](../assets/ui-hearth-lofi-tablet.svg)
-![Family hearth lo-fi mobile](../assets/ui-hearth-lofi-mobile.svg)
+![Family hearth desktop with room and delivery states](../assets/ui-hearth-hifi-desktop.svg)
+![Family hearth tablet with room and delivery states](../assets/ui-hearth-hifi-tablet.svg)
+![Family hearth mobile with room and delivery states](../assets/ui-hearth-hifi-mobile.svg)
 
-### Alternative B — Channel rail (not selected)
+The nine lo-fi artifacts remain planning evidence for the original alternatives. Their labels are updated from channel
+to room where they describe the selected product; rejected channel-rail artifacts remain explicitly historical.
 
-A left rail reserves visible space for channels even though only `Main` exists. It communicates future direction but
-creates an empty navigation promise, shrinks the conversation on tablets, and adds a mobile drawer without current value.
+## Status Presentation
 
-```text
-+-----------+----------------------+
-| Channels  | Main                 |
-| # Main    | messages             |
-|           |                      |
-|           | composer             |
-+-----------+----------------------+
-```
+- Pending local messages are visually distinct but occupy the same chronological surface near the composer.
+- A pending row keys by client message UUID. On acknowledgement it is replaced/merged with the server ID, never appended
+  as a second bubble.
+- **Waiting for connection** accompanies offline persistence.
+- **Sending** appears only while a request is in flight.
+- **Retrying in …** exposes the next eligible retry without promising network availability.
+- **Sent** confirms acknowledgement and may fade after a short interval.
+- **Couldn’t send** persists with Retry and Discard; expiry and terminal GraphQL errors explain why automatic retry ended.
+- The offline banner reflects observed connectivity but does not override request failures or claim successful delivery.
 
-![Channel rail lo-fi desktop](../assets/ui-channel-rail-lofi-desktop.svg)
-![Channel rail lo-fi tablet](../assets/ui-channel-rail-lofi-tablet.svg)
-![Channel rail lo-fi mobile](../assets/ui-channel-rail-lofi-mobile.svg)
+### UI state matrix
 
-### Alternative C — Message ledger (not selected)
+| Room state            | Transcript                                                | Composer                             | Status/action                             |
+| --------------------- | --------------------------------------------------------- | ------------------------------------ | ----------------------------------------- |
+| Booting               | Stable empty frame with loading status                    | Disabled until identity/outbox ready | Polite **Loading family chat**            |
+| Online and empty      | Invitation copy                                           | Enabled                              | No fake messages                          |
+| Online and populated  | Latest committed page                                     | Enabled                              | Per-message committed metadata            |
+| Offline               | Existing in-memory committed rows plus local pending rows | Enabled while queue <100             | Persistent offline banner                 |
+| IndexedDB unavailable | Existing committed rows                                   | Draft retained; send disabled        | Alert explains local storage failure      |
+| Queue full            | Existing plus 100 pending rows                            | Draft retained; new send disabled    | Retry/discard guidance                    |
+| Reconnecting          | Existing rows remain                                      | New intent may queue                 | One reconnect status; no transcript reset |
+| Catching up           | Merge later committed IDs                                 | Drain paused                         | Polite catch-up status                    |
+| Auth expired          | Existing screen is obscured/redirected per auth policy    | Disabled                             | Queue paused; login required              |
+| Terminal send         | Failed local row remains                                  | Enabled if capacity permits          | **Couldn't send**, Retry, Discard         |
+| Expired send          | Expired local row remains                                 | Enabled if capacity permits          | Manual retry/discard and age explanation  |
 
-A dense full-width ledger aligns sender, timestamp, and body in rows. It is efficient for scanning long history but feels
-administrative, makes short family conversation less conversational, and performs poorly for child users and narrow
-screens.
-
-```text
-+----------------------------------+
-| Main                     Notify  |
-| 18:03 Sam  Dinner is ready       |
-| 18:04 Mia  Great, coming!        |
-|----------------------------------|
-| Write a message           Send   |
-+----------------------------------+
-```
-
-![Message ledger lo-fi desktop](../assets/ui-message-ledger-lofi-desktop.svg)
-![Message ledger lo-fi tablet](../assets/ui-message-ledger-lofi-tablet.svg)
-![Message ledger lo-fi mobile](../assets/ui-message-ledger-lofi-mobile.svg)
-
-## Comparison and Selection
-
-| Dimension           | Family hearth                      | Channel rail                     | Message ledger                      |
-| ------------------- | ---------------------------------- | -------------------------------- | ----------------------------------- |
-| One-channel clarity | Strong; only real controls appear  | Weak; empty future navigation    | Strong                              |
-| Child usability     | Familiar conversation rhythm       | Extra navigation concept         | Dense metadata-first rows           |
-| Future channels     | Header can gain a switcher later   | Already visible                  | Requires later navigation           |
-| Mobile              | Natural edge-to-edge panel         | Drawer or wasted space           | Sender/body columns collapse poorly |
-| Accessibility       | Simple landmarks and reading order | Drawer focus management required | Repetitive row metadata             |
-| Implementation cost | Lowest honest v1                   | Highest                          | Medium                              |
-| Product fit         | Warm family room                   | Workplace tool                   | Audit/history tool                  |
-
-**Selected: Family hearth.** Its one memorable element is the strong conversation frame; the rest stays quiet. It does
-not spend v1 complexity on a fictional channel list. The `Main` identity remains explicit, so a later channel switcher
-can replace the static label without changing the timeline.
-
-## Selected Hi-fi Direction
-
-![Selected Family hearth hi-fi desktop](../assets/ui-hearth-hifi-desktop.svg)
-![Selected Family hearth hi-fi tablet](../assets/ui-hearth-hifi-tablet.svg)
-![Selected Family hearth hi-fi mobile](../assets/ui-hearth-hifi-mobile.svg)
+The UI never renders an optimistic row that cannot first be persisted. Local rows use their UUID as DOM identity and a
+`data-delivery-state` value; committed rows use server ID. On acknowledgement, reconciliation replaces the local identity
+without visual duplication and preserves its chronological local position until the authoritative order merge completes.
 
 ## Responsive Behavior
 
 ### Desktop — 1280×800 and wider
 
-- Center one panel at a maximum width of 48rem and a minimum useful height of `calc(100vh - 4rem)`.
-- Keep header identity/channel on the left and notification control on the right.
-- Limit bubbles to 78% of the transcript width and preserve readable measure.
-- Composer uses a flexible textarea plus fixed Send button.
+Center one panel at maximum 48rem. Header identity and notification control share a row. The offline banner sits below
+the header. Message bubbles stay below 78% width; status text aligns with its bubble. Composer is textarea plus fixed
+button.
 
 ### Tablet — 768×1024
 
-- Use a panel within 1rem outer gutters; allow the notification control to wrap below identity.
-- Keep the composer two-column while 44×44 CSS-pixel target sizes remain possible.
-- Bubble maximum width increases to 84%.
+Use 1rem outer gutters. Notification control may wrap below identity. Banner and status text wrap without hiding action
+buttons. Composer remains two-column while 44×44 CSS-pixel targets fit.
 
 ### Mobile — 393×852 down to 320 CSS pixels
 
-- Remove outer border/radius and use the viewport as the room.
-- Keep a compact sticky header and sticky composer within safe-area insets.
-- Stack textarea and Send button only below 360 CSS pixels; otherwise retain the compact side action.
-- Bubble maximum width is 90%; timestamps and sender remain readable without horizontal scrolling.
+Use an edge-to-edge room, sticky compact header, banner, and safe-area composer. Below 360 CSS pixels, stack textarea and
+Send. Pending controls remain reachable without horizontal scrolling or covering **New messages below**.
 
-## States
+## Interaction
 
-- **Loading:** panel shell and composer frame remain stable; transcript announces loading without skeleton animation.
-- **Empty:** centered invitation plus available composer; no fake messages.
-- **Populated:** incoming messages align left with paper/ink outline; the current user's messages align right on ink.
-- **Loading older:** sentinel becomes a small progress status; existing rows remain interactive.
-- **Beginning:** static history terminal replaces the sentinel.
-- **New below:** sun-colored button floats immediately above the composer without covering messages.
-- **Validation error:** inline alert adjacent to the composer; draft and focus remain.
-- **Storage error:** explicit retry guidance, body and stable submission identity retained.
-- **Notifications unavailable/blocked/install-required:** compact explanatory panel opened from the notification control.
-- **Notifications enabled:** status text and Turn off action; never infer provider delivery success.
+- Desktop Enter sends; Shift+Enter inserts a newline; IME composition never sends.
+- Mobile relies on the visible Send button.
+- The browser persists to IndexedDB before issuing GraphQL. Failure to persist leaves the draft in the composer and sends
+  nothing.
+- A successful acknowledgement clears the local queue record and draft only for that UUID.
+- Reopening as the same user restores eligible pending rows. Logout removes them; another user never sees them.
+- History prepend preserves the reading anchor. New commits auto-follow only within 80 CSS pixels of the bottom.
+- Notification permission starts only from **Enable notifications**.
+- Reduced-motion removes nonessential entrances and status fades.
 
-## Interaction Details
+## Accessibility
 
-- Desktop Enter sends; Shift+Enter inserts a newline. IME composition never triggers send.
-- The Send button is always present and is the only assumed mobile submission mechanism.
-- Scroll-to-bottom occurs only when the user is already near the bottom or activates **New messages below**.
-- Prepending history preserves the first visible message and never moves focus.
-- A successful send clears the draft after the committed row is returned; errors retain it.
-- Notification permission is requested only from **Enable notifications**.
-- Non-user-triggered motion is limited to a short new-message-button entrance and is removed under reduced motion.
+- `<main>` contains a labelled room region, `role="log"` transcript, connection status, notification settings, and form.
+- Pending status belongs to its message via accessible description; color and alignment are supplementary.
+- Connectivity, queue, history, validation, and new-message updates use concise polite/alert semantics without stealing
+  focus. Historical catch-up rows are not announced as new conversation.
+- Focus order is home, notifications, history fallback, new-message control, queued-message actions, composer, Send.
+- Targets are at least 44×44 CSS pixels. Visible focus, contrast, 200% zoom, text enlargement, reduced motion, keyboard,
+  and screen-reader announcements are checked at all viewports.
 
-## Accessibility Contract
+The offline banner is a status, not an alert on every `online` hint. A first transition to offline is announced once;
+retry countdown ticks are not announced every second. Announce **Retrying soon** when the state starts and announce the
+result. **Couldn't send** is an alert tied to the affected message. Retry and Discard have accessible names that include a
+non-sensitive positional description, not the message body. Discard requires confirmation when it would irreversibly
+remove the only local copy.
 
-- `<main>` contains one labelled chat region, one transcript log, one notification-settings region, and one labelled form.
-- The transcript uses `role="log"`, `aria-live="polite"`, and `aria-relevant="additions"`; loaded historical rows are not
-  re-announced as new conversation.
-- Sender and timestamp are text, not color-only distinctions. Own/incoming alignment is supplemental.
-- Loading, validation, storage, notification, and new-message states use concise status or alert semantics.
-- Focus order is home link, notification control, history fallback when present, new-message control when present,
-  composer, Send.
-- Visible focus uses coral with sufficient offset against every surface.
-- Touch targets are at least 44×44 CSS pixels. Contrast, 200% zoom, forced text enlargement, reduced motion, and keyboard
-  operation are verified at all three viewport classes.
-- Theme behavior uses current Bnest tokens and is manually checked in both explicit light and dark modes.
+History loading uses a busy state on the history control, not the entire transcript. The log's accessible name includes
+**Ruang Keluarga**. Sender kind and display name are present as text; system messages include a visible **System** label.
+Timestamps use semantic `<time datetime="...">` with localized visible text.
 
-## Exact Implementation and Proof Paths
+## Visual Verification Matrix
 
-Implementation is centered in `apps/bnest-app/lib/bnest_app_web/live/family_chat_live.ex`,
-`apps/bnest-app/assets/js/family_chat.js`, and `apps/bnest-app/assets/css/app.css`. Browser behavior is specified in
-`specs/apps/bnest/app/behaviours/family_chat.feature` and bound through the existing Bnest unit/integration and
-`bnest-app-e2e` adapters. The complete path inventory is in
-[File Impact, Dependencies, and Operations](007-file-impact-dependencies-and-operations.md).
+Manual inspection covers empty, populated, offline, reconnecting, loading older, new-below, queue-full, retrying,
+terminal, expired, notification blocked/enabled, and long multiline/4,000-grapheme boundary states at 1280×800,
+768×1024, 393×852, 320 CSS-pixel width, and 200% zoom. It checks light/dark tokens, safe-area insets, software keyboard,
+long display names, system labels, no horizontal page scroll, message/status association, sticky header/composer, and
+that banners/actions do not obscure transcript content.
 
-Delivery requires automated assertions plus separate spec-aware exploratory and spec-blind usability passes at the exact
-served origin. Static SVGs, source inspection, and automated geometry checks do not replace manual inspection.
+## Implementation and Proof Paths
+
+The Phoenix shell route is implemented in `apps/bnest-app/lib/bnest_app_web/controllers/family_chat_controller.ex` and
+`apps/bnest-app/lib/bnest_app_web/controllers/family_chat_html/room.html.heex`. Browser behavior is owned by
+`apps/bnest-app/assets/js/family_chat/`; CSS remains in `apps/bnest-app/assets/css/app.css`.
+
+Frontend behavior lives under `specs/apps/bnest/app-fe/behaviours/` and receives Vitest unit bindings plus
+`bnest-app-fe-e2e` browser proof. Delivery also requires spec-aware exploratory and structurally spec-blind usability
+passes at the exact routed origin. Static SVGs and automated geometry do not replace manual inspection.
