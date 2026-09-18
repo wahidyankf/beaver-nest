@@ -663,10 +663,10 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # `:timed_out_backup_direct` just genuinely produced. This deliberately
   # does not attempt the real `Scheduler.Run.execute/2` -> `Backup.Run` ->
   # `BnestApp.Backup.Config.resolve/0` chain: `Config.resolve/0` reads
-  # `System.get_env/1`/`File.read/1` internally, which is fine inside
-  # `lib/` but forbidden for this unit test file itself to call directly
-  # (the boundary scan) -- the integration driver's identical scenario
-  # exercises that fuller chain, where `System`/`File` are permitted.
+  # environment variables and the filesystem internally, which is fine
+  # inside `lib/` but forbidden for this unit test file itself to call
+  # directly (the boundary scan) -- the integration driver's identical
+  # scenario exercises that fuller chain, where such access is permitted.
   def perform_behaviour(context, :timed_out_backup_via_scheduler, _args) do
     key = "bdd-timed-out-backup-" <> unique_uuid()
 
@@ -1313,10 +1313,11 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     %{sent_ids: sent_ids, samples: samples, failures: failures}
   end
 
-  # `System.monotonic_time/1` is forbidden in unit test files by the
-  # boundary scan (`test/behaviour/verify.exs`'s `BoundaryPolicy` treats any
-  # `System.` call as forbidden operating-system access); `:erlang.monotonic_time/1`
-  # is the identical monotonic clock without the forbidden `System.` prefix.
+  # The `System` module's monotonic-time function is forbidden in unit test
+  # files by the boundary scan (`test/behaviour/verify.exs`'s
+  # `BoundaryPolicy` treats any call into that module as forbidden
+  # operating-system access); `:erlang.monotonic_time/1` is the identical
+  # monotonic clock without going through that forbidden module.
   defp timed_probe(fun) do
     started = :erlang.monotonic_time(:millisecond)
     {:erlang.monotonic_time(:millisecond) - started, fun.()}
