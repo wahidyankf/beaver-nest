@@ -66,6 +66,22 @@
       <span class="chat-entry-arrow" aria-hidden="true">→</span>
     </a>
 
+    <a
+      :if={BnestAppWeb.UserAuth.family_chat_enabled?()}
+      href="/family-chat"
+      class="chat-entry"
+      data-role="family-chat-entry"
+    >
+      <span class="chat-entry-mark" aria-hidden="true">
+        <span>♥</span>
+      </span>
+      <span class="chat-entry-copy">
+        <strong>Family chat</strong>
+        <small>Talk with everyone at home</small>
+      </span>
+      <span class="chat-entry-arrow" aria-hidden="true">→</span>
+    </a>
+
     <div :if={"admin" in (@current_user["roles"] || [])} class="admin-home-actions">
       <a href="/admin/settings" class="chat-entry" data-role="admin-settings-entry">
         <span class="chat-entry-mark" aria-hidden="true"><span>⚙</span></span>

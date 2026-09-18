@@ -1784,3 +1784,342 @@ body {
     min-height: 10rem;
   }
 }
+
+/* Family chat (tech-doc 005 "Family hearth"): one centered conversation
+ * panel, capped at 48rem on desktop per the Responsive Behavior section. */
+
+.family-chat-shell {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 0.75rem;
+  max-width: 48rem;
+  min-height: 100vh;
+  margin-inline: auto;
+  padding: clamp(1rem, 3vw, 2rem);
+  /* Mobile safe-area composer/header (tech-doc 005): keeps content clear of
+   * notches/home indicators without affecting non-inset viewports, where
+   * every `env()` call resolves to 0. */
+  padding-inline: max(clamp(1rem, 3vw, 2rem), env(safe-area-inset-left))
+    max(clamp(1rem, 3vw, 2rem), env(safe-area-inset-right));
+  padding-bottom: max(clamp(1rem, 3vw, 2rem), env(safe-area-inset-bottom));
+  overflow-x: hidden;
+  background: var(--bnest-paper);
+}
+
+.family-chat-shell * {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.family-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.family-chat-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  color: var(--bnest-ink-soft);
+  text-decoration: none;
+}
+
+.family-chat-brand:focus-visible,
+.family-chat-load-older:focus-visible,
+.family-chat-new-messages:focus-visible,
+.family-chat-message-input:focus-visible,
+.family-chat-send:focus-visible,
+.family-chat-push-control:focus-visible,
+.family-chat-push-disable:focus-visible {
+  outline: 0.2rem solid var(--bnest-sun);
+  outline-offset: 0.15rem;
+}
+
+/* Push permission control (tech-doc 004's control-text table): a status/
+ * action button whose own text names the current state, plus a second
+ * "Turn off" action shown only while a subscription is active. */
+.family-chat-push {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-inline-start: auto;
+}
+
+.family-chat-push-control,
+.family-chat-push-disable {
+  min-height: 2.75rem;
+  border: none;
+  border-radius: var(--bnest-action-radius);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  background: var(--bnest-lagoon);
+  color: var(--bnest-ink);
+}
+
+.family-chat-push-control:disabled {
+  background: transparent;
+  color: var(--bnest-ink-soft);
+  cursor: default;
+}
+
+.family-chat-offline-banner {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--bnest-action-radius);
+  background: var(--bnest-error-surface);
+  color: var(--bnest-error);
+}
+
+.family-chat-history {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.family-chat-load-older {
+  align-self: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  border: none;
+  border-radius: var(--bnest-action-radius);
+  padding: 0.4rem 0.9rem;
+  background: var(--bnest-lagoon);
+  color: var(--bnest-ink);
+}
+
+/* Exhausted history ("Beginning of family chat", tech-doc 005): no more
+ * pages exist, so the control stops looking actionable. */
+.family-chat-load-older:disabled {
+  background: transparent;
+  color: var(--bnest-ink-soft);
+  cursor: default;
+}
+
+.family-chat-empty {
+  margin: 1rem 0;
+  text-align: center;
+  color: var(--bnest-ink-soft);
+}
+
+.family-chat-messages {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Zero-size prepend anchor (tech-doc 003/005: the visitor's scroll position
+ * survives an older-page load) -- never visible, purely a measurement point
+ * for `family_chat.js`'s `prependOlder`. */
+.family-chat-scroll-anchor {
+  display: block;
+  height: 0;
+}
+
+.family-chat-message {
+  max-width: 78%;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--bnest-card-radius);
+  background: var(--bnest-lagoon-soft, var(--bnest-lagoon));
+  color: var(--bnest-ink);
+}
+
+.family-chat-message--system {
+  align-self: center;
+  max-width: 90%;
+  background: transparent;
+  border: 0.06rem dashed var(--bnest-ink-soft);
+  font-size: 0.85rem;
+  color: var(--bnest-ink-soft);
+}
+
+.family-chat-message-meta {
+  margin: 0 0 0.15rem;
+  font-size: 0.8rem;
+  color: var(--bnest-ink-soft);
+}
+
+.family-chat-message-body {
+  margin: 0;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.family-chat-message-status {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--bnest-ink-soft);
+}
+
+/* Delivery-state indicators (tech-doc 005 Status Presentation's five
+ * states); `family_chat.js` sets `data-delivery-state` to the literal
+ * `STATUS` value it names, or `"committed"` once acknowledged. */
+.family-chat-message[data-delivery-state="Retrying in …"]
+  .family-chat-message-status,
+.family-chat-message[data-delivery-state="Waiting for connection"]
+  .family-chat-message-status {
+  color: var(--bnest-ink-soft);
+}
+
+.family-chat-message[data-delivery-state="Sending"] {
+  opacity: 0.85;
+}
+
+.family-chat-message[data-delivery-state="Couldn't send"] {
+  border: 0.09rem solid var(--bnest-error);
+}
+
+.family-chat-message[data-delivery-state="Couldn't send"]
+  .family-chat-message-status {
+  color: var(--bnest-error);
+  font-weight: 600;
+}
+
+/* "Sent" is the one state allowed a nonessential fade (tech-doc 005:
+ * "may fade after a short interval"); reduced-motion below removes it. */
+.family-chat-message[data-delivery-state="Sent"] .family-chat-message-status {
+  animation: family-chat-sent-fade 2.4s ease forwards;
+}
+
+@keyframes family-chat-sent-fade {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.family-chat-new-messages {
+  position: sticky;
+  bottom: 0.5rem;
+  align-self: center;
+  min-height: 2.75rem;
+  border: none;
+  border-radius: var(--bnest-action-radius);
+  padding: 0.4rem 0.9rem;
+  background: var(--bnest-sun);
+  color: var(--bnest-ink);
+}
+
+/* Polite/alert live-region text (offline, queue, history, new-message
+ * updates): present for assistive tech, never visible or laid out (tech-doc
+ * 005 Accessibility: announcements must never steal focus or visual space). */
+.family-chat-live-region {
+  position: absolute;
+  width: 0.0625rem;
+  height: 0.0625rem;
+  margin: -0.0625rem;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.family-chat-composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem 0.6rem;
+}
+
+.family-chat-composer label {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+  color: var(--bnest-ink-soft);
+}
+
+.family-chat-message-input {
+  grid-column: 1;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem;
+  border-radius: var(--bnest-card-radius);
+  border: 0.09rem solid var(--bnest-ink-soft);
+  font: inherit;
+}
+
+.family-chat-send {
+  grid-column: 2;
+  align-self: end;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  border: none;
+  border-radius: var(--bnest-action-radius);
+  padding: 0.5rem 1.2rem;
+  background: var(--bnest-coral);
+  color: var(--bnest-paper);
+}
+
+.family-chat-remediation {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--bnest-error);
+}
+
+.family-chat-outbox-status {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--bnest-ink-soft);
+  font-size: 0.85rem;
+}
+
+/* Tablet -- 768x1024 (tech-doc 005): 1rem outer gutters, composer stays
+ * two-column while 44x44 CSS-pixel targets still fit. */
+@media (max-width: 48rem) {
+  .family-chat-shell {
+    padding: 1rem;
+    gap: 0.6rem;
+  }
+}
+
+/* Mobile -- 393x852 down to 320 CSS pixels (tech-doc 005): edge-to-edge
+ * room, sticky compact header, stacked composer below 360 CSS pixels. */
+@media (max-width: 30rem) {
+  .family-chat-shell {
+    padding-inline: 0.75rem;
+    max-width: 100%;
+  }
+
+  .family-chat-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bnest-paper);
+    padding-block: 0.4rem;
+  }
+}
+
+@media (max-width: 22.5rem) {
+  .family-chat-composer {
+    grid-template-columns: 1fr;
+  }
+
+  .family-chat-send {
+    grid-column: 1;
+    justify-self: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .family-chat-message {
+    transition: none;
+  }
+
+  .family-chat-message[data-delivery-state="Sent"] .family-chat-message-status {
+    animation: none;
+  }
+}
