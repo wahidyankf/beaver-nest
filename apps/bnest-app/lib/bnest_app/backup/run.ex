@@ -1,19 +1,28 @@
 defmodule BnestApp.Backup.Run do
-  @moduledoc false
+  @moduledoc """
+  The Scheduler-registered `"prod_sqlite_backup"` handler. Owns Scheduler
+  claim/lease bookkeeping only (destination-continuity checking, the
+  claim-shaped receipt, and `Store` persistence); every SQL-touching backup
+  mechanic (capacity, `VACUUM INTO`, independent proof) is delegated to
+  `BnestApp.Backup`, the public service, so this module runs no direct SQL
+  of its own (`family_chat_operations.feature`'s "The Scheduler claims
+  backup work only through the registered Backup.Run handler").
+  """
 
+  alias BnestApp.Backup
   alias BnestApp.Backup.Config
   alias BnestApp.Backup.Location
   alias BnestApp.Backup.Receipt
   alias BnestApp.Scheduler.Policy
   alias BnestApp.Scheduler.Store
-  alias BnestApp.SqliteRepo
-  alias BnestApp.Storage.Config, as: StorageConfig
 
   @spec execute(map(), DateTime.t()) :: {:ok, map()} | {:skipped, atom()} | {:error, atom()}
   def execute(claim, %DateTime{} = now) do
     with {:ok, location} <- Config.resolve(),
          :ok <- destination_matches(claim, location),
-         {:ok, receipt} <- create_backup(claim, location, now),
+         {:ok, artifact} <- run_backup(claim, location, now),
+         receipt = Receipt.build(claim, location, now, artifact),
+         :ok <- write_receipt!(artifact.path, receipt),
          :ok <- Store.complete(claim.run_id, claim.attempt, receipt, now) do
       retain_owned(location.directory)
       {:ok, receipt}
@@ -51,95 +60,38 @@ defmodule BnestApp.Backup.Run do
 
   defp destination_matches(_scheduled_claim, _location), do: :ok
 
-  defp create_backup(claim, location, now) do
-    timestamp = Calendar.strftime(now, "%Y%m%dT%H%M%SZ")
-    artifact_basename = "bnest-prod-#{timestamp}-#{claim.run_id}.sqlite3"
-    artifact_path = Path.join(location.directory, artifact_basename)
-    partial_path = artifact_path <> ".partial"
-
-    try do
-      File.rm(partial_path)
-      SqliteRepo.query!("PRAGMA wal_checkpoint(FULL)")
-      ensure_capacity!(location.directory)
-      SqliteRepo.query!("VACUUM INTO ?", [partial_path])
-      File.chmod!(partial_path, 0o600)
-
-      proof = independent_proof!(partial_path)
-      sync_file!(partial_path)
-      ensure_active_attempt!(claim, now)
-      File.rename!(partial_path, artifact_path)
-
-      receipt =
-        Receipt.build(claim, location, now, %{
-          source_generation: StorageConfig.database_generation(),
-          basename: artifact_basename,
-          sha256: sha256_file(artifact_path),
-          bytes: File.stat!(artifact_path).size,
-          quick_check: "ok",
-          schema_versions: proof.schema_versions,
-          logical_proof_sha256: proof.logical_sha256
-        })
-
-      receipt_path = String.replace_suffix(artifact_path, ".sqlite3", ".receipt.json")
-      atomic_json!(receipt_path, receipt)
-      {:ok, receipt}
-    rescue
-      _error ->
-        File.rm(partial_path)
-        {:error, :backup_failed}
+  # `before_promote` re-checks this exact claim/attempt's lease as late as
+  # possible -- immediately before `BnestApp.Backup` commits the artifact --
+  # so a lease lost to a competing coordinator during the (potentially
+  # long) `VACUUM INTO` cannot have its late result promoted as the
+  # canonical one. A raised/`{:error, ...}` here becomes a distinct
+  # `:stale_claim` retryable category rather than an opaque backup failure.
+  defp run_backup(claim, location, now) do
+    case Backup.run(
+           deadline: now,
+           destination_directory: location.directory,
+           before_promote: fn -> stale_claim_check(claim, now) end
+         ) do
+      {:ok, artifact} -> {:ok, artifact}
+      {:error, {:retryable, category, _artifact}} -> {:error, category}
+      {:error, reason} -> {:error, reason}
     end
   end
 
-  defp independent_proof!(path) do
-    {:ok, connection} = Exqlite.Sqlite3.open(path, mode: :readonly)
-
-    try do
-      [["ok"]] = query_rows(connection, "PRAGMA quick_check")
-
-      schema_versions =
-        connection
-        |> query_rows("SELECT version FROM schema_migrations ORDER BY version")
-        |> Enum.map(&hd/1)
-
-      logical_rows =
-        query_rows(
-          connection,
-          "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
-        )
-
-      logical_sha256 =
-        %{schema_versions: schema_versions, schema: logical_rows}
-        |> Jason.encode!()
-        |> then(&:crypto.hash(:sha256, &1))
-        |> Base.encode16(case: :lower)
-
-      %{schema_versions: schema_versions, logical_sha256: logical_sha256}
-    after
-      :ok = Exqlite.Sqlite3.close(connection)
-    end
+  defp stale_claim_check(claim, now) do
+    if Store.active_attempt?(claim.run_id, claim.attempt, now),
+      do: :ok,
+      else: {:error, :stale_claim}
   end
 
-  defp query_rows(connection, sql) do
-    {:ok, statement} = Exqlite.Sqlite3.prepare(connection, sql)
-
-    try do
-      collect_rows(connection, statement, [])
-    after
-      :ok = Exqlite.Sqlite3.release(connection, statement)
-    end
-  end
-
-  defp collect_rows(connection, statement, rows) do
-    case Exqlite.Sqlite3.step(connection, statement) do
-      {:row, row} -> collect_rows(connection, statement, [row | rows])
-      :done -> Enum.reverse(rows)
-      {:error, reason} -> raise "backup proof query failed: #{inspect(reason)}"
-    end
+  defp write_receipt!(artifact_path, receipt) do
+    receipt_path = String.replace_suffix(artifact_path, ".sqlite3", ".receipt.json")
+    atomic_json!(receipt_path, receipt)
+    :ok
   end
 
   defp retain_owned(directory) do
     receipts = owned_receipts(directory)
-
     kept = retained_run_ids(receipts)
 
     Enum.each(receipts, fn receipt ->
@@ -189,33 +141,6 @@ defmodule BnestApp.Backup.Run do
     {:ok, file} = :file.open(String.to_charlist(path), [:read, :binary])
     :ok = :file.sync(file)
     :ok = :file.close(file)
-  end
-
-  defp ensure_active_attempt!(claim, now) do
-    unless Store.active_attempt?(claim.run_id, claim.attempt, now) do
-      raise "stale backup attempt"
-    end
-  end
-
-  defp ensure_capacity!(directory) do
-    source_bytes = StorageConfig.resolved_database_path() |> File.stat!() |> Map.fetch!(:size)
-    required_bytes = source_bytes * 2 + 256 * 1024 * 1024
-
-    unless available_bytes!(directory) >= required_bytes do
-      raise "insufficient backup capacity"
-    end
-  end
-
-  defp available_bytes!(directory) do
-    {output, 0} = System.cmd("df", ["-Pk", directory], stderr_to_stdout: true)
-
-    output
-    |> String.split("\n", trim: true)
-    |> List.last()
-    |> String.split(~r/\s+/, trim: true)
-    |> Enum.at(3)
-    |> String.to_integer()
-    |> Kernel.*(1024)
   end
 
   defp sha256_file(path) do
