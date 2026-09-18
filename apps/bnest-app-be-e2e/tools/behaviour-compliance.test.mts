@@ -120,7 +120,6 @@ test("rejects undocumented and broad exemptions", () => {
       error.includes("only annotate"),
     ),
   );
-
 });
 
 test("accepts independently documented integration and E2E exemptions", () => {

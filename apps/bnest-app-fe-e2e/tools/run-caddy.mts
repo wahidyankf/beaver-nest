@@ -5,9 +5,13 @@ const backendPort = requiredPort("BNEST_E2E_BACKEND_PORT");
 const adminPort = requiredPort("BNEST_E2E_CADDY_ADMIN_PORT");
 const binary = process.env["BNEST_E2E_CADDY_BIN"] ?? "caddy";
 
-const child = spawn(binary, ["run", "--config", "-", "--adapter", "caddyfile"], {
-  stdio: ["pipe", "inherit", "inherit"],
-});
+const child = spawn(
+  binary,
+  ["run", "--config", "-", "--adapter", "caddyfile"],
+  {
+    stdio: ["pipe", "inherit", "inherit"],
+  },
+);
 
 child.stdin.end(caddyfile(publicPort, backendPort, adminPort));
 
