@@ -1906,3 +1906,50 @@ Recurring fix patterns, reusable for any future strict-JSDoc/TS work in this tre
 
 Verified with a full, from-clean `tsc --project apps/bnest-app/assets/tsconfig.json --noEmit` run: exit 0, zero
 errors, matching the pre-push hook's own `typecheck` target exactly.
+
+**Credo and oxlint backlog resolution.** With typecheck clean, the push hook's next two chained gates each failed in
+turn, both traced via `git blame`/diff to this branch's own new commits (never unrelated legacy surface), so both
+were fixed in place per `push-hook-verification.md` rather than reported as blockers:
+
+- `mix credo --strict` flagged fully-qualified calls that should go through an `alias` (16 call sites across 6 test
+  support/driver files) plus two `with...else` single-clause blocks that read more plainly as `case`
+  (`family_chat_driver.ex`'s socket-context outcome checks). Fixed by adding the missing aliases and rewriting the
+  two blocks; no check was disabled or weakened.
+- `oxlint --deny correctness --deny suspicious --deny pedantic --deny perf --deny-warnings
+--report-unused-disable-directives` flagged 72 errors across 8 `js/family_chat*` files. No `.oxlintrc.json` exists
+  in this repo, so every fix had to be a genuine code change rather than an allow-listed rule. Reusable patterns:
+
+  - `no-inline-comments` on a JSDoc `/** @type {T} */ (expr)` cast: put the comment on its own line, with the
+    parenthesized expression on the following line, instead of both on one line. Still resolves correctly for TS's
+    cast recognition; verified in isolation before wide application. A _nested_ cast
+    (`/** @type {A} */ (/** @type {B} */ (x))`) needs the inner cast extracted to its own `const` statement first,
+    reformatted the same way, since collapsing two casts onto one line re-triggers the rule.
+  - `max-lines-per-function` (50-line cap): split one large factory function into several small
+    `create<X>State`/`create<X>Methods` factories composed via object-spread, rather than shortening logic in place.
+    Applied repeatedly (`store.js`, `push.js`, `reconnect.js`, `graphql.js`, `outbox.js`, `real_store.js`).
+  - `max-lines` (300-line cap): split along natural domain seams into sibling files (e.g. `family_chat.js`'s
+    935 lines became six files — `transport.js`, `push_ux.js`, `elements.js`, `real_store.js` (later split further
+    into `real_store.js` + `message_render.js`), `mount_browser.js` + `mount_browser_sync.js` — leaving
+    `family_chat.js` itself as a thin orchestrator).
+  - `no-unused-vars` is comment-blind, unlike `tsc`: a top-level import referenced only inside a JSDoc
+    `ReturnType<typeof X>` annotation (never called) is flagged as unused by oxlint even though `tsc` accepts it.
+    Fixed by replacing the static import with an inline `ReturnType<typeof import("./x.js").X>` reference directly
+    in the JSDoc, removing the now-unnecessary runtime import.
+  - `no-underscore-dangle`: renamed every underscore-prefixed "test seam" method rather than allow-listing (no config
+    file to allow-list in) — e.g. `reconnect.js`'s `_pauseDrain` → `pauseDrainStep` — updating every call site
+    (source, and the corresponding `.test.ts`) together.
+  - `require-await`: an `async` function with no literal `await` either lost the (unnecessary) `async` keyword, or
+    gained a harmless leading `await Promise.resolve();` where the function's async-ness is a real, documented part
+    of its contract (matching the precedent already set by the original `reconnect.js`'s `catchUpQueryStep`).
+  - Smaller one-off swaps: `unicorn/prefer-string-replace-all` (literal-argument `.replace(/x/g, y)` →
+    `.replaceAll(x, y)`), `unicorn/prefer-code-point` (`charCodeAt` → `codePointAt` with a `?? 0` fallback),
+    `unicorn/no-useless-undefined` (bare `return;` instead of `return undefined;`), `require-unicode-regexp` (add the
+    `u` flag).
+
+  The largest single restructuring (`outbox.js`'s split into four files) and the `family_chat.js`/`real_store.js`
+  splits were both verified behavior-preserving by running the full FE unit suite afterward: 85/85 tests passing,
+  unchanged from before the split.
+
+Verified with a full `nx run -p bnest-app -t lint` run (`mix format --check-formatted`, `mix credo --strict`,
+oxlint, `mix deps.unlock --check-unused`) from a clean working tree: exit 0, matching the pre-push hook's own `lint`
+target exactly. Committed as `a5f6cb697`.
