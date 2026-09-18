@@ -28,9 +28,22 @@ defmodule BnestApp.Release.Migrations.PersistentSchedules do
     end)
   end
 
-  @spec rollback!() :: no_return() | [integer()]
+  @spec rollback!() :: no_return() | :ok | :already_down
   def rollback! do
-    with_repository(fn -> Ecto.Migrator.run(SqliteRepo, migrations_path(), :down, step: 1) end)
+    # Targets this module's own migration version directly
+    # (`Ecto.Migrator.down/3`), rather than `:down, step: 1` (reverse
+    # whichever migration is currently newest). The shared
+    # `priv/sqlite_repo/migrations` directory now also holds later features'
+    # migrations (e.g. family chat) — `step: 1` would silently reverse
+    # *those* instead once they are the newest applied, never reaching this
+    # migration's own "refuses to reverse once schedule records exist" guard.
+    with_repository(fn ->
+      Ecto.Migrator.down(
+        SqliteRepo,
+        @version,
+        BnestApp.SqliteRepo.Migrations.AddPersistentSchedules
+      )
+    end)
   end
 
   defp with_repository(operation) do
@@ -122,19 +135,26 @@ defmodule BnestApp.Release.Migrations.PersistentSchedules do
         [@schedule_key]
       )
 
+    # Tech-doc 002: "Runtime verification allows only Scheduler-owned
+    # lifecycle fields to differ." `daily_at_utc`, `enabled`, and `revision`
+    # are exactly that (the compatibility release's one-time convergence to
+    # 18:00 UTC, and any later operator edit, must not make a subsequent
+    # restart's verification fail) -- only the row's immutable identity is
+    # checked here.
     case seed do
       [
         "prod_sqlite_backup",
         "admin_system",
         "daily",
-        "19:00",
-        1,
+        daily_at_utc,
+        enabled,
         "never",
         nil,
         nil,
         revision
       ]
-      when is_integer(revision) and revision >= 1 ->
+      when is_binary(daily_at_utc) and enabled in [0, 1] and is_integer(revision) and
+             revision >= 1 ->
         :ok
 
       _incompatible ->

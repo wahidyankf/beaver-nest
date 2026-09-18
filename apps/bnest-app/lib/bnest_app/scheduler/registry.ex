@@ -11,6 +11,13 @@ defmodule BnestApp.Scheduler.Registry do
       settings_key: "schedules-backups",
       timezone: "WIB (UTC+07:00)"
     },
+    "family_chat_push_retention" => %{
+      label: "Family chat push delivery retention",
+      context: "admin_system",
+      handler: BnestApp.PushNotifications.RetentionJob,
+      settings_key: nil,
+      timezone: "WIB (UTC+07:00)"
+    },
     "fixture" => %{
       label: "Family fixture",
       context: "family",
