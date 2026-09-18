@@ -9,6 +9,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   alias BnestApp.AdminConfig.Registry, as: AdminRegistry
   alias BnestApp.Backup.{Config, Run}
+  alias BnestApp.Behaviour.IntegrationFamilyChatDriver
   alias BnestApp.{Chat, DataRepository}
   alias BnestApp.Codex.FixtureModels
   alias BnestApp.DataRepository.Import
@@ -1156,7 +1157,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: establish_identity(context, :child)
 
   def prepare_behaviour(context, state, args),
-    do: BnestApp.Behaviour.IntegrationFamilyChatDriver.prepare_behaviour(context, state, args)
+    do: IntegrationFamilyChatDriver.prepare_behaviour(context, state, args)
 
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
@@ -1519,7 +1520,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   # the unambiguous signal for which one applies.
   def perform_behaviour(context, :run_backup_handler, _args)
       when is_map_key(context, :family_chat_backup_capacity) do
-    BnestApp.Behaviour.IntegrationFamilyChatDriver.perform_behaviour(
+    IntegrationFamilyChatDriver.perform_behaviour(
       context,
       :backup_runs_full_duration,
       []
@@ -1595,7 +1596,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def perform_behaviour(context, action, args),
-    do: BnestApp.Behaviour.IntegrationFamilyChatDriver.perform_behaviour(context, action, args)
+    do: IntegrationFamilyChatDriver.perform_behaviour(context, action, args)
 
   @impl true
   def behaviour_outcome?(context, :redirected_to_login, _args), do: context.redirected
@@ -2020,7 +2021,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
         context.expiration_retry.attempt == 2
 
   def behaviour_outcome?(context, expected, args),
-    do: BnestApp.Behaviour.IntegrationFamilyChatDriver.behaviour_outcome?(context, expected, args)
+    do: IntegrationFamilyChatDriver.behaviour_outcome?(context, expected, args)
 
   defp await_push_event(_view, "persist-chat") do
     user_id = Process.get(:bnest_behaviour_user_id)

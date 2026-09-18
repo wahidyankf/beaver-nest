@@ -96,6 +96,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.AdminConfig.Registry, as: AdminRegistry
   alias BnestApp.Backup.{Config, Receipt, Run}
   alias BnestApp.Behaviour.MemoryBackend
+  alias BnestApp.Behaviour.UnitFamilyChatDriver
   alias BnestApp.Chat
   alias BnestApp.Codex.{FixtureModels, ModelAccess, RepositoryAccess}
   alias BnestApp.DataRepository.{Backend, Import, Schema}
@@ -1329,7 +1330,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
              :two_independent_slots,
              :routed_socket_on_prior_slot
            ] do
-    BnestApp.Behaviour.UnitFamilyChatDriver.prepare_behaviour(context, state, args)
+    UnitFamilyChatDriver.prepare_behaviour(context, state, args)
   end
 
   def prepare_behaviour(context, :expiry_policies, _args) do
@@ -1744,7 +1745,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   # one applies.
   def perform_behaviour(context, :run_backup_handler, _args)
       when is_map_key(context, :family_chat_backup_capacity) do
-    BnestApp.Behaviour.UnitFamilyChatDriver.perform_behaviour(
+    UnitFamilyChatDriver.perform_behaviour(
       context,
       :backup_runs_full_duration,
       []
@@ -1826,7 +1827,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def perform_behaviour(context, action, args),
-    do: BnestApp.Behaviour.UnitFamilyChatDriver.perform_behaviour(context, action, args)
+    do: UnitFamilyChatDriver.perform_behaviour(context, action, args)
 
   @impl true
   def behaviour_outcome?(context, :redirected_to_login, _args), do: context.redirected
@@ -2210,7 +2211,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: match?([%DateTime{}, %DateTime{}, nil], context.expiration_retries)
 
   def behaviour_outcome?(context, expected, args),
-    do: BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?(context, expected, args)
+    do: UnitFamilyChatDriver.behaviour_outcome?(context, expected, args)
 
   defp unit_backup_fixture do
     destination_id = "unit-destination"

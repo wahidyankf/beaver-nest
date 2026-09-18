@@ -46,7 +46,9 @@ export function resolveNotificationPayload(rawData) {
   if (rawData === null || typeof rawData !== "object")
     return GENERIC_NOTIFICATION_PAYLOAD;
 
-  const data = /** @type {Record<string, unknown>} */ (rawData);
+  const data =
+    /** @type {Record<string, unknown>} */
+    (rawData);
 
   if (
     data["type"] === "family-chat-message" &&
@@ -66,6 +68,15 @@ export function resolveNotificationPayload(rawData) {
   return GENERIC_NOTIFICATION_PAYLOAD;
 }
 
+/** @param {unknown} rawData @returns {unknown} */
+function readUrlField(rawData) {
+  if (rawData === null || typeof rawData !== "object") return;
+  const record =
+    /** @type {Record<string, unknown>} */
+    (rawData);
+  return record["url"];
+}
+
 /**
  * Validates a `notificationclick` event's stored `notification.data` against
  * the one same-origin fixed room path this plan supports. Never trusts
@@ -77,13 +88,10 @@ export function resolveNotificationPayload(rawData) {
  * @param {unknown} rawData
  */
 export function resolveNotificationClickTarget(rawData) {
-  const allowedPaths = /** @type {ReadonlySet<string>} */ (
-    new Set([ROOM_PATH])
-  );
-  const url =
-    rawData !== null && typeof rawData === "object"
-      ? /** @type {Record<string, unknown>} */ (rawData)["url"]
-      : undefined;
+  const allowedPaths =
+    /** @type {ReadonlySet<string>} */
+    (new Set([ROOM_PATH]));
+  const url = readUrlField(rawData);
 
   // v1 seeds exactly one room, so `allowedPaths` has exactly one member
   // today; this still validates against the allowlist itself (not a
@@ -104,14 +112,87 @@ export function resolveNotificationClickTarget(rawData) {
 export function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
-    .replace(/-/gu, "+")
-    .replace(/_/gu, "/");
+    .replaceAll("-", "+")
+    .replaceAll("_", "/");
   const rawData = atob(base64);
   const outputArray = new Uint8Array(rawData.length);
   for (let index = 0; index < rawData.length; index += 1) {
-    outputArray[index] = rawData.charCodeAt(index);
+    outputArray[index] = rawData.codePointAt(index) ?? 0;
   }
   return outputArray;
+}
+
+/**
+ * @typedef {{enabled: boolean, disabledExplicitly: boolean}} PushState
+ */
+
+/**
+ * @param {string | undefined} devicePushState
+ * @param {PushState} state
+ */
+function createEnablementMethods(devicePushState, state) {
+  return {
+    controlText() {
+      if (devicePushState === "unsupported") return CONTROL_TEXT.UNSUPPORTED;
+      if (devicePushState === "requires installation")
+        return CONTROL_TEXT.REQUIRES_INSTALL;
+      if (devicePushState === "permission denied") return CONTROL_TEXT.DENIED;
+      return state.enabled ? CONTROL_TEXT.ON : CONTROL_TEXT.OFF;
+    },
+
+    /**
+     * @param {string} control
+     * @param {(() => void) | undefined} onDisable
+     */
+    async select(control, onDisable) {
+      await Promise.resolve();
+      if (control === "Turn off") {
+        state.enabled = false;
+        state.disabledExplicitly = true;
+        onDisable?.();
+      }
+    },
+
+    // Called only after a real `upsertWebPushSubscription` mutation (or an
+    // initial `currentWebPushSubscription` read) confirms this session
+    // genuinely has an active binding -- never optimistically, before the
+    // server has agreed.
+    enable() {
+      state.enabled = true;
+      state.disabledExplicitly = false;
+    },
+
+    disable() {
+      state.enabled = false;
+      state.disabledExplicitly = true;
+    },
+
+    isDisabled() {
+      return state.disabledExplicitly;
+    },
+  };
+}
+
+/**
+ * Runs a representative set of requests a room visit makes through the
+ * same static-asset-only caching policy the service worker applies, and
+ * reports which of them it would keep -- the one inspectable proxy for
+ * Cache Storage contents available without a real browser (FE_E2E proves
+ * the real service worker's Cache Storage directly).
+ */
+async function inspectCacheStorage() {
+  await Promise.resolve();
+  const candidateUrls = [
+    "/assets/app.css",
+    "/assets/app.js",
+    "/",
+    "/family-chat/ruang-keluarga",
+    "/api/graphql",
+  ];
+  const entries = candidateUrls.filter((url) =>
+    shouldCachePathname(new URL(url, "http://localhost").pathname),
+  );
+  return { entries };
 }
 
 /**
@@ -122,65 +203,21 @@ export function createPush({
   activePushSubscription = false,
   onDisable,
 } = {}) {
-  let enabled =
-    activePushSubscription || devicePushState === "subscription active";
-  let disabledExplicitly = false;
+  /** @type {PushState} */
+  const state = {
+    enabled:
+      activePushSubscription || devicePushState === "subscription active",
+    disabledExplicitly: false,
+  };
+  const enablementMethods = createEnablementMethods(devicePushState, state);
 
   return {
-    controlText() {
-      if (devicePushState === "unsupported") return CONTROL_TEXT.UNSUPPORTED;
-      if (devicePushState === "requires installation")
-        return CONTROL_TEXT.REQUIRES_INSTALL;
-      if (devicePushState === "permission denied") return CONTROL_TEXT.DENIED;
-      return enabled ? CONTROL_TEXT.ON : CONTROL_TEXT.OFF;
-    },
-
+    controlText: enablementMethods.controlText,
     /** @param {string} control */
-    async select(control) {
-      if (control === "Turn off") {
-        enabled = false;
-        disabledExplicitly = true;
-        onDisable?.();
-      }
-    },
-
-    // Called only after a real `upsertWebPushSubscription` mutation (or an
-    // initial `currentWebPushSubscription` read) confirms this session
-    // genuinely has an active binding -- never optimistically, before the
-    // server has agreed.
-    enable() {
-      enabled = true;
-      disabledExplicitly = false;
-    },
-
-    disable() {
-      enabled = false;
-      disabledExplicitly = true;
-    },
-
-    isDisabled() {
-      return disabledExplicitly;
-    },
-
-    /**
-     * Runs a representative set of requests a room visit makes through the
-     * same static-asset-only caching policy the service worker applies, and
-     * reports which of them it would keep -- the one inspectable proxy for
-     * Cache Storage contents available without a real browser (FE_E2E proves
-     * the real service worker's Cache Storage directly).
-     */
-    async inspectCacheStorage() {
-      const candidateUrls = [
-        "/assets/app.css",
-        "/assets/app.js",
-        "/",
-        "/family-chat/ruang-keluarga",
-        "/api/graphql",
-      ];
-      const entries = candidateUrls.filter((url) =>
-        shouldCachePathname(new URL(url, "http://localhost").pathname),
-      );
-      return { entries };
-    },
+    select: (control) => enablementMethods.select(control, onDisable),
+    enable: enablementMethods.enable,
+    disable: enablementMethods.disable,
+    isDisabled: enablementMethods.isDisabled,
+    inspectCacheStorage,
   };
 }

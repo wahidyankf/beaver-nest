@@ -5,6 +5,10 @@
 // this module keeps the *logical* invariants those pixel behaviors rest on
 // (the anchor message survives a prepend; focus is never programmatically
 // moved on a remote arrival) so they are still genuinely exercised here.
+//
+// Split into a state factory plus two small method-group factories purely to
+// stay under this project's max-lines-per-function lint budget --
+// `createStore` below composes them and is the only export callers need.
 
 let nextSyntheticId = 1;
 
@@ -19,57 +23,78 @@ function syntheticMessage(body) {
 }
 
 /**
- * @param {{scrolledToOlderMessage?: boolean | undefined, focusInComposer?: boolean | undefined}} options
+ * @typedef {{
+ *   messages: {id: number, body: string}[],
+ *   anchorMessageId: number | null,
+ *   lastAnnouncement: string | null,
+ *   newMessagesIndicatorLabel: string | null,
+ *   focusMoved: boolean,
+ *   atBottom: boolean,
+ * }} StoreState
  */
-export function createStore({
-  scrolledToOlderMessage = false,
-  focusInComposer = false,
-} = {}) {
+
+/**
+ * @param {boolean} scrolledToOlderMessage
+ * @returns {StoreState}
+ */
+function createStoreState(scrolledToOlderMessage) {
   const messages = [syntheticMessage("Earlier message")];
   // `messages` always starts with the one synthetic message above and is
   // only ever grown (unshift/push), never emptied, so index 0 always
   // exists; the `?? null` fallback only satisfies `noUncheckedIndexedAccess`.
-  let anchorMessageId = scrolledToOlderMessage
-    ? (messages[0]?.id ?? null)
-    : null;
-  /** @type {string | null} */
-  let lastAnnouncement = null;
-  /** @type {string | null} */
-  let newMessagesIndicatorLabel = null;
-  let focusMoved = false;
-  let atBottom = true;
+  return {
+    messages,
+    anchorMessageId: scrolledToOlderMessage ? (messages[0]?.id ?? null) : null,
+    lastAnnouncement: null,
+    newMessagesIndicatorLabel: null,
+    focusMoved: false,
+    atBottom: true,
+  };
+}
 
+/** @param {StoreState} state */
+function createHistoryMethods(state) {
   return {
     async loadOlderPage() {
+      await Promise.resolve();
       const older = [
         syntheticMessage("Older message"),
         syntheticMessage("Even older message"),
       ];
-      messages.unshift(...older);
+      state.messages.unshift(...older);
     },
 
     scrollAnchorPreserved() {
       return (
-        anchorMessageId !== null &&
-        messages.some((m) => m.id === anchorMessageId)
+        state.anchorMessageId !== null &&
+        state.messages.some((m) => m.id === state.anchorMessageId)
       );
     },
+  };
+}
 
+/**
+ * @param {StoreState} state
+ * @param {boolean} focusInComposer
+ */
+function createArrivalMethods(state, focusInComposer) {
+  return {
     /** @param {{scrolledAwayFromBottom?: boolean}} [opts] */
     async receiveRemoteMessage(opts = {}) {
+      await Promise.resolve();
       const message = syntheticMessage("New message from another member");
-      messages.push(message);
+      state.messages.push(message);
 
       if (opts.scrolledAwayFromBottom) {
-        atBottom = false;
-        newMessagesIndicatorLabel = "New messages below";
-        lastAnnouncement = `New message: ${message.body}`;
+        state.atBottom = false;
+        state.newMessagesIndicatorLabel = "New messages below";
+        state.lastAnnouncement = `New message: ${message.body}`;
         // Focus is only ever moved by the visitor's own action -- a remote
         // arrival never steals it, whether or not it was in the composer.
-        focusMoved = false;
+        state.focusMoved = false;
       } else {
-        atBottom = true;
-        newMessagesIndicatorLabel = null;
+        state.atBottom = true;
+        state.newMessagesIndicatorLabel = null;
       }
 
       if (!focusInComposer) {
@@ -79,19 +104,33 @@ export function createStore({
     },
 
     lastLiveRegionAnnouncement() {
-      return lastAnnouncement;
+      return state.lastAnnouncement;
     },
 
     focusMovedFromComposer() {
-      return focusMoved;
+      return state.focusMoved;
     },
 
     newMessagesIndicatorLabel() {
-      return newMessagesIndicatorLabel;
+      return state.newMessagesIndicatorLabel;
     },
 
     isAtBottom() {
-      return atBottom;
+      return state.atBottom;
     },
+  };
+}
+
+/**
+ * @param {{scrolledToOlderMessage?: boolean | undefined, focusInComposer?: boolean | undefined}} options
+ */
+export function createStore({
+  scrolledToOlderMessage = false,
+  focusInComposer = false,
+} = {}) {
+  const state = createStoreState(scrolledToOlderMessage);
+  return {
+    ...createHistoryMethods(state),
+    ...createArrivalMethods(state, focusInComposer),
   };
 }

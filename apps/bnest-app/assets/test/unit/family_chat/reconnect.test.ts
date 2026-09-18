@@ -1,6 +1,6 @@
 // Plain Vitest unit coverage for `js/family_chat/reconnect.js` (tech-doc 007's
 // File Impact list): the ordered six-step promotion sequence (tech-doc 003)
-// and the real-collaborator seam (`_bindBrowserCallbacks`) that
+// and the real-collaborator seam (`bindBrowserCallbacks`) that
 // `family_chat.js` uses in the browser but `test/behaviour/family_chat.
 // steps.ts` never exercises (its `promoteSlot` scenario only ever runs
 // against the document-less, no-collaborator `room.reconnect`).
@@ -25,7 +25,7 @@ describe("createReconnect / promoteSlot", () => {
     expect(reconnect.pageReloaded()).toBe(false);
   });
 
-  it("closes the real socket client during _closePriorSocket when one is bound", async () => {
+  it("closes the real socket client during closePriorSocketStep when one is bound", async () => {
     const clock = createFakeClock();
     let closeCalls = 0;
     const reconnect = createReconnect({
@@ -44,7 +44,7 @@ describe("createReconnect / promoteSlot", () => {
     const reconnect = createReconnect({ clock });
     const calls: string[] = [];
 
-    reconnect._bindBrowserCallbacks({
+    reconnect.bindBrowserCallbacks({
       resubscribe: async () => {
         calls.push("resubscribe");
       },
@@ -76,7 +76,7 @@ describe("createReconnect / promoteSlot", () => {
     const reconnect = createReconnect({ clock });
     let mergeCalls = 0;
 
-    reconnect._bindBrowserCallbacks({
+    reconnect.bindBrowserCallbacks({
       fetchMissed: async () => [],
       mergeMessages: async () => {
         mergeCalls += 1;
@@ -92,7 +92,7 @@ describe("createReconnect / promoteSlot", () => {
     const reconnect = createReconnect({ clock });
     let fetchMissedArg: unknown;
 
-    reconnect._bindBrowserCallbacks({
+    reconnect.bindBrowserCallbacks({
       fetchMissed: async (afterId: unknown) => {
         fetchMissedArg = afterId;
         return [];
@@ -110,7 +110,7 @@ describe("createReconnect / promoteSlot", () => {
 
   it("discards a stale catch-up write once a newer generation has started", async () => {
     // Exercises the same generation guard `promoteSlot` relies on
-    // (`_catchUpQuery` bails if `_recreateSocket` ran again while its own
+    // (`catchUpQueryStep` bails if `recreateSocketStep` ran again while its own
     // `fetchMissed` call was still in flight -- e.g. a second real socket
     // reconnect firing before the first promotion finished) by driving the
     // internal steps directly instead of racing two `promoteSlot()` calls
@@ -126,18 +126,18 @@ describe("createReconnect / promoteSlot", () => {
     const pending: { resolve: ((messages: unknown[]) => void) | null } = {
       resolve: null,
     };
-    reconnect._bindBrowserCallbacks({
+    reconnect.bindBrowserCallbacks({
       fetchMissed: () =>
         new Promise<unknown[]>((resolve) => {
           pending.resolve = resolve;
         }),
     });
 
-    await reconnect._recreateSocket(); // generation 0 -> 1
-    const staleGeneration = reconnect._generation();
-    const catchUpPromise = reconnect._catchUpQuery(staleGeneration); // blocks on fetchMissed
+    await reconnect.recreateSocketStep(); // generation 0 -> 1
+    const staleGeneration = reconnect.generation();
+    const catchUpPromise = reconnect.catchUpQueryStep(staleGeneration); // blocks on fetchMissed
 
-    await reconnect._recreateSocket(); // generation 1 -> 2: a newer promotion started
+    await reconnect.recreateSocketStep(); // generation 1 -> 2: a newer promotion started
     pending.resolve?.([{ id: "late" }]);
     await catchUpPromise;
 
@@ -150,10 +150,10 @@ describe("createReconnect / promoteSlot", () => {
     const clock = createFakeClock();
     const reconnect = createReconnect({ clock });
 
-    expect(reconnect._generation()).toBe(0);
+    expect(reconnect.generation()).toBe(0);
     await promoteSlot(reconnect);
-    expect(reconnect._generation()).toBe(1);
+    expect(reconnect.generation()).toBe(1);
     await promoteSlot(reconnect);
-    expect(reconnect._generation()).toBe(2);
+    expect(reconnect.generation()).toBe(2);
   });
 });

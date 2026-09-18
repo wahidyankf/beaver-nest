@@ -44,12 +44,7 @@ const browserPersistenceEnabled =
   document.documentElement.dataset["browserPersistence"] === "true";
 
 initializeIdentitySetup();
-
-// Family chat (tech-doc 005/007): a plain-controller page, deliberately
-// never a LiveView -- `initRoom` only ever runs when its route's own DOM
-// shell is present, so every other page (including this same bundle's
-// LiveView routes) is unaffected. The feature flag itself already keeps the
-// route (and this element) absent by default (`BNEST_FAMILY_CHAT_ENABLED`).
+// Family chat (tech-doc 005/007): runs only when its feature-flag-gated route's DOM shell is present.
 if (document.querySelector('[data-role="family-chat-room"]')) {
   void initRoom(window.location.pathname);
 }
