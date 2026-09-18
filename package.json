@@ -18,7 +18,9 @@
     "tailnet:status": "npm exec -- nx run -p bnest-app -t tailnet:status",
     "tailnet:down": "npm exec -- nx run -p bnest-app -t tailnet:down",
     "test": "./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:unit",
-    "test:e2e": "./hippo run --class ephemeral --resource-tier heavy --disk-path . -- npm exec -- nx run -p bnest-app-e2e -t test:e2e"
+    "test:e2e:be": "./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app-be-e2e -t test:e2e",
+    "test:e2e:fe": "./hippo run --class ephemeral --resource-tier heavy --disk-path . -- npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e",
+    "test:e2e": "npm run test:e2e:be && npm run test:e2e:fe"
   },
   "repository": {
     "type": "git",
@@ -35,10 +37,14 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
+    "@cucumber/cucumber-expressions": "^19.0.0",
+    "@cucumber/gherkin": "^39.1.0",
+    "@cucumber/messages": "^32.3.1",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/cli": "^4.3.0",
     "@types/node": "^26.2.0",
     "@types/phoenix": "^1.6.7",
+    "@vitest/coverage-v8": "^5.0.1",
     "daisyui": "^5.5.20",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
@@ -47,9 +53,11 @@
     "playwright-bdd": "^9.2.0",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.3.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
   },
   "dependencies": {
-    "@openai/codex-sdk": "0.149.1"
+    "@openai/codex-sdk": "0.149.1",
+    "phoenix": "~1.8.14"
   }
 }

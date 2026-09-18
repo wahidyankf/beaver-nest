@@ -222,43 +222,92 @@
         "parallel": false
       }
     },
-    "test:unit": {
+    "test:unit:be": {
       "command": "BNEST_TEST_LAYER=unit MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --no-start --cover test/unit",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+        "{workspaceRoot}/specs/apps/bnest/app-be/behaviours/**/*.feature",
+        "{workspaceRoot}/specs/apps/bnest/app-fe/behaviours/**/*.feature"
       ],
       "options": {
         "cwd": "apps/bnest-app"
       },
       "outputs": ["{projectRoot}/cover/unit"]
     },
+    "test:unit:fe": {
+      "command": "npm exec -- vitest run",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app-fe/behaviours/**/*.feature"
+      ],
+      "options": {
+        "cwd": "apps/bnest-app/assets"
+      }
+    },
+    "test:unit": {
+      "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app-be/behaviours/**/*.feature",
+        "{workspaceRoot}/specs/apps/bnest/app-fe/behaviours/**/*.feature"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "npm exec -- nx run -p bnest-app -t test:unit:be",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app -t test:unit:fe",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      },
+      "cache": false
+    },
     "test:integration": {
       "dependsOn": ["test-data:cleanup"],
       "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --exclude integration-exempt --max-cases 1 test/integration",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+        "{workspaceRoot}/specs/apps/bnest/app-be/behaviours/**/*.feature",
+        "{workspaceRoot}/specs/apps/bnest/app-fe/behaviours/**/*.feature"
       ],
       "options": {
         "cwd": "apps/bnest-app"
       }
     },
     "test:coverage:behaviour": {
-      "command": "MIX_ENV=test mix run --no-start test/behaviour/verify.exs",
+      "executor": "nx:run-commands",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+        "{workspaceRoot}/specs/apps/bnest/app-be/behaviours/**/*.feature",
+        "{workspaceRoot}/specs/apps/bnest/app-fe/behaviours/**/*.feature"
       ],
       "options": {
-        "cwd": "apps/bnest-app"
+        "commands": [
+          {
+            "command": "MIX_ENV=test mix run --no-start test/behaviour/verify.exs",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- vitest run test/behaviour/verify.ts --root assets --config vitest.config.mts --testNamePattern \"binding coverage\"",
+            "forwardAllArgs": false
+          }
+        ],
+        "cwd": "apps/bnest-app",
+        "forwardAllArgs": false,
+        "parallel": false
       }
     },
     "test:quick": {
       "executor": "nx:run-commands",
       "inputs": [
         "default",
-        "{workspaceRoot}/specs/apps/bnest/app/behaviours/**/*.feature"
+        "{workspaceRoot}/specs/apps/bnest/app-be/behaviours/**/*.feature",
+        "{workspaceRoot}/specs/apps/bnest/app-fe/behaviours/**/*.feature"
       ],
       "options": {
         "commands": [
