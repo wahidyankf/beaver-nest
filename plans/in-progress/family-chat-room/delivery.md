@@ -234,7 +234,7 @@ endpoints, database content, or absolute runtime paths.
       cookie; fixed with `check_csrf: false` on the `/api/graphql/socket` declaration in
       `lib/bnest_app_web/endpoint.ex` (HTTP mutation CSRF enforcement is separate and unaffected). (b) subscription
       "forbidden" failure — `FamilyChatResolver.authorize/1`'s struct-only pattern (`%Absinthe.Resolution{context:
-    ...}`) never matched the plain `%{context:, document:}` map Absinthe's `SubscribeSelf.get_config/3` actually
+...}`) never matched the plain `%{context:, document:}` map Absinthe's `SubscribeSelf.get_config/3` actually
       passes to a `config/2` callback, silently denying every subscription regardless of a valid session; fixed by
       relaxing the pattern to a bare `%{context: %{current_user: ...}}` map in
       `lib/bnest_app_web/resolvers/family_chat_resolver.ex`, which matches both shapes. The same diagnosis also
@@ -293,7 +293,7 @@ endpoints, database content, or absolute runtime paths.
       known-deferred-only failures each, identical failure-name sets across reruns; full `BE_E2E`: 27/27, every
       pre-existing authentication/centralized-data/scheduled-backup/sqlite-storage scenario still green). Exact seed
       confirmed both via `apply_and_verify!/0`'s own pattern-match guard (`id: 1, slug: "ruang-keluarga", name:
-    "Ruang Keluarga", room_kind: "conversation"`) and empirically via the manual API proof. Internal-only system
+"Ruang Keluarga", room_kind: "conversation"`) and empirically via the manual API proof. Internal-only system
       posting confirmed negatively: `BnestAppWeb.Schema.mutation_field_names/0` lists only
       `sendFamilyChatMessage`, `upsertWebPushSubscription`, and `disableCurrentWebPushSubscription` — no public
       system-message mutation exists — exercised by both the unit and integration drivers, passing. GraphQL contract
