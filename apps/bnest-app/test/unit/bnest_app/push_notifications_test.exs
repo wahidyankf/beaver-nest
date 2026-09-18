@@ -6,10 +6,11 @@ defmodule BnestApp.PushNotificationsTest do
   # observe the mutated value mid-window.
   use ExUnit.Case, async: false
 
+  alias BnestApp.FamilyChat.Store, as: FamilyChatStore
   alias BnestApp.PushNotifications
 
   setup do
-    BnestApp.FamilyChat.Store.ensure_ready!()
+    FamilyChatStore.ensure_ready!()
     :ok
   end
 

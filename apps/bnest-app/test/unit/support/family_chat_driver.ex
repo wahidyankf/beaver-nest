@@ -13,6 +13,8 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   alias BnestApp.Backup
   alias BnestApp.FamilyChat
   alias BnestApp.PushNotifications
+  alias BnestApp.Release.CaddyConfig
+  alias BnestApp.Release.Migrations
   alias BnestApp.Scheduler
   alias BnestApp.SqliteRepo
   alias BnestApp.TestBackupDestination
@@ -584,7 +586,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # so this reads it back through the same public `Scheduler.Store` API a
   # caller would use, immediately after the real release/migration call.
   def perform_behaviour(context, :bnest_starts_again, _args) do
-    :ok = BnestApp.Release.Migrations.apply_and_verify!()
+    :ok = Migrations.apply_and_verify!()
 
     Map.put(
       context,
@@ -701,7 +703,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     Map.put(
       context,
       :family_chat_result,
-      BnestApp.Release.CaddyConfig.reverse_proxy_block(:candidate)
+      CaddyConfig.reverse_proxy_block(:candidate)
     )
   end
 
@@ -714,7 +716,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     Map.put(
       context,
       :family_chat_result,
-      BnestApp.Release.CaddyConfig.reverse_proxy_block(:promoted)
+      CaddyConfig.reverse_proxy_block(:promoted)
     )
   end
 

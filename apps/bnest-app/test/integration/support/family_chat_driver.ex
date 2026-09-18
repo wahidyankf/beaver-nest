@@ -24,6 +24,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.FamilyChat.Store, as: FamilyChatStore
   alias BnestApp.Identity
   alias BnestApp.PushNotifications
+  alias BnestApp.Release.CaddyConfig
+  alias BnestApp.Release.Migrations
   alias BnestApp.Scheduler
   alias BnestApp.SqliteRepo
   alias BnestApp.TestBackupDestination
@@ -568,7 +570,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     # Mirrors `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical fix:
     # `apply_and_verify!/0`'s own `@spec` is `:: :ok`, but every outcome
     # check reading `family_chat_result` here expects `{:ok, schedule}`.
-    :ok = BnestApp.Release.Migrations.apply_and_verify!()
+    :ok = Migrations.apply_and_verify!()
 
     Map.put(
       context,
@@ -708,7 +710,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(
       context,
       :family_chat_result,
-      BnestApp.Release.CaddyConfig.reverse_proxy_block(:candidate)
+      CaddyConfig.reverse_proxy_block(:candidate)
     )
   end
 
@@ -717,7 +719,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(
       context,
       :family_chat_result,
-      BnestApp.Release.CaddyConfig.reverse_proxy_block(:promoted)
+      CaddyConfig.reverse_proxy_block(:promoted)
     )
   end
 
@@ -852,18 +854,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     do: error_code?(context, "VALIDATION_FAILED")
 
   def behaviour_outcome?(context, :socket_context_server_resolved, _args) do
-    with %{user_id: user_id, session_digest: digest} <-
-           socket_absinthe_context(context.family_chat_result) do
-      is_binary(user_id) and is_binary(digest)
-    else
+    case socket_absinthe_context(context.family_chat_result) do
+      %{user_id: user_id, session_digest: digest} -> is_binary(user_id) and is_binary(digest)
       _other -> false
     end
   end
 
   def behaviour_outcome?(context, :socket_params_ignored, _args) do
-    with %{user_id: user_id} <- socket_absinthe_context(context.family_chat_result) do
-      is_binary(user_id)
-    else
+    case socket_absinthe_context(context.family_chat_result) do
+      %{user_id: user_id} -> is_binary(user_id)
       _other -> false
     end
   end

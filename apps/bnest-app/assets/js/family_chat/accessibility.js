@@ -45,14 +45,14 @@ export function createAccessibility(_options = {}) {
       if (css === null) return false;
 
       const shellRules = css
-        .split(/\}/)
-        .filter((rule) => /\.family-chat-/.test(rule))
+        .split(/\}/u)
+        .filter((rule) => /\.family-chat-/u.test(rule))
         .join("\n");
 
       // A fixed pixel width on any family-chat rule (rather than a
       // percentage/relative/max-width bound) is exactly what would force
       // horizontal overflow at a narrow viewport.
-      return /(?<!max-|min-)width:\s*\d+px/.test(shellRules);
+      return /(?<!max-|min-)width:\s*\d+px/u.test(shellRules);
     },
   };
 }

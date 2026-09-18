@@ -19,21 +19,28 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   @spec apply_and_verify!() :: :ok
   def apply_and_verify! do
     with_repository(fn ->
-      Lock.with_exclusive(fn ->
-        {:ok, room} = Store.migrate!()
-
-        case room do
-          %{id: 1, slug: "ruang-keluarga", name: "Ruang Keluarga", room_kind: "conversation"} ->
-            :ok
-
-          other ->
-            raise "family chat migration verification failed: #{inspect(other)}"
-        end
-
-        activate_when_compatible!()
-        verify_registered_handler!()
-      end)
+      Lock.with_exclusive(&migrate_and_verify!/0)
     end)
+  end
+
+  # Split out from `apply_and_verify!/0` so the `case` below sits at one
+  # nesting level of its own, rather than a third level inside that
+  # function's two wrapping closures (`with_repository`'s and
+  # `Lock.with_exclusive`'s) -- keeps the migration/verification logic at
+  # credo's max nesting depth instead of merely satisfying it by relocation.
+  defp migrate_and_verify! do
+    {:ok, room} = Store.migrate!()
+
+    case room do
+      %{id: 1, slug: "ruang-keluarga", name: "Ruang Keluarga", room_kind: "conversation"} ->
+        :ok
+
+      other ->
+        raise "family chat migration verification failed: #{inspect(other)}"
+    end
+
+    activate_when_compatible!()
+    verify_registered_handler!()
   end
 
   # Tech-doc 002: the retention seed ships `enabled = 0` "during mixed-

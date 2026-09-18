@@ -8,9 +8,10 @@ defmodule BnestApp.FamilyChatTest do
   use ExUnit.Case, async: false
 
   alias BnestApp.FamilyChat
+  alias BnestApp.FamilyChat.Store, as: FamilyChatStore
 
   setup do
-    BnestApp.FamilyChat.Store.ensure_ready!()
+    FamilyChatStore.ensure_ready!()
     :ok
   end
 

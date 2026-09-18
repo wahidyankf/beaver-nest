@@ -22,6 +22,10 @@ export function createSystemClock() {
     // own signature keeps that opaque as `unknown` so callers never depend
     // on the underlying handle's shape, so this single cast back to the
     // known real runtime type is the boundary where that opacity ends.
-    clearTimer: (handle) => clearTimeout(/** @type {number} */ (handle)),
+    clearTimer: (handle) =>
+      clearTimeout(
+        /** @type {number} */
+        (handle),
+      ),
   };
 }
