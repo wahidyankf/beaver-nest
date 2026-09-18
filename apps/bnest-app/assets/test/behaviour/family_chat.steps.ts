@@ -57,7 +57,7 @@ interface RoomOptions {
   socketConnectedToCurrentSlot?: boolean;
   activePushSubscription?: boolean;
   exchangesMessages?: boolean;
-  devicePushState?: string;
+  devicePushState?: string | undefined;
 }
 
 async function openRoom(
@@ -66,12 +66,12 @@ async function openRoom(
   options: RoomOptions = {},
 ): Promise<StepContext> {
   const { initRoom } = await import(/* @vite-ignore */ ROOM_JS);
-  const room = await initRoom(path, { user: context.user, ...options });
+  const room = await initRoom(path, { user: context["user"], ...options });
   return { ...context, room, roomPath: path };
 }
 
 function requireRoom(context: StepContext): Record<string, unknown> {
-  const room = context.room;
+  const room = context["room"];
   if (room === undefined || room === null) {
     throw new Error("no room has been opened yet in this scenario");
   }
@@ -94,7 +94,7 @@ step("a visitor opens {string}", async (context, path) =>
   // correct push permission state" has no specialized opening wording of
   // its own, unlike the other room-option variants below).
   openRoom(context, path, {
-    devicePushState: context.devicePushState as string | undefined,
+    devicePushState: context["devicePushState"] as string | undefined,
   }),
 );
 
@@ -102,7 +102,7 @@ step(
   "the visitor sends the family chat message {string}",
   async (context, body) => {
     const room = requireRoom(context);
-    const outbox = room.outbox as {
+    const outbox = room["outbox"] as {
       send: (body: string) => Promise<string>;
     };
     const clientMessageId = await outbox.send(body);
@@ -112,10 +112,10 @@ step(
 
 step("the message shows status {string}", async (context, expected) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as {
+  const outbox = room["outbox"] as {
     status: (clientMessageId: string) => string;
   };
-  const status = outbox.status(context.lastClientMessageId as string);
+  const status = outbox.status(context["lastClientMessageId"] as string);
   if (status !== expected) {
     throw new Error(`expected status "${expected}", got "${status}"`);
   }
@@ -124,11 +124,11 @@ step("the message shows status {string}", async (context, expected) => {
 
 step("the message reaches status {string}", async (context, expected) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as {
+  const outbox = room["outbox"] as {
     waitForStatus: (clientMessageId: string, status: string) => Promise<string>;
   };
   const status = await outbox.waitForStatus(
-    context.lastClientMessageId as string,
+    context["lastClientMessageId"] as string,
     expected,
   );
   if (status !== expected) {
@@ -141,7 +141,7 @@ step(
   "the visitor sends a family chat message during a retryable network failure",
   async (context) => {
     const room = requireRoom(context);
-    const outbox = room.outbox as {
+    const outbox = room["outbox"] as {
       send: (body: string, opts: Record<string, unknown>) => Promise<string>;
     };
     const clientMessageId = await outbox.send("On my way", {
@@ -153,7 +153,7 @@ step(
 
 step("the network recovers", async (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as { reportOnline: () => void };
+  const outbox = room["outbox"] as { reportOnline: () => void };
   outbox.reportOnline();
   return context;
 });
@@ -162,7 +162,7 @@ step(
   "the visitor sends a family chat message the server rejects as invalid",
   async (context) => {
     const room = requireRoom(context);
-    const outbox = room.outbox as {
+    const outbox = room["outbox"] as {
       send: (body: string, opts: Record<string, unknown>) => Promise<string>;
     };
     const clientMessageId = await outbox.send("On my way", {
@@ -174,10 +174,10 @@ step(
 
 step("no automatic retry is attempted", (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as {
+  const outbox = room["outbox"] as {
     retryCount: (clientMessageId: string) => number;
   };
-  const retries = outbox.retryCount(context.lastClientMessageId as string);
+  const retries = outbox.retryCount(context["lastClientMessageId"] as string);
   if (retries !== 0) {
     throw new Error(`expected zero automatic retries, got ${retries}`);
   }
@@ -190,7 +190,7 @@ step(
   "the visitor's outbox for this room already holds {int} queued messages",
   async (context, count) => {
     const room = requireRoom(context);
-    const outbox = room.outbox as {
+    const outbox = room["outbox"] as {
       fillWithQueuedMessages: (count: number) => Promise<void>;
     };
     await outbox.fillWithQueuedMessages(Number(count));
@@ -200,7 +200,7 @@ step(
 
 step("the visitor attempts to queue one more message", async (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as {
+  const outbox = room["outbox"] as {
     send: (body: string) => Promise<string | null>;
   };
   const clientMessageId = await outbox.send("one more message");
@@ -208,7 +208,7 @@ step("the visitor attempts to queue one more message", async (context) => {
 });
 
 step("the new message is not queued", (context) => {
-  if (context.lastClientMessageId !== null) {
+  if (context["lastClientMessageId"] !== null) {
     throw new Error("expected the outbox to reject the 101st message");
   }
   return context;
@@ -216,7 +216,7 @@ step("the new message is not queued", (context) => {
 
 step("the composer explains the retry-or-discard remediation", (context) => {
   const room = requireRoom(context);
-  const composer = room.composer as { remediationMessage: string | null };
+  const composer = room["composer"] as { remediationMessage: string | null };
   if (!composer.remediationMessage) {
     throw new Error("expected the composer to show a remediation message");
   }
@@ -242,10 +242,10 @@ step(
   "the queued message resumes toward Sent without visitor action",
   async (context) => {
     const room = requireRoom(context);
-    const outbox = room.outbox as {
+    const outbox = room["outbox"] as {
       status: (clientMessageId: string) => string;
     };
-    const seed = context.seededMessage as { clientMessageId: string };
+    const seed = context["seededMessage"] as { clientMessageId: string };
     const status = outbox.status(seed.clientMessageId);
     if (status === "queued" || status === "Not sent") {
       throw new Error("expected the queue to resume draining automatically");
@@ -256,7 +256,7 @@ step(
 
 step("a queued message is waiting on its backoff timer", async (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as {
+  const outbox = room["outbox"] as {
     queueWithPendingBackoff: () => Promise<string>;
   };
   const clientMessageId = await outbox.queueWithPendingBackoff();
@@ -265,7 +265,7 @@ step("a queued message is waiting on its backoff timer", async (context) => {
 
 step("the browser reports the {string} event", (context, eventName) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as {
+  const outbox = room["outbox"] as {
     reportBrowserEvent: (name: string) => void;
   };
   outbox.reportBrowserEvent(eventName);
@@ -274,10 +274,10 @@ step("the browser reports the {string} event", (context, eventName) => {
 
 step("the queued message becomes immediately eligible for retry", (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as {
+  const outbox = room["outbox"] as {
     nextRetryEtaMs: (clientMessageId: string) => number;
   };
-  const eta = outbox.nextRetryEtaMs(context.lastClientMessageId as string);
+  const eta = outbox.nextRetryEtaMs(context["lastClientMessageId"] as string);
   if (eta > 0) {
     throw new Error(`expected an immediate retry, next attempt in ${eta}ms`);
   }
@@ -288,7 +288,7 @@ step(
   "a queued message fails five times with a retryable result",
   async (context) => {
     const room = requireRoom(context);
-    const outbox = room.outbox as {
+    const outbox = room["outbox"] as {
       failRepeatedly: (times: number) => Promise<number[]>;
     };
     const delaysMs = await outbox.failRepeatedly(5);
@@ -300,9 +300,14 @@ step(
   "each wait follows 1, 2, 4, 8, and 16 seconds with bounded jitter and no wait exceeding 60 seconds",
   (context) => {
     const baseDelaysMs = [1_000, 2_000, 4_000, 8_000, 16_000];
-    const delaysMs = context.observedBackoffDelaysMs as number[];
+    const delaysMs = context["observedBackoffDelaysMs"] as number[];
     delaysMs.forEach((delayMs, index) => {
       const base = baseDelaysMs[index];
+      if (base === undefined) {
+        throw new Error(
+          `no expected base delay defined for attempt ${index + 1}`,
+        );
+      }
       const min = base * 0.8;
       const max = Math.min(base * 1.2, 60_000);
       if (delayMs < min || delayMs > max) {
@@ -327,10 +332,10 @@ step(
 
 step("the message is not automatically retried", (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as {
+  const outbox = room["outbox"] as {
     isAutoRetrying: (clientMessageId: string) => boolean;
   };
-  const seed = context.seededMessage as { clientMessageId: string };
+  const seed = context["seededMessage"] as { clientMessageId: string };
   if (outbox.isAutoRetrying(seed.clientMessageId)) {
     throw new Error("expected automatic retry to have stopped at seven days");
   }
@@ -339,10 +344,10 @@ step("the message is not automatically retried", (context) => {
 
 step("the visitor can still manually retry or discard it", (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as {
+  const outbox = room["outbox"] as {
     canManuallyRetryOrDiscard: (clientMessageId: string) => boolean;
   };
-  const seed = context.seededMessage as { clientMessageId: string };
+  const seed = context["seededMessage"] as { clientMessageId: string };
   if (!outbox.canManuallyRetryOrDiscard(seed.clientMessageId)) {
     throw new Error("expected manual retry/discard to remain available");
   }
@@ -353,21 +358,21 @@ step("the visitor can still manually retry or discard it", (context) => {
 
 step("a message is queued", async (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as { send: (body: string) => Promise<string> };
+  const outbox = room["outbox"] as { send: (body: string) => Promise<string> };
   const clientMessageId = await outbox.send("queued before expiry");
   return { ...context, lastClientMessageId: clientMessageId };
 });
 
 step("the visitor's authentication expires", (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as { reportAuthExpired: () => void };
+  const outbox = room["outbox"] as { reportAuthExpired: () => void };
   outbox.reportAuthExpired();
   return context;
 });
 
 step("queue draining pauses for that namespace", (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as { isDraining: () => boolean };
+  const outbox = room["outbox"] as { isDraining: () => boolean };
   if (outbox.isDraining()) {
     throw new Error("expected draining to be paused after auth expiry");
   }
@@ -375,15 +380,15 @@ step("queue draining pauses for that namespace", (context) => {
 });
 
 step("no other user's session drains that queued message", async (context) => {
-  const room = requireRoom(context);
+  requireRoom(context); // validates a room was opened; the value itself is unused here
   const { initRoom } = await import(/* @vite-ignore */ ROOM_JS);
-  const otherUserRoom = await initRoom(context.roomPath as string, {
+  const otherUserRoom = await initRoom(context["roomPath"] as string, {
     user: { id: "test-user-family-chat-other", approved: true },
   });
-  const otherOutbox = (otherUserRoom as Record<string, unknown>).outbox as {
+  const otherOutbox = (otherUserRoom as Record<string, unknown>)["outbox"] as {
     status: (clientMessageId: string) => string;
   };
-  const status = otherOutbox.status(context.lastClientMessageId as string);
+  const status = otherOutbox.status(context["lastClientMessageId"] as string);
   if (status !== "not-found") {
     throw new Error("expected the other session's namespace to be isolated");
   }
@@ -392,14 +397,14 @@ step("no other user's session drains that queued message", async (context) => {
 
 step("the visitor logs out", (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as { logout: () => void };
+  const outbox = room["outbox"] as { logout: () => void };
   outbox.logout();
   return context;
 });
 
 step("the visitor's local outbox namespace is cleared", (context) => {
   const room = requireRoom(context);
-  const outbox = room.outbox as { isCleared: () => boolean };
+  const outbox = room["outbox"] as { isCleared: () => boolean };
   if (!outbox.isCleared()) {
     throw new Error("expected the outbox namespace to be cleared on logout");
   }
@@ -408,7 +413,7 @@ step("the visitor's local outbox namespace is cleared", (context) => {
 
 step("the current session's Web Push subscription is disabled", (context) => {
   const room = requireRoom(context);
-  const push = room.push as { isDisabled: () => boolean };
+  const push = room["push"] as { isDisabled: () => boolean };
   if (!push.isDisabled()) {
     throw new Error("expected the push subscription to be disabled on logout");
   }
@@ -426,13 +431,13 @@ step(
 step("Caddy promotes a replacement slot", async (context) => {
   const { promoteSlot } = await import(/* @vite-ignore */ RECONNECT_JS);
   const room = requireRoom(context);
-  await promoteSlot(room.reconnect);
+  await promoteSlot(room["reconnect"]);
   return context;
 });
 
 step("the prior-slot socket closes", (context) => {
   const room = requireRoom(context);
-  const reconnect = room.reconnect as { priorSlotClosed: () => boolean };
+  const reconnect = room["reconnect"] as { priorSlotClosed: () => boolean };
   if (!reconnect.priorSlotClosed()) {
     throw new Error("expected the prior-slot socket to close");
   }
@@ -443,7 +448,7 @@ step(
   "the browser subscribes on the promoted slot and completes catch-up within ten seconds",
   (context) => {
     const room = requireRoom(context);
-    const reconnect = room.reconnect as { catchUpDurationMs: () => number };
+    const reconnect = room["reconnect"] as { catchUpDurationMs: () => number };
     const durationMs = reconnect.catchUpDurationMs();
     if (durationMs > 10_000) {
       throw new Error(`catch-up took ${durationMs}ms, expected <= 10000ms`);
@@ -454,7 +459,9 @@ step(
 
 step("any queued send drains only after catch-up completes", (context) => {
   const room = requireRoom(context);
-  const reconnect = room.reconnect as { drainedBeforeCatchUp: () => boolean };
+  const reconnect = room["reconnect"] as {
+    drainedBeforeCatchUp: () => boolean;
+  };
   if (reconnect.drainedBeforeCatchUp()) {
     throw new Error("expected the queue to wait for catch-up before draining");
   }
@@ -463,7 +470,7 @@ step("any queued send drains only after catch-up completes", (context) => {
 
 step("the page does not reload", (context) => {
   const room = requireRoom(context);
-  const reconnect = room.reconnect as { pageReloaded: () => boolean };
+  const reconnect = room["reconnect"] as { pageReloaded: () => boolean };
   if (reconnect.pageReloaded()) {
     throw new Error("expected reconnect to avoid a full page reload");
   }
@@ -480,7 +487,7 @@ step(
 
 step("the visitor loads an older history page", async (context) => {
   const room = requireRoom(context);
-  const store = room.store as { loadOlderPage: () => Promise<void> };
+  const store = room["store"] as { loadOlderPage: () => Promise<void> };
   await store.loadOlderPage();
   return context;
 });
@@ -489,7 +496,7 @@ step(
   "the previously visible message remains at the same visual position",
   (context) => {
     const room = requireRoom(context);
-    const store = room.store as { scrollAnchorPreserved: () => boolean };
+    const store = room["store"] as { scrollAnchorPreserved: () => boolean };
     if (!store.scrollAnchorPreserved()) {
       throw new Error("expected the scroll anchor to be preserved");
     }
@@ -506,7 +513,7 @@ step(
   "another member's message arrives away from the bottom of the scroll position",
   async (context) => {
     const room = requireRoom(context);
-    const store = room.store as {
+    const store = room["store"] as {
       receiveRemoteMessage: (opts: Record<string, unknown>) => Promise<void>;
     };
     await store.receiveRemoteMessage({ scrolledAwayFromBottom: true });
@@ -516,7 +523,7 @@ step(
 
 step("a live-region announcement names the new message", (context) => {
   const room = requireRoom(context);
-  const store = room.store as {
+  const store = room["store"] as {
     lastLiveRegionAnnouncement: () => string | null;
   };
   if (!store.lastLiveRegionAnnouncement()) {
@@ -527,7 +534,7 @@ step("a live-region announcement names the new message", (context) => {
 
 step("focus remains in the composer", (context) => {
   const room = requireRoom(context);
-  const store = room.store as { focusMovedFromComposer: () => boolean };
+  const store = room["store"] as { focusMovedFromComposer: () => boolean };
   if (store.focusMovedFromComposer()) {
     throw new Error("expected focus to remain in the composer");
   }
@@ -536,7 +543,7 @@ step("focus remains in the composer", (context) => {
 
 step("{string} is shown instead of auto-scrolling", (context, label) => {
   const room = requireRoom(context);
-  const store = room.store as {
+  const store = room["store"] as {
     newMessagesIndicatorLabel: () => string | null;
   };
   if (store.newMessagesIndicatorLabel() !== label) {
@@ -556,7 +563,7 @@ step(
 
 step("the room shows the control {string}", (context, controlText) => {
   const room = requireRoom(context);
-  const push = room.push as { controlText: () => string };
+  const push = room["push"] as { controlText: () => string };
   const actual = push.controlText();
   if (actual !== controlText) {
     throw new Error(`expected control text "${controlText}", got "${actual}"`);
@@ -572,7 +579,7 @@ step(
 
 step("the visitor selects {string}", async (context, control) => {
   const room = requireRoom(context);
-  const push = room.push as { select: (control: string) => Promise<void> };
+  const push = room["push"] as { select: (control: string) => Promise<void> };
   await push.select(control);
   return context;
 });
@@ -583,7 +590,7 @@ step("a visitor opens {string} and exchanges messages", async (context, path) =>
 
 step("the service worker's Cache Storage is inspected", async (context) => {
   const room = requireRoom(context);
-  const push = room.push as {
+  const push = room["push"] as {
     inspectCacheStorage: () => Promise<{ entries: string[] }>;
   };
   const inspection = await push.inspectCacheStorage();
@@ -591,7 +598,7 @@ step("the service worker's Cache Storage is inspected", async (context) => {
 });
 
 step("it contains only static build assets", (context) => {
-  const entries = context.cacheStorageEntries as string[];
+  const entries = context["cacheStorageEntries"] as string[];
   const nonStatic = entries.filter((entry) => !entry.startsWith("/assets/"));
   if (nonStatic.length > 0) {
     throw new Error(
@@ -604,7 +611,7 @@ step("it contains only static build assets", (context) => {
 step(
   "it contains no navigation response, message, or GraphQL response",
   (context) => {
-    const entries = context.cacheStorageEntries as string[];
+    const entries = context["cacheStorageEntries"] as string[];
     const forbidden = entries.filter(
       (entry) =>
         entry === "/" ||
@@ -631,10 +638,12 @@ step(
   async (context) => {
     const { initRoom } = await import(/* @vite-ignore */ ROOM_JS);
     const room = await initRoom("/family-chat/ruang-keluarga", {
-      user: context.user,
-      viewport: context.viewport,
+      user: context["user"],
+      viewport: context["viewport"],
     });
-    const accessibility = (room as Record<string, unknown>).accessibility as {
+    const accessibility = (room as Record<string, unknown>)[
+      "accessibility"
+    ] as {
       keyboardReachable: () => boolean;
     };
     if (!accessibility.keyboardReachable()) {
@@ -646,7 +655,7 @@ step(
 
 step("no horizontal page scroll is present", (context) => {
   const room = requireRoom(context);
-  const accessibility = room.accessibility as {
+  const accessibility = room["accessibility"] as {
     hasHorizontalScroll: () => boolean;
   };
   if (accessibility.hasHorizontalScroll()) {

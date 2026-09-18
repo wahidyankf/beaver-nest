@@ -1846,3 +1846,63 @@ construction (pre-built immutable binaries, no compile-at-boot, a doubled and al
 observably healthy right now for both slots). Not fixing the test harness within this investigation — the FE_E2E
 gap remains open exactly as characterized in Phase 6's own closure, but it does not block Phase 7/8's real
 `release:run`. Proceeding to Phase 7 per the coordinator's own instruction 3.
+
+## Phase 7 Execution — 2026-09-19
+
+**Thematic commits.** Split the 124 (later 182, after rename-detection expansion) changed paths accumulated across
+prior phases into 9 thematic commits on `family-chat-room`: E2E project split (`bnest-app-e2e` →
+`bnest-app-be-e2e`/`bnest-app-fe-e2e` plus the matching `specs/apps/bnest/app` → `app-be`/`app-fe` split and shared
+test-harness path updates), GraphQL chat backend, push notifications, backup capacity, scheduler dependency
+ordering, frontend chat client, deployment tooling, docs/governance, and plan tracking. Each grouping was checked
+against targeted `git diff` output (not filenames alone) before staging, particularly for cross-cutting files
+(`application.ex`, `router.ex`, `endpoint.ex`, `mix.exs`, config files, the two `home_page_driver.ex` files). Ran a
+public-repository-data-safety grep audit on the full `origin/main..HEAD` diff (local paths/username/email, secret
+shapes) before pushing — zero real findings; only documented machine-local env-var names and an already-annotated
+synthetic test VAPID keypair matched.
+
+**Origin/main sync (integration-path convention).** Before pushing, the coordinator flagged that `origin/main` had
+advanced by one commit, `317561719` "fix(rhino): accept candidate release pins" (2026-09-19 03:11 WIB), landed by
+an unrelated task while this branch's Phase 6/7 work was in flight. `git fetch origin` confirmed 9 ahead / 1 behind.
+Read the incoming commit's full file list (`.github/scripts/test-rhino-bootstrap.sh`, `rhino`,
+`specs/tools/rhino-consumer/behaviours/rhino-bootstrap.feature`) and diffed it against this branch's complete
+182-path touched-file list with `comm -12` on sorted lists: **zero path overlap** — confirmed mechanically, not
+assumed, per the convention's "read the whole incoming diff and reconcile" requirement. Ran `git rebase origin/main`
+against a verified-clean tree; all 9 commits replayed with no conflicts, `git merge-base --is-ancestor origin/main
+HEAD` now succeeds. No assumptions or touched-file expectations needed revisiting since the incoming commit shares
+no surface with this task.
+
+**Push attempts.** First `rtk git push -u origin family-chat-room` was denied outright by the Claude Code auto-mode
+permission classifier (no git/hook ever ran) — reported back to the coordinator per instruction rather than
+attempting a workaround; the coordinator relayed the user's explicit chat confirmation to retry. Second attempt
+reached the real pre-push hook, which failed on the `typecheck` target: 218 pre-existing TypeScript errors, all
+within the family-chat frontend surface (`assets/js/family_chat.js` and `family_chat/*.js`,
+`assets/test/behaviour/family_chat.steps.ts`, `assets/test/unit/family_chat/{outbox,reconnect}.test.ts`) — the same
+218-error backlog Phase 6 had already found and explicitly flagged as a carried-forward, unfixed Phase-5 gap for the
+`APP_QUICK` gate, now blocking the push itself rather than merely failing a gate run. Per
+`push-hook-verification.md` ("never bypass... trace to root cause and fix... within the authorized scope"), this is
+squarely in-scope (it is this branch's own new frontend code, not unrelated legacy surface), so it is being fixed
+directly rather than reported as a blocker.
+
+**Typecheck backlog resolution.** Cleared all 218 errors across 15 files (9 `js/family_chat*` source files, 6
+`test/{behaviour,unit}/family_chat*` test files) with genuine type-correctness fixes only — no `@ts-ignore`,
+`@ts-expect-error` (beyond one pre-existing, intentional one in `outbox.test.ts`), or tsconfig weakening anywhere.
+Recurring fix patterns, reusable for any future strict-JSDoc/TS work in this tree:
+
+- `noPropertyAccessFromIndexSignature`: bracket notation (`obj["prop"]`) wherever the accessed type resolves through
+  an index signature (`DOMStringMap`, `Record<string, unknown>` step contexts/room handles in
+  `family_chat.steps.ts`).
+- `exactOptionalPropertyTypes`: widen `prop?: T` to `prop?: T | undefined` at the declaration when a call site
+  legitimately passes a `T | undefined` value into that optional slot.
+- `noUncheckedIndexedAccess`: array/tuple lookups (`arr[i]`) return `T | undefined`; narrow with an explicit
+  `if (x === undefined) throw ...` guard rather than a non-null assertion.
+- A closure-captured `let` reassigned only inside a nested callback does not reliably narrow back to its declared
+  type at a later, unrelated read site (`reconnect.test.ts`'s stale-generation test) — replaced with a mutable
+  object-property holder (`const pending: { resolve: Fn | null } = { resolve: null }`), which narrows correctly.
+- Loose-to-strict architectural boundaries (`outbox.js`'s deliberately untyped `committedMessage()`/subscription
+  payloads flowing into `family_chat.js`'s `RenderableMessage`-shaped store) get a boundary cast at the seam, not a
+  weakened source type on either side — keeps each module's own types as precise as that module can honestly know.
+- `TS6133` unused-local: prefer not binding a value at all (`requireRoom(context);` for its validation side effect)
+  over a discarded assignment, since this tsconfig's `noUnusedLocals` does not exempt underscore-prefixed locals.
+
+Verified with a full, from-clean `tsc --project apps/bnest-app/assets/tsconfig.json --noEmit` run: exit 0, zero
+errors, matching the pre-push hook's own `typecheck` target exactly.

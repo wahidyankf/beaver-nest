@@ -8,6 +8,10 @@
 
 let nextSyntheticId = 1;
 
+/**
+ * @param {string} body
+ * @returns {{id: number, body: string}}
+ */
 function syntheticMessage(body) {
   const id = nextSyntheticId;
   nextSyntheticId += 1;
@@ -15,15 +19,22 @@ function syntheticMessage(body) {
 }
 
 /**
- * @param {{scrolledToOlderMessage?: boolean, focusInComposer?: boolean}} options
+ * @param {{scrolledToOlderMessage?: boolean | undefined, focusInComposer?: boolean | undefined}} options
  */
 export function createStore({
   scrolledToOlderMessage = false,
   focusInComposer = false,
 } = {}) {
   const messages = [syntheticMessage("Earlier message")];
-  let anchorMessageId = scrolledToOlderMessage ? messages[0].id : null;
+  // `messages` always starts with the one synthetic message above and is
+  // only ever grown (unshift/push), never emptied, so index 0 always
+  // exists; the `?? null` fallback only satisfies `noUncheckedIndexedAccess`.
+  let anchorMessageId = scrolledToOlderMessage
+    ? (messages[0]?.id ?? null)
+    : null;
+  /** @type {string | null} */
   let lastAnnouncement = null;
+  /** @type {string | null} */
   let newMessagesIndicatorLabel = null;
   let focusMoved = false;
   let atBottom = true;
@@ -44,6 +55,7 @@ export function createStore({
       );
     },
 
+    /** @param {{scrolledAwayFromBottom?: boolean}} [opts] */
     async receiveRemoteMessage(opts = {}) {
       const message = syntheticMessage("New message from another member");
       messages.push(message);

@@ -15,15 +15,23 @@
 // module's socket path, matching this codebase's established "optional
 // real-DOM binding only when `document` exists" pattern.
 
+/** @typedef {import("phoenix").Socket} PhxSocket */
+/** @typedef {import("phoenix").Channel} PhxChannel */
+
 const GRAPHQL_PATH = "/api/graphql";
 const SOCKET_PATH = "/api/graphql/socket";
 const CONTROL_TOPIC = "__absinthe__:control";
 
 function csrfToken() {
-  return document.querySelector("meta[name='csrf-token']")?.content ?? "";
+  const meta = document.querySelector("meta[name='csrf-token']");
+  return meta instanceof HTMLMetaElement ? meta.content : "";
 }
 
-/** Real HTTP query/mutation transport used by the outbox and room load. */
+/**
+ * Real HTTP query/mutation transport used by the outbox and room load.
+ * @param {string} query
+ * @param {Record<string, unknown>} variables
+ */
 export async function request(query, variables) {
   const response = await fetch(GRAPHQL_PATH, {
     method: "POST",
@@ -42,7 +50,9 @@ export async function request(query, variables) {
  * shared by every subscription this room opens.
  */
 export function createSubscriptionClient() {
+  /** @type {PhxSocket | null} */
   let socket = null;
+  /** @type {PhxChannel | null} */
   let controlChannel = null;
   let hasOpenedBefore = false;
   const reconnectListeners = new Set();
@@ -64,11 +74,12 @@ export function createSubscriptionClient() {
     });
     socket.connect();
 
-    controlChannel = socket.channel(CONTROL_TOPIC, {});
+    const joinedChannel = socket.channel(CONTROL_TOPIC, {});
+    controlChannel = joinedChannel;
     await new Promise((resolve, reject) => {
-      controlChannel.join().receive("ok", resolve).receive("error", reject);
+      joinedChannel.join().receive("ok", resolve).receive("error", reject);
     });
-    return controlChannel;
+    return joinedChannel;
   }
 
   return {
@@ -80,12 +91,23 @@ export function createSubscriptionClient() {
      */
     async subscribe(query, variables, onData) {
       const channel = await ensureControlChannel();
+      // `ensureControlChannel` always sets `socket` together with
+      // `controlChannel` (never one without the other); this narrows the
+      // mutable closure variable to a `const` the callback below can safely
+      // capture, since control-flow narrowing does not persist across an
+      // async callback boundary on its own.
+      const activeSocket = socket;
+      if (!activeSocket) {
+        throw new Error(
+          "family chat socket missing after control channel join",
+        );
+      }
 
       return new Promise((resolve, reject) => {
         channel
           .push("doc", { query, variables })
           .receive("ok", ({ subscriptionId }) => {
-            const dataChannel = socket.channel(subscriptionId, {});
+            const dataChannel = activeSocket.channel(subscriptionId, {});
             dataChannel.on("subscription:data", ({ result }) => onData(result));
             dataChannel
               .join()

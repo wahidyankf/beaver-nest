@@ -12,7 +12,7 @@ import {
   QUEUE_SCHEMA_VERSION,
   STATUS,
 } from "../../../js/family_chat/outbox.js";
-import { createFakeClock, type FakeClock } from "./support/fake_clock.ts";
+import { createFakeClock, type FakeClock } from "./support/fake_clock";
 
 let namespaceCounter = 0;
 // Each outbox namespace is module-scoped and persists across calls (by
@@ -41,7 +41,7 @@ function okTransport(clock: FakeClock) {
   }: {
     clientMessageId: string;
     body: string;
-  }) =>
+  }): Promise<{ ok: true; message: { id: string; body: string } }> =>
     new Promise((resolve) => {
       clock.setTimer(
         () =>
@@ -52,6 +52,22 @@ function okTransport(clock: FakeClock) {
         0,
       );
     });
+}
+
+/**
+ * `outbox.send()` returns `string | null` (`null` only when the room's
+ * 100-message queue is already full -- see the dedicated queue-full test
+ * above, which asserts that case directly instead of using this helper).
+ * Every other test here expects a real send to succeed, so this narrows
+ * once instead of repeating a null check at every call site.
+ */
+async function sendId(
+  outbox: { send: (body: string) => Promise<string | null> },
+  body: string,
+): Promise<string> {
+  const id = await outbox.send(body);
+  if (id === null) throw new Error("expected a clientMessageId, got null");
+  return id;
 }
 
 describe("createOutbox", () => {
@@ -94,7 +110,7 @@ describe("createOutbox", () => {
       transport: okTransport(clock),
     });
 
-    const id = await outbox.send("hello family");
+    const id = await sendId(outbox, "hello family");
     expect(outbox.status(id)).toBe(STATUS.SENDING);
 
     clock.advance(0);
@@ -117,7 +133,7 @@ describe("createOutbox", () => {
     });
 
     const seen: string[] = [];
-    const id = await outbox.send("watch me");
+    const id = await sendId(outbox, "watch me");
     const unsubscribe = outbox.onChange(id, (status) => seen.push(status));
     clock.advance(0);
     await outbox.waitForStatus(id, STATUS.SENT);
@@ -146,14 +162,14 @@ describe("createOutbox", () => {
       },
     });
 
-    const id = await outbox.send("will pause");
+    const id = await sendId(outbox, "will pause");
     await outbox.waitForStatus(id, STATUS.RETRYING);
 
     expect(authExpiredCalls).toBe(1);
     expect(outbox.isDraining()).toBe(false);
 
     // A second send is queued but never attempted while paused.
-    const secondId = await outbox.send("also queued");
+    const secondId = await sendId(outbox, "also queued");
     expect(outbox.status(secondId)).toBe(STATUS.WAITING);
   });
 
@@ -170,7 +186,7 @@ describe("createOutbox", () => {
     outbox.pauseDrain();
     expect(outbox.isDraining()).toBe(false);
 
-    const id = await outbox.send("queued while paused");
+    const id = await sendId(outbox, "queued while paused");
     // Gives every pending microtask a chance to run; nothing should have
     // reached "Sent" while paused.
     await Promise.resolve();
@@ -193,7 +209,7 @@ describe("createOutbox", () => {
       transport: () => new Promise(() => {}),
     });
 
-    const id = await outbox.send("never delivered before logout");
+    const id = await sendId(outbox, "never delivered before logout");
     outbox.logout();
 
     expect(outbox.isCleared()).toBe(true);
@@ -225,7 +241,7 @@ describe("createOutbox", () => {
       },
     });
 
-    const id = await outbox.send("flaky");
+    const id = await sendId(outbox, "flaky");
     await outbox.waitForStatus(id, STATUS.RETRYING);
     expect(outbox.nextRetryEtaMs(id)).toBeGreaterThan(0);
 

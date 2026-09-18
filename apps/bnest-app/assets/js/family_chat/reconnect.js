@@ -28,14 +28,21 @@ export function createReconnect({
   let drainedBeforeCatchUp = false;
   let pageReloaded = false;
   let draining = false;
+  /** @type {string | null} */
   let highestCommittedId = null;
+  /** @type {unknown[]} */
   let pendingCatchUpMessages = [];
 
   // Bound once (never, for FE_UNIT) -- see the constructor doc above.
+  /** @type {(() => Promise<void>) | null} */
   let resubscribe = null;
+  /** @type {((highestCommittedId: string | null) => Promise<unknown[]>) | null} */
   let fetchMissed = null;
+  /** @type {((messages: unknown[]) => Promise<void>) | null} */
   let mergeMessages = null;
+  /** @type {(() => void) | null} */
   let onPause = null;
+  /** @type {(() => void) | null} */
   let onResume = null;
 
   return {
@@ -44,6 +51,15 @@ export function createReconnect({
      * right after `family_chat.js` finishes wiring its DOM/subscription
      * closures; every argument is optional so a partial binding degrades
      * gracefully to the corresponding step's synthetic/no-op behavior.
+     */
+    /**
+     * @param {{
+     *   resubscribe?: () => Promise<void>,
+     *   fetchMissed?: (highestCommittedId: string | null) => Promise<unknown[]>,
+     *   mergeMessages?: (messages: unknown[]) => Promise<void>,
+     *   onPause?: () => void,
+     *   onResume?: () => void,
+     * }} [bindings]
      */
     _bindBrowserCallbacks({
       resubscribe: onResubscribe,
@@ -61,6 +77,7 @@ export function createReconnect({
 
     /** Tracks the newest message ID this room has seen, so a later
      * `promoteSlot` knows where its catch-up gap starts. */
+    /** @param {string | null | undefined} id */
     setHighestCommittedId(id) {
       if (id !== null && id !== undefined) highestCommittedId = id;
     },
@@ -90,6 +107,7 @@ export function createReconnect({
       if (resubscribe) await resubscribe();
     },
 
+    /** @param {number} myGeneration */
     async _catchUpQuery(myGeneration) {
       const startedAt = clock.now();
       if (fetchMissed) {

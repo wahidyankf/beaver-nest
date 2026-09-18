@@ -115,7 +115,7 @@ export function urlBase64ToUint8Array(base64String) {
 }
 
 /**
- * @param {{devicePushState?: string, activePushSubscription?: boolean, onDisable?: () => void}} options
+ * @param {{devicePushState?: string | undefined, activePushSubscription?: boolean | undefined, onDisable?: () => void}} options
  */
 export function createPush({
   devicePushState,
@@ -135,6 +135,7 @@ export function createPush({
       return enabled ? CONTROL_TEXT.ON : CONTROL_TEXT.OFF;
     },
 
+    /** @param {string} control */
     async select(control) {
       if (control === "Turn off") {
         enabled = false;

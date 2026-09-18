@@ -10,7 +10,7 @@ import {
   createReconnect,
   promoteSlot,
 } from "../../../js/family_chat/reconnect.js";
-import { createFakeClock } from "./support/fake_clock.ts";
+import { createFakeClock } from "./support/fake_clock";
 
 describe("createReconnect / promoteSlot", () => {
   it("runs the six ordered steps and ends draining again", async () => {
@@ -118,11 +118,18 @@ describe("createReconnect / promoteSlot", () => {
     const clock = createFakeClock();
     const reconnect = createReconnect({ clock });
 
-    let resolveFetch: ((messages: unknown[]) => void) | null = null;
+    // A plain mutable holder (rather than a closure-captured `let`) so the
+    // resolver assigned inside the executor below is read back through an
+    // ordinary property access -- TypeScript's control-flow narrowing for a
+    // `let` reassigned only inside a nested callback does not reliably widen
+    // back to its declared type at a later, unrelated read site.
+    const pending: { resolve: ((messages: unknown[]) => void) | null } = {
+      resolve: null,
+    };
     reconnect._bindBrowserCallbacks({
       fetchMissed: () =>
-        new Promise((resolve) => {
-          resolveFetch = resolve;
+        new Promise<unknown[]>((resolve) => {
+          pending.resolve = resolve;
         }),
     });
 
@@ -131,7 +138,7 @@ describe("createReconnect / promoteSlot", () => {
     const catchUpPromise = reconnect._catchUpQuery(staleGeneration); // blocks on fetchMissed
 
     await reconnect._recreateSocket(); // generation 1 -> 2: a newer promotion started
-    resolveFetch?.([{ id: "late" }]);
+    pending.resolve?.([{ id: "late" }]);
     await catchUpPromise;
 
     // The stale write never lands: `catchUpDurationMs` stays at its initial

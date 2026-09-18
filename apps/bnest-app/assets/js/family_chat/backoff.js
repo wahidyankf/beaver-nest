@@ -20,7 +20,11 @@ export function computeBackoffDelayMs(attemptNumber, random = Math.random) {
     Math.max(attemptNumber, 1) - 1,
     BASE_DELAYS_MS.length - 1,
   );
-  const base = BASE_DELAYS_MS[index];
+  // `index` is always in [0, BASE_DELAYS_MS.length - 1) by construction
+  // above; the `?? MAX_DELAY_MS` fallback only satisfies
+  // `noUncheckedIndexedAccess`'s static `T | undefined` and is never
+  // actually reached.
+  const base = BASE_DELAYS_MS[index] ?? MAX_DELAY_MS;
   const jitterFactor = JITTER_MIN + random() * JITTER_RANGE;
   return Math.min(base * jitterFactor, MAX_DELAY_MS);
 }

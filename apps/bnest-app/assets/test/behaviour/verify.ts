@@ -38,7 +38,7 @@ import {
   familyChatSteps,
   type StepContext,
   type StepDefinition,
-} from "./family_chat.steps.ts";
+} from "./family_chat.steps";
 
 const FE_VITEST_UNIT_TAG = "fe-vitest-unit";
 
