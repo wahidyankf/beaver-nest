@@ -15,7 +15,18 @@ defmodule BnestApp.Application do
         {DNSCluster, query: Application.get_env(:bnest_app, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: BnestApp.PubSub},
         BnestApp.Codex.ModelCatalog
-      ] ++ repository_children() ++ [BnestAppWeb.Endpoint]
+      ] ++
+        repository_children() ++
+        [
+          BnestAppWeb.Endpoint,
+          # `familyChatMessageCommitted` subscriptions. Fixed pool size per
+          # tech-doc 008 — never derived from system core count, so behavior
+          # is identical across dev/test/prod. Must start after the Endpoint
+          # (it registers against the endpoint's pubsub) and unconditionally
+          # (GraphQL subscriptions work even when `repository_children/0`
+          # returns `[]`).
+          {Absinthe.Subscription, pubsub: BnestAppWeb.Endpoint, pool_size: 8}
+        ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options

@@ -34,6 +34,24 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :page, LazyHTML.from_fragment(response.resp_body))
   end
 
+  def open(%{conn: conn} = context, "/family-chat") do
+    response = get(conn, "/family-chat")
+    route = redirected_to(response)
+    followed = get(conn, route)
+
+    context
+    |> Map.put(:route, route)
+    |> Map.put(:page, LazyHTML.from_fragment(followed.resp_body))
+  end
+
+  def open(%{conn: conn} = context, "/family-chat/" <> _slug = route) do
+    response = get(conn, route)
+
+    context
+    |> Map.put(:route, route)
+    |> Map.put(:page, LazyHTML.from_fragment(response.resp_body))
+  end
+
   def open(%{conn: conn} = context, route) do
     {:ok, view, _html} = live(conn, route)
     context |> Map.put(:view, view) |> Map.put(:route, route)
@@ -1137,6 +1155,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, :denied_settings_visitor, _args),
     do: establish_identity(context, :child)
 
+  def prepare_behaviour(context, state, args),
+    do: BnestApp.Behaviour.IntegrationFamilyChatDriver.prepare_behaviour(context, state, args)
+
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
     response = get(context.conn, route)
@@ -1487,6 +1508,24 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     })
   end
 
+  # Step-binding collision fix (adapter change; mirrors
+  # `BnestApp.Behaviour.UnitHomePageDriver`'s identical fix -- see its own
+  # comment and learnings.md's Phase 5 entry): "the backup handler runs" is
+  # shared verbatim by the pre-existing scheduled-backup feature (below) and
+  # by family_chat_operations.feature's capacity scenario, and ExBDD step
+  # text is matched globally across all `test/behaviour/steps/*.exs` files,
+  # not per feature file, so only one driver clause can own this exact text.
+  # The family-chat scenario's own `:insufficient_capacity` Given step is
+  # the unambiguous signal for which one applies.
+  def perform_behaviour(context, :run_backup_handler, _args)
+      when is_map_key(context, :family_chat_backup_capacity) do
+    BnestApp.Behaviour.IntegrationFamilyChatDriver.perform_behaviour(
+      context,
+      :backup_runs_full_duration,
+      []
+    )
+  end
+
   def perform_behaviour(context, :run_backup_handler, _args),
     do: Map.put(context, :backup_execution, Run.execute(context.backup_claim, @behaviour_now))
 
@@ -1554,6 +1593,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       expiration_later_claims: later
     })
   end
+
+  def perform_behaviour(context, action, args),
+    do: BnestApp.Behaviour.IntegrationFamilyChatDriver.perform_behaviour(context, action, args)
 
   @impl true
   def behaviour_outcome?(context, :redirected_to_login, _args), do: context.redirected
@@ -1976,6 +2018,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       context.expiration_retry.occurrence_number ==
         context.expiration_first_claim.occurrence_number and
         context.expiration_retry.attempt == 2
+
+  def behaviour_outcome?(context, expected, args),
+    do: BnestApp.Behaviour.IntegrationFamilyChatDriver.behaviour_outcome?(context, expected, args)
 
   defp await_push_event(_view, "persist-chat") do
     user_id = Process.get(:bnest_behaviour_user_id)

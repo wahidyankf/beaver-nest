@@ -1,7 +1,7 @@
 defmodule BnestApp.Identity.Authorization do
   @moduledoc false
 
-  @owned_capabilities ~w(use_chat use_sifat_allah read_theme write_theme confirm_import view_import_status)a
+  @owned_capabilities ~w(use_chat use_sifat_allah use_family_chat read_theme write_theme confirm_import view_import_status)a
 
   @spec allow?(map(), atom(), String.t() | nil) :: boolean()
   def allow?(%{"userId" => user_id, "roles" => roles}, capability, owner_id)
