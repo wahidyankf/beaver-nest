@@ -27,10 +27,10 @@ Do not expand this into an unrelated full-site audit. Use synthetic identities a
 For example:
 
 ```sh
-npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --project chromium --grep "A visitor opens a fresh chat"
+npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e -- --project chromium --grep "A visitor opens a fresh chat"
 ```
 
-The `bnest-app-e2e:test:e2e` target owns its one HIPPO boundary and exclusive port lease, so callers do not wrap it again. It drives the browser from the same recursively discovered Gherkin used by Bnest unit and local-only integration tests. It keeps fast `test:coverage:behaviour` in `test:quick` and runtime E2E outside it. The repository documentation gate has no end-to-end target of its own: RHINO's process-level proof runs in the repository that owns the executable.
+Bnest splits its browser-facing E2E boundary in two: `bnest-app-be-e2e` drives the browser directly against a bare `mix phx.server` (no reverse proxy) to prove backend boundary behaviour, and `bnest-app-fe-e2e` drives it through the full Caddy blue/green rollout apparatus to prove frontend/PWA behaviour, including reconnect. Each `test:e2e` target owns its one HIPPO boundary and exclusive port lease, so callers do not wrap it again. Both drive the browser from the same recursively discovered Gherkin used by Bnest unit and local-only integration tests. They keep fast `test:coverage:behaviour` in `test:quick` and runtime E2E outside it. The repository documentation gate has no end-to-end target of its own: RHINO's process-level proof runs in the repository that owns the executable.
 
 ## Full Suite
 

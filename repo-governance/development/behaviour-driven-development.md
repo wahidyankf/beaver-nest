@@ -1,6 +1,6 @@
 # Behaviour-Driven Development
 
-Applications, libraries, executable tools, and repository wrappers express observable behaviour in canonical Gherkin `.feature` files. E2E harnesses implement their application's corpus, never their own. Only `libs/ex-bdd` is exempt.
+Applications, libraries, executable tools, and repository wrappers express observable behaviour in canonical Gherkin `.feature` files. E2E harnesses implement their owning application's corpus, or one declared root of it, never a corpus of their own. Only `libs/ex-bdd` is exempt.
 
 ## Iron Rule
 
@@ -10,14 +10,14 @@ For refactors or implementation-only changes, preserve Gherkin, establish a gree
 
 ## Required Layers
 
-| Project role                  | Required adapters                                                                                                                                             |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Application                   | Unit, local-only integration, and E2E in a dedicated Nx project; all use the same corpus.                                                                     |
-| Library                       | Unit; add local-only integration only when it owns a real local resource boundary. Never add E2E to a library.                                                |
-| Executable tool               | Unit; add local integration for owned local resources and E2E for a public process boundary.                                                                  |
-| Repository executable wrapper | When no truthful Nx owner exists, one hermetic process adapter invokes the real wrapper and binds its exact corpus through the scheduled repository contract. |
-| Dedicated E2E app             | E2E for its owning application's corpus; never an independent behaviour owner.                                                                                |
-| `libs/ex-bdd`                 | Exempt.                                                                                                                                                       |
+| Project role                  | Required adapters                                                                                                                                                                                                    |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Application                   | Unit and local-only integration in a dedicated Nx project; may declare boundary-specific canonical corpus roots instead of one shared corpus, aggregating every root and running all applicable adapters against it. |
+| Library                       | Unit; add local-only integration only when it owns a real local resource boundary. Never add E2E to a library.                                                                                                       |
+| Executable tool               | Unit; add local integration for owned local resources and E2E for a public process boundary.                                                                                                                         |
+| Repository executable wrapper | When no truthful Nx owner exists, one hermetic process adapter invokes the real wrapper and binds its exact corpus through the scheduled repository contract.                                                        |
+| Dedicated E2E app             | E2E for exactly one owned canonical corpus root of its owning application; never an independent owner, nor a second owner of another root.                                                                           |
+| `libs/ex-bdd`                 | Exempt.                                                                                                                                                                                                              |
 
 A library without integration owns no local resource boundary. Public-boundary proof belongs to its consumer's E2E corpus. Its README states corpus, adapters, targets, and inapplicable layers.
 
@@ -31,7 +31,7 @@ A library without integration owns no local resource boundary. Public-boundary p
 - Run every feature, expanded scenario, and step in each adapter. Given establishes its precondition, When invokes production through that boundary, and Then independently inspects evidence. No-ops, success literals, expected-result lookups, unrelated assertions, or manufactured asserted values are failing placeholders.
 - Unit has no exemption for applications, libraries, and Nx-owned tools. A root wrapper without a truthful Nx owner follows its hermetic-process row. Implement integration and E2E whenever their boundaries can express the scenario. Otherwise add scenario-level `@integration-exempt` or `@e2e-exempt`, each immediately preceded by `# Exemption(<layer>): <boundary reason>; alternative-proof: <Nx test target> / <scenario>`. Reasons identify boundary mismatch, never difficulty, runtime, flakiness, cost, or unfinished work; the alternative proves the concern. Never exempt Feature, Rule, Background, Unit, or all available proof.
 - Each project's `test:coverage:behaviour` must prove the exact recursive corpus, complete driver contract, exactly-one step binding, and no unused binding for the adapters it owns. Deleting behaviour requires removing stale bindings.
-- Make the corpus an Nx input of its owner and E2E harness. A root repository wrapper with no truthful Nx owner instead keeps its corpus and adapter in the scheduled repository contract. `test:quick` runs unit scenarios and static behaviour coverage, never integration or E2E runtime; follow the [quality-gate](quality-gates.md) and [E2E](end-to-end-testing.md) standards.
+- Make each corpus root an Nx input of its aggregating owner and the one E2E harness that owns it, where one exists. A root repository wrapper with no truthful Nx owner instead keeps its corpus and adapter in the scheduled repository contract. `test:quick` runs unit scenarios and static behaviour coverage, never integration or E2E runtime; follow the [quality-gate](quality-gates.md) and [E2E](end-to-end-testing.md) standards.
 - Apply the canonical layer boundaries and folder ownership from the [quality-gate standard](quality-gates.md); boundary setup and assertions count when classifying a test.
 - All test support obeys the [test-data iron rule](test-identities.md#iron-rule); exemptions never authorize production access.
 - Run the [manual Gherkin implementation review](../workflows/gherkin-implementation-review.md) after adding or materially changing a feature, adapter, exemption, or behaviour-compliance mechanism. Static binding coverage cannot prove semantic implementation.

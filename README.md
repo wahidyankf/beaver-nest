@@ -25,6 +25,7 @@ Beaver Nest is in its first implementation stage.
 - A persistent Tailscale Serve route reaches a stable loopback Caddy proxy, which promotes immutable Phoenix releases without a manual browser refresh. Bnest now has one-time family-account setup, persistent per-browser login, centralized chat/learning/theme records, and recoverable browser import.
 - Centralized records move from flat files into a private local SQLite database through a headless, checksum-verified migration (`./hippo run --class transactional --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t storage:migrate -- --activate`). The stable pointer remains configuration at `~/.config/bnest/storage.json`, production data defaults to `~/bnest/data/prod/bnest.sqlite3`, and verified legacy flat files are retired only after the routed service proves the relocated database generation.
 - A persistent OTP scheduler stores daily claims, retries, and safe results in SQLite. The never-expiring production backup schedule verifies an independent `VACUUM INTO` snapshot before publishing an owned artifact/receipt pair to the ignored `data/backup/` default; admins manage its WIB time and private destination from **Admin settings → Schedules & backups**.
+- A family chat room feature is built and tested end-to-end: an authenticated GraphQL schema and subscription, a GraphQL-driven room route (not a LiveView), an IndexedDB send outbox with reconnect/backoff, and Web Push delivery with a retry/retention job on a second scheduler handler. This is a compatibility revision — everything above is implemented and covered, but `BNEST_FAMILY_CHAT_ENABLED` still defaults to off in production, so the routes, GraphQL surface, and home-page entry point stay inactive until a later experience release turns the flag on.
 
 ## Run locally
 
@@ -82,7 +83,7 @@ The chat starts with `gpt-5.6-terra` at medium reasoning effort in a read-only s
 npm test
 ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:integration
 ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour
-npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
+npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
 ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:bootstrap
 ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
 ```
@@ -93,7 +94,8 @@ npm exec -- nx run -p bnest-app-e2e -t test:e2e -- --grep "An automatic LiveView
 
 ```text
 apps/bnest-app/  Phoenix LiveView application
-apps/bnest-app-e2e/  Playwright end-to-end tests
+apps/bnest-app-be-e2e/  Playwright E2E proving backend boundary behaviour (no reverse proxy)
+apps/bnest-app-fe-e2e/  Playwright E2E proving frontend/PWA behaviour (full Caddy rollout)
 apps/rhino-consumer/  Nx targets composing the pinned RHINO documentation gate
 libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
 specs/apps/  Canonical application architecture and behaviour specifications
@@ -110,7 +112,7 @@ The app is intended for private access by family devices on a Tailscale network.
 
 Never commit user data, documents, database files, credentials, Tailscale auth keys, or backups. The `data/` directory is intentionally ignored except for its directory placeholders. `data/backup/` may contain only Bnest-owned verified production SQLite pairs and is synchronized by the host's Dropbox client without becoming authoritative storage; its ownership, retention, and validation rules follow the [runtime flat-file-data convention](repo-governance/conventions/runtime-flat-file-data.md).
 
-For the current architecture, see the [Bnest C4 specification](specs/apps/bnest/app/architecture.md). Proposed future changes belong in the [plans lifecycle](plans/README.md).
+For the current architecture, see the [Bnest specifications](specs/apps/bnest/README.md), split by backend and frontend C4 model. Proposed future changes belong in the [plans lifecycle](plans/README.md).
 
 ## Development checks
 
