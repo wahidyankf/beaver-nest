@@ -592,6 +592,10 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   def perform_behaviour(context, :call_activation_operation, _args) do
     key = context.family_chat_activation_key
     :ok = Scheduler.Store.activate_if_pristine!(key, @behaviour_now)
+    # See `Scheduler.Store.force_not_due_for_test!/2`'s own comment: this
+    # scenario never claims the row, so it must not leave it due for a
+    # later, unrelated scenario's broad `claim_due/1` sweep to steal.
+    :ok = Scheduler.Store.force_not_due_for_test!(key, @behaviour_now)
     Map.put(context, :family_chat_result, Scheduler.Store.get_schedule(key))
   end
 
