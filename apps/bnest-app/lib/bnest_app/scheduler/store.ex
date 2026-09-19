@@ -201,6 +201,29 @@ defmodule BnestApp.Scheduler.Store do
     :ok
   end
 
+  # Test-only seam, complementing `force_due_for_test!/2` above: a scenario
+  # that only asserts a schedule's `enabled`/`revision` fields (never claims
+  # it) must not leave that row due afterward -- `reset_schedule_for_test!/4`
+  # always seeds `next_run_at` at-or-before `now` (it computes the *latest*
+  # slot), so once such a scenario flips `enabled` to `1` (e.g. via
+  # `activate_if_pristine!/2`) the row becomes claimable and stays that way
+  # for whichever later scenario in this shared database next calls
+  # `claim_due/1` for an unrelated schedule -- `claim_due/1` sweeps every
+  # due+enabled row, not just the one it was asked about, silently stealing
+  # this row's claim before the scenario that actually means to claim it
+  # runs. Pushing `next_run_at` a day out removes the row from contention
+  # without touching `enabled`/`revision`/`daily_at_utc`.
+  @doc false
+  @spec force_not_due_for_test!(String.t(), DateTime.t()) :: :ok
+  def force_not_due_for_test!(schedule_key, %DateTime{} = now) do
+    SqliteRepo.query!(
+      "UPDATE bnest_schedules SET next_run_at = ? WHERE schedule_key = ?",
+      [iso8601(DateTime.add(now, 86_400, :second)), schedule_key]
+    )
+
+    :ok
+  end
+
   # Test-only seam: simulates "an existing (pre-plan) production schedule
   # still at its original, never-operator-edited value" -- sets
   # `daily_at_utc` directly while leaving `revision` at whatever it already
