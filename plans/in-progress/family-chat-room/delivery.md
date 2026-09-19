@@ -445,7 +445,7 @@ endpoints, database content, or absolute runtime paths.
       GraphQL-subscription/fixed-pool/gap-catch-up/p95-budget proofs `gateManifest` enforces as blocking
       pre-artifact gates) both passed before the candidate was even built. `deploy:promote --slot green` succeeded;
       `verify-liveview.mjs` reported `{"outcome":"passed","liveView":true,"reconnected":true,"clientCount":10,
-    "groupCount":3}` against the newly-routed revision. `drainAndCleanup`'s fixed 300000ms warm-observation window
+  "groupCount":3}` against the newly-routed revision. `drainAndCleanup`'s fixed 300000ms warm-observation window
       elapsed with `blue` still healthy throughout (independently polled), then `blue` was retired — confirmed via
       `lsof -iTCP:4000` returning nothing afterward and `proxy:status` reporting `activeSlot: "green"`,
       `activeRevision: "471a76b73..."`, `previousSlot: "blue"`. Two prior attempts (documented in `learnings.md`)
@@ -454,6 +454,21 @@ endpoints, database content, or absolute runtime paths.
 - [ ] `[AI] [AC-FC-11] [AC-FC-13]` After drain, enable retention and converge backup schedule through Scheduler services,
       then verify one value-safe run state and 01:00 WIB next slot. **Proof:** no SQL shortcut, every runnable slot knows
       handlers, operator edit remains possible, and compatibility revision is recorded as rollback floor.
+      **2026-09-19 (in progress):** attempt 3's release never exercised this item — `deployment.mjs`/`release.mjs`
+      never called either public Scheduler operation (tech-doc 009's "managed release calls a public Scheduler
+      operation that force-converges this key once" / "[push retention] becomes enabled only after old-slot drain"),
+      a fourth real gap in the same class as the Scheduler race and the VAPID env vars. Root-caused via tech-doc 009,
+      the Gherkin "Rule: One-time backup schedule convergence" scenario/driver, and `family_chat.ex`'s own
+      `activate_when_compatible!/0` (flag-gated, Phase-8-only boot self-heal — not this item's Phase-7 direct call).
+      Fixed on branch `fix-release-post-drain-convergence`: new `FamilyChat.converge_after_drain!/0` (unconditional,
+      calls `Scheduler.Store.activate_if_pristine!/2` then `Scheduler.converge_backup_time!/2`), a new
+      `deployment.mjs release:converge` command, and `release.mjs` calling it right after `drainAndCleanup` returns
+      (new `convergence` evidence stage). New Gherkin scenario "Compatible activation enables push retention once
+      after old-slot drain" added (unit + integration drivers both green, binding-coverage counts match at 148
+      scenarios each). `bnest-app:lint`, `test:quick`, and `test:integration` (300 tests) all green. **Not yet
+      checked off** — this item's proof (schedules actually converged/enabled, `daily_at_utc = 18:00`, operator-edit
+      safety, compatibility revision recorded as rollback floor) can only be verified by a real `release:run`
+      exercising the new post-drain step in production; that is the next action once this fix lands on `main`.
 - [ ] `[AI] [AC-FC-10]` **Recovery if triggered:** keep or restore prior route on migration/candidate/probe failure; after
       promotion, disable newly activated handlers before routing code that lacks them. Preserve additive data and retire
       only the failed candidate. **Proof:** healthy routed revision/journey or dated `Not triggered`.
