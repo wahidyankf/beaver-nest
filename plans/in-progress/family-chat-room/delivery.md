@@ -445,7 +445,7 @@ endpoints, database content, or absolute runtime paths.
       GraphQL-subscription/fixed-pool/gap-catch-up/p95-budget proofs `gateManifest` enforces as blocking
       pre-artifact gates) both passed before the candidate was even built. `deploy:promote --slot green` succeeded;
       `verify-liveview.mjs` reported `{"outcome":"passed","liveView":true,"reconnected":true,"clientCount":10,
-  "groupCount":3}` against the newly-routed revision. `drainAndCleanup`'s fixed 300000ms warm-observation window
+"groupCount":3}` against the newly-routed revision. `drainAndCleanup`'s fixed 300000ms warm-observation window
       elapsed with `blue` still healthy throughout (independently polled), then `blue` was retired — confirmed via
       `lsof -iTCP:4000` returning nothing afterward and `proxy:status` reporting `activeSlot: "green"`,
       `activeRevision: "471a76b73..."`, `previousSlot: "blue"`. Two prior attempts (documented in `learnings.md`)
