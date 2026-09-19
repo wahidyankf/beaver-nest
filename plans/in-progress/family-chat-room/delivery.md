@@ -747,6 +747,23 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       one slot (`blue`, port 4000) listens, the prior `green` slot (423164cce, port 4001) drained and retired; no
       release worktree remains (`git worktree list` shows only this plan's own task worktree and one unrelated
       worktree). The real IndexedDB offline-outbox persistence fix (AC-FC-12) is now live in production.
+      **2026-09-20 (experience flag restored):** the compatibility release above correctly ships with
+      `BNEST_FAMILY_CHAT_ENABLED` off by design (tech-doc 009's two-step model) — this reverted the home-page
+      navigation entry a user actively testing production noticed disappear. Restored it the same way Phase 8
+      originally enabled it: managed `release:run --mode experience --revision c24ecac7bafa91c346b8684e526a057815f212de`,
+      user-authorized (feature-flag writes require explicit confirmation under this session's auto-mode policy).
+      **Attempt 1** promoted the candidate and passed `routed-liveview` verification, then rolled back during its
+      own `cleanup` evidence stage on a transient `errorCategory: "capacity"` condition (`outcome: "rolled-back"`,
+      `durationMs: 322329`) — `./hippo status` showed normal capacity moments later, consistent with a passing
+      spike rather than a real resource shortfall; the routed backend correctly returned to the last known-good
+      state (`blue`, flag off) rather than being left partially promoted. **Attempt 2** (immediate retry, same
+      revision) succeeded: `outcome: "passed"`, `durationMs: 321484`, evidence stages `preflight`,
+      `experience-release-e2e`, `experience-candidate-proof`, `promotion`, `routed-liveview`, `cleanup` all
+      recorded, `migrationState: "not-required"` (no rebuild, matching the reused-artifact design). Routed cutover
+      independently re-verified: both local and production-origin `/health/ready` report `slot: "green"`,
+      revision `c24ecac7bafa91c346b8684e526a057815f212de`; exactly one slot (`green`, port 4001) listens, `blue`
+      (port 4000) drained and retired. Family chat's navigation entry and messaging are live in production with
+      both the real IndexedDB persistence fix and the flag on.
 
 - [x] `[AI] [AC-FC-01..13]` Reconcile all six plan documents, both C4 surfaces, behavior maps, File Impact, and
       `learnings.md` to the as-built system; route every learning to a durable owner or discard reason. **Proof:** each AC
