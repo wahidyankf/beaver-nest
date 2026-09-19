@@ -294,7 +294,7 @@ function fakeExperienceHost(overrides = {}) {
   const calls = [];
   const host = {
     calls,
-    preflight: async () => {
+    experiencePreflight: async () => {
       calls.push("preflight");
       return { revision, activeSlot: "blue" };
     },
@@ -402,6 +402,24 @@ test("selects the release mode from --mode, defaulting to compatibility", () => 
   assert.match(
     source,
     /mode === "experience"\s*\?\s*await executeExperienceRelease/u,
+  );
+});
+
+test("derives the experience release revision from the routed slot, not the checkout HEAD", () => {
+  // The delivery's own compatibility release for this SHA, and every
+  // `learnings.md` update after it, moves `origin/main` past whatever is
+  // currently routed -- the experience release's revision must come from
+  // live `proxy:status`, never from `assertReleaseSource()`'s no-argument
+  // return (the checkout's current HEAD).
+  const source = readFileSync(
+    new URL("./release.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /const revision = proxyStatus\.activeRevision;/u);
+  assert.match(source, /await host\.experiencePreflight\(options\.revision\)/u);
+  assert.match(
+    source,
+    /await host\.runGates\(releaseRevision, experienceGateManifest, false\)/u,
   );
 });
 

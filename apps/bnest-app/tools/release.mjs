@@ -440,13 +440,13 @@ export async function executeExperienceRelease(host, options = {}) {
   let candidateSlot = null;
 
   try {
-    const preflight = await host.preflight(options.revision);
+    const preflight = await host.experiencePreflight(options.revision);
     releaseRevision = preflight.revision;
     priorSlot = preflight.activeSlot;
     evidenceIds.push("preflight");
 
     fromState = "pre-artifact-gates";
-    await host.runGates(releaseRevision, experienceGateManifest);
+    await host.runGates(releaseRevision, experienceGateManifest, false);
     evidenceIds.push(...experienceGateManifest.map(({ id }) => id));
 
     candidateSlot = priorSlot === "blue" ? "green" : "blue";
@@ -704,15 +704,73 @@ export class MachineHost {
     };
   }
 
-  async runGates(revision, manifest) {
+  // Tech-doc 009's Experience Release Procedure reuses whatever revision is
+  // *currently routed in production*, not the checkout's current `origin/main`
+  // HEAD -- by the time this runs, `main` will almost always have moved past
+  // it (this delivery's own `learnings.md` updates are proof). Checkout
+  // hygiene is still asserted (clean, on `main`, synced with `origin/main`),
+  // but the release revision itself comes from live `proxy:status`, and an
+  // explicit `--revision` (if given) is only a sanity check against that.
+  async experiencePreflight(requestedRevision) {
+    this.assertReleaseSource();
+
+    if (!this.acquireLock("experience")) {
+      writePrivateJson(this.queuePath, {
+        schemaVersion: 1,
+        revision: "experience",
+      });
+      throw new ReleaseError(
+        "concurrency",
+        "A release already owns the host lock",
+        "queued",
+      );
+    }
+    rmSync(this.queuePath, { force: true });
+
+    this.assertCapacity();
+    const statusResult = this.deployment("proxy:status");
+    const proxyStatus = parseLastJson(statusResult.stdout, "proxy status");
+    if (!proxyStatus.caddyReady)
+      throw new ReleaseError("preflight", "Active Caddy route is not ready");
+
+    const revision = proxyStatus.activeRevision;
+    if (!/^[0-9a-f]{40}$/u.test(revision))
+      throw new ReleaseError("preflight", "Routed revision is invalid");
+    if (requestedRevision && requestedRevision !== revision)
+      throw new ReleaseError(
+        "preflight",
+        "Requested revision is not the currently routed revision",
+      );
+    if (!existsSync(join(this.deploymentRoot, "releases", revision)))
+      throw new ReleaseError(
+        "preflight",
+        "No release artifact exists for the routed revision",
+      );
+
+    mkdirSync(this.logsPath, { recursive: true });
+    this.logPath = join(this.logsPath, `release-${revision}-experience.log`);
+    writeFileSync(this.logPath, "", { encoding: "utf8", mode: 0o600 });
+
+    this.assertPorts(proxyStatus.activeSlot);
+    this.startResourceMonitor(revision);
+    this.log("experience preflight passed");
+    return { activeSlot: proxyStatus.activeSlot, revision };
+  }
+
+  // `checkRevision = false` is for `executeExperienceRelease` only: its
+  // `revision` is an already-routed, already-built past commit, not the
+  // current checkout's HEAD, so pinning gate runs to it would always fail.
+  // Checkout hygiene (clean, on `main`, synced with `origin/main`) is still
+  // asserted either way -- only the exact-revision-equality half is skipped.
+  async runGates(revision, manifest, checkRevision = true) {
     for (const gate of manifest) {
-      this.assertReleaseSource(revision);
+      this.assertReleaseSource(checkRevision ? revision : undefined);
       this.run("npm", ["exec", "--", "nx", ...gate.arguments], {
         cwd: repositoryRoot,
         category: "gate",
         env: boundedReleaseEnvironment(this.environment),
       });
-      this.assertReleaseSource(revision);
+      this.assertReleaseSource(checkRevision ? revision : undefined);
       this.log(`gate passed ${gate.id} ${revision}`);
       this.assertCapacity();
       this.assertActiveHealth();
