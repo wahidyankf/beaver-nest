@@ -569,15 +569,32 @@ fromState === "candidate-proof"` branch, which discards only the failed candidat
       production-origin probe report the same slot/revision with `schedulerReady`/`sqliteReady` true; exactly one
       `beam.smp` listener remained (prior slot drained). No synthetic user/message reached the production database —
       the candidate-proof scenario ran against the isolated `test:e2e` runtime root, never the routed production root.
-- [ ] `[AI] [AC-FC-13]` Verify the next complete backup receipt and restore a copy into an isolated root; prove room,
+- [x] `[AI] [AC-FC-13]` Verify the next complete backup receipt and restore a copy into an isolated root; prove room,
       message structure, push subscriptions, delivery state, and Scheduler state without printing bodies/secrets.
-      **Proof:** checksum/integrity/logical categories and exact cleanup.
-- [ ] `[AI] [AC-FC-10] [AC-FC-12]` **Recovery if triggered:** managed Caddy rollback to the compatibility floor, prove
+      **Proof:** checksum/integrity/logical categories and exact cleanup. **Evidence (2026-09-19):** verified the
+      newest complete receipt/artifact pair (`prod-sqlite-backup-daily`, `claimKind: "scheduled"`, `quickCheck: "ok"`
+      in the receipt itself); independently recomputed the artifact's SHA-256, mode (`0600`), and size against the
+      receipt's claims — all matched. Restored a copy into a fresh isolated marked root (own ownership marker,
+      `PRAGMA quick_check` re-run independently against the restored copy: `"ok"`), proved `schema_migrations` row
+      count, family-chat room/message/subscription/delivery **counts only**, and `prod-sqlite-backup-daily`
+      schedule-row presence plus its run-history count — through the same `StorageCoordinator`/`Scheduler.Store`
+      entrypoints production uses, never by direct SQL against the routed database. No id, name, slug, message, or
+      subscription-endpoint content was read, inspected, or printed at any point (aggregate counts and PRAGMA/schema
+      metadata only). Isolated restore root and scratch script both deleted after the drill. See "Phase 8 — Backup
+      Restore Drill" below in `learnings.md`.
+- [x] `[AI] [AC-FC-10] [AC-FC-12]` **Recovery if triggered:** managed Caddy rollback to the compatibility floor, prove
       routed revision/GraphQL/readiness, observe rejected-slot socket close, let clients reconnect/catch up, drain the
-      rejected slot, and retain data. **Proof:** healthy floor or dated `Not triggered`.
-- [ ] `[AI] [AC-FC-01..13]` **Blocking checkpoint — Phase 8.** Confirm intended experience revision, operational-only
+      rejected slot, and retain data. **Proof:** healthy floor or dated `Not triggered`. **Disposition (2026-09-19):
+      Not triggered.** `release:run --mode experience` completed with `outcome: "passed"` on its first attempt after
+      the tooling fixes (PR #51, #52) landed; `activationAttempted` never entered a failed/`recoverActivation` branch.
+      No Caddy rollback was performed and none was needed.
+- [x] `[AI] [AC-FC-01..13]` **Blocking checkpoint — Phase 8.** Confirm intended experience revision, operational-only
       production proof, isolated synthetic proof, backup restore, responsiveness, recovery dispositions, and
-      cleanup of candidates/watchers/stubs/proxies/test roots.
+      cleanup of candidates/watchers/stubs/proxies/test roots. **Confirmed (2026-09-19):** routed revision
+      `423164cce2e24966222777e21500140ef122e2a5` with `BNEST_FAMILY_CHAT_ENABLED=true` (item 1-2); backup restore
+      drill passed (item 3); recovery not triggered (item 4); exactly one production slot listens
+      (`4001`/`green`, prior `blue` drained), no stray `mix phx.server`/Caddy-test process, and `git worktree list`
+      shows only the two persistent worktrees — no release worktree, watcher, stub, or test root remains.
 
 ## Phase 9 — Reconciliation and Archival
 
