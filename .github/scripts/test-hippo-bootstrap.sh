@@ -28,7 +28,7 @@ grep -Fq '30 days' "$resource_rule"
 # self-contention caused by wrapping an already-guarded package script.
 tier_findings=$(git -C "$repository_root" grep -n -E \
 	'\./hippo run --class (ephemeral|service|transactional)' -- \
-	. ':(exclude)plans/done/**' ':(exclude).github/scripts/test-hippo-bootstrap.sh' | \
+	. ':(exclude)plans/**' ':(exclude).github/scripts/test-hippo-bootstrap.sh' | \
 	grep -v -- '--resource-tier' || true)
 if [ -n "$tier_findings" ]; then
 	printf '%s\n%s\n' 'HIPPO commands missing --resource-tier:' "$tier_findings" >&2

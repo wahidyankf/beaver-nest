@@ -19,7 +19,6 @@ denies:
   - web-fetch
   - nested-agent
   - nx-mcp
-constraints: []
 ---
 
 # Plan Maker

@@ -2,11 +2,11 @@
 description: Audits finished plan execution in fixed order and returns the terminal verdict that permits or blocks archival.
 mode: subagent
 permission:
-  read: allow
-  glob: allow
-  grep: allow
   bash: allow
   edit: deny
+  glob: allow
+  grep: allow
+  read: allow
   task: deny
 ---
 

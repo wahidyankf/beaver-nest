@@ -27,7 +27,7 @@
       "options": {
         "commands": [
           {
-            "command": "./rhino gate run --surface ci",
+            "command": "./rhino gate run --surface pre-push",
             "forwardAllArgs": false
           }
         ],

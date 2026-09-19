@@ -1,12 +1,12 @@
 ---
-description: Audits a complete plan draft against the plan specification and returns findings with a terminal verdict, without modifying anything.
+description: "Audits a complete plan draft against the plan specification and returns findings with a terminal verdict, without modifying anything."
 mode: subagent
 permission:
-  read: allow
-  glob: allow
-  grep: allow
   bash: allow
   edit: deny
+  glob: allow
+  grep: allow
+  read: allow
   task: deny
 ---
 

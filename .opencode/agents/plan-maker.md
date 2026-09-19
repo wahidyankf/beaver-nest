@@ -1,12 +1,12 @@
 ---
-description: Authors a complete formal plan from a request or groomed brief, runs both decision gates, and repairs its own draft within the declared budget.
+description: "Authors a complete formal plan from a request or groomed brief, runs both decision gates, and repairs its own draft within the declared budget."
 mode: subagent
 permission:
-  read: allow
+  bash: allow
+  edit: allow
   glob: allow
   grep: allow
-  edit: allow
-  bash: allow
+  read: allow
   task: deny
 ---
 
