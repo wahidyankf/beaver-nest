@@ -711,7 +711,7 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       93/93 passed; `bnest-app:typecheck`/`bnest-app:lint` and `bnest-app-fe-e2e:typecheck`/`lint` clean; the new
       `bnest-app-fe-e2e:test:e2e` scenario 4/4 passed (chromium/tablet-chromium/mobile-chromium); full family-chat
       E2E suite re-run 41/41 passed (no regressions).
-      **2026-09-20:** Done. Landed via PR #<PR_NUMBER>, merged as `<PR_SHA>` on `origin/main`. Full root-cause
+      **2026-09-20:** Done. Landed via PR #63, merged as `d6a70012a9391944dfa14675fcdca8b26f968b5a` on `origin/main`. Full root-cause
       narrative in `learnings.md`.
 
 - [ ] `[AI] [AC-FC-01..13]` Reconcile all six plan documents, both C4 surfaces, behavior maps, File Impact, and
