@@ -2181,3 +2181,67 @@ the scope its own discovery justified rather than being bundled speculatively ah
 feature's own design newly triggered), `fix-release-webpush-env` (a documented-but-never-implemented deployment
 requirement the feature's own runtime config introduced). `release:run` itself never bypassed a failing gate to
 get here — both real blockers were fixed at their root cause and re-proven, not routed around.
+
+## Phase 7 Item 3 — A Fourth Gap: Release Tooling Never Converges the Backup Schedule or Enables Retention — 2026-09-19
+
+**Investigation.** Delivery item 3 ("After drain, enable retention and converge backup schedule through Scheduler
+services") looked, on first read of `family_chat.ex`, like it was already implemented: `activate_when_compatible!/0`
+calls exactly `SchedulerStore.activate_if_pristine!/2` then `Scheduler.converge_backup_time!/2`. But that function
+is gated on `Application.get_env(:bnest_app, :family_chat_enabled, false)` — tech-doc 007's table marks that flag
+`false for compatibility release, true for experience release`, i.e. Phase 8 only. Read literally, item 3 (a Phase
+7 item) would never fire.
+
+Resolved by going to tech-doc 009 directly rather than guessing which side was wrong. Its "Backup Schedule
+Migration" section is unambiguous: "After the compatibility revision is routed and every runnable slot supports
+the new Backup service, managed release calls a public Scheduler operation that force-converges this key once,"
+and separately, on push retention: "[it] remains a separate fixed disabled seed at 00:15 WIB and becomes enabled
+only after old-slot drain." Both sentences describe a _release-tooling-invoked, Phase-7, flag-independent_ action
+— not the boot-time, flag-gated path. The Gherkin "Rule: One-time backup schedule convergence" scenario confirms
+this for the backup half: its driver step (`family_chat_driver.ex`) calls `Scheduler.converge_backup_time!/2`
+_directly_, never through `family_chat.ex` at all. `PersistentSchedules.verify!/0`'s own comment agrees
+independently ("the compatibility release's one-time convergence to 18:00 UTC... must not make a subsequent
+restart's verification fail"). Three independent sources, one conclusion: `deployment.mjs`/`release.mjs` were
+supposed to call these two public Scheduler operations directly, once, after old-slot drain — and never did. A
+`grep` across `deployment.mjs` confirmed neither `converge_backup_time!` nor `activate_if_pristine!` is called
+anywhere in release tooling; `FamilyChat.apply_and_verify!/0` (the only thing that touches `activate_when_compatible!/0`)
+isn't called by release tooling either. This is the fourth real, previously-unexercised release-tooling gap found
+by actually trying to complete the release for real (after the scheduler race and the VAPID env vars) — the same
+class of "documented in a tech-doc, never wired into the actual release path" defect each time.
+
+**Fix**, on a fourth task branch (`fix-release-post-drain-convergence`, same worktree): added
+`FamilyChat.converge_after_drain!/0` — unconditional, no flag check, sharing its body (`do_converge_after_drain!/0`)
+with `activate_when_compatible!/0` so the flag-gated boot-time path (still useful for Phase 8 self-heal and fresh
+installs, per tech-doc 009's "fresh installations traverse the same service reconciliation after their compatible
+revision starts") and the new direct release-tooling path both go through the exact same CAS-safe operations, not
+two divergent implementations. `deployment.mjs` gained a `release:converge` CLI command (mirrors `release:migrate`'s
+bare-`eval`-against-the-release-artifact shape exactly). `release.mjs`'s `MachineHost` gained `convergeAfterDrain(revision)`,
+called from the main state-machine flow immediately after `drainAndCleanup` returns (i.e. after the prior slot is
+actually retired, matching "becomes enabled only after old-slot drain" literally) — a new `convergence` evidence
+stage.
+
+Per this project's specification-maintenance rule (Gherkin → bindings → Nx red → code → smoke, unit mandatory), a
+new Gherkin scenario was added rather than only fixing code: "Compatible activation enables push retention once
+after old-slot drain," mirroring the existing backup-convergence scenario's shape and exemption reasoning, wired
+into both the unit and integration drivers (this Rule section runs under both tiers, confirmed by grepping the
+unit driver — it is not integration-only despite the exemption comment's phrasing). One real bug caught immediately
+by actually running it: `Scheduler.Store.get_schedule/1`'s `enabled` field is coerced to a genuine boolean
+(`schedule_row/1` does `Map.update!(:enabled, &(&1 == 1))`), not the raw SQLite `0`/`1` integer `PersistentSchedules.verify!/0`'s
+different code path pattern-matches — the new outcome checks originally asserted `%{enabled: 1}` and failed
+against real data (`enabled: true`) until corrected in both drivers.
+
+**Verification.** `bnest-app:release:test` (Node) green, 31/31, including a new source-scan test asserting
+`release.mjs` calls `convergeAfterDrain` after `drainAndCleanup` and routes through `deployment.mjs`'s
+`release:converge`/`FamilyChat.converge_after_drain!()`. `bnest-app:test:unit` green, 287/287. `bnest-app:test:integration`
+green, 300/300 (one transient run showed 3 failures with no detail captured — not reproduced on immediate retry,
+consistent with this session's established `hippo`-load-contention flake pattern rather than a real defect).
+`bnest-app:test:quick` green end-to-end, including `test:coverage:behaviour`'s binding-coverage check (unit and
+integration both report 148 scenarios, matching counts — no orphaned Gherkin step). `bnest-app:lint` green:
+`mix format --check-formatted`, `mix credo --strict` (no issues across 173 files), `oxlint`, `mix deps.unlock
+--check-unused`.
+
+**Not yet proven in production.** This fix has not yet run through a real `release:run` — the `convergence` stage
+did not exist during attempt 3, so no live evidence yet exists that the backup schedule actually converges to
+`18:00`/`01:00 WIB` or that retention actually flips to enabled against the routed production database. That is
+the next concrete step once this PR merges: sync primary `main`, confirm baseline health, run `release:run` again
+(attempt 4) for revision `<this fix's merge SHA>`, and only then check off Phase 7 item 3 with real evidence,
+exactly as items 1 and 2 were closed out only after real proof rather than after code review alone.
