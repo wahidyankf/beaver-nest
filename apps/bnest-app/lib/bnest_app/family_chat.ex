@@ -74,11 +74,19 @@ defmodule BnestApp.FamilyChat do
     end
   end
 
-  @spec send_message(String.t() | nil, String.t(), String.t(), String.t()) ::
+  # `sender_display_name` defaults to the raw user id for callers with no real
+  # account to display (the backup module's synthetic load probes): only the
+  # GraphQL resolver, which has a real session-derived `displayUsername`,
+  # passes one explicitly.
+  @spec send_message(String.t() | nil, String.t(), String.t(), String.t(), String.t() | nil) ::
           {:ok, map()} | safe_error()
-  def send_message(nil, _slug, _client_message_id, _body), do: unauthenticated()
+  def send_message(user_id, slug, client_message_id, body, sender_display_name \\ nil)
 
-  def send_message(user_id, slug, client_message_id, body) when is_binary(user_id) do
+  def send_message(nil, _slug, _client_message_id, _body, _sender_display_name),
+    do: unauthenticated()
+
+  def send_message(user_id, slug, client_message_id, body, sender_display_name)
+      when is_binary(user_id) do
     with {:ok, room} <- get_room_for(user_id, slug),
          :ok <- validate_posting_enabled(room),
          :ok <- validate_client_message_id(client_message_id),
@@ -87,7 +95,7 @@ defmodule BnestApp.FamilyChat do
         room,
         "user",
         user_id,
-        display_name_for(user_id),
+        sender_display_name || user_id,
         client_message_id,
         normalized_body
       )
@@ -193,8 +201,6 @@ defmodule BnestApp.FamilyChat do
       {:error, _reason} -> validation_failed()
     end
   end
-
-  defp display_name_for(user_id), do: user_id
 
   defp session_digest_for(user_id),
     do: :crypto.hash(:sha256, user_id) |> Base.encode16(case: :lower)
