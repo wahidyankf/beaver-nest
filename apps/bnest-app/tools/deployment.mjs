@@ -76,6 +76,13 @@ function requiredProductionOrigin() {
   }
 }
 
+function requiredWebPushSubject() {
+  const value = process.env.BNEST_WEB_PUSH_SUBJECT;
+  if (!value)
+    fail("BNEST_WEB_PUSH_SUBJECT must be a mailto: or https: contact.");
+  return value;
+}
+
 function fail(message) {
   process.stderr.write(`bnest deployment: ${message}\n`);
   process.exitCode = 1;
@@ -323,6 +330,13 @@ function prepareSlot(slot) {
   const secretKeyBase = requiredEnvironment(
     "BNEST_DEPLOY_SECRET_KEY_BASE_FILE",
   );
+  const webPushPublicKey = requiredEnvironment(
+    "BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE",
+  );
+  const webPushPrivateKey = requiredEnvironment(
+    "BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE",
+  );
+  const webPushSubject = requiredWebPushSubject();
   const productionOrigin = requiredProductionOrigin();
   const release = join(paths.releases, revision);
   if (!existsSync(release)) fail(`Release ${revision} does not exist.`);
@@ -340,6 +354,9 @@ function prepareSlot(slot) {
       runtimeRoot,
       cookie,
       secretKeyBase,
+      webPushPublicKey,
+      webPushPrivateKey,
+      webPushSubject,
       productionOrigin.host,
       revision,
       logPath,
@@ -414,6 +431,9 @@ function launchAgent(
   runtimeRoot,
   cookieFile,
   secretKeyBaseFile,
+  webPushPublicKeyFile,
+  webPushPrivateKeyFile,
+  webPushSubject,
   productionHost,
   revision,
   logPath,
@@ -435,6 +455,14 @@ function launchAgent(
     RELEASE_DISTRIBUTION: "none",
     RELEASE_COOKIE: readFileSync(cookieFile, "utf8").trim(),
     SECRET_KEY_BASE: readFileSync(secretKeyBaseFile, "utf8").trim(),
+    // Tech-doc 007: deployment passes the existing runtime VAPID values to
+    // both slots unconditionally, not gated on `BNEST_FAMILY_CHAT_ENABLED` --
+    // `runtime.exs` fails closed on boot when these are absent, in every
+    // slot, on every revision, since `config/runtime.exs` runs regardless of
+    // which feature flags are set at runtime.
+    BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE: webPushPublicKeyFile,
+    BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE: webPushPrivateKeyFile,
+    BNEST_WEB_PUSH_SUBJECT: webPushSubject,
   };
   const environment = Object.entries(variables)
     .map(

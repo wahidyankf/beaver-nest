@@ -141,6 +141,39 @@ test("enables account identity cutover in every managed slot", () => {
   assert.match(source, /BNEST_IDENTITY_CUTOVER: "true"/u);
 });
 
+test("passes the existing runtime VAPID values to every managed slot", () => {
+  // Tech-doc 007: deployment passes the existing runtime VAPID values to both
+  // slots, unconditionally (not gated on `BNEST_FAMILY_CHAT_ENABLED`), since
+  // `config/runtime.exs` raises in `:prod` on every boot when these are
+  // absent -- a candidate that launchd starts without them never becomes
+  // ready, regardless of which feature flags are set. `launchAgent`'s
+  // `variables` object is a hard-coded allowlist (unlike a plain
+  // `...process.env` spread), so a key missing from it here is a key the
+  // launchd-managed process never receives.
+  const source = readFileSync(
+    new URL("./deployment.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /requiredEnvironment\(\s*"BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE"/u,
+  );
+  assert.match(
+    source,
+    /requiredEnvironment\(\s*"BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE"/u,
+  );
+  assert.match(source, /requiredWebPushSubject\(\)/u);
+  assert.match(
+    source,
+    /BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE: webPushPublicKeyFile/u,
+  );
+  assert.match(
+    source,
+    /BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE: webPushPrivateKeyFile/u,
+  );
+  assert.match(source, /BNEST_WEB_PUSH_SUBJECT: webPushSubject/u);
+});
+
 test("never configures a nonzero Caddy stream-close delay while keeping the shutdown grace period", () => {
   // Family Chat plan requirement (tech-doc 007/009): a nonzero
   // `stream_close_delay` would keep a browser's WebSocket bound to the
