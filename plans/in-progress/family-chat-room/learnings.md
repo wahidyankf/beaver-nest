@@ -1953,3 +1953,108 @@ were fixed in place per `push-hook-verification.md` rather than reported as bloc
 Verified with a full `nx run -p bnest-app -t lint` run (`mix format --check-formatted`, `mix credo --strict`,
 oxlint, `mix deps.unlock --check-unused`) from a clean working tree: exit 0, matching the pre-push hook's own `lint`
 target exactly. Committed as `a5f6cb697`.
+
+## Scheduler-Restart Race — Root Cause and Fix (Separate Branch) — 2026-09-19
+
+**Context.** After PR #42 merged family-chat-room into `main` (`6c74f9542`), Phase 7's real `release:run` cutover
+repeatedly failed its `bnest-integration` gate on the same scenario: `ScheduledBackupsTest` / "Persist a daily
+schedule across restart" (`specs/apps/bnest/app-be/behaviours/scheduled_backups.feature:22`). This scenario, its
+driver clauses, and the underlying `StorageCoordinator` dynamic-repo-swap mechanism it depends on all predate
+family-chat-room — `git merge-base --is-ancestor` confirmed the introducing commit (`003c09061`, "add durable
+scheduled backups") is an ancestor of production `blue`'s own currently-routed revision (`f536f97d...`), and the
+failure had already been characterized and explicitly accepted as a known, out-of-scope Phase-5 exception (see the
+Phase 5 and Phase 6 entries above). The mechanical `release:run` gate has no exemption for a known-accepted
+exception, though, so it blocked every cutover attempt. An informed retry (on the hypothesis that this was a
+timing/race issue, not deterministic) was tried once and failed again, with a different symptom each time
+(`key :enabled not found in: nil` vs. `DBConnection.Holder.checkout(...) EXIT shutdown`), confirming it was
+genuinely a race rather than a fixed bug — at which point the user decided to fix it properly rather than keep
+retrying or routing around it, scoped initially to `scheduler/{store.ex,run.ex}`.
+
+**Corrected root-cause story — two distinct things, not one.** Investigation revealed the actual mechanism is the
+combination of a genuinely pre-existing, latent capability and a genuinely new trigger, and conflating them would
+have misattributed the bug. Keeping them separate here for Phase 9's reconciliation:
+
+- **Pre-existing, latent, test-only mechanism (predates family-chat-room):**
+  `BnestApp.DataRepository.StorageCoordinator` manages the single, globally process-name-registered
+  `BnestApp.SqliteRepo` connection outside OTP supervision
+  (`Process.unlink`ed after `start_link`), so that different test modules can each `ensure_started!/1` their own
+  isolated SQLite path and `stop/0` it in teardown — a deliberate test-suite convenience, not a production need (in
+  every real environment, `BnestApp.FamilyChat.Store.database_path/0`'s fallback and
+  `BnestApp.Storage.Config.resolved_database_path/0` resolve to the _same_ configured path, so
+  `StorageCoordinator.ensure_started!/1` is always a no-op in production — confirmed by reading `config/test.exs`
+  line 138-140, the only place `:family_chat_sqlite_path` is ever set, versus its absence from every other config
+  file). Because this swap capability exists at all, _any_ caller that reaches `ensure_started!/1` with a path
+  different from whatever is currently active will silently stop-and-restart the shared repo out from under
+  whatever else was relying on it — there is no locking or "operation in flight" awareness.
+- **Family-chat-room's own newly-added trigger (introduced by this delivery, not pre-existing):** confirmed via
+  `git show f536f97dabec1199dec187f38f9a17ed3022c0af:apps/bnest-app/lib/bnest_app/scheduler.ex | grep
+dispatch_push_notifications` returning nothing — `dispatch_push_notifications/0` did not exist in production
+  `blue`'s revision at all. It was added by `430ed9cfc feat(family-chat): converge scheduler dependency ordering`
+  (already merged via PR #42), which reuses the existing 60-second Scheduler tick to also drain due Web Push
+  deliveries on every dispatch (`scheduler.ex`'s own comment documents this as an intentional Phase 5 design
+  decision). `dispatch_push_notifications/0` calls `PushNotifications.dispatch_all_due!/0`, which calls
+  `BnestApp.FamilyChat.Store.ensure_ready!/0` → `ensure_started!/0` →
+  `StorageCoordinator.ensure_started!(family_chat_sqlite_path)` — and in the test suite, that path is a
+  fixed-per-run but _different_ path from whatever the currently-running
+  scenario (e.g. `scheduled_backups.feature`, which uses `StorageConfig.resolved_database_path/0`) is using. Every
+  Scheduler dispatch — including the one `BnestApp.Scheduler.init/1` fires unconditionally via
+  `send(self(), :tick)` on every process start, i.e. exactly the moment the "restart_scheduler" step simulates —
+  now has a side effect of silently repointing the shared repo to family-chat's database.
+
+**Direct empirical confirmation, not inference.** Added temporary `IO.puts` debug prints around the
+`perform_behaviour(:restart_scheduler, ...)` driver clause and `Store.get_schedule/1` (reverted immediately after,
+confirmed clean via `git diff --stat` before continuing), then reproduced locally with a fixed ExUnit seed (859912,
+the same seed the failing `release:run` gate log showed) via `BNEST_TEST_LAYER=integration MIX_ENV=test mix do
+compile --warnings-as-errors + test --warnings-as-errors --exclude integration-exempt --max-cases 1 --seed 859912
+test/integration` directly in the worktree. The debug output showed the database path changing mid-step:
+
+```
+DEBUG restart_scheduler BEFORE key="bdd-restart-HZnZMk1s" db="/Users/wkf/bnest/data/test/runs/mix-z-puse7k4mm/bnest.sqlite3" before_enabled=true
+DEBUG restart_scheduler AFTER  key="bdd-restart-HZnZMk1s" db="/Users/wkf/bnest/data/test/family-chat/unit-hxedthifzhi/bnest.sqlite3"
+```
+
+— i.e. between `Process.exit(scheduler, :kill)` and the very next `Store.get_schedule/1` call in the same driver
+clause, the globally shared repo was silently stopped and restarted against family-chat's database. The read
+afterward correctly finds nothing (it is a different, empty SQLite file for this key), which is exactly the
+`key :enabled not found in: nil` failure mode. The `RuntimeError`/`DBConnection` shutdown-exit symptoms seen in
+earlier `release:run` attempts are the same mechanism caught mid-transition instead of after it completed.
+
+**Fix, kept minimal and scoped to the actual mechanism.**
+
+1. `apps/bnest-app/lib/bnest_app/scheduler.ex` (expanded scope, flagged for the coordinator's sanity-check before
+   merge since it is real, if currently flag-inert, production dispatch-timing code): tagged every `:tick` message
+   with its origin (`{:tick, :boot}` from `init/1`, `{:tick, :interval}` from the recurring `Process.send_after`),
+   and `dispatch/2` now takes a `dispatch_push?:` option that `handle_info({:tick, origin}, state)` sets to
+   `origin != :boot`. Only the very first, boot/restart-triggered tick skips `dispatch_push_notifications/0`;
+   `Store.claim_due/1` (backup-schedule claiming) runs unchanged on every tick, and both the regular 60-second
+   recurring tick and the explicit, currently-unused `Scheduler.reconcile/0` public API always dispatch push
+   exactly as before. In production this delays push-notification dispatch by at most one `@tick_ms` (60s)
+   specifically following a process boot/restart — the repo-swap race this prevents cannot occur in production at
+   all today (both paths coincide there), so this is pre-emptive hardening against the same class of hazard should
+   `family_chat_sqlite_path` and the main storage path ever diverge in production (e.g. via
+   `BnestApp.Storage.Relocation`), not a fix for an observed production symptom.
+2. `apps/bnest-app/lib/bnest_app/scheduler/store.ex` and `.../run.ex` (the originally-scoped fix, kept regardless):
+   added `Store.with_repo_retry/1`, a bounded retry (5 attempts, 20ms apart) around `transaction/1` and
+   `get_schedule/1` that catches specifically the "could not lookup Ecto repo" `RuntimeError` and `:shutdown` exits
+   — genuine transient-unavailability signals — and reraises everything else on the first attempt, unretried.
+   `Scheduler.Run.record_failure/3` gained the same defensive `rescue`/`catch` idiom already used by this file's
+   `renew_loop/2`, so a leftover async task's best-effort failure bookkeeping cannot itself crash when the repo it
+   is trying to update is transiently gone or has been swapped to a database that no longer has that run row. This
+   fix alone was confirmed **insufficient** for the actual scenario (verified empirically: still red after only
+   this change, same failure, same debug-print evidence of the path swap) — it hardens against the transient
+   sub-case but cannot recover from a _persistent_ wrong-database read, which only the `scheduler.ex` change
+   prevents from ever occurring in the first place.
+
+**Verification.** RED reproduced independently and reliably pre-fix (fixed seed 859912, three separate runs, same
+failure every time — plus a fourth, no-fix confirmation immediately after the `store.ex`/`run.ex`-only change,
+still red). After the `scheduler.ex` change: `mix compile --warnings-as-errors` clean; three consecutive runs at
+the previously-failing fixed seed 859912, `299 tests, 0 failures, 14 excluded` every time; roughly 20 further
+consecutive full `test:integration` runs at random seeds, "Persist a daily schedule across restart" green in every
+one. One unrelated scenario (`FamilyChatOperationsTest` / "Capacity, concurrency, and restore: Routed reads and
+writes continue within budget during a full backup", a p95/max-latency load-budget assertion) failed exactly once
+across roughly 20 random-seed runs; its steps never touch the Scheduler, its tick, or push-notification dispatch
+(confirmed by grepping `family_chat_backend_steps.exs`), and the machine was under `hippo`-reported
+`memory-warning`/`live-pressure-warning` load at the time from this session's own back-to-back test invocations —
+treated as an unrelated, pre-existing, load-sensitivity flake, not a regression from this fix, and out of this
+fix's scope. `mix format --check-formatted` and `mix credo --strict` both clean on all three changed files;
+`nx run bnest-app:test:quick` (unit-layer `BE_UNIT` plus behaviour-coverage verification) green.
