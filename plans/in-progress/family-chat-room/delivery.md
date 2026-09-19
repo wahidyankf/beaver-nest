@@ -469,6 +469,24 @@ endpoints, database content, or absolute runtime paths.
       checked off** — this item's proof (schedules actually converged/enabled, `daily_at_utc = 18:00`, operator-edit
       safety, compatibility revision recorded as rollback floor) can only be verified by a real `release:run`
       exercising the new post-drain step in production; that is the next action once this fix lands on `main`.
+      **2026-09-19 (attempt 4, fifth gap found and fixed):** `release:run --revision 0b437a22c` ran the new
+      `convergence` step in production for the first time and crashed it with a `RuntimeError` reporting that the
+      `BnestApp.SqliteRepo` Ecto repo was not started or does not exist. Production itself stayed healthy and
+      correctly routed throughout — `drainAndCleanup` had already retired the prior slot before `release:converge`
+      ran, so `release.mjs`'s catch-all correctly reported `outcome: "failed"` without attempting a rollback (a
+      rollback would have been wrong; there was nothing to roll back to). Root cause: `FamilyChat.with_repository/1`
+      computed `started_here?` but never actually called `StorageCoordinator.ensure_started!()`, unlike its sibling
+      `PersistentSchedules.with_repository/1`, which does — a latent bug never exercised until this session's new
+      `converge_after_drain!/0` was first invoked for real via a bare `bin/bnest_app eval`. Fixed on branch
+      `fix-family-chat-standalone-repo-start`: added the missing repo-start call, mirroring the sibling exactly. New
+      regression test
+      `family_chat_migration_test.exs` mirrors `persistent_schedules_migration_test.exs`'s standalone-subprocess
+      pattern (RED reproduced the crash before the fix, GREEN after). While writing it, also found and worked around
+      a second, pre-existing, still-dead-code hazard: `config/test.exs` resolves `FamilyChat.Store`'s connection via
+      its own `family_chat_sqlite_path` (keyed on `BNEST_TEST_RUN_ID`), independent of `BNEST_STORAGE_CONFIG` — the
+      test now pins both to the same physical file. `bnest-app:test:integration` (301 tests) run three times clean,
+      `test:unit`, `lint`, and `release:test` all green. Not yet checked off — attempt 5 in production is still
+      needed to prove the fixed convergence step for real.
 - [ ] `[AI] [AC-FC-10]` **Recovery if triggered:** keep or restore prior route on migration/candidate/probe failure; after
       promotion, disable newly activated handlers before routing code that lacks them. Preserve additive data and retire
       only the failed candidate. **Proof:** healthy routed revision/journey or dated `Not triggered`.
