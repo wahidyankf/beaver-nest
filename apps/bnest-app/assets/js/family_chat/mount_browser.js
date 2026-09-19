@@ -6,7 +6,7 @@
 
 import { STATUS } from "./outbox.js";
 import { CONTROL_TEXT } from "./push.js";
-import { promoteSlot } from "./reconnect.js";
+import { promoteSlot, resumeFromBackground } from "./reconnect.js";
 import { request as graphqlRequest } from "./graphql.js";
 import { FAMILY_CHAT_MESSAGES_QUERY } from "./operations.js";
 import {
@@ -221,5 +221,17 @@ export async function mountBrowser(room, elements, { subscriptionClient }) {
   // a send ahead of the gap-fill.
   subscriptionClient.onReconnect(() => {
     void promoteSlot(room.reconnect);
+  });
+
+  // A backgrounded mobile PWA routinely freezes JS timers and silently
+  // kills the socket without a clean close event, so waiting on phoenix's
+  // own passive reconnect can leave the room stale well after the tab is
+  // foregrounded again; check and force a fresh connection immediately
+  // instead. The forced connection's own `onOpen` still runs the ordered
+  // catch-up sequence above -- this only ever decides *whether* to force it.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      resumeFromBackground(subscriptionClient);
+    }
   });
 }
