@@ -14,6 +14,7 @@ scan:
     - playwright-report
     - test-results
     - worktrees
+    - deps
 
 harness:
   canonical:
@@ -216,14 +217,7 @@ harness:
 policies:
   markdown:
     internal-link:
-      # Every `deps/**` here is Mix-vendored (each project's own `.gitignore`
-      # ignores `/deps/`) and carries its packages' own upstream READMEs,
-      # whose relative links point at files those packages don't ship (e.g.
-      # CONTRIBUTING.md). Untracked and unpublished, but still on disk for
-      # anyone who ran `mix deps.get`, so the scan must skip it rather than
-      # fail for every such checkout.
-      exclude-sources:
-        ["specs/fixtures/**", "plans/done/**", "**/deps/**"]
+      exclude-sources: ["specs/fixtures/**", "plans/done/**"]
     mermaid:
       node-label-graphemes: 32
       edge-label-graphemes: 24
