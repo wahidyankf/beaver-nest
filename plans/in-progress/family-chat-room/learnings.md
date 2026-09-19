@@ -2596,3 +2596,48 @@ no separate linter).
 `<compatibility-sha>` with continuous probes... against production") has not been executed — that requires the same
 careful, evidence-gathering `release:run` discipline Phase 7's five attempts used, against the real 24/7 service,
 and is deliberately not rushed into the same session as writing the tool that will run it.
+
+## Phase 8 — Pre-Experience Compatibility Release for `423164cce` (StorageCoordinator fix + tooling) — 2026-09-19
+
+**Why a new compatibility release was needed first.** Tech-doc 009's Experience Release Procedure step 1 says to
+reuse "the exact reviewed compatibility SHA already routed in production" with no repository edit. But
+`executeExperienceRelease`'s shared `preflight()` (inherited from `executeRelease`) requires `--revision` to equal
+the _current_ `origin/main` HEAD in the clean primary checkout — and `origin/main` had moved past the routed SHA
+(`6a92464714b`, still `green`/routed) to `423164cce` once the StorageCoordinator race fix (PR #48) and the
+experience-release tooling itself (PR #49) landed. A first `--mode experience --revision 6a92464714b` attempt
+confirmed this mismatch fails fast and safely: `{"outcome":"failed","errorCategory":"preflight","durationMs":69,...}`
+— failed in `preflight()` itself, before any candidate/promotion step, no production mutation. Since deploying the
+StorageCoordinator fix to production is itself valuable (Phase 8's own E2E proof reproduces the exact race this
+fixes) and `423164cce` needed to become the new reviewed/routed floor regardless, the correct sequence was an
+ordinary compatibility release for `423164cce` first, then the experience release reusing that SHA — the same
+pattern Phase 7 already used repeatedly whenever a fix landed mid-delivery.
+
+**Two transient build failures, both a network hiccup fetching `daisyui` (git dependency, ~21.6k objects) during
+`mix deps.get`** inside the release worktree: `error: RPC failed; curl 92 HTTP/2 stream 5 was not closed cleanly:
+CANCEL (err 8)` / `fatal: early EOF` / `fatal: fetch-pack: invalid index-pack output`, both at `fromState: "build"`,
+`errorCategory: "configuration"`, both cleanly recovered by the existing catch-all branch (`discardArtifact` only;
+no candidate/promotion attempted, no production impact). Both failures happened while `./hippo status` showed a
+concurrent heavy-tier job (`class=ephemeral tier=heavy cpu=8 memoryMiB=16384`, unrelated `rhino` source) actively
+running — a direct `git clone --depth 1` of the same `daisyui` URL outside the release pipeline succeeded in ~2
+seconds once that job finished and `hippo status` reported `owners=0`, confirming this was real machine-level
+resource contention during a large HTTP/2 transfer, not a defect in the release tooling or a problem with the
+dependency host itself. Third attempt, run once the machine was quiet, passed clean.
+
+**Result.** `release:run --revision 423164cce2e24966222777e21500140ef122e2a5` (default/compatibility mode)
+completed with `outcome: "passed"`, `durationMs: 707560` (~11.8 minutes), all 15 evidence stages present in order
+including `migration-proof: "applied"` (the existing `persistentSchedulesMigration`, unrelated to this delivery's
+own additive schema — no new migration was introduced here) and `convergence`. Routed cutover independently
+verified: both `http://127.0.0.1:4100/health/ready` and the production-origin probe report `{"slot":"blue",
+"revision":"423164cce2e24966222777e21500140ef122e2a5",...}`; `lsof -iTCP:4000 -iTCP:4001` shows exactly one
+`beam.smp` listener (the prior `green` slot fully drained and retired); `git worktree list` shows no leftover
+release worktree. `423164cce` (StorageCoordinator fix + experience-release tooling) is now the routed revision and
+the new reviewed compatibility floor the experience release will reuse.
+
+**Environment-derivation note for future sessions.** `proxy:status` and `release:run` both need the full
+machine-local `BNEST_DEPLOY_ROOT`/`BNEST_RUNTIME_ROOT`/`BNEST_DEPLOY_COOKIE_FILE`/etc. env set derived per
+`docs/how-to-guides/releasing-bnest.md` step 2 (from the live `com.bnest.app.blue.plist`'s `EnvironmentVariables`
+and `ProgramArguments:0`), and this session's harness blocked writing that derivation to a persisted file outside
+the repository (`Unauthorized Persistence`) — it must be derived inline within the same shell invocation as
+whatever command needs it, every time; also, read-only production checks (`proxy:status`, `curl .../health/ready`)
+require explicit user permission in this harness (`Production Reads`), separate from the plan's own execution
+authority, and were only run after the user granted it for this task in-session.
