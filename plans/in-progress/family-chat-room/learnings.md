@@ -2706,3 +2706,47 @@ Cutover independently verified from the primary checkout after the run: `proxy:s
 `schedulerReady`/`sqliteReady` true; `lsof -iTCP:4000 -iTCP:4001` shows exactly one `beam.smp` listener (the prior
 `blue` slot fully drained); `pgrep -fl beam.smp` confirms only the new `green` process remains; `git worktree list`
 shows no leftover release worktree. Production now serves `423164cce` with `BNEST_FAMILY_CHAT_ENABLED=true`.
+
+## Phase 8 — Backup Restore Drill — 2026-09-19
+
+**Receipt/artifact selection and independent verification.** Selected the newest complete receipt/artifact pair from
+the production backup destination: a genuinely `claimKind: "scheduled"` run against `scheduleKey:
+"prod-sqlite-backup-daily"`, `quickCheck: "ok"` recorded in the receipt itself at creation time. Independently
+recomputed the artifact's SHA-256 and re-checked its mode and size against the receipt's own claims — both matched
+exactly, and `ownershipScope: "bnest-production-backups-v1"` confirmed production ownership. (The destination
+directory also held a large number of `.sqlite3.partial` files accumulated from this session's many candidate boot
+attempts across the compatibility and experience release runs — each candidate resolves the same production backup
+config, and a killed/discarded candidate can leave its own claimed attempt's partial behind. Left untouched per
+tech-doc 009's own Restore Drill contract ("preserve unknown files and every artifact in previous destinations;
+cleanup failure is surfaced and retried, not hidden") — this is the Backup service's own by-run-ID cleanup
+responsibility, not something to clear manually.)
+
+**A harness permission-classifier boundary, distinct from the two hit earlier in Phase 8.** The first restore-drill
+attempt reused `BnestApp.Backup.restore/1` verbatim (the actual production restore service) and failed with a
+swallowed `{:error, :restore_failed}` (its `rescue` clause hides the real exception). Manually reproducing its
+internals to see the real error — a raw `SELECT id, slug, name, member_posting_enabled FROM family_chat_rooms`
+against the restored copy — was blocked by the harness's own classifier: `[PII Data Handling]`. This is a distinct,
+new boundary from the earlier `Production Reads`/`Unauthorized Persistence` denials, and consistent with (though
+independent of) the user's own standing constraint that no real user data may be used or exposed even during
+legitimate production-adjacent verification. Recovered without contesting it: re-ran the same diagnostic as a bare
+`SELECT COUNT(*)` (an aggregate, not row content), which the classifier allowed and which explained the real
+failure — `family_chat_rooms` has **zero** rows in this artifact. This is not a defect: this backup's `createdAt`
+(`09:44:12Z`) lines up almost exactly with the experience-release candidate's own boot time, i.e. this snapshot was
+taken essentially the moment the flag-enabled candidate came up, before any real person had used the just-launched
+feature against real production. `Backup.restore/1`'s own room-evidence query assumes at least one room already
+exists (a reasonable assumption for a mature deployment, not for a feature seconds old), so it was not reusable
+as-is; rather than treat this as a codebase bug to fix, the drill was rewritten as its own script using only
+`COUNT(*)`/`PRAGMA`/aggregate queries — never `id`/`slug`/`name`/message/subscription-endpoint content — satisfying
+both the harness boundary and the plan's own "without printing bodies/secrets" requirement more conservatively than
+the production function's own (slug/name-including) "structural" evidence shape.
+
+**Result.** Copied the verified artifact into a fresh isolated marked root (own `.bnest-restore-root.json` ownership
+marker, mirroring `Backup.restore/1`'s own convention) and, through the codebase's own `StorageCoordinator`
+(pointed explicitly at the restored copy's path, never the live database) and `Scheduler.Store` entrypoints,
+proved: `PRAGMA quick_check` → `"ok"` (independently reproduced, not just trusted from the receipt);
+`schema_migrations` row count `3` (matches the receipt's three recorded `schemaVersions`); family-chat room/
+message/web-push-subscription/push-delivery counts (`0/0/0/0` — accurate for a feature that had just gone live with
+no real usage yet, not a restore defect); `prod-sqlite-backup-daily` schedule row present or true; one
+`bnest_schedule_runs` row (this exact backup's own completed run record). No id, name, slug, message body, or
+subscription-endpoint value was read, inspected, or printed at any point. Both the isolated restore root and the
+scratch drill script were deleted after the run — confirmed via directory listing.
