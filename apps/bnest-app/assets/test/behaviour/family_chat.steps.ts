@@ -62,14 +62,72 @@ interface RoomOptions {
   devicePushState?: string | undefined;
 }
 
+// A real, executing (never `vi.mock`ed) in-memory double for `outbox.js`'s
+// `Persistence` write-through contract (`outbox_send.js`'s own typedef) --
+// proves the same save/remove/clear calls a real IndexedDB binding would
+// receive, without a browser. Real cross-reload durability itself (a
+// genuinely destroyed JS process reading this back out of actual
+// IndexedDB) has no Node/Vitest equivalent; that's
+// `family-chat-offline-persistence.steps.ts`'s (FE_E2E) job.
+interface FakePersistedRow {
+  namespace: string;
+  clientMessageId: string;
+  body: string;
+  status: string;
+}
+
+interface FakePersistence {
+  rows: Map<string, FakePersistedRow>;
+  loadAll: (namespace: string) => Promise<FakePersistedRow[]>;
+  save: (namespace: string, message: Record<string, unknown>) => void;
+  remove: (namespace: string, clientMessageId: string) => void;
+  clear: (namespace: string) => void;
+}
+
+function createFakePersistence(): FakePersistence {
+  const rows = new Map<string, FakePersistedRow>();
+  return {
+    rows,
+    async loadAll(namespace) {
+      return Array.from(rows.values()).filter(
+        (row) => row.namespace === namespace,
+      );
+    },
+    save(namespace, message) {
+      const clientMessageId = message["clientMessageId"] as string;
+      rows.set(`${namespace}::${clientMessageId}`, {
+        namespace,
+        clientMessageId,
+        body: message["body"] as string,
+        status: message["status"] as string,
+      });
+    },
+    remove(namespace, clientMessageId) {
+      rows.delete(`${namespace}::${clientMessageId}`);
+    },
+    clear(namespace) {
+      for (const key of rows.keys()) {
+        if (key.startsWith(`${namespace}::`)) rows.delete(key);
+      }
+    },
+  };
+}
+
 async function openRoom(
   context: StepContext,
   path: string,
   options: RoomOptions = {},
 ): Promise<StepContext> {
   const { initRoom } = await import(/* @vite-ignore */ ROOM_JS);
-  const room = await initRoom(path, { user: context["user"], ...options });
-  return { ...context, room, roomPath: path };
+  const persistence =
+    (context["persistence"] as FakePersistence | undefined) ??
+    createFakePersistence();
+  const room = await initRoom(path, {
+    user: context["user"],
+    persistence,
+    ...options,
+  });
+  return { ...context, room, roomPath: path, persistence };
 }
 
 function requireRoom(context: StepContext): Record<string, unknown> {
@@ -157,6 +215,45 @@ step("the network recovers", async (context) => {
   const room = requireRoom(context);
   const outbox = room["outbox"] as { reportOnline: () => void };
   outbox.reportOnline();
+  return context;
+});
+
+// A distinct synthetic identity (never the Background's shared
+// "test-user-family-chat"), mirroring "two members each open"'s own
+// precedent below: this scenario's namespace must stay unpolluted by any
+// earlier scenario sharing that default user+room (e.g. "The 101st queued
+// message for one room is rejected" permanently fills it to its 100-message
+// cap), since this scenario's own assertions need a real, freshly queued
+// message to still be findable by its exact clientMessageId.
+step("a fresh visitor opens {string}", async (context, path) => {
+  const user = {
+    id: "test-user-family-chat-offline-persistence",
+    approved: true,
+  };
+  return openRoom({ ...context, user }, path);
+});
+
+step("the visitor reloads the page", (context) => {
+  // A real reload's actual effect -- discarding the JS module's in-memory
+  // outbox state while real IndexedDB survives it -- has no Node/Vitest
+  // equivalent (there is no process to destroy); this scenario's real
+  // cross-reload proof is `family-chat-offline-persistence.steps.ts` (FE_E2E,
+  // a genuine `page.reload()`). What this layer proves instead is the
+  // write-through contract behind that persistence: see the next step.
+  return context;
+});
+
+step("the message is durably queued for a closed tab to resume", (context) => {
+  const persistence = context["persistence"] as FakePersistence;
+  const clientMessageId = context["lastClientMessageId"] as string;
+  const row = Array.from(persistence.rows.values()).find(
+    (candidate) => candidate.clientMessageId === clientMessageId,
+  );
+  if (!row) {
+    throw new Error(
+      "expected the queued message to have a durable (persisted) row",
+    );
+  }
   return context;
 });
 

@@ -27,8 +27,23 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
  */
 
 /**
+ * The real-IndexedDB-vs-Node split lives entirely in `family_chat.js` (see
+ * `persistence_indexeddb.js`'s own header comment) -- `outbox.js`/this file
+ * only ever see this narrow write-through contract, which is why FE_UNIT can
+ * prove the contract itself with a plain in-memory fake.
+ * @typedef {{
+ *   loadAll(namespace: string): Promise<import("./outbox_namespace.js").QueuedMessage[]>,
+ *   save(namespace: string, message: import("./outbox_namespace.js").QueuedMessage): void,
+ *   remove(namespace: string, clientMessageId: string): void,
+ *   clear(namespace: string): void,
+ * }} Persistence
+ */
+
+/**
  * @typedef {{
  *   namespace: import("./outbox_namespace.js").NamespaceRecord,
+ *   namespaceKey: string,
+ *   persistence: Persistence | undefined,
  *   listeners: Map<string, Set<(status: string) => void>>,
  *   committed: Map<string, object>,
  *   clock: import("./clock.js").Clock,
@@ -41,11 +56,13 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
  */
 
 /**
- * @param {{namespace: import("./outbox_namespace.js").NamespaceRecord, clock: import("./clock.js").Clock, transport: OutboxState["transport"], onQueueFull?: (() => void) | undefined, onLogout?: (() => void) | undefined, onAuthExpired?: (() => void) | undefined}} options
+ * @param {{namespace: import("./outbox_namespace.js").NamespaceRecord, namespaceKey: string, persistence?: Persistence | undefined, clock: import("./clock.js").Clock, transport: OutboxState["transport"], onQueueFull?: (() => void) | undefined, onLogout?: (() => void) | undefined, onAuthExpired?: (() => void) | undefined}} options
  * @returns {OutboxState}
  */
 export function createOutboxState({
   namespace,
+  namespaceKey,
+  persistence,
   clock,
   transport,
   onQueueFull,
@@ -54,6 +71,8 @@ export function createOutboxState({
 }) {
   return {
     namespace,
+    namespaceKey,
+    persistence,
     listeners: new Map(),
     committed: new Map(),
     clock,
@@ -68,8 +87,15 @@ export function createOutboxState({
   };
 }
 
-/** @param {OutboxState} state @param {import("./outbox_namespace.js").QueuedMessage} message */
+/**
+ * Every status mutation in this file calls `notify` right after, so this is
+ * also the one write-through point for durability (tech-doc 003's promised
+ * cross-reload persistence): a message that reaches "Waiting"/"Retrying" is
+ * durable from here on, regardless of which transition produced it.
+ * @param {OutboxState} state @param {import("./outbox_namespace.js").QueuedMessage} message
+ */
 function notify(state, message) {
+  state.persistence?.save(state.namespaceKey, message);
   const forId = state.listeners.get(message.clientMessageId);
   if (forId) {
     for (const listener of forId) listener(message.status);
@@ -90,10 +116,10 @@ export function activeCount(state) {
 
 /** @param {OutboxState} state @param {import("./outbox_namespace.js").QueuedMessage} message */
 function scheduleDeletion(state, message) {
-  state.clock.setTimer(
-    () => state.namespace.messages.delete(message.clientMessageId),
-    0,
-  );
+  state.clock.setTimer(() => {
+    state.namespace.messages.delete(message.clientMessageId);
+    state.persistence?.remove(state.namespaceKey, message.clientMessageId);
+  }, 0);
 }
 
 /** @param {OutboxState} state @param {import("./outbox_namespace.js").QueuedMessage} message */

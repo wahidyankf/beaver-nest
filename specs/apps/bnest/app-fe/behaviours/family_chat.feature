@@ -67,6 +67,18 @@ Feature: Family chat room
     Then the queued message resumes toward Sent without visitor action
 
   @fe-vitest-unit
+  # Exemption(integration): a real IndexedDB binding surviving an actual browser reload requires a real browser storage implementation Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A queued message survives a real browser reload while offline
+  @integration-exempt
+  Scenario: A queued message survives a real browser reload while offline
+    Given a fresh visitor opens "/family-chat/ruang-keluarga"
+    When the visitor sends a family chat message during a retryable network failure
+    Then the message shows status "Retrying in …"
+    When the visitor reloads the page
+    Then the message is durably queued for a closed tab to resume
+    When the network recovers
+    Then the message reaches status "Sent"
+
+  @fe-vitest-unit
   # Exemption(e2e): online-event backoff-eligibility logic is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / An online event makes a retry immediately eligible
   @e2e-exempt
   Scenario: An online event makes a retry immediately eligible

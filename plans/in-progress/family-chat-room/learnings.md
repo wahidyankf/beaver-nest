@@ -2967,3 +2967,72 @@ every fix found during manual review; manually verified at desktop (1280×800), 
 (393×852), and 320px against the three hi-fi mockup SVGs, confirming own/other bubble differentiation end-to-end
 with two real synthetic accounts. Landed via PR #60, merged as `f957862a7a3f4f23a98c73c8a8c4beee731fc608` on
 `origin/main`.
+
+### Real IndexedDB persistence for the offline outbox (PR #<PR_NUMBER>, `<PR_SHA>`)
+
+**Symptom.** No symptom a user would notice under normal conditions -- the outbox worked correctly for the
+duration of a single tab session. The gap only became observable by deliberately closing/reopening a real tab
+with a message still queued offline: the queued message silently vanished. The BRD, README, and tech-doc-009's
+Release Invariants table all documented IndexedDB as "Active for authenticated room" once the Experience stage
+shipped (Phase 8), which it already had, via Phase 8 + 8.5's production release -- so this was a real, currently
+live gap between documented and actual behavior, not a pre-launch TODO.
+
+**Root cause.** `family_chat.js`'s own header comment carried a disclosed "KNOWN GAP" note since Phase 4:
+`outbox.js`'s header comment described a real IndexedDB binding "attached separately by `family_chat.js`", but no
+such binding was ever implemented anywhere in `assets/js/` -- verified at the time via `grep` finding zero
+`indexedDB.*` calls in the whole directory. The outbox's queue lived entirely in `outbox_namespace.js`'s
+module-scoped `namespaces` Map, which survives repeated `initRoom` calls within one JS process (a live tab, or
+one Vitest process) but is destroyed by a real tab close, refresh, or crash. This was deliberately deferred at
+Phase 4 (the room was nav-dormant/flag-off, so no real user could yet lose a queued message) but never closed
+out before the Phase 8 flag flip that made it a live-production concern -- the Phase 9 plan-execution-checker
+agent caught this by directly re-reading `outbox_namespace.js`'s own header comment and `family_chat.js`'s "KNOWN
+GAP" note against the BRD/tech-doc's promised invariant, not by trusting any prior phase's "Done" marker.
+
+A second, previously-unreachable defect surfaced while implementing the fix: even with a real IndexedDB binding
+and correct hydration, nothing in `mount_browser.js` ever rendered an already-resumed pending message into the
+DOM -- `renderPending`/`watchPendingMessage` were only ever wired from `submitComposer`'s own fresh-send path.
+Same-tab "resume on open" was unreachable in the real browser before this fix (`app.js` calls `initRoomFromDocument`
+exactly once per tab), so this gap had zero observable effect until cross-reload persistence made a genuinely
+resumed message possible for the first time.
+
+**Fix.** New `family_chat/persistence_indexeddb.js` implements the real `Persistence` contract
+(`loadAll`/`save`/`remove`/`clear`) against a real IndexedDB database (`bnest-family-chat-outbox`, one object
+store keyed by `${namespace}::${clientMessageId}`, indexed by `namespace`), plus `resolvePersistence` -- the
+exact seam `outbox.js`'s header comment already described, now finally attached by `family_chat.js`. Every write
+is best-effort (try/catch, matching `app.js`'s own established `sessionStorage`/`localStorage` pattern): a
+browser that refuses IndexedDB degrades to the pre-existing in-memory-only behavior rather than breaking the
+room. `outbox_namespace.js` gained `hydrateNamespace` (loads persisted rows into the in-memory namespace once per
+process, guarded by a `hydrated` flag so a second same-tab `initRoom` call can never resurrect an
+already-deleted message); `family_chat.js` awaits it before constructing the outbox, so `resumeOnOpen`
+(`outbox_send.js`) needs zero storage-awareness of its own -- it just sees the hydrated messages already there.
+`outbox_send.js`'s `notify()`, the one call site every status transition already runs through, is now also the
+single write-through point (`state.persistence?.save(...)`); `scheduleDeletion` additionally removes the
+persisted row once a message reaches "Sent"; `outbox.js`'s `send()` persists immediately on queue (covering the
+edge case where draining is already paused) and `logout()` clears the persisted namespace. `mount_browser.js`
+gained `renderResumedPendingMessages`, called once at mount right after the initial history load, which renders
+every currently-pending outbox message (`outbox.js`'s new `pendingMessages()` read method) through the exact same
+`renderPending`/`watchPendingMessage` path a fresh send uses.
+
+**Testability.** FE_UNIT cannot exercise real IndexedDB (Node has no `indexedDB` global), so it proves the
+write-through/hydration _contract_ instead: `family_chat.steps.ts` gained `createFakePersistence()`, a real,
+executing in-memory double of the exact `Persistence` interface `outbox.js` calls (no `vi.mock` anywhere in this
+suite's history, and this fix keeps it that way) -- `openRoom` now always wires one through, and "the message is
+durably queued for a closed tab to resume" asserts the fake genuinely recorded the row, not a hardcoded success
+value. The new scenario's own namespace uses a dedicated synthetic user id
+(`test-user-family-chat-offline-persistence`) rather than the shared default, because an earlier scenario in the
+same file ("The 101st queued message for one room is rejected") permanently fills the shared
+"test-user-family-chat:ruang-keluarga" namespace to its 100-message cap for the rest of the process's life --
+discovered only by tracing a genuine `outbox.status(...)` returning `"not-found"` back to `send()`'s
+`activeCount(state) >= MAX_QUEUED_PER_ROOM` guard, not assumed. FE_E2E is the real, authoritative proof: a
+literal Playwright `page.reload()` (reusing the existing generic "the visitor reloads the page" binding) destroys
+and recreates the entire JS runtime -- the only way a message can still be visible and resuming afterward is if
+it came back from the browser's own on-disk IndexedDB, never from memory. The E2E binding also had to move off a
+fixed message body: "ruang-keluarga" is one shared room whose history persists across the three Playwright
+browser projects (chromium/tablet-chromium/mobile-chromium) that all run this same scenario sequentially in one
+process, so a fixed body text false-positive-matched an earlier project's own already-committed message
+(`toHaveCount(1)` observed `2`) -- fixed with a `crypto.randomUUID()`-suffixed body generated fresh per test run.
+
+**Evidence.** `bnest-app:test:unit:fe` 93/93 passed; `bnest-app:typecheck` and `bnest-app:lint` clean;
+`bnest-app-fe-e2e:typecheck` and `lint` clean; the new E2E scenario 4/4 passed across every browser project; the
+full family-chat E2E suite re-run 41/41 passed with no regressions. Landed via PR #<PR_NUMBER>, merged as
+`<PR_SHA>` on `origin/main`.
