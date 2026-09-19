@@ -565,7 +565,7 @@ fromState === "candidate-proof"` branch, which discards only the failed candidat
       project only per the fixed multi-project SQLite-duplication bug — PR #52, `d72a9d23a`) passed as part of the same
       `outcome: "passed"` run; `promotion` and `routed-liveview` evidence stages both recorded. Cutover independently
       verified afterward from the primary checkout: `proxy:status` → `{"activeSlot":"green",
-    "activeRevision":"423164cce2e24966222777e21500140ef122e2a5"}`; both `http://127.0.0.1:4100/health/ready` and the
+"activeRevision":"423164cce2e24966222777e21500140ef122e2a5"}`; both `http://127.0.0.1:4100/health/ready` and the
       production-origin probe report the same slot/revision with `schedulerReady`/`sqliteReady` true; exactly one
       `beam.smp` listener remained (prior slot drained). No synthetic user/message reached the production database —
       the candidate-proof scenario ran against the isolated `test:e2e` runtime root, never the routed production root.
