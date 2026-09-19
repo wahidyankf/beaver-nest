@@ -2750,3 +2750,110 @@ no real usage yet, not a restore defect); `prod-sqlite-backup-daily` schedule ro
 `bnest_schedule_runs` row (this exact backup's own completed run record). No id, name, slug, message body, or
 subscription-endpoint value was read, inspected, or printed at any point. Both the isolated restore root and the
 scratch drill script were deleted after the run — confirmed via directory listing.
+
+## Phase 8.5 — Post-Launch Production Fixes — 2026-09-19
+
+Two defects the user found by exercising the routed production revision themselves (never through any manual
+testing performed against production or real user data on this side — the standing constraint held throughout;
+verification here used isolated synthetic identities and `BE_UNIT`/`INTEGRATION`/`FE_UNIT`/`FE_E2E` only). Both
+fixed Gherkin-first, each cut as its own short-lived branch from a fresh `origin/main` inside
+`worktrees/family-chat-room/`.
+
+### Display name bug (PR #55, `621d41265`)
+
+**Symptom.** Every family chat message rendered the sender's raw user ID (e.g. a UUID) instead of their real
+display name, even though the authenticated session already carried a real `displayUsername`.
+
+**Root cause.** `FamilyChat.send_message/4` had no display-name parameter at all; a `defp display_name_for(user_id),
+do: user_id` stub inside the context module unconditionally echoed the raw ID back as the "display name" for every
+commit, regardless of what the caller actually knew about the sender.
+
+**Fix.** Added a fifth, defaulted parameter to `FamilyChat.send_message/5` (`sender_display_name \\ nil`, falling
+back to `user_id` only for callers with no real account to display — the backup module's synthetic load probes);
+`FamilyChatResolver.send_family_chat_message/2` now passes the resolution's own session-derived `displayUsername`
+explicitly. The old `display_name_for/1` stub was removed entirely rather than kept as a fallback path, since every
+real caller now has a genuine display name to pass.
+
+**A real Elixir guard-clause trap along the way.** The first RED-confirming outcome clause was written as
+`match?({:ok, %{sender_display_name: name, sender_id: sender_id}} when name == synthetic_display_name(sender_id)
+and name != sender_id, ...)` — this compiles, but silently never matches, because local function calls
+(`synthetic_display_name(sender_id)`) are not permitted inside Elixir guards (only a fixed whitelist of BIFs/
+operators is). Rewritten as a plain `case` expression instead. (A neighboring guard in the integration driver,
+`context.identity_username == context.user_id`, looks similar but is legal: `.field` map access compiles to the
+guard-safe `:erlang.map_get/2`, not a local function call.)
+
+**Also discovered mid-cycle:** the unit driver needed the identical outcome clause the integration driver got —
+the same Gherkin scenario runs against both layers (`libs/ex-bdd`'s dual-driver architecture), and the pre-commit
+`format-staged` gate's real failure (masquerading as a formatting error at first glance) was actually
+`UnitFamilyChatDriver.behaviour_outcome?/3` raising `FunctionClauseError` because only the integration driver had
+been updated.
+
+**Evidence.** `BE_UNIT`/`INTEGRATION`/focused `BE_E2E` all green; landed via the established worktree→PR→
+leak-review→CI→merge→reconcile cycle (PR #55, merge commit `621d41265` on `origin/main`).
+
+### Visibility-resume bug (PR #56, `4138fedad`)
+
+**Symptom, reported directly by the user:** "kalo appnya baru dari background di hape/pwa, kalo dia di chat,
+otomatis keupdate ya. kayaknya masih kurang smooth juga nih" (when the app comes back from the background on
+phone/PWA while in the chat, it should update automatically — it still seems not smooth).
+
+**Root cause.** No code anywhere in the family chat frontend listened for the `visibilitychange` event. The
+existing reconnect machinery (`graphql.js`'s `socket.onOpen` handler, `mount_browser.js`'s `onReconnect` wiring)
+only reacts to phoenix's own passive, exponential-backoff reconnect — which depends on the browser's JS timers
+continuing to run. A backgrounded mobile PWA routinely freezes those timers entirely during OS-level suspension,
+so a connection killed while backgrounded could sit silently dead long after the tab returned to the foreground,
+with nothing to notice and force a fresh attempt.
+
+**First implementation (incorrect) and how it was caught.** Following the same Gherkin-first TDD cycle used
+throughout this plan: added a new "Rule: Reconnect on visibility resume" to `family_chat.feature` (one
+`@fe-vitest-unit` scenario proven by fakes, with a documented `@integration-exempt` alternative-proof at
+`bnest-app-fe-e2e:test:e2e`, since forcing a genuinely stale connection and a real document visibility transition
+crosses browser/OS-lifecycle boundaries `Phoenix.LiveViewTest` cannot observe). RED confirmed
+(`resumeFromBackground is not a function`). The first GREEN implementation gated the forced reconnect on
+`subscriptionClient.isConnected()`:
+
+```js
+export function resumeFromBackground(socketClient) {
+  const stale = !socketClient.isConnected();
+  if (stale) socketClient.reconnectNow();
+  return stale;
+}
+```
+
+FE Vitest passed immediately (89/89) — but that test only exercises hand-injected fakes, never the real
+`isConnected()` semantics. The real Playwright E2E scenario (simulating a backgrounded tab via
+`page.context().setOffline(true)` plus a real `visibilitychange` dispatch to `"hidden"`, then reversing both)
+failed: `expect.poll(() => socketReopenedOnResume, { timeout: 10_000 }).toBe(true)` timed out, `false` the whole
+time. Temporary debug instrumentation (`console.log` in `reconnectNow`, captured via Playwright's own
+`page.on("console", ...)`) proved exactly why: at the moment `resumeFromBackground` ran, `state.socket.conn
+.readyState` was `1` (`OPEN`) — the native WebSocket's own `readyState` had not transitioned away from "open"
+even though the connection was, for the test's purposes, dead. `isConnected()` therefore reported `true`, the
+`if (stale)` branch never fired, and no reconnect was ever attempted. This is not merely a test-simulation
+artifact of `setOffline`; it is the exact same failure mode a real OS-suspended mobile PWA produces — the whole
+reason this fix exists — so the conditional gate would very plausibly have failed to help in production too, not
+just in the E2E harness.
+
+**Fix.** Removed the `isConnected()` gate entirely and made the reconnect unconditional:
+
+```js
+export function resumeFromBackground(socketClient) {
+  socketClient.reconnectNow();
+}
+```
+
+`reconnectNow()` (`graphql.js`) forces a fresh connection by calling phoenix's `Socket.disconnect(callback)` then
+`connect()` inside that callback, bypassing `connect()`'s own no-op guard (`if (this.conn && !this.disconnecting)
+return`) that would otherwise skip reconnecting whenever a connection object still exists — exactly the case here.
+The now-unused `isConnected()` method was removed from `graphql.js`'s lifecycle methods rather than left dead.
+An occasional harmless extra reconnect cycle on an already-healthy connection (cheap, since it only re-runs the
+existing idempotent `onReconnect` catch-up sequence) is a strictly better trade than a silently stale chat room.
+
+**Verification.** Re-confirmed GREEN at every layer after the fix: FE Vitest 89/89, `bnest-app:test:quick` and
+`bnest-app-fe-e2e:test:quick` both green, and — critically — the same real Playwright E2E scenario that had just
+failed now passed (debug instrumentation confirmed two new `websocket` events fired following the forced
+`disconnect()`+`connect()`, with `readyState=1` logged at the moment of the call, directly confirming the
+diagnosis). Debug logging was then removed from all three production/test files before committing.
+
+**Evidence.** Landed via the same worktree→PR→leak-review→CI→merge→reconcile cycle as every other delivery unit
+in this plan: PR #56, merged as `4138fedad` on `origin/main`; worktree reconciled to a detached `origin/main`
+with `git rev-list --left-right --count HEAD...origin/main` reading `0 0` afterward.

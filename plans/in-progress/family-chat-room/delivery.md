@@ -596,6 +596,55 @@ fromState === "candidate-proof"` branch, which discards only the failed candidat
       (`4001`/`green`, prior `blue` drained), no stray `mix phx.server`/Caddy-test process, and `git worktree list`
       shows only the two persistent worktrees — no release worktree, watcher, stub, or test root remains.
 
+## Phase 8.5 — Post-Launch Production Fixes
+
+Two defects surfaced by the user's own manual testing against the now-routed production revision, fixed
+Gherkin-first on their own short-lived branches from `worktrees/family-chat-room/` before Phase 9 reconciliation.
+
+- [x] `[AI] [AC-FC-02] [AC-FC-04]` **RED** Every family chat message rendered the sender's raw user ID instead of
+      their real display name. Add `And the response reports the sender's real display username, not their raw
+    user ID` to `family_chat_graphql.feature`'s "A member sends a durable message" scenario; add the matching
+      `message_reports_real_display_name` outcome clause to both the unit and integration `family_chat_driver.ex`.
+      **Proof:** `BE_UNIT` and `INTEGRATION` fail because `FamilyChat.send_message/4` had no display-name
+      parameter at all — a genuine feature-absence failure, not a harness defect.
+      **2026-09-19:** Done. Both drivers' new clause failed with `no function clause matching in
+    BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equivalent assertion failure
+      (integration) before the fix — confirmed the same Gherkin scenario runs unmodified against both layers.
+- [x] `[AI] [AC-FC-02] [AC-FC-04]` **GREEN** Thread the session-derived `displayUsername` through
+      `FamilyChatResolver.send_family_chat_message/2` into a new `sender_display_name` parameter on
+      `FamilyChat.send_message/5` (bodiless-clause default `nil`, falling back to `user_id` for the backup
+      module's synthetic load probes, which have no real account to display); remove the old
+      `display_name_for/1` stub. **Proof:** `BE_UNIT`, `INTEGRATION`, and focused `BE_E2E` all green.
+      **2026-09-19:** Done. Landed via PR #55 (`621d41265`) on `origin/main`. CI green (commit messages,
+      formatting, affected quick suites, repository and consumer contracts). Full root-cause narrative in
+      `learnings.md`.
+- [x] `[AI] [AC-FC-10] [AC-FC-12]` **RED** A backgrounded mobile PWA/tab left the chat visibly stale after
+      returning to the foreground — no code anywhere listened for `visibilitychange`. Add a new "Rule: Reconnect
+      on visibility resume" to `family_chat.feature` (one `@fe-vitest-unit` scenario with a documented
+      `@integration-exempt` alternative-proof at `bnest-app-fe-e2e:test:e2e`); add the matching FE Vitest step
+      bindings and a new E2E step file. **Proof:** FE Vitest fails with `resumeFromBackground is not a function`
+      — the production module does not exist yet.
+      **2026-09-19:** Done. Confirmed RED at the FE Vitest layer before writing `reconnect.js`'s production code.
+- [x] `[AI] [AC-FC-10] [AC-FC-12]` **GREEN** Add `resumeFromBackground` (`reconnect.js`) and `reconnectNow`
+      (`graphql.js`), wired to `document`'s `visibilitychange` event in `mount_browser.js`. **Proof:** FE Vitest,
+      `bnest-app:test:quick`, `bnest-app-fe-e2e:test:quick`, and the real Playwright E2E scenario all green.
+      **2026-09-19:** Done, after one genuine mid-cycle correction. The first implementation gated the forced
+      reconnect on `subscriptionClient.isConnected()` (only reconnect if not already connected) — FE Vitest's
+      fake-based scenario passed, but the real E2E scenario against a genuinely severed connection failed
+      (`socketReopenedOnResume` stayed `false` after a 10s poll). Debug instrumentation proved why: the native
+      WebSocket's own `readyState` still reported `1` (open) while the underlying transport was actually dead, so
+      the `isConnected()` gate silently skipped the reconnect it existed to trigger. Fixed by making the forced
+      reconnect unconditional on every visibility resume — an occasional harmless extra reconnect cycle on an
+      already-healthy connection is a better trade than a silently stale room. Re-confirmed GREEN at every layer
+      after the fix, including the same real E2E scenario. Landed via PR #56, merged as `4138fedad` on
+      `origin/main`. Full root-cause narrative in `learnings.md`.
+- [x] `[AI] [AC-FC-01..13]` **Blocking checkpoint — Phase 8.5.** Confirm both fixes are Gherkin-first, genuinely
+      RED before GREEN, landed via the established worktree→PR→leak-review→CI→merge→reconcile cycle, and that
+      `learnings.md` records the real root cause and correction for each.
+      **2026-09-19:** Both merged and reconciled: display-name fix (PR #55, `621d41265`) and visibility-resume
+      fix (PR #56, `4138fedad`), both on `origin/main`. Worktree confirmed detached at `origin/main` with
+      `git rev-list --left-right --count HEAD...origin/main` reading `0 0` after each merge.
+
 ## Phase 9 — Reconciliation and Archival
 
 - [ ] `[AI] [AC-FC-01..13]` Reconcile all six plan documents, both C4 surfaces, behavior maps, File Impact, and
