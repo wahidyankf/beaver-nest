@@ -2245,3 +2245,42 @@ did not exist during attempt 3, so no live evidence yet exists that the backup s
 the next concrete step once this PR merges: sync primary `main`, confirm baseline health, run `release:run` again
 (attempt 4) for revision `<this fix's merge SHA>`, and only then check off Phase 7 item 3 with real evidence,
 exactly as items 1 and 2 were closed out only after real proof rather than after code review alone.
+
+## PR #45 CI — A Genuine Order-Dependent Flake in the New Retention Scenario — 2026-09-19
+
+**What CI caught that local runs didn't.** PR #45's first CI run failed `bnest-app:test:unit:be` on a scenario the
+PR never touched: "Scheduler routes only through registered handlers and public services: The Scheduler claims
+push retention work only through the registered handler" — `family_chat_claimed: nil`. Three local
+`bnest-app:test:unit` runs before pushing had all passed 287/287. Root cause: `family-chat-push-retention-daily`
+and `prod-sqlite-backup-daily` are real singleton rows in one shared, non-sandboxed SQLite test database across
+every unit-layer scenario in the same run (documented precedent: `Scheduler.Store.reset_schedule_for_test!/4`'s
+own comment, and `force_operator_edit_for_test!/3`'s). `reset_schedule_for_test!/4` always seeds `next_run_at` at
+the _latest_ slot for the given `daily_at_utc` — i.e. at-or-before `now`, unconditionally. My new "Compatible
+activation enables push retention once after old-slot drain" scenario seeded the row disabled with this helper,
+then called `Scheduler.Store.activate_if_pristine!/2` — flipping `enabled` to `1` — but never claimed the row
+itself (that scenario only asserts `enabled`/`revision`). The row was left `enabled=1`, `next_run_at` in the past,
+and unclaimed. `Scheduler.Store.claim_due/1` sweeps _every_ due+enabled row regardless of which key a caller asked
+about, so a later, wholly unrelated scenario's own `claim_due/1` call (the pre-existing backup-claim scenario is
+the prime suspect, since it runs earlier in the file and also calls `claim_due/1` broadly) could silently steal
+this row's claim slot before the real "push retention...through registered handler" scenario got to it —
+order-dependent, invisible locally because ExUnit's random default seed happened not to hit the bad ordering in
+three consecutive local runs, but CI's own random seed did on the very first try.
+
+**Fix.** Added `Scheduler.Store.force_not_due_for_test!/2` — a direct complement to the existing
+`force_due_for_test!/2` — that pushes `next_run_at` a day out without touching `enabled`/`revision`/`daily_at_utc`.
+Called it immediately after `activate_if_pristine!/2` in both the unit and integration drivers' new
+`:call_activation_operation` clause, so the fixture never leaves a claimable row behind for another scenario to
+collide with. This is scoped narrowly to the scenario that introduced the hazard; the same latent fragility likely
+also exists in the pre-existing backup-convergence scenarios (`reset_schedule_for_test!/4`'s `enabled: true` path
+has the identical "always seeds a past `next_run_at`" property), but those scenarios have run without a reported
+collision so far and fixing them is out of this PR's scope — noted here rather than silently expanded into.
+
+**Verification.** `bnest-app:test:unit` run three times in a row (`--skip-nx-cache`, no seed pinned, so each run
+gets a fresh random order) — 287/287 every time. `bnest-app:test:integration` run twice — 300/300 both times.
+`bnest-app:lint` green. Pushed as a second commit on the same branch/PR rather than amending, so CI's own finding
+stays visible in history.
+
+**Lesson.** A handful of local runs passing is not equivalent to CI passing when shared, order-dependent test
+state is involved — CI's independent random seed is exactly the kind of adversarial check this project's own test
+design (`async: false`, one real shared SQLite database per layer) already anticipated, and it worked as intended
+here.
