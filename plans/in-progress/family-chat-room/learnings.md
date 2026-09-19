@@ -2968,7 +2968,7 @@ every fix found during manual review; manually verified at desktop (1280×800), 
 with two real synthetic accounts. Landed via PR #60, merged as `f957862a7a3f4f23a98c73c8a8c4beee731fc608` on
 `origin/main`.
 
-### Real IndexedDB persistence for the offline outbox (PR #<PR_NUMBER>, `<PR_SHA>`)
+### Real IndexedDB persistence for the offline outbox (PR #63, `d6a70012a9391944dfa14675fcdca8b26f968b5a`)
 
 **Symptom.** No symptom a user would notice under normal conditions -- the outbox worked correctly for the
 duration of a single tab session. The gap only became observable by deliberately closing/reopening a real tab
@@ -3034,5 +3034,5 @@ process, so a fixed body text false-positive-matched an earlier project's own al
 
 **Evidence.** `bnest-app:test:unit:fe` 93/93 passed; `bnest-app:typecheck` and `bnest-app:lint` clean;
 `bnest-app-fe-e2e:typecheck` and `lint` clean; the new E2E scenario 4/4 passed across every browser project; the
-full family-chat E2E suite re-run 41/41 passed with no regressions. Landed via PR #<PR_NUMBER>, merged as
-`<PR_SHA>` on `origin/main`.
+full family-chat E2E suite re-run 41/41 passed with no regressions. Landed via PR #63, merged as
+`d6a70012a9391944dfa14675fcdca8b26f968b5a` on `origin/main`.
