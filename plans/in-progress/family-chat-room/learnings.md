@@ -2061,3 +2061,34 @@ across roughly 20 random-seed runs; its steps never touch the Scheduler, its tic
 treated as an unrelated, pre-existing, load-sensitivity flake, not a regression from this fix, and out of this
 fix's scope. `mix format --check-formatted` and `mix credo --strict` both clean on all three changed files;
 `nx run bnest-app:test:quick` (unit-layer `BE_UNIT` plus behaviour-coverage verification) green.
+
+## Phase 7 `release:run` — First Real Attempt Past `bnest-integration`, New Gate Finding — 2026-09-19
+
+**Context.** With PR #42 and PR #43 both merged, primary `main` reconciled to `9c69dca51` (`git rev-list
+--left-right --count HEAD...origin/main` → `0 0`), and baseline health confirmed (`blue` routed on `f536f97d`,
+healthy, `green`'s port free), ran `release:run --revision 9c69dca51` from the primary checkout per
+`releasing-bnest.md`/`integration-path.md`. This is the first attempt all session to get past the
+`bnest-integration` pre-artifact gate — it passed cleanly this time, confirming the Scheduler-restart-race fix
+holds outside the isolated `test:integration` runs used to verify it. `bnest-quick`, `bnest-integration`,
+`be-e2e-quick`, and `fe-e2e-quick` all passed in sequence.
+
+**New finding, unrelated to family-chat-room's own change.** The `release-recovery-e2e` gate (`bnest-app-fe-e2e
+test:e2e --grep "An automatic LiveView reconnect"`) failed: 5 of 7 tests passed (including both target scenarios
+on `chromium` and `tablet-chromium`), but the same two scenarios both failed on `mobile-chromium` — the third and
+last browser project in the same single-worker run — with `Error: routed SQLite activation failed: **
+(RuntimeError) storage drain lock timed out` from `BnestApp.Storage.Lock.with_exclusive/1`
+(`lib/bnest_app/storage/lock.ex:76`), each failing run taking ~31-32s versus ~5-8s for the passing
+`chromium`/`tablet-chromium` runs of the identical scenario. These are `Beaver Nest chat`'s pre-existing
+"Authenticated user-owned chat" reconnect scenarios — not family-chat-room's own Gherkin, and their steps never
+reach `Scheduler`, `Store`, or `PushNotifications` (confirmed: `scheduler.ex`/`store.ex`/`run.ex` are not on any
+call path from `routed-rollout.ts`'s `ensureLiveSqlite`/`promoteCompatibleCandidate`, which shells out directly to
+a `mix` storage-migration task). `hippo status` immediately after showed `promotion=recent-overlap-unhealthy`
+(a past-event flag, not a currently-active one — `owners=0 waiters=0` at inspection time) and no leftover
+chromium/playwright/beam.smp processes beyond the one legitimate routed `blue` instance, consistent with transient
+contention during the gate's own three-browser-project run rather than a deterministic logic defect: the failure
+pattern (last-run project only, after ~1.6m of cumulative prior gate work, a _deadline_ timeout rather than a
+wrong-result assertion) matches this session's own previously-documented `hippo`-load-sensitivity class of flake
+(the `FamilyChatOperationsTest` capacity-budget flake above), not a regression this delivery introduced.
+Retrying `release:run` as a whole (informed retry, same standard this session already established for the
+Scheduler race) to test the transient-contention hypothesis before treating this as a blocking defect requiring
+its own fix.
