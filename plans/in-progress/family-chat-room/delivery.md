@@ -736,6 +736,17 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       E2E suite re-run 41/41 passed (no regressions).
       **2026-09-20:** Done. Landed via PR #63, merged as `d6a70012a9391944dfa14675fcdca8b26f968b5a` on `origin/main`. Full root-cause
       narrative in `learnings.md`.
+      **2026-09-20 (routed):** `release:run --revision c24ecac7bafa91c346b8684e526a057815f212de` from the primary
+      checkout — `outcome: "passed"`, `durationMs: 1947479` (~32.5 min), all 15 evidence stages recorded
+      (`preflight`, `bnest-quick`, `bnest-integration`, `be-e2e-quick`, `fe-e2e-quick`, `release-recovery-e2e`,
+      `release-load-e2e`, `repository`, `artifact-manifest`, `migration-proof`, `candidate-proof`, `promotion`,
+      `routed-liveview`, `cleanup`, `convergence`), `migrationState: "applied"`. That revision is PR #66's merge
+      commit, which also carried PRs #63/#64/#65 (all already on `main`) into the same cutover. Routed cutover
+      independently verified post-release: both `http://127.0.0.1:4100/health/ready` and the production origin
+      report `{"status":"ready","slot":"blue","revision":"c24ecac7bafa91c346b8684e526a057815f212de", ...}`; exactly
+      one slot (`blue`, port 4000) listens, the prior `green` slot (423164cce, port 4001) drained and retired; no
+      release worktree remains (`git worktree list` shows only this plan's own task worktree and one unrelated
+      worktree). The real IndexedDB offline-outbox persistence fix (AC-FC-12) is now live in production.
 
 - [x] `[AI] [AC-FC-01..13]` Reconcile all six plan documents, both C4 surfaces, behavior maps, File Impact, and
       `learnings.md` to the as-built system; route every learning to a durable owner or discard reason. **Proof:** each AC
