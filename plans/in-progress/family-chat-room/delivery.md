@@ -424,12 +424,33 @@ endpoints, database content, or absolute runtime paths.
       `test:integration` runs), all 5 CI checks green including the `public-safety` gate (which correctly caught and
       blocked one real finding first — a maintainer-local absolute path quoted in `learnings.md` evidence, fixed in
       the same head), leak review posted `pass` against head `f53accad2`, five merge preconditions held, rebase-merged
-      as `9c69dca51`. Both task branches now landed on `origin/main`.
-- [ ] `[AI] [AC-FC-10] [AC-FC-13]` From clean primary `main`, repeat health/capacity baseline and run self-guarded
+      as `9c69dca51`. A third task branch followed the same pattern once `release:run` reached candidate boot for
+      the first time and exposed one more real, family-chat-room-introduced gap (`deployment.mjs` never wired the
+      VAPID web-push env vars into the `launchd`-managed slot, so the candidate crashed on boot every time):
+      `fix-release-webpush-env` — PR #44 ("fix(bnest-app): plumb VAPID web-push env vars into launchd slots"),
+      RED/GREEN verified via a new source-scan test, all 5 CI checks green, leak review posted `pass` against head
+      `b6142d55b`, five merge preconditions held, rebase-merged as `471a76b73`. All three task branches now landed
+      on `origin/main`.
+- [x] `[AI] [AC-FC-10] [AC-FC-13]` From clean primary `main`, repeat health/capacity baseline and run self-guarded
       `rtk npm exec -- nx run -p bnest-app -t release:run -- --revision <compatibility-sha>`. **Proof:** additive migration,
       candidate revision/readiness, fixed subscription pool, GraphQL probes, Caddy promotion, immediate prior-socket close,
       promoted GraphQL subscription within ten seconds, existing LiveView reconnect, exact-once gap catch-up, zero
       failures, p95/max budget, five-minute warm prior-slot observation, and prior-slot retirement.
+      **2026-09-19:** `release:run --revision 471a76b73` (primary `main`, reconciled `0 0` against `origin/main`
+      beforehand) succeeded on the third attempt — `outcome: "passed"`, `durationMs: 1934517` (~32.2 min), all 14
+      evidence stages recorded: `preflight`, `bnest-quick`, `bnest-integration`, `be-e2e-quick`, `fe-e2e-quick`,
+      `release-recovery-e2e`, `release-load-e2e`, `repository`, `artifact-manifest`, `migration-proof` (`applied`),
+      `candidate-proof`, `promotion`, `routed-liveview`, `cleanup`. `release-recovery-e2e`'s "An automatic LiveView
+      reconnect" scenarios and `release-load-e2e`'s "Ten synthetic visitors preserve recoverable state" (the
+      GraphQL-subscription/fixed-pool/gap-catch-up/p95-budget proofs `gateManifest` enforces as blocking
+      pre-artifact gates) both passed before the candidate was even built. `deploy:promote --slot green` succeeded;
+      `verify-liveview.mjs` reported `{"outcome":"passed","liveView":true,"reconnected":true,"clientCount":10,
+    "groupCount":3}` against the newly-routed revision. `drainAndCleanup`'s fixed 300000ms warm-observation window
+      elapsed with `blue` still healthy throughout (independently polled), then `blue` was retired — confirmed via
+      `lsof -iTCP:4000` returning nothing afterward and `proxy:status` reporting `activeSlot: "green"`,
+      `activeRevision: "471a76b73..."`, `previousSlot: "blue"`. Two prior attempts (documented in `learnings.md`)
+      each surfaced one genuine, real blocker in turn (the Scheduler race, then the VAPID-env-var gap) rather than
+      being routed around — `release:run` itself never bypassed a failing gate.
 - [ ] `[AI] [AC-FC-11] [AC-FC-13]` After drain, enable retention and converge backup schedule through Scheduler services,
       then verify one value-safe run state and 01:00 WIB next slot. **Proof:** no SQL shortcut, every runnable slot knows
       handlers, operator edit remains possible, and compatibility revision is recorded as rollback floor.
