@@ -18,6 +18,7 @@ const BOTTOM_THRESHOLD_PX = 80;
  * @property {string} body
  * @property {string} [status]
  * @property {string} [senderKind]
+ * @property {string} [senderId]
  * @property {string} [senderDisplayName]
  * @property {string} [committedAt]
  */
@@ -29,32 +30,82 @@ function escapeHtml(value) {
   return div.innerHTML;
 }
 
+// tech-doc 005's hi-fi mockups color-code each sender's circular initial
+// badge (teal/sun/coral, cycling); a message's own sender identity already
+// determines its color deterministically, so no per-room color assignment
+// state is needed -- the same sender always lands on the same color.
+const AVATAR_PALETTE = ["#80c5b8", "#f7b84b", "#e5633d"];
+
+/** @param {string} seed */
+function avatarColorFor(seed) {
+  let hash = 0;
+  for (const codePoint of seed) {
+    hash = Math.trunc(hash * 31 + (codePoint.codePointAt(0) ?? 0));
+  }
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length] ?? "#80c5b8";
+}
+
+/** @param {string} senderLabel */
+function avatarNode(senderLabel) {
+  const avatar = document.createElement("span");
+  avatar.className = "family-chat-message-avatar";
+  avatar.setAttribute("aria-hidden", "true");
+  avatar.style.background = avatarColorFor(senderLabel || "?");
+  avatar.textContent = (senderLabel || "?").charAt(0).toUpperCase();
+  return avatar;
+}
+
 /**
  * @param {RenderableMessage} message
- * @param {{pending: boolean}} state
+ * @param {string} senderLabel
  */
-export function messageNode(message, { pending }) {
-  const li = document.createElement("li");
-  li.className = "family-chat-message";
-  li.dataset["role"] = "family-chat-message";
-  li.dataset["deliveryState"] = pending ? (message.status ?? "") : "committed";
-  if (message.senderKind === "system")
-    li.classList.add("family-chat-message--system");
+function bubbleNode(message, senderLabel) {
+  const bubble = document.createElement("div");
+  bubble.className = "family-chat-message-bubble";
 
   const meta = document.createElement("p");
   meta.className = "family-chat-message-meta";
-  const senderLabel =
-    message.senderKind === "system" ? "System" : message.senderDisplayName;
   const time = message.committedAt
     ? `<time datetime="${message.committedAt}">${new Date(message.committedAt).toLocaleString()}</time>`
     : "";
-  meta.innerHTML = `<strong>${escapeHtml(senderLabel ?? "")}</strong> ${time}`;
+  meta.innerHTML = `<strong>${escapeHtml(senderLabel)}</strong> ${time}`;
 
   const body = document.createElement("p");
   body.className = "family-chat-message-body";
   body.textContent = message.body;
 
-  li.append(meta, body);
+  bubble.append(meta, body);
+  return bubble;
+}
+
+/**
+ * @param {RenderableMessage} message
+ * @param {{pending: boolean, currentUserId?: string | null}} state
+ */
+export function messageNode(message, { pending, currentUserId }) {
+  const li = document.createElement("li");
+  const isSystem = message.senderKind === "system";
+  // A pending row is always the visitor's own not-yet-committed draft --
+  // `senderId` is a server-assigned field committed messages carry, never a
+  // local outbox field, so there's nothing to compare it against yet.
+  const isOwn =
+    !isSystem &&
+    (pending || (message.senderId ?? null) === (currentUserId ?? null));
+  li.className = "family-chat-message";
+  li.classList.add(
+    isSystem
+      ? "family-chat-message--system"
+      : isOwn
+        ? "family-chat-message--own"
+        : "family-chat-message--other",
+  );
+  li.dataset["role"] = "family-chat-message";
+  li.dataset["deliveryState"] = pending ? (message.status ?? "") : "committed";
+
+  const senderLabel = (isSystem ? "System" : message.senderDisplayName) ?? "";
+
+  if (!isSystem) li.append(avatarNode(senderLabel));
+  li.append(bubbleNode(message, senderLabel));
 
   if (pending) {
     const status = document.createElement("p");

@@ -1786,25 +1786,25 @@ body {
 }
 
 /* Family chat (tech-doc 005 "Family hearth"): one centered conversation
- * panel, capped at 48rem on desktop per the Responsive Behavior section. */
+ * panel, capped at 48rem on desktop per the Responsive Behavior section. A
+ * rounded, shadowed floating card on the site's own canvas background at
+ * desktop/tablet (the selected hi-fi mockups), collapsing to an edge-to-edge
+ * sticky-header room below the mobile breakpoint (the mobile mockup). */
 
 .family-chat-shell {
+  --hearth-radius: 1.75rem;
+  --hearth-gutter: clamp(1rem, 3vw, 2rem);
   box-sizing: border-box;
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   gap: 0.75rem;
   max-width: 48rem;
-  min-height: 100vh;
-  margin-inline: auto;
-  padding: clamp(1rem, 3vw, 2rem);
-  /* Mobile safe-area composer/header (tech-doc 005): keeps content clear of
-   * notches/home indicators without affecting non-inset viewports, where
-   * every `env()` call resolves to 0. */
-  padding-inline: max(clamp(1rem, 3vw, 2rem), env(safe-area-inset-left))
-    max(clamp(1rem, 3vw, 2rem), env(safe-area-inset-right));
-  padding-bottom: max(clamp(1rem, 3vw, 2rem), env(safe-area-inset-bottom));
+  min-height: calc(100vh - 2.5rem);
+  margin: 1.25rem auto;
   overflow-x: hidden;
+  border-radius: var(--hearth-radius);
   background: var(--bnest-paper);
+  box-shadow: 0 1.1rem 1.6rem rgb(21 63 66 / 18%);
 }
 
 .family-chat-shell * {
@@ -1812,20 +1812,51 @@ body {
   max-width: 100%;
 }
 
+.family-chat-offline-banner,
+.family-chat-history {
+  margin-inline: var(--hearth-gutter);
+}
+
 .family-chat-header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+  padding: 1rem var(--hearth-gutter);
+  border-radius: var(--hearth-radius) var(--hearth-radius) 0 0;
+  background: var(--bnest-ink);
+  /* Mobile safe-area header (tech-doc 005): keeps the sticky bar clear of a
+   * notch/status bar without affecting non-inset viewports, where `env()`
+   * resolves to 0. */
+  padding-top: max(1rem, env(safe-area-inset-top));
 }
 
 .family-chat-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.6rem;
   min-height: 2.75rem;
-  color: var(--bnest-ink-soft);
+  color: var(--bnest-paper);
+  font-weight: 780;
   text-decoration: none;
+}
+
+.family-chat-brand span:first-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  border-radius: 999px;
+  background: var(--bnest-sun);
+  color: var(--bnest-ink);
+}
+
+#family-chat-room-title {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--bnest-paper);
+  font-size: 1rem;
 }
 
 .family-chat-brand:focus-visible,
@@ -1853,25 +1884,26 @@ body {
 .family-chat-push-disable {
   min-height: 2.75rem;
   border: none;
-  border-radius: var(--bnest-action-radius);
+  border-radius: 999px;
   padding: 0.4rem 0.9rem;
   font-size: 0.85rem;
-  background: var(--bnest-lagoon);
+  background: var(--bnest-paper);
   color: var(--bnest-ink);
 }
 
 .family-chat-push-control:disabled {
   background: transparent;
-  color: var(--bnest-ink-soft);
+  color: var(--bnest-lagoon);
   cursor: default;
 }
 
 .family-chat-offline-banner {
-  margin: 0;
+  margin-top: 0.75rem;
   padding: 0.5rem 0.75rem;
+  border: 0.09rem solid var(--bnest-sun);
   border-radius: var(--bnest-action-radius);
-  background: var(--bnest-error-surface);
-  color: var(--bnest-error);
+  background: #fff1cf;
+  color: var(--bnest-ink);
 }
 
 .family-chat-history {
@@ -1888,9 +1920,9 @@ body {
   min-height: 2.75rem;
   min-width: 2.75rem;
   border: none;
-  border-radius: var(--bnest-action-radius);
+  border-radius: 999px;
   padding: 0.4rem 0.9rem;
-  background: var(--bnest-lagoon);
+  background: var(--bnest-canvas);
   color: var(--bnest-ink);
 }
 
@@ -1911,8 +1943,7 @@ body {
 .family-chat-messages {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.5rem;
+  gap: 0.6rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1927,16 +1958,66 @@ body {
 }
 
 .family-chat-message {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.5rem;
+  align-self: start;
   max-width: 78%;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--bnest-card-radius);
-  background: var(--bnest-lagoon-soft, var(--bnest-lagoon));
-  color: var(--bnest-ink);
+}
+
+/* Own messages mirror to the right, avatar on the outside edge, matching
+ * the selected hi-fi mockup's left/right sender split. */
+.family-chat-message--own {
+  align-self: end;
+  grid-template-columns: 1fr auto;
+  margin-inline-start: auto;
+}
+
+.family-chat-message--own .family-chat-message-avatar {
+  grid-column: 2;
+}
+
+.family-chat-message--own .family-chat-message-bubble {
+  grid-column: 1;
 }
 
 .family-chat-message--system {
+  grid-template-columns: 1fr;
   align-self: center;
   max-width: 90%;
+}
+
+.family-chat-message-avatar {
+  grid-row: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  color: var(--bnest-ink);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.family-chat-message-bubble {
+  padding: 0.5rem 0.75rem;
+  /* Other members: white with a lagoon-tinted border and the "tail" corner
+   * at top-left; own sends flip both fill and tail below. */
+  border-radius: 0.5rem 1.5rem 1.5rem 1.5rem;
+  background: #ffffff;
+  border: 0.06rem solid #c7ded9;
+  color: var(--bnest-ink);
+}
+
+.family-chat-message--own .family-chat-message-bubble {
+  border-radius: 1.5rem 0.5rem 1.5rem 1.5rem;
+  background: var(--bnest-ink-soft);
+  border: none;
+  color: var(--bnest-paper);
+}
+
+.family-chat-message--system .family-chat-message-bubble {
   background: transparent;
   border: 0.06rem dashed var(--bnest-ink-soft);
   font-size: 0.85rem;
@@ -1949,6 +2030,13 @@ body {
   color: var(--bnest-ink-soft);
 }
 
+/* `--bnest-lagoon` on `--bnest-ink-soft` fails WCAG AA (~3.85:1) at this
+ * text size; `--bnest-canvas` keeps the meta line visually secondary to the
+ * paper-colored body while clearing 4.5:1. */
+.family-chat-message--own .family-chat-message-meta {
+  color: var(--bnest-canvas);
+}
+
 .family-chat-message-body {
   margin: 0;
   overflow-wrap: break-word;
@@ -1956,9 +2044,15 @@ body {
 }
 
 .family-chat-message-status {
+  grid-column: 2;
   margin: 0.2rem 0 0;
   font-size: 0.8rem;
   color: var(--bnest-ink-soft);
+}
+
+.family-chat-message--own .family-chat-message-status {
+  grid-column: 1;
+  text-align: end;
 }
 
 /* Delivery-state indicators (tech-doc 005 Status Presentation's five
@@ -1975,7 +2069,8 @@ body {
   opacity: 0.85;
 }
 
-.family-chat-message[data-delivery-state="Couldn't send"] {
+.family-chat-message[data-delivery-state="Couldn't send"]
+  .family-chat-message-bubble {
   border: 0.09rem solid var(--bnest-error);
 }
 
@@ -2034,28 +2129,48 @@ body {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.4rem 0.6rem;
+  padding: 1rem var(--hearth-gutter);
+  border-top: 0.09rem solid #c7ded9;
+  border-radius: 0 0 var(--hearth-radius) var(--hearth-radius);
+  background: #eef8f5;
+  /* Mobile safe-area composer (tech-doc 005): keeps the anchored bar clear
+   * of a home indicator without affecting non-inset viewports, where
+   * `env()` resolves to 0. */
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
+/* The hi-fi mockups show only the placeholder + Send button on this row --
+ * "Message the family" stays in the DOM as the textarea's accessible name
+ * (tech-doc 005 Accessibility) without occupying visual space. */
 .family-chat-composer label {
-  grid-column: 1 / -1;
-  font-size: 0.85rem;
-  color: var(--bnest-ink-soft);
+  position: absolute;
+  width: 0.0625rem;
+  height: 0.0625rem;
+  margin: -0.0625rem;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .family-chat-message-input {
   grid-column: 1;
+  align-self: center;
   width: 100%;
-  min-height: 3rem;
-  padding: 0.6rem;
-  border-radius: var(--bnest-card-radius);
-  border: 0.09rem solid var(--bnest-ink-soft);
+  height: 3rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 1rem;
+  border: 0.125rem solid var(--bnest-lagoon);
+  background: var(--bnest-paper);
+  resize: none;
   font: inherit;
 }
 
 .family-chat-send {
   grid-column: 2;
-  align-self: end;
-  min-height: 2.75rem;
+  align-self: center;
+  min-height: 3rem;
   min-width: 2.75rem;
   border: none;
   border-radius: var(--bnest-action-radius);
@@ -2081,8 +2196,31 @@ body {
  * two-column while 44x44 CSS-pixel targets still fit. */
 @media (max-width: 48rem) {
   .family-chat-shell {
-    padding: 1rem;
+    --hearth-gutter: 1rem;
     gap: 0.6rem;
+  }
+}
+
+/* Mobile -- 393x852 down to 320 CSS pixels (tech-doc 005): edge-to-edge
+ * room with a sticky compact header, matching the mobile mockup's full-
+ * bleed treatment rather than desktop/tablet's floating card. */
+@media (max-width: 37.5rem) {
+  .family-chat-shell {
+    min-height: 100vh;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .family-chat-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    border-radius: 0;
+  }
+
+  .family-chat-composer {
+    border-radius: 0;
   }
 }
 
@@ -2094,11 +2232,10 @@ body {
     max-width: 100%;
   }
 
+  /* `position: sticky`/`z-index`/dark background already come from the
+   * 37.5rem breakpoint above (this query is narrower and layers on top of
+   * it); only the extra compactness is unique here. */
   .family-chat-header {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background: var(--bnest-paper);
     padding-block: 0.4rem;
   }
 }
