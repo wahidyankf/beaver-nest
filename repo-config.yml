@@ -216,7 +216,14 @@ harness:
 policies:
   markdown:
     internal-link:
-      exclude-sources: ["specs/fixtures/**", "plans/done/**"]
+      # Every `deps/**` here is Mix-vendored (each project's own `.gitignore`
+      # ignores `/deps/`) and carries its packages' own upstream READMEs,
+      # whose relative links point at files those packages don't ship (e.g.
+      # CONTRIBUTING.md). Untracked and unpublished, but still on disk for
+      # anyone who ran `mix deps.get`, so the scan must skip it rather than
+      # fail for every such checkout.
+      exclude-sources:
+        ["specs/fixtures/**", "plans/done/**", "**/deps/**"]
     mermaid:
       node-label-graphemes: 32
       edge-label-graphemes: 24
