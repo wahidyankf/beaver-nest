@@ -127,6 +127,18 @@ Feature: Family chat room
     And any queued send drains only after catch-up completes
     And the page does not reload
 
+  Rule: Reconnect on visibility resume
+
+  @fe-vitest-unit
+  # Exemption(integration): forcing a stale connection and a real document visibility transition crosses browser and OS-lifecycle boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A tab backgrounded with a dead connection reconnects once it becomes visible again
+  @integration-exempt
+  Scenario: A tab backgrounded with a dead connection reconnects once it becomes visible again
+    Given a visitor opens "/family-chat/ruang-keluarga" with the socket connected to the current slot
+    When the tab is backgrounded with its connection silently dropped
+    And the tab becomes visible again
+    Then a fresh socket connection replaces the prior one
+    And the page does not reload
+
   Rule: Experience release candidate proof
 
   # This scenario's two near-simultaneous authenticated first requests

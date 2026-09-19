@@ -223,3 +223,26 @@ export async function promoteSlot(reconnect) {
   await reconnect.mergeByServerIdStep();
   await reconnect.resumeDrainStep();
 }
+
+/**
+ * Test/production entry point: forces a fresh connection attempt every time
+ * the page becomes visible again. A mobile PWA suspended in the background
+ * routinely freezes JS timers and silently kills the underlying transport
+ * without ever firing a clean close event -- the native WebSocket's own
+ * `readyState` can go on reporting "open" long after the connection is
+ * actually dead, so a check like "only reconnect if not connected" is not a
+ * reliable gate here (confirmed against a real severed connection in this
+ * plan's own E2E proof: gating on that check left the stale connection
+ * undetected and no reconnect ever fired). Unconditional means an
+ * occasional harmless extra reconnect cycle on an already-healthy
+ * connection -- cheap and idempotent, since it only re-runs the existing
+ * `onReconnect` catch-up sequence (`mount_browser.js`) -- which is a much
+ * better trade than a silently stale room. Deliberately does *not* call
+ * `promoteSlot` itself: forcing the transport reconnect here is enough,
+ * since that catch-up sequence already runs once the fresh connection
+ * actually opens, exactly as it does for a Caddy promotion.
+ * @param {{reconnectNow: () => void}} socketClient
+ */
+export function resumeFromBackground(socketClient) {
+  socketClient.reconnectNow();
+}

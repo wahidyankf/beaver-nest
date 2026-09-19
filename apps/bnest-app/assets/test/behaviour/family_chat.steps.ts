@@ -477,6 +477,35 @@ step("the page does not reload", (context) => {
   return context;
 });
 
+// --- Rule: Reconnect on visibility resume ---------------------------------
+
+step(
+  "the tab is backgrounded with its connection silently dropped",
+  (context) => context,
+);
+
+step("the tab becomes visible again", async (context) => {
+  const { resumeFromBackground } = await import(
+    /* @vite-ignore */ RECONNECT_JS
+  );
+  let reconnectedNow = false;
+  resumeFromBackground({
+    reconnectNow: () => {
+      reconnectedNow = true;
+    },
+  });
+  return { ...context, forcedReconnect: reconnectedNow };
+});
+
+step("a fresh socket connection replaces the prior one", (context) => {
+  if (!context["forcedReconnect"]) {
+    throw new Error(
+      "expected the tab becoming visible again to force a fresh socket connection",
+    );
+  }
+  return context;
+});
+
 // --- Rule: Experience release candidate proof -----------------------------
 //
 // The candidate/Caddy promotion itself is release infrastructure this layer

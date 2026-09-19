@@ -147,6 +147,19 @@ function createLifecycleMethods(state) {
       // memory behind for it.
       state.hasOpenedBefore = false;
     },
+
+    /**
+     * Forces a fresh connection attempt, bypassing phoenix's own `connect()`
+     * no-op guard (it skips connecting whenever a connection object still
+     * exists, even if the underlying transport silently died -- exactly
+     * what a mobile PWA's background suspension does). Deliberately does
+     * not reset `hasOpenedBefore`, unlike `close()`: the next `onOpen` must
+     * still be recognized as a reconnect, so the existing reconnect
+     * listeners (and the catch-up sequence they run) fire for it.
+     */
+    reconnectNow() {
+      state.socket?.disconnect(() => state.socket?.connect());
+    },
   };
 }
 
