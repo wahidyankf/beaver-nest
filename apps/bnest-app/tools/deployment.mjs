@@ -328,6 +328,7 @@ function prepareSlot(slot) {
   const revision =
     argumentValue("--revision") ||
     fail("--revision is required; run release:build first.");
+  const familyChatEnabled = arguments_.includes("--family-chat-enabled");
   const runtimeRoot = requiredEnvironment("BNEST_RUNTIME_ROOT");
   const cookie = requiredEnvironment("BNEST_DEPLOY_COOKIE_FILE");
   const secretKeyBase = requiredEnvironment(
@@ -364,6 +365,7 @@ function prepareSlot(slot) {
       revision,
       logPath,
       errorPath,
+      familyChatEnabled,
     ),
   );
 
@@ -479,6 +481,7 @@ function launchAgent(
   revision,
   logPath,
   errorPath,
+  familyChatEnabled = false,
 ) {
   const variables = {
     PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
@@ -504,6 +507,11 @@ function launchAgent(
     BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE: webPushPublicKeyFile,
     BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE: webPushPrivateKeyFile,
     BNEST_WEB_PUSH_SUBJECT: webPushSubject,
+    // Only the Experience Release Procedure's flag-on candidate passes
+    // `--family-chat-enabled`; every ordinary compatibility-release slot
+    // omits the key entirely, so `config/runtime.exs`'s default (`false`)
+    // governs unchanged.
+    ...(familyChatEnabled ? { BNEST_FAMILY_CHAT_ENABLED: "true" } : {}),
   };
   const environment = Object.entries(variables)
     .map(
