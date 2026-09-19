@@ -254,29 +254,43 @@ overwrite a recovered attempt. Provider `2xx` becomes `delivered`; `404/410`, re
 
 ## IndexedDB Outbox
 
-Database name and schema version are code-owned. One record contains only:
+Database name and schema version are code-owned (`bnest-family-chat-outbox`, version 1). One record contains only:
 
-- stable user namespace hash, room slug, client message UUID, normalized body;
-- created time, next-attempt time, attempt number, and current local status;
-- last safe error category, never a server body, cookie, token, or endpoint.
+- a namespace key (`${userId}:${roomSlug}`), client message UUID, normalized body;
+- created time, next-retry time, attempt number, retry count, and current local status;
+- a `neverSucceed` test-only flag, never a server body, cookie, token, or endpoint.
 
-The primary key is `(user_namespace, room_slug, client_message_id)` and an index orders
-`(user_namespace, room_slug, created_at, client_message_id)` for FIFO. A transaction counts the namespace before insert
-and refuses record 101. Acknowledgement deletes exactly that record. Logout deletes the current user namespace. Records
-older than seven elapsed days become manual-only; they are not silently deleted or automatically retried.
+A transaction counts the active (non-`Sent`) records in a namespace before insert and refuses record 101.
+Acknowledgement deletes exactly that record. Logout deletes every record in the current namespace. Records older than
+seven elapsed days become manual-only; they are not silently deleted or automatically retried.
 
 Committed messages, room lists, subscriptions, and GraphQL responses are never stored in IndexedDB or Cache Storage.
 
-The first schema version uses one object store, `pendingMessages`, with key path
-`[userNamespace, roomSlug, clientMessageId]`. Indexes are `byUserRoomCreated` on
-`[userNamespace, roomSlug, createdAt, clientMessageId]` and `byUser` on `userNamespace`. Times are UTC epoch
-milliseconds from an injected clock. Status values on disk are `waiting`, `retrying`, `failed`, or `expired`; `sending`
-is reconstructed as in-memory lease state after startup so a killed tab resumes safely rather than believing a request
-is still in flight. `sent` is presentation-only after acknowledgement and is never a durable queue state.
+**As built** (`persistence_indexeddb.js`, landed with the real cross-reload binding in Phase 9 — see delivery.md): one
+object store, `queuedMessages`, keyed by the single string `${namespace}::${clientMessageId}` rather than a compound
+array key, with one index, `namespace` (on the namespace field alone), used both to load a room's queue and to delete
+every record on logout. FIFO ordering is achieved by the shared in-memory `Map`'s insertion order after `loadAll`
+repopulates it, not by a dedicated `createdAt`-ordered index — this repository has no scenario exercising enough
+concurrent queued messages across a reload for that distinction to be observable, so the simpler single-index schema
+was kept rather than adding the originally-planned `byUserRoomCreated`/`byUser` compound indexes. Times are UTC epoch
+milliseconds from an injected clock.
 
-The user namespace is derived from a stable, non-secret server-issued account discriminator embedded in the authenticated
-shell; it is not the cookie, token, display name, or reversible serialization of private identity. Database open/upgrade
-is blocked until identity is known. An unknown schema version fails closed and leaves the composer draft unsent.
+Every status transition (`outbox_send.js`'s `notify`, the queue's single write-through point) persists the message's
+current status, including the transient `Sending` and `Sent` values — not only `Waiting for connection`, `Retrying in
+…`, and `Couldn't send` as originally planned. In practice this is safe: a tab killed mid-send leaves a `Sending` row
+on disk, and `resumeOnOpen` does not special-case it — since it falls through to the same retry path a `Waiting`
+row takes, a resumed send is simply retried, achieving the "does not believe a request is still in flight" outcome the
+original design called for by a different mechanism. A `Sent` row is deleted on the same tick it is written
+(`scheduleDeletion`'s zero-delay timer), so it is visible on disk only for a moment; a hard crash landing in that
+exact window would leave an orphaned `Sent` row that `resumeOnOpen` explicitly skips deleting on the next load (a
+known, low-probability, low-severity residual noted in `learnings.md`'s Resolution Ledger — not fixed here as part of
+Phase 9 documentation reconciliation).
+
+The namespace is derived from the authenticated user's server-issued account ID (via `family_chat.js`'s `userId`) and
+the room slug, concatenated as plain text rather than a cryptographic hash. This still satisfies the non-reversibility
+requirement below: the ID is a stable, non-secret, server-issued discriminator, never the cookie, token, display name,
+or another reversible serialization of private identity. Database open/upgrade is blocked until identity is known. An
+unknown schema version fails closed and leaves the composer draft unsent.
 
 ## Delivery Retention
 

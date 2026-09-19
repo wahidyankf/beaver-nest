@@ -118,6 +118,7 @@ slot after promotion, retirement before the observation passes, or any assumptio
 [N] apps/bnest-app/assets/js/family_chat.js
 [N] apps/bnest-app/assets/js/family_chat/graphql.js
 [N] apps/bnest-app/assets/js/family_chat/outbox.js
+[N] apps/bnest-app/assets/js/family_chat/persistence_indexeddb.js
 [N] apps/bnest-app/assets/js/family_chat/reconnect.js
 [E] apps/bnest-app/assets/js/app.js
 [E] apps/bnest-app/assets/css/app.css
@@ -128,6 +129,12 @@ slot after promotion, retirement before the observation passes, or any assumptio
 [E] package.json
 [E] package-lock.json
 ```
+
+This list is the plan's authored, pre-execution snapshot at the module-group level (e.g., one `outbox.js` entry covers
+its later Phase 4 REFACTOR split into `outbox.js`/`outbox_namespace.js`/`outbox_send.js`/`backoff.js`/`clock.js`, and
+`mount_browser.js` as the browser bootstrap entry point); `persistence_indexeddb.js` above is added as the one new
+top-level production module Phase 9 introduced. `delivery.md`'s own dated phase notes are the authoritative as-built
+file list; this snapshot is not backfilled file-for-file on every intra-phase split.
 
 The service worker handles static cache, `push`, and `notificationclick`; it does not own outbox draining or authenticated
 GraphQL. The browser app owns IndexedDB only while active.
@@ -276,6 +283,7 @@ coverage. `test:integration` remains real isolated SQLite/loopback only. `test:q
 [M] apps/bnest-app-e2e/tests/support/test-identity.ts -> apps/bnest-app-fe-e2e/tests/support/test-identity.ts
 [M] apps/bnest-app-e2e/tests/support/test-runtime.mts -> apps/bnest-app-fe-e2e/tests/support/test-runtime.mts
 [N] apps/bnest-app-fe-e2e/tests/steps/family-chat.steps.ts
+[N] apps/bnest-app-fe-e2e/tests/steps/family-chat-offline-persistence.steps.ts
 [N] apps/bnest-app-fe-e2e/tests/support/family-chat.ts
 ```
 
