@@ -2444,3 +2444,77 @@ file, both green in CI (PR #45's 148/148 scenario count), not by this specific a
 Phase 7 item 3 is checked off on that basis: every proof clause has real evidence, either from this production run
 directly or from the automated scenario covering the one branch this particular row's own history could no longer
 exercise.
+
+## Phase 8 Experience Release E2E — Genuine `StorageCoordinator` Concurrency Race Found and Fixed — 2026-09-19
+
+While writing the Phase 8 Experience Release candidate-proof scenario ("Two members prove draft, offline queue, and
+exact-once catch-up on the flag-enabled experience candidate," `family_chat.feature`'s new "Experience release
+candidate proof" rule), the very act of driving two authenticated members against a freshly-promoted candidate
+independently reproduced a real, pre-existing production concurrency bug — not a test-design artifact. This section
+records the evidence, the fix, and one further finding surfaced along the way that was deliberately **not** fixed.
+
+**The bug.** `BnestApp.DataRepository.StorageCoordinator.ensure_started!/1` (`apps/bnest-app/lib/bnest_app/
+data_repository/storage_coordinator.ex`) reads `Config.resolved_database_path()`, compares it against the
+currently-configured `SqliteRepo` database path, and — if they differ — stops and restarts the repo. This check
+runs inside `DataRepository.with_backend/2`'s `Storage.Lock.with_shared/1` block, which explicitly allows multiple
+_concurrent_ shared holders (only an _exclusive_ holder serializes against them). Nothing serialized the
+check-and-maybe-restart decision itself, so two concurrent requests racing through `ensure_started!/1` near a fresh
+candidate's cold start could both decide a restart was needed, and one could stop the exact `SqliteRepo` pid the
+other was already mid-query against.
+
+**Reproduction, not speculation.** Running the new E2E scenario repeatedly (both isolated via `--grep` and as part
+of the full `family_chat.feature` suite) surfaced this concretely, several times, with full candidate stdout/stderr
+piped to the terminal for diagnosis:
+
+```
+** (ArgumentError) errors were found at the given arguments:
+  * 2nd argument: not a key that exists in the table
+    (stdlib 6.2) :ets.lookup_element(Ecto.Repo.Registry, #PID<0.708.0>, 4)
+    (ecto 3.14.2) lib/ecto/repo/registry.ex:27: Ecto.Repo.Registry.lookup/1
+    (ecto 3.14.2) lib/ecto/repo/supervisor.ex:182: Ecto.Repo.Supervisor.tuplet/2
+    (bnest_app 0.1.0) lib/bnest_app/sqlite_repo.ex:4: BnestApp.SqliteRepo.one/2
+    (bnest_app 0.1.0) lib/bnest_app/data_repository/sqlite_store.ex:22: BnestApp.DataRepository.SqliteStore.read/3
+    (bnest_app 0.1.0) lib/bnest_app/storage/lock.ex:14: BnestApp.Storage.Lock.with_shared/1
+    (bnest_app 0.1.0) lib/bnest_app/identity/session.ex:14: BnestApp.Identity.Session.current_user/2
+    (bnest_app 0.1.0) lib/bnest_app_web/user_auth.ex:22: BnestAppWeb.UserAuth.fetch_current_user/2
+```
+
+and a second variant hitting `BnestApp.FamilyChat.Store.ensure_ready!/0`'s own Ecto migration check via
+`BnestApp.PushNotifications.current_subscription/2` — same root cause, different caller, both losing a race against
+a concurrent `ensure_started!/1` restart. A single warmup request before the two members connect reduced but did
+not eliminate the failure (~1-in-4 runs still failed): `mountBrowser`'s "ready" DOM state flips _before_ the room's
+own background mount work (the push-subscription check, the GraphQL subscribe) settles, so a second member's first
+request could still overlap a first member's still-in-flight background call — two genuinely concurrent "first
+callers" on the same cold candidate.
+
+**The fix.** `ensure_started!/1` now wraps its check-and-maybe-restart body in `:global.trans({__MODULE__, self()},
+fn -> ... end)` (a standard OTP primitive, no new dependency), making the whole decision atomic: a concurrent
+caller either waits for an in-flight restart to finish (then sees the now-stable, matching path and no-ops) or
+proceeds first. This does not change `ensure_started!/1`'s external contract for any caller. Validated stable
+across 6+ consecutive full `family_chat.feature` suite runs after the fix (0 failures), versus reliably reproducing
+every 1-4 runs before it. `mix test` (unit), `mix dialyzer`, `mix credo --strict`, and `mix format --check-formatted`
+all pass unchanged.
+
+**Why this matters beyond the test.** This is not a test-infrastructure-only concern: any real experience-release
+promotion that two family members happen to open moments apart — exactly the scenario tech-doc 009's Experience
+Release Procedure step 3 describes — could hit the identical race in production. The E2E scenario now stands as
+permanent regression coverage for it (see the feature file's own comment on "Rule: Experience release candidate
+proof" for the pointer back here), and the frontend Vitest+Gherkin binding for the same scenario (`@fe-vitest-unit`
+in `family_chat.steps.ts`) proves the outbox-level draft/offline-queue/reconnect/exact-once behavior in isolation,
+matching this repo's split-proof convention for `family_chat.feature`.
+
+**A second finding, deliberately not fixed here.** The candidate logs also show a _separate_, unrelated, and
+apparently harmless recurring crash: `Absinthe.Phoenix.Channel.join/3` raising `FunctionClauseError` every time
+`graphql.js`'s `subscribe()` (documented at the top of that file, tech-doc 008 step 3) calls `dataChannel.join()`
+on the channel named after a subscription's `subscriptionId`. Reading `absinthe_phoenix`'s `channel.ex` (2.0.5)
+confirms `Absinthe.Phoenix.Channel.join/3` has exactly one clause, for the `"__absinthe__:control"` topic only —
+the server-side `run_doc/4` already subscribes the transport to a doc-topic via `Phoenix.PubSub.subscribe/3` with
+fastlane metadata when the "doc" push succeeds, so the _join_ on the data channel that `graphql.js` sends appears
+to be unnecessary (the client already registers its `subscription:data` listener before calling `.join()`), and its
+failure does not visibly break message delivery — every other `family_chat.feature` E2E scenario exercising live
+subscription/delivery passes cleanly despite this crash-loop appearing in candidate logs. This looks like real,
+fixable log noise (`phoenix.js`'s automatic channel rejoin keeps retrying it on an exponential backoff forever), but
+confirming that the `.join()` call is truly redundant — rather than serving some purpose not yet understood — needs
+its own focused investigation into `graphql.js`'s message-delivery path, which is out of Phase 8's scope and carries
+real risk to a currently-shipped, working feature if gotten wrong. Recorded here as a follow-up candidate, not
+attempted as part of this delivery.

@@ -25,8 +25,22 @@ defmodule BnestApp.DataRepository.StorageCoordinator do
   @spec ensure_started!() :: :ok
   def ensure_started!, do: ensure_started!(Config.resolved_database_path())
 
+  # `active_backend/1` can be called concurrently by any number of request
+  # processes (it runs inside `Storage.Lock.with_shared/1`, which allows
+  # multiple simultaneous shared holders). Without this lock, two concurrent
+  # callers can each decide the repo needs restarting and race: one stops
+  # the repo pid the other is already mid-query against, which crashes that
+  # query with an `Ecto.Repo.Registry` lookup failure on the now-dead pid.
+  # `:global.trans/2` makes the whole check-and-maybe-restart decision one
+  # atomic step, so a concurrent caller either sees the fully-restarted repo
+  # or waits for the in-flight restart to finish before deciding anything.
   @spec ensure_started!(String.t()) :: :ok
   def ensure_started!(database_path) do
+    :global.trans({__MODULE__, self()}, fn -> ensure_started_locked!(database_path) end)
+    :ok
+  end
+
+  defp ensure_started_locked!(database_path) do
     current = Application.get_env(:bnest_app, SqliteRepo, [])[:database]
 
     case Process.whereis(SqliteRepo) do
