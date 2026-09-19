@@ -311,7 +311,7 @@ endpoints, database content, or absolute runtime paths.
       online hint, terminal classes, auth pause, expiry, acknowledgement deletion, logout isolation, and reconciliation.
       **2026-09-18:** `bnest-app:test:unit:fe` — 4 test files, 70/70 passed, 0 failed. The outbox is confirmed
       in-memory-only for now (no real `indexedDB.*` binding exists yet); the header comment that previously implied
-      otherwise was corrected, and this gap is documented as pre-Experience-stage work under tech-doc 007's Release
+      otherwise was corrected, and this gap is documented as pre-Experience-stage work under tech-doc 009's Release
       Invariants table, not a Phase 4 blocker. Full detail in `learnings.md`.
 - [x] `[AI] [AC-FC-01] [AC-FC-03] [AC-FC-09] [AC-FC-12]` **GREEN** Implement canonical redirect, room/history UI,
       scroll anchor, live arrival, offline banner, statuses/actions, reload recovery, and accessibility semantics.
@@ -714,9 +714,39 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       **2026-09-20:** Done. Landed via PR #63, merged as `d6a70012a9391944dfa14675fcdca8b26f968b5a` on `origin/main`. Full root-cause
       narrative in `learnings.md`.
 
-- [ ] `[AI] [AC-FC-01..13]` Reconcile all six plan documents, both C4 surfaces, behavior maps, File Impact, and
+- [x] `[AI] [AC-FC-01..13]` Reconcile all six plan documents, both C4 surfaces, behavior maps, File Impact, and
       `learnings.md` to the as-built system; route every learning to a durable owner or discard reason. **Proof:** each AC
       maps to automated/manual/release evidence and no stale channel/LiveView/single-corpus claim remains.
+      **2026-09-20:** Done. All six documents read and cross-checked against the real current source (not assumed).
+      Found and fixed: (1) `README.md`'s Status section was still the pre-execution "product delivery has not started"
+      text, though Phases 7–8.5 are live in production and Phase 9 is underway — rewritten to the current state.
+      (2) tech-doc 002's "IndexedDB Outbox" section described the originally-planned schema (`pendingMessages` store,
+      compound `[userNamespace, roomSlug, clientMessageId]` key, `byUserRoomCreated`/`byUser` indexes, disk statuses
+      excluding `sending`/`sent`) rather than what PR #63 actually built (`queuedMessages` store, a single
+      `${namespace}::${clientMessageId}` string key, one `namespace` index, and every status including the transient
+      `Sending`/`Sent` persisted through the single `notify()` write-through point) — rewritten to the as-built
+      reality, including an honest note on the one low-probability orphaned-row edge case this introduces (routed to
+      a discard reason in `learnings.md`'s new Resolution Ledger, not silently dropped). (3) tech-doc 007's File
+      Impact list was missing `persistence_indexeddb.js` and the new offline-persistence FE E2E steps file — added,
+      with a note that this snapshot is module-group-level and not backfilled file-for-file across every intra-phase
+      REFACTOR split. (4) This item's own Phase 4 note cited "tech doc 007's Release Invariants table" — that table
+      is actually in tech-doc 009; fixed the cross-reference. (5) `learnings.md` had a stray empty `## Destination`
+      heading (orphaned artifact) — removed. Verified clean (no update needed): both C4 diagrams (tech-doc 001's
+      context/component pair, and the canonical `specs/apps/bnest/app-fe/architecture.md`/`app-be/architecture.md`
+      pair) remain accurate at their intentionally coarse level of abstraction — the outbox's internal module split
+      and the new persistence adapter are implementation detail inside the existing "IndexedDB outbox" box, not a new
+      component. Both behavior maps (`app-be/behaviours/README.md`, `app-fe/behaviours/README.md`) and each
+      architecture doc's "Behaviour Traceability" section still accurately describe the corpus. No stale LiveView
+      claim exists anywhere (grepped; the only "LiveView" hits correctly describe other routes or explicitly confirm
+      family chat is *not* one). No stale single-corpus/shared-test-room claim exists in any plan document (the
+      Playwright multi-project shared-room duplicate-message issue PR #63 hit was a test-infrastructure detail,
+      already fixed in the test file itself, never asserted as a guarantee in any plan document). Confirmed the
+      Coordinator Decision's Phase 4 Item 4 forward obligation (Phase 9 must confirm Phase 8 recorded the
+      subscription-continuity proof) was honored — see `learnings.md`'s Resolution Ledger entry 15. Added a new
+      "Resolution Ledger" section to `learnings.md` giving all 47 substantive entries (2 structural headings
+      excluded) a durable owner or an explicit discard reason, per that file's own pre-existing "route each entry...
+      before archival" instruction. Every AC-FC-01..13 already maps to automated/manual/release evidence across
+      delivery.md's phases; this pass re-verified rather than re-derived that mapping. Full detail in `learnings.md`.
 - [ ] `[AI] [AC-FC-01..13]` Run the plan execution check and, only if explicitly directed, the completion plan-quality
       gate; then repeat `APP_QUICK`, `INTEGRATION`, both quick/E2E targets, `RELEASE_TEST`, `REPO`, `git diff --check`, and
       process/port inventory. **Proof:** terminal completion evidence and only active route/rollback capacity retained.

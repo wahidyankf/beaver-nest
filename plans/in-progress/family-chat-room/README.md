@@ -2,10 +2,11 @@
 
 ## Status
 
-**In progress — materially revised plan; product delivery has not started.** This documentation-only amendment performs
-no application code, migration, dependency, deployment, or production-data change. Integrating these plan documents does
-not authorize product delivery; that begins only after the separately authorized quality and execution checkpoints in
-[`delivery.md`](delivery.md).
+**In progress — Phase 9 reconciliation and archival.** Product delivery has completed: the compatibility and experience
+releases (Phases 7–8) are live in production behind `BNEST_FAMILY_CHAT_ENABLED=true`, five post-launch fixes (Phase 8.5)
+are merged to `origin/main`, and the offline outbox's real IndexedDB persistence (Phase 9) is merged. What remains is
+reconciling plan documents to the as-built system, the plan execution check, and archival — see
+[`delivery.md`](delivery.md)'s Phase 9 for the exact remaining checklist.
 
 ## Outcome
 
