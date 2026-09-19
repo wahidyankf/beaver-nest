@@ -2284,3 +2284,77 @@ stays visible in history.
 state is involved — CI's independent random seed is exactly the kind of adversarial check this project's own test
 design (`async: false`, one real shared SQLite database per layer) already anticipated, and it worked as intended
 here.
+
+## Phase 7 `release:run` Attempt 4 — A Fifth Gap: `FamilyChat.with_repository/1` Never Starts the Repo — 2026-09-19
+
+**What happened.** Attempt 4 (`release:run --revision 0b437a22c`, PR #45's merge SHA) ran the new `convergence`
+stage in production for the first time. It crashed: `** (RuntimeError) could not lookup Ecto repo
+BnestApp.SqliteRepo because it was not started or it does not exist`. All 13 prior stages (`preflight` through
+`cleanup`) passed normally; `drainAndCleanup` had already retired the prior slot before `release:converge` ran, so
+production was left correctly routed on the new revision, fully healthy, with nothing left to roll back to —
+confirmed independently via `proxy:status`, the health endpoint, and `lsof -iTCP:4000`, not assumed.
+`release.mjs`'s own error-handling correctly reported `outcome: "failed"` without attempting a rollback: its
+catch-all only rolls back on `capacity`/`continuity` error categories, and this crash's `errorCategory` was
+`configuration` — exactly right here, since a rollback would have tried to "restore" a slot that was correctly
+already gone.
+
+**Root cause.** `FamilyChat.with_repository/1` computed `started_here? = is_nil(Process.whereis(BnestApp.SqliteRepo))`
+but never actually called `StorageCoordinator.ensure_started!()` — unlike its sibling
+`PersistentSchedules.with_repository/1`, whose moduledoc `family_chat.ex` explicitly claims to mirror ("mirroring
+`BnestApp.Release.Migrations.PersistentSchedules`'s standalone-callable shape"). A straight side-by-side diff of
+the two functions showed the sibling has `if started_here?, do: StorageCoordinator.ensure_started!()` right after
+computing `started_here?`; `family_chat.ex` was missing that exact line. This bug existed since `family_chat.ex`
+was first written but was never exercised, because nothing called any `FamilyChat` release-migration function via a
+genuine standalone `bin/bnest_app eval` until this session's new `converge_after_drain!/0` (PR #45) started being
+invoked for real by `deployment.mjs`'s new `release:converge` command.
+
+**Fix**, on a fifth task branch (`fix-family-chat-standalone-repo-start`, same worktree): added the single missing
+line, verbatim-matching the sibling's pattern. A new regression test, `family_chat_migration_test.exs`, mirrors
+`persistent_schedules_migration_test.exs`'s own standalone-subprocess pattern (`System.cmd("mix", ["run",
+"--no-start", ...])`, asserting exit 0 and that the repo process is not retained afterward). Verified RED first
+(reproduced the exact crash against the unfixed code, `assert status == 0` failed with `status == 1`), then GREEN
+after the fix.
+
+**A second, unrelated latent hazard found and worked around while writing the test (not fixed — out of this
+delivery unit's scope, and currently dead code).** Getting the regression test to pass reliably required
+untangling two separate false leads before finding the real design constraint:
+
+1. First lead: seeding via `PersistentSchedules.apply_and_verify!` then `FamilyChat.apply_and_verify!()` back-to-back
+   in one live, supervised `mix test` process (not `--no-start`) let this process's own real `Scheduler` GenServer
+   race to claim/reap the very schedule rows the test was asserting on — the same class of shared-mutable-SQLite
+   hazard as the PR #45 CI flake above, just against a `TestRuntimeRoot`-isolated file instead of the shared default
+   one. `force_not_due_for_test!/2` alone did not fully fix it (the window between `activate_if_pristine!` firing
+   inside `apply_and_verify!()` and the next statement was still enough to lose the race intermittently). Redesigning
+   the test to do everything (seed, migrate, converge, verify) through standalone subprocesses — never touching the
+   live test process's own repo/Scheduler at all — removed this hazard entirely by construction.
+2. Second, real lead: even with everything standalone, chaining `PersistentSchedules.apply_and_verify!` immediately
+   followed by `FamilyChat.apply_and_verify!()` in the _same_ eval process raised `** (RuntimeError) unknown
+schedule` from `Scheduler.Store.get_schedule!/1` — looking like a durability bug (`with_repository/1`'s own
+   stop-then-restart cycle racing the file's on-disk state). Independently confirmed via the raw `sqlite3` CLI that
+   the row genuinely _was_ correctly persisted to disk at that point, ruling durability out. The actual cause:
+   `config/test.exs` (by deliberate design, per its own comment) makes `BnestApp.FamilyChat.Store` always resolve
+   its connection through a separate `family_chat_sqlite_path` app-env key (derived from `BNEST_TEST_RUN_ID`),
+   completely independent of `BNEST_STORAGE_CONFIG` — "must never resolve through the real
+   `~/.config/bnest/storage.json` pointer during tests." `FamilyChat.apply_and_verify!()` calls
+   `FamilyChat.Store.ensure_ready!()`, which silently repoints the shared `BnestApp.SqliteRepo` singleton onto this
+   _other_ file mid-process, so the backup-schedule row `PersistentSchedules.apply_and_verify!` had just seeded (via
+   `BNEST_STORAGE_CONFIG`) was correctly on disk — just on a different disk file than the one `FamilyChat` was
+   now connected to. This means `BnestApp.Release.Migrations.apply_and_verify!/0` (the aggregate module that calls
+   both in sequence) would hit this exact same "unknown schedule" crash if it were ever actually invoked anywhere —
+   but a grep across `lib/` and `tools/deployment.mjs` confirms it currently has zero callers; `deployment.mjs`'s
+   `migrateRelease()` calls `PersistentSchedules.apply_and_verify!` directly, and nothing in production tooling
+   calls `FamilyChat.apply_and_verify!()` at all (it is only reached lazily, self-healingly, the first time a live
+   request touches `FamilyChat`). Since this is dead code with no current caller and is a distinct hazard from the
+   one this delivery unit set out to fix, it was **not** fixed here — only worked around in the test, by pinning
+   `BNEST_TEST_RUN_ID` to this test's own run id and pointing `BNEST_STORAGE_CONFIG` at the exact directory that
+   same id resolves to, so both mechanisms agree on one physical file.
+
+**Verification.** `bnest-app:test:integration` (301 tests, including the new file) run three times in a row as part
+of the full suite — 0 failures every time. `bnest-app:test:unit` green. `bnest-app:lint` green (`mix format
+--check-formatted`, `mix credo --strict` across 174 files, `oxlint`, `mix deps.unlock --check-unused`).
+`bnest-app:release:test` green, 31/31.
+
+**Not yet proven in production.** Same discipline as the fourth gap: this fix has not yet run through a real
+`release:run`. The next concrete step once this PR merges is to sync primary `main`, confirm baseline health, and
+run `release:run` again (attempt 5) for this fix's merge SHA — only then can Phase 7 item 3 be checked off with
+real evidence.
