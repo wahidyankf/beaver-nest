@@ -408,11 +408,23 @@ endpoints, database content, or absolute runtime paths.
 
 ## Phase 7 — Compatibility PR and Release
 
-- [ ] `[AI] [AC-FC-01..13]` With explicit commit/push authority, create thematic commits on
+- [x] `[AI] [AC-FC-01..13]` With explicit commit/push authority, create thematic commits on
       `family-chat-room`, run hooks without bypass, push, open a draft PR, make it ready only after exact-head
       gates/review, and rebase-merge it. **Proof:** staged path/public-safety audit, green CI, resolved review, landed SHA.
       Commands use `rtk git add -- <exact-path>`, `rtk git commit`, `rtk git push`, and `rtk gh pr ...` under the integration
       convention.
+      **2026-09-18/19:** PR #42 ("feat(family-chat): add compatible, dormant family chat room") — all 5 CI checks
+      green, leak review posted `pass`, five merge preconditions held, rebase-merged as `6c74f9542`. The subsequent
+      `release:run` attempt (item 2 below) then exposed a genuine pre-existing production dispatch-timing race
+      (Scheduler restart silently redirecting the shared SQLite repo, latent but newly triggered by this delivery's
+      own `dispatch_push_notifications/0` addition) that reliably blocked cutover — out of Phase 6's accepted-exception
+      scope once its actual mechanism was understood. Fixed on a second task branch, `fix-scheduler-restart-race`,
+      inside the same worktree per the units-sharing-one-worktree rule: PR #43 ("fix(bnest-app): stop Scheduler
+      restart from clobbering the shared repo") — RED/GREEN/REFACTOR verified (fixed-seed + ~20 random-seed
+      `test:integration` runs), all 5 CI checks green including the `public-safety` gate (which correctly caught and
+      blocked one real finding first — a maintainer-local absolute path quoted in `learnings.md` evidence, fixed in
+      the same head), leak review posted `pass` against head `f53accad2`, five merge preconditions held, rebase-merged
+      as `9c69dca51`. Both task branches now landed on `origin/main`.
 - [ ] `[AI] [AC-FC-10] [AC-FC-13]` From clean primary `main`, repeat health/capacity baseline and run self-guarded
       `rtk npm exec -- nx run -p bnest-app -t release:run -- --revision <compatibility-sha>`. **Proof:** additive migration,
       candidate revision/readiness, fixed subscription pool, GraphQL probes, Caddy promotion, immediate prior-socket close,
