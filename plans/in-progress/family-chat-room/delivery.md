@@ -569,6 +569,29 @@ fromState === "candidate-proof"` branch, which discards only the failed candidat
       production-origin probe report the same slot/revision with `schedulerReady`/`sqliteReady` true; exactly one
       `beam.smp` listener remained (prior slot drained). No synthetic user/message reached the production database —
       the candidate-proof scenario ran against the isolated `test:e2e` runtime root, never the routed production root.
+      **2026-09-20 — correction:** the "Caddy-triggered prior-socket close... promoted subscription within ten
+      seconds, catch-up, and exact-once rendering" claim above, attributed to `experience-release-e2e` (the "Two
+      members prove draft, offline queue, and exact-once catch-up..." scenario), does not hold up: that scenario's
+      own two members open the room only _after_ Caddy has already promoted the candidate
+      (`experience-release.steps.ts`'s own header comment says so directly), so there is no pre-promotion socket for
+      it to prove continuity of. The `plan-execution-checker` agent caught this by reading the cited step
+      implementation rather than trusting this note, and correctly blocked archival over it. The real, genuine proof
+      of socket continuity across a live cutover is `family_chat.feature`'s "A connected client reconnects to the
+      promoted slot without a page refresh" (Rule: Reconnect across Caddy promotion) — but as originally written,
+      its own step bindings were vacuous (`toBeGreaterThanOrEqual(0)` on a message count, and an assertion about a
+      queued send that the scenario never actually queued). Both are now real: `promoteWithConcurrentTraffic`
+      (`apps/bnest-app-fe-e2e/tests/support/family-chat.ts`) has the already-connected client queue a real message
+      (intercepted `SendFamilyChatMessage`, shown "Retrying") and has another member post a real message
+      concurrently with the Caddy promotion itself; the `Then` steps now assert the other member's message arrives
+      exactly once through the resubscribed channel, and the client's own queued message actually drains and
+      renders — not merely that the room "still responds." Verified genuinely green: 4/4 across
+      chromium/tablet-chromium/mobile-chromium, and the full family-chat E2E suite re-run 41/41 with no regressions.
+      This closes AC-FC-10's FE_E2E-provable socket-continuity/catch-up proof for real. What this does **not** prove
+      (unchanged from the original Coordinator Decision, `learnings.md` ~line 1032): a promotion driven by the real
+      `tools/release.mjs`/`tools/deployment.mjs` production release pipeline itself, which still has no
+      family-chat-specific routed proof and still depends on backend scope this plan never added (a service-account
+      auth path for release tooling, an isolated probe room separate from the one real "ruang-keluarga" room, and an
+      undefined telemetry mechanism). See `learnings.md`'s Resolution Ledger entry 15 for the corrected disposition.
 - [x] `[AI] [AC-FC-13]` Verify the next complete backup receipt and restore a copy into an isolated root; prove room,
       message structure, push subscriptions, delivery state, and Scheduler state without printing bodies/secrets.
       **Proof:** checksum/integrity/logical categories and exact cleanup. **Evidence (2026-09-19):** verified the

@@ -5,6 +5,7 @@ import {
   type TestInfo,
 } from "@playwright/test";
 import { login } from "./authentication";
+import { promoteCompatibleCandidate } from "./routed-rollout";
 import { isolatedTestIdentity, type TestIdentity } from "./test-identity";
 
 // Support for family_chat.feature's browser-only scenarios (everything the
@@ -55,6 +56,60 @@ export async function sendAsAnotherMember(
   } finally {
     await context.close();
   }
+}
+
+/**
+ * Drives a real Caddy promotion (`promoteCompatibleCandidate`, never a
+ * LiveView route) while `page`'s own connected client has a genuine queued
+ * send in flight and another member posts a genuine message concurrently --
+ * the setup a real exact-once-catch-up proof needs, rather than "the room
+ * still responds" (see `family-chat.steps.ts`'s "Caddy promotes a
+ * replacement slot" step, which is the only caller). "ruang-keluarga" is one
+ * shared fixture room across every project this suite runs sequentially, so
+ * both probe bodies are made unique per run to avoid a false-positive match
+ * against an earlier project's own already-committed message (the same
+ * problem PR #63's offline-persistence E2E scenario hit and fixed the same
+ * way).
+ */
+export async function promoteWithConcurrentTraffic(
+  page: Page,
+  browser: Browser,
+  identity: TestIdentity,
+): Promise<{ catchUpProbeBody: string; draftBody: string }> {
+  const runTag = crypto.randomUUID().slice(0, 8);
+  const catchUpProbeBody = `Catch-up probe ${runTag}`;
+  const draftBody = `Queued across promotion ${runTag}`;
+
+  let interceptOwnSend = true;
+  await page.route("**/api/graphql", async (routeHandle) => {
+    const body = routeHandle.request().postData() ?? "";
+    if (interceptOwnSend && body.includes("SendFamilyChatMessage")) {
+      await routeHandle.abort("connectionfailed");
+      return;
+    }
+    await routeHandle.continue();
+  });
+  await page.getByLabel("Message").fill(draftBody);
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(
+    page.locator("[data-role=family-chat-outbox-status]"),
+  ).toContainText("Retrying");
+
+  // Fired concurrently with the promotion itself so the probe message
+  // genuinely lands around the cutover boundary, not safely before or after
+  // it -- the connected client's own live subscription is what has to
+  // survive this, not just its next page load.
+  const [rollout] = await Promise.all([
+    promoteCompatibleCandidate(page, { verifyLiveView: false }),
+    sendAsAnotherMember(browser, identity, catchUpProbeBody),
+  ]);
+  expect(rollout.revision).not.toBe(rollout.previousRevision);
+
+  interceptOwnSend = false;
+  await page.unroute("**/api/graphql");
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+
+  return { catchUpProbeBody, draftBody };
 }
 
 /**
