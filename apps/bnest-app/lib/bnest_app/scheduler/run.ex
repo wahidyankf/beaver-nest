@@ -63,5 +63,15 @@ defmodule BnestApp.Scheduler.Run do
   defp record_failure(claim, category, now) do
     _result = Store.fail_attempt(claim.run_id, claim.attempt, category, now)
     :ok
+  rescue
+    # Best-effort bookkeeping: `Store` already retries a transiently absent
+    # repo (see `Store.with_repo_retry/1`'s moduledoc-level comment) but does
+    # not retry forever. If the repo is still unavailable, or this run's own
+    # database has since been swapped out from under a task that outlived
+    # its scenario/module, there is nothing left to record -- the claim
+    # itself is moot. Mirrors `renew_loop/2`'s identical posture below.
+    _repository_unavailable -> :ok
+  catch
+    :exit, _reason -> :ok
   end
 end

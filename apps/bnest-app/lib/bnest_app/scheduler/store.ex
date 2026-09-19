@@ -167,10 +167,12 @@ defmodule BnestApp.Scheduler.Store do
 
   @spec get_schedule(String.t()) :: map() | nil
   def get_schedule(schedule_key) do
-    case SqliteRepo.query!(
-           "SELECT #{columns(@schedule_columns)} FROM bnest_schedules WHERE schedule_key = ?",
-           [schedule_key]
-         ) do
+    case with_repo_retry(fn ->
+           SqliteRepo.query!(
+             "SELECT #{columns(@schedule_columns)} FROM bnest_schedules WHERE schedule_key = ?",
+             [schedule_key]
+           )
+         end) do
       %{rows: [row]} -> schedule_row(row)
       %{rows: []} -> nil
     end
@@ -642,11 +644,59 @@ defmodule BnestApp.Scheduler.Store do
   defp parse_revision(_value), do: {:error, :invalid_revision}
 
   defp transaction(fun) do
-    case SqliteRepo.transaction(fun, mode: :immediate) do
-      {:ok, value} -> value
-      {:error, reason} -> raise "scheduler transaction failed: #{inspect(reason)}"
-    end
+    with_repo_retry(fn ->
+      case SqliteRepo.transaction(fun, mode: :immediate) do
+        {:ok, value} -> value
+        {:error, reason} -> raise "scheduler transaction failed: #{inspect(reason)}"
+      end
+    end)
   end
+
+  # `SqliteRepo` is deliberately started/stopped outside OTP supervision by
+  # `StorageCoordinator` (storage relocation, migration, and per-test-module
+  # database isolation all call `ensure_started!/1` and `stop/0` directly --
+  # see its moduledoc). `BnestApp.Scheduler`, by contrast, is a permanently
+  # supervised, independently-ticking process that never pauses for that
+  # swap. A `Store` call that lands in the few-millisecond window between the
+  # old repo terminating and its replacement registering sees the repo as
+  # transiently absent, not genuinely broken -- retry briefly (well under
+  # `SqliteRepo`'s own 5s `busy_timeout` and the 1s the integration test
+  # driver already budgets for a scheduler restart) before surfacing it as
+  # real. Any other error -- including a real query/business-logic failure --
+  # is reraised immediately, on the first attempt, unretried.
+  @repo_retry_attempts 5
+  @repo_retry_delay_ms 20
+
+  defp with_repo_retry(fun), do: with_repo_retry(fun, @repo_retry_attempts)
+
+  defp with_repo_retry(fun, 1), do: fun.()
+
+  defp with_repo_retry(fun, attempts) do
+    fun.()
+  rescue
+    e in RuntimeError ->
+      if transient_repo_error?(e.message) do
+        Process.sleep(@repo_retry_delay_ms)
+        with_repo_retry(fun, attempts - 1)
+      else
+        reraise e, __STACKTRACE__
+      end
+  catch
+    :exit, reason ->
+      if transient_repo_error?(reason) do
+        Process.sleep(@repo_retry_delay_ms)
+        with_repo_retry(fun, attempts - 1)
+      else
+        exit(reason)
+      end
+  end
+
+  defp transient_repo_error?(message) when is_binary(message),
+    do: String.contains?(message, "could not lookup Ecto repo")
+
+  defp transient_repo_error?({:shutdown, _}), do: true
+  defp transient_repo_error?(:shutdown), do: true
+  defp transient_repo_error?(_other), do: false
 
   defp columns(fields), do: Enum.map_join(fields, ", ", &to_string/1)
   defp nullable_datetime(nil), do: nil

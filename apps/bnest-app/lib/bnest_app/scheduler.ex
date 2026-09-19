@@ -44,31 +44,31 @@ defmodule BnestApp.Scheduler do
       automatic?: Keyword.get(options, :automatic?, true)
     }
 
-    send(self(), :tick)
+    send(self(), {:tick, :boot})
     {:ok, state}
   end
 
   @impl GenServer
   def handle_call(:reconcile, _from, state) do
-    dispatch(state.clock.())
+    dispatch(state.clock.(), dispatch_push?: true)
     {:reply, :ok, state}
   end
 
   @impl GenServer
-  def handle_info(:tick, state) do
-    dispatch(state.clock.())
-    if state.automatic?, do: Process.send_after(self(), :tick, @tick_ms)
+  def handle_info({:tick, origin}, state) do
+    dispatch(state.clock.(), dispatch_push?: origin != :boot)
+    if state.automatic?, do: Process.send_after(self(), {:tick, :interval}, @tick_ms)
     {:noreply, state}
   end
 
-  defp dispatch(now) do
+  defp dispatch(now, opts) do
     now
     |> Store.claim_due()
     |> Enum.each(fn claim ->
       Task.Supervisor.start_child(BnestApp.Scheduler.Tasks, fn -> Run.execute(claim, now) end)
     end)
 
-    dispatch_push_notifications()
+    if Keyword.fetch!(opts, :dispatch_push?), do: dispatch_push_notifications()
   rescue
     _schema_not_ready -> :ok
   end
@@ -80,6 +80,18 @@ defmodule BnestApp.Scheduler do
   # new supervised process: every tick also drains whatever push deliveries
   # are currently due. Documented as a Phase 5 design decision in
   # learnings.md, not something tech-doc 004/007 spells out explicitly.
+  #
+  # Skipped specifically on the boot/restart-triggered first tick (see
+  # `dispatch/2`'s `dispatch_push?` and `handle_info({:tick, origin}, ...)`):
+  # this call self-heals `FamilyChatStore`'s own storage connection
+  # independently of whatever path the caller who just restarted this
+  # process was relying on, which is safe in production (both resolve to
+  # the same configured path there) but not in a test suite, where each
+  # domain intentionally uses its own isolated database and this process
+  # restarting is itself sometimes the very thing under test. Deferring
+  # push dispatch to the next regular tick (at most one `@tick_ms` later)
+  # avoids that self-heal firing at the one moment another in-flight
+  # operation cannot tolerate the shared connection being redirected.
   defp dispatch_push_notifications do
     Task.Supervisor.start_child(BnestApp.Scheduler.Tasks, fn ->
       PushNotifications.dispatch_all_due!()
