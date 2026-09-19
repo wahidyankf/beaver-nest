@@ -2641,3 +2641,68 @@ the repository (`Unauthorized Persistence`) — it must be derived inline within
 whatever command needs it, every time; also, read-only production checks (`proxy:status`, `curl .../health/ready`)
 require explicit user permission in this harness (`Production Reads`), separate from the plan's own execution
 authority, and were only run after the user granted it for this task in-session.
+
+## Phase 8 — Managed Experience Release for `423164cce` (`BNEST_FAMILY_CHAT_ENABLED=true`) — 2026-09-19
+
+**Structural fix needed first: `experiencePreflight`.** With `423164cce` now the routed compatibility floor, a
+first `--mode experience --revision 423164cce...` attempt still failed at preflight
+(`{"outcome":"failed","errorCategory":"preflight","durationMs": ~0,...}`), because `origin/main` had moved again
+(to `594cd03e1`, the compatibility-release learnings.md record itself) between landing `423164cce` and running the
+experience release. This exposed a real design gap: `executeExperienceRelease` shared `preflight()`/`runGates()`
+with the ordinary release path, both of which assert `HEAD === origin/main`, which is structurally incompatible
+with reusing an older, already-routed revision — `origin/main` will essentially always have advanced by the time
+an experience release actually runs, since every prerequisite compatibility release and its own record-keeping
+commit lands on `main` first. Fixed via a dedicated `MachineHost.experiencePreflight(requestedRevision)` (derives
+`revision` from the live `proxy:status.activeRevision`, not the checkout HEAD, while still asserting checkout
+hygiene — clean, on `main`, synced with `origin/main` — via `assertReleaseSource()` with no argument) and a new
+`runGates(revision, manifest, checkRevision = true)` third parameter that, when `false`, skips only the
+exact-revision-equality assertion. Landed via PR #51 (`09b498b22`), 39/39 tests passing.
+
+**Second structural bug found live: Playwright multi-project scenario duplication.** With the preflight fix in
+place, the next attempt passed `experiencePreflight` but failed at `"pre-artifact-gates"`
+(`durationMs: 39045`, `errorCategory: "gate"`). Root cause: `playwright.config.mts` runs every Gherkin scenario
+across three projects (`chromium`, `tablet-chromium`, `mobile-chromium`), each a fresh viewport but sharing the
+_same_ live routed-rollout candidate process and its real SQLite database — not reset between projects within one
+`test:e2e` invocation. The new candidate-proof scenario ("Two members prove draft, offline queue, and exact-once
+catch-up...") wrote a real chat message with a fixed, non-unique body; `chromium`'s run wrote it once
+(`toHaveCount(1)` passed), then `tablet-chromium` and `mobile-chromium` replayed the identical write against a
+database that already had it, seeing 2 and then 3 matches. A pre-existing exclusion (`sqliteStorageScenario`,
+already restricted to chromium-only for exactly this failure class — a real, once-per-server-lifetime SQLite write
+rather than a synthetic per-run-unique value) already existed for the routed-rollout reconnect scenario; the new
+scenario's title was simply missing from it. Fixed by folding it into the same regex (PR #52, `d72a9d23a`).
+Verified locally before landing: targeted grep run now shows exactly 2 tests (setup + chromium), both passing;
+typecheck/lint/behaviour-coverage all clean.
+
+**Landing PR #52 hit two unrelated operational snags, both resolved without weakening any gate.** (1) The first
+`git push` attempt failed at the pre-push hook's HIPPO-guarded `rhino gate run --surface pre-push` with exit `75`
+("deferred task: safe admission was not reached") while `./hippo status` briefly reported
+`state=warning reason=memory-warning`; per the resource-aware-development contract, exit `75` is retryable once a
+new schema-1 receipt proves `never-started`, which a quiet re-check of `./hippo status` (back to `state=normal`)
+and a clean manual re-run of the same guarded command confirmed — the retried push then succeeded outright, no
+bypass used. (2) Reconciling the worktree to `origin/main` after the merge, a `git checkout main` in the worktree
+correctly failed (`'main' is already checked out at` the primary checkout) but the scripted `||` fallback,
+`git checkout -B main origin/main`, unexpectedly succeeded — leaving _both_ the primary checkout's and the
+worktree's `.git*/HEAD` pointing at the shared `refs/heads/main` simultaneously, which the primary checkout's own
+branch ref then silently inherited the worktree's fast-forward through (its `HEAD` advanced to the merge commit
+while its index/working tree for the one file that differed stayed stale, surfacing as a spurious staged revert of
+this very fix in the primary checkout). Fixed by detaching the worktree (`git checkout --detach origin/main`,
+restoring the intended "worktree = detached, primary = only owner of `main`" invariant) and restoring the primary
+checkout's stale index/working-tree entry from `HEAD` (`git restore --staged --worktree --source=HEAD`). No commit
+was made against the stale state; `git rev-list --left-right --count HEAD...origin/main` read `0 0` in both
+checkouts afterward. Lesson for future sessions: never fall back to `git checkout -B main <ref>` inside a worktree
+when the plain `git checkout main` refusal is expected (because the primary checkout legitimately owns `main`) —
+the correct recovery in that branch of the reconciliation routine is `git checkout --detach origin/main`, not a
+branch-creating fallback.
+
+**Result.** `release:run --mode experience --revision 423164cce2e24966222777e21500140ef122e2a5` completed with
+`outcome: "passed"`, `durationMs: 323117` (~5.4 minutes — no `build` stage, since the experience release reuses
+the artifact already built and proven during the prerequisite compatibility release), evidence stages in order:
+`preflight`, `experience-release-e2e` (the new candidate-proof scenario, chromium-only), `experience-candidate-proof`
+(revision + `X-Bnest-Revision` header match on the inactive slot before promotion), `promotion`, `routed-liveview`,
+`cleanup`. `migrationState: "not-required"` (the experience release changes only a runtime flag, no schema).
+Cutover independently verified from the primary checkout after the run: `proxy:status` reports
+`{"activeSlot":"green","activeRevision":"423164cce2e24966222777e21500140ef122e2a5",...}`; both
+`http://127.0.0.1:4100/health/ready` and the production-origin probe report the same `slot`/`revision` with
+`schedulerReady`/`sqliteReady` true; `lsof -iTCP:4000 -iTCP:4001` shows exactly one `beam.smp` listener (the prior
+`blue` slot fully drained); `pgrep -fl beam.smp` confirms only the new `green` process remains; `git worktree list`
+shows no leftover release worktree. Production now serves `423164cce` with `BNEST_FAMILY_CHAT_ENABLED=true`.

@@ -546,16 +546,29 @@ fromState === "candidate-proof"` branch, which discards only the failed candidat
 
 ## Phase 8 — Experience Release
 
-- [ ] `[AI] [AC-FC-01] [AC-FC-09] [AC-FC-12]` From the same reviewed compatibility SHA, prepare the inactive candidate
+- [x] `[AI] [AC-FC-01] [AC-FC-09] [AC-FC-12]` From the same reviewed compatibility SHA, prepare the inactive candidate
       with `BNEST_FAMILY_CHAT_ENABLED=true`; make no repository edit or schema change. Rerun candidate quick/release and
       exact route/UI checks before promotion. **Proof:** candidate reports the same revision, enabled flag, matching GraphQL
-      schema/pool, and green assets/navigation while the routed compatibility slot remains flag-off.
-- [ ] `[AI] [AC-FC-10] [AC-FC-12]` Run the managed experience release for `<compatibility-sha>` with continuous HTTP/readiness/revision
+      schema/pool, and green assets/navigation while the routed compatibility slot remains flag-off. **Evidence:** managed
+      `release:run --mode experience --revision 423164cce2e24966222777e21500140ef122e2a5` (2026-09-19,
+      `durationMs: 323117`) — `MachineHost.prepareExperienceCandidate` launched the candidate on the inactive slot with
+      `--family-chat-enabled` and no repository/schema edit (`migrationState: "not-required"`); `verifyCandidateRevision`
+      confirmed the candidate's `X-Bnest-Revision` header matched `423164cce...` before promotion. See
+      "Phase 8 — Managed Experience Release" below in `learnings.md`.
+- [x] `[AI] [AC-FC-10] [AC-FC-12]` Run the managed experience release for `<compatibility-sha>` with continuous HTTP/readiness/revision
       and GraphQL-socket probes. Against an isolated candidate/routed test root, use two synthetic authenticated contexts
       to prove draft, queued send, Caddy-triggered prior-socket close, promoted subscription within ten seconds, catch-up,
       and exact-once rendering. **Proof:** no nonzero `stream_close_delay`, no refresh, no prior-slot handshake after
       promotion, zero failures, p95 ≤500 ms, max ≤2 s, warm observation/cleanup complete. Production database receives
-      no synthetic user/message.
+      no synthetic user/message. **Evidence:** `experience-release-e2e` gate (the "Two members prove draft, offline
+      queue, and exact-once catch-up..." scenario, run against the isolated `test:e2e` candidate/routed root, chromium
+      project only per the fixed multi-project SQLite-duplication bug — PR #52, `d72a9d23a`) passed as part of the same
+      `outcome: "passed"` run; `promotion` and `routed-liveview` evidence stages both recorded. Cutover independently
+      verified afterward from the primary checkout: `proxy:status` → `{"activeSlot":"green",
+    "activeRevision":"423164cce2e24966222777e21500140ef122e2a5"}`; both `http://127.0.0.1:4100/health/ready` and the
+      production-origin probe report the same slot/revision with `schedulerReady`/`sqliteReady` true; exactly one
+      `beam.smp` listener remained (prior slot drained). No synthetic user/message reached the production database —
+      the candidate-proof scenario ran against the isolated `test:e2e` runtime root, never the routed production root.
 - [ ] `[AI] [AC-FC-13]` Verify the next complete backup receipt and restore a copy into an isolated root; prove room,
       message structure, push subscriptions, delivery state, and Scheduler state without printing bodies/secrets.
       **Proof:** checksum/integrity/logical categories and exact cleanup.
