@@ -2145,3 +2145,39 @@ passing (every pre-existing assertion unaffected, including the `launchAgent` si
 structural test). `npx prettier --check` clean on both touched files under `./hippo run --class ephemeral
 --resource-tier light`. Retrying `release:run` attempt 3 next, from primary `main` synced to this fix once it
 lands.
+
+## Phase 7 `release:run` Attempt 3 — Succeeded — 2026-09-19
+
+**Outcome.** PR #44 merged as `471a76b73`; primary `main` reconciled (`0 0` against `origin/main`); baseline health
+confirmed (`blue` routed on `f536f97d`, healthy, `green`'s port free, no active `hippo` job) before launching.
+`release:run --revision 471a76b73` completed with `outcome: "passed"`, `durationMs: 1934517` (~32.2 minutes total),
+all 14 evidence stages present in order: `preflight`, `bnest-quick`, `bnest-integration`, `be-e2e-quick`,
+`fe-e2e-quick`, `release-recovery-e2e`, `release-load-e2e`, `repository`, `artifact-manifest`,
+`migration-proof` (`applied`), `candidate-proof`, `promotion`, `routed-liveview`, `cleanup`.
+
+**What each prior attempt's finding actually bought.** `release-recovery-e2e` passed clean this time — no
+`mobile-chromium` drain-lock timeout — confirming attempt 1's finding really was transient `hippo` contention, not
+a defect, exactly as attempt 2 already suggested by passing it once. `candidate-proof` (`deploy:prepare --slot
+green`) passed clean this time too — the candidate became ready well within 60s — confirming the VAPID env-var fix
+(PR #44) was the correct, complete root-cause fix, not a partial patch.
+
+**Evidence of the specific proof requirements Phase 7 item 2 names**, beyond the bare gate-passed lines:
+`release-recovery-e2e`'s two "An automatic LiveView reconnect" scenarios and `release-load-e2e`'s "Ten synthetic
+visitors preserve recoverable state" scenario are `gateManifest`-enforced _blocking_ pre-artifact gates — they run
+and must pass before the candidate is even built, so their pass is itself the GraphQL-subscription/fixed-pool/p95
+proof, not a separate check. After promotion, `tools/verify-liveview.mjs` (run directly by `release.mjs`, not
+through the gate manifest) independently re-proved live reconnection against the _newly-routed_ revision:
+`{"schemaVersion":1,"outcome":"passed","liveView":true,"reconnected":true,"clientCount":10,"groupCount":3}`.
+`drainAndCleanup`'s warm-observation window is a fixed `300_000`ms (confirmed by reading `release.mjs:635`, not
+assumed) — independently timed against the real promotion timestamp in Caddy's own log line
+(`grace period initiated, duration: 300`) rather than trusted at face value, and `blue` was polled healthy
+throughout that window before this session observed its retirement. Retirement itself confirmed two ways:
+`lsof -iTCP:4000 -sTCP:LISTEN` returned nothing afterward, and `deployment.mjs proxy:status` reported
+`activeSlot: "green"`, `activeRevision: "471a76b73..."`, `previousSlot: "blue"`, `caddyReady: true`.
+
+**What this closes out.** Three task branches in this one worktree, landed in sequence, each addressing exactly
+the scope its own discovery justified rather than being bundled speculatively ahead of time: `family-chat-room`
+(the compatible, dormant feature itself), `fix-scheduler-restart-race` (a latent pre-existing mechanism the
+feature's own design newly triggered), `fix-release-webpush-env` (a documented-but-never-implemented deployment
+requirement the feature's own runtime config introduced). `release:run` itself never bypassed a failing gate to
+get here — both real blockers were fixed at their root cause and re-proven, not routed around.
