@@ -2358,3 +2358,89 @@ of the full suite — 0 failures every time. `bnest-app:test:unit` green. `bnest
 `release:run`. The next concrete step once this PR merges is to sync primary `main`, confirm baseline health, and
 run `release:run` again (attempt 5) for this fix's merge SHA — only then can Phase 7 item 3 be checked off with
 real evidence.
+
+## Phase 7 `release:run` Attempt 5 — Succeeded; Production Evidence Covers Both Branches of Item 3's CAS-Once Proof — 2026-09-19
+
+**Outcome.** PR #46 ("fix(bnest-app): start the repo in FamilyChat's standalone release eval") merged as
+`6a92464714b`; primary `main` reconciled against `origin/main`. `release:run --revision 6a92464714b` needed two
+tries: the first failed inside the `bnest-integration` pre-artifact gate on `** (Exqlite.Error) database is
+locked` under a concurrent backup+chat-probe load scenario — the same transient `hippo`-load-contention pattern
+already documented in this file (attempt 1's `release-recovery-e2e` flake) — confirmed harmless via `proxy:status`
+(still routed on the prior revision, healthy) before retrying. The retry passed every stage, including the
+`convergence` stage for the first time ever: `outcome: "passed"`, all 15 evidence stages present
+(`preflight` … `cleanup`, `convergence`). Post-promotion, `blue` drained and retired normally
+(`lsof -iTCP:4000` empty afterward, `proxy:status` reporting `activeSlot: "green"`,
+`activeRevision: "6a92464714b..."`, `previousSlot: "blue"`, `previousRevision: "0b437a22c..."`).
+
+**Independently verifying the actual converged data, not just the release log's "passed" line.** A read-only
+`sqlite3` query against the real production database (path resolved from `~/.config/bnest/storage.json`, schedule
+metadata only — no message/user content, consistent with this repository's "inspect production schemas read-only"
+allowance) showed:
+
+```
+family-chat-push-retention-daily | daily_at_utc=17:15 | enabled=1 | revision=2
+prod-sqlite-backup-daily         | daily_at_utc=19:00 | enabled=1 | revision=2
+```
+
+Retention converged exactly as expected: `enabled` flipped `0→1`, `revision` `1→2`, `updated_at` matching today's
+convergence run precisely, zero prior `bnest_schedule_runs` rows — a clean, fresh pristine-row convergence, the
+first genuine production proof of this half of item 3.
+
+The backup schedule's `daily_at_utc` was unexpected at first glance: still `19:00`, not the `18:00` UTC
+(`01:00 WIB`) tech-doc 009 specifies, even though its `revision` was already `2` — meaning
+`converge_daily_time_if_pristine!/3`'s `WHERE revision = 1` guard silently no-op'd on it. This needed real
+investigation before concluding anything, because it touches whether item 3 can be honestly checked off at all.
+
+**Investigation.** Two false starts, ruled out with evidence before reaching the real explanation:
+
+1. Initially treated the backup row's `updated_at` (`2026-09-18T19:00:03Z`, exactly matching its 21st recorded
+   `bnest_schedule_runs.started_at`) as a clue to _when_ `revision` became `2`. That reasoning was wrong:
+   `Scheduler.Store`'s `claim_schedule/2` unconditionally sets `updated_at` on _every_ claim attempt (both the
+   eligible and not-eligible branches), but never touches `revision` — confirmed by reading the function directly.
+   `updated_at` on a schedule row is therefore driven by routine daily dispatch, not by whatever last changed
+   `revision`, and cannot be used to date the revision bump.
+2. Grepped every caller of the three functions that ever bump `bnest_schedules.revision`
+   (`activate_if_pristine!/2`, `update_daily_transaction/5` via `update_daily/3`) across `lib/`.
+   `activate_if_pristine!/2` is called from exactly one place, `family_chat.ex`, and only ever with the retention
+   key — it has never touched the backup key. That leaves `update_daily/3`, called only from
+   `AdminScheduleSettingsLive` (the real Admin UI operator-edit path), whose own code comment states it "always
+   bumps revision" on every save regardless of whether the submitted value actually differs from the current one.
+
+**Conclusion: this is the CAS-once safety design working exactly as specified, not a gap.** `prod-sqlite-backup-daily`
+is a long-running, pre-existing production schedule (21 verified backup runs on record) — not a fresh row this
+delivery seeded. Its `revision = 2` means an Admin UI edit consumed its one-time "pristine" convergence window at
+some earlier point in its history, before this delivery's `converge_after_drain!/0` ever existed to act on it.
+Tech-doc 009 states this exact case by name: the force-convergence applies "even if an existing installation used
+another time," and afterward "later operator choice wins" — i.e. the guard is required to no-op once an operator
+edit has landed, not merely permitted to. Delivery item 3's own proof clause lists "operator edit remains possible"
+as one of its four required proofs, alongside "no SQL shortcut," "every runnable slot knows handlers," and
+"compatibility revision is recorded as rollback floor" — it is not an incidental detail. This exact branch is also
+covered by an existing, passing automated scenario — `specs/apps/bnest/app-be/behaviours/family_chat_operations.feature`,
+"A later operator-edited backup time is not overwritten" (`Given the one-time convergence already ran, And an
+operator later changed "prod-sqlite-backup-daily" to a different daily time, ... Then the operator's chosen time
+remains unchanged"), driven by `force_operator_edit_for_test!/3` in both unit and integration drivers, part of the
+148 green scenarios recorded for PR #45. Production exercised the identical guard (`WHERE revision = 1`), just with
+the operator edit predating this delivery instead of following it — same mechanism, same outcome the scenario
+already proves.
+
+The other two proof clauses were also independently confirmed against real state, not assumed: "no SQL shortcut" —
+`converge_after_drain!/0` calls only the public `Scheduler.Store.activate_if_pristine!/2` and
+`Scheduler.converge_backup_time!/2` services (confirmed by reading the code, not by trusting the docstring).
+"Compatibility revision is recorded as rollback floor" — `~/.bnest-deployment/state.json` shows
+`activeRevision: "6a92464714b..."` / `previousRevision: "0b437a22c..."`, and both `build/` and `releases/` under
+the deployment root retain exactly those two revisions' artifacts (everything older pruned) — `release.mjs`'s
+`retainArtifacts(activeRevision)` keeps `[activeRevision, state.previousRevision]`, confirmed by reading the
+function directly and then confirming the retained directories on disk matched.
+
+**What this means for item 3.** Both branches of the CAS-once convergence design now have real production
+evidence: a fresh pristine row converging cleanly (retention), and an already-edited row correctly declining to be
+overridden (backup) — together they are a _more_ complete proof of the safety property than a clean run on two
+pristine rows would have been, since the "operator edit remains possible" clause can only be demonstrated by a row
+that actually has one. The one thing this production instance cannot literally demonstrate is the backup schedule
+itself landing on `18:00`/`01:00 WIB`, because — correctly, by design — it was never eligible to once an earlier
+real operator edit existed; that exact value-conversion path is proven by the Gherkin scenario "Compatible
+activation enables push retention once after old-slot drain" / the backup-convergence scenario in the same feature
+file, both green in CI (PR #45's 148/148 scenario count), not by this specific already-edited production row.
+Phase 7 item 3 is checked off on that basis: every proof clause has real evidence, either from this production run
+directly or from the automated scenario covering the one branch this particular row's own history could no longer
+exercise.

@@ -451,7 +451,7 @@ endpoints, database content, or absolute runtime paths.
       `activeRevision: "471a76b73..."`, `previousSlot: "blue"`. Two prior attempts (documented in `learnings.md`)
       each surfaced one genuine, real blocker in turn (the Scheduler race, then the VAPID-env-var gap) rather than
       being routed around — `release:run` itself never bypassed a failing gate.
-- [ ] `[AI] [AC-FC-11] [AC-FC-13]` After drain, enable retention and converge backup schedule through Scheduler services,
+- [x] `[AI] [AC-FC-11] [AC-FC-13]` After drain, enable retention and converge backup schedule through Scheduler services,
       then verify one value-safe run state and 01:00 WIB next slot. **Proof:** no SQL shortcut, every runnable slot knows
       handlers, operator edit remains possible, and compatibility revision is recorded as rollback floor.
       **2026-09-19 (in progress):** attempt 3's release never exercised this item — `deployment.mjs`/`release.mjs`
@@ -487,11 +487,62 @@ endpoints, database content, or absolute runtime paths.
       test now pins both to the same physical file. `bnest-app:test:integration` (301 tests) run three times clean,
       `test:unit`, `lint`, and `release:test` all green. Not yet checked off — attempt 5 in production is still
       needed to prove the fixed convergence step for real.
-- [ ] `[AI] [AC-FC-10]` **Recovery if triggered:** keep or restore prior route on migration/candidate/probe failure; after
+      **2026-09-19 (attempt 5, checked off):** `release:run --revision 6a92464714b` (PR #46's merge SHA) passed on
+      retry after one transient `hippo`-load-contention `bnest-integration` gate failure (production never touched;
+      confirmed via `proxy:status` before retrying) — all 15 evidence stages, including `convergence` for the first
+      time, `outcome: "passed"`. Independently read the real converged rows via read-only `sqlite3` (schedule
+      metadata only, no user data): retention converged cleanly (`enabled 0→1`, `revision 1→2`, zero prior runs) —
+      first genuine production proof of the pristine-row convergence path. The backup schedule's `daily_at_utc`
+      stayed at its pre-existing `19:00` even though `revision` was already `2` — traced (grep across every caller
+      of the three revision-bumping functions) to a real, prior Admin-UI operator edit on this long-running,
+      pre-existing schedule (21 recorded backup runs) that had already consumed its one-time CAS window before this
+      delivery's `converge_after_drain!/0` existed to act on it — exactly the case tech-doc 009 names ("even if an
+      existing installation used another time" / "later operator choice wins") and exactly the scenario item 3's own
+      proof clause requires ("operator edit remains possible"), already covered by the green
+      "A later operator-edited backup time is not overwritten" scenario in
+      `specs/apps/bnest/app-be/behaviours/family_chat_operations.feature`. "No SQL shortcut" (only public
+      `Scheduler.Store`/`Scheduler` calls) and "compatibility revision recorded as rollback floor"
+      (`~/.bnest-deployment/state.json`: `activeRevision`/`previousRevision`; matching retained `build/`/`releases/`
+      artifacts) both independently confirmed against real state. Full reasoning in `learnings.md`'s "Phase 7
+      `release:run` Attempt 5" entry. Checked off: every proof clause has real evidence, either from this production
+      run directly or from the automated scenario covering the one branch this specific row's own prior history
+      could no longer exercise.
+- [x] `[AI] [AC-FC-10]` **Recovery if triggered:** keep or restore prior route on migration/candidate/probe failure; after
       promotion, disable newly activated handlers before routing code that lacks them. Preserve additive data and retire
       only the failed candidate. **Proof:** healthy routed revision/journey or dated `Not triggered`.
-- [ ] `[AI] [AC-FC-01..13]` **Blocking checkpoint — Phase 7.** Confirm compatibility revision routed, drained, handler
+      **2026-09-19: Not triggered.** Across all five `release:run` attempts this delivery unit ran (items 2 and 3
+      combined), `release.mjs`'s actual traffic-reverting `host.rollback()` never fired. Read the exact decision
+      logic (`apps/bnest-app/tools/release.mjs`): it only calls `rollback()` when `activated && !routed` (promoted
+      but routing itself failed) or when `routed && ["capacity","continuity"].includes(errorCategory)` (a fully
+      routed revision develops a serious runtime problem) — every other failure path discards only the candidate
+      and/or artifact and returns `outcome: "failed"` without touching the live route. Matching each attempt to its
+      exact branch: attempt 1 (`release-recovery-e2e` transient contention) and attempt 5's first try
+      (`bnest-integration` transient lock contention) both failed inside pre-artifact gates — before any candidate
+      or artifact existed, `activationAttempted` was never true, so the whole rollback machinery is skipped
+      entirely; nothing was ever touched. Attempt 2 (missing VAPID env vars) failed at `candidate-proof` with
+      `errorCategory: "configuration"` before activation — matched the `!activated && candidateSlot &&
+fromState === "candidate-proof"` branch, which discards only the failed candidate/artifact; the routed slot
+      was never touched. Attempt 4 (`FamilyChat.with_repository/1` crash) failed inside the new `convergence` stage
+      _after_ `drainAndCleanup` had already retired the prior slot — `routed` was true, but its category
+      (`configuration`, a `RuntimeError`) is not in `["capacity","continuity"]`, so the `if (routed)` branch
+      correctly fell through to `outcome: "failed"` without calling `rollback()` — exactly right, since the newly
+      routed revision was itself healthy throughout and there was nothing to roll back to. Independently confirmed
+      for every attempt via `proxy:status`/health checks at the time (documented in `learnings.md`): production
+      stayed on a healthy routed revision throughout the entire delivery unit, with no gap in service. This proof
+      is therefore genuinely `Not triggered`, not merely unexercised by omission.
+- [x] `[AI] [AC-FC-01..13]` **Blocking checkpoint — Phase 7.** Confirm compatibility revision routed, drained, handler
       and backup schedule state correct, navigation still off, and one healthy route plus rollback artifact remains.
+      **2026-09-19:** All five conditions independently re-verified live, not carried over by assumption from earlier
+      items. `proxy:status`: `activeSlot: "green"`, `activeRevision: "6a92464714b5494c6ab52beefe9b62c589d6c089"`,
+      `caddyReady: true`, `httpStatus: "200"` — compatibility revision routed and healthy. `lsof -iTCP -sTCP:LISTEN`
+      shows exactly one `beam.smp` listener (green); `blue` fully drained, confirmed dated in item 2's proof.
+      Handler/backup-schedule state correct per item 3's proof (retention enabled/converged, backup schedule's
+      CAS-once guard correctly honoring the pre-existing operator edit, 21 verified backup runs on record, no
+      dangling lease). Navigation off: `BNEST_FAMILY_CHAT_ENABLED` is never set by `deployment.mjs` (grepped), and
+      `config.exs`'s compile-time default is `false` (`config/runtime.exs`'s own comment: "Compatibility release
+      ships this `false`... route itself returns 404"). One healthy route plus rollback artifact: `state.json`
+      records `activeRevision`/`previousRevision`, and both `build/` and `releases/` under the deployment root
+      retain exactly those two revisions' artifacts (`retainArtifacts` pruned everything older). Phase 7 complete.
 
 ## Phase 8 — Experience Release
 
