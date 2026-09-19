@@ -69,6 +69,7 @@ Feature: Family chat GraphQL API
     When the user sends the family chat message "Dinner is ready" with a fresh client message ID
     Then the response returns the committed message with a server ID and commit time
     And the family chat room holds exactly one message with that client message ID
+    And the response reports the sender's real display username, not their raw user ID
 
   # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / Retrying the same client message ID returns the original commit
   @e2e-exempt

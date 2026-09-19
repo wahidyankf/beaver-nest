@@ -825,7 +825,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       identity_role: role,
       authenticated: true,
       token: token,
-      user_id: identity.user_id
+      user_id: identity.user_id,
+      identity_username: identity.username
     })
   end
 

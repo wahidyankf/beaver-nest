@@ -793,6 +793,14 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def behaviour_outcome?(context, :room_has_one_message_for_client_id, _args),
     do: count_messages_for(context, context.family_chat_client_message_id) == 1
 
+  def behaviour_outcome?(context, :message_reports_real_display_name, _args) do
+    match?(
+      %{"data" => %{"sendFamilyChatMessage" => %{"senderDisplayName" => name}}}
+      when name == context.identity_username and name != context.user_id,
+      context.family_chat_result
+    )
+  end
+
   def behaviour_outcome?(context, :room_still_one_message, _args),
     do: count_messages_for(context, context.family_chat_client_message_id) == 1
 

@@ -84,6 +84,12 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
   )
 
   step(
+    "the response reports the sender's real display username, not their raw user ID",
+    context,
+    do: outcome(context, :message_reports_real_display_name)
+  )
+
+  step(
     "the user already sent the family chat message {string} with a known client message ID",
     %{args: [body]} = context,
     do: prepare(context, :sent_message_with_known_id, [body])

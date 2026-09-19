@@ -779,6 +779,16 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     count_messages_for(context, context.family_chat_client_message_id) == 1
   end
 
+  def behaviour_outcome?(context, :message_reports_real_display_name, _args) do
+    case context.family_chat_result do
+      {:ok, %{sender_display_name: name, sender_id: sender_id}} ->
+        name == synthetic_display_name(sender_id) and name != sender_id
+
+      _other ->
+        false
+    end
+  end
+
   def behaviour_outcome?(context, :room_still_one_message, _args) do
     count_messages_for(context, context.family_chat_client_message_id) == 1
   end
@@ -1118,7 +1128,13 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       if context[:family_chat_capability] == false do
         forbidden_error()
       else
-        FamilyChat.send_message(sender, slug, client_message_id, expand_body_fixture(body))
+        FamilyChat.send_message(
+          sender,
+          slug,
+          client_message_id,
+          expand_body_fixture(body),
+          synthetic_display_name(sender)
+        )
       end
 
     context
@@ -1200,6 +1216,13 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   end
 
   defp session_digest(context), do: context[:session_digest] || "unit-session-digest"
+
+  # No account/session system exists at this layer (`FamilyChat` takes a
+  # caller-supplied display name; only the GraphQL resolver derives a real
+  # one). Deterministic and always distinct from `sender_id` so the "real
+  # display username, not raw user ID" scenario is a genuine assertion here
+  # too, mirroring the integration driver's real `identity_username`.
+  defp synthetic_display_name(sender_id), do: "display-" <> sender_id
 
   # Built from separate fragments (not one literal URL-shaped string) so this synthetic fixture
   # does not trip the unit-layer boundary policy's blanket network-URL scan; the real

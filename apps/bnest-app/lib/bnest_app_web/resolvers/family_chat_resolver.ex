@@ -49,7 +49,8 @@ defmodule BnestAppWeb.Resolvers.FamilyChatResolver do
           user_id,
           args.room_slug,
           to_string(args.client_message_id),
-          args.body
+          args.body,
+          display_username(resolution)
         )
       )
     end
@@ -83,6 +84,13 @@ defmodule BnestAppWeb.Resolvers.FamilyChatResolver do
   end
 
   defp authorize(_no_authenticated_context), do: {:error, safe_error("UNAUTHENTICATED")}
+
+  # Only reached from inside `send_family_chat_message/2`'s `with` block,
+  # i.e. after `authorize/1` already matched this same resolution's
+  # `current_user` map -- `Identity.Session`'s `Map.take/2` always carries
+  # `displayUsername` alongside `userId`, so no fallback clause is reachable.
+  defp display_username(%{context: %{current_user: %{"displayUsername" => display_username}}}),
+    do: display_username
 
   defp wrap({:ok, value}), do: {:ok, value}
   defp wrap({:error, %{code: code}}), do: {:error, safe_error(code)}
