@@ -603,12 +603,12 @@ Gherkin-first on their own short-lived branches from `worktrees/family-chat-room
 
 - [x] `[AI] [AC-FC-02] [AC-FC-04]` **RED** Every family chat message rendered the sender's raw user ID instead of
       their real display name. Add `And the response reports the sender's real display username, not their raw
-    user ID` to `family_chat_graphql.feature`'s "A member sends a durable message" scenario; add the matching
+user ID` to `family_chat_graphql.feature`'s "A member sends a durable message" scenario; add the matching
       `message_reports_real_display_name` outcome clause to both the unit and integration `family_chat_driver.ex`.
       **Proof:** `BE_UNIT` and `INTEGRATION` fail because `FamilyChat.send_message/4` had no display-name
       parameter at all — a genuine feature-absence failure, not a harness defect.
       **2026-09-19:** Done. Both drivers' new clause failed with `no function clause matching in
-    BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equivalent assertion failure
+BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equivalent assertion failure
       (integration) before the fix — confirmed the same Gherkin scenario runs unmodified against both layers.
 - [x] `[AI] [AC-FC-02] [AC-FC-04]` **GREEN** Thread the session-derived `displayUsername` through
       `FamilyChatResolver.send_family_chat_message/2` into a new `sender_display_name` parameter on
