@@ -41,11 +41,18 @@ const testDir = defineBddConfig({
 const setupScenario = /Initial setup warns about unavailable recovery/u;
 const desktopOnlyLoadScenario =
   /Ten synthetic visitors preserve recoverable state/u;
-// The one remaining sqlite storage scenario here (routed rollout reconnect)
-// persists a single, once-per-server-lifetime pointer, so — like the
-// one-time setup scenario — it runs on chromium only.
+// These scenarios persist real state into the shared candidate's SQLite
+// database (a schedule pointer, or a real chat message) rather than a
+// synthetic, per-run-unique value, and the routed-rollout candidate process
+// is not reset between projects within one `test:e2e` invocation. Running
+// them on `tablet-chromium`/`mobile-chromium` too would replay the exact
+// same write against a database that already has it from the `chromium`
+// project's run, so — like the one-time setup scenario — they run on
+// chromium only. (Confirmed live: without this exclusion, the experience
+// release candidate proof's `toHaveCount(1)` assertion saw 2 and then 3
+// matching messages on the second and third project runs.)
 const sqliteStorageScenario =
-  /Non-admin cannot configure storage|reconnects across compatible SQLite rollout/u;
+  /Non-admin cannot configure storage|reconnects across compatible SQLite rollout|Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate/u;
 
 export default defineConfig({
   testDir,
