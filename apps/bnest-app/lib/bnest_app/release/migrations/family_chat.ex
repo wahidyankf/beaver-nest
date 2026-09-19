@@ -99,6 +99,7 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
     ensure_database_apps_started!()
     standalone? = not application_started?(:bnest_app)
     started_here? = is_nil(Process.whereis(BnestApp.SqliteRepo))
+    if started_here?, do: StorageCoordinator.ensure_started!()
 
     try do
       operation.()
