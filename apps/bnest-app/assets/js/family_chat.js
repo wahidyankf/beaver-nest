@@ -102,7 +102,7 @@ function createRoomPushAndOutbox(
  * @param {string} roomSlug
  * @param {boolean} hasDocument
  * @param {import("./family_chat/elements.js").FamilyChatElements | null} elements
- * @param {{scrolledToOlderMessage?: boolean, focusInComposer?: boolean}} options
+ * @param {{user?: {id: string}, scrolledToOlderMessage?: boolean, focusInComposer?: boolean}} options
  * @param {import("./family_chat/clock.js").Clock} clock
  */
 function createRoomStoreAndReconnect(
@@ -119,7 +119,11 @@ function createRoomStoreAndReconnect(
   // readability at the call site.
   const store =
     hasDocument && elements
-      ? createRealStore({ roomSlug, elements })
+      ? createRealStore({
+          roomSlug,
+          elements,
+          currentUserId: options.user?.id ?? null,
+        })
       : createStore({
           scrolledToOlderMessage: options.scrolledToOlderMessage,
           focusInComposer: options.focusInComposer,
@@ -237,4 +241,26 @@ export async function initRoom(path, options = {}) {
   }
 
   return room;
+}
+
+/**
+ * The real `app.js` entry point: detects the shipped `room.html.heex`
+ * template's DOM shell and, when present, boots `initRoom` with the
+ * authenticated visitor's own ID read from that same shell's
+ * `data-current-user-id` attribute -- the only way the real browser build
+ * (as opposed to the Vitest+Gherkin harness, which passes `options.user`
+ * directly) ever learns which sender is "own" for `real_store.js`'s
+ * left/right message split.
+ */
+export async function initRoomFromDocument() {
+  const familyChatRoom =
+    /** @type {HTMLElement | null} */
+    (document.querySelector('[data-role="family-chat-room"]'));
+  if (!familyChatRoom) return;
+
+  const currentUserId = familyChatRoom.dataset["currentUserId"];
+  await initRoom(
+    window.location.pathname,
+    currentUserId ? { user: { id: currentUserId } } : {},
+  );
 }

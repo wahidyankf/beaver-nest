@@ -2,6 +2,7 @@
 <main
   class="family-chat-shell"
   data-role="family-chat-room"
+  data-current-user-id={@current_user["userId"]}
   aria-labelledby="family-chat-room-title"
 >
   <header class="family-chat-header">
@@ -80,6 +81,7 @@
     <label for="family-chat-message-input">Message the family</label>
     <textarea
       id="family-chat-message-input"
+      class="family-chat-message-input"
       name="body"
       data-role="family-chat-message-input"
       placeholder="Write a message"

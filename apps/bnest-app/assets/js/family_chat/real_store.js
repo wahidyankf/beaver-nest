@@ -33,8 +33,9 @@ function createRealStoreState() {
 /**
  * @param {import("./elements.js").FamilyChatElements} elements
  * @param {RealStoreState} state
+ * @param {string | null} currentUserId
  */
-function createInitialRenderMethods(elements, state) {
+function createInitialRenderMethods(elements, state, currentUserId) {
   return {
     empty() {
       return state.rendered.size === 0;
@@ -48,7 +49,7 @@ function createInitialRenderMethods(elements, state) {
       elements.list.replaceChildren();
       state.rendered.clear();
       for (const message of messages) {
-        const node = messageNode(message, { pending: false });
+        const node = messageNode(message, { pending: false, currentUserId });
         const key = message.id ?? message.clientMessageId ?? "";
         elements.list.append(node);
         state.rendered.set(key, node);
@@ -68,8 +69,9 @@ function createInitialRenderMethods(elements, state) {
 /**
  * @param {import("./elements.js").FamilyChatElements} elements
  * @param {RealStoreState} state
+ * @param {string | null} currentUserId
  */
-function createPrependOlderMethods(elements, state) {
+function createPrependOlderMethods(elements, state, currentUserId) {
   return {
     /**
      * @param {RenderableMessage[]} messages
@@ -83,7 +85,7 @@ function createPrependOlderMethods(elements, state) {
 
       const fragment = document.createDocumentFragment();
       for (const message of messages) {
-        const node = messageNode(message, { pending: false });
+        const node = messageNode(message, { pending: false, currentUserId });
         fragment.append(node);
         state.rendered.set(message.id ?? message.clientMessageId ?? "", node);
       }
@@ -135,8 +137,9 @@ function createPendingRenderMethods(elements, state) {
 /**
  * @param {import("./elements.js").FamilyChatElements} elements
  * @param {RealStoreState} state
+ * @param {string | null} currentUserId
  */
-function createReconcileMethod(elements, state) {
+function createReconcileMethod(elements, state, currentUserId) {
   return {
     /**
      * @param {string} clientMessageId
@@ -160,7 +163,10 @@ function createReconcileMethod(elements, state) {
         return;
       }
 
-      const node = messageNode(committedMessage, { pending: false });
+      const node = messageNode(committedMessage, {
+        pending: false,
+        currentUserId,
+      });
       if (pendingNode) {
         pendingNode.replaceWith(node);
       } else {
@@ -175,8 +181,9 @@ function createReconcileMethod(elements, state) {
 /**
  * @param {import("./elements.js").FamilyChatElements} elements
  * @param {RealStoreState} state
+ * @param {string | null} currentUserId
  */
-function createReceiveRemoteMessageMethod(elements, state) {
+function createReceiveRemoteMessageMethod(elements, state, currentUserId) {
   return {
     /** @param {RenderableMessage} message */
     async receiveRemoteMessage(message) {
@@ -185,7 +192,7 @@ function createReceiveRemoteMessageMethod(elements, state) {
       // Already reconciled from our own send.
       if (state.rendered.has(key)) return;
       const wasNearBottom = isNearBottom(elements);
-      const node = messageNode(message, { pending: false });
+      const node = messageNode(message, { pending: false, currentUserId });
       elements.list.append(node);
       state.rendered.set(key, node);
 
@@ -238,15 +245,21 @@ function createArrivalReaderMethods(state) {
   };
 }
 
-/** @param {{roomSlug: string, elements: import("./elements.js").FamilyChatElements}} options */
-export function createRealStore({ elements }) {
+/**
+ * @param {{
+ *   roomSlug: string,
+ *   elements: import("./elements.js").FamilyChatElements,
+ *   currentUserId?: string | null,
+ * }} options
+ */
+export function createRealStore({ elements, currentUserId = null }) {
   const state = createRealStoreState();
   return {
-    ...createInitialRenderMethods(elements, state),
-    ...createPrependOlderMethods(elements, state),
+    ...createInitialRenderMethods(elements, state, currentUserId),
+    ...createPrependOlderMethods(elements, state, currentUserId),
     ...createPendingRenderMethods(elements, state),
-    ...createReconcileMethod(elements, state),
-    ...createReceiveRemoteMessageMethod(elements, state),
+    ...createReconcileMethod(elements, state, currentUserId),
+    ...createReceiveRemoteMessageMethod(elements, state, currentUserId),
     ...createArrivalReaderMethods(state),
   };
 }
