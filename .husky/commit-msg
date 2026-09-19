@@ -4,7 +4,9 @@ set -e
 # because it is published with the commit that carries it. What runs here, and
 # in what order, is declared in `repo-config.yml` rather than written out below.
 #
-# Arguments after `--` reach every gate on the surface, which is correct here
-# and only here: both gates on `commit-msg` want the same message file. The
-# safety screen reads it as outbound text and Commitlint reads it as a message.
-exec ./rhino gate run --surface commit-msg
+# Git invokes this hook with one argument: the path to the file holding the
+# proposed message (COMMIT_EDITMSG, worktree-scoped). `--message-file` is how
+# the RHINO v0.4 CLI accepts that same path for the `commit-msg` surface --
+# `rhino gate run --help` documents it as "Exact commit-msg hook path, read
+# only for that surface" -- so it must be forwarded here, not read implicitly.
+exec ./rhino gate run --surface commit-msg --message-file "$1"
