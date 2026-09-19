@@ -29,8 +29,19 @@ defmodule BnestAppWeb.Endpoint do
   # for this socket (never a CSRF token) — CSRF protection remains enforced
   # separately, and unconditionally, for every GraphQL HTTP mutation via
   # `BnestAppWeb.Plugs.GraphQLPipeline`.
+  #
+  # `check_origin: true`: tech-doc 008 documents "endpoint origin checking"
+  # as this socket's other handshake defense alongside the session cookie
+  # (since `check_csrf` is off). Set explicitly so it holds regardless of
+  # `config/dev.exs`'s endpoint-wide `check_origin: false` (a convenience
+  # for plain page/LiveView browsing in dev) — Phoenix 1.8's own transport
+  # validator now refuses to boot a socket where both would end up `false`.
   socket "/api/graphql/socket", BnestAppWeb.UserSocket,
-    websocket: [connect_info: [session: @session_options], check_csrf: false],
+    websocket: [
+      connect_info: [session: @session_options],
+      check_csrf: false,
+      check_origin: true
+    ],
     longpoll: false
 
   # Serve at "/" the static files from "priv/static" directory.
