@@ -738,7 +738,7 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       component. Both behavior maps (`app-be/behaviours/README.md`, `app-fe/behaviours/README.md`) and each
       architecture doc's "Behaviour Traceability" section still accurately describe the corpus. No stale LiveView
       claim exists anywhere (grepped; the only "LiveView" hits correctly describe other routes or explicitly confirm
-      family chat is *not* one). No stale single-corpus/shared-test-room claim exists in any plan document (the
+      family chat is _not_ one). No stale single-corpus/shared-test-room claim exists in any plan document (the
       Playwright multi-project shared-room duplicate-message issue PR #63 hit was a test-infrastructure detail,
       already fixed in the test file itself, never asserted as a guarantee in any plan document). Confirmed the
       Coordinator Decision's Phase 4 Item 4 forward obligation (Phase 9 must confirm Phase 8 recorded the
