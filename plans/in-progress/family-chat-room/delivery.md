@@ -685,6 +685,35 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
 
 ## Phase 9 — Reconciliation and Archival
 
+- [x] `[AI] [AC-FC-12]` **RED** The Phase 9 plan-execution check found a real, currently-live product gap: the BRD/
+      README/tech-doc-009 Release Invariants table promises the offline outbox's queued messages survive a real
+      browser tab close/reopen via IndexedDB once the Experience stage ships (which it already had, via Phase 8 +
+      8.5) — but no real IndexedDB binding was ever implemented (`family_chat.js`'s own "KNOWN GAP" comment, dating
+      to Phase 4, disclosed this; the queue was in-memory only). Add "A queued message survives a real browser
+      reload while offline" to `family_chat.feature`'s "Rule: Resume, online reaction, backoff, and seven-day
+      expiry" (one `@fe-vitest-unit` scenario with a documented `@integration-exempt` alternative-proof at
+      `bnest-app-fe-e2e:test:e2e`, a real `page.reload()` — the only layer that can prove real cross-reload
+      IndexedDB durability, since Node has no real `indexedDB`). **Proof:** the FE_E2E scenario failed genuinely
+      before the fix (no `renderResumedPendingMessages` wiring existed, so even a hydrated message would never have
+      rendered).
+      **2026-09-20:** Done.
+- [x] `[AI] [AC-FC-12]` **GREEN** New `family_chat/persistence_indexeddb.js` implements the real IndexedDB
+      `Persistence` adapter (`loadAll`/`save`/`remove`/`clear`) and `resolvePersistence`, the seam `outbox.js`'s own
+      header comment already described as "attached separately by `family_chat.js`". `outbox_namespace.js` gained
+      `hydrateNamespace` (loads persisted rows into the in-memory namespace once, before the outbox resumes
+      draining); `outbox_send.js`'s `notify()` — the one call site every status transition already runs through —
+      is now also the single write-through point; `outbox.js`'s `send()`/`logout()` persist/clear correspondingly.
+      `mount_browser.js` gained `renderResumedPendingMessages` so a resumed message is visible and live-updating on
+      screen, not just resumed internally (a real, previously-latent second gap: nothing ever rendered a resumed
+      pending message, since same-tab resume was unreachable before real persistence existed). FE_UNIT proves the
+      write-through/hydration _contract_ with a real in-memory fake (`family_chat.steps.ts`'s `createFakePersistence`
+      — no `vi.mock`); FE_E2E proves the real IndexedDB round trip end to end. **Proof:** `bnest-app:test:unit:fe`
+      93/93 passed; `bnest-app:typecheck`/`bnest-app:lint` and `bnest-app-fe-e2e:typecheck`/`lint` clean; the new
+      `bnest-app-fe-e2e:test:e2e` scenario 4/4 passed (chromium/tablet-chromium/mobile-chromium); full family-chat
+      E2E suite re-run 41/41 passed (no regressions).
+      **2026-09-20:** Done. Landed via PR #<PR_NUMBER>, merged as `<PR_SHA>` on `origin/main`. Full root-cause
+      narrative in `learnings.md`.
+
 - [ ] `[AI] [AC-FC-01..13]` Reconcile all six plan documents, both C4 surfaces, behavior maps, File Impact, and
       `learnings.md` to the as-built system; route every learning to a durable owner or discard reason. **Proof:** each AC
       maps to automated/manual/release evidence and no stale channel/LiveView/single-corpus claim remains.

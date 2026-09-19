@@ -165,6 +165,29 @@ async function submitComposer(room, elements) {
   watchPendingMessage(room, elements, clientMessageId);
 }
 
+/**
+ * Renders whatever `resumeOnOpen` (`outbox_send.js`, run at `createOutbox`
+ * construction) already resumed draining internally -- a message left over
+ * from a closed tab (real IndexedDB) or an already-in-flight one from this
+ * same session -- exactly like `submitComposer` renders a fresh send, so a
+ * resumed message is visible and live-updating on screen, not just quietly
+ * resumed in the outbox's own state.
+ * @param {MountableRoom} room
+ * @param {import("./elements.js").FamilyChatElements} elements
+ */
+function renderResumedPendingMessages(room, elements) {
+  for (const message of room.outbox.pendingMessages()) {
+    room.store.renderPending({
+      clientMessageId: message.clientMessageId,
+      body: message.body,
+      status: message.status,
+      senderKind: "user",
+      senderDisplayName: "You",
+    });
+    watchPendingMessage(room, elements, message.clientMessageId);
+  }
+}
+
 /** @param {MountableRoom} room */
 async function loadOlderHistory(room) {
   const oldestId = room.store.oldestId();
@@ -208,6 +231,7 @@ export async function mountBrowser(room, elements, { subscriptionClient }) {
   bindReconnectCallbacks(room, subscriptionClient);
 
   await loadInitialMessages(room);
+  renderResumedPendingMessages(room, elements);
   elements.input.disabled = false;
   elements.send.disabled = false;
   roomElement.dataset["connectionState"] = "ready";

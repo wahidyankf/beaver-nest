@@ -10,19 +10,18 @@
 // project's max-lines/max-lines-per-function lint budget -- `initRoom`
 // below is the only export other files need to know about.
 //
-// KNOWN GAP (see this plan's Phase 4 learnings.md): `outbox.js`'s own
-// header comment describes a real IndexedDB binding "attached separately by
-// `family_chat.js`" for cross-reload queue durability; no such binding is
-// actually implemented anywhere in this directory (verified: no
-// `indexedDB.*` call exists in `assets/js/` at all). The outbox is
-// currently in-memory only (`outbox.js`'s module-scoped `namespaces` Map)
-// and does not survive a real browser tab close/reopen. This is consistent
-// with tech-doc 007's Release Invariants table, which marks IndexedDB
-// "Active for authenticated room" only once the Experience stage (nav/route
-// enabled) begins -- the room stays nav-dormant/flag-off through Phase 4 --
-// but it must be closed before that flag flips, not assumed already done.
+// Real IndexedDB binding (tech-doc 003's promised cross-reload queue
+// durability, and tech-doc 007's Release Invariants table, which marks
+// IndexedDB "Active for authenticated room" once the Experience stage
+// begins): `createRoomPushAndOutbox` below is the "attached separately by
+// `family_chat.js`" seam `outbox.js`'s own header comment describes --
+// see `persistence_indexeddb.js` for the real implementation, only ever
+// constructed on this file's `hasDocument` branch (Phase 9 fix; see
+// learnings.md for the reproduction/root-cause evidence of the gap this
+// closed).
 
 import { createOutbox } from "./family_chat/outbox.js";
+import { resolvePersistence } from "./family_chat/persistence_indexeddb.js";
 import { createReconnect } from "./family_chat/reconnect.js";
 import { createStore } from "./family_chat/store.js";
 import { createPush } from "./family_chat/push.js";
@@ -46,14 +45,27 @@ function parseRoomSlug(path) {
 }
 
 /**
+ * @param {import("./family_chat/elements.js").FamilyChatElements | null} elements
+ * @param {{remediationMessage: string | null}} composerState
+ */
+function handleQueueFull(elements, composerState) {
+  composerState.remediationMessage =
+    "Keep waiting messages under 100, or retry/discard one first.";
+  if (elements) {
+    elements.remediation.hidden = false;
+    elements.remediation.textContent = composerState.remediationMessage;
+  }
+}
+
+/**
  * @param {string} roomSlug
  * @param {boolean} hasDocument
  * @param {import("./family_chat/elements.js").FamilyChatElements | null} elements
- * @param {{user?: {id: string}, activePushSubscription?: boolean, devicePushState?: string}} options
+ * @param {{user?: {id: string}, activePushSubscription?: boolean, devicePushState?: string, persistence?: import("./family_chat/outbox_send.js").Persistence | undefined}} options
  * @param {import("./family_chat/clock.js").Clock} clock
  * @param {{remediationMessage: string | null}} composerState
  */
-function createRoomPushAndOutbox(
+async function createRoomPushAndOutbox(
   roomSlug,
   hasDocument,
   elements,
@@ -73,19 +85,21 @@ function createRoomPushAndOutbox(
     onDisable: () => {},
   });
 
+  const userId = options.user?.id ?? "anonymous";
+  const persistence = await resolvePersistence(
+    hasDocument,
+    userId,
+    roomSlug,
+    options.persistence,
+  );
+
   const outbox = createOutbox({
-    userId: options.user?.id ?? "anonymous",
+    userId,
     roomSlug,
     clock,
     transport,
-    onQueueFull: () => {
-      composerState.remediationMessage =
-        "Keep waiting messages under 100, or retry/discard one first.";
-      if (elements) {
-        elements.remediation.hidden = false;
-        elements.remediation.textContent = composerState.remediationMessage;
-      }
-    },
+    persistence,
+    onQueueFull: () => handleQueueFull(elements, composerState),
     onLogout: () => {
       push.disable();
     },
@@ -197,6 +211,7 @@ async function mountRoomInBrowser(room, elements, subscriptionClient) {
  *   activePushSubscription?: boolean,
  *   scrolledToOlderMessage?: boolean,
  *   focusInComposer?: boolean,
+ *   persistence?: import("./family_chat/outbox_send.js").Persistence | undefined,
  * }} options
  */
 export async function initRoom(path, options = {}) {
@@ -208,7 +223,7 @@ export async function initRoom(path, options = {}) {
   const composerState = { remediationMessage: null };
   const elements = hasDocument ? findElements() : null;
 
-  const { push, outbox } = createRoomPushAndOutbox(
+  const { push, outbox } = await createRoomPushAndOutbox(
     roomSlug,
     hasDocument,
     elements,
