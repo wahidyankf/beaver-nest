@@ -1,14 +1,12 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
-import {
-  promoteCompatibleCandidate,
-  restorePrimaryRoute,
-} from "../support/routed-rollout";
+import { restorePrimaryRoute } from "../support/routed-rollout";
 import type { TestIdentity } from "../support/test-identity";
 import {
   ensureFamilyChatHasOlderPage,
   inspectCacheStorageEntries,
   openFamilyChatRoom,
+  promoteWithConcurrentTraffic,
   seedFamilyChatScrollOverflow,
   sendAsAnotherMember,
 } from "../support/family-chat";
@@ -25,6 +23,8 @@ const { Given, Then, When } = createBdd();
 
 let identity: TestIdentity;
 let cacheEntries: string[] = [];
+let catchUpProbeBody = "";
+let draftBody = "";
 
 Given(
   "a visitor opens {string} with the socket connected to the current slot",
@@ -34,13 +34,20 @@ Given(
   },
 );
 
-When("Caddy promotes a replacement slot", async ({ page }) => {
+When("Caddy promotes a replacement slot", async ({ page, browser }) => {
   // The room is a plain controller, not a LiveView -- see this file's own
-  // "the prior-slot socket closes" step for the equivalent real proof.
-  const rollout = await promoteCompatibleCandidate(page, {
-    verifyLiveView: false,
-  });
-  expect(rollout.revision).not.toBe(rollout.previousRevision);
+  // "the prior-slot socket closes" step for the equivalent real proof. A
+  // real exact-once-catch-up proof needs a message this client never sent
+  // itself and a message it tried to send but couldn't, both genuinely in
+  // flight around the cutover -- see `promoteWithConcurrentTraffic`'s own
+  // header comment (this scenario's previous
+  // `toBeGreaterThanOrEqual(0)`/`not.toHaveText("Sending", ...)` assertions
+  // were both vacuous; see delivery.md's Phase 9 correction note).
+  ({ catchUpProbeBody, draftBody } = await promoteWithConcurrentTraffic(
+    page,
+    browser,
+    identity,
+  ));
 });
 
 Then("the prior-slot socket closes", async ({ page }) => {
@@ -60,20 +67,38 @@ Then("the prior-slot socket closes", async ({ page }) => {
 Then(
   "the browser subscribes on the promoted slot and completes catch-up within ten seconds",
   async ({ page }) => {
-    await expect
-      .poll(() => page.locator("[data-role=family-chat-message]").count(), {
-        timeout: 10_000,
-      })
-      .toBeGreaterThanOrEqual(0);
+    // Real proof: a message this client never sent itself, posted by
+    // another member concurrently with the promotion (see the `When` step
+    // above), must arrive exactly once through the resubscribed channel --
+    // not zero (lost across the cutover) and not more than once
+    // (duplicated by the reconnect module's merge-by-server-ID step).
+    await expect(
+      page.locator('[data-role="family-chat-message"]', {
+        hasText: catchUpProbeBody,
+      }),
+    ).toHaveCount(1, { timeout: 10_000 });
   },
 );
 
 Then(
   "any queued send drains only after catch-up completes",
   async ({ page }) => {
+    // Real proof: the message this client itself tried to send during the
+    // cutover (queued, retried, and shown "Retrying" by the `When` step
+    // above) must actually reach the server and render -- not just "isn't
+    // showing Sending 1 second from now" (always true whether or not it
+    // ever sends). This checks the outcome (both catch-up and this
+    // client's own drain reach their correct terminal state), not strict
+    // sub-second ordering between the two, which is not reliably
+    // observable from the DOM without a flaky race.
     await expect(
       page.locator("[data-role=family-chat-outbox-status]"),
-    ).not.toHaveText("Sending", { timeout: 1_000 });
+    ).not.toContainText("Retrying", { timeout: 10_000 });
+    await expect(
+      page.locator('[data-role="family-chat-message"]', {
+        hasText: draftBody,
+      }),
+    ).toHaveCount(1);
   },
 );
 
