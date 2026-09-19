@@ -1321,6 +1321,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
              :schedule_due,
              :schedule_due_and_enabled,
              :schedule_different_time,
+             :schedule_disabled_seed,
              :convergence_already_ran,
              :operator_changed_schedule_time,
              :insufficient_capacity,

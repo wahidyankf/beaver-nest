@@ -109,6 +109,14 @@ Feature: Family chat operations
     Then "prod-sqlite-backup-daily" is updated to "daily_at_utc" "18:00"
     And repeating the convergence call afterward changes nothing
 
+  # Exemption(e2e): release-time schedule activation is an internal Scheduler service call with no public boundary; alternative-proof: bnest-app:test:integration / Compatible activation enables push retention once after old-slot drain
+  @e2e-exempt
+  Scenario: Compatible activation enables push retention once after old-slot drain
+    Given the "family-chat-push-retention-daily" schedule ships as a disabled seed
+    When the compatibility release calls the public Scheduler activation operation
+    Then "family-chat-push-retention-daily" becomes enabled
+    And repeating the activation call afterward changes nothing
+
   # Exemption(e2e): operator schedule edits are an internal Scheduler service call with no public boundary; alternative-proof: bnest-app:test:integration / A later operator-edited backup time is not overwritten
   @e2e-exempt
   Scenario: A later operator-edited backup time is not overwritten

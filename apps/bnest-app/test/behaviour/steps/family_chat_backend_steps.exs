@@ -465,6 +465,22 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :convergence_call_idempotent)
   )
 
+  step("the {string} schedule ships as a disabled seed", %{args: [key]} = context,
+    do: prepare(context, :schedule_disabled_seed, [key])
+  )
+
+  step("the compatibility release calls the public Scheduler activation operation", context,
+    do: perform(context, :call_activation_operation)
+  )
+
+  step("{string} becomes enabled", %{args: [key]} = context,
+    do: outcome(context, :schedule_field_enabled, [key])
+  )
+
+  step("repeating the activation call afterward changes nothing", context,
+    do: outcome(context, :activation_call_idempotent)
+  )
+
   step("the one-time convergence already ran", context,
     do: prepare(context, :convergence_already_ran)
   )
