@@ -18,19 +18,19 @@ runs `git`.
 ## The Gate
 
 ```bash
-OSE_GATE_SURFACE=<commit-msg|pre-commit|pre-push|ci> scripts/public-safety/check.sh [hook arguments]
+RHINO_GATE_SURFACE=<commit-msg|pre-commit|pre-push|pull-request> scripts/public-safety/check.sh [hook arguments]
 ```
 
 The surface arrives in the environment and nowhere else. A missing or unknown value is a protocol failure, not a
 default. A gate that infers its own surface will eventually infer a weaker one, and that is exactly the case where
 inferring is expensive.
 
-| Surface      | Outbound at that moment                                           |
-| ------------ | ----------------------------------------------------------------- |
-| `commit-msg` | the message being written, and the current ref name               |
-| `pre-commit` | the tracked tree and its names, then the staged additions         |
-| `pre-push`   | the refs being pushed, the outgoing commit messages, and the tree |
-| `ci`         | the ref, the head commit message, and the checked-out tree        |
+| Surface        | Outbound at that moment                                           |
+| -------------- | ----------------------------------------------------------------- |
+| `commit-msg`   | the message being written, and the current ref name               |
+| `pre-commit`   | the tracked tree and its names, then the staged additions         |
+| `pre-push`     | the refs being pushed, the outgoing commit messages, and the tree |
+| `pull-request` | the ref, the head commit message, and the checked-out tree        |
 
 `pre-commit` screens the whole tracked tree, not only the change. A leak that is already committed does not become safe
 because this particular commit did not introduce it.

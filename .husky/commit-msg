@@ -7,4 +7,4 @@ set -e
 # Arguments after `--` reach every gate on the surface, which is correct here
 # and only here: both gates on `commit-msg` want the same message file. The
 # safety screen reads it as outbound text and Commitlint reads it as a message.
-exec ./rhino gate run --surface commit-msg -- "$1"
+exec ./rhino gate run --surface commit-msg

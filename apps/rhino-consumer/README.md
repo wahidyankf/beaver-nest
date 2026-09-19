@@ -45,7 +45,7 @@ $ ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm ex
 
 ### `test:repo`
 
-Dispatches the `ci` surface: `./rhino gate run --surface ci` runs the gates `repo-config.yml`
+Dispatches the local `pre-push` surface: `./rhino gate run --surface pre-push` runs the gates `repo-config.yml`
 declares for that surface, in the order declared there, stopping at the first failure.
 
 Two of them screen what may leave this repository — `public-safety`, which runs first on every
@@ -56,7 +56,7 @@ surface, and the tests that prove it discriminates. The other six are the valida
 | `rhino repo-config validate`              | the declared policy itself is complete and usable         |
 | `rhino governance word-budget validate`   | every governed surface is inside its declared word budget |
 | `rhino governance directory-map validate` | every mapped tree's READMEs name their siblings           |
-| `rhino harness parity validate`           | every declared harness adapter still routes to the canon  |
+| `rhino harness adapters validate`         | every declared harness adapter still routes to the canon  |
 | `rhino md internal-link validate`         | every relative Markdown link resolves                     |
 | `rhino md mermaid validate`               | every diagram stays inside the label and colour rules     |
 

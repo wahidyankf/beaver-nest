@@ -8,3 +8,10 @@ libs/ex-bdd/test/fixtures/cck/
 
 # Verified against the catalog digest, never edited. See specs/fixtures/README.md.
 specs/fixtures/
+
+# Rhino verifies generated adapter bytes against canonical `.agents` sources.
+# Format the canonical sources, never their generated mirrors.
+.claude/agents/
+.claude/skills/
+.codex/agents/
+.opencode/agents/

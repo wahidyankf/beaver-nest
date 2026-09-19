@@ -22,7 +22,7 @@ Choose every affected concern, then edit its canonical source before any adapter
 
 ### 2. Reconcile the adapters
 
-For a skill, Codex and OpenCode use `.agents/skills/` natively. Create or update exactly one Claude wrapper at `.claude/commands/<name>.md`:
+For a skill, Codex and OpenCode use `.agents/skills/` natively. Generate exactly one Claude route at `.claude/skills/<name>/SKILL.md`:
 
 ```markdown
 ---
@@ -32,7 +32,7 @@ description: <exact canonical description>
 Read .agents/skills/<name>/SKILL.md completely, resolve every relative resource from that skill directory, and follow it as authoritative before acting.
 ```
 
-Do not copy the skill body into the wrapper. A description change updates the wrapper; a rename or removal renames or removes the matching wrapper and leaves no stale adapter.
+Do not copy the skill body into the route. A description change regenerates the route; a rename or removal regenerates the family and leaves no stale adapter.
 
 For an agent, keep exactly one adapter in each of `.claude/agents/` and `.opencode/agents/`. Each adapter contains only native identity, mode, tool/permission metadata, and this route:
 
@@ -40,7 +40,7 @@ For an agent, keep exactly one adapter in each of `.claude/agents/` and `.openco
 Before acting, read the complete canonical agent definition at the repository-root path .agents/agents/<name>.md and follow it as authoritative. If it cannot be read, stop and report the missing path.
 ```
 
-Use an existing adapter from the same harness as the schema example. Translate canonical capabilities and denies into that harness's strongest native controls; do not copy the canonical prompt, pin a provider model, append instructions, or omit a restriction. If a new semantic capability has no validated mapping, extend the convention and the `harness-parity` declarations in `repo-config.yml` before claiming parity. A mapping RHINO cannot express is an upstream change.
+Use an existing adapter from the same harness as the schema example. Translate canonical capabilities and denies into that harness's strongest native controls; do not copy the canonical prompt, pin a provider model, append instructions, or omit a restriction. If a new semantic capability has no validated mapping, extend the convention and grouped `harness` declaration in `repo-config.yml` before claiming parity. A mapping Rhino cannot express is an upstream change.
 
 For a required MCP capability, update every owned declaration together:
 
