@@ -50,6 +50,8 @@ const RECONNECT_JS = new URL(
   "../../js/family_chat/reconnect.js",
   import.meta.url,
 ).href;
+const GRAPHQL_JS = new URL("../../js/family_chat/graphql.js", import.meta.url)
+  .href;
 
 interface RoomOptions {
   scrolledToOlderMessage?: boolean;
@@ -505,6 +507,40 @@ step("a fresh socket connection replaces the prior one", (context) => {
   }
   return context;
 });
+
+// --- Rule: Subscription channel handshake ---------------------------------
+//
+// Reuses this rule's own Given/When bindings above (a reconnect is what
+// re-triggers a subscribe attempt); only the join-avoidance decision itself
+// is new. `graphql.js`'s real socket path stays untouched here (this file's
+// header/vitest.config's own network boundary) -- `attachSubscriptionChannel`
+// is the pure wiring decision `subscribe()` delegates to, proven here
+// against a plain fake `socket`, the same dependency-injection shape as
+// `reconnect.js`'s `resumeFromBackground` fake above.
+
+step(
+  "no phx_join frame is sent for any topic other than the control channel",
+  async (context) => {
+    const { attachSubscriptionChannel } = await import(
+      /* @vite-ignore */ GRAPHQL_JS
+    );
+    let joined = false;
+    const fakeChannel = {
+      on: () => {},
+      join: () => {
+        joined = true;
+      },
+    };
+    const fakeSocket = { channel: () => fakeChannel };
+    attachSubscriptionChannel(fakeSocket, "__absinthe__:doc:fake", () => {});
+    if (joined) {
+      throw new Error(
+        "expected the per-message data channel to never be joined",
+      );
+    }
+    return context;
+  },
+);
 
 // --- Rule: Experience release candidate proof -----------------------------
 //

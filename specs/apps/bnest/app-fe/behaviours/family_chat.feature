@@ -139,6 +139,18 @@ Feature: Family chat room
     Then a fresh socket connection replaces the prior one
     And the page does not reload
 
+  Rule: Subscription channel handshake
+
+  @fe-vitest-unit
+  # Exemption(integration): a live phx_join wire frame over a real WebSocket is not observable through Phoenix.LiveViewTest or the frontend Vitest+Gherkin harness; alternative-proof: bnest-app-fe-e2e:test:e2e / A reconnect never attempts to join the per-message subscription channel
+  @integration-exempt
+  @subscription-handshake
+  Scenario: A reconnect never attempts to join the per-message subscription channel
+    Given a visitor opens "/family-chat/ruang-keluarga" with the socket connected to the current slot
+    When the tab is backgrounded with its connection silently dropped
+    And the tab becomes visible again
+    Then no phx_join frame is sent for any topic other than the control channel
+
   Rule: Experience release candidate proof
 
   # This scenario's two near-simultaneous authenticated first requests
