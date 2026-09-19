@@ -2518,3 +2518,81 @@ confirming that the `.join()` call is truly redundant — rather than serving so
 its own focused investigation into `graphql.js`'s message-delivery path, which is out of Phase 8's scope and carries
 real risk to a currently-shipped, working feature if gotten wrong. Recorded here as a follow-up candidate, not
 attempted as part of this delivery.
+
+## Phase 8 `executeExperienceRelease` Tooling — 2026-09-19
+
+Built the managed-release tooling for tech-doc 009's Experience Release Procedure (`apps/bnest-app/tools/release.mjs`,
+`apps/bnest-app/tools/deployment.mjs`). Not yet run against real production — this section covers the tooling
+change only; running it is a separate, still-pending Phase 8 item.
+
+**Design constraint.** The procedure reuses the exact already-reviewed compatibility SHA currently routed in
+production (flag off) and promotes a second candidate built from that SAME revision, booted with
+`BNEST_FAMILY_CHAT_ENABLED=true` — no new build, no migration, no repository edit. This breaks the one assumption
+`executeRelease`'s existing state machine bakes in: its `preflight.alreadyActive` short-circuit treats "this
+revision is already routed" as "nothing to do," which is exactly backwards here — the whole point is to promote a
+second slot on the identical revision. Reusing `executeRelease` unmodified was not possible without changing what
+"revision" means as the release's coalescing key everywhere else in the file (artifact directories, the
+`x-bnest-revision` proof, `retainArtifacts`) — too invasive for something this order-of-magnitude smaller. Instead:
+`executeExperienceRelease` is a new, parallel orchestrator in `release.mjs`, sharing `ReleaseError` and the `result()`
+helper, implementing the strict subset of `executeRelease`'s stages this procedure needs (`preflight` → `runGates` →
+`prepareExperienceCandidate` → `activate` → `proveRouted` → `drainAndCleanup`, skipping `build`/`proveMigration`
+entirely).
+
+**The one rule that matters most: never call `discardArtifact`.** In the ordinary release, a failed candidate or
+promotion discards the freshly-built artifact for that revision. Here, the "candidate" and the currently-routed
+production slot are the exact same revision sharing the exact same artifact directory on disk — calling
+`discardArtifact` on any failure path would delete the artifact production is still serving from underneath the
+live process. Every recovery branch in `executeExperienceRelease` was written by starting from `executeRelease`'s
+existing, already-tested branch shapes and deliberately dropping every `discardArtifact` call, not by re-deriving
+the rollback logic from scratch — the `[capacity, continuity]` rollback-category branch and the
+`activated && !routed` branch keep `host.rollback()` + `host.discardCandidate()`, exactly as before, just without
+the artifact deletion.
+
+**New gate, not a rerun of every gate.** Tech-doc 009 step 2 is explicit: "No repository edit, migration, or schema
+contraction is allowed" — this SHA already passed the full `gateManifest` during the compatibility release. The only
+thing genuinely unproven for this SHA is its flag-on behavior, so `experienceGateManifest` contains exactly one gate:
+`experience-release-e2e`, grepped to the "Two members prove draft, offline queue, and exact-once catch-up on the
+flag-enabled experience candidate" scenario built and merged earlier in Phase 8 (PR #48).
+
+**Proving "different intended flag state" without touching application code.** Tech-doc 009 step 2 also requires
+readiness to prove "both identical revision and different intended flag state." The revision half reuses the exact
+`x-bnest-revision` header check `prepareCandidate` already does (extracted into a shared `verifyCandidateRevision`
+helper). The flag-state half could not reuse the same unauthenticated `/health/ready` probe: `/family-chat/:slug`
+sits behind `:authenticated_browser` before `:family_chat_enabled` in `router.ex`'s pipe_through list (confirmed by
+reading the router directly), so an unauthenticated curl against the room would 302 to login regardless of flag
+state, never revealing the flag either way. Adding a new health-endpoint field to prove this live would mean editing
+`apps/bnest-app/lib` — application code that would then need its own full compatibility-release cycle before this
+exact experience-release procedure could "reuse the exact reviewed compatibility SHA" that carries it, which is
+circular for this delivery. Chose the same static-proof pattern this codebase already uses for comparable claims
+(`release.test.mjs`'s "enables account identity cutover" / "passes the existing runtime VAPID values" tests, both
+plain regex-on-source assertions, not live probes): a new `release.test.mjs` test asserts `deployment.mjs`'s
+`--family-chat-enabled` flag deterministically reaches `launchAgent`'s environment dict only when passed, and the
+`experience-release-e2e` gate supplies the real, dynamic, authenticated proof that the flag actually took effect for
+an actual member.
+
+**`deployment.mjs` changes are additive-only.** `deploy:prepare` now reads an optional `--family-chat-enabled` flag
+(`arguments_.includes(...)`, same pattern as `requiredSlot()`'s own flag lookup) and threads it into `launchAgent` as
+a new trailing parameter (`familyChatEnabled = false`), which conditionally spreads `BNEST_FAMILY_CHAT_ENABLED:
+"true"` into the plist's `variables` dict. Every ordinary compatibility-release `deploy:prepare` call omits the flag
+entirely, so `config/runtime.exs`'s own default (`false`) governs unchanged for every slot except the one experience
+candidate that explicitly asks for it. `release.mjs`'s CLI gained `--mode experience|compatibility` (default
+`compatibility`, preserving every existing invocation's behavior unchanged) to select which orchestrator `main()`
+runs; `release:run` already has `forwardAllArgs: true` in `project.json`, so `nx run bnest-app:release:run --
+--mode experience` needs no target changes.
+
+**Validation.** 7 new tests in `release.test.mjs` (31 total, up from 24) cover: the new gate manifest's single-entry
+shape, the `--family-chat-enabled` threading (static source assertions), the full passing path via a
+`fakeExperienceHost`, that a failed candidate never calls a `discardArtifact` the fake host doesn't even define
+(would throw `TypeError` if it tried), and the two rollback branches (`routed-proof` failure, `continuity` failure
+during drain). Ran via the real `bnest-app:release:test` Nx target inside a `hippo` boundary (38 tests total across
+`release.test.mjs`/`continuity-contract.test.mjs`/`test-data-cleanup.test.mjs`, all passing), not raw `node --test`,
+to match what CI actually runs. `node --check` on both `deployment.mjs` and `release.mjs` passes. Neither file is in
+this project's `oxlint`-scoped `lint` target (`assets/js` only) or has a dedicated formatter, so the existing test
+suite plus syntax checks are the real coverage surface for these tools, matching this repository's own established
+pattern (`release.test.mjs` was already exclusively this: fake-host behavioral tests plus source-string assertions,
+no separate linter).
+
+**Still pending.** This is tooling only. Delivery item 2 ("run the managed experience release for
+`<compatibility-sha>` with continuous probes... against production") has not been executed — that requires the same
+careful, evidence-gathering `release:run` discipline Phase 7's five attempts used, against the real 24/7 service,
+and is deliberately not rushed into the same session as writing the tool that will run it.

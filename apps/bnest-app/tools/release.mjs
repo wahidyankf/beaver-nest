@@ -128,6 +128,32 @@ export const gateManifest = [
   },
 ];
 
+// Tech-doc 009's Experience Release Procedure reuses the exact reviewed
+// compatibility SHA already proven by `gateManifest` above -- no repository
+// edit, migration, or schema contraction is allowed. The one thing that SHA
+// has never proven is the flag-on candidate's own behavior, so this is the
+// only gate the experience release re-runs: the two-`test-user-`-context
+// draft/offline-queue/reconnect/exact-once proof (`family_chat.feature`'s
+// "Experience release candidate proof" rule).
+export const experienceGateManifest = [
+  {
+    id: "experience-release-e2e",
+    arguments: [
+      "run",
+      "-p",
+      "bnest-app-fe-e2e",
+      "-t",
+      "test:e2e",
+      "--skip-nx-cache",
+      "--",
+      "--workers",
+      "1",
+      "--grep",
+      "Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate",
+    ],
+  },
+];
+
 export class ReleaseError extends Error {
   constructor(category, message, outcome = "failed") {
     super(message);
@@ -394,6 +420,216 @@ export async function executeRelease(host, options = {}) {
   }
 }
 
+// Tech-doc 009's Experience Release Procedure: reuse the exact reviewed
+// compatibility SHA already routed in production, and promote a second
+// candidate built from that SAME revision but booted with
+// `BNEST_FAMILY_CHAT_ENABLED=true` -- no new build, no migration, no
+// repository edit. Unlike `executeRelease`, this never creates a new
+// artifact, so its recovery paths never call `host.discardArtifact`: the
+// revision's artifact is the one currently serving production traffic and
+// must survive every failure branch below untouched.
+export async function executeExperienceRelease(host, options = {}) {
+  const startedAt = Date.now();
+  const evidenceIds = [];
+  let releaseRevision = null;
+  let fromState = "preflight";
+  let activated = false;
+  let activationAttempted = false;
+  let routed = false;
+  let priorSlot = null;
+  let candidateSlot = null;
+
+  try {
+    const preflight = await host.preflight(options.revision);
+    releaseRevision = preflight.revision;
+    priorSlot = preflight.activeSlot;
+    evidenceIds.push("preflight");
+
+    fromState = "pre-artifact-gates";
+    await host.runGates(releaseRevision, experienceGateManifest);
+    evidenceIds.push(...experienceGateManifest.map(({ id }) => id));
+
+    candidateSlot = priorSlot === "blue" ? "green" : "blue";
+    fromState = "candidate-proof";
+    await host.prepareExperienceCandidate(candidateSlot, releaseRevision);
+    evidenceIds.push("experience-candidate-proof");
+
+    fromState = "promote";
+    activationAttempted = true;
+    await host.activate(candidateSlot);
+    activated = true;
+    evidenceIds.push("promotion");
+
+    fromState = "routed-proof";
+    await host.proveRouted(releaseRevision);
+    routed = true;
+    evidenceIds.push("routed-liveview");
+
+    fromState = "cleanup";
+    await host.drainAndCleanup(priorSlot, releaseRevision, options.drainMs);
+    evidenceIds.push("cleanup");
+
+    return result({
+      releaseRevision,
+      fromState,
+      toState: "complete",
+      outcome: "passed",
+      evidenceIds,
+      startedAt,
+      nextTransition: "complete",
+      errorCategory: null,
+      migrationState: "not-required",
+    });
+  } catch (error) {
+    const releaseError =
+      error instanceof ReleaseError
+        ? error
+        : new ReleaseError("preflight", "Unexpected release failure");
+
+    if (activationAttempted && !activated) {
+      try {
+        const recovery = await host.recoverActivation(priorSlot, candidateSlot);
+        evidenceIds.push(recovery);
+        return result({
+          releaseRevision,
+          fromState,
+          toState: "stopped",
+          outcome: recovery === "rollback" ? "rolled-back" : "failed",
+          evidenceIds,
+          startedAt,
+          nextTransition: "diagnose",
+          errorCategory: releaseError.category,
+          migrationState: "not-required",
+        });
+      } catch {
+        return result({
+          releaseRevision,
+          fromState,
+          toState: "stopped",
+          outcome: "failed",
+          evidenceIds,
+          startedAt,
+          nextTransition: "recover-route",
+          errorCategory: "rollback",
+          migrationState: "not-required",
+        });
+      }
+    }
+
+    if (!activated && candidateSlot && fromState === "candidate-proof") {
+      try {
+        await host.discardCandidate(candidateSlot);
+        evidenceIds.push("candidate-cleanup");
+      } catch {
+        return result({
+          releaseRevision,
+          fromState,
+          toState: "stopped",
+          outcome: "failed",
+          evidenceIds,
+          startedAt,
+          nextTransition: "cleanup",
+          errorCategory: "cleanup",
+          migrationState: "not-required",
+        });
+      }
+    }
+
+    if (activated && !routed) {
+      try {
+        await host.rollback();
+        await host.discardCandidate(candidateSlot);
+        evidenceIds.push("rollback");
+
+        return result({
+          releaseRevision,
+          fromState,
+          toState: "stopped",
+          outcome: "rolled-back",
+          evidenceIds,
+          startedAt,
+          nextTransition: "diagnose",
+          errorCategory: releaseError.category,
+          migrationState: "not-required",
+        });
+      } catch {
+        return result({
+          releaseRevision,
+          fromState,
+          toState: "stopped",
+          outcome: "failed",
+          evidenceIds,
+          startedAt,
+          nextTransition: "recover-route",
+          errorCategory: "rollback",
+          migrationState: "not-required",
+        });
+      }
+    }
+
+    if (routed) {
+      if (["capacity", "continuity"].includes(releaseError.category)) {
+        try {
+          await host.rollback();
+          await host.discardCandidate(candidateSlot);
+          evidenceIds.push("rollback");
+          return result({
+            releaseRevision,
+            fromState,
+            toState: "stopped",
+            outcome: "rolled-back",
+            evidenceIds,
+            startedAt,
+            nextTransition: "preflight",
+            errorCategory: releaseError.category,
+            migrationState: "not-required",
+          });
+        } catch {
+          return result({
+            releaseRevision,
+            fromState,
+            toState: "stopped",
+            outcome: "failed",
+            evidenceIds,
+            startedAt,
+            nextTransition: "recover-route",
+            errorCategory: "rollback",
+            migrationState: "not-required",
+          });
+        }
+      }
+
+      return result({
+        releaseRevision,
+        fromState,
+        toState: "stopped",
+        outcome: "failed",
+        evidenceIds,
+        startedAt,
+        nextTransition: "cleanup",
+        errorCategory: releaseError.category,
+        migrationState: "not-required",
+      });
+    }
+
+    return result({
+      releaseRevision,
+      fromState,
+      toState: "stopped",
+      outcome: releaseError.outcome,
+      evidenceIds,
+      startedAt,
+      nextTransition: ["deferred", "queued"].includes(releaseError.outcome)
+        ? "preflight"
+        : "diagnose",
+      errorCategory: releaseError.category,
+      migrationState: "not-required",
+    });
+  } finally {
+    await host.releaseLock();
+  }
+}
+
 function result(fields) {
   return {
     schemaVersion: 1,
@@ -552,6 +788,36 @@ export class MachineHost {
   async prepareCandidate(slot, revision) {
     this.assertCapacity();
     this.deployment("deploy:prepare", ["--slot", slot, "--revision", revision]);
+    this.verifyCandidateRevision(slot, revision);
+    this.log(`candidate passed ${slot} ${revision}`);
+  }
+
+  // Tech-doc 009's Experience Release Procedure step 2: the candidate is the
+  // exact same reviewed revision already routed, launched a second time on
+  // the inactive slot with `BNEST_FAMILY_CHAT_ENABLED=true`. The intended
+  // flag state itself is proven by `deployment.mjs`'s own deterministic
+  // plist generation (`release.test.mjs` asserts `--family-chat-enabled`
+  // reaches `launchAgent`'s environment unconditionally) plus the
+  // `experience-release-e2e` gate's real authenticated proof that the
+  // flag-on room is actually reachable; this method proves only what
+  // `prepareCandidate` proves for an ordinary candidate -- identical
+  // revision -- since re-deriving flag state from an unauthenticated
+  // `/health/ready` probe is not possible (the room sits behind
+  // `:authenticated_browser`).
+  async prepareExperienceCandidate(slot, revision) {
+    this.assertCapacity();
+    this.deployment("deploy:prepare", [
+      "--slot",
+      slot,
+      "--revision",
+      revision,
+      "--family-chat-enabled",
+    ]);
+    this.verifyCandidateRevision(slot, revision);
+    this.log(`experience candidate passed ${slot} ${revision}`);
+  }
+
+  verifyCandidateRevision(slot, revision) {
     const response = this.run(
       "curl",
       [
@@ -570,7 +836,6 @@ export class MachineHost {
       !response.stdout.toLowerCase().includes(`x-bnest-revision: ${revision}`)
     )
       throw new ReleaseError("candidate", "Candidate revision proof failed");
-    this.log(`candidate passed ${slot} ${revision}`);
   }
 
   async activate(slot) {
@@ -1107,8 +1372,14 @@ async function main() {
   let outputResult;
   try {
     const revision = argumentValue("--revision");
+    const mode = argumentValue("--mode") ?? "compatibility";
+    if (!["compatibility", "experience"].includes(mode))
+      throw new ReleaseError("configuration", `Unknown release mode: ${mode}`);
     const host = new MachineHost();
-    outputResult = await executeRelease(host, { revision });
+    outputResult =
+      mode === "experience"
+        ? await executeExperienceRelease(host, { revision })
+        : await executeRelease(host, { revision });
   } catch (error) {
     const releaseError =
       error instanceof ReleaseError

@@ -5,7 +5,9 @@ import test from "node:test";
 
 import {
   boundedReleaseEnvironment,
+  executeExperienceRelease,
   executeRelease,
+  experienceGateManifest,
   gateManifest,
   ReleaseError,
   verifyMigrationManifest,
@@ -247,6 +249,160 @@ test("launches every deployment slot through one shared RELEASE_DISTRIBUTION=non
     "expected exactly one call site sharing that one implementation across both slots",
   );
   assert.match(source, /RELEASE_DISTRIBUTION: "none"/u);
+});
+
+test("reuses the exact reviewed compatibility SHA with only the flag-on candidate proof", () => {
+  // Tech-doc 009's Experience Release Procedure: no repository edit,
+  // migration, or schema contraction is allowed, so the experience release's
+  // own gate manifest re-runs nothing the compatibility release already
+  // proved -- only the new two-`test-user-`-context proof this SHA has
+  // never faced with the flag on.
+  assert.deepEqual(
+    experienceGateManifest.map(({ id }) => id),
+    ["experience-release-e2e"],
+  );
+  const gate = experienceGateManifest[0];
+  assert.ok(gate.arguments.includes("--skip-nx-cache"));
+  assert.equal(gate.arguments[2], "bnest-app-fe-e2e");
+  assert.deepEqual(gate.arguments.slice(-2), [
+    "--grep",
+    "Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate",
+  ]);
+});
+
+test("threads --family-chat-enabled from deploy:prepare into the launchd plist only when requested", () => {
+  // Tech-doc 009 step 1: the experience candidate is the only slot ever
+  // started with `BNEST_FAMILY_CHAT_ENABLED=true`; every ordinary
+  // compatibility-release slot must keep omitting the key entirely so
+  // `config/runtime.exs`'s default (`false`) governs unchanged.
+  const source = readFileSync(
+    new URL("./deployment.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /arguments_\.includes\(\s*"--family-chat-enabled"\s*\)/u,
+  );
+  assert.match(
+    source,
+    /familyChatEnabled\s*\?\s*\{\s*BNEST_FAMILY_CHAT_ENABLED:\s*"true"\s*\}\s*:\s*\{\}/u,
+  );
+  assert.match(source, /familyChatEnabled = false/u);
+});
+
+function fakeExperienceHost(overrides = {}) {
+  const calls = [];
+  const host = {
+    calls,
+    preflight: async () => {
+      calls.push("preflight");
+      return { revision, activeSlot: "blue" };
+    },
+    runGates: async () => calls.push("gates"),
+    prepareExperienceCandidate: async (slot) =>
+      calls.push(`experience-candidate:${slot}`),
+    discardCandidate: async (slot) => calls.push(`discard:${slot}`),
+    recoverActivation: async () => {
+      calls.push("recover-activation");
+      return "candidate-cleanup";
+    },
+    activate: async (slot) => calls.push(`activate:${slot}`),
+    proveRouted: async () => calls.push("routed"),
+    drainAndCleanup: async (slot) => calls.push(`cleanup:${slot}`),
+    rollback: async () => calls.push("rollback"),
+    releaseLock: async () => calls.push("unlock"),
+    ...overrides,
+  };
+  return host;
+}
+
+test("promotes a same-revision flag-on candidate without building or migrating", async () => {
+  const host = fakeExperienceHost();
+  const result = await executeExperienceRelease(host, { drainMs: 0 });
+  assert.equal(result.outcome, "passed");
+  assert.equal(result.releaseRevision, revision);
+  assert.equal(result.migrationState, "not-required");
+  assert.deepEqual(host.calls, [
+    "preflight",
+    "gates",
+    "experience-candidate:green",
+    "activate:green",
+    "routed",
+    "cleanup:blue",
+    "unlock",
+  ]);
+  assert.ok(result.evidenceIds.includes("experience-candidate-proof"));
+  assert.ok(!result.evidenceIds.includes("convergence"));
+});
+
+test("never discards the shared artifact when the flag-on candidate fails", async () => {
+  // The candidate and the currently-routed slot share one artifact on disk
+  // (the same already-reviewed revision); discarding it on failure would
+  // delete the artifact production is still serving from.
+  const host = fakeExperienceHost({
+    prepareExperienceCandidate: async (slot) => {
+      host.calls.push(`experience-candidate:${slot}`);
+      throw new ReleaseError("candidate", "candidate failed");
+    },
+  });
+  const result = await executeExperienceRelease(host);
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.errorCategory, "candidate");
+  assert.deepEqual(host.calls.slice(-3), [
+    "experience-candidate:green",
+    "discard:green",
+    "unlock",
+  ]);
+  assert.ok(!("discardArtifact" in host));
+});
+
+test("rolls back a flag-on promotion that never reaches routed proof", async () => {
+  const host = fakeExperienceHost({
+    proveRouted: async () => {
+      host.calls.push("routed");
+      throw new ReleaseError("routed-proof", "routed proof failed");
+    },
+  });
+  const result = await executeExperienceRelease(host);
+  assert.equal(result.outcome, "rolled-back");
+  assert.deepEqual(host.calls.slice(-4), [
+    "routed",
+    "rollback",
+    "discard:green",
+    "unlock",
+  ]);
+});
+
+test("rolls back the flag-on candidate when drain finds a continuity failure", async () => {
+  const host = fakeExperienceHost({
+    drainAndCleanup: async (slot) => {
+      host.calls.push(`cleanup:${slot}`);
+      throw new ReleaseError("continuity", "health failed");
+    },
+  });
+  const result = await executeExperienceRelease(host);
+  assert.equal(result.outcome, "rolled-back");
+  assert.deepEqual(host.calls.slice(-4), [
+    "cleanup:blue",
+    "rollback",
+    "discard:green",
+    "unlock",
+  ]);
+});
+
+test("selects the release mode from --mode, defaulting to compatibility", () => {
+  const source = readFileSync(
+    new URL("./release.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /argumentValue\(\s*"--mode"\s*\)\s*\?\?\s*"compatibility"/u,
+  );
+  assert.match(
+    source,
+    /mode === "experience"\s*\?\s*await executeExperienceRelease/u,
+  );
 });
 
 function fakeHost(overrides = {}) {
