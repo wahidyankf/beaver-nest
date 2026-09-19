@@ -2009,9 +2009,12 @@ compile --warnings-as-errors + test --warnings-as-errors --exclude integration-e
 test/integration` directly in the worktree. The debug output showed the database path changing mid-step:
 
 ```
-DEBUG restart_scheduler BEFORE key="bdd-restart-HZnZMk1s" db="/Users/wkf/bnest/data/test/runs/mix-z-puse7k4mm/bnest.sqlite3" before_enabled=true
-DEBUG restart_scheduler AFTER  key="bdd-restart-HZnZMk1s" db="/Users/wkf/bnest/data/test/family-chat/unit-hxedthifzhi/bnest.sqlite3"
+DEBUG restart_scheduler BEFORE key="bdd-restart-HZnZMk1s" db=".../data/test/runs/mix-z-puse7k4mm/bnest.sqlite3" before_enabled=true
+DEBUG restart_scheduler AFTER  key="bdd-restart-HZnZMk1s" db=".../data/test/family-chat/unit-hxedthifzhi/bnest.sqlite3"
 ```
+
+(local runtime-root prefix elided above; only the diverging suffix — the scheduled-backups scenario's own path versus
+family-chat's isolated path — is the evidentiary point)
 
 — i.e. between `Process.exit(scheduler, :kill)` and the very next `Store.get_schedule/1` call in the same driver
 clause, the globally shared repo was silently stopped and restarted against family-chat's database. The read
