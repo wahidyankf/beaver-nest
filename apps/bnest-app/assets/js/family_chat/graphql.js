@@ -91,6 +91,37 @@ async function ensureControlChannel(state) {
   return joinedChannel;
 }
 
+/**
+ * Wires up delivery for one already-established subscription -- the pure
+ * (no network I/O of its own) decision of *how* to receive commits once the
+ * `"doc"` push already returned a `subscriptionId`. Split out from
+ * `subscribe()` so FE_UNIT (which never imports this module's own
+ * network-touching `ensureControlChannel`/socket path) can still exercise
+ * this exact decision against a plain fake `socket`, the same
+ * dependency-injection shape `reconnect.js`'s tests already use.
+ *
+ * Absinthe delivers each commit as a "fastlane" PubSub push straight to this
+ * socket's transport process, addressed by a topic equal to
+ * `subscriptionId` -- it is never a joinable Phoenix channel
+ * (`Absinthe.Phoenix.Socket`'s own routing macro only defines `join/3` for
+ * the reserved `__absinthe__:control` topic; joining any other
+ * `__absinthe__:*` topic, including this one, crashes the channel process
+ * with `FunctionClauseError`). `socket.channel(topic, {})` alone is enough
+ * to receive it: phoenix.js dispatches an incoming push to any channel
+ * object whose topic matches, regardless of join state (`Channel.
+ * isMember`/`trigger` never check `state`) -- so registering the listener is
+ * sufficient and `.join()` must never be called here.
+ * @param {PhxSocket} socket
+ * @param {string} subscriptionId
+ * @param {(result: unknown) => void} onData
+ * @returns {PhxChannel} the data channel, for `unsubscribe` to unregister.
+ */
+export function attachSubscriptionChannel(socket, subscriptionId, onData) {
+  const dataChannel = socket.channel(subscriptionId, {});
+  dataChannel.on("subscription:data", ({ result }) => onData(result));
+  return dataChannel;
+}
+
 /** @param {SubscriptionState} state */
 function createSubscribeMethod(state) {
   /**
@@ -115,14 +146,17 @@ function createSubscribeMethod(state) {
       channel
         .push("doc", { query, variables })
         .receive("ok", ({ subscriptionId }) => {
-          const dataChannel = activeSocket.channel(subscriptionId, {});
-          dataChannel.on("subscription:data", ({ result }) => onData(result));
-          dataChannel
-            .join()
-            .receive("ok", () =>
-              resolve({ unsubscribe: () => dataChannel.leave() }),
-            )
-            .receive("error", reject);
+          const dataChannel = attachSubscriptionChannel(
+            activeSocket,
+            subscriptionId,
+            onData,
+          );
+          resolve({
+            unsubscribe: () => {
+              dataChannel.off("subscription:data");
+              channel.push("unsubscribe", { subscriptionId });
+            },
+          });
         })
         .receive("error", reject);
     });
