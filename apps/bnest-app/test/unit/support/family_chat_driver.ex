@@ -237,6 +237,16 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     })
   end
 
+  # Mirrors `:schedule_different_time` above: forces the real "family-chat-
+  # push-retention-daily" row into the exact pristine precondition --
+  # disabled, revision 1, at its real seed time (tech-doc 002/
+  # `FamilyChat.Store`'s own insert: "17:15" UTC, i.e. 00:15 WIB) -- the
+  # activation-CAS scenario's `Given` describes.
+  def prepare_behaviour(context, :schedule_disabled_seed, [key]) do
+    Scheduler.Store.reset_schedule_for_test!(key, "17:15", false, @behaviour_now)
+    Map.put(context, :family_chat_activation_key, key)
+  end
+
   def prepare_behaviour(context, :convergence_already_ran, _args) do
     Scheduler.Store.reset_schedule_for_test!(
       "prod-sqlite-backup-daily",
@@ -577,6 +587,12 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       :family_chat_result,
       Scheduler.converge_backup_time!(context.family_chat_convergence_key, "18:00")
     )
+  end
+
+  def perform_behaviour(context, :call_activation_operation, _args) do
+    key = context.family_chat_activation_key
+    :ok = Scheduler.Store.activate_if_pristine!(key, @behaviour_now)
+    Map.put(context, :family_chat_result, Scheduler.Store.get_schedule(key))
   end
 
   # `BnestApp.Release.Migrations.apply_and_verify!/0` itself returns a bare
@@ -947,6 +963,19 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       {:ok, %{daily_at_utc: value}} when value == context.family_chat_operator_daily_at_utc,
       context.family_chat_result
     )
+  end
+
+  def behaviour_outcome?(context, :schedule_field_enabled, [_key]) do
+    match?(%{enabled: true}, context.family_chat_result)
+  end
+
+  def behaviour_outcome?(context, :activation_call_idempotent, _args) do
+    key = context.family_chat_activation_key
+    before_revision = context.family_chat_result.revision
+    :ok = Scheduler.Store.activate_if_pristine!(key, @behaviour_now)
+    after_schedule = Scheduler.Store.get_schedule(key)
+
+    match?(%{enabled: true}, after_schedule) and after_schedule.revision == before_revision
   end
 
   # `BnestApp.Backup`'s retryable-failure categories are atoms (ordinary

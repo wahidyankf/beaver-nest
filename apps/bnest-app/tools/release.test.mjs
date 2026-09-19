@@ -174,6 +174,40 @@ test("passes the existing runtime VAPID values to every managed slot", () => {
   assert.match(source, /BNEST_WEB_PUSH_SUBJECT: webPushSubject/u);
 });
 
+test("converges the backup schedule and push retention once after old-slot drain", () => {
+  // Tech-doc 009 ("Backup Schedule Migration"): "After the compatibility
+  // revision is routed and every runnable slot supports the new Backup
+  // service, managed release calls a public Scheduler operation that
+  // force-converges this key once"; and push retention "becomes enabled
+  // only after old-slot drain." `release.mjs` must call this once
+  // `drainAndCleanup` (which retires the prior slot) has actually returned,
+  // and `deployment.mjs` must route it to the real `FamilyChat` migration
+  // function rather than raw SQL (tech-doc 009's Service Boundaries: release
+  // tooling never constructs raw retention SQL).
+  const releaseSource = readFileSync(
+    new URL("./release.mjs", import.meta.url),
+    "utf8",
+  );
+  const drainIndex = releaseSource.indexOf("await host.drainAndCleanup(");
+  const convergeIndex = releaseSource.indexOf("await host.convergeAfterDrain(");
+  assert.ok(drainIndex >= 0);
+  assert.ok(convergeIndex > drainIndex);
+  assert.match(
+    releaseSource,
+    /this\.deployment\(\s*"release:converge",\s*\["--revision", revision\]\)/u,
+  );
+
+  const deploymentSource = readFileSync(
+    new URL("./deployment.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(deploymentSource, /case "release:converge":/u);
+  assert.match(
+    deploymentSource,
+    /BnestApp\.Release\.Migrations\.FamilyChat\.converge_after_drain!\(\)/u,
+  );
+});
+
 test("never configures a nonzero Caddy stream-close delay while keeping the shutdown grace period", () => {
   // Family Chat plan requirement (tech-doc 007/009): a nonzero
   // `stream_close_delay` would keep a browser's WebSocket bound to the
@@ -239,6 +273,7 @@ function fakeHost(overrides = {}) {
     activate: async (slot) => calls.push(`activate:${slot}`),
     proveRouted: async () => calls.push("routed"),
     drainAndCleanup: async (slot) => calls.push(`cleanup:${slot}`),
+    convergeAfterDrain: async (rev) => calls.push(`converge:${rev}`),
     rollback: async () => calls.push("rollback"),
     releaseLock: async () => calls.push("unlock"),
     ...overrides,
@@ -273,8 +308,10 @@ test("runs one ordered transaction and releases the lock", async () => {
     "activate:green",
     "routed",
     "cleanup:blue",
+    `converge:${revision}`,
     "unlock",
   ]);
+  assert.ok(result.evidenceIds.includes("convergence"));
 });
 
 test("coalesces a revision that is already active", async () => {

@@ -204,6 +204,10 @@ export async function executeRelease(host, options = {}) {
     await host.drainAndCleanup(priorSlot, releaseRevision, options.drainMs);
     evidenceIds.push("cleanup");
 
+    fromState = "convergence";
+    await host.convergeAfterDrain(releaseRevision);
+    evidenceIds.push("convergence");
+
     return result({
       releaseRevision,
       fromState,
@@ -648,6 +652,11 @@ export class MachineHost {
     this.deployment("deploy:retire", ["--slot", priorSlot]);
     this.retainArtifacts(revision);
     this.log(`cleanup passed ${revision}`);
+  }
+
+  async convergeAfterDrain(revision) {
+    this.deployment("release:converge", ["--revision", revision]);
+    this.log(`convergence passed ${revision}`);
   }
 
   async rollback() {

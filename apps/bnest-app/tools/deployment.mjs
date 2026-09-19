@@ -43,6 +43,9 @@ switch (command) {
   case "release:migrate":
     migrateRelease();
     break;
+  case "release:converge":
+    convergeRelease();
+    break;
   case "deploy:prepare":
     prepareSlot(requiredSlot());
     break;
@@ -392,6 +395,44 @@ function migrateRelease() {
       "eval",
       "BnestApp.Release.Migrations.PersistentSchedules.apply_and_verify!(DateTime.utc_now())",
     ],
+    {
+      env: {
+        ...process.env,
+        BNEST_STABLE: "true",
+        BNEST_RUNTIME_ROOT: runtimeRoot,
+        BNEST_COOKIE_SECURE: "true",
+        PHX_HOST: productionOrigin.host,
+        RELEASE_DISTRIBUTION: "none",
+        RELEASE_COOKIE: readFileSync(cookieFile, "utf8").trim(),
+        SECRET_KEY_BASE: readFileSync(secretKeyBaseFile, "utf8").trim(),
+      },
+    },
+  );
+}
+
+// Tech-doc 009 ("Backup Schedule Migration"): "After the compatibility
+// revision is routed and every runnable slot supports the new Backup
+// service, managed release calls a public Scheduler operation that
+// force-converges this key once"; and push retention "becomes enabled only
+// after old-slot drain." Run once, after `deploy:retire` of the prior slot
+// (release.mjs's `drainAndCleanup`), against the newly-routed release's own
+// artifact, the same bare-`eval` shape as `migrateRelease` above.
+function convergeRelease() {
+  const revision =
+    argumentValue("--revision") ||
+    fail("--revision is required; run release:build first.");
+  const runtimeRoot = requiredEnvironment("BNEST_RUNTIME_ROOT");
+  const cookieFile = requiredEnvironment("BNEST_DEPLOY_COOKIE_FILE");
+  const secretKeyBaseFile = requiredEnvironment(
+    "BNEST_DEPLOY_SECRET_KEY_BASE_FILE",
+  );
+  const productionOrigin = requiredProductionOrigin();
+  const release = join(paths.releases, revision);
+  if (!existsSync(release)) fail(`Release ${revision} does not exist.`);
+
+  run(
+    join(release, "bin", "bnest_app"),
+    ["eval", "BnestApp.Release.Migrations.FamilyChat.converge_after_drain!()"],
     {
       env: {
         ...process.env,

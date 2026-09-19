@@ -23,6 +23,24 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
     end)
   end
 
+  # Tech-doc 009 ("Backup Schedule Migration"): "After the compatibility
+  # revision is routed and every runnable slot supports the new Backup
+  # service, managed release calls a public Scheduler operation that
+  # force-converges this key once"; and "Push retention remains a separate
+  # fixed disabled seed at 00:15 WIB and becomes enabled only after old-slot
+  # drain." Unlike `activate_when_compatible!/0` below (a `boot`-time
+  # self-heal gated on `family_chat_enabled`, i.e. tech-doc 007's experience
+  # flag), release tooling calls this directly, once, right after the prior
+  # slot's drain -- independent of that flag, matching the Gherkin "Rule:
+  # One-time backup schedule convergence" scenario's own driver, which calls
+  # `Scheduler.converge_backup_time!/2` the same way.
+  @spec converge_after_drain!() :: :ok
+  def converge_after_drain! do
+    with_repository(fn ->
+      Lock.with_exclusive(&do_converge_after_drain!/0)
+    end)
+  end
+
   # Split out from `apply_and_verify!/0` so the `case` below sits at one
   # nesting level of its own, rather than a third level inside that
   # function's two wrapping closures (`with_repository`'s and
@@ -55,10 +73,15 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   # edit to either schedule.
   defp activate_when_compatible! do
     if Application.get_env(:bnest_app, :family_chat_enabled, false) do
-      SchedulerStore.activate_if_pristine!(@retention_schedule_key, DateTime.utc_now())
-      {:ok, _schedule} = Scheduler.converge_backup_time!(@backup_schedule_key, "18:00")
+      do_converge_after_drain!()
     end
 
+    :ok
+  end
+
+  defp do_converge_after_drain! do
+    SchedulerStore.activate_if_pristine!(@retention_schedule_key, DateTime.utc_now())
+    {:ok, _schedule} = Scheduler.converge_backup_time!(@backup_schedule_key, "18:00")
     :ok
   end
 
