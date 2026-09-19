@@ -2857,3 +2857,113 @@ diagnosis). Debug logging was then removed from all three production/test files 
 **Evidence.** Landed via the same worktree→PR→leak-review→CI→merge→reconcile cycle as every other delivery unit
 in this plan: PR #56, merged as `4138fedad` on `origin/main`; worktree reconciled to a detached `origin/main`
 with `git rev-list --left-right --count HEAD...origin/main` reading `0 0` afterward.
+
+### Subscription-channel crash-loop bug (PR #58, `ff71238dfae5b0a5915ac7b83f1442a414d28cfc`)
+
+**Symptom.** The routed production revision crash-looped roughly every 10 seconds: every attempt to open a
+per-message GraphQL subscription data channel raised `FunctionClauseError` in `Absinthe.Phoenix.Channel.join/3`
+for topics shaped `__absinthe__:doc:<id>:<hash>`, immediately killing the channel process; the JS client's own
+`rejoinTimer` then retried, producing the crash-loop cadence.
+
+**Root cause.** `Absinthe.Phoenix.Socket`'s macro routes every `__absinthe__:*` topic to
+`Absinthe.Phoenix.Channel`, but that module's `join/3` has exactly one clause, matching the literal topic
+`"__absinthe__:control"`. Per-subscription data delivery never goes through channel join/reply at all — it uses
+Phoenix's "fastlane" protocol: `Phoenix.PubSub.subscribe/3` with `metadata: {:fastlane, transport_pid,
+serializer, []}`, a direct PubSub-to-transport push. The old `graphql.js` called `dataChannel.join()` on the
+per-message channel after receiving its `subscriptionId`, which is exactly the call this protocol never expects
+— the crash-loop was pre-existing (confirmed via `git log`, not introduced by this plan's earlier phases) and
+had simply never been exercised by any automated test, since this codebase's BE E2E harness independently
+implemented the _correct_ protocol on its own probe socket.
+
+**Fix.** `graphql.js`'s `subscribe()` now calls `socket.channel(subscriptionId, {})` and registers a
+`"subscription:data"` handler on it, but never calls `.join()` — phoenix.js's own `Channel.isMember`/`trigger`
+route incoming fastlane pushes (`join_ref: null`) by topic-string match alone, regardless of join state.
+`unsubscribe` correspondingly calls `.off()` instead of `.leave()`.
+
+**Testability.** This codebase's `@fe-vitest-unit` convention requires every scenario have a real, executing,
+network-free binding (no `vi.mock` precedent anywhere in the FE suite). Extracted `attachSubscriptionChannel` as
+a pure, dependency-injectable helper (mirroring `reconnect.js`'s existing DI pattern) so the FE Vitest harness
+could assert `.join` is never called against a plain fake socket/channel, without mocking the `phoenix` package.
+A companion E2E scenario (`family-chat-subscription-handshake.steps.ts`) inspects real WebSocket wire frames,
+asserting no `phx_join` is ever sent for any `__absinthe__:*` topic other than `__absinthe__:control`.
+
+**Evidence.** RED confirmed at both FE Vitest and E2E layers before the fix (`unexpected phx_join topics: ...,
+__absinthe__:doc:...`); GREEN at every layer after. Landed via the established worktree→PR→leak-review→CI→
+merge→reconcile cycle: PR #58, merged as `ff71238dfae5b0a5915ac7b83f1442a414d28cfc` on `origin/main`.
+
+### Dev-boot socket origin-check bug (PR #59, `71af21cb3ee6755ff7e735ae862f2d7afb4115f6`)
+
+**Symptom.** A fresh `:dev` (and ad hoc `MIX_ENV=test`) boot of the family chat GraphQL socket failed Phoenix
+1.8's transport validator.
+
+**Root cause.** The socket already sets `check_csrf: false` (session-cookie auth instead); `config/dev.exs`'s
+endpoint-wide `check_origin: false` (a convenience for plain page/LiveView browsing) meant both handshake
+defenses resolved `false` for this socket specifically, which Phoenix 1.8's own transport validator now refuses
+to boot.
+
+**Fix.** Set `check_origin: true` explicitly on the socket's own transport options (`endpoint.ex`), which holds
+regardless of the endpoint-wide dev convenience and matches tech-doc 008's documented "endpoint origin checking"
+defense.
+
+**Evidence.** `:dev` boots cleanly; manually confirmed the socket handshakes successfully from a real browser at
+a matching origin (`localhost`), and is correctly rejected (403) from a mismatched origin (`127.0.0.1`) —
+confirming the check is genuinely active, not just present. Landed via PR #59, merged as
+`71af21cb3ee6755ff7e735ae862f2d7afb4115f6` on `origin/main`.
+
+### Hi-fi visual design implementation and manual-review findings (PR #60, `f957862a7a3f4f23a98c73c8a8c4beee731fc608`)
+
+**Trigger.** The user asked to "make sure uinya sesuai sama yang di plan docs ya" (make sure the UI matches the
+plan docs), then confirmed with "make sure the design works" and "follow plan as much as possible" — pointing at
+tech-doc 005's Selected Direction and its three hi-fi mockup SVGs (desktop/tablet/mobile), which the shipped
+room shell had never actually applied: it rendered as a flat, light, unstyled form with no visual distinction
+between the visitor's own messages and anyone else's.
+
+**Implementation.** Extracted every color/radius/layout value directly from the hi-fi SVGs (already matching the
+sitewide `--bnest-*` design tokens exactly) into `app.css`'s family-chat section: a dark (`--bnest-ink`) header
+with a sun-circle brand badge, a floating rounded/shadowed card on desktop/tablet vs. edge-to-edge full-bleed on
+mobile (a new `@media (max-width: 37.5rem)` override), pill-shaped push/load-older controls, a warm (not red)
+offline banner, and a CSS Grid two-column message layout (avatar + bubble) that flips `grid-template-columns`
+for `.family-chat-message--own`. Deliberately did not implement the mockups' "TODAY" date-divider grouping
+(would need new JS grouping logic, not just CSS, and isn't in any acceptance criterion) or their extra flavor
+subtitle copy ("Ruang Keluarga · everyone in the family" — absent from tech-doc 005's authoritative Product Copy
+list); only visual styling was drawn from the SVGs, never uncontracted copy.
+
+**The own/other differentiation gap this surfaced.** `messageNode` already compared `message.senderId` against a
+`currentUserId` parameter — but `app.js`'s real browser entry point called `initRoom(window.location.pathname)`
+with no second argument at all, so `options.user` was always `undefined` for every real visitor. Every committed
+message therefore rendered as "other" past its first optimistic paint (the only path where `pending: true` made
+a message render as "own"), silently defeating the entire feature in the one environment — the real browser —
+that automated FE Vitest tests (which pass `options.user` directly, bypassing `app.js` entirely) could never
+have caught. Fixed by adding a `data-current-user-id` attribute to the server-rendered room shell
+(`room.html.heex`, from `conn.assigns.current_user["userId"]`) and reading it in a new `initRoomFromDocument`
+export (`family_chat.js`) that `app.js` now calls instead of `initRoom` directly.
+
+**Findings only manual inspection could catch.** Tech-doc 005 states "Static SVGs and automated geometry do not
+replace manual inspection" — confirmed concretely here. Using two synthetic accounts
+(`test-user-manual-ui-parent`, `test-user-manual-ui-child`) against an isolated `MIX_ENV=test` server (fresh
+`BNEST_TEST_RUN_ID`, `BNEST_TEST_LAYER=integration`, following `test-identities.md`'s Iron Rule throughout —
+never production, never real user data), manual screenshots against the three hi-fi mockups at
+desktop/tablet/mobile/320px surfaced four further genuine defects none of the automated suites exercise pixel-
+or contrast-level correctness for:
+
+- the composer `<textarea>` was missing `class="family-chat-message-input"` entirely in `room.html.heex` (a
+  latent, pre-existing markup gap that predates this plan) — every rule targeting that class was dead CSS, so
+  the composer rendered as a plain, unstyled native textarea with the browser's default resize handle;
+- once fixed, the composer's native default sizing (~146px tall) still didn't match the mockups' compact
+  single-row input — resized to a fixed `3rem` height with a lagoon border and plain rounded corners, matching
+  the mockups' `rx=16` white input box;
+- the avatar palette's fourth color (`#205c5d`, dark teal) paired with the fixed dark-ink initials text produced
+  ~2.5:1 contrast (WCAG AA requires 4.5:1 for this text size) — removed, reverting to the three colors the
+  surrounding code comment already documented ("teal/sun/coral, cycling");
+- the own-bubble metadata text color (`--bnest-lagoon` on `--bnest-ink-soft`) measured ~3.85:1, also failing
+  WCAG AA — changed to `--bnest-canvas` for ~6.5:1+;
+- a pre-existing `@media (max-width: 30rem)` rule (predating this session, confirmed via `git diff` showing it
+  outside this change's own diff hunks) reasserted the old light `--bnest-paper` header background specifically
+  on phone-width viewports, silently undoing the new dark-header redesign and making the header's white text
+  invisible — removed the stale background override, keeping only its unique compactness declaration.
+
+**Evidence.** `BE_UNIT`/`INTEGRATION`/`FE_UNIT` all green (99.07% BE coverage, 91/91 FE) both before and after
+every fix found during manual review; manually verified at desktop (1280×800), tablet (768×1024), mobile
+(393×852), and 320px against the three hi-fi mockup SVGs, confirming own/other bubble differentiation end-to-end
+with two real synthetic accounts. Landed via PR #60, merged as `f957862a7a3f4f23a98c73c8a8c4beee731fc608` on
+`origin/main`.

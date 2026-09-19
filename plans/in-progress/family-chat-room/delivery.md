@@ -598,8 +598,10 @@ fromState === "candidate-proof"` branch, which discards only the failed candidat
 
 ## Phase 8.5 — Post-Launch Production Fixes
 
-Two defects surfaced by the user's own manual testing against the now-routed production revision, fixed
-Gherkin-first on their own short-lived branches from `worktrees/family-chat-room/` before Phase 9 reconciliation.
+Five defects surfaced by the user's own manual testing and a subsequent design-fidelity review against the
+now-routed production revision, each fixed on its own short-lived branch from `worktrees/family-chat-room/`
+before Phase 9 reconciliation — Gherkin-first where the defect had a testable behavior boundary; two socket
+config-only fixes had none and were verified manually against their documented requirement instead.
 
 - [x] `[AI] [AC-FC-02] [AC-FC-04]` **RED** Every family chat message rendered the sender's raw user ID instead of
       their real display name. Add `And the response reports the sender's real display username, not their raw
@@ -638,12 +640,48 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       already-healthy connection is a better trade than a silently stale room. Re-confirmed GREEN at every layer
       after the fix, including the same real E2E scenario. Landed via PR #56, merged as `4138fedad` on
       `origin/main`. Full root-cause narrative in `learnings.md`.
-- [x] `[AI] [AC-FC-01..13]` **Blocking checkpoint — Phase 8.5.** Confirm both fixes are Gherkin-first, genuinely
-      RED before GREEN, landed via the established worktree→PR→leak-review→CI→merge→reconcile cycle, and that
-      `learnings.md` records the real root cause and correction for each.
-      **2026-09-19:** Both merged and reconciled: display-name fix (PR #55, `621d41265`) and visibility-resume
-      fix (PR #56, `4138fedad`), both on `origin/main`. Worktree confirmed detached at `origin/main` with
-      `git rev-list --left-right --count HEAD...origin/main` reading `0 0` after each merge.
+- [x] `[AI] [AC-FC-10]` **RED** The routed production revision crash-looped on every family chat subscription:
+      `Absinthe.Phoenix.Channel.join/3` raised `FunctionClauseError` for every per-message data-channel topic
+      (`__absinthe__:doc:...`), because the client called `.join()` on that channel when Absinthe's fastlane
+      protocol never expects a join for anything but `__absinthe__:control`. Added a new "Rule: Subscription
+      channel handshake" to `family_chat.feature` (one `@fe-vitest-unit` scenario proven by extracting
+      `attachSubscriptionChannel` as a pure, injectable helper, with a documented `@integration-exempt`
+      alternative-proof at `bnest-app-fe-e2e:test:e2e` inspecting real WebSocket wire frames). **Proof:** RED
+      confirmed at both layers (`unexpected phx_join topics: ..., __absinthe__:doc:...` at E2E) before the fix.
+      **2026-09-19:** Done.
+- [x] `[AI] [AC-FC-10]` **GREEN** `graphql.js`'s `subscribe()` no longer calls `.join()`/`.leave()` on the
+      per-message data channel — it registers the channel object and its `"subscription:data"` handler only,
+      matching phoenix.js's own topic-string routing for fastlane pushes. **Proof:** `BE_UNIT`/`INTEGRATION`/
+      `FE_UNIT`/`FE_E2E` all green; manually confirmed the routed production revision no longer crash-loops.
+      **2026-09-19:** Done. Landed via PR #58, merged as `ff71238dfae5b0a5915ac7b83f1442a414d28cfc` on
+      `origin/main`. Full root-cause narrative in `learnings.md`.
+- [x] `[AI] [AC-FC-10]` **Fix** Phoenix 1.8's transport validator refused to boot the family chat GraphQL socket
+      under `:dev` because `check_csrf: false` plus `config/dev.exs`'s endpoint-wide `check_origin: false` both
+      resolved `false`. Set `check_origin: true` explicitly on this socket (`endpoint.ex`), keeping tech-doc 008's
+      documented origin-checking defense regardless of the endpoint-wide dev convenience. **Proof:** `:dev` boots
+      cleanly; `BE_UNIT`/`INTEGRATION`/`FE_UNIT` all green; manually confirmed the socket handshakes successfully
+      from a real browser at a matching origin. **2026-09-19:** Done. Landed via PR #59, merged as
+      `71af21cb3ee6755ff7e735ae862f2d7afb4115f6` on `origin/main`.
+- [x] `[AI] [AC-FC-09]` **Fix** Manual inspection against the three hi-fi mockup SVGs (tech-doc 005) found the
+      shipped room shell had never actually applied their visual design (light/flat theme, no own/other message
+      differentiation, no avatars). Implemented the dark header, floating/edge-to-edge card, pill controls, and
+      genuine own/other bubble differentiation (requiring `app.js` to finally pass the authenticated user's ID
+      into `initRoom`, via a new `data-current-user-id` attribute on the room shell). Manual verification itself
+      surfaced and fixed a missing composer CSS class, composer sizing, two WCAG AA contrast failures, and a
+      mobile-only header regression. **Proof:** `BE_UNIT`/`INTEGRATION`/`FE_UNIT` all green; manually verified at
+      desktop/tablet/mobile/320px against the mockups with two synthetic accounts. **2026-09-19:** Done. Landed
+      via PR #60, merged as `f957862a7a3f4f23a98c73c8a8c4beee731fc608` on `origin/main`.
+- [x] `[AI] [AC-FC-01..13]` **Blocking checkpoint — Phase 8.5.** Confirm every fix is Gherkin-first where a
+      testable behavior boundary exists (the two config-only socket fixes were manually verified against their
+      documented requirement instead), genuinely RED before GREEN where applicable, landed via the established
+      worktree→PR→leak-review→CI→merge→reconcile cycle, and that `learnings.md` records the real root cause and
+      correction for each.
+      **2026-09-19:** All five merged and reconciled: display-name fix (PR #55, `621d41265`), visibility-resume
+      fix (PR #56, `4138fedad`), subscription-channel crash fix (PR #58, `ff71238dfae5b0a5915ac7b83f1442a414d28cfc`),
+      dev-boot socket origin-check fix (PR #59, `71af21cb3ee6755ff7e735ae862f2d7afb4115f6`), and the hi-fi visual
+      design implementation (PR #60, `f957862a7a3f4f23a98c73c8a8c4beee731fc608`) — all on `origin/main`. Worktree
+      confirmed detached at `origin/main` with `git rev-list --left-right --count HEAD...origin/main` reading
+      `0 0` after each merge.
 
 ## Phase 9 — Reconciliation and Archival
 
