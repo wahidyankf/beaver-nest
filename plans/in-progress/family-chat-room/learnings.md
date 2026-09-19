@@ -2092,3 +2092,56 @@ wrong-result assertion) matches this session's own previously-documented `hippo`
 Retrying `release:run` as a whole (informed retry, same standard this session already established for the
 Scheduler race) to test the transient-contention hypothesis before treating this as a blocking defect requiring
 its own fix.
+
+## Phase 7 `release:run` Attempt 2 — `release-recovery-e2e` Confirmed Transient, New Real Blocker Found — 2026-09-19
+
+**`release-recovery-e2e` transient-contention hypothesis confirmed.** Retry attempt 2 passed every pre-artifact
+gate: `bnest-quick`, `bnest-integration`, `be-e2e-quick`, `fe-e2e-quick`, `release-recovery-e2e`,
+`release-load-e2e`, `repository` — all seven, in order. This is decisive: the previous attempt's `mobile-chromium`
+storage-drain-lock timeout did not recur once the machine was no longer under back-to-back gate/test load,
+confirming the earlier attribution (transient `hippo` contention, not a defect on any code path this delivery
+touches) rather than merely a plausible guess.
+
+**New, real, family-chat-room-introduced blocker: `deploy:prepare` never wired VAPID env vars into the launchd
+plist.** Attempt 2 got past every gate, built the artifact, applied the migration, then failed at `candidate-proof`
+(`deploy:prepare --slot green`) with `errorCategory: "configuration"`: `green did not become ready within 60
+seconds`. `logs/green.log` showed the real cause directly — the candidate BEAM process crashed on boot, seconds
+after start, on `config/runtime.exs`'s own unconditional `:prod` check:
+`RuntimeError: environment variable BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE is missing`. The 60-second "readiness"
+failure was never a timing race at all — the process was already dead; `/health/ready` simply never had anything
+to answer it.
+
+Root cause, traced through `tools/deployment.mjs`: `prepareSlot()` starts every slot via `launchctl bootstrap` on a
+generated `launchd` plist (`launchAgent()`), and — unlike every other subprocess this tool spawns via
+`{...process.env, ...}` — that plist's `EnvironmentVariables` dict is a hand-written, closed allowlist (`PATH`,
+`PHX_SERVER`, `PORT`, ..., `RELEASE_COOKIE`, `SECRET_KEY_BASE`). `launchd` gives the started process exactly that
+dict and nothing else — it does not inherit the shell/Node process's own environment at all. `tech-docs/007`
+explicitly specifies "`deployment.mjs` must ... [pass] the existing runtime VAPID values to both slots without
+printing values" and marks the file `[E]` (edited), and `runtime.exs` itself carries a comment claiming
+"Deployment always passes VAPID values to both slots (tech-doc 007)" — but the actual plumbing was never added to
+`launchAgent()`'s `variables` object. This is why it was never caught until now: production `blue`
+(`f536f97dabec1199dec187f38f9a17ed3022c0af`) predates the VAPID/push-notifications feature entirely, so no prior
+`deploy:prepare` invocation, in this session or before it, ever ran `runtime.exs`'s VAPID check at all — this is
+the first `release:run` attempt in the feature's history to reach candidate boot with the check live. Separately,
+`release:migrate`'s direct `bin/bnest_app eval` invocation (also subject to the same `runtime.exs` check, since
+runtime config evaluates on every boot regardless of entry command) did not fail, only because that specific call
+site spreads `...process.env` rather than using a closed allowlist — an inconsistency worth noting but not itself
+a defect, since that path already receives everything it needs.
+
+**Fix**, on a third task branch (`fix-release-webpush-env`, same worktree, same units-share-one-worktree pattern as
+`fix-scheduler-restart-race`): added `requiredWebPushSubject()` (mirrors `requiredProductionOrigin()`'s
+fail-fast-with-a-clear-message idiom) and three new `requiredEnvironment("BNEST_DEPLOY_WEB_PUSH_..._FILE")` /
+`requiredWebPushSubject()` reads in `prepareSlot()`, threaded through `launchAgent()`'s parameter list and into its
+`variables` object under the exact same keys `runtime.exs` reads
+(`BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE`/`BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE`/`BNEST_WEB_PUSH_SUBJECT`). The
+two key-file variables carry through as _paths_ (matching `runtime.exs`'s own `File.read!/1`), not embedded key
+material — unlike `RELEASE_COOKIE`/`SECRET_KEY_BASE`, which `deployment.mjs` already reads and embeds as values;
+this preserves that existing, deliberate distinction rather than collapsing it.
+
+**Verification.** RED confirmed directly: temporarily restored `deployment.mjs` to its pre-fix `HEAD` content
+(`git show HEAD:...`) with the new test in place — `node --test tools/release.test.mjs` failed exactly the one new
+test, `passes the existing runtime VAPID values to every managed slot`. Restored the fix; GREEN, `23/23` tests
+passing (every pre-existing assertion unaffected, including the `launchAgent` single-definition/single-call-site
+structural test). `npx prettier --check` clean on both touched files under `./hippo run --class ephemeral
+--resource-tier light`. Retrying `release:run` attempt 3 next, from primary `main` synced to this fix once it
+lands.
