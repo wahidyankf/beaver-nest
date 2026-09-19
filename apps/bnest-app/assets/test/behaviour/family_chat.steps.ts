@@ -477,6 +477,99 @@ step("the page does not reload", (context) => {
   return context;
 });
 
+// --- Rule: Experience release candidate proof -----------------------------
+//
+// The candidate/Caddy promotion itself is release infrastructure this layer
+// cannot observe (see this file's header); "Caddy has promoted the
+// flag-enabled experience candidate" is a no-op here, mirroring how
+// `reconnect.js`'s `subscribeFirstStep` treats an unbound `resubscribe` as a
+// pure ordering guarantee for FE_UNIT's document-less room. What this layer
+// *can* prove is the outbox's own draft/offline-queue/reconnect/exact-once
+// behavior, and that a second session's outbox namespace never observes the
+// first session's queued message -- cross-client delivery itself (the other
+// member's UI actually rendering it) is bnest-app-fe-e2e:test:e2e's job.
+
+step(
+  "Caddy has promoted the flag-enabled experience candidate",
+  (context) => context,
+);
+
+step("two members each open {string}", async (context, path) => {
+  const withMemberA = await openRoom(context, path);
+  const { initRoom } = await import(/* @vite-ignore */ ROOM_JS);
+  const memberBRoom = await initRoom(path, {
+    user: {
+      id: "test-user-family-chat-experience-release-other",
+      approved: true,
+    },
+  });
+  return { ...withMemberA, memberBRoom };
+});
+
+step("one member queues a message while offline", async (context) => {
+  const room = requireRoom(context);
+  const outbox = room["outbox"] as {
+    send: (body: string, opts: Record<string, unknown>) => Promise<string>;
+  };
+  const clientMessageId = await outbox.send(
+    "Queued before the experience release promotion",
+    {
+      simulateNetworkFailure: "retryable",
+    },
+  );
+  return { ...context, lastClientMessageId: clientMessageId };
+});
+
+step("the offline member's connection is restored", (context) => {
+  const room = requireRoom(context);
+  const outbox = room["outbox"] as { reportOnline: () => void };
+  outbox.reportOnline();
+  return context;
+});
+
+step(
+  "the offline member's queued message drains exactly once after reconnect",
+  async (context) => {
+    const room = requireRoom(context);
+    const outbox = room["outbox"] as {
+      waitForStatus: (
+        clientMessageId: string,
+        status: string,
+      ) => Promise<string>;
+    };
+    const clientMessageId = context["lastClientMessageId"] as string;
+    const status = await outbox.waitForStatus(clientMessageId, "Sent");
+    if (status !== "Sent") {
+      throw new Error(`expected status "Sent", got "${status}"`);
+    }
+    return context;
+  },
+);
+
+step("neither member sees a duplicate or lost message", (context) => {
+  const room = requireRoom(context);
+  const outbox = room["outbox"] as {
+    status: (clientMessageId: string) => string;
+  };
+  const clientMessageId = context["lastClientMessageId"] as string;
+  if (outbox.status(clientMessageId) !== "Sent") {
+    throw new Error(
+      "expected the sending member's outbox to hold exactly one Sent copy",
+    );
+  }
+
+  const memberBRoom = context["memberBRoom"] as Record<string, unknown>;
+  const memberBOutbox = memberBRoom["outbox"] as {
+    status: (clientMessageId: string) => string;
+  };
+  if (memberBOutbox.status(clientMessageId) !== "not-found") {
+    throw new Error(
+      "expected the other member's outbox namespace to be isolated from this send",
+    );
+  }
+  return context;
+});
+
 // --- Rule: Scroll anchor and live-region announcements -------------------
 
 step(

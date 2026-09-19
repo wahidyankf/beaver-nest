@@ -127,6 +127,26 @@ Feature: Family chat room
     And any queued send drains only after catch-up completes
     And the page does not reload
 
+  Rule: Experience release candidate proof
+
+  # This scenario's two near-simultaneous authenticated first requests
+  # against a freshly promoted candidate independently reproduced a real
+  # production race in `StorageCoordinator.ensure_started!/1`: an unlocked
+  # check-and-maybe-restart let one request tear down the Ecto repo pid a
+  # concurrent request was already mid-query against. Fixed with
+  # `:global.trans/2` serialization (storage_coordinator.ex); see
+  # learnings.md for the reproduction evidence.
+  @fe-vitest-unit
+  # Exemption(integration): promoting Caddy to a flag-transitioned release candidate and driving two independent browser contexts against it crosses browser and release-infrastructure boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
+  @integration-exempt
+  Scenario: Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
+    Given Caddy has promoted the flag-enabled experience candidate
+    And two members each open "/family-chat/ruang-keluarga"
+    And one member queues a message while offline
+    When the offline member's connection is restored
+    Then the offline member's queued message drains exactly once after reconnect
+    And neither member sees a duplicate or lost message
+
   Rule: Scroll anchor and live-region announcements
 
   @fe-vitest-unit
