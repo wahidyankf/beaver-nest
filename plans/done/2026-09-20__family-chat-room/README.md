@@ -2,11 +2,14 @@
 
 ## Status
 
-**In progress — Phase 9 reconciliation and archival.** Product delivery has completed: the compatibility and experience
-releases (Phases 7–8) are live in production behind `BNEST_FAMILY_CHAT_ENABLED=true`, five post-launch fixes (Phase 8.5)
-are merged to `origin/main`, and the offline outbox's real IndexedDB persistence (Phase 9) is merged. What remains is
-reconciling plan documents to the as-built system, the plan execution check, and archival — see
-[`delivery.md`](delivery.md)'s Phase 9 for the exact remaining checklist.
+**Completed 2026-09-20.** Family Chat is live in production behind `BNEST_FAMILY_CHAT_ENABLED=true`: the compatibility
+and experience releases (Phases 7–8), five post-launch fixes (Phase 8.5), and the offline outbox's real IndexedDB
+persistence (Phase 9) are all merged and routed. AC-FC-10's real-production-cutover subscription proof was formally
+descoped for v1 by explicit user decision (see [an idea](../../ideas/q2-not-urgent-important/family-chat-real-cutover-subscription-proof.md)
+for its future promotion). A `gherkin-implementation-review` audit found and fixed five fabricated-proof gaps in
+unrelated scenarios; the plan's own headline sender-display-name behavior passed that audit cleanly. A final
+plan-execution-checker re-audit and full gate re-run both returned clean before this archival. See
+[`delivery.md`](delivery.md)'s Phase 9 for the complete evidence trail.
 
 ## Outcome
 

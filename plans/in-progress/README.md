@@ -6,14 +6,11 @@ Start work by moving one folder from [`../backlog/`](../backlog/README.md) witho
 
 ## Active Plan
 
-- [Family Chat Room](family-chat-room/README.md) — materially revised plan for an authenticated GraphQL room, durable
-  SQLite history, IndexedDB offline recovery, opt-in Web Push, low-impact whole-database backup, split BE/FE specifications,
-  and two-stage no-downtime release; a fresh quality gate and delivery have not started.
+No plan is currently in progress.
 
 Completed records live in [`../done/`](../done/README.md), and additional candidates are queued in
 [`../backlog/`](../backlog/README.md).
 
 ## Directory Map
 
-- [`family-chat-room/`](family-chat-room/README.md) — family chat requirements, technical design, UI assets, and
-  execution-grade delivery checklist.
+This README has no siblings.
