@@ -331,7 +331,7 @@ endpoints, database content, or absolute runtime paths.
       rendering code instead of inline string literals; the family-chat E2E step/support files contain zero
       sleep/timing waits. `FE_UNIT` 70/70, focused family-chat `FE_E2E` 31/31, `release.test.mjs` 22/22 (see next
       item). `BE_E2E` untouched by this phase's changes and already green from Phase 3.
-- [ ] `[AI] [AC-FC-10] [AC-FC-12]` **GREEN** Update `tools/deployment.mjs` so generated Caddy reverse-proxy config
+- [x] `[AI] [AC-FC-10] [AC-FC-12]` **GREEN** Update `tools/deployment.mjs` so generated Caddy reverse-proxy config
       omits `stream_close_delay 5m` while retaining global `grace_period 5m`; update `tools/release.mjs` to keep the prior
       process warm during observation while proving its sockets closed at reload. **Proof:** release/continuity tests reject
       any nonzero stream-close delay or cross-slot PubSub assumption, and routed E2E proves promoted subscription within
@@ -347,6 +347,13 @@ endpoints, database content, or absolute runtime paths.
       telemetry tech-doc 009 specifies exist yet. Implementing it now would require new backend scope beyond this
       delivery phase, or risk posting synthetic content into the one real family room. Left unchecked pending that
       scope; full investigation trail in `learnings.md`.
+      **2026-09-20 — formally descoped for v1, explicit user decision:** a `plan-execution-checker` audit confirmed
+      the remaining half is still genuinely unimplemented across every real release this plan has run (all record
+      only `routed-liveview` evidence). Asked the user whether to build the missing scope now or accept it as
+      residual risk; answer: descope for v1. Recorded as
+      [an idea](../../ideas/q2-not-urgent-important/family-chat-real-cutover-subscription-proof.md) for future
+      promotion, and the PRD's AC-FC-10 carries a matching v1 scope note. The Caddy-config invariant (the item's
+      other half) remains implemented and proven; only the routed-cutover subscription proof is descoped.
 - [x] `[AI] [AC-FC-09] [AC-FC-12]` **Smoke** Run exact-origin spec-aware exploratory and structurally spec-blind
       usability passes at all viewports, zoom, keyboard, and screen reader. **Proof:** separate sanitized findings and
       dispositions in `learnings.md`; static assets/tests do not substitute.
@@ -666,6 +673,29 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       the historical audit record; only the _displayed_ value is live. **Proof:** `bnest-app:test:quick` green
       (99.07% unit coverage); `bnest-app:test:integration` green, 302/302.
       **2026-09-20:** Done. Landed via PR #69, merged as `b7275752e01588a31a24416204c342bc1a7a39c2` on `origin/main`.
+      Documentation (delivery.md/learnings.md) landed via PR #70, merged as `f28196196` on `origin/main`.
+      **2026-09-20 (routed):** `release:run --revision f2819619617f5d62be6348ef6d73932c075a6056` from the primary
+      checkout, that revision's compatibility release. First attempt deferred on genuine HIPPO backpressure
+      (`outcome: "deferred"`, `errorCategory: "capacity"`, `durationMs: 101978`, only `preflight` evidence
+      recorded) — `./hippo status` showed `resource.state: "warning"` (`memory-warning`) at the time, not a passing
+      spike; waited for it to clear to `"normal"` before retrying. Second attempt failed genuinely mid-`build` on a
+      transient network fault (`git fetch` RPC error while `mix deps.get` fetched a git-sourced dependency:
+      `curl 92 HTTP/2 stream 5 was not closed cleanly`), after already passing every gate through `artifact-cleanup`
+      (`outcome: "failed"`, `errorCategory: "configuration"`, `durationMs: 1596887`) — confirmed GitHub reachable
+      and retried. Third attempt succeeded: `outcome: "passed"`, `durationMs: 511258`, all 15 evidence stages
+      recorded (`preflight` through `convergence`), `migrationState: "applied"`. Routed cutover independently
+      verified: both `http://127.0.0.1:4100/health/ready` and the production origin reported
+      `{"status":"ready","slot":"blue","revision":"f2819619617f5d62be6348ef6d73932c075a6056", ...}`. The
+      live-resolution display-name fix is now live in production.
+      **2026-09-20 (experience flag restored):** the compatibility release above correctly ships with
+      `BNEST_FAMILY_CHAT_ENABLED` off by design (tech-doc 009's two-step model). Restored it, user-authorized:
+      managed `release:run --mode experience --revision f2819619617f5d62be6348ef6d73932c075a6056` — `outcome:
+      "passed"`, `durationMs: 323157`, evidence stages `preflight`, `experience-release-e2e`,
+      `experience-candidate-proof`, `promotion`, `routed-liveview`, `cleanup`, `migrationState: "not-required"`
+      (reused artifact, no rebuild). Routed cutover independently re-verified: both local and production-origin
+      `/health/ready` report `slot: "green"`, revision `f2819619617f5d62be6348ef6d73932c075a6056`; `proxy:status`
+      confirms `activeSlot: "green"`, `caddyReady: true`, `httpStatus: "200"`. Family chat is live in production
+      with both the live-resolution display-name fix and the flag on.
 - [x] `[AI] [AC-FC-10] [AC-FC-12]` **RED** A backgrounded mobile PWA/tab left the chat visibly stale after
       returning to the foreground — no code anywhere listened for `visibilitychange`. Add a new "Rule: Reconnect
       on visibility resume" to `family_chat.feature` (one `@fe-vitest-unit` scenario with a documented
