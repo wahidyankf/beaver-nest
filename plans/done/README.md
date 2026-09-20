@@ -14,6 +14,7 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [Bn​est daily backups and schedules](2026-08-30__bnest-daily-backups-and-schedules/README.md) completed durable contextual schedules, verified daily SQLite backups, typed admin settings, and a no-downtime production rollout.
 - [RHINO CLI extraction](2026-09-08__rhino-cli-extraction/README.md) completed the configuration-driven Rust rewrite of two governance validators, its pinned distribution, and adoption across four repositories.
 - [HIPPO and RHINO governance adoption](2026-09-09__hippo-rhino-governance-adoption/README.md) completed a governance hierarchy, a three-harness contract, one merge-blocking pull-request gate, and a no-bypass default-branch ruleset in both CLI repositories.
+- [Family Chat Room](2026-09-20__family-chat-room/README.md) completed an authenticated GraphQL family chat room with durable SQLite history, IndexedDB offline recovery, opt-in Web Push, low-impact whole-database backup, and a two-stage no-downtime production release.
 
 ## Directory Map
 
@@ -25,3 +26,4 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [Bn​est daily backups and schedules](2026-08-30__bnest-daily-backups-and-schedules/README.md) contains the completed scheduler, backup, admin settings, and production rollout record.
 - [RHINO CLI extraction](2026-09-08__rhino-cli-extraction/README.md) contains the completed extraction, distribution, and four-repository adoption record.
 - [HIPPO and RHINO governance adoption](2026-09-09__hippo-rhino-governance-adoption/README.md) contains the completed governance-adoption, harness-contract, gate, and ruleset delivery record.
+- [Family Chat Room](2026-09-20__family-chat-room/README.md) contains the completed family chat requirements, technical design, UI assets, and execution-grade delivery record.

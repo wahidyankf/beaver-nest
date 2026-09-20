@@ -3,7 +3,7 @@
 Prove that a live family-chat GraphQL subscription actually survives a real `release:run` Caddy promotion in
 production — not just an isolated test environment — with a bounded resubscribe and exact-once gap catch-up.
 
-_Recorded 2026-09-20, on formal v1 descope of [family-chat-room](../../in-progress/family-chat-room/README.md)'s
+_Recorded 2026-09-20, on formal v1 descope of [family-chat-room](../../done/2026-09-20__family-chat-room/README.md)'s
 AC-FC-10. Explicit user decision: accept as residual risk for v1 rather than build now._
 
 ## Problem / Context

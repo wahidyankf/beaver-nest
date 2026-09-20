@@ -851,12 +851,32 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       excluded) a durable owner or an explicit discard reason, per that file's own pre-existing "route each entry...
       before archival" instruction. Every AC-FC-01..13 already maps to automated/manual/release evidence across
       delivery.md's phases; this pass re-verified rather than re-derived that mapping. Full detail in `learnings.md`.
-- [ ] `[AI] [AC-FC-01..13]` Run the plan execution check and, only if explicitly directed, the completion plan-quality
+- [x] `[AI] [AC-FC-01..13]` Run the plan execution check and, only if explicitly directed, the completion plan-quality
       gate; then repeat `APP_QUICK`, `INTEGRATION`, both quick/E2E targets, `RELEASE_TEST`, `REPO`, `git diff --check`, and
       process/port inventory. **Proof:** terminal completion evidence and only active route/rollback capacity retained.
-- [ ] `[AI] [AC-FC-01..13]` Move—never copy—the plan to the unused
+      **2026-09-20:** A `plan-execution-checker` re-audit (run fresh after the AC-FC-10 descope and the
+      gherkin-implementation-review fixes landed) returned **READY TO ARCHIVE — no blocking gaps found**, independently
+      verifying the AC-FC-10 descope's four-document consistency, PR #71/#72's tech-doc and release-doc fixes, and
+      PR #73's five gherkin-review fixes by reading the current code directly rather than trusting prior narrative. The
+      full gate re-run it deferred was then run to completion: `APP_QUICK` (289 BE + 93 FE unit tests, 99.07% coverage),
+      `INTEGRATION` (302 tests, 14 exempt), `BE_E2E_QUICK`/`FE_E2E_QUICK` (typecheck/lint/behaviour-compliance clean),
+      `BE_E2E` (27/27, including both family-chat subscription scenarios), `FE_E2E` (212/212 across every project,
+      including the full family-chat corpus), `RELEASE_TEST` (39/39 plus clean `node --check` on both release scripts),
+      `REPO` (all seven rhino gates green), `git diff --check` (clean), and a process/port inventory (only the expected
+      production slot on port 4001 listening — no leak from this run). The plan's own two E2E targets are genuinely
+      self-guarded (their Nx command already wraps its own `./hippo run`); the currently-installed `rtk` CLI's policy
+      hook does not yet recognize that and rejects the bare form the legend documents, so they were run through `rtk
+      proxy` (rtk's own documented raw-execution escape hatch, user-approved for this specific action) rather than
+      double-guarding, which would have stalled per that hook's own warning.
+- [x] `[AI] [AC-FC-01..13]` Move—never copy—the plan to the unused
       `plans/done/YYYY-MM-DD__family-chat-room/`, set Completed status, and update stage maps/links. **Proof:** source absent,
       destination unique, `REPO` green.
+      **2026-09-20:** Moved to `plans/done/2026-09-20__family-chat-room/` via `git mv`. README status set to
+      Completed. `plans/in-progress/README.md` and `plans/done/README.md` both updated (active-plan/directory-map
+      entries removed from the former, completed-plan/directory-map entries added to the latter). The one live
+      external reference — `plans/ideas/q2-not-urgent-important/family-chat-real-cutover-subscription-proof.md`'s link
+      to this plan's `README.md` — repointed to the new path. `REPO` (rhino gate) re-run after the move to confirm no
+      broken internal link survived it.
 - [ ] `[AI] [AC-FC-01..13]` With explicit authority, commit/push/review/rebase-merge the completion PR on
       `family-chat-room-archive`, then run the artifact cleanup workflow for the one worktree and two task branches.
       **Proof:** archive on `main`, no task worktree/branch/process/build output, and local `main` equals `origin/main`.
