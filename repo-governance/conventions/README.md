@@ -43,6 +43,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Pull request boundaries](pull-request-boundaries.md) map one branch to one pull request to one independently shippable delivery unit, split at natural seams.
 - [Pull request merge](pull-request-merge.md) states the five preconditions and the draft lifecycle every merge into `main` must satisfy.
 - [Push-hook verification](push-hook-verification.md) requires root-cause repair and prevents unauthorized bypass of push-time safeguards.
+- [Release authorization](release-authorization.md) defines when a production release may run and what one authorization for a revision covers.
 - [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.
 - [Runtime flat-file data](runtime-flat-file-data.md) defines the private `data/` layout and safe flat-file persistence boundaries.
 - [Task tracking](task-tracking.md) requires granular task lists whose status stays synchronized with the work.

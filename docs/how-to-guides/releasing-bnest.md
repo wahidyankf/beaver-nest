@@ -110,6 +110,14 @@ npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>
 
 The run takes tens of minutes because it executes the full gate manifest before building. Expect it to be long-running rather than hung. It prints one JSON result. `outcome` is `passed` on success; `queued` means another release owns the host lock and `deferred` means HIPPO withheld capacity — neither is a failure, and neither leaves a partial cutover. Any other outcome sets a non-zero exit status.
 
+A compatibility release ships every feature flag off by design. When the intended production state needs one on, immediately follow with the same revision's experience re-promotion, which reuses the already-built artifact instead of rebuilding:
+
+```sh
+npm exec -- nx run -p bnest-app -t release:run -- --mode experience --revision <sha>
+```
+
+Per [release authorization](../../repo-governance/conventions/release-authorization.md), this step is covered by the same authorization as the compatibility release it follows.
+
 ## 5. Verify the routed cutover
 
 The routed backend, not only the candidate, must serve the intended revision:
