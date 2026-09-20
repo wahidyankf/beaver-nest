@@ -690,7 +690,7 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       **2026-09-20 (experience flag restored):** the compatibility release above correctly ships with
       `BNEST_FAMILY_CHAT_ENABLED` off by design (tech-doc 009's two-step model). Restored it, user-authorized:
       managed `release:run --mode experience --revision f2819619617f5d62be6348ef6d73932c075a6056` — `outcome:
-      "passed"`, `durationMs: 323157`, evidence stages `preflight`, `experience-release-e2e`,
+    "passed"`, `durationMs: 323157`, evidence stages `preflight`, `experience-release-e2e`,
       `experience-candidate-proof`, `promotion`, `routed-liveview`, `cleanup`, `migrationState: "not-required"`
       (reused artifact, no rebuild). Routed cutover independently re-verified: both local and production-origin
       `/health/ready` report `slot: "green"`, revision `f2819619617f5d62be6348ef6d73932c075a6056`; `proxy:status`
