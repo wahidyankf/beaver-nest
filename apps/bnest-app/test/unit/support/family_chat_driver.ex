@@ -18,6 +18,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   alias BnestApp.Scheduler
   alias BnestApp.SqliteRepo
   alias BnestApp.TestBackupDestination
+  alias BnestAppWeb.Plugs.GraphQLPipeline
 
   # This driver's whole purpose during RED is to call domain functions that do
   # not exist yet (tech-doc 007's File Impact `[N]` entries), so the actual
@@ -565,7 +566,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     # path instead of mirroring its expected shape.
     conn =
       csrf_test_conn()
-      |> BnestAppWeb.Plugs.GraphQLPipeline.call(BnestAppWeb.Plugs.GraphQLPipeline.init([]))
+      |> GraphQLPipeline.call(GraphQLPipeline.init([]))
 
     Map.merge(context, %{
       family_chat_result: decode_conn_body(conn),
