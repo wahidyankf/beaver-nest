@@ -644,14 +644,14 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       formatting, affected quick suites, repository and consumer contracts). Full root-cause narrative in
       `learnings.md`.
 - [x] `[AI] [AC-FC-02] [AC-FC-04]` **RED** PR #55's fix above only threads the real display username through the
-      *send* path; a production user testing live traffic post-release reported historical messages still showing
+      _send_ path; a production user testing live traffic post-release reported historical messages still showing
       the raw user ID. Root cause: `family_chat_messages.sender_display_name` is stamped once at commit time and
       is DB-trigger-enforced immutable (confirmed by attempting a Python backfill script's `UPDATE`, which raised
       `sqlite3.IntegrityError: family chat messages are immutable` against production — the trigger is a
       deliberate append-only/audit-log invariant, not a bug, so a data patch was correctly abandoned in favor of
       resolving the display name live at read time). Add a new "Rule: Sender display name reflects the current
       account, not a historical snapshot" to `family_chat_graphql.feature`: an older message re-queried after the
-      sender's account display name changes must show the *current* name, and a system message (no underlying
+      sender's account display name changes must show the _current_ name, and a system message (no underlying
       account) must stay unaffected. Bound at both the unit layer (the real `FamilyChat.live_sender_display_name/2`
       function, with an injected account-lookup double — no filesystem-backed identity store exists at that layer)
       and the integration layer (a real GraphQL round trip against a real, renamed account). **Proof:** failed
@@ -663,7 +663,7 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       (system-kind short-circuit; user-kind resolves live, falling back to the stored value only when no account is
       found). The `sender_display_name` GraphQL field now resolves through it instead of reading the stored column
       directly. The immutable `family_chat_messages.sender_display_name` column itself is untouched — preserved as
-      the historical audit record; only the *displayed* value is live. **Proof:** `bnest-app:test:quick` green
+      the historical audit record; only the _displayed_ value is live. **Proof:** `bnest-app:test:quick` green
       (99.07% unit coverage); `bnest-app:test:integration` green, 302/302.
       **2026-09-20:** Done. Landed via PR #69, merged as `b7275752e01588a31a24416204c342bc1a7a39c2` on `origin/main`.
 - [x] `[AI] [AC-FC-10] [AC-FC-12]` **RED** A backgrounded mobile PWA/tab left the chat visibly stale after
