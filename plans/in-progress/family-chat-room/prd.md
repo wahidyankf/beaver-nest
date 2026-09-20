@@ -283,6 +283,17 @@ Scenario: Dynamic send and history changes are announced
 
 ### AC-FC-10 — Continuity-safe active release
 
+**V1 scope note (2026-09-20, explicit user decision):** the "Connected clients recover without refresh" and "A
+commit during socket cutover is caught up exactly once" scenarios below require holding authenticated GraphQL
+sockets across a real production Caddy promotion driven by the actual `release:run` pipeline. Proving them for real
+needs backend scope this delivery never built — a service-account auth path for the family-chat socket, an isolated
+probe room, and a telemetry mechanism tech-doc 009 does not specify. Every real release this plan ran instead
+proved `routed-liveview` continuity (zero failed routed samples, budgeted latency), and Phase 8 proved the
+subscribe/resubscribe/catch-up mechanism itself against an isolated FE_E2E test environment — but neither
+constitutes the literal proof these two scenarios describe. Formally accepted as residual risk for v1 rather than
+built now; a future plan may pick this up if warranted. See `delivery.md`'s AC-FC-10 item and `learnings.md`'s
+Resolution Ledger for the full trail.
+
 ```gherkin
 Scenario: Compatibility and experience releases preserve the route
   Given the current revision is healthy and two members hold connected room clients

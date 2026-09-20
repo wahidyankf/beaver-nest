@@ -211,7 +211,10 @@ retention indexes.
 - `room_id` is always resolved from an authorized slug; v1 uses ID 1 but callers never hard-code it as authorization.
 - `sender_kind` distinguishes current authenticated users from internal trusted producers.
 - `sender_id` is a stable server-side account or producer identifier, never browser-selected.
-- `sender_display_name` is an immutable display snapshot.
+- `sender_display_name` is an immutable display snapshot, DB-trigger-enforced (never `UPDATE`-able once committed).
+  The GraphQL-facing `senderDisplayName` field does not read this column directly: it resolves live against the
+  sender's current account (`BnestApp.Identity.display_name_for/1`), falling back to this stored snapshot only when
+  no current account exists (a deleted user, or a non-account system producer). See tech-doc 008.
 - `idempotency_key` is the browser's `clientMessageId` for users and a producer-owned stable key for system messages.
 - `committed_at` is the UTC commit time. Integer `id` remains the only ordering and cursor authority.
 

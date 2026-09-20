@@ -135,6 +135,9 @@ query FamilyChatMessages(
 No cursor means latest. Exactly one of `beforeId` or `afterId` is allowed. Limit defaults to 50, accepts 1–50, and rejects
 0, negative, or above-50 values with `VALIDATION_FAILED`. Nodes are ascending. `beforeId` supports upward history;
 `afterId` supports reconnect catch-up. Cursors do not reveal whether that ID belongs to another room.
+`senderDisplayName` resolves live against the sender's current account rather than reading the stored snapshot
+column directly, so re-querying an older message reflects a later account rename; see tech-doc 002's Field
+Semantics.
 
 ### `webPushConfiguration`
 
