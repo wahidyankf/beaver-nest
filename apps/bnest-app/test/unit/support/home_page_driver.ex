@@ -1304,6 +1304,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       when state in [
              :room_has_known_history,
              :sent_message_with_known_id,
+             :sent_and_committed_message,
+             :system_message_posted_to_room,
              :user_without_family_chat_capability,
              :holds_subscription,
              :message_committed_before_subscription,

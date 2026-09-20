@@ -79,6 +79,18 @@ Feature: Family chat GraphQL API
     Then the response returns the original committed message unchanged
     And the family chat room still holds exactly one message for that client message ID
 
+  Rule: Sender display name reflects the current account, not a historical snapshot
+
+  # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / Re-querying an older message shows the sender's current display name
+  @e2e-exempt
+  Scenario: Re-querying an older message shows the sender's current display name
+    Given the user sent the family chat message "Dinner is ready" and it was committed
+    And a system message was posted to the room
+    And the sender's account display name later changes to "Renamed Member"
+    When the user later re-queries family chat messages
+    Then the response reports "Renamed Member" as that message's sender display name, not the name stored at commit time
+    And the system message's sender display name remains unaffected by the account rename
+
   Rule: Safe errors for unauthenticated, forbidden, invalid, and missing-room operations
 
   # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / An unauthenticated visitor is denied family chat data

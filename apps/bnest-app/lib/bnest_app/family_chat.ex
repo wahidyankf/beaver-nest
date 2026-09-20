@@ -102,6 +102,23 @@ defmodule BnestApp.FamilyChat do
     end
   end
 
+  # `family_chat_messages.sender_display_name` is DB-trigger-enforced
+  # append-only (see the migration): the value stamped in at commit time can
+  # never be corrected retroactively once an account's real display name
+  # changes (or, for pre-real-session historical rows, once a genuine account
+  # exists at all). Resolving live at read time is therefore the only correct
+  # fix; `lookup` is required rather than defaulted to the real account store
+  # so a caller without one (e.g. a test boundary with no filesystem-backed
+  # identity store) can supply a double for this one dependency -- the real
+  # caller (the GraphQL type) passes `&Identity.display_name_for/1` itself.
+  @spec live_sender_display_name(map(), (String.t() -> String.t() | nil)) :: String.t()
+  def live_sender_display_name(%{sender_kind: "system"} = message, _lookup),
+    do: message.sender_display_name
+
+  def live_sender_display_name(message, lookup) do
+    lookup.(message.sender_id) || message.sender_display_name
+  end
+
   @doc """
   Internal-only system message posting. Not reachable from GraphQL (no resolver
   or mutation field calls this); `idempotency_key` reuses the caller-supplied

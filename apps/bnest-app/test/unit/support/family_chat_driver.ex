@@ -58,6 +58,25 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     })
   end
 
+  # See the integration driver's identical clause for the full rationale.
+  # Captures the message's ID (assigned by the real SQLite insert this layer
+  # already runs) so the later requery can find this exact message.
+  def prepare_behaviour(context, :sent_and_committed_message, [body]) do
+    context = send_family_chat_message(context, unique_uuid(), body)
+    {:ok, message} = context.family_chat_result
+    Map.put(context, :family_chat_renamed_sender_message_id, message.id)
+  end
+
+  # See the integration driver's identical clause for the full rationale.
+  def prepare_behaviour(context, :system_message_posted_to_room, _args) do
+    slug = context[:family_chat_room_slug] || "ruang-keluarga"
+
+    {:ok, message} =
+      FamilyChat.post_system_message(slug, "system:producer-" <> unique_uuid(), "Notice")
+
+    Map.put(context, :family_chat_system_message_id, message.id)
+  end
+
   def prepare_behaviour(context, :user_without_family_chat_capability, _args) do
     Map.put(context, :family_chat_capability, false)
   end
@@ -408,6 +427,28 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
 
   def perform_behaviour(context, :send_message_fresh_id, [body]) do
     send_family_chat_message(context, unique_uuid(), body)
+  end
+
+  def perform_behaviour(context, :rename_sender_account, [new_name]) do
+    Map.put(context, :family_chat_renamed_display_name, new_name)
+  end
+
+  # `BnestApp.Identity.display_name_for/1` (the real, default lookup) needs a
+  # live, filesystem-backed account store this layer deliberately never
+  # starts (see `synthetic_display_name/1`'s comment above). Only that one
+  # dependency is a boundary-valid injected double here; the transform under
+  # test, `BnestApp.FamilyChat.live_sender_display_name/2`, runs for real.
+  def perform_behaviour(context, :requery_after_rename, _args) do
+    context = query_messages(context, [], [])
+    {:ok, page} = context.family_chat_result
+    lookup = fn _sender_id -> context[:family_chat_renamed_display_name] end
+
+    resolved_nodes =
+      Enum.map(page.nodes, fn node ->
+        Map.put(node, :sender_display_name, FamilyChat.live_sender_display_name(node, lookup))
+      end)
+
+    Map.put(context, :family_chat_result, {:ok, %{page | nodes: resolved_nodes}})
   end
 
   def perform_behaviour(context, :resend_same_client_id, _args) do
@@ -783,6 +824,30 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     case context.family_chat_result do
       {:ok, %{sender_display_name: name, sender_id: sender_id}} ->
         name == synthetic_display_name(sender_id) and name != sender_id
+
+      _other ->
+        false
+    end
+  end
+
+  def behaviour_outcome?(context, :message_shows_current_sender_display_name, [expected_name]) do
+    message_id = context.family_chat_renamed_sender_message_id
+
+    case context.family_chat_result do
+      {:ok, %{nodes: nodes}} ->
+        Enum.find(nodes, &(&1.id == message_id)).sender_display_name == expected_name
+
+      _other ->
+        false
+    end
+  end
+
+  def behaviour_outcome?(context, :system_message_display_name_unaffected, _args) do
+    system_message_id = context.family_chat_system_message_id
+
+    case context.family_chat_result do
+      {:ok, %{nodes: nodes}} ->
+        Enum.find(nodes, &(&1.id == system_message_id)).sender_display_name == "System"
 
       _other ->
         false
