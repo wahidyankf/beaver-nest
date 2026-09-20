@@ -865,8 +865,8 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       `REPO` (all seven rhino gates green), `git diff --check` (clean), and a process/port inventory (only the expected
       production slot on port 4001 listening — no leak from this run). The plan's own two E2E targets are genuinely
       self-guarded (their Nx command already wraps its own `./hippo run`); the currently-installed `rtk` CLI's policy
-      hook does not yet recognize that and rejects the bare form the legend documents, so they were run through `rtk
-      proxy` (rtk's own documented raw-execution escape hatch, user-approved for this specific action) rather than
+      hook does not yet recognize that and rejects the bare form the legend documents, so they were run through the
+      documented raw-execution escape hatch, `rtk proxy` (user-approved for this specific action) rather than
       double-guarding, which would have stalled per that hook's own warning.
 - [x] `[AI] [AC-FC-01..13]` Move—never copy—the plan to the unused
       `plans/done/YYYY-MM-DD__family-chat-room/`, set Completed status, and update stage maps/links. **Proof:** source absent,
