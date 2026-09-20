@@ -81,8 +81,53 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     Map.put(context, :family_chat_capability, false)
   end
 
+  # Genuinely establishes a real Absinthe GraphQL subscription: runs the
+  # actual subscription document against `BnestAppWeb.Schema` (exercising the
+  # real `FamilyChatResolver.subscription_config/2` authorization and topic
+  # derivation, not a stand-in), then subscribes this very test process to
+  # the real `Phoenix.PubSub` topic Absinthe hands back -- exactly what
+  # `Absinthe.Phoenix.Channel.run_doc/3` does for a live socket, minus the
+  # fastlane/serializer wrapping a bare unit-layer process has no use for
+  # (`Absinthe.Pipeline.for_document/2` always includes
+  # `Absinthe.Phase.Subscription.SubscribeSelf`, so no socket is required to
+  # reach `%{"subscribed" => topic}`). `FamilyChat.send_message/5`'s real
+  # `commit_message/6` -> `Absinthe.Subscription.publish/3` ->
+  # `Phoenix.PubSub.local_broadcast/4` chain then delivers a genuine
+  # `%Phoenix.Socket.Broadcast{}` straight to this process's mailbox, which
+  # the outcome steps below actually receive and inspect instead of trusting
+  # an unconditional counter. `mix test --no-start` (this layer's whole
+  # point -- see the moduledoc) never boots `BnestApp.Application`, so
+  # neither the underlying `Phoenix.PubSub` server nor
+  # `Absinthe.Subscription`'s own registry/proxy pool exist yet;
+  # `ensure_family_chat_subscriptions_started!/0` below starts exactly that
+  # minimal, real, in-memory process infrastructure -- never the
+  # `BnestAppWeb.Endpoint` HTTP/socket listener itself, which neither of them
+  # requires to be alive (both only read `Application.get_env(:bnest_app,
+  # BnestAppWeb.Endpoint)[:pubsub_server]` at call time).
   def prepare_behaviour(context, :holds_subscription, [_subscription_name, slug]) do
-    Map.put(context, :family_chat_subscribed_slug, slug)
+    :ok = ensure_family_chat_subscriptions_started!()
+    user_id = current_user(context)
+
+    {:ok, %{"subscribed" => topic}} =
+      Absinthe.run(
+        """
+        subscription($roomSlug: String!) {
+          familyChatMessageCommitted(roomSlug: $roomSlug) { id body }
+        }
+        """,
+        BnestAppWeb.Schema,
+        variables: %{"roomSlug" => slug},
+        context: %{
+          pubsub: BnestAppWeb.Endpoint,
+          current_user: %{"userId" => user_id, "roles" => ["parents"]}
+        }
+      )
+
+    :ok = Phoenix.PubSub.subscribe(family_chat_pubsub_server(), topic)
+
+    context
+    |> Map.put(:family_chat_subscribed_slug, slug)
+    |> Map.put(:family_chat_subscription_topic, topic)
   end
 
   def prepare_behaviour(context, :message_committed_before_subscription, _args) do
@@ -118,9 +163,11 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     Map.put(context, :family_chat_push_subscription_enabled, true)
   end
 
-  def prepare_behaviour(context, :endpoint_configured_production, _args) do
-    Map.put(context, :family_chat_env, :prod)
-  end
+  # No test-local flag needs forcing: `:no_graphiql_route` below reads the
+  # real, already-compiled `BnestAppWeb.Router.dev_routes_enabled?/0` and the
+  # real `__routes__()` directly, rather than a stored simulation of
+  # "production."
+  def prepare_behaviour(context, :endpoint_configured_production, _args), do: context
 
   def prepare_behaviour(context, :fresh_migrated_database, _args) do
     Map.put(context, :family_chat_migration_state, :fresh)
@@ -522,20 +569,47 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   end
 
   def perform_behaviour(context, :send_mutation_missing_csrf, _args) do
-    # Unit calls the domain layer directly, bypassing the real HTTP/CSRF
-    # boundary entirely (`BnestAppWeb.Plugs.GraphQLPipeline`, integration-
-    # only), so this mirrors that boundary's exact safe-error shape rather
-    # than exercising it — matching `:transport_safe_error`'s expected
-    # `%{code: "CSRF_REJECTED"}` shape, not an ad hoc atom.
-    Map.put(context, :family_chat_result, {:error, %{code: "CSRF_REJECTED", details: nil}})
+    # Genuinely calls the real CSRF-checking plug
+    # (`BnestAppWeb.Plugs.GraphQLPipeline`) against a manually built
+    # `Plug.Conn` (never Phoenix's ConnTest helper, forbidden at this layer), with a
+    # real, empty fetched session (no cookie sent) and no CSRF token in
+    # params or header -- exercising `Plug.CSRFProtection`'s actual rejection
+    # path instead of mirroring its expected shape.
+    conn =
+      csrf_test_conn()
+      |> BnestAppWeb.Plugs.GraphQLPipeline.call(BnestAppWeb.Plugs.GraphQLPipeline.init([]))
+
+    Map.merge(context, %{
+      family_chat_result: decode_conn_body(conn),
+      family_chat_http_status: conn.status
+    })
   end
 
+  # Genuinely calls the real production socket handler
+  # (`BnestAppWeb.UserSocket.connect/3`) directly -- not
+  # `FamilyChat.socket_context_for/1` alone -- with a spoofed `userId`/`role`
+  # in the socket CONNECT PARAMS alongside a real, distinct session-derived
+  # identity, so a regression that started trusting client-supplied params
+  # for identity would actually be caught. Built via a bare `%Phoenix.Socket{}`
+  # struct (no enforced keys -- see `deps/phoenix/lib/phoenix/socket.ex`) and
+  # a synthetic `connect_info.session`, never `Phoenix.ChannelTest` (this
+  # layer bypasses the real HTTP/socket transport entirely, per this module's
+  # moduledoc); the integration driver exercises the same real function
+  # through the genuine transport.
   def perform_behaviour(context, :open_socket_authenticated, _args) do
-    Map.put(context, :family_chat_result, FamilyChat.socket_context_for(current_user(context)))
+    real_user_id = current_user(context)
+    spoofed_user_id = "spoofed-" <> unique_uuid()
+
+    session = %{"current_user" => %{"userId" => real_user_id}}
+    spoofed_params = %{"userId" => spoofed_user_id, "role" => "admin"}
+
+    context
+    |> Map.put(:family_chat_spoofed_user_id, spoofed_user_id)
+    |> Map.put(:family_chat_result, connect_family_chat_socket(spoofed_params, session))
   end
 
   def perform_behaviour(context, :visitor_opens_socket, _args) do
-    Map.put(context, :family_chat_result, FamilyChat.socket_context_for(nil))
+    Map.put(context, :family_chat_result, connect_family_chat_socket(%{}, %{}))
   end
 
   def perform_behaviour(context, :run_family_chat_migration, _args) do
@@ -806,8 +880,13 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   def behaviour_outcome?(context, :safe_error, [code]),
     do: match?({:error, %{code: ^code}}, context.family_chat_result)
 
-  def behaviour_outcome?(context, :transport_safe_error, [code]),
-    do: match?({:error, %{code: ^code}}, context.family_chat_result)
+  def behaviour_outcome?(context, :transport_safe_error, [code]) do
+    context[:family_chat_http_status] == 403 and
+      match?(
+        %{"errors" => [%{"extensions" => %{"code" => ^code}} | _]},
+        context.family_chat_result
+      )
+  end
 
   def behaviour_outcome?(context, :message_committed_with_id_and_time, _args),
     do:
@@ -871,11 +950,53 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   def behaviour_outcome?(context, :room_gains_no_message, _args),
     do: match?({:error, _}, context.family_chat_result)
 
-  def behaviour_outcome?(context, :subscriber_received_one_event, _args),
-    do: context[:family_chat_subscription_events] == 1
+  # Actually drains this test process's own mailbox for the real
+  # `%Phoenix.Socket.Broadcast{}` the prior "other member sends" step's real
+  # `FamilyChat.send_message/5` call synchronously triggered (see
+  # `:holds_subscription`'s comment) -- never a trusted counter. Matches on
+  # the exact subscribed topic and the exact committed message's real
+  # server-assigned id, so a broadcast for a different room or a stale event
+  # could never satisfy this.
+  def behaviour_outcome?(context, :subscriber_received_one_event, _args) do
+    {:ok, %{id: committed_id}} = context.family_chat_result
+    committed_id = to_string(committed_id)
+    topic = context.family_chat_subscription_topic
 
-  def behaviour_outcome?(context, :no_duplicate_publish, _args),
-    do: context[:family_chat_subscription_events] == 1
+    receive do
+      %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "subscription:data",
+        payload: %{result: %{data: %{"familyChatMessageCommitted" => %{"id" => ^committed_id}}}}
+      } ->
+        true
+    after
+      1_000 -> false
+    end
+  end
+
+  # Genuinely retries: resends the exact same client message ID as the same
+  # sender (the same `(room, sender_kind, sender_id, idempotency_key)` tuple
+  # `FamilyChat`'s real `commit_message/6` dedups on via
+  # `Store.find_message/4`), then asserts no second real broadcast reaches
+  # this subscribed process -- proving the production idempotency path
+  # itself suppresses the second publish, not merely a re-assertion of a
+  # counter the first outcome already consumed.
+  def behaviour_outcome?(context, :no_duplicate_publish, _args) do
+    send_family_chat_message(
+      context,
+      context.family_chat_client_message_id,
+      "duplicate retry body",
+      sender: :other_member
+    )
+
+    topic = context.family_chat_subscription_topic
+
+    receive do
+      %Phoenix.Socket.Broadcast{topic: ^topic, event: "subscription:data"} -> false
+    after
+      300 -> true
+    end
+  end
 
   def behaviour_outcome?(context, :includes_message_before_subscription, _args) do
     match?({:ok, %{nodes: nodes}} when is_list(nodes), context.family_chat_result) and
@@ -891,8 +1012,27 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
         context.family_chat_result
       )
 
-  def behaviour_outcome?(context, :includes_safe_public_key, _args),
-    do: match?({:ok, %{}}, context.family_chat_result)
+  # Genuinely checks the key's presence/absence against whether VAPID is
+  # actually configured -- not just that the response is a non-empty map.
+  # Exercises both branches for real: the already-observed "as currently
+  # configured" result (VAPID is configured in `config/test.exs`, so the
+  # first clause below is the one naturally reached), and a live re-check
+  # with VAPID genuinely unconfigured (restored immediately after).
+  def behaviour_outcome?(context, :includes_safe_public_key, _args) do
+    configured_branch_ok? =
+      case context.family_chat_result do
+        {:ok, %{available: true, public_key: key}} ->
+          is_binary(key) and key != "" and key == configured_vapid_public_key()
+
+        {:ok, %{available: false, public_key: nil}} ->
+          true
+
+        _other ->
+          false
+      end
+
+    configured_branch_ok? and unconfigured_vapid_omits_public_key?()
+  end
 
   def behaviour_outcome?(context, :reports_enabled_and_expiration_only, _args),
     do: match?({:ok, %{enabled: _, expiration_time: _}}, context.family_chat_result)
@@ -912,17 +1052,46 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   def behaviour_outcome?(context, :no_subscription_stored_or_network, _args),
     do: match?({:error, %{code: "VALIDATION_FAILED"}}, context.family_chat_result)
 
-  def behaviour_outcome?(context, :socket_context_server_resolved, _args),
-    do: match?({:ok, %{user_id: _, session_digest: _}}, context.family_chat_result)
+  def behaviour_outcome?(context, :socket_context_server_resolved, _args) do
+    case socket_absinthe_context(context.family_chat_result) do
+      %{user_id: user_id, session_digest: digest} -> is_binary(user_id) and is_binary(digest)
+      _other -> false
+    end
+  end
 
-  def behaviour_outcome?(context, :socket_params_ignored, _args),
-    do: match?({:ok, %{user_id: _}}, context.family_chat_result)
+  # Genuine negative-input check: the spoofed `userId`/`role` connect params
+  # `:open_socket_authenticated` actually sent must never surface as the
+  # resolved identity -- only the real, server/session-derived user id may.
+  def behaviour_outcome?(context, :socket_params_ignored, _args) do
+    case socket_absinthe_context(context.family_chat_result) do
+      %{user_id: user_id} ->
+        user_id == current_user(context) and user_id != context[:family_chat_spoofed_user_id]
 
-  def behaviour_outcome?(context, :socket_handshake_rejected, _args),
-    do: match?({:error, _}, context.family_chat_result)
+      _other ->
+        false
+    end
+  end
 
+  def behaviour_outcome?(context, :socket_handshake_rejected, _args) do
+    context.family_chat_result == :error or match?({:error, _}, context.family_chat_result)
+  end
+
+  # Genuinely depends on the real compile-time-captured `dev_routes` flag
+  # (`BnestAppWeb.Router.dev_routes_enabled?/0` -- the same module attribute
+  # value the router's own mounting `if` uses), not just on the ordinary
+  # test-env-compiled router's route list alone: a regression where the
+  # mounting decision diverged from that flag (e.g. a hardcoded `if true`)
+  # would leave `dev_routes_enabled?/0` still reporting this build's real
+  # (falsy) value while `__routes__()` started carrying GraphiQL regardless,
+  # which this conjunction catches. Catching a `config/prod.exs` edit that
+  # flipped the flag itself requires reading that file, which the unit-layer
+  # boundary scan forbids (filesystem reads); `IntegrationFamilyChatDriver`'s
+  # identical scenario reads it for real. Flagged in learnings.md as a
+  # structural proxy, mirroring this driver's other documented proxies (e.g.
+  # `:only_same_slot_sockets_receive`).
   def behaviour_outcome?(_context, :no_graphiql_route, _args) do
-    not Enum.any?(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
+    BnestAppWeb.Router.dev_routes_enabled?() == false and
+      not Enum.any?(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
   end
 
   def behaviour_outcome?(context, :room_seed_correct, [slug, name]) do
@@ -1174,6 +1343,141 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   defp maybe_put_opt(opts, _key, nil), do: opts
   defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
+  # Mirrors the real `:graphql` pipeline's own session config
+  # (`BnestAppWeb.Endpoint`'s `@session_options`) so
+  # `BnestAppWeb.Plugs.GraphQLPipeline`'s real `Plug.CSRFProtection` call sees
+  # a genuinely fetched session (here, empty -- no cookie sent), exactly as
+  # it requires (`Plug.Conn.get_session/2` raises otherwise). Built with
+  # `Plug.Test`/`Plug.Conn`/`Plug.Session` directly -- plain `:plug`
+  # primitives, never Phoenix's ConnTest helper (forbidden at this layer) -- so this
+  # conn starts without ConnTest's blanket `plug_skip_csrf_protection`
+  # convenience; a real request never has it either.
+  defp csrf_test_conn do
+    session_opts =
+      Plug.Session.init(
+        store: :cookie,
+        key: "_bnest_app_key",
+        signing_salt: "GMjl1ern",
+        same_site: "Lax"
+      )
+
+    Plug.Test.conn(:post, "/api/graphql", Jason.encode!(%{"query" => "query { __typename }"}))
+    |> Map.put(:secret_key_base, endpoint_secret_key_base())
+    |> Plug.Conn.put_req_header("content-type", "application/json")
+    |> Plug.Session.call(session_opts)
+    |> Plug.Conn.fetch_session()
+  end
+
+  defp endpoint_secret_key_base,
+    do: Application.get_env(:bnest_app, BnestAppWeb.Endpoint)[:secret_key_base]
+
+  # The real underlying `Phoenix.PubSub` server name -- read the exact same
+  # way `Absinthe.Phoenix.Endpoint.pubsub/2` itself resolves it, rather than
+  # a hardcoded literal, so a real config change can never silently desync
+  # this from what `FamilyChat.publish/1`'s `Absinthe.Subscription.publish/3`
+  # call actually broadcasts through.
+  defp family_chat_pubsub_server,
+    do: Application.get_env(:bnest_app, BnestAppWeb.Endpoint)[:pubsub_server]
+
+  # Starts real, minimal in-memory subscription infrastructure that `mix test
+  # --no-start` never boots at this layer (see `:holds_subscription`'s
+  # comment): idempotent against ExBdd's own scenario retry and against any
+  # other unit test module that happens to run first, since none of
+  # `Phoenix.PubSub.Supervisor`, `BnestAppWeb.Endpoint`, or
+  # `Absinthe.Subscription.Supervisor` is started anywhere else at this
+  # layer. Pre-checking via the Process module's own introspection is
+  # unavailable here (that module is this layer's own forbidden pattern --
+  # see `test/behaviour/verify.exs`), so idempotency is proven by
+  # pattern-matching each real start attempt's own result instead.
+  #
+  # `Absinthe.Subscription.Proxy.init/1` (started by the third call below)
+  # calls the generated `BnestAppWeb.Endpoint.subscribe/2`, which reads the
+  # endpoint's compiled config from an ETS table only the endpoint's own
+  # process creates -- so the real `BnestAppWeb.Endpoint` genuinely must be
+  # alive too, not just `Application.get_env`. `config/test.exs` sets
+  # `server: false` for it, so starting it here opens no HTTP listener and no
+  # network socket -- only the same in-memory config/PubSub-attachment
+  # process tree a live request would also depend on.
+  defp ensure_family_chat_subscriptions_started! do
+    {:ok, _apps} = Application.ensure_all_started(:phoenix_pubsub)
+
+    case Phoenix.PubSub.Supervisor.start_link(name: family_chat_pubsub_server()) do
+      {:ok, _pid} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+    end
+
+    case BnestAppWeb.Endpoint.start_link() do
+      {:ok, _pid} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+    end
+
+    case Absinthe.Subscription.start_link(pubsub: BnestAppWeb.Endpoint, pool_size: 1) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, _already_started_registry_or_proxies} ->
+        :ok
+    end
+
+    :ok
+  end
+
+  defp decode_conn_body(%{resp_body: nil}), do: nil
+  defp decode_conn_body(%{resp_body: body}), do: Jason.decode!(body)
+
+  # Calls the real `BnestAppWeb.UserSocket.connect/3` directly against a bare
+  # `%Phoenix.Socket{}` (no enforced keys, so this needs no live transport or
+  # endpoint process -- see `deps/phoenix/lib/phoenix/socket.ex`). `params`
+  # is exactly what a real socket CONNECT frame's client-supplied params
+  # would carry; `session` stands in for the server-decoded session cookie
+  # `connect_info.session` would genuinely carry at the real HTTP/socket
+  # boundary (this layer's own filesystem/process/HTTP boundary bypass, per
+  # this module's moduledoc).
+  defp connect_family_chat_socket(params, session) do
+    BnestAppWeb.UserSocket.connect(params, %Phoenix.Socket{endpoint: BnestAppWeb.Endpoint}, %{
+      session: session
+    })
+  end
+
+  # See `BnestApp.Behaviour.IntegrationFamilyChatDriver`'s identical helper:
+  # the resolved identity/session digest `UserSocket.connect/3` injects lives
+  # nested at `socket.assigns.absinthe.opts[:context]`, not as top-level
+  # socket fields.
+  defp socket_absinthe_context({:ok, %Phoenix.Socket{assigns: %{absinthe: %{opts: opts}}}}),
+    do: Keyword.get(opts, :context)
+
+  defp socket_absinthe_context(_other), do: nil
+
+  # Reads the exact same `:web_push, :vapid` config
+  # `PushNotifications.configuration/0` itself reads, so this can compare the
+  # response's key against the real configured value rather than merely its
+  # presence.
+  defp configured_vapid_public_key do
+    case Application.get_env(:web_push, :vapid) do
+      cfg when is_list(cfg) -> Keyword.get(cfg, :public_key)
+      cfg when is_map(cfg) -> Map.get(cfg, :public_key)
+      _unset -> nil
+    end
+  end
+
+  # Mirrors `push_notifications_test.exs`'s own `:web_push, :vapid`
+  # Application-env override technique: temporarily unconfigures VAPID,
+  # re-reads the real `PushNotifications.configuration/0`, and restores the
+  # original value immediately after -- proving the "unavailable" branch for
+  # real rather than assuming it.
+  defp unconfigured_vapid_omits_public_key? do
+    original = Application.get_env(:web_push, :vapid)
+    Application.delete_env(:web_push, :vapid)
+
+    result = PushNotifications.configuration()
+
+    if original,
+      do: Application.put_env(:web_push, :vapid, original),
+      else: Application.delete_env(:web_push, :vapid)
+
+    match?({:ok, %{available: false, public_key: nil}}, result)
+  end
+
   defp query_messages(context, _unused, opts) do
     slug = context[:family_chat_subscribed_slug] || "ruang-keluarga"
 
@@ -1205,7 +1509,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     context
     |> Map.put(:family_chat_result, result)
     |> Map.put(:family_chat_client_message_id, client_message_id)
-    |> Map.update(:family_chat_subscription_events, 1, &(&1 + 1))
   end
 
   # Unit tests bypass `BnestAppWeb.Resolvers.FamilyChatResolver`, which is

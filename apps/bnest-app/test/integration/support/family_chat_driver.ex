@@ -149,8 +149,11 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def prepare_behaviour(context, :has_enabled_subscription, _args),
     do: Map.put(context, :family_chat_push_subscription_enabled, true)
 
-  def prepare_behaviour(context, :endpoint_configured_production, _args),
-    do: Map.put(context, :family_chat_env, :prod)
+  # No test-local flag needs forcing: `:no_graphiql_route` below reads the
+  # real, already-compiled `BnestAppWeb.Router.dev_routes_enabled?/0`, the
+  # real `__routes__()`, and the real `config/prod.exs` on disk directly,
+  # rather than a stored simulation of "production."
+  def prepare_behaviour(context, :endpoint_configured_production, _args), do: context
 
   def prepare_behaviour(context, :fresh_migrated_database, _args),
     do: Map.put(context, :family_chat_migration_state, :fresh)
@@ -519,12 +522,26 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     })
   end
 
+  # Genuine negative-input proof: connects with a spoofed `userId`/`role` in
+  # the socket CONNECT PARAMS alongside the real, authenticated session
+  # already on `context.conn`, so a regression that started trusting
+  # client-supplied params for identity would actually be caught (the prior
+  # binding always sent `%{}`, so no such regression could ever fail it).
   def perform_behaviour(context, :open_socket_authenticated, _args) do
-    Map.put(context, :family_chat_result, connect_family_chat_socket(context))
+    spoofed_user_id = "spoofed-" <> unique_uuid()
+    spoofed_params = %{"userId" => spoofed_user_id, "role" => "admin"}
+
+    context
+    |> Map.put(:family_chat_spoofed_user_id, spoofed_user_id)
+    |> Map.put(:family_chat_result, connect_family_chat_socket(context, spoofed_params))
   end
 
   def perform_behaviour(context, :visitor_opens_socket, _args) do
-    Map.put(context, :family_chat_result, connect_family_chat_socket(anonymize(context)))
+    Map.put(
+      context,
+      :family_chat_result,
+      connect_family_chat_socket(anonymize(context), %{})
+    )
   end
 
   def perform_behaviour(context, :run_family_chat_migration, _args),
@@ -909,8 +926,25 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
         false
       ]
 
-  def behaviour_outcome?(context, :includes_safe_public_key, _args),
-    do: match?(%{"data" => %{"webPushConfiguration" => %{}}}, context.family_chat_result)
+  # See the unit driver's identical clause: genuinely checks the key's
+  # presence/absence against whether VAPID is actually configured, exercising
+  # both branches for real (the observed, currently-configured response, and
+  # a live re-query with VAPID genuinely unconfigured).
+  def behaviour_outcome?(context, :includes_safe_public_key, _args) do
+    configured_branch_ok? =
+      case context.family_chat_result do
+        %{"data" => %{"webPushConfiguration" => %{"available" => true, "publicKey" => key}}} ->
+          is_binary(key) and key != "" and key == configured_vapid_public_key()
+
+        %{"data" => %{"webPushConfiguration" => %{"available" => false, "publicKey" => nil}}} ->
+          true
+
+        _other ->
+          false
+      end
+
+    configured_branch_ok? and unconfigured_vapid_omits_public_key?(context)
+  end
 
   def behaviour_outcome?(context, :reports_enabled_and_expiration_only, _args) do
     match?(
@@ -957,10 +991,16 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     end
   end
 
+  # Genuine negative-input check: the spoofed `userId`/`role` connect params
+  # `:open_socket_authenticated` actually sent must never surface as the
+  # resolved identity -- only the real, server/session-derived user id may.
   def behaviour_outcome?(context, :socket_params_ignored, _args) do
     case socket_absinthe_context(context.family_chat_result) do
-      %{user_id: user_id} -> is_binary(user_id)
-      _other -> false
+      %{user_id: user_id} ->
+        user_id == context.user_id and user_id != context[:family_chat_spoofed_user_id]
+
+      _other ->
+        false
     end
   end
 
@@ -971,8 +1011,16 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     context.family_chat_result == :error or match?({:error, _}, context.family_chat_result)
   end
 
+  # Combines the unit driver's real-router check (see its identical clause)
+  # with a genuine read of `config/prod.exs` itself -- this layer's File
+  # access lets it catch a real production-config regression (someone
+  # flipping `dev_routes: true` for prod) that the unit layer structurally
+  # cannot see, since the test-build router is compiled once from
+  # `config/test.exs`, never from `config/prod.exs`.
   def behaviour_outcome?(_context, :no_graphiql_route, _args) do
-    not Enum.any?(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
+    BnestAppWeb.Router.dev_routes_enabled?() == false and
+      configured_prod_dev_routes_flag() in [nil, false] and
+      not Enum.any?(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
   end
 
   def behaviour_outcome?(context, :room_seed_correct, [slug, name]),
@@ -1223,6 +1271,55 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   defp maybe_put_opt(opts, _key, nil), do: opts
   defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
+
+  # Reads the real `config/prod.exs`, chained through `config/config.exs`'s
+  # own `import_config "#{config_env()}.exs"` via `env: :prod`, exactly as
+  # `MIX_ENV=prod mix compile` would resolve it -- not read from the running
+  # application's own env (already fixed to this test build's value). Used
+  # by `:no_graphiql_route` above alongside the real compiled router's own
+  # `dev_routes_enabled?/0`/`__routes__()`, so this layer catches a real
+  # `config/prod.exs` regression the unit layer structurally cannot see.
+  defp configured_prod_dev_routes_flag do
+    prod_config =
+      Path.expand("../../../config", __DIR__)
+      |> Path.join("config.exs")
+      |> Config.Reader.read!(env: :prod)
+
+    prod_config
+    |> Keyword.get(:bnest_app, [])
+    |> Keyword.get(:dev_routes)
+  end
+
+  # See the unit driver's identical helper: reads the exact same
+  # `:web_push, :vapid` config `PushNotifications.configuration/0` itself
+  # reads.
+  defp configured_vapid_public_key do
+    case Application.get_env(:web_push, :vapid) do
+      cfg when is_list(cfg) -> Keyword.get(cfg, :public_key)
+      cfg when is_map(cfg) -> Map.get(cfg, :public_key)
+      _unset -> nil
+    end
+  end
+
+  # See the unit driver's identical helper: temporarily unconfigures VAPID,
+  # re-runs the real GraphQL query, and restores the original value
+  # immediately after.
+  defp unconfigured_vapid_omits_public_key?(context) do
+    original = Application.get_env(:web_push, :vapid)
+    Application.delete_env(:web_push, :vapid)
+
+    result_context =
+      graphql(context, "query { webPushConfiguration { available publicKey } }", %{})
+
+    if original,
+      do: Application.put_env(:web_push, :vapid, original),
+      else: Application.delete_env(:web_push, :vapid)
+
+    match?(
+      %{"data" => %{"webPushConfiguration" => %{"available" => false, "publicKey" => nil}}},
+      result_context.family_chat_result
+    )
+  end
 
   # Isolated `BnestApp.Backup.Config` destination for Item 5's Scheduler-
   # driven scenarios: `BnestApp.Backup.Run.execute/2` always calls
@@ -1566,8 +1663,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # `UserAuth.fetch_current_user/2` does for HTTP: from the `_bnest_identity`
   # cookie already on `context.conn` (real for an authenticated Background,
   # absent after `anonymize/1`), never from client-supplied params.
-  defp connect_family_chat_socket(context) do
-    connect(BnestAppWeb.UserSocket, %{},
+  defp connect_family_chat_socket(context, params) do
+    connect(BnestAppWeb.UserSocket, params,
       connect_info: %{session: session_from_conn(context.conn)}
     )
   end
