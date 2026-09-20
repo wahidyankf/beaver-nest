@@ -108,20 +108,8 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     :ok = ensure_family_chat_subscriptions_started!()
     user_id = current_user(context)
 
-    {:ok, %{"subscribed" => topic}} =
-      Absinthe.run(
-        """
-        subscription($roomSlug: String!) {
-          familyChatMessageCommitted(roomSlug: $roomSlug) { id body }
-        }
-        """,
-        BnestAppWeb.Schema,
-        variables: %{"roomSlug" => slug},
-        context: %{
-          pubsub: BnestAppWeb.Endpoint,
-          current_user: %{"userId" => user_id, "roles" => ["parents"]}
-        }
-      )
+    topic =
+      subscribe_and_get_topic!(slug, %{"userId" => user_id, "roles" => ["parents"]})
 
     :ok = Phoenix.PubSub.subscribe(family_chat_pubsub_server(), topic)
 
@@ -1398,6 +1386,34 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # `server: false` for it, so starting it here opens no HTTP listener and no
   # network socket -- only the same in-memory config/PubSub-attachment
   # process tree a live request would also depend on.
+  # `Absinthe.run/3`'s own `@spec` only declares the query/mutation success
+  # shape (`{:ok, %{data: ..., errors: [...]}}` / `{:error, binary()}`), but
+  # a subscription document run without a socket -- exactly what a unit-layer
+  # test needs -- takes a different real path: `Absinthe.Pipeline.for_document/2`
+  # always includes `Absinthe.Phase.Subscription.SubscribeSelf`, which returns
+  # `{:ok, %{"subscribed" => topic}}` at runtime instead. This is a known,
+  # deliberate gap in Absinthe's own published typespec, not a defect in this
+  # code (the ecosystem's own test suites run subscriptions the same way), so
+  # Dialyzer's `pattern_match` warning here is a genuine false positive against
+  # an upstream spec we cannot correct. Isolated to this one small function so
+  # no other `prepare_behaviour/3` clause loses its own type checking.
+  @dialyzer {:nowarn_function, subscribe_and_get_topic!: 2}
+  defp subscribe_and_get_topic!(room_slug, current_user) do
+    {:ok, %{"subscribed" => topic}} =
+      Absinthe.run(
+        """
+        subscription($roomSlug: String!) {
+          familyChatMessageCommitted(roomSlug: $roomSlug) { id body }
+        }
+        """,
+        BnestAppWeb.Schema,
+        variables: %{"roomSlug" => room_slug},
+        context: %{pubsub: BnestAppWeb.Endpoint, current_user: current_user}
+      )
+
+    topic
+  end
+
   defp ensure_family_chat_subscriptions_started! do
     {:ok, _apps} = Application.ensure_all_started(:phoenix_pubsub)
 
