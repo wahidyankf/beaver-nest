@@ -50,6 +50,15 @@ defmodule BnestApp.Identity.FileStore do
   def put_account(store, account),
     do: Store.put_new(store, :account, account["userId"], account)
 
+  def replace_account(DataRepository, account),
+    do: DataRepository.replace(:account, account["userId"], account)
+
+  def replace_account(%{backend: _} = store, account),
+    do: Backend.replace(store, :account, account["userId"], account)
+
+  def replace_account(store, account),
+    do: Store.replace(store, :account, account["userId"], account)
+
   def put_username(DataRepository, index),
     do: DataRepository.put_new(:username_index, index["normalizedUsername"], index)
 

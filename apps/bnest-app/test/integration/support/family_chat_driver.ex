@@ -21,8 +21,10 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.Backup
   alias BnestApp.Backup.Config, as: BackupConfig
   alias BnestApp.Backup.Run, as: BackupRun
+  alias BnestApp.DataRepository
   alias BnestApp.FamilyChat.Store, as: FamilyChatStore
   alias BnestApp.Identity
+  alias BnestApp.Identity.FileStore
   alias BnestApp.PushNotifications
   alias BnestApp.Release.CaddyConfig
   alias BnestApp.Release.Migrations
@@ -74,6 +76,34 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       family_chat_client_message_id: unique_uuid(),
       family_chat_known_body: body
     })
+  end
+
+  # Live-resolution proof (sender display name reflects the current account,
+  # not the value stamped into `family_chat_messages` at commit time -- that
+  # column is DB-trigger-enforced immutable, so the only correct fix is
+  # resolving the display name live at read time; see
+  # `BnestApp.FamilyChat.live_sender_display_name/2`). A real send through the
+  # authenticated HTTP boundary captures the message's server-assigned ID so
+  # the later requery can find this exact message.
+  def prepare_behaviour(context, :sent_and_committed_message, [body]) do
+    context = send_family_chat_message(context, unique_uuid(), body)
+
+    %{"data" => %{"sendFamilyChatMessage" => %{"id" => message_id}}} = context.family_chat_result
+
+    Map.put(context, :family_chat_renamed_sender_message_id, message_id)
+  end
+
+  # System messages have no underlying account (`sender_id` is a stable
+  # producer key, not a user id), so live resolution must never touch them --
+  # proves `FamilyChat.live_sender_display_name/2`'s `sender_kind: "system"`
+  # short-circuit clause, not just the "user" branch above.
+  def prepare_behaviour(context, :system_message_posted_to_room, _args) do
+    slug = context[:family_chat_room_slug] || "ruang-keluarga"
+
+    {:ok, message} =
+      BnestApp.FamilyChat.post_system_message(slug, "system:producer-" <> unique_uuid(), "Notice")
+
+    Map.put(context, :family_chat_system_message_id, to_string(message.id))
   end
 
   def prepare_behaviour(context, :user_without_family_chat_capability, _args) do
@@ -361,6 +391,20 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   end
 
   def perform_behaviour(context, :query_messages_no_cursor, _args),
+    do: query_messages(context, %{})
+
+  # `FileStore.replace_account/2` writes directly to the real account store
+  # used by `establish_identity/2` (`DataRepository`) -- the same account the
+  # earlier send authenticated as, now renamed to prove the later requery
+  # reflects the account as it stands *now*, not as it stood at commit time.
+  def perform_behaviour(context, :rename_sender_account, [new_name]) do
+    {:ok, account} = FileStore.read_account(DataRepository, context.user_id)
+    updated = Map.put(account, "displayUsername", new_name)
+    {:ok, ^updated} = FileStore.replace_account(DataRepository, updated)
+    context
+  end
+
+  def perform_behaviour(context, :requery_after_rename, _args),
     do: query_messages(context, %{})
 
   def perform_behaviour(context, :query_messages_before_known_id, _args) do
@@ -799,6 +843,30 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       when name == context.identity_username and name != context.user_id,
       context.family_chat_result
     )
+  end
+
+  def behaviour_outcome?(context, :message_shows_current_sender_display_name, [expected_name]) do
+    message_id = context.family_chat_renamed_sender_message_id
+
+    case context.family_chat_result do
+      %{"data" => %{"familyChatMessages" => %{"nodes" => nodes}}} ->
+        Enum.find(nodes, &(&1["id"] == message_id))["senderDisplayName"] == expected_name
+
+      _other ->
+        false
+    end
+  end
+
+  def behaviour_outcome?(context, :system_message_display_name_unaffected, _args) do
+    system_message_id = context.family_chat_system_message_id
+
+    case context.family_chat_result do
+      %{"data" => %{"familyChatMessages" => %{"nodes" => nodes}}} ->
+        Enum.find(nodes, &(&1["id"] == system_message_id))["senderDisplayName"] == "System"
+
+      _other ->
+        false
+    end
   end
 
   def behaviour_outcome?(context, :room_still_one_message, _args),

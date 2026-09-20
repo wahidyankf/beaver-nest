@@ -6,6 +6,7 @@ defmodule BnestApp.Identity do
   alias BnestApp.DataRepository
   alias BnestApp.Identity.Authorization
   alias BnestApp.Identity.Bootstrap
+  alias BnestApp.Identity.FileStore
   alias BnestApp.Identity.Login
   alias BnestApp.Identity.Session
   alias BnestApp.Storage.Config, as: StorageConfig
@@ -41,6 +42,19 @@ defmodule BnestApp.Identity do
   end
 
   def authorize(user, capability, owner_id), do: Authorization.allow?(user, capability, owner_id)
+
+  # The current account's real display name, for callers (family chat message
+  # reads) that must reflect the sender as they stand *now* rather than the
+  # value stamped into a historical record at write time. `nil` when no
+  # account exists (a deleted user, or a non-account sender like a system
+  # producer) -- callers fall back to their own stored/historical value.
+  @spec display_name_for(String.t()) :: String.t() | nil
+  def display_name_for(user_id) do
+    case FileStore.read_account(active_store(), user_id) do
+      {:ok, %{"displayUsername" => display}} -> display
+      _not_found -> nil
+    end
+  end
 
   @impl GenServer
   def init(options) do

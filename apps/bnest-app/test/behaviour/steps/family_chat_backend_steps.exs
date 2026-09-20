@@ -95,6 +95,38 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: prepare(context, :sent_message_with_known_id, [body])
   )
 
+  step(
+    "the user sent the family chat message {string} and it was committed",
+    %{args: [body]} = context,
+    do: prepare(context, :sent_and_committed_message, [body])
+  )
+
+  step("a system message was posted to the room", context,
+    do: prepare(context, :system_message_posted_to_room)
+  )
+
+  step(
+    "the sender's account display name later changes to {string}",
+    %{args: [new_name]} = context,
+    do: perform(context, :rename_sender_account, [new_name])
+  )
+
+  step("the user later re-queries family chat messages", context,
+    do: perform(context, :requery_after_rename)
+  )
+
+  step(
+    "the response reports {string} as that message's sender display name, not the name stored at commit time",
+    %{args: [expected_name]} = context,
+    do: outcome(context, :message_shows_current_sender_display_name, [expected_name])
+  )
+
+  step(
+    "the system message's sender display name remains unaffected by the account rename",
+    context,
+    do: outcome(context, :system_message_display_name_unaffected)
+  )
+
   step("the user resends a different body with the same client message ID", context,
     do: perform(context, :resend_same_client_id)
   )
