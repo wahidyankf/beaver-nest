@@ -42,7 +42,8 @@ defmodule BnestApp.FamilyChatTest do
     # this is the one place `socket_context_for(nil)`'s own documented safe
     # error is exercised directly.
     test "socket_context_for/1 rejects a nil user id" do
-      assert {:error, %{code: "UNAUTHENTICATED", details: nil}} = FamilyChat.socket_context_for(nil)
+      assert {:error, %{code: "UNAUTHENTICATED", details: nil}} =
+               FamilyChat.socket_context_for(nil)
     end
   end
 
