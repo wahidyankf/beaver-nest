@@ -877,9 +877,31 @@ BnestApp.Behaviour.UnitFamilyChatDriver.behaviour_outcome?/3` (unit) and an equi
       external reference — `plans/ideas/q2-not-urgent-important/family-chat-real-cutover-subscription-proof.md`'s link
       to this plan's `README.md` — repointed to the new path. `REPO` (rhino gate) re-run after the move to confirm no
       broken internal link survived it.
-- [ ] `[AI] [AC-FC-01..13]` With explicit authority, commit/push/review/rebase-merge the completion PR on
+- [x] `[AI] [AC-FC-01..13]` With explicit authority, commit/push/review/rebase-merge the completion PR on
       `family-chat-room-archive`, then run the artifact cleanup workflow for the one worktree and two task branches.
       **Proof:** archive on `main`, no task worktree/branch/process/build output, and local `main` equals `origin/main`.
-- [ ] `[AI] [AC-FC-01..13]` **Final checkpoint.** Confirm every checkbox and conditional is terminal, authoritative data
+      **2026-09-20:** PR #75 (`family-chat-room-archive` → `main`) merged via rebase, merge commit `2e5c2e63d`; CI's
+      five required checks (Commit messages, Formatting, Affected quick suites, Repository and consumer contracts,
+      Quality gate) all passed, including a `style` follow-up commit fixing a non-idempotent Prettier line-wrap
+      caught by the Formatting gate. `dev-artifact-clean-up.md` run per its documented sequence on the archive
+      worktree/branch: worktree removed, local branch deleted with `-d` (succeeded cleanly, since rebase merge
+      preserves commit hashes), remote branch already auto-deleted by the forge on merge (confirmed via a 422 on an
+      explicit delete attempt). Verified: `git worktree list` no longer names the path, `git branch --list` no
+      longer prints the branch, `git ls-remote --heads origin family-chat-room-archive` is empty,
+      `git rev-list --left-right --count HEAD...origin/main` reads `0 0`, `git status --porcelain` is empty, no
+      stray `dist/`/`.next/` build output in the primary checkout, and the only `beam.smp`/`phx.server` process
+      running is the legitimate production release. This follow-up PR's own worktree/branch will receive the
+      identical cleanup once it lands.
+- [x] `[AI] [AC-FC-01..13]` **Final checkpoint.** Confirm every checkbox and conditional is terminal, authoritative data
       retained, intended revision routed, documentation/specs/evidence agree, temporary resources absent, and archive
       exists exactly once.
+      **2026-09-20:** Every required checkbox in this delivery is `[x]`; the two Phase 4 items intentionally left
+      conditional (AC-FC-10's real-pipeline cutover proof) were formally descoped for v1 by explicit user decision
+      and recorded as an idea (`plans/ideas/q2-not-urgent-important/family-chat-real-cutover-subscription-proof.md`),
+      not silently dropped. Production continues to serve the intended revision (`beam.smp` confirmed above; no
+      redeploy required by this archival). Documentation, specs, and evidence agree: `README.md` status reads
+      "Completed 2026-09-20," `plans/in-progress/README.md` and `plans/done/README.md` both reflect the move, and
+      the one live external reference (the descope idea doc) points at the new path. No temporary resources remain
+      — see the cleanup proof immediately above. The archive exists exactly once, at
+      `plans/done/2026-09-20__family-chat-room/`, confirmed absent from `plans/in-progress/`. Final sync: local
+      `main` fast-forwarded to `origin/main` at `2e5c2e63d` before this follow-up PR's own worktree was provisioned.
