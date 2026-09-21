@@ -58,7 +58,10 @@ describe("createReadMarker", () => {
 
   it("takes the newer id when either side is not a number", () => {
     const { marker, storage } = markerWithMemory();
-    storage.setItem("bnest.family-chat.last-read.test-user-family-chat.ruang-keluarga", "not-a-number");
+    storage.setItem(
+      "bnest.family-chat.last-read.test-user-family-chat.ruang-keluarga",
+      "not-a-number",
+    );
     marker.remember("3");
     expect(marker.lastReadId()).toBe("3");
   });

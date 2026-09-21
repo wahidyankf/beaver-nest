@@ -120,6 +120,8 @@ export function buildTestMessages({
     senderKind: "user",
     senderId,
     senderDisplayName,
-    committedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, startId + index)).toISOString(),
+    committedAt: new Date(
+      Date.UTC(2026, 0, 1, 0, 0, startId + index),
+    ).toISOString(),
   }));
 }
