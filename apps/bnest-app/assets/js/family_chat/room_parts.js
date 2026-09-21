@@ -14,10 +14,7 @@
 // constructed on the `hasDocument` branch.
 
 import { createOutbox } from "./outbox.js";
-import {
-  createRealPageSource,
-  createTestPageSource,
-} from "./page_source.js";
+import { createRealPageSource, createTestPageSource } from "./page_source.js";
 import { resolvePersistence } from "./persistence_indexeddb.js";
 import { createReconnect } from "./reconnect.js";
 import { createStore } from "./store.js";
@@ -153,11 +150,9 @@ export function createRoomStoreAndReconnect(
  */
 export async function createRoomAccessibility(hasDocument, options) {
   if (hasDocument) return;
-  const { createAccessibility } =
-    await import("./accessibility.js");
+  const { createAccessibility } = await import("./accessibility.js");
   return createAccessibility({ viewport: options.viewport });
 }
-
 
 /**
  * The room's own page source: the real GraphQL query in a browser, and the

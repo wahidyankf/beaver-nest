@@ -14,10 +14,7 @@
 // method-group factories purely to stay under this project's
 // max-lines-per-function lint budget.
 
-import {
-  createArrivalMethods,
-  syntheticMessage,
-} from "./store_arrivals.js";
+import { createArrivalMethods, syntheticMessage } from "./store_arrivals.js";
 
 /** @typedef {import("./message_render.js").RenderableMessage} RenderableMessage */
 

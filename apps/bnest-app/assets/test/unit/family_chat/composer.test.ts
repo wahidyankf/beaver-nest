@@ -14,7 +14,9 @@ import {
 
 function composerWith(sendResult: string | null) {
   const sent: string[] = [];
-  const state = { remediationMessage: /** @type {string | null} */ (null) as string | null };
+  const state = {
+    remediationMessage: /** @type {string | null} */ null as string | null,
+  };
   const composer = createComposer({
     outbox: {
       send: async (body: string) => {

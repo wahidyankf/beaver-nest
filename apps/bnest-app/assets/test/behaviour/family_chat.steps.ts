@@ -865,9 +865,7 @@ async function appendArrivals(
   context: StepContext,
   count: number,
 ): Promise<StepContext> {
-  const { buildTestMessages } = await import(
-    /* @vite-ignore */ PAGE_SOURCE_JS
-  );
+  const { buildTestMessages } = await import(/* @vite-ignore */ PAGE_SOURCE_JS);
   const startId = Number(newestSeededId(context)) + 1;
   pageSourceOf(context).append(
     buildTestMessages({ startId, count, body: "While you were away" }),
@@ -891,9 +889,8 @@ step(
   },
 );
 
-step(
-  "the visitor has read every message in the family chat",
-  async (context) => openRoom(await seedConversation(context, 30), ROOM_PATH),
+step("the visitor has read every message in the family chat", async (context) =>
+  openRoom(await seedConversation(context, 30), ROOM_PATH),
 );
 
 step(
@@ -901,8 +898,9 @@ step(
   async (context) => seedConversation(context, 30),
 );
 
-step("{int} newer messages arrived while the visitor was away", (context, count) =>
-  appendArrivals(context, Number(count)),
+step(
+  "{int} newer messages arrived while the visitor was away",
+  (context, count) => appendArrivals(context, Number(count)),
 );
 
 step(
@@ -1014,13 +1012,16 @@ step("{string} offers a way back to the newest message", (context, label) => {
 
 // --- Rule: Composer focus and keyboard -----------------------------------
 
-step("the visitor sends {string} through the composer", async (context, body) => {
-  const composer = requireResumeRoom(context).composer;
-  composer.type(body);
-  const result = await composer.submit();
-  if (!result.queued) throw new Error(`the composer refused "${body}"`);
-  return { ...context, sentClientMessageId: result.clientMessageId };
-});
+step(
+  "the visitor sends {string} through the composer",
+  async (context, body) => {
+    const composer = requireResumeRoom(context).composer;
+    composer.type(body);
+    const result = await composer.submit();
+    if (!result.queued) throw new Error(`the composer refused "${body}"`);
+    return { ...context, sentClientMessageId: result.clientMessageId };
+  },
+);
 
 step("the visitor's own message is in view", (context) => {
   const store = requireResumeRoom(context).store;
@@ -1068,7 +1069,11 @@ step(
     } else {
       composer.appendLine(text);
     }
-    return { ...context, continuationText: text, newestBeforeContinuation: newestBefore };
+    return {
+      ...context,
+      continuationText: text,
+      newestBeforeContinuation: newestBefore,
+    };
   },
 );
 
@@ -1094,7 +1099,9 @@ step(
 step("the composer is empty and ready for the next message", (context) => {
   const draft = requireResumeRoom(context).composer.draft();
   if (draft !== "") {
-    throw new Error(`expected an empty composer, found ${JSON.stringify(draft)}`);
+    throw new Error(
+      `expected an empty composer, found ${JSON.stringify(draft)}`,
+    );
   }
   return context;
 });
