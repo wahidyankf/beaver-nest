@@ -48,6 +48,10 @@ The `test:e2e` target owns the single HIPPO boundary because it also owns the E2
 - `playwright.config.mts` defines BDD discovery, generated output, browser, base URL, and the dual app+Caddy server.
 - `tests/steps/` contains thin Playwright-BDD bindings.
 - `tests/steps/release-recovery.steps.ts` owns bounded multi-client reconnect mechanics.
+- `tests/steps/family-chat-resume.steps.ts` owns where a returning member lands in the family chat room.
+- `tests/support/family-chat-resume.ts` owns stored-read-position reads/writes and settled scroll-placement assertions.
+- `tests/support/family-chat-composer.ts` owns composer focus-loss recording.
+- `tests/support/family-chat-seeding.ts` owns shared-room history top-up and away-member posting.
 - `tests/support/authentication.ts` owns connected-LiveView setup/login helpers and scenario-scoped synthetic identities.
 - `tests/support/routed-rollout.ts` owns Caddy blue/green candidate promotion and live-SQLite activation.
 - `tests/support/test-runtime.mts` owns paired marked runtime-root creation and exact cleanup.

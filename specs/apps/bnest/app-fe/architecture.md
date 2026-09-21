@@ -61,11 +61,13 @@ flowchart TB
         direction TB
         browser["Container<br/><b>Browser / installed PWA</b><br/>HTML, CSS, JavaScript<br/>LiveView client"]
         legacy[("Container / data store<br/><b>Browser legacy sources</b><br/>Allow-listed values<br/>Retained until accepted import")]
+        readmarker[("Container / data store<br/><b>Room read position</b><br/>Last read message per<br/>member and room")]
         routes["Container<br/><b>Phoenix route/LiveView shell</b><br/>Renders rendered UI<br/>over the backend boundary"]
         worker["Container<br/><b>Service worker</b><br/>App-shell cache<br/>Push permission and events<br/>IndexedDB outbox"]
 
         browser -->|HTTP and WebSocket<br/>events and renders| routes
         browser -->|Confirmed<br/>compatibility import| legacy
+        browser -->|Remembers the last<br/>read message| readmarker
         browser -->|Registers and<br/>posts messages| worker
     end
 
@@ -82,7 +84,7 @@ flowchart TB
     classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
     class visitor,admin person
     class browser,routes,worker container
-    class legacy data
+    class legacy,readmarker data
     class tailscale,backend,webpush external
     class caddy container
 ```
@@ -93,7 +95,10 @@ process. Phoenix binds to blue/green loopback endpoints; Caddy owns the stable l
 forwards only to Caddy. The service worker (`service-worker.js` and `assets/js/family_chat/*`) is a distinct
 browser-owned container: it keeps the offline app-shell cache, holds the bounded per-room IndexedDB send outbox with
 backoff/seven-day-expiry, and owns the push-permission prompt and incoming `push` event handling, independent of
-whether the family chat route is currently open.
+whether the family chat route is currently open. The room read position is a separate, page-owned browser data
+store (Web Storage, one entry per member and room) holding only the id of the newest message that member has
+reached the bottom of; the room reads it when it opens to decide where to place the visitor, and no server record
+mirrors it.
 
 ## Component View
 
@@ -142,7 +147,8 @@ flowchart TB
 ```
 
 The family chat route renders only the initial page shell (room list/composer scaffold); once loaded, the browser
-drives every subsequent read, send, and live update itself over GraphQL directly against
+decides for itself where in the conversation to place the visitor — reading its own stored room read position and
+paging around it — and drives every subsequent read, send, and live update over GraphQL directly against
 [`app-be`](../app-be/architecture.md)'s schema and `UserSocket`, bypassing the LiveView event pattern the other
 routes use. The service worker is drawn as a second external container here (not a `routes` component) because it
 runs independently of any open route: it can display a push notification, extend the offline app-shell cache, or
@@ -183,6 +189,20 @@ retry a queued outbox entry while no family chat tab is open.
   load, and the browser can revoke it at any time without breaking the room.
 - Family chat's message list keeps a scroll anchor on new arrivals and announces new messages through a live region,
   and its layout, like every Bnest surface, is responsive and accessible at the viewports this repository tests.
+- A family chat room opens at the reading position that member's device last reached, never at the oldest loaded
+  message: it loads the messages committed after that position, one bounded page of earlier context above them, and
+  marks the boundary between the two. A member with nothing unread, or no stored position, opens at the newest
+  message instead. The stored position is browser-local convenience state, never authoritative and never synced
+  between devices; losing it degrades only to opening at the newest message.
+- The composer keeps keyboard focus across a send, so a member can keep typing without reopening the on-screen
+  keyboard; `Enter` sends and `Shift`+`Enter` continues the same message.
+- Sending brings the sender to their own message. A member writing from an older reading position is returned to the
+  end of the loaded window, where their message appears; the new-messages indicator stays up only while the window
+  still stops short of the newest committed message.
+- The message history, not the document, is the room's scrolling region at every tested viewport. Every position the
+  room chooses — the resumed reading position, the newest message, following a live arrival — is expressed as a
+  scroll offset inside that one container, so a layout that let the page scroll instead would silently disable all
+  of them.
 
 ## Behaviour Traceability
 
