@@ -51,6 +51,16 @@ the ceiling is reached.
 Phases follow in dependency order. Substantive completion and archival are separate: archival items live in their own
 section, after every substantive phase, because a plan can be finished without being filed.
 
+## Single Progress Surface
+
+While a plan is executing, `delivery.md` is the only written progress record. A live task list tracks in-session state
+and vanishes with the session; it is not a second record. The scratch directory carries what an execution needs and then
+discards — scripts, assets, logs, the touched-path ledger — and never a copy of the checklist, its ticks, or its status.
+Two written records drift apart, and nothing decides which one was true.
+
+Outside plan-mediated work there is no `delivery.md`, and a scratch file may hold working notes that have to survive a
+context boundary.
+
 ## Cold-Executor Resumability
 
 The test for `delivery.md` is whether an executor with no memory of the plan can open it and know what to do next.
