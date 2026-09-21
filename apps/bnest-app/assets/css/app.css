@@ -1799,7 +1799,13 @@ body {
   grid-template-rows: auto auto 1fr auto;
   gap: 0.75rem;
   max-width: 48rem;
-  min-height: calc(100vh - 2.5rem);
+  /* A definite height, not a minimum: the `1fr` history track has to be
+   * bounded by the viewport for the history itself to be the scrolling
+   * region. With `min-height` the track grows to fit every message, the
+   * document scrolls instead, and the room's own scroll positions (opening
+   * at the stored read position, jumping to the newest message, following a
+   * live arrival) all act on a container that never scrolls. */
+  height: calc(100vh - 2.5rem);
   margin: 1.25rem auto;
   overflow-x: hidden;
   border-radius: var(--hearth-radius);
@@ -1911,6 +1917,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  /* A grid item's automatic minimum size is its content, which would push
+   * the bounded `1fr` track back open; zero lets the track clamp and this
+   * container actually scroll. */
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -1955,6 +1965,31 @@ body {
 .family-chat-scroll-anchor {
   display: block;
   height: 0;
+}
+
+/* Unread marker: the boundary a resumed room opens on, separating what this
+ * member already read from what arrived since. A centered rule rather than a
+ * bubble, so it reads as a divider in the conversation instead of as another
+ * message. */
+.family-chat-unread-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  align-self: stretch;
+  margin: 0.4rem 0;
+  color: var(--bnest-ink-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.family-chat-unread-divider::before,
+.family-chat-unread-divider::after {
+  content: "";
+  flex: 1;
+  height: 0.06rem;
+  background: var(--bnest-coral);
 }
 
 .family-chat-message {
@@ -2206,7 +2241,10 @@ body {
  * bleed treatment rather than desktop/tablet's floating card. */
 @media (max-width: 37.5rem) {
   .family-chat-shell {
-    min-height: 100vh;
+    height: 100vh;
+    /* Dynamic viewport units keep the composer above a mobile browser's
+     * collapsing address bar rather than under it. */
+    height: 100dvh;
     margin: 0;
     border-radius: 0;
     box-shadow: none;
