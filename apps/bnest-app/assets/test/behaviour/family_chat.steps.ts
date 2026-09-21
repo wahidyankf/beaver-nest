@@ -122,12 +122,87 @@ async function openRoom(
   const persistence =
     (context["persistence"] as FakePersistence | undefined) ??
     createFakePersistence();
+  // Carried across a reopen for the same reason `persistence` is: a scenario
+  // that opens the same room twice is asking what this device already knows,
+  // which is exactly what a fresh page source or read storage would erase.
+  const pageSource = context["pageSource"] as TestPageSource | undefined;
+  const readStorage = context["readStorage"] as ReadMarkerStorage | undefined;
   const room = await initRoom(path, {
     user: context["user"],
     persistence,
+    ...(pageSource ? { pageSource } : {}),
+    ...(readStorage ? { readStorage } : {}),
     ...options,
   });
-  return { ...context, room, roomPath: path, persistence };
+  const next: StepContext = {
+    ...context,
+    room,
+    roomPath: path,
+    persistence,
+  };
+  // Only a scenario that seeded a conversation is asking where the room
+  // opens; every other scenario leaves the message list to the store double's
+  // own synthetic history, which an empty initial load would replace.
+  if (pageSource) {
+    await (room as Room).history.loadInitial();
+  }
+  return next;
+}
+
+interface TestPageSource {
+  fetchPage: (cursor: {
+    beforeId?: string | null;
+    afterId?: string | null;
+    limit: number;
+  }) => Promise<unknown>;
+  append: (messages: SeededMessage[]) => void;
+  all: () => SeededMessage[];
+}
+
+interface ReadMarkerStorage {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+}
+
+interface SeededMessage {
+  id?: string;
+  body: string;
+}
+
+interface ResumeStore {
+  firstMessageInViewId: () => string | null;
+  unreadDividerBeforeId: () => string | null;
+  contextCount: () => number;
+  hasOlder: () => boolean;
+  hasNewer: () => boolean;
+  newestId: () => string | null;
+  newMessagesIndicatorLabel: () => string | null;
+}
+
+interface RoomComposer {
+  draft: () => string;
+  focused: () => boolean;
+  focusFollowsSendControl: () => boolean;
+  keyIntent: (event: { key: string; shiftKey?: boolean }) => string;
+  type: (body: string) => void;
+  appendLine: (text?: string) => void;
+  submit: () => Promise<{ queued: boolean; clientMessageId: string | null }>;
+}
+
+interface Room {
+  history: {
+    loadInitial: () => Promise<{ mode: string; newestId: string | null }>;
+    jumpToLatest: () => Promise<void>;
+    reportScrolledToBottom: () => Promise<void>;
+  };
+  store: ResumeStore;
+  composer: RoomComposer;
+  pageSource: TestPageSource;
+}
+
+function requireResumeRoom(context: StepContext): Room {
+  return requireRoom(context) as unknown as Room;
 }
 
 function requireRoom(context: StepContext): Record<string, unknown> {
@@ -315,8 +390,8 @@ step("the new message is not queued", (context) => {
 
 step("the composer explains the retry-or-discard remediation", (context) => {
   const room = requireRoom(context);
-  const composer = room["composer"] as { remediationMessage: string | null };
-  if (!composer.remediationMessage) {
+  const composer = room["composer"] as { remediation: () => string | null };
+  if (!composer.remediation()) {
     throw new Error("expected the composer to show a remediation message");
   }
   return context;
@@ -732,12 +807,339 @@ step("neither member sees a duplicate or lost message", (context) => {
   return context;
 });
 
+// --- Rule: Resuming at the last read position ----------------------------
+
+// Where the room places a returning visitor is decided by `history.js`
+// (which pages it asks for, around which cursor, and when it writes the read
+// position back) and only *rendered* by the store -- so these scenarios run
+// the real production decisions against a page source that reproduces the
+// server's own cursor contract, and read the outcome off the store double.
+// Measured scroll offsets are FE_E2E's job (see each scenario's own
+// Exemption comment).
+
+const PAGE_SOURCE_JS = new URL(
+  "../../js/family_chat/page_source.js",
+  import.meta.url,
+).href;
+const READ_MARKER_JS = new URL(
+  "../../js/family_chat/read_marker.js",
+  import.meta.url,
+).href;
+
+const ROOM_PATH = "/family-chat/ruang-keluarga";
+
+async function seedConversation(
+  context: StepContext,
+  count: number,
+): Promise<StepContext> {
+  if (context["pageSource"]) return context;
+  const { buildTestMessages, createTestPageSource } = await import(
+    /* @vite-ignore */ PAGE_SOURCE_JS
+  );
+  const { createMemoryReadStorage } = await import(
+    /* @vite-ignore */ READ_MARKER_JS
+  );
+  return {
+    ...context,
+    pageSource: createTestPageSource(
+      buildTestMessages({ startId: 1, count, body: "Earlier family message" }),
+    ),
+    readStorage: createMemoryReadStorage(),
+  };
+}
+
+function pageSourceOf(context: StepContext): TestPageSource {
+  const pageSource = context["pageSource"] as TestPageSource | undefined;
+  if (!pageSource) throw new Error("no conversation has been seeded");
+  return pageSource;
+}
+
+function newestSeededId(context: StepContext): string {
+  const newest = pageSourceOf(context).all().at(-1);
+  if (!newest?.id) throw new Error("the seeded conversation is empty");
+  return newest.id;
+}
+
+/** Appends `count` messages after everything the room already holds. */
+async function appendArrivals(
+  context: StepContext,
+  count: number,
+): Promise<StepContext> {
+  const { buildTestMessages } = await import(
+    /* @vite-ignore */ PAGE_SOURCE_JS
+  );
+  const startId = Number(newestSeededId(context)) + 1;
+  pageSourceOf(context).append(
+    buildTestMessages({ startId, count, body: "While you were away" }),
+  );
+  return { ...context, firstUnreadId: String(startId) };
+}
+
+step(
+  "the family chat holds more earlier messages than one context page",
+  async (context) => seedConversation(context, 60),
+);
+
+step(
+  "the visitor has read the family chat up to a known message",
+  async (context) => {
+    const seeded = await seedConversation(context, 30);
+    // Established by genuinely opening and reading the room once, so the
+    // stored position is whatever production would really have written --
+    // never a value this harness invented.
+    return openRoom(seeded, ROOM_PATH);
+  },
+);
+
+step(
+  "the visitor has read every message in the family chat",
+  async (context) => openRoom(await seedConversation(context, 30), ROOM_PATH),
+);
+
+step(
+  "the visitor has never opened the family chat on this device",
+  async (context) => seedConversation(context, 30),
+);
+
+step("{int} newer messages arrived while the visitor was away", (context, count) =>
+  appendArrivals(context, Number(count)),
+);
+
+step(
+  "the visitor left more unread messages behind than one page holds",
+  async (context) => {
+    const read = await openRoom(await seedConversation(context, 10), ROOM_PATH);
+    return appendArrivals(read, 60);
+  },
+);
+
+step("the visitor scrolls down to the newest message", async (context) => {
+  await requireResumeRoom(context).history.reportScrolledToBottom();
+  return context;
+});
+
+step("the visitor jumps to the newest message", async (context) => {
+  await requireResumeRoom(context).history.jumpToLatest();
+  return context;
+});
+
+step("the first unread message is the first message in view", (context) => {
+  const expected = context["firstUnreadId"] as string;
+  const actual = requireResumeRoom(context).store.firstMessageInViewId();
+  if (actual !== expected) {
+    throw new Error(
+      `expected the room to open on message ${expected}, opened on ${actual}`,
+    );
+  }
+  return context;
+});
+
+step(
+  "an unread marker separates the read messages from the new ones",
+  (context) => {
+    const store = requireResumeRoom(context).store;
+    const expected = context["firstUnreadId"] as string;
+    if (store.unreadDividerBeforeId() !== expected) {
+      throw new Error(
+        `expected the unread marker directly above message ${expected}`,
+      );
+    }
+    if (store.contextCount() === 0) {
+      throw new Error("expected already-read messages above the unread marker");
+    }
+    return context;
+  },
+);
+
+step(
+  "one bounded page of earlier messages is loaded above the unread marker",
+  async (context) => {
+    const { CONTEXT_PAGE_SIZE } = await import(
+      /* @vite-ignore */ PAGE_SOURCE_JS
+    );
+    const store = requireResumeRoom(context).store;
+    if (store.contextCount() !== CONTEXT_PAGE_SIZE) {
+      throw new Error(
+        `expected ${CONTEXT_PAGE_SIZE} earlier messages above the marker, got ${store.contextCount()}`,
+      );
+    }
+    const total = pageSourceOf(context).all().length;
+    if (total <= CONTEXT_PAGE_SIZE) {
+      throw new Error(
+        "this proves nothing unless the room holds more than one context page",
+      );
+    }
+    return context;
+  },
+);
+
+step("older history can still be loaded on request", (context) => {
+  if (!requireResumeRoom(context).store.hasOlder()) {
+    throw new Error("expected earlier history to remain loadable");
+  }
+  return context;
+});
+
+step("the newest message is in view", (context) => {
+  const expected = newestSeededId(context);
+  const actual = requireResumeRoom(context).store.firstMessageInViewId();
+  if (actual !== expected) {
+    throw new Error(
+      `expected the room to open on the newest message ${expected}, opened on ${actual}`,
+    );
+  }
+  return context;
+});
+
+step("no unread marker is shown", (context) => {
+  const marker = requireResumeRoom(context).store.unreadDividerBeforeId();
+  if (marker !== null) {
+    throw new Error(`expected no unread marker, found one above ${marker}`);
+  }
+  return context;
+});
+
+step("{string} offers a way back to the newest message", (context, label) => {
+  const store = requireResumeRoom(context).store;
+  if (store.newMessagesIndicatorLabel() !== label) {
+    throw new Error(`expected the indicator label "${label}"`);
+  }
+  if (!store.hasNewer()) {
+    throw new Error(
+      "this proves nothing unless the room stops short of the newest message",
+    );
+  }
+  return context;
+});
+
+// --- Rule: Composer focus and keyboard -----------------------------------
+
+step("the visitor sends {string} through the composer", async (context, body) => {
+  const composer = requireResumeRoom(context).composer;
+  composer.type(body);
+  const result = await composer.submit();
+  if (!result.queued) throw new Error(`the composer refused "${body}"`);
+  return { ...context, sentClientMessageId: result.clientMessageId };
+});
+
+step("the visitor's own message is in view", (context) => {
+  const store = requireResumeRoom(context).store;
+  const sent = context["sentClientMessageId"];
+  if (typeof sent !== "string") {
+    throw new Error("no message was sent through the composer");
+  }
+  const inView = store.firstMessageInViewId();
+  if (inView !== sent) {
+    throw new Error(
+      `expected the room to be on the sent message ${sent}, it is on ${String(inView)}`,
+    );
+  }
+  return context;
+});
+
+step(
+  "the visitor submits {string} with the Enter key",
+  async (context, body) => {
+    const composer = requireResumeRoom(context).composer;
+    const intent = composer.keyIntent({ key: "Enter" });
+    if (intent !== "send") {
+      throw new Error(`expected Enter to send, it means "${intent}"`);
+    }
+    composer.type(body);
+    const result = await composer.submit();
+    if (!result.queued) throw new Error(`the composer refused "${body}"`);
+    return context;
+  },
+);
+
+step(
+  "the visitor presses Shift and Enter while writing {string}",
+  async (context, text) => {
+    const room = requireResumeRoom(context);
+    const composer = room.composer;
+    const newestBefore = room.store.newestId();
+    // Carry out whatever the composer decided rather than asserting the
+    // decision here: a composer that had regressed to sending on Shift+Enter
+    // must actually send, so the Then below sees an empty draft and a new
+    // message instead of a green step that never exercised the mistake.
+    const intent = composer.keyIntent({ key: "Enter", shiftKey: true });
+    if (intent === "send") {
+      await composer.submit();
+    } else {
+      composer.appendLine(text);
+    }
+    return { ...context, continuationText: text, newestBeforeContinuation: newestBefore };
+  },
+);
+
+step("the composer still holds keyboard focus", (context) => {
+  if (!requireResumeRoom(context).composer.focused()) {
+    throw new Error("expected the composer to keep keyboard focus");
+  }
+  return context;
+});
+
+step(
+  "activating the send control never takes focus from the message input",
+  (context) => {
+    if (requireResumeRoom(context).composer.focusFollowsSendControl()) {
+      throw new Error(
+        "expected the send control never to take focus from the input",
+      );
+    }
+    return context;
+  },
+);
+
+step("the composer is empty and ready for the next message", (context) => {
+  const draft = requireResumeRoom(context).composer.draft();
+  if (draft !== "") {
+    throw new Error(`expected an empty composer, found ${JSON.stringify(draft)}`);
+  }
+  return context;
+});
+
+step("the composer holds an unsent multi-line draft", (context) => {
+  const room = requireResumeRoom(context);
+  const draft = room.composer.draft();
+  const written = context["continuationText"];
+  if (typeof written !== "string") {
+    throw new Error("nothing was written after Shift and Enter");
+  }
+  if (!draft.includes("\n") || !draft.includes(written)) {
+    throw new Error(
+      `expected a multi-line draft still holding ${JSON.stringify(written)}, found ${JSON.stringify(draft)}`,
+    );
+  }
+  // "Unsent" is the other half of the claim, and it is the half a composer
+  // that sent on Shift+Enter would break: nothing new may have reached the
+  // room.
+  if (room.store.newestId() !== context["newestBeforeContinuation"]) {
+    throw new Error("expected Shift and Enter to send nothing");
+  }
+  return context;
+});
+
 // --- Rule: Scroll anchor and live-region announcements -------------------
 
 step(
   "a visitor opens {string} scrolled to a known older message",
-  async (context, path) =>
-    openRoom(context, path, { scrolledToOlderMessage: true }),
+  async (context, path) => {
+    const next = await openRoom(context, path, {
+      scrolledToOlderMessage: true,
+    });
+    // Fail closed on the precondition itself: every Then below distinguishes
+    // "brought back to the end" from "was already there", so a room that
+    // opened at the end would make them pass for the wrong reason.
+    const store = requireResumeRoom(next).store;
+    const positioned = store.firstMessageInViewId();
+    if (positioned === null || positioned === store.newestId()) {
+      throw new Error(
+        `expected the room to open on an older message, it is on ${String(positioned)}`,
+      );
+    }
+    return next;
+  },
 );
 
 step("the visitor loads an older history page", async (context) => {

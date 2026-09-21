@@ -4,11 +4,13 @@
 // max-lines/max-lines-per-function lint budget. `mountBrowser` below is the
 // only export `family_chat.js` needs to know about.
 
-import { STATUS } from "./outbox.js";
 import { CONTROL_TEXT } from "./push.js";
 import { promoteSlot, resumeFromBackground } from "./reconnect.js";
-import { request as graphqlRequest } from "./graphql.js";
-import { FAMILY_CHAT_MESSAGES_QUERY } from "./operations.js";
+import { isNearBottom } from "./message_render.js";
+import {
+  renderResumedPendingMessages,
+  wireComposer,
+} from "./mount_browser_composer.js";
 import {
   attemptPushSubscribe,
   attemptPushDisable,
@@ -36,7 +38,8 @@ import {
  * @property {ReturnType<typeof import("./real_store.js").createRealStore>} store
  * @property {ReturnType<typeof import("./push.js").createPush>} push
  * @property {ReturnType<typeof import("./reconnect.js").createReconnect>} reconnect
- * @property {{remediationMessage: string | null}} composer
+ * @property {ReturnType<typeof import("./history.js").createHistory>} history
+ * @property {ReturnType<typeof import("./composer.js").createComposer>} composer
  */
 
 /** @typedef {ReturnType<typeof import("./graphql.js").createSubscriptionClient>} SubscriptionClient */
@@ -96,108 +99,28 @@ function wireOnlineOfflineBanner(room, elements) {
 }
 
 /**
- * @param {MountableRoom} room
- * @param {import("./elements.js").FamilyChatElements} elements
- * @param {string} clientMessageId
- */
-function watchPendingMessage(room, elements, clientMessageId) {
-  const unsubscribe = room.outbox.onChange(clientMessageId, (status) => {
-    room.store.updatePendingStatus(clientMessageId, status);
-    elements.outboxStatus.textContent = status === STATUS.SENT ? "" : status;
-
-    if (status === STATUS.SENT) {
-      // The one authoritative reconciliation point (tech-doc 005: replace
-      // the pending row by its client UUID with the server-ID row, never a
-      // second bubble) -- keyed from *this send's own* mutation response,
-      // never guessed from a later subscription push, which never carries
-      // the client-chosen ID at all (tech-doc 008).
-      const committedMessage = room.outbox.committedMessage(clientMessageId);
-      // `outbox.js` deliberately types this loosely (`object`) since it has
-      // no knowledge of `RenderableMessage`'s shape; `family_chat.js` is
-      // the layer that knows every real committed message has it.
-      if (committedMessage)
-        room.store.reconcile(
-          clientMessageId,
-          /** @type {import("./real_store.js").RenderableMessage} */
-          (committedMessage),
-        );
-      unsubscribe();
-    } else if (status === STATUS.FAILED) {
-      unsubscribe();
-    }
-  });
-}
-
-/**
+ * Reaching the end of the rendered window is what advances this member's
+ * stored read position -- and, while the window deliberately stops short of
+ * the newest committed message, what loads the next page instead. Guarded so
+ * an ordinary scroll gesture (which fires this many times per second) does
+ * no repeated work once the same newest message has already been recorded.
  * @param {MountableRoom} room
  * @param {import("./elements.js").FamilyChatElements} elements
  */
-async function submitComposer(room, elements) {
-  const body = elements.input.value.trim();
-  elements.remediation.hidden = true;
-  if (!body) {
-    elements.remediation.hidden = false;
-    elements.remediation.textContent = "Write a message first.";
-    return;
-  }
-  if (body.length > 4_000) {
-    elements.remediation.hidden = false;
-    elements.remediation.textContent = "Keep messages under 4,000 characters.";
-    return;
-  }
-
-  const clientMessageId = await room.outbox.send(body);
-  if (clientMessageId === null) {
-    elements.remediation.hidden = false;
-    elements.remediation.textContent =
-      room.composer.remediationMessage ?? "Couldn't queue this message.";
-    return;
-  }
-
-  elements.input.value = "";
-  room.store.renderPending({
-    clientMessageId,
-    body,
-    status: room.outbox.status(clientMessageId),
-    senderKind: "user",
-    senderDisplayName: "You",
-  });
-  watchPendingMessage(room, elements, clientMessageId);
-}
-
-/**
- * Renders whatever `resumeOnOpen` (`outbox_send.js`, run at `createOutbox`
- * construction) already resumed draining internally -- a message left over
- * from a closed tab (real IndexedDB) or an already-in-flight one from this
- * same session -- exactly like `submitComposer` renders a fresh send, so a
- * resumed message is visible and live-updating on screen, not just quietly
- * resumed in the outbox's own state.
- * @param {MountableRoom} room
- * @param {import("./elements.js").FamilyChatElements} elements
- */
-function renderResumedPendingMessages(room, elements) {
-  for (const message of room.outbox.pendingMessages()) {
-    room.store.renderPending({
-      clientMessageId: message.clientMessageId,
-      body: message.body,
-      status: message.status,
-      senderKind: "user",
-      senderDisplayName: "You",
-    });
-    watchPendingMessage(room, elements, message.clientMessageId);
-  }
-}
-
-/** @param {MountableRoom} room */
-async function loadOlderHistory(room) {
-  const oldestId = room.store.oldestId();
-  const result = await graphqlRequest(FAMILY_CHAT_MESSAGES_QUERY, {
-    roomSlug: room.roomSlug,
-    beforeId: oldestId,
-    limit: 50,
-  });
-  const nodes = result.data?.familyChatMessages?.nodes ?? [];
-  room.store.prependOlder(nodes, result.data?.familyChatMessages?.hasOlder);
+function wireReadPosition(room, elements) {
+  /** @type {string | null} */
+  let recordedNewestId = null;
+  elements.history.addEventListener(
+    "scroll",
+    () => {
+      if (!isNearBottom(elements)) return;
+      const newestId = room.store.newestId();
+      if (newestId === recordedNewestId && !room.store.hasNewer()) return;
+      recordedNewestId = newestId;
+      void room.history.reportScrolledToBottom();
+    },
+    { passive: true },
+  );
 }
 
 /**
@@ -206,12 +129,16 @@ async function loadOlderHistory(room) {
  */
 function wireComposerAndHistory(room, elements) {
   elements.loadOlder.addEventListener("click", () => {
-    void loadOlderHistory(room);
+    void room.history.loadOlder();
   });
-  elements.composer.addEventListener("submit", (event) => {
-    event.preventDefault();
-    void submitComposer(room, elements);
+  // The indicator doubles as the way back to the newest message, whether it
+  // is showing because an arrival landed off-screen or because the resumed
+  // window stops short of the newest page.
+  elements.newMessages.addEventListener("click", () => {
+    void room.history.jumpToLatest();
   });
+  wireComposer(room, elements);
+  wireReadPosition(room, elements);
 }
 
 /**

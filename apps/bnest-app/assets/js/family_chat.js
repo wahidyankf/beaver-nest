@@ -20,21 +20,37 @@
 // learnings.md for the reproduction/root-cause evidence of the gap this
 // closed).
 
-import { createOutbox } from "./family_chat/outbox.js";
-import { resolvePersistence } from "./family_chat/persistence_indexeddb.js";
-import { createReconnect } from "./family_chat/reconnect.js";
-import { createStore } from "./family_chat/store.js";
-import { createPush } from "./family_chat/push.js";
+import { createComposer } from "./family_chat/composer.js";
+import { createHistory } from "./family_chat/history.js";
+import { createReadMarker } from "./family_chat/read_marker.js";
 import { createSystemClock } from "./family_chat/clock.js";
-import { createSubscriptionClient } from "./family_chat/graphql.js";
-import {
-  createRealTransport,
-  createTestTransport,
-} from "./family_chat/transport.js";
-import { detectDevicePushState } from "./family_chat/push_ux.js";
 import { findElements } from "./family_chat/elements.js";
-import { createRealStore } from "./family_chat/real_store.js";
 import { mountBrowser } from "./family_chat/mount_browser.js";
+import {
+  createRoomAccessibility,
+  createRoomPushAndOutbox,
+  createRoomStoreAndReconnect,
+  resolvePageSource,
+} from "./family_chat/room_parts.js";
+
+/** @typedef {ReturnType<typeof import("./family_chat/graphql.js").createSubscriptionClient>} SubscriptionClient */
+/** @typedef {ReturnType<typeof import("./family_chat/page_source.js").createTestPageSource>} TestPageSource */
+
+/**
+ * @typedef {{
+ *   user?: {id: string},
+ *   clock?: import("./family_chat/clock.js").Clock,
+ *   viewport?: string,
+ *   devicePushState?: string,
+ *   activePushSubscription?: boolean,
+ *   scrolledToOlderMessage?: boolean,
+ *   focusInComposer?: boolean,
+ *   persistence?: import("./family_chat/outbox_send.js").Persistence | undefined,
+ *   readStorage?: import("./family_chat/read_marker.js").ReadMarkerStorage | undefined,
+ *   pageSource?: TestPageSource | undefined,
+ *   messages?: import("./family_chat/real_store.js").RenderableMessage[] | undefined,
+ * }} RoomOptions
+ */
 
 const CANONICAL_ROOM_SLUG = "ruang-keluarga";
 
@@ -42,137 +58,6 @@ const CANONICAL_ROOM_SLUG = "ruang-keluarga";
 function parseRoomSlug(path) {
   const match = /\/family-chat\/([^/?#]+)/u.exec(path);
   return match?.[1] ?? CANONICAL_ROOM_SLUG;
-}
-
-/**
- * @param {import("./family_chat/elements.js").FamilyChatElements | null} elements
- * @param {{remediationMessage: string | null}} composerState
- */
-function handleQueueFull(elements, composerState) {
-  composerState.remediationMessage =
-    "Keep waiting messages under 100, or retry/discard one first.";
-  if (elements) {
-    elements.remediation.hidden = false;
-    elements.remediation.textContent = composerState.remediationMessage;
-  }
-}
-
-/**
- * @param {string} roomSlug
- * @param {boolean} hasDocument
- * @param {import("./family_chat/elements.js").FamilyChatElements | null} elements
- * @param {{user?: {id: string}, activePushSubscription?: boolean, devicePushState?: string, persistence?: import("./family_chat/outbox_send.js").Persistence | undefined}} options
- * @param {import("./family_chat/clock.js").Clock} clock
- * @param {{remediationMessage: string | null}} composerState
- */
-async function createRoomPushAndOutbox(
-  roomSlug,
-  hasDocument,
-  elements,
-  options,
-  clock,
-  composerState,
-) {
-  const transport = hasDocument
-    ? createRealTransport(roomSlug)
-    : createTestTransport(clock);
-
-  const push = createPush({
-    devicePushState: hasDocument
-      ? detectDevicePushState()
-      : options.devicePushState,
-    activePushSubscription: options.activePushSubscription,
-    onDisable: () => {},
-  });
-
-  const userId = options.user?.id ?? "anonymous";
-  const persistence = await resolvePersistence(
-    hasDocument,
-    userId,
-    roomSlug,
-    options.persistence,
-  );
-
-  const outbox = createOutbox({
-    userId,
-    roomSlug,
-    clock,
-    transport,
-    persistence,
-    onQueueFull: () => handleQueueFull(elements, composerState),
-    onLogout: () => {
-      push.disable();
-    },
-    onAuthExpired: () => {
-      if (elements?.room)
-        elements.room.dataset["connectionState"] = "auth-expired";
-    },
-  });
-
-  return { push, outbox };
-}
-
-/**
- * @param {string} roomSlug
- * @param {boolean} hasDocument
- * @param {import("./family_chat/elements.js").FamilyChatElements | null} elements
- * @param {{user?: {id: string}, scrolledToOlderMessage?: boolean, focusInComposer?: boolean}} options
- * @param {import("./family_chat/clock.js").Clock} clock
- */
-function createRoomStoreAndReconnect(
-  roomSlug,
-  hasDocument,
-  elements,
-  options,
-  clock,
-) {
-  // `hasDocument` and `elements` are always both-true or both-false together
-  // (`elements` is set from `findElements()` exactly when `hasDocument`
-  // is), but TS tracks them as two independent variables; the `elements`
-  // check alone is what narrows the branch below, `hasDocument` is kept for
-  // readability at the call site.
-  const store =
-    hasDocument && elements
-      ? createRealStore({
-          roomSlug,
-          elements,
-          currentUserId: options.user?.id ?? null,
-        })
-      : createStore({
-          scrolledToOlderMessage: options.scrolledToOlderMessage,
-          focusInComposer: options.focusInComposer,
-        });
-
-  const subscriptionClient = hasDocument ? createSubscriptionClient() : null;
-  // `store`/`roomSlug` are deliberately not passed here: `createReconnect`
-  // (see `family_chat/reconnect.js`) only ever reads `clock`/`socketClient`
-  // from its options; the real store/room wiring happens later, through
-  // `bindBrowserCallbacks` in `mount_browser.js`.
-  const reconnect = createReconnect({
-    clock,
-    socketClient: subscriptionClient,
-  });
-
-  return { store, subscriptionClient, reconnect };
-}
-
-/**
- * `accessibility.js` reads the shipped template/stylesheet from disk via
- * `node:fs` -- meaningful only for FE_UNIT's Vitest (Node) process, never
- * for a real browser (no such module exists there, and no browser code path
- * ever calls it -- see `family_chat.steps.ts`, its only caller).
- * Dynamically importing it only on this branch (never reached with a real
- * `document`) keeps that Node-only dependency out of the browser bundle
- * entirely, rather than a top-level import that esbuild would otherwise
- * have to resolve for every page.
- * @param {boolean} hasDocument
- * @param {{viewport?: string}} options
- */
-async function createRoomAccessibility(hasDocument, options) {
-  if (hasDocument) return;
-  const { createAccessibility } =
-    await import("./family_chat/accessibility.js");
-  return createAccessibility({ viewport: options.viewport });
 }
 
 /**
@@ -186,7 +71,7 @@ async function createRoomAccessibility(hasDocument, options) {
  * already guarantees.
  * @param {object} room
  * @param {import("./family_chat/elements.js").FamilyChatElements} elements
- * @param {ReturnType<typeof createSubscriptionClient> | null} subscriptionClient
+ * @param {SubscriptionClient | null} subscriptionClient
  */
 async function mountRoomInBrowser(room, elements, subscriptionClient) {
   await mountBrowser(
@@ -195,24 +80,63 @@ async function mountRoomInBrowser(room, elements, subscriptionClient) {
     elements,
     {
       subscriptionClient:
-        /** @type {ReturnType<typeof createSubscriptionClient>} */
+        /** @type {SubscriptionClient} */
         (subscriptionClient),
     },
   );
 }
 
 /**
- * @param {string} path e.g. "/family-chat/ruang-keluarga"
+ * Where this member resumes reading, and what they type into: the stored read
+ * position, the page source `history` walks around it, and the composer that
+ * sends into the same outbox. Isolated purely so `initRoom` stays under this
+ * project's max-lines-per-function lint budget.
  * @param {{
- *   user?: {id: string},
- *   clock?: import("./family_chat/clock.js").Clock,
- *   viewport?: string,
- *   devicePushState?: string,
- *   activePushSubscription?: boolean,
- *   scrolledToOlderMessage?: boolean,
- *   focusInComposer?: boolean,
- *   persistence?: import("./family_chat/outbox_send.js").Persistence | undefined,
- * }} options
+ *   roomSlug: string,
+ *   userId: string,
+ *   hasDocument: boolean,
+ *   store: Parameters<typeof createHistory>[0]["store"] & {
+ *     renderPending: (
+ *       message: import("./family_chat/real_store.js").RenderableMessage,
+ *     ) => void,
+ *   },
+ *   outbox: Parameters<typeof createComposer>[0]["outbox"] & {
+ *     status: (clientMessageId: string) => string,
+ *   },
+ *   composerState: {remediationMessage: string | null},
+ * }} context
+ * @param {RoomOptions} options
+ */
+function createRoomResume(context, options) {
+  const { roomSlug, userId, hasDocument, store, outbox, composerState } =
+    context;
+  const readMarker = createReadMarker({
+    userId,
+    roomSlug,
+    storage: options.readStorage,
+  });
+  const pageSource = resolvePageSource(roomSlug, hasDocument, options);
+  const history = createHistory({
+    fetchPage: pageSource.fetchPage,
+    store,
+    readMarker,
+  });
+  const composer = createComposer({
+    outbox,
+    state: composerState,
+    focused: options.focusInComposer ?? false,
+    onQueued: (message) =>
+      store.renderPending({
+        ...message,
+        status: outbox.status(message.clientMessageId),
+      }),
+  });
+  return { readMarker, pageSource, history, composer };
+}
+
+/**
+ * @param {string} path e.g. "/family-chat/ruang-keluarga"
+ * @param {RoomOptions} options
  */
 export async function initRoom(path, options = {}) {
   const roomSlug = parseRoomSlug(path);
@@ -240,15 +164,20 @@ export async function initRoom(path, options = {}) {
   );
   const accessibility = await createRoomAccessibility(hasDocument, options);
 
+  const userId = options.user?.id ?? "anonymous";
+  const resume = createRoomResume(
+    { roomSlug, userId, hasDocument, store, outbox, composerState },
+    options,
+  );
   const room = {
     roomSlug,
-    userId: options.user?.id ?? "anonymous",
+    userId,
     outbox,
     store,
     push,
     reconnect,
     accessibility,
-    composer: composerState,
+    ...resume,
   };
 
   if (hasDocument && elements) {

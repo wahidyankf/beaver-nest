@@ -33,7 +33,12 @@ function handleSubscriptionData(room, rawResult) {
   // mutation response (see `reconcile`'s matching guard in `real_store.js`
   // for that race).
   if (room.store.hasRendered(message.id ?? "")) return;
-  void room.store.receiveRemoteMessage(message);
+  void room.store
+    .receiveRemoteMessage(message)
+    // An arrival the visitor is already looking at (they were at the bottom,
+    // so the store just scrolled it into view) is read; one that only lit the
+    // "New messages below" indicator is not.
+    .then(() => room.history.noteArrival());
 }
 
 /**
@@ -99,16 +104,15 @@ export function bindReconnectCallbacks(room, subscriptionClient) {
   });
 }
 
-/** @param {MountableRoom} room */
+/**
+ * Where the room opens is `history.js`'s decision (the newest page, or a
+ * window anchored on this member's unread marker); this only has to tell
+ * reconnect which committed message the room has caught up to.
+ * @param {MountableRoom} room
+ */
 export async function loadInitialMessages(room) {
-  const initial = await graphqlRequest(FAMILY_CHAT_MESSAGES_QUERY, {
-    roomSlug: room.roomSlug,
-    limit: 50,
-  });
-  const nodes = initial.data?.familyChatMessages?.nodes ?? [];
-  room.store.renderInitial(nodes, initial.data?.familyChatMessages?.hasOlder);
-  const lastNode = nodes.at(-1);
-  if (lastNode) room.reconnect.setHighestCommittedId(lastNode.id);
+  const { newestId } = await room.history.loadInitial();
+  if (newestId !== null) room.reconnect.setHighestCommittedId(newestId);
 }
 
 /**
