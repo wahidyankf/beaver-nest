@@ -16,6 +16,7 @@
  * @property {HTMLButtonElement} loadOlder
  * @property {HTMLElement} empty
  * @property {HTMLElement} list
+ * @property {HTMLElement} scrollAnchor
  * @property {HTMLElement} newMessages
  * @property {HTMLElement} liveRegion
  * @property {HTMLFormElement} composer
@@ -55,6 +56,9 @@ export function findElements() {
     list:
       /** @type {HTMLElement} */
       (document.querySelector('[data-role="family-chat-message-list"]')),
+    scrollAnchor:
+      /** @type {HTMLElement} */
+      (document.querySelector('[data-role="family-chat-scroll-anchor"]')),
     newMessages:
       /** @type {HTMLElement} */
       (document.querySelector('[data-role="family-chat-new-messages"]')),

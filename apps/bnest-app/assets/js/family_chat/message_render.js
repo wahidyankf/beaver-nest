@@ -101,6 +101,10 @@ export function messageNode(message, { pending, currentUserId }) {
   );
   li.dataset["role"] = "family-chat-message";
   li.dataset["deliveryState"] = pending ? (message.status ?? "") : "committed";
+  // The same key `real_store.js` files this row under: which message a
+  // resumed room landed on, and which one the stored read position names,
+  // are only observable from outside the page through this attribute.
+  li.dataset["messageId"] = message.id ?? message.clientMessageId ?? "";
 
   const senderLabel = (isSystem ? "System" : message.senderDisplayName) ?? "";
 
@@ -116,6 +120,80 @@ export function messageNode(message, { pending, currentUserId }) {
   }
 
   return li;
+}
+
+// How much already-read conversation stays visible above the unread marker
+// when a room resumes. Landing with the marker flush against the top edge
+// reads as "the history was cut off here"; a little context above it reads
+// as "you were here", which is the whole point of resuming.
+const RESUME_CONTEXT_PX = 72;
+
+export const UNREAD_DIVIDER_LABEL = "New messages";
+
+/**
+ * The boundary between what this member has already read and what arrived
+ * since. A real list item (not a decoration) so it sits in document order
+ * inside the `role="log"` list and is announced in place, rather than being
+ * hidden from the screen-reader rendering of the same conversation.
+ */
+export function unreadDividerNode() {
+  const li = document.createElement("li");
+  li.className = "family-chat-unread-divider";
+  li.dataset["role"] = "family-chat-unread-divider";
+  const label = document.createElement("span");
+  label.textContent = UNREAD_DIVIDER_LABEL;
+  li.append(label);
+  return li;
+}
+
+/** @param {import("./elements.js").FamilyChatElements} elements */
+export function scrollToBottom(elements) {
+  if (!elements.history) return;
+  elements.history.scrollTop = elements.history.scrollHeight;
+}
+
+/**
+ * Places `target` just below the top edge of the history viewport. Uses
+ * `offsetTop` differences rather than `scrollIntoView` so the position is
+ * computed relative to the scrolling history container alone and never
+ * scrolls the page itself (which on mobile would push the sticky header or
+ * composer out of view).
+ * @param {import("./elements.js").FamilyChatElements} elements
+ * @param {HTMLElement} target
+ */
+export function scrollToResumeAnchor(elements, target) {
+  const history = elements.history;
+  if (!history) return;
+  function place() {
+    const offset =
+      target.getBoundingClientRect().top -
+      history.getBoundingClientRect().top +
+      history.scrollTop -
+      RESUME_CONTEXT_PX;
+    history.scrollTop = Math.max(0, offset);
+  }
+  place();
+  // Every message above the marker changes height again when the web fonts
+  // arrive and when the first frame finishes laying out, which drags the
+  // marker far from the edge it was just placed at -- a resumed room that
+  // visibly jumps away from where the visitor left off. Re-anchoring on
+  // both settlement points is what keeps the placement the one they see.
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(place);
+  }
+  const fonts = globalThis.document?.fonts;
+  if (fonts) void fonts.ready.then(place);
+}
+
+/**
+ * The room is showing a window that stops short of the newest message, so
+ * the indicator doubles as the way back to it.
+ * @param {import("./elements.js").FamilyChatElements} elements
+ * @param {boolean} pending
+ */
+export function setNewMessagesIndicator(elements, pending) {
+  if (!elements.newMessages) return;
+  elements.newMessages.hidden = !pending;
 }
 
 /** @param {import("./elements.js").FamilyChatElements} elements */

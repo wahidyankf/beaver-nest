@@ -183,6 +183,93 @@ Feature: Family chat room
     Then the offline member's queued message drains exactly once after reconnect
     And neither member sees a duplicate or lost message
 
+  Rule: Resuming at the last read position
+
+  @fe-vitest-unit
+  # Exemption(integration): which message a returning visitor lands on is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A returning member lands on the first message they have not read
+  @integration-exempt
+  Scenario: A returning member lands on the first message they have not read
+    Given the family chat holds more earlier messages than one context page
+    And the visitor has read the family chat up to a known message
+    And 5 newer messages arrived while the visitor was away
+    When the visitor reopens "/family-chat/ruang-keluarga"
+    Then the first unread message is the first message in view
+    And an unread marker separates the read messages from the new ones
+    And one bounded page of earlier messages is loaded above the unread marker
+    And older history can still be loaded on request
+
+  @fe-vitest-unit
+  # Exemption(integration): landing on the newest message is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A returning member with nothing unread lands on the newest message
+  @integration-exempt
+  Scenario: A returning member with nothing unread lands on the newest message
+    Given the visitor has read every message in the family chat
+    When the visitor reopens "/family-chat/ruang-keluarga"
+    Then the newest message is in view
+    And no unread marker is shown
+
+  @fe-vitest-unit
+  # Exemption(integration): landing on the newest message is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A member who has never opened this room lands on the newest message
+  @integration-exempt
+  Scenario: A member who has never opened this room lands on the newest message
+    Given the visitor has never opened the family chat on this device
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the newest message is in view
+    And no unread marker is shown
+
+  @fe-vitest-unit
+  # Exemption(integration): reaching the bottom of a scrollable history is browser scroll state the server never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / Reading down to the newest message moves the resume point
+  @integration-exempt
+  Scenario: Reading down to the newest message moves the resume point
+    Given the visitor has read the family chat up to a known message
+    And 5 newer messages arrived while the visitor was away
+    When the visitor reopens "/family-chat/ruang-keluarga"
+    And the visitor scrolls down to the newest message
+    And the visitor reopens "/family-chat/ruang-keluarga"
+    Then the newest message is in view
+    And no unread marker is shown
+
+  @fe-vitest-unit
+  # Exemption(integration): a partially loaded history and its jump control are browser-side paging state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / More unread messages than one page still offer a way back to the newest
+  @integration-exempt
+  Scenario: More unread messages than one page still offer a way back to the newest
+    Given the visitor left more unread messages behind than one page holds
+    When the visitor reopens "/family-chat/ruang-keluarga"
+    Then the first unread message is the first message in view
+    And "New messages below" offers a way back to the newest message
+    When the visitor jumps to the newest message
+    Then the newest message is in view
+
+  Rule: Composer focus and keyboard
+
+  @fe-vitest-unit
+  # Exemption(integration): keeping DOM focus across a send is browser accessibility-tree state Phoenix.LiveViewTest never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / The composer keeps focus after a message is sent
+  @integration-exempt
+  Scenario: The composer keeps focus after a message is sent
+    Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
+    When the visitor sends "Still typing" through the composer
+    Then the composer still holds keyboard focus
+    And activating the send control never takes focus from the message input
+    And the composer is empty and ready for the next message
+
+  @fe-vitest-unit
+  # Exemption(integration): physical keyboard chord handling belongs to the browser boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter sends and Shift+Enter keeps writing
+  @integration-exempt
+  Scenario: Enter sends and Shift+Enter keeps writing
+    Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
+    When the visitor submits "Sent with Enter" with the Enter key
+    Then the composer still holds keyboard focus
+    And the composer is empty and ready for the next message
+    When the visitor presses Shift and Enter while writing "Second line"
+    Then the composer holds an unsent multi-line draft
+
+  @fe-vitest-unit
+  # Exemption(integration): whether a sent message ends up on screen is browser scroll position the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Sending brings the visitor to their own message
+  @integration-exempt
+  Scenario: Sending brings the visitor to their own message
+    Given a visitor opens "/family-chat/ruang-keluarga" scrolled to a known older message
+    When the visitor sends "Down here with everyone" through the composer
+    Then the visitor's own message is in view
+
   Rule: Scroll anchor and live-region announcements
 
   @fe-vitest-unit
