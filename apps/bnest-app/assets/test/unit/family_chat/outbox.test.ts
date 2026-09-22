@@ -14,7 +14,9 @@ import {
   QUEUE_SCHEMA_VERSION,
   STATUS,
 } from "../../../js/family_chat/outbox.js";
-import { createFakeClock, type FakeClock } from "./support/fake_clock";
+import { createFakeClock, type FakeClock } from "../../support/fake_clock";
+
+type Persistence = import("../../../js/family_chat/outbox_send.js").Persistence;
 
 let namespaceCounter = 0;
 // Each outbox namespace is module-scoped and persists across calls (by
@@ -272,7 +274,7 @@ describe("queuing a reply", () => {
       userId,
       roomSlug,
       clock,
-      transport: async (message: { replyToMessageId?: string }) => {
+      transport: async (message) => {
         seen.push(message.replyToMessageId);
         return { ok: true, message: { id: "server-1" } };
       },
@@ -288,9 +290,9 @@ describe("queuing a reply", () => {
     const { userId, roomSlug } = uniqueIdentity();
     const clock = createFakeClock();
     const rows = new Map<string, Record<string, unknown>>();
-    const persistence = {
-      loadAll: async () => Array.from(rows.values()),
-      save: (_ns: string, message: { clientMessageId: string }) => {
+    const persistence: Persistence = {
+      loadAll: async () => Array.from(rows.values()) as never,
+      save: (_ns, message) => {
         rows.set(message.clientMessageId, { ...message });
       },
       remove: (_ns: string, clientMessageId: string) => {
@@ -311,7 +313,7 @@ describe("queuing a reply", () => {
       replyToMessageId: "41",
     });
 
-    expect(rows.get(id)?.replyToMessageId).toBe("41");
+    expect(rows.get(id)?.["replyToMessageId"]).toBe("41");
   });
 
   it("drains a legacy record with no target as an ordinary message", async () => {

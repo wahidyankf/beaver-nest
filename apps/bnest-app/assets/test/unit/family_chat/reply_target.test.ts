@@ -9,6 +9,9 @@ import {
   createReplyTarget,
 } from "../../../js/family_chat/reply_target.js";
 
+type ReplyTargetSelection =
+  import("../../../js/family_chat/reply_target.js").ReplyTargetSelection;
+
 const AYAH = {
   messageId: "1042",
   senderDisplayName: "Ayah",
@@ -94,7 +97,7 @@ describe("createReplyTarget", () => {
   });
 
   it("notifies a subscriber on every change, and stops once unsubscribed", () => {
-    const seen: (typeof AYAH | null)[] = [];
+    const seen: (ReplyTargetSelection | null)[] = [];
     const target = createReplyTarget();
     const unsubscribe = target.onChange((next) => seen.push(next));
 

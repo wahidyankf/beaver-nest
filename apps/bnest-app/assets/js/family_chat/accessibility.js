@@ -53,13 +53,20 @@ const PROBE_MESSAGE_COUNT = 50;
  * @returns {HTMLElement}
  */
 export function renderProbeList(count = PROBE_MESSAGE_COUNT) {
-  const window = new Window();
+  // happy-dom declares its own structurally-identical DOM types, which TS
+  // treats as unrelated to the `lib.dom` ones every other module here is
+  // written against. Narrowing once, here, is what keeps that duplication
+  // from leaking into the rest of the file.
+  const probeDocument =
+    /** @type {Document} */
+    (
+      /** @type {unknown} */
+      (new Window().document)
+    );
   const previousDocument = globalThis.document;
-  // @ts-expect-error -- assigning happy-dom's Document to the global slot is
-  // the whole point; its shape is the DOM one `messageNode` uses.
-  globalThis.document = window.document;
+  globalThis.document = probeDocument;
   try {
-    const list = window.document.createElement("ol");
+    const list = probeDocument.createElement("ol");
     for (let index = 0; index < count; index += 1) {
       list.append(
         messageNode(
@@ -73,13 +80,9 @@ export function renderProbeList(count = PROBE_MESSAGE_COUNT) {
         ),
       );
     }
-    const probe =
-      /** @type {HTMLElement} */
-      (list);
-    createRovingFocus(probe).refresh();
-    return probe;
+    createRovingFocus(list).refresh();
+    return list;
   } finally {
-    // @ts-expect-error -- restoring the slot, including to `undefined`.
     globalThis.document = previousDocument;
   }
 }

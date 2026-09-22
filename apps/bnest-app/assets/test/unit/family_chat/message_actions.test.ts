@@ -19,7 +19,10 @@ import {
   runCopyAction,
 } from "../../../js/family_chat/message_actions.js";
 import { REPLY_UNAVAILABLE_REASON } from "../../../js/family_chat/reply_target.js";
-import { createFakeClock } from "./support/fake_clock";
+import { createFakeClock } from "../../support/fake_clock";
+
+type ActionableMessage =
+  import("../../../js/family_chat/message_actions.js").ActionableMessage;
 
 const COMMITTED = {
   clientMessageId: "c-1",
@@ -165,7 +168,7 @@ describe("createMenuState", () => {
 
   it("notifies listeners on open and on close", () => {
     const menu = createMenuState();
-    const seen: (typeof COMMITTED | null)[] = [];
+    const seen: (ActionableMessage | null)[] = [];
     menu.onChange((next) => seen.push(next));
 
     menu.open(COMMITTED);
@@ -190,21 +193,21 @@ describe("menuItemsFor", () => {
   it("makes Reply unavailable, with its reason, before the message has a server ID", () => {
     const [reply] = menuItemsFor(QUEUED);
 
-    expect(reply.available).toBe(false);
-    expect(reply.reason).toBe(REPLY_UNAVAILABLE_REASON);
+    expect(reply?.available).toBe(false);
+    expect(reply?.reason).toBe(REPLY_UNAVAILABLE_REASON);
   });
 
   it("keeps Copy text available on a message that has not sent yet", () => {
     const [, copy] = menuItemsFor(QUEUED);
 
-    expect(copy.available).toBe(true);
-    expect(copy.reason).toBeNull();
+    expect(copy?.available).toBe(true);
+    expect(copy?.reason).toBeNull();
   });
 
   it("does not special-case a sender kind: a system message can be replied to", () => {
     const system = { ...COMMITTED, senderKind: "system" };
 
-    expect(menuItemsFor(system)[0].available).toBe(true);
+    expect(menuItemsFor(system)[0]?.available).toBe(true);
   });
 });
 
