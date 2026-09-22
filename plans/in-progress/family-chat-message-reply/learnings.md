@@ -1103,3 +1103,74 @@ Gates green on the reviewed revision: `FE_UNIT` 310, `BEHAVIOUR` 150, `BE_UNIT` 
 `BE_E2E` 30, `LINT` and `TYPECHECK` across all three projects. `FE_E2E` is recorded separately below.
 
 **Durable owner:** none; a recorded checkpoint.
+
+### 2026-09-22 — A strict-mode violation is not a failed assertion
+
+`Sending brings the visitor to their own message` failed on `tablet-chromium` in an otherwise clean run, and kept
+failing about once in seven when the scenario was repeated alone on an idle machine. The message was a strict-mode
+violation: one locator matched two rows, an optimistic `data-delivery-state="Sending"` row keyed by the client UUID
+and a `committed` row keyed by the server id, both carrying the same body.
+
+The first reading was that the store had rendered a duplicate and left it there, because the call log says
+`Expect "toBeInViewport" with timeout 5000ms`. Two seconds of arithmetic said otherwise: the failing run took
+**1.1 s end to end**, and the passing repeats took 0.8–4.0 s. A 5-second retry loop cannot finish in 1.1 s. So the
+assertion did not retry — Playwright retries a *failed* web-first assertion, but a strict-mode violation is a hard
+error raised before any retry. One frame with two rows on screen is enough to fail the step.
+
+That also cleared the store. `reconcile` already handles this exact race: when a subscription push has rendered the
+committed row before this send's own mutation response comes back, it drops the now-redundant pending row instead
+of creating a second copy. The window between the two is real, tiny, and correct.
+
+So the defect was in the proof, not the product. The `When` polls only `count() > 0`, which is satisfied by the
+optimistic row; the `Then` then used a bare locator that the committed row could join at any instant. The fix takes
+`.last()`, which names the surviving row whichever way `reconcile` resolves it — the committed row is appended
+after the optimistic one, and the replace-in-place branch leaves a single row in the same position. Fifteen repeats
+passed after the change.
+
+What was deliberately **not** done: making the `Then` wait for the send to settle. That would have proved the
+committed row is in view and quietly stopped proving the thing the scenario is named for, which is that the
+visitor's message reaches the viewport immediately rather than after the server answers. Nor was a uniqueness check
+added here; `the reply reaches status "Sent" exactly once` and `the offline member's queued message drains exactly
+once after reconnect` own that claim already, and a step should not acquire a second job because a flake made it
+convenient.
+
+**Durable owner:** code comment on the step, plus this entry as the reasoning behind it.
+
+### 2026-09-22 — A canonical command that could not be run
+
+`BE_E2E` and `FE_E2E` in this plan's command table named the inner Nx invocation. The repository's resource guard
+rejects a bare package-runner call that is not inside a HIPPO boundary, so both rows named commands that fail
+before they start. The root `test:e2e:be` and `test:e2e:fe` scripts open the boundary themselves — `standard` for
+the backend suite, `heavy` for the browser suite — and the rows now name those.
+
+The rows were written from the shape of the other rows rather than from a run. Every other row in the table is a
+`./hippo run ... -- ...` invocation, and these two were abbreviated to match the ones that are genuinely
+self-guarded without checking which of the two kinds they were. A command table earns its place by being runnable;
+one that has never been run is a guess in a table that looks authoritative.
+
+**Durable owner:** the repaired rows and the note under the table.
+
+### 2026-09-22 — `FE_E2E` on the reviewed revision
+
+**296 passed, 0 failed, 10.0 minutes**, across `chromium`, `tablet-chromium`, and `mobile-chromium`.
+
+Three runs were needed to get an honest reading, and the sequence is the point:
+
+| Run | Conditions | Result |
+| --- | --- | --- |
+| 7 | a second Phoenix server and a browser driving it concurrently | 5 failed |
+| 8 | clean: the manual-UI server stopped, nothing else driving | 1 failed |
+| 9 | clean, after the `.last()` fix | 296 passed |
+
+Run 7's five failures were contention, and run 8 proved it by dropping to one. But run 8's survivor was **not**
+contention, and re-running until it passed would have buried it — it reproduced once in seven on an idle machine.
+It is written up above as its own entry.
+
+Two mechanical notes for anyone reading a failing browser run here. First, the manual-UI server did not stop when
+its pane was sent `Ctrl-C`: a single interrupt opens the BEAM break menu, which stops serving while the process
+lives on, still holding its HIPPO `service` lease. The abort needs a confirming `Enter`, and the lease not
+releasing is the visible tell. Second, the suite's summary is easy to lose — Caddy's admin API logs a block of
+JSON per candidate reload, so a `tail` of the last eighty lines shows nothing but reload chatter and the Nx
+failure banner. Redirect the whole run to a file and read the summary out of it.
+
+**Durable owner:** none; a recorded gate result.

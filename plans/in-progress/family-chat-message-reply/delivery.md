@@ -29,8 +29,8 @@ when its receipt says `never-started`; exit `73` cleans owned storage; exit `78`
 | `BEHAVIOUR`       | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour`     |
 | `BE_E2E_COVERAGE` | `rtk ./hippo run --class ephemeral --resource-tier light --disk-path . -- npm exec -- nx run -p bnest-app-be-e2e -t test:coverage:behaviour` |
 | `FE_E2E_COVERAGE` | `rtk ./hippo run --class ephemeral --resource-tier light --disk-path . -- npm exec -- nx run -p bnest-app-fe-e2e -t test:coverage:behaviour` |
-| `BE_E2E`          | `rtk npm exec -- nx run -p bnest-app-be-e2e -t test:e2e`                                                                                     |
-| `FE_E2E`          | `rtk npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e`                                                                                     |
+| `BE_E2E`          | `rtk npm run test:e2e:be`                                                                                     |
+| `FE_E2E`          | `rtk npm run test:e2e:fe`                                                                                     |
 | `E2E_ALL`         | `rtk npm run test:e2e`                                                                                                                       |
 | `APP_QUICK`       | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:quick`                  |
 | `RELEASE_TEST`    | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t release:test`                |
@@ -38,6 +38,11 @@ when its receipt says `never-started`; exit `73` cleans owned storage; exit `78`
 
 `test:quick` never runs integration or E2E. The root `test:e2e` script runs BE then FE deterministically; each project
 leases a distinct port range and isolated runtime root inside its self-guarded target.
+
+`BE_E2E` and `FE_E2E` name those root scripts rather than the underlying Nx invocation. The repository's
+resource guard rejects a bare package-runner call that is not inside a HIPPO boundary, and both scripts already
+open one — `heavy` for the browser suite, `standard` for the backend's. Naming the inner command here would put
+a row in this table that cannot be run.
 
 `UNIT`, `BE_UNIT`, and `FE_UNIT` carry the repository's **99% line-coverage threshold**; the suite and the threshold
 pass or fail together. Every new module this plan creates — `message_actions.js`, `reply_target.js`,
@@ -702,7 +707,7 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       explicitly recorded as none found, that both headings are correctly labelled, that cross-references are noted,
       and that every accepted spec proposal completed the Iron Rule with its `delivery.md` proof. **Proof:** the
       confirmation recorded in `learnings.md` against each of those five conditions.
-- [ ] `[AI] [AC-FCR-01..12]` **Blocking checkpoint — Phase 8.** All six manual layers are recorded and separately
+- [x] `[AI] [AC-FCR-01..12]` **Blocking checkpoint — Phase 8.** All six manual layers are recorded and separately
       labelled — the API `curl` and subscription proofs from Phase 7, and this phase's UI matrix, keyboard and
       screen-reader walkthrough, spec-aware exploratory pass, spec-blind usability pass, and Gherkin implementation
       review. Every finding is either fixed or explicitly accepted as non-blocking with its reason written down. An
