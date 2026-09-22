@@ -89,6 +89,20 @@ async function mountRoomInBrowser(room, elements, subscriptionClient) {
 }
 
 /**
+ * The room's one live region (`role="status"`), as a function: every
+ * deliberate one-off announcement goes through it. Outside a document there
+ * is nothing to announce to, so it is a no-op there.
+ * @param {import("./family_chat/elements.js").FamilyChatElements | null} elements
+ * @returns {(message: string) => void}
+ */
+function createAnnouncer(elements) {
+  if (!elements) return () => {};
+  return (message) => {
+    elements.liveRegion.textContent = message;
+  };
+}
+
+/**
  * Where this member resumes reading, and what they type into: the stored read
  * position, the page source `history` walks around it, and the composer that
  * sends into the same outbox. Isolated purely so `initRoom` stays under this
@@ -106,20 +120,10 @@ async function mountRoomInBrowser(room, elements, subscriptionClient) {
  *     status: (clientMessageId: string) => string,
  *   },
  *   composerState: {remediationMessage: string | null},
+ *   announce: (message: string) => void,
  * }} context
  * @param {RoomOptions} options
  */
-/**
- * @param {import("./family_chat/elements.js").FamilyChatElements | null} elements
- * @returns {(message: string) => void}
- */
-function createAnnouncer(elements) {
-  if (!elements) return () => {};
-  return (message) => {
-    elements.liveRegion.textContent = message;
-  };
-}
-
 function createRoomResume(context, options) {
   const {
     roomSlug,
