@@ -161,8 +161,16 @@ function createWatchMethods(state) {
 /** @param {import("./outbox_send.js").OutboxState} state */
 function createOnlineMethods(state) {
   function reportOnline() {
+    state.online = true;
     for (const message of state.namespace.messages.values()) {
-      if (message.status !== STATUS.RETRYING) continue;
+      // "Waiting" as well as "Retrying": a message composed while the
+      // browser was offline never got an attempt at all, so it has no retry
+      // timer to fire and would otherwise sit in the queue forever.
+      if (
+        message.status !== STATUS.RETRYING &&
+        message.status !== STATUS.WAITING
+      )
+        continue;
       if (message.timerHandle !== undefined)
         state.clock.clearTimer(message.timerHandle);
       message.nextRetryAt = state.clock.now();
@@ -176,6 +184,9 @@ function createOnlineMethods(state) {
     /** @param {string} name */
     reportBrowserEvent(name) {
       if (name === "online") reportOnline();
+      // Not the same as pausing the drain: reconnect owns that flag while it
+      // fills a catch-up gap, and the two must be able to be true at once.
+      if (name === "offline") state.online = false;
     },
   };
 }
@@ -243,7 +254,7 @@ function createLifecycleMethods(state) {
  * ones proving this contract) keeps the outbox exactly as in-memory-only as
  * before.
  *
- * @param {{userId: string, roomSlug: string, transport: (message: {clientMessageId: string, body: string}) => Promise<TransportResult>, clock?: import("./clock.js").Clock, persistence?: import("./outbox_send.js").Persistence | undefined, onQueueFull?: () => void, onLogout?: () => void, onAuthExpired?: () => void}} options
+ * @param {{userId: string, roomSlug: string, transport: (message: {clientMessageId: string, body: string, replyToMessageId?: string}) => Promise<TransportResult>, clock?: import("./clock.js").Clock, persistence?: import("./outbox_send.js").Persistence | undefined, onQueueFull?: () => void, onLogout?: () => void, onAuthExpired?: () => void}} options
  */
 export function createOutbox({
   userId,

@@ -97,9 +97,17 @@ function wireOnlineOfflineBanner(room, elements) {
   });
   window.addEventListener("offline", () => {
     elements.offlineBanner.hidden = false;
+    // Tells the queue too, not just the banner: a message composed from here
+    // on holds at "Waiting for connection" rather than attempting a send
+    // that cannot reach anything.
+    room.outbox.reportBrowserEvent("offline");
   });
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
     elements.offlineBanner.hidden = false;
+    // A room opened while already offline starts in the same state the
+    // `offline` event would have put it in; that event only fires on a
+    // transition, so nothing else would ever tell the queue.
+    room.outbox.reportBrowserEvent("offline");
   }
 }
 
