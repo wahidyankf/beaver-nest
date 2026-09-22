@@ -495,7 +495,7 @@ serves is a plan requirement — "the rendered-list invariant" — not a prefere
 assign, and the `data-family-chat-reply-enabled` read. Phase 5 needed all three, because the fe-e2e binding-coverage
 gate is all-or-nothing — 59 missing steps, including Phase 9's compatibility-revision scenario — and the repository's
 Gherkin→bindings→red→code order therefore required binding every browser scenario before any of them could pass.
-Recorded here rather than silently absorbed: the plan's phase boundary was wrong about which phase first *needs* a
+Recorded here rather than silently absorbed: the plan's phase boundary was wrong about which phase first _needs_ a
 flag, not about who owns it.
 
 **Durable owner:** none; a deviation, ticked in Phase 7 referencing where it actually landed.
@@ -546,7 +546,7 @@ opens the real `initRoom` in Node, where `typeof document === "undefined"` selec
 and page source. The reply scenarios are about markup, focus, and key events, so they need the other branch.
 `support/reply_room.ts` builds it from the same production pieces — the template's shell under happy-dom,
 `createRealStore`, `createHistory`, `createReplyTarget`, and the real `wire*` bindings — substituting only the
-network. The hazard is entirely in the seam: a `document` left on `globalThis` silently flips every *following*
+network. The hazard is entirely in the seam: a `document` left on `globalThis` silently flips every _following_
 document-free scenario onto the browser branch. It is taken down in `verify.ts`'s `finally`, and again inside the
 builder when a room fails to build half-way — which is exactly how it first leaked
 (`ReferenceError: HTMLMetaElement is not defined`, in an unrelated auth-expiry scenario three tests later).
@@ -562,7 +562,7 @@ difference between a documented boundary and a no-op: each one still fails if th
 **Durable owner:** `repo-governance/development/specification-maintenance.md` already requires this; recorded as a
 worked example.
 
-**A test double that resolves too fast hides a real ordering.** `wireComposer` registers its status watcher *after*
+**A test double that resolves too fast hides a real ordering.** `wireComposer` registers its status watcher _after_
 awaiting `composer.submit()`. The harness server initially resolved on a microtask, reached "Sent" with nobody
 listening, and the pending row was never reconciled — which looked like a rendering bug for several minutes.
 `createTestTransport` already resolves on a timer for precisely this reason, and says so in a comment; the harness
@@ -577,7 +577,7 @@ no Node equivalent, so `rovingInvariantHolds` checked the only thing it could se
 tab stop — and the quote card, a `button` inside a bubble, was a tab stop by default. With fifty replies on screen,
 Tab walked the conversation one quote at a time instead of leaving the list. `tabindex="-1"` fixes it without
 touching the role, the type, or the accessible name, so a screen reader still reaches and announces the card, which
-is all AC-FCR-10 asks for. The check now also rejects anything focusable *inside* a message, so the next control
+is all AC-FCR-10 asks for. The check now also rejects anything focusable _inside_ a message, so the next control
 added to a bubble fails instead of quietly adding a stop per message. Whether a keyboard-only reader without a
 screen reader should reach the card at all is Phase 8's question, not one to settle by widening the tab order.
 
@@ -599,8 +599,8 @@ from Phase 5, but `deployment.mjs` builds its launchd plist from a hard-coded al
 experience candidate passed only `--family-chat-enabled`. A variable absent from that allowlist is a variable the
 managed process never receives, so Phase 10 would have promoted a revision that reads the flag and is never given
 it — and `/health/ready` cannot tell, because the room sits behind `:authenticated_browser`. The plan's file-impact
-table did not list either tool, which is the deviation worth naming: it listed every file the *feature* touches and
-none of the files the *release* touches.
+table did not list either tool, which is the deviation worth naming: it listed every file the _feature_ touches and
+none of the files the _release_ touches.
 
 **Durable owner:** `tech-docs/006-file-impact-and-release.md` — its File Impact table should cover the release path
 whenever a plan introduces a runtime flag. Raised at archival.
@@ -612,3 +612,68 @@ the room has been live since its own experience release. Correcting that sentenc
 different feature's release state, so it is raised as a follow-up idea brief rather than absorbed here.
 
 **Durable owner:** a follow-up idea brief, raised at archival.
+
+### Manual API proof — six observations at an isolated origin
+
+One `MIX_ENV=test` instance on the development port pool, its own runtime root and its own family-chat SQLite
+path, started in a tmux pane so its lifetime did not follow the agent session. Two synthetic `test-user-`
+identities, created through the product's own one-time setup form. No production root, port, pointer, or identity
+was read or written; the instance and both roots were removed afterwards and their absence verified. Nothing below
+records a secret, a cookie, a token, or real message text.
+
+| #   | Observation                                                 | HTTP | `data`  | `errors`            | Side effect                |
+| --- | ----------------------------------------------------------- | ---- | ------- | ------------------- | -------------------------- |
+| 1   | `familyChatMessages`, one page                              | 200  | present | absent              | none (read)                |
+| 2   | `sendFamilyChatMessage` with a valid `replyToMessageId`     | 200  | present | absent              | one row committed          |
+| 3   | `sendFamilyChatMessage` with an absent `replyToMessageId`   | 200  | `null`  | `VALIDATION_FAILED` | no row committed           |
+| 4   | `sendFamilyChatMessage` with a target from another room     | 200  | `null`  | `VALIDATION_FAILED` | no row committed           |
+| 5   | The same operation, no session at all                       | 403  | `null`  | `CSRF_REJECTED`     | no row committed           |
+| 5b  | The same operation, valid session, unresolved identity      | 200  | `null`  | `UNAUTHENTICATED`   | no row committed           |
+| 6   | The same operation, authenticated without `use_family_chat` | —    | —       | —                   | unrepresentable; see below |
+
+**Observation 1 is the one that matters most for the release.** The page carried three nodes: one with `replyTo`
+`null` and two with it populated. The populated quote's `bodyPreview` measured **161** graphemes and ended in an
+ellipsis — the 160-grapheme budget plus the single character that marks the cut, exactly what tech-doc 002 states
+and exactly what the frontend's own `bodyPreview` produces for a target chosen on screen. The room shell for this
+instance carried `data-family-chat-reply-enabled="false"`, so this is the compatibility posture the release
+depends on observed directly: **the server answers `replyTo` with the flag off**, and only the browser stops
+asking.
+
+**Observations 3 and 4 are refused identically, and that is correct.** The target is looked up scoped to the room
+(`message_by_id(room_id, message_id)`), so a message id belonging to another room is, from the room's point of
+view, a message id that does not exist. Both are refused before any write, and the second room's message remained
+the only message in that room afterwards.
+
+**Observation 5 is refused at the transport layer, not the resolver.** A request with no session carries no CSRF
+token either, and the CSRF pre-parse plug runs before identity resolution — so `CSRF_REJECTED` at 403, never
+reaching `UNAUTHENTICATED`. To exercise the resolver's own refusal, observation 5b used a genuinely anonymous
+_session_: a valid signed session cookie, a valid CSRF token, and no resolved identity. Both codes are reachable
+and distinct.
+
+**Observation 6 could not be made at the public boundary, because the account it needs cannot exist.**
+`Authorization.allow?/3` grants `use_family_chat` to any identity whose roles are all drawn from
+`children|parents|admin`, and the account record schema requires exactly that: a non-empty list drawn from the
+same three. An authenticated identity without the capability is therefore unrepresentable, and the two layers were
+each observed refusing it — a stored account with an empty role set could not be logged in at all (the store
+refuses to read the record), and `Authorization.allow?/3` returns `false` for both `[]` and `["guest"]` while
+returning `true` for `["parents"]`. Recorded as a documented boundary rather than a skipped observation: the
+refusal is real and proven, but its proof is not an HTTP status.
+
+**Subscription lifecycle.** The handshake was confirmed by `curl` at the isolated origin —
+`101 Switching Protocols` on `/api/graphql/socket/websocket` with the authenticated session — and, as tech-doc 008
+requires, that is handshake evidence only. The full lifecycle is proven by the protocol-capable Phoenix
+channels-v2 client in `bnest-app-be-e2e`: "A subscribed reply arrives carrying its quote" and "A reply caught up
+through `afterId` carries its quote", both green in the `BE_E2E` run recorded below (29 passed).
+
+**Durable owner:** none; this is release evidence, not a rule.
+
+### Rules propagation — terminal result
+
+`PASS_NO_CHANGE`. The ledger for this execution has no `OPEN` rows: nothing under `repo-governance/`, `AGENTS.md`,
+`CLAUDE.md`, or `RTK.md` was created, changed, moved, or deleted by it. The two governance gaps this execution did
+find — that a plan's File Impact table should cover the release path whenever the plan introduces a runtime flag,
+and that the phase-checkpoint command set should name the typecheck target alongside the suites — are recorded
+above as proposals owned by archival, not as edits made here; raising them is a separate transaction with its own
+authorization. Step 4 verified: `REPO` green.
+
+**Durable owner:** none; a recorded terminal result.
