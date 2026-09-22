@@ -221,8 +221,17 @@ When(
 );
 
 Then("the visitor's own message is in view", async ({ page }) => {
+  // `.last()` because a send briefly shows two rows for one message -- the
+  // optimistic one, and the committed one the subscription pushes before this
+  // send's mutation response retires the first. A strict-mode violation is not
+  // retried the way a failed assertion is, so that instant failed a bare
+  // locator once in seven idle runs. The surviving row is the last match
+  // whichever way the store resolves it. Settling to one row has its own
+  // scenarios and is not smuggled into this one.
   await expect(
-    page.locator('[data-role="family-chat-message"]', { hasText: sentBody }),
+    page
+      .locator('[data-role="family-chat-message"]', { hasText: sentBody })
+      .last(),
   ).toBeInViewport();
 });
 
