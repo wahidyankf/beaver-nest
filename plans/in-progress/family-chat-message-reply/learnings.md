@@ -434,3 +434,39 @@ router, session/CSRF plugs, and `Absinthe.Plug`, asserting status, content type,
 project does not already prove at the real socket.
 
 **Durable owner:** `tech-docs/006-file-impact-and-release.md`, corrected at archival.
+
+## Phase 4 — Send Path and Offline Outbox
+
+**The optional field is the compatibility mechanism, not a nicety.** Three hops carry the reply target — the queued
+record (`outbox_namespace.js`), the transport call (`outbox_send.js`), and the persisted row
+(`persistence_indexeddb.js`) — and all three spread it conditionally rather than writing `replyToMessageId: x ?? null`.
+That is what lets `DB_VERSION` stay at 1: a row written by the shipped release and a non-reply written by this one
+are the same object, so hydration needs no migration and no version check. A `null` default would have forced a
+schema bump for a field that adds nothing to most messages.
+
+**Durable owner:** `tech-docs/003-browser-send-outbox.md`, at archival.
+
+**One field set, three documents.** `operations.js` used to hold the query, the mutation, and the subscription as
+three independent template strings. Replies would have required editing all three identically, and a drift between
+the subscription's fields and the query's is invisible until a live message renders differently from a resumed one.
+They now all derive from `messageFields({replies})`, and the mutation additionally declares `$replyToMessageId`
+only when the flag is on — so with the flag off the browser emits byte-identical pre-reply documents, which is what
+the compatibility release depends on.
+
+**Durable owner:** `tech-docs/004-graphql-contract.md`, at archival.
+
+**The draft and the reply target clear for different reasons.** The composer reads the target before awaiting the
+queue and calls `clear()` only after the queue accepted. A refusal restores `draftState.body` and leaves the target
+untouched, so a member who hit a full queue still has both their text and the message they were answering. Keeping
+the target outside `draftState` is what makes that separation structural rather than a rule someone must remember.
+
+**Durable owner:** `tech-docs/005-composer-and-actions.md`, at archival.
+
+**Lint budget shaped the file split, again.** `max-lines` (300) and `max-lines-per-function` (50) pushed four
+extractions this phase: `buildQueuedMessage` into `outbox_namespace.js`, `refuse`/`sendOptionsFor`/`publishQueued`
+out of the composer's `submit`, `createReplyTarget`'s methods into top-level factories, and `assembleRoom` out of
+`initRoom`. Each landed on a seam that was already there; none needed a new concept. The header comment in
+`outbox.js` already records that this split exists for the budget — worth keeping, because the alternative reading
+is that the modules were designed apart for their own sake.
+
+**Durable owner:** none; recorded here so the next phase expects the same pressure.
