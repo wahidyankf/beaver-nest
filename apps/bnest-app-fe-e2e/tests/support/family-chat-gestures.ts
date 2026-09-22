@@ -10,6 +10,11 @@ import { type Locator, type Page } from "@playwright/test";
 
 export const MESSAGE = "[data-role=family-chat-message]";
 
+const MENU = "[data-role=family-chat-message-actions]";
+
+/** How long past the hold threshold the pointer may wait for the menu. */
+const HOLD_SETTLE_MS = 2_000;
+
 export function messageById(page: Page, messageId: string) {
   return page.locator(`${MESSAGE}[data-message-id="${messageId}"]`);
 }
@@ -64,7 +69,27 @@ export async function pressAndHold(
   const y = box.y + box.height / 2;
   await page.mouse.move(x, y);
   await page.mouse.down();
-  await page.waitForTimeout(holdMs + 50);
+  await page.waitForTimeout(holdMs);
+  // Releasing a fixed few milliseconds after the threshold races the
+  // application's own `setTimeout(HOLD_DURATION_MS)`: the release calls
+  // `gesture.end()`, which clears that timer, so any event-loop delay
+  // longer than the margin means the menu never opens. A 50 ms margin
+  // survived a quiet machine and lost roughly one run in twelve under a
+  // full suite -- with no `pointercancel` and no DOM mutation in the
+  // trace, only a timer that had not fired yet. The pointer therefore
+  // stays down until the menu appears, which is what a person holding a
+  // message does; `holdMs` remains the minimum it is held for, and a hold
+  // that genuinely opens nothing still releases and still fails the
+  // assertion that follows.
+  try {
+    await page.locator(MENU).waitFor({
+      state: "visible",
+      timeout: HOLD_SETTLE_MS,
+    });
+  } catch {
+    // A hold that opens nothing still has to release, so the assertion
+    // that follows reports the closed menu rather than this timeout.
+  }
   await page.mouse.up();
 }
 
