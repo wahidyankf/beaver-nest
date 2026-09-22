@@ -26,9 +26,30 @@ function itemsOf(list) {
 }
 
 /**
+ * Anything inside a message a browser would stop on while tabbing. Buttons,
+ * links, and fields are focusable by default, so a control added inside a
+ * bubble is a tab stop unless it says otherwise -- which is exactly how the
+ * quote card first slipped in.
+ * @param {HTMLElement} item
+ * @returns {HTMLElement[]}
+ */
+function tabbableInside(item) {
+  const candidates =
+    /** @type {HTMLElement[]} */
+    ([
+      ...item.querySelectorAll(
+        "a[href], area[href], button, input, select, textarea, summary, [tabindex]",
+      ),
+    ]);
+  return candidates.filter((candidate) => candidate.tabIndex >= 0);
+}
+
+/**
  * The contract the renderer must keep, stated once so the check and the
  * implementation cannot drift: exactly one reachable message, or none at all
- * when there are no messages to reach.
+ * when there are no messages to reach -- and nothing reachable *inside* a
+ * message, because "Tab enters the history once and leaves it once" is
+ * broken just as thoroughly by fifty quote cards as by fifty list items.
  * @param {HTMLElement} list
  * @returns {boolean}
  */
@@ -36,7 +57,10 @@ export function rovingInvariantHolds(list) {
   const items = itemsOf(list);
   if (items.length === 0) return true;
   const stops = items.filter((item) => item.tabIndex === 0);
-  return stops.length === 1 && items.every((item) => item.tabIndex <= 0);
+  if (stops.length !== 1 || items.some((item) => item.tabIndex > 0)) {
+    return false;
+  }
+  return items.every((item) => tabbableInside(item).length === 0);
 }
 
 /**

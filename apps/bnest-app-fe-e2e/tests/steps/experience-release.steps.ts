@@ -1,4 +1,5 @@
 import { expect, type BrowserContext, type Page } from "@playwright/test";
+import { composerInput } from "../support/family-chat";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
 import {
@@ -98,7 +99,7 @@ Given("two members each open {string}", async ({ browser }, route: string) => {
 
 Given("one member queues a message while offline", async () => {
   interceptSend = true;
-  await memberAPage.getByLabel("Message").fill(DRAFT_MESSAGE);
+  await composerInput(memberAPage).fill(DRAFT_MESSAGE);
   await memberAPage.getByRole("button", { name: "Send" }).click();
   await expect(
     memberAPage.locator("[data-role=family-chat-outbox-status]"),

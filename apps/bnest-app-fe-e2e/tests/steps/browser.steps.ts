@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { composerInput } from "../support/family-chat";
 import { createBdd } from "playwright-bdd";
 import {
   promoteCompatibleCandidate,
@@ -94,12 +95,12 @@ Then("the conversation is empty", async ({ page }) => {
 });
 
 Then("the message composer is available", async ({ page }) => {
-  await expect(page.getByLabel("Message")).toBeEnabled();
+  await expect(composerInput(page)).toBeEnabled();
   await expect(page.locator(".send-button")).toBeEnabled();
 });
 
 Then("the message composer is unavailable", async ({ page }) => {
-  await expect(page.getByLabel("Message")).toBeDisabled();
+  await expect(composerInput(page)).toBeDisabled();
   await expect(page.locator(".send-button")).toBeDisabled();
 });
 
@@ -153,13 +154,13 @@ Then("the chat controls do not overlap", async ({ page }) => {
 
 When("the visitor attempts to send an empty message", async ({ page }) => {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-  await page.getByLabel("Message").fill("   ");
+  await composerInput(page).fill("   ");
   await page.locator(".send-button").click();
 });
 
 When("the visitor sends {string}", async ({ page }, message: string) => {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-  await page.getByLabel("Message").fill(message);
+  await composerInput(page).fill(message);
   await page.getByRole("button", { name: "Send" }).click();
 });
 
@@ -167,7 +168,7 @@ When(
   "the visitor submits {string} with Shift+Enter",
   async ({ page }, message: string) => {
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-    const composer = page.getByLabel("Message");
+    const composer = composerInput(page);
     await composer.fill(message);
     await composer.press("Shift+Enter");
   },
@@ -176,7 +177,7 @@ When(
 When(
   "the visitor attempts to send {string} before Codex finishes",
   async ({ page }, message: string) => {
-    const composer = page.getByLabel("Message");
+    const composer = composerInput(page);
     const sendButton = page.locator(".send-button");
 
     await expect(composer).toBeDisabled();
@@ -229,7 +230,7 @@ When(
   "Codex rejects the visitor message {string}",
   async ({ page }, message: string) => {
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-    await page.getByLabel("Message").fill(message);
+    await composerInput(page).fill(message);
     await page.locator(".send-button").click();
   },
 );
@@ -241,14 +242,14 @@ When("Codex reports the error {string}", async ({ page }, message: string) => {
 When(
   "the visitor types {string} without sending",
   async ({ page }, draft: string) => {
-    await page.getByLabel("Message").fill(draft);
+    await composerInput(page).fill(draft);
   },
 );
 
 Then(
   "the message composer contains {string}",
   async ({ page }, draft: string) => {
-    await expect(page.getByLabel("Message")).toHaveValue(draft);
+    await expect(composerInput(page)).toHaveValue(draft);
   },
 );
 

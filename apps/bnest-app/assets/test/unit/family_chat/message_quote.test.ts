@@ -82,6 +82,12 @@ describe("messageNode quote rendering", () => {
     expect(quote.type).toBe("button");
   });
 
+  it("is not a tab stop, so Tab still enters the history exactly once", () => {
+    const quote = render(reply()).querySelector<HTMLElement>(QUOTE);
+
+    expect(quote?.tabIndex).toBe(-1);
+  });
+
   it("carries the target's id, which is what the jump needs", () => {
     const quote = render(reply()).querySelector<HTMLElement>(QUOTE);
 
