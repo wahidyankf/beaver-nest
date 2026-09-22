@@ -16,6 +16,7 @@ import {
   menuItemsFor,
   runCopyAction,
 } from "./message_actions.js";
+import { anchorMenu } from "./menu_anchor.js";
 import { bodyPreview } from "./reply_target.js";
 
 /** @typedef {import("./mount_browser.js").MountableRoom} MountableRoom */
@@ -134,6 +135,8 @@ function renderMenu(room, elements, menu, message) {
     });
     host.append(button);
   }
+  // After the items exist, so the host has the height the placement needs.
+  anchorMenu(host, elements.list, message.clientMessageId);
   /** @type {HTMLButtonElement | null} */
   (host.querySelector("button"))?.focus({ preventScroll: true });
 }
