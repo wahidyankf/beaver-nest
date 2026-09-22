@@ -54,6 +54,7 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
  *   onLogout: (() => void) | undefined,
  *   onAuthExpired: (() => void) | undefined,
  *   draining: boolean,
+ *   online: boolean,
  * }} OutboxState
  */
 
@@ -86,6 +87,12 @@ export function createOutboxState({
     // new page load behind an already-revalidated session, so it always
     // resumes draining even if a *previous* instance's session had expired.
     draining: true,
+    // Distinct from `draining`, which reconnect owns while it fills a
+    // catch-up gap. This one is the browser's own `online`/`offline`
+    // verdict: a message composed with no network stays at "Waiting for
+    // connection" (tech-doc 003's state machine) instead of attempting a
+    // send that cannot reach anything and flapping into "Retrying in ...".
+    online: true,
   };
 }
 
@@ -185,6 +192,9 @@ function handleTransportResult(state, message, result) {
  */
 export async function attemptSend(state, message, opts) {
   if (!state.draining) return;
+  // Left in whatever state it was queued or scheduled in. `reportOnline`
+  // picks every one of those up again, so nothing is lost by not trying.
+  if (!state.online) return;
 
   message.status = STATUS.SENDING;
   notify(state, message);
