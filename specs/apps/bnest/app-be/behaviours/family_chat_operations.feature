@@ -18,6 +18,14 @@ Feature: Family chat operations
     Then the prior release's existing behavior is unaffected
     And no prior-release code path touches the new family chat tables
 
+  # Exemption(e2e): pre-upgrade reader compatibility is a same-machine schema-overlap boundary; alternative-proof: bnest-app:test:integration / An old release ignores the additive reply column
+  @e2e-exempt
+  Scenario: An old release ignores the additive reply column
+    Given the additive family chat reply migration has applied
+    When code built before that migration opens the same database
+    Then it reads and writes every other family chat message column unchanged
+    And messages it commits carry no reply target
+
   Rule: Internal-only system message posting
 
   # Exemption(e2e): the internal system-message producer is a typed service call with no GraphQL or browser boundary; alternative-proof: bnest-app:test:integration / A trusted producer posts an idempotent system message
@@ -45,6 +53,14 @@ Feature: Family chat operations
     When a member sends a durable family chat message
     Then the message and one pending delivery row per other active subscription commit in one transaction
     And the sender receives no delivery row for their own message
+
+  # Exemption(e2e): one-transaction commit of a message and its delivery rows is an internal SQLite boundary; alternative-proof: bnest-app:test:integration / A reply commits exactly the delivery rows an ordinary message does
+  @e2e-exempt
+  Scenario: A reply commits exactly the delivery rows an ordinary message does
+    Given one other member holds an active Web Push subscription in "ruang-keluarga"
+    When a member sends a durable family chat reply to that member's message
+    Then exactly one pending delivery row exists for that subscription
+    And the delivery payload carries no part of the quoted message
 
   Rule: Push delivery retry, retirement, retention, and purge
 

@@ -106,25 +106,35 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       Contract order with source inventory and rollback behaviour, Q4 the exploratory and usability passes specified
       to their workflow's actual contract, Q5 the 99% unit-coverage threshold named. No row left `OPEN` or
       `BLOCKED`; nothing waived. Snapshot, ledger, and tooling result in `learnings.md`.
-- [ ] `[AI] [AC-FCR-01..14]` Provision `worktrees/family-chat-message-reply/` from current `origin/main`, inspect
+- [x] `[AI] [AC-FCR-01..14]` Provision `worktrees/family-chat-message-reply/` from current `origin/main`, inspect
       dirty paths, and freeze the Nx project and target inventory in `learnings.md`. **Proof:** clean branch based on
       `origin/main`, exactly one live copy of this plan, and resolved `bnest-app`, `bnest-app-be-e2e`,
       `bnest-app-fe-e2e`, and `rhino-consumer` targets. Commands: `rtk git fetch origin`,
       `rtk git status --short --branch`, and a guarded `npm exec -- nx show project <name> --json`.
-- [ ] `[AI] [AC-FCR-11]` Record the SQLite version bundled with the running `exqlite`, and whether
+      **2026-09-22:** clean worktree at `origin/main`, one live plan copy, five projects resolved, and every
+      canonical command's target present. Inventory in `learnings.md`.
+- [x] `[AI] [AC-FCR-11]` Record the SQLite version bundled with the running `exqlite`, and whether
       `PRAGMA foreign_keys` is on for the shared `SqliteRepo` connection. **Proof:** both values in `learnings.md`.
       A SQLite version below 3.35 means the migration's down path raises instead of dropping the column — decide and
       record that before Phase 2 writes it, not after.
-- [ ] `[AI] [AC-FCR-14]` Record a 12-sample routed readiness baseline and the current active revision and slot,
+      **2026-09-22:** `exqlite` 0.40.0 bundling SQLite **3.53.4**, so the down path drops the column rather
+      than raising — decided before Phase 2. `PRAGMA foreign_keys` is **on** for a pooled `SqliteRepo`
+      connection and off for a bare one; the application check stays the first guard. Probed on an isolated
+      scratch database, removed afterwards.
+- [x] `[AI] [AC-FCR-14]` Record a 12-sample routed readiness baseline and the current active revision and slot,
       without private values. **Proof:** zero failures, p95 ≤ 500 ms, every sample ≤ 2 s, and the healthy revision
       identifier in `learnings.md`. Procedure: the read-only steps in `docs/how-to-guides/releasing-bnest.md`.
-- [ ] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 0.** Confirm a non-blocking quality verdict, a clean and
+      **2026-09-22:** green slot routed through Caddy, zero failures, p95 248.4 ms, maximum 248.4 ms. Inside
+      budget.
+- [x] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 0.** Confirm a non-blocking quality verdict, a clean and
       current checkout, the recorded SQLite and pragma facts, a healthy routed baseline, and that no product file has
       been edited yet.
+      **2026-09-22: passed.** Quality verdict `PASS`; checkout clean at `origin/main`; SQLite 3.53.4 and the
+      pragma both recorded; routed baseline inside budget; no file outside `plans/` has been touched.
 
 ## Phase 1 — Specification and Architecture Delta
 
-- [ ] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-12]` Add the reply `Rule`s to
+- [x] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-12]` Add the reply `Rule`s to
       `specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature` and
       `specs/apps/bnest/app-be/behaviours/family_chat_operations.feature`, transcribing the relevant
       [`prd.md`](prd.md) scenarios as observable backend behaviour. Transcribe exactly the scenarios
@@ -132,12 +142,18 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       outcomes it marks plan-only out of `specs/`. **Proof:** the new Rules exist, every scenario names an outcome
       visible at the GraphQL boundary or in stored state, and no plan-only outcome was copied in. No placeholder,
       no-op, or outcome-table scenario is accepted.
-- [ ] `[AI] [AC-FCR-01, AC-FCR-02, AC-FCR-03, AC-FCR-06..10]` Add the reply `Rule`s to
+      **2026-09-22:** one new `Rule: Replying to a message` with five scenarios, plus four scenarios added to
+      the existing idempotency, display-name, and subscription rules, and two to `family_chat_operations`.
+      Every plan-only outcome stayed out. No existing scenario was edited.
+- [x] `[AI] [AC-FCR-01, AC-FCR-02, AC-FCR-03, AC-FCR-06..10]` Add the reply `Rule`s to
       `specs/apps/bnest/app-fe/behaviours/family_chat.feature`, tagging each scenario with the layer that will own it
       and writing an explicit `Exemption(e2e)` comment with its alternative proof wherever a scenario is proven at
       FE_UNIT instead of FE_E2E. **Proof:** every new scenario carries an owning tag, and every exemption names the
       exact alternative target and scenario name.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-06]` Update `specs/apps/bnest/app-be/architecture.md` exactly as
+      **2026-09-22:** four new Rules — message actions, composing a reply, reading a reply, keyboard reach —
+      plus four offline scenarios on the existing queue rule and one on the promotion rule. Every scenario
+      carries its owning tag and a documented exemption; the compliance validator accepts all of them.
+- [x] `[AI] [AC-FCR-04, AC-FCR-06]` Update `specs/apps/bnest/app-be/architecture.md` exactly as
       [Specification Changes](tech-docs/005-specification-changes.md) states: in the **Component View** prose, the
       paragraph enumerating the family chat GraphQL surface gains `send_family_chat_message`'s optional
       `reply_to_message_id` argument and the message's `reply_to` field; in **Architectural Constraints**, quote
@@ -145,7 +161,12 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       locations changed and no other. The **Container View** models one `Local SQLite database` node and enumerates
       no tables, and **Behaviour Traceability** is prose naming adapters rather than scenarios — record both as
       deliberately unchanged rather than editing them.
-- [ ] `[AI] [AC-FCR-01, AC-FCR-08, AC-FCR-10]` Update `specs/apps/bnest/app-fe/architecture.md` exactly as
+      **2026-09-22:** Component View prose now states the optional `reply_to_message_id` argument and the
+      `reply_to` quote field with its four subfields, and says the quote type is distinct rather than
+      recursive. Architectural Constraints gained the read-time-derivation rule. Container View and
+      Behaviour Traceability were read and left unchanged, deliberately: the former models one SQLite node
+      and enumerates no tables, the latter names adapters and no individual scenario.
+- [x] `[AI] [AC-FCR-01, AC-FCR-08, AC-FCR-10]` Update `specs/apps/bnest/app-fe/architecture.md` exactly as
       [Specification Changes](tech-docs/005-specification-changes.md) states: the **Component View** prose covering
       the browser-owned `assets/js/family_chat/*` module set gains the action-menu, reply-target, and jump modules
       and the reply flag the route passes to the browser; **Architectural Constraints** gains one bullet for the
@@ -153,10 +174,20 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       in the browser or the service worker. **Proof:** the three modules and the flag appear exactly once each, the
       read-time bullet sits beside the existing service-worker caching constraint it would otherwise seem to
       contradict, and the **Container View** is recorded as deliberately unchanged.
-- [ ] `[AI] [AC-FCR-01..14]` Run the repository specification-map gate. **Proof:** `REPO` passes and the delivery
+      **2026-09-22:** Component View prose now names the action-menu, reply-target, and jump modules and the
+      reply flag the route passes. Two constraints added: the single tab stop with arrow-key movement, and
+      read-time quote derivation placed directly beside the service-worker caching rule it would otherwise
+      appear to contradict. Container View left unchanged, deliberately.
+- [x] `[AI] [AC-FCR-01..14]` Run the repository specification-map gate. **Proof:** `REPO` passes and the delivery
       record names every specification file changed. Command: `REPO`.
-- [ ] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 1.** Specifications and both C4 models describe the
+      **2026-09-22:** `REPO` green — `public-safety-tree`, `repo-config`, `word-budget`, `directory-map`,
+      `harness-adapters`, `internal-links`, `mermaid`. Specification files changed:
+      `app-be/behaviours/family_chat_graphql.feature`, `app-be/behaviours/family_chat_operations.feature`,
+      `app-fe/behaviours/family_chat.feature`, `app-be/architecture.md`, `app-fe/architecture.md`.
+- [x] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 1.** Specifications and both C4 models describe the
       intended behaviour, `REPO` is green, and no production code has changed.
+      **2026-09-22: passed.** Both C4 models and all three feature files describe the intended behaviour,
+      `REPO` is green, and no production code has changed — the diff is `specs/` and `plans/` only.
 
 ## Phase 2 — Data Model and Migration
 

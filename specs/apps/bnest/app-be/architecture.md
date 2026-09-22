@@ -188,8 +188,12 @@ flowchart TB
 this document owns only the domain components those routes call into. Family chat is a materially different pattern:
 `app-fe` renders it through a plain Phoenix controller route (`FamilyChatController`, not a LiveView), and the
 browser drives every read/write itself through one authenticated GraphQL schema exposed at `/api/graphql`:
-`family_chat_rooms`, `family_chat_room`, and `family_chat_messages` queries; `send_family_chat_message` mutation; and
-`family_chat_message_committed` subscription, all served by the `familychat` component, with subscription identity
+`family_chat_rooms`, `family_chat_room`, and `family_chat_messages` queries; `send_family_chat_message` mutation,
+which accepts an optional `reply_to_message_id` naming an already-committed message in the same room; and
+`family_chat_message_committed` subscription. Every message the schema returns carries an optional `reply_to` quote
+(`id`, `sender_kind`, `sender_display_name`, and a server-bounded `body_preview`), which is a distinct object type
+rather than a recursive message, so a quote can never carry a quote of its own. All are served by the `familychat`
+component, with subscription identity
 resolved only from the server-decoded session carried in `UserSocket`'s `connect_info` — never from client-supplied
 socket params. Push-subscription lifecycle (`web_push_configuration`, `current_web_push_subscription` queries;
 `upsert_web_push_subscription`, `disable_current_web_push_subscription` mutations) is served through that same
@@ -240,6 +244,11 @@ subscription), and distinct data stores.
   `BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE`/`BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE` and a validated `mailto:`/HTTPS
   `BNEST_WEB_PUSH_SUBJECT`; delivery retries and the retention job's purge window are bounded, and a failed
   subscription is soft-deleted rather than retried unboundedly.
+- A message's reply quote is a **read-time derivation** inside the `familychat` component, never a stored copy and
+  never a resolver-layer query: the row holds only `reply_to_message_id`, and the quoted sender and body preview are
+  resolved from the referenced row when the page is read. One batched lookup serves a whole page. This depends on
+  `family_chat_messages` remaining append-only by trigger, which is what makes a reference safe where other products
+  denormalize.
 - The family chat feature (GraphQL schema, resolvers, push delivery, and the second Scheduler handler) is fully
   implemented and tested but gated end-to-end behind `BNEST_FAMILY_CHAT_ENABLED`, which still defaults to `false`
   (off) in this compatibility revision; only a later experience-release phase flips it on in production.

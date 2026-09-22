@@ -269,5 +269,75 @@ This verdict authorizes neither execution nor commit. Both require their own exp
 
 ## Execution Log
 
-_Empty. No execution has started. Entries are appended dated and sanitized as `delivery.md` is worked through, and
-every one is resolved to a durable owner or discarded with a reason before archival._
+Entries are appended dated and sanitized as `delivery.md` is worked through, and every one is resolved to a durable
+owner or discarded with a reason before archival.
+
+### 2026-09-22 — Phase 0 preflight
+
+**Checkout and inventory.** `worktrees/family-chat-message-reply/` on branch `family-chat-message-reply`, clean, at
+`origin/main` after the plan itself landed there through pull request #80 (rebase merge, three thematic commits,
+`Quality gate` green on the exact head and a `pass` leak review posted against that same head). Exactly one live copy
+of this plan exists, at `plans/in-progress/family-chat-message-reply/`.
+
+Nx projects: `bnest-app`, `bnest-app-be-e2e`, `bnest-app-fe-e2e`, `rhino-consumer`, `ex-bdd`. Every target this
+plan's canonical command table names resolves: `bnest-app` carries `test:unit`, `test:unit:be`, `test:unit:fe`,
+`test:integration`, `test:coverage:behaviour`, `test:quick`, `release:test`, and `release:run`; both E2E projects
+carry `test:coverage:behaviour` and `test:e2e`; `rhino-consumer` carries `test:repo`. No canonical command names a
+target that does not exist.
+
+**SQLite version and the foreign-key pragma.** `exqlite` 0.40.0 through `ecto_sqlite3` 0.24.1, bundling **SQLite
+3.53.4**. That is well above the 3.35 floor `ALTER TABLE ... DROP COLUMN` needs, so
+[Data Model](tech-docs/001-data-model-and-migration.md)'s reverse path **can** drop the column and does not fall back
+to raising. Phase 2 writes the dropping form.
+
+The pragma answer is two-sided, and both sides matter:
+
+| Connection                                | `PRAGMA foreign_keys` |
+| ----------------------------------------- | --------------------- |
+| A bare `Exqlite` connection, no options   | `0`                   |
+| A pooled `BnestApp.SqliteRepo` connection | `1`                   |
+
+`config/config.exs` sets `foreign_keys: :on` for `SqliteRepo`, and a live pooled connection confirms it rather than
+the configuration merely claiming it. So the `REFERENCES` clause **is** enforced for application traffic — a second
+line of defence, exactly as the data-model document predicted. It is still not the guard: the pragma is
+per-connection and SQLite's own default is off, so anything opening its own connection loses it. The same-room
+existence check in Elixir remains the first and real guard, and the plan's caveat stands as written.
+
+Probed against an isolated scratch database under ignored `local-tmp/`, removed afterwards. Production storage was
+not opened.
+
+**Routed readiness baseline.** Caddy routes `4100` to the green slot on `4001`; the active revision is the
+`origin/main` revision that preceded this plan. Twelve samples of the routed readiness endpoint: **zero failures,
+p95 248.4 ms, maximum 248.4 ms, minimum 3.1 ms** — inside the p95 ≤ 500 ms and maximum ≤ 2 s budget with room to
+spare. `hippo status` reported `state=normal`, `profile=local-constrained`, `concurrency=2`, 97 GiB free. The service
+is healthy, so [live-service continuity](../../../repo-governance/development/live-service-continuity.md) does not
+stop the work.
+
+**Surprise worth recording.** None of the three preflight facts contradicted the plan, but the pragma result is
+sharper than the plan assumed: the plan hedged on whether foreign keys would be enforced at all. They are, for every
+connection the application itself uses. That does not relax the validation requirement — it means a bug in the Elixir
+check would surface as a constraint violation rather than as a silently dangling reference, which is a better failure
+than the one the plan prepared for.
+
+### 2026-09-22 — Phase 1, and a File Impact deviation found by reading the harness
+
+Specifications and both C4 models landed before any product code, as
+[Specification Changes](tech-docs/005-specification-changes.md) requires. `REPO` green.
+
+**File Impact deviation — `apps/bnest/assets/test/behaviour/family_chat.steps.ts` `[E]`.**
+[File Impact](tech-docs/006-file-impact-and-release.md) lists the frontend unit tests as
+`assets/test/unit/family_chat/*.test.ts` and the browser bindings as `bnest-app-fe-e2e/tests/steps/*`. Reading the
+harness showed a third binding file the plan never named: `apps/bnest-app/assets/test/behaviour/family_chat.steps.ts`,
+the Vitest+Gherkin adapter that binds the `app-fe` feature corpus.
+
+It is not optional. `BnestApp.Behaviour.FeVitestUnitScope` prunes every `@fe-vitest-unit` scenario from the Elixir
+corpus, and `assets/test/behaviour/verify.ts` then requires **exactly** that complementary set. So every new frontend
+scenario needs a binding there, including the ones whose real proof is a browser — the existing corpus already does
+this, binding `A connected client reconnects to the promoted slot without a page refresh` in both harnesses.
+
+The plan's layer table is unaffected and its reasoning still holds: `FE_UNIT` proves the renderer's invariant and
+`FE_E2E` proves the real focus order, and those remain **different scenarios**, not one scenario asserted twice. What
+changed is only the count of files Phases 5 and 6 touch. Recorded here rather than added silently, per File Impact's
+own instruction.
+
+**Durable owner:** the file list in `tech-docs/006-file-impact-and-release.md`, corrected at archival.

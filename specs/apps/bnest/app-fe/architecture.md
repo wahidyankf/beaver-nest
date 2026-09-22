@@ -150,9 +150,12 @@ The family chat route renders only the initial page shell (room list/composer sc
 decides for itself where in the conversation to place the visitor — reading its own stored room read position and
 paging around it — and drives every subsequent read, send, and live update over GraphQL directly against
 [`app-be`](../app-be/architecture.md)'s schema and `UserSocket`, bypassing the LiveView event pattern the other
-routes use. The service worker is drawn as a second external container here (not a `routes` component) because it
-runs independently of any open route: it can display a push notification, extend the offline app-shell cache, or
-retry a queued outbox entry while no family chat tab is open.
+routes use. That browser-owned module set under `assets/js/family_chat/*` includes the per-message action menu, the
+reply-target state the composer and outbox share, and the bounded jump that walks older pages to reach a quoted
+message; the route's shell also passes the browser a reply-enabled flag, which gates the requested GraphQL fields,
+the menu, and the composer strip together. The service worker is drawn as a second external container here (not a
+`routes` component) because it runs independently of any open route: it can display a push notification, extend the
+offline app-shell cache, or retry a queued outbox entry while no family chat tab is open.
 
 ## Architectural Constraints
 
@@ -184,6 +187,12 @@ retry a queued outbox entry while no family chat tab is open.
   `family_chat_messages`, and survives a Caddy blue/green promotion the same way LiveView clients do.
   Session/authentication expiry pauses the connection instead of retrying against an unauthenticated socket, and a
   logout in one tab never affects another tab's independent session.
+- A reply's quote is always derived from the referenced message at read time and is never cached in the browser or
+  the service worker. It is part of the message payload the room already fetches, not a second thing to store, so
+  the no-authenticated-caching rule above applies to it unchanged.
+- Family chat's message history exposes exactly one tab stop: a roving `tabindex` keeps one message focusable at a
+  time, the arrow keys move between messages and move that stop with them, and Tab enters and leaves the history
+  once regardless of how many messages are loaded.
 - The IndexedDB send outbox is bounded per room and expires unsent entries after seven days, resuming delivery on
   reconnect/online transitions; Web Push permission is requested only from an explicit user gesture, never on page
   load, and the browser can revoke it at any time without breaking the room.
