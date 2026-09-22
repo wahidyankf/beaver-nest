@@ -79,6 +79,65 @@ Feature: Family chat GraphQL API
     Then the response returns the original committed message unchanged
     And the family chat room still holds exactly one message for that client message ID
 
+  # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / Retrying a client message ID with a different reply target returns the first commit
+  @e2e-exempt
+  Scenario: Retrying a client message ID with a different reply target returns the first commit
+    Given the user already sent a family chat reply to a known message with a known client message ID
+    When the user resends the same client message ID naming a different reply target
+    Then the response returns the original committed message unchanged
+    And that message's quote still names the reply target committed first
+    And the family chat room still holds exactly one message for that client message ID
+
+  Rule: Replying to a message
+
+  # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / A member sends a reply and the commit carries its quote
+  @e2e-exempt
+  Scenario: A member sends a reply and the commit carries its quote
+    Given a family chat message from another member is already committed in "ruang-keluarga"
+    When the user sends the family chat message "On my way" naming that message as the reply target
+    Then the response returns the committed message with a server ID and commit time
+    And the response's quote names that reply target's server ID
+    And the response's quote reports that target's sender display name and a preview of its body
+
+  # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / A message sent with no reply target has no quote
+  @e2e-exempt
+  Scenario: A message sent with no reply target has no quote
+    When the user sends the family chat message "Dinner is ready" with a fresh client message ID
+    Then the response returns the committed message with a server ID and commit time
+    And the response's message carries no quote
+
+  # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / A quote is shortened to a bounded preview
+  @e2e-exempt
+  Scenario: A quote is shortened to a bounded preview
+    Given a committed family chat message whose body is 400 graphemes long
+    When the user sends a family chat reply naming that message as the reply target
+    Then the response's quote preview is at most 160 graphemes long
+    And the response's quote preview ends with an ellipsis
+    And the quoted message's own body is returned in full, unshortened
+
+  # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / A reply target the server cannot honour is rejected before commit
+  @e2e-exempt
+  Scenario Outline: A reply target the server cannot honour is rejected before commit
+    When the user sends a family chat reply whose reply target <target>
+    Then the response reports a validation failure
+    And the family chat room holds no message for that client message ID
+    And no committed-message event is published
+
+    Examples:
+      | target                             |
+      | names a server ID no message has   |
+      | names a message in a different room |
+      | is not a positive integer          |
+
+  # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / A reply to a reply quotes only its immediate parent
+  @e2e-exempt
+  Scenario: A reply to a reply quotes only its immediate parent
+    Given a committed family chat message "Nanti aku jemput jam 5"
+    And a committed family chat reply to it reading "Oke, aku siapin"
+    When the user sends a family chat reply naming that reply as the reply target
+    Then the response's quote names the reply it answers
+    And that quote carries no quote of its own
+
   Rule: Sender display name reflects the current account, not a historical snapshot
 
   # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / Re-querying an older message shows the sender's current display name
@@ -90,6 +149,15 @@ Feature: Family chat GraphQL API
     When the user later re-queries family chat messages
     Then the response reports "Renamed Member" as that message's sender display name, not the name stored at commit time
     And the system message's sender display name remains unaffected by the account rename
+
+  # Exemption(e2e): the routed HTTP pipeline is already exercised through Phoenix.ConnTest against the same GraphQL endpoint; alternative-proof: bnest-app:test:integration / A quoted sender name follows the current account too
+  @e2e-exempt
+  Scenario: A quoted sender name follows the current account too
+    Given the user replied to a message committed under the sender's earlier display name
+    And the sender's account display name later changes to "Renamed Member"
+    When the user later re-queries family chat messages
+    Then the reply's quote reports "Renamed Member" as the quoted sender's display name
+    And that name matches the display name shown on the quoted message itself
 
   Rule: Safe errors for unauthenticated, forbidden, invalid, and missing-room operations
 
@@ -151,6 +219,23 @@ Feature: Family chat GraphQL API
     When the user establishes the "familyChatMessageCommitted" subscription for "ruang-keluarga"
     And the user queries family chat messages after their last known committed message ID
     Then the response includes the message committed before the subscription started
+
+  # Exemption(integration): a live Absinthe subscription push over a socket process is not observable through Phoenix.ConnTest/LiveViewTest; alternative-proof: bnest-app-be-e2e:test:e2e / A subscribed reply arrives carrying its quote
+  @integration-exempt
+  Scenario: A subscribed reply arrives carrying its quote
+    Given the user holds an authorized "familyChatMessageCommitted" subscription for "ruang-keluarga"
+    When another member sends a family chat reply to one of the user's messages
+    Then the subscriber receives exactly one committed-message event matching that reply
+    And that event's message carries a quote naming the message it answers
+
+  # Exemption(integration): a live Absinthe subscription push over a socket process is not observable through Phoenix.ConnTest/LiveViewTest; alternative-proof: bnest-app-be-e2e:test:e2e / A reply caught up through afterId carries its quote
+  @integration-exempt
+  Scenario: A reply caught up through afterId carries its quote
+    Given a family chat reply committed before the user's subscription started
+    When the user establishes the "familyChatMessageCommitted" subscription for "ruang-keluarga"
+    And the user queries family chat messages after their last known committed message ID
+    Then the response includes that reply
+    And that reply carries a quote naming the message it answers
 
   Rule: Web Push configuration and subscription through GraphQL
 

@@ -56,6 +56,248 @@ Feature: Family chat room
     Then the new message is not queued
     And the composer explains the retry-or-discard remediation
 
+  Rule: Message actions
+
+  @fe-vitest-unit
+  # Exemption(integration): each entry point is a real pointer, context-menu, or key event the server never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / A member opens the message action menu
+  @integration-exempt
+  Scenario Outline: A member opens the message action menu
+    Given a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
+    When the visitor <entry point> on that message
+    Then the message action menu opens for that message
+    And keyboard focus is inside the menu
+
+    Examples:
+      | entry point                                   |
+      | presses and holds for 500 milliseconds        |
+      | opens the browser context menu                |
+      | activates the actions control revealed on hover |
+      | moves focus to the message and presses Enter  |
+
+  @fe-vitest-unit
+  # Exemption(integration): where DOM focus lands after a menu closes is browser accessibility-tree state Phoenix.LiveViewTest never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / Closing the menu returns focus to the message it came from
+  @integration-exempt
+  Scenario: Closing the menu returns focus to the message it came from
+    Given the message action menu is open for a committed message
+    When the visitor presses Escape
+    Then the menu closes
+    And keyboard focus is on that same message
+
+  @fe-vitest-unit
+  # Exemption(e2e): the hold timer and its movement tolerance are pointer-event arithmetic already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / A press that turns into a scroll does not open the menu
+  @e2e-exempt
+  Scenario: A press that turns into a scroll does not open the menu
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor presses a message and moves more than 10 pixels before releasing
+    Then no action menu opens
+
+  @fe-vitest-unit
+  # Exemption(integration): two simultaneously rendered menus are real DOM state Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Only one menu is open at a time
+  @integration-exempt
+  Scenario: Only one menu is open at a time
+    Given the message action menu is open for one committed message
+    When the visitor opens the menu on a different message
+    Then only the second message has an open menu
+
+  @fe-vitest-unit
+  # Exemption(integration): the rendered menu and its enabled items are browser DOM state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A committed message offers both actions
+  @integration-exempt
+  Scenario: A committed message offers both actions
+    Given a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
+    When the visitor opens the action menu on that message
+    Then the menu offers exactly "Reply" and "Copy text"
+    And both actions are available
+
+  @fe-vitest-unit
+  # Exemption(e2e): availability follows from the queued message's delivery state, which the frontend Vitest+Gherkin harness already drives directly; alternative-proof: bnest-app:test:unit:fe / A message that is not yet committed cannot be replied to
+  @e2e-exempt
+  Scenario Outline: A message that is not yet committed cannot be replied to
+    Given the visitor's own message is in the "<state>" state
+    When the visitor opens the action menu on it
+    Then "Reply" is present and unavailable
+    And the menu states that the message must send before it can be replied to
+    And "Copy text" remains available
+
+    Examples:
+      | state                  |
+      | Waiting for connection |
+      | Sending                |
+      | Retrying               |
+      | Couldn't send          |
+
+  @fe-vitest-unit
+  # Exemption(e2e): no sender kind is special-cased, which is a menu-state decision the frontend Vitest+Gherkin harness already covers; alternative-proof: bnest-app:test:unit:fe / A system message can be replied to like any other
+  @e2e-exempt
+  Scenario: A system message can be replied to like any other
+    Given the room holds a committed system message
+    When the visitor opens the action menu on it
+    Then "Reply" is available
+
+  @fe-vitest-unit
+  # Exemption(e2e): clipboard writing is exercised against a stubbed Clipboard API in the frontend Vitest+Gherkin harness, which observes the exact written value; alternative-proof: bnest-app:test:unit:fe / Copying a message puts its text on the clipboard
+  @e2e-exempt
+  Scenario: Copying a message puts its text on the clipboard
+    Given the visitor opens the action menu on a message whose body is "Dinner is ready"
+    When the visitor chooses "Copy text"
+    Then the clipboard holds exactly "Dinner is ready"
+    And the room announces that the message was copied
+
+  @fe-vitest-unit
+  # Exemption(e2e): a rejected Clipboard API promise is driven directly in the frontend Vitest+Gherkin harness, where a real browser would grant permission instead; alternative-proof: bnest-app:test:unit:fe / A refused clipboard is reported, not swallowed
+  @e2e-exempt
+  Scenario: A refused clipboard is reported, not swallowed
+    Given the browser refuses clipboard write access
+    When the visitor chooses "Copy text" on a committed message
+    Then the room states that the text could not be copied
+    And the menu closes
+
+  Rule: Composing a reply
+
+  @fe-vitest-unit
+  # Exemption(integration): the composer strip and where focus lands afterwards are browser DOM and focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Choosing Reply puts the target above the message input
+  @integration-exempt
+  Scenario: Choosing Reply puts the target above the message input
+    Given the visitor opens the action menu on a message from "Ayah" reading "Nanti aku jemput jam 5"
+    When the visitor chooses "Reply"
+    Then the composer shows a reply strip naming "Ayah"
+    And the strip shows the text of that message
+    And keyboard focus is in the message input
+    And the room announces that the visitor is replying to "Ayah"
+
+  @fe-vitest-unit
+  # Exemption(e2e): the strip renders the server's bounded preview, and the frontend Vitest+Gherkin harness observes the rendered string directly; alternative-proof: bnest-app:test:unit:fe / A long quoted message is shortened in the strip
+  @e2e-exempt
+  Scenario: A long quoted message is shortened in the strip
+    Given the selected message body is 400 graphemes long
+    When the reply strip renders it
+    Then at most 160 graphemes are shown
+    And the shown text ends with an ellipsis
+
+  @fe-vitest-unit
+  # Exemption(e2e): cancelling a reply target is composer state transition logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / The member abandons the reply
+  @e2e-exempt
+  Scenario Outline: The member abandons the reply
+    Given the composer shows a reply strip
+    And the visitor has typed "Oke" without sending
+    When the visitor <action>
+    Then the reply strip is gone
+    And the message input still holds "Oke"
+
+    Examples:
+      | action                                    |
+      | activates the cancel control on the strip |
+      | presses Escape in the message input       |
+
+  @fe-vitest-unit
+  # Exemption(integration): a real page reload discarding unpersisted draft state requires an actual browser navigation; alternative-proof: bnest-app-fe-e2e:test:e2e / The reply target does not survive a reload
+  @integration-exempt
+  Scenario: The reply target does not survive a reload
+    Given the composer shows a reply strip
+    When the visitor reloads the page
+    Then no reply strip is shown
+
+  @fe-vitest-unit
+  # Exemption(e2e): clearing the target on successful queueing is composer lifecycle logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / Sending clears the reply target
+  @e2e-exempt
+  Scenario: Sending clears the reply target
+    Given the composer shows a reply strip
+    When the visitor sends the message
+    Then no reply strip is shown
+    And the next message the visitor sends carries no reply target
+
+  Rule: Reading a reply
+
+  @fe-vitest-unit
+  # Exemption(integration): the four arrival paths include a live socket push and a reconnect catch-up that Phoenix.LiveViewTest cannot drive against the browser renderer; alternative-proof: bnest-app-fe-e2e:test:e2e / A reply carries its quote through each arrival path
+  @integration-exempt
+  Scenario Outline: A reply carries its quote through each arrival path
+    Given another member has replied to one of the visitor's messages
+    When the reply reaches the visitor through <path>
+    Then the reply renders a quote naming the original sender
+    And the quote shows the original message text
+
+    Examples:
+      | path                                    |
+      | the first history page                  |
+      | an older history page                   |
+      | the live subscription                   |
+      | reconnect catch-up after a dropped socket |
+
+  @fe-vitest-unit
+  # Exemption(e2e): flat rendering is a renderer decision the frontend Vitest+Gherkin harness observes directly in the produced markup; alternative-proof: bnest-app:test:unit:fe / A reply to a reply shows only one level of quote
+  @e2e-exempt
+  Scenario: A reply to a reply shows only one level of quote
+    Given message A exists
+    And message B is a reply to A
+    When a reply to B is rendered
+    Then that reply shows a quote of B
+    And that quote shows no quote of its own
+
+  @fe-vitest-unit
+  # Exemption(integration): scrolling, highlighting, and moving focus to a target message are browser layout and focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The original is already on screen
+  @integration-exempt
+  Scenario: The original is already on screen
+    Given a reply and the message it quotes are both loaded
+    When the visitor activates the quote
+    Then the history scrolls to the original message
+    And that message is highlighted
+    And keyboard focus moves to it
+
+  @fe-vitest-unit
+  # Exemption(integration): loading older pages in response to a jump and landing on the target is browser paging and scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The original is above the loaded window
+  @integration-exempt
+  Scenario: The original is above the loaded window
+    Given a reply quotes a message two older pages above the loaded window
+    When the visitor activates the quote
+    Then older pages are loaded until the original is present
+    And the history scrolls to it
+
+  @fe-vitest-unit
+  # Exemption(e2e): the five-page bound and its refusal are paging arithmetic the frontend Vitest+Gherkin harness counts directly; alternative-proof: bnest-app:test:unit:fe / The original is beyond the jump bound
+  @e2e-exempt
+  Scenario: The original is beyond the jump bound
+    Given a reply quotes a message more than five older pages above the loaded window
+    When the visitor activates the quote
+    Then no more than five older pages are requested
+    And the room states that the message is too far back to jump to
+
+  @fe-vitest-unit
+  # Exemption(integration): honouring prefers-reduced-motion is a real media-query and computed-style concern only a browser resolves; alternative-proof: bnest-app-fe-e2e:test:e2e / Highlighting respects reduced motion
+  @integration-exempt
+  Scenario: Highlighting respects reduced motion
+    Given the visitor's system requests reduced motion
+    When the visitor jumps to a quoted message
+    Then the message is marked without an animated pulse
+
+  Rule: Keyboard reach of the message history
+
+  @fe-vitest-unit
+  # Exemption(integration): a end-to-end keyboard journey needs a real focus engine, which no browserless harness provides; alternative-proof: bnest-app-fe-e2e:test:e2e / The whole journey works from the keyboard alone
+  @integration-exempt
+  Scenario: The whole journey works from the keyboard alone
+    Given a visitor opens "/family-chat/ruang-keluarga" using only a keyboard
+    When the visitor moves focus into the history, selects a message, opens the menu, chooses "Reply", types, and sends
+    Then the sent message renders a quote of the selected message
+    And focus is never left on a control the visitor cannot operate
+
+  @fe-vitest-unit
+  # Exemption(integration): tab order across 50 rendered items is real focus-engine behaviour Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Tab does not walk through every message in the room
+  @integration-exempt
+  Scenario: Tab does not walk through every message in the room
+    Given the history holds 50 messages
+    When the visitor presses Tab from the control before the history
+    Then focus enters the history exactly once
+    And the arrow keys move between messages
+
+  @fe-vitest-unit
+  # Exemption(integration): an element's computed accessible name comes from the browser accessibility tree, which no browserless harness builds; alternative-proof: bnest-app-fe-e2e:test:e2e / A quote exposes an accessible name naming its sender
+  @integration-exempt
+  Scenario: A quote exposes an accessible name naming its sender
+    Given a reply quoting a message from "Ayah" is rendered
+    When assistive technology reads that reply
+    Then the quote exposes an accessible name naming "Ayah"
+    And the quote is exposed as an activatable control
+
   Rule: Resume, online reaction, backoff, and seven-day expiry
 
   @fe-vitest-unit
@@ -104,6 +346,41 @@ Feature: Family chat room
     Then the message is not automatically retried
     And the visitor can still manually retry or discard it
 
+  @fe-vitest-unit
+  # Exemption(e2e): queue admission and the stored record shape are outbox logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / An offline reply queues with its target
+  @e2e-exempt
+  Scenario: An offline reply queues with its target
+    Given the visitor is offline with the room open
+    When the visitor replies to a committed message
+    Then the queued message shows status "Waiting for connection"
+    And the queued record carries the reply target
+
+  @fe-vitest-unit
+  # Exemption(e2e): durable queue state across a closed session is persistence logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / A queued reply survives closing the app
+  @e2e-exempt
+  Scenario: A queued reply survives closing the app
+    Given an offline reply is queued
+    When the visitor reopens "/family-chat/ruang-keluarga" while still offline
+    Then the queued reply is still present with its target
+
+  @fe-vitest-unit
+  # Exemption(e2e): drain-on-reconnect is queue transition logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / A queued reply commits with its link on reconnect
+  @e2e-exempt
+  Scenario: A queued reply commits with its link on reconnect
+    Given an offline reply is queued
+    When the network recovers
+    Then the reply reaches status "Sent" exactly once
+    And the committed message renders its quote
+
+  @fe-vitest-unit
+  # Exemption(e2e): hydrating a record stored without the new field is persistence-compatibility logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / A queued record written before this feature still sends
+  @e2e-exempt
+  Scenario: A queued record written before this feature still sends
+    Given the outbox holds a queued message stored with no reply target field
+    When the network recovers
+    Then that message reaches status "Sent"
+    And it commits as an ordinary message
+
   Rule: Auth expiry pause and logout isolation
 
   @fe-vitest-unit
@@ -138,6 +415,15 @@ Feature: Family chat room
     And the browser subscribes on the promoted slot and completes catch-up within ten seconds
     And any queued send drains only after catch-up completes
     And the page does not reload
+
+  @fe-vitest-unit
+  # Exemption(integration): serving one revision's bundle against another revision's server crosses a release-infrastructure boundary Phoenix.LiveViewTest cannot stage; alternative-proof: bnest-app-fe-e2e:test:e2e / A browser holding the pre-reply bundle loads the room from the new revision
+  @integration-exempt
+  Scenario: A browser holding the pre-reply bundle loads the room from the new revision
+    Given the compatibility revision is routed
+    When a browser loaded from the previous revision opens "/family-chat/ruang-keluarga"
+    Then the room loads
+    And the visitor can send a message normally
 
   Rule: Reconnect on visibility resume
 
