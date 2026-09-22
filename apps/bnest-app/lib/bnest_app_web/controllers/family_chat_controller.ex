@@ -25,7 +25,13 @@ defmodule BnestAppWeb.FamilyChatController do
 
     case FamilyChat.get_room_for(user_id, slug) do
       {:ok, room} ->
-        render(conn, :room, current_user: conn.assigns.current_user, room: room)
+        render(conn, :room,
+          current_user: conn.assigns.current_user,
+          room: room,
+          # Read per request rather than at compile time: the experience
+          # release flips this on the routed slot without a redeploy.
+          reply_enabled: Application.get_env(:bnest_app, :family_chat_reply_enabled, false)
+        )
 
       {:error, _safe_error} ->
         conn |> send_resp(:not_found, "Not found") |> halt()

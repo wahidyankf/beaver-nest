@@ -244,8 +244,9 @@ export async function initRoomFromDocument() {
   if (!familyChatRoom) return;
 
   const currentUserId = familyChatRoom.dataset["currentUserId"];
-  await initRoom(
-    window.location.pathname,
-    currentUserId ? { user: { id: currentUserId } } : {},
-  );
+  const replies = familyChatRoom.dataset["familyChatReplyEnabled"] === "true";
+  await initRoom(window.location.pathname, {
+    replies,
+    ...(currentUserId ? { user: { id: currentUserId } } : {}),
+  });
 }
