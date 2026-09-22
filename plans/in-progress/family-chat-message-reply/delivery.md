@@ -2,8 +2,10 @@
 
 ## Execution Status and Authority
 
-**Pending. No product implementation, dependency change, product-delivery commit or push, migration, release, or
-production mutation has started.** Integrating this plan does not start the checklist or authorize its later
+**Executed and released, 2026-09-22. Archival is blocked.** The feature is routed in production at revision
+`5b08a27f2`; the migration is applied; both production releases passed. Three items below are recorded as
+`BLOCKED` rather than ticked, so this plan stays in `plans/in-progress/`. The execution check's terminal verdict
+and the corrections made in response to it are recorded in `learnings.md`. Integrating this plan does not start the checklist or authorize its later
 execution. Read all six plan documents and the
 [plan-execution workflow](../../../repo-governance/workflows/plan-execution.md) first. Start only from a current,
 explicitly authorized, non-blocking plan-quality verdict: `PASS`, or `PASS_WITH_FINDINGS` with every finding recorded
@@ -44,10 +46,14 @@ resource guard rejects a bare package-runner call that is not inside a HIPPO bou
 open one — `heavy` for the browser suite, `standard` for the backend's. Naming the inner command here would put
 a row in this table that cannot be run.
 
-`UNIT`, `BE_UNIT`, and `FE_UNIT` carry the repository's **99% line-coverage threshold**; the suite and the threshold
-pass or fail together. Every new module this plan creates — `message_actions.js`, `reply_target.js`,
-`jump_to_message.js`, and the new migration — must therefore arrive with unit coverage, not acquire it later. A phase
-that leaves a new module uncovered fails its own checkpoint before it ever reaches a push.
+**Corrected 2026-09-22.** This clause previously said `UNIT`, `BE_UNIT`, and `FE_UNIT` all carry a 99%
+line-coverage threshold and that a phase leaving a new module uncovered fails its own checkpoint. That is true of
+the backend only. `mix.exs` sets `summary: [threshold: 99]`, so `BE_UNIT` passes or fails with it. `FE_UNIT` runs
+as a bare `vitest run` with no `--coverage`, and `assets/vitest.config.mts` states in terms that coverage
+thresholds are intentionally not enforced yet. Three of the four modules the clause named are frontend, so the
+Phase 4, 5, and 6 checkpoints cited an enforcement that never ran; their suites did run and are green, which is
+what those checkpoints actually rest on. New frontend modules here did arrive with unit tests — `menu_anchor.js`
+with ten cases, `reply_target.js`, `jump_to_message.js`, `message_actions.js` — but by authorship, not by a gate.
 
 ## Verification Layers
 
@@ -77,8 +83,10 @@ Automation never substitutes for the four bold layers, and a green pipeline does
 ## Execution Checkout
 
 - Use exactly `worktrees/family-chat-message-reply/` on branch `family-chat-message-reply` from current `origin/main`.
-- After the application PR merges, reuse that worktree, sync to `origin/main`, and create
-  `family-chat-message-reply-archive` for the completion record.
+- After the application PR merges, reuse that worktree, sync to `origin/main`, and create a branch for the
+  completion record. **Deviation, 2026-09-22:** the record landed on `plan-family-chat-reply-release` rather than
+  the named `family-chat-message-reply-archive`, and the corrections that followed the execution check landed on
+  `plan-family-chat-reply-corrections` from a second worktree, because the first had already been cleaned up.
 - `main` is the only persistent branch. Integrate by reviewed PR; never push directly to `main`, and never create
   sibling `*-worktrees/` paths.
 - Managed production releases run from the clean primary checkout at the landed `origin/main` revision.
@@ -649,7 +657,9 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       `AGENTS.md`, `CLAUDE.md`, or `RTK.md` was created, changed, moved, or deleted by this execution; step 4's
       `REPO` run is green.
 - [x] `[AI] [AC-FCR-01..14]` Run the full application and repository gates. **Proof:** `UNIT`, `INTEGRATION`,
-      `BEHAVIOUR`, `RELEASE_TEST`, `E2E_ALL`, and `REPO` all green, with receipts recorded. Commands: `UNIT`,
+      `BEHAVIOUR`, `RELEASE_TEST`, `E2E_ALL`, and `REPO` all green, with receipts recorded **(amended 2026-09-22: the gates ran and returned
+      terminal results, which is what the checkpoint rests on, but no HIPPO receipt identifier was recorded for
+      any of them; the obligation is unmet and is recorded as such rather than treated as satisfied)**. Commands: `UNIT`,
       `INTEGRATION`, `BEHAVIOUR`, `RELEASE_TEST`, `E2E_ALL`, `REPO`.
       **2026-09-22:** all green. `UNIT` (backend plus 300 frontend across 14 files), `INTEGRATION` (329 tests, 0
       failures, 16 excluded), `BEHAVIOUR` (both adapters, no undefined/ambiguous/unused bindings),
@@ -726,9 +736,12 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
 - [x] `[AI] [AC-FCR-04, AC-FCR-13]` Prove the field is answerable everywhere before any bundle asks for it: a `curl`
       requesting `replyTo` against the routed origin returns data rather than a document rejection. **Proof:** the
       sanitized response in `learnings.md`.
-- [x] `[AI] [AC-FCR-14]` Hold the drain window, keep the prior slot warm for five minutes, then retire it. **Proof:**
+- [ ] `[AI] [AC-FCR-14]` Hold the drain window, keep the prior slot warm for five minutes, then retire it. **Proof:**
       a 12-sample post-promotion set and a 12-sample post-drain set, both within budget, and the prior slot confirmed
-      stopped.
+      stopped. **UNTICKED 2026-09-22 by the execution check:** the
+      post-promotion set was taken and is recorded; the post-drain set never was. This item was ticked claiming
+      both. The prior slot is confirmed stopped. The missing set cannot be retaken — that slot has since been
+      promoted and retired again — so it is recorded as not taken rather than substituted. See `learnings.md`.
 - [x] `[AI] [AC-FCR-11, AC-FCR-13, AC-FCR-14]` **Blocking checkpoint — Phase 9.** The compatibility revision is
       routed and drained, it is the recorded rollback floor, and every routed sample is within budget.
 
@@ -750,13 +763,12 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       12-sample sets within budget and the prior slot confirmed stopped.
 - [ ] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 10.** The feature is routed and working at the exact
       origin, the rollback floor is proven, responsiveness held throughout, and no candidate, watcher, or temporary
-      proxy is still running.
+      proxy is still running. **BLOCKED 2026-09-22:** the feature is routed and no candidate, watcher, or temporary proxy is running, and every sample actually taken is inside budget — but the routed manual pass and the rollback-floor proof above are blocked, and the execution check found one release-stage sample set was never taken, so this checkpoint cannot be claimed.
 
 ## Recovery and Rollback
 
 Dormant until triggered. If a trigger does not fire, record an evidence-backed `Not triggered` disposition at
 reconciliation rather than ticking the item.
-**BLOCKED 2026-09-22:** the feature is routed and every other condition holds — no candidate, watcher, or temporary proxy is running, and both sample sets are inside budget — but the routed manual pass and the rollback-floor proof above are blocked, so this checkpoint cannot be claimed.
 
 - [ ] `[AI] [AC-FCR-14]` **Trigger: any failed readiness sample, p95 above 500 ms, or any sample above 2 s at any
       release stage.** Roll the route back to the recorded floor through the managed Caddy path, confirm
@@ -773,12 +785,11 @@ reconciliation rather than ticking the item.
 - [ ] `[AI] [AC-FCR-01..10]` **Trigger: a blocking finding from either manual pass after the experience release.**
       Set `BNEST_FAMILY_CHAT_REPLY_ENABLED=false` on the routed slot, which hides the feature without moving the
       route or touching data, and reopen the owning phase. **Proof:** the flag state, the finding, and the reopened
-      phase.
+      phase. **Not triggered 2026-09-22:** both manual passes ran in Phase 8, before the release; every finding was fixed or accepted there. No finding arose after the experience release.
 
 ## Archival
 
 Runs only after every substantive phase above is complete and its checkpoint is green.
-**Not triggered 2026-09-22:** both manual passes ran in Phase 8, before the release; every finding was fixed or accepted there. No finding arose after the experience release.
 
 - [x] `[AI] [AC-FCR-01..14]` Resolve every `learnings.md` entry to exactly one durable owner — governance,
       specification, test, code comment, permanent documentation, or idea brief — or discard it with a stated

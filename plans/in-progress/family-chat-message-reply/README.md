@@ -71,7 +71,10 @@ into them.
 ## Dependencies and Authority
 
 - Bnest identity, authoritative SQLite, loopback Caddy, Tailscale HTTPS, and the PWA shell are unchanged.
-- Absinthe owns GraphQL execution and subscriptions. No dependency is added, upgraded, or removed by this plan.
+- Absinthe owns GraphQL execution and subscriptions. **Corrected 2026-09-22:** this line previously read "No
+  dependency is added, upgraded, or removed by this plan." One was — `happy-dom`, a development dependency the
+  frontend unit layer needs to prove DOM behaviour without a browser. The decision and its rejected
+  alternatives are recorded in `learnings.md`; the authority statement was not corrected at the time.
 - SQLite remains the only authority for committed history. The quote is derived from it at read time; IndexedDB and
   the subscription remain delivery and recovery mechanisms.
 - The `family_chat_messages` immutability and permanence triggers are load-bearing for this design. A future plan
