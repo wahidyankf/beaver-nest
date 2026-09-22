@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="834" height="1112" viewBox="0 0 834 1112" role="img" aria-labelledby="title desc">
+  <title id="title">Quote card lo-fi tablet</title>
+  <desc id="desc">Tablet Ruang Keluarga wireframe showing quoted reply cards inside bubbles, an action menu anchored beside the held message rather than raised from the bottom edge, and a composer reply strip above a wider message input.</desc>
+  <rect width="834" height="1112" fill="#fff"/>
+  <rect width="834" height="110" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <circle cx="44" cy="46" r="20" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <text x="78" y="43" font-family="sans-serif" font-size="20" font-weight="700">Family chat</text>
+  <text x="78" y="68" font-family="sans-serif" font-size="15">Ruang Keluarga</text>
+
+  <rect x="40" y="150" width="430" height="82" rx="18" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="60" y="177" font-family="sans-serif" font-size="13" font-weight="700">Ayah · 16:02</text>
+  <text x="60" y="208" font-family="sans-serif" font-size="17">Nanti aku jemput jam 5</text>
+
+  <rect x="40" y="248" width="430" height="66" rx="18" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="60" y="275" font-family="sans-serif" font-size="13" font-weight="700">Kakak · 16:03</text>
+  <text x="60" y="300" font-family="sans-serif" font-size="16">Aku pulang sendiri aja</text>
+
+  <rect x="364" y="332" width="430" height="140" rx="18" fill="#596362"/>
+  <text x="384" y="359" font-family="sans-serif" font-size="13" fill="#fff" font-weight="700">Bunda · 16:05</text>
+  <rect x="384" y="370" width="390" height="56" rx="10" fill="#fff" stroke="#c9cfce" stroke-width="2"/>
+  <rect x="384" y="370" width="7" height="56" rx="3" fill="#283433"/>
+  <text x="404" y="392" font-family="sans-serif" font-size="12" font-weight="700">↩ Ayah</text>
+  <text x="404" y="415" font-family="sans-serif" font-size="13">Nanti aku jemput jam 5</text>
+  <text x="384" y="456" font-family="sans-serif" font-size="17" fill="#fff">Oke, aku siapin</text>
+
+  <rect x="486" y="150" width="240" height="118" rx="12" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <text x="506" y="178" font-family="sans-serif" font-size="12" font-weight="700">Message actions</text>
+  <rect x="496" y="188" width="220" height="34" rx="8" fill="#e5e8e7" stroke="#283433" stroke-width="2"/>
+  <text x="512" y="211" font-family="sans-serif" font-size="14" font-weight="700">↩  Reply</text>
+  <rect x="496" y="226" width="220" height="32" rx="8" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="512" y="248" font-family="sans-serif" font-size="14">❐  Copy text</text>
+  <text x="486" y="288" font-family="sans-serif" font-size="11" font-weight="700">Anchored to the held message, not the screen edge</text>
+
+  <rect y="960" width="834" height="152" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <rect x="40" y="976" width="754" height="40" rx="8" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <rect x="40" y="976" width="7" height="40" rx="3" fill="#283433"/>
+  <text x="62" y="994" font-family="sans-serif" font-size="11" font-weight="700">Replying to Ayah</text>
+  <text x="62" y="1010" font-family="sans-serif" font-size="12">Nanti aku jemput jam 5</text>
+  <rect x="752" y="984" width="28" height="24" rx="6" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="761" y="1001" font-family="sans-serif" font-size="13" font-weight="700">×</text>
+  <rect x="40" y="1026" width="630" height="62" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <rect x="686" y="1026" width="108" height="62" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="714" y="1063" font-family="sans-serif" font-size="16" font-weight="700">Send</text>
+</svg>

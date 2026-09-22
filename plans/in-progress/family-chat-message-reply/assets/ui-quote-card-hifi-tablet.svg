@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="834" height="1112" viewBox="0 0 834 1112" role="img" aria-labelledby="title desc">
+  <title id="title">Quote card high-fidelity tablet concept</title>
+  <desc id="desc">Tablet Ruang Keluarga in the Beaver Nest palette: the action menu is anchored beside the held message instead of raised from the bottom edge, a reply carries its quote in a lagoon card with a sun accent bar, and the jumped-to original is outlined and labelled.</desc>
+  <rect width="834" height="1112" fill="#fff9ed"/>
+  <rect width="834" height="116" fill="#153f42"/>
+  <circle cx="44" cy="46" r="21" fill="#f7b84b"/>
+  <path d="M33 49c7-13 16-13 23 0M37 43l-3-8M50 43l3-8" fill="none" stroke="#153f42" stroke-width="3" stroke-linecap="round"/>
+  <text x="80" y="42" fill="#fff9ed" font-family="system-ui, sans-serif" font-size="20" font-weight="780">Family chat</text>
+  <text x="80" y="68" fill="#80c5b8" font-family="system-ui, sans-serif" font-size="14" font-weight="650">Ruang Keluarga · everyone</text>
+
+  <circle cx="60" cy="182" r="16" fill="#80c5b8"/>
+  <text x="54" y="188" fill="#153f42" font-family="system-ui, sans-serif" font-size="14" font-weight="780">A</text>
+  <rect x="90" y="156" width="400" height="86" rx="20" fill="#ffffff" stroke="#f7b84b" stroke-width="3"/>
+  <text x="112" y="183" fill="#4a6b6d" font-family="system-ui, sans-serif" font-size="12" font-weight="720">Ayah · 16:02</text>
+  <text x="112" y="216" fill="#153f42" font-family="system-ui, sans-serif" font-size="17">Nanti aku jemput jam 5</text>
+  <text x="90" y="262" fill="#0f5b52" font-family="system-ui, sans-serif" font-size="12" font-weight="780">Jumped here from a quote — outlined, then the outline fades</text>
+
+  <rect x="506" y="156" width="268" height="132" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+  <text x="528" y="184" fill="#4a6b6d" font-family="system-ui, sans-serif" font-size="11" font-weight="720">Message from Ayah · 16:02</text>
+  <rect x="518" y="196" width="244" height="40" rx="10" fill="#153f42"/>
+  <text x="540" y="222" fill="#fff9ed" font-family="system-ui, sans-serif" font-size="15" font-weight="720">↩   Reply</text>
+  <rect x="518" y="242" width="244" height="38" rx="10" fill="#ffffff" stroke="#153f42" stroke-width="1.5"/>
+  <text x="540" y="267" fill="#153f42" font-family="system-ui, sans-serif" font-size="15">❐   Copy text</text>
+
+  <circle cx="60" cy="322" r="16" fill="#f7b84b"/>
+  <text x="54" y="328" fill="#153f42" font-family="system-ui, sans-serif" font-size="14" font-weight="780">K</text>
+  <rect x="90" y="298" width="400" height="72" rx="20" fill="#ffffff"/>
+  <text x="112" y="325" fill="#4a6b6d" font-family="system-ui, sans-serif" font-size="12" font-weight="720">Kakak · 16:03</text>
+  <text x="112" y="352" fill="#153f42" font-family="system-ui, sans-serif" font-size="16">Aku pulang sendiri aja</text>
+
+  <rect x="344" y="404" width="450" height="146" rx="20" fill="#153f42"/>
+  <text x="368" y="432" fill="#80c5b8" font-family="system-ui, sans-serif" font-size="12" font-weight="720">Bunda · 16:05</text>
+  <rect x="368" y="444" width="402" height="58" rx="11" fill="#d8f1ec"/>
+  <rect x="368" y="444" width="7" height="58" rx="3" fill="#f7b84b"/>
+  <text x="390" y="467" fill="#0f5b52" font-family="system-ui, sans-serif" font-size="12" font-weight="780">↩ Ayah</text>
+  <text x="390" y="491" fill="#153f42" font-family="system-ui, sans-serif" font-size="13">Nanti aku jemput jam 5</text>
+  <text x="368" y="533" fill="#fff9ed" font-family="system-ui, sans-serif" font-size="17">Oke, aku siapin</text>
+
+  <rect x="90" y="582" width="400" height="44" rx="12" fill="#fff1cf" stroke="#f7b84b" stroke-width="1.5"/>
+  <text x="112" y="610" fill="#153f42" font-family="system-ui, sans-serif" font-size="12" font-weight="720">That message is too far back to jump to.</text>
+
+  <rect y="960" width="834" height="152" fill="#153f42"/>
+  <rect x="40" y="974" width="754" height="42" rx="11" fill="#1d5154"/>
+  <rect x="40" y="974" width="7" height="42" rx="3" fill="#f7b84b"/>
+  <text x="64" y="992" fill="#80c5b8" font-family="system-ui, sans-serif" font-size="11" font-weight="780">Replying to Ayah</text>
+  <text x="64" y="1009" fill="#fff9ed" font-family="system-ui, sans-serif" font-size="12">Nanti aku jemput jam 5</text>
+  <circle cx="768" cy="995" r="13" fill="#fff9ed"/>
+  <text x="763" y="1000" fill="#153f42" font-family="system-ui, sans-serif" font-size="13" font-weight="780">×</text>
+  <rect x="40" y="1026" width="630" height="60" rx="13" fill="#fff9ed"/>
+  <text x="62" y="1063" fill="#7b8a89" font-family="system-ui, sans-serif" font-size="15">Write a message</text>
+  <rect x="686" y="1026" width="108" height="60" rx="13" fill="#f7b84b"/>
+  <text x="716" y="1063" fill="#153f42" font-family="system-ui, sans-serif" font-size="16" font-weight="780">Send</text>
+</svg>
