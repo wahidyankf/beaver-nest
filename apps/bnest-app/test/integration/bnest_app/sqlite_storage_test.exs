@@ -81,9 +81,10 @@ defmodule BnestApp.SqliteStorageTest do
     assert before_schema != []
     assert before_schema == after_schema
     assert before_versions == after_versions
-    # 3 committed migrations: CreateBnestStorage, AddPersistentSchedules, and
-    # (additive, this plan) AddFamilyChat.
-    assert length(after_versions) == 3
+    # 4 committed migrations: CreateBnestStorage, AddPersistentSchedules,
+    # AddFamilyChat, and (additive, the reply plan)
+    # AddFamilyChatMessageReply.
+    assert length(after_versions) == 4
   end
 
   test "accepts a well-formed record and returns it unchanged" do
