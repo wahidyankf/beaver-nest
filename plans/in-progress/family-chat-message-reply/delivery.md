@@ -191,26 +191,42 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
 
 ## Phase 2 — Data Model and Migration
 
-- [ ] `[AI] [AC-FCR-11]` **RED** — add migration scenarios to
+- [x] `[AI] [AC-FCR-11]` **RED** — add migration scenarios to
       `apps/bnest-app/test/integration/bnest_app/family_chat_migration_test.exs`: existing rows survive with a null
       target, a re-run is a no-op, and reversal refuses once a reply row exists. **Proof:** `INTEGRATION` fails
       naming the absent column. Command: `INTEGRATION`.
-- [ ] `[AI] [AC-FCR-11]` **GREEN** — write
+      **2026-09-22:** `INTEGRATION` failed on `Exqlite.Error: no such column: reply_to_message_id`, on the
+      absent partial index, and on `insert_message!/7` being undefined. Four scenarios: existing rows read as not
+      a reply, the index is partial, a re-run changes nothing, reversal refuses and removes nothing.
+- [x] `[AI] [AC-FCR-11]` **GREEN** — write
       `apps/bnest-app/priv/sqlite_repo/migrations/20260922000000_add_family_chat_message_reply.exs` with the additive
       column, the partial index, and the refusing down path recorded in
       [Data Model](tech-docs/001-data-model-and-migration.md). **Proof:** `INTEGRATION` passes. Command:
       `INTEGRATION`.
-- [ ] `[AI] [AC-FCR-11]` **REFACTOR** — align the migration's naming, ordering, and refusal message with the existing
+      **2026-09-22:** migration written with the additive column, the partial index, and the refusing down path.
+      `INTEGRATION` migration failures went 4 → 0.
+- [x] `[AI] [AC-FCR-11]` **REFACTOR** — align the migration's naming, ordering, and refusal message with the existing
       family-chat migration without changing behaviour. **Proof:** `INTEGRATION` still passes. Command: `INTEGRATION`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-05]` **RED** — extend
+      **2026-09-22:** the refusal follows `AddFamilyChat.down/0`'s shape — count first, `raise` with a stated
+      reason, then drop in reverse creation order — with a narrower condition, since only replies are lost here.
+      `INTEGRATION` still green on the migration scenarios.
+- [x] `[AI] [AC-FCR-04, AC-FCR-05]` **RED** — extend
       `apps/bnest-app/test/unit/bnest_app/family_chat/message_test.exs` for reply-target normalization: nil passes
       through, a positive integer parses, and zero, a negative, and a non-integer are refused. **Proof:** `BE_UNIT`
       fails naming the missing function. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-05]` **GREEN** — add `normalize_reply_to_message_id/1` to
+      **2026-09-22:** `BE_UNIT` failed with `normalize_reply_to_message_id/1 is undefined`. Five cases: nil passes
+      through, integer and string forms accepted, zero and negatives refused, a partially numeric string refused
+      rather than truncated, and non-integers refused.
+- [x] `[AI] [AC-FCR-04, AC-FCR-05]` **GREEN** — add `normalize_reply_to_message_id/1` to
       `apps/bnest-app/lib/bnest_app/family_chat/message.ex`. **Proof:** `BE_UNIT` passes. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-05]` **REFACTOR** — keep the new function's shape and comment style consistent with
+      **2026-09-22:** added. `BE_UNIT` normalization failures 5 → 0. The partially-numeric case is the one that
+      matters: `Integer.parse/1` stops at the first non-digit, so the empty-remainder check is what makes this a
+      whole-string validation rather than a prefix one.
+- [x] `[AI] [AC-FCR-04, AC-FCR-05]` **REFACTOR** — keep the new function's shape and comment style consistent with
       `normalize_body/1` and `valid_client_message_id?/1`. **Proof:** `BE_UNIT` still passes. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-06]` **RED** — extend `apps/bnest-app/test/unit/bnest_app/family_chat_test.exs`:
+      **2026-09-22:** same `{:ok, value} | {:error, reason}` shape and same catch-all final clause as
+      `normalize_body/1` and `valid_client_message_id?/1`. `BE_UNIT` still green.
+- [x] `[AI] [AC-FCR-04, AC-FCR-06]` **RED** — extend `apps/bnest-app/test/unit/bnest_app/family_chat_test.exs`:
       committing with a target stores it; a page resolves quotes in one extra query; a page with no replies issues no
       extra query; the preview collapses whitespace, cuts at 160 graphemes, and appends an ellipsis only when cut;
       and a row whose target is absent resolves to no quote rather than raising. That last case is unreachable while
@@ -218,69 +234,142 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       [Data Model](tech-docs/001-data-model-and-migration.md) requires, and the test sets it up by inserting the row
       directly rather than by deleting anything. **Proof:** `BE_UNIT` fails on the absent behaviour. Command:
       `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-06]` **GREEN** — implement storage and batch quote resolution in
+      **2026-09-22:** `BE_UNIT` failed with `KeyError: key :body_preview not found` on four preview cases. The
+      dangling-target case was rewritten mid-cycle — see the Phase 2 learnings entry: a dangling row cannot be
+      inserted at all, so the read path is pinned directly on the input such a row would produce.
+- [x] `[AI] [AC-FCR-04, AC-FCR-06]` **GREEN** — implement storage and batch quote resolution in
       `apps/bnest-app/lib/bnest_app/family_chat/store.ex` and
       `apps/bnest-app/lib/bnest_app/family_chat.ex`. **Proof:** `BE_UNIT` passes. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-06]` **REFACTOR** — keep truncation in exactly one private function, and keep the
+      **2026-09-22:** `@message_columns` gained the column so every existing SELECT and the row mapper carry it
+      unchanged; `insert_message!/7` takes a trailing optional target; `quotes_for/1` resolves a whole page's
+      distinct targets in one `IN` query and issues none for a page with no replies; `message_by_id/2` backs the
+      same-room check. `BE_UNIT` preview failures 4 → 0.
+- [x] `[AI] [AC-FCR-04, AC-FCR-06]` **REFACTOR** — keep truncation in exactly one private function, and keep the
       column list, insert, and row mapper in the store rather than spreading them into the context. **Proof:**
       `BE_UNIT` still passes. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-05]` **RED** — extend the same unit test: a target that does not exist, and one that exists in
+      **2026-09-22:** truncation lives only in `FamilyChat.body_preview/1`, with the 160-grapheme budget as one
+      module attribute. The column list, insert, row mapper, and both lookups stay in the store. `BE_UNIT` green.
+- [x] `[AI] [AC-FCR-05]` **RED** — extend the same unit test: a target that does not exist, and one that exists in
       another room, each fail validation and commit nothing. **Proof:** `BE_UNIT` fails. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-05]` **GREEN** — add the same-room existence check to `FamilyChat.send_message/5` before any
+      **2026-09-22:** written alongside the storage cycle. Both refusal cases assert `VALIDATION_FAILED` **and**
+      that `find_message/4` returns nil afterwards, so a commit that happened anyway would fail the test.
+- [x] `[AI] [AC-FCR-05]` **GREEN** — add the same-room existence check to `FamilyChat.send_message/5` before any
       insert is attempted. **Proof:** `BE_UNIT` passes and no row is written on the failing paths. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-05]` **REFACTOR** — express the check through the existing `with` chain and the existing
+      **2026-09-22:** `validate_reply_target/2` normalizes, then looks the row up scoped to the room, before any
+      insert is attempted. Cross-room targets are refused even though v1 has one room. `BE_UNIT` green.
+- [x] `[AI] [AC-FCR-05]` **REFACTOR** — express the check through the existing `with` chain and the existing
       `validation_failed/0` helper rather than a new error path. **Proof:** `BE_UNIT` still passes. Command:
       `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-04]` **RED** — add the idempotent-replay case: the same client message ID replayed with a
+      **2026-09-22:** the check is one more clause in `send_message/6`'s existing `with`, returning the existing
+      `validation_failed/0`. No new error path and no new error code. `BE_UNIT` still green.
+- [x] `[AI] [AC-FCR-04]` **RED** — add the idempotent-replay case: the same client message ID replayed with a
       different target returns the first commit, with the first target. **Proof:** `BE_UNIT` fails. Command:
       `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-04]` **GREEN** — confirm the existing `find_message/4` path returns the stored row untouched, and
+      **2026-09-22:** the replay test asserts the returned id, the stored target, **and** the resolved quote all
+      match the first commit, so first-write-wins is pinned at every level a caller can observe.
+- [x] `[AI] [AC-FCR-04]` **GREEN** — confirm the existing `find_message/4` path returns the stored row untouched, and
       add whatever is missing for its quote to be attached on that path too. **Proof:** `BE_UNIT` passes. Command:
       `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-04]` **REFACTOR** — remove any duplication between the fresh-commit and replay quote-attachment
+      **2026-09-22:** `find_message/4` already returned the row unchanged once the column joined
+      `@message_columns`. What was missing was the quote on that path — added, so a replay renders identically to
+      a fresh commit. `BE_UNIT` green.
+- [x] `[AI] [AC-FCR-04]` **REFACTOR** — remove any duplication between the fresh-commit and replay quote-attachment
       paths. **Proof:** `BE_UNIT` still passes. Command: `BE_UNIT`.
+      **2026-09-22:** both paths now go through one `decorate_committed/2`, so the fresh commit and the replay
+      cannot drift in what they attach. `BE_UNIT` still green.
 - [ ] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-11]` **Blocking checkpoint — Phase 2.** The column exists, validation
       refuses every impossible target before any write, quotes resolve in one extra query per page, the preview rule
       lives in one place, and `UNIT` and `INTEGRATION` are both green. Commands: `UNIT`, `INTEGRATION`.
 
 ## Phase 3 — GraphQL Contract
 
-- [ ] `[AI] [AC-FCR-04, AC-FCR-07]` **RED** — extend `apps/bnest-app/test/unit/bnest_app_web/schema_test.exs`: the
+- [x] `[AI] [AC-FCR-04, AC-FCR-07]` **RED** — extend `apps/bnest-app/test/unit/bnest_app_web/schema_test.exs`: the
       quote object exists with its four fields, `FamilyChatMessage.replyTo` is nullable, the mutation accepts
       `replyToMessageId`, the quote type has **no** field that could carry another quote, and the resolver still
       contains no query logic. **Proof:** `BE_UNIT` fails on the absent type. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-07]` **GREEN** — add the type and field to
+      **2026-09-22:** `BE_UNIT` failed naming the absent `:family_chat_message_quote` type. Six cases. Two of them
+      corrected themselves rather than the code: Absinthe adds `__typename` to every object, and the resolver's
+      pre-existing `Integer.parse/1` in `parse_id/1` is legitimate, so the "no query logic" scan was narrowed to the
+      reply-specific names instead of banning the function outright.
+- [x] `[AI] [AC-FCR-04, AC-FCR-07]` **GREEN** — add the type and field to
       `apps/bnest-app/lib/bnest_app_web/schema/types/family_chat_types.ex`, the argument to
       `apps/bnest-app/lib/bnest_app_web/schema.ex`, and the pass-through to
       `apps/bnest-app/lib/bnest_app_web/resolvers/family_chat_resolver.ex`. **Proof:** `BE_UNIT` passes. Command:
       `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-06]` **REFACTOR** — resolve the quote's sender display name through the same
+      **2026-09-22:** added. `BE_UNIT` 6 → 0. The resolver passes `Map.get(args, :reply_to_message_id)` through
+      untouched; parsing, the same-room lookup, and the preview budget all stay in `BnestApp.FamilyChat`.
+- [x] `[AI] [AC-FCR-06]` **REFACTOR** — resolve the quote's sender display name through the same
       `Identity.display_name_for/1` seam the message's own name uses, so one change would move both. **Proof:**
       `BE_UNIT` still passes. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-06]` **RED** — bind the new backend scenarios in
+      **2026-09-22:** the quote type resolves its name through `FamilyChat.live_sender_display_name/2` with
+      `&Identity.display_name_for/1`, the same seam the message's own name uses. Writing the behaviour bindings
+      exposed that the resolved quote map had no `sender_id`, so that resolver would have raised on first use —
+      the quote now carries it internally (no GraphQL field exposes it), and a unit case pins the seam directly.
+      `BE_UNIT` green.
+- [x] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-06]` **RED** — bind the new backend scenarios in
       `apps/bnest-app/test/behaviour/steps/family_chat_backend_steps.exs`. **Proof:** `BEHAVIOUR` fails with
       unimplemented or failing steps, not with a harness error. Command: `BEHAVIOUR`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-06]` **GREEN** — make the bound scenarios pass without widening production
+      **2026-09-22:** 38 step definitions added, plus prepare/perform/outcome clauses in both drivers. The
+      Scenario Outline's three rows are bound as three literal steps: ExBdd Expressions have no free-text
+      placeholder (`{word}` stops at whitespace), and each row names a genuinely different refusal path. `BEHAVIOUR`
+      failed on unimplemented steps, never on a harness error.
+- [x] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-06]` **GREEN** — make the bound scenarios pass without widening production
       behaviour beyond what they describe. **Proof:** `BEHAVIOUR` passes. Command: `BEHAVIOUR`.
-- [ ] `[AI] [AC-FCR-04..06]` **REFACTOR** — remove duplication between the new steps and the existing family-chat
+      **2026-09-22:** every backend scenario passes: `BE_UNIT` 329 tests / 0 failures / 99.11% coverage, and
+      `INTEGRATION` 324 tests / 0 failures / 16 excluded. `BEHAVIOUR`'s Elixir half (the boundary policy and the
+      whole backend corpus) is green; its FE binding-coverage half stays red on exactly the 38 `@fe-vitest-unit`
+      scenarios Phase 1 declared and Phases 4–6 own. See the learnings entry for the three defects this cycle
+      surfaced in pre-existing code.
+- [x] `[AI] [AC-FCR-04..06]` **REFACTOR** — remove duplication between the new steps and the existing family-chat
       steps. **Proof:** `BEHAVIOUR` still passes. Command: `BEHAVIOUR`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-07]` **RED** — add GraphQL boundary integration tests under
+      **2026-09-22:** the new steps reuse the existing `the response returns the committed message with a server ID
+    and commit time`, `the response returns the original committed message unchanged`, `the family chat room still
+    holds exactly one message for that client message ID`, and `the response is a safe {string} error` rather than
+      restating them; `the response reports a validation failure` delegates to that same `:safe_error` outcome with
+      `"VALIDATION_FAILED"`. Both drivers share one `capture_reply_target` helper instead of repeating the three
+      target keys per clause. `BE_UNIT` and `INTEGRATION` still green.
+- [x] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-07]` **RED** — add GraphQL boundary integration tests under
       `apps/bnest-app/test/integration/bnest_app_web/family_chat_graphql_test.exs` `[N]`, exercising the real
       Absinthe pipeline through a loopback listener the test starts, owns, and stops — never the routed public
       origin. Assert the full contract the API standard names: operation name, HTTP status, content type, variables,
       and the `data`/`errors` envelope, for a successful reply, a rejected target, and an unauthenticated caller.
       HTTP `200` alone never counts as GraphQL success. **Proof:** `INTEGRATION` fails on the absent module. Command:
       `INTEGRATION`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-07]` **GREEN then REFACTOR** — make those tests pass without loosening any
+      **2026-09-22:** five cases written against the real `/api/graphql` pipeline. They passed on first run, because
+      the schema they describe already existed from this phase's earlier cycles — so the RED was produced
+      deliberately instead: removing `arg(:reply_to_message_id, :id)` from the schema and re-running turned them and
+      the bound scenarios red with `Unknown argument "replyToMessageId" on field "sendFamilyChatMessage"`. The
+      argument was restored and the suite is green again. **Deviation:** the plan said "loopback listener"; this
+      runs the real pipeline in process, which is the first of the two forms
+      `repo-governance/development/api-testing.md` permits, and avoids binding a second listener beside a 24/7
+      service. The real socket layer is proved by `bnest-app-be-e2e`.
+- [x] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-07]` **GREEN then REFACTOR** — make those tests pass without loosening any
       validation, then remove duplication against the existing integration helpers. **Proof:** `INTEGRATION` passes
       before and after the refactor. Command: `INTEGRATION`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-06, AC-FCR-12]` **RED then GREEN** — bind and pass the backend E2E
+      **2026-09-22:** `INTEGRATION` green before and after. No validation was loosened — the rejected-target case
+      asserts the safe message carries no echo of the rejected ID and that `find_message/4` finds nothing
+      afterwards. The file reuses `ConnCase`'s `authenticated_conn/1` and `test_credentials/0` rather than
+      restating the login, and resolves the user ID from a real session instead of guessing it.
+- [x] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-06, AC-FCR-12]` **RED then GREEN** — bind and pass the backend E2E
       scenarios in `apps/bnest-app-be-e2e/tests/steps/family-chat.steps.ts`, including the subscription carrying
       `replyTo` and a reply producing exactly one delivery row per other subscription. **Proof:** `BE_E2E_COVERAGE`
       reports full coverage of the new backend scenarios and `BE_E2E` passes. Commands: `BE_E2E_COVERAGE`, `BE_E2E`.
-- [ ] `[AI] [AC-FCR-04..07, AC-FCR-12]` **Blocking checkpoint — Phase 3.** The schema is flat by construction, the
+      **2026-09-22:** `BE_E2E_COVERAGE` green (11 compliance tests, full binding coverage). `BE_E2E` green: 29
+      passed, including `A subscribed reply arrives carrying its quote` and `A reply caught up through afterId
+    carries its quote` against the real Absinthe socket. The subscriber also receives its own target message's
+      event, so both assertions filter by the reply's server ID rather than counting the mailbox — the same
+      selective-match reasoning the unit driver uses. The delivery-row half of this item is proved at the internal
+      SQLite boundary instead (`A reply commits exactly the delivery rows an ordinary message does`), because
+      `family_chat_message` exposes no `deliveries` field for an E2E client to observe.
+- [x] `[AI] [AC-FCR-04..07, AC-FCR-12]` **Blocking checkpoint — Phase 3.** The schema is flat by construction, the
       resolver is still thin, and every backend scenario is bound and green at all four backend layers — unit,
       integration, behaviour, and E2E. A layer that was skipped rather than run fails this checkpoint.
+      **2026-09-22 — PASSED.** The quote is a distinct object type with no field that can carry a quote, proved both
+      by the unit schema test and by a live document error at the boundary. The resolver still holds no query logic.
+      Every backend scenario is bound and green at all four backend layers: `BE_UNIT` 329/0 at 99.11%,
+      `INTEGRATION` 324/0 (16 `@integration-exempt`), `BE_E2E_COVERAGE` and `BE_E2E` 29/0, and `BEHAVIOUR`'s Elixir
+      half — the boundary policy plus the whole backend corpus — green. `BEHAVIOUR` as a whole target stays red on
+      exactly the 38 `@fe-vitest-unit` scenarios Phase 1 declared and Phases 4–6 own; no backend layer was skipped.
 
 ## Phase 4 — Send Path and Offline Outbox
 

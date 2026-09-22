@@ -341,3 +341,96 @@ changed is only the count of files Phases 5 and 6 touch. Recorded here rather th
 own instruction.
 
 **Durable owner:** the file list in `tech-docs/006-file-impact-and-release.md`, corrected at archival.
+
+### 2026-09-22 — Phase 2, and the dangling-reference case turning out to be unreachable twice
+
+Migration, normalization, storage, quote resolution, validation, and idempotent replay all landed RED → GREEN →
+REFACTOR with the evidence in `delivery.md`.
+
+**The plan's "What Happens If the Original Is Gone Anyway" section is now half wrong, in a good way.**
+[Data Model](tech-docs/001-data-model-and-migration.md) reasoned that the state is unreachable because the
+`BEFORE DELETE` trigger refuses every delete, and asked for a unit test pinning the read path's silent degradation.
+Writing that test surfaced a second guard the plan did not know it had.
+
+The test set the state up the way the plan instructed — by **inserting** a row pointing at an id no message has,
+never by deleting. That insert does not succeed. It raises `FOREIGN KEY constraint failed`, because Phase 0
+established that `PRAGMA foreign_keys` is on for pooled `SqliteRepo` connections. So the application cannot create a
+dangling reference at all, and the trigger never even gets the chance to be the reason.
+
+What is still reachable is a raw connection with the pragma off, which is SQLite's own default — a manual `sqlite3`
+repair, or a future migration that opens its own connection. So the degradation is still worth pinning, but not
+through a row that cannot exist. Two tests now stand in place of the one the plan asked for:
+
+- the read path is pinned directly on the exact input such a row would produce, a target id no row matches, which
+  resolves to no quote rather than raising;
+- the refusal itself is pinned, asserting that `insert_message!/7` raises rather than writing a dangling reference.
+
+The second is the more valuable of the two. It means a future change that turns the pragma off — or that adds a
+delete feature — breaks a test that says why, instead of silently widening what the schema permits.
+
+**Durable owner:** `tech-docs/001-data-model-and-migration.md`'s dangling-reference section, corrected at archival to
+state both guards and which one fires first.
+
+**Sequencing note, not a defect.** `delivery.md`'s Phase 2 checkpoint asks for `UNIT` and `INTEGRATION` green, but
+Phase 1 deliberately added backend scenarios that stay unbound until Phase 3. Both suites are therefore green on
+every test Phase 2 owns and red on exactly 14 behaviour scenarios that are Phase 3's declared RED. Recorded rather
+than resolved by re-ordering the work, because the RED is the point; Phase 3's checkpoint is where both suites go
+fully green.
+
+**Durable owner:** the plans convention's guidance on checkpoints that span a declared cross-phase RED — raised as an
+idea brief at archival if it recurs, discarded if it does not.
+
+## Phase 3 — GraphQL Contract
+
+**A resolver that would have raised on its first real call.** The quote object resolves its sender name through
+`FamilyChat.live_sender_display_name/2`, which reads `message.sender_id`. The map `quote_of/1` built carried
+`id`, `sender_kind`, `sender_display_name`, and `body_preview` — exactly the four fields the GraphQL type exposes,
+and not the one the resolver needed. Every unit test passed, because none of them resolved a quote _through the
+schema_; the first thing that would have hit it was a real client. The quote now carries `sender_id` internally,
+with no field exposing it, and a unit case drives the seam directly rather than trusting the type.
+
+The general shape is worth keeping: a resolver's input contract is not the type's field list. Matching the two by
+eye is how this was missed.
+
+**Durable owner:** `tech-docs/004-graphql-contract.md`, at archival — the quote's server-side shape stated
+separately from its published fields.
+
+**Three defects in pre-existing code, found by sharing its steps.**
+
+1. `the response returns the original committed message unchanged` asserted only that the returned body _differed_
+   from the Given's body — which a fresh commit of a different body also satisfies. Its `Given` never committed
+   anything either: it recorded a client message ID and a body and sent neither, so the "retry" that followed was
+   the first commit for that ID. The idempotent-send scenario has been passing without exercising idempotency.
+   Both drivers now commit in the `Given` and compare the retry against that first commit by server ID _and_ body.
+
+2. Two unit-layer subscription scenarios could not coexist. `Absinthe.Subscription` names its registry
+   `Module.concat([pubsub, :Registry])`, so the second `start_link` died starting an already-running
+   `BnestAppWeb.Endpoint.Registry` and took the linked test process with it — an exit, not a matchable
+   `{:error, {:already_started, _}}`. The helper now checks the registered name with `GenServer.whereis/1` before
+   starting anything. It was invisible while only one such scenario existed.
+
+3. `Backup.restore_evidence/1` matched a single `family_chat_rooms` row with `[[...]] =` and read _every_ message
+   id regardless of room. The schema has carried `deleted_at` on rooms since the family chat migration, so an
+   archived room is a representable state that turned restore into `{:error, :restore_failed}` — found because this
+   plan's cross-room refusal case needs a second room to refuse. Evidence is now scoped to the active room and its
+   messages, with the single-row match kept: exactly one _active_ room is the invariant worth failing on.
+
+**Durable owner:** the first two belong to `apps/bnest-app`'s test harness and are fixed in place; the third is a
+production fix in `BnestApp.Backup`, pinned by `test/unit/bnest_app/backup_restore_test.exs`.
+
+**Quote resolution is room-scoped, and that is not redundant.** `Store.quotes_for/2` now takes the room id and
+filters on it. The write-time check in `message_by_id/2` guards the rows this application writes; the read-time
+scope guards what a reader is shown, so a row written any other way can never surface another room's text inside
+this room's page. The scope also made the previously unreachable degradation path reachable and therefore genuinely
+covered: a message whose target exists but is in another room renders as an ordinary message, and a test pins it.
+
+**Durable owner:** `tech-docs/001-data-model-and-migration.md` and `tech-docs/004-graphql-contract.md`, at archival.
+
+**Deviation — the boundary tests run in process.** `delivery.md` asked for "a loopback listener the test starts,
+owns, and stops". `repo-governance/development/api-testing.md` permits either that or in-process, and the rest of
+this suite is in-process. `test/integration/bnest_app_web/family_chat_graphql_test.exs` runs the genuine endpoint,
+router, session/CSRF plugs, and `Absinthe.Plug`, asserting status, content type, variable coercion, and the
+`data`/`errors` envelope. Binding a second listener beside a 24/7 service buys nothing the `bnest-app-be-e2e`
+project does not already prove at the real socket.
+
+**Durable owner:** `tech-docs/006-file-impact-and-release.md`, corrected at archival.
