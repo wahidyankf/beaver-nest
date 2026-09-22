@@ -32,7 +32,11 @@
  * @property {(message: string) => void} announce
  */
 
-export const UNCOMMITTED_REMEDIATION = "This message hasn't been sent yet.";
+// One string for one condition: the action menu shows it on a disabled
+// `Reply`, and `select` returns it if something reaches past the menu. The
+// wording is tech-doc 003's Copy Inventory, verbatim.
+export const REPLY_UNAVAILABLE_REASON =
+  "Send this message before replying to it";
 
 /** @param {ReplyTargetState} state */
 function notify(state) {
@@ -48,16 +52,14 @@ function notify(state) {
 function createSelectMethod(state) {
   return function select(next) {
     if (!next.messageId) {
-      return { selected: false, reason: UNCOMMITTED_REMEDIATION };
+      return { selected: false, reason: REPLY_UNAVAILABLE_REASON };
     }
 
     state.selection = next;
     // Announced once, here, through the room's existing status element --
     // the strip itself is not a live region, so a screen reader is not
     // re-reading it on every keystroke.
-    state.announce(
-      `Replying to ${next.senderDisplayName}: ${next.bodyPreview}`,
-    );
+    state.announce(`Replying to ${next.senderDisplayName}.`);
     notify(state);
     return { selected: true, reason: null };
   };

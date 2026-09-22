@@ -26,6 +26,11 @@
  * @property {HTMLElement} outboxStatus
  * @property {HTMLButtonElement} pushControl
  * @property {HTMLButtonElement} pushDisable
+ * @property {HTMLElement} messageActions
+ * @property {HTMLElement} replyStrip
+ * @property {HTMLElement} replyStripName
+ * @property {HTMLElement} replyStripPreview
+ * @property {HTMLButtonElement} replyStripCancel
  */
 
 /**
@@ -38,7 +43,13 @@
  * rules out.
  * @returns {FamilyChatElements}
  */
-export function findElements() {
+/**
+ * The shell: header, history, and the surfaces that sit beside them.
+ * Split from the composer's own handles only to stay inside this project's
+ * max-lines-per-function budget; both halves come from the same template.
+ * @returns {Omit<FamilyChatElements, "composer" | "input" | "send" | "remediation" | "outboxStatus" | "replyStrip" | "replyStripName" | "replyStripPreview" | "replyStripCancel">}
+ */
+function findShellElements() {
   return {
     room: document.querySelector('[data-role="family-chat-room"]'),
     offlineBanner:
@@ -65,6 +76,24 @@ export function findElements() {
     liveRegion:
       /** @type {HTMLElement} */
       (document.querySelector('[data-role="family-chat-live-region"]')),
+    pushControl:
+      /** @type {HTMLButtonElement} */
+      (document.querySelector('[data-role="family-chat-push-control"]')),
+    pushDisable:
+      /** @type {HTMLButtonElement} */
+      (document.querySelector('[data-role="family-chat-push-disable"]')),
+    messageActions:
+      /** @type {HTMLElement} */
+      (document.querySelector('[data-role="family-chat-message-actions"]')),
+  };
+}
+
+/**
+ * The composer form, including the reply strip that lives inside it.
+ * @returns {Pick<FamilyChatElements, "composer" | "input" | "send" | "remediation" | "outboxStatus" | "replyStrip" | "replyStripName" | "replyStripPreview" | "replyStripCancel">}
+ */
+function findComposerElements() {
+  return {
     composer:
       /** @type {HTMLFormElement} */
       (document.querySelector('[data-role="family-chat-composer"]')),
@@ -80,11 +109,21 @@ export function findElements() {
     outboxStatus:
       /** @type {HTMLElement} */
       (document.querySelector('[data-role="family-chat-outbox-status"]')),
-    pushControl:
+    replyStrip:
+      /** @type {HTMLElement} */
+      (document.querySelector('[data-role="family-chat-reply-strip"]')),
+    replyStripName:
+      /** @type {HTMLElement} */
+      (document.querySelector('[data-role="family-chat-reply-strip-name"]')),
+    replyStripPreview:
+      /** @type {HTMLElement} */
+      (document.querySelector('[data-role="family-chat-reply-strip-preview"]')),
+    replyStripCancel:
       /** @type {HTMLButtonElement} */
-      (document.querySelector('[data-role="family-chat-push-control"]')),
-    pushDisable:
-      /** @type {HTMLButtonElement} */
-      (document.querySelector('[data-role="family-chat-push-disable"]')),
+      (document.querySelector('[data-role="family-chat-reply-strip-cancel"]')),
   };
+}
+
+export function findElements() {
+  return { ...findShellElements(), ...findComposerElements() };
 }

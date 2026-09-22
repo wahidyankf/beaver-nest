@@ -21,6 +21,7 @@ import {
   loadInitialMessages,
   attemptInitialSubscribe,
 } from "./mount_browser_sync.js";
+import { wireMessageActions, wireReplyStrip } from "./mount_browser_actions.js";
 
 /**
  * Only the fields `mountBrowser` itself reads/writes -- `store` is narrowed
@@ -40,6 +41,9 @@ import {
  * @property {ReturnType<typeof import("./reconnect.js").createReconnect>} reconnect
  * @property {ReturnType<typeof import("./history.js").createHistory>} history
  * @property {ReturnType<typeof import("./composer.js").createComposer>} composer
+ * @property {boolean} [replies]
+ * @property {ReturnType<typeof import("./reply_target.js").createReplyTarget>} [replyTarget]
+ * @property {import("./clock.js").Clock} clock
  */
 
 /** @typedef {ReturnType<typeof import("./graphql.js").createSubscriptionClient>} SubscriptionClient */
@@ -139,6 +143,13 @@ function wireComposerAndHistory(room, elements) {
   });
   wireComposer(room, elements);
   wireReadPosition(room, elements);
+  // Gated together with the requested GraphQL fields: with the flag off the
+  // room is exactly the shipped one -- no menu, no strip, and nothing bound
+  // that could open either.
+  if (room.replies) {
+    wireMessageActions(room, elements, room.clock);
+    wireReplyStrip(room, elements);
+  }
 }
 
 /**

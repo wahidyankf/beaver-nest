@@ -4,7 +4,10 @@
 // owns these rules; this file is where they are pinned.
 
 import { describe, expect, it } from "vitest";
-import { createReplyTarget } from "../../../js/family_chat/reply_target.js";
+import {
+  REPLY_UNAVAILABLE_REASON,
+  createReplyTarget,
+} from "../../../js/family_chat/reply_target.js";
 
 const AYAH = {
   messageId: "1042",
@@ -62,10 +65,7 @@ describe("createReplyTarget", () => {
     target.select(AYAH);
     target.clear();
 
-    expect(announced).toEqual([
-      "Replying to Ayah: Nanti aku jemput jam 5",
-      "Reply cancelled",
-    ]);
+    expect(announced).toEqual(["Replying to Ayah.", "Reply cancelled"]);
   });
 
   it("stays silent when clearing something already clear", () => {
@@ -89,7 +89,7 @@ describe("createReplyTarget", () => {
     });
 
     expect(result.selected).toBe(false);
-    expect(result.reason).toBe("This message hasn't been sent yet.");
+    expect(result.reason).toBe(REPLY_UNAVAILABLE_REASON);
     expect(target.current()).toBeNull();
   });
 

@@ -24,6 +24,7 @@ import {
   createPrependOlderMethods,
   createResumeRenderMethods,
 } from "./real_store_render.js";
+import { createRovingFocus, withRovingRefresh } from "./roving_focus.js";
 
 /** @typedef {import("./message_render.js").RenderableMessage} RenderableMessage */
 /** @typedef {import("./real_store_render.js").RealStoreState} RealStoreState */
@@ -257,7 +258,8 @@ function createCursorReaderMethods(state) {
  */
 export function createRealStore({ elements, currentUserId = null }) {
   const state = createRealStoreState();
-  return {
+  const roving = createRovingFocus(elements.list);
+  const rendering = {
     ...createInitialRenderMethods(elements, state, currentUserId),
     ...createResumeRenderMethods(elements, state, currentUserId),
     ...createPrependOlderMethods(elements, state, currentUserId),
@@ -265,7 +267,15 @@ export function createRealStore({ elements, currentUserId = null }) {
     ...createPendingRenderMethods(elements, state),
     ...createReconcileMethod(elements, state, currentUserId),
     ...createReceiveRemoteMessageMethod(elements, state, currentUserId),
+  };
+  return {
+    ...withRovingRefresh(rendering, roving),
     ...createArrivalReaderMethods(elements, state),
     ...createCursorReaderMethods(state),
+    /** @param {string} key */
+    rovingMove: (key) => roving.move(key),
+    /** @param {string} messageKey */
+    rovingMoveTo: (messageKey) => roving.moveTo(messageKey),
+    rovingCurrent: () => roving.current(),
   };
 }
