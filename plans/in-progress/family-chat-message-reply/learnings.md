@@ -1226,3 +1226,132 @@ confirmed present by existence alone — the cookie, the secret key base, and bo
 without them exactly as an experience slot would.
 
 **Durable owner:** none; recorded release evidence.
+
+### 2026-09-22 — The release gate caught a checkout, not a defect
+
+The first compatibility release attempt stopped after twelve seconds at `pre-artifact-gates` with
+`errorCategory: "gate"`, `migrationState: "not-required"`, and `nextTransition: "diagnose"`. No artifact was built,
+no migration ran, and the route never moved — production stayed on the previous revision throughout, which is the
+shape this target promises when a gate fails and the reason gates run before the build rather than after it.
+
+The cause: `tsc` could not resolve `happy-dom` in the primary checkout. The dependency was added on the task branch
+and is in the merged lockfile, but this checkout's `node_modules` predated the merge. Every gate had been green all
+day — in the _worktree_, where the install had happened. The branch was correct and the checkout was stale.
+
+This is the same class of trap the integration convention names for `main` itself: a pull request lands from a
+`worktrees/` checkout, so `origin/main` moves and the primary checkout silently does not. Reconciling the branch is
+already in the convention; reconciling installed dependencies is the same problem one layer down, and nothing
+reminds you because `git status` is clean either way. `npm install` after the fast-forward, before the release, is
+the whole fix.
+
+Worth saying plainly: the gate did its job. A release that had skipped straight to building would have produced an
+artifact from a checkout that could not typecheck.
+
+**Durable owner:** an idea brief proposing that the release preflight verify installed dependencies against the
+lockfile, alongside the branch, tree, and revision assertions it already makes.
+
+### 2026-09-22 — Phase 9, the compatibility release
+
+`outcome: passed`, `migrationState: applied`, 9m39s, fifteen evidence IDs from `preflight` through `convergence`.
+The routed origin now answers `ready` on slot **blue** at revision `5b08a27f2`, exactly one slot listens, and the
+recorded rollback floor is green at `91e0201df`. No release worktree remains.
+
+**The `replyTo` proof, and why it reads no production data.** The plan asks for a `curl` at the routed origin that
+returns data rather than a document rejection. Document validation happens _before_ authentication, so an
+anonymous session is enough to settle it and the resolver never runs:
+
+| Probe                                          | Outcome                                                    |
+| ---------------------------------------------- | ---------------------------------------------------------- |
+| `replyTo { id senderDisplayName bodyPreview }` | validated, reached the resolver, refused `UNAUTHENTICATED` |
+| `replyToDefinitelyNotAField { id }` (control)  | rejected: `Cannot query field ... Did you mean "replyTo"?` |
+
+The control is the part that matters. Without it, an `UNAUTHENTICATED` answer proves only that something refused
+the request; with it, the same endpoint is shown to reject an unknown field on the same type in the same request
+shape. The rejection's own suggestion names `replyTo`, which is independent confirmation from the schema itself.
+A first attempt with no session was refused `CSRF_REJECTED` at 403 by the pre-parse plug and proved nothing about
+the field — worth recording, because that answer looks like a result and is not one.
+
+**Responsiveness.** Post-promotion: 12 samples, zero failures, p95 278.1 ms, slowest 280.0 ms, median 17.5 ms —
+inside the 500 ms and 2 s budgets, and visibly slower than the 35.9 ms pre-release baseline because the slot was
+seconds old and its caches were cold.
+
+**A gap between this plan and the release procedure.** Phase 9 asks for mixed-revision safety proven _at the routed
+origin_ by a browser that loads the room and sends a message. It cannot be proven there at this point in the
+sequence: a compatibility release ships every feature flag off, so `BNEST_FAMILY_CHAT_ENABLED` is absent from the
+routed slot and the room is not reachable at all. The previous slot carried it `true`, so the promotion also turned
+a live feature off — the documented posture, and the reason the release guide says to follow _immediately_ with the
+experience re-promotion.
+
+The proof exists at the right layer instead: `A browser holding the pre-reply bundle loads the room from the new
+revision` runs in `bnest-app-fe-e2e:test:e2e` against two real candidate revisions, and passed in the clean run.
+That is the scenario the specification already carries an `@integration-exempt` note for, naming this exact
+boundary. The plan item asked for the observation at an origin where the room is switched off; the discrepancy is
+in the plan, not in the coverage.
+
+**Durable owner:** an idea brief proposing that active-service plans state which flag posture each release stage
+leaves routed, so an item cannot ask for a proof the stage's own posture forbids.
+
+### 2026-09-22 — Phase 10, the experience release
+
+`outcome: passed`, 5m40s, `migrationState: not-required` because it re-promotes the artifact Phase 9 already
+built. The routed origin answers `ready` on slot **green** at revision `5b08a27f2` — the same revision Phase 9
+routed, which is what the phase requires — with both `BNEST_FAMILY_CHAT_ENABLED` and
+`BNEST_FAMILY_CHAT_REPLY_ENABLED` set `true`, exactly one slot listening, and blue retired.
+
+**What the release itself proved, and where.**
+
+| Evidence                     | What it observed                                                                                                                                                                                   |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `experience-candidate-proof` | `Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate`, run against the real green candidate prepared with both flags, before any route change |
+| `routed-liveview`            | at the routed origin after promotion: `liveView: true`, `reconnected: true`, 10 clients across 3 groups                                                                                            |
+| `promotion`, `cleanup`       | Caddy promoted, prior slot drained and retired                                                                                                                                                     |
+
+The reconnect-without-refresh claim is therefore proven twice over: catch-up and exact-once delivery across two
+contexts on the candidate, and a real reconnect at the routed origin.
+
+**Responsiveness.** Post-promotion 12 samples: zero failures, p95 278.1 ms, slowest 280.0 ms. Post-drain 12
+samples: zero failures, p95 48.3 ms, slowest 50.9 ms, median 19.3 ms. Both inside the 500 ms and 2 s budgets; the
+first set is slower because the slot was seconds old.
+
+**The compatibility stage turns off features it was never releasing.** The routed slot before this work carried
+`BNEST_FAMILY_CHAT_ENABLED = true`. A compatibility release ships every flag off, so promoting it disabled the
+family chat room outright until the experience re-promotion — eight minutes here. That is not specific to this
+plan; every two-stage release in the deployment log shows the same gap:
+
+| Revision    | Compatibility → experience |
+| ----------- | -------------------------- |
+| `423164cce` | 44.6 min                   |
+| `c24ecac7b` | 19.9 min                   |
+| `f28196196` | 6.5 min                    |
+| `91e0201df` | 16.4 min                   |
+| `5b08a27f2` | 8.0 min                    |
+
+The release guide's "immediately follow" is doing real work, and nothing enforces it. A flag that gates the feature
+being released should go off in the compatibility stage; a flag that gates an unrelated feature already live has no
+reason to.
+
+**Durable owner:** an idea brief proposing that a compatibility release carry forward the flag posture of the slot
+it replaces, except for the flags the release is itself introducing.
+
+### 2026-09-22 — Two Phase 10 items this execution could not complete
+
+Recorded as blocked rather than ticked, because neither can be honestly claimed.
+
+**The routed pass on the real household surface.** The item asks for the feature exercised at the routed origin —
+open the menu, reply, see the quote, jump back — and explicitly refuses a 2xx as proof. That needs an authenticated
+session at the production origin, and this executor is not permitted to create an account or enter a password. The
+nearest honest substitutes were taken and are recorded above: the flag-enabled candidate ran the two-member
+browser proof before promotion, the routed origin answered a real reconnect, and the routed schema was shown to
+answer `replyTo` with a control that discriminates. None of those is a person using the feature on the household
+surface, and none is offered as one. **This item needs a human.**
+
+**The rollback-floor proof.** The item asks that, against the Phase 9 revision, a browser holding the current
+bundle load the room and render existing quotes. After the experience promotion the floor is the same revision with
+both flags off, so the room is not reachable there at all — the proof the item describes cannot be observed at the
+floor, for the same posture reason Phase 9's mixed-revision item hit. What the floor does guarantee is narrower and
+was verified: it is the same artifact, already routed successfully once, and `deploy:rollback` restores it without
+a rebuild.
+
+Both are recorded in `delivery.md` as unticked with this entry named.
+
+**Durable owner:** the idea brief above covers the posture half; the routed-pass half belongs to the user.
