@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Quote card lo-fi desktop</title>
+  <desc id="desc">Desktop Ruang Keluarga wireframe showing a hover-revealed actions control on a message, a menu opened from it, quoted reply cards inside bubbles, a highlighted jump target, and a composer reply strip.</desc>
+  <rect width="1440" height="900" fill="#fff"/>
+  <rect width="1440" height="96" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <circle cx="48" cy="46" r="20" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <text x="84" y="42" font-family="sans-serif" font-size="20" font-weight="700">Family chat</text>
+  <text x="84" y="68" font-family="sans-serif" font-size="15">Ruang Keluarga</text>
+
+  <rect x="280" y="140" width="520" height="84" rx="18" fill="#fff" stroke="#283433" stroke-width="4" stroke-dasharray="10 6"/>
+  <text x="304" y="168" font-family="sans-serif" font-size="13" font-weight="700">Ayah · 16:02</text>
+  <text x="304" y="200" font-family="sans-serif" font-size="17">Nanti aku jemput jam 5</text>
+  <text x="818" y="176" font-family="sans-serif" font-size="11" font-weight="700">Jump target: outlined while highlighted</text>
+  <rect x="812" y="186" width="34" height="30" rx="8" fill="#e5e8e7" stroke="#283433" stroke-width="2"/>
+  <text x="821" y="207" font-family="sans-serif" font-size="15" font-weight="700">⋯</text>
+  <text x="854" y="207" font-family="sans-serif" font-size="11">Actions control appears on hover or focus</text>
+
+  <rect x="856" y="224" width="250" height="118" rx="12" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <text x="876" y="252" font-family="sans-serif" font-size="12" font-weight="700">Message actions</text>
+  <rect x="866" y="262" width="230" height="34" rx="8" fill="#e5e8e7" stroke="#283433" stroke-width="2"/>
+  <text x="884" y="285" font-family="sans-serif" font-size="14" font-weight="700">↩  Reply</text>
+  <rect x="866" y="300" width="230" height="32" rx="8" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="884" y="322" font-family="sans-serif" font-size="14">❐  Copy text</text>
+
+  <rect x="280" y="366" width="520" height="66" rx="18" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="304" y="393" font-family="sans-serif" font-size="13" font-weight="700">Kakak · 16:03</text>
+  <text x="304" y="418" font-family="sans-serif" font-size="16">Aku pulang sendiri aja</text>
+
+  <rect x="640" y="452" width="520" height="140" rx="18" fill="#596362"/>
+  <text x="664" y="479" font-family="sans-serif" font-size="13" fill="#fff" font-weight="700">Bunda · 16:05</text>
+  <rect x="664" y="490" width="472" height="56" rx="10" fill="#fff" stroke="#c9cfce" stroke-width="2"/>
+  <rect x="664" y="490" width="7" height="56" rx="3" fill="#283433"/>
+  <text x="684" y="512" font-family="sans-serif" font-size="12" font-weight="700">↩ Ayah</text>
+  <text x="684" y="535" font-family="sans-serif" font-size="13">Nanti aku jemput jam 5</text>
+  <text x="664" y="576" font-family="sans-serif" font-size="17" fill="#fff">Oke, aku siapin</text>
+
+  <rect y="748" width="1440" height="152" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <rect x="280" y="764" width="880" height="40" rx="8" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <rect x="280" y="764" width="7" height="40" rx="3" fill="#283433"/>
+  <text x="302" y="782" font-family="sans-serif" font-size="11" font-weight="700">Replying to Ayah</text>
+  <text x="302" y="798" font-family="sans-serif" font-size="12">Nanti aku jemput jam 5</text>
+  <rect x="1118" y="772" width="28" height="24" rx="6" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="1127" y="789" font-family="sans-serif" font-size="13" font-weight="700">×</text>
+  <rect x="280" y="814" width="750" height="62" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <rect x="1046" y="814" width="114" height="62" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="1076" y="851" font-family="sans-serif" font-size="16" font-weight="700">Send</text>
+</svg>

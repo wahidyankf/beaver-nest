@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="393" height="852" viewBox="0 0 393 852" role="img" aria-labelledby="title desc">
+  <title id="title">Inline prefix lo-fi mobile</title>
+  <desc id="desc">Rejected mobile alternative: the quoted message is one condensed prefix line above the reply text with no card or accent bar, and the actions appear as a small floating toolbar overlapping the messages above the held one.</desc>
+  <rect width="393" height="852" fill="#fff"/>
+  <rect width="393" height="104" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <text x="24" y="45" font-family="sans-serif" font-size="18" font-weight="700">Family chat</text>
+  <text x="24" y="69" font-family="sans-serif" font-size="14">Ruang Keluarga</text>
+
+  <rect x="18" y="170" width="290" height="76" rx="17" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="34" y="195" font-family="sans-serif" font-size="12" font-weight="700">Ayah · 16:02</text>
+  <text x="34" y="224" font-family="sans-serif" font-size="16">Nanti aku jemput jam 5</text>
+
+  <rect x="18" y="124" width="222" height="38" rx="19" fill="#fff" stroke="#283433" stroke-width="3"/>
+  <text x="36" y="149" font-family="sans-serif" font-size="14" font-weight="700">↩ Reply</text>
+  <text x="122" y="149" font-family="sans-serif" font-size="14">❐ Copy</text>
+  <text x="18" y="112" font-family="sans-serif" font-size="11" font-weight="700">Floating toolbar covers the message above</text>
+
+  <rect x="18" y="258" width="290" height="60" rx="17" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="34" y="283" font-family="sans-serif" font-size="12" font-weight="700">Kakak · 16:03</text>
+  <text x="34" y="306" font-family="sans-serif" font-size="15">Aku pulang sendiri aja</text>
+
+  <rect x="85" y="332" width="290" height="96" rx="17" fill="#596362"/>
+  <text x="101" y="357" font-family="sans-serif" font-size="12" fill="#fff" font-weight="700">Bunda · 16:05</text>
+  <text x="101" y="380" font-family="sans-serif" font-size="12" fill="#fff">↩ Ayah: Nanti aku jemput jam 5</text>
+  <text x="101" y="412" font-family="sans-serif" font-size="16" fill="#fff">Oke, aku siapin</text>
+  <text x="85" y="452" font-family="sans-serif" font-size="11" font-weight="700">Quote and reply share one colour and weight scale</text>
+
+  <rect y="736" width="393" height="116" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <text x="18" y="766" font-family="sans-serif" font-size="12" font-weight="700">↩ Ayah: Nanti aku jemput jam 5    ×</text>
+  <rect x="14" y="778" width="272" height="60" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <rect x="298" y="778" width="81" height="60" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="318" y="814" font-family="sans-serif" font-size="15" font-weight="700">Send</text>
+</svg>

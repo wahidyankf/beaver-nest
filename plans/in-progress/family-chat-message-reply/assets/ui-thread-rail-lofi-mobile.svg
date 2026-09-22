@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="393" height="852" viewBox="0 0 393 852" role="img" aria-labelledby="title desc">
+  <title id="title">Thread rail lo-fi mobile</title>
+  <desc id="desc">Rejected mobile alternative: replies are indented under the message they answer and joined to it by a connector rail, so the room is no longer a single chronological column and later messages are pulled out of time order.</desc>
+  <rect width="393" height="852" fill="#fff"/>
+  <rect width="393" height="104" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <text x="24" y="45" font-family="sans-serif" font-size="18" font-weight="700">Family chat</text>
+  <text x="24" y="69" font-family="sans-serif" font-size="14">Ruang Keluarga</text>
+
+  <rect x="18" y="130" width="290" height="76" rx="17" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="34" y="155" font-family="sans-serif" font-size="12" font-weight="700">Ayah · 16:02</text>
+  <text x="34" y="184" font-family="sans-serif" font-size="16">Nanti aku jemput jam 5</text>
+
+  <path d="M40 206 V 250 H 66" fill="none" stroke="#283433" stroke-width="3"/>
+  <rect x="66" y="222" width="290" height="70" rx="17" fill="#596362"/>
+  <text x="82" y="247" font-family="sans-serif" font-size="12" fill="#fff" font-weight="700">Bunda · 16:05</text>
+  <text x="82" y="276" font-family="sans-serif" font-size="16" fill="#fff">Oke, aku siapin</text>
+
+  <path d="M40 292 V 336 H 66" fill="none" stroke="#283433" stroke-width="3"/>
+  <rect x="66" y="308" width="290" height="70" rx="17" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="82" y="333" font-family="sans-serif" font-size="12" font-weight="700">Adik · 16:11</text>
+  <text x="82" y="362" font-family="sans-serif" font-size="16">Aku ikut ya</text>
+
+  <rect x="18" y="404" width="290" height="60" rx="17" fill="#f2f3f3" stroke="#596362" stroke-width="2"/>
+  <text x="34" y="429" font-family="sans-serif" font-size="12" font-weight="700">Kakak · 16:03</text>
+  <text x="34" y="452" font-family="sans-serif" font-size="15">Aku pulang sendiri aja</text>
+  <text x="18" y="492" font-family="sans-serif" font-size="11" font-weight="700">16:03 now sits below 16:11 — the log is no longer in time order</text>
+  <text x="18" y="514" font-family="sans-serif" font-size="11" font-weight="700">Keyset paging and the unread divider both assume one ordered column</text>
+
+  <rect y="736" width="393" height="116" fill="#d9dfdd" stroke="#283433" stroke-width="3"/>
+  <text x="18" y="768" font-family="sans-serif" font-size="12" font-weight="700">Replying in Ayah's thread    ×</text>
+  <rect x="14" y="778" width="272" height="60" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <rect x="298" y="778" width="81" height="60" rx="10" fill="#fff" stroke="#283433" stroke-width="2"/>
+  <text x="318" y="814" font-family="sans-serif" font-size="15" font-weight="700">Send</text>
+</svg>
