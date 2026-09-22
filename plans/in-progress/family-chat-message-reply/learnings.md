@@ -1419,6 +1419,18 @@ Four routing failures the check found, and what happened to each:
 4. **One conditional routing was never decided** — a note to be raised as a brief if the cross-phase RED pattern
    recurred and discarded if it did not. It did not recur in Phases 4 through 10. Discarded, recorded here.
 
+**Still outstanding, and not counted as resolved.** Seventeen owner lines defer their action to archival. Three of
+them promise idea briefs, and those briefs exist. The other **fourteen** promise a correction to a tech-doc —
+`001`, `002`, `003`, `004`, and `006` between them — and not one has been made: `git log` over `tech-docs/` shows
+only the plan's creation and its pre-execution quality-gate repair.
+
+The scheduling was the mistake. None of those fourteen corrections actually depends on archival; they were simply
+filed under it, and archival is blocked, so they are stranded behind a step that may not come for some time. They
+are listed here as outstanding rather than quietly folded into the class table above, because a learning that
+names a document it never reached has not reached an owner — the same standard that condemned the four dead paths.
+Resolving them is work for whoever unblocks this plan, and it is smaller than it looks: each is a factual amendment
+to a document that already exists.
+
 Idea briefs raised at archival, deduplicated against the existing ones:
 
 | Brief                                   | Quadrant | Carries                                                                    |
