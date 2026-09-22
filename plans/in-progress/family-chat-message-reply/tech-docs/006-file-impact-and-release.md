@@ -56,21 +56,98 @@ split is predicted here so that it reads as a planned consequence rather than as
 
 ## Tests
 
-| Status | Path                                                                       | Change                                                                      |
-| ------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `[E]`  | `apps/bnest-app/test/unit/bnest_app/family_chat_test.exs`                  | Validation, quote attachment, preview truncation, idempotent replay         |
-| `[E]`  | `apps/bnest-app/test/unit/bnest_app/family_chat/message_test.exs`          | Reply-target normalization                                                  |
-| `[E]`  | `apps/bnest-app/test/unit/bnest_app_web/schema_test.exs`                   | Schema shape and the unchanged resolver dependency direction                |
-| `[E]`  | `apps/bnest-app/test/integration/bnest_app/family_chat_migration_test.exs` | Additive migration, idempotent re-run, refused reversal                     |
-| `[E]`  | `apps/bnest-app/test/behaviour/steps/family_chat_backend_steps.exs`        | Bindings for the new backend scenarios                                      |
-| `[E]`  | `apps/bnest-app/assets/test/unit/family_chat/composer.test.ts`             | Reply-target lifecycle in the composer                                      |
-| `[E]`  | `apps/bnest-app/assets/test/unit/family_chat/outbox.test.ts`               | Queue, persist, hydrate, and drain a reply; legacy record without the field |
-| `[E]`  | `apps/bnest-app/assets/test/unit/family_chat/history.test.ts`              | Bounded older-page loading and the refusal                                  |
-| `[N]`  | `apps/bnest-app/assets/test/unit/family_chat/message_actions.test.ts`      | Trigger, focus, disabled-Reply, and copy decisions without a browser        |
-| `[E]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat.steps.ts`                   | GraphQL reply bindings                                                      |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply.steps.ts`             | Browser bindings for menu, strip, quote, and jump                           |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply.ts`                 | Reply-specific page helpers                                                 |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-composer.ts`              | Strip-aware composer helper                                                 |
+**Corrected 2026-09-22.** The table below was rewritten after execution against `git diff` over the plan's own
+commits. The original listed thirteen files; the plan touched forty-four. Three kinds of error produced the gap: the
+Vitest+Gherkin adapter layer was not represented at all, the fe-e2e support files a new scenario needs were not
+foreseen, and one row named a file (`family-chat-composer.ts`) that in the end was never changed. Each individual
+surprise was recorded as a File Impact deviation in `learnings.md` while it happened; this is the reconciled list.
+
+### Backend
+
+| Status | Path                                                                           | Change                                                                        |
+| ------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `[E]`  | `apps/bnest-app/test/unit/bnest_app/family_chat_test.exs`                      | Validation, quote attachment, preview truncation, idempotent replay           |
+| `[E]`  | `apps/bnest-app/test/unit/bnest_app/family_chat/message_test.exs`              | Reply-target normalization                                                    |
+| `[E]`  | `apps/bnest-app/test/unit/bnest_app_web/schema_test.exs`                       | Schema shape and the unchanged resolver dependency direction                  |
+| `[N]`  | `apps/bnest-app/test/unit/bnest_app/backup_restore_test.exs`                   | Restore evidence scoped to the active room — a production fix this plan found |
+| `[E]`  | `apps/bnest-app/test/unit/support/family_chat_driver.ex`                       | Reply-aware driver for the unit layer                                         |
+| `[E]`  | `apps/bnest-app/test/unit/support/home_page_driver.ex`                         | Entry-point assertions under the reply flag                                   |
+| `[E]`  | `apps/bnest-app/test/integration/bnest_app/family_chat_migration_test.exs`     | Additive migration, idempotent re-run, refused reversal                       |
+| `[E]`  | `apps/bnest-app/test/integration/bnest_app/sqlite_storage_test.exs`            | Storage round trip carrying the new column                                    |
+| `[N]`  | `apps/bnest-app/test/integration/bnest_app_web/family_chat_graphql_test.exs`   | Endpoint, router, session/CSRF, and `Absinthe.Plug` in process                |
+| `[N]`  | `apps/bnest-app/test/integration/bnest_app_web/family_chat_room_page_test.exs` | The rendered room page under both flag postures                               |
+| `[E]`  | `apps/bnest-app/test/integration/support/family_chat_driver.ex`                | Reply-aware driver for the integration layer                                  |
+| `[E]`  | `apps/bnest-app/test/behaviour/steps/family_chat_backend_steps.exs`            | Bindings for the new backend scenarios                                        |
+
+**The boundary tests run in process, not against a loopback listener.** The plan asked for "a loopback listener the
+test starts, owns, and stops". [API testing](../../../../repo-governance/development/api-testing.md) permits either,
+and the rest of this suite is in process. `family_chat_graphql_test.exs` drives the genuine endpoint, router,
+session and CSRF plugs, and `Absinthe.Plug`, asserting status, content type, variable coercion, and the
+`data`/`errors` envelope. Binding a second listener beside a 24/7 service buys nothing that `bnest-app-be-e2e`
+does not already prove at the real socket.
+
+### Frontend unit
+
+| Status | Path                                                                  | Change                                                                      |
+| ------ | --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `[E]`  | `apps/bnest-app/assets/test/unit/family_chat/composer.test.ts`        | Reply-target lifecycle in the composer                                      |
+| `[E]`  | `apps/bnest-app/assets/test/unit/family_chat/outbox.test.ts`          | Queue, persist, hydrate, and drain a reply; legacy record without the field |
+| `[E]`  | `apps/bnest-app/assets/test/unit/family_chat/history.test.ts`         | Bounded older-page loading and the refusal                                  |
+| `[E]`  | `apps/bnest-app/assets/test/unit/family_chat/reconnect.test.ts`       | Catch-up drain beside the offline flag                                      |
+| `[N]`  | `apps/bnest-app/assets/test/unit/family_chat/message_actions.test.ts` | Trigger, focus, disabled-Reply, and copy decisions without a browser        |
+| `[N]`  | `apps/bnest-app/assets/test/unit/family_chat/reply_target.test.ts`    | Target selection and the bounded preview by grapheme                        |
+| `[N]`  | `apps/bnest-app/assets/test/unit/family_chat/message_quote.test.ts`   | Quote-card rendering and its accessible name                                |
+| `[N]`  | `apps/bnest-app/assets/test/unit/family_chat/menu_anchor.test.ts`     | Menu placement and dismissal decisions                                      |
+| `[N]`  | `apps/bnest-app/assets/test/unit/family_chat/roving_focus.test.ts`    | The roving tab-stop invariant                                               |
+| `[N]`  | `apps/bnest-app/assets/test/unit/family_chat/operations.test.ts`      | One field set shared by query, mutation, and subscription                   |
+| `[N]`  | `apps/bnest-app/assets/test/unit/family_chat/accessibility.test.ts`   | The rendered-list invariant under `happy-dom`                               |
+| `[M]`  | `apps/bnest-app/assets/test/support/fake_clock.ts`                    | Moved out of `unit/family_chat/` once a second layer needed it              |
+
+`accessibility.test.ts` is why `happy-dom` entered the dependency tree. Its predecessor read the shipped template as
+text and looked for words suggesting keyboard reachability, which is not a property a template rendering an empty
+`<ol>` can have. The replacement renders real messages through the shipped renderer, so breaking the roving reset
+fails it.
+
+### Vitest and Gherkin adapter
+
+The plan did not name this layer. It is not optional: `BnestApp.Behaviour.FeVitestUnitScope` prunes every
+`@fe-vitest-unit` scenario from the Elixir corpus and `verify.ts` then requires **exactly** that complementary set,
+so every new frontend scenario needs a binding here, including ones whose real proof is a browser.
+
+| Status | Path                                                              | Change                                                                |
+| ------ | ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `[E]`  | `apps/bnest-app/assets/test/behaviour/family_chat.steps.ts`       | Existing bindings under the reply flag                                |
+| `[N]`  | `apps/bnest-app/assets/test/behaviour/family_chat_reply.steps.ts` | Reply bindings for the document-free and document-bearing rooms alike |
+| `[N]`  | `apps/bnest-app/assets/test/behaviour/support/reply_room.ts`      | A room built from production pieces under `happy-dom`                 |
+| `[E]`  | `apps/bnest-app/assets/test/behaviour/verify.ts`                  | Teardown that takes `document` off `globalThis`                       |
+
+`reply_room.ts` exists because `family_chat.steps.ts` opens the real `initRoom` in Node, where
+`typeof document === "undefined"` selects the in-memory store, transport, and page source — the wrong branch for
+scenarios about markup, focus, and key events. The hazard is the seam: a `document` left on `globalThis` silently
+flips every _following_ document-free scenario onto the browser branch, so it is taken down in `verify.ts`'s
+`finally` and again inside the builder when a room fails to build half-way.
+
+### Browser and API end-to-end
+
+| Status | Path                                                                         | Change                                          |
+| ------ | ---------------------------------------------------------------------------- | ----------------------------------------------- |
+| `[E]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat.steps.ts`                     | GraphQL reply bindings                          |
+| `[N]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat-reply.steps.ts`               | Reply-specific API bindings                     |
+| `[N]`  | `apps/bnest-app-be-e2e/tests/support/family-chat-state.ts`                   | Seeded reply state for the API layer            |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat.steps.ts`                     | Existing bindings under the reply flag          |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply.steps.ts`               | Menu, strip, quote, and jump                    |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply-reading.steps.ts`       | Reading a conversation that contains replies    |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply-keyboard.steps.ts`      | The keyboard path through menu, strip, and card |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-offline-persistence.steps.ts` | An offline reply that keeps its target          |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-resume.steps.ts`              | Resume with replies present                     |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/experience-release.steps.ts`              | The two-stage release scenarios                 |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply.ts`                   | Reply-specific page helpers                     |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply-room.ts`              | Reply-aware room helper                         |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-gestures.ts`                | Pointer and keyboard gestures the menu needs    |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat.ts`                         | Shared room helper                              |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/candidate-pool.ts`                      | Candidate slots for the release scenarios       |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/routed-rollout.ts`                      | Routed-rollout helper under both flag postures  |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/storage-authority.ts`                   | Storage authority for reply-bearing runs        |
 
 ## Specifications
 
@@ -118,6 +195,22 @@ from using it.
 The flag is read at boot, like `BNEST_FAMILY_CHAT_ENABLED`, and a slot that is missing it fails to boot rather than
 guessing. With the flag off, the server still **accepts** `replyToMessageId` and still **serves** `replyTo`; only the
 browser stops asking. That asymmetry is what the compatibility release depends on.
+
+**Corrected 2026-09-22 — a flag needs the files that carry it, not only the files that read it.** The tables above
+listed every file the _feature_ touches and none of the files the _release_ touches. A variable read at boot is
+supplied by the managed process, so introducing one means editing the release path as well:
+
+| Status | Path                                    | Change                                                             |
+| ------ | --------------------------------------- | ------------------------------------------------------------------ |
+| `[E]`  | `apps/bnest-app/tools/deployment.mjs`   | Passes `BNEST_FAMILY_CHAT_REPLY_ENABLED` into a slot's environment |
+| `[E]`  | `apps/bnest-app/tools/release.mjs`      | Carries the flag through the two release stages                    |
+| `[E]`  | `apps/bnest-app/tools/release.test.mjs` | Pins that a promoted slot receives it                              |
+
+Without those, the experience stage would have promoted a revision that reads the flag and is never given it, and
+`/health/ready` could not have told anyone: the room sits behind `:authenticated_browser`, so a healthy slot and a
+correctly configured slot are not the same claim. The general rule — that a plan introducing a runtime flag must
+cover the release path in its File Impact — is raised for the repository's own conventions in
+`plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`.
 
 Retiring the flag after the rollback window is out of scope and is recorded as a follow-up idea brief, not left as an
 unowned line in this plan.

@@ -43,6 +43,16 @@ nested field at serialization time; a separate type reaches it by construction a
 `bodyPreview` is named for what it is. A field called `body` that silently returned 160 of 4,000 graphemes would be a
 trap for the next reader.
 
+**The quote's server-side shape is not its published field list.** Added 2026-09-22, after the first build of it
+carried exactly the four fields above and nothing else. `FamilyChatMessageQuote.senderDisplayName` resolves live
+through `FamilyChat.live_sender_display_name/2`, which reads `message.sender_id` — a field the type does not
+publish and the map therefore did not carry. Every unit test passed, because none of them resolved a quote
+_through the schema_; the first thing that would have hit it was a real client. The map `quote_of/1` builds now
+carries `sender_id` internally, with no field exposing it, and a unit case drives that seam directly.
+
+The general shape is worth keeping: a resolver's input contract is not the type's field list, and matching the two
+by eye is how this was missed.
+
 ## Operation Documents
 
 `assets/js/family_chat/operations.js` remains the one place any document is written. The message field list becomes a
@@ -77,7 +87,15 @@ did not ask for.
 
 Query, mutation, and subscription documents are all built from `messageFields`. They must stay in step: a subscription
 that omits `replyTo` while the query includes it produces a room where a reply's quote appears on reload and not on
-arrival, which is the hardest kind of bug to see.
+arrival, which is the hardest kind of bug to see. Before this plan they were three independent template strings, so
+a drift between them was both easy to introduce and invisible until a live message rendered differently from a
+resumed one.
+
+**The mutation declares its variable conditionally too.** `sendFamilyChatMessageMutation({replies})` adds
+`$replyToMessageId: ID` to the operation's variable list and `replyToMessageId: $replyToMessageId` to the call only
+when the flag is on. That is not tidiness: it is what makes the browser emit **byte-identical pre-reply documents**
+with the flag off, which is precisely what the compatibility release depends on. A document that declared an unused
+variable would still validate, but it would no longer be the document the shipped release sends.
 
 ## Validation and Errors
 
@@ -115,6 +133,12 @@ test in `test/unit/bnest_app_web/schema_test.exs` is what keeps that true, and i
 
 `FamilyChat.send_message/5` grows one optional argument. It is added as a trailing optional parameter with a `nil`
 default so the backup module's synthetic load probe, which calls it positionally, keeps compiling unchanged.
+
+**Quote resolution is room-scoped at read time as well as at write time.** Added 2026-09-22. `Store.quotes_for/2`
+takes the room id and filters on it, so `replyTo` can never resolve to a message outside the room being read. The
+two checks are not redundant — the write-time check in `message_by_id/2` guards the rows this application writes,
+and the read-time scope guards what a reader is shown. The full reasoning is in
+[Data Model](001-data-model-and-migration.md#read-path).
 
 ## Manual Proof
 
