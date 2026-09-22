@@ -1,5 +1,6 @@
 ---
-description: "Guides writing Given/When/Then acceptance scenarios that describe observable behaviour and can actually fail."
+description: |-
+  Guides writing Given/When/Then acceptance scenarios that describe observable behaviour and can actually fail.
 name: plan-writing-gherkin-criteria
 ---
 

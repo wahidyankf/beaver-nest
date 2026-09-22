@@ -16,11 +16,11 @@ grep -Eq '^version=v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' "$reposi
 grep -Eq '^commit=[0-9a-f]{40}$' "$repository_root/hippo.lock"
 grep -Fq -- '--path-format=absolute --git-common-dir' "$repository_root/hippo"
 resource_rule="$repository_root/repo-governance/development/resource-aware-development.md"
-grep -Fqi 'exit `75`' "$resource_rule"
+grep -Fqi 'exit `124`' "$resource_rule"
 grep -Fq 'never-started' "$resource_rule"
-grep -Fqi 'exit `76`' "$resource_rule"
-grep -Fq 'Never retry it' "$resource_rule"
-grep -Fq 'legacy client without distinct exit `76`' "$resource_rule"
+grep -Fqi 'exit `125`' "$resource_rule"
+grep -Fqi 'never retry it' "$resource_rule"
+grep -Fq 'protocol-mismatch' "$resource_rule"
 grep -Fq 'read the Hippo repository at the commit' "$resource_rule"
 grep -Fq '`hippo.lock`, then align' "$resource_rule"
 grep -Fq '30 days' "$resource_rule"
@@ -81,7 +81,7 @@ Darwin) host_goos=darwin ;;
 Linux) host_goos=linux ;;
 *)
 	echo "unsupported host operating system for the bootstrap suite" >&2
-	exit 78
+	exit 125
 	;;
 esac
 case "$(uname -m)" in
@@ -89,7 +89,7 @@ x86_64 | amd64) host_goarch=amd64 ;;
 arm64 | aarch64) host_goarch=arm64 ;;
 *)
 	echo "unsupported host architecture for the bootstrap suite" >&2
-	exit 78
+	exit 125
 	;;
 esac
 host_platform="$host_goos-$host_goarch"
@@ -447,7 +447,7 @@ run_download_digest_mismatch() {
 		"$subject" probe >"$mismatch_output" 2>/dev/null
 	status=$?
 	set -e
-	[ "$status" -eq 78 ]
+	[ "$status" -eq 125 ]
 	# The archive was fetched and then refused: nothing of it reached the cache
 	# and the payload never spoke.
 	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
@@ -459,7 +459,7 @@ run_download_digest_mismatch() {
 # A host outside the published matrix has no asset to fetch, so the refusal has
 # to come before the transport rather than from a download that fails to find
 # one: a 404 read as a network problem is the kind of error a caller retries
-# forever. The refusal is attributed by its message, because exit 78 is also
+# forever. The refusal is attributed by its message, because exit 125 is also
 # what an unreadable lock produces -- and the platform branch runs before the
 # lock's per-platform checksum is ever read.
 run_unsupported_platform_refused() {
@@ -473,7 +473,7 @@ run_unsupported_platform_refused() {
 		HIPPO_TEST_UNAME_S=Plan9 "$subject" probe >/dev/null 2>"$refusal"
 	status=$?
 	set -e
-	[ "$status" -eq 78 ]
+	[ "$status" -eq 125 ]
 	grep -q 'does not support this operating system' "$refusal"
 
 	set +e
@@ -481,7 +481,7 @@ run_unsupported_platform_refused() {
 		HIPPO_TEST_UNAME_M=riscv64 "$subject" probe >/dev/null 2>"$refusal"
 	status=$?
 	set -e
-	[ "$status" -eq 78 ]
+	[ "$status" -eq 125 ]
 	grep -q 'does not support this architecture' "$refusal"
 
 	[ "$(download_count)" -eq "$downloads_before" ]
@@ -577,7 +577,7 @@ run_non_exact_stable_version() {
 		PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>&1
 		status=$?
 		set -e
-		[ "$status" -eq 78 ]
+		[ "$status" -eq 125 ]
 	done
 	[ "$(download_count)" -eq "$downloads_before" ]
 	[ ! -e "$escape_parent/escape" ]
@@ -596,7 +596,7 @@ run_non_exact_identity_envelope() {
 		"$subject" probe >/dev/null 2>&1
 	status=$?
 	set -e
-	[ "$status" -eq 78 ]
+	[ "$status" -eq 125 ]
 	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
 	[ ! -e "$cache_root/$test_version/$host_platform/hippo" ]
 	[ ! -e "$cache_root/$test_version/$host_platform/hippo.sha256" ]
@@ -1022,8 +1022,8 @@ run_concurrent_owners_survive_queued_admission() {
 
 run_protocol_mismatch_is_never_retried() {
 	resource_rule="$repository_root/repo-governance/development/resource-aware-development.md"
-	grep -Fq 'Exit `76`' "$resource_rule"
-	grep -Fq 'Never retry it' "$resource_rule"
+	grep -Fq 'Exit `125`' "$resource_rule"
+	grep -Fqi 'never retry it' "$resource_rule"
 	grep -Fq './hippo status' "$resource_rule"
 	grep -Fq 'drain or' "$resource_rule"
 }
