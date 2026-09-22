@@ -49,6 +49,18 @@ case System.get_env("BNEST_FAMILY_CHAT_ENABLED") do
   _invalid -> raise "BNEST_FAMILY_CHAT_ENABLED must be true or false"
 end
 
+# Gates the requested GraphQL fields, the action menu, and the composer's
+# reply strip together, so the browser never asks for a field it will not
+# render. Independent of the flag above: the compatibility release ships this
+# `false` with the room itself already live, and the experience release flips
+# it `true` from the same reviewed revision.
+case System.get_env("BNEST_FAMILY_CHAT_REPLY_ENABLED") do
+  nil -> :ok
+  "true" -> config :bnest_app, :family_chat_reply_enabled, true
+  "false" -> config :bnest_app, :family_chat_reply_enabled, false
+  _invalid -> raise "BNEST_FAMILY_CHAT_REPLY_ENABLED must be true or false"
+end
+
 case System.get_env("BNEST_COOKIE_SECURE") do
   nil -> :ok
   "true" -> config :bnest_app, :session_cookie, secure: true

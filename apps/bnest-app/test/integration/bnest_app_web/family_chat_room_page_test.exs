@@ -28,10 +28,20 @@ defmodule BnestAppWeb.FamilyChatRoomPageTest do
   end
 
   describe "the room shell" do
-    test "renders with the reply flag unassigned, reporting replies off", %{conn: conn} do
+    test "reports replies off at the route while the flag is unset", %{conn: conn} do
       html = room_html(conn)
 
       assert html =~ ~s(data-family-chat-reply-enabled="false")
+    end
+
+    test "renders with the assign absent entirely, rather than raising", %{conn: conn} do
+      # The compatibility release runs with the feature off, and any caller
+      # that renders this shell without the assign -- including this test --
+      # must get a room, not a `KeyError` that takes the whole page down.
+      html = render_room(conn, [])
+
+      assert html =~ ~s(data-family-chat-reply-enabled="false")
+      assert html =~ ~s(data-role="family-chat-room")
     end
 
     test "ships the single menu host, hidden, with its accessible name", %{conn: conn} do
@@ -60,7 +70,7 @@ defmodule BnestAppWeb.FamilyChatRoomPageTest do
     end
 
     test "renders the same shell with the flag on, reporting replies enabled", %{conn: conn} do
-      html = render_room_with_reply_enabled(conn, true)
+      html = render_room(conn, reply_enabled: true)
 
       assert html =~ ~s(data-family-chat-reply-enabled="true")
       assert html =~ ~s(data-role="family-chat-message-actions")
@@ -78,17 +88,12 @@ defmodule BnestAppWeb.FamilyChatRoomPageTest do
   # uses, with the assign the controller will pass once the flag is plumbed
   # (Phase 7). Going through the module rather than hand-building the markup
   # is what makes this a proof about the shipped template.
-  defp render_room_with_reply_enabled(conn, reply_enabled) do
+  defp render_room(conn, extra_assigns) do
     user_id = current_user_id(conn)
     {:ok, room} = FamilyChat.get_room_for(user_id, FamilyChat.canonical_room_slug())
 
-    %{
-      conn: conn,
-      flash: %{},
-      current_user: %{"userId" => user_id},
-      room: room,
-      reply_enabled: reply_enabled
-    }
+    %{conn: conn, flash: %{}, current_user: %{"userId" => user_id}, room: room}
+    |> Map.merge(Map.new(extra_assigns))
     |> FamilyChatHTML.room()
     |> Safe.to_iodata()
     |> IO.iodata_to_binary()
