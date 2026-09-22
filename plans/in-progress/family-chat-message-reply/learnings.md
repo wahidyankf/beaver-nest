@@ -392,7 +392,7 @@ with no field exposing it, and a unit case drives the seam directly rather than 
 The general shape is worth keeping: a resolver's input contract is not the type's field list. Matching the two by
 eye is how this was missed.
 
-**Durable owner:** `tech-docs/004-graphql-contract.md`, at archival — the quote's server-side shape stated
+**Durable owner:** `tech-docs/002-graphql-contract.md`, at archival — the quote's server-side shape stated
 separately from its published fields.
 
 **Three defects in pre-existing code, found by sharing its steps.**
@@ -424,7 +424,7 @@ scope guards what a reader is shown, so a row written any other way can never su
 this room's page. The scope also made the previously unreachable degradation path reachable and therefore genuinely
 covered: a message whose target exists but is in another room renders as an ordinary message, and a test pins it.
 
-**Durable owner:** `tech-docs/001-data-model-and-migration.md` and `tech-docs/004-graphql-contract.md`, at archival.
+**Durable owner:** `tech-docs/001-data-model-and-migration.md` and `tech-docs/002-graphql-contract.md`, at archival.
 
 **Deviation — the boundary tests run in process.** `delivery.md` asked for "a loopback listener the test starts,
 owns, and stops". `repo-governance/development/api-testing.md` permits either that or in-process, and the rest of
@@ -444,7 +444,7 @@ That is what lets `DB_VERSION` stay at 1: a row written by the shipped release a
 are the same object, so hydration needs no migration and no version check. A `null` default would have forced a
 schema bump for a field that adds nothing to most messages.
 
-**Durable owner:** `tech-docs/003-browser-send-outbox.md`, at archival.
+**Durable owner:** `tech-docs/003-ui-design.md`, at archival.
 
 **One field set, three documents.** `operations.js` used to hold the query, the mutation, and the subscription as
 three independent template strings. Replies would have required editing all three identically, and a drift between
@@ -453,14 +453,14 @@ They now all derive from `messageFields({replies})`, and the mutation additional
 only when the flag is on — so with the flag off the browser emits byte-identical pre-reply documents, which is what
 the compatibility release depends on.
 
-**Durable owner:** `tech-docs/004-graphql-contract.md`, at archival.
+**Durable owner:** `tech-docs/002-graphql-contract.md`, at archival.
 
 **The draft and the reply target clear for different reasons.** The composer reads the target before awaiting the
 queue and calls `clear()` only after the queue accepted. A refusal restores `draftState.body` and leaves the target
 untouched, so a member who hit a full queue still has both their text and the message they were answering. Keeping
 the target outside `draftState` is what makes that separation structural rather than a rule someone must remember.
 
-**Durable owner:** `tech-docs/005-composer-and-actions.md`, at archival.
+**Durable owner:** `tech-docs/004-interaction-and-accessibility.md`, at archival.
 
 **Lint budget shaped the file split, again.** `max-lines` (300) and `max-lines-per-function` (50) pushed four
 extractions this phase: `buildQueuedMessage` into `outbox_namespace.js`, `refuse`/`sendOptionsFor`/`publishQueued`
@@ -507,7 +507,7 @@ taking it straight back, in the same gesture. An item that places focus itself n
 reaches the host. The bug was invisible to the unit specs, which drive `createMenuState` and `runCopyAction`
 directly and never dispatch a real event through both listeners — it took the browser-shaped Gherkin room to see it.
 
-**Durable owner:** `tech-docs/005-composer-and-actions.md`, at archival.
+**Durable owner:** `tech-docs/004-interaction-and-accessibility.md`, at archival.
 
 ## Phase 6 — Quote Rendering, Jump, and Styles
 
@@ -519,7 +519,7 @@ body, in full. The scenario "A long quoted message is shortened in the strip" is
 by grapheme rather than code unit, so the strip and the quote card can never disagree about the same message. The
 BE and FE drivers both allow `<= 161`, with the same comment: the budget plus the one ellipsis that marks the cut.
 
-**Durable owner:** `tech-docs/005-composer-and-actions.md`, at archival.
+**Durable owner:** `tech-docs/004-interaction-and-accessibility.md`, at archival.
 
 **A message composed offline never actually said so.** Tech-doc 003's state machine names "Waiting for connection",
 and nothing was leaving a message there for longer than the instant between queueing and the first attempt: the
@@ -529,7 +529,7 @@ failed with `the queued reply shows status "Sent"`, which is how the gap surface
 browser's own `online`/`offline` verdict, deliberately as a flag separate from `draining` (which `reconnect.js`
 owns while it fills a catch-up gap): both can be true at once, and resuming one must never resume the other.
 
-**Durable owner:** `tech-docs/003-browser-send-outbox.md`, at archival.
+**Durable owner:** `tech-docs/003-ui-design.md`, at archival.
 
 **The frontend typecheck gate had been red for three phases.** `tsc --noEmit` over `assets/` covers `test/**` as
 well as `js/**`, and nothing had run it since Phase 4. Thirty-one errors had accumulated, including one that
@@ -581,7 +581,7 @@ is all AC-FCR-10 asks for. The check now also rejects anything focusable _inside
 added to a bubble fails instead of quietly adding a stop per message. Whether a keyboard-only reader without a
 screen reader should reach the card at all is Phase 8's question, not one to settle by widening the tab order.
 
-**Durable owner:** `tech-docs/004-quote-and-jump.md`, at archival.
+**Durable owner:** `tech-docs/003-ui-design.md`, at archival.
 
 **One fix, applied one file too wide.** `getByLabel("Message")` became strict-mode ambiguous the moment the action
 menu added `Actions for <name>'s message` to every bubble — but only on the room's page. The Codex chat LiveView's
@@ -1275,6 +1275,11 @@ the field — worth recording, because that answer looks like a result and is no
 inside the 500 ms and 2 s budgets, and visibly slower than the 35.9 ms pre-release baseline because the slot was
 seconds old and its caches were cold.
 
+**Correction, 2026-09-22.** No post-drain set was taken for this release. The delivery item was ticked claiming
+both a post-promotion and a post-drain set; only the post-promotion one above exists. It has been unticked. The
+missing set cannot be retaken — that slot was promoted and retired again by the experience release — so it is
+recorded as not taken rather than reconstructed from a later measurement.
+
 **A gap between this plan and the release procedure.** Phase 9 asks for mixed-revision safety proven _at the routed
 origin_ by a browser that loads the room and sends a message. It cannot be proven there at this point in the
 sequence: a compatibility release ships every feature flag off, so `BNEST_FAMILY_CHAT_ENABLED` is absent from the
@@ -1309,9 +1314,20 @@ routed, which is what the phase requires — with both `BNEST_FAMILY_CHAT_ENABLE
 The reconnect-without-refresh claim is therefore proven twice over: catch-up and exact-once delivery across two
 contexts on the candidate, and a real reconnect at the routed origin.
 
-**Responsiveness.** Post-promotion 12 samples: zero failures, p95 278.1 ms, slowest 280.0 ms. Post-drain 12
-samples: zero failures, p95 48.3 ms, slowest 50.9 ms, median 19.3 ms. Both inside the 500 ms and 2 s budgets; the
-first set is slower because the slot was seconds old.
+**Responsiveness.** ~~Post-promotion 12 samples: zero failures, p95 278.1 ms, slowest 280.0 ms.~~ **Withdrawn
+2026-09-22.** Those are Phase 9's post-promotion figures, repeated here as though a second set had been taken.
+They are byte-identical to the entry above because they are the same twelve measurements. No post-promotion set
+was taken for this release.
+
+What was genuinely measured after the experience promotion: **post-drain, 12 samples, zero failures, p95 48.3 ms,
+slowest 50.9 ms, median 19.3 ms**, inside both budgets. A further settled set taken during the corrections —
+12 samples, zero failures, p95 154.0 ms, slowest 240.2 ms, median 17.3 ms — confirms the routed origin is still
+inside budget, but it is a later observation and is not offered as the missing post-promotion set.
+
+The error is worth naming precisely: two release stages were recorded from one measurement. Nothing about the
+service was misrepresented — every sample ever taken returned 200 inside budget — but a reader counting sample
+sets would have counted four where three exist, and the duplication is only visible because the figures happen to
+be identical to the decimal. A measurement that is not taken has to read as not taken.
 
 **The compatibility stage turns off features it was never releasing.** The routed slot before this work carried
 `BNEST_FAMILY_CHAT_ENABLED = true`. A compatibility release ships every flag off, so promoting it disabled the
@@ -1358,16 +1374,50 @@ Both are recorded in `delivery.md` as unticked with this entry named.
 
 ### 2026-09-22 — Durable-owner resolution
 
-Every entry in this file is resolved. Twenty carry a `Durable owner:` line of their own. The remaining twenty-two
-are resolved by class here, because they are not execution learnings and inventing an owner line for each would be
-bookkeeping rather than resolution:
+**Rebuilt 2026-09-22 after the execution check.** The first version of this entry said "Twenty carry a
+`Durable owner:` line of their own. The remaining twenty-two are resolved by class", and neither number was
+reachable. Counted against the file as it now stands, it holds **50** owner lines — 33 naming an owner, 17
+recording a discard — spread across **32** of its **67** headings. The original counts were written from memory
+rather than from the file, and a resolution record that cannot be counted is not a resolution record.
 
-| Class                                                                                            | Entries | Resolution                                                                                                                  |
-| ------------------------------------------------------------------------------------------------ | ------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Decision records `D1`–`D11`                                                                      | 11      | Owned by the plan itself. They record what was decided and why before implementation, and the plan is the durable artifact. |
-| Quality-gate audit sections — snapshot, ledger, scope exclusions, verification, verdict          | 5       | Owned by the gate's own record. They describe one run of a workflow, not a lesson that outlives it.                         |
-| Phase 8 finding sub-sections — inside the plan, outside the plan, wrong reports, cross-reference | 4       | Their parent sections carry the owner. The out-of-plan findings resolved to the idea briefs raised below.                   |
-| Branch-closure and pre-existing-check notes from planning                                        | 2       | Consumed by the plan they shaped; nothing outlives them.                                                                    |
+Counted against the file:
+
+|                                             | Count |
+| ------------------------------------------- | ----- |
+| Headings at levels 2–4                      | 67    |
+| Headings carrying their own owner line      | 32    |
+| Owner lines naming an owner                 | 33    |
+| Owner lines recording a discard (`none; …`) | 17    |
+
+Some sections carry more than one owner line, because a long section resolves its sub-findings separately; that is
+why 50 lines sit in 32 sections. The remaining 35 headings are resolved by class:
+
+| Class                                                                                                                                                                                           | Resolution                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Decision records `D1`–`D11`                                                                                                                                                                     | Owned by the plan. They record what was decided before implementation, and the plan is the durable artifact.                                    |
+| Quality-gate audit sections — snapshot, ledger, scope exclusions, verification, verdict                                                                                                         | Owned by that gate's own record. They describe one run, not a lesson that outlives it.                                                          |
+| Structural headings that only introduce the sections beneath them — the two manual-pass headings, the execution log heading, and the document's own top matter                                  | Carry nothing to route; their children carry the owners.                                                                                        |
+| Narrative sub-sections of the manual passes and the Gherkin review — the matrix, the keyboard journey, the announced text, the two non-defects, the three review repairs, the Phase 0 preflight | Owned by the phase entries that contain them. Each defect they describe is fixed in the tree and named in a parent entry that carries an owner. |
+| Branch-closure and pre-existing-check notes from planning                                                                                                                                       | Consumed by the plan they shaped.                                                                                                               |
+
+Four routing failures the check found, and what happened to each:
+
+1. **Nine owner lines named tech-doc files that do not exist** — `004-graphql-contract.md`,
+   `005-composer-and-actions.md`, `003-browser-send-outbox.md`, `004-quote-and-jump.md`. This plan has
+   `001`–`006` and none of those is among them; the names were invented from the topic rather than read off the
+   directory. A learning routed to a file that does not exist has not reached an owner. All four now point at the
+   documents that actually own their subject. `REPO`'s `internal-links` gate never caught them because they were
+   written as inline code, not as links.
+2. **Two governance proposals deferred by rules propagation were never raised** — that a plan's File Impact table
+   must cover the release path when it introduces a runtime flag, and that the phase-checkpoint command set should
+   name the typecheck target. The second sits behind one of this execution's most useful discoveries, that the
+   frontend typecheck gate had been red for three phases. Both are now in
+   `plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`.
+3. **The stale-README learning was routed to a brief that was never written.** The paragraph it describes was
+   still live and still false — it said the family chat stays inactive in production, which stopped being true at
+   the experience release. Fixed directly in `README.md` in this pass, which is a better owner than a brief.
+4. **One conditional routing was never decided** — a note to be raised as a brief if the cross-phase RED pattern
+   recurred and discarded if it did not. It did not recur in Phases 4 through 10. Discarded, recorded here.
 
 Idea briefs raised at archival, deduplicated against the existing ones:
 
@@ -1378,9 +1428,54 @@ Idea briefs raised at archival, deduplicated against the existing ones:
 | Family chat swipe to reply              | Q2       | named by this plan, with its accessibility constraint attached             |
 | Family chat room reading on a phone     | Q2       | six out-of-plan usability findings, plus the `Go to that message` proposal |
 | Shared token claims and layer tags      | Q2       | the focus-ring cascade proposal and the `@fe-vitest-unit` obligation       |
+| Plan and checkpoint contract gaps       | Q2       | the two proposals rules propagation deferred                               |
 | Family chat room shell and control gaps | Q3       | the remaining four out-of-plan findings                                    |
 
 Nine out-of-plan usability findings became three briefs rather than nine, grouped by theme as the entry that
 deferred them said they would be.
 
 **Durable owner:** none; this is the resolution record.
+
+### 2026-09-22 — The execution check, and what it found in my own record
+
+Terminal verdict: **BLOCKED**. Archival is not permitted, and the plan stays in `plans/in-progress/`.
+
+Two blocking classes. AC-FCR-13's rollback-floor scenario has no evidence anywhere — `005-specification-changes.md`
+deliberately keeps it out of `specs/` and names exactly one verifier, the Phase 10 proof that is itself blocked, so
+no automated layer owns it and no substitute was offered. And the knowledge-capture step's central claim did not
+survive counting, which is the entry rebuilt above.
+
+Beneath those, the check found things worth more than the verdict. The ones that were my errors, and are now
+corrected in place:
+
+| Finding                                      | What it was                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Duplicated sample sets                       | Phase 9 and Phase 10 both reported p95 278.1 ms, slowest 280.0 ms — the same twelve measurements recorded as two release stages. Phase 9's post-drain set was never taken, and its item was ticked claiming it.                                                                                    |
+| A coverage threshold that does not exist     | The command table asserted `FE_UNIT` carries a 99% line threshold and that a phase leaving a module uncovered fails its checkpoint. `test:unit:fe` runs a bare `vitest run`, and the config says coverage thresholds are intentionally not enforced. Three of the four modules named are frontend. |
+| A status line that denied the work happened  | `delivery.md` still opened "Pending. No product implementation, dependency change… has started" after two production releases.                                                                                                                                                                     |
+| A dependency authority that was contradicted | The plan's README said no dependency is added; `happy-dom` was added, and the decision was recorded everywhere except there.                                                                                                                                                                       |
+| Two dispositions under the wrong headings    | My own tick script looked for the next `- [` and ran past a section heading when its item was the last in the section, so a recovery trigger read as having no disposition at all.                                                                                                                 |
+| A migration proof that was never taken       | The item required the column present and existing messages unchanged; only candidate health had been recorded.                                                                                                                                                                                     |
+
+That last one was checkable all along — read-only inspection of production schemas is explicitly permitted — so it
+is now taken rather than amended away. Against the routed production database: `reply_to_message_id` is present and
+nullable with no default; the partial index exists as
+`CREATE INDEX family_chat_messages_reply_to ON family_chat_messages(reply_to_message_id) WHERE reply_to_message_id IS NOT NULL`;
+and of 123 existing messages, 123 carry `NULL` and none carries a reply. Recorded by shape; no message content was
+read.
+
+The check also found that the Phase 9 substitute evidence is filed under the wrong scenario. The browser scenario
+it names is real, bound, and green, but it promotes a candidate with the reply flag _off_ against a browser served
+from a primary that pins the flag _on_ — the inverse direction — its `When` re-fetches the page rather than holding
+a stale bundle, and both slots build from one source tree with a synthetic per-port revision identity. So
+"two real candidate revisions" overstated it: one build, one bundle, two flag postures. The claim has been
+corrected where it appears.
+
+What I would take from this. Every one of these is a claim I wrote and did not re-read against the artifact it
+described — a number from memory, a threshold assumed from a sibling suite, a status line never revisited, a script
+whose output I checked for the thing it added and not for where it landed. The suites, the gates, and the releases
+were all green throughout, and none of them could have caught any of it. A record is not evidence because it is
+detailed; it is evidence when someone has checked it against the thing.
+
+**Durable owner:** the corrections themselves, plus
+`plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md` for the two governance proposals.

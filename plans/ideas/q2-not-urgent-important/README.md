@@ -16,6 +16,8 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
   about density, repetition, and getting back to the newest message.
 - [Shared token claims and layer tags](shared-token-claims-and-layer-tags.md) settles what a shared-token
   specification line promises and what a scenario's layer tag obliges.
+- [Plan and checkpoint contract gaps](plan-and-checkpoint-contract-gaps.md) requires a plan that introduces a
+  runtime flag to cover the release path, and a phase checkpoint to name its typecheck target.
 
 ## Directory Map
 
@@ -32,3 +34,5 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
   the six grouped findings, and the promotion signal.
 - [Shared token claims and layer tags](shared-token-claims-and-layer-tags.md) records the focus-ring and
   inline-longhand evidence, the corpus-pruning obligation, and the two proposed convention lines.
+- [Plan and checkpoint contract gaps](plan-and-checkpoint-contract-gaps.md) records the release-path omission
+  that would have promoted a flagless revision, and the typecheck gate that stayed red across three phases.
