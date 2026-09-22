@@ -324,7 +324,7 @@ than the one the plan prepared for.
 Specifications and both C4 models landed before any product code, as
 [Specification Changes](tech-docs/005-specification-changes.md) requires. `REPO` green.
 
-**File Impact deviation — `apps/bnest/assets/test/behaviour/family_chat.steps.ts` `[E]`.**
+**File Impact deviation — `apps/bnest-app/assets/test/behaviour/family_chat.steps.ts` `[E]`.**
 [File Impact](tech-docs/006-file-impact-and-release.md) lists the frontend unit tests as
 `assets/test/unit/family_chat/*.test.ts` and the browser bindings as `bnest-app-fe-e2e/tests/steps/*`. Reading the
 harness showed a third binding file the plan never named: `apps/bnest-app/assets/test/behaviour/family_chat.steps.ts`,
@@ -1693,3 +1693,123 @@ It did not. The hypothesis was dead in one run.
 **Durable owner:** the scenario and its `waitForRoutedReads` helper in
 `apps/bnest-app-fe-e2e/tests/steps/family-chat-rollback-floor.steps.ts`; the two findings above are raised in
 `plans/ideas/q1-urgent-important/release-stage-flag-posture.md`, which already owns release-window behaviour.
+
+### 2026-09-22 — The third execution check, and the arithmetic that was wrong in my favour
+
+Terminal verdict: **BLOCKED**, for the third time. The two classes the earlier runs blocked on are closed — the
+rollback floor now has runnable evidence in both harnesses, and the owner-resolution table reproduces exactly at
+the commit it pins itself to. Four new findings replaced them, three of them introduced by the commit that closed
+the previous two.
+
+Every one of them was verified against the files before being acted on, as the previous rounds taught.
+
+**1. A number that was wrong in the direction that flattered the record — and I had written it three times.**
+AC-FCR-14 was recorded as "two of four release-stage sample sets taken". The PRD's own outline enumerates four
+stages, and **three** of them carry a 12-sample set; only `after the experience revision is routed` has none. The
+"two" came from a per-release accounting — five moments across two releases, of which Phase 9's post-drain and
+Phase 10's post-promotion were never sampled — and I attached that numerator to the per-stage denominator. The
+claim then propagated into `prd.md`, two `delivery.md` items, and D14.
+
+What makes this one worth recording rather than just fixing: the entry immediately above it in this file already
+stated the correct arithmetic — "a reader counting sample sets would have counted four where three exist" — while
+the summary sentences I wrote from it said two of four. I had the right number in front of me and carried the
+wrong one forward. And the error ran _against_ my own interest: the record understated how much of AC-FCR-14 was
+actually proven. That is the useful part. An error that costs you something is not evidence of care; it is the
+same failure to check, pointing the other way. The conclusion is unchanged either way — one enumerated stage was
+never measured, so `throughout` still cannot be claimed and D14's acceptance still stands.
+
+**2. The duplicated sample set survived in a third place.** Two rounds of corrections unticked the two delivery
+items that stood on Phase 10's withdrawn post-promotion set. The Recovery-and-Rollback trigger's `Not triggered`
+disposition still said "four 12-sample sets", using exactly the duplicated figures. Neither round looked there,
+because the defect was filed as being about _ticked items_ and that one is an unticked item's disposition. A
+disposition is the record; scoping a correction sweep to checkboxes missed it twice.
+
+**3. `005` asserted a contract in one table and denied it in three other places.** D12 moved the rollback-floor
+row from plan-only to contract, and added the correction prose — and left the document's own change enumeration,
+its bindings list, and its layer-ownership list exactly as they were. So for one commit the specification-changes
+document listed a scenario as a contract in its disposition table while its diff block, which claims to enumerate
+every scenario this plan adds to that file, did not contain it. The bindings list also still named
+`family-chat-composer.ts`, which `006` records as predicted-but-never-changed, and omitted the Vitest+Gherkin
+adapter that every `@fe-vitest-unit` scenario needs — the same omission `006`'s Tests table was rewritten twice
+for. The plan-only table went on crediting Phase 10's withdrawn set as a verifier for AC-FCR-14, in a document
+that commit had edited.
+
+The pattern across all three: I edited the place the finding pointed at and not the places that said the same
+thing differently. A disposition table, a diff block, a bindings list, and a layer-ownership list are four
+statements of one fact, and correcting one of them leaves a document that contradicts itself more precisely than
+before.
+
+**4. A declared gate with no run on the corpus it was declared green for — and when I ran it, it was red.**
+Four delivery items record `FE_E2E` 296 passed, 0 failed. That run predates the rollback-floor scenario; the D12
+evidence is eight isolated runs of one scenario, which is the right way to measure that scenario's stability and
+is not a suite run. Delivery also carried "four tests each, thirty-two for thirty-two" without the caveat this
+file states plainly two entries above — that the fourth is Playwright's setup project, so it is twenty-four real
+executions across three viewports, not thirty-two.
+
+So I ran the gate. **299 tests, 297 passed, 2 failed**: `A member opens the message action menu`, Example #1, at
+chromium and mobile-chromium. The entry this plan's records had described as green, and as failing only at tablet
+and mobile, failed on the desktop viewport too.
+
+**Then the flake turned out not to be a flake.** The entry above routed this to an idea brief as plausibly the
+same slot-churn window — "that is a guess and is recorded as one". The guess was wrong, and so were the three
+mechanisms I reasoned my way to before measuring anything: an outside-click handler closing the menu the release
+had just opened (it listens on `pointerdown` and returns early when the menu is shut), a `pointercancel` from the
+room scrolling under a held pointer, and a reconcile replacing the node the pointer was on.
+
+Instrumenting the gesture — a capturing listener for every pointer event plus a `MutationObserver` on the list,
+dumped only on failure — settled it in one run:
+
+```
+75122 armed target=6
+75124 pointermove msg=6
+75125 pointerdown msg=6
+75684 pointerup   msg=6
+```
+
+The pointer went down on the right message and stayed down for **559 ms** against a 500 ms threshold. No
+`pointercancel`. No `pointermove` during the hold. No DOM mutation. Every mechanism I had proposed predicted an
+event that is not there. The application's timer simply had not fired yet when the release cleared it.
+
+The cause is the harness's margin. `pressAndHold` released `holdMs + 50` after pressing, and the release calls
+`gesture.end()`, which clears the very `setTimeout(500)` the test is waiting on. Fifty milliseconds of event-loop
+slack is enough on a quiet machine and not enough under a full suite — the trace already showed 559 ms of
+wall-clock for a 550 ms request before any GC pause. **The product is correct**: `createSystemClock` is a plain
+`setTimeout`, and a person holding a message is not racing a 50 ms budget.
+
+The fix is to stop releasing on a timer and release on the outcome: hold until the menu is visible, bounded at
+2 s, then let go — which is what holding a message actually is. `holdMs` stays the minimum. A hold that genuinely
+opens nothing still releases and still fails the assertion after it, so the scenario keeps its failure mode.
+
+Measured, not asserted: **121 for 121** across chromium, tablet-chromium and mobile-chromium at ten repeats of all
+four entry points — 120 real executions — against a baseline of two failures in twenty-four chromium runs.
+
+**And then the suite run, because this entry would otherwise commit the error it describes.** A scenario measured
+green in isolation is not a green gate — that confusion is the whole of finding 4. The full `FE_E2E` run after
+the fix is **298 passed, 1 failed**. The menu scenario passes. A different one fails:
+`A tab backgrounded with a dead connection reconnects once it becomes visible again`, at tablet-chromium, polling
+ten seconds for a socket that never arrives. Repeated in isolation it fails **three times in twenty-four**, once
+at each viewport.
+
+That one is not this plan's. `family-chat-visibility-resume.steps.ts` has no commit in this plan's range, and the
+rule it belongs to is listed under `= Preserve` in `005`. It is raised in
+`plans/ideas/q2-not-urgent-important/browser-suite-timing-reliability.md` together with the fixed case, and
+deliberately not fixed here: it belongs to a different subject, and the honest record of this plan's gate is
+"298 of 299, with one unrelated pre-existing flake" rather than a green tick.
+
+Worth stating plainly, because the temptation ran the other way: the remedy for a one-in-eight failure is not a
+Playwright retry. A retry would have made both of these invisible, and the first one was a real defect in a
+helper this plan wrote.
+
+**What this one is really about.** The previous entry recorded this failure honestly, labelled its explanation a
+guess, and routed it to a brief. All of that was right, and it still left a real defect in the plan's own gate
+sitting behind the word "pre-existing" — which is true, and which quietly means "not mine". It was mine: this
+plan wrote the scenario and the helper. The thing that found it was running the gate I had declared green without
+running it, and the thing that explained it was twenty lines of instrumentation rather than three plausible
+mechanisms. I reasoned my way to three wrong answers from correct readings of the source, and the trace killed
+all three at once.
+
+**Durable owner:** the corrections themselves, in `prd.md`, `delivery.md`, `005`, and `006`; the hold fix in
+`apps/bnest-app-fe-e2e/tests/support/family-chat-gestures.ts`, whose comment carries the reason so the margin is
+not reintroduced. The scoping lesson from finding 2 — that a correction sweep over checkboxes misses
+dispositions — is raised in `plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`, and both
+timing failures in `plans/ideas/q2-not-urgent-important/browser-suite-timing-reliability.md`.
