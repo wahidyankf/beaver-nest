@@ -21,6 +21,7 @@ import {
 } from "../support/family-chat-reply";
 import {
   ensureRoomOpen,
+  requireIdentity,
   seedOtherMemberMessage,
 } from "../support/family-chat-reply-room";
 
@@ -188,6 +189,11 @@ Given(
   async ({ page, browser, $testInfo }, _sender: string, body: string) => {
     await ensureRoomOpen(page, $testInfo);
     scenario.targetBody = body;
+    // The feature names the sender "Ayah"; the suite seeds the message from
+    // a synthetic identity instead, per the test-data Iron Rule. The name
+    // the strip must carry is therefore that identity's, known here rather
+    // than read back off the strip the assertion is judging.
+    scenario.targetSender = requireIdentity().child.username;
     scenario.targetId = await seedOtherMemberMessage(page, browser, body);
     await openMenuWithKeyboard(page, scenario.targetId);
     await expectMenuOpenFor(page, scenario.targetId);
@@ -203,9 +209,11 @@ Then(
   async ({ page }, _name: string) => {
     const strip = page.locator(REPLY_STRIP);
     await expect(strip).not.toHaveAttribute("hidden", /.*/u);
+    // "Naming" is the claim: `Replying to` alone would pass on a strip that
+    // named the wrong member, or no one.
     await expect(
       strip.locator('[data-role="family-chat-reply-strip-name"]'),
-    ).toContainText("Replying to");
+    ).toHaveText(`Replying to ${scenario.targetSender}`);
   },
 );
 
@@ -222,7 +230,9 @@ Then("keyboard focus is in the message input", async ({ page }) => {
 Then(
   "the room announces that the visitor is replying to {string}",
   async ({ page }, _name: string) => {
-    await expect.poll(() => liveRegionText(page)).toContain("Replying to");
+    await expect
+      .poll(() => liveRegionText(page))
+      .toContain(`Replying to ${scenario.targetSender}`);
   },
 );
 

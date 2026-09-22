@@ -121,7 +121,6 @@ Feature: Family chat GraphQL API
     When the user sends a family chat reply whose reply target <target>
     Then the response reports a validation failure
     And the family chat room holds no message for that client message ID
-    And no committed-message event is published
 
     Examples:
       | target                             |
@@ -211,6 +210,14 @@ Feature: Family chat GraphQL API
     When another member sends the family chat message "Subscribed event" with a fresh client message ID
     Then the subscriber receives exactly one committed-message event matching that message
     And a duplicate retry of the same client message ID publishes no second event
+
+  # Exemption(integration): a live Absinthe subscription push over a socket process is not observable through Phoenix.ConnTest/LiveViewTest; alternative-proof: bnest-app-be-e2e:test:e2e / A rejected reply target publishes no event
+  @integration-exempt
+  Scenario: A rejected reply target publishes no event
+    Given the user holds an authorized "familyChatMessageCommitted" subscription for "ruang-keluarga"
+    When the user sends a family chat reply whose reply target names a server ID no message has
+    Then the response reports a validation failure
+    And no committed-message event is published
 
   # Exemption(integration): a live Absinthe subscription push over a socket process is not observable through Phoenix.ConnTest/LiveViewTest; alternative-proof: bnest-app-be-e2e:test:e2e / A subscriber catches up a missed event through afterId
   @integration-exempt

@@ -42,6 +42,9 @@ interface ReplyScenario {
 
 const scenario: ReplyScenario = blankScenario();
 
+/** Undoes a `matchMedia` a scenario installed, so it cannot leak forward. */
+let restoreMatchMedia: (() => void) | null = null;
+
 function blankScenario(): ReplyScenario {
   return {
     targetId: null,
@@ -57,6 +60,8 @@ function blankScenario(): ReplyScenario {
 
 export function resetReplyScenario(): void {
   Object.assign(scenario, blankScenario());
+  restoreMatchMedia?.();
+  restoreMatchMedia = null;
 }
 
 // --- Shared helpers -------------------------------------------------------
@@ -1103,12 +1108,34 @@ step(
 );
 
 step("the visitor's system requests reduced motion", (context) => {
-  // The media query itself only resolves in a browser; FE_E2E asserts the
-  // computed `animation-name` under a real `prefers-reduced-motion`. What
-  // this layer owns is that the highlight is carried by an attribute the
-  // stylesheet can answer differently, rather than by a scripted animation
-  // no media query can reach.
-  return { ...context, reducedMotion: true };
+  // The preference is installed for real, rather than recorded in a context
+  // field nothing reads: a harness that merely remembered the intention
+  // would let this scenario pass against an implementation that consulted
+  // the preference and ignored it.
+  //
+  // Today nothing in the room's JavaScript asks -- the highlight is an
+  // attribute and the stylesheet answers the media query, which is what the
+  // Then below pins. FE_E2E asserts the computed `animation-name` under a
+  // real `prefers-reduced-motion`; this layer owns the seam that makes that
+  // possible, and now also fails if a future implementation starts reading
+  // the preference and gets it wrong.
+  const query = "(prefers-reduced-motion: reduce)";
+  const previous = globalThis.matchMedia;
+  globalThis.matchMedia = ((input: string) =>
+    ({
+      addEventListener: () => {},
+      addListener: () => {},
+      dispatchEvent: () => false,
+      matches: input === query,
+      media: input,
+      onchange: null,
+      removeEventListener: () => {},
+      removeListener: () => {},
+    }) as unknown as MediaQueryList) as typeof globalThis.matchMedia;
+  restoreMatchMedia = () => {
+    globalThis.matchMedia = previous;
+  };
+  return context;
 });
 
 step("the visitor jumps to a quoted message", async (context) => {

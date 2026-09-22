@@ -1148,25 +1148,6 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def behaviour_outcome?(context, :room_has_no_message_for_client_id, _args),
     do: count_messages_for(context, context.family_chat_client_message_id) == 0
 
-  # The refusal happens before any commit, so nothing could have been
-  # published. At this layer the subscription itself is exempt (the socket
-  # push is not observable through ConnTest), so the observable claim is that
-  # no message exists to have been published about -- which the preceding
-  # step already pins -- plus no delivery row was derived for one.
-  def behaviour_outcome?(context, :no_event_published, _args) do
-    %{rows: [[count]]} =
-      SqliteRepo.query!(
-        """
-        SELECT COUNT(*) FROM family_chat_push_deliveries d
-        JOIN family_chat_messages m ON m.id = d.message_id
-        WHERE m.idempotency_key = ?
-        """,
-        [context.family_chat_client_message_id]
-      )
-
-    count == 0
-  end
-
   def behaviour_outcome?(context, :quote_names_previous_reply, _args),
     do: sent_quote(context)["id"] == to_string(context.family_chat_previous_reply_id)
 
