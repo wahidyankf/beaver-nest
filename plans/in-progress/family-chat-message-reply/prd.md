@@ -427,10 +427,17 @@ the four stages the outline below enumerates, **three carry a 12-sample set and 
 
 | Stage                                      | Set          | Where                                                           |
 | ------------------------------------------ | ------------ | --------------------------------------------------------------- |
-| preflight, before any change               | p95 35.9 ms  | Phase 0                                                         |
+| preflight, before any change               | p95 248.4 ms | Phase 0's routed baseline                                       |
 | after the compatibility revision is routed | p95 278.1 ms | Phase 9 post-promotion                                          |
 | after the experience revision is routed    | **none**     | withdrawn; the figures recorded for it were Phase 9's, repeated |
 | after the drain window closes              | p95 48.3 ms  | Phase 10 post-drain                                             |
+
+**The preflight row was mis-sourced, corrected 2026-09-23 by the fourth check.** It read `p95 35.9 ms | Phase 0`,
+pairing Phase 9's _release_ preflight figure with Phase 0's _baseline_ row. Phase 0's set is p95 248.4 ms
+(`delivery.md`, Phase 0; `learnings.md`, routed readiness baseline); the 35.9 ms set was taken immediately before
+the compatibility release. Both are 12-sample sets inside budget and both land on this stage, so it is carried
+twice over and the three-of-four conclusion is unaffected — but a reader following the "Where" column reached a
+different number than the row stated.
 
 "Two" came from a per-release accounting instead: across two releases each stage recurs, and two of those
 moments — Phase 9's post-drain and Phase 10's post-promotion — were never sampled. Both counts are true of

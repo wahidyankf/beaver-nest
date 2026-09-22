@@ -3,17 +3,17 @@
 ## Execution Status and Authority
 
 **Executed and released, 2026-09-22. Archival is blocked.** The feature is routed in production at revision
-`5b08a27f2`; the migration is applied; both production releases passed. The execution check has been run **three
-times** and returned `BLOCKED` every time; all three verdicts and the corrections made in response are recorded in
+`5b08a27f2`; the migration is applied; both production releases passed. The execution check has been run **four
+times** and returned `BLOCKED` every time; all four verdicts and the corrections made in response are recorded in
 `learnings.md`.
 
 Twelve items below are unticked, in three groups:
 
-| Group                          | Count | Why                                                                                                                                                                                                                              |
-| ------------------------------ | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Substantive                    | 6     | Both blocking checkpoints; both drain items, whose sample sets were never taken; Phase 9's mixed-revision item, which asks for a proof that stage's own flag posture forbids; and Phase 10's routed manual pass, descoped by D13 |
-| Archival procedure             | 2     | The cleanup and move items, which run as part of archival and cannot precede it                                                                                                                                                  |
-| Recovery and Rollback triggers | 4     | None fired; each carries a dated, evidence-backed `Not triggered` disposition                                                                                                                                                    |
+| Group                          | Count | Why                                                                                                                                                                                                                                                                       |
+| ------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Substantive                    | 6     | Both blocking checkpoints; both drain items, each of which took one of its two sample sets and cannot now take the other; Phase 9's mixed-revision item, which asks for a proof that stage's own flag posture forbids; and Phase 10's routed manual pass, descoped by D13 |
+| Archival procedure             | 2     | The cleanup and move items, which run as part of archival and cannot precede it                                                                                                                                                                                           |
+| Recovery and Rollback triggers | 4     | None fired; each carries a dated, evidence-backed `Not triggered` disposition                                                                                                                                                                                             |
 
 **All six substantive items are terminal, not pending.** Each rests on evidence that no longer exists to be taken —
 retired slots, a release stage that shipped the feature off, a live household surface D13 declined to write test
@@ -25,8 +25,12 @@ than by omission.
 
 **Corrected 2026-09-22 by the third check's round:** this paragraph said the check had run twice and that seven
 substantive items were unticked. The count predated D12, which ticked the rollback-floor item, and the "twice" was
-stale the moment the third check returned. Integrating this plan does not start the checklist or authorize its later
-execution. Read all six plan documents and the
+stale the moment the third check returned.
+
+**Corrected again 2026-09-23 by the fourth check:** the note above had been spliced onto the integration-authority
+sentence that follows, so two unrelated statements read as one paragraph.
+
+Integrating this plan does not start the checklist or authorize its later execution. Read all six plan documents and the
 [plan-execution workflow](../../../repo-governance/workflows/plan-execution.md) first. Start only from a current,
 explicitly authorized, non-blocking plan-quality verdict: `PASS`, or `PASS_WITH_FINDINGS` with every finding recorded
 and accepted by that workflow.
@@ -766,6 +770,10 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       revisions". It is one build and one bundle served from two slots under different flag postures, with a
       synthetic per-port revision identity, and its direction is the inverse of the one this item asks for. See
       `learnings.md`, Phase 9 entry and the execution-check entry.
+      **Terminal, recorded 2026-09-23.** This is the only one of the six substantive items that relied on the
+      status paragraph alone to say so. It cannot be ticked by any later work: the stage it names ships every flag
+      off, so the room is unreachable at the routed origin at that point by design, and both slots from that
+      release have since been promoted and retired.
 - [x] `[AI] [AC-FCR-04, AC-FCR-13]` Prove the field is answerable everywhere before any bundle asks for it: a `curl`
       requesting `replyTo` against the routed origin returns data rather than a document rejection. **Proof:** the
       sanitized response in `learnings.md`.
@@ -825,10 +833,21 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       `apps/bnest-app-fe-e2e/tests/support/family-chat-gestures.ts` by holding until the menu appears, measured
       at 121 for 121 across three viewports. The run after the fix is **298 passed, 1 failed**, the one failure
       being `A tab backgrounded with a dead connection reconnects once it becomes visible again` — a
-      pre-existing flake at about one run in eight in a scenario this plan never touched, raised in
-      `plans/ideas/q2-not-urgent-important/browser-suite-timing-reliability.md`. **`FE_E2E` is therefore not
-      green on this machine, and this item does not claim it is.** What it claims is the rollback floor, which
-      passes in every run recorded here.
+      pre-existing flake in a scenario this plan never touched, raised in
+      `plans/ideas/q2-not-urgent-important/browser-suite-timing-reliability.md`.
+      **Restated 2026-09-23 by the fourth check.** This said "`FE_E2E` is therefore not green on this machine",
+      which turned one observation into a standing property. The check ran the suite three more times at this
+      revision and got **299 passed**, then **293 passed / 6 failed**, then **299 passed**. Across all five full
+      runs on an unchanged tree — two here, three by the check — the results were 297/2, 298/1, 299/0, 293/6,
+      299/0. The honest statement is the brief's: the suite does not return the same result twice. The 299-test
+      count is the one part that reproduces every time.
+      **And the rollback floor is not exempt from that.** This item previously said it "passes in every run
+      recorded here", which was true of the runs recorded here and is no longer true overall: in the check's
+      293/6 run the failures took the whole `Reconnect across Caddy promotion` rule, including this scenario at
+      chromium and mobile-chromium, on `storage drain lock timed out` and a `data-connection-state` stuck at
+      `booting` — a promoted slot not yet writable, which is the same window `learnings.md` records version four
+      of this scenario losing to. The scenario's own assertions did not fail. That distinction is worth keeping,
+      and it is not a reason to call the evidence green.
 - [ ] `[AI] [AC-FCR-14]` Hold the drain window, then retire the prior slot. **Proof:** post-promotion and post-drain
       12-sample sets within budget and the prior slot confirmed stopped. **UNTICKED 2026-09-22 by the re-check:**
       `learnings.md` withdrew this release's post-promotion set — the figures recorded for it were Phase 9's twelve
@@ -864,8 +883,10 @@ reconciliation rather than ticking the item.
       responsiveness returns to budget, and stop. **Proof:** the trigger observation, the rollback, and a recovered
       12-sample set. **Not triggered 2026-09-22. Corrected 2026-09-22 by the re-check:** this said "four 12-sample sets", carrying the
       withdrawn duplicate one place further than the two items it was unticked from. **Three** 12-sample sets exist
-      across the two releases — preflight (p95 35.9 ms), Phase 9 post-promotion (p95 278.1 ms), and Phase 10
-      post-drain (p95 48.3 ms). All three returned zero failures, with p95 at most 278.1 ms and a slowest sample of
+      across the two releases — Phase 9's release preflight (p95 35.9 ms), Phase 9 post-promotion (p95 278.1 ms), and
+      Phase 10 post-drain (p95 48.3 ms). **Clarified 2026-09-23:** "preflight" here is the release preflight, not
+      Phase 0's routed baseline (p95 248.4 ms), which predates both releases and is counted separately in
+      `prd.md`'s stage table. All three returned zero failures, with p95 at most 278.1 ms and a slowest sample of
       280.0 ms, so no trigger condition was ever observed. The stage that was never sampled cannot have fired a
       trigger either, but it also cannot be offered as evidence that none fired: this disposition rests on the
       three sets that exist.
@@ -917,7 +938,10 @@ Runs only after every substantive phase above is complete and its checkpoint is 
       four new defects introduced by the corrections themselves. Third: `BLOCKED` again, with both earlier classes
       genuinely closed — AC-FCR-13 now has runnable evidence in both harnesses and the owner-resolution table
       reproduces at the commit it pins itself to — and four further defects, three of them introduced by the
-      commit that closed the first two. All three verdicts and every round of corrections are in `learnings.md`.
+      commit that closed the first two. Fourth: `BLOCKED` again, with three of the third round's four findings
+      closed and two defects left — both a retracted claim still standing where the sweep had not looked,
+      including inside D14 itself, the entry the other corrections cite as their authority. All four verdicts and
+      every round of corrections are in `learnings.md`.
       Ticked because the item asks the workflow to be run and its verdict recorded, which is done; the verdict
       itself is what keeps archival closed.
 - [ ] `[AI] [AC-FCR-01..14]` Run the [dev-artifact-clean-up workflow](../../../repo-governance/workflows/dev-artifact-clean-up.md):
