@@ -69,4 +69,83 @@ defmodule BnestAppWeb.SchemaTest do
            "found a literal that looks like a duplicated max-page-size constant in the resolver " <>
              "(the limit/default belongs to FamilyChat, not the resolver)"
   end
+
+  describe "family chat reply contract" do
+    test "the quote object exists with exactly its four fields" do
+      quote_type = Absinthe.Schema.lookup_type(BnestAppWeb.Schema, :family_chat_message_quote)
+
+      assert quote_type, "expected a :family_chat_message_quote object in the schema"
+
+      declared = quote_type.fields |> Map.keys() |> List.delete(:__typename) |> Enum.sort()
+
+      assert declared == Enum.sort([:id, :sender_kind, :sender_display_name, :body_preview])
+    end
+
+    # Flatness is enforced by the type system rather than by convention: there
+    # is no field on the quote that could carry another quote, so no client can
+    # request one and no resolver can accidentally serve one.
+    test "the quote type has no field that could carry another quote" do
+      quote_type = Absinthe.Schema.lookup_type(BnestAppWeb.Schema, :family_chat_message_quote)
+
+      nested =
+        quote_type.fields
+        |> Map.values()
+        |> Enum.filter(fn field ->
+          field.type
+          |> unwrap_type()
+          |> Kernel.in([:family_chat_message, :family_chat_message_quote])
+        end)
+
+      assert nested == [],
+             "the quote type must not reference a message or another quote: " <> inspect(nested)
+    end
+
+    test "a message carries an optional replyTo of that type" do
+      message_type = Absinthe.Schema.lookup_type(BnestAppWeb.Schema, :family_chat_message)
+      field = message_type.fields[:reply_to]
+
+      assert field, "expected :reply_to on :family_chat_message"
+
+      refute match?(%Absinthe.Type.NonNull{}, field.type),
+             "replyTo must be nullable: an ordinary message has no quote"
+
+      assert unwrap_type(field.type) == :family_chat_message_quote
+    end
+
+    test "the send mutation accepts an optional reply target" do
+      mutation = Absinthe.Schema.lookup_type(BnestAppWeb.Schema, :mutation)
+      field = mutation.fields[:send_family_chat_message]
+      arg = field.args[:reply_to_message_id]
+
+      assert arg, "expected a replyToMessageId argument on sendFamilyChatMessage"
+
+      refute match?(%Absinthe.Type.NonNull{}, arg.type),
+             "replyToMessageId must be optional: an ordinary send passes none"
+    end
+
+    test "the resolver neither parses nor looks up the reply target" do
+      contents =
+        SchemaSourceScan.read_lib_file!(["bnest_app_web", "resolvers", "family_chat_resolver.ex"])
+
+      refute contents =~ ~r/String\.slice|message_by_id|quotes_for|normalize_reply_to_message_id/,
+             "reply-target lookup, normalization, and truncation belong to BnestApp.FamilyChat, not the resolver"
+
+      refute contents =~ ~r/parse_id\(.*reply/,
+             "the reply target must reach FamilyChat untouched, not through the cursor parser"
+    end
+
+    test "the preview budget is not duplicated in the resolver or the types" do
+      for file <- ["resolvers/family_chat_resolver.ex", "schema/types/family_chat_types.ex"] do
+        contents =
+          SchemaSourceScan.read_lib_file!(["bnest_app_web" | String.split(file, "/")])
+
+        refute contents =~ ~r/\b160\b/,
+               "#{file} duplicates the preview grapheme budget, which belongs to BnestApp.FamilyChat"
+      end
+    end
+  end
+
+  defp unwrap_type(%Absinthe.Type.NonNull{of_type: inner}), do: unwrap_type(inner)
+  defp unwrap_type(%Absinthe.Type.List{of_type: inner}), do: unwrap_type(inner)
+  defp unwrap_type(type), do: type
 end
