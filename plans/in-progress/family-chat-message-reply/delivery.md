@@ -29,8 +29,8 @@ when its receipt says `never-started`; exit `73` cleans owned storage; exit `78`
 | `BEHAVIOUR`       | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour`     |
 | `BE_E2E_COVERAGE` | `rtk ./hippo run --class ephemeral --resource-tier light --disk-path . -- npm exec -- nx run -p bnest-app-be-e2e -t test:coverage:behaviour` |
 | `FE_E2E_COVERAGE` | `rtk ./hippo run --class ephemeral --resource-tier light --disk-path . -- npm exec -- nx run -p bnest-app-fe-e2e -t test:coverage:behaviour` |
-| `BE_E2E`          | `rtk npm run test:e2e:be`                                                                                     |
-| `FE_E2E`          | `rtk npm run test:e2e:fe`                                                                                     |
+| `BE_E2E`          | `rtk npm run test:e2e:be`                                                                                                                    |
+| `FE_E2E`          | `rtk npm run test:e2e:fe`                                                                                                                    |
 | `E2E_ALL`         | `rtk npm run test:e2e`                                                                                                                       |
 | `APP_QUICK`       | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:quick`                  |
 | `RELEASE_TEST`    | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t release:test`                |
@@ -285,11 +285,10 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
 - [x] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-11]` **Blocking checkpoint — Phase 2.** The column exists, validation
       refuses every impossible target before any write, quotes resolve in one extra query per page, the preview rule
       lives in one place, and `UNIT` and `INTEGRATION` are both green. Commands: `UNIT`, `INTEGRATION`.
-
       **2026-09-22:** passed. The column and its partial index exist and the migration refuses to reverse once a
-          reply exists; validation refuses an absent target and a cross-room target before any write, observed by
-          hand as well as in the suites; quotes resolve in one extra query per page through `quotes_for/2`; the
-          160-grapheme preview rule lives only in `BnestApp.FamilyChat`. `UNIT` and `INTEGRATION` both green.
+      reply exists; validation refuses an absent target and a cross-room target before any write, observed by
+      hand as well as in the suites; quotes resolve in one extra query per page through `quotes_for/2`; the
+      160-grapheme preview rule lives only in `BnestApp.FamilyChat`. `UNIT` and `INTEGRATION` both green.
 
 ## Phase 3 — GraphQL Contract
 
@@ -333,8 +332,8 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
 - [x] `[AI] [AC-FCR-04..06]` **REFACTOR** — remove duplication between the new steps and the existing family-chat
       steps. **Proof:** `BEHAVIOUR` still passes. Command: `BEHAVIOUR`.
       **2026-09-22:** the new steps reuse the existing `the response returns the committed message with a server ID
-  and commit time`, `the response returns the original committed message unchanged`, `the family chat room still
-  holds exactly one message for that client message ID`, and `the response is a safe {string} error` rather than
+and commit time`, `the response returns the original committed message unchanged`, `the family chat room still
+holds exactly one message for that client message ID`, and `the response is a safe {string} error` rather than
       restating them; `the response reports a validation failure` delegates to that same `:safe_error` outcome with
       `"VALIDATION_FAILED"`. Both drivers share one `capture_reply_target` helper instead of repeating the three
       target keys per clause. `BE_UNIT` and `INTEGRATION` still green.
@@ -366,7 +365,7 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       reports full coverage of the new backend scenarios and `BE_E2E` passes. Commands: `BE_E2E_COVERAGE`, `BE_E2E`.
       **2026-09-22:** `BE_E2E_COVERAGE` green (11 compliance tests, full binding coverage). `BE_E2E` green: 29
       passed, including `A subscribed reply arrives carrying its quote` and `A reply caught up through afterId
-  carries its quote` against the real Absinthe socket. The subscriber also receives its own target message's
+carries its quote` against the real Absinthe socket. The subscriber also receives its own target message's
       event, so both assertions filter by the reply's server ID rather than counting the mailbox — the same
       selective-match reasoning the unit driver uses. The delivery-row half of this item is proved at the internal
       SQLite boundary instead (`A reply commits exactly the delivery rows an ordinary message does`), because
@@ -431,7 +430,7 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       `replyToMessageId` spread from `attemptSend` in `outbox_send.js` failed with
       `AssertionError: expected [ undefined, undefined ] to deeply equal [ '41', undefined ]`; restored. 89
       family-chat FE unit tests pass. The suite's 76 remaining failures are all `every step binds exactly once:
-    <FE scenario>` — the declared FE Gherkin RED that Phases 5 and 6 close. The bnest-app lint target is green
+<FE scenario>` — the declared FE Gherkin RED that Phases 5 and 6 close. The bnest-app lint target is green
       (credo, oxlint, formatting, and the unused-dependency check).
 
 ## Phase 5 — Action Menu, Composer Strip, and Keyboard Reach
@@ -490,7 +489,7 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       real messages through the shipped renderer into a real DOM and asserts the invariant.
       **Deliberate RED:** changing `apply`'s reset to `item.tabIndex = 0` made the check fail with
       `AssertionError: expected false to be true` and `expected [ HTMLLIElement{ …(49) }, …(3) ] to have a length of
-    1 but got 4`; restored from a backup copy. The old scan could not have failed that way — it never looked at a
+1 but got 4`; restored from a backup copy. The old scan could not have failed that way — it never looked at a
       rendered list.
 - [x] `[AI] [AC-FCR-10]` **REFACTOR** — keep the roving stop in the store's state rather than recomputing it from the
       DOM on every key press. **Proof:** `FE_UNIT` still passes. Command: `FE_UNIT`.
@@ -527,7 +526,7 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       a quote never renders a nested quote; and every window path — initial, older, resumed, appended, and reconciled
       — renders the same quote for the same message. **Proof:** `FE_UNIT` fails. Command: `FE_UNIT`.
       **2026-09-22:** `FE_UNIT` failed with `Failed to resolve import
-    "../../../js/family_chat/message_quote_render.js"`.
+"../../../js/family_chat/message_quote_render.js"`.
       `apps/bnest-app/assets/test/unit/family_chat/message_quote.test.ts` `[N]`, 15 cases under
       `@vitest-environment happy-dom`: the card's presence and absence, the sender and the server's own preview, the
       composed accessible name verbatim, that it is a `<button type="button">` and not a link, the target id the
@@ -609,18 +608,17 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       status, the shape of `data` and `errors`, the independently observed side effect (a row committed, or no row
       committed), and pass or fail. HTTP `200` alone never counts as GraphQL success. Never record secrets, cookies,
       private payloads, or real message text.
-
       **2026-09-22:** all six observations recorded in `learnings.md` under "Manual API proof", against one
-          isolated `MIX_ENV=test` origin on the development port pool with its own runtime and family-chat SQLite
-          roots and two synthetic `test-user-` identities created through the product's own setup form. Valid reply
-          commits and returns its quote; absent and cross-room targets are both refused `VALIDATION_FAILED` before
-          any write; no session is refused `CSRF_REJECTED` at 403 by the pre-parse plug, and an anonymous *session*
-          reaches the resolver's own `UNAUTHENTICATED`. The page carried one populated and one null `replyTo`, with
-          the preview at 161 graphemes — the 160 budget plus its ellipsis — while the shell reported
-          `data-family-chat-reply-enabled="false"`, which is the compatibility posture observed directly. The sixth
-          observation is a documented boundary: an authenticated identity without `use_family_chat` is
-          unrepresentable, refused by the account record schema and by `Authorization.allow?/3` alike, and both
-          refusals were observed. Origin stopped, roots removed, absence verified with `find`.
+      isolated `MIX_ENV=test` origin on the development port pool with its own runtime and family-chat SQLite
+      roots and two synthetic `test-user-` identities created through the product's own setup form. Valid reply
+      commits and returns its quote; absent and cross-room targets are both refused `VALIDATION_FAILED` before
+      any write; no session is refused `CSRF_REJECTED` at 403 by the pre-parse plug, and an anonymous _session_
+      reaches the resolver's own `UNAUTHENTICATED`. The page carried one populated and one null `replyTo`, with
+      the preview at 161 graphemes — the 160 budget plus its ellipsis — while the shell reported
+      `data-family-chat-reply-enabled="false"`, which is the compatibility posture observed directly. The sixth
+      observation is a documented boundary: an authenticated identity without `use_family_chat` is
+      unrepresentable, refused by the account record schema and by `Authorization.allow?/3` alike, and both
+      refusals were observed. Origin stopped, roots removed, absence verified with `find`.
 
 - [x] `[AI] [AC-FCR-06]` **Subscription lifecycle proof.** `curl` proves only the handshake, which is insufficient
       on its own: after it, observe `familyChatMessageCommitted` delivering a reply with its quote through a
@@ -659,10 +657,9 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       (`BE_E2E` 29 passed; `FE_E2E` 296 passed at three viewports), and `REPO` (all seven gates).
 - [x] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 7.** Every public operation has manual proof,
       documentation matches the built behaviour, rules propagation has a terminal result, and every gate is green.
-
       **2026-09-22:** passed. Every affected public operation has a separate manual observation, the
-          subscription lifecycle is proven by a protocol-capable client, six documents match the built behaviour,
-          rules propagation returned `PASS_NO_CHANGE`, and all six gates are green.
+      subscription lifecycle is proven by a protocol-capable client, six documents match the built behaviour,
+      rules propagation returned `PASS_NO_CHANGE`, and all six gates are green.
 
 ## Phase 8 — Manual Verification
 
