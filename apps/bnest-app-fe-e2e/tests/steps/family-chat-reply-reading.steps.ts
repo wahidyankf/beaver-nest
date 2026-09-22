@@ -34,6 +34,10 @@ Given(
   async ({ page, browser, $testInfo }) => {
     await ensureRoomOpen(page, $testInfo);
     scenario.targetBody = uniqueBody("Quoted original");
+    // The visitor posts the original, so the name the quote must carry is
+    // this scenario's own identity -- known here, rather than read back off
+    // the page the assertion is meant to be judging.
+    scenario.targetSender = requireIdentity().admin.username;
     scenario.targetId = await postMessage(page, scenario.targetBody);
     await waitForMessage(page, scenario.targetId);
     scenario.replyBody = uniqueBody("Quoting reply");
@@ -96,9 +100,11 @@ When(
 Then(
   "the reply renders a quote naming the original sender",
   async ({ page }) => {
-    await expect(
-      messageById(page, scenario.replyId).locator(QUOTE),
-    ).toBeVisible();
+    const quote = messageById(page, scenario.replyId).locator(QUOTE);
+    await expect(quote).toBeVisible();
+    // "Naming the original sender" is the whole claim; asserting only that
+    // a quote is present would pass on a quote naming anybody.
+    await expect(quote).toContainText(scenario.targetSender);
   },
 );
 

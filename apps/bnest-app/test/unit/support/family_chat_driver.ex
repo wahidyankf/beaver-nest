@@ -1239,10 +1239,22 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     do: count_messages_for(context, context.family_chat_client_message_id) == 0
 
   # The refusal happens before any commit, so nothing could have been
-  # published. Draining this process's own mailbox proves it directly for a
-  # subscribed scenario, and is vacuously true (no broadcast arrives) when the
-  # scenario never subscribed -- which is the same claim either way.
-  def behaviour_outcome?(_context, :no_event_published, _args) do
+  # published. Draining this process's own mailbox proves that -- but only
+  # for a process that is actually subscribed. A scenario that never
+  # subscribed cannot receive a broadcast whatever the implementation does,
+  # so answering `true` there would be a guaranteed pass rather than a
+  # proof; it raises instead, and the scenario carries the subscription
+  # Given that makes the drain mean something.
+  def behaviour_outcome?(context, :no_event_published, _args) do
+    unless Map.has_key?(context, :family_chat_subscription_topic) do
+      raise """
+      `no committed-message event is published` was asked of a scenario that \
+      holds no subscription. Nothing could arrive regardless of the \
+      implementation, so the step would pass unconditionally. Give the \
+      scenario the subscription Given, or assert something else.\
+      """
+    end
+
     receive do
       %Phoenix.Socket.Broadcast{event: "subscription:data"} -> false
     after
