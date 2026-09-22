@@ -110,7 +110,9 @@ npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>
 
 The run takes tens of minutes because it executes the full gate manifest before building. Expect it to be long-running rather than hung. It prints one JSON result. `outcome` is `passed` on success; `queued` means another release owns the host lock and `deferred` means HIPPO withheld capacity — neither is a failure, and neither leaves a partial cutover. Any other outcome sets a non-zero exit status.
 
-A compatibility release ships every feature flag off by design. When the intended production state needs one on, immediately follow with the same revision's experience re-promotion, which reuses the already-built artifact instead of rebuilding:
+A compatibility release ships every feature flag off by design: it omits `BNEST_FAMILY_CHAT_ENABLED` and `BNEST_FAMILY_CHAT_REPLY_ENABLED` from the slot entirely, so `config/runtime.exs` supplies `false` for both. The experience re-promotion passes both as `true`. They are separate variables because the server answers a reply-aware GraphQL document whichever way the second one is set — that asymmetry is what lets the reply bundle ship one release ahead of the flag that reveals it — but there is one experience mode, and it turns both on together.
+
+When the intended production state needs them on, immediately follow with the same revision's experience re-promotion, which reuses the already-built artifact instead of rebuilding:
 
 ```sh
 npm exec -- nx run -p bnest-app -t release:run -- --mode experience --revision <sha>

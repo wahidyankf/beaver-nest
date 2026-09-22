@@ -290,6 +290,35 @@ test("threads --family-chat-enabled from deploy:prepare into the launchd plist o
   assert.match(source, /familyChatEnabled = false/u);
 });
 
+test("threads --family-chat-reply-enabled the same way, and only for the experience candidate", () => {
+  // Quoting is gated independently of the room it lives in, so the two flags
+  // travel separately: a compatibility-release slot omits this key and still
+  // answers `replyTo` for any caller, which is the whole reason the reply
+  // bundle is safe to ship one release ahead of the flag. Only the
+  // experience candidate asks for it, and it asks through `release.mjs` --
+  // asserted here too, because a plist built correctly from an argument
+  // nobody passes is still a flag nobody turns on.
+  const deployment = readFileSync(
+    new URL("./deployment.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    deployment,
+    /arguments_\.includes\(\s*"--family-chat-reply-enabled",?\s*\)/u,
+  );
+  assert.match(
+    deployment,
+    /familyChatReplyEnabled\s*\?\s*\{\s*BNEST_FAMILY_CHAT_REPLY_ENABLED:\s*"true"\s*\}\s*:\s*\{\}/u,
+  );
+  assert.match(deployment, /familyChatReplyEnabled = false/u);
+
+  const release = readFileSync(
+    new URL("./release.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(release, /"--family-chat-reply-enabled"/u);
+});
+
 function fakeExperienceHost(overrides = {}) {
   const calls = [];
   const host = {

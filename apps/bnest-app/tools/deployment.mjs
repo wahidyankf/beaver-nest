@@ -329,6 +329,9 @@ function prepareSlot(slot) {
     argumentValue("--revision") ||
     fail("--revision is required; run release:build first.");
   const familyChatEnabled = arguments_.includes("--family-chat-enabled");
+  const familyChatReplyEnabled = arguments_.includes(
+    "--family-chat-reply-enabled",
+  );
   const runtimeRoot = requiredEnvironment("BNEST_RUNTIME_ROOT");
   const cookie = requiredEnvironment("BNEST_DEPLOY_COOKIE_FILE");
   const secretKeyBase = requiredEnvironment(
@@ -366,6 +369,7 @@ function prepareSlot(slot) {
       logPath,
       errorPath,
       familyChatEnabled,
+      familyChatReplyEnabled,
     ),
   );
 
@@ -482,6 +486,7 @@ function launchAgent(
   logPath,
   errorPath,
   familyChatEnabled = false,
+  familyChatReplyEnabled = false,
 ) {
   const variables = {
     PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
@@ -512,6 +517,12 @@ function launchAgent(
     // omits the key entirely, so `config/runtime.exs`'s default (`false`)
     // governs unchanged.
     ...(familyChatEnabled ? { BNEST_FAMILY_CHAT_ENABLED: "true" } : {}),
+    // The same rule, one flag further in: quoting is gated separately from
+    // the room, so a compatibility-release slot omits this key and serves
+    // `replyTo` to whoever asks without shipping a bundle that asks.
+    ...(familyChatReplyEnabled
+      ? { BNEST_FAMILY_CHAT_REPLY_ENABLED: "true" }
+      : {}),
   };
   const environment = Object.entries(variables)
     .map(
