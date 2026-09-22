@@ -102,4 +102,114 @@ defmodule BnestApp.FamilyChatMigrationTest do
     end
     """)
   end
+
+  describe "additive reply column" do
+    setup do
+      BnestApp.FamilyChat.Store.ensure_ready!()
+      :ok
+    end
+
+    test "every message committed before the change reads as not a reply" do
+      room = BnestApp.FamilyChat.Store.get_active_room_by_slug("ruang-keluarga")
+
+      {:ok, message} =
+        BnestApp.FamilyChat.Store.insert_message!(
+          room.id,
+          "user",
+          "test-user-reply-migration",
+          "Migration Probe",
+          Ecto.UUID.generate(),
+          "committed before the reply column existed"
+        )
+
+      %{rows: [[reply_to]]} =
+        BnestApp.SqliteRepo.query!(
+          "SELECT reply_to_message_id FROM family_chat_messages WHERE id = ?",
+          [message.id]
+        )
+
+      assert reply_to == nil
+    end
+
+    test "the column is indexed only where it is set" do
+      %{rows: rows} =
+        BnestApp.SqliteRepo.query!(
+          "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
+          ["family_chat_messages_reply_to"]
+        )
+
+      assert [[sql]] = rows
+      assert sql =~ "WHERE reply_to_message_id IS NOT NULL"
+    end
+
+    test "re-running the migrator changes nothing" do
+      before_schema = message_table_sql()
+
+      Ecto.Migrator.run(
+        BnestApp.SqliteRepo,
+        Application.app_dir(:bnest_app, "priv/sqlite_repo/migrations"),
+        :up,
+        all: true
+      )
+
+      assert message_table_sql() == before_schema
+    end
+
+    # The reversal is exercised by calling `down/0` directly against a
+    # database that already holds a reply, rather than by rolling the real
+    # migrator back: the point is the refusal, and a migrator rollback that
+    # succeeded would destroy the row the refusal exists to protect.
+    test "reversal refuses once a reply exists, and removes nothing" do
+      room = BnestApp.FamilyChat.Store.get_active_room_by_slug("ruang-keluarga")
+
+      {:ok, original} =
+        BnestApp.FamilyChat.Store.insert_message!(
+          room.id,
+          "user",
+          "test-user-reply-migration",
+          "Migration Probe",
+          Ecto.UUID.generate(),
+          "the message being answered"
+        )
+
+      {:ok, reply} =
+        BnestApp.FamilyChat.Store.insert_message!(
+          room.id,
+          "user",
+          "test-user-reply-migration",
+          "Migration Probe",
+          Ecto.UUID.generate(),
+          "the answer",
+          original.id
+        )
+
+      assert_raise RuntimeError, ~r/refuses to reverse/, fn ->
+        Ecto.Migrator.run(
+          BnestApp.SqliteRepo,
+          Application.app_dir(:bnest_app, "priv/sqlite_repo/migrations"),
+          :down,
+          to: 20_260_922_000_000
+        )
+      end
+
+      %{rows: [[count]]} =
+        BnestApp.SqliteRepo.query!(
+          "SELECT COUNT(*) FROM family_chat_messages WHERE id = ?",
+          [reply.id]
+        )
+
+      assert count == 1
+    end
+
+  end
+
+  defp message_table_sql do
+    %{rows: [[sql]]} =
+      BnestApp.SqliteRepo.query!(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+        ["family_chat_messages"]
+      )
+
+    sql
+  end
 end

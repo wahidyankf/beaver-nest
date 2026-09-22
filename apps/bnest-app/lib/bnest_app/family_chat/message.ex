@@ -65,5 +65,25 @@ defmodule BnestApp.FamilyChat.Message do
 
   def valid_client_message_id?(_other), do: false
 
+  # A reply target arrives from the browser as a GraphQL `ID`, which is a
+  # string on the wire even when it names an integer row. Absent and `nil` both
+  # mean "an ordinary message", which is why they succeed rather than failing:
+  # the argument is optional, and only a *present* value can be malformed.
+  @spec normalize_reply_to_message_id(term()) :: {:ok, pos_integer() | nil} | {:error, :invalid}
+  def normalize_reply_to_message_id(nil), do: {:ok, nil}
+
+  def normalize_reply_to_message_id(id) when is_integer(id) and id > 0, do: {:ok, id}
+
+  def normalize_reply_to_message_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      # `Integer.parse/1` stops at the first non-digit, so it accepts "12abc".
+      # Requiring an empty remainder is what makes this a whole-string check.
+      {parsed, ""} when parsed > 0 -> {:ok, parsed}
+      _otherwise -> {:error, :invalid}
+    end
+  end
+
+  def normalize_reply_to_message_id(_other), do: {:error, :invalid}
+
   defp normalize_newlines(text), do: String.replace(text, "\r\n", "\n")
 end

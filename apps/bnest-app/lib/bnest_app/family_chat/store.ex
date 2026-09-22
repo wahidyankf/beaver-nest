@@ -25,7 +25,7 @@ defmodule BnestApp.FamilyChat.Store do
   @retention_schedule_key "family-chat-push-retention-daily"
 
   @room_columns ~w(id slug name room_kind member_posting_enabled created_at created_by updated_at updated_by)a
-  @message_columns ~w(id room_id sender_kind sender_id sender_display_name idempotency_key body committed_at)a
+  @message_columns ~w(id room_id sender_kind sender_id sender_display_name idempotency_key body committed_at reply_to_message_id)a
 
   @doc "The canonical v1 room slug, exposed so callers never hard-code it as authorization."
   @spec canonical_room_slug() :: String.t()
@@ -106,9 +106,24 @@ defmodule BnestApp.FamilyChat.Store do
   A `sender_kind` of `"system"` includes every active subscription (a system
   sender has no user-owned device to exclude).
   """
-  @spec insert_message!(pos_integer(), String.t(), String.t(), String.t(), String.t(), String.t()) ::
-          {:ok, map()}
-  def insert_message!(room_id, sender_kind, sender_id, sender_display_name, idempotency_key, body) do
+  @spec insert_message!(
+          pos_integer(),
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          pos_integer() | nil
+        ) :: {:ok, map()}
+  def insert_message!(
+        room_id,
+        sender_kind,
+        sender_id,
+        sender_display_name,
+        idempotency_key,
+        body,
+        reply_to_message_id \\ nil
+      ) do
     ensure_ready!()
 
     transaction(fn ->
@@ -119,10 +134,20 @@ defmodule BnestApp.FamilyChat.Store do
         """
         INSERT INTO family_chat_messages (
           room_id, sender_kind, sender_id, sender_display_name, idempotency_key, body,
-          committed_at, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          committed_at, created_by, reply_to_message_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        [room_id, sender_kind, sender_id, sender_display_name, idempotency_key, body, now, actor]
+        [
+          room_id,
+          sender_kind,
+          sender_id,
+          sender_display_name,
+          idempotency_key,
+          body,
+          now,
+          actor,
+          reply_to_message_id
+        ]
       )
 
       %{rows: [[message_id]]} = SqliteRepo.query!("SELECT last_insert_rowid()")
@@ -136,6 +161,62 @@ defmodule BnestApp.FamilyChat.Store do
 
       {:ok, message}
     end)
+  end
+
+  @doc """
+  Resolves the quoted rows for a page of messages in one query, scoped to the
+  room that page belongs to.
+
+  Takes the message maps a page returned and gives back a map from quoted
+  message id to that row. An id this room has no message for is simply absent
+  from the result, and the caller renders such a message as an ordinary one
+  rather than raising.
+
+  The room scope is not redundant with `message_by_id/2`'s check at write time.
+  That check guards the rows this application writes; this one guards what a
+  reader is shown, so a row written any other way can never surface another
+  room's text inside this room's page.
+  """
+  @spec quotes_for(pos_integer(), [map()]) :: %{pos_integer() => map()}
+  def quotes_for(room_id, messages) when is_integer(room_id) and is_list(messages) do
+    ids =
+      messages
+      |> Enum.map(& &1[:reply_to_message_id])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    case ids do
+      [] ->
+        %{}
+
+      ids ->
+        ensure_ready!()
+        placeholders = Enum.map_join(ids, ", ", fn _ -> "?" end)
+
+        %{rows: rows} =
+          SqliteRepo.query!(
+            "SELECT #{columns(@message_columns)} FROM family_chat_messages WHERE room_id = ? AND id IN (#{placeholders})",
+            [room_id | ids]
+          )
+
+        Map.new(rows, fn row ->
+          quoted = message_row(row)
+          {quoted.id, quoted}
+        end)
+    end
+  end
+
+  @spec message_by_id(pos_integer(), pos_integer()) :: map() | nil
+  def message_by_id(room_id, message_id) when is_integer(room_id) and is_integer(message_id) do
+    ensure_ready!()
+
+    case SqliteRepo.query!(
+           "SELECT #{columns(@message_columns)} FROM family_chat_messages WHERE id = ? AND room_id = ?",
+           [message_id, room_id]
+         ) do
+      %{rows: [row]} -> message_row(row)
+      %{rows: []} -> nil
+    end
   end
 
   @spec active_subscription_ids(String.t() | nil) :: [integer()]

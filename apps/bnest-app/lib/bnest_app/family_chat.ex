@@ -24,6 +24,10 @@ defmodule BnestApp.FamilyChat do
   @type safe_error :: {:error, %{code: String.t(), details: nil}}
 
   @doc "The v1 canonical room slug (tech-doc 005/008: only 'ruang-keluarga' exists)."
+  # Bounds a 50-message page near 8 KB of quote text instead of the 200 KB a
+  # page of full 4,000-grapheme bodies would permit.
+  @preview_graphemes 160
+
   @spec canonical_room_slug() :: String.t()
   def canonical_room_slug, do: Store.canonical_room_slug()
 
@@ -64,12 +68,17 @@ defmodule BnestApp.FamilyChat do
          {:ok, validated_limit} <- validate_limit(limit),
          {:ok, room} <- get_room_for(user_id, slug) do
       page = Store.list_messages(room.id, before_id, after_id, validated_limit)
+      quotes = Store.quotes_for(room.id, page.nodes)
 
       {:ok,
        Map.update!(
          page,
          :nodes,
-         &Enum.map(&1, fn node -> Map.put(node, :room_slug, room.slug) end)
+         &Enum.map(&1, fn node ->
+           node
+           |> Map.put(:room_slug, room.slug)
+           |> attach_quote(quotes)
+         end)
        )}
     end
   end
@@ -78,26 +87,48 @@ defmodule BnestApp.FamilyChat do
   # account to display (the backup module's synthetic load probes): only the
   # GraphQL resolver, which has a real session-derived `displayUsername`,
   # passes one explicitly.
-  @spec send_message(String.t() | nil, String.t(), String.t(), String.t(), String.t() | nil) ::
-          {:ok, map()} | safe_error()
-  def send_message(user_id, slug, client_message_id, body, sender_display_name \\ nil)
+  @spec send_message(
+          String.t() | nil,
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t() | nil,
+          term()
+        ) :: {:ok, map()} | safe_error()
+  def send_message(
+        user_id,
+        slug,
+        client_message_id,
+        body,
+        sender_display_name \\ nil,
+        reply_to_message_id \\ nil
+      )
 
-  def send_message(nil, _slug, _client_message_id, _body, _sender_display_name),
+  def send_message(nil, _slug, _client_message_id, _body, _sender_display_name, _reply_to),
     do: unauthenticated()
 
-  def send_message(user_id, slug, client_message_id, body, sender_display_name)
+  def send_message(
+        user_id,
+        slug,
+        client_message_id,
+        body,
+        sender_display_name,
+        reply_to_message_id
+      )
       when is_binary(user_id) do
     with {:ok, room} <- get_room_for(user_id, slug),
          :ok <- validate_posting_enabled(room),
          :ok <- validate_client_message_id(client_message_id),
-         {:ok, normalized_body} <- validate_body(body) do
+         {:ok, normalized_body} <- validate_body(body),
+         {:ok, reply_to} <- validate_reply_target(room, reply_to_message_id) do
       commit_message(
         room,
         "user",
         user_id,
         sender_display_name || user_id,
         client_message_id,
-        normalized_body
+        normalized_body,
+        reply_to
       )
     end
   end
@@ -159,7 +190,15 @@ defmodule BnestApp.FamilyChat do
   # local-only, never reaching another release slot. Reported on the message
   # itself as the one inspectable proxy for that deployment-topology fact
   # (see tech-doc 007 / the "Independent slot-local PubSub" scenario).
-  defp commit_message(room, sender_kind, sender_id, sender_display_name, idempotency_key, body) do
+  defp commit_message(
+         room,
+         sender_kind,
+         sender_id,
+         sender_display_name,
+         idempotency_key,
+         body,
+         reply_to_message_id \\ nil
+       ) do
     case Store.find_message(room.id, sender_kind, sender_id, idempotency_key) do
       nil ->
         {:ok, message} =
@@ -169,15 +208,64 @@ defmodule BnestApp.FamilyChat do
             sender_id,
             sender_display_name,
             idempotency_key,
-            body
+            body,
+            reply_to_message_id
           )
 
-        message = message |> Map.put(:room_slug, room.slug) |> Map.put(:broadcast_scope, :local)
-        publish(message)
-        {:ok, message}
+        {:ok, decorate_committed(message, room)}
+        |> tap(fn {:ok, decorated} -> publish(decorated) end)
 
       existing ->
-        {:ok, existing |> Map.put(:room_slug, room.slug) |> Map.put(:broadcast_scope, :local)}
+        # The replay deliberately returns the row as it was first committed,
+        # quote included: a client message ID identifies one intended message,
+        # so a retry naming a different target must not change what it answers.
+        {:ok, decorate_committed(existing, room)}
+    end
+  end
+
+  defp decorate_committed(message, room) do
+    message
+    |> Map.put(:room_slug, room.slug)
+    |> Map.put(:broadcast_scope, :local)
+    |> attach_quote(Store.quotes_for(room.id, [message]))
+  end
+
+  # A target this room resolves nothing for leaves `:reply_to` nil rather than
+  # raising -- a reply whose target is not in this room renders as an ordinary
+  # message, it does not break the page around it.
+  defp attach_quote(%{reply_to_message_id: nil} = message, _quotes),
+    do: Map.put(message, :reply_to, nil)
+
+  defp attach_quote(%{reply_to_message_id: id} = message, quotes),
+    do: Map.put(message, :reply_to, quote_of(Map.get(quotes, id)))
+
+  defp quote_of(nil), do: nil
+
+  defp quote_of(quoted) do
+    %{
+      id: quoted.id,
+      sender_kind: quoted.sender_kind,
+      # Carried for `live_sender_display_name/2`, not for the client: the quote
+      # object exposes no `sender_id` field, so this never leaves the server. It
+      # is what lets the quote resolve its name through the same seam the
+      # message's own sender name already uses, so the two can never disagree.
+      sender_id: quoted.sender_id,
+      # Stamped name, and the fallback when no live account answers.
+      sender_display_name: quoted.sender_display_name,
+      body_preview: body_preview(quoted.body)
+    }
+  end
+
+  # The one place truncation happens. Not in CSS, which a screen reader would
+  # read straight through, and not in the browser, which would have to receive
+  # the whole body to shorten it.
+  defp body_preview(body) do
+    collapsed = body |> String.replace(~r/\s+/u, " ") |> String.trim()
+
+    if String.length(collapsed) > @preview_graphemes do
+      String.slice(collapsed, 0, @preview_graphemes) <> "…"
+    else
+      collapsed
     end
   end
 
@@ -210,6 +298,25 @@ defmodule BnestApp.FamilyChat do
 
   defp validate_client_message_id(id) do
     if Message.valid_client_message_id?(id), do: :ok, else: validation_failed()
+  end
+
+  # Cross-room targets are refused even though v1 has one room: the column
+  # outlives the single-room assumption, and a check added later is a check
+  # that was missing in between.
+  defp validate_reply_target(room, raw_id) do
+    case Message.normalize_reply_to_message_id(raw_id) do
+      {:ok, nil} ->
+        {:ok, nil}
+
+      {:ok, id} ->
+        case Store.message_by_id(room.id, id) do
+          nil -> validation_failed()
+          %{id: found_id} -> {:ok, found_id}
+        end
+
+      {:error, :invalid} ->
+        validation_failed()
+    end
   end
 
   defp validate_body(body) do
