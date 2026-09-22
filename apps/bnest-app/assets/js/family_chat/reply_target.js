@@ -38,6 +38,35 @@
 export const REPLY_UNAVAILABLE_REASON =
   "Send this message before replying to it";
 
+/**
+ * The same bound the server applies (`BnestApp.FamilyChat`'s
+ * `@preview_graphemes`). A quote that arrives from the server is already
+ * shortened; a target selected from a bubble on screen is not, because it
+ * is built in the browser from the full rendered body and never passes
+ * through the server on its way to the strip. Both go through this, so the
+ * strip and the quote card can never disagree about the same message.
+ */
+export const PREVIEW_GRAPHEMES = 160;
+
+/**
+ * Graphemes, not code units: slicing an emoji or a combining sequence in
+ * half is how a preview turns into mojibake. Whitespace is collapsed first
+ * for the same reason the server collapses it -- a preview is one line.
+ * @param {string} body
+ * @returns {string}
+ */
+export function bodyPreview(body) {
+  const collapsed = body.replaceAll(/\s+/gu, " ").trim();
+  const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  const graphemes = [...segmenter.segment(collapsed)];
+  if (graphemes.length <= PREVIEW_GRAPHEMES) return collapsed;
+  const kept = graphemes
+    .slice(0, PREVIEW_GRAPHEMES)
+    .map((part) => part.segment)
+    .join("");
+  return `${kept}\u2026`;
+}
+
 /** @param {ReplyTargetState} state */
 function notify(state) {
   for (const listener of state.listeners) listener(state.selection);

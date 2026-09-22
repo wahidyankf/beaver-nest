@@ -176,3 +176,89 @@ describe("createHistory", () => {
     expect(cursors.length).toBe(before);
   });
 });
+
+describe("jumping to a quoted message", () => {
+  it("does not fetch when the target is already in the window", async () => {
+    const { cursors, history, store } = roomWith(30, null);
+    await history.loadInitial();
+    cursors.length = 0;
+
+    const result = await history.jumpToMessage("12");
+
+    expect(result).toEqual({ found: true, pagesLoaded: 0, remediation: null });
+    expect(cursors).toEqual([]);
+    expect(store.hasRendered("12")).toBe(true);
+  });
+
+  it("loads exactly the pages it needs for a target two pages up", async () => {
+    const { cursors, history, store } = roomWith(MESSAGE_PAGE_SIZE * 3, null);
+    await history.loadInitial();
+    cursors.length = 0;
+    // Two pages above the loaded window: the oldest rendered message is
+    // MESSAGE_PAGE_SIZE * 2 + 1, so anything at or below MESSAGE_PAGE_SIZE
+    // is two pages back.
+    const target = String(MESSAGE_PAGE_SIZE);
+
+    const result = await history.jumpToMessage(target);
+
+    expect(result.found).toBe(true);
+    expect(result.pagesLoaded).toBe(2);
+    expect(cursors).toHaveLength(2);
+    expect(store.hasRendered(target)).toBe(true);
+  });
+
+  it("requests at most five pages, then says so out loud", async () => {
+    const { cursors, history, store } = roomWith(MESSAGE_PAGE_SIZE * 12, null);
+    await history.loadInitial();
+    cursors.length = 0;
+
+    const result = await history.jumpToMessage("1");
+
+    expect(result.found).toBe(false);
+    expect(result.pagesLoaded).toBe(5);
+    expect(cursors).toHaveLength(5);
+    expect(result.remediation).toBe("That message is too far back to jump to.");
+    expect(store.hasRendered("1")).toBe(false);
+  });
+
+  it("leaves the unread divider and hasNewer alone on every path", async () => {
+    for (const [messageCount, target] of [
+      [30, "12"],
+      [MESSAGE_PAGE_SIZE * 3, String(MESSAGE_PAGE_SIZE)],
+      [MESSAGE_PAGE_SIZE * 12, "1"],
+    ] as const) {
+      const { history, store } = roomWith(messageCount, "5");
+      await history.loadInitial();
+      const dividerBefore = store.unreadDividerBeforeId();
+      const hasNewerBefore = store.hasNewer();
+
+      await history.jumpToMessage(target);
+
+      // A jump is navigation, not reading: moving the divider would tell the
+      // member they had read messages they only scrolled past.
+      expect(store.unreadDividerBeforeId()).toBe(dividerBefore);
+      expect(store.hasNewer()).toBe(hasNewerBefore);
+    }
+  });
+
+  it("does not move the stored read position", async () => {
+    const { history, readMarker } = roomWith(MESSAGE_PAGE_SIZE * 3, "5");
+    await history.loadInitial();
+    const before = readMarker.lastReadId();
+
+    await history.jumpToMessage(String(MESSAGE_PAGE_SIZE));
+
+    expect(readMarker.lastReadId()).toBe(before);
+  });
+
+  it("stops early rather than spending its whole budget once the target arrives", async () => {
+    const { cursors, history } = roomWith(MESSAGE_PAGE_SIZE * 6, null);
+    await history.loadInitial();
+    cursors.length = 0;
+
+    const result = await history.jumpToMessage(String(MESSAGE_PAGE_SIZE * 5));
+
+    expect(result.found).toBe(true);
+    expect(cursors).toHaveLength(1);
+  });
+});

@@ -2298,3 +2298,203 @@ body {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Family chat replies (tech-doc 003's Components and Responsive Behaviour).
+ *
+ * Every width below is relative or a max-width. The structural
+ * horizontal-overflow check rejects a fixed pixel width on any
+ * `.family-chat-` rule, because that is exactly what would force the room to
+ * scroll sideways at a narrow viewport.
+ * ------------------------------------------------------------------------- */
+
+/* The `⋯` trigger. Revealed on hover or focus on fine pointers only; on a
+ * coarse pointer, holding the message is the gesture and a permanently
+ * visible control on every bubble would be noise. */
+.family-chat-message-more {
+  align-self: flex-start;
+  padding: 0.1rem 0.35rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--bnest-ink-soft);
+  font-size: 1.1rem;
+  line-height: 1;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.family-chat-message:hover .family-chat-message-more,
+.family-chat-message:focus-within .family-chat-message-more,
+.family-chat-message-more:focus-visible {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .family-chat-message-more {
+    display: none;
+  }
+
+  /* Suppressing only the callout, and only here: text on a laptop stays
+   * selectable, because removing selection from every message to make a hold
+   * gesture work would be a net loss. `Copy text` exists for the case where
+   * selection is awkward, not as a replacement for it. */
+  .family-chat-message-bubble {
+    -webkit-touch-callout: none;
+  }
+}
+
+/* One menu for the whole room, moved and re-labelled per message. */
+.family-chat-message-actions {
+  position: fixed;
+  z-index: 20;
+  inset-inline: auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+  max-width: 90vw;
+  padding: 0.35rem;
+  border: 0.06rem solid #c7ded9;
+  border-radius: 0.9rem;
+  background: var(--bnest-paper);
+  box-shadow: 0 0.5rem 1.5rem rgb(21 63 66 / 18%);
+}
+
+.family-chat-message-actions[hidden] {
+  display: none;
+}
+
+.family-chat-message-actions button {
+  padding: 0.6rem 0.8rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--bnest-ink);
+  text-align: start;
+  cursor: pointer;
+}
+
+.family-chat-message-actions button:hover {
+  background: var(--bnest-canvas);
+}
+
+.family-chat-message-actions button[aria-disabled="true"] {
+  color: var(--bnest-ink-soft);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Under 600px the menu becomes a sheet from the bottom edge, where a thumb
+ * already is. */
+@media (width <= 37.5rem) {
+  .family-chat-message-actions {
+    inset: auto 0 0;
+    max-width: none;
+    border-radius: 1.2rem 1.2rem 0 0;
+    padding: 0.6rem 0.6rem max(0.6rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* The quote card inside a reply bubble. One card style serves both the ink
+ * (own) and white (other) bubble -- the accent bar carries the distinction
+ * rather than the fill. */
+.family-chat-message-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 100%;
+  margin: 0 0 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  border-inline-start: 0.2rem solid var(--bnest-sun);
+  border-radius: 0.35rem;
+  background: var(--bnest-canvas);
+  color: var(--bnest-ink);
+  text-align: start;
+  cursor: pointer;
+}
+
+.family-chat-message-quote-sender {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* One line, whatever the preview's length: the server already bounded it to
+ * 160 graphemes, and the card is context rather than content. */
+.family-chat-message-quote-preview {
+  overflow: hidden;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Where a jump landed. The outline is the room's own focus colour, so
+ * "you are here" and "this is focused" read as one thing. */
+.family-chat-message[data-jump-highlight] {
+  outline: 0.15rem solid var(--bnest-sun);
+  outline-offset: 0.15rem;
+  border-radius: 0.5rem;
+  animation: family-chat-jump-pulse 1.2s ease-out 1;
+}
+
+@keyframes family-chat-jump-pulse {
+  from {
+    background: rgb(247 184 75 / 35%);
+  }
+
+  to {
+    background: transparent;
+  }
+}
+
+/* The composer's reply strip, above the textarea and across the full
+ * composer width at every breakpoint. */
+.family-chat-reply-strip {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-inline-start: 0.2rem solid var(--bnest-sun);
+  border-radius: 0.5rem;
+  background: var(--bnest-canvas);
+  color: var(--bnest-ink);
+}
+
+.family-chat-reply-strip[hidden] {
+  display: none;
+}
+
+.family-chat-reply-strip-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.family-chat-reply-strip-preview {
+  overflow: hidden;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.family-chat-reply-strip-cancel {
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--bnest-ink-soft);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The mark is held as a static outline instead of fading: the reader still
+   * learns where they landed, without the movement. */
+  .family-chat-message[data-jump-highlight] {
+    animation: none;
+  }
+
+  .family-chat-message-actions {
+    transition: none;
+  }
+}

@@ -18,6 +18,7 @@
 // composes them and is the only export callers need.
 
 import { CONTEXT_PAGE_SIZE, MESSAGE_PAGE_SIZE } from "./page_source.js";
+import { jumpToMessage } from "./jump_to_message.js";
 
 export { CONTEXT_PAGE_SIZE, MESSAGE_PAGE_SIZE };
 
@@ -52,6 +53,7 @@ export { CONTEXT_PAGE_SIZE, MESSAGE_PAGE_SIZE };
  * @property {() => string | null} oldestId
  * @property {() => boolean} hasNewer
  * @property {() => boolean} isAtBottom
+ * @property {(id: string) => boolean} hasRendered
  */
 
 /**
@@ -188,11 +190,34 @@ function createNavigation({ fetchPage, store }, pager) {
   };
 }
 
+/**
+ * Back to the message a quote answers, through the same bounded older-page
+ * path a reader would use by hand. Deliberately reuses `loadOlder` rather
+ * than querying around the target: one paging path means one set of cursor
+ * semantics, and the window a jump leaves behind is one a reader can keep
+ * scrolling through.
+ * @param {HistoryOptions} options
+ * @param {{loadOlder: () => Promise<void>}} navigation
+ */
+function createJumpMethod({ store }, navigation) {
+  return {
+    /** @param {string} messageId */
+    jumpToMessage(messageId) {
+      return jumpToMessage(
+        { store, loadOlder: navigation.loadOlder },
+        messageId,
+      );
+    },
+  };
+}
+
 /** @param {HistoryOptions} options */
 export function createHistory(options) {
   const pager = createPager(options);
+  const navigation = createNavigation(options, pager);
   return {
     ...createInitialLoad(options, pager),
-    ...createNavigation(options, pager),
+    ...navigation,
+    ...createJumpMethod(options, navigation),
   };
 }

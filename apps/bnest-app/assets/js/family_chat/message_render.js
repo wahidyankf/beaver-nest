@@ -5,6 +5,8 @@
 // other file's `import("./real_store.js").RenderableMessage` reference stays
 // unchanged.
 
+import { quoteNode } from "./message_quote_render.js";
+
 const BOTTOM_THRESHOLD_PX = 80;
 
 /**
@@ -21,6 +23,10 @@ const BOTTOM_THRESHOLD_PX = 80;
  * @property {string} [senderId]
  * @property {string} [senderDisplayName]
  * @property {string} [committedAt]
+ * @property {import("./message_quote_render.js").MessageQuote | null} [replyTo] the message this one answers,
+ *   resolved by the server. Absent on an ordinary message, and on every row
+ *   written before replies existed -- the two are indistinguishable, by
+ *   design.
  */
 
 /** @param {string} value */
@@ -81,7 +87,12 @@ function bubbleNode(message, senderLabel) {
   body.dataset["role"] = "family-chat-message-body";
   body.textContent = message.body;
 
-  bubble.append(meta, body);
+  bubble.append(meta);
+  // Above the body, inside the bubble: the quote is context for what follows,
+  // and a reader meeting it after the reply has already read the reply
+  // without it.
+  if (message.replyTo) bubble.append(quoteNode(message.replyTo));
+  bubble.append(body);
   return bubble;
 }
 
