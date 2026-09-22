@@ -1449,7 +1449,7 @@ something learned after the document was written. The other twelve **contradicte
 the `BEFORE DELETE` trigger is what makes a dangling reference unreachable (the foreign key gets there first), that
 focus returns to the message on every menu close path (not the one path that matters), that the strip shows the
 server's preview (not for a target chosen on screen), that the quote card is a plain `button` (it is a tab stop per
-message that way), and a File Impact table listing thirteen test files where the plan touched forty-four. A
+message that way), and a File Impact table listing thirteen test files where the plan touched forty-five. A
 tech-doc that is wrong is worse than one that is incomplete, because the next reader has no reason to check it.
 
 ### 2026-09-22 — The execution check, and what it found in my own record

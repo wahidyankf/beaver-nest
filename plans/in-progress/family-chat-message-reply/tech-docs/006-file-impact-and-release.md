@@ -57,7 +57,7 @@ split is predicted here so that it reads as a planned consequence rather than as
 ## Tests
 
 **Corrected 2026-09-22.** The table below was rewritten after execution against `git diff` over the plan's own
-commits. The original listed thirteen files; the plan touched forty-four. Three kinds of error produced the gap: the
+commits. The original listed thirteen files; the plan touched forty-five. Three kinds of error produced the gap: the
 Vitest+Gherkin adapter layer was not represented at all, the fe-e2e support files a new scenario needs were not
 foreseen, and one row named a file (`family-chat-composer.ts`) that in the end was never changed. Each individual
 surprise was recorded as a File Impact deviation in `learnings.md` while it happened; this is the reconciled list.
