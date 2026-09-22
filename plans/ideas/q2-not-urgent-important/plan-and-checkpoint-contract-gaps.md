@@ -21,8 +21,9 @@ the single most useful thing this execution learned about its own checkpoints, a
 rather than from the checkpoint contract.
 
 A later execution check found that neither proposal had been raised, because both were routed to "at archival" and
-archival is where the routing was supposed to happen. Twenty-three entries in that plan's learnings used the same
-phrase; this is the pair that had nowhere else to land.
+archival is where the routing was supposed to happen. **Twenty-two** owner declarations in that plan's learnings
+deferred their action the same way; this is the pair that had nowhere else to land. (This brief first said
+twenty-three, written before any of them were counted.)
 
 ## Why Now
 

@@ -377,8 +377,9 @@ every test Phase 2 owns and red on exactly 14 behaviour scenarios that are Phase
 than resolved by re-ordering the work, because the RED is the point; Phase 3's checkpoint is where both suites go
 fully green.
 
-**Durable owner:** the plans convention's guidance on checkpoints that span a declared cross-phase RED — raised as an
-idea brief at archival if it recurs, discarded if it does not.
+**Durable owner:** the plans convention's guidance on checkpoints that span a declared cross-phase RED — to be
+raised as an idea brief if it recurred and discarded if it did not. **Decided 2026-09-22: discarded.** It did not
+recur in Phases 4 through 10.
 
 ## Phase 3 — GraphQL Contract
 
@@ -675,9 +676,10 @@ through `afterId` carries its quote", both green in the `BE_E2E` run recorded be
 `PASS_NO_CHANGE`. The ledger for this execution has no `OPEN` rows: nothing under `repo-governance/`, `AGENTS.md`,
 `CLAUDE.md`, or `RTK.md` was created, changed, moved, or deleted by it. The two governance gaps this execution did
 find — that a plan's File Impact table should cover the release path whenever the plan introduces a runtime flag,
-and that the phase-checkpoint command set should name the typecheck target alongside the suites — are recorded
-above as proposals owned by archival, not as edits made here; raising them is a separate transaction with its own
-authorization. Step 4 verified: `REPO` green.
+and that the phase-checkpoint command set should name the typecheck target alongside the suites — were recorded
+above as proposals rather than made as edits here, because raising them is a separate transaction with its own
+authorization. **Both were raised 2026-09-22** in
+`plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`. Step 4 verified: `REPO` green.
 
 **Durable owner:** none; a recorded terminal result.
 
@@ -929,8 +931,11 @@ empty composer; and `Load older messages` gives no in-flight feedback. None of t
 touched by quoted replies. They are the room's, they predate this plan, and fixing any of them here would be scope
 this plan did not ask for and did not verify.
 
-**Durable owner:** raised 2026-09-22 as deferred idea briefs, one per theme rather than one per finding, with
-this dated pass as their evidence.
+**Durable owner:** raised 2026-09-22 as three deferred idea briefs, one per theme rather than one per finding,
+with this dated pass as their evidence:
+`plans/ideas/q2-not-urgent-important/family-chat-room-reading-on-a-phone.md`,
+`plans/ideas/q2-not-urgent-important/shared-token-claims-and-layer-tags.md`, and
+`plans/ideas/q3-urgent-not-important/family-chat-room-shell-and-control-gaps.md`.
 
 ### Two reported findings that were wrong, and one that was my own test data
 
@@ -1253,8 +1258,9 @@ the whole fix.
 Worth saying plainly: the gate did its job. A release that had skipped straight to building would have produced an
 artifact from a checkout that could not typecheck.
 
-**Durable owner:** an idea brief proposing that the release preflight verify installed dependencies against the
-lockfile, alongside the branch, tree, and revision assertions it already makes.
+**Durable owner:** `plans/ideas/q1-urgent-important/release-stage-flag-posture.md`, raised 2026-09-22 — it
+proposes that the release preflight verify installed dependencies against the lockfile, alongside the branch, tree,
+and revision assertions it already makes.
 
 ### 2026-09-22 — Phase 9, the compatibility release
 
@@ -1294,13 +1300,17 @@ a live feature off — the documented posture, and the reason the release guide 
 experience re-promotion.
 
 The proof exists at the right layer instead: `A browser holding the pre-reply bundle loads the room from the new
-revision` runs in `bnest-app-fe-e2e:test:e2e` against two real candidate revisions, and passed in the clean run.
+revision` runs in `bnest-app-fe-e2e:test:e2e` across two candidate slots, and passed in the clean run.
+**Corrected 2026-09-22:** this said "two real candidate revisions". It is one build and one bundle served from two
+slots under different flag postures, with a synthetic per-port revision identity — see the execution-check entry
+below, which states what the scenario does and does not establish.
 That is the scenario the specification already carries an `@integration-exempt` note for, naming this exact
 boundary. The plan item asked for the observation at an origin where the room is switched off; the discrepancy is
 in the plan, not in the coverage.
 
-**Durable owner:** an idea brief proposing that active-service plans state which flag posture each release stage
-leaves routed, so an item cannot ask for a proof the stage's own posture forbids.
+**Durable owner:** `plans/ideas/q1-urgent-important/release-stage-flag-posture.md`, raised 2026-09-22 — it
+proposes that active-service plans state which flag posture each release stage leaves routed, so an item cannot ask
+for a proof the stage's own posture forbids.
 
 ### 2026-09-22 — Phase 10, the experience release
 
@@ -1352,8 +1362,9 @@ The release guide's "immediately follow" is doing real work, and nothing enforce
 being released should go off in the compatibility stage; a flag that gates an unrelated feature already live has no
 reason to.
 
-**Durable owner:** an idea brief proposing that a compatibility release carry forward the flag posture of the slot
-it replaces, except for the flags the release is itself introducing.
+**Durable owner:** `plans/ideas/q1-urgent-important/release-stage-flag-posture.md`, raised 2026-09-22 — it
+proposes that a compatibility release carry forward the flag posture of the slot it replaces, except for the flags
+the release is itself introducing.
 
 ### 2026-09-22 — Two Phase 10 items this execution could not complete
 
@@ -1380,23 +1391,32 @@ Both are recorded in `delivery.md` as unticked with this entry named.
 
 ### 2026-09-22 — Durable-owner resolution
 
-**Rebuilt 2026-09-22 after the execution check.** The first version of this entry said "Twenty carry a
-`Durable owner:` line of their own. The remaining twenty-two are resolved by class", and neither number was
-reachable. Counted against the file as it now stands, it holds **50** owner lines — 33 naming an owner, 17
-recording a discard — spread across **32** of its **67** headings. The original counts were written from memory
-rather than from the file, and a resolution record that cannot be counted is not a resolution record.
+**Rebuilt twice, 2026-09-22.** The first version said "Twenty carry a `Durable owner:` line of their own. The
+remaining twenty-two are resolved by class", and neither number was reachable. The rebuild that replaced it was
+also wrong, in a way worth keeping on the record: it reported **50** owner lines, **17** discards, and **32**
+headings carrying one, because it was produced with `grep -c "Durable owner"`. That pattern matches the sentence
+directly above this table — the prose quoting the phrase while explaining that the previous counts could not be
+reproduced. The record that exists to say a count must reproduce was itself off by one, in the same direction, for
+the same reason: a number taken from a convenient command rather than from the thing being counted.
 
-Counted against the file:
+The counts below come from matching only lines that **begin** an owner declaration — `^\s*\*\*Durable owner:\*\*` —
+which is the distinction the failed count missed. They describe this file **as of the commit that carries this
+entry**, and they are stated that way deliberately: every entry appended afterwards changes them, and a count that
+does not say what it counted is the defect this paragraph is about.
 
 |                                             | Count |
 | ------------------------------------------- | ----- |
-| Headings at levels 2–4                      | 67    |
+| Headings at levels 2–4                      | 68    |
 | Headings carrying their own owner line      | 32    |
-| Owner lines naming an owner                 | 33    |
-| Owner lines recording a discard (`none; …`) | 17    |
+| Owner lines naming an owner                 | 34    |
+| Owner lines recording a discard (`none; …`) | 16    |
+| Owner lines in total                        | 50    |
 
 Some sections carry more than one owner line, because a long section resolves its sub-findings separately; that is
-why 50 lines sit in 32 sections. The remaining 35 headings are resolved by class:
+why 50 lines sit in 32 sections. The remaining 36 headings are resolved by class:
+
+The claim that does **not** move as the file grows, and is therefore the one worth checking, is this: **no owner
+declaration defers its action to archival.** That was twenty-two, and it is now zero.
 
 | Class                                                                                                                                                                                           | Resolution                                                                                                                                      |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1425,31 +1445,37 @@ Four routing failures the check found, and what happened to each:
 4. **One conditional routing was never decided** — a note to be raised as a brief if the cross-phase RED pattern
    recurred and discarded if it did not. It did not recur in Phases 4 through 10. Discarded, recorded here.
 
-**The deferred routings, resolved 2026-09-22.** Seventeen owner lines deferred their action to archival, and two
-more deferred a raise the same way. The execution check was right that this left them unowned: archival is blocked
-on grounds that have nothing to do with any of them, so "at archival" had become a place work went to wait
-indefinitely.
+**The deferred routings, resolved 2026-09-22.** **Twenty-two** owner declarations deferred their action to
+archival. The execution check was right that this left them unowned: archival is blocked on grounds that have
+nothing to do with any of them, so "at archival" had become a place work went to wait indefinitely.
 
 None of them actually depended on archival, so they were done instead:
 
-| Routing                            | Count | Disposition                                                                                             |
-| ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------- |
-| A correction to a tech-doc         | 15    | Made, in `001`, `002`, `003`, `004`, and `006`. Each owner line now names the date instead of the step. |
-| A deferred idea brief              | 5     | Already satisfied by the seven briefs raised in this pass; each line now names the brief.               |
-| The stale `README.md` paragraph    | 1     | Corrected in `README.md` directly, which owns it better than a brief would.                             |
-| Conditional on a pattern recurring | 1     | It did not recur in Phases 4 through 10. Discarded.                                                     |
+| Routing                            | Count | Disposition                                                                                                         |
+| ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------- |
+| A correction to a tech-doc         | 15    | Made, in `001`, `002`, `003`, `004`, and `006`. Each of those owner lines now carries the date instead of the step. |
+| A deferred idea brief              | 5     | Satisfied by briefs raised in this pass; each of those lines now names the brief's path.                            |
+| The stale `README.md` paragraph    | 1     | Corrected in `README.md` directly, which owns it better than a brief would.                                         |
+| Conditional on a pattern recurring | 1     | It did not recur in Phases 4 through 10. Discarded, and the line now says so.                                       |
 
-The fifteenth tech-doc correction was not in the check's count of fourteen, and neither was it in mine: its owner
-line ended on one line and its `Raised at archival` on the next, so a line-wise scan found neither the promise nor
-its deadline. It is the File Impact table's missing release path — the one whose absence would have promoted a
-revision that reads a flag it is never given.
+**Twenty-two, not seventeen, and not nineteen.** Both of my earlier counts scanned line by line, and **five** of
+the twenty-two declarations wrap: the owner line ends, and `at archival` sits on the line after it. A line-wise
+scan sees neither the promise nor its deadline. The first pass therefore found seventeen and called that the
+total; the second found the same seventeen, noticed one wrapped line while fixing it, and wrote nineteen. The
+number only settled once the scan matched a declaration and read it to the end of its paragraph. The brief raised
+from this material says "twenty-three" and is wrong for a third reason — it was written before any of them were
+counted.
+
+One of the five wrapped declarations is a tech-doc correction in its own right, and it is the substantive one: the
+File Impact table's missing release path, whose absence would have promoted a revision that reads a flag it is
+never given.
 
 What the corrections changed is worth separating from how many there were. Three were straightforward additions of
 something learned after the document was written. The other twelve **contradicted** what the document said: that
 the `BEFORE DELETE` trigger is what makes a dangling reference unreachable (the foreign key gets there first), that
 focus returns to the message on every menu close path (not the one path that matters), that the strip shows the
 server's preview (not for a target chosen on screen), that the quote card is a plain `button` (it is a tab stop per
-message that way), and a File Impact table listing thirteen test files where the plan touched forty-five. A
+message that way), and a File Impact table listing thirteen test files where the plan touched forty-six. A
 tech-doc that is wrong is worse than one that is incomplete, because the next reader has no reason to check it.
 
 ### 2026-09-22 — The execution check, and what it found in my own record
@@ -1484,8 +1510,13 @@ The check also found that the Phase 9 substitute evidence is filed under the wro
 it names is real, bound, and green, but it promotes a candidate with the reply flag _off_ against a browser served
 from a primary that pins the flag _on_ — the inverse direction — its `When` re-fetches the page rather than holding
 a stale bundle, and both slots build from one source tree with a synthetic per-port revision identity. So
-"two real candidate revisions" overstated it: one build, one bundle, two flag postures. The claim has been
-corrected where it appears.
+"two real candidate revisions" overstated it: one build, one bundle, two flag postures.
+
+**A correction about a correction, 2026-09-22.** This paragraph originally ended "the claim has been corrected
+where it appears", and it had not been. The phrase appeared three times; one was fixed and two were left, in this
+file above and in `delivery.md`'s Phase 9 substitute note. Both are corrected now. Writing that something has been
+done in the same pass that does it is how the other miscounts in this record happened: the sentence describes an
+intention, and nothing checks it afterwards.
 
 What I would take from this. Every one of these is a claim I wrote and did not re-read against the artifact it
 described — a number from memory, a threshold assumed from a sibling suite, a status line never revisited, a script
@@ -1495,3 +1526,48 @@ detailed; it is evidence when someone has checked it against the thing.
 
 **Durable owner:** the corrections themselves, plus
 `plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md` for the two governance proposals.
+
+### 2026-09-22 — The re-check, and the corrections that needed correcting
+
+The execution check was re-run against `772b46f26`, after the first round of corrections landed. Terminal verdict:
+**BLOCKED**, again, and the plan stays in `plans/in-progress/`.
+
+One of the two original blocking classes is materially advanced and still not closed. The other is untouched.
+Between them the re-check found four **new** defects, all introduced by the corrections themselves.
+
+| New defect                                 | What it was                                                                                                                                                                                                                            |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 10's responsiveness item left ticked | `learnings.md` withdrew this release's post-promotion sample set; `delivery.md:762` went on claiming it. The same defect Phase 9's item had just been unticked for, standing on its sibling. AC-FCR-14 is two of four stages unproven. |
+| A checkpoint standing on an unticked item  | Phase 9's blocking checkpoint claimed "every routed sample is within budget" directly above the drain item that was unticked for not having taken one.                                                                                 |
+| A new uncounted claim                      | The rewritten File Impact table said forty-five test paths; the plan touched forty-six.                                                                                                                                                |
+| A new false claim                          | That each surprise path had been recorded as a File Impact deviation. One was, of sixteen.                                                                                                                                             |
+
+And the resolution record — the entry that exists to say a count must reproduce — still did not reproduce. It
+reported 50 owner lines, 17 discards, and 32 headings carrying one. The file holds **49**, **16**, and **31**. The
+rebuild had been produced with `grep -c "Durable owner"`, which matches the prose sentence inside that very entry
+explaining that the previous counts were unreachable. It counted itself.
+
+**The pattern, stated plainly, because it repeated three times in one day.** Every one of these came from taking a
+number or a status from something adjacent to the artifact instead of from the artifact: a grep whose pattern was
+wider than the thing being counted; a diff range that began at the first _backend_ commit rather than the first
+commit, so a whole project's Phase 3 changes fell outside it; a sentence asserting a correction had been made
+"where it appears" in the same pass that made one of its three occurrences. Each time the number was plausible,
+internally consistent, and wrong.
+
+What actually separates the corrections that held from the ones that did not is whether anything re-derived them
+afterwards. The fifteen tech-doc corrections held, because each was written against the passage it contradicted.
+The counts did not, because nothing counted them again. So the rule this execution earns is narrower than "check
+your work": **a claim about a quantity has to be produced by a command that a reader can re-run, and then re-run
+after the edit that changes it.** The counts in this file now come from matching lines that _begin_ an owner
+declaration, and they were re-derived after every subsequent edit in this pass.
+
+Two things this round also settled that were not miscounts:
+
+- **Twenty-two**, not seventeen and not nineteen, owner declarations deferred their action to archival. Five of the
+  twenty-two wrap onto a following line, which is why two consecutive line-wise scans disagreed.
+- **`apps/bnest-app-be-e2e/tests/support/graphql.ts`** was touched by the plan and named in no table and no
+  deviation. It carries the mutation variable, the quote interface, and the `replyTo` selection set.
+
+**Durable owner:** the corrections in `delivery.md` and `tech-docs/006-file-impact-and-release.md`, plus
+`plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`, which is where the general form of the
+counting rule belongs if it is ever made a convention.

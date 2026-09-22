@@ -3,9 +3,12 @@
 ## Execution Status and Authority
 
 **Executed and released, 2026-09-22. Archival is blocked.** The feature is routed in production at revision
-`5b08a27f2`; the migration is applied; both production releases passed. Three items below are recorded as
-`BLOCKED` rather than ticked, so this plan stays in `plans/in-progress/`. The execution check's terminal verdict
-and the corrections made in response to it are recorded in `learnings.md`. Integrating this plan does not start the checklist or authorize its later
+`5b08a27f2`; the migration is applied; both production releases passed. The execution check has been run **twice**
+and returned `BLOCKED` both times; both verdicts and the corrections made in response are recorded in
+`learnings.md`. Seven substantive items below are unticked — four blocked on a decision this executor cannot make,
+two unticked by the re-check because they claimed evidence that had been withdrawn, and the Phase 9 checkpoint that
+stood on one of them. The four Recovery and Rollback triggers are unticked because they did not fire, each with its
+disposition recorded. This plan stays in `plans/in-progress/`. Integrating this plan does not start the checklist or authorize its later
 execution. Read all six plan documents and the
 [plan-execution workflow](../../../repo-governance/workflows/plan-execution.md) first. Start only from a current,
 explicitly authorized, non-blocking plan-quality verdict: `PASS`, or `PASS_WITH_FINDINGS` with every finding recorded
@@ -85,8 +88,12 @@ Automation never substitutes for the four bold layers, and a green pipeline does
 - Use exactly `worktrees/family-chat-message-reply/` on branch `family-chat-message-reply` from current `origin/main`.
 - After the application PR merges, reuse that worktree, sync to `origin/main`, and create a branch for the
   completion record. **Deviation, 2026-09-22:** the record landed on `plan-family-chat-reply-release` rather than
-  the named `family-chat-message-reply-archive`, and the corrections that followed the execution check landed on
-  `plan-family-chat-reply-corrections` from a second worktree, because the first had already been cleaned up.
+  the named `family-chat-message-reply-archive`; the corrections that followed the first execution check landed on
+  `plan-family-chat-reply-corrections` from a second worktree, because the first had already been cleaned up; and
+  the corrections that followed the **re-check** landed on `plan-reply-closeout` from a third, for the same reason.
+  Each branch was deleted and its worktree removed after its PR merged, so none of the three exists now — which is
+  the convention working, not a loose end. A plan whose record is corrected more than once needs a worktree per
+  round, and naming only one up front did not anticipate that.
 - `main` is the only persistent branch. Integrate by reviewed PR; never push directly to `main`, and never create
   sibling `*-worktrees/` paths.
 - Managed production releases run from the clean primary checkout at the landed `origin/main` revision.
@@ -732,7 +739,10 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       the column present, and existing messages unchanged.
 - [ ] `[AI] [AC-FCR-13]` Promote through Caddy and prove mixed-revision safety at the routed origin: a browser
       holding the **previous** bundle loads the room and sends a message. **Proof:** both observations recorded, with
-      no page refresh required and no forced reload. **BLOCKED 2026-09-22:** a compatibility release routes every flag off, so the room is not reachable at the routed origin at this stage. The proof exists at the layer the specification's own exemption names — `A browser holding the pre-reply bundle loads the room from the new revision`, green in the browser suite against two real candidate revisions. See `learnings.md`, Phase 9 entry.
+      no page refresh required and no forced reload. **BLOCKED 2026-09-22:** a compatibility release routes every flag off, so the room is not reachable at the routed origin at this stage. The proof exists at the layer the specification's own exemption names — `A browser holding the pre-reply bundle loads the room from the new revision`, green in the browser suite across two candidate slots. **Corrected 2026-09-22:** this said "two real candidate
+      revisions". It is one build and one bundle served from two slots under different flag postures, with a
+      synthetic per-port revision identity, and its direction is the inverse of the one this item asks for. See
+      `learnings.md`, Phase 9 entry and the execution-check entry.
 - [x] `[AI] [AC-FCR-04, AC-FCR-13]` Prove the field is answerable everywhere before any bundle asks for it: a `curl`
       requesting `replyTo` against the routed origin returns data rather than a document rejection. **Proof:** the
       sanitized response in `learnings.md`.
@@ -742,8 +752,12 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       post-promotion set was taken and is recorded; the post-drain set never was. This item was ticked claiming
       both. The prior slot is confirmed stopped. The missing set cannot be retaken — that slot has since been
       promoted and retired again — so it is recorded as not taken rather than substituted. See `learnings.md`.
-- [x] `[AI] [AC-FCR-11, AC-FCR-13, AC-FCR-14]` **Blocking checkpoint — Phase 9.** The compatibility revision is
+- [ ] `[AI] [AC-FCR-11, AC-FCR-13, AC-FCR-14]` **Blocking checkpoint — Phase 9.** The compatibility revision is
       routed and drained, it is the recorded rollback floor, and every routed sample is within budget.
+      **UNTICKED 2026-09-22 by the re-check:** the revision was routed and drained and is the recorded rollback
+      floor, and every sample actually taken is within budget — but the drain item directly above is unticked
+      because its post-drain set was never taken, so "every routed sample is within budget" is a claim about a set
+      that does not exist. A checkpoint cannot stand on an item beneath it that does not.
 
 ## Phase 10 — Experience Release
 
@@ -759,8 +773,13 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
 - [ ] `[AI] [AC-FCR-13]` Prove the rollback floor still serves the reply-aware bundle: against the Phase 9 revision,
       a browser holding the current bundle loads the room and renders existing quotes. **Proof:** recorded
       observation. This is a proof, not a rollback — the route is not moved. **BLOCKED 2026-09-22:** after the experience promotion the floor is the same revision with both flags off, so the room is not reachable there. See `learnings.md`.
-- [x] `[AI] [AC-FCR-14]` Hold the drain window, then retire the prior slot. **Proof:** post-promotion and post-drain
-      12-sample sets within budget and the prior slot confirmed stopped.
+- [ ] `[AI] [AC-FCR-14]` Hold the drain window, then retire the prior slot. **Proof:** post-promotion and post-drain
+      12-sample sets within budget and the prior slot confirmed stopped. **UNTICKED 2026-09-22 by the re-check:**
+      `learnings.md` withdrew this release's post-promotion set — the figures recorded for it were Phase 9's twelve
+      samples, repeated — and this item was left ticked claiming it. That is the same defect the Phase 9 item was
+      unticked for, standing on its sibling. The post-drain set **was** taken (p95 48.3 ms, slowest 50.9 ms, median
+      19.3 ms, zero failures) and the prior slot is confirmed stopped. Two of AC-FCR-14's four stages are therefore
+      unproven, and neither missing set can be retaken.
 - [ ] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 10.** The feature is routed and working at the exact
       origin, the rollback floor is proven, responsiveness held throughout, and no candidate, watcher, or temporary
       proxy is still running. **BLOCKED 2026-09-22:** the feature is routed and no candidate, watcher, or temporary proxy is running, and every sample actually taken is inside budget — but the routed manual pass and the rollback-floor proof above are blocked, and the execution check found one release-stage sample set was never taken, so this checkpoint cannot be claimed.
@@ -797,16 +816,31 @@ Runs only after every substantive phase above is complete and its checkpoint is 
       2026-09-22:** the execution check found this item ticked while twenty-two entries still routed their action to
       archival, which is not an owner. Fifteen tech-doc corrections have now been made in `001`, `002`, `003`,
       `004`, and `006`; five deferred raises are closed against the briefs that exist; the stale `README.md`
-      paragraph is fixed there; one conditional routing is discarded because its pattern did not recur. Four owner
-      lines that named tech-doc files which do not exist are repointed at the documents that own their subject.
+      paragraph is fixed there; one conditional routing is discarded because its pattern did not recur. **Nine** owner
+      lines — naming four distinct non-existent filenames between them — are repointed at the documents that own
+      their subject. **Re-checked 2026-09-22:** this item said "four", counting filenames rather than lines, and
+      the resolution record's own counts were rebuilt a second time after the first rebuild counted its own prose.
 - [x] `[AI] [AC-FCR-01..14]` Raise the follow-up idea briefs this plan deliberately deferred, deduplicated against
       the existing ones: retiring `BNEST_FAMILY_CHAT_REPLY_ENABLED` after the rollback window, and swipe-to-reply as
       an optional gesture with its accessibility evidence. **Proof:** the briefs exist under `plans/ideas/<quadrant>/`
-      with their quadrant justified by dated evidence, or a recorded decision not to raise them.
-- [ ] `[AI] [AC-FCR-01..14]` Run the
+      with their quadrant justified by dated evidence, or a recorded decision not to raise them. **Done
+      2026-09-22:** seven briefs, not two — `q1-urgent-important/release-stage-flag-posture.md`;
+      `q2-not-urgent-important/` `family-chat-reply-flag-retirement.md`, `family-chat-swipe-to-reply.md`,
+      `family-chat-room-reading-on-a-phone.md`, `shared-token-claims-and-layer-tags.md`,
+      `plan-and-checkpoint-contract-gaps.md`; and `q3-urgent-not-important/family-chat-room-shell-and-control-gaps.md`.
+      The two this item names are the first two of the seven; the other five carry material the execution found and
+      the plan could not have named in advance. Each quadrant README's Ideas list and Directory Map is updated.
+      **Re-checked 2026-09-22:** this item was ticked with no result line at all, which is why the count was never
+      visible.
+- [x] `[AI] [AC-FCR-01..14]` Run the
       [plan-execution-check workflow](../../../repo-governance/workflows/plan-execution-check.md) and record its
       terminal verdict. **Proof:** the verdict in `learnings.md`. Archival is not permitted while any acceptance
-      criterion or delivery unit is unresolved.
+      criterion or delivery unit is unresolved. **Done 2026-09-22, twice.** First run: `BLOCKED`, on AC-FCR-13's
+      unevidenced rollback-floor scenario and on a knowledge-capture record whose counts did not reproduce. Re-run
+      after the corrections: `BLOCKED` again — AC-FCR-13 exactly unchanged, the knowledge-capture record advanced
+      but still miscounted, and four new defects introduced by the corrections themselves. Both verdicts and the
+      second round of corrections are in `learnings.md`. Ticked because the item asks the workflow to be run and its
+      verdict recorded, which is done; the verdict itself is what keeps archival closed.
 - [ ] `[AI] [AC-FCR-01..14]` Run the [dev-artifact-clean-up workflow](../../../repo-governance/workflows/dev-artifact-clean-up.md):
       stop every non-production server, watcher, candidate, and temporary proxy this work started; remove this
       execution's `local-tmp/` scratch; and delete the worktree and its branch after the PR merges. **Proof:** only
