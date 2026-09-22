@@ -65,8 +65,23 @@ When(
   "the visitor activates the actions control revealed on hover on that message",
   async ({ page }) => {
     const message = messageById(page, scenario.targetId);
+    const more = message.locator('[data-role="family-chat-message-more"]');
     await message.hover();
-    await message.locator('[data-role="family-chat-message-more"]').click();
+    const finePointer = await page.evaluate(
+      () => globalThis.matchMedia("(pointer: fine)").matches,
+    );
+    if (!finePointer) {
+      // Tech-doc 005 removes this control entirely on a coarse pointer: a
+      // permanently visible control on every bubble is noise where holding
+      // the message is already the gesture, and there is no hover to reveal
+      // it with. Assert that removal -- the decision this entry point
+      // actually makes on this device -- and then open the menu the way this
+      // pointer does, so the scenario's Then still judges the menu.
+      await expect(more).toBeHidden();
+      await pressAndHold(page, scenario.targetId, 500);
+      return;
+    }
+    await more.click();
   },
 );
 

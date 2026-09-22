@@ -249,18 +249,30 @@ export async function loadOlderUntilRendered(
   for (let page_index = 0; page_index < maxPages; page_index += 1) {
     // eslint-disable-next-line no-await-in-loop -- each page must be rendered before the next request is decided.
     if ((await messageById(page, messageId).count()) > 0) return;
-    // The room disables this control once nothing older remains. Clicking it
-    // anyway spends the full action timeout waiting for an element that will
-    // never become enabled, and reports it as a paging failure rather than
-    // as "the message is not in this room's history".
-    // eslint-disable-next-line no-await-in-loop -- the control's state after the previous page is what decides this.
-    if (await loadOlder.isDisabled()) break;
-    // eslint-disable-next-line no-await-in-loop -- same: one page per iteration is the behaviour under test.
+    // The room disables this control twice over: while a page is in flight,
+    // and permanently once nothing older remains. Settling first is what
+    // tells them apart -- a page still loading becomes enabled again, an
+    // exhausted history does not -- and without it the loop clicks straight
+    // into the previous page's own disabled window and reports that as a
+    // paging failure.
+    let exhausted = false;
+    // eslint-disable-next-line no-await-in-loop -- the control's settled state after the previous page is what decides this.
+    await expect(loadOlder)
+      .toBeEnabled({ timeout: 10_000 })
+      .catch(() => {
+        exhausted = true;
+      });
+    if (exhausted) break;
+    // eslint-disable-next-line no-await-in-loop -- the newly prepended page moves this control; a stale position is what the bubbles intercept.
+    await loadOlder.scrollIntoViewIfNeeded();
+    // eslint-disable-next-line no-await-in-loop -- one page per iteration is the behaviour under test.
+    const before = await page.locator(MESSAGE).count();
+    // eslint-disable-next-line no-await-in-loop -- same.
     await loadOlder.click({ timeout: 10_000 });
     // eslint-disable-next-line no-await-in-loop -- awaiting the page that was just requested, not a batch.
     await expect
       .poll(() => page.locator(MESSAGE).count(), { timeout: 10_000 })
-      .toBeGreaterThan(0);
+      .toBeGreaterThan(before);
   }
   await expect(messageById(page, messageId)).toHaveCount(1);
 }

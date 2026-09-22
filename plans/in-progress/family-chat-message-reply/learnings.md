@@ -569,3 +569,46 @@ listening, and the pending row was never reconciled — which looked like a rend
 server now does the same. Worth keeping in mind before treating a fast double as the neutral choice.
 
 **Durable owner:** none; recorded here.
+
+## Phase 7 — Documentation, Rules, and Public-Boundary Proof
+
+**The real browser found the one thing every browserless layer had agreed on.** Tab's sequential-focus engine has
+no Node equivalent, so `rovingInvariantHolds` checked the only thing it could see — exactly one message carrying a
+tab stop — and the quote card, a `button` inside a bubble, was a tab stop by default. With fifty replies on screen,
+Tab walked the conversation one quote at a time instead of leaving the list. `tabindex="-1"` fixes it without
+touching the role, the type, or the accessible name, so a screen reader still reaches and announces the card, which
+is all AC-FCR-10 asks for. The check now also rejects anything focusable *inside* a message, so the next control
+added to a bubble fails instead of quietly adding a stop per message. Whether a keyboard-only reader without a
+screen reader should reach the card at all is Phase 8's question, not one to settle by widening the tab order.
+
+**Durable owner:** `tech-docs/004-quote-and-jump.md`, at archival.
+
+**One fix, applied one file too wide.** `getByLabel("Message")` became strict-mode ambiguous the moment the action
+menu added `Actions for <name>'s message` to every bubble — but only on the room's page. The Codex chat LiveView's
+composer is labelled `Message` and has no bubbles, so the locator was never ambiguous there. Ten step files
+mentioned the label; six drive the room and four drive `/chat`, and all ten were converted. Every Codex chat
+scenario then timed out looking for `Message the family` on a page that has no such label. The cost was a whole
+suite run. A locator rename is a page-scoped change, and the page each step file drives — `[data-phx-main]` and
+`phx-connected` for the LiveView, `[data-role="family-chat-room"]` for the room — is the thing to check first, not
+the string being replaced.
+
+**Durable owner:** none; recorded here.
+
+**The flag existed, and nothing could turn it on.** `config/runtime.exs` read `BNEST_FAMILY_CHAT_REPLY_ENABLED`
+from Phase 5, but `deployment.mjs` builds its launchd plist from a hard-coded allowlist, and `release.mjs`'s
+experience candidate passed only `--family-chat-enabled`. A variable absent from that allowlist is a variable the
+managed process never receives, so Phase 10 would have promoted a revision that reads the flag and is never given
+it — and `/health/ready` cannot tell, because the room sits behind `:authenticated_browser`. The plan's file-impact
+table did not list either tool, which is the deviation worth naming: it listed every file the *feature* touches and
+none of the files the *release* touches.
+
+**Durable owner:** `tech-docs/006-file-impact-and-release.md` — its File Impact table should cover the release path
+whenever a plan introduces a runtime flag. Raised at archival.
+
+**The root README's family-chat paragraph is stale, and this plan is not the place to fix it.** It says
+`BNEST_FAMILY_CHAT_ENABLED` "still defaults to off in production, so the routes, GraphQL surface, and home-page
+entry point stay inactive". The default is still off; production is not. The routed slot sets it explicitly, and
+the room has been live since its own experience release. Correcting that sentence is a documentation change about a
+different feature's release state, so it is raised as a follow-up idea brief rather than absorbed here.
+
+**Durable owner:** a follow-up idea brief, raised at archival.
