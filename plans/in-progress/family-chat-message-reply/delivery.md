@@ -780,10 +780,10 @@ reconciliation rather than ticking the item.
 Runs only after every substantive phase above is complete and its checkpoint is green.
 **Not triggered 2026-09-22:** both manual passes ran in Phase 8, before the release; every finding was fixed or accepted there. No finding arose after the experience release.
 
-- [ ] `[AI] [AC-FCR-01..14]` Resolve every `learnings.md` entry to exactly one durable owner — governance,
+- [x] `[AI] [AC-FCR-01..14]` Resolve every `learnings.md` entry to exactly one durable owner — governance,
       specification, test, code comment, permanent documentation, or idea brief — or discard it with a stated
       reason. **Proof:** no unresolved entry remains; each carries its owner or its discard reason.
-- [ ] `[AI] [AC-FCR-01..14]` Raise the follow-up idea briefs this plan deliberately deferred, deduplicated against
+- [x] `[AI] [AC-FCR-01..14]` Raise the follow-up idea briefs this plan deliberately deferred, deduplicated against
       the existing ones: retiring `BNEST_FAMILY_CHAT_REPLY_ENABLED` after the rollback window, and swipe-to-reply as
       an optional gesture with its accessibility evidence. **Proof:** the briefs exist under `plans/ideas/<quadrant>/`
       with their quadrant justified by dated evidence, or a recorded decision not to raise them.

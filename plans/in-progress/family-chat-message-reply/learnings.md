@@ -1355,3 +1355,32 @@ a rebuild.
 Both are recorded in `delivery.md` as unticked with this entry named.
 
 **Durable owner:** the idea brief above covers the posture half; the routed-pass half belongs to the user.
+
+### 2026-09-22 — Durable-owner resolution
+
+Every entry in this file is resolved. Twenty carry a `Durable owner:` line of their own. The remaining twenty-two
+are resolved by class here, because they are not execution learnings and inventing an owner line for each would be
+bookkeeping rather than resolution:
+
+| Class                                                                                            | Entries | Resolution                                                                                                                  |
+| ------------------------------------------------------------------------------------------------ | ------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Decision records `D1`–`D11`                                                                      | 11      | Owned by the plan itself. They record what was decided and why before implementation, and the plan is the durable artifact. |
+| Quality-gate audit sections — snapshot, ledger, scope exclusions, verification, verdict          | 5       | Owned by the gate's own record. They describe one run of a workflow, not a lesson that outlives it.                         |
+| Phase 8 finding sub-sections — inside the plan, outside the plan, wrong reports, cross-reference | 4       | Their parent sections carry the owner. The out-of-plan findings resolved to the idea briefs raised below.                   |
+| Branch-closure and pre-existing-check notes from planning                                        | 2       | Consumed by the plan they shaped; nothing outlives them.                                                                    |
+
+Idea briefs raised at archival, deduplicated against the existing ones:
+
+| Brief                                   | Quadrant | Carries                                                                    |
+| --------------------------------------- | -------- | -------------------------------------------------------------------------- |
+| Release stage flag posture              | Q1       | the measured feature-off window and the preflight dependency gap           |
+| Family chat reply flag retirement       | Q2       | named by this plan as deliberately deferred                                |
+| Family chat swipe to reply              | Q2       | named by this plan, with its accessibility constraint attached             |
+| Family chat room reading on a phone     | Q2       | six out-of-plan usability findings, plus the `Go to that message` proposal |
+| Shared token claims and layer tags      | Q2       | the focus-ring cascade proposal and the `@fe-vitest-unit` obligation       |
+| Family chat room shell and control gaps | Q3       | the remaining four out-of-plan findings                                    |
+
+Nine out-of-plan usability findings became three briefs rather than nine, grouped by theme as the entry that
+deferred them said they would be.
+
+**Durable owner:** none; this is the resolution record.

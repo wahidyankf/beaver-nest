@@ -4,8 +4,10 @@ This quadrant contains time-sensitive ideas whose expected impact is limited. Pr
 
 ## Ideas
 
-No ideas are currently recorded.
+- [Family chat room shell and control gaps](family-chat-room-shell-and-control-gaps.md) fixes four small
+  pre-existing defects where the room's shell or controls claim something untrue.
 
 ## Directory Map
 
-No sibling entries exist in this directory.
+- [Family chat room shell and control gaps](family-chat-room-shell-and-control-gaps.md) records the language
+  declaration, the inert theme control, and the two controls that give no feedback.
