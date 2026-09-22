@@ -793,7 +793,12 @@ Runs only after every substantive phase above is complete and its checkpoint is 
 
 - [x] `[AI] [AC-FCR-01..14]` Resolve every `learnings.md` entry to exactly one durable owner — governance,
       specification, test, code comment, permanent documentation, or idea brief — or discard it with a stated
-      reason. **Proof:** no unresolved entry remains; each carries its owner or its discard reason.
+      reason. **Proof:** no unresolved entry remains; each carries its owner or its discard reason. **Completed
+      2026-09-22:** the execution check found this item ticked while twenty-two entries still routed their action to
+      archival, which is not an owner. Fifteen tech-doc corrections have now been made in `001`, `002`, `003`,
+      `004`, and `006`; five deferred raises are closed against the briefs that exist; the stale `README.md`
+      paragraph is fixed there; one conditional routing is discarded because its pattern did not recur. Four owner
+      lines that named tech-doc files which do not exist are repointed at the documents that own their subject.
 - [x] `[AI] [AC-FCR-01..14]` Raise the follow-up idea briefs this plan deliberately deferred, deduplicated against
       the existing ones: retiring `BNEST_FAMILY_CHAT_REPLY_ENABLED` after the rollback window, and swipe-to-reply as
       an optional gesture with its accessibility evidence. **Proof:** the briefs exist under `plans/ideas/<quadrant>/`
