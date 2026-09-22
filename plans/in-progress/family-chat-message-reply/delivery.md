@@ -502,26 +502,59 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
 
 ## Phase 6 — Quote Rendering, Jump, and Styles
 
-- [ ] `[AI] [AC-FCR-06, AC-FCR-07]` **RED** — extend the frontend unit suite: a message with `replyTo` renders a
+- [x] `[AI] [AC-FCR-06, AC-FCR-07]` **RED** — extend the frontend unit suite: a message with `replyTo` renders a
       quote button with the sender, the preview, and the composed accessible name; a message without it renders none;
       a quote never renders a nested quote; and every window path — initial, older, resumed, appended, and reconciled
       — renders the same quote for the same message. **Proof:** `FE_UNIT` fails. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-06, AC-FCR-07]` **GREEN** — implement quote rendering in `message_render.js` and wire it into
+      **2026-09-22:** `FE_UNIT` failed with `Failed to resolve import
+      "../../../js/family_chat/message_quote_render.js"`.
+      `apps/bnest-app/assets/test/unit/family_chat/message_quote.test.ts` `[N]`, 15 cases under
+      `@vitest-environment happy-dom`: the card's presence and absence, the sender and the server's own preview, the
+      composed accessible name verbatim, that it is a `<button type="button">` and not a link, the target id the
+      jump needs, `System` for a system sender, escaping rather than interpreting the quoted text, and — separately
+      — the same quote rendered through all six window paths (initial, older, resumed, appended newer, reconciled
+      own send, live remote arrival) driven through the real `createRealStore`.
+- [x] `[AI] [AC-FCR-06, AC-FCR-07]` **GREEN** — implement quote rendering in `message_render.js` and wire it into
       `real_store_render.js`. **Proof:** `FE_UNIT` passes. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-06]` **REFACTOR** — render the quote through one function used by every path, so a new path
+      **2026-09-22:** `message_quote_render.js` `[N]` owns the card; `bubbleNode` appends it between the meta line
+      and the body, so a screen reader hears who is being answered before it hears the answer. Sender and preview
+      go in through `textContent`, never markup. 15 passed (15). Landed in `55601a40c`.
+- [x] `[AI] [AC-FCR-06]` **REFACTOR** — render the quote through one function used by every path, so a new path
       cannot forget it. **Proof:** `FE_UNIT` still passes. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-08]` **RED** — extend `apps/bnest-app/assets/test/unit/family_chat/history.test.ts`: a target in
+      **2026-09-22:** all seven `messageNode` call sites across `real_store.js` and `real_store_render.js` funnel
+      through the one renderer, so quote rendering is structurally impossible to forget on a new path — the same
+      argument `withRovingRefresh` makes for the tab stop. The spec asserts it as six separate window paths rather
+      than by inspection. `FE_UNIT` still green.
+- [x] `[AI] [AC-FCR-08]` **RED** — extend `apps/bnest-app/assets/test/unit/family_chat/history.test.ts`: a target in
       the window jumps without fetching; a target two pages up loads exactly two pages; a target beyond five pages
       requests exactly five and then announces the refusal; and the unread divider and `hasNewer` are untouched in
       all three cases. **Proof:** `FE_UNIT` fails. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-08]` **GREEN** — implement `apps/bnest-app/assets/js/family_chat/jump_to_message.js` and its
+      **2026-09-22:** `FE_UNIT` failed with `TypeError: history.jumpToMessage is not a function`. Six new cases:
+      no fetch for a target already in the window, exactly two pages for a target two pages up, exactly five and
+      then the refusal beyond the bound, the unread divider and `hasNewer` unchanged on all three paths, the stored
+      read position unmoved, and an early stop once the target arrives rather than spending the whole budget.
+- [x] `[AI] [AC-FCR-08]` **GREEN** — implement `apps/bnest-app/assets/js/family_chat/jump_to_message.js` and its
       bounded use of the existing older-page path in `history.js`. **Proof:** `FE_UNIT` passes. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-08]` **REFACTOR** — express the bound as one named constant beside the page size rather than a
+      **2026-09-22:** `jump_to_message.js` `[N]` decides; `history.js` exposes it through `createJumpMethod`, reusing
+      its own `loadOlder` rather than a second pager. Kept out of `history.js` deliberately: navigation must not move
+      the unread divider, `hasNewer`, or the stored read position, and a separate module is how that stays true as
+      `history.js` grows. `mount_browser_jump.js` `[N]` is the browser half. 17 passed (17).
+- [x] `[AI] [AC-FCR-08]` **REFACTOR** — express the bound as one named constant beside the page size rather than a
       literal at the call site. **Proof:** `FE_UNIT` still passes. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-08, AC-FCR-10]` **RED then GREEN** — add the quote card, menu, mobile sheet, reply strip,
+      **2026-09-22:** `MAX_JUMP_PAGES` and `JUMP_REFUSED_REMEDIATION` are exported beside a re-export of
+      `MESSAGE_PAGE_SIZE`, so the bound is readable as "five pages of at most fifty" at one place. Both the unit spec
+      and the Gherkin binding for "no more than five older pages are requested" read the constant rather than
+      repeating `5`, and the binding asserts the constant still equals the number the scenario spells out — so a
+      change to one that is not made to the other fails rather than drifting. `FE_UNIT` still green.
+- [x] `[AI] [AC-FCR-08, AC-FCR-10]` **RED then GREEN** — add the quote card, menu, mobile sheet, reply strip,
       highlight, `prefers-reduced-motion`, and coarse-pointer rules to `apps/bnest-app/assets/css/app.css`.
       **Proof:** the existing horizontal-overflow structural check still passes with no fixed pixel width added, and
       `FE_UNIT` is green. Command: `FE_UNIT`.
+      **2026-09-22:** all seven rule groups added. The highlight is carried by `data-jump-highlight`, which the
+      stylesheet answers with a pulse ordinarily and a held outline under `prefers-reduced-motion` — a media query
+      only CSS can see, which is why the script sets an attribute rather than animating. No fixed pixel width was
+      introduced; `hasHorizontalScroll()` still passes and `FE_UNIT` is green (297 passed). Whether the computed
+      `animation-name` really is `none` under a real reduced-motion preference is FE_E2E's.
 - [ ] `[AI] [AC-FCR-01, AC-FCR-02, AC-FCR-03, AC-FCR-06, AC-FCR-08, AC-FCR-09, AC-FCR-10]` **RED then GREEN** — bind
       and pass the browser scenarios in `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply.steps.ts` and
       `apps/bnest-app-fe-e2e/tests/support/family-chat-reply.ts`, awaiting real state rather than sleeping, using
