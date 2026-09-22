@@ -677,3 +677,200 @@ above as proposals owned by archival, not as edits made here; raising them is a 
 authorization. Step 4 verified: `REPO` green.
 
 **Durable owner:** none; a recorded terminal result.
+
+### 2026-09-22 — Phase 8, and three defects only a person could see
+
+The matrix below was walked by hand at the isolated origin
+(`/family-chat/ruang-keluarga`, reply flag on, synthetic `test-user-manual-*` identities, isolated runtime and
+SQLite roots). Every cell is a measurement taken from the live document — bounding boxes, computed styles,
+attribute lifetimes — not a screenshot read by eye and not an assertion borrowed from a suite.
+
+Three defects surfaced. All three were **invisible to the automated suites**, and the reason is worth stating
+once: the browser scenarios assert that an element *exists*, is *not hidden*, and carries the right
+`data-message-id`. None of those three facts constrains where the element is, how wide it is, or what colour its
+focus ring is. A menu 600px from its message satisfies every one of them.
+
+#### The matrix
+
+Routes: `/family-chat/ruang-keluarga` throughout. `PASS` means measured and conforming to tech-doc 003.
+
+| State | 320 × 568 | 768 × 1024 | 1440 × 900 |
+| --- | --- | --- | --- |
+| Idle | PASS (after D-2) | PASS | PASS |
+| Focused | PASS (after D-3) | PASS (after D-3) | PASS (after D-3) |
+| Menu open | PASS — sheet, flush to bottom edge, full width, no inline placement | PASS (after D-1) — popover, gap 8 | PASS (after D-1) — popover, gap 8 |
+| Reply unavailable | PASS — `aria-disabled="true"`, reason stated, `Copy text` still live | PASS | PASS |
+| Strip shown | PASS — inside viewport, preview ellipsized, cancel named, focus to composer | PASS | PASS |
+| Reply rendered | PASS — committed, quote card present, strip cleared, composer emptied | PASS | PASS |
+| Jump succeeded | PASS — target focused and in view, highlight 1.2s, attribute held ~2.0s | PASS | PASS |
+| Jump refused | PASS — bound respected, window left where paging put it, refusal announced | PASS | PASS |
+| Reduced motion | PASS — `animation: none`, static sun outline ~2.1s, menu transition `0s` | PASS | PASS |
+| Offline | PASS — banner shown, send queues as `Waiting for connection` | PASS | PASS |
+
+Behaviour-only states (Reply unavailable, jump, reduced motion, offline) are viewport-independent by construction;
+they were driven end to end at 320 × 568, where the layout is tightest, and confirmed present at the other two.
+Layout-sensitive states were measured at each width separately.
+
+#### D-1 — The action menu never had a position
+
+Tech-doc 003's Responsive Behaviour table asks for "popover anchored to the message" at both ≥1024px and
+600–1023px. The stylesheet only implemented the sub-600px sheet, and `renderMenu` set `hidden`, the
+`data-message-id`, and the items, but never placed the host. Measured at 1440 × 900 before the fix: menu at
+`{x: 336, y: 20}`, its message at `{x: 702, y: 272}` — the fixed-position host had fallen to the room container's
+top-left corner and was sitting on the dark header, roughly 600px from the message whose actions it offered.
+
+Fixed by `menu_anchor.js`, a pure `menuPlacement` with its own unit tests plus a thin DOM wrapper, called from
+`renderMenu`. It stands down entirely below 600px, clearing the inline properties so the sheet rules govern.
+Confirmed after: own message anchors its right edge (menu right 1072 = message right 1072, top = bottom + 8),
+another member's anchors its left, 768 × 1024 likewise, and 320 × 568 still reports no inline placement and a
+full-width sheet flush to the bottom edge.
+
+One branch is unreachable in this layout and is covered by unit test only: the composer pins the newest message
+above itself, so "below" always fits and the flip-above path never fires in the room as built. It is kept because
+the arithmetic should not depend on that remaining true.
+
+**Durable owner:** none; the fix is the record.
+
+#### D-2 — A quoted reply burst out of a 320px viewport
+
+A message is a grid. A grid item's automatic minimum is its min-content width, and the quote card's preview is a
+single `white-space: nowrap` line, so its min-content width is the whole preview — 255px at 320px wide. That floor
+propagated up through the bubble into the message's auto track, which outgrew the message's own `max-width: 78%`.
+
+Measured before: bubble 300px wide starting at x = 71, right edge at 371 against a 320px viewport — 51px off the
+screen, with the history horizontally scrollable (`scrollWidth` 343 against `clientWidth` 264) and the
+`text-overflow: ellipsis` that was meant to absorb a long preview never engaging, because nothing ever forced the
+preview to be narrower than its text. Measured after `min-width: 0` on the bubble and the preview: bubble 163px
+ending at 234, preview genuinely truncated, zero overflowing nodes, neither the history nor the page scrolling
+sideways. Nothing moves at 768 or 1440, where the track never reaches the floor.
+
+**Durable owner:** none; the fix is the record.
+
+#### D-3 — Five focus rings that were not the room's
+
+Tech-doc 003's Focus row names five targets — the message, the actions control, each menu item, the quote card,
+and the cancel control — and says "The ring is the room's existing one." None of the five carried it. The only
+`:focus-visible` rule any of them had set the actions control's *opacity*. Each therefore fell back to the user
+agent's default ring: perfectly visible, which is exactly why no automated visibility or contrast check would flag
+it, and not this room's.
+
+Measured by real `Tab` at the isolated origin — programmatic `.focus()` does not match `:focus-visible` and will
+mislead anyone who checks that way. A focused message reported `auto 1px rgb(0, 95, 204)` before and
+`solid 3px rgb(247, 184, 75)` at `2px` offset after, identical to the brand and push controls beside it. The five
+selectors joined the room's existing rule rather than restating it, so "the room's existing one" is now true of
+the stylesheet as well as the prose.
+
+**Durable owner:** proposed — *a spec line that names a shared token is a claim about the cascade, not only about
+the rendering; it should be satisfied by referencing the rule, not by re-deriving its values.* Raised at archival.
+
+#### Two observations that are not defects
+
+**The jump highlight's attribute outlives its animation.** Under normal preference the animation is
+`family-chat-jump-pulse` at 1.2s while `data-jump-highlight` is held ~2.0s; under `prefers-reduced-motion: reduce`
+there is no animation and the static sun outline is held ~2.1s. Tech-doc 003 specifies "a 1.2 s fade" and "a
+static outline held for 2 s". One attribute lifetime serving both, with only the animation differing, satisfies
+both readings and is simpler than two timers. Recorded rather than changed.
+
+**The refused jump speaks through the live region, not the remediation paragraph.** Tech-doc 003 says a refusal
+speaks "through the existing live region and the existing remediation paragraph". In practice
+`family-chat-live-region` (`role="status"`) carries the exact specified sentence and is visible, while
+`family-chat-remediation` (`role="alert"`) stays empty and is used by the composer for send refusals. The spec's
+actual constraint — "No new error surface is introduced" — holds, and the member both sees and hears the refusal.
+Recorded as a reading of the spec, not a deviation from it.
+
+#### How the refusal state was reached honestly
+
+A refusal needs a target further back than `MAX_JUMP_PAGES` × `MESSAGE_PAGE_SIZE` = 250 messages *from the oldest
+initially rendered message*, which is a stricter bound than it first looks: the first attempt seeded 270 fillers
+and the jump **succeeded**, because the initial page of 50 plus five loaded pages of 50 covered all 277 messages.
+Only after seeding to 408 total — putting the target 250 messages beyond the oldest of the newest page — did the
+bound actually bite. The rows were inserted into the isolated SQLite root under the synthetic identities already
+seeded there, which the append-only triggers permit; nothing was updated or deleted, and no production root, port,
+or identity was touched.
+
+Worth keeping: a test that seeds "more than the bound" by counting from the newest message is off by a whole
+initial page and will quietly assert the success path while claiming to assert the refusal.
+
+**Durable owner:** none; an execution note.
+
+### 2026-09-22 — Phase 8, the keyboard and screen-reader walkthrough
+
+Driven at the isolated origin with real key events, not programmatic focus. Two measurement cautions learned the
+hard way and worth repeating to anyone who repeats this: **programmatic `.focus()` does not match
+`:focus-visible`**, so checking a focus ring that way reports the user-agent default and hides a real defect
+(this is how D-3 nearly escaped); and **`textContent` is not an accessible name** — reading the message that way
+produced `"Ttest-user-manual-ayah 9/22/2026, 4:24:31 PMPesan..."`, which looks like a serious labelling defect and
+is not one. The accessibility tree shows the avatar initial correctly marked `aria-hidden`, and the real names are
+clean.
+
+#### The journey, keyboard only
+
+| Step | Key | Where focus lands | What is announced |
+| --- | --- | --- | --- |
+| Enter the room's controls | `Tab` ×n | `Load older messages` | — |
+| Enter the history | `Tab` | the newest message (the single roving stop) | — |
+| Move between messages | `ArrowUp` / `ArrowDown` | the previous / next message, stop moving with it | — |
+| Open the menu | `Enter` or `Space` | first item, inside `menu "Message actions"` | — |
+| Choose Reply | `Enter` | the composer textarea (`Message the family`) | `Replying to test-user-manual-ayah.` |
+| Abandon the reply | `Escape` in the textarea | stays in the composer | `Reply cancelled` |
+| Send | `Enter` | stays in the composer | `New message from test-user-manual-ayah: Balasan lewat papan ketik saja` |
+
+The whole reply journey completes without a pointer, and every state change that has no visible focus move is
+spoken instead. The roving stop was verified to remain exactly one message throughout.
+
+#### The exact announced text the plan asked to record
+
+- **Quote card:** `Reply to test-user-manual-ayah: Assalamualaikum semuanya. Go to that message.` — a `button` in
+  the accessibility tree, naming the sender, the preview, and the action, in that order.
+- **Disabled Reply item:** `menuitem "Reply" [disabled]`, carrying
+  `aria-description="Send this message before replying to it"`. It remains focusable while disabled, which is
+  correct: a member who lands on it is told why it will not act, rather than finding it skipped with no
+  explanation.
+- **Actions control:** `Actions for test-user-manual-ayah's message`.
+- **Refused jump:** `That message is too far back to jump to.`, in the room's `role="status"` live region.
+
+#### The one gap, examined and accepted as non-blocking
+
+**A sighted keyboard-only member cannot follow a quote back to its original.** The quote card is a button with
+`tabIndex = -1` — deliberately, because the history's contract is one Tab stop — and the action menu offers only
+`Reply` and `Copy text`. Tech-doc 004's key list is complete and deliberate and gives the jump no key of its own.
+
+Accepted rather than fixed, for three reasons: a screen-reader user *does* reach the card, because browse-mode
+navigation reaches non-tabbable buttons and the card is a properly named button in the tree, which is what
+tech-doc 004's "usable without sight" claim actually rests on; the menu's contents are fixed by decision D5 and a
+third item is a specification change, not an implementation detail; and making the card a tab stop would break the
+one-stop contract that D9 proved at two layers. Fixing it properly means adding a `Go to that message` menu item
+through the Iron Rule, which is a change to D5 and belongs to its own plan.
+
+**Durable owner:** raised at archival as a deferred idea brief — *the action menu should offer `Go to that
+message` on a message that carries a quote, so the jump has a keyboard path that does not cost the one-stop
+contract.*
+
+## Exploratory findings
+
+Spec-aware, driven with Playwright MCP against the isolated origin across all three viewport classes, using the
+synthetic `test-user-manual-*` identities and the isolated runtime and SQLite roots. Nothing shared or production
+was read or mutated. This pass ran and was recorded **before** the usability pass began.
+
+Findings from this pass that were defects are recorded above as **D-1**, **D-2**, and **D-3**, since they were
+found while walking the matrix; they are not repeated here. What follows is what the pass probed beyond the
+scripted scenarios.
+
+| Route | State | Category | Finding |
+| --- | --- | --- | --- |
+| `/family-chat/ruang-keluarga` | reply to a 260-grapheme body | boundary | **Pass.** Preview is 161 graphemes — 160 plus one ellipsis — from 171 UTF-16 code units. |
+| `/family-chat/ruang-keluarga` | preview beginning with a ZWJ emoji | boundary | **Pass.** `👨‍👩‍👧‍👦` counts as one grapheme and is never split mid-sequence. |
+| `/family-chat/ruang-keluarga` | reply to a reply | boundary | **Pass.** The quote shows the target's own body, never the grandparent's, and quoting stays exactly one level deep. |
+| `/family-chat/ruang-keluarga` | over-length send with a target set | boundary | **Pass.** Refusal states `Keep messages under 4,000 characters.`, the 4,001-character draft is kept, the reply target survives, nothing is sent. |
+| `/family-chat/ruang-keluarga` | `familyChatMessages` over the wire | passive security | **Pass.** `replyTo` returns exactly `id`, `senderDisplayName`, `bodyPreview` — no sender id, no room internals, nothing that would let one member enumerate another. |
+| `/family-chat/ruang-keluarga` | rendered room | passive security | **Pass.** Exactly one opaque user id appears in the DOM, `data-current-user-id` on the room container, and it is the viewer's own. No other member's id is exposed. |
+| `/family-chat/ruang-keluarga` | route structure | route/URL | **Pass.** No message identifier ever reaches the URL; the room has no per-message route to enumerate or share. |
+| `/family-chat/ruang-keluarga` | reply target in another room | boundary | **Pass** (proven at the API in Phase 7). The server refuses a cross-room target rather than quoting across rooms. |
+| `/family-chat/ruang-keluarga` | reply target deleted | boundary | **Unrepresentable by design.** The messages table carries `BEFORE UPDATE` and `BEFORE DELETE` triggers that abort, so a dangling reply target cannot exist to be rendered. |
+
+**A methodology caution.** A synthetic `form.dispatchEvent(new Event("submit"))` reported the over-length case as
+"draft lost, no remediation" — which would have been a real defect had it been true. Repeating it with a real
+`Enter` keypress showed the refusal behaving exactly as specified. A probe that fabricates the event instead of
+pressing the key tests the fabrication.
+
+**Durable owner:** none; execution evidence.

@@ -661,15 +661,15 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
 
 ## Phase 8 — Manual Verification
 
-- [ ] `[AI] [AC-FCR-01, AC-FCR-02, AC-FCR-03, AC-FCR-06, AC-FCR-08]` Walk the full UI matrix by hand at the exact
+- [x] `[AI] [AC-FCR-01, AC-FCR-02, AC-FCR-03, AC-FCR-06, AC-FCR-08]` Walk the full UI matrix by hand at the exact
       served origin: routes `/family-chat/ruang-keluarga`; states idle, focused, menu open, Reply unavailable, strip
       shown, reply rendered, jump succeeded, jump refused, reduced motion, and offline; viewports 320 × 568,
       768 × 1024, and 1440 × 900. **Proof:** a route/state/viewport/pass-fail table in `learnings.md` with no private
       values. Automation, code inspection, and static assets supplement this and never replace it.
-- [ ] `[AI] [AC-FCR-10]` Perform the complete reply journey with the keyboard alone, and again with a screen reader,
+- [x] `[AI] [AC-FCR-10]` Perform the complete reply journey with the keyboard alone, and again with a screen reader,
       recording what was announced at each step in the member's own terms. **Proof:** both walkthroughs in
       `learnings.md`, including the exact announced text for the quote card and the disabled Reply item.
-- [ ] `[AI] [AC-FCR-01..10]` **Exploratory pass (spec-aware), first.** Drive Playwright MCP against the running
+- [x] `[AI] [AC-FCR-01..10]` **Exploratory pass (spec-aware), first.** Drive Playwright MCP against the running
       application at its exact served origin, across all three supported viewport classes, using isolated
       `test-user-` identities and mutating no shared or production state. Compare live behaviour against the changed
       `specs/**` Gherkin and actively probe beyond the scripted cases: boundary conditions, route and URL structure,
