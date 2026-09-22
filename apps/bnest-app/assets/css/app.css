@@ -2036,6 +2036,12 @@ body {
 }
 
 .family-chat-message-bubble {
+  /* The message is a grid, and a grid item's automatic minimum is its
+   * min-content width -- which the quote card's single nowrap line makes
+   * as wide as the preview. Without this the track outgrows the message's
+   * own `max-width`, the bubble hangs off the narrow viewport, and the
+   * ellipsis that is supposed to absorb a long preview never engages. */
+  min-width: 0;
   padding: 0.5rem 0.75rem;
   /* Other members: white with a lagoon-tinted border and the "tail" corner
    * at top-left; own sends flip both fill and tail below. */
@@ -2422,6 +2428,8 @@ body {
 /* One line, whatever the preview's length: the server already bounded it to
  * 160 graphemes, and the card is context rather than content. */
 .family-chat-message-quote-preview {
+  /* Same reason, one level down: the card is a flex container. */
+  min-width: 0;
   overflow: hidden;
   font-size: 0.82rem;
   white-space: nowrap;
