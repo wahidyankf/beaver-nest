@@ -1,5 +1,6 @@
 ---
-description: "Guides judging whether a plan draft is complete, clear, and executable, beyond what structural validation can mechanically check."
+description: |-
+  Guides judging whether a plan draft is complete, clear, and executable, beyond what structural validation can mechanically check.
 name: plan-validating-quality
 ---
 

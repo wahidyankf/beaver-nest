@@ -32,17 +32,25 @@ Children receive immutable `HIPPO_CONCURRENCY` and `HIPPO_RESERVED_MEMORY_BYTES`
 `NX_PARALLEL`, `GOMAXPROCS`, and `DOTNET_PROCESSOR_COUNT`; missing values receive it, smaller values survive, larger ones
 clamp, and malformed values fail.
 
-- Exit `75` is retryable only when a new schema-1 receipt proves `never-started`; pressure-shed,
-  storage-shed, `started-safety-stop`, and child-owned `75` require payload-specific recovery.
-- Exit `76` is a peer protocol mismatch. Never retry it; inspect `./hippo status`, then drain or
-  upgrade the incompatible client. A legacy client without distinct exit `76` can still report the
-  mismatch as `75`, but has no qualifying receipt.
-- Exit `73` is storage-blocked. Safely free space before retrying.
-- Exit `78` means invalid configuration, impossible reservation, invalid mapping, or a strict
-  profile mismatch. Replan rather than cooldown-loop.
-- Exit `1` means malformed shared state or Hippo-owned post-launch cleanup; never classify it as capacity.
+A status says what to do; the `hippo: [hippo.area.reason]` line on stderr says which case. Two
+reasons under one status can need opposite responses, so read both.
 
-Child codes pass through; without a new `never-started` receipt, `75` and `76` stay child-owned.
+- Exit `124` is a limit stopping the work. `hippo.limit.storage-blocked` means safely free space
+  first, since waiting frees no disk. `hippo.limit.capacity-deferred` is retryable only when a new
+  schema-1 receipt proves `never-started`; a pressure shed or a `started-safety-stop` requires
+  payload-specific recovery.
+- Exit `125` means HIPPO started nothing. `hippo.coordination.protocol-mismatch` is a peer protocol
+  mismatch: never retry it; inspect `./hippo status`, then drain or upgrade the incompatible client.
+  `hippo.policy.replan-required` and the `hippo.config.*` reasons mean invalid configuration, an
+  impossible reservation, an invalid mapping, or a strict profile mismatch. Replan rather than
+  cooldown-loop.
+- Exit `2` means the invocation itself is unusable. Read the diagnostic and fix the command.
+- Exit `126` and `127` mean the guarded command cannot be executed, or is not there.
+- Exit `1` means the work ran and the answer is empty: a result, never a capacity signal.
+
+Child codes pass through, including ones colliding with a status HIPPO uses; only HIPPO's own
+failures write that `hippo:` line, and without a new `never-started` receipt a code stays
+child-owned.
 
 `hippo.lock` pins identity, not semantics. Before changing behaviour, read the Hippo repository at the commit in
 `hippo.lock`, then align rules, Gherkin, and checks with its documented capabilities. Never infer capability from SemVer
