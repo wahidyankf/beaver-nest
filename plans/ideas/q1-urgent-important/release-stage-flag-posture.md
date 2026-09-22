@@ -34,6 +34,31 @@ belongs in the same list. `git status` is clean either way, so nothing signals i
 
 Both observations are shape only; no private value, hostname, or user data appears here.
 
+**A promoted slot reports ready before it can reach the database.** Added 2026-09-22 while proving AC-FCR-13's
+rollback floor. `promoteCandidateWithReplyFlag` rewrites Caddy's upstream and then polls `/health/ready` until it
+answers with the target revision. That poll passing does not mean the new process can serve a database-backed
+request: a mutation landing just after it comes back `Internal Server Error`, and the slot's own log says why —
+
+```
+[error] ** (exit) exited in: DBConnection.Holder.checkout(...)
+    ** (EXIT) shutdown
+```
+
+The scenario that found it now waits for a database-backed read to succeed before committing anything, but the
+wait lives in one step file. Every browser scenario that promotes a slot and then writes is exposed to the same
+window, and `/health/ready` is the signal all of them trust.
+
+This sits beside the flag-posture problem rather than inside it because it is the same shape of error: a release
+signal that is narrower than what a reader assumes it covers. `/health/ready` answers for the process; it does not
+answer for the process's connection pool. The compatibility release's flag omission was likewise a posture nobody
+had stated, and both went unnoticed because the thing that would have caught them was never asked.
+
+**A second, unrelated observation from the same run.** `A member opens the message action menu` fails at tablet
+and mobile viewports on `main` — one to two failures out of thirteen across repeated isolated runs, with the menu
+staying `hidden`. It reproduces with the reply plan's additions removed, so it predates them. It may share the
+slot-churn cause above; that is a guess and is recorded as one. It is noted here because it means the family-chat
+browser suite is not green on this machine, which several plan records assume it is.
+
 ## Why Now
 
 Bnest is a 24/7 household service, and the flag gap is an availability defect that the continuity budget cannot

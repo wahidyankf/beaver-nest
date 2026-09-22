@@ -1571,3 +1571,125 @@ Two things this round also settled that were not miscounts:
 **Durable owner:** the corrections in `delivery.md` and `tech-docs/006-file-impact-and-release.md`, plus
 `plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`, which is where the general form of the
 counting rule belongs if it is ever made a convention.
+
+### 2026-09-22 — Three blockers closed by decision, not by assumption
+
+The re-check left three branches open that no amount of further checking could settle, because each was a choice
+about what this plan owes rather than a fact about what it did. They were put to the user one at a time through the
+`grill-me` gate, with the trade-offs stated and a single recommendation each. All three were resolved; the
+selections and their reasons are recorded here because a conversation is not a durable record.
+
+**D12 — AC-FCR-13's rollback-floor scenario: prove it in the browser suite.** Selected over re-scoping the
+criterion, deferring it into the flag-retirement brief, or discussing further.
+
+The reasoning that made this available at all is worth keeping, because the plan had talked itself out of it.
+`tech-docs/005-specification-changes.md` kept the scenario out of `specs/` on the grounds that it "asserts a
+property of a release procedure at a moment in time, not of the deployed system", so "encoding it as a scenario
+would create a test with no runnable subject between releases". That reason does not hold for **this** plan. Phase
+10 released _the same reviewed revision_ as Phase 9 with `BNEST_FAMILY_CHAT_REPLY_ENABLED` flipped on, so the
+rollback floor and the experience revision are one build differing by one flag. "Rolled back to the compatibility
+revision" therefore means "the same code with the reply flag off" — a posture the browser suite already stands up,
+since its experience-release scenarios run two candidate slots under different flag postures. The subject is
+runnable, and the harness's one-build-two-postures shape is faithful here rather than a substitute for something
+stronger.
+
+The second half of the scenario is answerable for the same reason 002 gives: with the reply flag off the server
+still **serves** `replyTo`, and only the browser stops asking. A browser holding the reply-aware bundle keeps
+asking, so existing quotes keep rendering. That asymmetry is the whole basis of the compatibility release, and
+until now nothing proved it from the floor's side.
+
+**D13 — the routed manual pass on the real household surface: descoped, and said plainly.** Selected over having
+the user log in and hand off an authenticated tab, and over the user running the pass and reporting it.
+
+This closes the item on evidence already held — the ticked `test-user-` routed pass, Phase 8's six manual layers
+before the release, and the browser suite — and records that the real-household pass was **not taken**. The cost is
+stated rather than softened: the criterion existed precisely because tests do not substitute for looking at the
+real surface, and this closes it with tests. What tipped it is that the pass would have written a real message into
+a live family room to satisfy a checklist, and that is a poor reason to post in someone's household chat.
+
+**D14 — AC-FCR-14: accepted as partial, on the record.** Selected over amending the criterion to fit the evidence,
+and over re-releasing to manufacture the measurements.
+
+Two of its four stage sample sets were never taken and neither slot still exists, so neither can be retaken. Both
+items and both checkpoints stay unticked, and the criterion is recorded as holding at two of four stages. The
+distinction that matters, and that the record now states: the service was never shown to be slow — every sample
+ever taken returned 200 inside budget — it was shown to be **unmeasured** at two moments. Amending the outline to
+fit what survived was rejected because it would have been the executor who missed the evidence rewriting the
+requirement to match, after the fact; if that reshaping is right it is right for every plan, which makes it a
+governance change rather than a plan amendment.
+
+**Durable owner:** the three decisions are implemented in `delivery.md`, `prd.md`, and
+`tech-docs/005-specification-changes.md`; this entry is the reasoning behind them.
+
+### 2026-09-22 — Proving the rollback floor, and what the proof found on its way
+
+D12's scenario is green across chromium, tablet-chromium, and mobile-chromium. Getting there took four wrong
+versions, and each was wrong in a way the plan had already been wrong in once.
+
+**Version one asserted stale DOM.** It rolled the route back and then asserted the quote that was already on
+screen. That quote had been rendered _before_ the rollback, so it would have survived the floor answering with
+nothing at all — the assertion could not fail for the reason the scenario exists. This is the same defect as the
+sibling scenario's, which claims in its comment to hold a previous revision's bundle and then calls `page.goto`
+in its `When`, throwing that bundle away. A release scenario has to be read for what its steps _do_, not for what
+its name says.
+
+The fix is that the reply the assertion rests on is committed **after** the rollback. Rendering it requires the
+floor to accept `replyToMessageId` and to serve `replyTo` back with the reply flag off, which is exactly the
+asymmetry `002` claims and nothing else proved.
+
+**Version two tried to "Load older".** There was no older page to load, so the click waited two minutes and timed
+out. Three viewports, six minutes, for a button that was never going to appear.
+
+**Version three seeded through a second browser context**, which had to log in against a slot that had just
+booted. It returned `Internal Server Error` often enough to be worthless. The proof needs no second member: the
+visitor's own page can commit both messages.
+
+**Version four was flaky, and chasing it found something.** Posts carrying `replyToMessageId` intermittently
+returned `Internal Server Error` while a plain post at the same moment succeeded — which looked exactly like a
+product defect, and like one that would have falsified `002`'s asymmetry and with it the compatibility release's
+whole premise. It was not. Persisting the candidate slot's log through a failing run gave the real answer:
+
+```
+[error] ** (exit) exited in: DBConnection.Holder.checkout(...)
+    ** (EXIT) shutdown
+```
+
+The routed slot's SQLite pool was still tearing down. A promotion swaps the process behind the routed port, and
+`/health/ready` answering with the new revision does not mean that process can reach the database yet. The reply
+posts failed because of _when_ they landed, not what they carried — the plain post survived only because it ran a
+moment earlier. The scenario now waits until the routed slot answers a database-backed read before asking it to
+commit anything.
+
+That wait was itself wrong on its first try: its probe query passed `last: 1` where the schema takes `limit`, so
+it never succeeded and simply burned its twenty seconds before every commit. Six runs went from mostly passing to
+three failures out of four, which is at least a loud way to be wrong.
+
+**Version five: the setup stopped waiting on a subscription.** With the probe fixed, the remaining failures were
+all in the `Given`, on mobile, waiting for a committed reply to arrive through a socket that had just survived a
+promotion. That step only stages the state the scenario acts on, so it now reloads and reads the reply back
+instead of waiting for the live push. The constraint that gives this scenario its meaning — never navigating —
+binds from the rollback onwards, and is untouched.
+
+**Stability, measured rather than asserted.** Eight consecutive isolated runs, four tests each — chromium,
+tablet-chromium, mobile-chromium, plus setup — thirty-two for thirty-two, 26.6 s to 29.7 s. The two intermediate
+versions were recorded at two clean runs of six, and one of five. A proof that passes two thirds of the time is
+worse than no proof, because it teaches the next reader to re-run rather than to look.
+
+**The lesson is the one this whole execution keeps relearning, in its sharpest form yet.** I had a failing test, a
+plausible mechanism, and a document whose central claim the failure would have overturned. Every ingredient of a
+confident wrong conclusion was present, and the only thing that prevented it was a five-minute experiment —
+posting a message _without_ a reply target at the same instant — that the hypothesis predicted would also fail.
+It did not. The hypothesis was dead in one run.
+
+**Two things found in passing, neither caused by this work.**
+
+1. `A member opens the message action menu` fails at tablet and mobile viewports on `main`. Running it in
+   isolation with this branch's additions removed: one failure, then two, then one, out of thirteen. The menu
+   stays `hidden`. It is plausibly the same slot-churn window, but that is a guess and is recorded as one. The
+   plan's records describe the browser suite as green; on this machine it is not.
+2. `promoteCandidateWithReplyFlag` and its callers have no writable-route wait, so any scenario that promotes a
+   slot and immediately writes is exposed to the same window.
+
+**Durable owner:** the scenario and its `waitForRoutedReads` helper in
+`apps/bnest-app-fe-e2e/tests/steps/family-chat-rollback-floor.steps.ts`; the two findings above are raised in
+`plans/ideas/q1-urgent-important/release-stage-flag-posture.md`, which already owns release-window behaviour.

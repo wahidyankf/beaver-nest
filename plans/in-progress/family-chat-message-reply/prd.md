@@ -406,6 +406,11 @@ Scenario: The rollback floor can still answer the reply-aware bundle
   And existing replies still render their quotes
 ```
 
+**Proven 2026-09-22 (D12)** as a browser scenario in
+`specs/apps/bnest/app-fe/behaviours/family_chat.feature`, not as a routed observation. The plan had filed it as
+plan-only on the grounds that it had no runnable subject; it does, because the floor and the experience revision
+are one build differing by one flag.
+
 ```gherkin
 Scenario: Promotion moves connected clients without a refresh
   Given two members have Ruang Keluarga open through the routed origin
@@ -415,6 +420,12 @@ Scenario: Promotion moves connected clients without a refresh
 ```
 
 ### AC-FCR-14 — The routed service stays responsive throughout
+
+**Partially met, 2026-09-22 (D14).** Two of this criterion's four release-stage sample sets were taken; two never
+were, and neither slot still exists, so neither can be retaken. The distinction the record keeps: the service was
+never shown to be slow — every sample ever taken returned 200 inside budget — it was shown to be **unmeasured** at
+two moments. The criterion is recorded as holding at two of four stages rather than rewritten to fit what
+survived.
 
 ```gherkin
 Scenario Outline: Routed responsiveness holds at every release stage
