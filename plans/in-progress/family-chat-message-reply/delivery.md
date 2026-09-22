@@ -426,31 +426,69 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
 
 ## Phase 5 — Action Menu, Composer Strip, and Keyboard Reach
 
-- [ ] `[AI] [AC-FCR-01, AC-FCR-02]` **RED** — add
+- [x] `[AI] [AC-FCR-01, AC-FCR-02]` **RED** — add
       `apps/bnest-app/assets/test/unit/family_chat/message_actions.test.ts` covering the decisions without a browser:
       a hold under 500 ms or over 10 px does not open; four triggers reach one open function; a message with no
       server ID yields Reply unavailable with its reason; copy success and copy refusal produce their announcements.
       **Proof:** `FE_UNIT` fails. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-01, AC-FCR-02]` **GREEN** — implement
+      **2026-09-22:** `FE_UNIT` failed with `Cannot find module '../../../js/family_chat/message_actions.js'`. Twenty
+      cases: the hold timer and its 10 px tolerance (including drift measured from the press origin, not between
+      successive moves), all four triggers reaching one open function, one-menu-at-a-time, the returned-focus
+      message outliving the close, Reply unavailable with its reason before a server ID, Copy text still available
+      there, no sender kind special-cased, and both copy announcements.
+- [x] `[AI] [AC-FCR-01, AC-FCR-02]` **GREEN** — implement
       `apps/bnest-app/assets/js/family_chat/message_actions.js`. **Proof:** `FE_UNIT` passes. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-01]` **REFACTOR** — keep gesture recognition, menu state, and action execution in separate
+      **2026-09-22:** implemented. `runCopyAction` resolves `false` rather than rejecting on a refused or absent
+      clipboard — an unhandled rejection there would leave the member believing the copy worked, which is the one
+      outcome the action must not produce. 20 passed (20).
+- [x] `[AI] [AC-FCR-01]` **REFACTOR** — keep gesture recognition, menu state, and action execution in separate
       functions so a later per-message action adds an item and nothing else. **Proof:** `FE_UNIT` still passes.
       Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-01, AC-FCR-03]` **RED then GREEN** — add the menu host and the reply strip to
+      **2026-09-22:** the module exports `createHoldGesture`, `createMenuState`, `menuItemsFor`, and
+      `runCopyAction` as four independent units sharing no state — the gesture knows nothing of the menu, and the
+      menu knows nothing of what its items do. A later per-message action adds one entry to `menuItemsFor` and one
+      branch at the call site. `FE_UNIT` still green.
+- [x] `[AI] [AC-FCR-01, AC-FCR-03]` **RED then GREEN** — add the menu host and the reply strip to
       `apps/bnest-app/lib/bnest_app_web/controllers/family_chat_html/room.html.heex`, the handles to `elements.js`,
       and the bindings to `mount_browser.js` and `mount_browser_composer.js`, including Escape in the textarea.
       **Proof:** `FE_UNIT` covers the binding decisions and passes; the template renders without the flag as well as
       with it. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-10]` **RED** — extend `apps/bnest-app/assets/js/family_chat/accessibility.js`'s own tests so the
+      **2026-09-22:** the template gained one hidden menu host (`role="menu"`, `aria-label="Message actions"`) and
+      the reply strip inside the composer above the textarea, plus
+      `data-family-chat-reply-enabled`, written from `assigns[:reply_enabled] == true` so the shell renders with the
+      assign absent — which is exactly how the compatibility release runs. `elements.js` gained the five handles and
+      was split into a shell half and a composer half for the per-function budget. The bindings live in the new
+      `mount_browser_actions.js`, delegated from the list rather than attached per message, and are wired only when
+      `room.replies` is on. Escape in the textarea clears the target only when one is set.
+      `test/integration/bnest_app_web/family_chat_room_page_test.exs` `[N]` proves both branches at the real route:
+      four cases, `INTEGRATION` 328 tests / 0 failures. `FE_UNIT` 200 passed.
+- [x] `[AI] [AC-FCR-10]` **RED** — extend `apps/bnest-app/assets/js/family_chat/accessibility.js`'s own tests so the
       keyboard-reachability proxy asserts the roving contract on the rendered list — exactly one `tabindex="0"` among
       message items — instead of only scanning the template text. **Proof:** `FE_UNIT` fails against the current
       renderer. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-10]` **GREEN** — implement roving tabindex and arrow-key movement in `message_render.js` and
+      **2026-09-22:** `FE_UNIT` failed with `Failed to resolve import "../../../js/family_chat/roving_focus.js"` and
+      `TypeError: renderProbeList is not a function`. Two new spec files: `roving_focus.test.ts` (13 cases,
+      `@vitest-environment happy-dom`) and `accessibility.test.ts` (4 cases). The first pins the invariant in both
+      failing directions — zero stops and two stops — because a proxy that cannot fail reports safety it never
+      looked for.
+- [x] `[AI] [AC-FCR-10]` **GREEN** — implement roving tabindex and arrow-key movement in `message_render.js` and
       `real_store.js`, and replace `accessibility.js`'s template text scan with the rendered-list invariant.
       **Proof:** `FE_UNIT` passes, and the new check fails when the roving invariant is broken deliberately — prove
       that by breaking it once and recording the failure before restoring it. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-10]` **REFACTOR** — keep the roving stop in the store's state rather than recomputing it from the
+      **2026-09-22:** `roving_focus.js` `[N]` owns the stop; `messageNode` now renders every item `tabindex="-1"`
+      and `createRealStore` promotes exactly one. `accessibility.js`'s template text scan is gone: it renders 50
+      real messages through the shipped renderer into a real DOM and asserts the invariant.
+      **Deliberate RED:** changing `apply`'s reset to `item.tabIndex = 0` made the check fail with
+      `AssertionError: expected false to be true` and `expected [ HTMLLIElement{ …(49) }, …(3) ] to have a length of
+      1 but got 4`; restored from a backup copy. The old scan could not have failed that way — it never looked at a
+      rendered list.
+- [x] `[AI] [AC-FCR-10]` **REFACTOR** — keep the roving stop in the store's state rather than recomputing it from the
       DOM on every key press. **Proof:** `FE_UNIT` still passes. Command: `FE_UNIT`.
+      **2026-09-22:** the stop is held as a message key inside `createRovingFocus`, never read back from "whichever
+      node currently has tabindex 0". That matters beyond key presses: the list is replaced continuously (pending
+      reconciled, older pages prepended, catch-up merged), and a DOM-derived stop would be lost on every one of
+      those paths. `withRovingRefresh` wraps all seven rendering methods rather than calling `refresh()` at each
+      call site, so a future eighth path cannot forget. `FE_UNIT` still green.
 - [ ] `[AI] [AC-FCR-10]` **RED then GREEN** — prove the **real** focus order in a browser: a scenario in
       `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply.steps.ts` that tabs into the history exactly once, moves
       between messages with the arrow keys, opens the menu with Enter, and tabs out exactly once, with 50 messages
