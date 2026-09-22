@@ -3,25 +3,40 @@
 
 import { request as graphqlRequest } from "./graphql.js";
 import {
-  SEND_FAMILY_CHAT_MESSAGE_MUTATION,
+  sendFamilyChatMessageMutation,
   NON_RETRYABLE_CODES,
 } from "./operations.js";
 
 /** Real GraphQL-backed transport: the only path a production message ever
  * takes to actually reach the server. */
-/** @param {string} roomSlug */
-export function createRealTransport(roomSlug) {
+/**
+ * `replies` is the room's reply flag. It gates the document, so with the flag
+ * off the mutation does not declare `replyToMessageId` at all and an older
+ * slot cannot be sent one.
+ * @param {string} roomSlug
+ * @param {{replies?: boolean}} [options]
+ */
+export function createRealTransport(roomSlug, { replies = false } = {}) {
+  const document = sendFamilyChatMessageMutation({ replies });
+
   /**
-   * @param {{clientMessageId: string, body: string}} message
+   * @param {{clientMessageId: string, body: string, replyToMessageId?: string}} message
    * @returns {Promise<import("./outbox.js").TransportResult>}
    */
-  return async function realTransport({ clientMessageId, body }) {
+  return async function realTransport({
+    clientMessageId,
+    body,
+    replyToMessageId,
+  }) {
     let response;
     try {
-      response = await graphqlRequest(SEND_FAMILY_CHAT_MESSAGE_MUTATION, {
+      response = await graphqlRequest(document, {
         roomSlug,
         clientMessageId,
         body,
+        ...(replies && replyToMessageId !== undefined
+          ? { replyToMessageId }
+          : {}),
       });
     } catch {
       return { ok: false, retryable: true };

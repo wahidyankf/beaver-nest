@@ -34,6 +34,9 @@ const namespaces = new Map();
  * @typedef {object} QueuedMessage
  * @property {string} clientMessageId
  * @property {string} body
+ * @property {string} [replyToMessageId] absent on an ordinary message, and
+ *   absent in exactly the same way on a row queued before replies existed --
+ *   which is why there is no upgrade path to write.
  * @property {string} status
  * @property {number} attempt
  * @property {number} retryCount
@@ -90,4 +93,36 @@ export function generateClientMessageId(random) {
   /** @param {number} length */
   const block = (length) => Array.from({ length }, hex).join("");
   return `${block(8)}-${block(4)}-4${block(3)}-${(8 + Math.floor(random() * 4)).toString(16)}${block(3)}-${block(12)}`;
+}
+
+/**
+ * Builds the row a freshly composed message enters the queue as.
+ *
+ * It lives beside the `QueuedMessage` typedef rather than in `outbox.js`
+ * because the row's shape is this module's concern -- and, like the rest of
+ * this split, to stay inside the project's max-lines budget.
+ * @param {import("./clock.js").Clock} clock
+ * @param {string} body
+ * @param {import("./outbox_send.js").SendOptions} opts
+ * @returns {QueuedMessage}
+ */
+export function buildQueuedMessage(clock, body, opts) {
+  return {
+    clientMessageId: generateClientMessageId(clock.random),
+    body,
+    // Spread in only when there is one: an ordinary message carries no
+    // `replyToMessageId` key at all, which is exactly the shape a row queued
+    // before replies existed has. The two are indistinguishable by design, so
+    // nothing downstream needs to know which it is looking at.
+    ...(opts.replyToMessageId === undefined
+      ? {}
+      : { replyToMessageId: opts.replyToMessageId }),
+    status: STATUS.WAITING,
+    attempt: 0,
+    retryCount: 0,
+    createdAt: clock.now(),
+    nextRetryAt: 0,
+    neverSucceed: false,
+    timerHandle: undefined,
+  };
 }

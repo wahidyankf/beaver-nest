@@ -24,6 +24,8 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
  * @typedef {object} SendOptions
  * @property {"retryable"|"non-retryable"} [simulateNetworkFailure] test-only
  *   per-call override; see `attemptSend`'s own comment.
+ * @property {string} [replyToMessageId] the server ID of the message this one
+ *   answers. Absent for an ordinary message.
  */
 
 /**
@@ -47,7 +49,7 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
  *   listeners: Map<string, Set<(status: string) => void>>,
  *   committed: Map<string, object>,
  *   clock: import("./clock.js").Clock,
- *   transport: (message: {clientMessageId: string, body: string}) => Promise<TransportResult>,
+ *   transport: (message: {clientMessageId: string, body: string, replyToMessageId?: string}) => Promise<TransportResult>,
  *   onQueueFull: (() => void) | undefined,
  *   onLogout: (() => void) | undefined,
  *   onAuthExpired: (() => void) | undefined,
@@ -210,6 +212,11 @@ export async function attemptSend(state, message, opts) {
     result = await state.transport({
       clientMessageId: message.clientMessageId,
       body: message.body,
+      // Same optional-by-absence rule as the queued record itself: a
+      // transport never sees the key unless there is a target.
+      ...(message.replyToMessageId === undefined
+        ? {}
+        : { replyToMessageId: message.replyToMessageId }),
     });
   } catch {
     result = { ok: false, retryable: true };

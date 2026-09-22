@@ -27,6 +27,7 @@ function rowKey(namespace, clientMessageId) {
  * @typedef {{
  *   clientMessageId: string,
  *   body: string,
+ *   replyToMessageId?: string,
  *   status: string,
  *   attempt: number,
  *   retryCount: number,
@@ -46,6 +47,13 @@ function toRow(namespace, message) {
     namespace,
     clientMessageId: message.clientMessageId,
     body: message.body,
+    // Written only when there is a target, so a stored row for an ordinary
+    // message is byte-for-byte what it was before replies existed -- which
+    // is why `DB_VERSION` stays at 1 and no migration is needed in either
+    // direction.
+    ...(message.replyToMessageId === undefined
+      ? {}
+      : { replyToMessageId: message.replyToMessageId }),
     status: message.status,
     attempt: message.attempt,
     retryCount: message.retryCount,

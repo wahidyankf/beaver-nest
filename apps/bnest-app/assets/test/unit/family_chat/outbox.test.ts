@@ -8,7 +8,9 @@
 import { describe, expect, it } from "vitest";
 import {
   createOutbox,
+  hydrateNamespace,
   MAX_QUEUED_PER_ROOM,
+  namespaceKey,
   QUEUE_SCHEMA_VERSION,
   STATUS,
 } from "../../../js/family_chat/outbox.js";
@@ -62,10 +64,16 @@ function okTransport(clock: FakeClock) {
  * once instead of repeating a null check at every call site.
  */
 async function sendId(
-  outbox: { send: (body: string) => Promise<string | null> },
+  outbox: {
+    send: (
+      body: string,
+      opts?: { replyToMessageId?: string },
+    ) => Promise<string | null>;
+  },
   body: string,
+  opts?: { replyToMessageId?: string },
 ): Promise<string> {
-  const id = await outbox.send(body);
+  const id = await outbox.send(body, opts);
   if (id === null) throw new Error("expected a clientMessageId, got null");
   return id;
 }
@@ -252,5 +260,109 @@ describe("createOutbox", () => {
 
   it("exports a schema version for the persisted queue format", () => {
     expect(QUEUE_SCHEMA_VERSION).toBe(1);
+  });
+});
+
+describe("queuing a reply", () => {
+  it("carries the reply target through to the transport", async () => {
+    const { userId, roomSlug } = uniqueIdentity();
+    const clock = createFakeClock();
+    const seen: unknown[] = [];
+    const outbox = createOutbox({
+      userId,
+      roomSlug,
+      clock,
+      transport: async (message: { replyToMessageId?: string }) => {
+        seen.push(message.replyToMessageId);
+        return { ok: true, message: { id: "server-1" } };
+      },
+    });
+
+    await outbox.send("Oke, aku siapin", { replyToMessageId: "41" });
+    await outbox.send("Dinner is ready");
+
+    expect(seen).toEqual(["41", undefined]);
+  });
+
+  it("survives a persistence round trip with its target", async () => {
+    const { userId, roomSlug } = uniqueIdentity();
+    const clock = createFakeClock();
+    const rows = new Map<string, Record<string, unknown>>();
+    const persistence = {
+      loadAll: async () => Array.from(rows.values()),
+      save: (_ns: string, message: { clientMessageId: string }) => {
+        rows.set(message.clientMessageId, { ...message });
+      },
+      remove: (_ns: string, clientMessageId: string) => {
+        rows.delete(clientMessageId);
+      },
+      clear: () => rows.clear(),
+    };
+
+    const outbox = createOutbox({
+      userId,
+      roomSlug,
+      clock,
+      persistence,
+      transport: () => new Promise(() => {}),
+    });
+
+    const id = await sendId(outbox, "Oke, aku siapin", {
+      replyToMessageId: "41",
+    });
+
+    expect(rows.get(id)?.replyToMessageId).toBe("41");
+  });
+
+  it("drains a legacy record with no target as an ordinary message", async () => {
+    const { userId, roomSlug } = uniqueIdentity();
+    const clock = createFakeClock();
+    const seen: { body: string; replyToMessageId?: string }[] = [];
+
+    // A row written before this feature existed: no `replyToMessageId` key
+    // at all, which is exactly how a non-reply is stored today. The two are
+    // indistinguishable by design, so a legacy row needs no upgrade path.
+    const legacy = {
+      clientMessageId: "legacy-1",
+      body: "queued before replies existed",
+      status: STATUS.WAITING,
+      attempt: 0,
+      retryCount: 0,
+      createdAt: clock.now(),
+      nextRetryAt: 0,
+      neverSucceed: false,
+      timerHandle: undefined,
+    };
+
+    const persistence = {
+      loadAll: async () => [legacy],
+      save: () => {},
+      remove: () => {},
+      clear: () => {},
+    };
+
+    // Hydration happens before construction, exactly as `family_chat.js`
+    // sequences it, so `resumeOnOpen` sees the restored row immediately.
+    await hydrateNamespace(namespaceKey(userId, roomSlug), persistence);
+
+    const outbox = createOutbox({
+      userId,
+      roomSlug,
+      clock,
+      persistence,
+      transport: async (message: {
+        body: string;
+        replyToMessageId?: string;
+      }) => {
+        seen.push(message);
+        return { ok: true, message: { id: "server-legacy" } };
+      },
+    });
+
+    await outbox.waitForStatus("legacy-1", STATUS.SENT);
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.body).toBe("queued before replies existed");
+    expect("replyToMessageId" in (seen[0] as object)).toBe(false);
   });
 });

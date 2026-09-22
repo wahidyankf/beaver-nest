@@ -10,7 +10,7 @@
 // real contract rather than a convenient approximation of it.
 
 import { request as graphqlRequest } from "./graphql.js";
-import { FAMILY_CHAT_MESSAGES_QUERY } from "./operations.js";
+import { familyChatMessagesQuery } from "./operations.js";
 
 /** How many already-read messages to keep above the unread marker. */
 export const CONTEXT_PAGE_SIZE = 20;
@@ -23,12 +23,15 @@ export const MESSAGE_PAGE_SIZE = 50;
 
 /**
  * @param {string} roomSlug
+ * @param {{replies?: boolean}} [options]
  * @returns {{fetchPage: FetchPage}}
  */
-export function createRealPageSource(roomSlug) {
+export function createRealPageSource(roomSlug, { replies = false } = {}) {
+  const document = familyChatMessagesQuery({ replies });
+
   /** @type {FetchPage} */
   async function fetchPage({ beforeId, afterId, limit }) {
-    const result = await graphqlRequest(FAMILY_CHAT_MESSAGES_QUERY, {
+    const result = await graphqlRequest(document, {
       roomSlug,
       beforeId: beforeId ?? undefined,
       afterId: afterId ?? undefined,

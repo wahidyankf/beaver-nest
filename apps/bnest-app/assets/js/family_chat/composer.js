@@ -44,6 +44,7 @@ export const QUEUE_REFUSED_REMEDIATION = "Couldn't queue this message.";
  *   body: string,
  *   senderKind: string,
  *   senderDisplayName: string,
+ *   replyToMessageId?: string,
  * }} QueuedMessage
  */
 
@@ -111,28 +112,72 @@ function createFocusMethods(draftState) {
 }
 
 /**
+ * @param {{remediationMessage: string | null}} state
+ * @param {string | null} message
+ * @returns {SubmitResult}
+ */
+function refuse(state, message) {
+  state.remediationMessage = message;
+  return { queued: false, clientMessageId: null, remediation: message };
+}
+
+/**
+ * Read, not consumed: the target is only cleared once the queue has actually
+ * accepted the message, so a refusal leaves the member with both their text
+ * and the message they were answering.
+ * @param {import("./reply_target.js").ReplyTargetStore | undefined} replyTarget
+ * @returns {{replyToMessageId?: string}}
+ */
+function sendOptionsFor(replyTarget) {
+  const replyToMessageId = replyTarget?.current()?.messageId ?? undefined;
+  return replyToMessageId === undefined ? {} : { replyToMessageId };
+}
+
+/**
+ * @param {(message: QueuedMessage) => void} onQueued
+ * @param {import("./reply_target.js").ReplyTargetStore | undefined} replyTarget
+ * @param {{clientMessageId: string, body: string, sendOptions: {replyToMessageId?: string}}} accepted
+ */
+function publishQueued(
+  onQueued,
+  replyTarget,
+  { clientMessageId, body, sendOptions },
+) {
+  // The draft and the target clear at the same moment but for different
+  // reasons, which is why they are separate pieces of state: the draft
+  // belongs to the input, the target belongs to the room.
+  replyTarget?.clear();
+
+  // The member's own message goes on screen from here rather than from the
+  // browser mount, so every caller -- real DOM or not -- shows it in the same
+  // place: at the end of the window, where sending scrolls to.
+  onQueued({
+    clientMessageId,
+    body,
+    senderKind: "user",
+    senderDisplayName: "You",
+    ...sendOptions,
+  });
+}
+
+/**
  * @param {DraftState} draftState
  * @param {{remediationMessage: string | null}} state
- * @param {{send: (body: string) => Promise<string | null>}} outbox
+ * @param {{send: (body: string, opts?: {replyToMessageId?: string}) => Promise<string | null>}} outbox
  * @param {(message: QueuedMessage) => void} onQueued
+ * @param {import("./reply_target.js").ReplyTargetStore | undefined} replyTarget
  */
-function createSubmitMethod(draftState, state, outbox, onQueued) {
-  /**
-   * @param {string | null} message
-   * @returns {SubmitResult}
-   */
-  function refuse(message) {
-    state.remediationMessage = message;
-    return { queued: false, clientMessageId: null, remediation: message };
-  }
-
+function createSubmitMethod(draftState, state, outbox, onQueued, replyTarget) {
   return {
     /** @returns {Promise<SubmitResult>} */
     async submit() {
       state.remediationMessage = null;
       const body = draftState.body.trim();
-      if (!body) return refuse(EMPTY_DRAFT_REMEDIATION);
-      if (body.length > MAX_BODY_LENGTH) return refuse(TOO_LONG_REMEDIATION);
+      if (!body) return refuse(state, EMPTY_DRAFT_REMEDIATION);
+      if (body.length > MAX_BODY_LENGTH)
+        return refuse(state, TOO_LONG_REMEDIATION);
+
+      const sendOptions = sendOptionsFor(replyTarget);
 
       // Cleared before the queue is awaited so the input is usable again
       // immediately; a refusal below puts the text back rather than losing
@@ -140,35 +185,36 @@ function createSubmitMethod(draftState, state, outbox, onQueued) {
       draftState.body = "";
       draftState.focused = true;
 
-      const clientMessageId = await outbox.send(body);
+      const clientMessageId = await outbox.send(body, sendOptions);
       if (clientMessageId === null) {
         draftState.body = body;
         // `onQueueFull` (see `family_chat.js`) may already have written a
         // more specific remediation into the shared state by now.
-        return refuse(state.remediationMessage ?? QUEUE_REFUSED_REMEDIATION);
+        return refuse(
+          state,
+          state.remediationMessage ?? QUEUE_REFUSED_REMEDIATION,
+        );
       }
 
-      // The member's own message goes on screen from here rather than from
-      // the browser mount, so every caller -- real DOM or not -- shows it in
-      // the same place: at the end of the window, where sending scrolls to.
-      onQueued({
+      publishQueued(onQueued, replyTarget, {
         clientMessageId,
         body,
-        senderKind: "user",
-        senderDisplayName: "You",
+        sendOptions,
       });
-
       return { queued: true, clientMessageId, remediation: null };
     },
   };
 }
 
 /**
+ * `replyTarget` is optional: a composer with none behaves exactly as it did
+ * before replies existed, which is what the compatibility release ships.
  * @param {{
- *   outbox: {send: (body: string) => Promise<string | null>},
+ *   outbox: {send: (body: string, opts?: {replyToMessageId?: string}) => Promise<string | null>},
  *   state: {remediationMessage: string | null},
  *   focused?: boolean,
  *   onQueued?: (message: QueuedMessage) => void,
+ *   replyTarget?: import("./reply_target.js").ReplyTargetStore,
  * }} options
  */
 export function createComposer({
@@ -176,12 +222,13 @@ export function createComposer({
   state,
   focused = false,
   onQueued = () => {},
+  replyTarget,
 }) {
   /** @type {DraftState} */
   const draftState = { body: "", focused };
   return {
     ...createDraftMethods(draftState, state),
     ...createFocusMethods(draftState),
-    ...createSubmitMethod(draftState, state, outbox, onQueued),
+    ...createSubmitMethod(draftState, state, outbox, onQueued, replyTarget),
   };
 }
