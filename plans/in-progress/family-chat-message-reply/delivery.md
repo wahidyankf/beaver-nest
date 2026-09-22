@@ -827,8 +827,8 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       proxy is still running. **BLOCKED 2026-09-22, on one thing now rather than three.** The feature is routed,
       no candidate, watcher, or temporary proxy is running, every sample actually taken is inside budget, and the
       rollback floor is now proven (D12). The routed manual pass is descoped rather than taken (D13). What keeps
-      this unticked is `responsiveness held throughout`: one of AC-FCR-14's four enumerated stages — `after the
-    experience revision is routed` — was never sampled, and that slot no longer exists, so the word _throughout_
+      this unticked is `responsiveness held throughout`: one of AC-FCR-14's four enumerated stages was
+      never sampled — the one after the experience revision is routed — and that slot no longer exists, so the word _throughout_
       cannot be claimed. (**Corrected 2026-09-22 by the re-check:** this said "two of four", which counted release
       moments against the stage denominator; see `prd.md`, AC-FCR-14.)
       **This disposition is terminal, not pending.** D14 accepted AC-FCR-14 as partially met on the record rather
