@@ -470,3 +470,102 @@ out of the composer's `submit`, `createReplyTarget`'s methods into top-level fac
 is that the modules were designed apart for their own sake.
 
 **Durable owner:** none; recorded here so the next phase expects the same pressure.
+
+## Phase 5 — Action Menu, Composer Strip, and Keyboard Reach
+
+**The accessibility check was measuring the template, not the room.** `accessibility.js`'s keyboard-reachability
+proxy read the shipped `room.html.heex` as text and looked for the words that suggest reachability. It could not
+have failed for the reason it exists: nothing about a rendered list of fifty messages is visible in a template that
+renders an empty `<ol>`. Replacing it meant rendering real messages through the shipped renderer, which meant a DOM,
+which is why `happy-dom` entered the dependency tree. The deliberate RED is the point of the entry: breaking
+`apply`'s reset to `item.tabIndex = 0` now fails the check, and the old scan could not have noticed.
+
+**Durable owner:** `tech-docs/006-file-impact-and-release.md`, at archival.
+
+**A new dependency needed a decision record, not a convenience argument.** `happy-dom@20.14.5` is pinned exactly,
+added as a dev dependency, excluded from the browser bundle through esbuild's `--external:happy-dom` beside the
+existing `node:fs`/`node:url` externals, and checked against `package-lock.json`'s advisory set before and after.
+The rejected alternatives are recorded in its commit body: Node's own stdlib (no DOM), a hand-written element shim
+(a shim asserts what its author already believes), and jsdom (heavier for the same answer). The requirement it
+serves is a plan requirement — "the rendered-list invariant" — not a preference.
+
+**Durable owner:** `repo-governance/development/dependency-selection.md`'s existing record format; nothing to change.
+
+**The flag plumbing moved a phase earlier than the plan put it.** Phase 7 owned `config/runtime.exs`, the controller
+assign, and the `data-family-chat-reply-enabled` read. Phase 5 needed all three, because the fe-e2e binding-coverage
+gate is all-or-nothing — 59 missing steps, including Phase 9's compatibility-revision scenario — and the repository's
+Gherkin→bindings→red→code order therefore required binding every browser scenario before any of them could pass.
+Recorded here rather than silently absorbed: the plan's phase boundary was wrong about which phase first *needs* a
+flag, not about who owns it.
+
+**Durable owner:** none; a deviation, ticked in Phase 7 referencing where it actually landed.
+
+**One menu host, one hidden attribute, and a focus rule that fought itself.** `bindMenuDismissal` returns focus to
+the originating message on every close path — Escape, clicking outside, and choosing an item alike. Choosing
+`Reply` is the one path that must not: it puts focus in the composer, and the dismissal listener on the host was
+taking it straight back, in the same gesture. An item that places focus itself now stops the click before it
+reaches the host. The bug was invisible to the unit specs, which drive `createMenuState` and `runCopyAction`
+directly and never dispatch a real event through both listeners — it took the browser-shaped Gherkin room to see it.
+
+**Durable owner:** `tech-docs/005-composer-and-actions.md`, at archival.
+
+## Phase 6 — Quote Rendering, Jump, and Styles
+
+**"The strip renders the server's bounded preview" was true of arrivals and false of selections.** A quote that
+comes back from the server is already shortened by `BnestApp.FamilyChat`'s 160-grapheme rule. A target chosen from
+a bubble on screen never passes through the server at all: `mount_browser_actions.js` built it from the rendered
+body, in full. The scenario "A long quoted message is shortened in the strip" is what caught it —
+`Error: the strip shows 400 graphemes` — and the fix is `bodyPreview` in `reply_target.js`, applying the same rule,
+by grapheme rather than code unit, so the strip and the quote card can never disagree about the same message. The
+BE and FE drivers both allow `<= 161`, with the same comment: the budget plus the one ellipsis that marks the cut.
+
+**Durable owner:** `tech-docs/005-composer-and-actions.md`, at archival.
+
+**A message composed offline never actually said so.** Tech-doc 003's state machine names "Waiting for connection",
+and nothing was leaving a message there for longer than the instant between queueing and the first attempt: the
+outbox attempted immediately, the transport failed, and the member saw "Retrying in …" — a state that reads like
+something went wrong, for the one case where nothing did. The scenario "An offline reply queues with its target"
+failed with `the queued reply shows status "Sent"`, which is how the gap surfaced. The outbox now carries the
+browser's own `online`/`offline` verdict, deliberately as a flag separate from `draining` (which `reconnect.js`
+owns while it fills a catch-up gap): both can be true at once, and resuming one must never resume the other.
+
+**Durable owner:** `tech-docs/003-browser-send-outbox.md`, at archival.
+
+**The frontend typecheck gate had been red for three phases.** `tsc --noEmit` over `assets/` covers `test/**` as
+well as `js/**`, and nothing had run it since Phase 4. Thirty-one errors had accumulated, including one that
+mattered: a JSDoc block orphaned from `createRoomResume` by an inserted function, leaving both its parameters
+implicitly `any` for the whole of Phases 5 and 6. Lint and the suites were green throughout. A gate that is not in
+the loop is not a gate — the phase checkpoints name `FE_UNIT` and say nothing about `typecheck`, which is why it
+went unnoticed rather than because anyone ignored a failure.
+
+**Durable owner:** `repo-governance/development/software-quality-enforcement.md` — the phase-checkpoint command set
+should name the typecheck target alongside the suites. Raised at archival.
+
+**The Vitest+Gherkin harness needed a second kind of room, and the two must never meet.** `family_chat.steps.ts`
+opens the real `initRoom` in Node, where `typeof document === "undefined"` selects the in-memory store, transport,
+and page source. The reply scenarios are about markup, focus, and key events, so they need the other branch.
+`support/reply_room.ts` builds it from the same production pieces — the template's shell under happy-dom,
+`createRealStore`, `createHistory`, `createReplyTarget`, and the real `wire*` bindings — substituting only the
+network. The hazard is entirely in the seam: a `document` left on `globalThis` silently flips every *following*
+document-free scenario onto the browser branch. It is taken down in `verify.ts`'s `finally`, and again inside the
+builder when a room fails to build half-way — which is exactly how it first leaked
+(`ReferenceError: HTMLMetaElement is not defined`, in an unrelated auth-expiry scenario three tests later).
+
+**Durable owner:** `tech-docs/006-file-impact-and-release.md`, at archival.
+
+**Where a browserless layer genuinely cannot answer, the binding says which layer does.** Tab's sequential-focus
+engine, `prefers-reduced-motion`, and on-screen position have no Node equivalent. Those bindings assert the decision
+this layer does own — the roving invariant, the highlight attribute the stylesheet answers, the recorded
+`scrollIntoView` target — and name `bnest-app-fe-e2e` for the rest, in a comment at the binding. That is the
+difference between a documented boundary and a no-op: each one still fails if the decision it owns regresses.
+
+**Durable owner:** `repo-governance/development/specification-maintenance.md` already requires this; recorded as a
+worked example.
+
+**A test double that resolves too fast hides a real ordering.** `wireComposer` registers its status watcher *after*
+awaiting `composer.submit()`. The harness server initially resolved on a microtask, reached "Sent" with nobody
+listening, and the pending row was never reconciled — which looked like a rendering bug for several minutes.
+`createTestTransport` already resolves on a timer for precisely this reason, and says so in a comment; the harness
+server now does the same. Worth keeping in mind before treating a fast double as the neutral choice.
+
+**Durable owner:** none; recorded here.
