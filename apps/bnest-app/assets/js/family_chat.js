@@ -109,9 +109,27 @@ async function mountRoomInBrowser(room, elements, subscriptionClient) {
  * }} context
  * @param {RoomOptions} options
  */
+/**
+ * @param {import("./family_chat/elements.js").FamilyChatElements | null} elements
+ * @returns {(message: string) => void}
+ */
+function createAnnouncer(elements) {
+  if (!elements) return () => {};
+  return (message) => {
+    elements.liveRegion.textContent = message;
+  };
+}
+
 function createRoomResume(context, options) {
-  const { roomSlug, userId, hasDocument, store, outbox, composerState } =
-    context;
+  const {
+    roomSlug,
+    userId,
+    hasDocument,
+    store,
+    outbox,
+    composerState,
+    announce,
+  } = context;
   const readMarker = createReadMarker({
     userId,
     roomSlug,
@@ -127,7 +145,7 @@ function createRoomResume(context, options) {
   // Phase 5) the action menu that sets it. Deliberately not part of the
   // composer's own draft state: a refused send keeps both, but they are
   // cleared by different things.
-  const replyTarget = createReplyTarget();
+  const replyTarget = createReplyTarget({ announce });
   const composer = createComposer({
     outbox,
     state: composerState,
@@ -189,12 +207,16 @@ export async function initRoom(path, options = {}) {
   const accessibility = await createRoomAccessibility(hasDocument, options);
 
   const userId = options.user?.id ?? "anonymous";
+  // The room's one live region (`role="status"`), which every deliberate
+  // one-off announcement goes through -- selecting a reply target, a copy,
+  // a refused jump. Outside a document there is nothing to announce to.
+  const announce = createAnnouncer(elements);
   const resume = createRoomResume(
-    { roomSlug, userId, hasDocument, store, outbox, composerState },
+    { roomSlug, userId, hasDocument, store, outbox, composerState, announce },
     options,
   );
   const room = assembleRoom(
-    { roomSlug, userId, outbox, store, push, reconnect, accessibility },
+    { roomSlug, userId, clock, outbox, store, push, reconnect, accessibility },
     resume,
     options,
   );

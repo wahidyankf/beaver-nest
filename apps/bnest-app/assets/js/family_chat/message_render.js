@@ -68,14 +68,38 @@ function bubbleNode(message, senderLabel) {
   const time = message.committedAt
     ? `<time datetime="${message.committedAt}">${new Date(message.committedAt).toLocaleString()}</time>`
     : "";
-  meta.innerHTML = `<strong>${escapeHtml(senderLabel)}</strong> ${time}`;
+  // Both carry a `data-role` because the action menu reads the sender and
+  // the full body back out of the rendered row (see
+  // `mount_browser_actions.js`), and a class name is a styling concern that
+  // may legitimately change.
+  meta.innerHTML =
+    `<strong data-role="family-chat-message-sender">${escapeHtml(senderLabel)}</strong> ` +
+    time;
 
   const body = document.createElement("p");
   body.className = "family-chat-message-body";
+  body.dataset["role"] = "family-chat-message-body";
   body.textContent = message.body;
 
   bubble.append(meta, body);
   return bubble;
+}
+
+/**
+ * The `⋯` trigger. Rendered for every message and hidden by `app.css` on
+ * coarse pointers, where holding the message is the gesture and a
+ * permanently visible control on every bubble would be noise.
+ * @param {string} senderLabel
+ */
+function moreControlNode(senderLabel) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "family-chat-message-more";
+  button.dataset["role"] = "family-chat-message-more";
+  button.tabIndex = -1;
+  button.setAttribute("aria-label", `Actions for ${senderLabel}'s message`);
+  button.textContent = "⋯";
+  return button;
 }
 
 /**
@@ -105,11 +129,17 @@ export function messageNode(message, { pending, currentUserId }) {
   // resumed room landed on, and which one the stored read position names,
   // are only observable from outside the page through this attribute.
   li.dataset["messageId"] = message.id ?? message.clientMessageId ?? "";
+  // Skipped by Tab until `roving_focus.js` promotes exactly one item to the
+  // history's single stop. Rendered here rather than left unset so a list
+  // that is never refreshed is unreachable rather than fifty tab stops
+  // deep -- the failure the roving invariant check catches.
+  li.tabIndex = -1;
 
   const senderLabel = (isSystem ? "System" : message.senderDisplayName) ?? "";
 
   if (!isSystem) li.append(avatarNode(senderLabel));
   li.append(bubbleNode(message, senderLabel));
+  li.append(moreControlNode(senderLabel));
 
   if (pending) {
     const status = document.createElement("p");

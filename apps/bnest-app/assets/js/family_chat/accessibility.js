@@ -1,13 +1,28 @@
 // Keyboard-reachability and horizontal-scroll structural checks. Real
 // rendered geometry, focus order, and zoom behavior need an actual browser
 // layout engine and are proven at FE_E2E (see the feature file's own
-// Exemption comments for these scenarios); this module instead checks the
-// real, shipped server template and stylesheet text for the specific
-// hazards that would break either property, so FE_UNIT still exercises
-// genuine artifacts rather than a hardcoded true/false.
+// Exemption comments for these scenarios); this module instead exercises
+// genuine artifacts -- the shipped stylesheet's text, and the shipped
+// message renderer itself -- for the specific hazards that would break
+// either property.
+//
+// Keyboard reachability used to be proven by asserting the shipped
+// `room.html.heex` contained no `tabindex="-1"`. Message elements are
+// created in JavaScript, so that check kept passing while the rendered room
+// filled with `tabindex="-1"`: green, and meaningless. It now renders a real
+// list through `message_render.js` and `roving_focus.js` and asserts the
+// invariant that actually makes the history reachable -- exactly one tab
+// stop among the messages.
+//
+// A browser never loads this module (`room_parts.js` imports it only on the
+// no-document branch), which is why it may use `node:fs` and build its own
+// DOM.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { Window } from "happy-dom";
+import { messageNode } from "./message_render.js";
+import { createRovingFocus, rovingInvariantHolds } from "./roving_focus.js";
 
 /** @param {string} relativeUrl */
 function readTextSafely(relativeUrl) {
@@ -21,9 +36,53 @@ function readTextSafely(relativeUrl) {
   }
 }
 
-const ROOM_TEMPLATE_PATH =
-  "../../../lib/bnest_app_web/controllers/family_chat_html/room.html.heex";
 const APP_CSS_PATH = "../../css/app.css";
+
+/** How many messages the probe renders: more than a screen, as the room is. */
+const PROBE_MESSAGE_COUNT = 50;
+
+/**
+ * Renders a real message list through the shipped renderer and applies the
+ * shipped roving stop, in a DOM built for this check alone.
+ *
+ * `messageNode` reaches for a global `document`, so the probe window's one
+ * is installed for the duration and restored afterwards -- this module runs
+ * only where there was none to begin with, but leaving a global behind would
+ * change what every later caller in the same process sees.
+ * @param {number} [count]
+ * @returns {HTMLElement}
+ */
+export function renderProbeList(count = PROBE_MESSAGE_COUNT) {
+  const window = new Window();
+  const previousDocument = globalThis.document;
+  // @ts-expect-error -- assigning happy-dom's Document to the global slot is
+  // the whole point; its shape is the DOM one `messageNode` uses.
+  globalThis.document = window.document;
+  try {
+    const list = window.document.createElement("ol");
+    for (let index = 0; index < count; index += 1) {
+      list.append(
+        messageNode(
+          {
+            id: String(1000 + index),
+            body: `Probe message ${index}`,
+            senderDisplayName: "Probe",
+            senderId: "probe-sender",
+          },
+          { pending: false, currentUserId: "probe-reader" },
+        ),
+      );
+    }
+    const probe =
+      /** @type {HTMLElement} */
+      (list);
+    createRovingFocus(probe).refresh();
+    return probe;
+  } finally {
+    // @ts-expect-error -- restoring the slot, including to `undefined`.
+    globalThis.document = previousDocument;
+  }
+}
 
 /**
  * @param {{viewport?: string | undefined}} _options viewport is accepted for
@@ -32,12 +91,7 @@ const APP_CSS_PATH = "../../css/app.css";
 export function createAccessibility(_options = {}) {
   return {
     keyboardReachable() {
-      const html = readTextSafely(ROOM_TEMPLATE_PATH);
-      // Unavailable outside this checkout (e.g. a published/relocated
-      // bundle): the real proof is FE_E2E, so do not fail this structural
-      // proxy for an environment reason unrelated to the check itself.
-      if (html === null) return true;
-      return !html.includes('tabindex="-1"');
+      return rovingInvariantHolds(renderProbeList());
     },
 
     hasHorizontalScroll() {

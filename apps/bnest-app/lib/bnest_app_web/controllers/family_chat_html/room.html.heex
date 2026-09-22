@@ -3,6 +3,7 @@
   class="family-chat-shell"
   data-role="family-chat-room"
   data-current-user-id={@current_user["userId"]}
+  data-family-chat-reply-enabled={to_string(assigns[:reply_enabled] == true)}
   aria-labelledby="family-chat-room-title"
 >
   <header class="family-chat-header">
@@ -75,9 +76,38 @@
     New messages below
   </button>
 
+  <!-- One menu for the whole room, moved and re-labelled per message: two
+  menus can never be open at once, and there is one thing to test. Its items
+  are rendered by `message_actions.js`, so the shell ships empty. -->
+  <div
+    class="family-chat-message-actions"
+    data-role="family-chat-message-actions"
+    role="menu"
+    aria-label="Message actions"
+    hidden
+  >
+  </div>
+
   <p class="family-chat-live-region" role="status" data-role="family-chat-live-region"></p>
 
   <form class="family-chat-composer" data-role="family-chat-composer">
+    <div class="family-chat-reply-strip" data-role="family-chat-reply-strip" hidden>
+      <span
+        class="family-chat-reply-strip-name"
+        data-role="family-chat-reply-strip-name"
+      ></span>
+      <span
+        class="family-chat-reply-strip-preview"
+        data-role="family-chat-reply-strip-preview"
+      ></span>
+      <button
+        type="button"
+        class="family-chat-reply-strip-cancel"
+        data-role="family-chat-reply-strip-cancel"
+      >
+        Cancel reply
+      </button>
+    </div>
     <label for="family-chat-message-input">Message the family</label>
     <textarea
       id="family-chat-message-input"
