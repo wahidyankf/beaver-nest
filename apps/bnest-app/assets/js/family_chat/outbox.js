@@ -10,7 +10,7 @@ import {
   STATUS,
   namespaceKey,
   getOrCreateNamespace,
-  generateClientMessageId,
+  buildQueuedMessage,
   hydrateNamespace,
 } from "./outbox_namespace.js";
 import {
@@ -46,19 +46,8 @@ function createSendMethod(state) {
       return null;
     }
 
-    const clientMessageId = generateClientMessageId(state.clock.random);
-    /** @type {QueuedMessage} */
-    const message = {
-      clientMessageId,
-      body,
-      status: STATUS.WAITING,
-      attempt: 0,
-      retryCount: 0,
-      createdAt: state.clock.now(),
-      nextRetryAt: 0,
-      neverSucceed: false,
-      timerHandle: undefined,
-    };
+    const message = buildQueuedMessage(state.clock, body, opts);
+    const { clientMessageId } = message;
     state.namespace.messages.set(clientMessageId, message);
     // Durable from the moment it's queued, not just once it starts sending
     // (see `notify`'s own comment): a `send()` that lands while draining is

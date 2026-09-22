@@ -5,8 +5,8 @@
 
 import { request as graphqlRequest } from "./graphql.js";
 import {
-  FAMILY_CHAT_MESSAGES_QUERY,
-  FAMILY_CHAT_MESSAGE_COMMITTED_SUBSCRIPTION,
+  familyChatMessagesQuery,
+  familyChatMessageCommittedSubscription,
 } from "./operations.js";
 
 /** @typedef {import("./mount_browser.js").MountableRoom} MountableRoom */
@@ -47,7 +47,10 @@ function handleSubscriptionData(room, rawResult) {
  */
 export async function subscribeToRoom(room, subscriptionClient) {
   await subscriptionClient.subscribe(
-    FAMILY_CHAT_MESSAGE_COMMITTED_SUBSCRIPTION,
+    // Built from the same flag the query and mutation use: a subscription
+    // that omitted the quote while the query asked for it would show a
+    // reply's quote on reload and not on arrival.
+    familyChatMessageCommittedSubscription({ replies: room.replies ?? false }),
     { roomSlug: room.roomSlug },
     (rawResult) => handleSubscriptionData(room, rawResult),
   );
@@ -58,9 +61,10 @@ export async function subscribeToRoom(room, subscriptionClient) {
  * committed after the last one this room saw.
  * @param {string} roomSlug
  * @param {string | null} afterId
+ * @param {boolean} replies
  */
-async function fetchMissedMessages(roomSlug, afterId) {
-  const result = await graphqlRequest(FAMILY_CHAT_MESSAGES_QUERY, {
+async function fetchMissedMessages(roomSlug, afterId, replies) {
+  const result = await graphqlRequest(familyChatMessagesQuery({ replies }), {
     roomSlug,
     afterId: afterId ?? undefined,
     limit: 200,
@@ -94,7 +98,8 @@ async function mergeMissedMessages(room, rawMessages) {
 export function bindReconnectCallbacks(room, subscriptionClient) {
   room.reconnect.bindBrowserCallbacks({
     resubscribe: () => subscribeToRoom(room, subscriptionClient),
-    fetchMissed: (afterId) => fetchMissedMessages(room.roomSlug, afterId),
+    fetchMissed: (afterId) =>
+      fetchMissedMessages(room.roomSlug, afterId, room.replies ?? false),
     mergeMessages: (rawMessages) => mergeMissedMessages(room, rawMessages),
     // Pausing/resuming the outbox's own drain (not just reconnect's
     // internal flag) is what actually stops a send from racing ahead of

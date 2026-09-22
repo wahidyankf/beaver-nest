@@ -23,6 +23,7 @@
 import { createComposer } from "./family_chat/composer.js";
 import { createHistory } from "./family_chat/history.js";
 import { createReadMarker } from "./family_chat/read_marker.js";
+import { createReplyTarget } from "./family_chat/reply_target.js";
 import { createSystemClock } from "./family_chat/clock.js";
 import { findElements } from "./family_chat/elements.js";
 import { mountBrowser } from "./family_chat/mount_browser.js";
@@ -49,6 +50,7 @@ import {
  *   readStorage?: import("./family_chat/read_marker.js").ReadMarkerStorage | undefined,
  *   pageSource?: TestPageSource | undefined,
  *   messages?: import("./family_chat/real_store.js").RenderableMessage[] | undefined,
+ *   replies?: boolean,
  * }} RoomOptions
  */
 
@@ -121,17 +123,39 @@ function createRoomResume(context, options) {
     store,
     readMarker,
   });
+  // One reply target per room, shared by the composer that sends it and (from
+  // Phase 5) the action menu that sets it. Deliberately not part of the
+  // composer's own draft state: a refused send keeps both, but they are
+  // cleared by different things.
+  const replyTarget = createReplyTarget();
   const composer = createComposer({
     outbox,
     state: composerState,
     focused: options.focusInComposer ?? false,
+    replyTarget,
     onQueued: (message) =>
       store.renderPending({
         ...message,
         status: outbox.status(message.clientMessageId),
       }),
   });
-  return { readMarker, pageSource, history, composer };
+  return { readMarker, pageSource, history, composer, replyTarget };
+}
+
+/**
+ * @param {object} parts everything `initRoom` built for this room
+ * @param {object} resume the resume/composer surface `createRoomResume` returns
+ * @param {RoomOptions} options
+ */
+function assembleRoom(parts, resume, options) {
+  return {
+    ...parts,
+    // Gates the requested GraphQL fields, and (from Phase 5) the action menu
+    // and the composer strip, together -- so the browser never asks for a
+    // field it will not render, or renders a quote it did not ask for.
+    replies: options.replies ?? false,
+    ...resume,
+  };
 }
 
 /**
@@ -169,16 +193,11 @@ export async function initRoom(path, options = {}) {
     { roomSlug, userId, hasDocument, store, outbox, composerState },
     options,
   );
-  const room = {
-    roomSlug,
-    userId,
-    outbox,
-    store,
-    push,
-    reconnect,
-    accessibility,
-    ...resume,
-  };
+  const room = assembleRoom(
+    { roomSlug, userId, outbox, store, push, reconnect, accessibility },
+    resume,
+    options,
+  );
 
   if (hasDocument && elements) {
     await mountRoomInBrowser(room, elements, subscriptionClient);

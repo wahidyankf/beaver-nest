@@ -11,23 +11,30 @@ import {
   TOO_LONG_REMEDIATION,
   createComposer,
 } from "../../../js/family_chat/composer.js";
+import { createReplyTarget } from "../../../js/family_chat/reply_target.js";
 
 function composerWith(sendResult: string | null) {
-  const sent: string[] = [];
+  const sent: { body: string; replyToMessageId?: string }[] = [];
   const state = {
     remediationMessage: /** @type {string | null} */ null as string | null,
   };
+  const replyTarget = createReplyTarget();
   const composer = createComposer({
     outbox: {
-      send: async (body: string) => {
-        sent.push(body);
+      send: async (body: string, opts: { replyToMessageId?: string } = {}) => {
+        sent.push({ body, ...opts });
         return sendResult;
       },
     },
     state,
+    replyTarget,
     focused: true,
   });
-  return { composer, sent, state };
+  return { composer, sent, state, replyTarget, bodies: sent };
+}
+
+function bodiesOf(sent: { body: string }[]) {
+  return sent.map((message) => message.body);
 }
 
 describe("createComposer", () => {
@@ -42,7 +49,7 @@ describe("createComposer", () => {
       clientMessageId: "client-id",
       remediation: null,
     });
-    expect(sent).toEqual(["On my way"]);
+    expect(bodiesOf(sent)).toEqual(["On my way"]);
     expect(composer.draft()).toBe("");
     expect(composer.remediation()).toBeNull();
   });
@@ -67,7 +74,7 @@ describe("createComposer", () => {
 
     expect(result.queued).toBe(false);
     expect(result.remediation).toBe(EMPTY_DRAFT_REMEDIATION);
-    expect(sent).toEqual([]);
+    expect(bodiesOf(sent)).toEqual([]);
     expect(composer.draft()).toBe("   ");
   });
 
@@ -79,7 +86,7 @@ describe("createComposer", () => {
     const result = await composer.submit();
 
     expect(result.remediation).toBe(TOO_LONG_REMEDIATION);
-    expect(sent).toEqual([]);
+    expect(bodiesOf(sent)).toEqual([]);
     expect(composer.draft()).toBe(tooLong);
   });
 
@@ -133,5 +140,109 @@ describe("createComposer", () => {
     expect(composer.focused()).toBe(false);
     composer.focus();
     expect(composer.focused()).toBe(true);
+  });
+});
+
+describe("composing a reply", () => {
+  const AYAH = {
+    messageId: "1042",
+    senderDisplayName: "Ayah",
+    bodyPreview: "Nanti aku jemput jam 5",
+  };
+
+  it("carries the reply target into the send", async () => {
+    const { composer, sent, replyTarget } = composerWith("client-id");
+
+    replyTarget.select(AYAH);
+    composer.type("Oke, aku siapin");
+    await composer.submit();
+
+    expect(sent).toEqual([
+      { body: "Oke, aku siapin", replyToMessageId: "1042" },
+    ]);
+  });
+
+  it("sends no target key at all when none is set", async () => {
+    const { composer, sent } = composerWith("client-id");
+
+    composer.type("Dinner is ready");
+    await composer.submit();
+
+    expect(sent).toEqual([{ body: "Dinner is ready" }]);
+  });
+
+  it("clears the target once the message is queued", async () => {
+    const { composer, replyTarget } = composerWith("client-id");
+
+    replyTarget.select(AYAH);
+    composer.type("Oke, aku siapin");
+    await composer.submit();
+
+    expect(replyTarget.current()).toBeNull();
+  });
+
+  it("keeps the target and the text when the queue refuses", async () => {
+    const { composer, replyTarget } = composerWith(null);
+
+    replyTarget.select(AYAH);
+    composer.type("Oke, aku siapin");
+    const result = await composer.submit();
+
+    expect(result.queued).toBe(false);
+    expect(replyTarget.current()).toEqual(AYAH);
+    expect(composer.draft()).toBe("Oke, aku siapin");
+  });
+
+  it("keeps the target when the draft itself is refused", async () => {
+    const { composer, sent, replyTarget } = composerWith("client-id");
+
+    replyTarget.select(AYAH);
+    composer.type("   ");
+    await composer.submit();
+
+    expect(bodiesOf(sent)).toEqual([]);
+    expect(replyTarget.current()).toEqual(AYAH);
+  });
+
+  it("tells the queued message which target it answered", async () => {
+    const queued: { replyToMessageId?: string }[] = [];
+    const state = { remediationMessage: null as string | null };
+    const replyTarget = createReplyTarget();
+    const composer = createComposer({
+      outbox: { send: async () => "client-id" },
+      state,
+      replyTarget,
+      onQueued: (message: { replyToMessageId?: string }) =>
+        queued.push(message),
+    });
+
+    replyTarget.select(AYAH);
+    composer.type("Oke, aku siapin");
+    await composer.submit();
+
+    expect(queued[0]?.replyToMessageId).toBe("1042");
+  });
+
+  it("works with no reply target wired at all", async () => {
+    const state = { remediationMessage: null as string | null };
+    const sent: { body: string; replyToMessageId?: string }[] = [];
+    const composer = createComposer({
+      outbox: {
+        send: async (
+          body: string,
+          opts: { replyToMessageId?: string } = {},
+        ) => {
+          sent.push({ body, ...opts });
+          return "client-id";
+        },
+      },
+      state,
+    });
+
+    composer.type("Dinner is ready");
+    const result = await composer.submit();
+
+    expect(result.queued).toBe(true);
+    expect(sent).toEqual([{ body: "Dinner is ready" }]);
   });
 });

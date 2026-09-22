@@ -41,7 +41,7 @@ export function handleQueueFull(elements, composerState) {
  * @param {string} roomSlug
  * @param {boolean} hasDocument
  * @param {import("./elements.js").FamilyChatElements | null} elements
- * @param {{user?: {id: string}, activePushSubscription?: boolean, devicePushState?: string, persistence?: import("./outbox_send.js").Persistence | undefined}} options
+ * @param {{user?: {id: string}, activePushSubscription?: boolean, devicePushState?: string, persistence?: import("./outbox_send.js").Persistence | undefined, replies?: boolean}} options
  * @param {import("./clock.js").Clock} clock
  * @param {{remediationMessage: string | null}} composerState
  */
@@ -54,7 +54,7 @@ export async function createRoomPushAndOutbox(
   composerState,
 ) {
   const transport = hasDocument
-    ? createRealTransport(roomSlug)
+    ? createRealTransport(roomSlug, { replies: options.replies ?? false })
     : createTestTransport(clock);
 
   const push = createPush({
@@ -161,9 +161,12 @@ export async function createRoomAccessibility(hasDocument, options) {
  * passes it back in, exactly as it does for the outbox's `persistence`.
  * @param {string} roomSlug
  * @param {boolean} hasDocument
- * @param {{pageSource?: ReturnType<typeof createTestPageSource> | undefined, messages?: import("./real_store.js").RenderableMessage[] | undefined}} options
+ * @param {{pageSource?: ReturnType<typeof createTestPageSource> | undefined, messages?: import("./real_store.js").RenderableMessage[] | undefined, replies?: boolean}} options
  */
 export function resolvePageSource(roomSlug, hasDocument, options) {
-  if (hasDocument) return createRealPageSource(roomSlug);
+  if (hasDocument)
+    return createRealPageSource(roomSlug, {
+      replies: options.replies ?? false,
+    });
   return options.pageSource ?? createTestPageSource(options.messages ?? []);
 }
