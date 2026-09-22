@@ -6,41 +6,61 @@ silently.
 
 ## Backend
 
-| Status | Path                                                                                          | Change                                                                                  |
-| ------ | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `[N]`  | `apps/bnest-app/priv/sqlite_repo/migrations/20260922000000_add_family_chat_message_reply.exs` | Additive column and partial index; reversal refuses once replies exist                  |
-| `[E]`  | `apps/bnest-app/lib/bnest_app/family_chat/store.ex`                                           | `@message_columns` gains the column; insert accepts it; new batch quote lookup          |
-| `[E]`  | `apps/bnest-app/lib/bnest_app/family_chat.ex`                                                 | Target validation, quote attachment for pages and single messages, preview truncation   |
-| `[E]`  | `apps/bnest-app/lib/bnest_app/family_chat/message.ex`                                         | `normalize_reply_to_message_id/1` beside the existing body and client-ID rules          |
-| `[E]`  | `apps/bnest-app/lib/bnest_app_web/schema/types/family_chat_types.ex`                          | `:family_chat_message_quote` object and the `replyTo` field with its live-name resolver |
-| `[E]`  | `apps/bnest-app/lib/bnest_app_web/schema.ex`                                                  | `replyToMessageId` argument on the mutation                                             |
-| `[E]`  | `apps/bnest-app/lib/bnest_app_web/resolvers/family_chat_resolver.ex`                          | Pass the argument through; no lookup, no parsing, no truncation                         |
-| `[E]`  | `apps/bnest-app/lib/bnest_app_web/controllers/family_chat_controller.ex`                      | Expose the reply flag to the template                                                   |
-| `[E]`  | `apps/bnest-app/config/runtime.exs`                                                           | Read `BNEST_FAMILY_CHAT_REPLY_ENABLED` beside the existing family-chat flag             |
+| Status | Path                                                                                          | Change                                                                                                                   |
+| ------ | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `[N]`  | `apps/bnest-app/priv/sqlite_repo/migrations/20260922000000_add_family_chat_message_reply.exs` | Additive column and partial index; reversal refuses once replies exist                                                   |
+| `[E]`  | `apps/bnest-app/lib/bnest_app/family_chat/store.ex`                                           | `@message_columns` gains the column; insert accepts it; new batch quote lookup                                           |
+| `[E]`  | `apps/bnest-app/lib/bnest_app/family_chat.ex`                                                 | Target validation, quote attachment for pages and single messages, preview truncation                                    |
+| `[E]`  | `apps/bnest-app/lib/bnest_app/family_chat/message.ex`                                         | `normalize_reply_to_message_id/1` beside the existing body and client-ID rules                                           |
+| `[E]`  | `apps/bnest-app/lib/bnest_app_web/schema/types/family_chat_types.ex`                          | `:family_chat_message_quote` object and the `replyTo` field with its live-name resolver                                  |
+| `[E]`  | `apps/bnest-app/lib/bnest_app_web/schema.ex`                                                  | `replyToMessageId` argument on the mutation                                                                              |
+| `[E]`  | `apps/bnest-app/lib/bnest_app_web/resolvers/family_chat_resolver.ex`                          | Pass the argument through; no lookup, no parsing, no truncation                                                          |
+| `[E]`  | `apps/bnest-app/lib/bnest_app_web/controllers/family_chat_controller.ex`                      | Expose the reply flag to the template                                                                                    |
+| `[E]`  | `apps/bnest-app/config/runtime.exs`                                                           | Read `BNEST_FAMILY_CHAT_REPLY_ENABLED` beside the existing family-chat flag                                              |
+| `[E]`  | `apps/bnest-app/config/config.exs`                                                            | **Added 2026-09-22.** The flag's compile-time default beside the runtime read                                            |
+| `[E]`  | `apps/bnest-app/lib/bnest_app/backup.ex`                                                      | **Added 2026-09-22.** Restore evidence scoped to the active room — a production fix this plan found, not reply behaviour |
+
+The `backup.ex` change is outside this plan's product scope. `Backup.restore_evidence/1` matched a single
+`family_chat_rooms` row and read every message id regardless of room; rooms have carried `deleted_at` since the
+family chat migration, so an archived room turned restore into `{:error, :restore_failed}`. This plan found it
+because its cross-room refusal case needs a second room to refuse. Fixed here rather than deferred, and pinned by
+`test/unit/bnest_app/backup_restore_test.exs`.
 
 ## Frontend
 
-| Status | Path                                                                           | Change                                                                          |
-| ------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `[N]`  | `apps/bnest-app/assets/js/family_chat/message_actions.js`                      | The action menu: four triggers, two items, focus contract                       |
-| `[N]`  | `apps/bnest-app/assets/js/family_chat/reply_target.js`                         | Reply-target state shared by the composer, the menu, and the outbox             |
-| `[N]`  | `apps/bnest-app/assets/js/family_chat/jump_to_message.js`                      | Bounded jump, highlight, and the refusal announcement                           |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/operations.js`                           | `messageFields({replies})`, the quote fragment, the new mutation argument       |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/message_render.js`                       | Quote card rendering, roving tabindex, highlight class                          |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/composer.js`                             | Carry the reply target into `submit()` and clear it on success only             |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/outbox.js`                               | Queue record carries `replyToMessageId`                                         |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/outbox_send.js`                          | Send the argument; treat its rejection as the existing non-retryable path       |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/outbox_namespace.js`                     | Queued-message typedef                                                          |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/persistence_indexeddb.js`                | Persist and hydrate the field; `DB_VERSION` deliberately unchanged              |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/real_store.js`                           | Expose rendered-node lookup for the jump                                        |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/real_store_render.js`                    | Render quotes on every window path                                              |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/history.js`                              | Bounded older-page loading on behalf of a jump                                  |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/elements.js`                             | Handles for the menu host and the reply strip                                   |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/mount_browser.js`                        | Bind the four triggers and the quote activation                                 |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/mount_browser_composer.js`               | Bind the strip, its cancel control, and Escape                                  |
-| `[E]`  | `apps/bnest-app/assets/js/family_chat/accessibility.js`                        | Extend the keyboard-reachability proxy to the roving contract                   |
-| `[E]`  | `apps/bnest-app/lib/bnest_app_web/controllers/family_chat_html/room.html.heex` | Menu host element, reply strip markup, reply-enabled data attribute             |
-| `[E]`  | `apps/bnest-app/assets/css/app.css`                                            | Quote card, menu, sheet, strip, highlight, reduced-motion, coarse-pointer rules |
+| Status    | Path                                                                           | Change                                                                                                                               |
+| --------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `[N]`     | `apps/bnest-app/assets/js/family_chat/message_actions.js`                      | The action menu: four triggers, two items, focus contract                                                                            |
+| `[N]`     | `apps/bnest-app/assets/js/family_chat/reply_target.js`                         | Reply-target state shared by the composer, the menu, and the outbox                                                                  |
+| `[N]`     | `apps/bnest-app/assets/js/family_chat/jump_to_message.js`                      | Bounded jump, highlight, and the refusal announcement                                                                                |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/operations.js`                           | `messageFields({replies})`, the quote fragment, the new mutation argument                                                            |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/message_render.js`                       | Quote card rendering, roving tabindex, highlight class                                                                               |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/composer.js`                             | Carry the reply target into `submit()` and clear it on success only                                                                  |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/outbox.js`                               | Queue record carries `replyToMessageId`                                                                                              |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/outbox_send.js`                          | Send the argument; treat its rejection as the existing non-retryable path                                                            |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/outbox_namespace.js`                     | Queued-message typedef                                                                                                               |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/persistence_indexeddb.js`                | Persist and hydrate the field; `DB_VERSION` deliberately unchanged                                                                   |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/real_store.js`                           | Expose rendered-node lookup for the jump                                                                                             |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/message_quote_render.js`                 | **Corrected 2026-09-22.** Quote-card rendering, split out rather than added to `real_store_render.js`, which this plan never touched |
+| `[N]`     | `apps/bnest-app/assets/js/family_chat/menu_anchor.js`                          | **Added 2026-09-22.** Menu placement and dismissal, split out of the menu                                                            |
+| `[N]`     | `apps/bnest-app/assets/js/family_chat/roving_focus.js`                         | **Added 2026-09-22.** The roving tab-stop contract for the history                                                                   |
+| `[N]`     | `apps/bnest-app/assets/js/family_chat/mount_browser_actions.js`                | **Added 2026-09-22.** Binds the menu triggers — where the plan predicted `mount_browser_composer.js`                                 |
+| `[N]`     | `apps/bnest-app/assets/js/family_chat/mount_browser_jump.js`                   | **Added 2026-09-22.** Binds quote activation and the bounded jump                                                                    |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/mount_browser_sync.js`                   | **Added 2026-09-22.** Reply-aware wiring on the resume path                                                                          |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat.js`                                      | **Added 2026-09-22.** Room assembly reads the reply flag                                                                             |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/room_parts.js`                           | **Added 2026-09-22.** Carries the reply target through room assembly                                                                 |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/page_source.js`                          | **Added 2026-09-22.** Reads the reply-enabled data attribute                                                                         |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/transport.js`                            | **Added 2026-09-22.** Passes the new mutation variable                                                                               |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/history.js`                              | Bounded older-page loading on behalf of a jump                                                                                       |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/elements.js`                             | Handles for the menu host and the reply strip                                                                                        |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/mount_browser.js`                        | Bind the four triggers and the quote activation                                                                                      |
+| ~~`[E]`~~ | ~~`apps/bnest-app/assets/js/family_chat/mount_browser_composer.js`~~           | **Retracted 2026-09-22.** Predicted, never touched. The strip bindings landed in the new `mount_browser_actions.js` instead          |
+| `[E]`     | `apps/bnest-app/assets/js/family_chat/accessibility.js`                        | Extend the keyboard-reachability proxy to the roving contract                                                                        |
+| `[E]`     | `apps/bnest-app/lib/bnest_app_web/controllers/family_chat_html/room.html.heex` | Menu host element, reply strip markup, reply-enabled data attribute                                                                  |
+| `[E]`     | `apps/bnest-app/assets/css/app.css`                                            | Quote card, menu, sheet, strip, highlight, reduced-motion, coarse-pointer rules                                                      |
+| `[E]`     | `apps/bnest-app/assets/vitest.config.mts`                                      | **Added 2026-09-22.** `happy-dom` environment for the rendered-list invariant                                                        |
+| `[E]`     | `apps/bnest-app-fe-e2e/tools/run-e2e.mts`                                      | **Added 2026-09-22.** Runs both flag postures                                                                                        |
+| `[E]`     | `package.json`, `package-lock.json`                                            | **Added 2026-09-22.** The pinned `happy-dom` development dependency                                                                  |
 
 ### A split this plan should expect
 
@@ -56,11 +76,21 @@ split is predicted here so that it reads as a planned consequence rather than as
 
 ## Tests
 
-**Corrected 2026-09-22.** The table below was rewritten after execution against `git diff` over the plan's own
-commits. The original listed thirteen files; the plan touched forty-five. Three kinds of error produced the gap: the
-Vitest+Gherkin adapter layer was not represented at all, the fe-e2e support files a new scenario needs were not
-foreseen, and one row named a file (`family-chat-composer.ts`) that in the end was never changed. Each individual
-surprise was recorded as a File Impact deviation in `learnings.md` while it happened; this is the reconciled list.
+**Rewritten twice, 2026-09-22.** The original table listed thirteen files; the plan touched **forty-six**. Three
+kinds of error produced the gap: the Vitest+Gherkin adapter layer was not represented at all, the fe-e2e support
+files a new scenario needs were not foreseen, and one row named a file (`family-chat-composer.ts`) that in the end
+was never changed.
+
+The first rewrite said forty-five and claimed that "each individual surprise was recorded as a File Impact
+deviation in `learnings.md` while it happened". **Both were wrong.** The count was short by one because the diff it
+was taken from started at the plan's first _backend_ commit rather than its first commit, so everything Phase 3
+touched in `bnest-app-be-e2e` fell outside the range — which is how
+`apps/bnest-app-be-e2e/tests/support/graphql.ts` went missing, a file that gained the `$replyToMessageId` variable,
+the `FamilyChatMessageQuote` interface, and the `replyTo` selection set. And `learnings.md` records exactly **one**
+path-level File Impact deviation, for `assets/test/behaviour/family_chat.steps.ts`, plus the release-path note; the
+other fifteen surprises were absorbed silently. The section above on the predicted split says execution "must
+record each new path as a File Impact deviation in `learnings.md` with the reason", and that obligation was not
+met.
 
 ### Backend
 
@@ -129,25 +159,26 @@ flips every _following_ document-free scenario onto the browser branch, so it is
 
 ### Browser and API end-to-end
 
-| Status | Path                                                                         | Change                                          |
-| ------ | ---------------------------------------------------------------------------- | ----------------------------------------------- |
-| `[E]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat.steps.ts`                     | GraphQL reply bindings                          |
-| `[N]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat-reply.steps.ts`               | Reply-specific API bindings                     |
-| `[N]`  | `apps/bnest-app-be-e2e/tests/support/family-chat-state.ts`                   | Seeded reply state for the API layer            |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat.steps.ts`                     | Existing bindings under the reply flag          |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply.steps.ts`               | Menu, strip, quote, and jump                    |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply-reading.steps.ts`       | Reading a conversation that contains replies    |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply-keyboard.steps.ts`      | The keyboard path through menu, strip, and card |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-offline-persistence.steps.ts` | An offline reply that keeps its target          |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-resume.steps.ts`              | Resume with replies present                     |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/experience-release.steps.ts`              | The two-stage release scenarios                 |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply.ts`                   | Reply-specific page helpers                     |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply-room.ts`              | Reply-aware room helper                         |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-gestures.ts`                | Pointer and keyboard gestures the menu needs    |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat.ts`                         | Shared room helper                              |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/candidate-pool.ts`                      | Candidate slots for the release scenarios       |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/routed-rollout.ts`                      | Routed-rollout helper under both flag postures  |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/storage-authority.ts`                   | Storage authority for reply-bearing runs        |
+| Status | Path                                                                         | Change                                                                      |
+| ------ | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `[E]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat.steps.ts`                     | GraphQL reply bindings                                                      |
+| `[E]`  | `apps/bnest-app-be-e2e/tests/support/graphql.ts`                             | The mutation variable, the quote interface, and the `replyTo` selection set |
+| `[N]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat-reply.steps.ts`               | Reply-specific API bindings                                                 |
+| `[N]`  | `apps/bnest-app-be-e2e/tests/support/family-chat-state.ts`                   | Seeded reply state for the API layer                                        |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat.steps.ts`                     | Existing bindings under the reply flag                                      |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply.steps.ts`               | Menu, strip, quote, and jump                                                |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply-reading.steps.ts`       | Reading a conversation that contains replies                                |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply-keyboard.steps.ts`      | The keyboard path through menu, strip, and card                             |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-offline-persistence.steps.ts` | An offline reply that keeps its target                                      |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-resume.steps.ts`              | Resume with replies present                                                 |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/experience-release.steps.ts`              | The two-stage release scenarios                                             |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply.ts`                   | Reply-specific page helpers                                                 |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply-room.ts`              | Reply-aware room helper                                                     |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-gestures.ts`                | Pointer and keyboard gestures the menu needs                                |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat.ts`                         | Shared room helper                                                          |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/candidate-pool.ts`                      | Candidate slots for the release scenarios                                   |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/routed-rollout.ts`                      | Routed-rollout helper under both flag postures                              |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/storage-authority.ts`                   | Storage authority for reply-bearing runs                                    |
 
 ## Specifications
 
