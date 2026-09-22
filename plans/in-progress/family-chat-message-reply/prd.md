@@ -421,6 +421,9 @@ Scenario: Promotion moves connected clients without a refresh
 
 ### AC-FCR-14 — The routed service stays responsive throughout
 
+**Accepted as permanently unmet 2026-09-23 (D15).** The criterion keeps the wording below; the stage that was
+never sampled stays visible as a gap rather than being removed.
+
 **Partially met, 2026-09-22 (D14). Arithmetic corrected 2026-09-22 by the re-check.** This first read "Two of
 this criterion's four release-stage sample sets were taken; two never were." That mixed two denominators. Against
 the four stages the outline below enumerates, **three carry a 12-sample set and one does not**:
