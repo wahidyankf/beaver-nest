@@ -49,6 +49,28 @@ export async function promoteCandidateWithFlag(
   return { previousRevision, revision };
 }
 
+/**
+ * Promotes a candidate whose `BNEST_FAMILY_CHAT_REPLY_ENABLED` is pinned,
+ * which is what a compatibility revision is: the reviewed build, routed with
+ * the feature off. `promoteCandidateWithFlag` above pins the room's own flag
+ * instead; the two are independent, and the compatibility release turns
+ * exactly one of them off.
+ */
+export async function promoteCandidateWithReplyFlag(
+  page: Page,
+  replyEnabled: boolean,
+): Promise<{ previousRevision: string; revision: string }> {
+  ensureLiveSqlite();
+  const targetPort =
+    routedPort === candidatePort ? candidatePort + 1 : candidatePort;
+  await ensureCandidate(targetPort, undefined, replyEnabled);
+  const previousRevision = requiredRevision(routedPort);
+  const revision = requiredRevision(targetPort);
+  await reloadRoute(page, targetPort, false);
+
+  return { previousRevision, revision };
+}
+
 export async function promoteCompatibleCandidate(
   page: Page,
   // `verifyLiveView` defaults to true (unchanged behavior for every existing
