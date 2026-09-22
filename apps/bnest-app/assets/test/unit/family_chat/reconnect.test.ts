@@ -10,7 +10,7 @@ import {
   createReconnect,
   promoteSlot,
 } from "../../../js/family_chat/reconnect.js";
-import { createFakeClock } from "./support/fake_clock";
+import { createFakeClock } from "../../support/fake_clock";
 
 describe("createReconnect / promoteSlot", () => {
   it("runs the six ordered steps and ends draining again", async () => {

@@ -308,14 +308,25 @@ step("a fresh visitor opens {string}", async (context, path) => {
   return openRoom({ ...context, user }, path);
 });
 
-step("the visitor reloads the page", (context) => {
+step("the visitor reloads the page", async (context) => {
   // A real reload's actual effect -- discarding the JS module's in-memory
   // outbox state while real IndexedDB survives it -- has no Node/Vitest
-  // equivalent (there is no process to destroy); this scenario's real
-  // cross-reload proof is `family-chat-offline-persistence.steps.ts` (FE_E2E,
-  // a genuine `page.reload()`). What this layer proves instead is the
-  // write-through contract behind that persistence: see the next step.
-  return context;
+  // equivalent for the document-free room (there is no process to destroy);
+  // that scenario's real cross-reload proof is
+  // `family-chat-offline-persistence.steps.ts` (FE_E2E, a genuine
+  // `page.reload()`). What this layer proves instead is the write-through
+  // contract behind that persistence: see the next step.
+  //
+  // The browser-shaped room (`support/reply_room.ts`) does have an
+  // equivalent, because every collaborator it holds is rebuilt from the
+  // retained server and device storage, so a reload there really does
+  // discard whatever only lived in memory -- which is exactly what "The
+  // reply target does not survive a reload" is asking about.
+  const { hasBrowserRoom, reopenBrowserRoom } =
+    await import("./support/reply_room");
+  if (!hasBrowserRoom()) return context;
+  const reopened = await reopenBrowserRoom();
+  return { ...context, room: reopened.room };
 });
 
 step("the message is durably queued for a closed tab to resume", (context) => {

@@ -79,7 +79,7 @@ async function fetchMissedMessages(roomSlug, afterId, replies) {
  * @param {MountableRoom} room
  * @param {unknown[]} rawMessages
  */
-async function mergeMissedMessages(room, rawMessages) {
+export async function mergeMissedMessages(room, rawMessages) {
   await Promise.resolve();
   const messages =
     /** @type {import("./real_store.js").RenderableMessage[]} */
