@@ -56,6 +56,33 @@ describe("rovingInvariantHolds", () => {
     expect(rovingInvariantHolds(list)).toBe(true);
   });
 
+  it("fails when a control inside a message is reachable by Tab", () => {
+    // How the quote card first got in: a `<button>` with no `tabindex` is
+    // tabbable by default, so one stop per reply appears *inside* the list
+    // while every list item still reads correctly. A real browser found it;
+    // the invariant is now the thing that would.
+    const list = renderList(3);
+    createRovingFocus(list).refresh();
+    expect(rovingInvariantHolds(list)).toBe(true);
+
+    const inner = document.createElement("button");
+    inner.type = "button";
+    list.querySelector('[data-role="family-chat-message"]')!.append(inner);
+
+    expect(rovingInvariantHolds(list)).toBe(false);
+  });
+
+  it("still holds when that control opts out of the tab order", () => {
+    const list = renderList(3);
+    createRovingFocus(list).refresh();
+    const inner = document.createElement("button");
+    inner.type = "button";
+    inner.tabIndex = -1;
+    list.querySelector('[data-role="family-chat-message"]')!.append(inner);
+
+    expect(rovingInvariantHolds(list)).toBe(true);
+  });
+
   it("fails when no item is reachable -- the history would be unreachable by Tab", () => {
     const list = renderList(3);
     createRovingFocus(list).refresh();

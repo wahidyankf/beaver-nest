@@ -37,6 +37,14 @@ export function quoteNode(quote) {
   button.className = "family-chat-message-quote";
   button.dataset["role"] = "family-chat-message-quote";
   button.dataset["targetMessageId"] = quote.id;
+  // Not a tab stop. The history's contract is that Tab enters it once and
+  // leaves it once (tech-doc 004), and a quote card inside a bubble would
+  // add one stop per reply -- which is how a real browser found this: Tab
+  // from the roving stop landed inside a later reply's quote instead of
+  // leaving the list. It stays a real `button` with a real accessible name,
+  // so a screen reader still reaches and announces it; what it is not is a
+  // second way for Tab to walk the conversation.
+  button.tabIndex = -1;
   button.setAttribute(
     "aria-label",
     `Reply to ${senderLabel}: ${quote.bodyPreview}. Go to that message.`,

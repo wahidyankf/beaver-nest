@@ -1,6 +1,7 @@
 import {
   expect,
   type Browser,
+  type Locator,
   type Page,
   type TestInfo,
 } from "@playwright/test";
@@ -16,6 +17,19 @@ import { isolatedTestIdentity, type TestIdentity } from "./test-identity";
 // role).
 
 export const ROOM_ROUTE = "/family-chat/ruang-keluarga";
+
+/**
+ * The composer's message input, by its own accessible name and nothing
+ * else's. `getByLabel("Message")` used to be enough, until every rendered
+ * message grew an actions control named "Actions for <sender>'s message" --
+ * a substring match then resolved to fifty-odd elements and every step that
+ * typed into the composer failed on strict mode rather than on anything it
+ * was testing. Exact, and in one place, so the next accessible name that
+ * happens to contain the word cannot repeat it.
+ */
+export function composerInput(page: Page): Locator {
+  return page.getByLabel("Message the family", { exact: true });
+}
 
 export async function openFamilyChatRoom(
   page: Page,
@@ -51,7 +65,7 @@ export async function sendAsAnotherMember(
     await expect(
       otherPage.locator('[data-role="family-chat-room"]'),
     ).toHaveAttribute("data-connection-state", "ready");
-    await otherPage.getByLabel("Message").fill(body);
+    await composerInput(otherPage).fill(body);
     await otherPage.getByRole("button", { name: "Send" }).click();
   } finally {
     await context.close();
@@ -89,7 +103,7 @@ export async function promoteWithConcurrentTraffic(
     }
     await routeHandle.continue();
   });
-  await page.getByLabel("Message").fill(draftBody);
+  await composerInput(page).fill(draftBody);
   await page.getByRole("button", { name: "Send" }).click();
   await expect(
     page.locator("[data-role=family-chat-outbox-status]"),

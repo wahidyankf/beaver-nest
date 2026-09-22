@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { composerInput } from "../support/family-chat";
 import { createBdd } from "playwright-bdd";
 
 // family_chat.feature's "Rule: Resume, online reaction, backoff, and
@@ -61,7 +62,7 @@ When(
       }
       await routeHandle.continue();
     });
-    await page.getByLabel("Message").fill(offlineMessage);
+    await composerInput(page).fill(offlineMessage);
     await page.getByRole("button", { name: "Send" }).click();
   },
 );

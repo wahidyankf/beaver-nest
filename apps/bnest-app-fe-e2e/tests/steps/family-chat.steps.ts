@@ -3,6 +3,7 @@ import { createBdd } from "playwright-bdd";
 import { restorePrimaryRoute } from "../support/routed-rollout";
 import type { TestIdentity } from "../support/test-identity";
 import {
+  composerInput,
   ensureFamilyChatHasOlderPage,
   inspectCacheStorageEntries,
   openFamilyChatRoom,
@@ -153,7 +154,7 @@ Given(
     // scrolled away from at all (see `seedFamilyChatScrollOverflow`'s
     // comment).
     await seedFamilyChatScrollOverflow(page);
-    await page.getByLabel("Message").focus();
+    await composerInput(page).focus();
   },
 );
 
@@ -171,7 +172,7 @@ Then("a live-region announcement names the new message", async ({ page }) => {
 });
 
 Then("focus remains in the composer", async ({ page }) => {
-  await expect(page.getByLabel("Message")).toBeFocused();
+  await expect(composerInput(page)).toBeFocused();
 });
 
 Then(
@@ -185,7 +186,7 @@ Given(
   "a visitor opens {string} and exchanges messages",
   async ({ page, $testInfo }, _route: string) => {
     identity = await openFamilyChatRoom(page, $testInfo);
-    await page.getByLabel("Message").fill("cache inspection probe");
+    await composerInput(page).fill("cache inspection probe");
     await page.getByRole("button", { name: "Send" }).click();
   },
 );
@@ -254,8 +255,8 @@ Then(
     await expect(
       page.locator('[data-role="family-chat-room"]'),
     ).toHaveAttribute("data-connection-state", "ready", { timeout: 10_000 });
-    await page.getByLabel("Message").focus();
-    await expect(page.getByLabel("Message")).toBeFocused();
+    await composerInput(page).focus();
+    await expect(composerInput(page)).toBeFocused();
     await page.keyboard.press("Tab");
     const focused = await page.evaluate(
       () => document.activeElement?.tagName ?? null,

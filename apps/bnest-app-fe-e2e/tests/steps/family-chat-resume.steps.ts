@@ -1,6 +1,10 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
-import { openFamilyChatRoom, ROOM_ROUTE } from "../support/family-chat";
+import {
+  composerInput,
+  openFamilyChatRoom,
+  ROOM_ROUTE,
+} from "../support/family-chat";
 import {
   composerBlurCount,
   recordComposerBlurs,
@@ -204,7 +208,7 @@ When(
   async ({ page }, body: string) => {
     await recordComposerBlurs(page);
     sentBody = `${body} ${crypto.randomUUID().slice(0, 8)}`;
-    await page.getByLabel("Message").fill(sentBody);
+    await composerInput(page).fill(sentBody);
     await page.getByRole("button", { name: "Send" }).click();
     await expect
       .poll(() =>
@@ -226,7 +230,7 @@ When(
   "the visitor submits {string} with the Enter key",
   async ({ page }, body: string) => {
     await recordComposerBlurs(page);
-    const input = page.getByLabel("Message");
+    const input = composerInput(page);
     // Unique per send for the reason `sentBody` is: the three browser
     // projects share one room, so the raw Gherkin literal would already be on
     // screen from an earlier project and this poll would pass without the
@@ -247,7 +251,7 @@ When(
 When(
   "the visitor presses Shift and Enter while writing {string}",
   async ({ page }, body: string) => {
-    const input = page.getByLabel("Message");
+    const input = composerInput(page);
     await input.fill(body);
     await input.press("Shift+Enter");
     await input.pressSequentially(SHIFT_ENTER_CONTINUATION);
@@ -255,7 +259,7 @@ When(
 );
 
 Then("the composer still holds keyboard focus", async ({ page }) => {
-  await expect(page.getByLabel("Message")).toBeFocused();
+  await expect(composerInput(page)).toBeFocused();
 });
 
 Then(
@@ -268,14 +272,14 @@ Then(
 Then(
   "the composer is empty and ready for the next message",
   async ({ page }) => {
-    const input = page.getByLabel("Message");
+    const input = composerInput(page);
     await expect(input).toHaveValue("");
     await expect(input).toBeEnabled();
   },
 );
 
 Then("the composer holds an unsent multi-line draft", async ({ page }) => {
-  const draft = await page.getByLabel("Message").inputValue();
+  const draft = await composerInput(page).inputValue();
   expect(draft).toContain("\n");
   expect(draft).toContain(SHIFT_ENTER_CONTINUATION);
   await expect(

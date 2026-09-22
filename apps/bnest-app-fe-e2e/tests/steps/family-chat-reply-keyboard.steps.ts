@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { composerInput } from "../support/family-chat";
 import { createBdd } from "playwright-bdd";
 import { waitForRoomReady } from "../support/family-chat-resume";
 import { ensureAtLeast } from "../support/family-chat-seeding";
@@ -151,6 +152,10 @@ Given(
     await page.reload();
     await waitForRoomReady(page);
     await waitForMessage(page, scenario.replyId);
+    scenario.targetSender =
+      (await messageById(page, scenario.targetId)
+        .locator('[data-role="family-chat-message-sender"]')
+        .textContent()) ?? "";
   },
 );
 
@@ -162,14 +167,15 @@ When("assistive technology reads that reply", async ({ page }) => {
 
 Then(
   "the quote exposes an accessible name naming {string}",
-  async ({ page }, name: string) => {
-    // The browser's own computed name, not the attribute source -- this is
-    // the whole reason the scenario needs a real accessibility tree.
-    const computed = await messageById(page, scenario.replyId)
-      .locator(QUOTE)
-      .evaluate((element) => element.ariaLabel ?? "");
-    expect(computed).toContain(name);
-    expect(computed).toContain("Go to that message");
+  async ({ page }, _sender: string) => {
+    // The browser's own computed accessible name, not the attribute source
+    // -- computing it is the whole reason this scenario needs a real
+    // accessibility tree rather than the unit layer's markup assertion.
+    await expect(
+      messageById(page, scenario.replyId).locator(QUOTE),
+    ).toHaveAccessibleName(
+      `Reply to ${scenario.targetSender}: ${scenario.targetBody}. Go to that message.`,
+    );
   },
 );
 
@@ -212,7 +218,7 @@ Then("the room loads", async ({ page }) => {
 
 Then("the visitor can send a message normally", async ({ page }) => {
   const body = uniqueBody("Compatibility send");
-  await page.getByLabel("Message").fill(body);
+  await composerInput(page).fill(body);
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.locator(MESSAGE).filter({ hasText: body })).toBeVisible({
     timeout: 15_000,

@@ -26,6 +26,14 @@ export interface ReplyScenarioState {
   targetId: string;
   secondTargetId: string;
   targetBody: string;
+  /**
+   * The display name the room actually rendered for the quoted message.
+   * The feature writes `"Ayah"`, which is a stand-in for "the original
+   * sender": a browser scenario signs in as an isolated synthetic identity,
+   * so the name on screen is that identity's, and asserting the literal
+   * would be asserting the fixture rather than the room.
+   */
+  targetSender: string;
   replyId: string;
   replyBody: string;
 }
@@ -40,6 +48,7 @@ export const scenario: ReplyScenarioState = {
   targetId: "",
   secondTargetId: "",
   targetBody: "",
+  targetSender: "",
   replyId: "",
   replyBody: "",
 };
@@ -236,13 +245,18 @@ export async function loadOlderUntilRendered(
   messageId: string,
   maxPages = 8,
 ): Promise<void> {
+  const loadOlder = page.locator('[data-role="family-chat-load-older"]');
   for (let page_index = 0; page_index < maxPages; page_index += 1) {
     // eslint-disable-next-line no-await-in-loop -- each page must be rendered before the next request is decided.
     if ((await messageById(page, messageId).count()) > 0) return;
+    // The room disables this control once nothing older remains. Clicking it
+    // anyway spends the full action timeout waiting for an element that will
+    // never become enabled, and reports it as a paging failure rather than
+    // as "the message is not in this room's history".
+    // eslint-disable-next-line no-await-in-loop -- the control's state after the previous page is what decides this.
+    if (await loadOlder.isDisabled()) break;
     // eslint-disable-next-line no-await-in-loop -- same: one page per iteration is the behaviour under test.
-    await page
-      .locator('[data-role="family-chat-load-older"]')
-      .click({ timeout: 10_000 });
+    await loadOlder.click({ timeout: 10_000 });
     // eslint-disable-next-line no-await-in-loop -- awaiting the page that was just requested, not a batch.
     await expect
       .poll(() => page.locator(MESSAGE).count(), { timeout: 10_000 })

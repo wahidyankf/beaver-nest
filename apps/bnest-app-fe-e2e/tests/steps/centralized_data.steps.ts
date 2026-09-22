@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { composerInput } from "../support/family-chat";
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
@@ -79,7 +80,7 @@ Given(
 When("the authenticated user continues the chat", async ({ page }) => {
   await page.goto("/chat");
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-  await page.getByLabel("Message").fill("Continue after resume");
+  await composerInput(page).fill("Continue after resume");
   await page.getByRole("button", { name: "Send" }).click();
 });
 
