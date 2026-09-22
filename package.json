@@ -46,6 +46,7 @@
     "@types/phoenix": "^1.6.7",
     "@vitest/coverage-v8": "^5.0.1",
     "daisyui": "^5.5.20",
+    "happy-dom": "20.14.5",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "nx": "23.1.1",
