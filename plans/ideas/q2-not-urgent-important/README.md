@@ -39,5 +39,5 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
 - [Plan and checkpoint contract gaps](plan-and-checkpoint-contract-gaps.md) records the release-path omission
   that would have promoted a flagless revision, and the typecheck gate that stayed red across three phases.
 - [Browser suite timing reliability](browser-suite-timing-reliability.md) records the fixed press-and-hold margin
-  with the trace that settled it, the open visibility-resume failure at one run in eight, and why a retry is
-  rejected as the remedy.
+  with the trace that settled it, the open visibility-resume failure at one run in eight, the slot-activation
+  window that took a whole rule in one run, and why a retry is rejected as the remedy.

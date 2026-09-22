@@ -1431,8 +1431,9 @@ Four routing failures the check found, and what happened to each:
 1. **Nine owner lines named tech-doc files that do not exist** — `004-graphql-contract.md`,
    `005-composer-and-actions.md`, `003-browser-send-outbox.md`, `004-quote-and-jump.md`. This plan has
    `001`–`006` and none of those is among them; the names were invented from the topic rather than read off the
-   directory. A learning routed to a file that does not exist has not reached an owner. All four now point at the
-   documents that actually own their subject. `REPO`'s `internal-links` gate never caught them because they were
+   directory. A learning routed to a file that does not exist has not reached an owner. All nine lines — naming
+   those four distinct filenames between them — now point at the documents that actually own their subject.
+   **Corrected 2026-09-23:** this said "all four", counting filenames where the sentence before it counts lines. `REPO`'s `internal-links` gate never caught them because they were
    written as inline code, not as links.
 2. **Two governance proposals deferred by rules propagation were never raised** — that a plan's File Impact table
    must cover the release path when it introduces a runtime flag, and that the phase-checkpoint command set should
@@ -1535,12 +1536,12 @@ The execution check was re-run against `772b46f26`, after the first round of cor
 One of the two original blocking classes is materially advanced and still not closed. The other is untouched.
 Between them the re-check found four **new** defects, all introduced by the corrections themselves.
 
-| New defect                                 | What it was                                                                                                                                                                                                                            |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase 10's responsiveness item left ticked | `learnings.md` withdrew this release's post-promotion sample set; `delivery.md:762` went on claiming it. The same defect Phase 9's item had just been unticked for, standing on its sibling. AC-FCR-14 is two of four stages unproven. |
-| A checkpoint standing on an unticked item  | Phase 9's blocking checkpoint claimed "every routed sample is within budget" directly above the drain item that was unticked for not having taken one.                                                                                 |
-| A new uncounted claim                      | The rewritten File Impact table said forty-five test paths; the plan touched forty-six.                                                                                                                                                |
-| A new false claim                          | That each surprise path had been recorded as a File Impact deviation. One was, of sixteen.                                                                                                                                             |
+| New defect                                 | What it was                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 10's responsiveness item left ticked | `learnings.md` withdrew this release's post-promotion sample set; `delivery.md:762` went on claiming it. The same defect Phase 9's item had just been unticked for, standing on its sibling. **Corrected 2026-09-23:** this row ended "AC-FCR-14 is two of four stages unproven" — one of the four enumerated stages is unproven; two release moments were never sampled. |
+| A checkpoint standing on an unticked item  | Phase 9's blocking checkpoint claimed "every routed sample is within budget" directly above the drain item that was unticked for not having taken one.                                                                                                                                                                                                                    |
+| A new uncounted claim                      | The rewritten File Impact table said forty-five test paths; the plan touched forty-six.                                                                                                                                                                                                                                                                                   |
+| A new false claim                          | That each surprise path had been recorded as a File Impact deviation. One was, of sixteen.                                                                                                                                                                                                                                                                                |
 
 And the resolution record — the entry that exists to say a count must reproduce — still did not reproduce. It
 reported 50 owner lines, 17 discards, and 32 headings carrying one. The file holds **49**, **16**, and **31**. The
@@ -1610,10 +1611,20 @@ a live family room to satisfy a checklist, and that is a poor reason to post in 
 **D14 — AC-FCR-14: accepted as partial, on the record.** Selected over amending the criterion to fit the evidence,
 and over re-releasing to manufacture the measurements.
 
-Two of its four stage sample sets were never taken and neither slot still exists, so neither can be retaken. Both
-items and both checkpoints stay unticked, and the criterion is recorded as holding at two of four stages. The
-distinction that matters, and that the record now states: the service was never shown to be slow — every sample
-ever taken returned 200 inside budget — it was shown to be **unmeasured** at two moments. Amending the outline to
+Two release moments were never sampled — Phase 9's post-drain and Phase 10's post-promotion — and neither slot
+still exists, so neither can be retaken. Both items and both checkpoints stay unticked.
+
+**Arithmetic corrected 2026-09-23 by the fourth check.** This entry said "two of its four stage sample sets" and
+"holding at two of four stages". Against the four stages AC-FCR-14 enumerates, **three carry a 12-sample set and
+one does not** — only `after the experience revision is routed` has none, because Phase 10's post-drain set
+carries the drain stage. "Two" counts release moments, not stages. The correction is embarrassing in a specific
+way: the round that made it listed the places the claim had propagated to as "`prd.md`, two `delivery.md` items,
+and D14", corrected the first three, and left D14 — the entry the other three cite as the authority. That is the
+same finding the round was closing, committed inside the commit that recorded it.
+
+The decision itself is unchanged, and so is its ground: one enumerated stage was never measured and cannot be
+retaken. The distinction that matters: the service was never shown to be slow — every sample ever taken returned
+200 inside budget — it was shown to be **unmeasured** after the experience promotion. Amending the outline to
 fit what survived was rejected because it would have been the executor who missed the evidence rewriting the
 requirement to match, after the fact; if that reshaping is right it is right for every plan, which makes it a
 governance change rather than a plan amendment.
@@ -1740,7 +1751,7 @@ statements of one fact, and correcting one of them leaves a document that contra
 before.
 
 **4. A declared gate with no run on the corpus it was declared green for — and when I ran it, it was red.**
-Four delivery items record `FE_E2E` 296 passed, 0 failed. That run predates the rollback-floor scenario; the D12
+**Five** delivery items record `FE_E2E` 296 passed, 0 failed. **Corrected 2026-09-23:** this said four; there are five, one of them wrapped so it reads as prose. That run predates the rollback-floor scenario; the D12
 evidence is eight isolated runs of one scenario, which is the right way to measure that scenario's stability and
 is not a suite run. Delivery also carried "four tests each, thirty-two for thirty-two" without the caveat this
 file states plainly two entries above — that the fourth is Playwright's setup project, so it is twenty-four real
@@ -1813,3 +1824,62 @@ all three at once.
 not reintroduced. The scoping lesson from finding 2 — that a correction sweep over checkboxes misses
 dispositions — is raised in `plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`, and both
 timing failures in `plans/ideas/q2-not-urgent-important/browser-suite-timing-reliability.md`.
+
+### 2026-09-23 — The fourth execution check, and a correction that did not correct itself
+
+Terminal verdict: **BLOCKED**, for the fourth time. Three of the third round's four findings closed cleanly. Two
+defects remained, and both are the same defect: a retracted claim still standing in a place the sweep did not
+visit.
+
+**The one worth the entry. D14 still said "two of four".** The third round found that AC-FCR-14's arithmetic was
+wrong, corrected it in `prd.md`, in two `delivery.md` items and in `005` — and left it standing in D14, the
+decision record the other three cite as their authority. So the plan's authority document and everything deriving
+from it disagreed about the criterion's own numbers.
+
+What makes it worth writing down rather than just fixing: **the entry recording that round names the four places
+the claim had reached, and D14 is the fourth one on the list.** I wrote "propagated into `prd.md`, two
+`delivery.md` items, and D14", then corrected three of them. And the lesson that same round filed as finding 2 —
+_a correction sweep scoped to the places a finding points at leaves the claim standing elsewhere_ — was raised as
+an idea brief in the same commit that committed the error it describes. Naming a failure mode is not the same as
+being protected from it; it is not even much evidence of attention. The mechanical version of the sweep, which
+that brief proposes, would have caught this in one `grep`. I did not run it, because I had just finished writing
+about why one should.
+
+**So this round ran it.** Sweeping every retracted claim across the six plan documents and the briefs turned up
+three more live instances the check itself had not reported: a findings-table row still reading "AC-FCR-14 is two
+of four stages unproven"; the Recovery disposition's unqualified "preflight", which names Phase 9's release set
+while `prd.md`'s stage table now names Phase 0's baseline; and the q1 brief still asserting the browser suite is
+"not green on this machine" as a standing property. The sweep takes about a minute and found more than the round
+that prompted it. That is the whole argument for making it mechanical.
+
+**The second, less interesting and more ordinary.** The stage table I added paired Phase 9's _release_ preflight
+figure — p95 35.9 ms — with the row for Phase 0's _baseline_, which is p95 248.4 ms. Two different 12-sample
+sets, both inside budget, both legitimately landing on the "preflight" stage; the row named one and cited the
+other. A table built to fix a sourcing error introduced a sourcing error.
+
+**What the check found by running the gate three more times, which I had not done.** Five full `FE_E2E` runs now
+exist on an unchanged tree: 297/2, 298/1, 299/0, 293/6, 299/0. Five runs, five results. Two of them fully green —
+so my flat statement that "`FE_E2E` is not green on this machine" was one observation written as a standing
+property, the same shape of error in the opposite direction from the records I had spent two rounds correcting
+for claiming green.
+
+The 293/6 run is the substantive part. Its failures were not product assertions but release infrastructure —
+`storage drain lock timed out`, and a `data-connection-state` stuck at `booting` — and they took the entire
+`Reconnect across Caddy promotion` rule, **including this plan's own rollback-floor scenario**, plus two
+scenarios outside family chat. So "the rollback floor passes in every run recorded here" was true of the runs
+recorded here and false as a general claim. The window is the same one version four of that scenario lost to, and
+the reason `waitForRoutedReads` exists at all: a slot that answers `/health/ready` is not yet a slot that can
+serve a write. That belongs in the brief, widened to cover it, rather than in another correction round here.
+
+**The pattern across four checks, stated plainly.** Every round has closed its findings and introduced fewer new
+ones — four, then four, then two. None has reached zero. Every single defect in every round has been one shape:
+a number, a count, or a citation that nobody checked against the thing it describes, written by someone who had
+just finished being told that this is the failure mode. The suites and gates were green throughout all four
+rounds and could not have caught any of it, because none of it is a property of the software. The only thing that
+has ever caught it is a reader with the artifact open.
+
+**Durable owner:** the corrections themselves, in `learnings.md` (D14), `prd.md`, `delivery.md`, and
+`plans/ideas/q2-not-urgent-important/browser-suite-timing-reliability.md`, which now carries the slot-activation
+window as its third and widest case. The mechanical-sweep proposal stays in
+`plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`, with this round as the evidence that
+the prose version of it does not work.

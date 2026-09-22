@@ -57,7 +57,9 @@ had stated, and both went unnoticed because the thing that would have caught the
 and mobile viewports on `main` — one to two failures out of thirteen across repeated isolated runs, with the menu
 staying `hidden`. It reproduces with the reply plan's additions removed, so it predates them. It may share the
 slot-churn cause above; that is a guess and is recorded as one. It is noted here because it means the family-chat
-browser suite is not green on this machine, which several plan records assume it is.
+browser suite is not reliably green on this machine, which several plan records assume it is. **Restated
+2026-09-23:** this said "not green on this machine". Five full runs later the result is that it does not return
+the same answer twice — two of the five were fully green. The unreliability is the finding, not a standing red.
 
 **Resolved 2026-09-22, and it was not a release-window effect.** Instrumenting the gesture showed the pointer
 down on the correct message for 559 ms against a 500 ms threshold, with no `pointercancel`, no `pointermove`
