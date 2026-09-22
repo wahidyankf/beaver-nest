@@ -82,8 +82,12 @@ Specifications are updated **before** implementation, in the same change, under
 | `[E]`  | `specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature`    | New `Rule` for the quote field, the mutation argument, and target validation                                   |
 | `[E]`  | `specs/apps/bnest/app-be/behaviours/family_chat_operations.feature` | New `Rule` for storage, idempotent replay with a differing target, and unchanged push bookkeeping              |
 | `[E]`  | `specs/apps/bnest/app-fe/behaviours/family_chat.feature`            | New `Rule`s for the menu, the strip, quote rendering, the bounded jump, offline replies, and the keyboard path |
-| `[E]`  | `specs/apps/bnest/app-be/architecture.md`                           | Component view: the quote resolution step; container view: the new column; behaviour traceability rows         |
-| `[E]`  | `specs/apps/bnest/app-fe/architecture.md`                           | Component view: the three new browser modules and the reply flag; behaviour traceability rows                  |
+| `[E]`  | `specs/apps/bnest/app-be/architecture.md`                           | Component view prose: the mutation argument and the quote field; constraints: read-time quote resolution       |
+| `[E]`  | `specs/apps/bnest/app-fe/architecture.md`                           | Component view prose: the three new browser modules and the reply flag; two new constraints                    |
+
+Neither architecture document's **Container View** changes, and neither **Behaviour Traceability** section does.
+[Specification Changes](005-specification-changes.md) owns the reason for each and records both as deliberately
+unchanged; this table names only what is edited, so the two documents agree.
 
 No new `.feature` file is created. The reply behaviours are Rules inside the three existing family-chat features,
 which keeps one feature per boundary per capability and leaves the two `behaviours/README.md` directory maps
