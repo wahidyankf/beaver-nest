@@ -2328,6 +2328,11 @@ body {
  * visible control on every bubble would be noise. */
 .family-chat-message-more {
   align-self: flex-start;
+  /* WCAG 2.2 target size (minimum) is 24 x 24 CSS pixels. The glyph's own
+   * padding gave it 35 x 21, so the height is set here rather than left to
+   * the font's line box. */
+  min-width: 1.5rem;
+  min-height: 1.5rem;
   padding: 0.1rem 0.35rem;
   border: 0;
   border-radius: 0.6rem;
@@ -2494,10 +2499,39 @@ body {
 }
 
 .family-chat-reply-strip-preview {
+  min-width: 0;
   overflow: hidden;
   font-size: 0.82rem;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* Narrow enough and the three columns cannot all fit on one line: the name
+ * wraps to two lines, the cancel control keeps its width, and the preview
+ * -- which is `overflow: hidden`, so its automatic minimum is zero -- is
+ * the one that collapses, to exactly 0px. The member is then told who they
+ * are replying to but never which message, which is most of the point of
+ * the strip. Giving the preview its own row keeps both. */
+@media (width <= 37.5rem) {
+  .family-chat-reply-strip {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name cancel"
+      "preview cancel";
+  }
+
+  .family-chat-reply-strip-name {
+    grid-area: name;
+  }
+
+  .family-chat-reply-strip-preview {
+    grid-area: preview;
+  }
+
+  .family-chat-reply-strip-cancel {
+    grid-area: cancel;
+    align-self: center;
+  }
 }
 
 .family-chat-reply-strip-cancel {

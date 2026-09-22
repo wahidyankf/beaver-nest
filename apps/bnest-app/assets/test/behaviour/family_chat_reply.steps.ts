@@ -1091,6 +1091,13 @@ step(
       () => room.announcement() === JUMP_REFUSED_REMEDIATION,
       "the refused-jump announcement",
     );
+    // "States" has to reach a reader who is looking at the screen too. The
+    // live region is 1x1 and clipped, so announcing there alone leaves a
+    // sighted member watching 250 messages load and then nothing happen.
+    await waitFor(
+      () => room.visibleRemediation() === JUMP_REFUSED_REMEDIATION,
+      "the refused-jump remediation a sighted reader can see",
+    );
     return context;
   },
 );

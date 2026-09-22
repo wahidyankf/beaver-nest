@@ -271,6 +271,8 @@ export interface BrowserRoom {
   fetchCalls: { count: number };
   connection: { online: boolean };
   announcement: () => string;
+  /** What a sighted reader is shown, as opposed to what is announced. */
+  visibleRemediation: () => string;
 }
 
 interface SavedGlobal {
@@ -494,6 +496,10 @@ async function assemble(
     fetchCalls,
     connection: config.connection,
     announcement: () => elements.liveRegion.textContent ?? "",
+    visibleRemediation: () =>
+      elements.remediation.hidden
+        ? ""
+        : (elements.remediation.textContent ?? ""),
   };
   active = { room: opened, restore, config };
   return opened;
