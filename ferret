@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# The pinned FERRET this repository records its harness telemetry with.
+#
+# Every invocation dispatches through here rather than through whatever
+# `ferret` happens to be on PATH. A telemetry tool that changes what it stores
+# between two runs makes its own record unreadable, and a tool resolved from
+# PATH is exactly that: two machines writing different shapes into one history,
+# and neither one wrong about its own binary.
+#
+# Verification is unconditional and happens before execution. A cached copy is
+# re-digested every run, because a cache is a place other processes can write.
+#
+# Exit 125 is this wrapper refusing to run: a malformed pin, a digest that does
+# not match, or a version that is not the one the pin names. Every other exit
+# code is FERRET's own. There is no bounded wait here and so no 124: the
+# install is published by atomic rename, and a concurrent install either wins
+# or is discarded, so nothing ever queues.
+set -euo pipefail
+unset CDPATH
+
+tool_dir=$(cd -- "$(dirname -- "$0")" && pwd)
+lock_file="$tool_dir/ferret.lock"
+
+refuse() {
+	printf '[ferret] %s\n' "$1" >&2
+	exit 125
+}
+
+[[ -r "$lock_file" ]] || refuse "there is no pin at ferret.lock, and an unpinned recorder is not a record"
+
+# Every key must resolve exactly once. A duplicate is ambiguous, and ambiguity
+# in a pin is a configuration error rather than something to resolve by
+# preferring the first or the last.
+lock_value() {
+	local key=$1 value
+	value=$(awk -F= -v key="$key" '$0 !~ /^#/ && $1 == key { print substr($0, index($0, "=") + 1) }' "$lock_file")
+	[[ -n "$value" ]] || refuse "the pin declares no $key"
+	[[ "$value" != *$'\n'* ]] || refuse "the pin declares $key more than once"
+	printf '%s' "$value"
+}
+
+version=$(lock_value version)
+commit=$(lock_value commit)
+digest=$(lock_value artifact)
+
+[[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || refuse "the pin declares an invalid stable version"
+[[ "$commit" =~ ^[0-9a-f]{40}$ ]] || refuse "the pin declares an invalid commit"
+[[ "$digest" =~ ^[0-9a-f]{64}$ ]] || refuse "the pin declares an invalid artifact digest"
+
+# One artifact, no platform matrix. The release is a zipapp that runs wherever
+# a supported interpreter does, and it carries its own interpreter search, so
+# repeating that search here would only give it a second answer to disagree
+# with.
+artifact="ferret-cli_${version}.pyz"
+
+# Downloaded artifacts stay outside the repository, so a clone never holds a
+# multi-megabyte executable and a clean checkout is genuinely clean. One cache
+# is shared by every checkout. Tests may redirect it without weakening any
+# verification.
+if [[ -n "${FERRET_INSTALL_CACHE:-}" ]]; then
+	cache_root=$FERRET_INSTALL_CACHE
+elif [[ "$(uname -s)" == Darwin ]]; then
+	cache_root=${XDG_CACHE_HOME:-"$HOME/Library/Caches"}/ose-ferret
+else
+	cache_root=${XDG_CACHE_HOME:-"$HOME/.cache"}/ose-ferret
+fi
+install_dir="$cache_root/$version"
+binary="$install_dir/ferret"
+
+digest_of() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | awk '{ print $1 }'
+	else
+		shasum -a 256 "$1" | awk '{ print $1 }'
+	fi
+}
+
+# The zipapp is what the release publishes and what the pin records, so the
+# same digest verifies the download and every later cached run. There is no
+# second executable inside it to record separately.
+cached_is_valid() {
+	[[ -x "$binary" ]] || return 1
+	[[ "$(digest_of "$binary")" == "$digest" ]] || return 1
+	[[ "$("$binary" version 2>/dev/null)" == "ferret ${version#v}" ]]
+}
+
+if ! cached_is_valid; then
+	# A hook may run with no network. Say so plainly rather than failing with a
+	# transport error that reads like an outage.
+	command -v curl >/dev/null 2>&1 || refuse "curl is required to install the pinned FERRET"
+
+	staging=$(mktemp -d "${TMPDIR:-/tmp}/ferret-install.XXXXXX")
+	trap 'rm -rf -- "$staging"' EXIT
+
+	base="https://github.com/wahidyankf/ose-public/releases/download/ferret-cli/$version"
+	curl -fsSL --retry 2 -o "$staging/$artifact" "$base/$artifact" ||
+		refuse "the pinned FERRET could not be fetched, and this wrapper will not fall back to an unpinned one"
+
+	# The release publishes checksums.txt beside the artifact. Checking the pin
+	# against it as well as against the bytes is what makes a wrong pin say so
+	# rather than quietly install something the release never named.
+	curl -fsSL --retry 2 -o "$staging/checksums.txt" "$base/checksums.txt" ||
+		refuse "the release checksums could not be fetched"
+	published=$(awk -v name="$artifact" '$2 == name || $2 == "*" name { print $1 }' "$staging/checksums.txt")
+	[[ "$published" == "$digest" ]] ||
+		refuse "the release publishes a different digest for $artifact than the pin declares"
+
+	actual=$(digest_of "$staging/$artifact")
+	[[ "$actual" == "$digest" ]] ||
+		refuse "the fetched artifact does not match the pinned digest"
+
+	chmod 0755 "$staging/$artifact"
+	[[ "$("$staging/$artifact" version 2>/dev/null)" == "ferret ${version#v}" ]] ||
+		refuse "the pinned artifact reports a version the pin does not name"
+
+	# Publish atomically, so a concurrent invocation either sees no install or
+	# sees a complete one, and never a half-written executable.
+	mkdir -p "$install_dir"
+	staged=$(mktemp "$install_dir/.ferret.XXXXXX")
+	cp "$staging/$artifact" "$staged"
+	chmod 0755 "$staged"
+	mv -f "$staged" "$binary"
+
+	cached_is_valid ||
+		refuse "the installed FERRET did not verify immediately after installation"
+fi
+
+exec "$binary" "$@"
