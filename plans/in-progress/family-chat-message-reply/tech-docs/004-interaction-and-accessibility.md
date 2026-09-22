@@ -55,8 +55,14 @@ awkward, not as a replacement for it.
 
 - Opening moves focus to the first available item.
 - `ArrowDown` / `ArrowUp` cycle items; `Home` / `End` jump; `Escape` closes.
-- Focus is held inside the menu while it is open, and returns to the message it was opened from on close — every
-  close path, including choosing an item, pressing Escape, and clicking outside.
+- Focus is held inside the menu while it is open, and returns to the message it was opened from on close —
+  Escape, clicking outside, and choosing `Copy text`.
+- **Corrected 2026-09-22:** this rule originally said _every_ close path, "including choosing an item". `Reply` is
+  the one path that must not return focus to the message: it puts focus in the composer, and the dismissal listener
+  on the menu host was taking it straight back, in the same gesture. An item that places focus itself now stops the
+  click before it reaches the host. The bug was invisible to the unit specs, which drive `createMenuState` and
+  `runCopyAction` directly and never dispatch a real event through both listeners — it took a browser-shaped room
+  to see it.
 - An unavailable `Reply` keeps `aria-disabled="true"` and stays focusable, so a screen-reader user hears the reason
   instead of finding an item that silently is not there. Its reason is on the item as `aria-describedby`.
 
@@ -105,13 +111,24 @@ what a member actually experiences. Either one alone is a check that can be gree
 ## The Composer Reply Strip
 
 - Rendered inside the existing composer form, above the textarea, only while a reply target is set.
-- Shows `Replying to {name}` and the same 160-grapheme server preview the quote card shows.
+- Shows `Replying to {name}` and a 160-grapheme preview, bounded by the same rule the quote card uses.
+  **Corrected 2026-09-22:** this said "the same server preview the quote card shows", which was true of a quote
+  arriving from the server and false of a target chosen on screen. A target picked from a rendered bubble never
+  passes through the server at all — it was built from the rendered body, in full, and a 400-grapheme message filled
+  the strip with all 400. `bodyPreview` in `reply_target.js` now applies the same rule client-side, by grapheme
+  rather than by code unit, so the strip and the quote card can never disagree about the same message. Both the
+  backend and browser drivers allow `<= 161`: the budget plus the one ellipsis that marks the cut.
 - Carries a `Cancel reply` button. `Escape` in the textarea does the same thing.
 - Selecting a different message while a target is set replaces the target; it never stacks.
 - Cleared on successful queueing. **Not** cleared when the send is refused — the member keeps both their text and
   their target and can try again.
 - Not persisted. Drafts are not persisted in this room today, and a reply target is part of a draft. Reloading
   discards both, and that consistency is worth more than saving one selection.
+
+**The draft and the target clear for different reasons, and that is deliberate.** Added 2026-09-22. The composer
+reads the target before awaiting the queue and calls `clear()` only after the queue accepted; a refusal restores
+`draftState.body` and leaves the target untouched. Keeping the target **outside** `draftState` is what makes the
+two bullets above structural rather than a rule someone has to remember.
 
 The strip is not a live region. Announcing the selection is done once, deliberately, through the room's existing
 `role="status"` element, so a screen reader is not re-reading the strip every time the member types.

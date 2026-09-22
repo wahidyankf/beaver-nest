@@ -111,7 +111,14 @@ accent bar carries the distinction rather than the fill.
 
 - **`family-chat-message-actions`** — the menu. One component, four triggers, two items. Reused unchanged by any later
   per-message action.
-- **`family-chat-message-quote`** — the quote card rendered inside a reply bubble. A `button`.
+- **`family-chat-message-quote`** — the quote card rendered inside a reply bubble. A `button` carrying
+  `tabindex="-1"`. **Corrected 2026-09-22:** the card was specified simply as a `button`, which is a sequential tab
+  stop by default, so with fifty replies on screen Tab walked the conversation one quote at a time instead of
+  leaving the list. Every browserless layer agreed it was fine — `rovingInvariantHolds` could only see that exactly
+  one _message_ carried a tab stop, and that stayed true. `tabindex="-1"` fixes the order without touching the role,
+  the type, or the accessible name, so a screen reader still reaches and announces the card. Whether a keyboard-only
+  reader without a screen reader should reach it at all is a separate question, raised as an idea brief rather than
+  settled by widening the tab order.
 - **`family-chat-reply-strip`** — the composer's reply target, with its cancel control.
 
 ### Copy Inventory
@@ -157,6 +164,26 @@ holding the message is the gesture and a permanently visible control on every bu
   under `prefers-reduced-motion: reduce`. The menu opens without transition under the same preference.
 - **Offline.** The menu, the strip, and the quote all behave identically offline. Only `Reply` on a message that has
   not committed is unavailable, and that is a property of the message, not of the connection.
+
+  **Corrected 2026-09-22.** This document named a "Waiting for connection" state and nothing ever put a message in
+  it. The outbox attempted immediately, the transport failed, and the member saw `Retrying in …` — wording that
+  reads like something went wrong, for the one case where nothing did. The outbox now carries the browser's own
+  `online`/`offline` verdict, deliberately as a flag **separate** from `draining`, which `reconnect.js` owns while
+  it fills a catch-up gap. Both can be true at once, and resuming one must never resume the other.
+
+### The Reply Target Is Optional All the Way Down
+
+Added 2026-09-22, because this turned out to be load-bearing rather than incidental. Three hops carry the reply
+target — the queued record (`outbox_namespace.js`), the transport call (`outbox_send.js`), and the persisted row
+(`persistence_indexeddb.js`) — and all three spread it **conditionally** rather than writing
+`replyToMessageId: x ?? null`.
+
+That is what lets `DB_VERSION` stay at 1. A row written by the shipped release and a non-reply written by this one
+are the same object, so hydration needs no migration and no version check. A `null` default would have forced a
+schema bump for a field that adds nothing to most messages.
+
+The same reasoning governs the documents the browser sends; see
+[GraphQL Contract](002-graphql-contract.md#operation-documents).
 
 Implementation, test, specification, and asset paths are in
 [File Impact and Release](006-file-impact-and-release.md).

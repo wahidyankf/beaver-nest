@@ -187,6 +187,12 @@ resolver holds no query logic.
   the page, issues **one** `SELECT ... WHERE id IN (?)` for them, and attaches a `:reply_to` map to each node. One
   extra query per page, never one per message, and never a query at all for a page with no replies.
 - **A single message** (mutation result, subscription payload, idempotent replay). One lookup, or none.
+- **Both lookups are scoped to the room.** `Store.quotes_for/2` takes the room id and filters on it. **Added
+  2026-09-22**, and not redundant with the write-time check in `message_by_id/2`: that check guards the rows this
+  application writes, while the read-time scope guards what a reader is shown, so a row written any other way can
+  never surface another room's text inside this room's page. The scope also makes the degradation above genuinely
+  reachable and therefore genuinely covered — a message whose target exists but sits in another room renders as an
+  ordinary message, and a test pins it.
 - **The quote's own sender name** is resolved live at the GraphQL type layer through `Identity.display_name_for/1`,
   exactly as the message's own `sender_display_name` already is. The store returns the stamped name; the type layer
   replaces it. A system sender keeps its stamped `"System"`.
@@ -202,10 +208,23 @@ grapheme bodies would permit, and it keeps the truncation rule in one tested pla
 
 ## What Happens If the Original Is Gone Anyway
 
-The triggers make this unreachable through any supported path, so this section is not a feature. It states what the
-system does in a state it should never be in, because "impossible" is a claim about today's schema and the code will
-outlive it. A dangling `reply_to_message_id` can arise from a later migration dropping the triggers, from a manual SQL
-repair, or from a delete feature added without reading this document.
+**Corrected 2026-09-22.** This section originally credited the `BEFORE DELETE` trigger with making the state
+unreachable. Writing the test it asks for found a second guard, and it is the one that fires first.
+
+There are two, in this order:
+
+1. **The foreign key.** Phase 0 established that `PRAGMA foreign_keys` is on for every pooled `SqliteRepo`
+   connection, which SQLite does not do by default. So the application cannot _write_ a dangling reference at all:
+   `insert_message!/7` raises `FOREIGN KEY constraint failed`. The plan had hedged on whether foreign keys would be
+   enforced; they are.
+2. **The `BEFORE DELETE` trigger**, which refuses every delete and so keeps a written reference from becoming
+   dangling later.
+
+The trigger is therefore the second line, not the first, and the state the plan imagined — creating the dangling row
+by inserting one — cannot be reached even to set up a test. What remains reachable is a raw connection with the
+pragma off, which is SQLite's own default: a manual `sqlite3` repair, or a future migration that opens its own
+connection. A later migration dropping the triggers, or a delete feature added without reading this document, would
+also do it.
 
 **The behaviour is defined, not emergent.** The batch lookup is `SELECT ... WHERE id IN (?)`. A missing row is simply
 not returned, so `:reply_to` stays nil, `replyTo` resolves to `null`, and the browser renders the reply as an ordinary
@@ -217,7 +236,11 @@ discovers. Two obligations follow:
 
 1. A unit test pins the degradation, so it is a decision rather than a side effect of how `IN` behaves. Without the
    test, a later change to batch loading could turn the same state into a crash, and no one would notice which
-   behaviour was intended.
+   behaviour was intended. **Two tests stand where this asked for one**, because the row the single test needed
+   cannot be inserted: the read path is pinned directly on the exact input such a row would produce — a target id no
+   row matches, resolving to no quote rather than raising — and the refusal itself is pinned, asserting that
+   `insert_message!/7` raises rather than writing a dangling reference. The second is the more valuable: a future
+   change that turns the pragma off, or that adds a delete feature, breaks a test that says why.
 2. A future plan that makes deletion reachable must replace this silence with a tombstone before it ships — Discord's
    `referenced_message: null` convention is the directly transferable shape. Rendering nothing is acceptable only
    while the state is unreachable. Once it is reachable, a reply that quietly stops showing what it answers is worse

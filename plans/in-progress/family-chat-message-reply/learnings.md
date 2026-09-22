@@ -340,7 +340,7 @@ The plan's layer table is unaffected and its reasoning still holds: `FE_UNIT` pr
 changed is only the count of files Phases 5 and 6 touch. Recorded here rather than added silently, per File Impact's
 own instruction.
 
-**Durable owner:** the file list in `tech-docs/006-file-impact-and-release.md`, corrected at archival.
+**Durable owner:** the file list in `tech-docs/006-file-impact-and-release.md`, corrected 2026-09-22.
 
 ### 2026-09-22 — Phase 2, and the dangling-reference case turning out to be unreachable twice
 
@@ -368,8 +368,8 @@ through a row that cannot exist. Two tests now stand in place of the one the pla
 The second is the more valuable of the two. It means a future change that turns the pragma off — or that adds a
 delete feature — breaks a test that says why, instead of silently widening what the schema permits.
 
-**Durable owner:** `tech-docs/001-data-model-and-migration.md`'s dangling-reference section, corrected at archival to
-state both guards and which one fires first.
+**Durable owner:** `tech-docs/001-data-model-and-migration.md`'s dangling-reference section, corrected 2026-09-22 to
+state both guards and which one fires first. **Done 2026-09-22.**
 
 **Sequencing note, not a defect.** `delivery.md`'s Phase 2 checkpoint asks for `UNIT` and `INTEGRATION` green, but
 Phase 1 deliberately added backend scenarios that stay unbound until Phase 3. Both suites are therefore green on
@@ -392,7 +392,7 @@ with no field exposing it, and a unit case drives the seam directly rather than 
 The general shape is worth keeping: a resolver's input contract is not the type's field list. Matching the two by
 eye is how this was missed.
 
-**Durable owner:** `tech-docs/002-graphql-contract.md`, at archival — the quote's server-side shape stated
+**Durable owner:** `tech-docs/002-graphql-contract.md`, corrected 2026-09-22 — the quote's server-side shape stated
 separately from its published fields.
 
 **Three defects in pre-existing code, found by sharing its steps.**
@@ -424,7 +424,7 @@ scope guards what a reader is shown, so a row written any other way can never su
 this room's page. The scope also made the previously unreachable degradation path reachable and therefore genuinely
 covered: a message whose target exists but is in another room renders as an ordinary message, and a test pins it.
 
-**Durable owner:** `tech-docs/001-data-model-and-migration.md` and `tech-docs/002-graphql-contract.md`, at archival.
+**Durable owner:** `tech-docs/001-data-model-and-migration.md` and `tech-docs/002-graphql-contract.md`, corrected 2026-09-22.
 
 **Deviation — the boundary tests run in process.** `delivery.md` asked for "a loopback listener the test starts,
 owns, and stops". `repo-governance/development/api-testing.md` permits either that or in-process, and the rest of
@@ -433,7 +433,7 @@ router, session/CSRF plugs, and `Absinthe.Plug`, asserting status, content type,
 `data`/`errors` envelope. Binding a second listener beside a 24/7 service buys nothing the `bnest-app-be-e2e`
 project does not already prove at the real socket.
 
-**Durable owner:** `tech-docs/006-file-impact-and-release.md`, corrected at archival.
+**Durable owner:** `tech-docs/006-file-impact-and-release.md`, corrected 2026-09-22.
 
 ## Phase 4 — Send Path and Offline Outbox
 
@@ -444,7 +444,7 @@ That is what lets `DB_VERSION` stay at 1: a row written by the shipped release a
 are the same object, so hydration needs no migration and no version check. A `null` default would have forced a
 schema bump for a field that adds nothing to most messages.
 
-**Durable owner:** `tech-docs/003-ui-design.md`, at archival.
+**Durable owner:** `tech-docs/003-ui-design.md`, corrected 2026-09-22.
 
 **One field set, three documents.** `operations.js` used to hold the query, the mutation, and the subscription as
 three independent template strings. Replies would have required editing all three identically, and a drift between
@@ -453,14 +453,14 @@ They now all derive from `messageFields({replies})`, and the mutation additional
 only when the flag is on — so with the flag off the browser emits byte-identical pre-reply documents, which is what
 the compatibility release depends on.
 
-**Durable owner:** `tech-docs/002-graphql-contract.md`, at archival.
+**Durable owner:** `tech-docs/002-graphql-contract.md`, corrected 2026-09-22.
 
 **The draft and the reply target clear for different reasons.** The composer reads the target before awaiting the
 queue and calls `clear()` only after the queue accepted. A refusal restores `draftState.body` and leaves the target
 untouched, so a member who hit a full queue still has both their text and the message they were answering. Keeping
 the target outside `draftState` is what makes that separation structural rather than a rule someone must remember.
 
-**Durable owner:** `tech-docs/004-interaction-and-accessibility.md`, at archival.
+**Durable owner:** `tech-docs/004-interaction-and-accessibility.md`, corrected 2026-09-22.
 
 **Lint budget shaped the file split, again.** `max-lines` (300) and `max-lines-per-function` (50) pushed four
 extractions this phase: `buildQueuedMessage` into `outbox_namespace.js`, `refuse`/`sendOptionsFor`/`publishQueued`
@@ -480,7 +480,7 @@ renders an empty `<ol>`. Replacing it meant rendering real messages through the 
 which is why `happy-dom` entered the dependency tree. The deliberate RED is the point of the entry: breaking
 `apply`'s reset to `item.tabIndex = 0` now fails the check, and the old scan could not have noticed.
 
-**Durable owner:** `tech-docs/006-file-impact-and-release.md`, at archival.
+**Durable owner:** `tech-docs/006-file-impact-and-release.md`, corrected 2026-09-22.
 
 **A new dependency needed a decision record, not a convenience argument.** `happy-dom@20.14.5` is pinned exactly,
 added as a dev dependency, excluded from the browser bundle through esbuild's `--external:happy-dom` beside the
@@ -507,7 +507,7 @@ taking it straight back, in the same gesture. An item that places focus itself n
 reaches the host. The bug was invisible to the unit specs, which drive `createMenuState` and `runCopyAction`
 directly and never dispatch a real event through both listeners — it took the browser-shaped Gherkin room to see it.
 
-**Durable owner:** `tech-docs/004-interaction-and-accessibility.md`, at archival.
+**Durable owner:** `tech-docs/004-interaction-and-accessibility.md`, corrected 2026-09-22.
 
 ## Phase 6 — Quote Rendering, Jump, and Styles
 
@@ -519,7 +519,7 @@ body, in full. The scenario "A long quoted message is shortened in the strip" is
 by grapheme rather than code unit, so the strip and the quote card can never disagree about the same message. The
 BE and FE drivers both allow `<= 161`, with the same comment: the budget plus the one ellipsis that marks the cut.
 
-**Durable owner:** `tech-docs/004-interaction-and-accessibility.md`, at archival.
+**Durable owner:** `tech-docs/004-interaction-and-accessibility.md`, corrected 2026-09-22.
 
 **A message composed offline never actually said so.** Tech-doc 003's state machine names "Waiting for connection",
 and nothing was leaving a message there for longer than the instant between queueing and the first attempt: the
@@ -529,7 +529,7 @@ failed with `the queued reply shows status "Sent"`, which is how the gap surface
 browser's own `online`/`offline` verdict, deliberately as a flag separate from `draining` (which `reconnect.js`
 owns while it fills a catch-up gap): both can be true at once, and resuming one must never resume the other.
 
-**Durable owner:** `tech-docs/003-ui-design.md`, at archival.
+**Durable owner:** `tech-docs/003-ui-design.md`, corrected 2026-09-22.
 
 **The frontend typecheck gate had been red for three phases.** `tsc --noEmit` over `assets/` covers `test/**` as
 well as `js/**`, and nothing had run it since Phase 4. Thirty-one errors had accumulated, including one that
@@ -539,7 +539,8 @@ the loop is not a gate — the phase checkpoints name `FE_UNIT` and say nothing 
 went unnoticed rather than because anyone ignored a failure.
 
 **Durable owner:** `repo-governance/development/software-quality-enforcement.md` — the phase-checkpoint command set
-should name the typecheck target alongside the suites. Raised at archival.
+should name the typecheck target alongside the suites. Raised 2026-09-22 in
+`plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`.
 
 **The Vitest+Gherkin harness needed a second kind of room, and the two must never meet.** `family_chat.steps.ts`
 opens the real `initRoom` in Node, where `typeof document === "undefined"` selects the in-memory store, transport,
@@ -551,7 +552,7 @@ document-free scenario onto the browser branch. It is taken down in `verify.ts`'
 builder when a room fails to build half-way — which is exactly how it first leaked
 (`ReferenceError: HTMLMetaElement is not defined`, in an unrelated auth-expiry scenario three tests later).
 
-**Durable owner:** `tech-docs/006-file-impact-and-release.md`, at archival.
+**Durable owner:** `tech-docs/006-file-impact-and-release.md`, corrected 2026-09-22.
 
 **Where a browserless layer genuinely cannot answer, the binding says which layer does.** Tab's sequential-focus
 engine, `prefers-reduced-motion`, and on-screen position have no Node equivalent. Those bindings assert the decision
@@ -581,7 +582,7 @@ is all AC-FCR-10 asks for. The check now also rejects anything focusable _inside
 added to a bubble fails instead of quietly adding a stop per message. Whether a keyboard-only reader without a
 screen reader should reach the card at all is Phase 8's question, not one to settle by widening the tab order.
 
-**Durable owner:** `tech-docs/003-ui-design.md`, at archival.
+**Durable owner:** `tech-docs/003-ui-design.md`, corrected 2026-09-22.
 
 **One fix, applied one file too wide.** `getByLabel("Message")` became strict-mode ambiguous the moment the action
 menu added `Actions for <name>'s message` to every bubble — but only on the room's page. The Codex chat LiveView's
@@ -603,7 +604,8 @@ table did not list either tool, which is the deviation worth naming: it listed e
 none of the files the _release_ touches.
 
 **Durable owner:** `tech-docs/006-file-impact-and-release.md` — its File Impact table should cover the release path
-whenever a plan introduces a runtime flag. Raised at archival.
+whenever a plan introduces a runtime flag. Corrected 2026-09-22 in that document's Configuration section; the
+general rule is raised in `plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`.
 
 **The root README's family-chat paragraph is stale, and this plan is not the place to fix it.** It says
 `BNEST_FAMILY_CHAT_ENABLED` "still defaults to off in production, so the routes, GraphQL surface, and home-page
@@ -611,7 +613,8 @@ entry point stay inactive". The default is still off; production is not. The rou
 the room has been live since its own experience release. Correcting that sentence is a documentation change about a
 different feature's release state, so it is raised as a follow-up idea brief rather than absorbed here.
 
-**Durable owner:** a follow-up idea brief, raised at archival.
+**Durable owner:** corrected 2026-09-22 directly in `README.md`, which is a better owner than a brief — the
+paragraph was live and false, and a brief would have left it that way.
 
 ### Manual API proof — six observations at an isolated origin
 
@@ -761,7 +764,8 @@ selectors joined the room's existing rule rather than restating it, so "the room
 the stylesheet as well as the prose.
 
 **Durable owner:** proposed — _a spec line that names a shared token is a claim about the cascade, not only about
-the rendering; it should be satisfied by referencing the rule, not by re-deriving its values._ Raised at archival.
+the rendering; it should be satisfied by referencing the rule, not by re-deriving its values._ Raised 2026-09-22 in
+`plans/ideas/q2-not-urgent-important/shared-token-claims-and-layer-tags.md`.
 
 #### Two observations that are not defects
 
@@ -842,7 +846,8 @@ third item is a specification change, not an implementation detail; and making t
 one-stop contract that D9 proved at two layers. Fixing it properly means adding a `Go to that message` menu item
 through the Iron Rule, which is a change to D5 and belongs to its own plan.
 
-**Durable owner:** raised at archival as a deferred idea brief — _the action menu should offer `Go to that
+**Durable owner:** raised 2026-09-22 in
+`plans/ideas/q2-not-urgent-important/family-chat-room-reading-on-a-phone.md` — _the action menu should offer `Go to that
 message` on a message that carries a quote, so the jump has a keyboard path that does not cost the one-stop
 contract._
 
@@ -924,7 +929,7 @@ empty composer; and `Load older messages` gives no in-flight feedback. None of t
 touched by quoted replies. They are the room's, they predate this plan, and fixing any of them here would be scope
 this plan did not ask for and did not verify.
 
-**Durable owner:** raised at archival as deferred idea briefs, one per theme rather than one per finding, with
+**Durable owner:** raised 2026-09-22 as deferred idea briefs, one per theme rather than one per finding, with
 this dated pass as their evidence.
 
 ### Two reported findings that were wrong, and one that was my own test data
@@ -1040,7 +1045,8 @@ sanctioned mechanism — 12 scenarios on `main` already work this way — so it 
 
 **Durable owner:** proposed — _the `@fe-vitest-unit` prune silently omits the integration layer; either the tag
 should carry the same canonical exemption comment every other omission does, or the standard should say that this
-tag is itself the record._ Raised at archival.
+tag is itself the record._ Raised 2026-09-22 in
+`plans/ideas/q2-not-urgent-important/shared-token-claims-and-layer-tags.md`.
 
 #### What the review found already right
 
@@ -1419,34 +1425,32 @@ Four routing failures the check found, and what happened to each:
 4. **One conditional routing was never decided** — a note to be raised as a brief if the cross-phase RED pattern
    recurred and discarded if it did not. It did not recur in Phases 4 through 10. Discarded, recorded here.
 
-**Still outstanding, and not counted as resolved.** Seventeen owner lines defer their action to archival. Three of
-them promise idea briefs, and those briefs exist. The other **fourteen** promise a correction to a tech-doc —
-`001`, `002`, `003`, `004`, and `006` between them — and not one has been made: `git log` over `tech-docs/` shows
-only the plan's creation and its pre-execution quality-gate repair.
+**The deferred routings, resolved 2026-09-22.** Seventeen owner lines deferred their action to archival, and two
+more deferred a raise the same way. The execution check was right that this left them unowned: archival is blocked
+on grounds that have nothing to do with any of them, so "at archival" had become a place work went to wait
+indefinitely.
 
-The scheduling was the mistake. None of those fourteen corrections actually depends on archival; they were simply
-filed under it, and archival is blocked, so they are stranded behind a step that may not come for some time. They
-are listed here as outstanding rather than quietly folded into the class table above, because a learning that
-names a document it never reached has not reached an owner — the same standard that condemned the four dead paths.
-Resolving them is work for whoever unblocks this plan, and it is smaller than it looks: each is a factual amendment
-to a document that already exists.
+None of them actually depended on archival, so they were done instead:
 
-Idea briefs raised at archival, deduplicated against the existing ones:
+| Routing                            | Count | Disposition                                                                                             |
+| ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------- |
+| A correction to a tech-doc         | 15    | Made, in `001`, `002`, `003`, `004`, and `006`. Each owner line now names the date instead of the step. |
+| A deferred idea brief              | 5     | Already satisfied by the seven briefs raised in this pass; each line now names the brief.               |
+| The stale `README.md` paragraph    | 1     | Corrected in `README.md` directly, which owns it better than a brief would.                             |
+| Conditional on a pattern recurring | 1     | It did not recur in Phases 4 through 10. Discarded.                                                     |
 
-| Brief                                   | Quadrant | Carries                                                                    |
-| --------------------------------------- | -------- | -------------------------------------------------------------------------- |
-| Release stage flag posture              | Q1       | the measured feature-off window and the preflight dependency gap           |
-| Family chat reply flag retirement       | Q2       | named by this plan as deliberately deferred                                |
-| Family chat swipe to reply              | Q2       | named by this plan, with its accessibility constraint attached             |
-| Family chat room reading on a phone     | Q2       | six out-of-plan usability findings, plus the `Go to that message` proposal |
-| Shared token claims and layer tags      | Q2       | the focus-ring cascade proposal and the `@fe-vitest-unit` obligation       |
-| Plan and checkpoint contract gaps       | Q2       | the two proposals rules propagation deferred                               |
-| Family chat room shell and control gaps | Q3       | the remaining four out-of-plan findings                                    |
+The fifteenth tech-doc correction was not in the check's count of fourteen, and neither was it in mine: its owner
+line ended on one line and its `Raised at archival` on the next, so a line-wise scan found neither the promise nor
+its deadline. It is the File Impact table's missing release path — the one whose absence would have promoted a
+revision that reads a flag it is never given.
 
-Nine out-of-plan usability findings became three briefs rather than nine, grouped by theme as the entry that
-deferred them said they would be.
-
-**Durable owner:** none; this is the resolution record.
+What the corrections changed is worth separating from how many there were. Three were straightforward additions of
+something learned after the document was written. The other twelve **contradicted** what the document said: that
+the `BEFORE DELETE` trigger is what makes a dangling reference unreachable (the foreign key gets there first), that
+focus returns to the message on every menu close path (not the one path that matters), that the strip shows the
+server's preview (not for a target chosen on screen), that the quote card is a plain `button` (it is a tab stop per
+message that way), and a File Impact table listing thirteen test files where the plan touched forty-four. A
+tech-doc that is wrong is worse than one that is incomplete, because the next reader has no reason to check it.
 
 ### 2026-09-22 — The execution check, and what it found in my own record
 
