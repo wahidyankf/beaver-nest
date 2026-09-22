@@ -870,6 +870,7 @@ export class MachineHost {
       "--revision",
       revision,
       "--family-chat-enabled",
+      "--family-chat-reply-enabled",
     ]);
     this.verifyCandidateRevision(slot, revision);
     this.log(`experience candidate passed ${slot} ${revision}`);

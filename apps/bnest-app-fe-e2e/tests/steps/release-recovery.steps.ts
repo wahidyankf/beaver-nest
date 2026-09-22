@@ -5,7 +5,6 @@ import {
   type Page,
   type TestInfo,
 } from "@playwright/test";
-import { composerInput } from "../support/family-chat";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
 import { isolatedLoadIdentities } from "../support/test-identity";
@@ -75,7 +74,7 @@ Then(
       await Promise.all(
         recoveryClients.flatMap((client) => [
           expect(client.page).toHaveURL((url) => url.pathname === client.route),
-          expect(composerInput(client.page)).toHaveValue(client.draft),
+          expect(client.page.getByLabel("Message")).toHaveValue(client.draft),
         ]),
       );
     } finally {
@@ -175,7 +174,7 @@ async function createRecoveryClient(
     await page.goto(route);
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
     const draft = `Recovery draft ${index + 1}`;
-    await composerInput(page).fill(draft);
+    await page.getByLabel("Message").fill(draft);
     return { context, draft, group: (index % groupCount) + 1, page, route };
   } catch (error) {
     await context.close();

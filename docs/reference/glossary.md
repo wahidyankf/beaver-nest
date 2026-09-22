@@ -46,6 +46,12 @@ Terms used across Beaver Nest's rules, plans, projects, and commit messages. Eac
 - **Revision (record)** — an optimistic concurrency counter on a stored record. Writing with a stale revision fails instead of overwriting a concurrent change. Distinct from a deployed **revision** above.
 - **Expand, migrate, verify, contract** — the four ordered steps of a data migration: add the new path beside the old, copy with checked identity, read back through the normal product flow, then retire the old path after a stated window. See [plan migrations](../../repo-governance/conventions/plan-migrations.md).
 
+## Family chat
+
+- **Quoted reply** — a family chat message that answers one earlier message in the same room. The relationship is one level deep and never a thread: a reply to a reply quotes what it answers, not the chain behind it.
+- **Reply target** — the message a member has chosen to answer but has not sent yet. It lives above the composer, only in that browser, and is discarded on reload, on send, and on abandon.
+- **Quote preview** — the bounded, whitespace-collapsed excerpt of the answered message that a reply carries and its quote card shows. The server cuts it by grapheme so the strip and the card can never disagree.
+
 ## Planning and governance
 
 - **Plan lifecycle** — `ideas/` → `backlog/` → `in-progress/` → `done/`. A plan moves; it is never copied between stages. See the [plans convention](../../repo-governance/conventions/plans.md) and the local [lifecycle](../../repo-governance/conventions/plan-lifecycle.md).

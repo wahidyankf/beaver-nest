@@ -1,5 +1,4 @@
 import os from "node:os";
-import { composerInput } from "../support/family-chat";
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
@@ -63,7 +62,7 @@ Given(
     await page.goto("/chat");
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
     draftMessage = "Unsent draft before rollout";
-    await composerInput(page).fill(draftMessage);
+    await page.getByLabel("Message").fill(draftMessage);
   },
 );
 
@@ -91,6 +90,6 @@ Then("the LiveView reconnects without a manual refresh", async ({ page }) => {
 Then(
   "the acknowledged state and unsent draft remain available",
   async ({ page }) => {
-    await expect(composerInput(page)).toHaveValue(draftMessage);
+    await expect(page.getByLabel("Message")).toHaveValue(draftMessage);
   },
 );
