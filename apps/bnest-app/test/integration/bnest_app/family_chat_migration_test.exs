@@ -1,6 +1,7 @@
 defmodule BnestApp.FamilyChatMigrationTest do
   use ExUnit.Case, async: false
 
+  alias BnestApp.FamilyChat.Store
   alias BnestApp.TestRuntimeRoot
 
   setup do
@@ -105,15 +106,15 @@ defmodule BnestApp.FamilyChatMigrationTest do
 
   describe "additive reply column" do
     setup do
-      BnestApp.FamilyChat.Store.ensure_ready!()
+      Store.ensure_ready!()
       :ok
     end
 
     test "every message committed before the change reads as not a reply" do
-      room = BnestApp.FamilyChat.Store.get_active_room_by_slug("ruang-keluarga")
+      room = Store.get_active_room_by_slug("ruang-keluarga")
 
       {:ok, message} =
-        BnestApp.FamilyChat.Store.insert_message!(
+        Store.insert_message!(
           room.id,
           "user",
           "test-user-reply-migration",
@@ -160,10 +161,10 @@ defmodule BnestApp.FamilyChatMigrationTest do
     # migrator back: the point is the refusal, and a migrator rollback that
     # succeeded would destroy the row the refusal exists to protect.
     test "reversal refuses once a reply exists, and removes nothing" do
-      room = BnestApp.FamilyChat.Store.get_active_room_by_slug("ruang-keluarga")
+      room = Store.get_active_room_by_slug("ruang-keluarga")
 
       {:ok, original} =
-        BnestApp.FamilyChat.Store.insert_message!(
+        Store.insert_message!(
           room.id,
           "user",
           "test-user-reply-migration",
@@ -173,7 +174,7 @@ defmodule BnestApp.FamilyChatMigrationTest do
         )
 
       {:ok, reply} =
-        BnestApp.FamilyChat.Store.insert_message!(
+        Store.insert_message!(
           room.id,
           "user",
           "test-user-reply-migration",
@@ -200,7 +201,6 @@ defmodule BnestApp.FamilyChatMigrationTest do
 
       assert count == 1
     end
-
   end
 
   defp message_table_sql do
