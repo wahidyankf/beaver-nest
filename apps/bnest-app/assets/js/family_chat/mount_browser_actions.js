@@ -16,6 +16,7 @@ import {
   menuItemsFor,
   runCopyAction,
 } from "./message_actions.js";
+import { bodyPreview } from "./reply_target.js";
 
 /** @typedef {import("./mount_browser.js").MountableRoom} MountableRoom */
 /** @typedef {import("./elements.js").FamilyChatElements} FamilyChatElements */
@@ -65,17 +66,24 @@ function messageFrom(element) {
  * @param {import("./message_actions.js").MenuState} menu
  * @param {ActionableMessage} message
  * @param {import("./message_actions.js").MenuItem} item
+ * @returns {boolean} whether the item placed keyboard focus itself.
  */
 function runMenuItem(room, elements, menu, message, item) {
   menu.close();
   if (item.label === "Reply") {
     room.replyTarget?.select({
-      messageId: message.messageId,
+      messageId: message.messageId ?? null,
+      // Bounded here, not in the strip's CSS: this target is built from the
+      // full body of a bubble on screen, and a preview a screen reader reads
+      // straight through is not a preview.
+      bodyPreview: bodyPreview(message.body),
       senderDisplayName: message.senderDisplayName,
-      bodyPreview: message.body,
     });
     elements.input.focus({ preventScroll: true });
-    return;
+    // The one close path that does not send focus back to the message: the
+    // member is about to type. Returning it would take the composer away
+    // from them in the same gesture that opened it.
+    return true;
   }
   void runCopyAction(message, {
     writeText: globalThis.navigator?.clipboard?.writeText?.bind(
@@ -85,6 +93,7 @@ function runMenuItem(room, elements, menu, message, item) {
       elements.liveRegion.textContent = text;
     },
   });
+  return false;
 }
 
 /**
@@ -115,9 +124,13 @@ function renderMenu(room, elements, menu, message) {
       button.setAttribute("aria-disabled", "true");
       button.setAttribute("aria-description", item.reason ?? "");
     }
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
       if (!item.available) return;
-      runMenuItem(room, elements, menu, message, item);
+      // An item that placed focus itself keeps the click from reaching the
+      // host's own "every close path restores focus" listener below.
+      if (runMenuItem(room, elements, menu, message, item)) {
+        event.stopPropagation();
+      }
     });
     host.append(button);
   }

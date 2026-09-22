@@ -22,6 +22,7 @@ import {
   attemptInitialSubscribe,
 } from "./mount_browser_sync.js";
 import { wireMessageActions, wireReplyStrip } from "./mount_browser_actions.js";
+import { wireQuoteJump } from "./mount_browser_jump.js";
 
 /**
  * Only the fields `mountBrowser` itself reads/writes -- `store` is narrowed
@@ -149,6 +150,7 @@ function wireComposerAndHistory(room, elements) {
   if (room.replies) {
     wireMessageActions(room, elements, room.clock);
     wireReplyStrip(room, elements);
+    wireQuoteJump(room, elements);
   }
 }
 
