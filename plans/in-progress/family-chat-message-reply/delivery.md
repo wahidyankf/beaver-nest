@@ -712,10 +712,10 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
 
 ## Phase 9 — Compatibility Release
 
-- [ ] `[AI] [AC-FCR-13]` Merge DU-1 through a reviewed PR with
+- [x] `[AI] [AC-FCR-13]` Merge DU-1 through a reviewed PR with
       `BNEST_FAMILY_CHAT_REPLY_ENABLED=false`. **Proof:** the merge commit on `origin/main`, every gate green on the
       merged revision, and no direct push to `main`.
-- [ ] `[AI] [AC-FCR-14]` Preflight the release: confirm the routed baseline, disk headroom, and a healthy slot pair.
+- [x] `[AI] [AC-FCR-14]` Preflight the release: confirm the routed baseline, disk headroom, and a healthy slot pair.
       **Proof:** 12 samples with zero failures, p95 ≤ 500 ms, every sample ≤ 2 s, recorded without private values.
 - [ ] `[AI] [AC-FCR-11, AC-FCR-13]` Release the merged revision to the candidate slot with the flag off, run the
       migration, and verify the candidate's health before any route change. **Proof:** candidate readiness healthy,
