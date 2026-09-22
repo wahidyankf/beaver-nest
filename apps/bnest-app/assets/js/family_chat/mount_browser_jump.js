@@ -40,16 +40,31 @@ function landOn(elements, messageId) {
 }
 
 /**
+ * A refusal has to reach both readers. The live region is 1x1 and clipped,
+ * so it speaks to assistive technology only; the remediation paragraph is
+ * the one a member actually sees. Announcing to the first alone leaves a
+ * sighted member watching five pages load and then nothing happen, which
+ * reads as a broken control -- the very thing the refusal exists to avoid.
+ * @param {FamilyChatElements} elements
+ * @param {string} message empty clears both.
+ */
+function stateRefusal(elements, message) {
+  elements.liveRegion.textContent = message;
+  elements.remediation.textContent = message;
+  elements.remediation.hidden = message === "";
+}
+
+/**
  * @param {MountableRoom} room
  * @param {FamilyChatElements} elements
  * @param {string} messageId
  */
 async function activateQuote(room, elements, messageId) {
+  // A previous refusal must not outlive the jump that succeeds after it.
+  stateRefusal(elements, "");
   const result = await room.history.jumpToMessage(messageId);
   if (!result.found) {
-    // Said out loud rather than silently leaving the reader where they were:
-    // a quote that does nothing when activated reads as a broken control.
-    elements.liveRegion.textContent = result.remediation ?? "";
+    stateRefusal(elements, result.remediation ?? "");
     return;
   }
 
