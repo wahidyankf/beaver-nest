@@ -39,6 +39,11 @@ import {
   type StepContext,
   type StepDefinition,
 } from "./family_chat.steps";
+import {
+  familyChatReplySteps,
+  resetReplyScenario,
+} from "./family_chat_reply.steps";
+import { closeBrowserRoom } from "./support/reply_room";
 
 const FE_VITEST_UNIT_TAG = "fe-vitest-unit";
 
@@ -70,7 +75,11 @@ function loadOwnedPickles(): readonly Pickle[] {
 }
 
 const registry = new ParameterTypeRegistry();
-const steps = familyChatSteps();
+// Two binding files, one corpus: `family_chat.steps.ts` drives the
+// document-free room, `family_chat_reply.steps.ts` the browser-shaped one.
+// They are merged here rather than cross-imported so the "binds exactly
+// once" and "no unused bindings" checks below still see the whole set.
+const steps = [...familyChatSteps(), ...familyChatReplySteps()];
 
 interface CompiledStep {
   readonly definition: StepDefinition;
@@ -135,17 +144,26 @@ describe("family_chat.feature: frontend-owned (@fe-vitest-unit) scenario executi
   for (const pickle of pickles) {
     it(pickle.name, async () => {
       let context: StepContext = {};
-      for (const pickleStep of pickle.steps) {
-        const [match] = matchingSteps(pickleStep.text);
-        if (match === undefined) {
-          throw new Error(
-            `no binding for step ${JSON.stringify(pickleStep.text)}`,
-          );
+      try {
+        for (const pickleStep of pickle.steps) {
+          const [match] = matchingSteps(pickleStep.text);
+          if (match === undefined) {
+            throw new Error(
+              `no binding for step ${JSON.stringify(pickleStep.text)}`,
+            );
+          }
+          const args = match.expression
+            .match(pickleStep.text)!
+            .map((argument) => String(argument.getValue(undefined)));
+          context = await match.definition.handler(context, ...args);
         }
-        const args = match.expression
-          .match(pickleStep.text)!
-          .map((argument) => String(argument.getValue(undefined)));
-        context = await match.definition.handler(context, ...args);
+      } finally {
+        // A scenario that opened the browser-shaped room installed a
+        // `document` on `globalThis`; leaving it there would silently flip
+        // every following document-free scenario onto `initRoom`'s browser
+        // branch, so it comes down whether the scenario passed or not.
+        closeBrowserRoom();
+        resetReplyScenario();
       }
     });
   }

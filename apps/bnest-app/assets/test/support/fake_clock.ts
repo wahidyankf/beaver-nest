@@ -1,7 +1,9 @@
-// A deterministic stand-in for `family_chat/clock.js`'s `Clock` shape, used
-// only by this directory's plain Vitest specs (the Gherkin-driven
-// `test/behaviour/*` harness has its own scenario-scoped clock needs and
-// does not use this file). `advance` fires every timer due at or before the
+// A deterministic stand-in for `family_chat/clock.js`'s `Clock` shape,
+// shared by both frontend proof layers: the plain Vitest specs under
+// `test/unit/`, and the Gherkin-driven browser-shaped room the reply
+// scenarios open (`test/behaviour/support/reply_room.ts`), whose hold-gesture
+// and retry timing must advance under the scenario's control rather than
+// real wall-clock. `advance` fires every timer due at or before the
 // requested offset, in the order they become due, so a callback that
 // schedules a further timer (e.g. `outbox.js`'s retry chain) is itself
 // re-evaluated within the same `advance` call -- matching how a real
