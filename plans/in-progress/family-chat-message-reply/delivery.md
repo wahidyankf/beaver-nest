@@ -2,26 +2,28 @@
 
 ## Execution Status and Authority
 
-**Executed and released, 2026-09-22. Archival is blocked.** The feature is routed in production at revision
+**Executed, released, and archived. Executed 2026-09-22; archived 2026-09-23.** The feature is routed in production at revision
 `5b08a27f2`; the migration is applied; both production releases passed. The execution check has been run **four
 times** and returned `BLOCKED` every time; all four verdicts and the corrections made in response are recorded in
 `learnings.md`.
 
 Twelve items below are unticked, in three groups:
 
-| Group                          | Count | Why                                                                                                                                                                                                                                                                       |
-| ------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Substantive                    | 6     | Both blocking checkpoints; both drain items, each of which took one of its two sample sets and cannot now take the other; Phase 9's mixed-revision item, which asks for a proof that stage's own flag posture forbids; and Phase 10's routed manual pass, descoped by D13 |
-| Archival procedure             | 2     | The cleanup and move items, which run as part of archival and cannot precede it                                                                                                                                                                                           |
-| Recovery and Rollback triggers | 4     | None fired; each carries a dated, evidence-backed `Not triggered` disposition                                                                                                                                                                                             |
+| Group                                            | Count | Why                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Substantive, accepted as permanently unmet (D15) | 6     | Both blocking checkpoints; both drain items, each of which took one of its two sample sets and cannot now take the other; Phase 9's mixed-revision item, which asks for a proof that stage's own flag posture forbids; and Phase 10's routed manual pass, descoped by D13 |
+| Archival procedure                               | 2     | The cleanup and move items, which run as part of archival and cannot precede it                                                                                                                                                                                           |
+| Recovery and Rollback triggers                   | 4     | None fired; each carries a dated, evidence-backed `Not triggered` disposition                                                                                                                                                                                             |
 
-**All six substantive items are terminal, not pending.** Each rests on evidence that no longer exists to be taken —
-retired slots, a release stage that shipped the feature off, a live household surface D13 declined to write test
-messages into. D14 accepted AC-FCR-14 as partially met rather than restating it to fit what survived. No further
-work can tick them, and under
-[knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md)
-an unresolved delivery unit blocks archival. This plan therefore stays in `plans/in-progress/` by decision rather
-than by omission.
+**All six substantive items are accepted as permanently unmet (D15), and therefore resolved.** Each rests on
+evidence that no longer exists to be taken — retired slots, a release stage that shipped the feature off, a live
+household surface D13 declined to write test messages into. No further work can tick them.
+
+[Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md)
+resolves such an item without ticking it, under five conditions: the evidence is unobtainable rather than
+unobtained, the plan's authority accepts it, the requirement keeps its wording, the box stays unticked, and the
+execution review confirms each acceptance. All five hold here, and that section was written for this case — see
+`learnings.md`, D15, including why an executor may not accept away its own missing evidence.
 
 **Corrected 2026-09-22 by the third check's round:** this paragraph said the check had run twice and that seven
 substantive items were unticked. The count predated D12, which ticked the rollback-floor item, and the "twice" was
@@ -774,6 +776,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       status paragraph alone to say so. It cannot be ticked by any later work: the stage it names ships every flag
       off, so the room is unreachable at the routed origin at that point by design, and both slots from that
       release have since been promoted and retired.
+      **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable because the stage ships every flag off by design and both of its slots have been retired; the property itself is proven at the layer the specification's own exemption names.
 - [x] `[AI] [AC-FCR-04, AC-FCR-13]` Prove the field is answerable everywhere before any bundle asks for it: a `curl`
       requesting `replyTo` against the routed origin returns data rather than a document rejection. **Proof:** the
       sanitized response in `learnings.md`.
@@ -783,6 +786,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       post-promotion set was taken and is recorded; the post-drain set never was. This item was ticked claiming
       both. The prior slot is confirmed stopped. The missing set cannot be retaken — that slot has since been
       promoted and retired again — so it is recorded as not taken rather than substituted. See `learnings.md`.
+      **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable because the slot the post-drain set would sample was promoted and retired by Phase 10.
 - [ ] `[AI] [AC-FCR-11, AC-FCR-13, AC-FCR-14]` **Blocking checkpoint — Phase 9.** The compatibility revision is
       routed and drained, it is the recorded rollback floor, and every routed sample is within budget.
       **UNTICKED 2026-09-22 by the re-check:** the revision was routed and drained and is the recorded rollback
@@ -793,6 +797,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       set cannot be retaken and no further work can tick this. D14 accepted AC-FCR-14 as partially met rather than
       restating it to match the evidence that survived; this checkpoint is one of the two places that acceptance
       lands.
+      **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable for the same reason as the drain item it stands on.
 
 ## Phase 10 — Experience Release
 
@@ -810,6 +815,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       than softened: the criterion existed precisely because tests do not substitute for looking at the real
       surface, and this closes it with tests; and the pass would have written a real message into a live family
       room to satisfy a checklist. The reasoning is in `learnings.md`, D13.
+      **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable in the sense that matters: the pass was descoped by its authority (D13), and taking it later would write a real message into a live household room to satisfy a checklist.
 - [x] `[AI] [AC-FCR-13]` Prove the rollback floor still serves the reply-aware bundle: against the Phase 9 revision,
       a browser holding the current bundle loads the room and renders existing quotes. **Proof:** recorded
       observation. This is a proof, not a rollback — the route is not moved. **Done 2026-09-22 (D12), as a browser
@@ -858,6 +864,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       _release moments_ were never sampled — this release's post-promotion and Phase 9's post-drain — but against
       the four stages AC-FCR-14 enumerates, only one is unproven: `after the experience revision is routed`. The
       post-drain stage is carried by this release's own set. Neither missing set can be retaken.
+      **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable because the slot this release's post-promotion set would sample has been retired.
 - [ ] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 10.** The feature is routed and working at the exact
       origin, the rollback floor is proven, responsiveness held throughout, and no candidate, watcher, or temporary
       proxy is still running. **BLOCKED 2026-09-22, on one thing now rather than three.** The feature is routed,
@@ -872,6 +879,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       asks for cannot be produced. Under
       `repo-governance/conventions/plans/008-knowledge-capture-and-archival.md` an unresolved delivery unit blocks
       archival, so the plan stays in `plans/in-progress/` by decision rather than by omission.
+      **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable because the stage it depends on was never sampled and its slot no longer exists. With this acceptance the checkpoint is resolved, and archival is no longer blocked.
 
 ## Recovery and Rollback
 

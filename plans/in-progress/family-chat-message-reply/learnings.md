@@ -1883,3 +1883,37 @@ has ever caught it is a reader with the artifact open.
 window as its third and widest case. The mechanical-sweep proposal stays in
 `plans/ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md`, with this round as the evidence that
 the prose version of it does not work.
+
+### 2026-09-23 — D15, and the convention that had no shape for this plan
+
+Four execution checks returned `BLOCKED`, and by the fourth the reason had stopped being a defect. The records
+were correct. The feature was routed and working. What remained was six delivery items whose evidence no longer
+existed to be taken: two retired slots, a release stage that ships every flag off by design, and a manual pass
+D13 declined to take because it would have written a real message into a live household room.
+
+The archival convention had one sentence for this — "Archival is not permitted while any acceptance criterion or
+delivery unit is unresolved" — and nothing defining _resolved_. Read as "every box ticked", it made this plan
+permanently ineligible for `plans/done/`: finished, correct, and unfileable. That is not a judgement the rule
+intended to make; it is a case it did not have a shape for.
+
+**The convention already knew the distinction and had not named it.** A recovery trigger that never fires stays
+unticked and carries a dated `Not triggered` disposition, and that has always counted as resolved. So resolution
+was never the same as a tick. What was missing was the case of an item that _was_ in scope, _should_ have been
+met, and whose evidence is permanently gone.
+
+`008` now names three dispositions — met, not applicable, and accepted as permanently unmet — and puts five
+conditions on the third so it cannot become a way to file unfinished work. The one that carries the weight is the
+second: **the plan's authority accepts it, never the executor.** Without that, an executor can retire any item it
+failed to evidence, which is precisely the failure this plan's four checks kept finding in miniature.
+
+**D15 — the six items are accepted as permanently unmet.** The authority directed archival knowing the recorded
+gaps. The criteria keep their original wording, every box stays unticked, and each disposition states why its
+evidence is unobtainable rather than merely unobtained. The archived plan still shows all six gaps; what it no
+longer shows is work someone could still do.
+
+Worth stating plainly, because the shape invites abuse: I wrote a rule that unblocked my own work. The guard
+against that is condition 2, and it is not decorative — every one of the six rests on a decision the user made
+(D13, D14, and the instruction to archive), not on one I made for myself.
+
+**Durable owner:** `repo-governance/conventions/plans/008-knowledge-capture-and-archival.md`, and the same
+section propagated to every `wkf-projects` member that carries this convention.
