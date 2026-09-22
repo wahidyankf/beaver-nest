@@ -41,12 +41,12 @@ can only render with the reply-aware document it still holds.
 
 ### Plan-only outcomes, with their reasons and verification tasks
 
-| PRD criterion                                  | Why it stays plan-only                                                                                                                                                                                                                                                                                                                              | Verified by                                                             |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| AC-FCR-10's screen-reader announcement wording | No WAI-ARIA guidance exists for announcing a quoted reply, so the exact sentence is this plan's design decision, not a standing system property. A Gherkin scenario asserting one authored sentence would freeze a wording that the first real screen-reader pass may correct. The _presence_ of an accessible name is a contract; its text is not. | Phase 8's screen-reader walkthrough, recorded in `learnings.md`         |
-| AC-FCR-10's no-horizontal-scroll matrix        | Rendered geometry needs a real layout engine at three viewports. The existing corpus already carries this property for the room as a whole; repeating it per feature would duplicate a check that cannot fail differently here.                                                                                                                     | Phase 8's manual UI matrix, plus the existing structural overflow check |
-| AC-FCR-11's refusal to reverse the migration   | `specs/` describes the running system's observable behaviour. A migration's down path is never executed by the running system, so it is not a system property.                                                                                                                                                                                      | Phase 2's `INTEGRATION` scenarios in `family_chat_migration_test.exs`   |
-| AC-FCR-14 routed responsiveness                | Release evidence against the live origin, not a behaviour the corpus can own. Already handled as delivery evidence by the repository's release convention.                                                                                                                                                                                          | Phases 0, 9, and 10's 12-sample sets                                    |
+| PRD criterion                                  | Why it stays plan-only                                                                                                                                                                                                                                                                                                                              | Verified by                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC-FCR-10's screen-reader announcement wording | No WAI-ARIA guidance exists for announcing a quoted reply, so the exact sentence is this plan's design decision, not a standing system property. A Gherkin scenario asserting one authored sentence would freeze a wording that the first real screen-reader pass may correct. The _presence_ of an accessible name is a contract; its text is not. | Phase 8's screen-reader walkthrough, recorded in `learnings.md`                                                                                                                                                                                                                                                                                                               |
+| AC-FCR-10's no-horizontal-scroll matrix        | Rendered geometry needs a real layout engine at three viewports. The existing corpus already carries this property for the room as a whole; repeating it per feature would duplicate a check that cannot fail differently here.                                                                                                                     | Phase 8's manual UI matrix, plus the existing structural overflow check                                                                                                                                                                                                                                                                                                       |
+| AC-FCR-11's refusal to reverse the migration   | `specs/` describes the running system's observable behaviour. A migration's down path is never executed by the running system, so it is not a system property.                                                                                                                                                                                      | Phase 2's `INTEGRATION` scenarios in `family_chat_migration_test.exs`                                                                                                                                                                                                                                                                                                         |
+| AC-FCR-14 routed responsiveness                | Release evidence against the live origin, not a behaviour the corpus can own. Already handled as delivery evidence by the repository's release convention.                                                                                                                                                                                          | Phase 0's preflight set, Phase 9's post-promotion set, and Phase 10's post-drain set. **Corrected 2026-09-22:** this read "Phases 0, 9, and 10's 12-sample sets", which credits Phase 10's post-promotion set — withdrawn as a duplicate of Phase 9's. Three sets exist, not four, and the `after the experience revision is routed` stage has none. See `prd.md`, AC-FCR-14. |
 
 ## `[E]` `specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature`
 
@@ -176,7 +176,14 @@ can only render with the reply-aware document it still holds.
   Rule: Reconnect across Caddy promotion
     Scenario: A connected client reconnects to the promoted slot without a page reload
 +   Scenario: A browser holding the pre-reply bundle loads the room from the new revision
++   Scenario: The rollback floor can still answer the reply-aware bundle
 ```
+
+**The last line was added 2026-09-22 (D12).** This block enumerates every scenario the plan adds to this file, and
+it was left unchanged when the rollback-floor row moved from plan-only to contract above — so for one commit the
+document asserted the contract in its disposition table and omitted it from its own change list. Recorded rather
+than quietly fixed, because a change enumeration that disagrees with the table above it is exactly the defect this
+document exists to prevent.
 
 <details>
 <summary>Layer ownership for the new frontend scenarios</summary>
@@ -192,8 +199,9 @@ Scenarios proven at `FE_UNIT` rather than `FE_E2E` each carry an `@fe-vitest-uni
 - **`FE_E2E`, no exemption** — opening the menu by each of the four real triggers, focus returning to the message on
   close, only one menu open at a time, the keyboard-only end-to-end journey, Tab entering the history exactly once,
   the accessible name on a quote, the four arrival paths rendering the quote, jumping when loaded and when not, the
-  reduced-motion variant, and the pre-reply-bundle compatibility scenario. These need a real focus engine, a real
-  layout, real pointer events, or a real second revision, and a unit-layer proxy for any of them would be a check
+  reduced-motion variant, the pre-reply-bundle compatibility scenario, and — added 2026-09-22 (D12) — the
+  rollback-floor scenario. These need a real focus engine, a real layout, real pointer events, or a real second
+  revision, and a unit-layer proxy for any of them would be a check
   that can be green while the room is unusable.
 
 </details>
@@ -204,7 +212,13 @@ Scenarios proven at `FE_UNIT` rather than `FE_E2E` each carry an `@fe-vitest-uni
   optional field rather than a required one.
 - `→ Bindings` — `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply.steps.ts` `[N]`;
   `apps/bnest-app-fe-e2e/tests/support/family-chat-reply.ts` `[N]`;
-  `apps/bnest-app-fe-e2e/tests/support/family-chat-composer.ts` `[E]`;
+  `apps/bnest-app-fe-e2e/tests/steps/family-chat-rollback-floor.steps.ts` `[N]`, added 2026-09-22 (D12) and split
+  into its own file to stay under the 300-line `max-lines` bound;
+  `apps/bnest-app/assets/test/behaviour/family_chat_reply.steps.ts` `[N]`, the Vitest+Gherkin adapter every
+  `@fe-vitest-unit` scenario in this file needs — omitted here from the start, and the omission is the same one
+  `006`'s Tests table was rewritten twice for;
+  ~~`apps/bnest-app-fe-e2e/tests/support/family-chat-composer.ts` `[E]`~~ — **retracted 2026-09-22:** predicted,
+  never changed; `006` records the same retraction;
   `apps/bnest-app/assets/test/unit/family_chat/message_actions.test.ts` `[N]`;
   `apps/bnest-app/assets/test/unit/family_chat/composer.test.ts` `[E]`;
   `apps/bnest-app/assets/test/unit/family_chat/outbox.test.ts` `[E]`;

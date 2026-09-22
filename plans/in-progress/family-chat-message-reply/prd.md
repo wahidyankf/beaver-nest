@@ -421,11 +421,26 @@ Scenario: Promotion moves connected clients without a refresh
 
 ### AC-FCR-14 — The routed service stays responsive throughout
 
-**Partially met, 2026-09-22 (D14).** Two of this criterion's four release-stage sample sets were taken; two never
-were, and neither slot still exists, so neither can be retaken. The distinction the record keeps: the service was
-never shown to be slow — every sample ever taken returned 200 inside budget — it was shown to be **unmeasured** at
-two moments. The criterion is recorded as holding at two of four stages rather than rewritten to fit what
-survived.
+**Partially met, 2026-09-22 (D14). Arithmetic corrected 2026-09-22 by the re-check.** This first read "Two of
+this criterion's four release-stage sample sets were taken; two never were." That mixed two denominators. Against
+the four stages the outline below enumerates, **three carry a 12-sample set and one does not**:
+
+| Stage                                      | Set          | Where                                                           |
+| ------------------------------------------ | ------------ | --------------------------------------------------------------- |
+| preflight, before any change               | p95 35.9 ms  | Phase 0                                                         |
+| after the compatibility revision is routed | p95 278.1 ms | Phase 9 post-promotion                                          |
+| after the experience revision is routed    | **none**     | withdrawn; the figures recorded for it were Phase 9's, repeated |
+| after the drain window closes              | p95 48.3 ms  | Phase 10 post-drain                                             |
+
+"Two" came from a per-release accounting instead: across two releases each stage recurs, and two of those
+moments — Phase 9's post-drain and Phase 10's post-promotion — were never sampled. Both counts are true of
+different things, and the earlier sentence attached the per-release number to the per-stage denominator.
+
+What the correction does not change: the criterion is still only partially met, because one enumerated stage was
+never measured and that slot no longer exists to be retaken. The distinction the record keeps: the service was
+never shown to be slow — every sample ever taken returned 200 inside budget — it was shown to be **unmeasured**
+after the experience promotion. The criterion is recorded as holding at three of four stages rather than
+rewritten to fit what survived.
 
 ```gherkin
 Scenario Outline: Routed responsiveness holds at every release stage

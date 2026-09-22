@@ -44,6 +44,12 @@ when its receipt says `never-started`; exit `73` cleans owned storage; exit `78`
 `test:quick` never runs integration or E2E. The root `test:e2e` script runs BE then FE deterministically; each project
 leases a distinct port range and isolated runtime root inside its self-guarded target.
 
+**`FE_E2E` counts, corrected 2026-09-22.** Phase records below report `FE_E2E` as 296 passed, 0 failed. That was
+true of the corpus those phases ran against. D12 added one scenario, so the suite is **299** from that point on,
+and the figures in Phase 5 through Phase 8 items describe the pre-D12 corpus rather than the current one. The
+current corpus is measured on the Phase 10 rollback-floor item, including the one scenario that still fails
+there.
+
 `BE_E2E` and `FE_E2E` name those root scripts rather than the underlying Nx invocation. The repository's
 resource guard rejects a bare package-runner call that is not inside a HIPPO boundary, and both scripts already
 open one — `heavy` for the browser suite, `standard` for the backend's. Naming the inner command here would put
@@ -758,6 +764,10 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       floor, and every sample actually taken is within budget — but the drain item directly above is unticked
       because its post-drain set was never taken, so "every routed sample is within budget" is a claim about a set
       that does not exist. A checkpoint cannot stand on an item beneath it that does not.
+      **Terminal under D14, recorded 2026-09-22.** That slot was promoted and retired by Phase 10, so the missing
+      set cannot be retaken and no further work can tick this. D14 accepted AC-FCR-14 as partially met rather than
+      restating it to match the evidence that survived; this checkpoint is one of the two places that acceptance
+      lands.
 
 ## Phase 10 — Experience Release
 
@@ -785,21 +795,47 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       rollback — which the browser can only render with the reply-aware document it still holds. Asserting the
       quote already on screen would have asserted stale DOM. The `FE_UNIT` half was proven not to be a no-op by
       breaking `message_quote_render.js` and watching the scenario fail. Stability measured, not assumed: eight
-      consecutive isolated runs, four tests each, thirty-two for thirty-two, 26.6–29.7 s. Command: `FE_E2E`.
+      consecutive isolated runs, thirty-two for thirty-two, 26.6–29.7 s. **Clarified 2026-09-22 by the re-check:**
+      the four tests per run are chromium, tablet-chromium, mobile-chromium, **plus Playwright's setup project**,
+      so that is twenty-four real executions of the scenario across three viewports, not thirty-two.
+      `learnings.md` said so; this item had dropped the caveat. These are isolated runs of one scenario, which
+      measures that scenario's stability and is not a suite run.
+      **The suite run, taken 2026-09-22 because no item had one for this corpus:** `FE_E2E` on the post-D12
+      corpus is **299 tests**, not 296 — the rollback-floor scenario adds one at each of the three viewports.
+      The first run was **297 passed, 2 failed**, both `A member opens the message action menu` Example #1. That
+      failure was the plan's own harness, not the application: the press released 50 ms past the threshold and
+      the release clears the application's hold timer. Fixed in
+      `apps/bnest-app-fe-e2e/tests/support/family-chat-gestures.ts` by holding until the menu appears, measured
+      at 121 for 121 across three viewports. The run after the fix is **298 passed, 1 failed**, the one failure
+      being `A tab backgrounded with a dead connection reconnects once it becomes visible again` — a
+      pre-existing flake at about one run in eight in a scenario this plan never touched, raised in
+      `plans/ideas/q2-not-urgent-important/browser-suite-timing-reliability.md`. **`FE_E2E` is therefore not
+      green on this machine, and this item does not claim it is.** What it claims is the rollback floor, which
+      passes in every run recorded here.
 - [ ] `[AI] [AC-FCR-14]` Hold the drain window, then retire the prior slot. **Proof:** post-promotion and post-drain
       12-sample sets within budget and the prior slot confirmed stopped. **UNTICKED 2026-09-22 by the re-check:**
       `learnings.md` withdrew this release's post-promotion set — the figures recorded for it were Phase 9's twelve
       samples, repeated — and this item was left ticked claiming it. That is the same defect the Phase 9 item was
       unticked for, standing on its sibling. The post-drain set **was** taken (p95 48.3 ms, slowest 50.9 ms, median
-      19.3 ms, zero failures) and the prior slot is confirmed stopped. Two of AC-FCR-14's four stages are therefore
-      unproven, and neither missing set can be retaken.
+      19.3 ms, zero failures) and the prior slot is confirmed stopped. **Arithmetic corrected 2026-09-22 by the
+      re-check:** this said "Two of AC-FCR-14's four stages are therefore unproven", mixing denominators. Two
+      _release moments_ were never sampled — this release's post-promotion and Phase 9's post-drain — but against
+      the four stages AC-FCR-14 enumerates, only one is unproven: `after the experience revision is routed`. The
+      post-drain stage is carried by this release's own set. Neither missing set can be retaken.
 - [ ] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 10.** The feature is routed and working at the exact
       origin, the rollback floor is proven, responsiveness held throughout, and no candidate, watcher, or temporary
       proxy is still running. **BLOCKED 2026-09-22, on one thing now rather than three.** The feature is routed,
       no candidate, watcher, or temporary proxy is running, every sample actually taken is inside budget, and the
       rollback floor is now proven (D12). The routed manual pass is descoped rather than taken (D13). What keeps
-      this unticked is `responsiveness held throughout`: two of AC-FCR-14's four release-stage sample sets were
-      never taken and neither can be retaken (D14), so the word _throughout_ cannot be claimed.
+      this unticked is `responsiveness held throughout`: one of AC-FCR-14's four enumerated stages — `after the
+    experience revision is routed` — was never sampled, and that slot no longer exists, so the word _throughout_
+      cannot be claimed. (**Corrected 2026-09-22 by the re-check:** this said "two of four", which counted release
+      moments against the stage denominator; see `prd.md`, AC-FCR-14.)
+      **This disposition is terminal, not pending.** D14 accepted AC-FCR-14 as partially met on the record rather
+      than rewriting it to fit what survived. No further work can tick this checkpoint, because the evidence it
+      asks for cannot be produced. Under
+      `repo-governance/conventions/plans/008-knowledge-capture-and-archival.md` an unresolved delivery unit blocks
+      archival, so the plan stays in `plans/in-progress/` by decision rather than by omission.
 
 ## Recovery and Rollback
 
@@ -809,7 +845,13 @@ reconciliation rather than ticking the item.
 - [ ] `[AI] [AC-FCR-14]` **Trigger: any failed readiness sample, p95 above 500 ms, or any sample above 2 s at any
       release stage.** Roll the route back to the recorded floor through the managed Caddy path, confirm
       responsiveness returns to budget, and stop. **Proof:** the trigger observation, the rollback, and a recovered
-      12-sample set. **Not triggered 2026-09-22:** four 12-sample sets across the two releases — preflight, post-promotion, post-drain — returned zero failures, p95 at most 278.1 ms, and a slowest sample of 280.0 ms.
+      12-sample set. **Not triggered 2026-09-22. Corrected 2026-09-22 by the re-check:** this said "four 12-sample sets", carrying the
+      withdrawn duplicate one place further than the two items it was unticked from. **Three** 12-sample sets exist
+      across the two releases — preflight (p95 35.9 ms), Phase 9 post-promotion (p95 278.1 ms), and Phase 10
+      post-drain (p95 48.3 ms). All three returned zero failures, with p95 at most 278.1 ms and a slowest sample of
+      280.0 ms, so no trigger condition was ever observed. The stage that was never sampled cannot have fired a
+      trigger either, but it also cannot be offered as evidence that none fired: this disposition rests on the
+      three sets that exist.
 - [ ] `[AI] [AC-FCR-13]` **Trigger: a GraphQL document rejection observed at the routed origin, or a room that fails
       to load for either bundle.** Roll back to the floor, capture the rejected operation name and code without
       private values, and stop for diagnosis rather than fixing forward. **Proof:** the sanitized rejection and the

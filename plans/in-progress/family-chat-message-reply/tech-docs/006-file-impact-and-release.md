@@ -76,7 +76,11 @@ split is predicted here so that it reads as a planned consequence rather than as
 
 ## Tests
 
-**Rewritten twice, 2026-09-22.** The original table listed thirteen files; the plan touched **forty-six**. Three
+**Rewritten twice, 2026-09-22; count restated 2026-09-22 after the re-check.** The original table listed thirteen
+files; the plan touched **forty-six** inside the reconciled range, and the tables below carry **forty-seven** rows.
+The extra row is `family-chat-rollback-floor.steps.ts`, added by D12 after that range closed and labelled as such.
+The two numbers are both correct and describe different things; the prose previously gave only the first while the
+tables had already grown to the second. Three
 kinds of error produced the gap: the Vitest+Gherkin adapter layer was not represented at all, the fe-e2e support
 files a new scenario needs were not foreseen, and one row named a file (`family-chat-composer.ts`) that in the end
 was never changed.
