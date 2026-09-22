@@ -1331,7 +1331,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
              :backup_timeout_forced,
              :verified_backup_artifact,
              :two_independent_slots,
-             :routed_socket_on_prior_slot
+             :routed_socket_on_prior_slot,
+             :other_member_message_committed,
+             :committed_long_message,
+             :committed_message,
+             :committed_reply_to_previous,
+             :sent_reply_with_known_id,
+             :replied_under_earlier_display_name,
+             :reply_committed_before_subscription,
+             :reply_migration_applied,
+             :one_other_active_subscription
            ] do
     UnitFamilyChatDriver.prepare_behaviour(context, state, args)
   end

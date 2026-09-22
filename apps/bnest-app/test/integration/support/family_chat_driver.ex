@@ -71,10 +71,17 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def prepare_behaviour(context, :room_has_known_history, _args),
     do: Map.put(context, :family_chat_known_ids, [1, 2, 3])
 
+  # Genuinely commits the first message through the real boundary (adapter
+  # fix; see the unit driver's identical clause and learnings.md's Phase 3
+  # entry): this used to record an ID and a body without ever sending them, so
+  # the "retry" that followed was the first commit for that ID.
   def prepare_behaviour(context, :sent_message_with_known_id, [body]) do
+    context = send_family_chat_message(context, unique_uuid(), body)
+    original = sent_message(context)
+
     Map.merge(context, %{
-      family_chat_client_message_id: unique_uuid(),
-      family_chat_known_body: body
+      family_chat_known_body: original["body"],
+      family_chat_original_message_id: original["id"]
     })
   end
 
@@ -198,6 +205,131 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       family_chat_room_slug: slug,
       family_chat_other_subscribers: other_subscribers,
       family_chat_sender_subscription_id: sender_subscription_id
+    })
+  end
+
+  # --- replying (family_chat_graphql.feature / family_chat_operations.feature) ---
+
+  def prepare_behaviour(context, :other_member_message_committed, [slug]) do
+    # A genuinely different member, committed through the domain rather than
+    # this session's mutation: the scenario is about replying to someone
+    # else's message, and the logged-in conn can only ever send as itself.
+    other_member = "test-user-family-chat-other-" <> unique_uuid()
+
+    {:ok, target} =
+      BnestApp.FamilyChat.send_message(
+        other_member,
+        slug,
+        unique_uuid(),
+        "Nanti aku jemput jam 5",
+        "Ayah"
+      )
+
+    context
+    |> Map.put(:family_chat_room_slug, slug)
+    |> capture_reply_target(target)
+  end
+
+  def prepare_behaviour(context, :committed_long_message, _args) do
+    slug = context[:family_chat_room_slug] || "ruang-keluarga"
+
+    {:ok, target} =
+      BnestApp.FamilyChat.send_message(
+        context.user_id,
+        slug,
+        unique_uuid(),
+        String.duplicate("a", 400),
+        context.identity_username
+      )
+
+    capture_reply_target(context, target)
+  end
+
+  def prepare_behaviour(context, :committed_message, [body]) do
+    context = send_family_chat_message(context, unique_uuid(), body)
+    capture_reply_target(context, sent_message(context))
+  end
+
+  def prepare_behaviour(context, :committed_reply_to_previous, [body]) do
+    context =
+      send_family_chat_message(context, unique_uuid(), body,
+        reply_to: context.family_chat_reply_target_id
+      )
+
+    Map.put(context, :family_chat_previous_reply_id, sent_message(context)["id"])
+  end
+
+  # Commits two candidate targets so the retry can name a genuinely different
+  # one -- a retry naming the same target would prove nothing about which
+  # commit wins.
+  def prepare_behaviour(context, :sent_reply_with_known_id, _args) do
+    context = send_family_chat_message(context, unique_uuid(), "first target")
+    first_id = sent_message(context)["id"]
+    context = send_family_chat_message(context, unique_uuid(), "second target")
+    second_id = sent_message(context)["id"]
+
+    context =
+      context
+      |> Map.merge(%{
+        family_chat_first_target_id: first_id,
+        family_chat_second_target_id: second_id,
+        family_chat_known_body: "Oke, aku siapin"
+      })
+      |> send_family_chat_message(unique_uuid(), "Oke, aku siapin", reply_to: first_id)
+
+    Map.put(context, :family_chat_original_message_id, sent_message(context)["id"])
+  end
+
+  def prepare_behaviour(context, :replied_under_earlier_display_name, _args) do
+    context = send_family_chat_message(context, unique_uuid(), "Nanti aku jemput jam 5")
+    quoted_id = sent_message(context)["id"]
+
+    context =
+      send_family_chat_message(context, unique_uuid(), "Oke, aku siapin", reply_to: quoted_id)
+
+    Map.merge(context, %{
+      family_chat_quoted_message_id: quoted_id,
+      family_chat_reply_message_id: sent_message(context)["id"]
+    })
+  end
+
+  # Same shape as `:migration_applied`: genuinely runs the migration rather
+  # than storing a sentinel, because the scenario then re-reads and re-writes
+  # the real table through the pre-reply call shape.
+  def prepare_behaviour(context, :reply_migration_applied, _args) do
+    {:ok, _room} = FamilyChatStore.migrate!()
+    Map.put(context, :family_chat_migration_state, :applied)
+  end
+
+  # One other subscriber (not three): this scenario counts delivery rows for a
+  # reply, so a single expected row makes "exactly one" an exact assertion.
+  # The sender also gets a subscription so their own exclusion stays genuine.
+  def prepare_behaviour(context, :one_other_active_subscription, [slug]) do
+    sender_id = durable_sender(context)
+    other_subscriber = "test-user-family-chat-other-" <> unique_uuid()
+    other_subscription_id = create_active_subscription!(other_subscriber)
+    sender_subscription_id = create_active_subscription!(sender_id)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      disable_subscriptions_for_users!([sender_id, other_subscriber])
+    end)
+
+    {:ok, target} =
+      BnestApp.FamilyChat.send_message(
+        other_subscriber,
+        slug,
+        unique_uuid(),
+        "Nanti aku jemput jam 5",
+        "Ayah"
+      )
+
+    Map.merge(context, %{
+      family_chat_room_slug: slug,
+      family_chat_user_id: sender_id,
+      family_chat_other_subscription_id: other_subscription_id,
+      family_chat_sender_subscription_id: sender_subscription_id,
+      family_chat_reply_target_id: target.id,
+      family_chat_reply_target_body: target.body
     })
   end
 
@@ -592,6 +724,88 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(context, :family_chat_result, result)
   end
 
+  def perform_behaviour(context, :send_reply_to_known_target, args) do
+    body = List.first(args) || "Oke, aku siapin"
+
+    send_family_chat_message(context, unique_uuid(), body,
+      reply_to: context.family_chat_reply_target_id
+    )
+  end
+
+  def perform_behaviour(context, :reply_target_unknown_id, _args),
+    do: send_family_chat_message(context, unique_uuid(), "answer", reply_to: 999_999_999)
+
+  def perform_behaviour(context, :reply_target_other_room, _args),
+    do:
+      send_family_chat_message(context, unique_uuid(), "answer",
+        reply_to: archived_room_message_id()
+      )
+
+  def perform_behaviour(context, :reply_target_not_positive_integer, _args),
+    do: send_family_chat_message(context, unique_uuid(), "answer", reply_to: "not-a-number")
+
+  def perform_behaviour(context, :send_reply_to_previous_reply, _args),
+    do:
+      send_family_chat_message(context, unique_uuid(), "Siap",
+        reply_to: context.family_chat_previous_reply_id
+      )
+
+  def perform_behaviour(context, :resend_same_id_other_target, _args),
+    do:
+      send_family_chat_message(
+        context,
+        context.family_chat_client_message_id,
+        context.family_chat_known_body,
+        reply_to: context.family_chat_second_target_id
+      )
+
+  # "Code built before that migration" is exactly code compiled against the
+  # pre-reply call shape: `send_message/5`, with no reply argument at all.
+  # Calling it against the migrated database is the genuine compatibility
+  # proof -- a stored sentinel would prove nothing about the real column.
+  def perform_behaviour(context, :pre_reply_release_opens_database, _args) do
+    slug = context[:family_chat_room_slug] || "ruang-keluarga"
+
+    sender = durable_sender(context)
+
+    {:ok, committed} =
+      BnestApp.FamilyChat.send_message(
+        sender,
+        slug,
+        unique_uuid(),
+        "Dinner is ready",
+        display_name_for(context, sender)
+      )
+
+    room = FamilyChatStore.get_active_room_by_slug(slug)
+
+    Map.merge(context, %{
+      family_chat_result: {:ok, committed},
+      family_chat_pre_reply_readback: FamilyChatStore.message_by_id(room.id, committed.id)
+    })
+  end
+
+  # Called through the domain, not GraphQL: delivery rows are an internal
+  # mechanism with no GraphQL field at all (see `:member_sends_durable_message`
+  # above for the same reasoning).
+  def perform_behaviour(context, :send_durable_reply, _args) do
+    slug = context[:family_chat_room_slug] || "ruang-keluarga"
+
+    sender = durable_sender(context)
+
+    result =
+      BnestApp.FamilyChat.send_message(
+        sender,
+        slug,
+        unique_uuid(),
+        "Oke, aku siapin",
+        display_name_for(context, sender),
+        context.family_chat_reply_target_id
+      )
+
+    Map.put(context, :family_chat_result, result)
+  end
+
   def perform_behaviour(context, :dispatcher_attempts_delivery, _args) do
     Map.put(
       context,
@@ -889,12 +1103,158 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def behaviour_outcome?(context, :room_still_one_message, _args),
     do: count_messages_for(context, context.family_chat_client_message_id) == 1
 
+  # Compares against the FIRST commit, by server ID and body both -- see the
+  # unit driver's identical clause for why the previous body-differs check
+  # passed for a fresh commit too.
   def behaviour_outcome?(context, :original_message_unchanged, _args) do
+    original = sent_message(context)
+
+    original["id"] == context.family_chat_original_message_id and
+      original["body"] == context.family_chat_known_body
+  end
+
+  def behaviour_outcome?(context, :quote_names_target_id, _args),
+    do: sent_quote(context)["id"] == to_string(context.family_chat_reply_target_id)
+
+  def behaviour_outcome?(context, :quote_reports_sender_and_preview, _args) do
+    quoted = sent_quote(context)
+
+    quoted["senderDisplayName"] == context.family_chat_reply_target_display_name and
+      quoted["bodyPreview"] == context.family_chat_reply_target_body
+  end
+
+  def behaviour_outcome?(context, :message_has_no_quote, _args),
+    do: match?(%{"replyTo" => nil}, sent_message(context))
+
+  # 160 budgeted graphemes plus the one ellipsis that marks the cut.
+  def behaviour_outcome?(context, :quote_preview_within_budget, _args),
+    do: String.length(sent_quote(context)["bodyPreview"]) <= 161
+
+  def behaviour_outcome?(context, :quote_preview_elided, _args),
+    do: String.ends_with?(sent_quote(context)["bodyPreview"], "…")
+
+  # Reads the quoted message back through the ordinary GraphQL page, so this
+  # asserts what a client actually receives for it, not what the fixture wrote.
+  def behaviour_outcome?(context, :quoted_body_unshortened, _args) do
+    room =
+      FamilyChatStore.get_active_room_by_slug(context[:family_chat_room_slug] || "ruang-keluarga")
+
+    case FamilyChatStore.message_by_id(room.id, context.family_chat_reply_target_id) do
+      %{body: body} -> body == context.family_chat_reply_target_body
+      nil -> false
+    end
+  end
+
+  def behaviour_outcome?(context, :room_has_no_message_for_client_id, _args),
+    do: count_messages_for(context, context.family_chat_client_message_id) == 0
+
+  # The refusal happens before any commit, so nothing could have been
+  # published. At this layer the subscription itself is exempt (the socket
+  # push is not observable through ConnTest), so the observable claim is that
+  # no message exists to have been published about -- which the preceding
+  # step already pins -- plus no delivery row was derived for one.
+  def behaviour_outcome?(context, :no_event_published, _args) do
+    %{rows: [[count]]} =
+      SqliteRepo.query!(
+        """
+        SELECT COUNT(*) FROM family_chat_push_deliveries d
+        JOIN family_chat_messages m ON m.id = d.message_id
+        WHERE m.idempotency_key = ?
+        """,
+        [context.family_chat_client_message_id]
+      )
+
+    count == 0
+  end
+
+  def behaviour_outcome?(context, :quote_names_previous_reply, _args),
+    do: sent_quote(context)["id"] == to_string(context.family_chat_previous_reply_id)
+
+  # The quote object has no reply field in the schema at all, so a quote of a
+  # quote is unrepresentable rather than merely absent this once. Asking for
+  # one is a document error, which is what this checks.
+  def behaviour_outcome?(context, :quote_is_flat, _args) do
+    not Map.has_key?(sent_quote(context), "replyTo") and
+      match?(
+        %{"errors" => [_ | _]},
+        graphql_result(
+          context,
+          """
+          query($roomSlug: String!) {
+            familyChatMessages(roomSlug: $roomSlug) {
+              nodes { replyTo { replyTo { id } } }
+            }
+          }
+          """,
+          %{"roomSlug" => context[:family_chat_room_slug] || "ruang-keluarga"}
+        )
+      )
+  end
+
+  def behaviour_outcome?(context, :quote_names_first_target, _args),
+    do: sent_quote(context)["id"] == to_string(context.family_chat_first_target_id)
+
+  def behaviour_outcome?(context, :quote_reports_live_display_name, [expected_name]) do
+    case quoted_of_reply(context) do
+      nil -> false
+      quoted -> quoted["senderDisplayName"] == expected_name
+    end
+  end
+
+  def behaviour_outcome?(context, :quote_name_matches_original, _args) do
+    quoted = quoted_of_reply(context)
+    original = node_by_id(context, context.family_chat_quoted_message_id)
+
+    quoted != nil and original != nil and
+      quoted["senderDisplayName"] == original["senderDisplayName"]
+  end
+
+  def behaviour_outcome?(context, :pre_reply_columns_unchanged, _args) do
+    {:ok, committed} = context.family_chat_result
+    readback = context.family_chat_pre_reply_readback
+
+    readback != nil and
+      Enum.all?(
+        [:id, :room_id, :sender_kind, :sender_id, :sender_display_name, :idempotency_key, :body],
+        &(Map.fetch!(readback, &1) == Map.fetch!(committed, &1))
+      )
+  end
+
+  def behaviour_outcome?(context, :pre_reply_commits_have_no_target, _args) do
+    readback = context.family_chat_pre_reply_readback
+
+    readback != nil and readback.reply_to_message_id == nil and
+      match?({:ok, %{reply_to: nil}}, context.family_chat_result)
+  end
+
+  def behaviour_outcome?(context, :one_pending_delivery_row, _args) do
+    {:ok, %{deliveries: deliveries}} = context.family_chat_result
+
     match?(
-      %{"data" => %{"sendFamilyChatMessage" => %{"body" => body}}}
-      when body != context.family_chat_known_body,
-      context.family_chat_result
+      [%{subscription_id: id, state: "pending"}]
+      when id == context.family_chat_other_subscription_id,
+      deliveries
     )
+  end
+
+  # `family_chat_push_deliveries` has no payload column at all -- it references
+  # a message id and nothing more. Reads the row back in full and checks no
+  # column carries the quoted text, so a future payload column cannot quietly
+  # start carrying it.
+  def behaviour_outcome?(context, :delivery_payload_excludes_quote, _args) do
+    {:ok, %{id: message_id}} = context.family_chat_result
+    quoted_body = context.family_chat_reply_target_body
+
+    %{rows: rows} =
+      SqliteRepo.query!("SELECT * FROM family_chat_push_deliveries WHERE message_id = ?", [
+        message_id
+      ])
+
+    Enum.all?(rows, fn row ->
+      Enum.all?(row, fn value ->
+        not (is_binary(value) and String.contains?(value, quoted_body))
+      end)
+    end)
   end
 
   def behaviour_outcome?(context, :no_hidden_room_state, _args) do
@@ -1577,7 +1937,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       """
       query($roomSlug: String!, $beforeId: ID, $afterId: ID, $limit: Int) {
         familyChatMessages(roomSlug: $roomSlug, beforeId: $beforeId, afterId: $afterId, limit: $limit) {
-          nodes { id roomSlug senderKind senderId senderDisplayName body committedAt }
+          nodes { id roomSlug senderKind senderId senderDisplayName body committedAt replyTo { id senderKind senderDisplayName bodyPreview } }
           hasOlder
           hasNewer
         }
@@ -1587,7 +1947,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     )
   end
 
-  defp send_family_chat_message(context, client_message_id, body) do
+  defp send_family_chat_message(context, client_message_id, body, opts \\ []) do
     slug =
       context[:family_chat_room_slug] || context[:family_chat_subscribed_slug] || "ruang-keluarga"
 
@@ -1595,16 +1955,21 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       graphql(
         context,
         """
-        mutation($roomSlug: String!, $clientMessageId: ID!, $body: String!) {
-          sendFamilyChatMessage(roomSlug: $roomSlug, clientMessageId: $clientMessageId, body: $body) {
+        mutation($roomSlug: String!, $clientMessageId: ID!, $body: String!, $replyToMessageId: ID) {
+          sendFamilyChatMessage(roomSlug: $roomSlug, clientMessageId: $clientMessageId, body: $body, replyToMessageId: $replyToMessageId) {
             id roomSlug senderKind senderId senderDisplayName body committedAt
+            replyTo { id senderKind senderDisplayName bodyPreview }
           }
         }
         """,
         %{
           "roomSlug" => slug,
           "clientMessageId" => client_message_id,
-          "body" => expand_body_fixture(body)
+          "body" => expand_body_fixture(body),
+          # Sent on every mutation, null when absent: that is what a real
+          # client does with a nullable argument, and it keeps the no-target
+          # path genuinely exercised through the same document.
+          "replyToMessageId" => opts[:reply_to]
         }
       )
 
@@ -1676,6 +2041,96 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       {:ok, user} -> %{"current_user" => user}
       {:error, :unauthenticated} -> %{}
     end
+  end
+
+  # Records what the next reply must quote: the target's server ID, and the
+  # sender name and body a correct quote has to report back.
+  defp capture_reply_target(context, %{} = target) when is_map_key(target, :id) do
+    Map.merge(context, %{
+      family_chat_reply_target_id: target.id,
+      family_chat_reply_target_body: target.body,
+      family_chat_reply_target_display_name: target.sender_display_name
+    })
+  end
+
+  defp capture_reply_target(context, %{} = node) do
+    Map.merge(context, %{
+      family_chat_reply_target_id: node["id"],
+      family_chat_reply_target_body: node["body"],
+      family_chat_reply_target_display_name: node["senderDisplayName"]
+    })
+  end
+
+  # `family_chat_operations.feature`'s internal-boundary scenarios have no
+  # "an approved user is logged in" Background, so neither `user_id` nor
+  # `identity_username` is set for them. These fall back to a synthetic
+  # identity of the same shape the unit driver uses, rather than assuming a
+  # login that never happened.
+  defp durable_sender(context) do
+    context[:family_chat_user_id] || context[:user_id] ||
+      "test-user-family-chat-sender-" <> unique_uuid()
+  end
+
+  # `identity_username` is only set where a scenario's Background actually
+  # logs a member in; these internal-boundary scenarios have no Background at
+  # all, so this falls back to a deterministic synthetic name rather than
+  # assuming one.
+  defp display_name_for(context, sender) do
+    context[:identity_username] || "display-" <> sender
+  end
+
+  defp sent_message(context),
+    do: get_in(context.family_chat_result, ["data", "sendFamilyChatMessage"]) || %{}
+
+  defp sent_quote(context), do: sent_message(context)["replyTo"] || %{}
+
+  defp quoted_of_reply(context) do
+    case node_by_id(context, context.family_chat_reply_message_id) do
+      nil -> nil
+      node -> node["replyTo"]
+    end
+  end
+
+  defp node_by_id(context, id) do
+    nodes = get_in(context.family_chat_result, ["data", "familyChatMessages", "nodes"]) || []
+    Enum.find(nodes, &(&1["id"] == id))
+  end
+
+  # Runs one extra document against the same authenticated boundary without
+  # disturbing `family_chat_result`, which the surrounding outcome still reads.
+  defp graphql_result(context, query, variables),
+    do: graphql(context, query, variables).family_chat_result
+
+  # A second room only v1's data model allows, never its UI: seeded already
+  # soft-deleted so the room list keeps reporting exactly one active room (the
+  # behaviour corpus asserts that), while `message_by_id/2`'s room scoping
+  # still has a genuinely foreign message to refuse. `INSERT OR IGNORE` plus a
+  # fixed ID keeps repeated scenarios idempotent.
+  defp archived_room_message_id do
+    FamilyChatStore.ensure_ready!()
+    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+    SqliteRepo.query!(
+      """
+      INSERT OR IGNORE INTO family_chat_rooms (
+        id, slug, name, room_kind, member_posting_enabled,
+        created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+      ) VALUES (900, 'ruang-arsip', 'Ruang Arsip', 'conversation', 1, ?, 'test', ?, 'test', ?, 'test')
+      """,
+      [now, now, now]
+    )
+
+    {:ok, foreign} =
+      FamilyChatStore.insert_message!(
+        900,
+        "user",
+        "test-user-family-chat-archive",
+        "Arsip",
+        "archive-" <> unique_uuid(),
+        "a message in another room"
+      )
+
+    foreign.id
   end
 
   defp count_messages_for(context, client_message_id) do

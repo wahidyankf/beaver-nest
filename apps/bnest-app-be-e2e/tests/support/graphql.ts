@@ -8,13 +8,17 @@ import type { APIRequestContext, Page } from "@playwright/test";
 //
 // The mutation/query shapes here match the real, implemented
 // `BnestAppWeb.Schema` exactly (tech-doc 008): `sendFamilyChatMessage` takes
-// three top-level arguments (`roomSlug`, `clientMessageId`, `body`), never a
-// wrapped `input` object, and `family_chat_message`'s only fields are `id`,
-// `roomSlug`, `senderKind`, `senderId`, `senderDisplayName`, `body`, and
-// `committedAt` -- the idempotency/client-message key is deliberately never
+// four top-level arguments (`roomSlug`, `clientMessageId`, `body`, and the
+// nullable `replyToMessageId`), never a wrapped `input` object, and
+// `family_chat_message`'s fields are `id`, `roomSlug`, `senderKind`,
+// `senderId`, `senderDisplayName`, `body`, `committedAt`, and the nullable
+// `replyTo` quote -- the idempotency/client-message key is deliberately never
 // exposed over GraphQL (an internal dedup mechanism only), so correlating
 // "the message I just sent" against a later query must use the
 // server-assigned `id`, not a client-supplied key.
+//
+// `replyTo` is a distinct object type, not a recursive message, so it can
+// never carry a quote of its own -- which is why the shape below bottoms out.
 
 export interface GraphQlResponse<T = Record<string, unknown>> {
   data?: T;
@@ -49,6 +53,13 @@ export async function postGraphQl<T = Record<string, unknown>>(
   return (await response.json()) as GraphQlResponse<T>;
 }
 
+export interface FamilyChatMessageQuote {
+  id: string;
+  senderKind: string;
+  senderDisplayName: string;
+  bodyPreview: string;
+}
+
 export interface SendFamilyChatMessageResult {
   sendFamilyChatMessage: {
     id: string;
@@ -58,6 +69,7 @@ export interface SendFamilyChatMessageResult {
     senderDisplayName: string;
     body: string;
     committedAt: string;
+    replyTo: FamilyChatMessageQuote | null;
   } | null;
 }
 
@@ -66,12 +78,18 @@ export function sendFamilyChatMessage(
   request: APIRequestContext,
   body: string,
   clientMessageId: string,
+  replyToMessageId: string | null = null,
 ): Promise<GraphQlResponse<SendFamilyChatMessageResult>> {
   return postGraphQl<SendFamilyChatMessageResult>(
     page,
     request,
-    `mutation($roomSlug: String!, $clientMessageId: ID!, $body: String!) {
-      sendFamilyChatMessage(roomSlug: $roomSlug, clientMessageId: $clientMessageId, body: $body) {
+    `mutation($roomSlug: String!, $clientMessageId: ID!, $body: String!, $replyToMessageId: ID) {
+      sendFamilyChatMessage(
+        roomSlug: $roomSlug
+        clientMessageId: $clientMessageId
+        body: $body
+        replyToMessageId: $replyToMessageId
+      ) {
         id
         roomSlug
         senderKind
@@ -79,15 +97,21 @@ export function sendFamilyChatMessage(
         senderDisplayName
         body
         committedAt
+        replyTo { id senderKind senderDisplayName bodyPreview }
       }
     }`,
-    { roomSlug: "ruang-keluarga", clientMessageId, body },
+    { roomSlug: "ruang-keluarga", clientMessageId, body, replyToMessageId },
   );
 }
 
 export interface FamilyChatMessagesResult {
   familyChatMessages: {
-    nodes: { id: string; body: string; committedAt: string }[];
+    nodes: {
+      id: string;
+      body: string;
+      committedAt: string;
+      replyTo: FamilyChatMessageQuote | null;
+    }[];
     hasNewer: boolean;
   };
 }
@@ -102,7 +126,7 @@ export function queryFamilyChatMessagesAfter(
     request,
     `query($roomSlug: String!, $afterId: ID!) {
       familyChatMessages(roomSlug: $roomSlug, afterId: $afterId) {
-        nodes { id body committedAt }
+        nodes { id body committedAt replyTo { id senderKind senderDisplayName bodyPreview } }
         hasNewer
       }
     }`,

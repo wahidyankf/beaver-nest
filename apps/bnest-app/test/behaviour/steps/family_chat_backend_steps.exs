@@ -659,6 +659,193 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :prior_slot_warm_unrouted)
   )
 
+  # --- family_chat_graphql.feature: replying to a message ---
+
+  step(
+    "a family chat message from another member is already committed in {string}",
+    %{args: [slug]} = context,
+    do: prepare(context, :other_member_message_committed, [slug])
+  )
+
+  step(
+    "the user sends the family chat message {string} naming that message as the reply target",
+    %{args: [body]} = context,
+    do: perform(context, :send_reply_to_known_target, [body])
+  )
+
+  step("the response's quote names that reply target's server ID", context,
+    do: outcome(context, :quote_names_target_id)
+  )
+
+  step(
+    "the response's quote reports that target's sender display name and a preview of its body",
+    context,
+    do: outcome(context, :quote_reports_sender_and_preview)
+  )
+
+  step("the response's message carries no quote", context,
+    do: outcome(context, :message_has_no_quote)
+  )
+
+  step("a committed family chat message whose body is 400 graphemes long", context,
+    do: prepare(context, :committed_long_message)
+  )
+
+  step("the user sends a family chat reply naming that message as the reply target", context,
+    do: perform(context, :send_reply_to_known_target)
+  )
+
+  step("the response's quote preview is at most 160 graphemes long", context,
+    do: outcome(context, :quote_preview_within_budget)
+  )
+
+  step("the response's quote preview ends with an ellipsis", context,
+    do: outcome(context, :quote_preview_elided)
+  )
+
+  step("the quoted message's own body is returned in full, unshortened", context,
+    do: outcome(context, :quoted_body_unshortened)
+  )
+
+  # One binding per Examples row rather than a parameter: ExBdd Expressions
+  # have no free-text placeholder ({word} stops at whitespace), and each row
+  # names a genuinely different refusal path anyway.
+  step(
+    "the user sends a family chat reply whose reply target names a server ID no message has",
+    context,
+    do: perform(context, :reply_target_unknown_id)
+  )
+
+  step(
+    "the user sends a family chat reply whose reply target names a message in a different room",
+    context,
+    do: perform(context, :reply_target_other_room)
+  )
+
+  step(
+    "the user sends a family chat reply whose reply target is not a positive integer",
+    context,
+    do: perform(context, :reply_target_not_positive_integer)
+  )
+
+  step("the response reports a validation failure", context,
+    do: outcome(context, :safe_error, ["VALIDATION_FAILED"])
+  )
+
+  step("the family chat room holds no message for that client message ID", context,
+    do: outcome(context, :room_has_no_message_for_client_id)
+  )
+
+  step("no committed-message event is published", context,
+    do: outcome(context, :no_event_published)
+  )
+
+  step("a committed family chat message {string}", %{args: [body]} = context,
+    do: prepare(context, :committed_message, [body])
+  )
+
+  step("a committed family chat reply to it reading {string}", %{args: [body]} = context,
+    do: prepare(context, :committed_reply_to_previous, [body])
+  )
+
+  step("the user sends a family chat reply naming that reply as the reply target", context,
+    do: perform(context, :send_reply_to_previous_reply)
+  )
+
+  step("the response's quote names the reply it answers", context,
+    do: outcome(context, :quote_names_previous_reply)
+  )
+
+  step("that quote carries no quote of its own", context, do: outcome(context, :quote_is_flat))
+
+  step(
+    "the user already sent a family chat reply to a known message with a known client message ID",
+    context,
+    do: prepare(context, :sent_reply_with_known_id)
+  )
+
+  step("the user resends the same client message ID naming a different reply target", context,
+    do: perform(context, :resend_same_id_other_target)
+  )
+
+  step("that message's quote still names the reply target committed first", context,
+    do: outcome(context, :quote_names_first_target)
+  )
+
+  step("the user replied to a message committed under the sender's earlier display name", context,
+    do: prepare(context, :replied_under_earlier_display_name)
+  )
+
+  step(
+    "the reply's quote reports {string} as the quoted sender's display name",
+    %{args: [expected_name]} = context,
+    do: outcome(context, :quote_reports_live_display_name, [expected_name])
+  )
+
+  step("that name matches the display name shown on the quoted message itself", context,
+    do: outcome(context, :quote_name_matches_original)
+  )
+
+  step("another member sends a family chat reply to one of the user's messages", context,
+    do: perform(context, :other_member_replies_to_user)
+  )
+
+  step("the subscriber receives exactly one committed-message event matching that reply", context,
+    do: outcome(context, :one_event_for_reply)
+  )
+
+  step("that event's message carries a quote naming the message it answers", context,
+    do: outcome(context, :event_message_carries_quote)
+  )
+
+  step("a family chat reply committed before the user's subscription started", context,
+    do: prepare(context, :reply_committed_before_subscription)
+  )
+
+  step("the response includes that reply", context,
+    do: outcome(context, :response_includes_reply)
+  )
+
+  step("that reply carries a quote naming the message it answers", context,
+    do: outcome(context, :reply_carries_quote)
+  )
+
+  # --- family_chat_operations.feature: the additive reply column ---
+
+  step("the additive family chat reply migration has applied", context,
+    do: prepare(context, :reply_migration_applied)
+  )
+
+  step("code built before that migration opens the same database", context,
+    do: perform(context, :pre_reply_release_opens_database)
+  )
+
+  step("it reads and writes every other family chat message column unchanged", context,
+    do: outcome(context, :pre_reply_columns_unchanged)
+  )
+
+  step("messages it commits carry no reply target", context,
+    do: outcome(context, :pre_reply_commits_have_no_target)
+  )
+
+  step(
+    "one other member holds an active Web Push subscription in {string}",
+    %{args: [slug]} = context,
+    do: prepare(context, :one_other_active_subscription, [slug])
+  )
+
+  step("a member sends a durable family chat reply to that member's message", context,
+    do: perform(context, :send_durable_reply)
+  )
+
+  step("exactly one pending delivery row exists for that subscription", context,
+    do: outcome(context, :one_pending_delivery_row)
+  )
+
+  step("the delivery payload carries no part of the quoted message", context,
+    do: outcome(context, :delivery_payload_excludes_quote)
+  )
+
   defp prepare(context, state), do: context.behaviour_driver.prepare_behaviour(context, state, [])
 
   defp prepare(context, state, args),
