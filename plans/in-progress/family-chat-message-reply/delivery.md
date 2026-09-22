@@ -677,7 +677,7 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       finding recorded in `learnings.md` under the exact heading `## Exploratory findings`, each with its route,
       state, and category, and no private values. This pass is finished and recorded **before** the usability pass
       begins, so the two lenses never blend.
-- [ ] `[AI] [AC-FCR-01..10]` **Usability pass (spec-blind), second.** Blindness must be structural, not declared: a
+- [x] `[AI] [AC-FCR-01..10]` **Usability pass (spec-blind), second.** Blindness must be structural, not declared: a
       context that implemented this change has already read the specs and cannot un-read them. Delegate the pass to a
       fresh agent context given only the origin, the affected routes, and the viewport classes — withholding the
       specs, the source, and the twelve design assets. If no delegation is available, run it and record explicitly
@@ -685,20 +685,20 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
       against Nielsen's ten heuristics, a cognitive walkthrough, the empty, loading, error, and zero-result states,
       and responsive usability. **Proof:** findings under the exact heading `## Usability findings`, never merged
       into the exploratory section.
-- [ ] `[AI] [AC-FCR-01..10]` Cross-reference the two sets: where an exploratory and a usability finding describe one
+- [x] `[AI] [AC-FCR-01..10]` Cross-reference the two sets: where an exploratory and a usability finding describe one
       underlying defect, add a short note in **both** sections naming the shared root cause, so it is fixed once.
       **Proof:** the cross-reference notes, or a recorded statement that no finding pair shared a root cause.
-- [ ] `[AI] [AC-FCR-01..10]` For every finding that reveals correct-but-unspecced behaviour, reconcile it through the
+- [x] `[AI] [AC-FCR-01..10]` For every finding that reveals correct-but-unspecced behaviour, reconcile it through the
       [BDD Iron Rule](../../../repo-governance/development/behaviour-driven-development.md) as its own cycle: update
       the Gherkin, bind failing steps, confirm RED, then implement. Never merge an unreconciled proposal into
       `specs/**`. Label a usability-sourced proposal as such. **Proof:** for each accepted proposal, the scenario
       name, its RED evidence, and its GREEN result; or a recorded statement that no finding proposed a spec change.
       Commands: `BEHAVIOUR`, `FE_E2E_COVERAGE`.
-- [ ] `[AI] [AC-FCR-01..12]` Perform the
+- [x] `[AI] [AC-FCR-01..12]` Perform the
       [Gherkin implementation review](../../../repo-governance/workflows/gherkin-implementation-review.md) over every
       changed feature file and its bindings. **Proof:** a per-scenario verdict in `learnings.md`; any fabricated,
       placeholder, or no-op proof is fixed before this item is ticked.
-- [ ] `[AI] [AC-FCR-01..10]` Confirm, before the phase checkpoint, that both passes ran, that findings are present or
+- [x] `[AI] [AC-FCR-01..10]` Confirm, before the phase checkpoint, that both passes ran, that findings are present or
       explicitly recorded as none found, that both headings are correctly labelled, that cross-references are noted,
       and that every accepted spec proposal completed the Iron Rule with its `delivery.md` proof. **Proof:** the
       confirmation recorded in `learnings.md` against each of those five conditions.
