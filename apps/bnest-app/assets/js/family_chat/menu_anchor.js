@@ -11,9 +11,6 @@
 /** The breathing room between the menu and the message, and the viewport. */
 export const GAP = 8;
 
-/** Below 600px the stylesheet's bottom sheet governs and nothing is placed. */
-export const SHEET_QUERY = "(width <= 37.5rem)";
-
 const MESSAGE_SELECTOR = '[data-role="family-chat-message"]';
 
 /**
@@ -59,19 +56,20 @@ export function menuPlacement({
 }
 
 /**
- * Applies `menuPlacement` to the live host, or clears it so the stylesheet's
- * sheet rules govern below 600px.
+ * Publishes `menuPlacement`'s result for the stylesheet to consume.
+ *
+ * The values go out as custom properties rather than as inline `top`/`left`
+ * because the two layouts have to be able to disagree. An inline longhand
+ * outranks any stylesheet rule, so a menu opened at desktop width and then
+ * carried below 600px -- a tablet rotating to portrait, with the menu still
+ * open -- would hold its stale popover coordinates and never become the
+ * sheet. As custom properties the base rule and the sheet rule compete
+ * normally, and the media query wins whenever it applies.
  * @param {HTMLElement} host
  * @param {HTMLElement} list
  * @param {string} messageKey
  */
 export function anchorMenu(host, list, messageKey) {
-  if (globalThis.matchMedia?.(SHEET_QUERY).matches) {
-    host.style.removeProperty("top");
-    host.style.removeProperty("left");
-    return;
-  }
-
   const element = list.querySelector(
     `${MESSAGE_SELECTOR}[data-message-id="${CSS.escape(messageKey)}"]`,
   );
@@ -93,6 +91,21 @@ export function anchorMenu(host, list, messageKey) {
       width: globalThis.innerWidth,
     },
   });
-  host.style.top = `${top}px`;
-  host.style.left = `${left}px`;
+  host.style.setProperty("--fc-menu-top", `${top}px`);
+  host.style.setProperty("--fc-menu-left", `${left}px`);
+}
+
+/**
+ * Re-runs the placement while the menu is open and the viewport changes, so
+ * a rotation moves the popover with its message instead of leaving it where
+ * the old layout put it. The open message is read back off the host, which
+ * already carries it.
+ * @param {HTMLElement} host
+ * @param {HTMLElement} list
+ */
+export function bindReanchor(host, list) {
+  globalThis.addEventListener?.("resize", () => {
+    if (host.hidden) return;
+    anchorMenu(host, list, host.dataset["messageId"] ?? "");
+  });
 }
