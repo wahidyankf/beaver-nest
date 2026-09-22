@@ -18,6 +18,8 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
   specification line promises and what a scenario's layer tag obliges.
 - [Plan and checkpoint contract gaps](plan-and-checkpoint-contract-gaps.md) requires a plan that introduces a
   runtime flag to cover the release path, and a phase checkpoint to name its typecheck target.
+- [Browser suite timing reliability](browser-suite-timing-reliability.md) makes `FE_E2E` return the same result
+  twice on an unchanged tree, so a gate plans cite as proof keeps meaning something.
 
 ## Directory Map
 
@@ -36,3 +38,6 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
   inline-longhand evidence, the corpus-pruning obligation, and the two proposed convention lines.
 - [Plan and checkpoint contract gaps](plan-and-checkpoint-contract-gaps.md) records the release-path omission
   that would have promoted a flagless revision, and the typecheck gate that stayed red across three phases.
+- [Browser suite timing reliability](browser-suite-timing-reliability.md) records the fixed press-and-hold margin
+  with the trace that settled it, the open visibility-resume failure at one run in eight, and why a retry is
+  rejected as the remedy.

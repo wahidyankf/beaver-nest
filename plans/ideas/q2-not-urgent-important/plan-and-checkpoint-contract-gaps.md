@@ -1,9 +1,10 @@
 # Plan and Checkpoint Contract Gaps
 
-Two proposals the `family-chat-message-reply` execution raised and rules propagation deliberately deferred: what a
-plan's File Impact table must cover when it introduces a runtime flag, and what a phase checkpoint's command set
-must name. Provenance: execution learnings captured 2026-09-22; raised late, after an execution check found neither
-had reached a document.
+Three proposals the `family-chat-message-reply` execution raised: what a plan's File Impact table must cover when
+it introduces a runtime flag, what a phase checkpoint's command set must name, and what a correction sweep must
+cover once a claim is found to be wrong. Provenance: execution learnings captured 2026-09-22; the first two were
+deferred by rules propagation and raised late, after an execution check found neither had reached a document. The
+third was added 2026-09-22 after a third execution check.
 
 ## Problem / Context
 
@@ -20,7 +21,16 @@ typecheck was not among them. The suites were green the whole time, so nothing c
 the single most useful thing this execution learned about its own checkpoints, and it came from a gate failure
 rather than from the checkpoint contract.
 
-A later execution check found that neither proposal had been raised, because both were routed to "at archival" and
+**A correction sweep scoped to ticked items leaves the same false claim standing in a disposition.** Two rounds of
+corrections unticked the two delivery items that rested on a duplicated 12-sample measurement. A third place
+carried the same figures — the `Not triggered` disposition of a Recovery-and-Rollback item, which is unticked by
+design and whose disposition _is_ its record. Both sweeps missed it, because each was scoped to "items claiming
+this evidence" and read that as checkboxes. The proposal: when a correction retracts a measurement or a claim,
+the sweep runs over every occurrence of the claim in the plan's six documents, not over the items that were ticked
+on it. This is checkable mechanically — the retracted figures were byte-identical in all three places.
+
+A later execution check found that neither of the first two proposals had been raised, because both were routed to
+"at archival" and
 archival is where the routing was supposed to happen. **Twenty-two** owner declarations in that plan's learnings
 deferred their action the same way; this is the pair that had nowhere else to land. (This brief first said
 twenty-three, written before any of them were counted.)
@@ -48,7 +58,7 @@ plan to look complete while missing something a later phase depends on.
 
 ## Rough Scope & Non-Goals
 
-In scope: two documentation additions, and a check on whether the second is better enforced by the checkpoint
+In scope: three documentation additions, and a check on whether the second is better enforced by the checkpoint
 template than by prose.
 
 Out of scope: the flag mechanism; the release tool's own structure; and any attempt to make File Impact tables
@@ -63,8 +73,9 @@ exhaustive in general, which would make them unreadable and is not what either f
 
 ## What Success Looks Like + Promotion Signal
 
-Success: a plan that introduces a flag names the files that ship it, and a red typecheck is caught by the phase
-that broke it.
+Success: a plan that introduces a flag names the files that ship it, a red typecheck is caught by the phase that
+broke it, and a retracted measurement disappears from every document that cited it in one pass.
 
-Promotion signal: a second plan whose release path is missing from its File Impact, or a second gate found red
-across more than one phase, promotes this brief to a plan.
+Promotion signal: a second plan whose release path is missing from its File Impact, a second gate found red across
+more than one phase, or a second correction sweep that leaves a retracted figure standing somewhere it was not
+looking, promotes this brief to a plan.

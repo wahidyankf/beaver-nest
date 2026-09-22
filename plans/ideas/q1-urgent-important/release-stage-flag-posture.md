@@ -59,6 +59,14 @@ staying `hidden`. It reproduces with the reply plan's additions removed, so it p
 slot-churn cause above; that is a guess and is recorded as one. It is noted here because it means the family-chat
 browser suite is not green on this machine, which several plan records assume it is.
 
+**Resolved 2026-09-22, and it was not a release-window effect.** Instrumenting the gesture showed the pointer
+down on the correct message for 559 ms against a 500 ms threshold, with no `pointercancel`, no `pointermove`
+and no DOM mutation. The harness released `holdMs + 50` after pressing and the release clears the
+application's own hold timer, so any event-loop delay past that margin cancelled the gesture it was waiting
+for. Fixed in `family-chat-gestures.ts` by holding until the menu appears; 121 for 121 afterwards. The
+slot-churn hypothesis recorded here was wrong, and nothing in this finding supports the
+writable-route concern below — that one stands on its own evidence.
+
 ## Why Now
 
 Bnest is a 24/7 household service, and the flag gap is an availability defect that the continuity budget cannot
