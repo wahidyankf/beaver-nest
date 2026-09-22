@@ -18,15 +18,21 @@ import {
 const candidates = new Map<number, ChildProcess>();
 const candidateLogs = new Map<number, string>();
 const candidateFamilyChatFlags = new Map<number, boolean | undefined>();
+const candidateReplyFlags = new Map<number, boolean | undefined>();
 process.once("exit", () => terminateChildProcesses(candidates.values()));
 
 export async function ensureCandidate(
   port: number,
   familyChatEnabled?: boolean,
+  replyEnabled?: boolean,
 ): Promise<void> {
   const existing = candidates.get(port);
   if (existing !== undefined && existing.exitCode === null) {
-    if (candidateFamilyChatFlags.get(port) === familyChatEnabled) return;
+    if (
+      candidateFamilyChatFlags.get(port) === familyChatEnabled &&
+      candidateReplyFlags.get(port) === replyEnabled
+    )
+      return;
     // A prior scenario left a candidate running on this port with a
     // different flag state than this call needs -- the flag is only set at
     // boot (`runtime.exs`), so reusing the process would silently keep the
@@ -35,9 +41,10 @@ export async function ensureCandidate(
     candidates.delete(port);
   }
 
-  const candidate = launchCandidate(port, familyChatEnabled);
+  const candidate = launchCandidate(port, familyChatEnabled, replyEnabled);
   candidates.set(port, candidate);
   candidateFamilyChatFlags.set(port, familyChatEnabled);
+  candidateReplyFlags.set(port, replyEnabled);
   candidate.stdout?.on("data", (chunk: Buffer) =>
     appendCandidateLog(port, chunk),
   );
@@ -51,11 +58,13 @@ export async function stopAllCandidates(): Promise<void> {
   await stopChildProcesses(candidates.values());
   candidates.clear();
   candidateFamilyChatFlags.clear();
+  candidateReplyFlags.clear();
 }
 
 function launchCandidate(
   port: number,
   familyChatEnabled?: boolean,
+  replyEnabled?: boolean,
 ): ChildProcess {
   const codexRunner = path.join(
     appDirectory,
@@ -74,6 +83,14 @@ function launchCandidate(
         ? {}
         : {
             BNEST_FAMILY_CHAT_ENABLED: familyChatEnabled ? "true" : "false",
+          }),
+      // Left unset means "inherit the suite's own true" (see
+      // `tools/run-e2e.mts`); pinned false is what makes a candidate a
+      // genuine compatibility revision rather than the experience one.
+      ...(replyEnabled === undefined
+        ? {}
+        : {
+            BNEST_FAMILY_CHAT_REPLY_ENABLED: replyEnabled ? "true" : "false",
           }),
       BNEST_CODEX_MODELS_RUNNER: codexModelsRunner,
       BNEST_CODEX_RUNNER: codexRunner,
