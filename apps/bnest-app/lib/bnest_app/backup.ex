@@ -451,15 +451,28 @@ defmodule BnestApp.Backup do
   end
 
   defp restore_evidence(connection) do
+    # Scoped to ACTIVE rooms. The schema has carried `deleted_at` on
+    # `family_chat_rooms` since the family chat migration, so an archived room
+    # is a representable state -- and an unscoped single-row match turned that
+    # representable state into a restore failure. Evidence is about the room
+    # the product serves, which is the one that is not soft-deleted. The
+    # single-row match stays: exactly one ACTIVE room is the v1 invariant, and
+    # a restore that found two should still fail loudly.
     [[room_id, room_slug, room_name, member_posting_enabled]] =
       query_rows(
         connection,
-        "SELECT id, slug, name, member_posting_enabled FROM family_chat_rooms ORDER BY id"
+        "SELECT id, slug, name, member_posting_enabled FROM family_chat_rooms WHERE deleted_at IS NULL ORDER BY id"
       )
 
+    # Scoped to that same active room, for the same reason: these ids are read
+    # back against the live room's messages, so an archived room's messages
+    # would look like ids the restore invented. `room_id` is the INTEGER
+    # primary key just read out of this same connection, never caller input,
+    # so interpolating it into SQL carries no injection surface (`query_rows/2`
+    # takes no bindings).
     message_ids =
       connection
-      |> query_rows("SELECT id FROM family_chat_messages ORDER BY id")
+      |> query_rows("SELECT id FROM family_chat_messages WHERE room_id = #{room_id} ORDER BY id")
       |> Enum.map(&hd/1)
 
     subscription_count =
