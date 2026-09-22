@@ -1871,7 +1871,16 @@ body {
 .family-chat-message-input:focus-visible,
 .family-chat-send:focus-visible,
 .family-chat-push-control:focus-visible,
-.family-chat-push-disable:focus-visible {
+.family-chat-push-disable:focus-visible,
+/* Tech-doc 003's Focus row names five more targets and says the ring is
+ * the room's existing one, so they join the room's existing rule rather
+ * than restating it. Without them each fell back to the user agent's
+ * blue ring, which is visible but is not this room's. */
+.family-chat-message:focus-visible,
+.family-chat-message-more:focus-visible,
+.family-chat-message-actions button:focus-visible,
+.family-chat-message-quote:focus-visible,
+.family-chat-reply-strip-cancel:focus-visible {
   outline: 0.2rem solid var(--bnest-sun);
   outline-offset: 0.15rem;
 }
