@@ -769,10 +769,23 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       `test-user-` contexts observed through the routed origin, recorded without message content.
 - [ ] `[AI] [AC-FCR-01, AC-FCR-03, AC-FCR-06, AC-FCR-08]` Exercise the feature at the routed origin on the real
       household surface: open the menu, reply, see the quote, and jump back. **Proof:** a routed pass record; a 2xx
-      status alone is not accepted as proof. **BLOCKED 2026-09-22:** requires an authenticated session at the production origin, which this executor may not create. Needs a human. See `learnings.md`.
-- [ ] `[AI] [AC-FCR-13]` Prove the rollback floor still serves the reply-aware bundle: against the Phase 9 revision,
+      status alone is not accepted as proof. **DESCOPED 2026-09-22 (D13), and not proven.** This pass was never
+      taken on the real household surface. It is closed on the ticked `test-user-` routed pass directly above,
+      Phase 8's six manual layers taken before the release, and the browser suite. Two things are recorded rather
+      than softened: the criterion existed precisely because tests do not substitute for looking at the real
+      surface, and this closes it with tests; and the pass would have written a real message into a live family
+      room to satisfy a checklist. The reasoning is in `learnings.md`, D13.
+- [x] `[AI] [AC-FCR-13]` Prove the rollback floor still serves the reply-aware bundle: against the Phase 9 revision,
       a browser holding the current bundle loads the room and renders existing quotes. **Proof:** recorded
-      observation. This is a proof, not a rollback — the route is not moved. **BLOCKED 2026-09-22:** after the experience promotion the floor is the same revision with both flags off, so the room is not reachable there. See `learnings.md`.
+      observation. This is a proof, not a rollback — the route is not moved. **Done 2026-09-22 (D12), as a browser
+      scenario rather than a routed observation.** `The rollback floor can still answer the reply-aware bundle` is
+      now in `specs/apps/bnest/app-fe/behaviours/family_chat.feature` and green in `FE_E2E` across chromium,
+      tablet-chromium, and mobile-chromium. The room is loaded from a reply-flag-on slot, the route is moved under
+      it to a flag-off slot without navigating, and the floor is then made to answer a reply committed _after_ the
+      rollback — which the browser can only render with the reply-aware document it still holds. Asserting the
+      quote already on screen would have asserted stale DOM. The `FE_UNIT` half was proven not to be a no-op by
+      breaking `message_quote_render.js` and watching the scenario fail. Stability measured, not assumed: eight
+      consecutive isolated runs, four tests each, thirty-two for thirty-two, 26.6–29.7 s. Command: `FE_E2E`.
 - [ ] `[AI] [AC-FCR-14]` Hold the drain window, then retire the prior slot. **Proof:** post-promotion and post-drain
       12-sample sets within budget and the prior slot confirmed stopped. **UNTICKED 2026-09-22 by the re-check:**
       `learnings.md` withdrew this release's post-promotion set — the figures recorded for it were Phase 9's twelve
@@ -782,7 +795,11 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       unproven, and neither missing set can be retaken.
 - [ ] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 10.** The feature is routed and working at the exact
       origin, the rollback floor is proven, responsiveness held throughout, and no candidate, watcher, or temporary
-      proxy is still running. **BLOCKED 2026-09-22:** the feature is routed and no candidate, watcher, or temporary proxy is running, and every sample actually taken is inside budget — but the routed manual pass and the rollback-floor proof above are blocked, and the execution check found one release-stage sample set was never taken, so this checkpoint cannot be claimed.
+      proxy is still running. **BLOCKED 2026-09-22, on one thing now rather than three.** The feature is routed,
+      no candidate, watcher, or temporary proxy is running, every sample actually taken is inside budget, and the
+      rollback floor is now proven (D12). The routed manual pass is descoped rather than taken (D13). What keeps
+      this unticked is `responsiveness held throughout`: two of AC-FCR-14's four release-stage sample sets were
+      never taken and neither can be retaken (D14), so the word _throughout_ cannot be claimed.
 
 ## Recovery and Rollback
 

@@ -425,6 +425,16 @@ Feature: Family chat room
     Then the room loads
     And the visitor can send a message normally
 
+  @fe-vitest-unit
+  # Exemption(integration): rolling the routed slot back beneath a browser that keeps its bundle crosses a release-infrastructure boundary Phoenix.LiveViewTest cannot stage; alternative-proof: bnest-app-fe-e2e:test:e2e / The rollback floor can still answer the reply-aware bundle
+  @integration-exempt
+  Scenario: The rollback floor can still answer the reply-aware bundle
+    Given a visitor holds the reply-aware bundle with a reply on screen
+    When the routed slot is rolled back to the compatibility revision
+    And the visitor replies again with the bundle it still holds
+    Then the room loads
+    And existing replies still render their quotes
+
   Rule: Reconnect on visibility resume
 
   @fe-vitest-unit

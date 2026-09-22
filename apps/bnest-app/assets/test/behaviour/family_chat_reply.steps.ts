@@ -1608,6 +1608,91 @@ step("the room loads", async (context) => {
   return context;
 });
 
+// --- The rollback floor ---------------------------------------------------
+//
+// Which slot Caddy routes, and whether a browser truly keeps its bundle across
+// the route change, is FE_E2E's (`rollBackRoutedSlot`). What this layer owns is
+// the half that makes the rollback survivable at all: a reply-aware bundle
+// renders a quote from whatever the server answers with, on a freshly built
+// room rather than only on a live arrival. The floor still serves `replyTo`
+// (tech-doc 002) -- so if hydration ever stopped rendering quotes, a rollback
+// would silently drop every quote card, and this fails first.
+
+step(
+  "a visitor holds the reply-aware bundle with a reply on screen",
+  async (context) => {
+    const { reopenBrowserRoom } = await support();
+    const room = await open([{ body: "Jam berapa?", ...AYAH }], {
+      replies: true,
+    });
+    scenario.targetId = room.server.newest()?.id ?? null;
+    scenario.replyId = room.server.post({
+      body: "Jam lima",
+      ...VISITOR,
+      replyToMessageId: scenario.targetId ?? undefined,
+    }).id;
+    // This layer has no live push -- `post` appends to the page source and a
+    // build is what reads it. The subscription path is FE_E2E's; what this
+    // layer owns is hydration, which is the half a rollback actually exercises.
+    await reopenBrowserRoom();
+    await settle();
+    return context;
+  },
+);
+
+step(
+  "the routed slot is rolled back to the compatibility revision",
+  async (context) => {
+    // No route to move here. The decision this layer holds is that the
+    // server's answer keeps its quote regardless of the room's own flag,
+    // which is what the floor relies on.
+    const room = await current();
+    const answered = room.server.byId(scenario.replyId ?? "");
+    expect(
+      answered?.replyTo != null,
+      "the server dropped the quote from a committed reply",
+    );
+    return context;
+  },
+);
+
+step(
+  "the visitor replies again with the bundle it still holds",
+  async (context) => {
+    // A reply committed after the rollback. Asserting the quote already on
+    // screen would assert markup rendered before it, which would survive the
+    // floor answering with nothing.
+    const { reopenBrowserRoom } = await support();
+    const room = await current();
+    room.server.post({
+      body: "Jam lima ya",
+      ...VISITOR,
+      replyToMessageId: scenario.targetId ?? undefined,
+    });
+    await reopenBrowserRoom();
+    await settle();
+    return context;
+  },
+);
+
+step("existing replies still render their quotes", async (context) => {
+  const room = await current();
+  for (const body of ["Jam lima", "Jam lima ya"]) {
+    const rendered = [
+      ...room.elements.list.querySelectorAll<HTMLElement>(
+        '[data-role="family-chat-message"]',
+      ),
+    ].find((node) => node.textContent?.includes(body));
+    expect(rendered !== undefined, `the reply ${body} is not in the room`);
+    const quote = quoteIn(rendered as HTMLElement);
+    expect(
+      quote.textContent?.includes("Jam berapa?") === true,
+      `the quote lost the original message text: ${JSON.stringify(quote.textContent)}`,
+    );
+  }
+  return context;
+});
+
 step("the visitor can send a message normally", async (context) => {
   const room = await current();
   const before = room.server.newest()?.id;

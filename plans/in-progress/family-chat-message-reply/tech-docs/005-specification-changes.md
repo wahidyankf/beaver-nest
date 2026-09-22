@@ -22,6 +22,22 @@ PRD Gherkin is the plan's acceptance language. It is not an automatic request to
 | AC-FCR-11 additive migration                        | contract    | `app-be/behaviours/family_chat_operations.feature`                  |
 | AC-FCR-12 notifications unchanged                   | contract    | `app-be/behaviours/family_chat_operations.feature`                  |
 | AC-FCR-13 mixed-revision safety                     | contract    | `app-fe/behaviours/family_chat.feature`                             |
+| AC-FCR-13 rollback floor                            | contract    | `app-fe/behaviours/family_chat.feature`                             |
+
+**Corrected 2026-09-22 (D12).** AC-FCR-13's rollback-floor proof was listed below as plan-only, on the grounds
+that it "asserts a property of a release procedure at a moment in time, not of the deployed system", so encoding it
+would create "a test with no runnable subject between releases". That reasoning does not survive contact with this
+plan. Phase 10 released _the same reviewed revision_ as Phase 9 with `BNEST_FAMILY_CHAT_REPLY_ENABLED` flipped on,
+so the floor and the experience revision are one build differing by one flag — a posture the browser suite already
+stands up for its experience-release scenarios. The subject is runnable, it has been made runnable, and the
+scenario is now a contract row above.
+
+It is the strongest of the three release scenarios rather than the weakest, because it is the only one that keeps
+its bundle. Its sibling, `A browser holding the pre-reply bundle loads the room from the new revision`, navigates
+in its `When`, so the browser is served fresh by whichever slot is routed and never actually holds the previous
+revision's bundle. The rollback-floor scenario never navigates: the room is loaded from a flag-on slot, the route
+is moved under it, and the floor is then made to answer a reply committed after the rollback — which the browser
+can only render with the reply-aware document it still holds.
 
 ### Plan-only outcomes, with their reasons and verification tasks
 
@@ -30,7 +46,6 @@ PRD Gherkin is the plan's acceptance language. It is not an automatic request to
 | AC-FCR-10's screen-reader announcement wording | No WAI-ARIA guidance exists for announcing a quoted reply, so the exact sentence is this plan's design decision, not a standing system property. A Gherkin scenario asserting one authored sentence would freeze a wording that the first real screen-reader pass may correct. The _presence_ of an accessible name is a contract; its text is not. | Phase 8's screen-reader walkthrough, recorded in `learnings.md`         |
 | AC-FCR-10's no-horizontal-scroll matrix        | Rendered geometry needs a real layout engine at three viewports. The existing corpus already carries this property for the room as a whole; repeating it per feature would duplicate a check that cannot fail differently here.                                                                                                                     | Phase 8's manual UI matrix, plus the existing structural overflow check |
 | AC-FCR-11's refusal to reverse the migration   | `specs/` describes the running system's observable behaviour. A migration's down path is never executed by the running system, so it is not a system property.                                                                                                                                                                                      | Phase 2's `INTEGRATION` scenarios in `family_chat_migration_test.exs`   |
-| AC-FCR-13's rollback-floor proof               | It asserts a property of a release procedure at a moment in time, not of the deployed system. Encoding it as a scenario would create a test with no runnable subject between releases.                                                                                                                                                              | Phase 10's routed rollback-floor proof, recorded in `learnings.md`      |
 | AC-FCR-14 routed responsiveness                | Release evidence against the live origin, not a behaviour the corpus can own. Already handled as delivery evidence by the repository's release convention.                                                                                                                                                                                          | Phases 0, 9, and 10's 12-sample sets                                    |
 
 ## `[E]` `specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature`

@@ -159,26 +159,27 @@ flips every _following_ document-free scenario onto the browser branch, so it is
 
 ### Browser and API end-to-end
 
-| Status | Path                                                                         | Change                                                                      |
-| ------ | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `[E]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat.steps.ts`                     | GraphQL reply bindings                                                      |
-| `[E]`  | `apps/bnest-app-be-e2e/tests/support/graphql.ts`                             | The mutation variable, the quote interface, and the `replyTo` selection set |
-| `[N]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat-reply.steps.ts`               | Reply-specific API bindings                                                 |
-| `[N]`  | `apps/bnest-app-be-e2e/tests/support/family-chat-state.ts`                   | Seeded reply state for the API layer                                        |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat.steps.ts`                     | Existing bindings under the reply flag                                      |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply.steps.ts`               | Menu, strip, quote, and jump                                                |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply-reading.steps.ts`       | Reading a conversation that contains replies                                |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply-keyboard.steps.ts`      | The keyboard path through menu, strip, and card                             |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-offline-persistence.steps.ts` | An offline reply that keeps its target                                      |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-resume.steps.ts`              | Resume with replies present                                                 |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/experience-release.steps.ts`              | The two-stage release scenarios                                             |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply.ts`                   | Reply-specific page helpers                                                 |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply-room.ts`              | Reply-aware room helper                                                     |
-| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-gestures.ts`                | Pointer and keyboard gestures the menu needs                                |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat.ts`                         | Shared room helper                                                          |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/candidate-pool.ts`                      | Candidate slots for the release scenarios                                   |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/routed-rollout.ts`                      | Routed-rollout helper under both flag postures                              |
-| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/storage-authority.ts`                   | Storage authority for reply-bearing runs                                    |
+| Status | Path                                                                         | Change                                                                                                                                                       |
+| ------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `[E]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat.steps.ts`                     | GraphQL reply bindings                                                                                                                                       |
+| `[E]`  | `apps/bnest-app-be-e2e/tests/support/graphql.ts`                             | The mutation variable, the quote interface, and the `replyTo` selection set                                                                                  |
+| `[N]`  | `apps/bnest-app-be-e2e/tests/steps/family-chat-reply.steps.ts`               | Reply-specific API bindings                                                                                                                                  |
+| `[N]`  | `apps/bnest-app-be-e2e/tests/support/family-chat-state.ts`                   | Seeded reply state for the API layer                                                                                                                         |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat.steps.ts`                     | Existing bindings under the reply flag                                                                                                                       |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply.steps.ts`               | Menu, strip, quote, and jump                                                                                                                                 |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply-reading.steps.ts`       | Reading a conversation that contains replies                                                                                                                 |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-reply-keyboard.steps.ts`      | The keyboard path through menu, strip, and card                                                                                                              |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-rollback-floor.steps.ts`      | **Added 2026-09-22 (D12).** AC-FCR-13's rollback floor, and the writable-route wait a promotion needs; split from the keyboard steps for the 300-line budget |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-offline-persistence.steps.ts` | An offline reply that keeps its target                                                                                                                       |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/family-chat-resume.steps.ts`              | Resume with replies present                                                                                                                                  |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/steps/experience-release.steps.ts`              | The two-stage release scenarios                                                                                                                              |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply.ts`                   | Reply-specific page helpers                                                                                                                                  |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-reply-room.ts`              | Reply-aware room helper                                                                                                                                      |
+| `[N]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat-gestures.ts`                | Pointer and keyboard gestures the menu needs                                                                                                                 |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/family-chat.ts`                         | Shared room helper                                                                                                                                           |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/candidate-pool.ts`                      | Candidate slots for the release scenarios                                                                                                                    |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/routed-rollout.ts`                      | Routed-rollout helper under both flag postures                                                                                                               |
+| `[E]`  | `apps/bnest-app-fe-e2e/tests/support/storage-authority.ts`                   | Storage authority for reply-bearing runs                                                                                                                     |
 
 ## Specifications
 
