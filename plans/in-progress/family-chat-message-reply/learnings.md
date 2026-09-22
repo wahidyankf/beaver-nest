@@ -771,12 +771,12 @@ there is no animation and the static sun outline is held ~2.1s. Tech-doc 003 spe
 static outline held for 2 s". One attribute lifetime serving both, with only the animation differing, satisfies
 both readings and is simpler than two timers. Recorded rather than changed.
 
-**The refused jump speaks through the live region, not the remediation paragraph.** Tech-doc 003 says a refusal
-speaks "through the existing live region and the existing remediation paragraph". In practice
-`family-chat-live-region` (`role="status"`) carries the exact specified sentence and is visible, while
-`family-chat-remediation` (`role="alert"`) stays empty and is used by the composer for send refusals. The spec's
-actual constraint — "No new error surface is introduced" — holds, and the member both sees and hears the refusal.
-Recorded as a reading of the spec, not a deviation from it.
+**~~The refused jump speaks through the live region, not the remediation paragraph.~~ Withdrawn — this was a
+defect, and the check that cleared it was too weak.** The original note recorded that the live region "is visible"
+and concluded the spec was satisfied. The check behind that word was `getBoundingClientRect().height > 0`, and
+`family-chat-live-region` is `1px × 1px` with `clip: rect(0, 0, 0, 0)` — a screen-reader-only element that passes
+a `> 0` test comfortably. The spec names two surfaces precisely because one of them cannot be seen. Corrected and
+fixed below as **D-5**; the lesson is that "visible" needs a predicate that a 1px clipped element fails.
 
 #### How the refusal state was reached honestly
 
@@ -874,3 +874,232 @@ scripted scenarios.
 pressing the key tests the fabrication.
 
 **Durable owner:** none; execution evidence.
+
+## Usability findings
+
+Spec-blind, and structurally so: the pass was delegated to a fresh agent context given only the origin, the route,
+and the three viewport classes, and explicitly denied the specs, the source, and the design assets. It judged
+first-time-user perception against Nielsen's ten heuristics, a cognitive walkthrough, the reachable empty/loading/
+error/zero-result states, and responsive usability. It ran **after** the exploratory pass was finished and
+recorded, so the two lenses never blended.
+
+It reported the reply feature itself as the strong part of the room — the strip with its named target and explicit
+cancel, the live-region announcement, the jump with its highlight, the mobile bottom sheet, scroll anchoring on
+`Load older messages`, and the disabled `Beginning of family chat` end state. What it found wrong divides cleanly
+into this plan's business and the room's.
+
+### Findings inside this plan, and what happened to each
+
+| # | Finding | Severity | Disposition |
+| --- | --- | --- | --- |
+| D-5 | A refused jump is announced only to a 1px clipped live region; a sighted member watches five pages load and then sees nothing | major | **Fixed** |
+| D-6 | The composer's reply strip drops the quoted text entirely at 320px and 414px — preview column measured exactly 0px | major | **Fixed** |
+| D-7 | The `⋯` actions control is 35 × 21, under WCAG 2.2's 24 × 24 target-size minimum | major | **Fixed** |
+| D-8 | A stale refusal outlives the successful jump after it, so a screen reader is told the jump failed when it landed | minor | **Fixed** (same change as D-5) |
+| — | The action menu opens below the bubble and can overlap the following message; nothing in the menu names its target | minor | **Accepted.** The menu is anchored to its own message with an 8px gap (D-1) and the control that opens it is named `Actions for <sender>'s message`. Naming the target inside the menu is a copy change to tech-doc 003's inventory, not a defect against it. |
+
+**D-5.** Fixed in `mount_browser_jump.js`: the refusal now writes the live region *and* the visible
+`family-chat-remediation` paragraph, and both are cleared when a jump is activated. Measured after: the
+remediation is 704 × 24 and unclipped, carrying the exact specified sentence, and a subsequent successful jump
+leaves it hidden and empty.
+
+**D-6.** The strip is `grid-template-columns: auto 1fr auto`. Narrow enough, the name wraps to two lines, the
+cancel control keeps its width, and the preview — `overflow: hidden`, whose automatic minimum is therefore zero —
+is the column that loses, collapsing to exactly `0px` while its text stays in the DOM. Measured `119.797px 0px
+106.016px` at 320px. The preview now takes its own row below 600px: 128px wide and legible.
+
+**D-7.** Raised to `min-height: 1.5rem`, measured 35 × 24. Worth noting that the control is not a tab stop and the
+menu has two other entry points — `Enter` on the focused message, and hold or right-click on the bubble itself, a
+far larger target — so WCAG's equivalent-control exception was arguably already available. It was cheaper to meet
+the criterion than to argue the exception.
+
+### Findings outside this plan
+
+Recorded because they were observed, not fixed here: the interface is entirely in English while the room is named
+and used in Indonesian (`<html lang="en">`); at 320px the header and composer take 291 of 568 pixels, leaving two
+message bubbles visible; long messages are unreadable on a phone; the composer textarea never grows; `Use dark
+theme` sets `data-theme="dark"` but the room's colours do not change; there is no "jump to newest" affordance;
+every message repeats the sender name and full date with no day separators or grouping; `Send` is enabled on an
+empty composer; and `Load older messages` gives no in-flight feedback. None of these is introduced, worsened, or
+touched by quoted replies. They are the room's, they predate this plan, and fixing any of them here would be scope
+this plan did not ask for and did not verify.
+
+**Durable owner:** raised at archival as deferred idea briefs, one per theme rather than one per finding, with
+this dated pass as their evidence.
+
+### Two reported findings that were wrong, and one that was my own test data
+
+The pass is more useful for having been checked rather than believed.
+
+- **"68 tab stops before you can type."** False at every width. Measured: 10 tabbable elements at 320 × 568 and 14
+  at 1440 × 900, with **zero** `⋯` buttons and **zero** quote cards among them, and the composer at index 8 and 12
+  respectively. The roving tabindex holds and D9's two-layer proof stands. The likely source of the count is a
+  query that treated focusable-but-not-tabbable nodes as tab stops.
+- **"The actions menu opens beneath the bubble, visually attached to the wrong message."** Half right: it does open
+  below, by design and with a measured 8px gap. A sweep of the last twelve messages at 1440 × 900 found **no**
+  message whose own centre the menu covers.
+- **"The visible clock runs backwards in the middle of the conversation."** Real, and mine: message 408 shows
+  4:40:00 PM above message 409's 4:24:31 PM because I inserted the far-reply fixture with a hand-written
+  `committed_at` while seeding the jump-refusal state. An artefact of this session's test data, not of the
+  product. Recorded so nobody chases it.
+- The same applies to **"everyone has the same avatar"** — every initial is `T` because the seeded identities are
+  `test-user-manual-ayah` and `test-user-manual-bunda`.
+
+### Cross-reference between the two passes
+
+One finding pair shares a root cause. The exploratory pass's **D-2** (a quoted reply bursting out of a 320px
+viewport) and the usability pass's **D-6** (the strip's preview collapsing to zero) are the same mistake in two
+places: a `white-space: nowrap` preview inside a grid or flex parent, where the automatic minimum size decides who
+loses. D-2 lost by *overflowing* because the bubble's minimum was its min-content width; D-6 lost by *vanishing*
+because `overflow: hidden` makes that minimum zero. Both were fixed by making the sizing explicit rather than
+automatic — `min-width: 0` in the first case, an own row in the second — and a note to that effect is recorded in
+both sections.
+
+No other pair shared a root cause: the exploratory pass's remaining findings were boundary and passive-security
+probes that all passed, and the usability pass's remaining findings are room-wide.
+
+### Iron Rule reconciliation
+
+No usability or exploratory finding proposed a change to `specs/**`. D-5 through D-8 are defects against tech-doc
+003 as already written — its Error row names both refusal surfaces, its strip description requires the preview,
+and its Focus row already demanded the room's ring — so each was a straight fix with no Gherkin change. The one
+specification change this phase did make came from the Gherkin implementation review, not from either manual pass,
+and is recorded below with its own RED evidence.
+
+**Durable owner:** none; execution evidence.
+
+### 2026-09-22 — Phase 8, the Gherkin implementation review
+
+Delegated, as the workflow requires ("Use an agent to perform the review. Do not replace the one-by-one inspection
+with scenario counts, a grep-only heuristic, or a green test run"). Scope: the scenarios this branch added or
+materially changed across the three feature files.
+
+**Corpus.** 51 expanded scenarios (FE 38, `family_chat_graphql` 11, `family_chat_operations` 2) × 3 required
+adapters = **153 rows**. Outlines expanded rather than counted: `A member opens the message action menu` ×4,
+`A message that is not yet committed cannot be replied to` ×4, `The member abandons the reply` ×2, `A reply
+carries its quote through each arrival path` ×4, and `A reply target the server cannot honour is rejected before
+commit` ×3.
+
+**Result as reviewed:** 64 `PASS`, 69 `EXEMPT`, 13 `PARTIAL`, **7 `FAIL`**. Every one of the 39 exemption tags was
+scenario-level, canonically commented, genuinely a boundary mismatch, and named an alternative proof that exists
+and runs; no unit-layer exemption was added anywhere; the test-data Iron Rule was clean at every layer.
+
+#### The three defects, and the fixes
+
+**1. `no committed-message event is published` could not fail (6 rows).** The claim sat on a rejection scenario
+whose only precondition is the Background login — it never subscribes. The unit driver proved it by draining its
+own mailbox, which a process holding no subscription can never receive on; the integration driver counted push
+delivery rows joined to a message the *previous* step had already asserted does not exist. Both returned true for
+every possible implementation, including one that published on a refusal. Both drivers' own comments conceded it
+("vacuously true … when the scenario never subscribed"; "which the preceding step already pins").
+
+Fixed by moving the claim rather than patching the assertion. It now has its own scenario, `A rejected reply
+target publishes no event`, under the post-commit subscription Rule — where the subscription `Given` makes a drain
+meaningful and where that Rule's integration exemption is already justified and stated. The unit driver now
+**raises** when asked without a subscription instead of answering, so the vacuous shape cannot return quietly; the
+integration branch was deleted outright, so an accidental run fails loudly rather than reporting false proof,
+which is what step 5 requires. `bnest-app-be-e2e` proves it on a real socket, waiting a second for a push that
+should not come before concluding it did not. Green at both retained layers: unit 330 tests, be-e2e 30 passed
+(29 before).
+
+This is the one `specs/**` change this phase made. RED evidence: before the new binding existed, `missingSteps:
+"fail-on-gen"` refused to generate the spec for the new scenario.
+
+**2. The reduced-motion `Given` was a no-op (1 row).** It wrote `reducedMotion: true` into the step context and
+nothing anywhere read it — the `Then` asserted `target.style.animation === ""`, which is equally true with the
+`Given` absent. It now installs a real `matchMedia` answering the query, restored per scenario. Production still
+does not consult it, and should not: the highlight is a data attribute and the stylesheet answers the media query,
+which is the seam the `Then` genuinely pins and which makes the FE_E2E proof possible. The difference is that the
+step now *establishes* the precondition, so an implementation that started reading the preference and got it wrong
+would be caught here instead of passing.
+
+**3. Four browser `Then`s dropped the clause that discriminates (5 rows).** `the reply renders a quote naming the
+original sender` asserted only that a quote was visible; `the composer shows a reply strip naming {string}` and
+`the room announces that the visitor is replying to {string}` took the name as a parameter, ignored it, and
+asserted the literal `"Replying to"`. Each would pass on a quote or strip naming the wrong member, or no one. All
+four now assert the name, sourced from the scenario's own synthetic identity rather than scraped from the element
+the assertion is meant to be judging — which was the weakness in the one place that *did* check a name.
+
+The feature text names `"Ayah"` while the suite seeds a synthetic `test-user-` identity, which is why the
+parameters were ignored in the first place. That is a real constraint of the Iron Rule, and the resolution is to
+assert the identity the suite actually used, not to assert nothing.
+
+#### The remaining `PARTIAL` rows, examined and accepted
+
+Eight rows are judgement calls about layer placement and step shape rather than false proof: a `When` that
+re-locates instead of acting before a genuine markup assertion; a unit `When` that calls `.focus()` where the step
+says "presses Tab", with FE_E2E pressing Tab for real; a page-count upper bound read one settle early; an
+integration row that reads the store where its comment claims a GraphQL read. Each is named with its `file:line`
+in the review. None asserts a fabricated or sentinel value, and each has a layer that proves the concern properly.
+They are accepted as non-blocking and recorded here rather than silently upgraded.
+
+One structural note the review raised and this plan did not create: 18 FE scenarios tagged `@fe-vitest-unit` plus
+`@e2e-exempt` end up with exactly one proving adapter, because `FeVitestUnitScope.prune/1` removes them from the
+Elixir integration adapter with no `# Exemption(integration): …` comment recording it. That is the repo's existing
+sanctioned mechanism — 12 scenarios on `main` already work this way — so it is not scored against this branch.
+
+**Durable owner:** proposed — *the `@fe-vitest-unit` prune silently omits the integration layer; either the tag
+should carry the same canonical exemption comment every other omission does, or the standard should say that this
+tag is itself the record.* Raised at archival.
+
+#### What the review found already right
+
+Two pre-existing placebo bindings that this branch had repaired before the review ran, and the review confirmed
+the repairs are real: `:sent_message_with_known_id` used to record a client message ID and body without ever
+sending them, so the "retry" was the first commit and idempotency was never exercised; `:original_message_unchanged`
+used to assert only `body != known_body`, which a fresh commit of a different body also satisfies.
+
+**Durable owner:** none; execution evidence.
+
+### 2026-09-22 — Phase 8, the five-condition confirmation
+
+Recorded against each condition the plan names, before the checkpoint.
+
+1. **Both passes ran.** The spec-aware exploratory pass ran first and is recorded under `## Exploratory findings`;
+   the spec-blind usability pass ran second and is recorded under `## Usability findings`. The second was
+   structurally blind — delegated to a fresh context given the origin, route, and viewports only, and denied the
+   specs, the source, and the design assets — so the fallback clause ("record explicitly that it ran spec-aware")
+   does not apply.
+2. **Findings are present or explicitly recorded as none found.** The exploratory pass recorded nine probes, all
+   passing, plus one unrepresentable-by-design case; its defects are D-1 through D-3 in the UI matrix section. The
+   usability pass recorded four in-plan findings (D-5 through D-8, all fixed), one accepted as non-blocking, nine
+   out-of-plan findings, and three reported findings that verification showed to be wrong or to be this session's
+   own test data.
+3. **Both headings are correctly labelled.** `## Exploratory findings` and `## Usability findings` appear exactly
+   once each, at heading level two, and neither set is merged into the other.
+4. **Cross-references are noted.** One pair shares a root cause — D-2 and D-6, the same automatic-minimum-size
+   mistake in two places — and the note naming it appears in both sections. No other pair shared one.
+5. **Every accepted spec proposal completed the Iron Rule.** Neither manual pass proposed a `specs/**` change:
+   D-5 through D-8 are defects against tech-doc 003 as already written. The single specification change in this
+   phase came from the Gherkin implementation review — moving `no committed-message event is published` to its own
+   scenario under the subscription Rule — and it carries its RED evidence and its GREEN result above.
+
+**Durable owner:** none; a recorded confirmation.
+
+### 2026-09-22 — Phase 8 checkpoint
+
+All six manual layers are recorded and separately labelled:
+
+| Layer | Where | Result |
+| --- | --- | --- |
+| API `curl` proof | Phase 7 entry | 6 observations, recorded by shape |
+| Subscription proof | Phase 7 entry | handshake by `curl`, lifecycle by the channels-v2 client |
+| UI matrix | this phase | 10 states × 3 viewports, all `PASS` after D-1, D-2, D-3 |
+| Keyboard and screen reader | this phase | full journey without a pointer; announced text recorded verbatim |
+| Exploratory (spec-aware) | `## Exploratory findings` | 9 probes pass; 1 unrepresentable by design |
+| Usability (spec-blind) | `## Usability findings` | 4 in-plan findings fixed, 1 accepted, 9 out of plan |
+| Gherkin implementation review | this phase | 153 rows; 7 `FAIL` fixed, 13 `PARTIAL` examined |
+
+Every finding is either fixed or explicitly accepted with its reason written down. The accepted ones are: the
+quote card having no keyboard path of its own (the menu's contents are fixed by D5 and a third item is a
+specification change); the action menu opening below its message (measured not to cover it); the eight `PARTIAL`
+review rows (each has a layer that proves the concern properly); and the nine room-wide usability findings (not
+introduced, worsened, or touched by this plan). None is unexamined.
+
+Eight defects were found by hand in this phase and fixed, every one of them invisible to a 296-scenario browser
+suite and a 330-test unit suite that were green throughout. That is the phase's argument for existing.
+
+Gates green on the reviewed revision: `FE_UNIT` 310, `BEHAVIOUR` 150, `BE_UNIT` 330, `INTEGRATION` 330,
+`BE_E2E` 30, `LINT` and `TYPECHECK` across all three projects. `FE_E2E` is recorded separately below.
+
+**Durable owner:** none; a recorded checkpoint.
