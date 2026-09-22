@@ -14,6 +14,24 @@ defmodule BnestAppWeb.Schema.Types.FamilyChatTypes do
     field(:member_posting_enabled, non_null(:boolean))
   end
 
+  # A distinct object rather than a recursive `:family_chat_message`. That is
+  # the flat-reply rule expressed in the type system: nothing here can carry
+  # another quote, so no client can request one and no resolver can serve one.
+  object :family_chat_message_quote do
+    field(:id, non_null(:id))
+    field(:sender_kind, non_null(:string))
+
+    field :sender_display_name, non_null(:string) do
+      resolve(fn quoted, _args, _resolution ->
+        {:ok, FamilyChat.live_sender_display_name(quoted, &Identity.display_name_for/1)}
+      end)
+    end
+
+    # Named for what it is. A field called `body` that silently returned a
+    # fraction of the original would be a trap for the next reader.
+    field(:body_preview, non_null(:string))
+  end
+
   object :family_chat_message do
     field(:id, non_null(:id))
     field(:room_slug, non_null(:string))
@@ -28,6 +46,7 @@ defmodule BnestAppWeb.Schema.Types.FamilyChatTypes do
 
     field(:body, non_null(:string))
     field(:committed_at, non_null(:datetime))
+    field(:reply_to, :family_chat_message_quote)
   end
 
   object :family_chat_message_connection do

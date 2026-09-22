@@ -50,7 +50,10 @@ defmodule BnestAppWeb.Resolvers.FamilyChatResolver do
           args.room_slug,
           to_string(args.client_message_id),
           args.body,
-          display_username(resolution)
+          display_username(resolution),
+          # Passed through untouched. Parsing, the same-room lookup, and the
+          # preview budget all belong to BnestApp.FamilyChat.
+          Map.get(args, :reply_to_message_id)
         )
       )
     end

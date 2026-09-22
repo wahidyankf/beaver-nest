@@ -46,6 +46,7 @@ defmodule BnestAppWeb.Schema do
       arg(:room_slug, non_null(:string))
       arg(:client_message_id, non_null(:id))
       arg(:body, non_null(:string))
+      arg(:reply_to_message_id, :id)
       resolve(&FamilyChatResolver.send_family_chat_message/2)
     end
 
