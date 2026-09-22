@@ -28,6 +28,11 @@
       "digest": "442bd8db52cda18f5cc7fcbafa4cfa62d680691bca187b78592a328154fb966f"
     },
     {
+      "id": "skill/building-command-line-interfaces",
+      "path": ".agents/skills/building-command-line-interfaces/SKILL.md",
+      "digest": "e424522a1e6dd1f3918028eef815f08cc0b9a970929603603a49340a33eefdf1"
+    },
+    {
       "id": "skill/grill-me",
       "path": ".agents/skills/grill-me/SKILL.md",
       "digest": "4ace858d988ce3621b624d7e98a091ddf9893d03373ed2ab0d11fe4ee01ebe45"

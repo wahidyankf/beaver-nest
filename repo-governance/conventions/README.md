@@ -18,6 +18,8 @@ Prefer one canonical convention over repeating the same rule in several document
 ## Directory Map
 
 - [Coding-harness contract](coding-harness-contract.md) keeps repository-owned rules, skills, custom agents, and required capabilities equivalent across supported coding harnesses.
+- [Command-line interface](command-line-interface.md) fixes the two-layer contract a command-line tool presents to its callers: one closed exit vocabulary, and a body that says what happened.
+- [Command-line interface modules](command-line-interface/README.md) hold the ordered modules of that convention.
 - [Commit authorization](commit-authorization.md) defines when commits and pushes may be performed.
 - [Database audit columns](database-audit-columns.md) require creation, change, and deletion provenance on every new relational table.
 - [Documentation architecture](documentation-architecture.md) organizes general non-rule documentation under `docs/` with Diátaxis.
