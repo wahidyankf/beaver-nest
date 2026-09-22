@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+//
 // Where the action menu sits, as arithmetic rather than as layout.
 //
 // Tech-doc 003's Responsive Behaviour table asks for a popover anchored to
@@ -7,7 +9,11 @@
 // Whether the browser then paints it where the arithmetic says is FE_E2E's.
 
 import { describe, expect, it } from "vitest";
-import { GAP, menuPlacement } from "../../../js/family_chat/menu_anchor.js";
+import {
+  anchorMenu,
+  GAP,
+  menuPlacement,
+} from "../../../js/family_chat/menu_anchor.js";
 
 const menu = { height: 100, width: 160 };
 const viewport = { height: 900, width: 1440 };
@@ -90,5 +96,46 @@ describe("menuPlacement", () => {
         viewport: narrow,
       }).left,
     ).toBe(GAP);
+  });
+});
+
+describe("anchorMenu", () => {
+  // The placement has to survive a viewport that crosses 600px while the
+  // menu is open -- a tablet rotating to portrait, which is exactly the
+  // household surface. An inline `top`/`left` would beat the stylesheet's
+  // sheet rule and strand the menu at stale desktop coordinates, so the
+  // placement is published as custom properties and the cascade decides
+  // which one applies.
+  function room() {
+    document.body.innerHTML = `
+      <ol>
+        <li data-role="family-chat-message" data-message-id="7"
+            class="family-chat-message family-chat-message--own"></li>
+      </ol>
+      <div data-role="family-chat-message-actions"></div>`;
+    const list = document.querySelector("ol") as HTMLElement;
+    const host = document.querySelector(
+      '[data-role="family-chat-message-actions"]',
+    ) as HTMLElement;
+    return { host, list };
+  }
+
+  it("publishes the placement as custom properties, not as top and left", () => {
+    const { host, list } = room();
+
+    anchorMenu(host, list, "7");
+
+    expect(host.style.getPropertyValue("--fc-menu-top")).toMatch(/px$/u);
+    expect(host.style.getPropertyValue("--fc-menu-left")).toMatch(/px$/u);
+    expect(host.style.top).toBe("");
+    expect(host.style.left).toBe("");
+  });
+
+  it("leaves the placement alone when the message is not rendered", () => {
+    const { host, list } = room();
+
+    anchorMenu(host, list, "does-not-exist");
+
+    expect(host.style.getPropertyValue("--fc-menu-top")).toBe("");
   });
 });

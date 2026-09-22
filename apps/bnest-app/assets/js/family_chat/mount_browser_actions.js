@@ -16,7 +16,7 @@ import {
   menuItemsFor,
   runCopyAction,
 } from "./message_actions.js";
-import { anchorMenu } from "./menu_anchor.js";
+import { anchorMenu, bindReanchor } from "./menu_anchor.js";
 import { bodyPreview } from "./reply_target.js";
 
 /** @typedef {import("./mount_browser.js").MountableRoom} MountableRoom */
@@ -253,6 +253,7 @@ export function wireMessageActions(room, elements, clock) {
   menu.onChange((message) => renderMenu(room, elements, menu, message));
   bindMenuTriggers(elements, menu, clock);
   bindMenuDismissal(elements, menu);
+  bindReanchor(elements.messageActions, elements.list);
   bindRovingKeys(room, elements);
 }
 
