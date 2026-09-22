@@ -351,15 +351,16 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
 - [ ] `[AI] [AC-FCR-04, AC-FCR-05, AC-FCR-06]` **Mandatory manual API proof.** Invoke every affected operation by
       hand with `curl` against the exact isolated served origin, starting from validated isolated test state under a
       `test-user-` identity and cleaning it afterwards. This is required even though the unit, integration,
-      behaviour, and E2E layers are green. Cover, each as its own observation: - `familyChatMessages` returning a page in which one node carries a populated `replyTo` and another carries
-      `null`; - `sendFamilyChatMessage` with a valid `replyToMessageId` — the success path; - `sendFamilyChatMessage` with a non-existent `replyToMessageId`, and again with one from another room — each
-      materially changed validation path; - the same successful operation as an **unauthenticated** caller and as an authenticated caller **without**
-      the family-chat capability, confirming both are refused.
-
-      **Proof:** for each observation, record in `learnings.md` the redacted command shape, the exact origin, the
-          operation name, the observed HTTP status, the shape of `data` and `errors`, the independently observed
-          side effect (a row committed, or no row committed), and pass or fail. HTTP `200` alone never counts as GraphQL
-          success. Never record secrets, cookies, private payloads, or real message text.
+      behaviour, and E2E layers are green. Cover each of the following as its own separate observation:
+      `familyChatMessages` returning a page in which one node carries a populated `replyTo` and another carries
+      `null`; `sendFamilyChatMessage` with a valid `replyToMessageId`, the success path; `sendFamilyChatMessage`
+      with a non-existent `replyToMessageId`, and again with one from another room, each being a materially changed
+      validation path; and the same successful operation as an **unauthenticated** caller and as an authenticated
+      caller **without** the family-chat capability, confirming both are refused. **Proof:** for each observation,
+      record in `learnings.md` the redacted command shape, the exact origin, the operation name, the observed HTTP
+      status, the shape of `data` and `errors`, the independently observed side effect (a row committed, or no row
+      committed), and pass or fail. HTTP `200` alone never counts as GraphQL success. Never record secrets, cookies,
+      private payloads, or real message text.
 
 - [ ] `[AI] [AC-FCR-06]` **Subscription lifecycle proof.** `curl` proves only the handshake, which is insufficient
       on its own: after it, observe `familyChatMessageCommitted` delivering a reply with its quote through a
