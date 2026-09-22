@@ -373,29 +373,56 @@ origins, real users, message text, cookies, keys, endpoints, database content, o
 
 ## Phase 4 — Send Path and Offline Outbox
 
-- [ ] `[AI] [AC-FCR-09]` **RED** — extend `apps/bnest-app/assets/test/unit/family_chat/outbox.test.ts`: a queued
+- [x] `[AI] [AC-FCR-09]` **RED** — extend `apps/bnest-app/assets/test/unit/family_chat/outbox.test.ts`: a queued
       reply carries its target, survives a persistence round trip, drains with the argument, and a legacy record
       without the field drains as an ordinary message. **Proof:** `FE_UNIT` fails. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-09]` **GREEN** — carry `replyToMessageId` through
+      **2026-09-22:** `FE_UNIT` failed on all four new cases — the queued record had no `replyToMessageId`, the
+      persisted row dropped it, and the transport was called without it. The legacy-record case was written to
+      fail for the opposite reason: it asserts the drained call carries *no* such key.
+- [x] `[AI] [AC-FCR-09]` **GREEN** — carry `replyToMessageId` through
       `apps/bnest-app/assets/js/family_chat/outbox.js`, `outbox_namespace.js`, `outbox_send.js`, and
       `persistence_indexeddb.js`, leaving `DB_VERSION` at 1. **Proof:** `FE_UNIT` passes. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-09]` **REFACTOR** — keep the field optional everywhere rather than defaulting it to null in the
+      **2026-09-22:** the field is spread through `buildQueuedMessage` (in `outbox_namespace.js`), `attemptSend`,
+      and `toRow`. `DB_VERSION` stays 1 because the field is additive and optional — an existing IndexedDB store
+      needs no upgrade path. `FE_UNIT` outbox failures 4 → 0.
+- [x] `[AI] [AC-FCR-09]` **REFACTOR** — keep the field optional everywhere rather than defaulting it to null in the
       record shape, so a legacy row and a non-reply are indistinguishable by design. **Proof:** `FE_UNIT` still
       passes. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-03, AC-FCR-05]` **RED** — extend `apps/bnest-app/assets/test/unit/family_chat/composer.test.ts`:
+      **2026-09-22:** every one of the three hops spreads conditionally (`...(x === undefined ? {} : {x})`) rather
+      than writing `replyToMessageId: x ?? null`, so a row queued before replies existed and a plain message today
+      are indistinguishable. `FE_UNIT` still green.
+- [x] `[AI] [AC-FCR-03, AC-FCR-05]` **RED** — extend `apps/bnest-app/assets/test/unit/family_chat/composer.test.ts`:
       the target is carried into submit, cleared on success, and **kept** when the queue refuses. **Proof:**
       `FE_UNIT` fails. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-03, AC-FCR-05]` **GREEN** — implement the reply-target lifecycle in
+      **2026-09-22:** `FE_UNIT` failed with `createReplyTarget is not a function` and, once stubbed, on the
+      kept-on-refusal case — the first draft cleared the target before awaiting the queue, which is exactly the
+      bug the case exists to catch.
+- [x] `[AI] [AC-FCR-03, AC-FCR-05]` **GREEN** — implement the reply-target lifecycle in
       `apps/bnest-app/assets/js/family_chat/reply_target.js` and `composer.js`. **Proof:** `FE_UNIT` passes. Command:
       `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-03]` **REFACTOR** — keep the reply target out of the composer's own draft state so the two clear
+      **2026-09-22:** `reply_target.js` owns `current/isSet/select/clear/onChange`; `select` refuses a target with
+      no server ID and returns `UNCOMMITTED_REMEDIATION`. The composer reads the target before sending and calls
+      `clear()` only after the queue accepted. All 89 family-chat FE unit tests green.
+- [x] `[AI] [AC-FCR-03]` **REFACTOR** — keep the reply target out of the composer's own draft state so the two clear
       independently. **Proof:** `FE_UNIT` still passes. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-04, AC-FCR-06]` **RED then GREEN** — add the flag-aware `messageFields({replies})` to
+      **2026-09-22:** the target is a constructor argument, never a field of `draftState`. A refusal restores
+      `draftState.body` and touches nothing else, so the two genuinely clear on separate paths. `FE_UNIT` green.
+- [x] `[AI] [AC-FCR-04, AC-FCR-06]` **RED then GREEN** — add the flag-aware `messageFields({replies})` to
       `apps/bnest-app/assets/js/family_chat/operations.js` and prove the query, mutation, and subscription documents
       all derive from it, so none can drift. **Proof:** `FE_UNIT` fails on the absent export, then passes with a test
       asserting all three documents agree. Command: `FE_UNIT`.
-- [ ] `[AI] [AC-FCR-03, AC-FCR-09]` **Blocking checkpoint — Phase 4.** A reply can be queued, persisted, hydrated,
+      **2026-09-22:** `FE_UNIT` first failed on the absent `messageFields` export. `operations.js` now derives the
+      query, the mutation, and the subscription from one `MESSAGE_FIELDS_BASE` plus an appended `REPLY_FIELDS`, and
+      the mutation declares `$replyToMessageId` only when the flag is on — so with replies off the browser sends
+      exactly the pre-reply documents. Seven new assertions, all green.
+- [x] `[AI] [AC-FCR-03, AC-FCR-09]` **Blocking checkpoint — Phase 4.** A reply can be queued, persisted, hydrated,
       and drained with its target; legacy records still send; no document can ask for a field another omits.
+      **2026-09-22:** met. Deliberate RED to prove the send path is really asserted: removing the
+      `replyToMessageId` spread from `attemptSend` in `outbox_send.js` failed with
+      `AssertionError: expected [ undefined, undefined ] to deeply equal [ '41', undefined ]`; restored. 89
+      family-chat FE unit tests pass. The suite's 76 remaining failures are all `every step binds exactly once:
+      <FE scenario>` — the declared FE Gherkin RED that Phases 5 and 6 close. The bnest-app lint target is green
+      (credo, oxlint, formatting, and the unused-dependency check).
 
 ## Phase 5 — Action Menu, Composer Strip, and Keyboard Reach
 
