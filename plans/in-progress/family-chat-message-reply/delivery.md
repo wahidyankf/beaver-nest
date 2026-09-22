@@ -3,12 +3,29 @@
 ## Execution Status and Authority
 
 **Executed and released, 2026-09-22. Archival is blocked.** The feature is routed in production at revision
-`5b08a27f2`; the migration is applied; both production releases passed. The execution check has been run **twice**
-and returned `BLOCKED` both times; both verdicts and the corrections made in response are recorded in
-`learnings.md`. Seven substantive items below are unticked — four blocked on a decision this executor cannot make,
-two unticked by the re-check because they claimed evidence that had been withdrawn, and the Phase 9 checkpoint that
-stood on one of them. The four Recovery and Rollback triggers are unticked because they did not fire, each with its
-disposition recorded. This plan stays in `plans/in-progress/`. Integrating this plan does not start the checklist or authorize its later
+`5b08a27f2`; the migration is applied; both production releases passed. The execution check has been run **three
+times** and returned `BLOCKED` every time; all three verdicts and the corrections made in response are recorded in
+`learnings.md`.
+
+Twelve items below are unticked, in three groups:
+
+| Group                          | Count | Why                                                                                                                                                                                                                              |
+| ------------------------------ | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Substantive                    | 6     | Both blocking checkpoints; both drain items, whose sample sets were never taken; Phase 9's mixed-revision item, which asks for a proof that stage's own flag posture forbids; and Phase 10's routed manual pass, descoped by D13 |
+| Archival procedure             | 2     | The cleanup and move items, which run as part of archival and cannot precede it                                                                                                                                                  |
+| Recovery and Rollback triggers | 4     | None fired; each carries a dated, evidence-backed `Not triggered` disposition                                                                                                                                                    |
+
+**All six substantive items are terminal, not pending.** Each rests on evidence that no longer exists to be taken —
+retired slots, a release stage that shipped the feature off, a live household surface D13 declined to write test
+messages into. D14 accepted AC-FCR-14 as partially met rather than restating it to fit what survived. No further
+work can tick them, and under
+[knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md)
+an unresolved delivery unit blocks archival. This plan therefore stays in `plans/in-progress/` by decision rather
+than by omission.
+
+**Corrected 2026-09-22 by the third check's round:** this paragraph said the check had run twice and that seven
+substantive items were unticked. The count predated D12, which ticked the rollback-floor item, and the "twice" was
+stale the moment the third check returned. Integrating this plan does not start the checklist or authorize its later
 execution. Read all six plan documents and the
 [plan-execution workflow](../../../repo-governance/workflows/plan-execution.md) first. Start only from a current,
 explicitly authorized, non-blocking plan-quality verdict: `PASS`, or `PASS_WITH_FINDINGS` with every finding recorded
@@ -894,12 +911,15 @@ Runs only after every substantive phase above is complete and its checkpoint is 
 - [x] `[AI] [AC-FCR-01..14]` Run the
       [plan-execution-check workflow](../../../repo-governance/workflows/plan-execution-check.md) and record its
       terminal verdict. **Proof:** the verdict in `learnings.md`. Archival is not permitted while any acceptance
-      criterion or delivery unit is unresolved. **Done 2026-09-22, twice.** First run: `BLOCKED`, on AC-FCR-13's
-      unevidenced rollback-floor scenario and on a knowledge-capture record whose counts did not reproduce. Re-run
-      after the corrections: `BLOCKED` again — AC-FCR-13 exactly unchanged, the knowledge-capture record advanced
-      but still miscounted, and four new defects introduced by the corrections themselves. Both verdicts and the
-      second round of corrections are in `learnings.md`. Ticked because the item asks the workflow to be run and its
-      verdict recorded, which is done; the verdict itself is what keeps archival closed.
+      criterion or delivery unit is unresolved. **Done 2026-09-22, three times.** First run: `BLOCKED`, on AC-FCR-13's
+      unevidenced rollback-floor scenario and on a knowledge-capture record whose counts did not reproduce. Second:
+      `BLOCKED` again — AC-FCR-13 exactly unchanged, the knowledge-capture record advanced but still miscounted, and
+      four new defects introduced by the corrections themselves. Third: `BLOCKED` again, with both earlier classes
+      genuinely closed — AC-FCR-13 now has runnable evidence in both harnesses and the owner-resolution table
+      reproduces at the commit it pins itself to — and four further defects, three of them introduced by the
+      commit that closed the first two. All three verdicts and every round of corrections are in `learnings.md`.
+      Ticked because the item asks the workflow to be run and its verdict recorded, which is done; the verdict
+      itself is what keeps archival closed.
 - [ ] `[AI] [AC-FCR-01..14]` Run the [dev-artifact-clean-up workflow](../../../repo-governance/workflows/dev-artifact-clean-up.md):
       stop every non-production server, watcher, candidate, and temporary proxy this work started; remove this
       execution's `local-tmp/` scratch; and delete the worktree and its branch after the PR merges. **Proof:** only
