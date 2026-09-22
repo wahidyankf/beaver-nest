@@ -1194,3 +1194,35 @@ for us: three notes were written in a shape the other thirty did not use.
 
 **Durable owner:** the repaired documents; the rule of thumb belongs in this entry, not in a convention, because
 it is Prettier's behaviour rather than this repository's.
+
+### 2026-09-22 — Phase 9 merge and preflight
+
+**Merge.** PR #81 landed on `origin/main` at `5b08a27f2`, carrying 34 commits. All five merge preconditions were
+evidenced at the moment of merge rather than assumed: the `Quality gate` check green on the exact head, a posted
+leak review naming that same head with `result: pass`, the branch `0` commits behind `main`, no open conversation,
+and every surface gate green. The repository permits only rebase merges, so the proof is the commits on `main`
+rather than a merge commit.
+
+The leak review read the whole diff — 11,519 added lines across 104 files — and returned zero in all three
+categories. Everything that matched a secret-shaped word was a reference rather than a value, every URL was either
+the synthetic browser-suite origin or a public package address in the lockfile, and every long opaque string was a
+lockfile integrity hash.
+
+**Preflight.** Taken from the primary checkout on local `main`, reconciled to `origin/main` and reading `0 0`, with
+a clean tree.
+
+| Measure                      | Value   | Budget   |
+| ---------------------------- | ------- | -------- |
+| Samples at the routed origin | 12      | —        |
+| Failures                     | 0       | 0        |
+| p95                          | 35.9 ms | ≤ 500 ms |
+| Slowest sample               | 43.1 ms | ≤ 2 s    |
+| Median                       | 15.6 ms | —        |
+
+Routed state before the release: slot `green`, readiness `ready`, revision `91e0201df`, blue free, Caddy routing on
+its own port, 89 GiB disk free, HIPPO `state=normal` with no owners. The machine-local deployment inputs were
+confirmed present by existence alone — the cookie, the secret key base, and both Web Push key files — because
+`config/runtime.exs` requires the Web Push trio unconditionally in `:prod` and a compatibility slot fails to boot
+without them exactly as an experience slot would.
+
+**Durable owner:** none; recorded release evidence.
