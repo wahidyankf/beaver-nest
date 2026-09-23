@@ -2,10 +2,13 @@
 
 ## Execution Status and Authority
 
-**Executed and released, 2026-09-22. Not yet archived: the move runs once an execution check returns a verdict
-that permits it.** The feature is routed in production at revision `5b08a27f2`; the migration is applied; both
-production releases passed. The execution check has been run **seven times** and returned `BLOCKED` every time;
-all seven verdicts and the corrections made in response are recorded in `learnings.md`, one entry each.
+**Executed and released, 2026-09-22. Archived 2026-09-23 by authority decision, over a `BLOCKED` verdict.** The
+feature is routed in production at revision `5b08a27f2`; the migration is applied; both production releases
+passed. The execution check was run **seven times** and returned `BLOCKED` every time; all seven verdicts and the
+corrections made in response are recorded in `learnings.md`, one entry each. The findings left open at the
+seventh are narrative defects in those entries' own prose, not execution evidence; the authority read that
+distinction and chose to archive on the executed result. The decision, what was put to them, and what stays open
+are recorded as D16 in `learnings.md`.
 
 Twelve items below are unticked, in three groups:
 
