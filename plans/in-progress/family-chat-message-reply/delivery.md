@@ -15,9 +15,9 @@ Twelve items below are unticked, in three groups:
 | Archival procedure                               | 2     | The cleanup and move items, which run as part of archival and cannot precede it                                                                                                                                                                                           |
 | Recovery and Rollback triggers                   | 4     | None fired; each carries a dated, evidence-backed `Not triggered` disposition                                                                                                                                                                                             |
 
-**All six substantive items are accepted as permanently unmet (D15), and therefore resolved.** So is AC-FCR-14
-in `prd.md`, on the same dated decision: seven acceptances in all, six delivery items and one acceptance
-criterion.
+**All six substantive items are accepted as permanently unmet (D15), and therefore resolved.** So are AC-FCR-13
+and AC-FCR-14 in `prd.md`, on the same dated decision — AC-FCR-13 for its routed-origin evidence only. Eight
+acceptances in all: six delivery items and two acceptance criteria.
 
 Four of the six carry a permanent bar of their own. The two drain items each took one of their two sample sets
 from a slot that has since been promoted and retired, and a retired slot cannot be sampled again. Phase 9's
