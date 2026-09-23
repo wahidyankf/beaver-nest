@@ -31,11 +31,11 @@
 ## Governance
 
 - Align harnesses under [contract](repo-governance/conventions/coding-harness-contract.md).
-- [Propagate rules](repo-governance/workflows/rules-propagation.md); plan/rules quality gates require explicit requests.
+- [Propagate rules](repo-governance/workflows/rules-propagation.md) and [docs](repo-governance/workflows/docs-propagation.md); plan/rules/docs quality gates require explicit requests.
 - Apply [Diátaxis](repo-governance/conventions/documentation-architecture.md).
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md), [track tasks](repo-governance/conventions/task-tracking.md), and retain unfamiliar parallel changes under `plans/` and `repo-governance/`.
 - Use ignored `local-tmp/` for scratch and `generated-reports/` for requested pre-plan audits/reports; neither is authoritative or a plan.
-- Write under `plans/` only on an explicit user request; Plan mode alone never authorizes one. The [plans convention](repo-governance/conventions/plans.md) fixes the lifecycle roots, the six documents, and the three-digit ordinals every split companion set carries; the local [lifecycle](repo-governance/conventions/plan-lifecycle.md) adds what this repository needs, and [planning capabilities](repo-governance/development/planning-capabilities.md) rosters the seven workflows, six skills, and three agents covering it.
+- Write under `plans/` only on an explicit user request; Plan mode alone never authorizes one. The [plans convention](repo-governance/conventions/plans.md) fixes the lifecycle roots, the six documents, and the three-digit ordinals every split companion set carries; the local [lifecycle](repo-governance/conventions/plan-lifecycle.md) adds local needs, and [planning capabilities](repo-governance/development/planning-capabilities.md) rosters the workflows, skills, and agents.
 - Bnest active-service plans carry the Caddy, drain, reconnect, and revision-proof clauses the lifecycle states; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
 - Delivery items carry evidenced [TDD](repo-governance/development/test-driven-development.md) RED/GREEN/REFACTOR cycles; their executor labels and checkpoints are the plans convention's.

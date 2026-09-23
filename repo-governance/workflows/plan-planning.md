@@ -9,7 +9,9 @@ Someone has asked for a formal plan, or a brief has been promoted by [Ideas Groo
 1. **Inspect before asking.** Read the repository — its instructions, its current state, the surfaces the work touches —
    so the first gate presents real choices rather than questions the repository already answers.
 2. **Run the pre-write gate.** Every material branch is resolved here, and **no plan document is authored until it
-   completes**. A plan written first and questioned afterwards has already committed to the answers.
+   completes**. A plan written first and questioned afterwards has already committed to the answers. The gate also asks
+   whether each delivery unit changes what a document describes; one that does carries a
+   [Docs Propagation](docs-propagation.md) item.
 3. **Author all six documents.** `README.md`, `brd.md`, `prd.md`, one technical shape, `delivery.md`, `learnings.md`.
    The document set and its rules are the [Plans Convention](../conventions/plans.md)'s; this workflow does
    not restate them.
