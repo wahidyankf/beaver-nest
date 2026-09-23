@@ -2,11 +2,12 @@
 
 ## Status
 
-**In progress. Started 2026-09-22.** Six documents are complete, both planning decision gates have been run, and the
-[plan quality gate](../../../repo-governance/workflows/plan-quality-gate.md) returned `PASS` at the pre-execution
-checkpoint with five findings recorded and repaired — all three records are in [`learnings.md`](learnings.md).
-Execution was separately authorized and is being worked through [`delivery.md`](delivery.md), which is the only
-written progress record while this plan is live.
+**Executed and released, 2026-09-22. Not yet archived.** Six documents are complete, both planning decision gates
+have been run, and the [plan quality gate](../../../repo-governance/workflows/plan-quality-gate.md) returned `PASS`
+at the pre-execution checkpoint with five findings recorded and repaired — all three records are in
+[`learnings.md`](learnings.md). Execution was separately authorized and is recorded in
+[`delivery.md`](delivery.md), which carries the execution status, the eight accepted gaps, and every execution-check
+verdict. The archival move runs once a check returns a verdict that permits it.
 
 ## Outcome
 

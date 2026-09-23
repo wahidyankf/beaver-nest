@@ -391,11 +391,16 @@ Scenario: A reply creates the same delivery bookkeeping as any message
 
 ### AC-FCR-13 — Mixed revisions stay safe through the release
 
-**Accepted as permanently unmet 2026-09-23 (D15), for its routed-origin evidence only.** The scenario below is
-evidenced at the browser layer, under the specification's own documented boundary exemption. What cannot be taken
-is the same proof at the routed origin: the compatibility stage ships every flag off by design, so the room is
-unreachable there at that point, and both of that release's slots have since been promoted and retired. The
-criterion keeps its wording, and `delivery.md`'s Phase 9 promotion item stays unticked.
+**Accepted as permanently unmet 2026-09-23 (D15), for the first of the three scenarios below only.** `A browser
+holding the pre-reply bundle talks to the new revision` has no evidence at any layer. It cannot be taken at the
+routed origin, because the compatibility stage ships every flag off by design, so the room is unreachable there
+at that point, and both of that release's slots have since been promoted and retired. The substitute proof at the
+exempted layer is not this property -- `delivery.md`'s Phase 9 promotion item says why, and that item stays
+unticked. This is the criterion-side record of that same gap, not a second one.
+
+The other two scenarios are met and are not part of this acceptance: the rollback floor is proven below under
+D12, and `Promotion moves connected clients without a refresh` was observed through the routed origin with two
+`test-user-` contexts (`delivery.md`, Phase 10). The criterion keeps its wording.
 
 ```gherkin
 Scenario: A browser holding the pre-reply bundle talks to the new revision
@@ -427,8 +432,10 @@ Scenario: Promotion moves connected clients without a refresh
 
 ### AC-FCR-14 — The routed service stays responsive throughout
 
-**Accepted as permanently unmet 2026-09-23 (D15).** The criterion keeps the wording below; the stage that was
-never sampled stays visible as a gap rather than being removed.
+**Accepted as permanently unmet 2026-09-23 (D15).** Unobtainable because the stage it names --
+`after the experience revision is routed` -- can only be sampled while that revision is the routed one, and both
+slots from that release have since been promoted and retired. The criterion keeps the wording below; the stage
+that was never sampled stays visible as a gap rather than being removed.
 
 **How the gap was established — D14, 2026-09-22; arithmetic corrected 2026-09-22 by the re-check.** D14 called
 this "partially met", which is not one of the convention's three dispositions; it is the finding that fixed the
@@ -454,8 +461,8 @@ different number than the row stated.
 moments — Phase 9's post-drain and Phase 10's post-promotion — were never sampled. Both counts are true of
 different things, and the earlier sentence attached the per-release number to the per-stage denominator.
 
-What the correction does not change: the criterion is still only partially met, because one enumerated stage was
-never measured and that slot no longer exists to be retaken. The distinction the record keeps: the service was
+What the correction does not change: one enumerated stage was never measured and that slot no longer exists to
+be retaken, which is the gap D15 above accepts. The distinction the record keeps: the service was
 never shown to be slow — every sample ever taken returned 200 inside budget — it was shown to be **unmeasured**
 after the experience promotion. The criterion is recorded as holding at three of four stages rather than
 rewritten to fit what survived.

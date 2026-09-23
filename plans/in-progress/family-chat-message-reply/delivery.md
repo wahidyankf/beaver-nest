@@ -4,8 +4,8 @@
 
 **Executed and released, 2026-09-22. Not yet archived: the move runs once an execution check returns a verdict
 that permits it.** The feature is routed in production at revision `5b08a27f2`; the migration is applied; both
-production releases passed. The execution check has been run **five times** and returned `BLOCKED` every time;
-all five verdicts and the corrections made in response are recorded in `learnings.md`.
+production releases passed. The execution check has been run **six times** and returned `BLOCKED` every time;
+all six verdicts and the corrections made in response are recorded in `learnings.md`, one entry each.
 
 Twelve items below are unticked, in three groups:
 
@@ -79,7 +79,7 @@ when its receipt says `never-started`; exit `73` cleans owned storage; exit `78`
 leases a distinct port range and isolated runtime root inside its self-guarded target.
 
 **`FE_E2E` counts, corrected 2026-09-22.** Phase records below report `FE_E2E` as 296 passed, 0 failed. That was
-true of the corpus those phases ran against. D12 added one scenario, so the suite is **299** from that point on,
+true of the corpus those phases ran against. D12 added one scenario, which runs at three viewports, so the suite is **299** from that point on,
 and the figures in Phase 5 through Phase 8 items describe the pre-D12 corpus rather than the current one. The
 current corpus is measured on the Phase 10 rollback-floor item, including the one scenario that still fails
 there.
@@ -711,7 +711,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       **2026-09-22:** all green. `UNIT` (backend plus 300 frontend across 14 files), `INTEGRATION` (329 tests, 0
       failures, 16 excluded), `BEHAVIOUR` (both adapters, no undefined/ambiguous/unused bindings),
       `RELEASE_TEST` (33 passed, including the new `--family-chat-reply-enabled` plumbing assertion), `E2E_ALL`
-      (`BE_E2E` 29 passed; `FE_E2E` 296 passed at three viewports), and `REPO` (all seven gates).
+      (`BE_E2E` 29 passed; `FE_E2E` 296 passed at three viewports), and `REPO` (all seven RHINO checks).
 - [x] `[AI] [AC-FCR-01..14]` **Blocking checkpoint — Phase 7.** Every public operation has manual proof,
       documentation matches the built behaviour, rules propagation has a terminal result, and every gate is green.
       **2026-09-22:** passed. Every affected public operation has a separate manual observation, the
@@ -952,7 +952,7 @@ Runs only after every substantive phase above is complete and its checkpoint is 
 - [x] `[AI] [AC-FCR-01..14]` Run the
       [plan-execution-check workflow](../../../repo-governance/workflows/plan-execution-check.md) and record its
       terminal verdict. **Proof:** the verdict in `learnings.md`. Archival is not permitted while any acceptance
-      criterion or delivery unit is unresolved. **Done five times: three on 2026-09-22, two on 2026-09-23.** First run: `BLOCKED`, on AC-FCR-13's
+      criterion or delivery unit is unresolved. **Done six times: three on 2026-09-22, three on 2026-09-23.** First run: `BLOCKED`, on AC-FCR-13's
       unevidenced rollback-floor scenario and on a knowledge-capture record whose counts did not reproduce. Second:
       `BLOCKED` again — AC-FCR-13 exactly unchanged, the knowledge-capture record advanced but still miscounted, and
       four new defects introduced by the corrections themselves. Third: `BLOCKED` again, with both earlier classes
@@ -961,9 +961,12 @@ Runs only after every substantive phase above is complete and its checkpoint is 
       commit that closed the first two. Fourth: `BLOCKED` again, with three of the third round's four findings
       closed and two defects left — both a retracted claim still standing where the sweep had not looked,
       including inside D14 itself, the entry the other corrections cite as their authority. Fifth: `BLOCKED` again,
-      and for the first time it confirmed every acceptance under the new convention's condition 5 — the three
-      defects it raised were record defects, two of them written by the round that introduced the acceptances,
-      including a status line that claimed this plan was already archived. All five verdicts and every round of
+      and the first to confirm the acceptances themselves under the new convention's condition 5 — its three
+      defects were all record defects, two written by the round that introduced the acceptances, including a
+      status line claiming this plan was already archived. Sixth: `BLOCKED` again, on three defects, two of them
+      again written by the round that closed the fifth check's findings — an acceptance count contradicted by the
+      enumeration directly above it, a claim that five verdicts were recorded when four were, and a new
+      disposition that contradicted the delivery item it was written beside. All six verdicts and every round of
       corrections are in `learnings.md`.
       Ticked because the item asks the workflow to be run and its verdict recorded, which is done; the verdict
       itself is what keeps archival closed.
