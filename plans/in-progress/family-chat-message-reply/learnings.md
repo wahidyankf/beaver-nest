@@ -1903,17 +1903,61 @@ met, and whose evidence is permanently gone.
 
 `008` now names three dispositions — met, not applicable, and accepted as permanently unmet — and puts five
 conditions on the third so it cannot become a way to file unfinished work. The one that carries the weight is the
-second: **the plan's authority accepts it, never the executor.** Without that, an executor can retire any item it
-failed to evidence, which is precisely the failure this plan's four checks kept finding in miniature.
+second: **the plan's authority accepts it, as a dated decision naming what was put to them and what they chose,
+never the executor.** Without that, an executor can retire any item it failed to evidence, which is precisely the
+failure this plan's four checks kept finding in miniature.
 
-**D15 — the six items are accepted as permanently unmet.** The authority directed archival knowing the recorded
-gaps. The criteria keep their original wording, every box stays unticked, and each disposition states why its
-evidence is unobtainable rather than merely unobtained. The archived plan still shows all six gaps; what it no
-longer shows is work someone could still do.
+The naming clause was not in the first draft. The fifth check pointed out that "the authority accepts it" is
+self-certifiable — an executor can assert agreement and no reader can tell — while this plan's own D12-D14 showed
+the stronger form, where what was put to the user and what they selected are both on the record. The clause was
+added to `008` and to every propagated copy before any of them merged.
+
+**D15 — the six items, and AC-FCR-14, are accepted as permanently unmet.** What was put to the authority, on
+2026-09-23, in answer to their question of why the plan could not be archived: the governing sentence in `008`; a
+six-row table naming each unticked substantive item and why no later work could tick it — the Phase 9
+mixed-revision item, both drain items, both blocking checkpoints, and the Phase 10 routed manual pass; AC-FCR-14
+named as the root cause, with the stage that was never sampled and whose slot no longer exists; and the
+conclusion that the convention, not the plan, was what blocked archival. What they chose: change the convention,
+propagate it across `wkf-projects`, then archive this plan. That instruction is the dated decision condition 2
+asks for, and it covers all seven acceptances individually rather than in aggregate.
+
+The criteria keep their original wording, every box stays unticked, and each disposition states why its evidence
+is unobtainable rather than merely unobtained. The archived plan still shows all seven gaps; what it no longer
+shows is work someone could still do.
 
 Worth stating plainly, because the shape invites abuse: I wrote a rule that unblocked my own work. The guard
 against that is condition 2, and it is not decorative — every one of the six rests on a decision the user made
 (D13, D14, and the instruction to archive), not on one I made for myself.
 
-**Durable owner:** `repo-governance/conventions/plans/008-knowledge-capture-and-archival.md`, and the same
-section propagated to every `wkf-projects` member that carries this convention.
+**Durable owner:** `repo-governance/conventions/plans/008-knowledge-capture-and-archival.md`. The propagation
+across `wkf-projects` is recorded as its own entry below; this one does not claim it.
+
+### 2026-09-23 — Propagating the rule, and the one repository it did not fit
+
+`008` is this repository's copy of a convention nine `wkf-projects` members share, so a change to it is a change
+to all of them. Seven carry it — this one and six others; `ose-public` and `ose-private` do not, and were
+confirmed by grepping
+the rule's own sentence rather than by filename — a filename search had already missed `wkf-devbox`, which stores
+the module under a different path.
+
+Five of the six took the section unchanged. The sixth did not, and the reason was a word budget. In
+`grind-in-public` the archival module is `009` at 682 of its 750 words, and the section is 169: it does not fit,
+and nothing in `009` is padding. Inserting a new module would have renumbered eight files, which that
+repository's own naming policy names as the thing numbering must not do. The section went into `008` — evidence
+and quality — instead, which is where a statement about what evidence resolves belongs, and which `009` already
+reads after. `009` now links to the definition rather than implying a tick.
+
+Two lessons worth keeping. A rule written against one repository's prose is not portable until it has been tried
+against the tightest budget among its siblings. And the module a rule topically belongs to is not always the one
+named after its use — `008` was the better home on the merits, and the budget is only what forced the question.
+
+The fifth execution check ran while this propagation was in flight, and caught the entry above claiming the
+propagation had already happened. The claim was written before the work. That is the same defect the previous
+four checks found, in a new place: a sentence describing a state of the world, written at the time it was
+intended rather than the time it was true.
+
+**Durable owner:** the seven sibling convention files —
+[this repository's](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md), and the
+six in `wkf-devbox`, `wkf-knowledge`, `hippo`, `rhino`, `ose-rules`, and `grind-in-public`, each under its own
+path. The placement reasoning for `grind-in-public` lives in that repository's commit message, where a future
+reader of its `008` will find it.

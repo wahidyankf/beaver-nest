@@ -60,7 +60,9 @@ slot promoted and retired cannot be sampled again. Available only when all of th
 
 1. the evidence is unobtainable rather than unobtained, and the disposition says why — running out of time is an
    unfinished plan, not this;
-2. the plan's authority accepts it, as a dated decision; an executor never accepts away its own missing evidence;
+2. the plan's authority accepts it, as a dated decision naming what was put to them and what they chose; an
+   executor never accepts away its own missing evidence, and asserting that the authority agreed is not a
+   record of it;
 3. the requirement keeps its wording, so the gap stays legible instead of fitted to what survived;
 4. the box stays unticked, because a tick means met; and
 5. the execution review runs again and confirms each acceptance in its verdict.
