@@ -1912,17 +1912,17 @@ self-certifiable — an executor can assert agreement and no reader can tell —
 the stronger form, where what was put to the user and what they selected are both on the record. The clause was
 added to `008` and to every propagated copy before any of them merged.
 
-**D15 — the six items, and AC-FCR-14, are accepted as permanently unmet.** What was put to the authority, on
+**D15 — the six items, and AC-FCR-13 and AC-FCR-14, are accepted as permanently unmet.** What was put to the authority, on
 2026-09-23, in answer to their question of why the plan could not be archived: the governing sentence in `008`; a
 six-row table naming each unticked substantive item and why no later work could tick it — the Phase 9
 mixed-revision item, both drain items, both blocking checkpoints, and the Phase 10 routed manual pass; AC-FCR-14
 named as the root cause, with the stage that was never sampled and whose slot no longer exists; and the
 conclusion that the convention, not the plan, was what blocked archival. What they chose: change the convention,
 propagate it across `wkf-projects`, then archive this plan. That instruction is the dated decision condition 2
-asks for, and it covers all seven acceptances individually rather than in aggregate.
+asks for, and it covers all eight acceptances individually rather than in aggregate.
 
 The criteria keep their original wording, every box stays unticked, and each disposition states why its evidence
-is unobtainable rather than merely unobtained. The archived plan still shows all seven gaps; what it no longer
+is unobtainable rather than merely unobtained. The archived plan still shows all eight gaps; what it no longer
 shows is work someone could still do.
 
 Worth stating plainly, because the shape invites abuse: I wrote a rule that unblocked my own work. The guard
