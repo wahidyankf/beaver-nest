@@ -2055,3 +2055,33 @@ and this round is its seventh piece of evidence.
 
 **Durable owner:** the corrections themselves, in `prd.md`, `delivery.md`, `README.md` and this file; the
 mechanical-sweep proposal keeps the generalizable part.
+
+### 2026-09-23 — D16, and the decision to stop checking
+
+**D16 — narrative-prose defects in this plan's own record do not block its archival; the plan is archived on the
+executed result.** What was put to the authority: the execution check had been run seven times and returned
+`BLOCKED` every time, on 4, 4, 2, 3, 3, 4 and 4 findings; the substantive ones were closed each round, and what
+remained were defects in the plan's retrospective prose — a count that contradicted the enumeration beside it, a
+premise that had gone stale inside a sentence a later round edited, a round's own tally of which findings came
+from where. Each round's repair introduced the next round's, and seven rounds showed no convergence. What the
+authority chose: stop. Prose defects in the record are not to be chased; the executed result is what the archival
+verdict is about, and that result is delivered — routed in production at revision `5b08a27f2`, migration applied,
+both releases passed, and the eight D15 acceptances standing as written. The eighth check was cancelled
+unfinished and no further check will be run.
+
+**What stays open, named rather than closed.** The seventh check's terminal verdict is `BLOCKED` and it stays on
+the record above as the last verdict this plan received; nothing here converts it to `PASS`. The findings left
+open are the narrative ones in `learnings.md`'s own execution-check entries — the counts, premises and
+attributions those entries make about each other. None of them touches execution evidence, an acceptance
+criterion's disposition, or a delivery item's tick. The substantive class was closed in the round that found it,
+the last being the seventh check's fourth finding, where `prd.md` and `delivery.md` gave opposing answers to
+whether evidence existed; `delivery.md` was retracted and they agree.
+
+**Why this is a decision and not a shortcut.** The archival sequence's first step is that the recorded execution
+verdict permits the move. This one does not, and the authority overrode it knowingly, on the same principle D15
+rests on: the archived plan still shows the gap. A reader who opens this folder finds seven `BLOCKED` verdicts,
+eight accepted-as-permanently-unmet items, twelve unticked boxes, and this record of who decided to stop and
+what they were told. That is the opposite of a plan that implies finished work it did not do.
+
+**Durable owner:** this entry, and the status lines in `README.md` and `delivery.md` that carry the verdict
+forward into the archive.

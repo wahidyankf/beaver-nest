@@ -6,13 +6,12 @@ Start work by moving one folder from [`../backlog/`](../backlog/README.md) witho
 
 ## Active Plan
 
-- [`family-chat-message-reply/`](family-chat-message-reply/README.md) — quoted replies in Ruang Keluarga: a
-  per-message action menu, a composer quote strip, an additive reply reference, bounded jump-to-original, and a
-  two-stage release. Moved from `backlog/` on 2026-09-22 after the plan quality gate returned `PASS`.
+None. The last plan to occupy this stage, `family-chat-message-reply/`, was archived on 2026-09-23 as
+[`../done/2026-09-23__family-chat-message-reply/`](../done/2026-09-23__family-chat-message-reply/README.md).
 
 Completed records live in [`../done/`](../done/README.md), and additional candidates are queued in
 [`../backlog/`](../backlog/README.md).
 
 ## Directory Map
 
-- [`family-chat-message-reply/`](family-chat-message-reply/README.md) — the plan currently being executed.
+This stage holds no plan folders. Each one that arrives is listed here for as long as it is being executed.

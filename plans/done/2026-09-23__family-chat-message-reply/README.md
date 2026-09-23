@@ -2,13 +2,15 @@
 
 ## Status
 
-**Executed and released, 2026-09-22. Not yet archived.** Six documents are complete, both planning decision gates
-have been run, and the [plan quality gate](../../../repo-governance/workflows/plan-quality-gate.md) returned `PASS`
-at the pre-execution checkpoint with five findings recorded and repaired — all three records are in
+**Executed and released, 2026-09-22. Archived 2026-09-23.** Six documents are complete, both planning decision
+gates have been run, and the [plan quality gate](../../../repo-governance/workflows/plan-quality-gate.md) returned
+`PASS` at the pre-execution checkpoint with five findings recorded and repaired — all three records are in
 [`learnings.md`](learnings.md). Execution was separately authorized and is recorded in
 [`delivery.md`](delivery.md), which carries the execution status and six of the eight accepted gaps; the other two
-are acceptance criteria and sit in [`prd.md`](prd.md), and the execution-check verdicts are in
-[`learnings.md`](learnings.md). The archival move runs once a check returns a verdict that permits it.
+are acceptance criteria and sit in [`prd.md`](prd.md). The execution check returned `BLOCKED` seven times and was
+never satisfied; the archival move was made by authority decision over that verdict, on the ground that the
+remaining findings are defects in the plan's own retrospective prose rather than in its execution evidence. All
+seven verdicts and the decision that closed them are in [`learnings.md`](learnings.md), the last as D16.
 
 ## Outcome
 
