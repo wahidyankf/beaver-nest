@@ -391,6 +391,12 @@ Scenario: A reply creates the same delivery bookkeeping as any message
 
 ### AC-FCR-13 — Mixed revisions stay safe through the release
 
+**Accepted as permanently unmet 2026-09-23 (D15), for its routed-origin evidence only.** The scenario below is
+evidenced at the browser layer, under the specification's own documented boundary exemption. What cannot be taken
+is the same proof at the routed origin: the compatibility stage ships every flag off by design, so the room is
+unreachable there at that point, and both of that release's slots have since been promoted and retired. The
+criterion keeps its wording, and `delivery.md`'s Phase 9 promotion item stays unticked.
+
 ```gherkin
 Scenario: A browser holding the pre-reply bundle talks to the new revision
   Given the compatibility revision is routed
@@ -424,7 +430,9 @@ Scenario: Promotion moves connected clients without a refresh
 **Accepted as permanently unmet 2026-09-23 (D15).** The criterion keeps the wording below; the stage that was
 never sampled stays visible as a gap rather than being removed.
 
-**Partially met, 2026-09-22 (D14). Arithmetic corrected 2026-09-22 by the re-check.** This first read "Two of
+**How the gap was established — D14, 2026-09-22; arithmetic corrected 2026-09-22 by the re-check.** D14 called
+this "partially met", which is not one of the convention's three dispositions; it is the finding that fixed the
+extent of the gap, and D15 above is the disposition that resolves it. D14's text first read "Two of
 this criterion's four release-stage sample sets were taken; two never were." That mixed two denominators. Against
 the four stages the outline below enumerates, **three carry a 12-sample set and one does not**:
 

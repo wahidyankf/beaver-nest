@@ -2,10 +2,10 @@
 
 ## Execution Status and Authority
 
-**Executed, released, and archived. Executed 2026-09-22; archived 2026-09-23.** The feature is routed in production at revision
-`5b08a27f2`; the migration is applied; both production releases passed. The execution check has been run **four
-times** and returned `BLOCKED` every time; all four verdicts and the corrections made in response are recorded in
-`learnings.md`.
+**Executed and released, 2026-09-22. Not yet archived: the move runs once an execution check returns a verdict
+that permits it.** The feature is routed in production at revision `5b08a27f2`; the migration is applied; both
+production releases passed. The execution check has been run **five times** and returned `BLOCKED` every time;
+all five verdicts and the corrections made in response are recorded in `learnings.md`.
 
 Twelve items below are unticked, in three groups:
 
@@ -15,14 +15,25 @@ Twelve items below are unticked, in three groups:
 | Archival procedure                               | 2     | The cleanup and move items, which run as part of archival and cannot precede it                                                                                                                                                                                           |
 | Recovery and Rollback triggers                   | 4     | None fired; each carries a dated, evidence-backed `Not triggered` disposition                                                                                                                                                                                             |
 
-**All six substantive items are accepted as permanently unmet (D15), and therefore resolved.** Each rests on
-evidence that no longer exists to be taken — retired slots, a release stage that shipped the feature off, a live
-household surface D13 declined to write test messages into. No further work can tick them.
+**All six substantive items are accepted as permanently unmet (D15), and therefore resolved.** So is AC-FCR-14
+in `prd.md`, on the same dated decision: seven acceptances in all, six delivery items and one acceptance
+criterion.
+
+Four of the six carry a permanent bar of their own. The two drain items each took one of their two sample sets
+from a slot that has since been promoted and retired, and a retired slot cannot be sampled again. Phase 9's
+mixed-revision item asks for a proof that stage's own flag posture forbids. Phase 10's routed manual pass is
+barred by the test-data iron rule, which forbids writing a test message into a live household room and will go on
+forbidding it for as long as the room is real; D13 descoped it on that ground.
+
+The remaining two are the Phase 9 and Phase 10 blocking checkpoints. Neither has a bar of its own: each is
+accepted because the item beneath it is, and a checkpoint cannot go green over an item that will never tick. That
+inheritance is this plan's reading — the convention names dispositions for items and criteria, not for the
+checkpoints that stand on them.
 
 [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md)
 resolves such an item without ticking it, under five conditions: the evidence is unobtainable rather than
-unobtained, the plan's authority accepts it, the requirement keeps its wording, the box stays unticked, and the
-execution review confirms each acceptance. All five hold here, and that section was written for this case — see
+unobtained, the plan's authority accepts it as a dated decision naming what was put to them and what they chose,
+the requirement keeps its wording, the box stays unticked, and the execution review confirms each acceptance. All five hold here, and that section was written for this case — see
 `learnings.md`, D15, including why an executor may not accept away its own missing evidence.
 
 **Corrected 2026-09-22 by the third check's round:** this paragraph said the check had run twice and that seven
@@ -776,7 +787,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       status paragraph alone to say so. It cannot be ticked by any later work: the stage it names ships every flag
       off, so the room is unreachable at the routed origin at that point by design, and both slots from that
       release have since been promoted and retired.
-      **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable because the stage ships every flag off by design and both of its slots have been retired; the property itself is proven at the layer the specification's own exemption names.
+      **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable because the stage ships every flag off by design and both of its slots have been retired. The substitute proof at the layer the specification's own exemption names is not the same property: it is one build and one bundle served from two slots, and its direction is the inverse of the one this item asks for.
 - [x] `[AI] [AC-FCR-04, AC-FCR-13]` Prove the field is answerable everywhere before any bundle asks for it: a `curl`
       requesting `replyTo` against the routed origin returns data rather than a document rejection. **Proof:** the
       sanitized response in `learnings.md`.
@@ -815,7 +826,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       than softened: the criterion existed precisely because tests do not substitute for looking at the real
       surface, and this closes it with tests; and the pass would have written a real message into a live family
       room to satisfy a checklist. The reasoning is in `learnings.md`, D13.
-      **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable in the sense that matters: the pass was descoped by its authority (D13), and taking it later would write a real message into a live household room to satisfy a checklist.
+      **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable because the repository's test-data iron rule forbids it: a routed pass at this origin writes a real message into a live household room, and that bar does not lift while the room is real. D13 descoped it on the same ground.
 - [x] `[AI] [AC-FCR-13]` Prove the rollback floor still serves the reply-aware bundle: against the Phase 9 revision,
       a browser holding the current bundle loads the room and renders existing quotes. **Proof:** recorded
       observation. This is a proof, not a rollback — the route is not moved. **Done 2026-09-22 (D12), as a browser
@@ -913,7 +924,8 @@ reconciliation rather than ticking the item.
 
 ## Archival
 
-Runs only after every substantive phase above is complete and its checkpoint is green.
+Runs only after every substantive phase above is complete and its checkpoint is resolved. Phase 9's and Phase
+10's checkpoints are resolved by acceptance rather than green (D15); the rest are green.
 
 - [x] `[AI] [AC-FCR-01..14]` Resolve every `learnings.md` entry to exactly one durable owner — governance,
       specification, test, code comment, permanent documentation, or idea brief — or discard it with a stated
@@ -940,7 +952,7 @@ Runs only after every substantive phase above is complete and its checkpoint is 
 - [x] `[AI] [AC-FCR-01..14]` Run the
       [plan-execution-check workflow](../../../repo-governance/workflows/plan-execution-check.md) and record its
       terminal verdict. **Proof:** the verdict in `learnings.md`. Archival is not permitted while any acceptance
-      criterion or delivery unit is unresolved. **Done 2026-09-22, three times.** First run: `BLOCKED`, on AC-FCR-13's
+      criterion or delivery unit is unresolved. **Done five times: three on 2026-09-22, two on 2026-09-23.** First run: `BLOCKED`, on AC-FCR-13's
       unevidenced rollback-floor scenario and on a knowledge-capture record whose counts did not reproduce. Second:
       `BLOCKED` again — AC-FCR-13 exactly unchanged, the knowledge-capture record advanced but still miscounted, and
       four new defects introduced by the corrections themselves. Third: `BLOCKED` again, with both earlier classes
@@ -948,8 +960,11 @@ Runs only after every substantive phase above is complete and its checkpoint is 
       reproduces at the commit it pins itself to — and four further defects, three of them introduced by the
       commit that closed the first two. Fourth: `BLOCKED` again, with three of the third round's four findings
       closed and two defects left — both a retracted claim still standing where the sweep had not looked,
-      including inside D14 itself, the entry the other corrections cite as their authority. All four verdicts and
-      every round of corrections are in `learnings.md`.
+      including inside D14 itself, the entry the other corrections cite as their authority. Fifth: `BLOCKED` again,
+      and for the first time it confirmed every acceptance under the new convention's condition 5 — the three
+      defects it raised were record defects, two of them written by the round that introduced the acceptances,
+      including a status line that claimed this plan was already archived. All five verdicts and every round of
+      corrections are in `learnings.md`.
       Ticked because the item asks the workflow to be run and its verdict recorded, which is done; the verdict
       itself is what keeps archival closed.
 - [ ] `[AI] [AC-FCR-01..14]` Run the [dev-artifact-clean-up workflow](../../../repo-governance/workflows/dev-artifact-clean-up.md):
