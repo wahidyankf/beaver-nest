@@ -80,3 +80,7 @@ command-line product, so every surface here is at the floor:
 
 The wrappers start the tool they install and return `125` when they refuse. No other surface here starts another
 program, so none of them returns the supervisor statuses.
+
+FERRET records coding-agent harness activity. Capture is registered at the user level of the maintainer's harness
+configuration, not in this repository, so nothing here forwards hook payloads. Use `./ferret` to query the local record
+— `./ferret status --json`, whose `dataHome` names where it lives, and `./ferret usage --group-by tool --json`.
