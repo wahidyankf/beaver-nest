@@ -395,12 +395,14 @@ Scenario: A reply creates the same delivery bookkeeping as any message
 holding the pre-reply bundle talks to the new revision` has no evidence at any layer. It cannot be taken at the
 routed origin, because the compatibility stage ships every flag off by design, so the room is unreachable there
 at that point, and both of that release's slots have since been promoted and retired. The substitute proof at the
-exempted layer is not this property -- `delivery.md`'s Phase 9 promotion item says why, and that item stays
+exempted layer is not this property — `delivery.md`'s Phase 9 promotion item says why, and that item stays
 unticked. This is the criterion-side record of that same gap, not a second one.
 
 The other two scenarios are met and are not part of this acceptance: the rollback floor is proven below under
 D12, and `Promotion moves connected clients without a refresh` was observed through the routed origin with two
-`test-user-` contexts (`delivery.md`, Phase 10). The criterion keeps its wording.
+`test-user-` contexts (`delivery.md`, Phase 10). Both rest on ticked delivery items; `delivery.md` also records
+that the rollback-floor scenario was among those lost in one 293/6 browser-suite run, which it declines to treat
+as green evidence and which this criterion does not either. The criterion keeps its wording.
 
 ```gherkin
 Scenario: A browser holding the pre-reply bundle talks to the new revision
@@ -432,8 +434,8 @@ Scenario: Promotion moves connected clients without a refresh
 
 ### AC-FCR-14 — The routed service stays responsive throughout
 
-**Accepted as permanently unmet 2026-09-23 (D15).** Unobtainable because the stage it names --
-`after the experience revision is routed` -- can only be sampled while that revision is the routed one, and both
+**Accepted as permanently unmet 2026-09-23 (D15).** Unobtainable because the stage it names —
+`after the experience revision is routed` — can only be sampled while that revision is the routed one, and both
 slots from that release have since been promoted and retired. The criterion keeps the wording below; the stage
 that was never sampled stays visible as a gap rather than being removed.
 
