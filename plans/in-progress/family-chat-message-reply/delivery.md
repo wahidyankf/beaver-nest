@@ -4,8 +4,8 @@
 
 **Executed and released, 2026-09-22. Not yet archived: the move runs once an execution check returns a verdict
 that permits it.** The feature is routed in production at revision `5b08a27f2`; the migration is applied; both
-production releases passed. The execution check has been run **six times** and returned `BLOCKED` every time;
-all six verdicts and the corrections made in response are recorded in `learnings.md`, one entry each.
+production releases passed. The execution check has been run **seven times** and returned `BLOCKED` every time;
+all seven verdicts and the corrections made in response are recorded in `learnings.md`, one entry each.
 
 Twelve items below are unticked, in three groups:
 
@@ -16,8 +16,8 @@ Twelve items below are unticked, in three groups:
 | Recovery and Rollback triggers                   | 4     | None fired; each carries a dated, evidence-backed `Not triggered` disposition                                                                                                                                                                                             |
 
 **All six substantive items are accepted as permanently unmet (D15), and therefore resolved.** So are AC-FCR-13
-and AC-FCR-14 in `prd.md`, on the same dated decision — AC-FCR-13 for its routed-origin evidence only. Eight
-acceptances in all: six delivery items and two acceptance criteria.
+and AC-FCR-14 in `prd.md`, on the same dated decision — AC-FCR-13 for the first of its three scenarios only, the
+other two being met. Eight acceptances in all: six delivery items and two acceptance criteria.
 
 Four of the six carry a permanent bar of their own. The two drain items each took one of their two sample sets
 from a slot that has since been promoted and retired, and a retired slot cannot be sampled again. Phase 9's
@@ -646,7 +646,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       **2026-09-22:** passed. The quote renders identically on all six arrival paths (initial, older page, resumed
       window, appended newer page, own reconciled send, live arrival), the jump loads at most five older pages and
       announces its refusal through the live region rather than doing nothing, no rule introduces horizontal scroll
-      at any of the four viewports, and `FE_E2E` is 296 passed, 0 failed.
+      at any of the three viewports, and `FE_E2E` is 296 passed, 0 failed.
 
 ## Phase 7 — Documentation, Rules, and Public-Boundary Proof
 
@@ -779,7 +779,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       the column present, and existing messages unchanged.
 - [ ] `[AI] [AC-FCR-13]` Promote through Caddy and prove mixed-revision safety at the routed origin: a browser
       holding the **previous** bundle loads the room and sends a message. **Proof:** both observations recorded, with
-      no page refresh required and no forced reload. **BLOCKED 2026-09-22:** a compatibility release routes every flag off, so the room is not reachable at the routed origin at this stage. The proof exists at the layer the specification's own exemption names — `A browser holding the pre-reply bundle loads the room from the new revision`, green in the browser suite across two candidate slots. **Corrected 2026-09-22:** this said "two real candidate
+      no page refresh required and no forced reload. **BLOCKED 2026-09-22:** a compatibility release routes every flag off, so the room is not reachable at the routed origin at this stage. This then said the proof exists at the layer the specification's own exemption names — `A browser holding the pre-reply bundle loads the room from the new revision`, green in the browser suite across two candidate slots. **Retracted 2026-09-23 by the seventh check:** that scenario navigates in its `When`, so the browser is served fresh by whichever slot is routed and never holds the previous revision's bundle, which `tech-docs/005-specification-changes.md` had already recorded. It does not prove this property at any layer. **Corrected 2026-09-22:** the retracted sentence said "two real candidate
       revisions". It is one build and one bundle served from two slots under different flag postures, with a
       synthetic per-port revision identity, and its direction is the inverse of the one this item asks for. See
       `learnings.md`, Phase 9 entry and the execution-check entry.
@@ -805,7 +805,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       because its post-drain set was never taken, so "every routed sample is within budget" is a claim about a set
       that does not exist. A checkpoint cannot stand on an item beneath it that does not.
       **Terminal under D14, recorded 2026-09-22.** That slot was promoted and retired by Phase 10, so the missing
-      set cannot be retaken and no further work can tick this. D14 accepted AC-FCR-14 as partially met rather than
+      set cannot be retaken and no further work can tick this. D14 recorded AC-FCR-14 as partially met rather than
       restating it to match the evidence that survived; this checkpoint is one of the two places that acceptance
       lands.
       **Accepted as permanently unmet 2026-09-23 (D15).** [Knowledge capture and archival](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md) resolves this item without ticking it. Unobtainable for the same reason as the drain item it stands on.
@@ -885,7 +885,7 @@ carries its quote` against the real Absinthe socket. The subscriber also receive
       never sampled — the one after the experience revision is routed — and that slot no longer exists, so the word _throughout_
       cannot be claimed. (**Corrected 2026-09-22 by the re-check:** this said "two of four", which counted release
       moments against the stage denominator; see `prd.md`, AC-FCR-14.)
-      **This disposition is terminal, not pending.** D14 accepted AC-FCR-14 as partially met on the record rather
+      **This disposition is terminal, not pending.** D14 recorded AC-FCR-14 as partially met on the record rather
       than rewriting it to fit what survived. No further work can tick this checkpoint, because the evidence it
       asks for cannot be produced. Under
       `repo-governance/conventions/plans/008-knowledge-capture-and-archival.md` an unresolved delivery unit blocks
@@ -941,7 +941,7 @@ Runs only after every substantive phase above is complete and its checkpoint is 
       the existing ones: retiring `BNEST_FAMILY_CHAT_REPLY_ENABLED` after the rollback window, and swipe-to-reply as
       an optional gesture with its accessibility evidence. **Proof:** the briefs exist under `plans/ideas/<quadrant>/`
       with their quadrant justified by dated evidence, or a recorded decision not to raise them. **Done
-      2026-09-22:** seven briefs, not two — `q1-urgent-important/release-stage-flag-posture.md`;
+      2026-09-22:** seven briefs, not two — and eight after `q2-not-urgent-important/browser-suite-timing-reliability.md` was raised later the same day out of this plan's own `FE_E2E` runs — `q1-urgent-important/release-stage-flag-posture.md`;
       `q2-not-urgent-important/` `family-chat-reply-flag-retirement.md`, `family-chat-swipe-to-reply.md`,
       `family-chat-room-reading-on-a-phone.md`, `shared-token-claims-and-layer-tags.md`,
       `plan-and-checkpoint-contract-gaps.md`; and `q3-urgent-not-important/family-chat-room-shell-and-control-gaps.md`.
@@ -952,7 +952,7 @@ Runs only after every substantive phase above is complete and its checkpoint is 
 - [x] `[AI] [AC-FCR-01..14]` Run the
       [plan-execution-check workflow](../../../repo-governance/workflows/plan-execution-check.md) and record its
       terminal verdict. **Proof:** the verdict in `learnings.md`. Archival is not permitted while any acceptance
-      criterion or delivery unit is unresolved. **Done six times: three on 2026-09-22, three on 2026-09-23.** First run: `BLOCKED`, on AC-FCR-13's
+      criterion or delivery unit is unresolved. **Done seven times: three on 2026-09-22, four on 2026-09-23.** First run: `BLOCKED`, on AC-FCR-13's
       unevidenced rollback-floor scenario and on a knowledge-capture record whose counts did not reproduce. Second:
       `BLOCKED` again — AC-FCR-13 exactly unchanged, the knowledge-capture record advanced but still miscounted, and
       four new defects introduced by the corrections themselves. Third: `BLOCKED` again, with both earlier classes
@@ -966,8 +966,11 @@ Runs only after every substantive phase above is complete and its checkpoint is 
       status line claiming this plan was already archived. Sixth: `BLOCKED` again, on three defects, two of them
       again written by the round that closed the fifth check's findings — an acceptance count contradicted by the
       enumeration directly above it, a claim that five verdicts were recorded when four were, and a new
-      disposition that contradicted the delivery item it was written beside. All six verdicts and every round of
-      corrections are in `learnings.md`.
+      disposition that contradicted the delivery item it was written beside. Seventh: `BLOCKED` again, on four
+      defects, three of them in sentences the sixth round wrote — including a replacement sentence that
+      reproduced the very finding it replaced — and one substantive: the Phase 9 item still asserted a
+      browser-layer proof that this plan's own `tech-docs` had already shown does not hold. All seven verdicts
+      and every round of corrections are in `learnings.md`.
       Ticked because the item asks the workflow to be run and its verdict recorded, which is done; the verdict
       itself is what keeps archival closed.
 - [ ] `[AI] [AC-FCR-01..14]` Run the [dev-artifact-clean-up workflow](../../../repo-governance/workflows/dev-artifact-clean-up.md):

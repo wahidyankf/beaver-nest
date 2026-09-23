@@ -6,8 +6,9 @@
 have been run, and the [plan quality gate](../../../repo-governance/workflows/plan-quality-gate.md) returned `PASS`
 at the pre-execution checkpoint with five findings recorded and repaired — all three records are in
 [`learnings.md`](learnings.md). Execution was separately authorized and is recorded in
-[`delivery.md`](delivery.md), which carries the execution status, the eight accepted gaps, and every execution-check
-verdict. The archival move runs once a check returns a verdict that permits it.
+[`delivery.md`](delivery.md), which carries the execution status and six of the eight accepted gaps; the other two
+are acceptance criteria and sit in [`prd.md`](prd.md), and the execution-check verdicts are in
+[`learnings.md`](learnings.md). The archival move runs once a check returns a verdict that permits it.
 
 ## Outcome
 
@@ -90,7 +91,7 @@ into them.
 2. [Product Requirements](prd.md) — what must be observably true, as fourteen labelled acceptance criteria.
 3. [Technical Documentation](tech-docs/README.md) — how the data, API, interface, proof, and release fit together.
 4. [Delivery](delivery.md) — the exact implementation and proof sequence.
-5. [Learnings](learnings.md) — the decision records from both gates, and the execution log once it starts.
+5. [Learnings](learnings.md) — the decision records from both gates, and the execution log.
 
 ## Directory Map
 

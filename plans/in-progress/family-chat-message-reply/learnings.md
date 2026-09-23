@@ -1871,8 +1871,8 @@ recorded here and false as a general claim. The window is the same one version f
 the reason `waitForRoutedReads` exists at all: a slot that answers `/health/ready` is not yet a slot that can
 serve a write. That belongs in the brief, widened to cover it, rather than in another correction round here.
 
-**The pattern across four checks, stated plainly.** Every round has closed its findings and introduced fewer new
-ones — four, then four, then two. None has reached zero. Every single defect in every round has been one shape:
+**The pattern across four checks, stated plainly.** Every round has closed its findings and introduced new ones
+— four, then four, then two. None has reached zero. Every single defect in every round has been one shape:
 a number, a count, or a citation that nobody checked against the thing it describes, written by someone who had
 just finished being told that this is the failure mode. The suites and gates were green throughout all four
 rounds and could not have caught any of it, because none of it is a property of the software. The only thing that
@@ -1919,10 +1919,12 @@ named as the root cause, with the stage that was never sampled and whose slot no
 conclusion that the convention, not the plan, was what blocked archival. What they chose: change the convention,
 propagate it across `wkf-projects`, then archive this plan.
 
-That instruction is the dated decision condition 2 asks for, and it reaches all eight acceptances, though the
-table put seven things to the authority rather than eight. AC-FCR-13 is the eighth, and it is not an eighth
-decision: it is the criterion-side record of the Phase 9 mixed-revision item, which was row one of that table.
-The sixth check found this arithmetic asserted rather than shown, which it was.
+That instruction is the dated decision condition 2 asks for, and it reaches all eight acceptances. What was put
+to the authority named seven of them: the table's six rows, and AC-FCR-14 beside it as the root cause. AC-FCR-13
+is the eighth, and it is not an eighth decision — it is the criterion-side record of the Phase 9 mixed-revision
+item, which was row one of that table. The sixth check found this arithmetic asserted rather than shown; the
+seventh found the replacement sentence reproducing the same defect, having said "the table" where the table is
+six rows and the submission was seven things.
 
 The criteria keep their original wording, every box stays unticked, and each disposition states why its evidence
 is unobtainable rather than merely unobtained. The archived plan still shows all eight gaps; what it no longer
@@ -1937,14 +1939,16 @@ across `wkf-projects` is recorded as its own entry below; this one does not clai
 
 ### 2026-09-23 — Propagating the rule, and the one repository it did not fit
 
-`008` is this repository's copy of a convention nine `wkf-projects` members share, so a change to it is a change
-to all of them. Seven carry it — this one and six others; `ose-public` and `ose-private` do not, and were
+`008` is this repository's copy of a convention seven of the nine `wkf-projects` members share, so a change to
+it is a change to all seven. `ose-public` and `ose-private` are the two that do not carry it — they keep
+knowledge capture under `repo-governance/development/quality/` and have no `008` plans module — and both were
 confirmed by grepping
 the rule's own sentence rather than by filename. A filename search misses `grind-in-public`, whose module is
 numbered `009` and named for evidence rather than archival; grepping the rule finds every copy regardless of
 where it is filed or what it is called.
 
-Five of the six took the section unchanged. The sixth did not, and the reason was a word budget. In
+All six took the section unchanged, byte for byte. Five also took it into the same module; the sixth could not,
+and the reason was a word budget. In
 `grind-in-public` the archival module is `009` at 682 of its 750 words, and the section is 179 by the same
 `wc -w` count: it does not fit, and nothing in `009` is padding. Inserting a new module would have renumbered eight files, which that
 repository's own naming policy names as the thing numbering must not do. The section went into `008` — evidence
@@ -1990,12 +1994,12 @@ all six propagated copies, amended before any of them merged.
 
 ### 2026-09-23 — The sixth execution check, and a correction that made its own count false
 
-`BLOCKED` again, on three findings, two of them written by the round that closed the fifth check's findings. The
-pattern is now five rounds old and has not varied: the commit that fixes a claim introduces the next one, in a
+`BLOCKED` again, on three findings, all three written by the two commits that closed the fifth check's findings.
+The pattern is now five rounds old and has not varied: the commit that fixes a claim introduces the next one, in a
 sentence adjacent to the one it edited.
 
 The sharpest instance: the round added AC-FCR-13's missing disposition, which took the acceptance count from
-seven to eight, then updated two sentences that said "seven" — and left standing, in the same paragraph, the
+seven to eight, then updated the three sentences that said "seven" — and left standing, in the same paragraph, the
 enumeration of what was put to the authority, which lists seven things. So the sentence "it covers all eight
 acceptances individually" was false against the list directly above it, in the commit whose only purpose was to
 fix a count that was false against the thing it described.
@@ -2009,7 +2013,7 @@ above it exist because the sixth check asked where the fourth one's successors w
 The third was substantive rather than arithmetical. AC-FCR-13's new disposition claimed the criterion was
 evidenced at the browser layer, while the Phase 9 delivery item three files away said that substitute proof is
 not the same property. Both were written in the same commit. It also disposed of "the scenario below" where three
-scenarios follow, one of which has routed evidence and is ticked. The disposition now names the single scenario
+scenarios follow, one of which is evidenced by a ticked delivery item. The disposition now names the single scenario
 it covers and defers to the delivery item on what the exempted layer does and does not prove.
 
 **What I would do differently, stated as a rule rather than a resolution:** a round that changes a count must
@@ -2020,3 +2024,34 @@ evidence.
 
 **Durable owner:** the correction itself, in `prd.md`, `delivery.md` and this file; the sweep proposal stays in
 [`plan-and-checkpoint-contract-gaps.md`](../../ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md).
+
+### 2026-09-23 — The seventh execution check, and the sentence that reproduced the finding it replaced
+
+`BLOCKED`, on four findings, three of them in sentences the previous round wrote to close the sixth check.
+
+The one worth keeping: the sixth check blocked on "a count contradicted by the enumeration directly above it".
+The replacement sentence said the authority's table "put seven things", three lines below an enumeration
+describing a six-row table with AC-FCR-14 named beside it. A count contradicted by the enumeration directly above
+it. Rewriting a defective sentence is not the same as re-deriving what it claims, and for seven rounds I have
+been doing the first while believing I was doing the second.
+
+The others were the same shape in new places. The propagation entry opened "a convention nine `wkf-projects`
+members share, so a change to it is a change to all of them" and then said seven carry it — a premise false for
+two of the nine, left standing inside a sentence the round had edited. The sixth-check entry said two of three
+findings came from the previous round when all three did.
+
+The fourth was substantive and is the one I would have missed alone. Fixing AC-FCR-13's disposition in `prd.md`
+created the mirror of the contradiction it fixed: `prd.md` now said the scenario has no evidence at any layer
+while the Phase 9 delivery item still said the proof exists at the exempted layer. The check went to
+`tech-docs/005-specification-changes.md` and the step file and found the plan's own answer already written down —
+the sibling scenario navigates in its `When`, so the browser never holds the previous revision's bundle and
+cannot prove this property. `delivery.md` was the side that needed retracting, and this round retracted it.
+
+**The rule this plan has now paid seven times to learn.** A round that touches a claim must re-derive it from the
+repository and then grep every sibling sentence for the same number or object, before writing anything. The
+prose version of this instruction has failed six consecutive times. The mechanical version is in
+[`plan-and-checkpoint-contract-gaps.md`](../../ideas/q2-not-urgent-important/plan-and-checkpoint-contract-gaps.md),
+and this round is its seventh piece of evidence.
+
+**Durable owner:** the corrections themselves, in `prd.md`, `delivery.md`, `README.md` and this file; the
+mechanical-sweep proposal keeps the generalizable part.
