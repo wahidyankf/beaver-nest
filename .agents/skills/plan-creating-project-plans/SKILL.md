@@ -43,6 +43,10 @@ Two tests:
   it is a thought rather than an item.
 - **Self-contained proof.** If proving it requires finishing the next item, the split is in the wrong place.
 
+A delivery unit that changes what a README, documentation page, or specification describes also carries a
+[Docs Propagation](../../../repo-governance/workflows/docs-propagation.md) item, landing in the same commit as the
+change.
+
 ## Write for a Cold Executor
 
 The reader is someone who was not present, has no memory of the discussion, and will not ask. Name paths in full, name

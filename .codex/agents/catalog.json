@@ -75,7 +75,7 @@
     {
       "id": "skill/plan-creating-project-plans",
       "path": ".agents/skills/plan-creating-project-plans/SKILL.md",
-      "digest": "dc3acecfd934a7374e3319b6fb4bb32d3825f74cb59be8a39eb9537677c750ae"
+      "digest": "7e003c414052788caeff0c2964abb1c8c7ba2692d8a15f63896c2ee575574370"
     },
     {
       "id": "skill/plan-grooming-idea-briefs",
@@ -100,7 +100,7 @@
     {
       "id": "instruction",
       "path": "AGENTS.md",
-      "digest": "8f3b2c81ea9d5b09ba719d5d99e9846e655bed6e2b159510198589b91b54a035"
+      "digest": "1cd1d3e2962618cde54154f797e467599ed7b148014cc1236c29fed935a22fb7"
     }
   ]
 }
