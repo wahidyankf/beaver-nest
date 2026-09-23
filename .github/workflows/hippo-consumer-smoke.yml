@@ -152,8 +152,8 @@ jobs:
           }
 
           # Hippo v1 owns queueing inside one invocation and launches the child at most
-          # once. A client-side loop around exit 75 could duplicate a child or retry a
-          # child-owned code; exit 76 is a protocol mismatch and is never capacity.
+          # once. A client-side loop around exit 124 could duplicate a child or retry a
+          # child-owned code; exit 125 means HIPPO started nothing and is never capacity.
           launch_owner() {
             owner_name=$1
             mappings="${shared_root}/${owner_name}.mappings"

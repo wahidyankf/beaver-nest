@@ -53,9 +53,9 @@ The stable development server enters **HIPPO** — **H**ost **I**nfrastructure *
 `./hippo status --json --disk-path .`, or monitor transitions with
 `./hippo monitor --disk-path .`. Run compute-bearing Nx work through
 `./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx ...`. Independent work may overlap
-only after HIPPO grants fixed CPU-and-memory allocations in FIFO order. Exit `75` defers one
-invocation, so wait and retry only that same command; exit `73` requires storage cleanup before
-retrying. The tracked bootstrap installs the checksum-pinned release from the public
+only after HIPPO grants fixed CPU-and-memory allocations in FIFO order. Exit `124` means a limit stopped the
+work, so wait and retry only that same command; exit `125` means HIPPO started nothing and retrying
+unchanged will not help. The tracked bootstrap installs the checksum-pinned release from the public
 [`hippo`](https://github.com/wahidyankf/hippo) repository before Node starts. HIPPO controls only its
 own child process group and keeps bounded private evidence in the platform state directory.
 
