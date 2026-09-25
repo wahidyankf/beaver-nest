@@ -329,3 +329,48 @@ gates:
         executable: ./rhino
         args: [{ literal: md }, { literal: mermaid }, { literal: validate }]
       run-on: { pre-push: {}, pull-request: {} }
+
+extensions:
+  # Owner: repo-governance/development/quality/stacks/repository-adapter.md
+  software-development:
+    projects:
+      bnest-app:
+        path: apps/bnest-app
+        kind: app
+        stacks: [elixir, phoenix-liveview, javascript, typescript]
+      ex-bdd:
+        path: libs/ex-bdd
+        kind: library
+        stacks: [elixir]
+      bnest-app-be-e2e:
+        path: apps/bnest-app-be-e2e
+        kind: app
+        stacks: [typescript]
+      bnest-app-fe-e2e:
+        path: apps/bnest-app-fe-e2e
+        kind: app
+        stacks: [typescript]
+      rhino-consumer:
+        path: apps/rhino-consumer
+        kind: tooling
+        stacks: [nx]
+      repo-scripts:
+        path: scripts
+        kind: tooling
+        stacks: [shell]
+      ci-scripts:
+        path: .github/scripts
+        kind: tooling
+        stacks: [shell]
+      claude-hooks:
+        path: .claude/hooks
+        kind: tooling
+        stacks: [shell]
+      public-safety:
+        path: scripts/public-safety
+        kind: tooling
+        stacks: [shell]
+      workspace:
+        path: .
+        kind: tooling
+        stacks: [nx]
