@@ -23,14 +23,54 @@
       "digest": "ecd786105df605b953358326c459ecf8dc57f8762c22f89e07414792a184f011"
     },
     {
+      "id": "agent/swe-code-checker",
+      "path": ".agents/agents/swe-code-checker.md",
+      "digest": "d4b6df315e7d2ef0605a2f6533eb9cd0d4dd154d98a36eaebcad83ed9eb92d7a"
+    },
+    {
+      "id": "agent/swe-code-fixer",
+      "path": ".agents/agents/swe-code-fixer.md",
+      "digest": "32cca73b6b2fc69488e680f0f3b4d100d4460a26a4ceccdcd887d66826e0f708"
+    },
+    {
+      "id": "agent/swe-code-maker",
+      "path": ".agents/agents/swe-code-maker.md",
+      "digest": "dec1b56c2db400be34e6abcd9b946b9dc635364704a3ff2f191fa6d4d3026d77"
+    },
+    {
       "id": "agent/web-researcher",
       "path": ".agents/agents/web-researcher.md",
       "digest": "442bd8db52cda18f5cc7fcbafa4cfa62d680691bca187b78592a328154fb966f"
     },
     {
+      "id": "skill/applying-maker-checker-fixer",
+      "path": ".agents/skills/applying-maker-checker-fixer/SKILL.md",
+      "digest": "e575ede9a87629905b326f85fef993e92b5f167dd44ddee2b9ad476fa49a2935"
+    },
+    {
+      "id": "skill/assessing-criticality-confidence",
+      "path": ".agents/skills/assessing-criticality-confidence/SKILL.md",
+      "digest": "7a94d12c6e640636163d513fe470884155150c547b6cc121e7d47889a1091191"
+    },
+    {
       "id": "skill/building-command-line-interfaces",
       "path": ".agents/skills/building-command-line-interfaces/SKILL.md",
       "digest": "e424522a1e6dd1f3918028eef815f08cc0b9a970929603603a49340a33eefdf1"
+    },
+    {
+      "id": "skill/developing-applications",
+      "path": ".agents/skills/developing-applications/SKILL.md",
+      "digest": "7b93c8457ea2251af1e5cc7888880f973ac03f3e1063394e168baa44b0d7d87e"
+    },
+    {
+      "id": "skill/framework-phoenix-liveview",
+      "path": ".agents/skills/framework-phoenix-liveview/SKILL.md",
+      "digest": "0fea9d086f7e31af18908628a319dbb9d4216de4ca6f24505558d674b9e28b14"
+    },
+    {
+      "id": "skill/generating-validation-reports",
+      "path": ".agents/skills/generating-validation-reports/SKILL.md",
+      "digest": "26b35ae1ed0792cce334686209d115e3e2bacadb68d4b4a565e1d1dceeeee233"
     },
     {
       "id": "skill/grill-me",
@@ -96,6 +136,31 @@
       "id": "skill/plan-writing-gherkin-criteria",
       "path": ".agents/skills/plan-writing-gherkin-criteria/SKILL.md",
       "digest": "c8f6cbaa5d7a7bf6c13514ddfd6de1c343887b4aa839d4af348e2d3c2b16a29d"
+    },
+    {
+      "id": "skill/programming-elixir",
+      "path": ".agents/skills/programming-elixir/SKILL.md",
+      "digest": "cd11cedf68c73c10657e68207496564afaf494afbf40368bb7be63990d874d78"
+    },
+    {
+      "id": "skill/programming-javascript",
+      "path": ".agents/skills/programming-javascript/SKILL.md",
+      "digest": "57430b0a6e9b0d3da770f5740dc7f81a5184bd6bedad599ba51837c64f911d0f"
+    },
+    {
+      "id": "skill/programming-shell",
+      "path": ".agents/skills/programming-shell/SKILL.md",
+      "digest": "7667dc1d1443539795bc233c7f3174bb0674ad4e86f60e703e7037af1d7fea98"
+    },
+    {
+      "id": "skill/programming-typescript",
+      "path": ".agents/skills/programming-typescript/SKILL.md",
+      "digest": "c51a3bf1e835daa0f6a3c6bac847ccc3246bd537a184273814a4e0be077d28aa"
+    },
+    {
+      "id": "skill/tooling-nx",
+      "path": ".agents/skills/tooling-nx/SKILL.md",
+      "digest": "d116cd91a8b7fbe00018b40657ebbf5429ca193d7977c5605fd4e734dad83880"
     },
     {
       "id": "instruction",

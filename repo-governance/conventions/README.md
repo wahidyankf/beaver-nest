@@ -48,5 +48,6 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Release authorization](release-authorization.md) defines when a production release may run and what one authorization for a revision covers.
 - [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.
 - [Runtime flat-file data](runtime-flat-file-data.md) defines the private `data/` layout and safe flat-file persistence boundaries.
+- [Structure](structure/README.md) holds the adopted stack-packs convention that places stack standards and skills.
 - [Task tracking](task-tracking.md) requires granular task lists whose status stays synchronized with the work.
 - [Thematic commits](thematic-commits.md) keep each commit focused on one coherent purpose.

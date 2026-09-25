@@ -18,8 +18,8 @@ Choose Codex, Claude Code, or OpenCode for repository work. The committed harnes
 From the repository root, use the harness's native discovery or context view to confirm:
 
 - root repository rules resolve through `AGENTS.md`; Claude's `CLAUDE.md` imports that file without an overlay;
-- the seven canonical workflows under `.agents/skills/` are available, with Claude exposing equivalent command wrappers;
-- in Claude Code and OpenCode, `ci-monitor-subagent` and `web-researcher` are available as project subagents;
+- every canonical skill under `.agents/skills/` is available, with Claude exposing an equivalent command wrapper for each;
+- in Claude Code and OpenCode, every canonical agent under `.agents/agents/`, such as `web-researcher` and `swe-code-maker`, is available as a project subagent;
 - `nx-mcp` resolves to the local executable vector `npx nx mcp`; and
 - `web-researcher` can read repository context and use web search/fetch, but cannot edit files, run shell commands, or spawn another agent.
 

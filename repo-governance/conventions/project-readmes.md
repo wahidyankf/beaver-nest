@@ -27,4 +27,6 @@ Put the most useful information first. Use runnable examples. Omit inapplicable 
 
 Every change to an app or library must include a README impact check. Update its README in the same change when purpose, boundaries, public interfaces, prerequisites, configuration, targets, structure, or operating procedure changes. If none are affected, no README edit is required. [Docs propagation](../workflows/docs-propagation.md) performs this check.
 
+Adding, removing, or moving a project, or changing the stacks it authors, also updates its entry in the `extensions.software-development` inventory that the [repository adapter](../development/quality/stacks/repository-adapter.md) owns.
+
 Keep commands consistent with the project's resolved Nx configuration and keep all links valid. This convention follows [progressive disclosure](../principles/progressive-disclosure.md) and [minimal sufficiency](../principles/minimal-sufficiency.md).
