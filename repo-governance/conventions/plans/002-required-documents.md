@@ -40,3 +40,11 @@ another live rule, and an executor following it will produce a plan that fails v
 was correct.
 
 Any five-document description that remains is a defect regardless of where it lives or how old it is.
+
+## No Time Estimates
+
+An idea brief and every plan document except `learnings.md` state no time estimate, duration, or date as an effort
+commitment, at any stage; they order work by dependency, sequence, and resource. An estimate there reads as a commitment
+the plan system does not make, and nothing verifies it. Everywhere else — conversation, execution status, evidence, and
+`learnings.md` — an estimate is permitted when labelled as one. No automated check exists; the plan quality gate's
+semantic audit covers it.
