@@ -28,7 +28,7 @@ When composing workflows:
 - [Development tailnet proxy](development-tailnet-proxy.md) manages a persistent private HTTPS proxy independently from app-server restarts.
 - [Exploratory and usability testing](exploratory-and-usability-testing.md) runs the spec-aware exploratory pass and the spec-blind usability pass over a running UI-affecting plan.
 - [Docs propagation](docs-propagation.md) automatically carries each change into every human-facing document it affects, removing obsolete ones, in one bounded pass.
-- [Docs quality gate](docs-quality-gate.md) runs only on explicit user direction, audits documents without editing, and hands findings to docs propagation.
+- [Docs quality gate](docs-quality-gate.md) runs only on explicit user direction, audits documents without editing, and hands findings to docs propagation, auditing again until two consecutive audits are clean.
 - [Gherkin implementation review](gherkin-implementation-review.md) requires an agent to inspect every scenario and adapter for real production behaviour and independent evidence instead of trusting binding counts.
 - [Dev artifact clean-up](dev-artifact-clean-up.md) removes the worktree, both copies of the branch, and the build output this work produced, and nothing else, then brings the primary checkout level with `origin/main`.
 - [PR leak review](pr-leak-review.md) posts one narrow, current-head review of the diff and is a precondition every merge requires.
