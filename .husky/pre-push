@@ -98,11 +98,14 @@ rhino_consumer_changes_for_range() {
 #
 # Git's own arguments are deliberately not forwarded: arguments after `--` reach
 # every gate on the surface, and nothing declared here takes a remote name or a
-# URL. What the safety gate reads is the ref-update lines, which arrive on stdin
-# either way -- and the guard passes stdin through, so the admission boundary
-# the repository checks already run behind costs nothing here.
+# URL. What the safety gate reads is the ref-update lines, which RHINO forwards
+# to each gate only when `--push-updates-stdin` selects them. Without the flag
+# every gate sees an empty stream, and the safety gate falls back to screening
+# the current checkout rather than the refs and commits actually being pushed.
+# The guard passes stdin through, so the admission boundary the repository
+# checks already run behind costs nothing here.
 printf '%s\n' "$ref_updates" | ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
-	./rhino gate run --surface pre-push
+	./rhino gate run --surface pre-push --push-updates-stdin
 
 # The heredoc keeps the loop in this shell, so the three decisions it records
 # survive it.
