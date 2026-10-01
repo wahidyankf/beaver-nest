@@ -34,6 +34,9 @@ run() {
 	probe="/home/$user/notes/"
 	probe_blocks maintainer-path "$probe" || return 1
 
+	probe="C:\\Users\\$user\\notes\\"
+	probe_blocks maintainer-path "$probe" || return 1
+
 	probe="10.$octet.0.$octet"
 	probe_blocks internal-address "$probe" || return 1
 

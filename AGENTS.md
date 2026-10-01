@@ -21,7 +21,7 @@
 
 ## Version Control
 
-- Only `main` persists. Worktrees live at `{repository location}/worktrees/<task>`; sibling `*-worktrees/` paths are forbidden. Integrate by PR under [integration](repo-governance/conventions/integration-path.md), never direct push; delete both afterward.
+- Only `main` persists. Worktrees live at `{repository location}/worktrees/<task>`; sibling `*-worktrees/` paths are forbidden. Integrate by PR under [integration](repo-governance/conventions/integration-path.md), never direct push; [leak-review](repo-governance/workflows/pr-leak-review.md) every commit pre-push and every merge's exact head (`leak-review` status); delete both afterward.
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md). Before committing, inspect and remove prohibited data under [data safety](repo-governance/conventions/public-repository-data-safety.md).
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.
@@ -35,10 +35,10 @@
 - Apply [Diátaxis](repo-governance/conventions/documentation-architecture.md).
 - Preserve rules through [compaction](repo-governance/principles/governance-continuity.md), [track tasks](repo-governance/conventions/task-tracking.md), and retain unfamiliar parallel changes under `plans/` and `repo-governance/`.
 - Use ignored `local-tmp/` for scratch and `generated-reports/` for requested pre-plan audits/reports; neither is authoritative or a plan.
-- Write under `plans/` only on explicit user request or for HIPPO, RHINO, or FERRET [defects](repo-governance/development/upstream-tool-defects.md); Plan mode alone never authorizes one. The [plans convention](repo-governance/conventions/plans.md) fixes the lifecycle roots, the six documents, three-digit companion ordinals, and estimate-free plan documents; the local [lifecycle](repo-governance/conventions/plan-lifecycle.md) adds local needs, and [planning capabilities](repo-governance/development/planning-capabilities.md) rosters the workflows, skills, and agents.
+- Write under `plans/` only on explicit user request or for HIPPO, RHINO, or FERRET [defects](repo-governance/development/upstream-tool-defects.md); Plan mode alone never authorizes one. Follow the [plans convention](repo-governance/conventions/plans.md) (lifecycle roots, six documents, three-digit companion ordinals, no estimates), local [lifecycle](repo-governance/conventions/plan-lifecycle.md), and [planning capabilities](repo-governance/development/planning-capabilities.md) roster.
 - Bnest active-service plans carry the Caddy, drain, reconnect, and revision-proof clauses the lifecycle states; never assume refresh.
 - Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
-- Delivery items carry evidenced [TDD](repo-governance/development/test-driven-development.md) RED/GREEN/REFACTOR cycles; their executor labels and checkpoints are the plans convention's.
+- Delivery items carry evidenced [TDD](repo-governance/development/test-driven-development.md) RED/GREEN/REFACTOR cycles under plans-convention executor labels and checkpoints.
 - [Ask last](repo-governance/conventions/last-resort-questions.md); stop after the minimal verified change.
 
 ## Development

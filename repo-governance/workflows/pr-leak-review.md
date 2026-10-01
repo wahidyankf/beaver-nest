@@ -2,64 +2,48 @@
 
 ## Goal and When to Use It
 
-Produce one narrow, posted review for the exact head that will merge. It is a
-[merge precondition](../conventions/pull-request-merge.md): no posted leak review, no merge. Run it
-on every pull request before merge, and again whenever the head moves.
+A **leak** is anything in outbound history that a reader of the remote could use to reach an environment or identify the machine it came from. [Leak classes](pr-leak-review/001-leak-classes.md) defines the three classes and what is not one. History is the subject, not the final tree: a value one commit adds and a later commit deletes is still in every clone. The review binds from adoption onward; history published before it is out of scope.
 
-Adapted from the sibling repository that originated the rule. What changed here: no separate
-reviewer agent, so the review is performed by whoever handles the merge; the categories are the
-ones [data safety](../conventions/public-repository-data-safety.md) already names for this
-repository; and the evidence marker keeps the sibling name so one reader can authenticate a record
-from any of these repositories.
+Two entry points share one judgement:
+
+- **Push.** Before every push to `origin`, review the outgoing range privately per [push review](pr-leak-review/002-push-review.md). Nothing is posted; a finding blocks the push.
+- **Merge.** Every pull request needs one posted review of its exact head before it merges, and again whenever the head moves. It is a [merge precondition](../conventions/pull-request-merge.md): no posted `pass`, no merge. [Enforcement](pr-leak-review/003-enforcement.md) makes it mechanical through the required `leak-review` status.
+
+Adopted from the rules catalog. Here, whoever handles the merge performs the review and posts it as the repository owner, the only identity whose records count; the classes are judged against [data safety](../conventions/public-repository-data-safety.md); and the record marker keeps the sibling name `ose-pr-leak-review`, so one reader can authenticate a record from any of these repositories.
 
 ## Prerequisites
 
-An open pull request, and a head SHA pinned before anything is read.
-
-## What It Inspects
-
-Exactly three categories, and nothing else:
-
-1. Real secrets, credentials, or other values that grant access.
-2. Properties that belong in environment or secret storage rather than a tracked file.
-3. Real machine-specific absolute paths, and real host evidence captured from a workstation.
-
-This is not a security review and not a semantic one. A public identifier, a documented public
-value, an obvious placeholder, a repository-relative path, and a deliberately synthetic fixture are
-not leaks. A name containing `key`, `token`, `secret`, or `prod` is not evidence by itself; treat a
-candidate as a finding only where its shape and its context establish that the value is real.
+An open pull request with no `pass` record from the repository owner for its current head. `pull-request` (`string`, required): the pull request's number or address.
 
 ## Steps
 
-1. Pin the head SHA. Everything below concerns that SHA and no other.
-2. Read the whole diff at it — not a summary, and not memory of what was written — and the
-   pull request's title and body, which are published too.
-3. Post one review carrying the record below, whatever the result: a pass nobody wrote down is
-   indistinguishable from a review nobody ran.
-4. Read the review back and confirm its `commit_id` equals the pinned SHA.
-5. Query the live head again.
+1. **Pin the head.** Resolve the pull request through the GitHub API and record the repository, the base branch and its revision, and the exact head revision. Everything after this step concerns that head alone.
+2. **Read every commit at that head.** Each commit's diff from base to head, including configuration, generated files, localized content, binary metadata, file names, and commit messages, plus the pull request's title and body, which are published too. A summary or memory is not a reading, and no file is skipped because another gate covers it.
+3. **Judge candidates against the three [leak classes](pr-leak-review/001-leak-classes.md) and no others.** A candidate is a finding only when shape and context show the value is real. No candidate is copied into notes, commands, or logs.
+4. **Write each finding without its value.** Record the class, the commit, the file and line or metadata location, why it breaks the class, and the [remediation](pr-leak-review/002-push-review.md#remediation). Never repeat, partly quote, hash, encode, or describe a value's pattern.
+5. **Confirm the head before posting.** If the live head differs from the pin, post nothing and end the run as `stale`.
+6. **Post exactly one `COMMENT` review on the pinned head, whatever the result.** Its body says every other security and semantic concern was out of scope, and carries this record:
 
-```html
-<!-- ose-pr-leak-review:v1
-{"repository":"owner/repo","pull_request":0,"base_ref":"main",
- "base_sha":"<base SHA>","head_sha":"<reviewed SHA>","result":"pass|findings",
- "counts":{"secret_or_private_value":0,"protected_environment_property":0,
- "machine_specific_absolute_path":0}}
--->
-```
+   ```html
+   <!-- ose-pr-leak-review:v1
+   {"repository":"<owner>/<repository>","pull_request":"<number>","base_ref":"<base-branch>",
+    "base_sha":"<base-revision>","head_sha":"<reviewed-revision>","result":"pass|findings",
+    "counts":{"secret_or_private_value":0,"protected_environment_property":0,
+    "machine_specific_absolute_path":0}}
+   -->
+   ```
+
+7. **Read the review back.** Through the API, confirm the posted review's commit equals the pinned head and its repository, pull request, base, head, result, and counts match step 6. Marker-shaped text elsewhere has no authority.
+8. **Query the live head once more.** A moved head ends the run as `stale`, with the evidence bound to the head it reviewed.
 
 ## Verification
 
-`pass` when every count is zero, `findings` when any is not, `stale` when the head moved before or
-after posting, `failed` when no verdict could be obtained. Only `pass`, on the exact head being
-merged, satisfies the precondition. A moved head needs one new review; clean reviews never
-accumulate.
+The run ends with `result` (`pass`, `findings`, `stale`, or `failed`), the reviewed head, the review ID, and the per-class counts. `pass` means every count is zero; `findings`, any nonzero count. Only `pass` for the exact head being merged satisfies the precondition, and the `leak-review` status on that head turns `success` only then.
+
+A moved head needs one new review. Passes on earlier heads say nothing about the head that merges, so the run neither retries nor waits for a clean streak. An unposted merge pass cannot be told apart from a review nobody ran, which is why step 6 posts every result.
 
 ## Recovery
 
-Name the category, the file, and the remediation. Never repeat the value, and never paste it into a
-review body, a commit message, or a pull-request body — those are published too. Treat anything
-found as already disclosed: rotate first, then remove.
+`stale` means the head moved, and the record authorizes nothing for the new head: review the new head once. `failed` means an API, posting, read-back, or authentication error left no verdict; fix the cause and run again. Neither retries inside the run.
 
-The review body is itself a published artifact. A local absolute path pasted into it is the same
-finding this review exists to catch.
+`findings` blocks the merge. Remediate per [push review](pr-leak-review/002-push-review.md#remediation) and treat anything found as already disclosed: rotate first, then remove. The review body is itself a published artifact; a local absolute path pasted into it is the same finding this review exists to catch.

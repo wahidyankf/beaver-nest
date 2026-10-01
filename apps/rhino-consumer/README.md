@@ -45,11 +45,13 @@ $ ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm ex
 
 ### `test:repo`
 
-Dispatches the local `pre-push` surface: `./rhino gate run --surface pre-push` runs the gates `repo-config.yml`
-declares for that surface, in the order declared there, stopping at the first failure.
+Dispatches the local `pre-push` surface: `./rhino gate run --surface pre-push --push-updates-stdin` runs the gates
+`repo-config.yml` declares for that surface, in the order declared there, stopping at the first failure. It is fed one
+update record that pushes `HEAD` as a new ref, because the `public-safety-range` gate binds its range from push updates
+and refuses to run without one; a new ref starts from `origin/main`, so the range is the checkout's unpushed commits.
 
-Two of them screen what may leave this repository — `public-safety`, which runs first on every
-surface, and the tests that prove it discriminates. The other six are the validators:
+Two of them screen what may leave this repository and run first — `public-safety-tree` over the tracked tree, and
+`public-safety-range` over the range commit by commit. The other six are the validators:
 
 | Invocation                                | What it checks                                            |
 | ----------------------------------------- | --------------------------------------------------------- |
