@@ -156,8 +156,8 @@ configuration value a household member or operator relies on.
 
 ## Product Risks
 
-| Risk | Signal | Response |
-| --- | --- | --- |
-| A rename breaks a runtime lookup (process name, config key, eval entry point) | Readiness or a release target fails | Process names and config keys move in the same unit as their module and are covered by integration readiness tests; `Release.Migrations.*` names are frozen |
-| In-memory adapter diverges from SQL semantics | A unit pass hides an integration failure | The contract suites of AC-DH-07 run at both layers |
-| A PubSub payload struct is renamed while two slots run | A LiveView on the draining slot crashes on an unknown struct | The slots are unclustered, so PubSub is slot-local; the FamilyChat "independent slot-local PubSub" scenario stays green; payload shapes stay the same |
+| Risk                                                                          | Signal                                                       | Response                                                                                                                                                    |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A rename breaks a runtime lookup (process name, config key, eval entry point) | Readiness or a release target fails                          | Process names and config keys move in the same unit as their module and are covered by integration readiness tests; `Release.Migrations.*` names are frozen |
+| In-memory adapter diverges from SQL semantics                                 | A unit pass hides an integration failure                     | The contract suites of AC-DH-07 run at both layers                                                                                                          |
+| A PubSub payload struct is renamed while two slots run                        | A LiveView on the draining slot crashes on an unknown struct | The slots are unclustered, so PubSub is slot-local; the FamilyChat "independent slot-local PubSub" scenario stays green; payload shapes stay the same       |

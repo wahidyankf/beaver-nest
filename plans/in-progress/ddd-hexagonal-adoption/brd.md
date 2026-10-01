@@ -3,8 +3,8 @@
 ## Business Goal
 
 Make Bnest cheaper and safer to change. That means a person or a coding agent should be able to answer two questions from
-the code's structure alone, without reading the whole application: *where does this belong?* and *what could this
-break?* Then the build should refuse an answer that is wrong.
+the code's structure alone, without reading the whole application: _where does this belong?_ and _what could this
+break?_ Then the build should refuse an answer that is wrong.
 
 Bnest is a 24/7 household service maintained by one owner and by coding agents. Each change is reviewed against
 standards, but there is no reviewer with time to hold the whole application in mind, so a rule that only review
@@ -14,12 +14,12 @@ unit test layer writes real database files.
 
 ## Roles Served
 
-| Role | Need |
-| --- | --- |
-| Repository owner | Trust that a merged change did not quietly couple unrelated parts of the household service |
+| Role                                                | Need                                                                                                                                  |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository owner                                    | Trust that a merged change did not quietly couple unrelated parts of the household service                                            |
 | Coding agent (`swe-code-maker`, `checker`, `fixer`) | A defined, linked standard behind the "Hexagonal Architecture" and "Layers and the Dependency Rule" names it is already told to apply |
-| Household member | Nothing visible: the service behaves exactly as before, with no downtime and no forced refresh during release |
-| Household operator | A release that is an ordinary no-downtime cutover, with the usual rollback |
+| Household member                                    | Nothing visible: the service behaves exactly as before, with no downtime and no forced refresh during release                         |
+| Household operator                                  | A release that is an ordinary no-downtime cutover, with the usual rollback                                                            |
 
 ## Outcomes
 
@@ -44,10 +44,10 @@ unit test layer writes real database files.
 
 ## Business Risks
 
-| Risk | Consequence | Mitigation |
-| --- | --- | --- |
-| A refactor silently changes behaviour | A household journey breaks after release | The Gherkin suite runs unchanged at unit and integration level for every unit; affected e2e states run before release; responsiveness sampling and rollback during cutover |
-| The migration stalls half-done | Two architectures coexist indefinitely | One exception list, shrinking monotonically, with each context a self-contained pull request; the closure unit requires it empty |
-| Enforcement is so strict it blocks legitimate code | Agents work around it with dynamic calls | The standard names the allowed edges explicitly; the layering scan covers the effects `boundary` cannot see |
-| A new dependency becomes a liability | Upgrade or supply-chain burden | `boundary` is compile-time only, has no transitive dependencies, and is the established Elixir tool for this; removal deletes declarations and nothing else |
-| Release disturbs the live service | Downtime or a forced refresh | An unchanged migration set and no migration file change, no clustered PubSub between slots, the managed Caddy cutover, a numeric responsiveness budget, and rollback |
+| Risk                                               | Consequence                              | Mitigation                                                                                                                                                                 |
+| -------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A refactor silently changes behaviour              | A household journey breaks after release | The Gherkin suite runs unchanged at unit and integration level for every unit; affected e2e states run before release; responsiveness sampling and rollback during cutover |
+| The migration stalls half-done                     | Two architectures coexist indefinitely   | One exception list, shrinking monotonically, with each context a self-contained pull request; the closure unit requires it empty                                           |
+| Enforcement is so strict it blocks legitimate code | Agents work around it with dynamic calls | The standard names the allowed edges explicitly; the layering scan covers the effects `boundary` cannot see                                                                |
+| A new dependency becomes a liability               | Upgrade or supply-chain burden           | `boundary` is compile-time only, has no transitive dependencies, and is the established Elixir tool for this; removal deletes declarations and nothing else                |
+| Release disturbs the live service                  | Downtime or a forced refresh             | An unchanged migration set and no migration file change, no clustered PubSub between slots, the managed Caddy cutover, a numeric responsiveness budget, and rollback       |
