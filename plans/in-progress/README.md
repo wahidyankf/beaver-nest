@@ -6,12 +6,12 @@ Start work by moving one folder from [`../backlog/`](../backlog/README.md) witho
 
 ## Active Plan
 
-None. The last plan to occupy this stage, `family-chat-message-reply/`, was archived on 2026-09-23 as
-[`../done/2026-09-23__family-chat-message-reply/`](../done/2026-09-23__family-chat-message-reply/README.md).
+[`ddd-hexagonal-adoption/`](ddd-hexagonal-adoption/README.md) adopts Domain-Driven Design and hexagonal architecture
+across Bnest, enforced by the `boundary` compiler, and releases the result to production.
 
 Completed records live in [`../done/`](../done/README.md), and additional candidates are queued in
 [`../backlog/`](../backlog/README.md).
 
 ## Directory Map
 
-This stage holds no plan folders. Each one that arrives is listed here for as long as it is being executed.
+- [DDD and Hexagonal Architecture Adoption](ddd-hexagonal-adoption/README.md): the active plan.
