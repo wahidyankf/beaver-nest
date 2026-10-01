@@ -18,6 +18,7 @@ is what a validator checks against.
 7. [Evidence and Quality](plans/007-evidence-and-quality.md)
 8. [Knowledge Capture and Archival](plans/008-knowledge-capture-and-archival.md)
 9. [Portability](plans/009-portability.md)
+10. [Bug-Fix Plan](plans/010-bug-fix-plan.md)
 
 ## What This Convention Does Not Decide
 

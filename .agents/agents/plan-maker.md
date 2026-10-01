@@ -29,7 +29,8 @@ Authors formal plans end to end.
 
 1. Inspect the repositories the plan will touch before asking anything.
 2. Run the pre-write decision gate; author nothing until it closes.
-3. Write the six documents, `delivery.md` last.
+3. Write the six documents, `delivery.md` last; a bug-fix plan is one document per the plans convention's Bug-Fix Plan
+   module.
 4. Run the post-write decision gate on the complete draft.
 5. Submit the draft to the quality gate, and incorporate validated findings itself within the declared repair budget.
 

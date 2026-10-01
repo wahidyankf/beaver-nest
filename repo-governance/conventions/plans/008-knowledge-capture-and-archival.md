@@ -33,7 +33,8 @@ same thing has no way to learn it was already considered.
 
 A learning that describes work rather than knowledge becomes an idea brief, deduplicated against existing ones. It does
 not become an unowned item at the end of the plan, and it does not extend the plan's own scope after execution has
-finished.
+finished. A defect in a consumed tool goes to the tool's owner instead, per
+[Upstream Tool Defects](../../development/upstream-tool-defects.md).
 
 ## Execution Review Precedes Archival
 

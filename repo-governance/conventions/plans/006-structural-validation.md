@@ -10,7 +10,7 @@ frees review to spend its attention on the part no validator can reach.
 | lifecycle spelling  | a plan root is not one of the four canonical names                                |
 | slug form           | a live slug carries a date, or a `done/` slug lacks the `YYYY-MM-DD__` prefix     |
 | single occupancy    | one slug appears under more than one lifecycle root                               |
-| required documents  | any of the six is missing from a backlog or in-progress plan                      |
+| required documents  | any of the six, or a bug-fix plan's `README.md`, is missing from a live plan      |
 | technical shape     | both shapes are present, or neither is                                            |
 | companion names     | an ordinal is not three digits, or the name is not descriptive kebab-case         |
 | companion order     | ordinals are not contiguous from `001`, or duplicate                              |

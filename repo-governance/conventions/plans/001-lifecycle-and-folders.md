@@ -32,8 +32,9 @@ pointer, and no second folder left behind under the old stage. A slug appearing 
 rather than a merge to resolve, because the two copies will disagree and there is no rule for which one wins.
 
 Movement runs forward — idea to backlog to in-progress to done — with one deliberate reverse edge: a plan that turns out
-not to be ready may return from `in-progress/` to `backlog/`. Returning to `ideas/` is not a move; an idea brief and a
-formal plan are different documents, and going back means writing the brief again.
+not to be ready may return from `in-progress/` to `backlog/`. A [Bug-Fix Plan](010-bug-fix-plan.md) starts in
+`in-progress/`. Returning to `ideas/` is not a move; an idea brief and a formal plan are different documents, and going
+back means writing the brief again.
 
 ## Ideas Are Not Formal Plans
 
