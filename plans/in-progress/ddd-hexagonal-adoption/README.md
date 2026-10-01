@@ -56,6 +56,7 @@ Three ports already exist and are kept: `DataRepository.Backend`, `Codex.Session
 ## Scope Boundary
 
 **Included.**
+
 - The governance standard and its propagation: skill, agents, stack standards, enforcement map, `AGENTS.md`, docs.
 - The `boundary` dependency and boundary declarations for every module under `apps/bnest-app/lib`.
 - The restructure of all ten bounded contexts into facade, domain, ports and adapters.
@@ -65,6 +66,7 @@ Three ports already exist and are kept: `DataRepository.Backend`, `Codex.Session
 - The C4 component update, project README updates, a production release, and archival.
 
 **Excluded.**
+
 - Any behaviour change, Gherkin outcome change, GraphQL schema change, SQLite schema migration, or persisted-record
   format change.
 - Event sourcing, CQRS, domain events beyond the existing PubSub broadcasts, and Ecto schemas or changesets for the
@@ -75,16 +77,16 @@ Three ports already exist and are kept: `DataRepository.Backend`, `Codex.Session
 
 ## Locked Decisions
 
-| Decision | Selected contract |
-| --- | --- |
-| Scope | All ten bounded contexts migrated before the production release |
-| Enforcement | `boundary` compiler; violations are warnings, and `typecheck` compiles with `--warnings-as-errors` |
-| Layering depth | Strict context boundaries containing `Domain`, `Ports` and `Adapters` sub-boundaries; the facade is the application layer |
-| Unit-layer doubles | Hand-written in-memory adapters, each proven against the real adapter by one shared contract suite |
-| Pull requests | One per coherent delivery unit, landed serially: plan → standard → tooling → one per context → closure |
-| Naming | `Chat` + `Codex.*` become `CodexChat`; `DataRepository` + `Storage.*` become one `Storage` context; `Deployment` + `AdminConfig` become `Operations`; theme preference becomes its own `Preferences` context; `Release.Migrations.*` keep their names |
-| Behaviour | Structural refactor only; no Gherkin outcome, schema or record-format change; release migration set and checksum unchanged from the base revision |
-| Mocks | No Mox or Hammox; no new test dependency |
+| Decision           | Selected contract                                                                                                                                                                                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scope              | All ten bounded contexts migrated before the production release                                                                                                                                                                                       |
+| Enforcement        | `boundary` compiler; violations are warnings, and `typecheck` compiles with `--warnings-as-errors`                                                                                                                                                    |
+| Layering depth     | Strict context boundaries containing `Domain`, `Ports` and `Adapters` sub-boundaries; the facade is the application layer                                                                                                                             |
+| Unit-layer doubles | Hand-written in-memory adapters, each proven against the real adapter by one shared contract suite                                                                                                                                                    |
+| Pull requests      | One per coherent delivery unit, landed serially: plan → standard → tooling → one per context → closure                                                                                                                                                |
+| Naming             | `Chat` + `Codex.*` become `CodexChat`; `DataRepository` + `Storage.*` become one `Storage` context; `Deployment` + `AdminConfig` become `Operations`; theme preference becomes its own `Preferences` context; `Release.Migrations.*` keep their names |
+| Behaviour          | Structural refactor only; no Gherkin outcome, schema or record-format change; release migration set and checksum unchanged from the base revision                                                                                                     |
+| Mocks              | No Mox or Hammox; no new test dependency                                                                                                                                                                                                              |
 
 The reasoning and rejected alternatives for each are in [`learnings.md`](learnings.md).
 
@@ -107,14 +109,14 @@ Each refactor follows the repository's test-first cycle in this order:
 
 ## Delivery Units
 
-| Unit | Pull request purpose | Lands when |
-| --- | --- | --- |
-| U1 | This plan | Plan quality gate terminal and non-blocking |
-| U2 | Architecture standard and its propagation | `rhino-consumer:test:repo` green |
-| U3 | `boundary` tooling, root boundaries, exception list, layering test, test-support classification | All bnest-app gates green with every context excepted |
+| Unit   | Pull request purpose                                                                                                                                             | Lands when                                                                        |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| U1     | This plan                                                                                                                                                        | Plan quality gate terminal and non-blocking                                       |
+| U2     | Architecture standard and its propagation                                                                                                                        | `rhino-consumer:test:repo` green                                                  |
+| U3     | `boundary` tooling, root boundaries, exception list, layering test, test-support classification                                                                  | All bnest-app gates green with every context excepted                             |
 | U4–U13 | One bounded context each, foundations first: Storage, Identity, Preferences, SifatAllah, CodexChat, FamilyChat, PushNotifications, Scheduler, Backup, Operations | That context's modules have left the legacy root boundary and all gates are green |
-| U14 | Closure: empty exception list, C4, READMEs, e2e proof | Every acceptance criterion except the release ones is met |
-| U15 | Archival, after the production release | Execution check verdict permits it |
+| U14    | Closure: empty exception list, C4, READMEs, e2e proof                                                                                                            | Every acceptance criterion except the release ones is met                         |
+| U15    | Archival, after the production release                                                                                                                           | Execution check verdict permits it                                                |
 
 **Work location:** the worktree `worktrees/ddd-hexa`, reused for every unit. Each unit gets a fresh branch from the
 synced `origin/main` after the previous unit lands. The release is the one step run from the primary checkout.

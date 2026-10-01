@@ -6,12 +6,12 @@ The behaviour suite runs every Gherkin scenario twice, once per layer, through t
 (`test/behaviour/driver.ex`). The step files call only `prepare`, `perform` and `outcome`. Four drivers implement that
 port:
 
-| Driver | Lines | Reaches |
-| --- | --- | --- |
-| `test/unit/support/home_page_driver.ex` (`UnitHomePageDriver`, `MemoryBackend`) | about 2,400 | domain modules directly, the in-memory record backend, and `Scheduler.Store`, `Storage.Migration`, `Backup.Run` |
-| `test/unit/support/family_chat_driver.ex` (`UnitFamilyChatDriver`) | about 2,500 | `FamilyChat.Store`, `Scheduler.Store.*_for_test!`, `SqliteRepo`, `Release.Migrations`, `Backup`, against a real SQLite file under `~/bnest/data/test/family-chat/` |
-| `test/integration/support/home_page_driver.ex` | about 2,300 | `Phoenix.LiveViewTest`, `ConnCase`, a real runtime root |
-| `test/integration/support/family_chat_driver.ex` | about 2,300 | GraphQL over `ConnCase`, a real SQLite file |
+| Driver                                                                          | Lines       | Reaches                                                                                                                                                            |
+| ------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `test/unit/support/home_page_driver.ex` (`UnitHomePageDriver`, `MemoryBackend`) | about 2,400 | domain modules directly, the in-memory record backend, and `Scheduler.Store`, `Storage.Migration`, `Backup.Run`                                                    |
+| `test/unit/support/family_chat_driver.ex` (`UnitFamilyChatDriver`)              | about 2,500 | `FamilyChat.Store`, `Scheduler.Store.*_for_test!`, `SqliteRepo`, `Release.Migrations`, `Backup`, against a real SQLite file under `~/bnest/data/test/family-chat/` |
+| `test/integration/support/home_page_driver.ex`                                  | about 2,300 | `Phoenix.LiveViewTest`, `ConnCase`, a real runtime root                                                                                                            |
+| `test/integration/support/family_chat_driver.ex`                                | about 2,300 | GraphQL over `ConnCase`, a real SQLite file                                                                                                                        |
 
 The unit layer therefore depends on infrastructure. `MemoryBackend` is the one in-memory adapter that already exists,
 and it is the pattern this plan generalizes.
@@ -22,6 +22,7 @@ and it is the pattern this plan generalizes.
 by a diff.
 
 **In-memory adapters**
+
 - Live in `test/unit/support/in_memory/` as `BnestApp.Test.InMemory.<Port>`. Each declares `@behaviour <Port>`.
 - Keep state per test, not per node. Every port callback already takes the adapter's handle as its first argument,
   as `DataRepository.Backend` does today (`read(store, kind, owner)`). The facade gets the handle from the
@@ -31,31 +32,32 @@ by a diff.
   keyword at `start_link/1`, and unit tests start their own unnamed instance.
 - Are selected by `config/test.exs` for the unit layer (`BNEST_TEST_LAYER=unit`) and by the real adapters' defaults for
   the integration layer.
-- Implement the port's *semantics*, not its SQL: ordering, idempotency keys, optimistic revision checks, uniqueness, and
+- Implement the port's _semantics_, not its SQL: ordering, idempotency keys, optimistic revision checks, uniqueness, and
   cursor pagination, exactly as the port's `@callback` documentation states them.
 
 **Contract suites**
+
 - Each stateful port's documented semantics are written once as an ExUnit case template in
   `test/support/contracts/<port>_contract.ex` (`BnestApp.Test.Contracts.<Port>Contract`).
 - It is used twice:
 
-| Use | File | Layer | Adapter |
-| --- | --- | --- | --- |
-| `use BnestApp.Test.Contracts.RoomStoreContract, adapter: BnestApp.Test.InMemory.RoomStore` | `test/unit/bnest_app/family_chat/in_memory_room_store_test.exs` | unit | in-memory |
+| Use                                                                                                    | File                                                                | Layer       | Adapter                             |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- | ----------- | ----------------------------------- |
+| `use BnestApp.Test.Contracts.RoomStoreContract, adapter: BnestApp.Test.InMemory.RoomStore`             | `test/unit/bnest_app/family_chat/in_memory_room_store_test.exs`     | unit        | in-memory                           |
 | `use BnestApp.Test.Contracts.RoomStoreContract, adapter: BnestApp.FamilyChat.Adapters.SqliteRoomStore` | `test/integration/bnest_app/family_chat/sqlite_room_store_test.exs` | integration | SQLite in an isolated test-run root |
 
 The contract template contains no `File`, `System`, `Port` or network access. It sets state up only through the port
 itself, so it passes the unit layer's `BoundaryPolicy` scan when a unit test uses it.
 
-| Port | Contract suite | Real adapter proven |
-| --- | --- | --- |
-| `Storage.Ports.RecordBackend` | `RecordBackendContract` | `FileRecordBackend`, `SqliteRecordBackend` (`MemoryBackend` becomes `BnestApp.Test.InMemory.RecordBackend`) |
-| `FamilyChat.Ports.RoomStore` | `RoomStoreContract` | `SqliteRoomStore` |
-| `Scheduler.Ports.ScheduleStore` | `ScheduleStoreContract` | `SqliteScheduleStore` |
-| `PushNotifications.Ports.SubscriptionStore` | `SubscriptionStoreContract` | `SqliteSubscriptionStore` |
-| `PushNotifications.Ports.DeliveryStore` | `DeliveryStoreContract` | `SqliteDeliveryStore` |
-| `Preferences.Ports.PreferenceStore` | none: a thin mapping over `RecordBackend` | `RecordPreferenceStore` (integration test through `ThemeController`) |
-| `Identity.Ports.IdentityStore` | `IdentityStoreContract` | `RecordIdentityStore` (over the record backend) |
+| Port                                        | Contract suite                            | Real adapter proven                                                                                         |
+| ------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `Storage.Ports.RecordBackend`               | `RecordBackendContract`                   | `FileRecordBackend`, `SqliteRecordBackend` (`MemoryBackend` becomes `BnestApp.Test.InMemory.RecordBackend`) |
+| `FamilyChat.Ports.RoomStore`                | `RoomStoreContract`                       | `SqliteRoomStore`                                                                                           |
+| `Scheduler.Ports.ScheduleStore`             | `ScheduleStoreContract`                   | `SqliteScheduleStore`                                                                                       |
+| `PushNotifications.Ports.SubscriptionStore` | `SubscriptionStoreContract`               | `SqliteSubscriptionStore`                                                                                   |
+| `PushNotifications.Ports.DeliveryStore`     | `DeliveryStoreContract`                   | `SqliteDeliveryStore`                                                                                       |
+| `Preferences.Ports.PreferenceStore`         | none: a thin mapping over `RecordBackend` | `RecordPreferenceStore` (integration test through `ThemeController`)                                        |
+| `Identity.Ports.IdentityStore`              | `IdentityStoreContract`                   | `RecordIdentityStore` (over the record backend)                                                             |
 
 Stateless or effect-only ports get a trivial in-memory or recording adapter and no contract suite. Their real adapters
 keep their integration tests: `CredentialHasher`, `SessionNotifier`, `PushSender`, `CapacityProbe`, `IgnoreCheck`,
@@ -68,9 +70,9 @@ mappings over `RecordBackend`, which already has a contract suite.
 Some unit-layer scenarios today exercise something that is inherently an adapter: release convergence, the SQLite
 backup snapshot, storage migration from flat files to SQLite. After migration:
 
-- the **unit driver** proves the *application decision* through the facade with in-memory adapters, e.g. "convergence
+- the **unit driver** proves the _application decision_ through the facade with in-memory adapters, e.g. "convergence
   is idempotent", "a backup is refused when capacity is insufficient", "migration is refused while the lock is held";
-- the **integration driver** keeps proving the *effect* against a real resource, as it does today.
+- the **integration driver** keeps proving the _effect_ against a real resource, as it does today.
 
 The scenario text is unchanged. Only what each layer's driver observes changes, which is exactly the division
 [test-driven development](../../../../repo-governance/development/test-driven-development.md) asks for. If a

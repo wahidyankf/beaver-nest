@@ -16,6 +16,7 @@ Recorded under [dependency selection](../../../../repo-governance/development/de
 
   The source scan is still kept, for the one thing `boundary` cannot see: calls into the standard library (`File`,
   `System`, `Port`, `:os`), which are not a separate application.
+
 - **Selection evidence (2026-10-01).**
   - hex `boundary` 0.11.0, released 2026-09-17 (0.10.4 shipped 2024-09-25).
   - MIT licence, about 329k recent downloads.
@@ -77,15 +78,16 @@ use Boundary, deps: [BnestApp.SqliteRepo], exports: @legacy_exports
   `BnestApp.SqliteRepo` is its own boundary and infrastructure applications are implicit external boundaries. U3
   therefore declares these temporary `deps`, each marked `# legacy: removed in Uxx`, and the named unit deletes it:
 
-  | Boundary | Temporary deps | Caller today | Removed in |
-  | --- | --- | --- | --- |
-  | `BnestAppWeb` | `BnestApp.SqliteRepo`, `Ecto.Migrator`, `Ecto.Adapters.SQL` | `StorageLive` | U4 (`Ecto.*`) |
-  | `BnestAppWeb` | `BnestApp.SqliteRepo` | `HealthController` | U13 |
-  | `BnestAppCli` | `BnestApp.SqliteRepo`, `Ecto.Migrator` | `bnest.storage.migrate` | U4 |
-  | `BnestAppCli` | `Argon2` | `bnest.identity.benchmark` | U5 |
+  | Boundary      | Temporary deps                                              | Caller today               | Removed in    |
+  | ------------- | ----------------------------------------------------------- | -------------------------- | ------------- |
+  | `BnestAppWeb` | `BnestApp.SqliteRepo`, `Ecto.Migrator`, `Ecto.Adapters.SQL` | `StorageLive`              | U4 (`Ecto.*`) |
+  | `BnestAppWeb` | `BnestApp.SqliteRepo`                                       | `HealthController`         | U13           |
+  | `BnestAppCli` | `BnestApp.SqliteRepo`, `Ecto.Migrator`                      | `bnest.storage.migrate`    | U4            |
+  | `BnestAppCli` | `Argon2`                                                    | `bnest.identity.benchmark` | U5            |
 
   `BnestApp.SqliteRepo` stays in `BnestAppWeb`'s deps until U13, so the `StorageLive` → `SqliteRepo` forbidden-edge
   proof (AC-DH-03 row 1) runs at U14, once no inbound adapter lists it.
+
 - `BnestApp.Release` permanently lists `BnestApp.SqliteRepo`, `Ecto.Migrator` and `Ecto.Adapters.SQL`: release
   migrations are infrastructure entry points that `tools/deployment.mjs` evaluates by name, and scan rule L1
   exempts them.
@@ -98,12 +100,12 @@ source files, which the unit layer's `BoundaryPolicy` forbids at that layer. It 
 clause has a temporary `@legacy_records_callers` allow-list: `UserAuth` and `ThemeController` until U6,
 `SifatAllahLive` until U7, `ChatLive` until U8. Those units remove their entries, and U14 requires the list empty.
 
-| Rule | Applies to | Fails when a module calls |
-| --- | --- | --- |
-| L1: effects only in adapters | every module except `*.Adapters.*`, `BnestApp.SqliteRepo`, `BnestApp.Application`, `BnestApp.Release.*`, `BnestAppWeb.Endpoint`, `BnestAppWeb.Telemetry` | `File`, `Port`, `System.cmd/2,3`, `System.get_env/1,2`, `System.fetch_env/1`, `:os`, `:file`, `Req`, `Ecto.Adapters.SQL`, `Ecto.Migrator`, `Ecto.UUID`, `Exqlite` |
-| L2: domain is pure | `*.Domain.*` | everything in L1, plus `DateTime.utc_now`, `System.monotonic_time`, `Process`, `GenServer`, `Phoenix`, `Logger` |
-| L3: every core module is in a context | `lib/bnest_app/**` | it is unclassified: its first two namespace segments are not a declared context, `SqliteRepo`, `Application`, `Release`, `Mailer` or the root (enforced only once `@legacy_exports` is empty; U14 turns it on) |
-| L4: inbound adapters are thin | `BnestAppWeb.*`, `BnestAppCli` Mix tasks | any `BnestApp.*.Adapters.*`, `BnestApp.*.Ports.*`, `BnestApp.Storage.Records`, or `BnestApp.SqliteRepo` reference (complements `boundary`, which ignores bare alias references unless `check: [aliases: true]`) |
+| Rule                                  | Applies to                                                                                                                                               | Fails when a module calls                                                                                                                                                                                       |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L1: effects only in adapters          | every module except `*.Adapters.*`, `BnestApp.SqliteRepo`, `BnestApp.Application`, `BnestApp.Release.*`, `BnestAppWeb.Endpoint`, `BnestAppWeb.Telemetry` | `File`, `Port`, `System.cmd/2,3`, `System.get_env/1,2`, `System.fetch_env/1`, `:os`, `:file`, `Req`, `Ecto.Adapters.SQL`, `Ecto.Migrator`, `Ecto.UUID`, `Exqlite`                                               |
+| L2: domain is pure                    | `*.Domain.*`                                                                                                                                             | everything in L1, plus `DateTime.utc_now`, `System.monotonic_time`, `Process`, `GenServer`, `Phoenix`, `Logger`                                                                                                 |
+| L3: every core module is in a context | `lib/bnest_app/**`                                                                                                                                       | it is unclassified: its first two namespace segments are not a declared context, `SqliteRepo`, `Application`, `Release`, `Mailer` or the root (enforced only once `@legacy_exports` is empty; U14 turns it on)  |
+| L4: inbound adapters are thin         | `BnestAppWeb.*`, `BnestAppCli` Mix tasks                                                                                                                 | any `BnestApp.*.Adapters.*`, `BnestApp.*.Ports.*`, `BnestApp.Storage.Records`, or `BnestApp.SqliteRepo` reference (complements `boundary`, which ignores bare alias references unless `check: [aliases: true]`) |
 
 While a context is still legacy, its modules match the scan's `@legacy_modules` allow-list. The scan asserts that
 every `@legacy_exports` entry is also in `@legacy_modules`; `@legacy_modules` may hold more, namely legacy modules
