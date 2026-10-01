@@ -435,3 +435,48 @@ Resolution: applied in U8; 002 and 006 stay as authored, and this entry records 
       U14 must close them before the release.
 
 Resolution: applied in U9; 002, 004 and 006 stay as authored, and this entry records the as-built difference.
+
+### E10: U10 PushNotifications as built (2026-10-02)
+
+- **The dispatcher's test seam is gone.** The simulated `attempt(:retryable | :gone)` outcome and its bootstrap fixture
+  left production code; only `attempt/0` remains. Test outcomes now come from the push-sender doubles, and the lease
+  is computed from the same `now` as the attempt.
+- **`Domain.Policy` is pure.** `validate_subscription_input/2` and `allowlisted_hosts/1` take the extra hosts as an
+  argument. They come from a new `PushSender.synthetic_provider_hosts/0` callback, which returns `[]` for
+  `WebPushSender`.
+- **`:push_notifications_test_provider?` became adapter selection.**
+  - `config/test.exs` selects `BnestApp.Test.RecordingPushSender` for the integration layer and the end-to-end
+    servers. It lives under `test/support/`, which those servers compile, so no release ships it (U8's fixture model
+    catalog is the precedent).
+  - The unit layer selects the `BnestApp.Test.InMemory` doubles. Integration failure scenarios swap `push_sender` to
+    the in-memory double through application env, restored `on_exit`, so the integration target stays serial.
+- **The handler atom changed without a data step.** Schedule rows store only the `handler_key` string, so
+  `scheduler/registry.ex` and the `Release.Migrations.FamilyChat` check name `Adapters.RetentionTask` directly.
+- **Store details.**
+  - `SqliteDeliveryStore` interpolates `LIMIT` behind an integer guard; the SQL result is unchanged.
+  - The subscription contract uses 64-hex session digests because of the SQLite `CHECK` constraint.
+  - Elapsed time is simulated with the in-memory delivery store's `put/3` seam at unit and SQL `UPDATE`s on the
+    isolated database at integration.
+- **Two latent order dependencies in unit scheduler Givens surfaced.** Push scenarios no longer start SQLite, so
+  `:schedule_*` and `:convergence_already_ran` could run first on an unprepared database. Both now call
+  `scheduler_database!/0`.
+- **One frontend e2e flake.** In the first focused run, two socket-reconnect scenarios failed on one viewport each
+  ("Reconnect across Caddy promotion" on tablet, "Reconnect on visibility resume" on mobile). The rerun of those
+  titles and a full rerun passed. U14's full suites must watch them.
+- **Gherkin review: 54 rows, 29 PASS, 18 EXEMPT, 7 FAIL, none introduced by U10.** U9's carried F14 (G35–G41) and
+  F10 (O9–O11) now pass at both layers. Of the remaining rows:
+  - **Fixed in U10:**
+    - N1 (O8 at both layers): production could retry past the one-hour ceiling. A failure at 3500 s scheduled the
+      120 s wait, and the claim side never checked age. This contradicts O8 and AC-FC-07. The fix: the policy
+      refuses a wait that would cross 3600 s, and the dispatcher retires an over-age claimed row as `ceiling`
+      without sending. This is the only behaviour change in U10, in its own `fix` commit. The new Thens were
+      proved to fail when either half of the fix is reverted.
+    - N2 (integration O7): the payload Then now reads the recording sender's payloads, not a table with no payload
+      column.
+  - **Moved to U11:** N3, the scheduler handler Thens (O12, O13), joining U9's F11.
+  - **Non-blocking, for U14:**
+    - unit Thens assert `deleted_by` values the store contracts do not pin;
+    - `Adapters.WebPushSender` has no test at any layer;
+    - the G35–G41 e2e exemption reason reads as redundancy rather than a boundary mismatch.
+
+Resolution: applied in U10; 002, 004 and 006 stay as authored, and this entry records the as-built difference.
