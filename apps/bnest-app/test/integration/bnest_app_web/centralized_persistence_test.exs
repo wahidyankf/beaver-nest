@@ -3,7 +3,7 @@ defmodule BnestAppWeb.CentralizedPersistenceTest do
 
   import Phoenix.LiveViewTest
 
-  alias BnestApp.DataRepository
+  alias BnestApp.Storage.Records
 
   test "fresh authenticated chat ignores unconfirmed browser state and persists centrally", %{
     conn: conn,
@@ -71,7 +71,7 @@ defmodule BnestAppWeb.CentralizedPersistenceTest do
   defp await_record(type, user_id, attempts \\ 100)
 
   defp await_record(type, user_id, attempts) when attempts > 0 do
-    case DataRepository.read(type, user_id) do
+    case Records.read(type, user_id) do
       {:ok, record} ->
         record
 

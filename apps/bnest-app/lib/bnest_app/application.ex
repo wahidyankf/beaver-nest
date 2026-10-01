@@ -4,11 +4,19 @@ defmodule BnestApp.Application do
   @moduledoc false
 
   # The composition root: the only core module that names every context and the web layer.
-  use Boundary, top_level?: true, deps: [BnestApp, BnestAppWeb, BnestApp.SqliteRepo]
+  use Boundary,
+    top_level?: true,
+    deps: [
+      BnestApp,
+      BnestAppWeb,
+      BnestApp.SqliteRepo,
+      BnestApp.Storage,
+      BnestApp.Storage.Adapters
+    ]
 
   use Application
 
-  alias BnestApp.DataRepository.Store
+  alias BnestApp.Storage.Adapters.FileRecordBackend
 
   @impl true
   def start(_type, _args) do
@@ -52,7 +60,7 @@ defmodule BnestApp.Application do
 
       root ->
         [
-          {BnestApp.DataRepository, store: Store.new!(root)},
+          {BnestApp.Storage.Records, store: FileRecordBackend.new!(root)},
           BnestApp.Identity,
           {Task.Supervisor, name: BnestApp.Scheduler.Tasks},
           {BnestApp.Scheduler,

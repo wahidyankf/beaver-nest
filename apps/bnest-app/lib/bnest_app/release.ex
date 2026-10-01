@@ -7,6 +7,6 @@ defmodule BnestApp.Release do
 
   use Boundary,
     top_level?: true,
-    deps: [BnestApp, BnestApp.SqliteRepo, Ecto.Migrator],
+    deps: [BnestApp, BnestApp.SqliteRepo, BnestApp.Storage, Ecto.Migrator],
     exports: [Migrations, CaddyConfig]
 end

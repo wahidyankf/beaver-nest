@@ -7,7 +7,7 @@ defmodule BnestApp.AdminConfig.Registry do
       label: "Data storage",
       description: "Authoritative SQLite location and migration status",
       path: "/storage",
-      owner: BnestApp.Storage.Config,
+      owner: BnestApp.Storage,
       editable_fields: []
     },
     %{

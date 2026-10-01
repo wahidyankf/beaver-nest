@@ -1,18 +1,18 @@
 defmodule BnestApp.PersistentSchedulesMigrationTest do
   use ExUnit.Case, async: false
 
-  alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.SqliteRepo
+  alias BnestApp.Storage.Adapters.SqliteCoordinator
   alias BnestApp.TestRuntimeRoot
 
   setup do
     runtime = TestRuntimeRoot.create!("persistent-schedules-migration")
     database_path = Path.join(runtime.sqlite_path, "bnest.sqlite3")
-    :ok = StorageCoordinator.ensure_started!(database_path)
+    :ok = SqliteCoordinator.ensure_started!(database_path)
 
     on_exit(fn ->
-      StorageCoordinator.stop()
+      SqliteCoordinator.stop()
       TestRuntimeRoot.cleanup!(runtime)
     end)
 
@@ -36,7 +36,7 @@ defmodule BnestApp.PersistentSchedulesMigrationTest do
       })
     )
 
-    :ok = StorageCoordinator.stop()
+    :ok = SqliteCoordinator.stop()
 
     expression = """
     :ok = BnestApp.Release.Migrations.PersistentSchedules.apply_and_verify!(~U[2026-08-30 10:00:00Z])
@@ -55,7 +55,7 @@ defmodule BnestApp.PersistentSchedulesMigrationTest do
       )
 
     assert status == 0
-    :ok = StorageCoordinator.ensure_started!(database_path)
+    :ok = SqliteCoordinator.ensure_started!(database_path)
 
     assert %{rows: [[20_260_830_000_000]]} =
              SqliteRepo.query!(

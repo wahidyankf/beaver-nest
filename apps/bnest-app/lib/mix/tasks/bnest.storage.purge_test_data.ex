@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Bnest.Storage.PurgeTestData do
   use Mix.Task
   use Boundary, classify_to: BnestAppCli
 
-  alias BnestApp.Storage.TestDataCleanup
+  alias BnestApp.Storage
 
   @shortdoc "Removes verified legacy test identities from production SQLite"
 
@@ -21,14 +21,7 @@ defmodule Mix.Tasks.Bnest.Storage.PurgeTestData do
       Mix.raise("usage: mix bnest.storage.purge_test_data --generation <generation> [--dry-run]")
     end
 
-    result =
-      if options[:dry_run] do
-        TestDataCleanup.verify(options[:generation])
-      else
-        TestDataCleanup.run(options[:generation])
-      end
-
-    case result do
+    case Storage.purge_test_data(options[:generation], options[:dry_run] == true) do
       {:ok, counts} ->
         action = if options[:dry_run], do: "verified", else: "purged"
 

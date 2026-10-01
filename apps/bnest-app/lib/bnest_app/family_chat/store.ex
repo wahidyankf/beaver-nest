@@ -10,9 +10,8 @@ defmodule BnestApp.FamilyChat.Store do
   prior bootstrap is still in effect.
   """
 
-  alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.SqliteRepo
-  alias BnestApp.Storage.Config, as: StorageConfig
+  alias BnestApp.Storage
 
   @room_seed %{
     id: 1,
@@ -262,7 +261,7 @@ defmodule BnestApp.FamilyChat.Store do
     # `Application.ensure_all_started/1` is itself idempotent, so this is
     # cheap on every subsequent call once the apps are already running.
     ensure_database_apps_started!()
-    :ok = StorageCoordinator.ensure_started!(database_path())
+    :ok = Storage.ensure_started!(database_path())
   end
 
   defp ensure_database_apps_started! do
@@ -279,7 +278,7 @@ defmodule BnestApp.FamilyChat.Store do
 
   defp database_path do
     Application.get_env(:bnest_app, :family_chat_sqlite_path) ||
-      StorageConfig.resolved_database_path()
+      Storage.database_path()
   end
 
   defp insert_deliveries!(message_id, sender_kind, sender_id, now, actor) do

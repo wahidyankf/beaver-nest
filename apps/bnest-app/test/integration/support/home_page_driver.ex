@@ -10,21 +10,23 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.AdminConfig.Registry, as: AdminRegistry
   alias BnestApp.Backup.{Config, Run}
   alias BnestApp.Behaviour.IntegrationFamilyChatDriver
-  alias BnestApp.{Chat, DataRepository}
+  alias BnestApp.Chat
   alias BnestApp.Codex.FixtureModels
-  alias BnestApp.DataRepository.Import
-  alias BnestApp.DataRepository.StorageCoordinator
-  alias BnestApp.DataRepository.Store, as: RecordStore
   alias BnestApp.Identity.{Authorization, Bootstrap, CredentialVerifier, FileStore}
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
   alias BnestApp.SqliteRepo
-  alias BnestApp.Storage.Config, as: StorageConfig
-  alias BnestApp.Storage.Location, as: StorageLocation
-  alias BnestApp.Storage.Migration, as: StorageMigration
-  alias BnestApp.Storage.Relocation, as: StorageRelocation
-  alias BnestApp.Storage.Retirement, as: StorageRetirement
+  alias BnestApp.Storage
+  alias BnestApp.Storage.Adapters.FileConfigStore
+  alias BnestApp.Storage.Adapters.FileRecordBackend
+  alias BnestApp.Storage.Adapters.FlatRetirement
+  alias BnestApp.Storage.Adapters.SqliteCoordinator
+  alias BnestApp.Storage.Adapters.SqliteMigration
+  alias BnestApp.Storage.Adapters.SqliteRelocation
+  alias BnestApp.Storage.Domain.Location, as: StorageLocation
+  alias BnestApp.Storage.Import
+  alias BnestApp.Storage.Records
   alias BnestApp.TestRuntimeRoot
 
   @behaviour_now ~U[2026-08-30 20:00:00Z]
@@ -840,7 +842,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
     Map.merge(context, %{
       setup_open: true,
-      identity_store: RecordStore.new!(runtime.path),
+      identity_store: FileRecordBackend.new!(runtime.path),
       identity_runtime: runtime
     })
   end
@@ -850,7 +852,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def prepare_behaviour(context, :approved_argon2_account, _args) do
     {username, password} = BnestAppWeb.ConnCase.test_credentials()
-    store = DataRepository.store()
+    store = Records.store()
     {:ok, %{"userId" => user_id}} = FileStore.read_username(store, username)
     {:ok, account} = FileStore.read_account(store, user_id)
 
@@ -878,25 +880,25 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, :recognized_browser_sources, _args),
     do:
       Map.merge(context, %{
-        central_store: DataRepository.store(),
+        central_store: Records.store(),
         browser_sources: recognized_browser_sources()
       })
 
   def prepare_behaviour(context, :absent_theme_source, _args),
     do:
       Map.merge(context, %{
-        central_store: DataRepository.store(),
+        central_store: Records.store(),
         browser_sources: [],
         pending_behaviour_state: :absent_theme_source
       })
 
   def prepare_behaviour(context, :invalid_browser_source, _args) do
-    store = DataRepository.store()
+    store = Records.store()
     {:ok, accepted} = Import.browser(store, context.user_id, chat_source())
 
     Map.merge(context, %{
       central_store: store,
-      accepted_before: RecordStore.read(store, :chat, context.user_id),
+      accepted_before: FileRecordBackend.read(store, :chat, context.user_id),
       accepted_import: accepted,
       browser_sources: [
         %{"storageArea" => "localStorage", "storageKey" => "unknown", "payload" => "opaque"}
@@ -905,15 +907,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def prepare_behaviour(context, :interrupted_import, _args) do
-    store = DataRepository.store()
+    store = Records.store()
     {:ok, first} = Import.browser(store, context.user_id, chat_source())
     Map.merge(context, %{central_store: store, first_import_id: first.import_id})
   end
 
   def prepare_behaviour(context, :stale_browser_revision, _args) do
-    store = DataRepository.store()
+    store = Records.store()
     {:ok, _accepted} = Import.browser(store, context.user_id, chat_source())
-    {:ok, newer} = RecordStore.read(store, :chat, context.user_id)
+    {:ok, newer} = FileRecordBackend.read(store, :chat, context.user_id)
 
     stale_payload =
       chat_source()["payload"] |> Jason.decode!() |> Map.put("model", "stale") |> Jason.encode!()
@@ -927,7 +929,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def prepare_behaviour(context, :recognized_and_unrelated_keys, _args) do
     Map.merge(context, %{
-      central_store: DataRepository.store(),
+      central_store: Records.store(),
       browser_sources: [chat_source()],
       browser_keys: %{"bnest.chat.v1" => chat_source()["payload"], "unrelated" => "keep"}
     })
@@ -1064,7 +1066,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     runtime = TestRuntimeRoot.create!("sqlite-storage-schema")
 
     ExUnit.Callbacks.on_exit(fn ->
-      StorageCoordinator.stop()
+      SqliteCoordinator.stop()
       TestRuntimeRoot.cleanup!(runtime)
     end)
 
@@ -1076,7 +1078,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     runtime = TestRuntimeRoot.create!("sqlite-storage-migration")
 
     ExUnit.Callbacks.on_exit(fn ->
-      StorageCoordinator.stop()
+      SqliteCoordinator.stop()
       TestRuntimeRoot.cleanup!(runtime)
     end)
 
@@ -1092,7 +1094,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     context = prepare_behaviour(context, :flat_primary_default_location, [])
     repo = sqlite_repo_started!(context.sqlite_database_path)
     Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
-    StorageMigration.run(context.flat_root, repo)
+    SqliteMigration.run(context.flat_root, repo)
     context
   end
 
@@ -1100,11 +1102,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     context = prepare_behaviour(context, :flat_primary_default_location, [])
 
     {:ok, _config} =
-      StorageConfig.persist_directory(Path.dirname(context.sqlite_database_path))
+      Storage.persist_directory(Path.dirname(context.sqlite_database_path))
 
     repo = sqlite_repo_started!(context.sqlite_database_path)
     Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
-    result = StorageMigration.run(context.flat_root, repo)
+    result = SqliteMigration.run(context.flat_root, repo)
     Map.put(context, :migration_run_result, result)
   end
 
@@ -1124,7 +1126,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     runtime = TestRuntimeRoot.create!("sqlite-storage-lifecycle")
 
     ExUnit.Callbacks.on_exit(fn ->
-      StorageCoordinator.stop()
+      SqliteCoordinator.stop()
       TestRuntimeRoot.cleanup!(runtime)
     end)
 
@@ -1134,12 +1136,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     File.mkdir_p!(flat_root)
     File.write!(Path.join(flat_root, ".gitkeep"), "")
     seed_flat_fixtures!(flat_root)
-    {:ok, _config} = StorageConfig.persist_directory(legacy_directory)
+    {:ok, _config} = Storage.persist_directory(legacy_directory)
     database_path = Path.join(legacy_directory, StorageLocation.filename())
     repo = sqlite_repo_started!(database_path)
     Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
-    StorageMigration.run(flat_root, repo)
-    :ok = StorageMigration.activate!(repo)
+    SqliteMigration.run(flat_root, repo)
+    :ok = SqliteMigration.activate!(repo)
 
     Map.merge(context, %{
       flat_root: flat_root,
@@ -1150,7 +1152,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def prepare_behaviour(context, :routed_storage_generation_proven, _args) do
     context = prepare_behaviour(context, :legacy_authoritative_sqlite, [])
-    {:ok, config} = StorageRelocation.run(context.relocation_destination)
+    {:ok, config} = SqliteRelocation.run(context.relocation_destination)
     Map.put(context, :storage_generation, config["databaseGeneration"])
   end
 
@@ -1315,7 +1317,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def perform_behaviour(context, :start_managed_migration, _args) do
-    Map.put(context, :storage_config, StorageConfig.ensure_default!())
+    Map.put(context, :storage_config, FileConfigStore.ensure_default!())
   end
 
   def perform_behaviour(context, :enter_valid_folder, _args) do
@@ -1376,14 +1378,14 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def perform_behaviour(context, :run_managed_storage_migration, _args) do
     repo = sqlite_repo_started!(context.sqlite_database_path)
     Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
-    Map.put(context, :migration_run_result, StorageMigration.run(context.flat_root, repo))
+    Map.put(context, :migration_run_result, SqliteMigration.run(context.flat_root, repo))
   end
 
   def perform_behaviour(context, :retry_same_migration, _args) do
     repo = sqlite_repo_started!(context.sqlite_database_path)
     before_count = repo.query!("SELECT count(*) FROM bnest_migration_items").rows
 
-    result = StorageMigration.run(context.flat_root, repo)
+    result = SqliteMigration.run(context.flat_root, repo)
 
     after_count = repo.query!("SELECT count(*) FROM bnest_migration_items").rows
 
@@ -1395,8 +1397,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def perform_behaviour(context, :commit_authority_switch, _args) do
     repo = sqlite_repo_started!(context.sqlite_database_path)
-    :ok = StorageMigration.activate!(repo)
-    Map.put(context, :storage_config, elem(StorageConfig.read(), 1))
+    :ok = SqliteMigration.activate!(repo)
+    Map.put(context, :storage_config, elem(FileConfigStore.read(), 1))
   end
 
   def perform_behaviour(context, :retire_flat_identity_sources, _args) do
@@ -1417,7 +1419,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def perform_behaviour(context, :verify_migration, _args) do
     repo = sqlite_repo_started!(context.sqlite_database_path)
     Ecto.Migrator.run(repo, sqlite_migrations_path(), :up, all: true)
-    result = StorageMigration.run(context.flat_root, repo)
+    result = SqliteMigration.run(context.flat_root, repo)
     Map.put(context, :migration_run_result, result)
   end
 
@@ -1430,7 +1432,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       Map.put(
         context,
         :relocation_result,
-        StorageRelocation.run(context.relocation_destination)
+        SqliteRelocation.run(context.relocation_destination)
       )
 
   def perform_behaviour(context, :retire_legacy_storage, _args),
@@ -1438,7 +1440,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       Map.put(
         context,
         :retirement_result,
-        StorageRetirement.run(context.flat_root, context.storage_generation)
+        FlatRetirement.run(context.flat_root, context.storage_generation)
       )
 
   def perform_behaviour(context, :open_admin_settings, _args) do
@@ -1652,13 +1654,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: String.ends_with?(StorageLocation.config_directory(), "/.config/bnest")
 
   def behaviour_outcome?(context, :sqlite_under_production_data, _args),
-    do: context.storage_config["databaseDirectory"] == StorageLocation.default_directory()
+    do: context.storage_config["databaseDirectory"] == Storage.default_directory()
 
   def behaviour_outcome?(context, :no_browser_confirmation, _args),
     do: context.storage_ui_visits == 0
 
   def behaviour_outcome?(context, :folder_normalized_with_fixed_filename, _args) do
-    case StorageConfig.read() do
+    case FileConfigStore.read() do
       {:ok, config} ->
         config["databaseFilename"] == StorageLocation.filename() and
           config["databaseDirectory"] == Path.expand(context.requested_directory)
@@ -1669,7 +1671,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def behaviour_outcome?(_context, :validated_location_stored_privately, _args) do
-    stat = File.stat!(StorageConfig.pointer_path())
+    stat = File.stat!(FileConfigStore.pointer_path())
     Bitwise.band(stat.mode, 0o777) == 0o600
   end
 
@@ -1681,7 +1683,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       |> String.contains?("Enter an absolute server-local folder")
 
   def behaviour_outcome?(_context, :no_storage_created, _args),
-    do: StorageConfig.read() == {:error, :absent}
+    do: FileConfigStore.read() == {:error, :absent}
 
   def behaviour_outcome?(context, outcome, _args)
       when outcome in [:schema_matches_checksum, :no_duplicate_schema_objects] do
@@ -1690,7 +1692,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def behaviour_outcome?(context, :deterministic_inventory, _args) do
-    items = StorageMigration.inventory(context.flat_root)
+    items = SqliteMigration.inventory(context.flat_root)
     items != [] and items == Enum.sort(items)
   end
 
@@ -1698,7 +1700,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: File.exists?(context.sqlite_database_path)
 
   def behaviour_outcome?(context, :all_valid_items_accepted, _args) do
-    inventory_count = context.flat_root |> StorageMigration.inventory() |> length()
+    inventory_count = context.flat_root |> SqliteMigration.inventory() |> length()
 
     context.migration_run_result.blocked == 0 and
       context.migration_run_result.accepted == inventory_count
@@ -1718,7 +1720,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def behaviour_outcome?(context, :normal_reads_match, _args) do
     repo = sqlite_repo_started!(context.sqlite_database_path)
-    StorageMigration.parity_ok?(context.flat_root, repo)
+    SqliteMigration.parity_ok?(context.flat_root, repo)
   end
 
   def behaviour_outcome?(context, :accepted_items_not_duplicated, _args),
@@ -1728,13 +1730,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: context.migration_run_result.accepted > 0
 
   def behaviour_outcome?(_context, :future_reads_use_sqlite, _args),
-    do: StorageConfig.phase() == :sqlite_primary
+    do: FileConfigStore.phase() == :sqlite_primary
 
   def behaviour_outcome?(context, :writes_compatible_with_rollback, _args),
     do: File.exists?(Path.join(context.flat_root, "system/bootstrap.json"))
 
   def behaviour_outcome?(context, :journeys_survive_restart, _args) do
-    StorageCoordinator.stop()
+    SqliteCoordinator.stop()
     _repo = sqlite_repo_started!(context.sqlite_database_path)
     identity = context.migration_identity
 
@@ -1759,7 +1761,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def behaviour_outcome?(_context, :sqlite_not_authoritative, _args),
-    do: StorageConfig.phase() == :flat_primary
+    do: FileConfigStore.phase() == :flat_primary
 
   def behaviour_outcome?(context, :source_and_service_unchanged, _args),
     do: File.exists?(Path.join(context.flat_root, "system/bootstrap.json"))
@@ -1776,7 +1778,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :pointer_relocated_atomically, _args),
     do:
       match?({:ok, _config}, context.relocation_result) and
-        StorageConfig.resolved_database_path() ==
+        FileConfigStore.resolved_database_path() ==
           Path.join(context.relocation_destination, StorageLocation.filename())
 
   def behaviour_outcome?(context, :legacy_sqlite_retained_until_proof, _args) do
@@ -1793,7 +1795,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :config_and_placeholders_preserved, _args) do
     match?(
       {:ok, %{"flatFilesRetiredAt" => retired_at}} when is_binary(retired_at),
-      StorageConfig.read()
+      FileConfigStore.read()
     ) and File.exists?(Path.join(context.flat_root, ".gitkeep"))
   end
 
@@ -1802,7 +1804,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       {:ok, %{import_id: import_id}} ->
         match?(
           {:ok, %{"payloadEncoding" => "utf8-string"}},
-          RecordStore.read(context.central_store, :browser_import, {context.user_id, import_id})
+          FileRecordBackend.read(
+            context.central_store,
+            :browser_import,
+            {context.user_id, import_id}
+          )
         )
 
       _failure ->
@@ -1812,7 +1818,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def behaviour_outcome?(context, :normalized_records_read, _args) do
     Enum.all?([:chat, :sifat_allah, :theme], fn type ->
-      case RecordStore.read(context.central_store, type, context.user_id) do
+      case FileRecordBackend.read(context.central_store, type, context.user_id) do
         {:ok, %{"ownerId" => owner}} -> owner == context.user_id
         _missing -> false
       end
@@ -1822,7 +1828,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :absent_theme_recorded, _args) do
     with [{:ok, %{import_id: import_id}}] <- context.import_results,
          {:ok, %{"recoverySource" => %{"kind" => "browser-absence"}}} <-
-           RecordStore.read(context.central_store, :manifest, import_id) do
+           FileRecordBackend.read(context.central_store, :manifest, import_id) do
       true
     else
       _failure -> false
@@ -1830,13 +1836,16 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def behaviour_outcome?(context, :no_theme_preference, _args),
-    do: RecordStore.read(context.central_store, :theme, context.user_id) == {:error, :missing}
+    do:
+      FileRecordBackend.read(context.central_store, :theme, context.user_id) == {:error, :missing}
 
   def behaviour_outcome?(context, :safe_rejected_import, _args),
     do: match?([{:error, :unsupported_source, _manifest}], context.import_results)
 
   def behaviour_outcome?(context, :source_and_record_unchanged, _args),
-    do: RecordStore.read(context.central_store, :chat, context.user_id) == context.accepted_before
+    do:
+      FileRecordBackend.read(context.central_store, :chat, context.user_id) ==
+        context.accepted_before
 
   def behaviour_outcome?(context, :idempotent_import_identity, _args),
     do: match?({:ok, %{import_id: id}} when id == context.first_import_id, context.retry_result)
@@ -1847,12 +1856,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
         context.envelopes_before_retry and
         match?(
           {:ok, %{"recordType" => "chat"}},
-          RecordStore.read(context.central_store, :chat, context.user_id)
+          FileRecordBackend.read(context.central_store, :chat, context.user_id)
         )
 
   def behaviour_outcome?(context, :newer_record_preserved, _args),
     do:
-      RecordStore.read(context.central_store, :chat, context.user_id) ==
+      FileRecordBackend.read(context.central_store, :chat, context.user_id) ==
         {:ok, context.centralized_before}
 
   def behaviour_outcome?(context, :refresh_required, _args),
@@ -1865,7 +1874,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do:
       match?(
         {:ok, %{"recordType" => "chat"}},
-        RecordStore.read(context.central_store, :chat, context.user_id)
+        FileRecordBackend.read(context.central_store, :chat, context.user_id)
       )
 
   def behaviour_outcome?(context, :transcript_preserved, _args),
@@ -1929,7 +1938,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     case context.backup_execution do
       {:ok, receipt} ->
         File.regular?(Path.join(context.backup_location.directory, receipt["artifactBasename"])) and
-          receipt["sourceGeneration"] == StorageConfig.database_generation()
+          receipt["sourceGeneration"] == FileConfigStore.database_generation()
 
       _failure ->
         false
@@ -2032,13 +2041,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   defp await_push_event(_view, "clear-chat-storage") do
     user_id = Process.get(:bnest_behaviour_user_id)
-    {:ok, %{"state" => %{"messages" => []}}} = BnestApp.DataRepository.read(:chat, user_id)
+    {:ok, %{"state" => %{"messages" => []}}} = Records.read(:chat, user_id)
     %{}
   end
 
   defp await_push_event(_view, "persist-sifat-allah") do
     user_id = Process.get(:bnest_behaviour_user_id)
-    {:ok, record} = BnestApp.DataRepository.read(:sifat_allah, user_id)
+    {:ok, record} = Records.read(:sifat_allah, user_id)
     Map.put(record["progress"], "session", record["session"])
   end
 
@@ -2051,7 +2060,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   defp await_central_record(type, user_id, attempts) do
-    case BnestApp.DataRepository.read(type, user_id) do
+    case Records.read(type, user_id) do
       {:ok, record} ->
         record
 
@@ -2094,7 +2103,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   defp sqlite_migrations_path, do: Application.app_dir(:bnest_app, "priv/sqlite_repo/migrations")
 
   defp sqlite_repo_started!(database_path) do
-    :ok = StorageCoordinator.ensure_started!(database_path)
+    :ok = SqliteCoordinator.ensure_started!(database_path)
     SqliteRepo
   end
 
@@ -2254,7 +2263,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   defp schedule_key(prefix), do: "bdd-#{prefix}-#{unique_suffix()}"
 
   defp ensure_scheduler_storage do
-    :ok = StorageCoordinator.ensure_started!(StorageConfig.resolved_database_path())
+    :ok = SqliteCoordinator.ensure_started!(FileConfigStore.resolved_database_path())
     :ok = PersistentSchedules.apply_and_verify!(@behaviour_now)
   end
 

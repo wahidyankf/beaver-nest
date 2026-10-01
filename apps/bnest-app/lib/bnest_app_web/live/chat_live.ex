@@ -3,7 +3,7 @@ defmodule BnestAppWeb.ChatLive do
 
   alias BnestApp.Chat
   alias BnestApp.Codex.{ModelAccess, ModelCatalog, RepositoryAccess, Settings}
-  alias BnestApp.DataRepository
+  alias BnestApp.Storage.Records
 
   @max_snapshot_bytes 500_000
 
@@ -501,7 +501,7 @@ defmodule BnestAppWeb.ChatLive do
   defp restore_chat(socket, default_model, models) do
     owner_id = socket.assigns.current_user["userId"]
 
-    case DataRepository.read(:chat, owner_id) do
+    case Records.read(:chat, owner_id) do
       {:ok, record} ->
         case Chat.restore(record["state"]) do
           {:ok, restored} -> {normalize_model(restored, default_model, models), record}
@@ -603,7 +603,7 @@ defmodule BnestAppWeb.ChatLive do
 
     expected_revision = if previous, do: previous["revision"], else: nil
 
-    case DataRepository.write(:chat, owner_id, expected_revision, candidate) do
+    case Records.write(:chat, owner_id, expected_revision, candidate) do
       {:ok, record} ->
         assign(socket, :central_record, record)
 

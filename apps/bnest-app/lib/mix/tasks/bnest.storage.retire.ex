@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Bnest.Storage.Retire do
   use Mix.Task
   use Boundary, classify_to: BnestAppCli
 
-  alias BnestApp.Storage.Retirement
+  alias BnestApp.Storage
 
   @shortdoc "Removes verified legacy flat-file and SQLite storage"
 
@@ -26,14 +26,9 @@ defmodule Mix.Tasks.Bnest.Storage.Retire do
       )
     end
 
-    result =
-      if options[:dry_run] do
-        Retirement.verify(Path.expand(options[:root]), options[:generation])
-      else
-        Retirement.run(Path.expand(options[:root]), options[:generation])
-      end
+    flat_root = Path.expand(options[:root])
 
-    case result do
+    case Storage.retire(flat_root, options[:generation], options[:dry_run] == true) do
       {:ok, count} when is_integer(count) ->
         Mix.shell().info("verified legacy storage ready for retirement (files=#{count})")
 

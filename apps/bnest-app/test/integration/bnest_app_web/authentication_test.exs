@@ -3,8 +3,8 @@ defmodule BnestAppWeb.AuthenticationTest do
 
   import Phoenix.LiveViewTest
 
-  alias BnestApp.DataRepository
   alias BnestApp.Identity
+  alias BnestApp.Storage.Records
 
   @tag :unauthenticated
   test "redirects protected navigation before product data is accessed", %{conn: conn} do
@@ -25,7 +25,7 @@ defmodule BnestAppWeb.AuthenticationTest do
     assert conn |> put("/preferences/theme", %{"theme" => "dark"}) |> response(204)
 
     assert {:ok, %{"theme" => "dark", "sourceImportId" => nil}} =
-             DataRepository.read(:theme, identity.user_id)
+             Records.read(:theme, identity.user_id)
 
     home = conn |> recycle() |> get("/") |> html_response(200)
     assert home =~ ~s(data-theme="dark")
@@ -33,7 +33,7 @@ defmodule BnestAppWeb.AuthenticationTest do
     assert home =~ ~s(data-browser-persistence="false")
 
     assert conn |> recycle() |> put("/preferences/theme", %{"theme" => "system"}) |> response(204)
-    assert {:error, :missing} = DataRepository.read(:theme, identity.user_id)
+    assert {:error, :missing} = Records.read(:theme, identity.user_id)
     assert conn |> recycle() |> put("/preferences/theme", %{"theme" => "sepia"}) |> response(422)
   end
 

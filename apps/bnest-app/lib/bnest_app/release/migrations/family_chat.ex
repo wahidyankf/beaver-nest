@@ -6,12 +6,11 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   release console before the application supervises anything).
   """
 
-  alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.FamilyChat.Store
   alias BnestApp.Scheduler
   alias BnestApp.Scheduler.Registry
   alias BnestApp.Scheduler.Store, as: SchedulerStore
-  alias BnestApp.Storage.Lock
+  alias BnestApp.Storage
 
   @retention_schedule_key "family-chat-push-retention-daily"
   @backup_schedule_key "prod-sqlite-backup-daily"
@@ -19,7 +18,7 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   @spec apply_and_verify!() :: :ok
   def apply_and_verify! do
     with_repository(fn ->
-      Lock.with_exclusive(&migrate_and_verify!/0)
+      Storage.with_exclusive_lock(&migrate_and_verify!/0)
     end)
   end
 
@@ -37,14 +36,14 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   @spec converge_after_drain!() :: :ok
   def converge_after_drain! do
     with_repository(fn ->
-      Lock.with_exclusive(&do_converge_after_drain!/0)
+      Storage.with_exclusive_lock(&do_converge_after_drain!/0)
     end)
   end
 
   # Split out from `apply_and_verify!/0` so the `case` below sits at one
   # nesting level of its own, rather than a third level inside that
   # function's two wrapping closures (`with_repository`'s and
-  # `Lock.with_exclusive`'s) -- keeps the migration/verification logic at
+  # `Storage.with_exclusive_lock`'s) -- keeps the migration/verification logic at
   # credo's max nesting depth instead of merely satisfying it by relocation.
   defp migrate_and_verify! do
     {:ok, room} = Store.migrate!()
@@ -99,12 +98,12 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
     ensure_database_apps_started!()
     standalone? = not application_started?(:bnest_app)
     started_here? = is_nil(Process.whereis(BnestApp.SqliteRepo))
-    if started_here?, do: StorageCoordinator.ensure_started!()
+    if started_here?, do: Storage.ensure_started!()
 
     try do
       operation.()
     after
-      if standalone? and started_here?, do: StorageCoordinator.stop()
+      if standalone? and started_here?, do: Storage.stop()
     end
   end
 

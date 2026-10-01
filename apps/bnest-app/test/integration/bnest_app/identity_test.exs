@@ -1,19 +1,19 @@
 defmodule BnestApp.IdentityTest do
   use ExUnit.Case, async: false
 
-  alias BnestApp.DataRepository.Store
   alias BnestApp.Identity
   alias BnestApp.Identity.Authorization
   alias BnestApp.Identity.Bootstrap
   alias BnestApp.Identity.CredentialVerifier
   alias BnestApp.Identity.FileStore
   alias BnestApp.Identity.Session
+  alias BnestApp.Storage.Adapters.FileRecordBackend
   alias BnestApp.TestRuntimeRoot
 
   setup do
     runtime = TestRuntimeRoot.create!("identity-unit")
     on_exit(fn -> if File.exists?(runtime.path), do: TestRuntimeRoot.cleanup!(runtime) end)
-    %{runtime: runtime, store: Store.new!(runtime.path)}
+    %{runtime: runtime, store: FileRecordBackend.new!(runtime.path)}
   end
 
   describe "credentials and usernames" do
@@ -149,7 +149,7 @@ defmodule BnestApp.IdentityTest do
       refute session_bytes =~ token_b
       refute session_bytes =~ "expires"
 
-      restarted_store = Store.new!(runtime.path)
+      restarted_store = FileRecordBackend.new!(runtime.path)
       assert {:ok, ^user} = Session.current_user(restarted_store, token_a)
       assert {:ok, ^user} = Session.current_user(restarted_store, token_b)
 
@@ -167,7 +167,7 @@ defmodule BnestApp.IdentityTest do
     end
 
     test "refuses to initialize over an unreadable bootstrap journal", %{store: store} do
-      assert {:ok, path} = Store.resolve(store, :bootstrap, nil)
+      assert {:ok, path} = FileRecordBackend.resolve(store, :bootstrap, nil)
       File.mkdir_p!(Path.dirname(path))
       File.write!(path, "{not-json")
 

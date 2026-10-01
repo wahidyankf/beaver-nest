@@ -84,7 +84,7 @@ defmodule BnestApp.FamilyChatMigrationTest do
     run_eval!.("""
     Application.ensure_all_started(:ecto_sql)
     Application.ensure_all_started(:exqlite)
-    :ok = BnestApp.DataRepository.StorageCoordinator.ensure_started!()
+    :ok = BnestApp.Storage.Adapters.SqliteCoordinator.ensure_started!()
 
     case BnestApp.SqliteRepo.query!(
            "SELECT daily_at_utc, enabled FROM bnest_schedules WHERE schedule_key = ?",

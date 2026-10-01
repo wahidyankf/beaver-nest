@@ -227,7 +227,7 @@ defmodule BnestApp.Identity.Bootstrap do
     "#{prefix}-#{suffix}"
   end
 
-  defp transaction_key(BnestApp.DataRepository), do: {__MODULE__, :active_repository}
+  defp transaction_key(BnestApp.Storage.Records), do: {__MODULE__, :active_repository}
   defp transaction_key(%{backend: backend, pid: pid}), do: {__MODULE__, backend, pid}
   defp transaction_key(%{root: root}), do: {__MODULE__, root}
 end

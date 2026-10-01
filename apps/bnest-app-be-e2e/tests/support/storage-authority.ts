@@ -99,7 +99,7 @@ function resetSqlite(
     "bnest_recovery_sources",
     "bnest_records",
   ];
-  const expression = `BnestApp.DataRepository.StorageCoordinator.ensure_started!(); Enum.each(${JSON.stringify(tables)}, fn table -> Ecto.Adapters.SQL.query!(BnestApp.SqliteRepo, "DELETE FROM " <> table) end); BnestApp.DataRepository.StorageCoordinator.stop()`;
+  const expression = `BnestApp.Storage.Adapters.SqliteCoordinator.ensure_started!(); Enum.each(${JSON.stringify(tables)}, fn table -> Ecto.Adapters.SQL.query!(BnestApp.SqliteRepo, "DELETE FROM " <> table) end); BnestApp.Storage.Adapters.SqliteCoordinator.stop()`;
   const result = spawnSync("mix", ["run", "-e", expression], {
     cwd: path.join(process.cwd(), "apps/bnest-app"),
     env: {

@@ -4,11 +4,7 @@ defmodule Mix.Tasks.Bnest.Storage.Migrate do
   use Mix.Task
   use Boundary, classify_to: BnestAppCli
 
-  alias BnestApp.DataRepository.StorageCoordinator
-  alias BnestApp.SqliteRepo
-  alias BnestApp.Storage.Config, as: StorageConfig
-  alias BnestApp.Storage.Lock, as: StorageLock
-  alias BnestApp.Storage.Migration, as: StorageMigration
+  alias BnestApp.Storage
 
   @shortdoc "Runs the managed flat-file to SQLite storage migration without a browser visit"
 
@@ -28,70 +24,48 @@ defmodule Mix.Tasks.Bnest.Storage.Migrate do
     flat_root = options[:root] || Application.fetch_env!(:bnest_app, :runtime_root)
     activate? = Keyword.get(options, :activate, false)
 
-    StorageLock.with_exclusive(fn -> migrate_and_maybe_activate!(flat_root, activate?) end)
-  end
+    case Storage.migrate(flat_root, activate?) do
+      {:ok, outcome, report} ->
+        report_run(report)
+        report_verification(report)
+        report_outcome(outcome)
 
-  defp migrate_and_maybe_activate!(flat_root, activate?) do
-    config = StorageConfig.ensure_default!()
-    database_path = Path.join(config["databaseDirectory"], config["databaseFilename"])
+      {:error, :blocked, report} ->
+        report_run(report)
 
-    :ok = StorageCoordinator.ensure_started!(database_path)
-
-    {:ok, _versions, _apps} =
-      Ecto.Migrator.with_repo(
-        SqliteRepo,
-        &Ecto.Migrator.run(&1, migrations_path(), :up, all: true)
-      )
-
-    result = StorageMigration.run(flat_root)
-
-    Mix.shell().info(
-      "migration #{result.migration_id}: accepted=#{result.accepted} blocked=#{result.blocked} " <>
-        "unsupported=#{result.unsupported} state=#{result.state}"
-    )
-
-    cond do
-      result.blocked > 0 or StorageMigration.blocked?() ->
         Mix.raise(
           "migration blocked: resolve the malformed or changed source, then retry with the same identifier"
         )
 
-      not activate? ->
-        Mix.shell().info(
-          "dry run complete; rerun with --activate once ready to switch storage authority"
-        )
-
-      true ->
-        verify_and_activate!(flat_root)
+      {:error, :verification_failed, report} ->
+        report_run(report)
+        report_verification(report)
+        Mix.raise("verification failed; SQLite storage was not activated")
     end
   end
 
-  defp verify_and_activate!(flat_root) do
-    parity? = StorageMigration.parity_ok?(flat_root)
-    integrity? = StorageMigration.integrity_ok?()
-    restore? = restore_rehearsal_ok?()
-
+  defp report_run(%{run: run}) do
     Mix.shell().info(
-      "verification: parity=#{parity?} integrity=#{integrity?} restore=#{restore?}"
+      "migration #{run.migration_id}: accepted=#{run.accepted} blocked=#{run.blocked} " <>
+        "unsupported=#{run.unsupported} state=#{run.state}"
     )
-
-    if parity? and integrity? and restore? do
-      :ok = StorageMigration.activate!()
-      Mix.shell().info("storage authority switched to sqlite_primary")
-    else
-      Mix.raise("verification failed; SQLite storage was not activated")
-    end
   end
 
-  defp restore_rehearsal_ok? do
-    destination =
-      Path.join(
-        System.tmp_dir!(),
-        "bnest-storage-restore-rehearsal-#{System.unique_integer([:positive])}.sqlite3"
-      )
+  defp report_verification(%{verification: nil}), do: :ok
 
-    StorageMigration.restore_rehearsal(destination)
+  defp report_verification(%{verification: verification}) do
+    Mix.shell().info(
+      "verification: parity=#{verification.parity} integrity=#{verification.integrity} " <>
+        "restore=#{verification.restore}"
+    )
   end
 
-  defp migrations_path, do: Application.app_dir(:bnest_app, "priv/sqlite_repo/migrations")
+  defp report_outcome(:dry_run) do
+    Mix.shell().info(
+      "dry run complete; rerun with --activate once ready to switch storage authority"
+    )
+  end
+
+  defp report_outcome(:activated),
+    do: Mix.shell().info("storage authority switched to sqlite_primary")
 end

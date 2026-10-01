@@ -1,8 +1,7 @@
 defmodule BnestAppWeb.DataMigrationLive do
   use BnestAppWeb, :live_view
 
-  alias BnestApp.DataRepository
-  alias BnestApp.DataRepository.Import
+  alias BnestApp.Storage
 
   @source_labels %{
     "bnest.chat.v1" => "Chat conversation",
@@ -27,8 +26,7 @@ defmodule BnestAppWeb.DataMigrationLive do
 
   def handle_event("confirm-imports", _params, socket) do
     owner_id = socket.assigns.current_user["userId"]
-    store = DataRepository.store()
-    outcomes = Enum.map(socket.assigns.sources, &import_source(store, owner_id, &1))
+    outcomes = Enum.map(socket.assigns.sources, &import_source(owner_id, &1))
 
     cleanup =
       outcomes
@@ -114,24 +112,24 @@ defmodule BnestAppWeb.DataMigrationLive do
     |> Enum.uniq_by(&{&1["storageArea"], &1["storageKey"]})
   end
 
-  defp import_source(store, owner_id, %{"storageKey" => "phx:theme", "present" => false}) do
-    case Import.absent_theme(store, owner_id) do
+  defp import_source(owner_id, %{"storageKey" => "phx:theme", "present" => false}) do
+    case Storage.import_absent_theme(owner_id) do
       {:ok, _result} -> outcome("phx:theme", :accepted, nil)
       {:error, _reason} -> outcome("phx:theme", :retryable, nil)
     end
   end
 
-  defp import_source(_store, _owner_id, %{
+  defp import_source(_owner_id, %{
          "storageKey" => key,
          "present" => false
        })
        when key in ["bnest.chat.v1", "bnest.sifat-allah.v1"],
        do: outcome(key, :accepted, nil)
 
-  defp import_source(store, owner_id, source) do
+  defp import_source(owner_id, source) do
     key = source["storageKey"]
 
-    case Import.browser(store, owner_id, source) do
+    case Storage.import_browser(owner_id, source) do
       {:ok, _result} ->
         outcome(key, :accepted, key)
 

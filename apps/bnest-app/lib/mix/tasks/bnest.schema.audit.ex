@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Bnest.Schema.Audit do
   use Mix.Task
   use Boundary, classify_to: BnestAppCli
 
-  alias BnestApp.DataRepository.Schema
+  alias BnestApp.Storage
 
   @shortdoc "Audits only public runtime record structure"
 
@@ -19,7 +19,7 @@ defmodule Mix.Tasks.Bnest.Schema.Audit do
 
     root = options[:root] || Application.fetch_env!(:bnest_app, :runtime_root)
 
-    case Schema.audit_root(root) do
+    case Storage.audit_schema(root) do
       {:ok, results} ->
         Enum.each(results, fn result ->
           Mix.shell().info(

@@ -7,9 +7,8 @@ defmodule BnestAppCli do
   use Boundary,
     deps: [
       BnestApp,
+      BnestApp.Storage,
       # legacy: bnest.identity.benchmark; removed in U5
-      Argon2,
-      # legacy: bnest.storage.migrate; removed in U4
-      Ecto.Migrator
+      Argon2
     ]
 end

@@ -20,12 +20,9 @@ defmodule BnestAppWeb do
   use Boundary,
     deps: [
       BnestApp,
-      # legacy: StorageLive and HealthController; removed in U13
-      BnestApp.SqliteRepo,
-      # legacy: StorageLive; removed in U4
-      Ecto.Adapters.SQL,
-      # legacy: StorageLive; removed in U4
-      Ecto.Migrator
+      BnestApp.Storage,
+      # legacy: HealthController; removed in U13
+      BnestApp.SqliteRepo
     ],
     exports: [Endpoint, Telemetry]
 

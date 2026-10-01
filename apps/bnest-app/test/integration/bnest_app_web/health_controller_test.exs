@@ -3,9 +3,9 @@ defmodule BnestAppWeb.HealthControllerTest do
 
   import Phoenix.ConnTest
 
-  alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.Release.Migrations.PersistentSchedules
-  alias BnestApp.Storage.Config, as: StorageConfig
+  alias BnestApp.Storage.Adapters.FileConfigStore
+  alias BnestApp.Storage.Adapters.SqliteCoordinator
   alias BnestApp.TestRuntimeRoot
 
   test "reports liveness, readiness, and the served release revision", %{conn: conn} do
@@ -32,13 +32,13 @@ defmodule BnestAppWeb.HealthControllerTest do
     System.put_env("BNEST_STORAGE_CONFIG", Path.join(pointer_directory, "storage.json"))
 
     on_exit(fn ->
-      StorageCoordinator.stop()
+      SqliteCoordinator.stop()
       System.delete_env("BNEST_STORAGE_CONFIG")
       TestRuntimeRoot.cleanup!(runtime)
     end)
 
     database_path = Path.join(runtime.sqlite_path, "bnest.sqlite3")
-    :ok = StorageCoordinator.ensure_started!(database_path)
+    :ok = SqliteCoordinator.ensure_started!(database_path)
 
     :ok = PersistentSchedules.apply_and_verify!(DateTime.utc_now())
 
@@ -50,7 +50,7 @@ defmodule BnestAppWeb.HealthControllerTest do
       "migrationId" => "flat-files-v1-to-sqlite-v1"
     }
 
-    File.write!(StorageConfig.pointer_path(), Jason.encode!(pointer))
+    File.write!(FileConfigStore.pointer_path(), Jason.encode!(pointer))
 
     ready = get(build_conn(), "/health/ready")
 

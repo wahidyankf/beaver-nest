@@ -4,8 +4,7 @@ defmodule Mix.Tasks.Bnest.Storage.Relocate do
   use Mix.Task
   use Boundary, classify_to: BnestAppCli
 
-  alias BnestApp.Storage.Location
-  alias BnestApp.Storage.Relocation
+  alias BnestApp.Storage
 
   @shortdoc "Relocates authoritative SQLite data out of the configuration directory"
 
@@ -22,9 +21,9 @@ defmodule Mix.Tasks.Bnest.Storage.Relocate do
       Mix.raise("usage: mix bnest.storage.relocate [--destination <directory>]")
     end
 
-    destination = options[:destination] || Location.default_directory()
+    destination = options[:destination] || Storage.default_directory()
 
-    case Relocation.run(destination) do
+    case Storage.relocate(destination) do
       {:ok, config} ->
         Mix.shell().info("relocation verified generation=#{config["databaseGeneration"]}")
 

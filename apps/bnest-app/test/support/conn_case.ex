@@ -19,10 +19,10 @@ defmodule BnestAppWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
-  alias BnestApp.DataRepository
   alias BnestApp.Identity
   alias BnestApp.Identity.CredentialVerifier
   alias BnestApp.Identity.FileStore
+  alias BnestApp.Storage.Records
 
   using do
     quote do
@@ -89,7 +89,7 @@ defmodule BnestAppWeb.ConnCase do
       user_id: "user-test-bdd-#{suffix}"
     }
 
-    store = DataRepository.store()
+    store = Records.store()
 
     case FileStore.read_account(store, identity.user_id) do
       {:ok, _existing} ->
