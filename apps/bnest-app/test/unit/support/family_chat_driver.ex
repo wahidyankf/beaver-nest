@@ -1871,45 +1871,35 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   defp ensure_family_chat_subscriptions_started! do
     {:ok, _apps} = Application.ensure_all_started(:phoenix_pubsub)
 
-    # All three are named singletons, so they must outlive the scenario that
-    # happened to start them first. Started LINKED to the calling test process,
-    # the endpoint dies with that scenario and the next subscription scenario
-    # races its teardown -- `Endpoint.start_link/0` then fails with
-    # `shutdown: failed to start child: BnestAppWeb.Endpoint.Registry
-    # ** (EXIT) already started`, which is an exit, not a matchable
-    # `{:error, {:already_started, _}}`. Unlinking keeps one bare, in-memory
-    # set alive for the whole suite instead. No HTTP listener is started
-    # either way (see `:holds_subscription`'s comment).
-    start_once!(family_chat_pubsub_server(), fn ->
-      Phoenix.PubSub.Supervisor.start_link(name: family_chat_pubsub_server())
-    end)
-
-    start_once!(BnestAppWeb.Endpoint, fn -> BnestAppWeb.Endpoint.start_link() end)
+    # All three are named singletons owned by the scenario's test supervisor.
+    # Started linked to the test process instead, they died asynchronously
+    # after the scenario, and the next subscription scenario could find them
+    # still registered while their tables were already gone ("unknown
+    # registry: BnestAppWeb.Endpoint.Registry"). ExUnit stops supervised
+    # children before the next test starts, so each scenario gets a fresh,
+    # whole set. No HTTP listener is started either way (see
+    # `:holds_subscription`'s comment).
+    start_once!(family_chat_pubsub_server(), {Phoenix.PubSub, name: family_chat_pubsub_server()})
+    start_once!(BnestAppWeb.Endpoint, BnestAppWeb.Endpoint)
 
     # `Absinthe.Subscription` names its registry `Module.concat([pubsub,
-    # :Registry])` -- i.e. `BnestAppWeb.Endpoint.Registry`, which is the child
-    # the second start was dying on.
-    start_once!(BnestAppWeb.Endpoint.Registry, fn ->
-      Absinthe.Subscription.start_link(pubsub: BnestAppWeb.Endpoint, pool_size: 1)
-    end)
+    # :Registry])` -- i.e. `BnestAppWeb.Endpoint.Registry`.
+    start_once!(
+      BnestAppWeb.Endpoint.Registry,
+      {Absinthe.Subscription, pubsub: BnestAppWeb.Endpoint, pool_size: 1}
+    )
 
     :ok
   end
 
-  # All three are named singletons that survive the scenario which started
-  # them, so a second subscription scenario must not try again. Checked by
-  # registered name BEFORE starting, never by the return value: a second
-  # `start_link` dies while starting its own already-running named child and
-  # takes the linked caller with it, so there is no
-  # `{:error, {:already_started, _}}` left to match on. `GenServer.whereis/1`
-  # keeps this lookup inside the unit layer's process-access boundary.
-  defp start_once!(registered_name, start_fun) do
-    if GenServer.whereis(registered_name) do
-      :ok
-    else
-      {:ok, _pid} = start_fun.()
-      :ok
-    end
+  # Checked by registered name before starting: another driver may already
+  # run one of these under its own test. `GenServer.whereis/1` keeps this
+  # lookup inside the unit layer's process-access boundary.
+  defp start_once!(registered_name, child_spec) do
+    if is_nil(GenServer.whereis(registered_name)),
+      do: ExUnit.Callbacks.start_supervised!(child_spec)
+
+    :ok
   end
 
   defp decode_conn_body(%{resp_body: nil}), do: nil
