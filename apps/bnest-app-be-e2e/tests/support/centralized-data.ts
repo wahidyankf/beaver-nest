@@ -47,6 +47,18 @@ export function userPath(relative: string, username: string): string {
   return path.join(runtimeRoot(), "users", ownerId(username), relative);
 }
 
+type ChatState = {
+  thread_id: string | null;
+  messages: Array<{ content: string }>;
+};
+
+export function readChatState(username: string): ChatState {
+  const record = JSON.parse(
+    readFileSync(userPath("chat/current.json", username), "utf8"),
+  ) as { state: ChatState };
+  return record.state;
+}
+
 export function digestFile(file: string): string {
   return existsSync(file)
     ? createHash("sha256").update(readFileSync(file)).digest("hex")

@@ -8,6 +8,7 @@ import {
   digestFile,
   importCount,
   learningPayload,
+  readChatState,
   seedInterruptedChatImport,
   setSources,
   userPath,
@@ -280,7 +281,18 @@ When("the authenticated user continues the chat", async ({ page }) => {
   await page.getByRole("button", { name: "Send" }).click();
 });
 
+// The alert proves the failed resume was handled before the saved chat is read.
 Then("Bnest preserves the transcript", async ({ page }) => {
-  await expect(page.getByText("Original question")).toBeVisible();
-  await expect(page.getByText("Original answer")).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(
+    "transcript is preserved in a fresh conversation",
+  );
+  const original = ["Original question", "Original answer"];
+  await Promise.all(
+    [...original, "Continue after resume"].map((text) =>
+      expect(page.getByText(text)).toBeVisible(),
+    ),
+  );
+  const chat = readChatState(activeIdentity.child.username);
+  expect(chat.thread_id).not.toBe("unavailable-thread");
+  expect(chat.messages.slice(0, 2).map((m) => m.content)).toEqual(original);
 });
