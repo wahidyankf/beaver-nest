@@ -9,6 +9,7 @@ defmodule BnestApp.Application do
     deps: [
       BnestApp,
       BnestAppWeb,
+      BnestApp.Identity,
       BnestApp.SqliteRepo,
       BnestApp.Storage,
       BnestApp.Storage.Adapters

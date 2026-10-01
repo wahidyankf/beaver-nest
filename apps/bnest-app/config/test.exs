@@ -123,6 +123,13 @@ else
     test_sqlite_root: nil,
     storage_config_path: nil,
     test_runtime_owned: false
+
+  # The unit layer hashes, notifies and revokes through in-memory doubles; the identity
+  # store stays the record-backed one, which unit tests point at in-memory record stores.
+  config :bnest_app, BnestApp.Identity,
+    credential_hasher: BnestApp.Test.InMemory.CredentialHasher,
+    session_notifier: BnestApp.Test.InMemory.SessionNotifier,
+    subscription_revoker: BnestApp.Test.InMemory.SubscriptionRevoker
 end
 
 # Family Chat's SQLite tables are additive to the shared database but must never

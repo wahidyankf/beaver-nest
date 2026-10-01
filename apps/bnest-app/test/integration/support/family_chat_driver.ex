@@ -23,7 +23,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.Backup.Run, as: BackupRun
   alias BnestApp.FamilyChat.Store, as: FamilyChatStore
   alias BnestApp.Identity
-  alias BnestApp.Identity.FileStore
+  alias BnestApp.Identity.Adapters.RecordIdentityStore
+  alias BnestApp.Identity.Ports.IdentityStore
   alias BnestApp.PushNotifications
   alias BnestApp.Release.CaddyConfig
   alias BnestApp.Release.Migrations
@@ -114,7 +115,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   end
 
   def prepare_behaviour(context, :user_without_family_chat_capability, _args) do
-    # `Identity.Authorization.allow?/3` grants `use_family_chat` to any
+    # `Identity.Domain.Authorization.allow?/3` grants `use_family_chat` to any
     # non-empty valid role, and the shared account schema
     # (`data_repository/schema.ex`'s `roles?/1`) forbids ever persisting an
     # account with an empty roles list — so a genuinely capability-denied
@@ -528,14 +529,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def perform_behaviour(context, :query_messages_no_cursor, _args),
     do: query_messages(context, %{})
 
-  # `FileStore.replace_account/2` writes directly to the real account store
+  # `IdentityStore.replace_account/2` writes directly to the real account store
   # used by `establish_identity/2` (`Records`) -- the same account the
   # earlier send authenticated as, now renamed to prove the later requery
   # reflects the account as it stands *now*, not as it stood at commit time.
   def perform_behaviour(context, :rename_sender_account, [new_name]) do
-    {:ok, account} = FileStore.read_account(Records, context.user_id)
+    store = RecordIdentityStore.new(Records)
+    {:ok, account} = IdentityStore.read_account(store, context.user_id)
     updated = Map.put(account, "displayUsername", new_name)
-    {:ok, ^updated} = FileStore.replace_account(Records, updated)
+    {:ok, ^updated} = IdentityStore.replace_account(store, updated)
     context
   end
 
@@ -1885,10 +1887,10 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   # `use_family_chat` is granted to every schema-valid account: the PRD
   # defines a "family member" as any approved child/parent/admin role, and
-  # the shared `Identity.Authorization` account schema (`roles?/1` in
+  # the shared `Identity.Domain.Authorization` account schema (`roles?/1` in
   # `data_repository/schema.ex`) forbids ever persisting an account with an
   # empty roles list. A real capability-denied identity therefore cannot be
-  # constructed through the normal login/session/FileStore pipeline — the
+  # constructed through the normal login/session/identity-store pipeline — the
   # same structural reason the pre-existing `home_page_driver.ex` capability
   # tests call `Authorization.allow?/3` directly rather than round-tripping
   # through a persisted account (see its `:multi_role_user` fixture). This

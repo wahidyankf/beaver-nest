@@ -1,48 +1,66 @@
-defmodule BnestApp.IdentityTest do
+defmodule BnestApp.Identity.IdentityTest do
   use ExUnit.Case, async: false
 
   alias BnestApp.Identity
-  alias BnestApp.Identity.Authorization
+  alias BnestApp.Identity.Adapters.Argon2CredentialHasher
+  alias BnestApp.Identity.Adapters.RecordIdentityStore
   alias BnestApp.Identity.Bootstrap
-  alias BnestApp.Identity.CredentialVerifier
-  alias BnestApp.Identity.FileStore
-  alias BnestApp.Identity.Session
+  alias BnestApp.Identity.Domain.Authorization
+  alias BnestApp.Identity.Domain.Credentials
+  alias BnestApp.Identity.Domain.Session
+  alias BnestApp.Identity.Ports.IdentityStore
+  alias BnestApp.Identity.Sessions
   alias BnestApp.Storage.Adapters.FileRecordBackend
   alias BnestApp.TestRuntimeRoot
 
   setup do
     runtime = TestRuntimeRoot.create!("identity-unit")
     on_exit(fn -> if File.exists?(runtime.path), do: TestRuntimeRoot.cleanup!(runtime) end)
-    %{runtime: runtime, store: FileRecordBackend.new!(runtime.path)}
+    records = FileRecordBackend.new!(runtime.path)
+    %{runtime: runtime, records: records, store: RecordIdentityStore.new(records)}
   end
 
   describe "credentials and usernames" do
     test "normalizes ASCII case and enforces username boundaries" do
-      assert {:ok, {"Family.Admin", "family.admin"}} =
-               FileStore.normalize_username("  Family.Admin  ")
+      assert {:ok, {"Test-User.Admin", "test-user.admin"}} =
+               Credentials.normalize_username("  Test-User.Admin  ")
 
-      assert {:ok, {"a", "a"}} = FileStore.normalize_username("a")
-      assert {:ok, {username, username}} = FileStore.normalize_username(String.duplicate("a", 32))
-      assert {:error, :invalid_username} = FileStore.normalize_username("")
-      assert {:error, :invalid_username} = FileStore.normalize_username(String.duplicate("a", 33))
-      assert {:error, :invalid_username} = FileStore.normalize_username("-family")
-      assert {:error, :invalid_username} = FileStore.normalize_username("family/")
-      assert {:error, :invalid_username} = FileStore.normalize_username("fámily")
+      assert {:ok, {"a", "a"}} = Credentials.normalize_username("a")
+
+      assert {:ok, {username, username}} =
+               Credentials.normalize_username(String.duplicate("a", 32))
+
+      assert {:error, :invalid_username} = Credentials.normalize_username("")
+
+      assert {:error, :invalid_username} =
+               Credentials.normalize_username(String.duplicate("a", 33))
+
+      assert {:error, :invalid_username} = Credentials.normalize_username("-family")
+      assert {:error, :invalid_username} = Credentials.normalize_username("family/")
+      assert {:error, :invalid_username} = Credentials.normalize_username("fámily")
     end
 
     test "accepts every valid Unicode password with a letter, number, and punctuation without trimming or truncating" do
-      assert CredentialVerifier.valid_password?("x_1")
-      assert CredentialVerifier.valid_password?(String.duplicate("é", 129) <> "_1")
-      refute CredentialVerifier.valid_password?("")
-      refute CredentialVerifier.valid_password?("password_")
-      refute CredentialVerifier.valid_password?("password1")
-      refute CredentialVerifier.valid_password?("123_")
+      assert Credentials.valid_password?("x_1")
+      assert Credentials.valid_password?(String.duplicate("é", 129) <> "_1")
+      refute Credentials.valid_password?("")
+      refute Credentials.valid_password?("password_")
+      refute Credentials.valid_password?("password1")
+      refute Credentials.valid_password?("123_")
 
       password = "  Synthetic_password 1  "
-      assert {:ok, verifier} = CredentialVerifier.hash(password)
+      assert {:ok, verifier} = Argon2CredentialHasher.hash(password)
       assert String.starts_with?(verifier, "$argon2id$")
-      assert CredentialVerifier.verify(password, verifier)
-      refute CredentialVerifier.verify(String.trim(password), verifier)
+      assert Argon2CredentialHasher.verify(password, verifier)
+      refute Argon2CredentialHasher.verify(String.trim(password), verifier)
+      refute Argon2CredentialHasher.verify(password, "not-a-verifier")
+      refute Argon2CredentialHasher.verify(nil, verifier)
+      refute Argon2CredentialHasher.no_user_verify()
+    end
+
+    test "benchmarks the configured Argon2id work factor" do
+      assert {:ok, elapsed_ms} = Argon2CredentialHasher.benchmark()
+      assert is_integer(elapsed_ms) and elapsed_ms >= 0
     end
   end
 
@@ -54,13 +72,15 @@ defmodule BnestApp.IdentityTest do
       password = "Synthetic Password 123!"
 
       assert {:ok, [account]} =
-               Bootstrap.create(store, [account("FamilyAdmin", password, ~w(parents admin))])
+               Bootstrap.create(store, [
+                 account("Test-User-Family-Admin", password, ~w(parents admin))
+               ])
 
       assert account["roles"] == ~w(admin parents)
       assert :closed = Bootstrap.status(store)
 
       assert {:error, :closed} =
-               Bootstrap.create(store, [account("AnotherAdmin", password, ["admin"])])
+               Bootstrap.create(store, [account("test-user-another-admin", password, ["admin"])])
 
       all_bytes =
         runtime.path
@@ -78,17 +98,21 @@ defmodule BnestApp.IdentityTest do
     } do
       assert {:error, :duplicate_username} =
                Bootstrap.create(store, [
-                 account("FamilyAdmin", password(), ["admin"]),
-                 account("familyadmin", password(), ["children"])
+                 account("Test-User-Family-Admin", password(), ["admin"]),
+                 account("test-user-family-admin", password(), ["children"])
                ])
 
       assert :open = Bootstrap.status(store)
 
       assert {:error, :invalid_roles} =
-               Bootstrap.create(store, [account("FamilyAdmin", password(), ["owner"])])
+               Bootstrap.create(store, [
+                 account("test-user-family-admin", password(), ["owner"])
+               ])
 
       assert {:error, :admin_required} =
-               Bootstrap.create(store, [account("FamilyChild", password(), ["children"])])
+               Bootstrap.create(store, [
+                 account("test-user-family-child", password(), ["children"])
+               ])
     end
 
     test "rolls back only matching files from a pending crash", %{store: store} do
@@ -96,14 +120,17 @@ defmodule BnestApp.IdentityTest do
       index = valid_index(account)
       journal = pending_journal(account, index)
 
-      assert {:ok, ^journal} = FileStore.put_bootstrap(store, journal)
-      assert {:ok, ^account} = FileStore.put_account(store, account)
-      assert {:ok, ^index} = FileStore.put_username(store, index)
+      assert {:ok, ^journal} = IdentityStore.put_bootstrap(store, journal)
+      assert {:ok, ^account} = IdentityStore.put_account(store, account)
+      assert {:ok, ^index} = IdentityStore.put_username(store, index)
 
       assert :ok = Bootstrap.recover(store)
-      assert {:error, :missing} = FileStore.read_bootstrap(store)
-      assert {:error, :missing} = FileStore.read_account(store, account["userId"])
-      assert {:error, :missing} = FileStore.read_username(store, index["normalizedUsername"])
+      assert {:error, :missing} = IdentityStore.read_bootstrap(store)
+      assert {:error, :missing} = IdentityStore.read_account(store, account["userId"])
+
+      assert {:error, :missing} =
+               IdentityStore.read_username(store, index["normalizedUsername"])
+
       assert :open = Bootstrap.status(store)
     end
 
@@ -111,21 +138,21 @@ defmodule BnestApp.IdentityTest do
       account = valid_account()
       index = valid_index(account)
       journal = pending_journal(account, index)
-      changed = %{account | "displayUsername" => "ChangedAdmin"}
+      changed = %{account | "displayUsername" => "Test-User-Changed"}
 
-      assert {:ok, ^journal} = FileStore.put_bootstrap(store, journal)
-      assert {:ok, ^changed} = FileStore.put_account(store, changed)
+      assert {:ok, ^journal} = IdentityStore.put_bootstrap(store, journal)
+      assert {:ok, ^changed} = IdentityStore.put_account(store, changed)
       assert {:error, :changed} = Bootstrap.recover(store)
-      assert {:ok, ^changed} = FileStore.read_account(store, account["userId"])
-      assert {:ok, ^journal} = FileStore.read_bootstrap(store)
+      assert {:ok, ^changed} = IdentityStore.read_account(store, account["userId"])
+      assert {:ok, ^journal} = IdentityStore.read_bootstrap(store)
     end
 
     test "a closed marker never reopens when an account disappears", %{store: store} do
       assert {:ok, [public]} =
-               Bootstrap.create(store, [account("FamilyAdmin", password(), ["admin"])])
+               Bootstrap.create(store, [account("test-user-family-admin", password(), ["admin"])])
 
-      {:ok, stored} = FileStore.read_account(store, public["userId"])
-      assert :ok = FileStore.remove_account(store, stored)
+      {:ok, stored} = IdentityStore.read_account(store, public["userId"])
+      assert :ok = IdentityStore.remove_account(store, stored)
       assert :closed = Bootstrap.status(store)
       assert :ok = Bootstrap.recover(store)
       assert :closed = Bootstrap.status(store)
@@ -138,8 +165,8 @@ defmodule BnestApp.IdentityTest do
       store: store
     } do
       user = bootstrap_user(store)
-      assert {:ok, token_a} = Session.create(store, user["userId"])
-      assert {:ok, token_b} = Session.create(store, user["userId"])
+      assert {:ok, token_a} = Sessions.create(store, user["userId"])
+      assert {:ok, token_b} = Sessions.create(store, user["userId"])
       refute token_a == token_b
 
       digest_a = Session.digest(token_a)
@@ -149,14 +176,14 @@ defmodule BnestApp.IdentityTest do
       refute session_bytes =~ token_b
       refute session_bytes =~ "expires"
 
-      restarted_store = FileRecordBackend.new!(runtime.path)
-      assert {:ok, ^user} = Session.current_user(restarted_store, token_a)
-      assert {:ok, ^user} = Session.current_user(restarted_store, token_b)
+      restarted_store = RecordIdentityStore.new(FileRecordBackend.new!(runtime.path))
+      assert {:ok, ^user} = Sessions.current_user(restarted_store, token_a)
+      assert {:ok, ^user} = Sessions.current_user(restarted_store, token_b)
 
-      assert {:ok, ^digest_a} = Session.revoke(restarted_store, token_a)
-      assert {:error, :unauthenticated} = Session.current_user(restarted_store, token_a)
-      assert {:ok, ^user} = Session.current_user(restarted_store, token_b)
-      assert {:error, :unauthenticated} = Session.current_user(restarted_store, "invalid")
+      assert {:ok, ^digest_a} = Sessions.revoke(restarted_store, token_a)
+      assert {:error, :unauthenticated} = Sessions.current_user(restarted_store, token_a)
+      assert {:ok, ^user} = Sessions.current_user(restarted_store, token_b)
+      assert {:error, :unauthenticated} = Sessions.current_user(restarted_store, "invalid")
     end
   end
 
@@ -166,13 +193,30 @@ defmodule BnestApp.IdentityTest do
       assert :ok = Identity.logout("not-a-live-session-token")
     end
 
-    test "refuses to initialize over an unreadable bootstrap journal", %{store: store} do
-      assert {:ok, path} = FileRecordBackend.resolve(store, :bootstrap, nil)
+    test "refuses to initialize over an unreadable bootstrap journal", %{
+      records: records,
+      store: store
+    } do
+      assert {:ok, path} = FileRecordBackend.resolve(records, :bootstrap, nil)
       File.mkdir_p!(Path.dirname(path))
       File.write!(path, "{not-json")
 
       assert {:stop, {:identity_recovery_failed, :invalid_state}} =
                Identity.init(store: store)
+    end
+
+    # The endpoint notifier must broadcast exactly what the endpoint broadcast before it
+    # became an adapter: a `"disconnect"` with an empty payload on `"identity:<digest>"`.
+    test "logout disconnects the session's live connections through the endpoint" do
+      {username, password} = BnestAppWeb.ConnCase.test_credentials()
+      {:ok, token} = Identity.login(username, password)
+      topic = "identity:" <> Identity.session_digest(token)
+      :ok = Phoenix.PubSub.subscribe(BnestApp.PubSub, topic)
+
+      assert :ok = Identity.logout(token)
+
+      assert_receive %Phoenix.Socket.Broadcast{topic: ^topic, event: "disconnect", payload: %{}}
+      assert {:error, :unauthenticated} = Identity.current_user(token)
     end
   end
 
@@ -202,7 +246,9 @@ defmodule BnestApp.IdentityTest do
   end
 
   defp bootstrap_user(store) do
-    {:ok, [user]} = Bootstrap.create(store, [account("FamilyAdmin", password(), ["admin"])])
+    {:ok, [user]} =
+      Bootstrap.create(store, [account("test-user-family-admin", password(), ["admin"])])
+
     user
   end
 
@@ -212,14 +258,14 @@ defmodule BnestApp.IdentityTest do
   defp password, do: "Synthetic Password 123!"
 
   defp valid_account do
-    {:ok, verifier} = CredentialVerifier.hash(password())
+    {:ok, verifier} = Argon2CredentialHasher.hash(password())
 
     %{
       "schemaVersion" => 1,
       "recordType" => "account",
-      "userId" => "user-pending-test",
-      "displayUsername" => "PendingAdmin",
-      "normalizedUsername" => "pendingadmin",
+      "userId" => "user-test-user-pending",
+      "displayUsername" => "Test-User-Pending-Admin",
+      "normalizedUsername" => "test-user-pending-admin",
       "roles" => ["admin"],
       "passwordVerifier" => verifier,
       "createdAt" => timestamp()

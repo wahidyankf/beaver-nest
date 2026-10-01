@@ -145,8 +145,15 @@ defmodule BnestApp.Test.InMemory.StoragePorts.ConfigStore do
         &Map.merge(&1, %{"databaseDirectory" => directory, "databaseGeneration" => generation})
       )
 
+  # Like the production adapter, retirement drops the legacy directory and stamps the time.
   @impl true
-  def mark_legacy_retired!, do: update!(&Map.delete(&1, "legacyDatabaseDirectory"))
+  def mark_legacy_retired!,
+    do:
+      update!(
+        &(&1
+          |> Map.delete("legacyDatabaseDirectory")
+          |> Map.put("flatFilesRetiredAt", BnestApp.Storage.now()))
+      )
 
   @impl true
   def restore!(config) do
@@ -231,8 +238,9 @@ defmodule BnestApp.Test.InMemory.StoragePorts.Maintenance do
 
   @behaviour BnestApp.Storage.Ports.Maintenance
 
+  alias BnestApp.Test.InMemory.RecordBackend
   alias BnestApp.Test.InMemory.StoragePorts
-  alias BnestApp.Test.InMemory.StoragePorts.ConfigStore
+  alias BnestApp.Test.InMemory.StoragePorts.{ConfigStore, DatabaseLifecycle}
 
   @clean_run %{
     migration_id: "flat-files-v1-to-sqlite-v1",
@@ -271,8 +279,34 @@ defmodule BnestApp.Test.InMemory.StoragePorts.Maintenance do
   def relocate(directory), do: answer({:relocate, directory}, :relocate, {:ok, %{}})
 
   @impl true
-  def retire(flat_root, generation, dry_run?),
-    do: answer({:retire, flat_root, generation, dry_run?}, :retire, {:ok, 0})
+  def retire(flat_root, generation, true),
+    do: answer({:retire, flat_root, generation, true}, :retire, {:ok, 0})
+
+  # Like the production adapter, a committed retirement needs SQLite to be primary at the
+  # given generation and every flat record to have an identical SQLite copy; it then removes
+  # the flat records from the flat store `put(:flat_store, store)` registered.
+  def retire(flat_root, generation, false) do
+    StoragePorts.record({:retire, flat_root, generation, false})
+    flat = StoragePorts.get(:flat_store, nil)
+
+    cond do
+      ConfigStore.phase() != :sqlite_primary ->
+        {:error, :not_sqlite_primary}
+
+      ConfigStore.database_generation() != generation ->
+        {:error, :generation_mismatch}
+
+      is_nil(flat) or not Enum.all?(stored_records(flat), &copied_to_sqlite?/1) ->
+        {:error, :unverified_flat_source}
+
+      true ->
+        Enum.each(stored_records(flat), fn {{type, identity}, record} ->
+          :ok = RecordBackend.remove_exact(flat, type, identity, record)
+        end)
+
+        {:ok, ConfigStore.mark_legacy_retired!()}
+    end
+  end
 
   @impl true
   def purge_test_data(generation, dry_run?),
@@ -284,5 +318,13 @@ defmodule BnestApp.Test.InMemory.StoragePorts.Maintenance do
   defp answer(call, key, default) do
     StoragePorts.record(call)
     StoragePorts.get(key, default)
+  end
+
+  defp stored_records(store),
+    do: for({{_type, _identity}, _record} = entry <- RecordBackend.snapshot(store), do: entry)
+
+  defp copied_to_sqlite?({{type, identity}, record}) do
+    {_backend, sqlite} = DatabaseLifecycle.record_backend()
+    RecordBackend.read(sqlite, type, identity) == {:ok, record}
   end
 end
