@@ -10,6 +10,7 @@ defmodule BnestApp.Application do
       BnestApp,
       BnestAppWeb,
       BnestApp.Identity,
+      BnestApp.Preferences,
       BnestApp.SqliteRepo,
       BnestApp.Storage,
       BnestApp.Storage.Adapters

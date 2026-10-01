@@ -4,6 +4,7 @@ defmodule BnestAppWeb.AuthenticationTest do
   import Phoenix.LiveViewTest
 
   alias BnestApp.Identity
+  alias BnestApp.Preferences
   alias BnestApp.Storage.Records
 
   @tag :unauthenticated
@@ -22,10 +23,29 @@ defmodule BnestAppWeb.AuthenticationTest do
     conn: conn,
     test_identity: identity
   } do
-    assert conn |> put("/preferences/theme", %{"theme" => "dark"}) |> response(204)
+    owner_id = identity.user_id
+    assert conn |> put("/preferences/theme", %{"theme" => "light"}) |> response(204)
 
-    assert {:ok, %{"theme" => "dark", "sourceImportId" => nil}} =
-             Records.read(:theme, identity.user_id)
+    assert {:ok,
+            %{
+              "schemaVersion" => 1,
+              "recordType" => "theme-preference",
+              "ownerId" => ^owner_id,
+              "theme" => "light",
+              "sourceImportId" => nil,
+              "updatedAt" => updated_at,
+              "revision" => 0
+            }} = Records.read(:theme, owner_id)
+
+    assert updated_at =~ ~r/\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/
+    assert Preferences.theme(owner_id) == "light"
+
+    assert conn |> recycle() |> put("/preferences/theme", %{"theme" => "dark"}) |> response(204)
+
+    assert {:ok, %{"theme" => "dark", "sourceImportId" => nil, "revision" => 1}} =
+             Records.read(:theme, owner_id)
+
+    assert Preferences.theme(owner_id) == "dark"
 
     home = conn |> recycle() |> get("/") |> html_response(200)
     assert home =~ ~s(data-theme="dark")
@@ -33,7 +53,8 @@ defmodule BnestAppWeb.AuthenticationTest do
     assert home =~ ~s(data-browser-persistence="false")
 
     assert conn |> recycle() |> put("/preferences/theme", %{"theme" => "system"}) |> response(204)
-    assert {:error, :missing} = Records.read(:theme, identity.user_id)
+    assert {:error, :missing} = Records.read(:theme, owner_id)
+    assert Preferences.theme(owner_id) == "system"
     assert conn |> recycle() |> put("/preferences/theme", %{"theme" => "sepia"}) |> response(422)
   end
 

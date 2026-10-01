@@ -126,6 +126,9 @@ else
 
   # The unit layer hashes, notifies and revokes through in-memory doubles; the identity
   # store stays the record-backed one, which unit tests point at in-memory record stores.
+  # The preference store stays record-backed for the same reason: the unit drivers read
+  # theme preferences through the record repository they start over in-memory record
+  # stores, and the Preferences unit tests pass their own in-memory store as `store:`.
   config :bnest_app, BnestApp.Identity,
     credential_hasher: BnestApp.Test.InMemory.CredentialHasher,
     session_notifier: BnestApp.Test.InMemory.SessionNotifier,

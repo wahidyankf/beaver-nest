@@ -135,4 +135,8 @@ config :bnest_app, BnestApp.Identity,
   session_notifier: BnestApp.Identity.Adapters.EndpointSessionNotifier,
   subscription_revoker: BnestApp.Identity.Adapters.PushSubscriptionRevoker
 
+# One adapter per Preferences port.
+config :bnest_app, BnestApp.Preferences,
+  preference_store: BnestApp.Preferences.Adapters.RecordPreferenceStore
+
 import_config "#{config_env()}.exs"

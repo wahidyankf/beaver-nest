@@ -39,11 +39,7 @@ defmodule BnestApp.HexagonalLayeringTest do
     # U8: the chat transcript moves behind CodexChat.
     BnestAppWeb.ChatLive,
     # U7: learning progress moves behind SifatAllah.
-    BnestAppWeb.SifatAllahLive,
-    # U6: the theme preference moves behind Preferences.
-    BnestAppWeb.ThemeController,
-    # U6: the theme read moves behind Preferences.
-    BnestAppWeb.UserAuth
+    BnestAppWeb.SifatAllahLive
   ]
 
   test "effects stay in adapters, domains stay pure, and inbound adapters call only facades" do
