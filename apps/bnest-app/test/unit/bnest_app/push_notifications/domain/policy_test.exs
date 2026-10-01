@@ -133,5 +133,23 @@ defmodule BnestApp.PushNotifications.Domain.PolicyTest do
       later = DateTime.add(@now, 3_601, :second)
       assert Policy.next_wait_seconds(2, @now, later) == nil
     end
+
+    test "refuses a wait that would carry the next attempt past the one-hour ceiling" do
+      # 3_481 s elapsed + the second wait (120 s) = 3_601 s: one second past the ceiling.
+      assert Policy.next_wait_seconds(2, @now, DateTime.add(@now, 3_481, :second)) == nil
+    end
+
+    test "allows a wait whose next attempt lands exactly on the one-hour ceiling" do
+      # 3_480 s elapsed + the second wait (120 s) = 3_600 s.
+      assert Policy.next_wait_seconds(2, @now, DateTime.add(@now, 3_480, :second)) == 120
+    end
+  end
+
+  describe "past_ceiling?/2" do
+    test "is false up to and including one hour after the first attempt, true after it" do
+      refute Policy.past_ceiling?(@now, @now)
+      refute Policy.past_ceiling?(@now, DateTime.add(@now, 3_600, :second))
+      assert Policy.past_ceiling?(@now, DateTime.add(@now, 3_601, :second))
+    end
   end
 end

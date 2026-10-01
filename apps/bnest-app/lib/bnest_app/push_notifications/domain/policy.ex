@@ -107,17 +107,27 @@ defmodule BnestApp.PushNotifications.Domain.Policy do
   @max_attempts 5
   @ceiling_seconds 3_600
 
-  @doc "Seconds to wait before the next attempt, given the attempt number that just failed (1-indexed). `nil` once the five-attempt/one-hour ceiling is reached."
+  @doc """
+  Seconds to wait before the next attempt, given the attempt number that just failed
+  (1-indexed). `nil` once the five-attempt limit is reached, or when the next attempt
+  would fall past the one-hour ceiling: the ceiling is absolute, so no attempt runs more
+  than an hour after `first_attempt_at`.
+  """
   @spec next_wait_seconds(pos_integer(), DateTime.t(), DateTime.t()) :: pos_integer() | nil
   def next_wait_seconds(attempt, first_attempt_at, now) do
-    elapsed = DateTime.diff(now, first_attempt_at, :second)
+    wait = Enum.at(@backoff_seconds, attempt - 1, List.last(@backoff_seconds))
 
     cond do
       attempt >= @max_attempts -> nil
-      elapsed >= @ceiling_seconds -> nil
-      true -> Enum.at(@backoff_seconds, attempt - 1, List.last(@backoff_seconds))
+      past_ceiling?(first_attempt_at, DateTime.add(now, wait, :second)) -> nil
+      true -> wait
     end
   end
+
+  @doc "Whether an attempt at `now` would run more than the one-hour ceiling after `first_attempt_at`."
+  @spec past_ceiling?(DateTime.t(), DateTime.t()) :: boolean()
+  def past_ceiling?(first_attempt_at, now),
+    do: DateTime.diff(now, first_attempt_at, :second) > @ceiling_seconds
 
   defp fetch_binary(input, key) do
     case Map.get(input, key) do

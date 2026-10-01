@@ -201,6 +201,22 @@ defmodule BnestApp.PushNotificationsTest do
 
       refute_received {:push_notification_sent, _endpoint, _payload}
     end
+
+    test "retires a claimed delivery already past the one-hour ceiling, sending nothing",
+         %{store: store} do
+      owed = owe_delivery!(store, "accepted-late")
+      created_at = DateTime.add(DateTime.utc_now(), -3_601, :second)
+      deliveries = InMemoryDeliveryStore.over(store)
+      :ok = InMemoryDeliveryStore.put(deliveries, owed.delivery_id, created_at: created_at)
+
+      assert {:ok, %{state: "terminal", next_attempt_at: nil, attempt: 1}} = Dispatcher.attempt()
+
+      assert %{state: "terminal", failure_category: "ceiling", next_attempt_at: nil} =
+               delivery(store, owed.delivery_id)
+
+      assert sent() == []
+      assert Dispatcher.attempt() == {:error, :no_due_delivery}
+    end
   end
 
   describe "retain_deliveries/1" do

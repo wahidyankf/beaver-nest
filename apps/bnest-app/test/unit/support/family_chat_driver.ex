@@ -1663,11 +1663,15 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       length(push_requests(subscription.endpoint)) == 1
   end
 
-  # No sixth attempt: the fifth failed attempt retires the delivery.
+  # No sixth attempt (`fifth_attempt_retires?/2`), and none past the hour: on further
+  # deliveries owed to the same subscription, neither a wait that would cross the hour
+  # (`ceiling_retires_crossing_wait?/1`) nor a sweep that comes after it
+  # (`ceiling_retires_late_attempt?/1`) sends a request past it.
   def behaviour_outcome?(context, :no_attempt_past_ceiling, _args) do
     %{family_chat_push_delivery_id: id, family_chat_push_subscription: subscription} = context
 
-    fifth_attempt_retires?(id, subscription)
+    fifth_attempt_retires?(id, subscription) and ceiling_retires_crossing_wait?(subscription) and
+      ceiling_retires_late_attempt?(subscription)
   end
 
   # The provider answered Gone: the delivery is retired as such and the subscription it
@@ -2371,6 +2375,57 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       length(push_requests(subscription.endpoint)) == 4 and
       Dispatcher.attempt() == {:error, :no_due_delivery} and
       push_requests(subscription.endpoint) == [] and stored_delivery(id).attempt_count == 5
+  end
+
+  # A fresh delivery fails once, then is aged so its second attempt still runs within the
+  # hour of its creation but the wait after it would carry a third past the hour: that
+  # second attempt is sent and retires it as `ceiling`, leaving nothing due.
+  defp ceiling_retires_crossing_wait?(subscription) do
+    id = commit_owed_delivery!(subscription)
+    {:ok, %{state: "retryable"}} = Dispatcher.attempt()
+    _first_request = push_requests(subscription.endpoint)
+    failed = stored_delivery(id)
+    crossing_wait = PushPolicy.next_wait_seconds(2, failed.updated_at, failed.updated_at)
+    :ok = age_push_delivery!(id, 3_600 - div(crossing_wait, 2))
+    {:ok, _transition} = Dispatcher.attempt()
+    retired = stored_delivery(id)
+
+    match?(
+      %{state: "terminal", failure_category: "ceiling", next_attempt_at: nil, attempt_count: 2},
+      retired
+    ) and DateTime.diff(retired.updated_at, retired.created_at) <= 3_600 and
+      length(push_requests(subscription.endpoint)) == 1 and
+      Dispatcher.attempt() == {:error, :no_due_delivery} and
+      push_requests(subscription.endpoint) == []
+  end
+
+  # A fresh delivery fails once, then its due attempt is claimed only after the hour of its
+  # creation has passed (a late sweep): that claim retires it as `ceiling` unsent, leaving
+  # nothing due.
+  defp ceiling_retires_late_attempt?(subscription) do
+    id = commit_owed_delivery!(subscription)
+    {:ok, %{state: "retryable"}} = Dispatcher.attempt()
+    _first_request = push_requests(subscription.endpoint)
+    failed = stored_delivery(id)
+    :ok = age_push_delivery!(id, 3_600 + DateTime.diff(failed.next_attempt_at, failed.updated_at))
+    {:ok, _transition} = Dispatcher.attempt()
+
+    match?(
+      %{state: "terminal", failure_category: "ceiling", next_attempt_at: nil},
+      stored_delivery(id)
+    ) and push_requests(subscription.endpoint) == [] and
+      Dispatcher.attempt() == {:error, :no_due_delivery} and
+      push_requests(subscription.endpoint) == []
+  end
+
+  # The delivery was created `age_seconds` before its last attempt, and is due now.
+  defp age_push_delivery!(delivery_id, age_seconds) do
+    row = stored_delivery(delivery_id)
+
+    InMemoryDeliveryStore.put(delivery_store(), delivery_id,
+      created_at: DateTime.add(row.updated_at, -age_seconds, :second),
+      next_attempt_at: row.updated_at
+    )
   end
 
   defp upsert_subscription(context, input) do

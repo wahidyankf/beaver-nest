@@ -8,7 +8,8 @@ defmodule BnestApp.PushNotifications.Dispatcher do
   Each `attempt/0` claims the due delivery with the lowest ID through the configured
   `Ports.DeliveryStore`, sends its message to its subscription through the configured
   `Ports.PushSender`, and records the transition `Domain.Policy` classifies the outcome
-  as, disabling a subscription the provider reports gone.
+  as, disabling a subscription the provider reports gone. A delivery claimed past the
+  one-hour ceiling is retired as `"ceiling"` without being sent.
   """
 
   alias BnestApp.FamilyChat
@@ -31,9 +32,17 @@ defmodule BnestApp.PushNotifications.Dispatcher do
         {:error, :no_due_delivery}
 
       delivery ->
-        outcome = outcome(deliveries, subscriptions, delivery)
+        outcome = outcome(deliveries, subscriptions, delivery, now)
         transition(deliveries, subscriptions, delivery, outcome, now)
     end
+  end
+
+  # The one-hour ceiling is absolute: a delivery claimed past it (a late sweep) is retired
+  # without being sent.
+  defp outcome(deliveries, subscriptions, delivery, now) do
+    if Policy.past_ceiling?(delivery.created_at, now),
+      do: :ceiling,
+      else: outcome(deliveries, subscriptions, delivery)
   end
 
   defp outcome(deliveries, subscriptions, delivery) do
@@ -70,11 +79,15 @@ defmodule BnestApp.PushNotifications.Dispatcher do
     {:ok, %{state: "terminal", next_attempt_at: nil, attempt: delivery.attempt}}
   end
 
-  defp transition(deliveries, _subscriptions, delivery, :retryable, now) do
+  defp transition(deliveries, _subscriptions, delivery, :ceiling, now) do
+    :ok = DeliveryStore.finalize!(deliveries, delivery.id, "terminal", "ceiling", nil, now)
+    {:ok, %{state: "terminal", next_attempt_at: nil, attempt: delivery.attempt}}
+  end
+
+  defp transition(deliveries, subscriptions, delivery, :retryable, now) do
     case Policy.next_wait_seconds(delivery.attempt, delivery.created_at, now) do
       nil ->
-        :ok = DeliveryStore.finalize!(deliveries, delivery.id, "terminal", "ceiling", nil, now)
-        {:ok, %{state: "terminal", next_attempt_at: nil, attempt: delivery.attempt}}
+        transition(deliveries, subscriptions, delivery, :ceiling, now)
 
       wait_seconds ->
         next_attempt_at = DateTime.add(now, wait_seconds, :second)
