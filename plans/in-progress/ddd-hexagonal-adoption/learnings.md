@@ -325,3 +325,61 @@ Resolution: applied in U6; 002 and 006 stay as authored, and this entry records 
   against the time it read first. It passes with the failing seed `964352`.
 
 Resolution: applied in U7; 002 and 006 stay as authored, and this entry records the as-built difference.
+
+### E8: U8 CodexChat as built (2026-10-02)
+
+- **The facade carries what `ChatLive` orchestrated.** Its functions are:
+  - `models/0`, `model_access/1` and `reasoning_effort/1,2`;
+  - `open_conversation/3`, `replace_conversation/4` and `recover_pending_turn/1`;
+  - `send_prompt/4`, `close/2` and `apply_event/2`;
+  - `load_transcript/2` and `save_transcript/4`.
+    Every user-facing string moved with it byte for byte, except the repository-write fallback, which stays in `ChatLive`.
+- **No clear-persistence function.** Clearing saves `Transcript.new/2` through `save_transcript`; a separate function
+  would only delegate, as with E7's `record_answer`.
+- **A new `Domain.TranscriptRecord`**, which 006 does not list, builds the unchanged `chat` record and its expected
+  revision. `TranscriptRecordKind.record_type/0` reuses it.
+- **`ChatLive` keeps no `session_adapter` assign.** Opening, sending and closing go through the configured
+  `agent_session`. One failure-only path changes as a result:
+  - Before, after the mount-time connect failed, clearing, changing the model or effort, or toggling repository write
+    crashed the LiveView on `nil.close/1`.
+  - Now the configured adapter's `close(nil)` returns `:ok` and the LiveView carries on.
+  - No scenario observes either outcome. This is recorded as the one behaviour difference in U8.
+- **`:codex_models` became the `model_discovery:` adapter.** `BnestApp.Test.CodexFixtureModels` implements
+  `discover/1`. `ModelCatalog` lost the special case where passing `:models_runner` forced CLI discovery; its tests pass
+  `discovery: CodexCliModelDiscovery` instead. The production path is the same.
+- **The fixtures are renamed** `BnestApp.Test.CodexFixtureModels` and `BnestApp.Test.CodexFixtureSession`. Four
+  coverage-ignore entries in `mix.exs` fell away, because existing patterns now cover them.
+- **The facade exports `Domain` and `Ports`**, because `ChatLive` renders with `Transcript`, `Settings` and
+  `RepositoryAccess`. `ModelCatalog` is not exported; `Deployment.readiness` names it by atom.
+- **Unit configuration keeps the record-backed transcript store**, as in U5–U7. The new unit doubles
+  `InMemory.TranscriptStore` and `InMemory.AgentSession` serve the facade test. There is no contract suite, as 004
+  says.
+- **`@legacy_records_callers` is empty.** Removing the mechanism is left to U14.
+- **A timing-dependent unit failure in `UnitFamilyChatDriver` was fixed here.** Its subscription singletons (PubSub,
+  endpoint, `Absinthe.Subscription`) were linked to the scenario's test process. They died asynchronously after it, so
+  a later scenario could find them still registered while their tables were gone. They now start with
+  `start_supervised!`, which ExUnit stops before the next test. Both failing seeds and three random seeds pass.
+- **Stale reference.** `specs/apps/bnest/app-be/architecture.md` still names `BnestApp.Chat`; the U14 C4 update owns
+  it.
+- **The Gherkin review found 21 FAIL rows (102 rows: 77 PASS, 4 EXEMPT).** The U8 diff introduced none.
+  - 11 unit chat rows fell under U8's driver item. The unit driver rendered `ChatLive` from assigns it built itself,
+    with copied model lists, an effort fallback, a write flag, a driver-held saved chat and literal failure texts. It
+    now mounts the real `ChatLive` over in-memory `Records` with the fixture `AgentSession`. It sends real events and
+    Codex messages through controls the page renders enabled, and reloads by remounting after checking
+    `load_transcript/2` against the stored record.
+  - The failed-thread resume at unit and integration read a driver-built map. It now seeds a transcript on an
+    unavailable thread through `save_transcript/4` and observes production's fresh-conversation alert, and the
+    transcript is kept on a new thread. The alert is read from the page rendered at mount, because production reports
+    the fresh conversation when it opens and clears the error on the next send.
+  - The unit install row reads the rendered root layout's manifest and icon links.
+  - The integration `reconnect/1` served only exempt scenarios and produced the very error they assert. It now raises,
+    naming the exemption.
+  - The integration interrupted import stages a real interruption with a backend wrapper that fails the first `:chat`
+    write.
+  - The BE e2e resume Then waits for the alert and reads the stored thread id.
+  - The SQLite journey checks also require `load_transcript/2` to agree with the stored record.
+  - Each new Then was proved to fail against a temporary product mutation.
+- **For U14:** `config/test.exs` selects the real Codex port session whenever `BNEST_CODEX_RUNNER` has any value, so
+  the selection does not fail closed. This predates U8.
+
+Resolution: applied in U8; 002 and 006 stay as authored, and this entry records the as-built difference.
