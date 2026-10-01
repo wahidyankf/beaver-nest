@@ -296,28 +296,49 @@ Every context phase runs the same nine items, in this order, with the context's 
   - 2026-10-01: 101 rows, 10 pre-existing FAIL rows fixed in the drivers; after the fixes, `APP_QUICK`,
     `BEHAVIOUR` and `INTEGRATION` exit 0 (389 unit tests at 99.33%, 343 integration tests). Recorded in
     [learnings](learnings.md) E4.
-- [ ] [AI] Commit, PR, leak review, gate, merge `refactor(bnest-app): adopt hexagonal layers in storage`.
-- [ ] [AI] **Checkpoint 4 (blocking):** U4 merged, and the Storage entries are gone from both legacy lists.
+- [x] [AI] Commit, PR, leak review, gate, merge `refactor(bnest-app): adopt hexagonal layers in storage`.
+  - 2026-10-01: PR #119 merged as `724c2a93f`. It has four commits: the refactor, the driver fixes, and two
+    plan records. The branch was rebased onto `40e081506` server-side before the merge, and each head got its own
+    leak review.
+- [x] [AI] **Checkpoint 4 (blocking):** U4 merged, and the Storage entries are gone from both legacy lists.
+  - 2026-10-01: `@legacy_exports` holds 19 entries and `@legacy_modules` names no Storage module.
 
 ### Phase 5: U5, Identity
 
-- [ ] [AI] RED (boundary): `lib/bnest_app/identity/{domain,ports,adapters}.ex`, with the facade strict. `TYPECHECK` and
+- [x] [AI] RED (boundary): `lib/bnest_app/identity/{domain,ports,adapters}.ex`, with the facade strict. `TYPECHECK` and
       the scan fail.
-- [ ] [AI] RED (contract): `test/support/contracts/identity_store_contract.ex`, used by
+  - 2026-10-01: base `724c2a93f`. Captured before any caller moved: `TYPECHECK` exit 1 with 18 forbidden-reference
+    warnings over 4 edges (`Identity` → `Argon2`, `Identity` → `PushNotifications`, `BnestAppWeb` → `Identity`,
+    `BnestAppWeb` → `Identity.Session`). The scan passed with 0 failures: no Identity module broke L1, L2 or L4, so
+    the RED rests on `TYPECHECK`.
+- [x] [AI] RED (contract): `test/support/contracts/identity_store_contract.ex`, used by
       `test/unit/bnest_app/identity/in_memory_identity_store_test.exs`. `FOCUS_UNIT` fails. AC-DH-07.
-- [ ] [AI] GREEN (contract): `test/unit/support/in_memory/identity_store.ex`, `credential_hasher.ex` and
+  - 2026-10-01: the nine contract tests fail with `UndefinedFunctionError` on `InMemory.IdentityStore.start/0`.
+- [x] [AI] GREEN (contract): `test/unit/support/in_memory/identity_store.ex`, `credential_hasher.ex` and
       `session_notifier.ex` until `FOCUS_UNIT` passes.
-- [ ] [AI] GREEN (layers): the U5 moves, including `Ports.SubscriptionRevoker` and `Adapters.PushSubscriptionRevoker`
+  - 2026-10-01: the nine contract tests pass.
+- [x] [AI] GREEN (layers): the U5 moves, including `Ports.SubscriptionRevoker` and `Adapters.PushSubscriptionRevoker`
       (whose `Adapters` boundary lists `BnestApp` until U10). `UserAuth` (account), `SessionController`, `BootstrapController`,
       `LoginLive` and `bnest.identity.benchmark` call only `BnestApp.Identity`. `TYPECHECK` and the scan pass. AC-DH-05.
-- [ ] [AI] GREEN (contract, real adapter):
+  - 2026-10-01: `TYPECHECK` exit 0 with no boundary warning and no dialyzer error; the scan passes.
+    `@legacy_exports` drops to 17 entries, and `BnestAppCli` no longer lists `Argon2`. As-built differences are in
+    [learnings](learnings.md) E5.
+- [x] [AI] GREEN (contract, real adapter):
       `FOCUS_INT test/integration/bnest_app/identity/record_identity_store_test.exs` passes against `RecordIdentityStore`.
       AC-DH-07.
-- [ ] [AI] GREEN (drivers): `test/unit/support/home_page_driver.ex` and `test/unit/support/family_chat_driver.ex` use the facade with in-memory adapters, and the
+  - 2026-10-01: pass against `RecordIdentityStore` over a `FileRecordBackend` in an isolated root.
+- [x] [AI] GREEN (drivers): `test/unit/support/home_page_driver.ex` and `test/unit/support/family_chat_driver.ex` use the facade with in-memory adapters, and the
       `test/behaviour/verify.exs` allow-list loses its U5 lines. `UNIT` and `BEHAVIOUR` pass. AC-DH-06.
-- [ ] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
-- [ ] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty. AC-DH-08.
-- [ ] [AI] Gherkin implementation review, recorded.
+  - 2026-10-01: the unit layer selects the in-memory hasher, notifier and revoker in `config/test.exs`, and the
+    allow-list had no U5 lines. `UNIT` 409 tests, 0 failures, 99.42%; `BEHAVIOUR` exit 0.
+- [x] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
+  - 2026-10-01: both exit 0.
+- [x] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty. AC-DH-08.
+  - 2026-10-01: 354 tests, 0 failures, 17 excluded; `FEATURE_DIFF 724c2a93f` empty. Focused e2e for
+    authentication and SQLite storage: `BE_E2E` 17 passed, `FE_E2E` 12 passed.
+- [x] [AI] Gherkin implementation review, recorded.
+  - 2026-10-01: 23 rows, 2 pre-existing FAIL rows and three literal outcomes on the logout proof fixed in the drivers;
+    after the fixes, `APP_QUICK`, `BEHAVIOUR` and `INTEGRATION` exit 0. Recorded in [learnings](learnings.md) E5.
 - [ ] [AI] Commit, PR, leak review, gate, merge.
 - [ ] [AI] **Checkpoint 5 (blocking):** U5 merged.
 
@@ -500,6 +521,9 @@ Every context phase runs the same nine items, in this order, with the context's 
 - [ ] [AI] `BE_E2E` and `FE_E2E` for the affected states (storage, identity, family chat, push, scheduler/backup admin,
       Codex chat, SifatAllah) at the exact local origin, with LiveView awaited and isolated `test-user-` identities. Proof:
       pass counts. AC-DH-08.
+- [ ] [AI] Full-corpus Gherkin implementation review of every scenario and adapter, so the pre-existing placeholder
+      patterns the unit reviews left out of scope (see [learnings](learnings.md) E4 and E5) are found and fixed. Proof:
+      the report's row count matches the corpus, with zero FAIL rows after fixes. AC-DH-08.
 - [ ] [AI] Manual `curl`, per [API testing](../../../repo-governance/development/api-testing.md), against a local test
       server on a leased development port with an isolated run root, once with a `test-user-` session and once
       unauthenticated where authentication applies: `GET /health/live`, `GET /health/ready`, `POST /login`,
