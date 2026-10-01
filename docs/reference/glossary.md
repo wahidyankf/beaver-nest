@@ -14,7 +14,7 @@ Terms used across Beaver Nest's rules, plans, projects, and commit messages. Eac
 - **Exit 75** — a retryable deferral or shed outcome for one invocation. Do not duplicate it; wait for its stated condition, then retry that same command.
 - **Exit 73** — storage-blocked. Free space before retrying; waiting cannot fix it.
 - **Exit 78** — invalid configuration or a strict-profile mismatch. Replan rather than retry.
-- **`rtk`** — the token-optimized CLI proxy that repository agents prefix onto shell commands. See [RTK instructions](../../RTK.md).
+- **`rtk`** — the token-optimized CLI proxy that repository agents prefix onto shell commands.
 - **RHINO** — the repository's documentation validator, an external tool pinned by `rhino.lock` and resolved by the `./rhino` bootstrap. `rhino-consumer:test:repo` checks the declared policy in `repo-config.yml`, directory maps, Markdown links, word budgets, Mermaid accessibility, and coding-harness parity.
 
 ## Testing

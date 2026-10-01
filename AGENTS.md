@@ -43,7 +43,7 @@
 
 ## Development
 
-- Prefix shell commands with `rtk` under [the shared RTK instructions](RTK.md), preserving repository-mandated command forms and safety rules.
+- Prefix shell commands with `rtk`, preserving repository-mandated command forms and safety rules.
 - Use [English](repo-governance/conventions/language.md).
 - Follow [minimal sufficiency](repo-governance/principles/minimal-sufficiency.md): understand, reuse, minimize, verify; follow [dependency selection](repo-governance/development/dependency-selection.md).
 - Comment non-obvious shell safety invariants and lifecycle boundaries; avoid line-by-line narration.
