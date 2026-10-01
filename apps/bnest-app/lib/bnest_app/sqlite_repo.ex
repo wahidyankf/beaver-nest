@@ -11,7 +11,7 @@ defmodule BnestApp.SqliteRepo do
   # rather than independently recomputing the path from
   # `BnestApp.Storage`. The two can legitimately diverge (Family
   # Chat's isolated test database is one example -- see
-  # `BnestApp.FamilyChat.Store.database_path/0`'s own comment), and a
+  # `BnestApp.FamilyChat.Adapters.SqliteRoomStore`'s `database_path/1`), and a
   # backup/capacity guard that reads the wrong file silently measures or
   # snapshots the wrong database.
   @spec main_database_path() :: String.t()

@@ -1,15 +1,23 @@
-defmodule BnestApp.FamilyChat.Store do
+defmodule BnestApp.FamilyChat.Adapters.SqliteRoomStore do
   @moduledoc """
-  Raw-SQL persistence for Family Chat, mirroring `BnestApp.Scheduler.Store`'s
-  convention (no Ecto schema/changeset layer, direct `SqliteRepo.query!/2` calls,
-  audit columns written explicitly). Every public function first self-heals the
-  shared `SqliteRepo` connection onto Family Chat's database path: the SQLite
-  connection is a single named process shared with other SQLite-backed features
-  (scheduler, backup), and other tests/processes may stop or repoint it between
-  calls, so each operation re-asserts its own connection rather than assuming a
-  prior bootstrap is still in effect.
+  The `BnestApp.FamilyChat.Ports.RoomStore` over raw SQL, mirroring
+  `BnestApp.Scheduler.Store`'s convention (no Ecto schema/changeset layer, direct
+  `SqliteRepo.query!/2` calls, audit columns written explicitly). Every room and message
+  callback first self-heals the shared `SqliteRepo` connection onto Family Chat's database
+  path: the SQLite connection is a single named process shared with other SQLite-backed
+  features (scheduler, backup), and other tests/processes may stop or repoint it between
+  calls, so each operation re-asserts its own connection rather than assuming a prior
+  bootstrap is still in effect.
+
+  `new/0` resolves that path at each call from `:family_chat_sqlite_path`, else Storage's
+  database path. `new/1` fixes it, so a test can work on an isolated database.
   """
 
+  @behaviour BnestApp.FamilyChat.Ports.RoomStore
+
+  # legacy: the release convergence goes through Scheduler until U11 gives it a facade.
+  alias BnestApp.Scheduler
+  alias BnestApp.Scheduler.Store, as: SchedulerStore
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
 
@@ -22,23 +30,22 @@ defmodule BnestApp.FamilyChat.Store do
   }
 
   @retention_schedule_key "family-chat-push-retention-daily"
+  @backup_schedule_key "prod-sqlite-backup-daily"
 
   @room_columns ~w(id slug name room_kind member_posting_enabled created_at created_by updated_at updated_by)a
   @message_columns ~w(id room_id sender_kind sender_id sender_display_name idempotency_key body committed_at reply_to_message_id)a
 
-  @doc "The canonical v1 room slug, exposed so callers never hard-code it as authorization."
-  @spec canonical_room_slug() :: String.t()
-  def canonical_room_slug, do: @room_seed.slug
+  @impl true
+  def new, do: %{adapter: __MODULE__, database_path: nil}
 
-  @spec migrate!() :: {:ok, map()}
-  def migrate! do
-    ensure_ready!()
-    {:ok, get_active_room_by_slug(@room_seed.slug)}
-  end
+  @doc "A handle over the SQLite database at `database_path:`."
+  @spec new(keyword()) :: map()
+  def new(options),
+    do: %{adapter: __MODULE__, database_path: Keyword.fetch!(options, :database_path)}
 
-  @spec list_active_rooms() :: [map()]
-  def list_active_rooms do
-    ensure_ready!()
+  @impl true
+  def list_active_rooms(store) do
+    ensure_ready!(store)
 
     %{rows: rows} =
       SqliteRepo.query!(
@@ -48,15 +55,15 @@ defmodule BnestApp.FamilyChat.Store do
     Enum.map(rows, &room_row/1)
   end
 
-  @spec get_active_room_by_slug(String.t()) :: map() | nil
-  def get_active_room_by_slug(slug) when is_binary(slug) do
-    ensure_ready!()
+  @impl true
+  def get_active_room(store, slug) when is_binary(slug) do
+    ensure_ready!(store)
     fetch_active_room_by_slug(slug)
   end
 
-  # Raw read, no `ensure_ready!()` — `seed_room!/0` (called FROM
-  # `ensure_ready!/0`, to verify its own seed) must never call back through
-  # the public `get_active_room_by_slug/1`, or every bootstrap recurses into
+  # Raw read, no `ensure_ready!/1` — `seed_room!/0` (called FROM
+  # `ensure_ready!/1`, to verify its own seed) must never call back through
+  # the public `get_active_room/2`, or every bootstrap recurses into
   # another bootstrap forever (a real bug this fixed: unbounded
   # ensure_ready! -> seed_room! -> get_active_room_by_slug -> ensure_ready!
   # recursion, observed as an endless "Migrations already up" log flood).
@@ -70,11 +77,10 @@ defmodule BnestApp.FamilyChat.Store do
     end
   end
 
-  @spec list_messages(pos_integer(), pos_integer() | nil, pos_integer() | nil, pos_integer()) ::
-          %{nodes: [map()], has_older: boolean(), has_newer: boolean()}
-  def list_messages(room_id, before_id, after_id, limit)
+  @impl true
+  def list_messages(store, room_id, before_id, after_id, limit)
       when is_integer(room_id) and is_integer(limit) do
-    ensure_ready!()
+    ensure_ready!(store)
 
     cond do
       after_id != nil -> after_page(room_id, after_id, limit)
@@ -83,9 +89,9 @@ defmodule BnestApp.FamilyChat.Store do
     end
   end
 
-  @spec find_message(pos_integer(), String.t(), String.t(), String.t()) :: map() | nil
-  def find_message(room_id, sender_kind, sender_id, idempotency_key) do
-    ensure_ready!()
+  @impl true
+  def find_message(store, room_id, sender_kind, sender_id, idempotency_key) do
+    ensure_ready!(store)
 
     case SqliteRepo.query!(
            """
@@ -105,25 +111,18 @@ defmodule BnestApp.FamilyChat.Store do
   A `sender_kind` of `"system"` includes every active subscription (a system
   sender has no user-owned device to exclude).
   """
-  @spec insert_message!(
-          pos_integer(),
-          String.t(),
-          String.t(),
-          String.t(),
-          String.t(),
-          String.t(),
-          pos_integer() | nil
-        ) :: {:ok, map()}
+  @impl true
   def insert_message!(
+        store,
         room_id,
         sender_kind,
         sender_id,
         sender_display_name,
         idempotency_key,
         body,
-        reply_to_message_id \\ nil
+        reply_to_message_id
       ) do
-    ensure_ready!()
+    ensure_ready!(store)
 
     transaction(fn ->
       now = iso8601(DateTime.utc_now())
@@ -151,11 +150,11 @@ defmodule BnestApp.FamilyChat.Store do
 
       %{rows: [[message_id]]} = SqliteRepo.query!("SELECT last_insert_rowid()")
 
-      deliveries = insert_deliveries!(message_id, sender_kind, sender_id, now, actor)
+      deliveries = insert_deliveries!(store, message_id, sender_kind, sender_id, now, actor)
 
       message =
-        room_id
-        |> find_message(sender_kind, sender_id, idempotency_key)
+        store
+        |> find_message(room_id, sender_kind, sender_id, idempotency_key)
         |> Map.put(:deliveries, deliveries)
 
       {:ok, message}
@@ -171,13 +170,13 @@ defmodule BnestApp.FamilyChat.Store do
   from the result, and the caller renders such a message as an ordinary one
   rather than raising.
 
-  The room scope is not redundant with `message_by_id/2`'s check at write time.
+  The room scope is not redundant with `message_by_id/3`'s check at write time.
   That check guards the rows this application writes; this one guards what a
   reader is shown, so a row written any other way can never surface another
   room's text inside this room's page.
   """
-  @spec quotes_for(pos_integer(), [map()]) :: %{pos_integer() => map()}
-  def quotes_for(room_id, messages) when is_integer(room_id) and is_list(messages) do
+  @impl true
+  def quotes_for(store, room_id, messages) when is_integer(room_id) and is_list(messages) do
     ids =
       messages
       |> Enum.map(& &1[:reply_to_message_id])
@@ -189,7 +188,7 @@ defmodule BnestApp.FamilyChat.Store do
         %{}
 
       ids ->
-        ensure_ready!()
+        ensure_ready!(store)
         placeholders = Enum.map_join(ids, ", ", fn _ -> "?" end)
 
         %{rows: rows} =
@@ -205,9 +204,10 @@ defmodule BnestApp.FamilyChat.Store do
     end
   end
 
-  @spec message_by_id(pos_integer(), pos_integer()) :: map() | nil
-  def message_by_id(room_id, message_id) when is_integer(room_id) and is_integer(message_id) do
-    ensure_ready!()
+  @impl true
+  def message_by_id(store, room_id, message_id)
+      when is_integer(room_id) and is_integer(message_id) do
+    ensure_ready!(store)
 
     case SqliteRepo.query!(
            "SELECT #{columns(@message_columns)} FROM family_chat_messages WHERE id = ? AND room_id = ?",
@@ -218,9 +218,8 @@ defmodule BnestApp.FamilyChat.Store do
     end
   end
 
-  @spec active_subscription_ids(String.t() | nil) :: [integer()]
-  def active_subscription_ids(excluded_user_id) do
-    ensure_ready!()
+  defp active_subscription_ids(store, excluded_user_id) do
+    ensure_ready!(store)
 
     {sql, params} =
       if excluded_user_id do
@@ -234,24 +233,41 @@ defmodule BnestApp.FamilyChat.Store do
     Enum.map(rows, &hd/1)
   end
 
+  # Tech-doc 009 ("Backup Schedule Migration"): "After the compatibility
+  # revision is routed and every runnable slot supports the new Backup
+  # service, managed release calls a public Scheduler operation that
+  # force-converges this key once"; and "Push retention remains a separate
+  # fixed disabled seed at 00:15 WIB and becomes enabled only after old-slot
+  # drain." Both go through the same CAS-on-`revision = 1` seam as
+  # `Scheduler.converge_backup_time!/2`, so calling this again takes effect at
+  # most once and never overrides a later operator edit. It works on whatever
+  # database the caller (the release entry point) started, so it does not
+  # self-heal the connection the way the room and message callbacks do.
+  @impl true
+  def converge_after_drain!(_store) do
+    SchedulerStore.activate_if_pristine!(@retention_schedule_key, DateTime.utc_now())
+    {:ok, _schedule} = Scheduler.converge_backup_time!(@backup_schedule_key, "18:00")
+    :ok
+  end
+
   @doc """
-  Self-healing bootstrap for every public operation: re-asserts the shared
+  Self-healing bootstrap for every room and message callback: re-asserts the shared
   `SqliteRepo` connection onto this database, runs pending migrations, and
   (idempotently, via `INSERT OR IGNORE`) reconciles the canonical room and
-  retention-schedule seeds. Every public function in this module calls this
+  retention-schedule seeds. Every room and message callback calls this
   first — the canonical room must exist for any normal read, not only after
   an explicit `:run_family_chat_migration` step.
   """
-  @spec ensure_ready!() :: :ok
-  def ensure_ready! do
-    ensure_started!()
+  @impl true
+  def ensure_ready!(store) do
+    ensure_started!(store)
     Ecto.Migrator.run(SqliteRepo, migrations_path(), :up, all: true)
     seed_room!()
     seed_retention_schedule!()
     :ok
   end
 
-  defp ensure_started! do
+  defp ensure_started!(store) do
     # `mix test --no-start` (BE_UNIT/INTEGRATION) never boots any OTP
     # application automatically, including `:ecto_sql`/`:exqlite` — without
     # this, the very first caller in a test run to reach `SqliteRepo` (via
@@ -261,7 +277,7 @@ defmodule BnestApp.FamilyChat.Store do
     # `Application.ensure_all_started/1` is itself idempotent, so this is
     # cheap on every subsequent call once the apps are already running.
     ensure_database_apps_started!()
-    :ok = Storage.ensure_started!(database_path())
+    :ok = Storage.ensure_started!(database_path(store))
   end
 
   defp ensure_database_apps_started! do
@@ -276,16 +292,18 @@ defmodule BnestApp.FamilyChat.Store do
     end)
   end
 
-  defp database_path do
+  defp database_path(%{database_path: path}) when is_binary(path), do: path
+
+  defp database_path(_store) do
     Application.get_env(:bnest_app, :family_chat_sqlite_path) ||
       Storage.database_path()
   end
 
-  defp insert_deliveries!(message_id, sender_kind, sender_id, now, actor) do
+  defp insert_deliveries!(store, message_id, sender_kind, sender_id, now, actor) do
     excluded = if sender_kind == "user", do: sender_id, else: nil
 
-    excluded
-    |> active_subscription_ids()
+    store
+    |> active_subscription_ids(excluded)
     |> Enum.map(fn subscription_id ->
       SqliteRepo.query!(
         """

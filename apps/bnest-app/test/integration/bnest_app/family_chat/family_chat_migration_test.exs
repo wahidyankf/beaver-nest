@@ -1,13 +1,26 @@
 defmodule BnestApp.FamilyChatMigrationTest do
   use ExUnit.Case, async: false
 
-  alias BnestApp.FamilyChat.Store
+  alias BnestApp.FamilyChat
+  alias BnestApp.FamilyChat.Adapters.SqliteRoomStore
+  alias BnestApp.FamilyChat.Ports.RoomStore
   alias BnestApp.TestRuntimeRoot
+
+  # Each eval below stands in for a release node, which runs Family Chat's production
+  # adapters. `BNEST_TEST_LAYER=unit` keeps the integration runtime-root setup out of those
+  # evals, but it also selects the unit layer's in-memory Family Chat doubles, so every eval
+  # restores the production adapters first.
+  @release_adapters """
+  Application.put_env(:bnest_app, BnestApp.FamilyChat,
+    room_store: BnestApp.FamilyChat.Adapters.SqliteRoomStore,
+    message_publisher: BnestApp.FamilyChat.Adapters.AbsintheMessagePublisher
+  )
+  """
 
   setup do
     runtime = TestRuntimeRoot.create!("family-chat-migration")
 
-    # `BnestApp.FamilyChat.Store` (see `config/test.exs`) always resolves its
+    # `FamilyChat.Adapters.SqliteRoomStore` (see `config/test.exs`) always resolves its
     # own connection via `family_chat_sqlite_path`, derived from
     # `BNEST_TEST_RUN_ID`, independent of `BNEST_STORAGE_CONFIG` -- by
     # design, so Family Chat's tests never resolve through the
@@ -49,7 +62,7 @@ defmodule BnestApp.FamilyChatMigrationTest do
       {"BNEST_STORAGE_CONFIG", storage_config_path}
     ]
 
-    project_root = Path.expand("../../..", __DIR__)
+    project_root = Path.expand("../../../..", __DIR__)
 
     # Every step gets its own `mix run --no-start` eval -- each its own
     # fresh, non-supervised BEAM node -- mirroring the real deployment
@@ -61,7 +74,9 @@ defmodule BnestApp.FamilyChatMigrationTest do
     # already documented elsewhere in this suite).
     run_eval! = fn expression ->
       {output, status} =
-        System.cmd("mix", ["run", "--no-start", "--no-compile", "-e", expression],
+        System.cmd(
+          "mix",
+          ["run", "--no-start", "--no-compile", "-e", @release_adapters <> expression],
           cd: project_root,
           env: env,
           stderr_to_stdout: true
@@ -106,15 +121,15 @@ defmodule BnestApp.FamilyChatMigrationTest do
 
   describe "additive reply column" do
     setup do
-      Store.ensure_ready!()
+      FamilyChat.ensure_ready!()
       :ok
     end
 
     test "every message committed before the change reads as not a reply" do
-      room = Store.get_active_room_by_slug("ruang-keluarga")
+      room = FamilyChat.canonical_room()
 
       {:ok, message} =
-        Store.insert_message!(
+        FamilyChat.insert_message!(
           room.id,
           "user",
           "test-user-reply-migration",
@@ -161,10 +176,10 @@ defmodule BnestApp.FamilyChatMigrationTest do
     # migrator back: the point is the refusal, and a migrator rollback that
     # succeeded would destroy the row the refusal exists to protect.
     test "reversal refuses once a reply exists, and removes nothing" do
-      room = Store.get_active_room_by_slug("ruang-keluarga")
+      room = FamilyChat.canonical_room()
 
       {:ok, original} =
-        Store.insert_message!(
+        FamilyChat.insert_message!(
           room.id,
           "user",
           "test-user-reply-migration",
@@ -174,7 +189,8 @@ defmodule BnestApp.FamilyChatMigrationTest do
         )
 
       {:ok, reply} =
-        Store.insert_message!(
+        RoomStore.insert_message!(
+          SqliteRoomStore.new(),
           room.id,
           "user",
           "test-user-reply-migration",

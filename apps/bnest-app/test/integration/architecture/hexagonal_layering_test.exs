@@ -13,8 +13,6 @@ defmodule BnestApp.HexagonalLayeringTest do
     BnestApp.Backup.Location,
     BnestApp.Backup.Run,
     BnestApp.Deployment,
-    BnestApp.FamilyChat,
-    BnestApp.FamilyChat.Store,
     BnestApp.PushNotifications,
     BnestApp.PushNotifications.Dispatcher,
     BnestApp.PushNotifications.Sender,

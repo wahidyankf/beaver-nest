@@ -375,7 +375,7 @@ defmodule BnestApp.Backup do
     {sent_ids, samples, failures} =
       Enum.reduce(1..@probe_count, {[], [], 0}, fn index, {sent_ids, samples, failures} ->
         # `FamilyChat.send_message/4` requires a UUID-shaped client message
-        # id (`FamilyChat.Message.valid_client_message_id?/1`) -- anything
+        # id (`FamilyChat.Domain.Message.valid_client_message_id?/1`) -- anything
         # else is a `VALIDATION_FAILED` error, not a transient probe failure.
         client_message_id = Ecto.UUID.generate()
 
@@ -430,7 +430,7 @@ defmodule BnestApp.Backup do
   defp missing_sent_ids(sent_ids), do: Enum.reject(sent_ids, &message_exists?/1)
 
   defp message_exists?(message_id) do
-    room = FamilyChat.Store.get_active_room_by_slug(FamilyChat.canonical_room_slug())
+    room = FamilyChat.canonical_room()
 
     %{rows: rows} =
       BnestApp.SqliteRepo.query!(

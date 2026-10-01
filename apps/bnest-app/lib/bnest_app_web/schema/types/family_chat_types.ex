@@ -3,7 +3,7 @@ defmodule BnestAppWeb.Schema.Types.FamilyChatTypes do
 
   use Absinthe.Schema.Notation
 
-  alias BnestApp.FamilyChat
+  alias BnestApp.FamilyChat.Domain.Message
   alias BnestApp.Identity
 
   object :family_chat_room do
@@ -23,7 +23,7 @@ defmodule BnestAppWeb.Schema.Types.FamilyChatTypes do
 
     field :sender_display_name, non_null(:string) do
       resolve(fn quoted, _args, _resolution ->
-        {:ok, FamilyChat.live_sender_display_name(quoted, &Identity.display_name_for/1)}
+        {:ok, Message.live_sender_display_name(quoted, &Identity.display_name_for/1)}
       end)
     end
 
@@ -40,7 +40,7 @@ defmodule BnestAppWeb.Schema.Types.FamilyChatTypes do
 
     field :sender_display_name, non_null(:string) do
       resolve(fn message, _args, _resolution ->
-        {:ok, FamilyChat.live_sender_display_name(message, &Identity.display_name_for/1)}
+        {:ok, Message.live_sender_display_name(message, &Identity.display_name_for/1)}
       end)
     end
 

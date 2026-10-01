@@ -23,7 +23,7 @@ defmodule BnestAppWeb.FamilyChatRoomPageTest do
   alias Phoenix.HTML.Safe
 
   setup %{conn: conn} do
-    {:ok, _room} = FamilyChat.Store.migrate!()
+    {:ok, _room} = FamilyChat.migrate!()
     {:ok, conn: authenticated_conn(conn)}
   end
 
