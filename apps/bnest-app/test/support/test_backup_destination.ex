@@ -12,6 +12,8 @@ defmodule BnestApp.TestBackupDestination do
   source.
   """
 
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @spec create!(String.t()) :: %{directory: String.t()}
   def create!(tag) when is_binary(tag) do
     # `System.tmp_dir!/0` can itself be reached through a symlink (macOS's

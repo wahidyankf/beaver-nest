@@ -16,7 +16,12 @@ defmodule BnestApp.MixProject do
       aliases: aliases(),
       dialyzer: [plt_add_apps: [:ex_unit, :mix]],
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      compilers: [:boundary, :phoenix_live_view] ++ Mix.compilers(),
+      # Infrastructure applications behave as boundaries for every module, so only the
+      # boundaries that list them in `deps` (adapters and `BnestApp.SqliteRepo`) may call them.
+      boundary: [
+        default: [check: [apps: [:ecto, :ecto_sql, :exqlite, :req, :web_push, :argon2_elixir]]]
+      ],
       listeners: [Phoenix.CodeReloader]
     ]
   end
@@ -60,6 +65,7 @@ defmodule BnestApp.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.0"},
       {:argon2_elixir, "~> 4.1.3"},
+      {:boundary, "~> 0.11", runtime: false},
       {:ex_bdd, path: "../../libs/ex-bdd", only: :test},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

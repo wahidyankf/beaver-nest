@@ -3,6 +3,9 @@ defmodule BnestApp.Application do
   # for more information on OTP Applications
   @moduledoc false
 
+  # The composition root: the only core module that names every context and the web layer.
+  use Boundary, top_level?: true, deps: [BnestApp, BnestAppWeb, BnestApp.SqliteRepo]
+
   use Application
 
   alias BnestApp.DataRepository.Store
