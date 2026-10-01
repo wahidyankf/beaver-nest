@@ -448,30 +448,53 @@ Every context phase runs the same nine items, in this order, with the context's 
     `centralized_data.steps.ts`, so `FEATURE_DIFF 6649e4f7f` lists it; no feature file changed. After the fixes,
     `APP_QUICK`, `BEHAVIOUR` and `INTEGRATION` exit 0; `BE_E2E` 19 passed and `FE_E2E` 79 passed. Recorded in
     [learnings](learnings.md) E8.
-- [ ] [AI] Commit, PR, leak review, gate, merge.
-- [ ] [AI] **Checkpoint 8 (blocking):** U8 merged.
+- [x] [AI] Commit, PR, leak review, gate, merge.
+  - 2026-10-02: PR #124 merged as `f258d022d`; four commits, leak review pass on the merged head.
+- [x] [AI] **Checkpoint 8 (blocking):** U8 merged.
+  - 2026-10-02: U8 on `main`; `@legacy_records_callers` is empty.
 
 ### Phase 9: U9, FamilyChat
 
-- [ ] [AI] RED (boundary): `lib/bnest_app/family_chat/{domain,ports,adapters}.ex`; `TYPECHECK` and the scan fail.
-- [ ] [AI] RED (contract): `test/support/contracts/room_store_contract.ex` (idempotency, ordering, cursor pagination,
+- [x] [AI] RED (boundary): `lib/bnest_app/family_chat/{domain,ports,adapters}.ex`; `TYPECHECK` and the scan fail.
+  - 2026-10-02: base `f258d022d`, captured before any caller moved. `TYPECHECK` exit 1 with 44 forbidden
+    references over 8 edges. The scan failed with one L1 violation, `Store` calling `Ecto.Migrator.run`.
+- [x] [AI] RED (contract): `test/support/contracts/room_store_contract.ex` (idempotency, ordering, cursor pagination,
       reply linkage, append-only), used by `test/unit/bnest_app/family_chat/in_memory_room_store_test.exs`. `FOCUS_UNIT`
       fails. AC-DH-07.
-- [ ] [AI] GREEN (contract): `test/unit/support/in_memory/room_store.ex` and `message_publisher.ex` until `FOCUS_UNIT`
+  - 2026-10-02: 11 failures, each `UndefinedFunctionError` on `InMemory.RoomStore.start/0`.
+- [x] [AI] GREEN (contract): `test/unit/support/in_memory/room_store.ex` and `message_publisher.ex` until `FOCUS_UNIT`
       passes.
-- [ ] [AI] GREEN (layers): the U9 moves. `Release.Migrations.FamilyChat` keeps its name and delegates to the facade.
+  - 2026-10-02: `FOCUS_UNIT` exit 0, 0 failures.
+- [x] [AI] GREEN (layers): the U9 moves. `Release.Migrations.FamilyChat` keeps its name and delegates to the facade.
       `push_notifications.ex`, `push_notifications/dispatcher.ex` and `backup.ex` call `FamilyChat.ensure_ready!/0`,
       `canonical_room/0` and `insert_message!/6` in place of `FamilyChat.Store`, and the root lists
       `BnestApp.FamilyChat`.
       The controller, socket, resolver and types call only the facade and exported `Domain.Message`. `TYPECHECK` and the scan
       pass.
-- [ ] [AI] GREEN (contract, real adapter):
+  - 2026-10-02: `TYPECHECK` exit 0 with no forbidden reference; the scan passes. `@legacy_exports` holds 9 entries.
+    As-built differences are in [learnings](learnings.md) E9.
+- [x] [AI] GREEN (contract, real adapter):
       `FOCUS_INT test/integration/bnest_app/family_chat/sqlite_room_store_test.exs` passes. AC-DH-07.
-- [ ] [AI] GREEN (drivers): `UnitFamilyChatDriver` no longer opens SQLite; allow-list updated. `UNIT` and `BEHAVIOUR`
+  - 2026-10-02: exit 0; the 8 contract tests pass against `SqliteRoomStore` on an isolated database.
+- [x] [AI] GREEN (drivers): `UnitFamilyChatDriver` no longer opens SQLite; allow-list updated. `UNIT` and `BEHAVIOUR`
       pass. AC-DH-06.
-- [ ] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
-- [ ] [AI] `INTEGRATION` passes (including "Independent slot-local PubSub"); `FEATURE_DIFF` is empty.
-- [ ] [AI] Gherkin implementation review, recorded.
+  - 2026-10-02: every FamilyChat clause, including the migration Given, runs through the facade on an in-memory
+    store installed per scenario. The clauses that still select SQLite need push, scheduler or backup state; their
+    allow-list lines are labelled for U10–U12, which own them. `UNIT` 498 tests, 0 failures, 99.48%; `BEHAVIOUR`
+    exit 0.
+- [x] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
+  - 2026-10-02: both exit 0 after 5 credo findings were fixed.
+- [x] [AI] `INTEGRATION` passes (including "Independent slot-local PubSub"); `FEATURE_DIFF` is empty.
+  - 2026-10-02: 362 tests, 0 failures, 16 excluded, with the slot-local PubSub scenario traced.
+    `FEATURE_DIFF f258d022d` is empty. Focused e2e: `BE_E2E` 7 passed for the family chat and scheduled backup titles; `FE_E2E` 127
+    passed for "Family chat room" and 10 for "Bnest scheduled backups" once the U4 owner expectation was fixed
+    (E9).
+- [x] [AI] Gherkin implementation review, recorded.
+  - 2026-10-02: 438 rows over the whole family-chat corpus, with 167 FAIL rows; only 2 came from U9. The two U9 rows
+    and the pre-existing defects in the rewritten drivers and BE e2e are fixed, and the BE e2e step changes are
+    listed by `FEATURE_DIFF f258d022d`. Delivery, Web Push and scheduler rows move to U10 and U11; FE, exemption
+    and Caddy-routing rows move to the U14 full-corpus review. After the fixes, `APP_QUICK`, `BEHAVIOUR` and
+    `INTEGRATION` exit 0 (366 tests) and `BE_E2E` passes. Recorded in [learnings](learnings.md) E9.
 - [ ] [AI] Commit, PR, leak review, gate, merge.
 - [ ] [AI] **Checkpoint 9 (blocking):** U9 merged.
 
@@ -577,7 +600,7 @@ Every context phase runs the same nine items, in this order, with the context's 
       Codex chat, SifatAllah) at the exact local origin, with LiveView awaited and isolated `test-user-` identities. Proof:
       pass counts. AC-DH-08.
 - [ ] [AI] Full-corpus Gherkin implementation review of every scenario and adapter, so the pre-existing placeholder
-      patterns the unit reviews left out of scope (see [learnings](learnings.md) E4 and E5) are found and fixed. Proof:
+      patterns the unit reviews left out of scope (see [learnings](learnings.md) E4, E5 and E9) are found and fixed. Proof:
       the report's row count matches the corpus, with zero FAIL rows after fixes. AC-DH-08.
 - [ ] [AI] Manual `curl`, per [API testing](../../../repo-governance/development/api-testing.md), against a local test
       server on a leased development port with an isolated run root, once with a `test-user-` session and once

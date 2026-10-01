@@ -383,3 +383,55 @@ Resolution: applied in U7; 002 and 006 stay as authored, and this entry records 
   the selection does not fail closed. This predates U8.
 
 Resolution: applied in U8; 002 and 006 stay as authored, and this entry records the as-built difference.
+
+### E9: U9 FamilyChat as built (2026-10-02)
+
+- **No `adapters:` option on the facade.** 004 describes one. Instead, the configured `InMemory.RoomStore.new/0`
+  serves a named store that each test installs, so resolvers, the controller and the socket reach it without threading
+  options. The facade's unit tests therefore run `async: false`.
+- **`converge_after_drain!/0` is a `RoomStore` callback.** The SQLite adapter still calls `Scheduler.Store` and
+  `Scheduler`, so the `FamilyChat.Adapters` boundary keeps `BnestApp` as a legacy dependency until U11.
+- **`Domain.Message` absorbed the quote rules**: the quote, the 160-grapheme preview and the live sender name. The
+  facade keeps `live_sender_display_name/2` as a delegate. **`Domain.Policy`** holds the safe errors and the session
+  digest. **`Domain.Cursor`** only validates; paging stays in the adapters.
+- **`SqliteRoomStore.new(database_path:)`** lets the real-adapter contract run on an isolated database.
+- **`MessagePublisher.publish/2` takes the topic**, which the facade computes. The GraphQL types alias `Domain.Message`.
+- **Release evals restore the production adapters.** The migration test runs its evals in the unit layer, which would
+  select the in-memory adapters, so each eval first puts the production adapters back.
+- **The in-memory store has test seams** (`put_room/3`, `put_subscription/2`) and readers (`deliveries/1`,
+  `convergences/1`), because subscriptions belong to PushNotifications.
+- **Store-level unit tests moved into the `RoomStore` contract**, which runs against both adapters. Refusals raise in
+  both, with different exception types, so the contract only asserts that something is raised.
+- **`UnitFamilyChatDriver` writes through the facade into an in-memory store installed per scenario.** Clauses that
+  need push delivery, scheduler or backup SQLite state still select SQLite through
+  `test/unit/support/legacy_sqlite_room_store.ex`, under allow-list lines labelled U10–U12.
+- **A U4 regression surfaced in a focused e2e run.** U4 changed the storage panel's owner from the removed
+  `BnestApp.Storage.Config` to `BnestApp.Storage`, so its rendered `data-config-owner` changed. FE e2e "Discover typed
+  admin configuration" had failed on `main` since then, because U4's focused e2e did not include
+  "Bnest scheduled backups". The owner is the Storage context, which validates and saves nothing (no editable fields).
+  The e2e support now expects `BnestApp.Storage` exactly. **Lesson:** focused e2e runs must cover every page that
+  renders a moved module's name or data, and U14 runs both full e2e suites.
+- **The Gherkin review covered the whole family-chat corpus: 438 rows, 166 PASS, 105 EXEMPT, 167 FAIL.** Only 2 FAIL
+  rows came from U9. The unit fan-out came from the in-memory store with no contract case, and the payload check
+  scanned maps that can never hold text. The other 165 predate U9. They are split by owner:
+  - **Fixed in U9:** the two U9 rows, plus the pre-existing defects in the drivers U9 rewrote and in BE e2e:
+    - the resolver bypass for missing capability;
+    - the quote event;
+    - pagination evidence;
+    - the no-new-message, migration idempotency, old-release and system-message Thens;
+    - local broadcast scope;
+    - the two BE e2e Thens.
+      Each new Then was proved to fail against a temporary product mutation.
+  - **Moved to U10:** delivery-state and Web Push Thens. **Moved to U11:** scheduler handler Thens. Those units move
+    the code the Thens observe.
+  - **Moved to U14's full-corpus review:**
+    - the FE Vitest rows (a test branch inside production code, a leaking outbox namespace, constant readers);
+    - the FE e2e bindings;
+    - the exemption-form and exemption-reason defects, which change feature-file tags and comments;
+    - the invalid integration exemptions on the subscription scenarios;
+    - the scheduled-backups "Discover typed admin configuration" save proof;
+    - the Caddy handshake-routing Thens, which read configuration text. A real proof needs the live slots, which
+      continuity forbids touching, or a feature-file change that points the exemption at the FE e2e rollout scenario.
+      U14 must close them before the release.
+
+Resolution: applied in U9; 002, 004 and 006 stay as authored, and this entry records the as-built difference.
