@@ -411,24 +411,43 @@ Every context phase runs the same nine items, in this order, with the context's 
     `sifat_allah.feature`, so `FEATURE_DIFF 429737b1c` lists that file and the FE e2e Sifat Allah steps. After the
     fixes, `APP_QUICK`, `BEHAVIOUR` and `INTEGRATION` exit 0 (354 tests, 16 excluded); `FE_E2E` "Revising the 20
     attributes of Allah" 76 passed. Recorded in [learnings](learnings.md) E7.
-- [ ] [AI] Commit, PR, leak review, gate, merge.
-- [ ] [AI] **Checkpoint 7 (blocking):** U7 merged.
+- [x] [AI] Commit, PR, leak review, gate, merge.
+  - 2026-10-01: PR #123 merged as `6649e4f7f`; three commits, leak review pass on the merged head.
+- [x] [AI] **Checkpoint 7 (blocking):** U7 merged.
+  - 2026-10-01: U7 on `main`; `@legacy_records_callers` holds `ChatLive` only, and `@legacy_exports` 16 entries.
 
 ### Phase 8: U8, CodexChat
 
-- [ ] [AI] RED (boundary): `lib/bnest_app/codex_chat.ex` and `lib/bnest_app/codex_chat/{domain,ports,adapters}.ex`;
+- [x] [AI] RED (boundary): `lib/bnest_app/codex_chat.ex` and `lib/bnest_app/codex_chat/{domain,ports,adapters}.ex`;
       delete the `Chat` and `Codex.*` legacy entries, and remove `ChatLive` from `@legacy_records_callers`. `TYPECHECK` and
       the scan fail.
-- [ ] [AI] RED (facade): `test/unit/bnest_app/codex_chat/codex_chat_test.exs` covers opening a conversation, sending a
+  - 2026-10-02: base `6649e4f7f`, captured before any caller moved. `TYPECHECK` exit 1 with 43 forbidden
+    references over 6 edges, five from `ChatLive` and one from `TranscriptRecordKind`. The scan failed with 9
+    violations: 6 L1 in `ModelDiscovery` and `PortSession`, 3 L4 from `ChatLive` to `Storage.Records`.
+- [x] [AI] RED (facade): `test/unit/bnest_app/codex_chat/codex_chat_test.exs` covers opening a conversation, sending a
       prompt through the fixture `AgentSession`, and persisting the snapshot through the in-memory backend. `FOCUS_UNIT`
       fails.
-- [ ] [AI] GREEN (layers): the U8 moves; adapter keys move to `config :bnest_app, BnestApp.CodexChat`;
+  - 2026-10-02: the 23 new facade tests fail with `UndefinedFunctionError` on `InMemory.TranscriptStore.start/0`.
+- [x] [AI] GREEN (layers): the U8 moves; adapter keys move to `config :bnest_app, BnestApp.CodexChat`;
       `application.ex` starts `CodexChat.child_specs/0`. `ChatLive` calls only the facade; readiness checks `CodexChat.ModelCatalog`. `TYPECHECK`, the scan and `FOCUS_UNIT` pass.
-- [ ] [AI] GREEN (drivers): `test/unit/support/home_page_driver.ex` use the facade with in-memory adapters, and the
+  - 2026-10-02: all three pass. `@legacy_records_callers` is empty. As-built differences, including one
+    failure-only path, are in [learnings](learnings.md) E8.
+- [x] [AI] GREEN (drivers): `test/unit/support/home_page_driver.ex` use the facade with in-memory adapters, and the
       `test/behaviour/verify.exs` allow-list loses its U8 lines. `UNIT` and `BEHAVIOUR` pass.
-- [ ] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
-- [ ] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty.
-- [ ] [AI] Gherkin implementation review, recorded.
+  - 2026-10-02: after the review fixes the unit driver mounts the real `ChatLive` through the facade over
+    in-memory `Records` and the fixture `AgentSession`; the allow-list had no U8 lines. `UNIT` 455 tests,
+    0 failures, 99.47%; `BEHAVIOUR` exit 0.
+- [x] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
+  - 2026-10-02: both exit 0 once a timing-dependent `UnitFamilyChatDriver` failure was fixed (E8).
+- [x] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty.
+  - 2026-10-02: 354 tests, 0 failures, 16 excluded; `FEATURE_DIFF 6649e4f7f` empty before the review fixes.
+    Focused e2e: `BE_E2E` 19 passed for "Bnest SQLite storage" and "Centralized Bnest data"; `FE_E2E` 79 passed
+    for "Beaver Nest chat", "Centralized Bnest data" and "Bnest SQLite storage".
+- [x] [AI] Gherkin implementation review, recorded.
+  - 2026-10-02: 102 rows, 21 FAIL rows fixed, none introduced by U8. The BE e2e resume fix changes
+    `centralized_data.steps.ts`, so `FEATURE_DIFF 6649e4f7f` lists it; no feature file changed. After the fixes,
+    `APP_QUICK`, `BEHAVIOUR` and `INTEGRATION` exit 0; `BE_E2E` 19 passed and `FE_E2E` 79 passed. Recorded in
+    [learnings](learnings.md) E8.
 - [ ] [AI] Commit, PR, leak review, gate, merge.
 - [ ] [AI] **Checkpoint 8 (blocking):** U8 merged.
 
