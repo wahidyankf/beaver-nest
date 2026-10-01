@@ -19,18 +19,28 @@ runs `git`.
 
 ```bash
 RHINO_GATE_SURFACE=<commit-msg|pre-commit|pre-push|pull-request> scripts/public-safety/check.sh [hook arguments]
+RHINO_GATE_SURFACE=<pre-push|pull-request> PUBLIC_SAFETY_BASE=<commit> PUBLIC_SAFETY_HEAD=<commit> \
+  scripts/public-safety/check.sh
 ```
 
 The surface arrives in the environment and nowhere else. A missing or unknown value is a protocol failure, not a
 default. A gate that infers its own surface will eventually infer a weaker one, and that is exactly the case where
 inferring is expensive.
 
-| Surface        | Outbound at that moment                                           |
-| -------------- | ----------------------------------------------------------------- |
-| `commit-msg`   | the message being written, and the current ref name               |
-| `pre-commit`   | the tracked tree and its names, then the staged additions         |
-| `pre-push`     | the refs being pushed, the outgoing commit messages, and the tree |
-| `pull-request` | the ref, the head commit message, and the checked-out tree        |
+| Surface        | Outbound at that moment                                                             |
+| -------------- | ----------------------------------------------------------------------------------- |
+| `commit-msg`   | the message being written, and the current ref name                                 |
+| `pre-commit`   | the tracked tree and its names, then the staged additions                           |
+| `pre-push`     | the refs being pushed, the outgoing commit messages, and the tree                   |
+| `pull-request` | the ref, the head commit message, and the checked-out tree                          |
+| declared range | on `pre-push` and `pull-request`: IDs, messages, names, and each commit's additions |
+
+A declared range arrives as `PUBLIC_SAFETY_BASE` and `PUBLIC_SAFETY_HEAD` from the `public-safety-range` gate, bound to
+each pushed update (a new branch starts from `origin/main`) and to the pull request's base and head. It is screened
+commit by commit, never as its final files: a value one commit adds and the next deletes is still in every clone. Each
+commit contributes only the lines it added, at the line numbers they occupy, labelled `<commit>/<path>:<line>`; a merge
+contributes what it resolved beyond the automatic merge. Content the range did not add is not screened again. This
+screen backs the [push leak review](../../repo-governance/workflows/pr-leak-review/002-push-review.md).
 
 `pre-commit` screens the whole tracked tree, not only the change. A leak that is already committed does not become safe
 because this particular commit did not introduce it.
@@ -72,7 +82,8 @@ simply not detected.
 
 ## The Shape Set
 
-`shape-terms.txt` holds shapes, never values: an absolute home directory, a private address range, an internal hostname
+`shape-terms.txt` holds shapes, never values: an absolute home directory (`/Users`, `/home`, or a Windows drive's
+`Users`), a private address range, an internal hostname
 suffix. It is published, so a denylist of real names would publish exactly what it exists to protect.
 
 The shapes name machines, not ranges or identifiers. A private-range CIDR network prefix — last octet `0` followed by a
@@ -136,6 +147,7 @@ bash scripts/public-safety/tests/run.sh 080        # one case by name fragment
 | `130-hook-environment-isolation`         | a suite started from a Git hook leaves the hook's own repository untouched     |
 | `140-cidr-network-prefix`                | a CIDR network prefix passes; host forms in every private range still block    |
 | `150-hostname-trailing-underscore`       | an underscore continues a hostname token; real hostnames still block           |
+| `160-range-history`                      | a range is screened per commit; untouched content and `~/` paths pass          |
 
 Every probe value is assembled at run time from fragments, so no string this repository's own gate would flag exists in
 any test file — a test that hardcoded one would block the commit that added it. `assert_absent` reports only a length on

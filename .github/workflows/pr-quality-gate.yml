@@ -200,6 +200,20 @@ jobs:
       - name: Install npm dependencies
         run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
+      # The leak review's hosted range check runs on every head, whatever the
+      # routing below decides: each commit's additions, names, and message are
+      # screened, so a value one commit adds and a later one deletes still fails.
+      - name: Screen the pull request's range commit by commit
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -eu
+          git fetch --no-tags origin "${BASE_REF}"
+          ./hippo run --class ephemeral --resource-tier light --disk-path . -- \
+            env RHINO_GATE_SURFACE=pull-request \
+              PUBLIC_SAFETY_BASE="$(git rev-parse FETCH_HEAD)" PUBLIC_SAFETY_HEAD="$(git rev-parse HEAD)" \
+              bash scripts/public-safety/check.sh
+
       # The same three path sets `.husky/pre-push` routes on, so a change that
       # skips a suite locally skips it here and no other. Each set also includes
       # this workflow, because an edit to the gate itself must re-prove it.
@@ -219,7 +233,7 @@ jobs:
             ':(icase,glob)**/*.md' \
             ':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
             'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
-            ':(glob)scripts/public-safety/**' \
+            ':(glob)scripts/public-safety/**' ':(glob)scripts/leak-review/**' \
             ':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
             '.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc' \
             '.github/workflows/pr-quality-gate.yml')

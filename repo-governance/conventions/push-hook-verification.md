@@ -4,6 +4,7 @@ Do not pass `--no-verify` to `git push` unless the user explicitly authorizes by
 
 ## Requirements
 
+- Run the [public-safety screen](../../scripts/public-safety/README.md) before any other pre-push work: over the tracked tree, and over each pushed range commit by commit.
 - Run the [`test:quick` quality gate](../development/quality-gates.md) through one HIPPO-guarded `nx affected` for every non-deleted ref being pushed, using `origin/main` as the base and the pushed local commit as the head. Nx consumes the admitted `NX_PARALLEL` allocation for independent projects. Only affected projects that define `test:quick` participate.
 - Keep Nx Cloud disabled for pre-push checks.
 - Run the full repository documentation gate when a pushed range changes repository Markdown, governed documentation trees, `repo-config.yml`, the RHINO consumer project, or the pre-push hook itself. Validator changes must prove the existing corpus before they can enforce it.
@@ -17,7 +18,7 @@ Do not pass `--no-verify` to `git push` unless the user explicitly authorizes by
 - Rerun the failed check and relevant verification after the fix, then use a normal verified push.
 - Convenience, time pressure, repeated failure, or difficulty diagnosing the cause never justify `--no-verify`.
 - If the root cause cannot be fixed within the authorized scope, report the evidence and unresolved blocker. Ask for direction only under the [last-resort questions convention](last-resort-questions.md).
-- A bypass never covers the public-safety screen, which `--no-verify` would otherwise skip. Before an authorized bypass push, run it for what is about to leave the machine, `RHINO_GATE_SURFACE=pre-push scripts/public-safety/check.sh </dev/null`, and push only on exit `0`.
+- A bypass never covers the public-safety screen, which `--no-verify` would otherwise skip, nor the [push leak review](../workflows/pr-leak-review/002-push-review.md). Before an authorized bypass push, screen what is about to leave the machine with `RHINO_GATE_SURFACE=pre-push scripts/public-safety/check.sh </dev/null`, then commit by commit with `PUBLIC_SAFETY_BASE` and `PUBLIC_SAFETY_HEAD` set to the commit IDs of the remote tip (or `origin/main` for a new branch) and the pushed commit, and push only when both exit `0`.
 - Even when bypass is explicitly authorized, disclose which safeguards will be skipped and any unresolved failure before pushing.
 
 This convention keeps repository safeguards effective through root-cause correction rather than bypasses or cosmetic fixes, while preserving the user's authority to approve a deliberate exception. It supplements the [commit-authorization convention](commit-authorization.md); neither permission implies the other.

@@ -27,7 +27,7 @@
       "options": {
         "commands": [
           {
-            "command": "./rhino gate run --surface pre-push",
+            "command": "printf 'HEAD %s refs/heads/test-repo %s\\n' \"$(git rev-parse HEAD)\" 0000000000000000000000000000000000000000 | ./rhino gate run --surface pre-push --push-updates-stdin",
             "forwardAllArgs": false
           }
         ],

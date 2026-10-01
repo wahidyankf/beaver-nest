@@ -32,7 +32,7 @@ validation_changes_for_range() {
 			':(icase,glob)**/*.md' \
 			':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
 			'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
-			':(glob)scripts/public-safety/**' \
+			':(glob)scripts/public-safety/**' ':(glob)scripts/leak-review/**' \
 			':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
 			'.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
 	else
@@ -40,14 +40,14 @@ validation_changes_for_range() {
 			':(icase,glob)**/*.md' \
 			':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
 			'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
-			':(glob)scripts/public-safety/**' \
+			':(glob)scripts/public-safety/**' ':(glob)scripts/leak-review/**' \
 			':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
 			'.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
 		git log --format= --name-only "$2..$1" -- \
 			':(icase,glob)**/*.md' \
 			':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
 			'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
-			':(glob)scripts/public-safety/**' \
+			':(glob)scripts/public-safety/**' ':(glob)scripts/leak-review/**' \
 			':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
 			'.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
 	fi
@@ -94,14 +94,16 @@ rhino_consumer_changes_for_range() {
 # Screen before anything else on this surface. A gate that decides what may
 # leave the repository is worth nothing if a cheaper check ahead of it can spend
 # the push's time first, and worth less still if that check passes the change
-# through while the screen is still queued.
+# through while the screen is still queued. Two safety gates run here: the tree
+# screen, and `public-safety-range`, which screens each pushed range commit by
+# commit so a value one commit adds and a later one deletes is still refused.
 #
 # Git's own arguments are deliberately not forwarded: arguments after `--` reach
 # every gate on the surface, and nothing declared here takes a remote name or a
 # URL. What the safety gate reads is the ref-update lines, which RHINO forwards
-# to each gate only when `--push-updates-stdin` selects them. Without the flag
-# every gate sees an empty stream, and the safety gate falls back to screening
-# the current checkout rather than the refs and commits actually being pushed.
+# to each gate only when `--push-updates-stdin` selects them, and from which it
+# binds each pushed range. Without the flag the range gate cannot bind, and the
+# tree gate would screen the current checkout rather than what is being pushed.
 # The guard passes stdin through, so the admission boundary the repository
 # checks already run behind costs nothing here.
 printf '%s\n' "$ref_updates" | ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \

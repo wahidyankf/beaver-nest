@@ -273,6 +273,23 @@ gates:
         executable: bash
         args: [{ literal: scripts/public-safety/check.sh }]
       run-on: { pre-commit: {}, pre-push: {}, pull-request: {} }
+    - id: public-safety-range
+      type: check
+      inputs:
+        range: { kind: commit-range }
+      command:
+        executable: bash
+        args: [{ literal: scripts/public-safety/check.sh }]
+        environment:
+          PUBLIC_SAFETY_BASE: { input: range.base }
+          PUBLIC_SAFETY_HEAD: { input: range.head }
+      run-on:
+        pre-push:
+          bind:
+            range: { source: push-updates, fallback: refs/remotes/origin/main }
+        pull-request:
+          bind:
+            range: { source: explicit-range, range: explicit }
     - id: public-safety-tests
       type: check
       command:
@@ -281,6 +298,14 @@ gates:
       run-on:
         pull-request:
           reason: "The scanner regression suite runs in the isolated pull-request checkout."
+    - id: leak-review-tests
+      type: check
+      command:
+        executable: bash
+        args: [{ literal: scripts/leak-review/tests/run.sh }]
+      run-on:
+        pull-request:
+          reason: "The record check's offline suite runs where the hosted check is defined."
     - id: repo-config
       type: check
       command:
