@@ -6,8 +6,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.AdminConfig.Registry, as: AdminRegistry
   alias BnestApp.Backup.{Config, Receipt, Run}
   alias BnestApp.Behaviour.UnitFamilyChatDriver
-  alias BnestApp.Chat
-  alias BnestApp.Codex.{FixtureModels, ModelAccess, RepositoryAccess}
+  alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.Domain.Transcript
+  alias BnestApp.CodexChat.ModelCatalog
   alias BnestApp.Deployment
   alias BnestApp.FamilyChat
   alias BnestApp.Identity
@@ -24,15 +25,24 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Storage.Import
   alias BnestApp.Storage.Ports.RecordBackend
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
+  alias BnestApp.Test.InMemory.AgentSession, as: InMemoryAgentSession
   alias BnestApp.Test.InMemory.IdentityStore, as: InMemoryIdentityStore
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
   alias BnestApp.Test.InMemory.StoragePorts
+  alias BnestAppWeb.ChatLive
   alias BnestAppWeb.DataMigrationLive
   alias BnestAppWeb.SifatAllahLive
   alias Phoenix.HTML.Safe
   alias Phoenix.LiveView.{Socket, Utils}
 
   @behaviour_now ~U[2026-09-04 12:00:00Z]
+  @streamed_answer [
+    {:thread_started, "fixture-thread"},
+    {:assistant_update, "fixture-answer", "Fixture response"},
+    {:assistant_update, "fixture-answer", "Fixture response complete."},
+    :turn_completed
+  ]
   @in_memory_flat_root "/in-memory/flat"
   @synthetic_password "Synthetic password 1!"
 
@@ -46,11 +56,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
                    )
 
   @impl true
-  def open(context, "/chat") do
-    model_access = ModelAccess.resolve(identity(context), FixtureModels.all())
-    chat = Chat.new(model_access.model.id, model_access.reasoning_effort)
-    context |> Map.put(:route, "/chat") |> render_chat(chat, model_access)
-  end
+  def open(context, "/chat"), do: context |> start_chat_runtime() |> mount_chat("/chat")
 
   def open(context, "/"), do: render_home(context)
 
@@ -73,13 +79,21 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Enum.any?()
   end
 
+  # Installability is what the document a visitor lands on after opening "/" declares: the
+  # root layout's manifest and icon links, each at a path the endpoint serves statically.
+  # The manifest's contents and service-worker activation are proven at E2E.
   @impl true
-  def installable_as_app?(_context) do
-    BnestAppWeb.Pwa.install_metadata() == %{
-      manifest_path: "/manifest.webmanifest",
-      service_worker_path: "/service-worker.js",
-      icon_paths: ["/images/beaver-nest-192.png", "/images/beaver-nest-512.png"]
-    }
+  def installable_as_app?(context) do
+    document = visitor_document(context, "/")
+    manifest = document |> LazyHTML.query("link[rel=manifest]") |> LazyHTML.attribute("href")
+
+    icons =
+      document
+      |> LazyHTML.query("link[rel=icon][type='image/png'], link[rel=apple-touch-icon]")
+      |> LazyHTML.attribute("href")
+
+    manifest == ["/manifest.webmanifest"] and "/images/beaver-nest-512.png" in icons and
+      Enum.all?(manifest ++ icons, &statically_served?/1)
   end
 
   @impl true
@@ -146,14 +160,22 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Kernel.==(FixtureModels.display_names())
   end
 
+  # The selection is read from the rendered selector, or from the badge where no selector is
+  # offered, and the Codex conversation the LiveView opened last must run that model.
   @impl true
   def selected_model?(context, display_name) do
-    context.chat.model == FixtureModels.fetch_by_display_name!(display_name).id
+    model_id = FixtureModels.fetch_by_display_name!(display_name).id
+
+    rendered_setting(context.page, "[data-role=model-selector]", "data-model") == [model_id] and
+      match?({:agent_session, :open, {_thread, ^model_id, _effort, _mode}}, last_open(context))
   end
 
   @impl true
   def effort_selector_lists_supported?(context) do
-    model = FixtureModels.fetch_by_id!(context.chat.model)
+    [model_id] =
+      context.page |> LazyHTML.query(".model-badge") |> LazyHTML.attribute("data-model")
+
+    model = FixtureModels.fetch_by_id!(model_id)
 
     context.page
     |> LazyHTML.query("[data-role=effort-selector] option")
@@ -163,7 +185,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def selected_effort?(context, effort) do
-    context.chat.reasoning_effort == String.downcase(effort)
+    effort = String.downcase(effort)
+
+    rendered_setting(context.page, "[data-role=effort-selector]", "data-reasoning-effort") ==
+      [effort] and
+      match?({:agent_session, :open, {_thread, _model, ^effort, _mode}}, last_open(context))
   end
 
   @impl true
@@ -196,23 +222,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def select_model(context, display_name) do
-    model = FixtureModels.fetch_by_display_name!(display_name)
-
-    effort =
-      if context.chat.reasoning_effort in model.supported_reasoning_efforts,
-        do: context.chat.reasoning_effort,
-        else: "medium"
-
-    {:ok, chat} =
-      Chat.select_model(context.chat, model.id, effort)
-
-    render_chat(context, chat)
+    model_id = rendered_option_value!(context, "[data-role=model-selector]", display_name)
+    select_chat_setting(context, "select_model", %{"model" => model_id})
   end
 
   @impl true
   def select_effort(context, effort) do
-    {:ok, chat} = Chat.select_model(context.chat, context.chat.model, String.downcase(effort))
-    render_chat(context, chat)
+    value = rendered_option_value!(context, "[data-role=effort-selector]", effort)
+    select_chat_setting(context, "select_effort", %{"reasoning_effort" => value})
   end
 
   @impl true
@@ -254,18 +271,24 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       )
   end
 
+  # The page shows the mode, and the Codex conversation the LiveView opened last runs in it.
   @impl true
   def repository_access_read_only?(context) do
     not Enum.empty?(
       LazyHTML.query(context.page, "[data-role=repository-access][data-mode=read-only]")
-    )
+    ) and
+      match?({:agent_session, :open, {_thread, _model, _effort, :read_only}}, last_open(context))
   end
 
   @impl true
   def repository_access_write_enabled?(context) do
     not Enum.empty?(
       LazyHTML.query(context.page, "[data-role=repository-access][data-mode=workspace-write]")
-    )
+    ) and
+      match?(
+        {:agent_session, :open, {_thread, _model, _effort, :workspace_write}},
+        last_open(context)
+      )
   end
 
   @impl true
@@ -279,37 +302,27 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: context.page |> LazyHTML.query("[data-role=repository-write-toggle]") |> Enum.empty?()
 
   @impl true
-  def enable_repository_writes(context),
-    do: context |> Map.put(:repo_write_enabled?, true) |> render_chat(context.chat)
+  def enable_repository_writes(context), do: toggle_repository_writes(context, "true")
 
   @impl true
-  def disable_repository_writes(context),
-    do: context |> Map.put(:repo_write_enabled?, false) |> render_chat(context.chat)
+  def disable_repository_writes(context), do: toggle_repository_writes(context, "false")
 
   @impl true
-  def attempt_empty_message(context) do
-    {:error, chat} = Chat.submit(context.chat, "   ")
-    render_chat(context, chat)
-  end
+  def attempt_empty_message(context), do: submit_composer(context, "   ")
 
   @impl true
   def send_message(context, message) do
-    {:ok, chat} = Chat.submit(context.chat, message)
-    {:ok, snapshot} = Chat.snapshot(chat)
-
-    context
-    |> Map.put(:persisted_chat, Jason.encode!(snapshot))
-    |> render_chat(chat)
+    unless composer_available?(context), do: raise("the chat composer is not available")
+    submit_composer(context, message)
   end
 
   @impl true
   def submit_with_shift_enter(context, message), do: send_message(context, message)
 
+  # The composer is disabled while Codex works, so this submits it as a forced browser
+  # submission would; the LiveView's own busy guard decides what happens.
   @impl true
-  def attempt_message_before_finished(context, message) do
-    {:error, chat} = Chat.submit(context.chat, message)
-    render_chat(context, chat)
-  end
+  def attempt_message_before_finished(context, message), do: submit_composer(context, message)
 
   @impl true
   def visitor_message_visible?(context, message) do
@@ -325,20 +338,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def stream_codex_response(context) do
-    chat =
-      context.chat
-      |> Chat.put_thread_id("fixture-thread")
-      |> Chat.update_assistant("fixture-answer", "Fixture response")
-      |> Chat.update_assistant("fixture-answer", "Fixture response complete.")
-      |> Chat.complete()
-
-    {:ok, snapshot} = Chat.snapshot(chat)
-
-    context =
-      context
-      |> Map.put(:persisted_chat, Jason.encode!(snapshot))
-      |> render_chat(chat)
-
+    context = answer_prompt(context, @streamed_answer)
     {assistant_update_count(context) >= 2, context}
   end
 
@@ -357,23 +357,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       |> LazyHTML.query("[data-role=user-message]")
       |> Enum.count()
 
-    (resumed? or failed_safely?) and visitor_message_count == 1
+    # Codex may receive the turn's prompt once more after the reconnect, never twice.
+    prompts = Enum.count(context.codex_calls, &match?({:agent_session, :prompt, _, _}, &1))
+
+    (resumed? or failed_safely?) and visitor_message_count == 1 and prompts <= 2
   end
 
   @impl true
   def report_public_codex_progress(context) do
-    chat =
-      context.chat
-      |> Chat.update_progress("fixture-reasoning", :reasoning, "Fixture reasoning summary")
-      |> Chat.update_assistant("fixture-progress", "Fixture progress")
-      |> Chat.update_assistant("fixture-final", "Fixture final answer")
-      |> Chat.complete()
-
-    {:ok, snapshot} = Chat.snapshot(chat)
-
-    context
-    |> Map.put(:persisted_chat, Jason.encode!(snapshot))
-    |> render_chat(chat)
+    answer_prompt(context, [
+      {:reasoning_update, "fixture-reasoning", "Fixture reasoning summary"},
+      {:assistant_update, "fixture-progress", "Fixture progress"},
+      {:assistant_update, "fixture-final", "Fixture final answer"},
+      :turn_completed
+    ])
   end
 
   @impl true
@@ -417,16 +414,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Kernel.==(1)
   end
 
+  # The agent session refuses this prompt, so what the page shows is the facade's own
+  # handling of a session that cannot accept a message.
   @impl true
-  def reject_message(context, message) do
-    {:ok, chat} = Chat.submit(context.chat, message)
-    render_chat(context, Chat.fail(chat, "Codex is not available."))
-  end
+  def reject_message(context, message), do: send_message(context, message)
 
   @impl true
-  def report_codex_error(context, message) do
-    render_chat(context, Chat.fail(context.chat, message))
-  end
+  def report_codex_error(context, message), do: answer_prompt(context, [{:error, message}])
 
   @impl true
   def alert_visible?(context, message) do
@@ -437,9 +431,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Kernel.==(message)
   end
 
+  # Typing reaches the LiveView through the composer form's change event.
   @impl true
   def type_draft(context, draft) do
-    context |> Map.put(:draft, draft) |> render_chat(context.chat)
+    if context.page
+       |> LazyHTML.query("form#chat-composer-form[phx-change=recover_draft]")
+       |> Enum.empty?(),
+       do: raise("the chat page offers no composer form that reports changes")
+
+    chat_event(context, "recover_draft", %{"chat" => %{"prompt" => draft}})
   end
 
   @impl true
@@ -447,26 +447,53 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context.page |> LazyHTML.query("textarea") |> LazyHTML.text() |> Kernel.==(draft)
   end
 
+  # A chat route is the one the visitor's LiveView was mounted from, and the router must
+  # resolve it to the module that socket runs.
   @impl true
+  def current_route?(%{chat_socket: socket} = context, route),
+    do: context.route == route and routed_live_view(route) == socket.view
+
   def current_route?(context, route), do: context.route == route
 
+  # A deployment replaces the server under the connected client: the LiveView terminates, the
+  # record repository restarts, and the client mounts its route again on a fresh socket, so
+  # only what the LiveView saved comes back. The browser keeps the composer text the page
+  # rendered and replays it through the form's recovery event. A turn the remount resends is
+  # answered by Codex like any other prompt.
   @impl true
-  def reconnect(%{persisted_chat: _persisted_chat} = context), do: reload(context)
-
   def reconnect(context) do
-    context
-    |> open(context.route)
-    |> type_draft(context.draft)
+    draft =
+      context.page
+      |> LazyHTML.query("form#chat-composer-form textarea")
+      |> LazyHTML.text()
+
+    remounted = remount_chat(context)
+
+    remounted =
+      if Enum.any?(new_calls(remounted, context), &match?({:agent_session, :prompt, _, _}, &1)),
+        do: answer_prompt(remounted, @streamed_answer),
+        else: remounted
+
+    case {draft, form_recovery_event(remounted.page, "form#chat-composer-form")} do
+      {"", _event} -> remounted
+      {_draft, nil} -> remounted
+      {draft, event} -> chat_event(remounted, event, %{"chat" => %{"prompt" => draft}})
+    end
   end
 
+  # Each synthetic visitor is its own user with its own LiveView, over one record repository.
   @impl true
   def prepare_recovery_group(context, client_count, group_count, route) do
+    context = start_chat_runtime(context)
+
     clients =
       Enum.map(1..client_count, fn index ->
         draft = "Recovery draft #{index}"
 
         client =
           context
+          |> Map.put(:chat_user, chat_user(context, "-#{index}"))
+          |> Map.delete(:codex_calls)
           |> open(route)
           |> type_draft(draft)
 
@@ -496,30 +523,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       end)
   end
 
+  # A reload is a fresh mount over a restarted record repository, as a reconnect is.
   @impl true
-  def reload(%{persisted_chat: encoded} = context) do
-    {:ok, snapshot} = Jason.decode(encoded)
-    {:ok, chat} = Chat.restore(snapshot)
-
-    chat =
-      if chat.busy,
-        do:
-          Chat.fail(
-            chat,
-            "The previous response was interrupted. Your transcript is preserved; send a new message to continue."
-          ),
-        else: chat
-
-    context
-    |> Map.put(:repo_write_enabled?, false)
-    |> render_chat(chat)
-  end
-
-  def reload(%{chat: chat} = context) do
-    context
-    |> Map.put(:repo_write_enabled?, false)
-    |> render_chat(chat)
-  end
+  def reload(%{chat_socket: _socket} = context), do: remount_chat(context)
 
   # A reload is a fresh mount over a restarted record repository, so only what the LiveView
   # saved through the SifatAllah facade can come back. The saved record is checked in the
@@ -537,12 +543,31 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context
   end
 
+  # Clearing must close the conversation, open a new one without a thread, and save the
+  # emptied transcript the page then shows.
   @impl true
   def clear_chat(context) do
-    context
-    |> Map.delete(:persisted_chat)
-    |> Map.put(:repo_write_enabled?, false)
-    |> render_chat(Chat.new(context.chat.model, context.chat.reasoning_effort))
+    session = context.chat_socket.assigns.codex_session
+
+    if context.page |> LazyHTML.query("[data-role=clear-chat][phx-click=clear]") |> Enum.empty?(),
+      do: raise("the chat page offers no clear control")
+
+    cleared = chat_event(context, "clear", %{})
+
+    calls =
+      cleared
+      |> new_calls(context)
+      |> Enum.drop_while(&(&1 != {:agent_session, :close, session}))
+
+    unless match?([_close | _opened], calls) and
+             Enum.any?(calls, &match?({:agent_session, :open, {nil, _, _, _}}, &1)) and
+             match?(
+               {:ok, %{messages: []}, _record},
+               CodexChat.load_transcript(cleared.chat_user["userId"])
+             ),
+           do: raise("clearing did not start a new Codex session over a saved empty chat")
+
+    cleared
   end
 
   @impl true
@@ -759,39 +784,244 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> String.contains?(name)
   end
 
-  defp render_chat(context, chat, model_access \\ full_access()) do
-    user = identity(context)
-    write_enabled? = Map.get(context, :repo_write_enabled?, false)
-    repository_mode = RepositoryAccess.mode(user, write_enabled?)
+  # Codex chat runs the production `ChatLive` over the CodexChat facade. Its transcript store is
+  # the configured record-backed one, which reaches Storage's record repository; the repository
+  # runs here over an in-memory record backend, kept in the context so a reload or reconnect
+  # can restart the repository over it. The model catalog discovers the configured fixture
+  # models, and the agent session is the recording in-memory double, which reports every call
+  # to this process. A Given may hold Storage pointer state for the in-memory ports in
+  # `:chat_storage`.
+  defp start_chat_runtime(%{chat_records: _records} = context), do: context
 
+  defp start_chat_runtime(context) do
+    previous_storage = StoragePorts.install(Map.get(context, :chat_storage, []))
+    ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous_storage) end)
+    records = InMemoryRecordBackend.start()
+    ExUnit.Callbacks.start_supervised!({Records, store: records})
+    ExUnit.Callbacks.start_supervised!(ModelCatalog)
+    previous_chat = Application.fetch_env!(:bnest_app, CodexChat)
+    ExUnit.Callbacks.on_exit(fn -> Application.put_env(:bnest_app, CodexChat, previous_chat) end)
+
+    Application.put_env(
+      :bnest_app,
+      CodexChat,
+      Keyword.put(previous_chat, :agent_session, InMemoryAgentSession)
+    )
+
+    Map.merge(context, %{chat_records: records, chat_user: chat_user(context, "")})
+  end
+
+  defp chat_user(context, suffix) do
+    context
+    |> identity()
+    |> Map.merge(%{
+      "userId" => "user-test-unit-chat" <> suffix,
+      "displayUsername" => "test-user-unit-chat" <> suffix
+    })
+  end
+
+  # The production `mount/3` of the LiveView the router serves `route` with, on a fresh
+  # connected socket for the visitor, as a page load and its socket connection do.
+  defp mount_chat(context, route) do
+    view = routed_live_view(route)
+
+    socket = %Socket{
+      view: view,
+      transport_pid: self(),
+      assigns: %{__changed__: %{}, flash: %{}, current_user: context.chat_user}
+    }
+
+    {:ok, socket} = view.mount(%{}, %{}, socket)
+    context |> Map.put(:route, route) |> render_chat(socket)
+  end
+
+  defp routed_live_view(route) do
+    %{phoenix_live_view: {view, _action, _options, _live_session}} =
+      Phoenix.Router.route_info(BnestAppWeb.Router, "GET", route, "bnest.test")
+
+    view
+  end
+
+  # Before the remount, the chat the facade loads must be the record the backend holds, so
+  # only what the LiveView saved can come back.
+  defp remount_chat(context) do
+    owner = context.chat_user["userId"]
+    {_backend, active} = Records.active_backend(context.chat_records)
+    saved = active |> InMemoryRecordBackend.snapshot() |> Map.get({:chat, owner})
+
+    case {CodexChat.load_transcript(owner), saved} do
+      {{:ok, _transcript, ^saved}, %{}} -> :ok
+      {{:error, :missing}, nil} -> :ok
+      loaded -> raise "the saved chat does not load back: #{inspect(loaded)}"
+    end
+
+    :ok = ChatLive.terminate({:shutdown, :closed}, context.chat_socket)
+    :ok = ExUnit.Callbacks.stop_supervised(Records)
+    ExUnit.Callbacks.start_supervised!({Records, store: context.chat_records})
+    mount_chat(context, context.route)
+  end
+
+  # A click reaches the LiveView only through a toggle the page renders enabled, with the
+  # value the page gave it.
+  defp toggle_repository_writes(context, enabled) do
+    toggle =
+      "[data-role=repository-write-toggle][phx-click=set_repository_write]" <>
+        "[phx-value-enabled=#{enabled}]:not([disabled])"
+
+    if context.page |> LazyHTML.query(toggle) |> Enum.empty?(),
+      do: raise("the chat page offers no enabled repository-write toggle for #{enabled}")
+
+    chat_event(context, "set_repository_write", %{"enabled" => enabled})
+  end
+
+  defp submit_composer(context, prompt) do
+    if context.page
+       |> LazyHTML.query("form#chat-composer-form[phx-submit=send] textarea[name='chat[prompt]']")
+       |> Enum.empty?(),
+       do: raise("the chat page offers no composer form")
+
+    chat_event(context, "send", %{"chat" => %{"prompt" => prompt}})
+  end
+
+  # A selection reaches the LiveView only through an enabled selector the page renders, as the
+  # value of its option with that label.
+  defp rendered_option_value!(context, selector, label) do
+    context.page
+    |> LazyHTML.query("#{selector}:not([disabled]) option")
+    |> Enum.find_value(fn option ->
+      if option |> LazyHTML.text() |> String.trim() == label,
+        do: option |> LazyHTML.attribute("value") |> List.first()
+    end) || raise "the chat page offers no enabled #{selector} option #{inspect(label)}"
+  end
+
+  # Changing a setting reopens the Codex conversation, which must resume the thread the
+  # transcript already has, so the turns stay one conversation.
+  defp select_chat_setting(context, event, params) do
+    thread_id = context.chat_socket.assigns.chat.thread_id
+    selected = chat_event(context, event, params)
+
+    unless selected
+           |> new_calls(context)
+           |> Enum.filter(&match?({:agent_session, :open, _settings}, &1))
+           |> Enum.all?(&match?({:agent_session, :open, {^thread_id, _, _, _}}, &1)),
+           do: raise("changing a chat setting did not resume the conversation's thread")
+
+    selected
+  end
+
+  # The setting the page shows: the selected option where a selector is offered, which the
+  # badge must agree with, else the badge alone.
+  defp rendered_setting(page, selector, badge_attribute) do
+    badge = page |> LazyHTML.query(".model-badge") |> LazyHTML.attribute(badge_attribute)
+
+    if page |> LazyHTML.query(selector) |> Enum.empty?() do
+      badge
+    else
+      selected =
+        page |> LazyHTML.query("#{selector} option[selected]") |> LazyHTML.attribute("value")
+
+      if selected == badge, do: selected, else: []
+    end
+  end
+
+  # The driver plays Codex: it answers only a prompt the LiveView's current session received,
+  # with events sent from that session to the LiveView's own `handle_info/2`.
+  defp answer_prompt(context, events) do
+    session = context.chat_socket.assigns.codex_session
+
+    unless Enum.any?(context.codex_calls, &match?({:agent_session, :prompt, ^session, _}, &1)),
+      do: raise("the current Codex session received no prompt to answer")
+
+    Enum.reduce(events, context, fn event, context ->
+      {:noreply, socket} = ChatLive.handle_info({:codex, session, event}, context.chat_socket)
+      render_chat(context, socket)
+    end)
+  end
+
+  defp chat_event(context, event, params) do
+    {:noreply, socket} = ChatLive.handle_event(event, params, context.chat_socket)
+    render_chat(context, socket)
+  end
+
+  # Renders the socket's assigns with the production template and moves the agent-session
+  # calls reported so far into the context, oldest first.
+  defp render_chat(context, socket) do
     page =
-      %{
-        chat: chat,
-        models: FixtureModels.all(),
-        model_access: model_access,
-        repository_write_allowed?: RepositoryAccess.can_enable_write?(user),
-        repository_write_enabled?: repository_mode == :workspace_write,
-        repository_access_mode: repository_mode,
-        form: Phoenix.Component.to_form(%{"prompt" => Map.get(context, :draft, "")}, as: :chat)
-      }
-      |> BnestAppWeb.ChatLive.render()
+      socket.assigns
+      |> Map.delete(:__changed__)
+      |> ChatLive.render()
       |> Safe.to_iodata()
       |> IO.iodata_to_binary()
       |> LazyHTML.from_fragment()
 
+    calls = agent_session_calls()
+
     context
-    |> Map.put(:chat, chat)
+    |> Map.update(:codex_calls, calls, &(&1 ++ calls))
+    |> Map.put(:chat_socket, socket)
     |> Map.put(:page, page)
   end
+
+  defp agent_session_calls(calls \\ []) do
+    receive do
+      {:agent_session, _call, _detail} = call -> agent_session_calls([call | calls])
+      {:agent_session, :prompt, _session, _prompt} = call -> agent_session_calls([call | calls])
+    after
+      0 -> Enum.reverse(calls)
+    end
+  end
+
+  # The agent-session calls made between the `earlier` context and the `later` one.
+  defp new_calls(later, earlier),
+    do: Enum.drop(later.codex_calls, length(Map.get(earlier, :codex_calls, [])))
+
+  defp last_open(context) do
+    context.codex_calls
+    |> Enum.filter(&match?({:agent_session, :open, _settings}, &1))
+    |> List.last()
+  end
+
+  # The event the browser client replays into a form when it reconnects: the form's
+  # `phx-auto-recover` event, else its change event; `ignore` replays nothing.
+  defp form_recovery_event(page, form_selector) do
+    form = LazyHTML.query(page, form_selector)
+
+    case {LazyHTML.attribute(form, "phx-auto-recover"), LazyHTML.attribute(form, "phx-change")} do
+      {["ignore"], _change} -> nil
+      {[event], _change} -> event
+      {[], [event]} -> event
+      _none -> nil
+    end
+  end
+
+  # The document a visitor's browser shows after opening `path`: router requests over the
+  # browser request path with a bootstrapped account, following redirects. The login page
+  # reads the setup status from the named Identity process.
+  defp visitor_document(context, path) do
+    _context = start_request_path(context, [synthetic_account("test-user-unit", ["admin"])])
+    ExUnit.Callbacks.start_supervised!(Identity)
+    follow_to_document(path, 3)
+  end
+
+  defp follow_to_document(path, redirects_left) do
+    response = dispatch_request(:get, path, nil)
+
+    case {response.status, Plug.Conn.get_resp_header(response, "location")} do
+      {200, _location} ->
+        LazyHTML.from_document(response.resp_body)
+
+      {302, [location]} when redirects_left > 0 ->
+        follow_to_document(location, redirects_left - 1)
+    end
+  end
+
+  defp statically_served?("/" <> path),
+    do: path |> String.split("/") |> hd() |> Kernel.in(BnestAppWeb.static_paths())
 
   defp identity(%{identity_role: :child}), do: %{"roles" => ["children"]}
   defp identity(%{identity_role: :child_admin}), do: %{"roles" => ["children", "admin"]}
   defp identity(%{identity_role: :parent}), do: %{"roles" => ["parents"]}
   defp identity(_context), do: %{"roles" => ["admin"]}
-
-  defp full_access do
-    ModelAccess.resolve(%{"roles" => ["admin"]}, FixtureModels.all())
-  end
 
   defp render_home(context, current_user \\ %{"displayUsername" => "test-user-unit"}) do
     page =
@@ -1061,16 +1291,22 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     ])
   end
 
+  # The saved chat is the precondition, so it is saved through the CodexChat facade, on the
+  # thread the agent session cannot resume.
   def prepare_behaviour(context, :unavailable_codex_thread, _args) do
-    {:ok, chat} = Chat.new("fixture-model", "medium") |> Chat.submit("Remember this transcript")
+    context = start_chat_runtime(context)
 
-    chat =
-      chat
-      |> Chat.update_assistant("Saved response")
-      |> Chat.complete()
-      |> Chat.put_thread_id("unavailable-thread")
+    {:ok, transcript} =
+      Transcript.new("gpt-5.6-terra", "medium") |> Transcript.submit("Remember this transcript")
 
-    Map.merge(context, %{centralized_chat: chat, transcript_before: chat.messages})
+    transcript =
+      transcript
+      |> Transcript.update_assistant("Saved response")
+      |> Transcript.complete()
+      |> Transcript.put_thread_id("unavailable-thread")
+
+    {:ok, _record} = CodexChat.save_transcript(context.chat_user["userId"], transcript, nil)
+    Map.put(context, :transcript_before, transcript.messages)
   end
 
   def prepare_behaviour(context, :no_storage_configuration, _args),
@@ -1194,16 +1430,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def prepare_behaviour(context, :non_admin_family_member, _args),
     do: Map.merge(context, %{storage_admin?: false, authenticated: true})
 
-  # A real connected client: the chat route is rendered through production and a draft is
-  # typed into the rendered composer, so reconnect evidence comes from re-rendered HTML.
+  # A connected chat client over SQLite-primary storage: the Storage pointer port reports the
+  # SQLite phase, the production LiveView runs over the routed record repository with the
+  # named Identity process beside it, and a draft is typed into its composer.
   def prepare_behaviour(context, :healthy_route_with_acknowledged_state, _args) do
+    context =
+      context
+      |> Map.put(:chat_storage, config: %{"schemaVersion" => 1, "phase" => "sqlite_primary"})
+      |> open("/chat")
+      |> type_draft("unsent draft")
+
+    ExUnit.Callbacks.start_supervised!(Identity)
     context
-    |> open("/chat")
-    |> type_draft("unsent draft")
-    |> Map.merge(%{
-      storage_config: %{"phase" => "sqlite_primary"},
-      routed_health_before: elem(Deployment.liveness(), 1)
-    })
   end
 
   def prepare_behaviour(context, :legacy_authoritative_sqlite, _args),
@@ -1474,14 +1712,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :cleared_storage_keys, cleared)
   end
 
+  # The user opens the saved chat, whose Codex thread the mount tries to resume, and sends the
+  # next message. The page the mount rendered is kept, since the send clears its alert.
   def perform_behaviour(context, :continue_chat, _args) do
-    chat =
-      Chat.fail(
-        context.centralized_chat,
-        "The previous Codex thread was unavailable; started a fresh conversation."
-      )
+    context = open(context, "/chat")
 
-    Map.put(context, :continued_chat, %{chat | thread_id: nil})
+    context
+    |> Map.put(:reopened_page, context.page)
+    |> send_message("Continue after resume")
   end
 
   def perform_behaviour(context, :start_managed_migration, _args),
@@ -1682,7 +1920,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :promote_compatible_candidate, _args) do
     context
     |> reconnect()
-    |> Map.put(:routed_health_after, elem(Deployment.liveness(), 1))
+    |> Map.put(:routed_health_after, Deployment.readiness())
   end
 
   def perform_behaviour(context, :resolve_backup_destination, _args) do
@@ -2042,6 +2280,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
            end),
          true <- Preferences.theme(owner) == context.journey_records.theme["theme"],
          true <- SifatAllah.load_progress(owner) == {:ok, context.journey_records.sifat_allah},
+         {:ok, _transcript, chat} <- CodexChat.load_transcript(owner),
+         true <- chat == context.journey_records.chat,
          digest = Identity.session_digest(token),
          :ok <- Identity.logout(token),
          true <- received?({:subscription_revoked, owner, digest}),
@@ -2070,11 +2310,17 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :no_host_path_or_inventory_revealed, _args),
     do: context.storage_response_body == "Not found"
 
+  # Readiness after the reconnect requires the record repository, Identity and the Codex model
+  # catalog the routed server serves from, and the Storage pointer keeps SQLite authoritative
+  # for the records the chat reaches. A changed revision is observable only at E2E, where a
+  # candidate release replaces the server.
   def behaviour_outcome?(context, :routed_revision_and_readiness_proven, _args) do
-    %{status: status, revision: revision, slot: slot} = context.routed_health_after
-
-    status == "live" and is_binary(revision) and revision != "" and is_binary(slot) and
-      context.storage_config["phase"] == "sqlite_primary"
+    match?(
+      {:ok, %{status: "ready", revision: revision, slot: slot}}
+      when is_binary(revision) and revision != "" and is_binary(slot),
+      context.routed_health_after
+    ) and Storage.phase() == :sqlite_primary and
+      Records.active_backend(context.chat_records) == Storage.record_backend()
   end
 
   # Reconnect must land on the same route without a reload step.
@@ -2210,13 +2456,43 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       LazyHTML.attribute(root, "data-browser-persistence") == ["false"]
   end
 
-  def behaviour_outcome?(context, :transcript_preserved, _args),
-    do: context.continued_chat.messages == context.transcript_before
+  # The saved messages must still show, and the chat the facade loads must be the stored record,
+  # leading with those messages on a thread other than the unavailable one.
+  def behaviour_outcome?(context, :transcript_preserved, _args) do
+    owner = context.chat_user["userId"]
+    {_backend, active} = Records.active_backend(context.chat_records)
+    stored = active |> InMemoryRecordBackend.snapshot() |> Map.get({:chat, owner})
+    saved_count = length(context.transcript_before)
 
-  def behaviour_outcome?(context, :fresh_conversation_reported, _args),
-    do:
-      is_nil(context.continued_chat.thread_id) and
-        String.contains?(context.continued_chat.error, "fresh conversation")
+    with true <- visitor_message_visible?(context, "Remember this transcript"),
+         true <- visitor_message_visible?(context, "Continue after resume"),
+         true <-
+           context.page
+           |> LazyHTML.query("[data-role=assistant-message]")
+           |> Enum.any?(&(&1 |> LazyHTML.text() |> String.trim() == "Saved response")),
+         {:ok, transcript, ^stored} <- CodexChat.load_transcript(owner) do
+      Enum.take(transcript.messages, saved_count) == context.transcript_before and
+        transcript.thread_id != "unavailable-thread"
+    else
+      _lost -> false
+    end
+  end
+
+  # Opening the chat reported the fresh conversation, after the agent session was asked for
+  # the unavailable thread and then for a new one, which received the next message.
+  def behaviour_outcome?(context, :fresh_conversation_reported, _args) do
+    alert = context.reopened_page |> LazyHTML.query("[role=alert]") |> LazyHTML.text()
+
+    opened_threads =
+      for {:agent_session, :open, {thread, _, _, _}} <- context.codex_calls, do: thread
+
+    String.contains?(alert, "transcript is preserved in a fresh conversation") and
+      opened_threads == ["unavailable-thread", nil] and
+      Enum.any?(
+        context.codex_calls,
+        &match?({:agent_session, :prompt, %{thread_id: nil}, "Continue after resume"}, &1)
+      )
+  end
 
   def behaviour_outcome?(context, :default_backup_folder, _args),
     do: context.resolved_backup_directory == "/workspace/data/backup"
@@ -2545,6 +2821,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Plug.Session.call(@session_options)
     |> Plug.Conn.fetch_session()
     |> Plug.Conn.put_session("_csrf_token", Plug.CSRFProtection.dump_state())
+    |> Plug.Conn.put_private(:phoenix_endpoint, BnestAppWeb.Endpoint)
     |> BnestAppWeb.Router.call(BnestAppWeb.Router.init([]))
   end
 

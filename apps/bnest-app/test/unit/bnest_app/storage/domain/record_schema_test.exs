@@ -3,7 +3,7 @@ defmodule BnestApp.Storage.Domain.RecordSchemaTest do
   # schema into the Storage domain cannot change what the repository reads or writes.
   use ExUnit.Case, async: true
 
-  alias BnestApp.Chat
+  alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage
   alias BnestApp.Storage.Domain.RecordSchema
@@ -12,7 +12,7 @@ defmodule BnestApp.Storage.Domain.RecordSchemaTest do
   @sha String.duplicate("a", 64)
 
   defp samples do
-    {:ok, chat_state} = Chat.snapshot(Chat.new())
+    {:ok, chat_state} = Transcript.snapshot(Transcript.new())
 
     [
       %{

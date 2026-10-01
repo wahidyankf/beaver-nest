@@ -13,11 +13,6 @@ defmodule BnestApp do
   @legacy_exports [
     AdminConfig.Registry,
     Backup.Config,
-    Chat,
-    Codex.ModelAccess,
-    Codex.ModelCatalog,
-    Codex.RepositoryAccess,
-    Codex.Settings,
     Deployment,
     FamilyChat,
     FamilyChat.Store,

@@ -16,7 +16,7 @@ defmodule BnestApp.Deployment do
   def readiness do
     with :ok <- running?(BnestApp.Storage.Records),
          :ok <- running?(BnestApp.Identity),
-         :ok <- running?(BnestApp.Codex.ModelCatalog),
+         :ok <- running?(BnestApp.CodexChat.ModelCatalog),
          :ok <- peer_ready?() do
       {:ok, %{status: "ready", revision: revision(), slot: slot()}}
     end

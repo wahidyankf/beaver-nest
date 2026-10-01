@@ -1,7 +1,8 @@
-defmodule BnestApp.Codex.ModelAccessTest do
+defmodule BnestApp.CodexChat.ModelAccessTest do
   use ExUnit.Case, async: true
 
-  alias BnestApp.Codex.{FixtureModels, ModelAccess}
+  alias BnestApp.CodexChat.Domain.ModelAccess
+  alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
 
   test "admins retain every discovered model and model selection" do
     models = FixtureModels.all()

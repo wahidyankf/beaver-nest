@@ -1,7 +1,11 @@
-defmodule BnestApp.Codex.FixtureModels do
+defmodule BnestApp.Test.CodexFixtureModels do
   @moduledoc false
 
   use Boundary, top_level?: true, check: [in: false, out: false]
+
+  # The test configuration's model discovery: it offers this fixed catalog without running
+  # the Codex CLI.
+  @behaviour BnestApp.CodexChat.Ports.ModelDiscovery
 
   @models [
     %{
@@ -54,6 +58,9 @@ defmodule BnestApp.Codex.FixtureModels do
       |> Map.put(:is_default, model.id == "gpt-5.6-sol")
     end)
   end
+
+  @impl true
+  def discover(_options), do: {:ok, all()}
 
   def display_names, do: Enum.map(@models, & &1.display_name)
 

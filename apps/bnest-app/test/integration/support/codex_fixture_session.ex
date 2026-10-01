@@ -1,9 +1,9 @@
-defmodule BnestApp.Codex.FixtureSession do
+defmodule BnestApp.Test.CodexFixtureSession do
   @moduledoc false
 
   use Boundary, top_level?: true, check: [in: false, out: false]
 
-  @behaviour BnestApp.Codex.Session
+  @behaviour BnestApp.CodexChat.Ports.AgentSession
 
   @impl true
   def open(_owner, "unavailable-thread", _model, _reasoning_effort, _repository_mode),

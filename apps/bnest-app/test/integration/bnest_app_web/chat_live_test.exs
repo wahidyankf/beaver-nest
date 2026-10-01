@@ -4,9 +4,8 @@ defmodule BnestAppWeb.ChatLiveTest do
   import Phoenix.ConnTest
   import Phoenix.LiveViewTest
 
-  alias BnestApp.Chat
-  alias BnestApp.Codex.FixtureSession
-  alias BnestApp.Codex.PortSession
+  alias BnestApp.CodexChat.Adapters.CodexPortSession
+  alias BnestApp.CodexChat.Domain.Transcript
 
   setup do
     previous = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
@@ -16,7 +15,7 @@ defmodule BnestAppWeb.ChatLiveTest do
   end
 
   test "does not close a session for a disconnected render" do
-    assert :ok = BnestAppWeb.ChatLive.terminate(:normal, %{assigns: %{session_adapter: nil}})
+    assert :ok = BnestAppWeb.ChatLive.terminate(:normal, %{assigns: %{codex_session: nil}})
   end
 
   test "ignores events from a replaced Codex session" do
@@ -44,7 +43,7 @@ defmodule BnestAppWeb.ChatLiveTest do
   end
 
   test "ignores an unsupported effort selection" do
-    socket = %Phoenix.LiveView.Socket{assigns: %{chat: Chat.new()}}
+    socket = %Phoenix.LiveView.Socket{assigns: %{chat: Transcript.new()}}
 
     assert {:noreply, ^socket} =
              BnestAppWeb.ChatLive.handle_event(
@@ -73,7 +72,7 @@ defmodule BnestAppWeb.ChatLiveTest do
   end
 
   test "persists a completed turn before Codex supplies a thread ID" do
-    {:ok, chat} = Chat.submit(Chat.new(), "Hello")
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
 
     socket = %Phoenix.LiveView.Socket{
       assigns: %{
@@ -94,7 +93,7 @@ defmodule BnestAppWeb.ChatLiveTest do
 
   test "replaces a failed resumed Codex session and preserves the transcript" do
     {:ok, restored} =
-      Chat.restore(%{
+      Transcript.restore(%{
         "version" => 2,
         "thread_id" => "unavailable-thread",
         "model" => "gpt-5.6-terra",
@@ -105,7 +104,7 @@ defmodule BnestAppWeb.ChatLiveTest do
         ]
       })
 
-    {:ok, chat} = Chat.submit(restored, "Continue")
+    {:ok, chat} = Transcript.submit(restored, "Continue")
 
     socket = %Phoenix.LiveView.Socket{
       assigns: %{
@@ -114,8 +113,7 @@ defmodule BnestAppWeb.ChatLiveTest do
         central_record: nil,
         codex_session: :failed_session,
         current_user: %{"userId" => "user-test-resume-fallback"},
-        repository_access_mode: :read_only,
-        session_adapter: FixtureSession
+        repository_access_mode: :read_only
       }
     }
 
@@ -139,7 +137,7 @@ defmodule BnestAppWeb.ChatLiveTest do
     assert result.assigns.central_record["ownerId"] == "user-test-resume-fallback"
   end
 
-  test "PortSession classifies a fixture resume failure" do
+  test "CodexPortSession classifies a fixture resume failure" do
     runner = Path.expand("../../support/codex_fixture_runner.mjs", __DIR__)
     previous = System.get_env("BNEST_CODEX_RUNNER")
     System.put_env("BNEST_CODEX_RUNNER", runner)
@@ -151,7 +149,7 @@ defmodule BnestAppWeb.ChatLiveTest do
     end)
 
     assert {:ok, session} =
-             PortSession.open(
+             CodexPortSession.open(
                self(),
                "unavailable-thread",
                "gpt-5.6-terra",
@@ -159,15 +157,15 @@ defmodule BnestAppWeb.ChatLiveTest do
                :read_only
              )
 
-    assert :ok = PortSession.send_prompt(session, "Continue")
+    assert :ok = CodexPortSession.send_prompt(session, "Continue")
 
     assert_receive {:codex, ^session, {:resume_failed, "Fixture Codex thread is unavailable."}},
                    2_000
 
-    assert :ok = PortSession.close(session)
+    assert :ok = CodexPortSession.close(session)
   end
 
-  test "PortSession forwards public progress with stable runner item IDs" do
+  test "CodexPortSession forwards public progress with stable runner item IDs" do
     runner = Path.expand("../../support/codex_fixture_runner.mjs", __DIR__)
     previous = System.get_env("BNEST_CODEX_RUNNER")
     System.put_env("BNEST_CODEX_RUNNER", runner)
@@ -179,9 +177,9 @@ defmodule BnestAppWeb.ChatLiveTest do
     end)
 
     assert {:ok, session} =
-             PortSession.open(self(), nil, "gpt-5.6-terra", "medium", :read_only)
+             CodexPortSession.open(self(), nil, "gpt-5.6-terra", "medium", :read_only)
 
-    assert :ok = PortSession.send_prompt(session, "Show progress")
+    assert :ok = CodexPortSession.send_prompt(session, "Show progress")
 
     assert_receive {:codex, ^session, {:thread_started, _thread_id}}, 2_000
 
@@ -198,10 +196,10 @@ defmodule BnestAppWeb.ChatLiveTest do
                    2_000
 
     assert_receive {:codex, ^session, :turn_completed}, 2_000
-    assert :ok = PortSession.close(session)
+    assert :ok = CodexPortSession.close(session)
   end
 
-  test "PortSession passes allowlisted repository modes to fresh and resumed runners" do
+  test "CodexPortSession passes allowlisted repository modes to fresh and resumed runners" do
     runner = Path.expand("../../support/codex_fixture_runner.mjs", __DIR__)
     previous = System.get_env("BNEST_CODEX_RUNNER")
     System.put_env("BNEST_CODEX_RUNNER", runner)
@@ -217,25 +215,25 @@ defmodule BnestAppWeb.ChatLiveTest do
           {"fixture-resumed-thread", :workspace_write, "Fixture sandbox: workspace-write"}
         ] do
       assert {:ok, session} =
-               PortSession.open(self(), thread_id, "gpt-5.6-terra", "medium", mode)
+               CodexPortSession.open(self(), thread_id, "gpt-5.6-terra", "medium", mode)
 
-      assert :ok = PortSession.send_prompt(session, "Report sandbox mode")
+      assert :ok = CodexPortSession.send_prompt(session, "Report sandbox mode")
       assert_receive {:codex, ^session, {:thread_started, _thread_id}}, 2_000
 
       assert_receive {:codex, ^session, {:assistant_update, "fixture-sandbox-mode", ^expected}},
                      2_000
 
       assert_receive {:codex, ^session, :turn_completed}, 2_000
-      assert :ok = PortSession.close(session)
+      assert :ok = CodexPortSession.close(session)
     end
 
     assert {:error, :invalid_repository_mode} =
-             PortSession.open(self(), nil, "gpt-5.6-terra", "medium", :danger_full_access)
+             CodexPortSession.open(self(), nil, "gpt-5.6-terra", "medium", :danger_full_access)
   end
 
   test "the production runner loads its SDK after release-style relocation" do
     codex_config = Application.fetch_env!(:bnest_app, :codex)
-    runner = PortSession.bundled_runner()
+    runner = CodexPortSession.bundled_runner()
     working_directory = Keyword.fetch!(codex_config, :working_directory)
 
     relocated_directory =
@@ -271,7 +269,7 @@ defmodule BnestAppWeb.ChatLiveTest do
   end
 
   test "the production runner is located in the packaged application" do
-    assert PortSession.bundled_runner() ==
+    assert CodexPortSession.bundled_runner() ==
              Application.app_dir(:bnest_app, "priv/codex/chat_runner.mjs")
   end
 end

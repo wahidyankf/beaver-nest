@@ -1,10 +1,11 @@
-defmodule BnestApp.Codex.ModelCatalogTest do
+defmodule BnestApp.CodexChat.ModelCatalogTest do
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
-  alias BnestApp.Codex.ModelCatalog
-  alias BnestApp.Codex.ModelDiscovery
+  alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.Adapters.CodexCliModelDiscovery
+  alias BnestApp.CodexChat.ModelCatalog
 
   @workspace Path.expand("../../../../../..", __DIR__)
   @fixture_runner Path.join(@workspace, "apps/bnest-app/test/support/codex_fixture_models.mjs")
@@ -14,6 +15,7 @@ defmodule BnestApp.Codex.ModelCatalogTest do
       start_supervised!(
         {ModelCatalog,
          name: nil,
+         discovery: CodexCliModelDiscovery,
          models_runner: @fixture_runner,
          working_directory: @workspace,
          node: System.find_executable("node")}
@@ -31,10 +33,14 @@ defmodule BnestApp.Codex.ModelCatalogTest do
   end
 
   test "uses configured local discovery when no test catalog is supplied" do
-    original_models = Application.get_env(:bnest_app, :codex_models)
+    original_chat = Application.fetch_env!(:bnest_app, CodexChat)
     original_codex = Application.fetch_env!(:bnest_app, :codex)
 
-    Application.delete_env(:bnest_app, :codex_models)
+    Application.put_env(
+      :bnest_app,
+      CodexChat,
+      Keyword.put(original_chat, :model_discovery, CodexCliModelDiscovery)
+    )
 
     Application.put_env(
       :bnest_app,
@@ -43,7 +49,7 @@ defmodule BnestApp.Codex.ModelCatalogTest do
     )
 
     on_exit(fn ->
-      Application.put_env(:bnest_app, :codex_models, original_models)
+      Application.put_env(:bnest_app, CodexChat, original_chat)
       Application.put_env(:bnest_app, :codex, original_codex)
     end)
 
@@ -52,7 +58,7 @@ defmodule BnestApp.Codex.ModelCatalogTest do
   end
 
   test "the production model runner is located in the packaged application" do
-    assert ModelDiscovery.bundled_models_runner() ==
+    assert CodexCliModelDiscovery.bundled_models_runner() ==
              Application.app_dir(:bnest_app, "priv/codex/list_models.mjs")
   end
 
@@ -76,7 +82,11 @@ defmodule BnestApp.Codex.ModelCatalogTest do
         catalog =
           start_supervised!(
             {ModelCatalog,
-             name: nil, models_runner: @fixture_runner, working_directory: @workspace, node: nil}
+             name: nil,
+             discovery: CodexCliModelDiscovery,
+             models_runner: @fixture_runner,
+             working_directory: @workspace,
+             node: nil}
           )
 
         assert ModelCatalog.all(catalog) == [ModelCatalog.default(catalog)]

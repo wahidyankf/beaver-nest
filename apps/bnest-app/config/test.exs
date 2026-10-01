@@ -132,6 +132,9 @@ else
   # Sifat Allah's progress store stays record-backed the same way: the unit driver runs the
   # Sifat Allah LiveView and the SQLite-migration journey reads learning progress through the
   # record repository, and the SifatAllah unit tests pass their own in-memory store as `store:`.
+  # Codex chat's transcript store stays record-backed too: the in-memory store serves no
+  # application records, the unit drivers and the SQLite-migration journey reach `:chat`
+  # through the record repository, and the CodexChat unit tests pass their own store.
   config :bnest_app, BnestApp.Identity,
     credential_hasher: BnestApp.Test.InMemory.CredentialHasher,
     session_notifier: BnestApp.Test.InMemory.SessionNotifier,
@@ -152,13 +155,16 @@ config :bnest_app,
   family_chat_sqlite_path:
     Path.expand("~/bnest/data/test/family-chat/#{family_chat_run_id}/bnest.sqlite3")
 
-codex_session =
+# Both layers talk to the fixture agent session unless a fixture Codex runner is supplied,
+# and offer the fixture model catalog. The transcript store stays record-backed.
+agent_session =
   if System.get_env("BNEST_CODEX_RUNNER"),
-    do: BnestApp.Codex.PortSession,
-    else: BnestApp.Codex.FixtureSession
+    do: BnestApp.CodexChat.Adapters.CodexPortSession,
+    else: BnestApp.Test.CodexFixtureSession
 
-config :bnest_app, :codex_session, codex_session
-config :bnest_app, :codex_models, BnestApp.Codex.FixtureModels
+config :bnest_app, BnestApp.CodexChat,
+  agent_session: agent_session,
+  model_discovery: BnestApp.Test.CodexFixtureModels
 
 config :argon2_elixir,
   argon2_type: 2,

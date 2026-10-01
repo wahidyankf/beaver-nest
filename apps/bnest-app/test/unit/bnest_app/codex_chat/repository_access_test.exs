@@ -1,7 +1,7 @@
-defmodule BnestApp.Codex.RepositoryAccessTest do
+defmodule BnestApp.CodexChat.RepositoryAccessTest do
   use ExUnit.Case, async: true
 
-  alias BnestApp.Codex.RepositoryAccess
+  alias BnestApp.CodexChat.Domain.RepositoryAccess
 
   test "only administrators without the children role may enable writes" do
     assert RepositoryAccess.can_enable_write?(%{"roles" => ["admin"]})

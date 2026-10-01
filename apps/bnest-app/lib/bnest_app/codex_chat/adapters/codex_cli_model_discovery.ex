@@ -1,18 +1,18 @@
-defmodule BnestApp.Codex.ModelDiscovery do
-  @moduledoc false
+defmodule BnestApp.CodexChat.Adapters.CodexCliModelDiscovery do
+  @moduledoc """
+  The `BnestApp.CodexChat.Ports.ModelDiscovery` over the local Codex CLI: it runs the bundled
+  Node models runner in the configured working directory and decodes its output. It is the
+  only place model discovery touches the operating system.
+  """
 
-  # The only place Codex model discovery touches the operating system. It returns raw
-  # decoded models and never normalizes or falls back, so `ModelCatalog` keeps exactly one
-  # validation path and can be exercised without spawning a Node process.
-
-  @callback discover(keyword()) :: {:ok, list()} | :error
+  @behaviour BnestApp.CodexChat.Ports.ModelDiscovery
 
   @spec bundled_models_runner() :: String.t()
   def bundled_models_runner do
     Application.app_dir(:bnest_app, "priv/codex/list_models.mjs")
   end
 
-  @spec discover(keyword()) :: {:ok, list()} | :error
+  @impl true
   def discover(options) do
     config = Application.fetch_env!(:bnest_app, :codex)
 

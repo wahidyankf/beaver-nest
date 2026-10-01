@@ -1,26 +1,25 @@
 defmodule BnestAppWeb.ChatLive do
   use BnestAppWeb, :live_view
 
-  alias BnestApp.Chat
-  alias BnestApp.Codex.{ModelAccess, ModelCatalog, RepositoryAccess, Settings}
-  alias BnestApp.Storage.Records
+  alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.Domain.{RepositoryAccess, Settings, Transcript}
 
   @max_snapshot_bytes 500_000
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
-    models = ModelCatalog.all()
-    model_access = ModelAccess.resolve(socket.assigns.current_user, models)
+    model_access = CodexChat.model_access(socket.assigns.current_user)
     {chat, central_record} = restore_chat(socket, model_access.model, model_access.models)
 
     chat =
       if model_access.selectable? do
         chat
       else
-        Chat.enforce_model(chat, model_access.model.id, model_access.reasoning_effort)
+        Transcript.enforce_model(chat, model_access.model.id, model_access.reasoning_effort)
       end
 
-    chat = if model_access.available?, do: chat, else: Chat.fail(chat, model_access.error)
+    chat =
+      if model_access.available?, do: chat, else: Transcript.fail(chat, model_access.error)
 
     socket =
       socket
@@ -35,7 +34,6 @@ defmodule BnestAppWeb.ChatLive do
       |> assign(:repository_access_mode, :read_only)
       |> assign(:form, prompt_form())
       |> assign(:central_record, central_record)
-      |> assign(:session_adapter, nil)
       |> assign(:codex_session, nil)
       |> assign(:checkpoint_timer, nil)
 
@@ -45,14 +43,14 @@ defmodule BnestAppWeb.ChatLive do
   end
 
   def handle_event("select_model", %{"model" => model_id}, socket) do
-    models = Map.get(socket.assigns, :models, ModelCatalog.all())
+    models = Map.get(socket.assigns, :models, CodexChat.models())
 
     with true <- model_selection_allowed?(socket),
          false <- socket.assigns.chat.busy,
          %{} = model <- selected_model(models, model_id),
          reasoning_effort =
-           ModelCatalog.reasoning_effort(model, socket.assigns.chat.reasoning_effort),
-         {:ok, chat} <- Chat.select_model(socket.assigns.chat, model.id, reasoning_effort) do
+           CodexChat.reasoning_effort(model, socket.assigns.chat.reasoning_effort),
+         {:ok, chat} <- Transcript.select_model(socket.assigns.chat, model.id, reasoning_effort) do
       {:noreply, replace_codex(socket, chat)}
     else
       _busy_or_unknown -> {:noreply, socket}
@@ -62,14 +60,18 @@ defmodule BnestAppWeb.ChatLive do
   def handle_event("ignore_model_recovery", _params, socket), do: {:noreply, socket}
 
   def handle_event("select_effort", %{"reasoning_effort" => reasoning_effort}, socket) do
-    models = Map.get(socket.assigns, :models, ModelCatalog.all())
+    models = Map.get(socket.assigns, :models, CodexChat.models())
 
     with true <- model_selection_allowed?(socket),
          false <- socket.assigns.chat.busy,
          %{} = model <- selected_model(models, socket.assigns.chat.model),
          true <- reasoning_effort in model.supported_reasoning_efforts,
          {:ok, chat} <-
-           Chat.select_model(socket.assigns.chat, socket.assigns.chat.model, reasoning_effort) do
+           Transcript.select_model(
+             socket.assigns.chat,
+             socket.assigns.chat.model,
+             reasoning_effort
+           ) do
       {:noreply, replace_codex(socket, chat)}
     else
       _busy_or_unsupported -> {:noreply, socket}
@@ -104,19 +106,13 @@ defmodule BnestAppWeb.ChatLive do
     do: {:noreply, socket}
 
   def handle_event("send", %{"chat" => %{"prompt" => prompt}}, socket) do
-    case Chat.submit(socket.assigns.chat, prompt) do
+    case Transcript.submit(socket.assigns.chat, prompt) do
       {:ok, chat} ->
         socket = socket |> assign(:chat, chat) |> assign(:form, prompt_form()) |> persist_chat()
 
-        case socket.assigns.session_adapter.send_prompt(socket.assigns.codex_session, prompt) do
-          :ok ->
-            {:noreply, socket}
-
-          {:error, _reason} ->
-            {:noreply,
-             socket
-             |> assign(:chat, Chat.fail(chat, "Codex is not available."))
-             |> persist_chat()}
+        case CodexChat.send_prompt(socket.assigns.codex_session, chat, prompt) do
+          {:ok, _chat} -> {:noreply, socket}
+          {:error, failed} -> {:noreply, socket |> assign(:chat, failed) |> persist_chat()}
         end
 
       {:error, chat} ->
@@ -133,7 +129,7 @@ defmodule BnestAppWeb.ChatLive do
   end
 
   defp clear_available_chat(socket) do
-    socket.assigns.session_adapter.close(socket.assigns.codex_session)
+    CodexChat.close(socket.assigns.codex_session)
 
     socket =
       socket
@@ -144,7 +140,7 @@ defmodule BnestAppWeb.ChatLive do
       )
       |> assign(
         :chat,
-        Chat.new(socket.assigns.chat.model, socket.assigns.chat.reasoning_effort)
+        Transcript.new(socket.assigns.chat.model, socket.assigns.chat.reasoning_effort)
       )
       |> assign(:form, prompt_form())
       |> clear_chat_persistence()
@@ -155,98 +151,28 @@ defmodule BnestAppWeb.ChatLive do
 
   @impl Phoenix.LiveView
   def handle_info(
-        {:codex, session, {:thread_started, thread_id}},
-        %{assigns: %{codex_session: session}} = socket
-      ) do
-    socket = socket |> update(:chat, &Chat.put_thread_id(&1, thread_id)) |> persist_chat()
-    {:noreply, socket}
-  end
-
-  def handle_info(
-        {:codex, session, {:assistant_update, item_id, text}},
-        %{assigns: %{codex_session: session}} = socket
-      ) do
-    {:noreply,
-     socket
-     |> update(:chat, &Chat.update_assistant(&1, item_id, text))
-     |> schedule_checkpoint()}
-  end
-
-  def handle_info(
-        {:codex, session, {:assistant_update, text}},
-        %{assigns: %{codex_session: session}} = socket
-      ) do
-    {:noreply,
-     socket
-     |> update(:chat, &Chat.update_assistant(&1, text))
-     |> schedule_checkpoint()}
-  end
-
-  def handle_info(
-        {:codex, session, {:reasoning_update, item_id, text}},
-        %{assigns: %{codex_session: session}} = socket
-      ) do
-    {:noreply,
-     socket
-     |> update(:chat, &Chat.update_progress(&1, item_id, :reasoning, text))
-     |> schedule_checkpoint()}
-  end
-
-  def handle_info(
-        {:codex, session, {:activity_update, item_id, text}},
-        %{assigns: %{codex_session: session}} = socket
-      ) do
-    {:noreply,
-     socket
-     |> update(:chat, &Chat.update_progress(&1, item_id, :activity, text))
-     |> schedule_checkpoint()}
-  end
-
-  def handle_info(
-        {:codex, session, :turn_completed},
-        %{assigns: %{codex_session: session}} = socket
-      ) do
-    socket = update(socket, :chat, &Chat.complete/1)
-    {:noreply, persist_chat(socket)}
-  end
-
-  def handle_info(
-        {:codex, session, {:error, message}},
-        %{assigns: %{codex_session: session}} = socket
-      ) do
-    {:noreply, socket |> update(:chat, &Chat.fail(&1, message)) |> persist_chat()}
-  end
-
-  def handle_info(
         {:codex, session, {:resume_failed, _message}},
         %{assigns: %{codex_session: session}} = socket
       ) do
-    socket.assigns.session_adapter.close(session)
-
-    fresh = %{
-      Chat.fail(
-        socket.assigns.chat,
-        "The previous Codex conversation was unavailable. Your transcript is preserved in a fresh conversation."
-      )
-      | thread_id: nil
-    }
-
-    case socket.assigns.session_adapter.open(
-           self(),
-           nil,
-           fresh.model,
-           fresh.reasoning_effort,
+    case CodexChat.replace_conversation(
+           session,
+           socket.assigns.chat,
            socket.assigns.repository_access_mode
          ) do
-      {:ok, replacement} ->
+      {:ok, replacement, fresh} ->
         socket = assign(socket, chat: fresh, codex_session: replacement)
         {:noreply, persist_chat(socket)}
 
-      {:error, _reason} ->
-        {:noreply,
-         socket
-         |> assign(:chat, Chat.fail(fresh, "Codex is not available."))
-         |> persist_chat()}
+      {:error, failed} ->
+        {:noreply, socket |> assign(:chat, failed) |> persist_chat()}
+    end
+  end
+
+  def handle_info({:codex, session, event}, %{assigns: %{codex_session: session}} = socket) do
+    case CodexChat.apply_event(socket.assigns.chat, event) do
+      {:persist, chat} -> {:noreply, socket |> assign(:chat, chat) |> persist_chat()}
+      {:checkpoint, chat} -> {:noreply, socket |> assign(:chat, chat) |> schedule_checkpoint()}
+      :ignore -> {:noreply, socket}
     end
   end
 
@@ -258,11 +184,9 @@ defmodule BnestAppWeb.ChatLive do
   end
 
   @impl Phoenix.LiveView
-  def terminate(_reason, %{assigns: %{session_adapter: nil}}), do: :ok
+  def terminate(_reason, %{assigns: %{codex_session: nil}}), do: :ok
 
-  def terminate(_reason, socket) do
-    socket.assigns.session_adapter.close(socket.assigns.codex_session)
-  end
+  def terminate(_reason, socket), do: CodexChat.close(socket.assigns.codex_session)
 
   @impl Phoenix.LiveView
   def render(assigns) do
@@ -457,56 +381,27 @@ defmodule BnestAppWeb.ChatLive do
   end
 
   defp connect_codex(socket, chat) do
-    adapter = Application.get_env(:bnest_app, :codex_session, BnestApp.Codex.PortSession)
+    case CodexChat.open_conversation(chat, socket.assigns.repository_access_mode) do
+      {:ok, session, _chat} ->
+        socket |> assign(:codex_session, session) |> recover_pending_turn()
 
-    case adapter.open(
-           self(),
-           chat.thread_id,
-           chat.model,
-           chat.reasoning_effort,
-           socket.assigns.repository_access_mode
-         ) do
-      {:ok, session} ->
-        socket = assign(socket, session_adapter: adapter, codex_session: session)
-        recover_pending_turn(socket)
+      {:fresh, session, fresh} ->
+        {:ok, socket |> assign(chat: fresh, codex_session: session) |> persist_chat()}
 
-      {:error, _reason} when not is_nil(chat.thread_id) ->
-        fresh = %{
-          chat
-          | thread_id: nil,
-            error:
-              "The previous Codex conversation was unavailable. Your transcript is preserved in a fresh conversation."
-        }
-
-        case adapter.open(
-               self(),
-               nil,
-               fresh.model,
-               fresh.reasoning_effort,
-               socket.assigns.repository_access_mode
-             ) do
-          {:ok, session} ->
-            socket = assign(socket, chat: fresh, session_adapter: adapter, codex_session: session)
-            {:ok, persist_chat(socket)}
-
-          {:error, _reason} ->
-            {:ok, assign(socket, chat: Chat.fail(fresh, "Codex is not available."))}
-        end
-
-      {:error, _reason} ->
-        {:ok, assign(socket, chat: Chat.fail(chat, "Codex is not available."))}
+      {:error, failed} ->
+        {:ok, assign(socket, chat: failed)}
     end
   end
 
   defp restore_chat(socket, default_model, models) do
     owner_id = socket.assigns.current_user["userId"]
 
-    case Records.read(:chat, owner_id) do
-      {:ok, record} ->
-        case Chat.restore(record["state"]) do
-          {:ok, restored} -> {normalize_model(restored, default_model, models), record}
-          :error -> {new_chat(default_model), nil}
-        end
+    case CodexChat.load_transcript(owner_id) do
+      {:ok, restored, record} ->
+        {normalize_model(restored, default_model, models), record}
+
+      {:error, :unrestorable} ->
+        {new_chat(default_model), nil}
 
       {:error, _missing_or_invalid} ->
         chat =
@@ -529,7 +424,7 @@ defmodule BnestAppWeb.ChatLive do
   defp decode_browser_chat(%{"chat" => encoded}, default_model) when is_binary(encoded) do
     with true <- byte_size(encoded) <= @max_snapshot_bytes,
          {:ok, snapshot} <- Jason.decode(encoded),
-         {:ok, restored} <- Chat.restore(snapshot) do
+         {:ok, restored} <- Transcript.restore(snapshot) do
       restored
     else
       _invalid_or_missing -> new_chat(default_model)
@@ -538,39 +433,20 @@ defmodule BnestAppWeb.ChatLive do
 
   defp decode_browser_chat(_params, default_model), do: new_chat(default_model)
 
-  defp persist_chat(socket) do
-    case Chat.snapshot(socket.assigns.chat) do
-      {:ok, snapshot} -> persist_chat_snapshot(socket, snapshot)
-      :error -> socket
-    end
-  end
-
   defp recover_pending_turn(socket) do
-    case Chat.continuation_prompt(socket.assigns.chat) do
-      {:ok, prompt, chat} ->
+    case CodexChat.recover_pending_turn(socket.assigns.chat) do
+      {:resend, prompt, chat} ->
         socket = socket |> assign(:chat, chat) |> persist_chat()
 
-        case socket.assigns.session_adapter.send_prompt(socket.assigns.codex_session, prompt) do
-          :ok ->
-            {:ok, socket}
-
-          {:error, _reason} ->
-            {:ok,
-             socket
-             |> assign(:chat, Chat.fail(chat, "Codex is not available."))
-             |> persist_chat()}
+        case CodexChat.send_prompt(socket.assigns.codex_session, chat, prompt) do
+          {:ok, _chat} -> {:ok, socket}
+          {:error, failed} -> {:ok, socket |> assign(:chat, failed) |> persist_chat()}
         end
 
-      {:error, :none} ->
+      :none ->
         {:ok, socket}
 
-      {:error, :already_attempted} ->
-        chat =
-          Chat.fail(
-            socket.assigns.chat,
-            "The previous response was interrupted. Your transcript is preserved; send a new message to continue."
-          )
-
+      {:interrupted, chat} ->
         {:ok, socket |> assign(:chat, chat) |> persist_chat()}
     end
   end
@@ -582,47 +458,23 @@ defmodule BnestAppWeb.ChatLive do
 
   defp schedule_checkpoint(socket), do: socket
 
-  defp persist_chat_snapshot(
-         %{assigns: %{central_record: nil, current_user: %{"migrationMode" => true}}} = socket,
-         snapshot
-       ),
-       do: push_event(socket, "persist-chat", snapshot)
+  # Until a legacy browser user's chat is centralized, the browser keeps it.
+  defp persist_chat(
+         %{assigns: %{central_record: nil, current_user: %{"migrationMode" => true}}} = socket
+       ) do
+    case Transcript.snapshot(socket.assigns.chat) do
+      {:ok, snapshot} -> push_event(socket, "persist-chat", snapshot)
+      :error -> socket
+    end
+  end
 
-  defp persist_chat_snapshot(socket, snapshot) do
+  defp persist_chat(socket) do
     owner_id = socket.assigns.current_user["userId"]
-    previous = socket.assigns.central_record
 
-    candidate = %{
-      "schemaVersion" => 1,
-      "recordType" => "chat",
-      "ownerId" => owner_id,
-      "sourceImportId" => if(previous, do: previous["sourceImportId"], else: nil),
-      "state" => snapshot,
-      "updatedAt" => timestamp()
-    }
-
-    expected_revision = if previous, do: previous["revision"], else: nil
-
-    case Records.write(:chat, owner_id, expected_revision, candidate) do
-      {:ok, record} ->
-        assign(socket, :central_record, record)
-
-      {:error, :stale} ->
-        assign(
-          socket,
-          :chat,
-          Chat.fail(socket.assigns.chat, "Newer chat data exists. Reload before continuing.")
-        )
-
-      {:error, _reason} ->
-        assign(
-          socket,
-          :chat,
-          Chat.fail(
-            socket.assigns.chat,
-            "Chat could not be saved. Your previous saved chat is unchanged."
-          )
-        )
+    case CodexChat.save_transcript(owner_id, socket.assigns.chat, socket.assigns.central_record) do
+      {:ok, record} -> assign(socket, :central_record, record)
+      {:error, failed} -> assign(socket, :chat, failed)
+      :error -> socket
     end
   end
 
@@ -637,7 +489,7 @@ defmodule BnestAppWeb.ChatLive do
     do: socket.assigns.current_user["migrationMode"] == true
 
   defp replace_codex(socket, chat) do
-    socket.assigns.session_adapter.close(socket.assigns.codex_session)
+    CodexChat.close(socket.assigns.codex_session)
 
     socket = assign(socket, :chat, chat)
     {:ok, socket} = connect_codex(socket, chat)
@@ -645,7 +497,7 @@ defmodule BnestAppWeb.ChatLive do
   end
 
   defp switch_repository_access(socket, requested?) do
-    socket.assigns.session_adapter.close(socket.assigns.codex_session)
+    CodexChat.close(socket.assigns.codex_session)
 
     mode = RepositoryAccess.mode(socket.assigns.current_user, requested?)
 
@@ -668,7 +520,10 @@ defmodule BnestAppWeb.ChatLive do
         )
         |> update(
           :chat,
-          &Chat.fail(&1, "Repository write access could not be enabled. Chat remains read-only.")
+          &Transcript.fail(
+            &1,
+            "Repository write access could not be enabled. Chat remains read-only."
+          )
         )
 
       {:ok, read_only} = connect_codex(fallback, fallback.assigns.chat)
@@ -680,14 +535,14 @@ defmodule BnestAppWeb.ChatLive do
 
   defp prompt_form(prompt \\ ""), do: to_form(%{"prompt" => prompt}, as: :chat)
 
-  defp new_chat(model), do: Chat.new(model.id, ModelCatalog.reasoning_effort(model))
+  defp new_chat(model), do: Transcript.new(model.id, CodexChat.reasoning_effort(model))
 
   defp normalize_model(chat, default_model, models) do
     selected_model =
       selected_model(models, chat.model) || default_model
 
-    reasoning_effort = ModelCatalog.reasoning_effort(selected_model, chat.reasoning_effort)
-    Chat.enforce_model(chat, selected_model.id, reasoning_effort)
+    reasoning_effort = CodexChat.reasoning_effort(selected_model, chat.reasoning_effort)
+    Transcript.enforce_model(chat, selected_model.id, reasoning_effort)
   end
 
   defp model_display_name(models, model_id) do
@@ -714,6 +569,4 @@ defmodule BnestAppWeb.ChatLive do
 
   defp message_class(%{role: :visitor}), do: "message message-visitor"
   defp message_class(%{role: :assistant}), do: "message message-assistant"
-
-  defp timestamp, do: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 end

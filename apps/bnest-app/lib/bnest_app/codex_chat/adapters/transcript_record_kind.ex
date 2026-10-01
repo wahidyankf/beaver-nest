@@ -6,14 +6,14 @@ defmodule BnestApp.CodexChat.Adapters.TranscriptRecordKind do
 
   @behaviour BnestApp.Storage.Ports.RecordKind
 
-  alias BnestApp.Chat
+  alias BnestApp.CodexChat.Domain.{Transcript, TranscriptRecord}
   alias BnestApp.Storage.Domain.RecordSchema
 
   @impl true
   def kind, do: :chat
 
   @impl true
-  def record_type, do: "chat"
+  def record_type, do: TranscriptRecord.record_type()
 
   @impl true
   def source, do: {"sessionStorage", "bnest.chat.v1"}
@@ -21,13 +21,13 @@ defmodule BnestApp.CodexChat.Adapters.TranscriptRecordKind do
   @impl true
   def valid?(record) do
     RecordSchema.exact?(record, ["state" | RecordSchema.envelope_fields()]) and
-      match?({:ok, _chat}, Chat.restore(record["state"]))
+      match?({:ok, _chat}, Transcript.restore(record["state"]))
   end
 
   @impl true
   def normalize(source) do
-    with {:ok, chat} <- Chat.restore(source),
-         {:ok, state} <- Chat.snapshot(chat) do
+    with {:ok, chat} <- Transcript.restore(source),
+         {:ok, state} <- Transcript.snapshot(chat) do
       {:ok, %{"state" => state}}
     else
       _invalid -> :error

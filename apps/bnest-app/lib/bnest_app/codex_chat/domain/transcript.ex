@@ -1,7 +1,7 @@
-defmodule BnestApp.Chat do
+defmodule BnestApp.CodexChat.Domain.Transcript do
   @moduledoc false
 
-  alias BnestApp.Codex.Settings
+  alias BnestApp.CodexChat.Domain.Settings
 
   @snapshot_version 4
   @max_messages 200
