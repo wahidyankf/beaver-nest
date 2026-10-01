@@ -23,7 +23,7 @@ Every Mermaid diagram must remain understandable to color-blind readers and legi
 - Do not annotate the palette in a `%%` Mermaid comment; some editors fail to render a diagram whose first line is a comment. State color meaning in the surrounding prose when it needs explanation.
 - When adding or materially changing a colored diagram, render it in light and dark modes, check its contrast, and review it with at least one color-blindness simulation before publication.
 
-RHINO enforces colored `classDef` declarations in `flowchart`, `graph`, `classDiagram`, `stateDiagram`, `stateDiagram-v2`, `erDiagram`, `requirementDiagram`, and `block`. Unstyled diagrams pass. Other types remain human-reviewed because their styling semantics differ or are unstable. Automated checks require 4.5:1 contrast because rendered text size cannot be proven statically.
+RHINO enforces the palette on every allowed diagram type: `flowchart`, `graph`, `sequenceDiagram`, `stateDiagram-v2`, and `erDiagram`. A diagram must declare a complete `classDef default` where the renderer applies one, carry `accTitle` and `accDescr`, take every colour from the palette, and keep each shape visible at 3:1 against a white and a `#0D1117` canvas. Theme overrides and undeclared types, including `mindmap`, are refused. The [ose-rules Colour Accessibility convention](https://github.com/wahidyankf/ose-rules/blob/main/repo-governance/conventions/writing/color-accessibility.md) holds the full rule. Automated checks require 4.5:1 text contrast because rendered text size cannot be proven statically.
 
 ## Mermaid Legibility
 
