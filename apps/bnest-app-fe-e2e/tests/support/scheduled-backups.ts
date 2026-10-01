@@ -142,7 +142,7 @@ export async function expectOwnerAllowlists(page: Page): Promise<void> {
   );
   await expect(panels.nth(0)).toHaveAttribute(
     "data-config-owner",
-    /Storage\.Config/u,
+    /^BnestApp\.Storage$/u,
   );
   await expect(panels.nth(1)).toHaveAttribute(
     "data-config-owner",
