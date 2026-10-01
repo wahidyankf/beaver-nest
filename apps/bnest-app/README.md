@@ -18,35 +18,35 @@ mix setup
 
 Run project tasks from the repository root:
 
-| Task                                 | Command                                                                                        |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| Build browser assets for tests       | `npm exec -- nx run -p bnest-app -t assets:build`                                              |
-| Start the stable development server  | `npm exec -- nx run -p bnest-app -t serve`                                                     |
-| Install the stable local Caddy proxy | `npm exec -- nx run -p bnest-app -t proxy:install`                                             |
-| Inspect deployment routing           | `npm exec -- nx run -p bnest-app -t proxy:status`                                              |
-| Build an immutable candidate release | `npm exec -- nx run -p bnest-app -t release:build`                                             |
-| Test the release transaction         | `npm exec -- nx run -p bnest-app -t release:test`                                              |
-| Run one deterministic release        | `npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>`                           |
-| Start an inactive release slot       | `npm exec -- nx run -p bnest-app -t deploy:prepare -- --slot green --revision <sha>`           |
-| Gracefully promote a release slot    | `npm exec -- nx run -p bnest-app -t deploy:promote -- --slot green`                            |
-| Route back to the previous slot      | `npm exec -- nx run -p bnest-app -t deploy:rollback`                                           |
-| Stop a drained inactive slot         | `npm exec -- nx run -p bnest-app -t deploy:retire -- --slot blue`                              |
-| Enable persistent tailnet HTTPS      | `npm exec -- nx run -p bnest-app -t tailnet:up`                                                |
-| Inspect the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:status`                                            |
-| Disable the tailnet proxy            | `npm exec -- nx run -p bnest-app -t tailnet:down`                                              |
-| Run the complete quick suite         | `npm exec -- nx run -p bnest-app -t test:quick`                                                |
-| Run unit scenarios with coverage     | `npm exec -- nx run -p bnest-app -t test:unit`                                                 |
-| Run local-only integration scenarios | `npm exec -- nx run -p bnest-app -t test:integration`                                          |
-| Verify every behaviour adapter       | `npm exec -- nx run -p bnest-app -t test:coverage:behaviour`                                   |
-| Run static type analysis             | `npm exec -- nx run -p bnest-app -t typecheck`                                                 |
-| Run all linters                      | `npm exec -- nx run -p bnest-app -t lint`                                                      |
-| Check Elixir and HEEx formatting     | `npm exec -- nx run -p bnest-app -t format`                                                    |
-| Audit runtime schemas without values | `npm exec -- nx run -p bnest-app -t schema:audit`                                              |
-| Benchmark the password verifier      | `npm exec -- nx run -p bnest-app -t identity:benchmark`                                        |
-| Relocate authoritative SQLite data   | `npm exec -- nx run -p bnest-app -t storage:relocate`                                          |
-| Retire verified legacy storage       | `npm exec -- nx run -p bnest-app -t storage:retire -- --root <root> --generation <generation>` |
-| Purge legacy production test records | `npm exec -- nx run -p bnest-app -t storage:purge-test-data -- --generation <generation>`      |
-| Clean stale isolated test data       | `npm exec -- nx run -p bnest-app -t test-data:cleanup`                                         |
+| Task                                            | Command                                                                                        |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Build browser assets for tests                  | `npm exec -- nx run -p bnest-app -t assets:build`                                              |
+| Start the stable development server             | `npm exec -- nx run -p bnest-app -t serve`                                                     |
+| Install the stable local Caddy proxy            | `npm exec -- nx run -p bnest-app -t proxy:install`                                             |
+| Inspect deployment routing                      | `npm exec -- nx run -p bnest-app -t proxy:status`                                              |
+| Build an immutable candidate release            | `npm exec -- nx run -p bnest-app -t release:build`                                             |
+| Test the release transaction                    | `npm exec -- nx run -p bnest-app -t release:test`                                              |
+| Run one deterministic release                   | `npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>`                           |
+| Start an inactive release slot                  | `npm exec -- nx run -p bnest-app -t deploy:prepare -- --slot green --revision <sha>`           |
+| Gracefully promote a release slot               | `npm exec -- nx run -p bnest-app -t deploy:promote -- --slot green`                            |
+| Route back to the previous slot                 | `npm exec -- nx run -p bnest-app -t deploy:rollback`                                           |
+| Stop a drained inactive slot                    | `npm exec -- nx run -p bnest-app -t deploy:retire -- --slot blue`                              |
+| Enable persistent tailnet HTTPS                 | `npm exec -- nx run -p bnest-app -t tailnet:up`                                                |
+| Inspect the tailnet proxy                       | `npm exec -- nx run -p bnest-app -t tailnet:status`                                            |
+| Disable the tailnet proxy                       | `npm exec -- nx run -p bnest-app -t tailnet:down`                                              |
+| Run the complete quick suite                    | `npm exec -- nx run -p bnest-app -t test:quick`                                                |
+| Run unit scenarios with coverage                | `npm exec -- nx run -p bnest-app -t test:unit`                                                 |
+| Run integration scenarios and the layering scan | `npm exec -- nx run -p bnest-app -t test:integration`                                          |
+| Verify every behaviour adapter                  | `npm exec -- nx run -p bnest-app -t test:coverage:behaviour`                                   |
+| Run type and module-boundary checks             | `npm exec -- nx run -p bnest-app -t typecheck`                                                 |
+| Run all linters                                 | `npm exec -- nx run -p bnest-app -t lint`                                                      |
+| Check Elixir and HEEx formatting                | `npm exec -- nx run -p bnest-app -t format`                                                    |
+| Audit runtime schemas without values            | `npm exec -- nx run -p bnest-app -t schema:audit`                                              |
+| Benchmark the password verifier                 | `npm exec -- nx run -p bnest-app -t identity:benchmark`                                        |
+| Relocate authoritative SQLite data              | `npm exec -- nx run -p bnest-app -t storage:relocate`                                          |
+| Retire verified legacy storage                  | `npm exec -- nx run -p bnest-app -t storage:retire -- --root <root> --generation <generation>` |
+| Purge legacy production test records            | `npm exec -- nx run -p bnest-app -t storage:purge-test-data -- --generation <generation>`      |
+| Clean stale isolated test data                  | `npm exec -- nx run -p bnest-app -t test-data:cleanup`                                         |
 
 Run compute-bearing rows through `./hippo run --class ephemeral --resource-tier standard --disk-path . -- <command>` and the repository [HIPPO](../../repo-governance/development/resource-aware-development.md); `serve`, managed release, and pre-push enter it automatically. Use the `transactional` class for storage mutations so admitted work is never killed mid-transaction. Recovery, proxy status, rollback, retire, and tailnet controls remain direct.
 
