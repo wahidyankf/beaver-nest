@@ -131,6 +131,8 @@ defmodule BnestApp.MixProject do
     ]
 
     test_scaffolding = [
+      BnestApp.ArchitectureScan,
+      BnestApp.Behaviour,
       BnestApp.Behaviour.BoundaryPolicy,
       BnestApp.Behaviour.Driver,
       BnestApp.Behaviour.IntegrationFamilyChatDriver,
@@ -146,50 +148,14 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.ConnCase
     ]
 
-    boundary_adapters = [
-      BnestApp.AdminConfig.Registry,
+    # Outbound adapters, inbound adapters and infrastructure entry points: `test:integration`
+    # exercises them against real infrastructure, so the unit denominator leaves them out.
+    adapters_and_entry_points = [
+      ~r/\.Adapters\./,
       BnestApp.Application,
-      BnestApp.Codex.ModelDiscovery,
-      BnestApp.Backup,
-      BnestApp.Backup.Capacity,
-      BnestApp.Backup.Config,
-      BnestApp.Backup.Location,
-      BnestApp.Backup.Receipt,
-      BnestApp.Backup.Run,
-      BnestApp.DataRepository.Backup,
-      BnestApp.DataRepository.Import,
-      BnestApp.DataRepository.Manifest,
-      BnestApp.DataRepository.RecoverySource,
-      BnestApp.DataRepository.Schema,
-      BnestApp.DataRepository.SqliteStore,
-      BnestApp.DataRepository.Store,
-      BnestApp.DataRepository.StorageCoordinator,
-      BnestApp.Deployment,
-      BnestApp.Identity,
-      BnestApp.Identity.Bootstrap,
-      BnestApp.Identity.CredentialVerifier,
-      BnestApp.Identity.FileStore,
-      BnestApp.FamilyChat.Store,
-      BnestApp.Identity.Session,
-      BnestApp.PushNotifications,
-      BnestApp.PushNotifications.Dispatcher,
-      BnestApp.PushNotifications.RetentionJob,
-      BnestApp.PushNotifications.Sender,
       BnestApp.Release.Migrations.FamilyChat,
       BnestApp.Release.Migrations.PersistentSchedules,
-      BnestApp.Scheduler,
-      BnestApp.Scheduler.Registry,
-      BnestApp.Scheduler.Run,
-      BnestApp.Scheduler.Store,
       BnestApp.SqliteRepo,
-      BnestApp.Storage.Config,
-      BnestApp.Storage.Location,
-      BnestApp.Storage.Lock,
-      BnestApp.Storage.Migration,
-      BnestApp.Storage.RecordMap,
-      BnestApp.Storage.Relocation,
-      BnestApp.Storage.Retirement,
-      BnestApp.Storage.TestDataCleanup,
       BnestAppWeb.BootstrapController,
       BnestAppWeb.AdminScheduleSettingsLive,
       BnestAppWeb.AdminSettingsLive,
@@ -218,12 +184,57 @@ defmodule BnestApp.MixProject do
       Mix.Tasks.Bnest.Storage.PurgeTestData
     ]
 
+    # Temporary. Legacy core modules that still perform I/O. The unit that moves each into
+    # a context's layers deletes its entries and brings its facade under the threshold.
+    legacy_core = [
+      BnestApp.AdminConfig.Registry,
+      BnestApp.Codex.ModelDiscovery,
+      BnestApp.Backup,
+      BnestApp.Backup.Capacity,
+      BnestApp.Backup.Config,
+      BnestApp.Backup.Location,
+      BnestApp.Backup.Receipt,
+      BnestApp.Backup.Run,
+      BnestApp.DataRepository.Backup,
+      BnestApp.DataRepository.Import,
+      BnestApp.DataRepository.Manifest,
+      BnestApp.DataRepository.RecoverySource,
+      BnestApp.DataRepository.Schema,
+      BnestApp.DataRepository.SqliteStore,
+      BnestApp.DataRepository.Store,
+      BnestApp.DataRepository.StorageCoordinator,
+      BnestApp.Deployment,
+      BnestApp.Identity,
+      BnestApp.Identity.Bootstrap,
+      BnestApp.Identity.CredentialVerifier,
+      BnestApp.Identity.FileStore,
+      BnestApp.FamilyChat.Store,
+      BnestApp.Identity.Session,
+      BnestApp.PushNotifications,
+      BnestApp.PushNotifications.Dispatcher,
+      BnestApp.PushNotifications.RetentionJob,
+      BnestApp.PushNotifications.Sender,
+      BnestApp.Scheduler,
+      BnestApp.Scheduler.Registry,
+      BnestApp.Scheduler.Run,
+      BnestApp.Scheduler.Store,
+      BnestApp.Storage.Config,
+      BnestApp.Storage.Location,
+      BnestApp.Storage.Lock,
+      BnestApp.Storage.Migration,
+      BnestApp.Storage.RecordMap,
+      BnestApp.Storage.Relocation,
+      BnestApp.Storage.Retirement,
+      BnestApp.Storage.TestDataCleanup
+    ]
+
     # Only the unit layer carries a coverage threshold. `test:integration` still exercises
     # the boundary adapters, but its result is a pass or fail, not a measured denominator.
     [
       output: "cover/unit",
       summary: [threshold: 99],
-      ignore_modules: generated_or_static ++ test_scaffolding ++ boundary_adapters
+      ignore_modules:
+        generated_or_static ++ test_scaffolding ++ adapters_and_entry_points ++ legacy_core
     ]
   end
 
