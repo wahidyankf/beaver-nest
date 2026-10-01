@@ -109,8 +109,6 @@ Feature: Revising the 20 attributes of Allah
     And the visitor starts a quiz
     Then the page displays the text "Apa lawan dari Qidam?"
 
-  # Exemption(integration): browser timer-driven focus and navigation require a browser event loop; alternative-proof: bnest-app-fe-e2e:test:e2e / A quiz locks one answer and moves on automatically
-  @integration-exempt
   Scenario: A quiz locks one answer and moves on automatically
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz
