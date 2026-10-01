@@ -5,8 +5,8 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 ## Start
 
 1. Select one backlog or in-progress plan. Require a current `PASS` from an explicitly user-directed
-   [quality-gate](plan-quality-gate.md) run; execution authority does not authorize that gate. If absent or blocked,
-   stop without starting or rerunning it.
+   [quality-gate](plan-quality-gate.md) run; execution authority does not authorize that gate. A bug-fix plan's
+   direction is Upstream Tool Defects. If absent or blocked, stop without starting or rerunning it.
 2. Enter the plan's declared `worktrees/<name>/` checkout before any file or Git mutation, initializing it if new, and
    pass the [integration path](../conventions/integration-path.md) sync gate there. Executing from a stale branch or the
    primary checkout is forbidden, save the release invocation that convention exempts; an unclean tree or a rebase
@@ -23,8 +23,8 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 
 1. Work in order with one active item unless genuinely parallel. Stay authorized, stop at pending `[HUMAN]` input, and
    pass every phase checkpoint.
-2. Resolve each item atomically: tick the checkbox, record the result, and move on, as one step. Check an item only
-   after outcome and proof pass; its dated note records what was produced, what changed, and what was surprising.
+2. Resolve each item atomically: tick the checkbox, record the result, and move on. Check an item only after outcome
+   and proof pass; its dated note records what was produced, what changed, and what was surprising.
 3. Synchronize both lists and activate triggered conditionals. Add discoveries to both only for an existing outcome;
    label and explain them.
 4. Capture learnings. Search the owning repository's `plans/ideas/`; merge overlap or create one distinct mapped brief
