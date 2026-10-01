@@ -187,6 +187,7 @@ Then("the response reports a validation failure", () => {
     rejection.errors,
     "expected the send to be refused, not committed",
   ).toBeDefined();
+  expect(rejection.errors?.[0]?.extensions?.["code"]).toBe("VALIDATION_FAILED");
   expect(rejection.data?.sendFamilyChatMessage ?? null).toBeNull();
 });
 
