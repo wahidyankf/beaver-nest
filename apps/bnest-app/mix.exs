@@ -106,7 +106,7 @@ defmodule BnestApp.MixProject do
       # still hex.pm's only actively-maintained Web Push protocol library
       # (`web_push_encryption` is abandoned), still 0.1.0/MIT as of this
       # check. Only its `WebPush.Vapid`/`WebPush.Encryption` building blocks
-      # are used (see `BnestApp.PushNotifications.Sender`); the actual HTTP
+      # are used (see `BnestApp.PushNotifications.Adapters.WebPushSender`); the HTTP
       # POST goes through `Req` (already a dependency) so this delivery's own
       # redirect-disabled, bounded-timeout policy applies uniformly rather
       # than depending on `WebPush.send/3`'s internal Finch pool config.
@@ -192,10 +192,6 @@ defmodule BnestApp.MixProject do
       BnestApp.Backup.Receipt,
       BnestApp.Backup.Run,
       BnestApp.Deployment,
-      BnestApp.PushNotifications,
-      BnestApp.PushNotifications.Dispatcher,
-      BnestApp.PushNotifications.RetentionJob,
-      BnestApp.PushNotifications.Sender,
       BnestApp.Scheduler,
       BnestApp.Scheduler.Registry,
       BnestApp.Scheduler.Run,

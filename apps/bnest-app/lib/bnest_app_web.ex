@@ -24,6 +24,7 @@ defmodule BnestAppWeb do
       BnestApp.FamilyChat,
       BnestApp.Identity,
       BnestApp.Preferences,
+      BnestApp.PushNotifications,
       BnestApp.SifatAllah,
       BnestApp.Storage,
       # legacy: HealthController; removed in U13

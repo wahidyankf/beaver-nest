@@ -1,59 +1,76 @@
-defmodule BnestApp.PushNotifications.PolicyTest do
+defmodule BnestApp.PushNotifications.Domain.PolicyTest do
   use ExUnit.Case, async: true
 
-  alias BnestApp.PushNotifications.Policy
+  alias BnestApp.PushNotifications.Domain.Policy
 
   @now ~U[2026-09-18 10:00:00Z]
   @valid_key Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
+  # The synthetic provider host the test push senders name.
+  @synthetic_hosts ["push.allowed.example.com"]
 
-  describe "validate_subscription_input/1" do
+  describe "allowlisted_hosts/1" do
+    test "is the production push services followed by the extra hosts" do
+      production = Policy.allowlisted_hosts([])
+
+      assert "web.push.apple.com" in production
+      assert "fcm.googleapis.com" in production
+      refute "push.allowed.example.com" in production
+      assert Policy.allowlisted_hosts(@synthetic_hosts) == production ++ @synthetic_hosts
+    end
+  end
+
+  describe "validate_subscription_input/2" do
     test "rejects a non-map input outright" do
-      assert {:error, :invalid_shape} = Policy.validate_subscription_input("not a map")
-      assert {:error, :invalid_shape} = Policy.validate_subscription_input(nil)
-      assert {:error, :invalid_shape} = Policy.validate_subscription_input([1, 2, 3])
+      assert {:error, :invalid_shape} = Policy.validate_subscription_input("not a map", [])
+      assert {:error, :invalid_shape} = Policy.validate_subscription_input(nil, [])
+      assert {:error, :invalid_shape} = Policy.validate_subscription_input([1, 2, 3], [])
     end
 
     test "rejects an endpoint with no parseable host" do
       # `URI.parse/1` on an opaque (no "//") scheme-only value yields a nil
       # host, exercising `validate_not_ip_literal/1`'s non-binary-host clause.
       assert {:error, :endpoint_not_allowed} =
-               Policy.validate_subscription_input(%{
-                 "endpoint" => "https:opaque-no-host",
-                 "p256dh" => @valid_key,
-                 "auth" => @valid_key
-               })
+               Policy.validate_subscription_input(
+                 %{
+                   "endpoint" => "https:opaque-no-host",
+                   "p256dh" => @valid_key,
+                   "auth" => @valid_key
+                 },
+                 @synthetic_hosts
+               )
     end
 
     test "rejects a missing or blank required field" do
       assert {:error, :invalid_shape} =
-               Policy.validate_subscription_input(%{"p256dh" => @valid_key, "auth" => @valid_key})
+               Policy.validate_subscription_input(
+                 %{"p256dh" => @valid_key, "auth" => @valid_key},
+                 @synthetic_hosts
+               )
 
       assert {:error, :invalid_shape} =
-               Policy.validate_subscription_input(%{
-                 "endpoint" => "",
-                 "p256dh" => @valid_key,
-                 "auth" => @valid_key
-               })
+               Policy.validate_subscription_input(
+                 %{"endpoint" => "", "p256dh" => @valid_key, "auth" => @valid_key},
+                 @synthetic_hosts
+               )
     end
 
-    test "accepts a well-formed allowlisted-host subscription" do
-      # `push_notifications_test_provider?` is already `true` suite-wide
-      # (config/test.exs), which is what allowlists this synthetic host --
-      # not touched here (a `put_env`/`delete_env` pair around this one test
-      # would leave the value deleted, not restored, for every test after
-      # it).
+    test "accepts a well-formed subscription on an extra host, and only with that host" do
       # Built from separate fragments (not one literal URL-shaped string) so this
       # synthetic fixture does not trip the unit-layer boundary policy's blanket
       # network-URL scan (`test/behaviour/verify.exs`) -- same convention as
       # `UnitFamilyChatDriver.valid_subscription_input/0`.
       scheme = "https:"
 
+      input = %{
+        "endpoint" => scheme <> "//push.allowed.example.com/abc",
+        "p256dh" => @valid_key,
+        "auth" => @valid_key
+      }
+
       assert {:ok, %{endpoint: _endpoint, p256dh: @valid_key, auth: @valid_key}} =
-               Policy.validate_subscription_input(%{
-                 "endpoint" => scheme <> "//push.allowed.example.com/abc",
-                 "p256dh" => @valid_key,
-                 "auth" => @valid_key
-               })
+               Policy.validate_subscription_input(input, @synthetic_hosts)
+
+      assert {:error, :endpoint_not_allowed} = Policy.validate_subscription_input(input, [])
     end
   end
 

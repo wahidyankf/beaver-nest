@@ -5,13 +5,20 @@ defmodule BnestApp.Test.InMemory.RoomStore do
   unique idempotency key per sender, reply targets that must exist, cursor pages, and one
   pending delivery per other active push subscription.
 
+  The agent is the unit layer's in-memory stand-in for Family Chat's SQLite database, which
+  also holds PushNotifications' subscriptions and deliveries. `BnestApp.Test.InMemory.
+  SubscriptionStore` and `BnestApp.Test.InMemory.DeliveryStore` serve those rows from the
+  same agent, so a commit fans out to the subscriptions they store and records the
+  deliveries they claim, as the SQLite stores share one database. `over/1` turns a handle
+  of any of the three into a room store handle on the same agent.
+
   `start/0` gives a test its own store. The unit layer also configures this module as the
   `:room_store` adapter; its `new/0` then serves the store a test started with
   `install/0`, which the test supervisor stops before the next test, so each test starts
-  from a fresh store. The test seams `put_room/3` and `put_subscription/3` stand in for
-  state the store's own callbacks never write: rooms other than the canonical one, and the
-  push subscriptions that PushNotifications owns. `calls/1` reports every port callback the
-  store has served, so a test can prove that code it ran never reached Family Chat's store.
+  from a fresh store. The test seam `put_room/3` stands in for rooms other than the
+  canonical one, which the store's own callbacks never write. `calls/1` reports every room
+  store callback the store has served, so a test can prove that code it ran never reached
+  Family Chat's store.
   """
 
   @behaviour BnestApp.FamilyChat.Ports.RoomStore
@@ -69,22 +76,8 @@ defmodule BnestApp.Test.InMemory.RoomStore do
     end)
   end
 
-  @doc """
-  Adds a push subscription owned by `user_id` and returns its ID. It is active unless
-  `active?: false` is given, as a subscription its owner disabled is.
-  """
-  def put_subscription(%{pid: pid}, user_id, options \\ []) do
-    active? = Keyword.get(options, :active?, true)
-
-    Agent.get_and_update(pid, fn state ->
-      id = length(state.subscriptions) + 1
-      subscription = %{id: id, user_id: user_id, active?: active?}
-      {id, %{state | subscriptions: state.subscriptions ++ [subscription]}}
-    end)
-  end
-
-  @doc "Every delivery committed so far, oldest first."
-  def deliveries(%{pid: pid}), do: Agent.get(pid, & &1.deliveries)
+  @doc "A room store handle on the agent of `handle`, a handle of any in-memory store."
+  def over(%{pid: pid}), do: %{adapter: __MODULE__, pid: pid}
 
   @doc "How many times the store converged after a drain."
   def convergences(%{pid: pid}), do: Agent.get(pid, & &1.convergences)
@@ -211,7 +204,9 @@ defmodule BnestApp.Test.InMemory.RoomStore do
       messages: [],
       next_message_id: 1,
       subscriptions: [],
+      next_subscription_id: 1,
       deliveries: [],
+      next_delivery_id: 1,
       convergences: 0,
       calls: []
     }
@@ -269,26 +264,59 @@ defmodule BnestApp.Test.InMemory.RoomStore do
     )
   end
 
-  # One pending delivery per active subscription; a user sender's own are excluded, a
-  # system sender owns none.
+  # One pending delivery per active subscription, in subscription order; a user sender's
+  # own are excluded, a system sender owns none. Each is stored as a whole delivery row,
+  # stamped with the commit's time and actor, as the SQLite store's commit inserts it.
   defp commit(state, message) do
     excluded = if message.sender_kind == "user", do: message.sender_id
+    actor = actor_for(message.sender_kind, message.sender_id)
 
-    deliveries =
+    owed =
       for subscription <- state.subscriptions,
-          subscription.active? and subscription.user_id != excluded,
-          do: %{subscription_id: subscription.id, state: "pending"}
+          is_nil(subscription.deleted_at) and subscription.user_id != excluded,
+          do: subscription.id
+
+    rows =
+      owed
+      |> Enum.with_index(state.next_delivery_id)
+      |> Enum.map(fn {subscription_id, id} ->
+        delivery_row(id, message, subscription_id, actor)
+      end)
 
     state = %{
       state
       | messages: state.messages ++ [message],
         next_message_id: message.id + 1,
-        deliveries:
-          state.deliveries ++ Enum.map(deliveries, &Map.put(&1, :message_id, message.id))
+        deliveries: state.deliveries ++ rows,
+        next_delivery_id: state.next_delivery_id + length(rows)
     }
 
+    deliveries = Enum.map(owed, &%{subscription_id: &1, state: "pending"})
     {{:ok, Map.put(message, :deliveries, deliveries)}, state}
   end
+
+  defp delivery_row(id, message, subscription_id, actor) do
+    %{
+      id: id,
+      message_id: message.id,
+      subscription_id: subscription_id,
+      state: "pending",
+      attempt_count: 0,
+      next_attempt_at: nil,
+      lease_expires_at: nil,
+      failure_category: nil,
+      provider_accepted_at: nil,
+      created_at: message.committed_at,
+      created_by: actor,
+      updated_at: message.committed_at,
+      updated_by: actor,
+      deleted_at: nil,
+      deleted_by: nil
+    }
+  end
+
+  defp actor_for("system", sender_id), do: "system:" <> sender_id
+  defp actor_for(_user_kind, sender_id), do: "user:" <> sender_id
 
   # An after cursor wins over a before cursor, as in the SQLite store.
   defp page(messages, _before_id, after_id, limit) when not is_nil(after_id) do

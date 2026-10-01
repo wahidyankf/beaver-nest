@@ -1,14 +1,14 @@
-defmodule BnestApp.PushNotifications.Policy do
+defmodule BnestApp.PushNotifications.Domain.Policy do
   @moduledoc """
   Pure parse/shape/allowlist policy for Web Push (tech-doc 004). No SQL, no
-  network egress, no process/filesystem access -- every function here is a
-  plain data transform so it is provable at the unit layer without a real
-  database or HTTP boundary.
+  network egress, no process/filesystem/configuration access -- every function
+  here is a plain data transform so it is provable at the unit layer without a
+  real database or HTTP boundary.
 
   Validation order matters (tech-doc 004): this module owns "pure
   parse/shape/allowlist first"; `BnestApp.PushNotifications` performs the
-  database mutation second; `BnestApp.PushNotifications.Sender` performs
-  egress only inside the dispatcher, never here.
+  database mutation second; the configured `Ports.PushSender` performs egress
+  only inside the dispatcher, never here.
   """
 
   @max_endpoint_bytes 2048
@@ -18,11 +18,10 @@ defmodule BnestApp.PushNotifications.Policy do
 
   # Exact Apple/Mozilla/Chromium Web Push endpoint hosts (tech-doc 004: "Delivery
   # revalidates current Apple, Mozilla, and Chromium endpoint guidance before
-  # manifest changes"). `push.allowed.example.com` is a test-only synthetic
-  # provider host (never dialed against a real network -- the dispatcher's own
-  # loopback/allowlist fixtures in test env point real traffic at a local
-  # sender double instead), present only when `Mix.env() == :test` so this
-  # exact list is what ships to production.
+  # manifest changes"). This exact list is what ships to production; the caller
+  # adds only the synthetic provider hosts its configured `Ports.PushSender`
+  # names, which a sender that never dials out (the test environments' senders)
+  # alone may name.
   @production_hosts ~w(
     web.push.apple.com
     updates.push.services.mozilla.com
@@ -30,31 +29,28 @@ defmodule BnestApp.PushNotifications.Policy do
     android.googleapis.com
   )
 
-  @spec allowlisted_hosts() :: [String.t()]
-  def allowlisted_hosts do
-    if Application.get_env(:bnest_app, :push_notifications_test_provider?, false) do
-      @production_hosts ++ ~w(push.allowed.example.com)
-    else
-      @production_hosts
-    end
-  end
+  @doc "The production endpoint hosts followed by `extra_hosts`."
+  @spec allowlisted_hosts([String.t()]) :: [String.t()]
+  def allowlisted_hosts(extra_hosts) when is_list(extra_hosts),
+    do: @production_hosts ++ extra_hosts
 
   @doc """
   Validates a browser-supplied subscription input map before any database
   write. Returns the exact three fields the schema stores, normalized, or a
-  safe validation-failure reason atom -- never a raw parse exception.
+  safe validation-failure reason atom -- never a raw parse exception. The
+  endpoint host must be one of `allowlisted_hosts(extra_hosts)`.
   """
-  @spec validate_subscription_input(map()) ::
+  @spec validate_subscription_input(map(), [String.t()]) ::
           {:ok, %{endpoint: String.t(), p256dh: String.t(), auth: String.t()}}
           | {:error, atom()}
-  def validate_subscription_input(input) when is_map(input) do
+  def validate_subscription_input(input, extra_hosts) when is_map(input) do
     allowed_keys = ~w(endpoint p256dh auth)
 
     if Enum.all?(Map.keys(input), &(&1 in allowed_keys)) do
       with {:ok, endpoint} <- fetch_binary(input, "endpoint"),
            {:ok, p256dh} <- fetch_binary(input, "p256dh"),
            {:ok, auth} <- fetch_binary(input, "auth"),
-           :ok <- validate_endpoint(endpoint),
+           :ok <- validate_endpoint(endpoint, allowlisted_hosts(extra_hosts)),
            :ok <- validate_key_shape(p256dh, @max_key_bytes),
            :ok <- validate_key_shape(auth, @max_auth_bytes) do
         {:ok, %{endpoint: endpoint, p256dh: p256dh, auth: auth}}
@@ -64,7 +60,7 @@ defmodule BnestApp.PushNotifications.Policy do
     end
   end
 
-  def validate_subscription_input(_input), do: {:error, :invalid_shape}
+  def validate_subscription_input(_input, _extra_hosts), do: {:error, :invalid_shape}
 
   @doc "SHA-256 hex digest of an endpoint URL, used as the stored unique key (never the raw endpoint in a unique index)."
   @spec endpoint_digest(String.t()) :: String.t()
@@ -130,7 +126,7 @@ defmodule BnestApp.PushNotifications.Policy do
     end
   end
 
-  defp validate_endpoint(endpoint) do
+  defp validate_endpoint(endpoint, allowed_hosts) do
     with :ok <- validate_bounded(endpoint, @max_endpoint_bytes),
          :ok <- validate_no_fragment(endpoint),
          # `userinfo: nil` enforces tech-doc 004's "no user information" rule
@@ -140,7 +136,7 @@ defmodule BnestApp.PushNotifications.Policy do
          %URI{scheme: "https", host: host, port: port, userinfo: nil} <- URI.parse(endpoint),
          :ok <- validate_not_ip_literal(host),
          :ok <- validate_default_port(port),
-         :ok <- validate_allowlisted_host(host) do
+         :ok <- validate_allowlisted_host(host, allowed_hosts) do
       :ok
     else
       _rejected -> {:error, :endpoint_not_allowed}
@@ -174,10 +170,10 @@ defmodule BnestApp.PushNotifications.Policy do
   # boundary (tech-doc 004) -- never substring containment, so
   # "evilpush.apple.com.example" or a bare suffix without the boundary dot
   # never matches.
-  defp validate_allowlisted_host(host) do
+  defp validate_allowlisted_host(host, allowed_hosts) do
     normalized = host |> to_string() |> String.downcase()
 
-    if ascii_only?(normalized) and Enum.any?(allowlisted_hosts(), &host_matches?(normalized, &1)) do
+    if ascii_only?(normalized) and Enum.any?(allowed_hosts, &host_matches?(normalized, &1)) do
       :ok
     else
       {:error, :host_not_allowed}

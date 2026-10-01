@@ -14,7 +14,7 @@ defmodule BnestApp.Scheduler.Registry do
     "family_chat_push_retention" => %{
       label: "Family chat push delivery retention",
       context: "admin_system",
-      handler: BnestApp.PushNotifications.RetentionJob,
+      handler: BnestApp.PushNotifications.Adapters.RetentionTask,
       settings_key: nil,
       timezone: "WIB (UTC+07:00)"
     },

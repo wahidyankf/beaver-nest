@@ -154,4 +154,11 @@ config :bnest_app, BnestApp.FamilyChat,
   room_store: BnestApp.FamilyChat.Adapters.SqliteRoomStore,
   message_publisher: BnestApp.FamilyChat.Adapters.AbsintheMessagePublisher
 
+# One adapter per Push Notifications port. The Web Push sender's allowlist names only the
+# production push services.
+config :bnest_app, BnestApp.PushNotifications,
+  subscription_store: BnestApp.PushNotifications.Adapters.SqliteSubscriptionStore,
+  delivery_store: BnestApp.PushNotifications.Adapters.SqliteDeliveryStore,
+  push_sender: BnestApp.PushNotifications.Adapters.WebPushSender
+
 import_config "#{config_env()}.exs"

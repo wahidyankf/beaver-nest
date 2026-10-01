@@ -81,7 +81,7 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
 
   defp verify_registered_handler! do
     case Registry.fetch("family_chat_push_retention") do
-      {:ok, %{handler: BnestApp.PushNotifications.RetentionJob}} ->
+      {:ok, %{handler: BnestApp.PushNotifications.Adapters.RetentionTask}} ->
         :ok
 
       _missing_or_wrong ->
