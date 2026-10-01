@@ -223,18 +223,32 @@ policies:
       node-label-graphemes: 32
       edge-label-graphemes: 24
       fill-colors:
-        ["#0173B2", "#DE8F05", "#029E73", "#CC78BC", "#CA9161", "#808080"]
+        - "#0173B2"
+        - "#DE8F05"
+        - "#029E73"
+        - "#CC78BC"
+        - "#CA9161"
+        - "#808080"
+        - "#000000"
+        - "#FFFFFF"
       edge-colors:
-        [
-          "#0173B2",
-          "#DE8F05",
-          "#029E73",
-          "#CC78BC",
-          "#CA9161",
-          "#808080",
-          "#000000",
-        ]
-      text-colors: ["#000000", "#FFFFFF"]
+        - "#0173B2"
+        - "#DE8F05"
+        - "#029E73"
+        - "#CC78BC"
+        - "#CA9161"
+        - "#808080"
+        - "#000000"
+        - "#FFFFFF"
+      text-colors:
+        - "#0173B2"
+        - "#DE8F05"
+        - "#029E73"
+        - "#CC78BC"
+        - "#CA9161"
+        - "#808080"
+        - "#000000"
+        - "#FFFFFF"
       exclude:
         - "plans/done/**"
         - ".git/**"
