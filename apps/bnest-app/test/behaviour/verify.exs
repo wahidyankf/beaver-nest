@@ -15,6 +15,20 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
     {~r/\b(?:localhost|127\.0\.0\.1)\b/u, "loopback network access"}
   ]
 
+  # The unit layer drives contexts through their facades and in-memory adapters only.
+  # Checked line by line so the temporary allow-list below can name exact lines.
+  @unit_forbidden_lines [
+    {~r/\bBnestApp\.SqliteRepo\b/u, "the SQLite repository"},
+    {~r/\.Adapters\.(?!InMemory)/u, "a non-in-memory adapter"}
+  ]
+
+  # Temporary. Unit driver lines that still reach SQLite, each removed by the named unit.
+  @unit_legacy_lines [
+    {"test/unit/bnest_app/backup_restore_test.exs", "alias BnestApp.SqliteRepo", "U12"},
+    {"test/unit/bnest_app/family_chat_test.exs", "BnestApp.SqliteRepo.query!(", "U9"},
+    {"test/unit/support/family_chat_driver.ex", "alias BnestApp.SqliteRepo", "U9"}
+  ]
+
   # Integration owns a loopback socket it starts and stops; the layer is bounded by its
   # observation point, not by socket permission, so only non-loopback reach and browser
   # drivers are refused here. Shared step files stay clean because @unit_forbidden also
@@ -40,6 +54,15 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
         @unit_forbidden,
         :unit
       ) ++
+        line_violations(
+          [
+            "test/unit/**/*.{ex,exs}",
+            "test/behaviour/steps/**/*.exs",
+            "test/behaviour/support/unit.exs"
+          ],
+          @unit_forbidden_lines,
+          @unit_legacy_lines
+        ) ++
         violations(
           [
             "test/integration/**/*.{ex,exs}",
@@ -66,6 +89,17 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
     patterns
     |> Enum.flat_map(&Path.wildcard/1)
     |> Enum.flat_map(fn file -> violations_in(file, File.read!(file), forbidden, layer) end)
+  end
+
+  defp line_violations(patterns, forbidden, allowed) do
+    allowed = MapSet.new(allowed, fn {file, line, _unit} -> {file, line} end)
+
+    for file <- Enum.flat_map(patterns, &Path.wildcard/1),
+        {line, number} <- file |> File.read!() |> String.split("\n") |> Enum.with_index(1),
+        {pattern, boundary} <- forbidden,
+        Regex.match?(pattern, line),
+        not MapSet.member?(allowed, {file, String.trim(line)}),
+        do: "#{file}:#{number} uses forbidden unit #{boundary}: #{String.trim(line)}"
   end
 
   defp egress_violations(patterns) do

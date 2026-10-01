@@ -44,11 +44,18 @@ defmodule BnestApp do
     Storage.TestDataCleanup
   ]
 
-  # Infrastructure the legacy modules call directly. Each entry leaves with the
-  # last legacy caller, when that context's adapters take the call over.
-  @legacy_infrastructure [Argon2, Ecto.Migrator, Ecto.Query, Ecto.UUID, Exqlite, Req, WebPush]
-
   use Boundary,
-    deps: [BnestApp.SqliteRepo | @legacy_infrastructure],
+    deps: [
+      BnestApp.SqliteRepo,
+      # legacy: infrastructure the legacy modules call directly. Each entry leaves
+      # with its last legacy caller, when that context's adapters take the call over.
+      Argon2,
+      Ecto.Migrator,
+      Ecto.Query,
+      Ecto.UUID,
+      Exqlite,
+      Req,
+      WebPush
+    ],
     exports: @legacy_exports
 end
