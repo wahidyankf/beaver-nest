@@ -14,6 +14,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Identity.{Bootstrap, Login, Sessions}
   alias BnestApp.Identity.Domain.{Authorization, Credentials}
   alias BnestApp.Identity.Ports.IdentityStore
+  alias BnestApp.Preferences
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
   alias BnestApp.Storage
@@ -1089,11 +1090,21 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
+  # The importing user is a real account with a session, so a change made after the import
+  # can travel the router's browser pipeline the way the page's own script sends it.
   def prepare_behaviour(context, :recognized_and_unrelated_keys, _args) do
-    context = central_context(context, [chat_source()])
-    ExUnit.Callbacks.start_supervised!({Records, store: context.central_store})
+    username = "test-user-unit-central"
+    context = start_request_path(context, [synthetic_account(username, ["admin"])])
+    {:ok, token} = Identity.login(username, @synthetic_password)
+    {:ok, %{"userId" => owner}} = Identity.current_user(token)
 
-    Map.put(context, :browser_storage, [
+    context
+    |> Map.merge(%{
+      central_store: context.request_store,
+      central_owner: owner,
+      central_token: token
+    })
+    |> Map.put(:browser_storage, [
       chat_source(),
       %{"storageArea" => "localStorage", "storageKey" => "unrelated", "payload" => "keep"}
     ])
@@ -2078,6 +2089,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
            Enum.all?(context.journey_records, fn {type, record} ->
              Records.read(type, owner) == {:ok, record}
            end),
+         true <- Preferences.theme(owner) == context.journey_records.theme["theme"],
          digest = Identity.session_digest(token),
          :ok <- Identity.logout(token),
          true <- received?({:subscription_revoked, owner, digest}),
@@ -2225,12 +2237,26 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
           RecordBackend.read(context.central_store, :chat, context.central_owner)
         )
 
-  def behaviour_outcome?(context, :server_only_persistence, _args),
-    do:
-      match?(
-        {:ok, %{"recordType" => "chat"}},
-        RecordBackend.read(context.central_store, :chat, context.central_owner)
-      )
+  # A change made after the accepted import: the theme request the root layout's script sends
+  # goes through the router to the theme controller. It must change the user's record in the
+  # server store, and the root the router then renders for that user must carry it while
+  # telling the browser script to keep no copy of its own.
+  def behaviour_outcome?(context, :server_only_persistence, _args) do
+    %{central_store: store, central_owner: owner, central_token: token} = context
+    before = RecordBackend.read(store, :theme, owner)
+    requested = "dark"
+    change = dispatch_request(:put, "/preferences/theme", token, %{"theme" => requested})
+    stored = RecordBackend.read(store, :theme, owner)
+    home = dispatch_request(:get, "/", token)
+    root = home.resp_body |> LazyHTML.from_document() |> LazyHTML.query("html")
+
+    change.status == 204 and stored != before and
+      match?({:ok, %{"ownerId" => ^owner, "theme" => ^requested}}, stored) and
+      Preferences.theme(owner) == requested and home.status == 200 and
+      LazyHTML.attribute(root, "data-theme") == [requested] and
+      LazyHTML.attribute(root, "data-theme-storage") == ["server"] and
+      LazyHTML.attribute(root, "data-browser-persistence") == ["false"]
+  end
 
   def behaviour_outcome?(context, :transcript_preserved, _args),
     do: context.continued_chat.messages == context.transcript_before
@@ -2549,6 +2575,31 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       |> BnestAppWeb.Router.call(BnestAppWeb.Router.init([]))
 
     {response, drain_record_accesses()}
+  end
+
+  # One browser request carried all the way through the router to its controller, with the
+  # identity cookie and the CSRF token a page from this session holds. The rendered layout
+  # resolves its static asset paths through the endpoint, which `mix test --no-start` leaves
+  # unstarted, so it runs for this test only (configured with `server: false`, no listener).
+  defp dispatch_request(method, path, token, params \\ %{}) do
+    if is_nil(GenServer.whereis(BnestAppWeb.Endpoint)),
+      do: ExUnit.Callbacks.start_supervised!(BnestAppWeb.Endpoint)
+
+    Plug.CSRFProtection.delete_csrf_token()
+    csrf_token = Plug.CSRFProtection.get_csrf_token()
+
+    method
+    |> Plug.Test.conn(path, params)
+    |> put_identity_cookie(token)
+    |> Plug.Conn.put_req_header("x-csrf-token", csrf_token)
+    |> Map.put(
+      :secret_key_base,
+      Application.get_env(:bnest_app, BnestAppWeb.Endpoint)[:secret_key_base]
+    )
+    |> Plug.Session.call(@session_options)
+    |> Plug.Conn.fetch_session()
+    |> Plug.Conn.put_session("_csrf_token", Plug.CSRFProtection.dump_state())
+    |> BnestAppWeb.Router.call(BnestAppWeb.Router.init([]))
   end
 
   defp put_identity_cookie(conn, nil), do: conn

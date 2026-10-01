@@ -39,7 +39,7 @@ The `test:e2e` target owns the single HIPPO boundary because it also owns the E2
 - `specs/apps/bnest/app-be/architecture.md` contains the canonical as-built C4 model for the backend surface.
 - `specs/apps/bnest/app-be/behaviours/` contains the canonical executable backend journeys.
 - `playwright.config.mts` defines BDD discovery, generated output, browser, base URL, and the single app server (no Caddy).
-- `tests/steps/` contains thin Playwright-BDD bindings, including the headless `mix bnest.storage.migrate` CLI flows.
+- `tests/steps/` contains thin Playwright-BDD bindings, including the headless `mix bnest.storage.migrate` and `mix bnest.storage.retire` CLI flows.
 - `tests/support/live-sqlite.ts` owns direct live-SQLite activation against the shared webServer, trimmed from the frontend project's Caddy rollout apparatus.
 - `tests/support/sqlite-storage.ts` and `tests/support/sqlite-identity.ts` own isolated, self-contained storage-migration fixtures.
 - `tools/run-e2e.mts` owns the guarded runtime lifecycle around the canonical Playwright target.

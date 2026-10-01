@@ -16,6 +16,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Identity.Bootstrap
   alias BnestApp.Identity.Domain.{Authorization, Credentials}
   alias BnestApp.Identity.Ports.IdentityStore
+  alias BnestApp.Preferences
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
@@ -1864,6 +1865,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
            Enum.all?(context.journey_records, fn {type, record} ->
              Records.read(type, user_id) == {:ok, record}
            end),
+         true <- Preferences.theme(user_id) == context.journey_records.theme["theme"],
          conn = Plug.Test.put_req_cookie(Phoenix.ConnTest.build_conn(), "_bnest_identity", token),
          %{status: 200, resp_body: home} <- get(conn, "/"),
          true <- String.contains?(home, ~s(data-theme="dark")),
@@ -1990,12 +1992,27 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       context.cleared_storage_keys == ["bnest.chat.v1"] and
         match?({:ok, %{"recordType" => "chat"}}, Records.read(:chat, context.user_id))
 
-  def behaviour_outcome?(context, :server_only_persistence, _args),
-    do:
-      match?(
-        {:ok, %{"recordType" => "chat"}},
-        FileRecordBackend.read(context.central_store, :chat, context.user_id)
-      )
+  # A change made after the accepted import: the theme request the root layout's script sends
+  # goes through the routed endpoint. It must change the user's record in the server's
+  # repository, and the home the server then renders must carry it while telling the browser
+  # script to keep no copy of its own.
+  def behaviour_outcome?(context, :server_only_persistence, _args) do
+    user_id = context.user_id
+    before = FileRecordBackend.read(context.central_store, :theme, user_id)
+    requested = "dark"
+    change = context.conn |> recycle() |> put("/preferences/theme", %{"theme" => requested})
+    stored = FileRecordBackend.read(context.central_store, :theme, user_id)
+    home = context.conn |> recycle() |> get("/")
+    root = home.resp_body |> LazyHTML.from_document() |> LazyHTML.query("html")
+
+    change.status == 204 and stored != before and
+      match?({:ok, %{"ownerId" => ^user_id, "theme" => ^requested}}, stored) and
+      Records.read(:theme, user_id) == stored and Preferences.theme(user_id) == requested and
+      home.status == 200 and
+      LazyHTML.attribute(root, "data-theme") == [requested] and
+      LazyHTML.attribute(root, "data-theme-storage") == ["server"] and
+      LazyHTML.attribute(root, "data-browser-persistence") == ["false"]
+  end
 
   def behaviour_outcome?(context, :transcript_preserved, _args),
     do: context.continued_chat.messages == context.transcript_before

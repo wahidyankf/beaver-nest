@@ -1,7 +1,6 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { readFileSync } from "node:fs";
-import path from "node:path";
 import {
   cleanupStorageScenario,
   defaultDatabaseDirectory,
@@ -16,32 +15,20 @@ import {
   type StorageScenario,
   type StorageMigrationEvidence,
 } from "../support/sqlite-storage";
-import {
-  cleanupIdentityStorageScenario,
-  isolatedIdentityStorageScenario,
-  retireFlatIdentitySources,
-  runStorageEval,
-  type IdentityStorageScenario,
-} from "../support/sqlite-identity";
 
 // Headless mix bnest.storage.migrate CLI flows (feature scenarios 1, 4, 5, 6,
-// 7, 8). Split out of sqlite_storage.steps.ts to stay under the repository's
-// 300-line step-file budget; the admin-UI and access-control scenarios live
-// in their own sibling files.
+// 8). Split out of sqlite_storage.steps.ts to stay under the repository's
+// 300-line step-file budget; the authority switch (scenario 7), admin-UI, and
+// access-control scenarios live in their own sibling files.
 
 const { Given, Then, When } = createBdd();
 
 let scenario: StorageScenario;
-let identityScenario: IdentityStorageScenario;
 let migrateResult: { status: number; stdout: string; stderr: string };
 let secondMigrateResult: { status: number; stdout: string; stderr: string };
 let fixtureFile = "";
 let fixtureDigestBefore = "";
 let migrationEvidence: StorageMigrationEvidence;
-const sqliteIdentity = {
-  username: "test-user-sqlite-retired",
-  password: "Synthetic SQLite Password 123!",
-};
 
 // --- Scenario 1: headless default location, no browser confirmation -------
 
@@ -199,68 +186,6 @@ Then("remaining items continue from their recorded outcomes", () => {
 function migrationSummaryLine(stdout: string): string | undefined {
   return stdout.split("\n").find((line) => line.startsWith("migration "));
 }
-
-// --- Scenario 7: SQLite becomes authoritative after full verification -------
-
-Given(
-  "schema, backfill, parity, integrity, and isolated restore checks pass",
-  ({ $testInfo }) => {
-    identityScenario = isolatedIdentityStorageScenario($testInfo, "activation");
-    scenario = identityScenario;
-    const bootstrap = runStorageEval(
-      identityScenario,
-      `case BnestApp.Identity.bootstrap([%{"username" => "${sqliteIdentity.username}", "password" => "${sqliteIdentity.password}", "roles" => ["admin"]}]) do {:ok, _accounts} -> IO.puts("synthetic identity bootstrapped"); result -> raise "bootstrap failed: #{inspect(result)}" end`,
-    );
-    expect(bootstrap.status, bootstrap.stderr).toBe(0);
-    writeThemeFixture(scenario);
-    migrateResult = runStorageMigrate(scenario, []);
-    expect(migrateResult.status, migrateResult.stderr).toBe(0);
-    expect(migrateResult.stdout).toContain("accepted=4 blocked=0");
-  },
-);
-
-When(
-  "the managed migration commits the storage authority switch without UI confirmation",
-  () => {
-    secondMigrateResult = runStorageMigrate(scenario, ["--activate"]);
-  },
-);
-
-Then("future reads use SQLite", () => {
-  expect(secondMigrateResult.status, secondMigrateResult.stderr).toBe(0);
-  expect(secondMigrateResult.stdout).toContain(
-    "storage authority switched to sqlite_primary",
-  );
-  expect(readPointer(scenario)?.["phase"]).toBe("sqlite_primary");
-});
-
-Then("future writes remain compatible with the rollback reader", () => {
-  const rollbackFile = path.join(
-    scenario.flatRoot,
-    "users",
-    "user-fixture-001",
-    "preferences",
-    "theme.json",
-  );
-  expect(digestFile(rollbackFile)).not.toBe("missing");
-});
-
-Then("verified flat-file identity sources are retired", () => {
-  retireFlatIdentitySources(identityScenario);
-});
-
-Then(
-  "chat, learning, theme, login, and logout survive an application restart",
-  () => {
-    const afterRestart = runStorageEval(
-      identityScenario,
-      `:closed = BnestApp.Identity.setup_status(); case BnestApp.Identity.login("${sqliteIdentity.username}", "${sqliteIdentity.password}") do {:ok, token} -> {:ok, _user} = BnestApp.Identity.current_user(token); :ok = BnestApp.Identity.logout(token); {:error, :unauthenticated} = BnestApp.Identity.current_user(token); IO.puts("sqlite identity journey passed"); result -> raise "login failed: #{inspect(result)}" end`,
-    );
-    cleanupIdentityStorageScenario(identityScenario);
-    expect(afterRestart.status, afterRestart.stderr).toBe(0);
-    expect(afterRestart.stdout).toContain("sqlite identity journey passed");
-  },
-);
 
 // --- Scenario 8: malformed/changed source blocks cutover --------------------
 
