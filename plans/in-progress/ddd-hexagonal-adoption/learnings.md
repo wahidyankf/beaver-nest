@@ -132,3 +132,17 @@ A throwaway Mix project (`local-tmp/ddd-hexa/proto/`, `boundary` 0.11.0, Elixir 
 [002](tech-docs/002-target-architecture-and-context-map.md) and [003](tech-docs/003-boundary-enforcement.md) were
 rewritten to layout 3 before the quality gate. Resolution: promote to the governance standard's Elixir mapping (U2),
 which is the durable owner.
+
+### E2: No word budget left for the `AGENTS.md` line or a map row (2026-10-01, U2)
+
+`main` sits at about 749 of the 750 counted words in `AGENTS.md` and 748 in `software-quality-enforcement.md`, and the
+counter also counts the words of link paths. The shortest linked `AGENTS.md` bullet cost 11 words, and the smallest
+map change (a link folded into the typecheck row) cost 9. Trimming other rules to make room is outside the
+rules-propagation ledger, so U2 adds neither. The standard stays reachable and truthfully enforced without them:
+
+- the `developing-applications` skill and the three `swe-code-*` agents link it where code placement is decided;
+- `repository-adapter.md` records the `boundary` adopter decision and its `typecheck` route;
+- the map's existing typecheck row stays true, because `boundary` violations are compiler warnings, and
+  `--warnings-as-errors` already fails on them from U3.
+
+Resolution: accepted deviation from the U2 delivery item; the plan-execution checker reads it here.
