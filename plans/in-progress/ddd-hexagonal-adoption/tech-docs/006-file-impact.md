@@ -259,18 +259,18 @@ in `/domain.ex`, `/ports.ex` or `/adapters.ex` is a one-line boundary declaratio
 
 ## U4–U13: Inbound Adapters and Configuration
 
-| Unit | Paths (under `apps/bnest-app/`) |
-| --- | --- |
-| U4 Storage | [E] `lib/bnest_app_web/live/storage_live.ex`, `lib/bnest_app_web/live/data_migration_live.ex`, the five storage and schema Mix tasks under `lib/mix/tasks/`, `config/config.exs`, `config/test.exs` |
-| U5 Identity | [E] `lib/bnest_app_web/user_auth.ex`, `lib/bnest_app_web/controllers/session_controller.ex`, `lib/bnest_app_web/controllers/bootstrap_controller.ex`, `lib/bnest_app_web/live/login_live.ex`, `lib/mix/tasks/bnest.identity.benchmark.ex`, `config/config.exs`, `config/test.exs` |
-| U6 Preferences | [E] `lib/bnest_app_web/controllers/theme_controller.ex`, `lib/bnest_app_web/user_auth.ex`, `config/config.exs`, `config/test.exs` |
-| U7 SifatAllah | [E] `lib/bnest_app_web/live/sifat_allah_live.ex`, `config/config.exs`, `config/test.exs` |
-| U8 CodexChat | [E] `lib/bnest_app_web/live/chat_live.ex`, `config/config.exs`, `config/test.exs` (`config/runtime.exs` keeps the frozen `:codex` `working_directory` key) |
-| U9 FamilyChat | [E] `lib/bnest_app_web/controllers/family_chat_controller.ex`, `lib/bnest_app_web/user_socket.ex`, `lib/bnest_app_web/resolvers/family_chat_resolver.ex`, `lib/bnest_app_web/schema/types/family_chat_types.ex`, `config/config.exs`, `config/test.exs` |
-| U10 PushNotifications | [E] `lib/bnest_app_web/resolvers/web_push_resolver.ex`, `config/config.exs`, `config/test.exs` |
-| U11 Scheduler | [E] `lib/bnest_app_web/live/admin_schedule_settings_live.ex`, `config/config.exs`, `config/test.exs` |
-| U12 Backup | [E] `lib/bnest_app_web/live/admin_schedule_settings_live.ex`, `config/config.exs`, `config/test.exs` |
-| U13 Operations | [E] `lib/bnest_app_web/controllers/health_controller.ex`, `lib/bnest_app_web/release_headers.ex`, `lib/bnest_app_web/live/admin_settings_live.ex`, `lib/bnest_app_web/live/admin_schedule_settings_live.ex`, `config/config.exs` |
+| Unit                  | Paths (under `apps/bnest-app/`)                                                                                                                                                                                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| U4 Storage            | [E] `lib/bnest_app_web/live/storage_live.ex`, `lib/bnest_app_web/live/data_migration_live.ex`, the five storage and schema Mix tasks under `lib/mix/tasks/`, `config/config.exs`, `config/test.exs`                                                                               |
+| U5 Identity           | [E] `lib/bnest_app_web/user_auth.ex`, `lib/bnest_app_web/controllers/session_controller.ex`, `lib/bnest_app_web/controllers/bootstrap_controller.ex`, `lib/bnest_app_web/live/login_live.ex`, `lib/mix/tasks/bnest.identity.benchmark.ex`, `config/config.exs`, `config/test.exs` |
+| U6 Preferences        | [E] `lib/bnest_app_web/controllers/theme_controller.ex`, `lib/bnest_app_web/user_auth.ex`, `config/config.exs`, `config/test.exs`                                                                                                                                                 |
+| U7 SifatAllah         | [E] `lib/bnest_app_web/live/sifat_allah_live.ex`, `config/config.exs`, `config/test.exs`                                                                                                                                                                                          |
+| U8 CodexChat          | [E] `lib/bnest_app_web/live/chat_live.ex`, `config/config.exs`, `config/test.exs` (`config/runtime.exs` keeps the frozen `:codex` `working_directory` key)                                                                                                                        |
+| U9 FamilyChat         | [E] `lib/bnest_app_web/controllers/family_chat_controller.ex`, `lib/bnest_app_web/user_socket.ex`, `lib/bnest_app_web/resolvers/family_chat_resolver.ex`, `lib/bnest_app_web/schema/types/family_chat_types.ex`, `config/config.exs`, `config/test.exs`                           |
+| U10 PushNotifications | [E] `lib/bnest_app_web/resolvers/web_push_resolver.ex`, `config/config.exs`, `config/test.exs`                                                                                                                                                                                    |
+| U11 Scheduler         | [E] `lib/bnest_app_web/live/admin_schedule_settings_live.ex`, `config/config.exs`, `config/test.exs`                                                                                                                                                                              |
+| U12 Backup            | [E] `lib/bnest_app_web/live/admin_schedule_settings_live.ex`, `config/config.exs`, `config/test.exs`                                                                                                                                                                              |
+| U13 Operations        | [E] `lib/bnest_app_web/controllers/health_controller.ex`, `lib/bnest_app_web/release_headers.ex`, `lib/bnest_app_web/live/admin_settings_live.ex`, `lib/bnest_app_web/live/admin_schedule_settings_live.ex`, `config/config.exs`                                                  |
 
 ## U4–U13: Tests and End-to-End Support
 

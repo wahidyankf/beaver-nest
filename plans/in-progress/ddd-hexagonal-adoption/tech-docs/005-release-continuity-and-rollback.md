@@ -15,15 +15,15 @@ feature flags on.
 
 ## Why Two Revisions Can Share the Host Safely
 
-| Concern | Evidence | Consequence |
-| --- | --- | --- |
-| Schema | No file under `priv/sqlite_repo/migrations/` changes (AC-DH-09) | The manifest declares the same migration set as the base revision (`bnest-persistent-schedules-v1`, already applied in production) with the same `migrationSetChecksum`; its idempotent `apply_and_verify!` changes nothing |
-| Stored records | No record kind, schema version or canonical JSON form changes | Old and new slots read and write the same records |
-| SQLite locking | Adapters issue the same SQL, under the same `Storage` lock, against the same database file | Mixed-version writes stay mutually compatible |
-| PubSub | Slots are unclustered (`BnestApp.FamilyChat` documents slot-local broadcast, and the "independent slot-local PubSub" scenario covers it) | Renamed structs never cross slots |
-| Process names | `BnestApp.DataRepository` becomes `BnestApp.Storage.Records`, and `Codex.ModelCatalog` becomes `CodexChat.ModelCatalog` | Names are node-local; readiness (`Operations.readiness/0`) checks the new names in the new slot |
-| Eval entry points | `BnestApp.Release.Migrations.*` names are frozen | `tools/deployment.mjs` keeps working unchanged |
-| Session and LiveView | Cookie key base, session format, routes and LiveView events unchanged | Compatible LiveViews reconnect during the 5-minute drain without a manual refresh |
+| Concern              | Evidence                                                                                                                                 | Consequence                                                                                                                                                                                                                 |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema               | No file under `priv/sqlite_repo/migrations/` changes (AC-DH-09)                                                                          | The manifest declares the same migration set as the base revision (`bnest-persistent-schedules-v1`, already applied in production) with the same `migrationSetChecksum`; its idempotent `apply_and_verify!` changes nothing |
+| Stored records       | No record kind, schema version or canonical JSON form changes                                                                            | Old and new slots read and write the same records                                                                                                                                                                           |
+| SQLite locking       | Adapters issue the same SQL, under the same `Storage` lock, against the same database file                                               | Mixed-version writes stay mutually compatible                                                                                                                                                                               |
+| PubSub               | Slots are unclustered (`BnestApp.FamilyChat` documents slot-local broadcast, and the "independent slot-local PubSub" scenario covers it) | Renamed structs never cross slots                                                                                                                                                                                           |
+| Process names        | `BnestApp.DataRepository` becomes `BnestApp.Storage.Records`, and `Codex.ModelCatalog` becomes `CodexChat.ModelCatalog`                  | Names are node-local; readiness (`Operations.readiness/0`) checks the new names in the new slot                                                                                                                             |
+| Eval entry points    | `BnestApp.Release.Migrations.*` names are frozen                                                                                         | `tools/deployment.mjs` keeps working unchanged                                                                                                                                                                              |
+| Session and LiveView | Cookie key base, session format, routes and LiveView events unchanged                                                                    | Compatible LiveViews reconnect during the 5-minute drain without a manual refresh                                                                                                                                           |
 
 ## Sequence
 
@@ -61,10 +61,10 @@ All commands run from the **primary checkout** (the repository root) on local `m
 
 ## Rollback
 
-| Trigger | Action |
-| --- | --- |
-| Candidate health, revision header, LiveView verification, or routed proof fails | `npm exec -- nx run -p bnest-app -t deploy:rollback`, then diagnose; never retry a failed candidate blind |
-| Any sample fails or the budget is exceeded during promotion or drain | `deploy:rollback` immediately, then re-verify the journey and budget |
-| A defect is found after the drain completes | Ask the owner to confirm re-releasing the previous revision (`release:run -- --revision <previous-sha>`), because [release authorization](../../../../repo-governance/conventions/release-authorization.md) covers one revision. The re-release is safe because no schema or record format changed. Record the defect in `learnings.md` |
+| Trigger                                                                         | Action                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Candidate health, revision header, LiveView verification, or routed proof fails | `npm exec -- nx run -p bnest-app -t deploy:rollback`, then diagnose; never retry a failed candidate blind                                                                                                                                                                                                                               |
+| Any sample fails or the budget is exceeded during promotion or drain            | `deploy:rollback` immediately, then re-verify the journey and budget                                                                                                                                                                                                                                                                    |
+| A defect is found after the drain completes                                     | Ask the owner to confirm re-releasing the previous revision (`release:run -- --revision <previous-sha>`), because [release authorization](../../../../repo-governance/conventions/release-authorization.md) covers one revision. The re-release is safe because no schema or record format changed. Record the defect in `learnings.md` |
 
 Each trigger stays unticked with an evidence-backed `Not triggered` disposition unless it fires.
