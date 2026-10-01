@@ -1,6 +1,8 @@
 defmodule BnestApp.TestRuntimeRoot do
   @moduledoc false
 
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @marker ".bnest-test-run.json"
   @owner "bnest-test-harness"
   @repo_root Path.expand("../../../..", __DIR__)

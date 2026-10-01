@@ -1,6 +1,8 @@
 defmodule BnestApp.TestIdentity do
   @moduledoc false
 
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   alias BnestApp.TestRuntimeRoot
 
   @spec create!(TestRuntimeRoot.t(), String.t()) :: map()

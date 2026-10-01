@@ -17,6 +17,18 @@ defmodule BnestAppWeb do
   those modules here.
   """
 
+  use Boundary,
+    deps: [
+      BnestApp,
+      # legacy: StorageLive and HealthController; removed in U13
+      BnestApp.SqliteRepo,
+      # legacy: StorageLive; removed in U4
+      Ecto.Adapters.SQL,
+      # legacy: StorageLive; removed in U4
+      Ecto.Migrator
+    ],
+    exports: [Endpoint, Telemetry]
+
   def static_paths,
     do: ~w(assets fonts images favicon.ico manifest.webmanifest robots.txt service-worker.js)
 

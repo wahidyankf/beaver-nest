@@ -2,6 +2,7 @@ defmodule Mix.Tasks.Bnest.Storage.Migrate do
   @moduledoc false
 
   use Mix.Task
+  use Boundary, classify_to: BnestAppCli
 
   alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.SqliteRepo

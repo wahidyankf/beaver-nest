@@ -9,6 +9,8 @@ defmodule BnestApp.SchemaSourceScan do
   project's own committed Elixir source files as text for a static architecture check.
   """
 
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @app_lib_root Path.expand("../../lib", __DIR__)
 
   @doc "Wildcards `path_segments` joined onto this app's own `lib/` root."

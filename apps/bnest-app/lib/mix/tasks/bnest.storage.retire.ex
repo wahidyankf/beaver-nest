@@ -2,6 +2,7 @@ defmodule Mix.Tasks.Bnest.Storage.Retire do
   @moduledoc false
 
   use Mix.Task
+  use Boundary, classify_to: BnestAppCli
 
   alias BnestApp.Storage.Retirement
 

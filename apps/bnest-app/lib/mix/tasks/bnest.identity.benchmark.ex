@@ -2,6 +2,7 @@ defmodule Mix.Tasks.Bnest.Identity.Benchmark do
   @moduledoc false
 
   use Mix.Task
+  use Boundary, classify_to: BnestAppCli
 
   @shortdoc "Measures the configured Argon2id work factor without printing secrets"
 

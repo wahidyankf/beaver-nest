@@ -1,6 +1,8 @@
 defmodule BnestApp.SqliteRepo do
   @moduledoc false
 
+  use Boundary, top_level?: true, deps: [Ecto.Adapters.SQL, Ecto.Multi, Ecto.Repo], exports: []
+
   use Ecto.Repo,
     otp_app: :bnest_app,
     adapter: Ecto.Adapters.SQLite3

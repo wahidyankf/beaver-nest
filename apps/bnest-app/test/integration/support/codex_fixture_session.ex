@@ -1,6 +1,8 @@
 defmodule BnestApp.Codex.FixtureSession do
   @moduledoc false
 
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @behaviour BnestApp.Codex.Session
 
   @impl true

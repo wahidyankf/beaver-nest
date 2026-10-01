@@ -1,6 +1,8 @@
 defmodule BnestApp.Codex.FixtureModels do
   @moduledoc false
 
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @models [
     %{
       id: "gpt-5.6-sol",
