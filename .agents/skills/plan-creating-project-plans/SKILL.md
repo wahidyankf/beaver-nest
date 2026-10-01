@@ -11,7 +11,8 @@ compatibility: Requires read access to every repository the plan will touch.
 # Creating Project Plans
 
 The structural rules — six documents, one technical shape, ordered companions — belong to the plan convention. This is
-about writing ones worth executing.
+about writing ones worth executing. A bug-fix plan is one document whose sections take these roles; the plans
+convention's Bug-Fix Plan module says what makes each useful.
 
 ## Each Document Answers Its Own Question
 

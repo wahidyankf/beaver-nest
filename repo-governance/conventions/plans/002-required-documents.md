@@ -1,7 +1,8 @@
 # Required Documents
 
 Every formal plan — one in `plans/backlog/` or `plans/in-progress/` — contains six documents. Not five, and not five
-plus an optional sixth.
+plus an optional sixth. The one exception is a [Bug-Fix Plan](010-bug-fix-plan.md), whose single document carries the
+six roles as sections.
 
 | Document            | Answers                                                                                      |
 | ------------------- | -------------------------------------------------------------------------------------------- |

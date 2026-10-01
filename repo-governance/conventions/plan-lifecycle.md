@@ -6,7 +6,9 @@ sequence are stated there once and are not restated here.
 
 ## Authorization
 
-`plans/` artifacts require an explicit user request; Plan mode never authorizes a repository plan document.
+`plans/` artifacts require an explicit user request; Plan mode never authorizes a repository plan document. The one
+standing request is [Upstream Tool Defects](../development/upstream-tool-defects.md): it covers a defect's idea brief
+and a blocking defect's [bug-fix plan](plans/010-bug-fix-plan.md) at the tool's owner.
 
 ## Ideas
 

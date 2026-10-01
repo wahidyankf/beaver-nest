@@ -17,6 +17,7 @@ Prefer one canonical convention over repeating the same rule in several document
 
 ## Directory Map
 
+- [Bug reports](bug-reports.md) fix the recorded duplicate search and the fields a bug report or bug-fix plan's report carries.
 - [Coding-harness contract](coding-harness-contract.md) keeps repository-owned rules, skills, custom agents, and required capabilities equivalent across supported coding harnesses.
 - [Command-line interface](command-line-interface.md) fixes the two-layer contract a command-line tool presents to its callers: one closed exit vocabulary, and a body that says what happened.
 - [Command-line interface modules](command-line-interface/README.md) hold the ordered modules of that convention.

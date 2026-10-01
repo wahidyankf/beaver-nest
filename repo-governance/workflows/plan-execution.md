@@ -12,7 +12,7 @@ Use only after explicit direction to execute one formal plan. Keep its records t
    primary checkout is forbidden, save the release invocation that convention exempts; an unclean tree or a rebase
    conflict stops the start and goes to the user.
 3. If backlogged, move it with status and stage maps to `plans/in-progress/<slug>/`; never copy it.
-4. Read all six plan documents before the checklist. Mirror each unchecked executable delivery item into the task list
+4. Read every plan document before the checklist. Mirror each unchecked executable delivery item into the task list
    with wording, label, order, and references. Keep conditional recovery dormant until triggered.
 5. Detect affected active services. Apply [live-service continuity](../development/live-service-continuity.md), baseline
    local and routed health and responsiveness against the plan's numeric budget, and activate continuity and rollback
@@ -27,7 +27,8 @@ Use only after explicit direction to execute one formal plan. Keep its records t
    after outcome and proof pass; its dated note records what was produced, what changed, and what was surprising.
 3. Synchronize both lists and activate triggered conditionals. Add discoveries to both only for an existing outcome;
    label and explain them.
-4. Capture learnings. Search `plans/ideas/`; merge overlap or create one distinct mapped brief and link it.
+4. Capture learnings. Search the owning repository's `plans/ideas/`; merge overlap or create one distinct mapped brief
+   and link it.
 5. Run required automation and manual AI journeys. For UI work, execute the planned exact-origin route, state, and
    viewport matrix after implementation and record each pass or fail; inference cannot replace it. Record
    safe evidence without secrets or sensitive runtime data.
