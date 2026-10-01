@@ -111,36 +111,49 @@ says `never-started`. Exit `73`: clean owned storage. Exit `78`: stop and replan
       `ddd-hexagonal-adoption/`.
 - [x] [AI] `REPO`. Proof: exit 0.
   - 2026-10-01: `rhino-consumer:test:repo` exit 0 (all eight gates).
-- [ ] [AI] Commit `docs(plans): add ddd and hexagonal architecture adoption plan` after the data-safety review. Push,
+- [x] [AI] Commit `docs(plans): add ddd and hexagonal architecture adoption plan` after the data-safety review. Push,
       open a draft PR, mark it ready, post the leak review of the exact head, wait for the exact-head `Quality gate`, then
       merge. Proof: the PR number and merge SHA recorded here.
-- [ ] [AI] **Checkpoint 1 (blocking):** verdict `PASS` or `PASS_WITH_FINDINGS` with every finding accepted; U1 merged.
+  - 2026-10-01: PR #116 merged as `e68a41b44`. It supersedes #113 and #115: each fell behind `main` (the second on
+    the new Mermaid palette policy), and a force push is not authorized.
+- [x] [AI] **Checkpoint 1 (blocking):** verdict `PASS` or `PASS_WITH_FINDINGS` with every finding accepted; U1 merged.
 
 ## Phase 2: U2, Architecture Standard (AC-DH-01)
 
-- [ ] [AI] Write `repo-governance/development/quality/code/hexagonal-architecture.md` and its four modules plus
+- [x] [AI] Write `repo-governance/development/quality/code/hexagonal-architecture.md` and its four modules plus
       `README.md`, per [001](tech-docs/001-architecture-standard.md). Proof: rhino word budget passes in `REPO`.
-- [ ] [AI] Link the six names in `.agents/skills/developing-applications/SKILL.md`,
+  - 2026-10-01: written; the word budget passes in `REPO`.
+- [x] [AI] Link the six names in `.agents/skills/developing-applications/SKILL.md`,
       `.agents/skills/programming-elixir/SKILL.md`, `.agents/skills/framework-phoenix-liveview/SKILL.md`, the three
       `.agents/agents/swe-code-maker.md`, `swe-code-checker.md`, `swe-code-fixer.md`, and the Elixir, Phoenix LiveView and
       TypeScript stack standards. Proof: for each of the six names ("Hexagonal Architecture", "Layers and the Dependency
       Rule", "Application Shapes", "Functional Core, Imperative Shell", "Test Doubles", "Implementation Stages"),
       `grep -rnF "<name>" .agents repo-governance/development/quality/stacks` shows every hit inside a markdown link
       (`[<name>](`) or a heading of the standard itself. AC-DH-01.
-- [ ] [AI] Amend "Contexts Own the Application" in `phoenix-liveview-standards.md` to say that a context is the facade
+  - 2026-10-01: 21 links added; the six-name scan reports 0 unlinked hits. The Phoenix LiveView skill carried none
+    of the names.
+- [x] [AI] Amend "Contexts Own the Application" in `phoenix-liveview-standards.md` to say that a context is the facade
       of one bounded context, and that live views, controllers, resolvers and plugs are inbound adapters.
-- [ ] [AI] Record the `boundary` adopter decision and rewrite the boundary deviation in `repository-adapter.md`. Add the
+  - 2026-10-01: amended; Mix tasks are named as inbound adapters too.
+- [x] [AI] Record the `boundary` adopter decision and rewrite the boundary deviation in `repository-adapter.md`. Add the
       enforcement row to `software-quality-enforcement.md` and the link line to `AGENTS.md` (within the 750-word budget).
-- [ ] [AI] Docs: `docs/explanation/hexagonal-architecture.md` (with an accessible Mermaid context map),
+  - 2026-10-01: adopter decision and deviation recorded. The map row and the `AGENTS.md` line do not fit the word
+    budget; accepted deviation [E2](learnings.md#e2-no-word-budget-left-for-the-agentsmd-line-or-a-map-row-2026-10-01-u2).
+- [x] [AI] Docs: `docs/explanation/hexagonal-architecture.md` (with an accessible Mermaid context map),
       `docs/explanation/README.md`, `docs/reference/glossary.md`, `docs/reference/software-development.md`.
-- [ ] [AI] Apply the [rules-propagation workflow](../../../repo-governance/workflows/rules-propagation.md) to the new
+  - 2026-10-01: written; the diagram is the layers-of-one-context view on the canonical palette.
+- [x] [AI] Apply the [rules-propagation workflow](../../../repo-governance/workflows/rules-propagation.md) to the new
       standard and record its terminal result (`PASS_CHANGED` or `PASS_NO_CHANGE`).
-- [ ] [AI] Apply the [docs-propagation workflow](../../../repo-governance/workflows/docs-propagation.md) and record its
+  - 2026-10-01: `PASS_CHANGED`.
+- [x] [AI] Apply the [docs-propagation workflow](../../../repo-governance/workflows/docs-propagation.md) and record its
       terminal result.
-- [ ] [AI] Regenerate the harness adapters for the edited skills and agents under the
+  - 2026-10-01: `PASS_CHANGED`.
+- [x] [AI] Regenerate the harness adapters for the edited skills and agents under the
       [harness contract change workflow](../../../repo-governance/workflows/coding-harness-contract-change.md): `HARNESS`.
       Proof: validate exits 0, and the regenerated `.claude/`, `.opencode/` and `.codex/` adapter files are committed.
-- [ ] [AI] `REPO`. Proof: exit 0. AC-DH-01.
+  - 2026-10-01: generate is current and validate is clean.
+- [x] [AI] `REPO`. Proof: exit 0. AC-DH-01.
+  - 2026-10-01: `rhino-consumer:test:repo` exit 0 (all eight gates).
 - [ ] [AI] Commit `docs(governance): adopt ddd and hexagonal architecture standard`; PR, leak review, exact-head gate,
       merge. Proof: PR number and merge SHA.
 - [ ] [AI] **Checkpoint 2 (blocking):** U2 merged and `REPO` green on `main`.
