@@ -1,25 +1,25 @@
-defmodule BnestApp.ChatTest do
+defmodule BnestApp.CodexChat.TranscriptTest do
   use ExUnit.Case, async: true
 
-  alias BnestApp.Chat
+  alias BnestApp.CodexChat.Domain.Transcript
 
   test "counts only distinct assistant updates" do
-    {:ok, chat} = Chat.submit(Chat.new(), "Hello")
-    chat = Chat.update_assistant(chat, "answer", "First")
-    unchanged = Chat.update_assistant(chat, "answer", "First")
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
+    chat = Transcript.update_assistant(chat, "answer", "First")
+    unchanged = Transcript.update_assistant(chat, "answer", "First")
 
     assert unchanged == chat
   end
 
   test "retains public reasoning and prior assistant progress when a new item becomes final" do
-    {:ok, chat} = Chat.submit(Chat.new(), "Hello")
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
 
     chat =
       chat
-      |> Chat.update_progress("reasoning", :reasoning, "Checking the request")
-      |> Chat.update_assistant("progress", "Looking up the answer")
-      |> Chat.update_assistant("final", "Here is the answer")
-      |> Chat.complete()
+      |> Transcript.update_progress("reasoning", :reasoning, "Checking the request")
+      |> Transcript.update_assistant("progress", "Looking up the answer")
+      |> Transcript.update_assistant("final", "Here is the answer")
+      |> Transcript.complete()
 
     assert [%{role: :visitor}, assistant] = chat.messages
     assert assistant.content == "Here is the answer"
@@ -30,30 +30,30 @@ defmodule BnestApp.ChatTest do
              %{item_id: "progress", kind: :status, content: "Looking up the answer"}
            ]
 
-    assert {:ok, snapshot} = Chat.snapshot(chat)
+    assert {:ok, snapshot} = Transcript.snapshot(chat)
     assert snapshot["version"] == 4
-    assert {:ok, restored} = Chat.restore(snapshot)
+    assert {:ok, restored} = Transcript.restore(snapshot)
     assert List.last(restored.messages).progress == assistant.progress
   end
 
   test "updates only valid public progress and restores compatible snapshots safely" do
-    {:ok, chat} = Chat.submit(Chat.new(), "Hello")
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
 
-    assert Chat.update_assistant(chat, "Legacy answer")
+    assert Transcript.update_assistant(chat, "Legacy answer")
            |> Map.fetch!(:messages)
            |> List.last()
            |> Map.fetch!(:active_item_id) == "assistant-message"
 
-    assert Chat.update_assistant(chat, "", "Ignored") == chat
-    assert Chat.update_assistant(chat, :invalid, "Ignored") == chat
-    assert Chat.update_progress(chat, "progress", :reasoning, " ") == chat
-    assert Chat.update_progress(chat, "", :reasoning, "Ignored") == chat
-    assert Chat.update_progress(chat, :invalid, :reasoning, "Ignored") == chat
+    assert Transcript.update_assistant(chat, "", "Ignored") == chat
+    assert Transcript.update_assistant(chat, :invalid, "Ignored") == chat
+    assert Transcript.update_progress(chat, "progress", :reasoning, " ") == chat
+    assert Transcript.update_progress(chat, "", :reasoning, "Ignored") == chat
+    assert Transcript.update_progress(chat, :invalid, :reasoning, "Ignored") == chat
 
     updated =
       chat
-      |> Chat.update_progress("progress", :activity, "Starting")
-      |> Chat.update_progress("progress", :activity, "Finished")
+      |> Transcript.update_progress("progress", :activity, "Starting")
+      |> Transcript.update_progress("progress", :activity, "Finished")
 
     assert List.last(updated.messages).progress == [
              %{item_id: "progress", kind: :activity, content: "Finished"}
@@ -71,10 +71,10 @@ defmodule BnestApp.ChatTest do
       "pending_turn" => nil
     }
 
-    assert {:ok, restored} = Chat.restore(version_3_snapshot)
+    assert {:ok, restored} = Transcript.restore(version_3_snapshot)
     assert List.last(restored.messages).progress == []
 
-    assert Chat.restore(%{version_3_snapshot | "messages" => [:invalid]}) == :error
+    assert Transcript.restore(%{version_3_snapshot | "messages" => [:invalid]}) == :error
 
     invalid_progress_snapshot = %{
       "version" => 4,
@@ -102,11 +102,11 @@ defmodule BnestApp.ChatTest do
       "pending_turn" => nil
     }
 
-    assert Chat.restore(invalid_progress_snapshot) == :error
+    assert Transcript.restore(invalid_progress_snapshot) == :error
   end
 
   test "checkpoints an active chat before a transport supplies a thread ID" do
-    {:ok, busy_chat} = Chat.submit(Chat.new(), "Hello")
+    {:ok, busy_chat} = Transcript.submit(Transcript.new(), "Hello")
 
     assert {:ok,
             %{
@@ -116,22 +116,22 @@ defmodule BnestApp.ChatTest do
                 "continuation_attempted" => false,
                 "prompt" => "Hello"
               }
-            }} = Chat.snapshot(busy_chat)
+            }} = Transcript.snapshot(busy_chat)
 
     assert {:ok, %{"thread_id" => nil, "messages" => messages}} =
-             Chat.snapshot(Chat.complete(busy_chat))
+             Transcript.snapshot(Transcript.complete(busy_chat))
 
     assert Enum.map(messages, & &1["role"]) == ["visitor", "assistant"]
   end
 
   test "continues an interrupted turn once without duplicating the recovery request" do
-    assert {:error, :none} = Chat.continuation_prompt(Chat.new())
+    assert {:error, :none} = Transcript.continuation_prompt(Transcript.new())
 
-    {:ok, chat} = Chat.submit(Chat.new(), "Hello")
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
 
-    assert {:ok, "Hello", recovered} = Chat.continuation_prompt(chat)
+    assert {:ok, "Hello", recovered} = Transcript.continuation_prompt(chat)
     assert recovered.pending_turn.continuation_attempted == true
-    assert {:error, :already_attempted} = Chat.continuation_prompt(recovered)
+    assert {:error, :already_attempted} = Transcript.continuation_prompt(recovered)
 
     resumed = %{
       recovered
@@ -139,28 +139,28 @@ defmodule BnestApp.ChatTest do
         pending_turn: %{recovered.pending_turn | continuation_attempted: false}
     }
 
-    assert {:ok, prompt, _recovered} = Chat.continuation_prompt(resumed)
+    assert {:ok, prompt, _recovered} = Transcript.continuation_prompt(resumed)
     assert prompt =~ "Continue the previous answer"
   end
 
   test "changes models only between turns" do
-    chat = Chat.new()
-    assert Chat.new("gpt-5.6-luna").reasoning_effort == "medium"
+    chat = Transcript.new()
+    assert Transcript.new("gpt-5.6-luna").reasoning_effort == "medium"
 
-    assert {:ok, selected} = Chat.select_model(chat, "gpt-5.6-luna", "medium")
+    assert {:ok, selected} = Transcript.select_model(chat, "gpt-5.6-luna", "medium")
     assert selected.model == "gpt-5.6-luna"
     assert selected.reasoning_effort == "medium"
 
-    {:ok, busy} = Chat.submit(selected, "Hello")
-    assert Chat.select_model(busy, "gpt-5.6-sol", "low") == {:error, busy}
-    assert Chat.select_model(chat, "", "medium") == {:error, chat}
-    assert Chat.select_model(chat, "gpt-5.6-luna", "impossible") == {:error, chat}
+    {:ok, busy} = Transcript.submit(selected, "Hello")
+    assert Transcript.select_model(busy, "gpt-5.6-sol", "low") == {:error, busy}
+    assert Transcript.select_model(chat, "", "medium") == {:error, chat}
+    assert Transcript.select_model(chat, "gpt-5.6-luna", "impossible") == {:error, chat}
   end
 
   test "enforces a role-required model even while a restored turn is active" do
-    {:ok, busy} = Chat.submit(Chat.new("gpt-5.6-terra", "high"), "Continue")
+    {:ok, busy} = Transcript.submit(Transcript.new("gpt-5.6-terra", "high"), "Continue")
 
-    restricted = Chat.enforce_model(busy, "gpt-5.6-luna", "medium")
+    restricted = Transcript.enforce_model(busy, "gpt-5.6-luna", "medium")
 
     assert restricted.model == "gpt-5.6-luna"
     assert restricted.reasoning_effort == "medium"
@@ -169,42 +169,42 @@ defmodule BnestApp.ChatTest do
   end
 
   test "snapshots the selected model and effort" do
-    chat = Chat.new("gpt-5.6-luna", "medium")
+    chat = Transcript.new("gpt-5.6-luna", "medium")
 
     assert {:ok,
             %{
               "version" => 4,
               "model" => "gpt-5.6-luna",
               "reasoning_effort" => "medium"
-            }} = Chat.snapshot(chat)
+            }} = Transcript.snapshot(chat)
 
-    assert Chat.snapshot(%{chat | model: ""}) == :error
-    assert Chat.snapshot(%{chat | thread_id: 123}) == :error
-    assert Chat.snapshot(%{chat | busy: true}) == :error
-    assert Chat.snapshot(:invalid) == :error
+    assert Transcript.snapshot(%{chat | model: ""}) == :error
+    assert Transcript.snapshot(%{chat | thread_id: 123}) == :error
+    assert Transcript.snapshot(%{chat | busy: true}) == :error
+    assert Transcript.snapshot(:invalid) == :error
   end
 
   test "restores an empty versioned snapshot" do
-    assert Chat.restore(%{"version" => 1, "thread_id" => nil, "messages" => []}) ==
-             {:ok, Chat.new()}
+    assert Transcript.restore(%{"version" => 1, "thread_id" => nil, "messages" => []}) ==
+             {:ok, Transcript.new()}
   end
 
   test "rejects malformed and unsupported snapshots" do
-    assert Chat.restore(%{}) == :error
+    assert Transcript.restore(%{}) == :error
 
-    assert Chat.restore(%{
+    assert Transcript.restore(%{
              "version" => 1,
              "thread_id" => 123,
              "messages" => []
            }) == :error
 
-    assert Chat.restore(%{
+    assert Transcript.restore(%{
              "version" => 1,
              "thread_id" => "thread-1",
              "messages" => [%{"id" => 1, "role" => "visitor"}]
            }) == :error
 
-    assert Chat.restore(%{
+    assert Transcript.restore(%{
              "version" => 2,
              "thread_id" => nil,
              "model" => 123,
@@ -212,7 +212,7 @@ defmodule BnestApp.ChatTest do
              "messages" => []
            }) == :error
 
-    assert Chat.restore(%{
+    assert Transcript.restore(%{
              "version" => 2,
              "thread_id" => nil,
              "model" => "gpt-5.6-luna",
@@ -220,7 +220,7 @@ defmodule BnestApp.ChatTest do
              "messages" => []
            }) == :error
 
-    assert Chat.restore(%{
+    assert Transcript.restore(%{
              "version" => 3,
              "thread_id" => nil,
              "model" => "gpt-5.6-luna",
@@ -236,7 +236,7 @@ defmodule BnestApp.ChatTest do
              }
            }) == :error
 
-    assert Chat.restore(%{
+    assert Transcript.restore(%{
              "version" => 4,
              "thread_id" => nil,
              "model" => "gpt-5.6-luna",
@@ -262,7 +262,7 @@ defmodule BnestApp.ChatTest do
              "pending_turn" => nil
            }) == :error
 
-    assert Chat.restore(%{
+    assert Transcript.restore(%{
              "version" => 3,
              "thread_id" => nil,
              "model" => "gpt-5.6-luna",
@@ -273,11 +273,11 @@ defmodule BnestApp.ChatTest do
   end
 
   test "rejects an interrupted snapshot whose assistant checkpoint is stale" do
-    {:ok, chat} = Chat.submit(Chat.new(), "Hello")
-    {:ok, snapshot} = Chat.snapshot(chat)
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
+    {:ok, snapshot} = Transcript.snapshot(chat)
 
     stale = put_in(snapshot, ["pending_turn", "assistant_message_id"], 3)
 
-    assert Chat.restore(stale) == :error
+    assert Transcript.restore(stale) == :error
   end
 end

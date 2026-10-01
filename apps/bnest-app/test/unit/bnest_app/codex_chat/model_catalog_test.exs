@@ -1,9 +1,10 @@
-defmodule BnestApp.Codex.ModelCatalogUnitTest do
+defmodule BnestApp.CodexChat.ModelCatalogUnitTest do
   use ExUnit.Case, async: true
 
   import ExUnit.CaptureLog
 
-  alias BnestApp.Codex.ModelCatalog
+  alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.ModelCatalog
 
   @luna %{
     "id" => "gpt-5.6-luna",
@@ -24,7 +25,7 @@ defmodule BnestApp.Codex.ModelCatalogUnitTest do
 
   defmodule StubDiscovery do
     @moduledoc false
-    @behaviour BnestApp.Codex.ModelDiscovery
+    @behaviour BnestApp.CodexChat.Ports.ModelDiscovery
 
     @impl true
     def discover(options), do: Keyword.fetch!(options, :discovery_result)
@@ -178,8 +179,8 @@ defmodule BnestApp.Codex.ModelCatalogUnitTest do
     assert log =~ "no valid picker models"
   end
 
-  test "reads the configured catalog module when no models are supplied" do
-    configured = Application.fetch_env!(:bnest_app, :codex_models)
-    assert ModelCatalog.all(catalog([])) == ModelCatalog.all(catalog(models: configured.all()))
+  test "discovers through the configured model discovery when no models are supplied" do
+    {:ok, configured} = CodexChat.adapter(:model_discovery).discover([])
+    assert ModelCatalog.all(catalog([])) == ModelCatalog.all(catalog(models: configured))
   end
 end

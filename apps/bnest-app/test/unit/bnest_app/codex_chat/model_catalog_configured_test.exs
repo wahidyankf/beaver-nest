@@ -1,20 +1,26 @@
-defmodule BnestApp.Codex.ModelCatalogConfiguredUnitTest do
+defmodule BnestApp.CodexChat.ModelCatalogConfiguredUnitTest do
   # Not async: it swaps a global application-environment key.
   use ExUnit.Case, async: false
 
-  alias BnestApp.Codex.ModelCatalog
-  alias BnestApp.Codex.ModelCatalogUnitTest.StubDiscovery
+  alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.ModelCatalog
+  alias BnestApp.CodexChat.ModelCatalogUnitTest.StubDiscovery
 
-  test "falls through to discovery when no catalog module is configured" do
-    configured = Application.get_env(:bnest_app, :codex_models)
-    Application.delete_env(:bnest_app, :codex_models)
-    on_exit(fn -> Application.put_env(:bnest_app, :codex_models, configured) end)
+  test "discovers through the configured model discovery when none is supplied" do
+    configured = Application.fetch_env!(:bnest_app, CodexChat)
+
+    Application.put_env(
+      :bnest_app,
+      CodexChat,
+      Keyword.put(configured, :model_discovery, StubDiscovery)
+    )
+
+    on_exit(fn -> Application.put_env(:bnest_app, CodexChat, configured) end)
 
     server =
       start_supervised!(
         {ModelCatalog,
          name: nil,
-         discovery: StubDiscovery,
          discovery_result:
            {:ok,
             [

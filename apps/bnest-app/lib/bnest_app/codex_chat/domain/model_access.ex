@@ -1,4 +1,4 @@
-defmodule BnestApp.Codex.ModelAccess do
+defmodule BnestApp.CodexChat.Domain.ModelAccess do
   @moduledoc false
 
   @required_models %{

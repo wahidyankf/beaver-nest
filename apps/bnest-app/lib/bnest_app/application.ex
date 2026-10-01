@@ -9,6 +9,7 @@ defmodule BnestApp.Application do
     deps: [
       BnestApp,
       BnestAppWeb,
+      BnestApp.CodexChat,
       BnestApp.Identity,
       BnestApp.Preferences,
       BnestApp.SifatAllah,
@@ -27,9 +28,9 @@ defmodule BnestApp.Application do
       [
         BnestAppWeb.Telemetry,
         {DNSCluster, query: Application.get_env(:bnest_app, :dns_cluster_query) || :ignore},
-        {Phoenix.PubSub, name: BnestApp.PubSub},
-        BnestApp.Codex.ModelCatalog
+        {Phoenix.PubSub, name: BnestApp.PubSub}
       ] ++
+        BnestApp.CodexChat.child_specs() ++
         repository_children() ++
         [
           BnestAppWeb.Endpoint,

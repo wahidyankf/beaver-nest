@@ -1,4 +1,4 @@
-defmodule BnestApp.Codex.Settings do
+defmodule BnestApp.CodexChat.Domain.Settings do
   @moduledoc false
 
   @model "gpt-5.6-terra"

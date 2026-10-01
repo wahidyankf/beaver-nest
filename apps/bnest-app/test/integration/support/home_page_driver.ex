@@ -10,8 +10,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.AdminConfig.Registry, as: AdminRegistry
   alias BnestApp.Backup.{Config, Receipt, Run}
   alias BnestApp.Behaviour.IntegrationFamilyChatDriver
-  alias BnestApp.Chat
-  alias BnestApp.Codex.FixtureModels
+  alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.Identity.Adapters.{Argon2CredentialHasher, RecordIdentityStore}
   alias BnestApp.Identity.Bootstrap
   alias BnestApp.Identity.Domain.{Authorization, Credentials}
@@ -33,6 +33,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Storage.Domain.Normalizer
   alias BnestApp.Storage.Import
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
+  alias BnestApp.Test.InterruptedChatWriteBackend
   alias BnestApp.TestRuntimeRoot
 
   @behaviour_now ~U[2026-08-30 20:00:00Z]
@@ -325,7 +327,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def send_message(context, message) do
     render_submit(context.view, "send", %{"chat" => %{"prompt" => message}})
-    Map.put(context, :pending_turn?, true)
+    context
   end
 
   @impl true
@@ -376,10 +378,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       |> List.first()
       |> then(&(&1 && String.to_integer(&1) >= 2))
 
-    {streamed?,
-     context
-     |> Map.put(:pending_turn?, false)
-     |> Map.put(:persisted_chat, Jason.encode!(snapshot))}
+    {streamed?, Map.put(context, :persisted_chat, Jason.encode!(snapshot))}
   end
 
   @impl true
@@ -424,10 +423,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     send(context.view.pid, {:codex, session, :turn_completed})
 
     snapshot = await_push_event(context.view, "persist-chat")
-
-    context
-    |> Map.put(:pending_turn?, false)
-    |> Map.put(:persisted_chat, Jason.encode!(snapshot))
+    Map.put(context, :persisted_chat, Jason.encode!(snapshot))
   end
 
   @impl true
@@ -491,36 +487,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def current_route?(context, route), do: context.route == route
 
+  # Integration cannot replace the server under a connected client: remounting the unchanged
+  # server would simulate the deployment. Every scenario that reconnects after one is
+  # @integration-exempt and proven at FE E2E, so reaching this fails instead of passing.
   @impl true
-  def reconnect(context) do
-    context =
-      if Map.has_key?(context, :persisted_chat),
-        do: reload(context),
-        else: open(context, context.route)
-
-    context =
-      if context[:pending_turn?] do
-        send(
-          context.view.pid,
-          {:codex, context.view.pid,
-           {:error,
-            "The previous response was interrupted. Your transcript is preserved; send a new message to continue."}}
-        )
-
-        render(context.view)
-        Map.put(context, :pending_turn?, false)
-      else
-        context
-      end
-
-    case Map.fetch(context, :draft) do
-      {:ok, draft} ->
-        render_change(context.view, "recover_draft", %{"chat" => %{"prompt" => draft}})
-        context
-
-      :error ->
-        context
-    end
+  def reconnect(_context) do
+    raise "integration cannot reconnect after a deployment; " <>
+            "the scenario is @integration-exempt (FE E2E proves it)"
   end
 
   @impl true
@@ -964,10 +937,16 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     })
   end
 
+  # The import runs against the run-root store through a backend that fails its chat write,
+  # as a crash after the envelope is preserved would; the chat record must then be absent.
   def prepare_behaviour(context, :interrupted_import, _args) do
     store = Records.store()
-    {:ok, first} = Import.browser(store, context.user_id, chat_source())
-    Map.merge(context, %{central_store: store, first_import_id: first.import_id})
+
+    {:error, :read_back_failed, manifest} =
+      Import.browser(InterruptedChatWriteBackend.wrap(store), context.user_id, chat_source())
+
+    {:error, :missing} = FileRecordBackend.read(store, :chat, context.user_id)
+    Map.merge(context, %{central_store: store, first_import_id: manifest["importId"]})
   end
 
   def prepare_behaviour(context, :stale_browser_revision, _args) do
@@ -995,16 +974,20 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     })
   end
 
+  # The saved chat is the precondition, so it is saved through the CodexChat facade into the
+  # run-root repository, on the thread the fixture agent session cannot resume.
   def prepare_behaviour(context, :unavailable_codex_thread, _args) do
-    {:ok, chat} = Chat.new("fixture-model", "medium") |> Chat.submit("Remember this transcript")
+    {:ok, transcript} =
+      Transcript.new("gpt-5.6-terra", "medium") |> Transcript.submit("Remember this transcript")
 
-    chat =
-      chat
-      |> Chat.update_assistant("Saved response")
-      |> Chat.complete()
-      |> Chat.put_thread_id("unavailable-thread")
+    transcript =
+      transcript
+      |> Transcript.update_assistant("Saved response")
+      |> Transcript.complete()
+      |> Transcript.put_thread_id("unavailable-thread")
 
-    Map.merge(context, %{centralized_chat: chat, transcript_before: chat.messages})
+    {:ok, _record} = CodexChat.save_transcript(context.user_id, transcript, nil)
+    Map.put(context, :transcript_before, transcript.messages)
   end
 
   def prepare_behaviour(context, :no_backup_override, _args), do: prepare_default_backup(context)
@@ -1402,14 +1385,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :cleared_storage_keys, cleared)
   end
 
+  # The user opens the saved chat, whose Codex thread the mount tries to resume, and sends the
+  # next message. The page the mount rendered is kept, since the send clears its alert.
   def perform_behaviour(context, :continue_chat, _args) do
-    chat =
-      Chat.fail(
-        context.centralized_chat,
-        "The previous Codex thread was unavailable; started a fresh conversation."
-      )
+    {:ok, view, html} = live(context.conn, "/chat")
+    render_submit(view, "send", %{"chat" => %{"prompt" => "Continue after resume"}})
 
-    Map.put(context, :continued_chat, %{chat | thread_id: nil})
+    Map.merge(context, %{view: view, route: "/chat", reopened_page: LazyHTML.from_fragment(html)})
   end
 
   def perform_behaviour(context, :start_managed_migration, _args) do
@@ -1921,6 +1903,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
          true <- Preferences.theme(user_id) == context.journey_records.theme["theme"],
          true <-
            SifatAllah.load_progress(user_id) == {:ok, context.journey_records.sifat_allah},
+         {:ok, _transcript, chat} <- CodexChat.load_transcript(user_id),
+         true <- chat == context.journey_records.chat,
          conn = Plug.Test.put_req_cookie(Phoenix.ConnTest.build_conn(), "_bnest_identity", token),
          %{status: 200, resp_body: home} <- get(conn, "/"),
          true <- String.contains?(home, ~s(data-theme="dark")),
@@ -2023,12 +2007,14 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :idempotent_import_identity, _args),
     do: match?({:ok, %{import_id: id}} when id == context.first_import_id, context.retry_result)
 
+  # The retry completes the interrupted import once: no second envelope, and the chat record
+  # the interruption left absent now exists at its first revision.
   def behaviour_outcome?(context, :accepted_data_preserved, _args),
     do:
       import_envelope_count(context.central_store, context.user_id) ==
         context.envelopes_before_retry and
         match?(
-          {:ok, %{"recordType" => "chat"}},
+          {:ok, %{"recordType" => "chat", "revision" => 0}},
           FileRecordBackend.read(context.central_store, :chat, context.user_id)
         )
 
@@ -2069,13 +2055,33 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       LazyHTML.attribute(root, "data-browser-persistence") == ["false"]
   end
 
-  def behaviour_outcome?(context, :transcript_preserved, _args),
-    do: context.continued_chat.messages == context.transcript_before
+  # The saved messages must still show, and the chat the facade loads must be the stored
+  # record, leading with those messages on a thread other than the unavailable one.
+  def behaviour_outcome?(context, :transcript_preserved, _args) do
+    user_id = context.user_id
+    saved_count = length(context.transcript_before)
 
-  def behaviour_outcome?(context, :fresh_conversation_reported, _args),
-    do:
-      is_nil(context.continued_chat.thread_id) and
-        String.contains?(context.continued_chat.error, "fresh conversation")
+    with true <-
+           has_element?(context.view, "[data-role=user-message]", "Remember this transcript"),
+         true <- has_element?(context.view, "[data-role=user-message]", "Continue after resume"),
+         true <- has_element?(context.view, "[data-role=assistant-message]", "Saved response"),
+         {:ok, transcript, record} <- CodexChat.load_transcript(user_id),
+         {:ok, ^record} <- Records.read(:chat, user_id) do
+      Enum.take(transcript.messages, saved_count) == context.transcript_before and
+        transcript.thread_id != "unavailable-thread"
+    else
+      _lost -> false
+    end
+  end
+
+  # Opening the chat reported the fresh conversation, and the saved chat left the unavailable
+  # thread for one the new conversation has not named yet.
+  def behaviour_outcome?(context, :fresh_conversation_reported, _args) do
+    alert = context.reopened_page |> LazyHTML.query("[role=alert]") |> LazyHTML.text()
+
+    String.contains?(alert, "transcript is preserved in a fresh conversation") and
+      match?({:ok, %{thread_id: nil}, _record}, CodexChat.load_transcript(context.user_id))
+  end
 
   def behaviour_outcome?(context, :default_backup_folder, _args),
     do:

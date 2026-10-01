@@ -1,4 +1,4 @@
-defmodule BnestApp.Codex.RepositoryAccess do
+defmodule BnestApp.CodexChat.Domain.RepositoryAccess do
   @moduledoc false
 
   @roles ~w(children parents admin)

@@ -1,12 +1,16 @@
-defmodule BnestApp.Codex.ModelCatalog do
-  @moduledoc false
+defmodule BnestApp.CodexChat.ModelCatalog do
+  @moduledoc """
+  The models the local Codex agent offers, discovered once at start through the configured
+  `BnestApp.CodexChat.Ports.ModelDiscovery` and validated here. An invalid or failed
+  discovery falls back to Terra.
+  """
 
   use GenServer
 
   require Logger
 
-  alias BnestApp.Codex.ModelDiscovery
-  alias BnestApp.Codex.Settings
+  alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.Domain.Settings
 
   @efforts ~w(none minimal low medium high xhigh max ultra)
   @fallback [
@@ -84,22 +88,8 @@ defmodule BnestApp.Codex.ModelCatalog do
         normalize_or_fallback(models)
 
       :error ->
-        load_configured_models(options)
+        discover_models(options)
     end
-  end
-
-  defp load_configured_models(options) do
-    if Keyword.has_key?(options, :models_runner) do
-      discover_models(options)
-    else
-      load_application_models(options, Application.get_env(:bnest_app, :codex_models))
-    end
-  end
-
-  defp load_application_models(options, nil), do: discover_models(options)
-
-  defp load_application_models(_options, module) when is_atom(module) do
-    normalize_or_fallback(module.all())
   end
 
   defp discover_models(options) do
@@ -113,7 +103,8 @@ defmodule BnestApp.Codex.ModelCatalog do
     end
   end
 
-  defp discovery(options), do: Keyword.get(options, :discovery, ModelDiscovery)
+  defp discovery(options),
+    do: Keyword.get_lazy(options, :discovery, fn -> CodexChat.adapter(:model_discovery) end)
 
   defp normalize_or_fallback(models) when is_list(models) do
     normalized =

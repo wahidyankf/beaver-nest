@@ -119,7 +119,6 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.CoreComponents,
       BnestAppWeb.Endpoint,
       BnestAppWeb.Telemetry,
-      BnestApp.Codex.PortSession,
       BnestAppWeb.ErrorHTML,
       BnestAppWeb.Gettext,
       BnestAppWeb.Layouts,
@@ -140,8 +139,6 @@ defmodule BnestApp.MixProject do
       ~r/\bBnestApp\.Test\./,
       BnestApp.Behaviour.UnitFamilyChatDriver,
       BnestApp.Behaviour.UnitHomePageDriver,
-      BnestApp.Codex.FixtureModels,
-      BnestApp.Codex.FixtureSession,
       BnestApp.SchemaSourceScan,
       BnestApp.TestIdentity,
       BnestApp.TestRuntimeRoot,
@@ -188,7 +185,6 @@ defmodule BnestApp.MixProject do
     # a context's layers deletes its entries and brings its facade under the threshold.
     legacy_core = [
       BnestApp.AdminConfig.Registry,
-      BnestApp.Codex.ModelDiscovery,
       BnestApp.Backup,
       BnestApp.Backup.Capacity,
       BnestApp.Backup.Config,

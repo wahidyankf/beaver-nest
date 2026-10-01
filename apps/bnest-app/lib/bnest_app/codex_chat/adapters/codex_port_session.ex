@@ -1,10 +1,14 @@
-defmodule BnestApp.Codex.PortSession do
-  @moduledoc false
+defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
+  @moduledoc """
+  The `BnestApp.CodexChat.Ports.AgentSession` over the local Codex CLI: each session is a
+  process that runs the bundled Node chat runner through a port and forwards the runner's
+  events to its owner.
+  """
 
-  @behaviour BnestApp.Codex.Session
+  @behaviour BnestApp.CodexChat.Ports.AgentSession
   use GenServer
 
-  @impl BnestApp.Codex.Session
+  @impl BnestApp.CodexChat.Ports.AgentSession
   def open(owner, thread_id, model, reasoning_effort, repository_mode)
       when repository_mode in [:read_only, :workspace_write] do
     GenServer.start(__MODULE__, {owner, thread_id, model, reasoning_effort, repository_mode})
@@ -13,12 +17,12 @@ defmodule BnestApp.Codex.PortSession do
   def open(_owner, _thread_id, _model, _reasoning_effort, _repository_mode),
     do: {:error, :invalid_repository_mode}
 
-  @impl BnestApp.Codex.Session
+  @impl BnestApp.CodexChat.Ports.AgentSession
   def send_prompt(session, prompt) do
     GenServer.call(session, {:send_prompt, prompt})
   end
 
-  @impl BnestApp.Codex.Session
+  @impl BnestApp.CodexChat.Ports.AgentSession
   def close(session) do
     GenServer.stop(session, :normal)
   catch

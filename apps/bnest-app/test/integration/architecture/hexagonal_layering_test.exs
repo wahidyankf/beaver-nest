@@ -12,13 +12,6 @@ defmodule BnestApp.HexagonalLayeringTest do
     BnestApp.Backup.Config,
     BnestApp.Backup.Location,
     BnestApp.Backup.Run,
-    BnestApp.Chat,
-    BnestApp.Codex.ModelAccess,
-    BnestApp.Codex.ModelCatalog,
-    BnestApp.Codex.ModelDiscovery,
-    BnestApp.Codex.PortSession,
-    BnestApp.Codex.RepositoryAccess,
-    BnestApp.Codex.Settings,
     BnestApp.Deployment,
     BnestApp.FamilyChat,
     BnestApp.FamilyChat.Store,
@@ -34,10 +27,7 @@ defmodule BnestApp.HexagonalLayeringTest do
   ]
 
   # Temporary. Inbound adapters still reading `BnestApp.Storage.Records` directly.
-  @legacy_records_callers [
-    # U8: the chat transcript moves behind CodexChat.
-    BnestAppWeb.ChatLive
-  ]
+  @legacy_records_callers []
 
   test "effects stay in adapters, domains stay pure, and inbound adapters call only facades" do
     violations =

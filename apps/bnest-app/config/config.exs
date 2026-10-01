@@ -143,4 +143,10 @@ config :bnest_app, BnestApp.Preferences,
 config :bnest_app, BnestApp.SifatAllah,
   progress_store: BnestApp.SifatAllah.Adapters.RecordProgressStore
 
+# One adapter per Codex chat port.
+config :bnest_app, BnestApp.CodexChat,
+  agent_session: BnestApp.CodexChat.Adapters.CodexPortSession,
+  model_discovery: BnestApp.CodexChat.Adapters.CodexCliModelDiscovery,
+  transcript_store: BnestApp.CodexChat.Adapters.RecordTranscriptStore
+
 import_config "#{config_env()}.exs"
