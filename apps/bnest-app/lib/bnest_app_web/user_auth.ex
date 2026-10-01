@@ -5,7 +5,7 @@ defmodule BnestAppWeb.UserAuth do
   import Plug.Conn
 
   alias BnestApp.Identity
-  alias BnestApp.Storage.Records
+  alias BnestApp.Preferences
 
   @identity_cookie "_bnest_identity"
   @legacy_transition_user %{
@@ -136,10 +136,5 @@ defmodule BnestAppWeb.UserAuth do
 
   def safe_return_path(_path), do: "/"
 
-  defp current_theme(%{"userId" => user_id}) do
-    case Records.read(:theme, user_id) do
-      {:ok, %{"theme" => theme}} -> theme
-      {:error, _missing_or_invalid} -> "system"
-    end
-  end
+  defp current_theme(%{"userId" => user_id}), do: Preferences.theme(user_id)
 end
