@@ -35,6 +35,8 @@ flowchart TB
   Adapters["Context.Adapters (strict)"] --> Facade
   Adapters --> Repo["BnestApp.SqliteRepo"]
   Config["config + Application"] -.names.-> Adapters
+
+  classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 | Boundary                                    | Kind                                                                                                                       | Declared deps                                                                                                                                                                                                                                                                                           | Exports                                                               |
@@ -79,6 +81,8 @@ flowchart LR
   Operations --> Scheduler
   Operations --> Identity
   Operations --> CodexChat
+
+  classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 Every arrow starts in the consumer's **Adapters** layer, except for PushNotifications → FamilyChat, Backup → FamilyChat
