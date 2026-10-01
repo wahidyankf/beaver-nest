@@ -12,12 +12,12 @@ compatibility: Requires read access to the application source, its tests, and it
 # Developing Applications
 
 The standards own the rules.
-Hexagonal Architecture and
-Functional Core, Imperative Shell
+[Hexagonal Architecture](../../../repo-governance/development/quality/code/hexagonal-architecture.md) and
+[Functional Core, Imperative Shell](../../../repo-governance/development/quality/code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell)
 place code; [Test-Driven Development](../../../repo-governance/development/test-driven-development.md)
 and [Quality Gates](../../../repo-governance/development/quality-gates.md)
 govern tests; [Dependency Selection](../../../repo-governance/development/dependency-selection.md) governs
-what is added; and Implementation Stages
+what is added; and [Implementation Stages](../../../repo-governance/development/quality/code/hexagonal-architecture/003-application-shapes.md#implementation-stages)
 orders the work. A language's stack standard, such as
 [TypeScript Standards](../../../repo-governance/development/quality/stacks/typescript-standards.md), adds its own
 choices. This skill covers the judgement those rules leave to whoever writes the code.
@@ -31,7 +31,7 @@ application layer.
 Misplacement shows early: a domain function that wants a clock, a connection, or a logger; an adapter holding a
 condition about a business rule; an application function choosing a transport status. Which layering fits a given
 application is decided in
-Application Shapes.
+[Application Shapes](../../../repo-governance/development/quality/code/hexagonal-architecture/003-application-shapes.md).
 
 ## Give Every Error One Fate
 
@@ -46,7 +46,7 @@ At each call that can fail, choose exactly one:
 Discarding it is never a fate. Add context where the meaning changes, such as a storage failure becoming "could not load
 order `<id>`", not at every frame it crosses; the same message repeated at each layer buries the cause. Infrastructure
 error types stop at their adapter, and a failure becomes a transport response once, as
-Layers and the Dependency Rule
+[Layers and the Dependency Rule](../../../repo-governance/development/quality/code/hexagonal-architecture/002-layers-and-the-dependency-rule.md)
 requires. Whether expected failures travel as values or exceptions is the stack standard's decision, or, where no stack
 standard exists, the language skill states the language's idiom or records the choice as an adopter decision. Every
 error path gets its own test.

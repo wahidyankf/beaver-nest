@@ -32,7 +32,9 @@ decision and deviation. Commands and test layers stay in each project's README.
 
 Every project also follows the language-neutral
 [type and boundary safety](../../repo-governance/development/quality/code/type-and-boundary-safety.md) and
-[meaningful coverage](../../repo-governance/development/quality/testing/meaningful-coverage.md) standards.
+[meaningful coverage](../../repo-governance/development/quality/testing/meaningful-coverage.md) standards. Application code
+in `bnest-app` is placed by the
+[hexagonal architecture](../../repo-governance/development/quality/code/hexagonal-architecture.md) standard.
 
 ## Agents
 

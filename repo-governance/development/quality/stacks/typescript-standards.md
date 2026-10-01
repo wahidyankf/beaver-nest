@@ -53,8 +53,8 @@ An option is never relaxed to make a change compile; the code is fixed instead.
   same primitive is branded and created only by a validating factory.
 
 Code is organised by feature; no technical layer spans features. Business logic is functions over readonly data,
-structured as Functional Core, Imperative Shell or, where ports
-exist, Hexagonal Architecture.
+structured as [Functional Core, Imperative Shell](../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell) or, where ports
+exist, [Hexagonal Architecture](../code/hexagonal-architecture.md).
 
 ## Expected Failures Are Returned
 

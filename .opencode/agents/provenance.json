@@ -25,17 +25,17 @@
     {
       "id": "agent/swe-code-checker",
       "path": ".agents/agents/swe-code-checker.md",
-      "digest": "d4b6df315e7d2ef0605a2f6533eb9cd0d4dd154d98a36eaebcad83ed9eb92d7a"
+      "digest": "b4f04f04a512357b543ea51b542ba67f7b0f4feacc6a3bc81afeb3ab8c25d1a2"
     },
     {
       "id": "agent/swe-code-fixer",
       "path": ".agents/agents/swe-code-fixer.md",
-      "digest": "32cca73b6b2fc69488e680f0f3b4d100d4460a26a4ceccdcd887d66826e0f708"
+      "digest": "f4d1c6d02b42df9fe24821d37561352bbd74cdaf7fb1afb89be52e81e527d50a"
     },
     {
       "id": "agent/swe-code-maker",
       "path": ".agents/agents/swe-code-maker.md",
-      "digest": "dec1b56c2db400be34e6abcd9b946b9dc635364704a3ff2f191fa6d4d3026d77"
+      "digest": "3a41f5cdde87e22535a40d456259f229725f8f50bbf9722d8acedeabbe68a3da"
     },
     {
       "id": "agent/web-researcher",
@@ -60,7 +60,7 @@
     {
       "id": "skill/developing-applications",
       "path": ".agents/skills/developing-applications/SKILL.md",
-      "digest": "7b93c8457ea2251af1e5cc7888880f973ac03f3e1063394e168baa44b0d7d87e"
+      "digest": "5dceff2afe306a899c1fdc8f20f0705db0edde031951ae543db0a2b18561d601"
     },
     {
       "id": "skill/framework-phoenix-liveview",
@@ -140,7 +140,7 @@
     {
       "id": "skill/programming-elixir",
       "path": ".agents/skills/programming-elixir/SKILL.md",
-      "digest": "cd11cedf68c73c10657e68207496564afaf494afbf40368bb7be63990d874d78"
+      "digest": "558809e833f366bf0925f5ae349777ad735aa418ee69b20a5ba5103eef314850"
     },
     {
       "id": "skill/programming-javascript",

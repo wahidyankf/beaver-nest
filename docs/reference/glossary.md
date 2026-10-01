@@ -20,7 +20,7 @@ Terms used across Beaver Nest's rules, plans, projects, and commit messages. Eac
 ## Testing
 
 - **Behaviour corpus** — the complete set of `.feature` files under `specs/apps/bnest/app-be/behaviours/` and `specs/apps/bnest/app-fe/behaviours/`, discovered recursively and treated as one body per root. A behaviour is described once here, not once per test layer.
-- **Adapter** — a layer that binds the corpus to a runtime: Elixir unit and integration adapters in the application project, a browser adapter in the end-to-end project. An adapter that cannot drive a scenario is explicitly exempted rather than given a duplicate scenario.
+- **Behaviour adapter** — a layer that binds the corpus to a runtime: Elixir unit and integration adapters in the application project, a browser adapter in the end-to-end project. An adapter that cannot drive a scenario is explicitly exempted rather than given a duplicate scenario.
 - **Quick gate** — `test:quick`, the fail-fast sequence of typecheck, lint, unit tests, and behaviour coverage. `test:e2e` is deliberately excluded because browser tests are slow.
 - **Red–green–refactor** — one behaviour increment: a failing test, the smallest change that passes it, then a design improvement with tests still green. See [the workflow](../../repo-governance/workflows/red-green-refactor.md).
 - **Test identity** — a synthetic account whose username starts with `test-user-`. Real accounts are never used for testing. See [test identities](../../repo-governance/development/test-identities.md).
@@ -51,6 +51,14 @@ Terms used across Beaver Nest's rules, plans, projects, and commit messages. Eac
 - **Quoted reply** — a family chat message that answers one earlier message in the same room. The relationship is one level deep and never a thread: a reply to a reply quotes what it answers, not the chain behind it.
 - **Reply target** — the message a member has chosen to answer but has not sent yet. It lives above the composer, only in that browser, and is discarded on reload, on send, and on abandon.
 - **Quote preview** — the bounded, whitespace-collapsed excerpt of the answered message that a reply carries and its quote card shows. The server cuts it by grapheme so the strip and the card can never disagree.
+
+## Architecture
+
+- **Bounded context** — a part of the application with its own language and model, such as Identity or FamilyChat; it publishes one facade. See [hexagonal architecture](../../repo-governance/development/quality/code/hexagonal-architecture.md).
+- **Facade** — a context's public module and application layer; inbound adapters and other contexts call only it.
+- **Port** — an Elixir behaviour a context declares for something outside it, such as a store or a sender.
+- **Adapter (architecture)** — a module implementing a port against real infrastructure, or an inbound module such as a LiveView that calls a facade. Not the same as a behaviour adapter.
+- **Aggregate** — a cluster of domain objects changed together under one invariant, such as a room and its messages. Not the same as a coverage aggregate.
 
 ## Planning and governance
 

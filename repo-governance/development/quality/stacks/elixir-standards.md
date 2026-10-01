@@ -54,7 +54,7 @@ to `nil`, as the [anti-patterns guide](https://elixir.hexdocs.pm/code-anti-patte
 
 A process exists for state that changes over time, concurrent work, or failure isolation, never to organise code. A
 GenServer callback stays thin: it passes the message and state to a pure function and returns what that function
-decides, as Functional Core, Imperative Shell requires. Dynamic
+decides, as [Functional Core, Imperative Shell](../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell) requires. Dynamic
 processes are named through a registry with a `:via` tuple, never through generated atoms. A supervisor's restart
 strategy follows how its children depend on one another.
 

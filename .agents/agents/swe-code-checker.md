@@ -52,8 +52,8 @@ resolves them; see [Stack Standards](../../repo-governance/development/quality/s
 ## What It Checks
 
 1. **Placement and failure handling.**
-   Hexagonal Architecture and
-   Functional Core, Imperative Shell,
+   [Hexagonal Architecture](../../repo-governance/development/quality/code/hexagonal-architecture.md) and
+   [Functional Core, Imperative Shell](../../repo-governance/development/quality/code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell),
    with error fates, logging, and input validation judged as
    [Developing Applications](../skills/developing-applications/SKILL.md) teaches, and types and boundaries per
    [Type and Boundary Safety](../../repo-governance/development/quality/code/type-and-boundary-safety.md).
@@ -65,7 +65,7 @@ resolves them; see [Stack Standards](../../repo-governance/development/quality/s
 4. **Test design.** Each test sits at its layer, per
    [Quality Gates](../../repo-governance/development/quality-gates.md), with
    doubles, data, and any git fixture following
-   Test Doubles,
+   [Test Doubles](../../repo-governance/development/quality/code/hexagonal-architecture/004-test-doubles.md),
    [Test Identities](../../repo-governance/development/test-identities.md), and
    Git Fixture Isolation, and any coverage
    number measuring what [Meaningful Coverage](../../repo-governance/development/quality/testing/meaningful-coverage.md)
