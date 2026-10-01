@@ -199,3 +199,48 @@ Resolution: applied in U3; 003 stays as authored, and this entry records the as-
   forbids touching them inside this plan.
 
 Resolution: applied in U4; 006 stays as authored, and this entry records the as-built difference.
+
+### E5: U5 Identity as built (2026-10-01)
+
+- **The scan had nothing to fail on.** No Identity module broke L1, L2 or L4 before the move, so the boundary RED is
+  `TYPECHECK` alone: 18 forbidden references over 4 edges.
+- **The port came before the contract RED.** The contract dispatches through `Ports.IdentityStore`, so the port
+  existed first and the RED is the missing in-memory adapter.
+- **`Domain.Credentials` is new.** The username and password rules left `FileStore` and `CredentialVerifier` for a
+  pure module that 006 does not list. Its tests sit in `authorization_test.exs`, the path 006 names for the domain.
+  Bootstrap checks the password rule before hashing, so the hashers no longer validate; outcomes are unchanged.
+- **More port callbacks.** `IdentityStore` adds `new/1` (the facade builds the active handle over
+  `Storage.active_store()`), `empty?/1` (false over the routed repository, as before) and `lock_key/1`; production
+  bootstrap lock keys are unchanged.
+- **Unit adapters come from configuration.** The unit branch of `config/test.exs` selects in-memory hasher,
+  notifier and revoker doubles, as 004 says. The identity store stays record-backed, because the unit SQLite-migration
+  scenario reaches identity records through Storage. This differs from U4, whose unit tests install doubles per test.
+  Integration and both e2e servers run with `BNEST_TEST_LAYER=integration`, so they keep real Argon2.
+- **`EndpointSessionNotifier` names `BnestAppWeb.Endpoint`**, which adds no boundary cycle. No test covered the
+  logout disconnect broadcast, so U5 added one at the integration layer.
+- **Two facade specs dropped.** `bootstrap/2` and `setup_status/1` have no `@spec`; with one, dialyzer flags a
+  `BootstrapController` clause as unreachable, and the controller is unchanged.
+- **No SQLite contract user.** Production never builds an identity store over a bare SQLite backend.
+- **More synthetic usernames renamed** to the `test-user-` form than E4 listed.
+- **Manual `curl` of login, logout and setup is deferred to U14**, where closure exercises the served origin; U5
+  proves those routes through integration and the focused e2e runs.
+- **Gherkin implementation review.** 23 rows (unit 10, integration 13), with 21 PASS and 2 FAIL. Neither FAIL came
+  from the refactor. The unit "no plaintext password" outcome no longer checks the Argon2id prefix, because the unit
+  hasher is a double. The review accepted it: unit still reads the stored verifier and verifies it through the
+  configured hasher, and integration still proves Argon2id.
+- **The two FAIL rows predated U5, and U5 fixed them in the drivers.**
+  - The unit identity-retirement step deleted the records itself. It now retires through `Storage.retire/3`, whose
+    in-memory maintenance double applies the real adapter's checks.
+  - The unit settings-denial Thens read literals. They now route requests through the real router and a recording
+    record store.
+- **Three more fixes on the logout proof.** The integration two-browser and logout scenarios and the unit redirect
+  scenarios had literal or flag-selected outcomes. Their Thens now make real requests with each browser's cookie and
+  measure record access. The unit logout path also asserts the revoke and disconnect calls.
+- **The in-memory identity store's `new/1` raises.** Configuring it as the active store would silently start empty.
+- **Fix evidence.** Each fix was seen failing against a deliberately broken production path, and production code
+  did not change.
+- **Left for the closure review.** The unit relocation and legacy-retirement steps, the unit storage-settings route,
+  and the E4 items still build results from literals. They predate this plan, and U14's full-corpus review is the item
+  that clears them.
+
+Resolution: applied in U5; 006 stays as authored, and this entry records the as-built difference.
