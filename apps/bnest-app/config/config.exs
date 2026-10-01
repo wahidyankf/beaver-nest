@@ -128,4 +128,11 @@ config :bnest_app, BnestApp.Storage,
     BnestApp.SifatAllah.Adapters.ProgressRecordKind
   ]
 
+# One adapter per Identity port.
+config :bnest_app, BnestApp.Identity,
+  identity_store: BnestApp.Identity.Adapters.RecordIdentityStore,
+  credential_hasher: BnestApp.Identity.Adapters.Argon2CredentialHasher,
+  session_notifier: BnestApp.Identity.Adapters.EndpointSessionNotifier,
+  subscription_revoker: BnestApp.Identity.Adapters.PushSubscriptionRevoker
+
 import_config "#{config_env()}.exs"

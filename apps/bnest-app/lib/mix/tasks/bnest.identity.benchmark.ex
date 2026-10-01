@@ -4,20 +4,22 @@ defmodule Mix.Tasks.Bnest.Identity.Benchmark do
   use Mix.Task
   use Boundary, classify_to: BnestAppCli
 
+  alias BnestApp.Identity
+
   @shortdoc "Measures the configured Argon2id work factor without printing secrets"
 
   @impl Mix.Task
   def run(_arguments) do
     options = Application.fetch_env!(:bnest_app, :argon2)
-    started = System.monotonic_time()
-    verifier = Argon2.hash_pwd_salt(:crypto.strong_rand_bytes(32))
 
     elapsed_ms =
-      System.convert_time_unit(System.monotonic_time() - started, :native, :millisecond)
+      case Identity.benchmark_hasher() do
+        {:ok, elapsed_ms} ->
+          elapsed_ms
 
-    unless String.starts_with?(verifier, "$argon2id$") do
-      Mix.raise("configured password hasher did not produce Argon2id")
-    end
+        {:error, _not_argon2id} ->
+          Mix.raise("configured password hasher did not produce Argon2id")
+      end
 
     timing_class = if elapsed_ms < 1_000, do: "under-one-second", else: "one-second-or-more"
 

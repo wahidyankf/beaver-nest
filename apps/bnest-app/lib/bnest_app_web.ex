@@ -20,6 +20,7 @@ defmodule BnestAppWeb do
   use Boundary,
     deps: [
       BnestApp,
+      BnestApp.Identity,
       BnestApp.Storage,
       # legacy: HealthController; removed in U13
       BnestApp.SqliteRepo

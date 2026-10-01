@@ -20,8 +20,9 @@ defmodule BnestAppWeb.ConnCase do
   use ExUnit.CaseTemplate
 
   alias BnestApp.Identity
-  alias BnestApp.Identity.CredentialVerifier
-  alias BnestApp.Identity.FileStore
+  alias BnestApp.Identity.Adapters.Argon2CredentialHasher
+  alias BnestApp.Identity.Adapters.RecordIdentityStore
+  alias BnestApp.Identity.Ports.IdentityStore
   alias BnestApp.Storage.Records
 
   using do
@@ -89,14 +90,14 @@ defmodule BnestAppWeb.ConnCase do
       user_id: "user-test-bdd-#{suffix}"
     }
 
-    store = Records.store()
+    store = RecordIdentityStore.new(Records.store())
 
-    case FileStore.read_account(store, identity.user_id) do
+    case IdentityStore.read_account(store, identity.user_id) do
       {:ok, _existing} ->
         identity
 
       {:error, :missing} ->
-        {:ok, verifier} = CredentialVerifier.hash(identity.password)
+        {:ok, verifier} = Argon2CredentialHasher.hash(identity.password)
         timestamp = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 
         account = %{
@@ -117,8 +118,8 @@ defmodule BnestAppWeb.ConnCase do
           "userId" => identity.user_id
         }
 
-        {:ok, ^account} = FileStore.put_account(store, account)
-        {:ok, ^index} = FileStore.put_username(store, index)
+        {:ok, ^account} = IdentityStore.put_account(store, account)
+        {:ok, ^index} = IdentityStore.put_username(store, index)
         identity
     end
   end

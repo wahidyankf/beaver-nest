@@ -5,7 +5,6 @@ defmodule BnestAppWeb.UserAuth do
   import Plug.Conn
 
   alias BnestApp.Identity
-  alias BnestApp.Identity.Session
   alias BnestApp.Storage.Records
 
   @identity_cookie "_bnest_identity"
@@ -30,7 +29,7 @@ defmodule BnestAppWeb.UserAuth do
         # real cookie-authenticated path, so this is the one place able to
         # derive it. Never the legacy/transition path below -- that
         # synthetic identity has no real session token to digest.
-        |> assign(:session_digest, Session.digest(conn.cookies[@identity_cookie]))
+        |> assign(:session_digest, Identity.session_digest(conn.cookies[@identity_cookie]))
         |> put_session(:current_user, user)
 
       {:error, :unauthenticated} ->
@@ -113,8 +112,7 @@ defmodule BnestAppWeb.UserAuth do
 
   def on_mount(:require_admin_user, _params, session, socket) do
     with %{"userId" => user_id} <- session["current_user"],
-         {:ok, %{"roles" => roles} = user} <-
-           Records.read(:account, user_id),
+         {:ok, %{"roles" => roles} = user} <- Identity.account(user_id),
          true <- "admin" in roles do
       {:cont,
        Phoenix.Component.assign(

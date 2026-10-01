@@ -21,8 +21,6 @@ defmodule BnestApp do
     Deployment,
     FamilyChat,
     FamilyChat.Store,
-    Identity,
-    Identity.Session,
     PushNotifications,
     Scheduler,
     Scheduler.Policy,
@@ -38,7 +36,6 @@ defmodule BnestApp do
       BnestApp.Storage,
       # legacy: infrastructure the legacy modules call directly. Each entry leaves
       # with its last legacy caller, when that context's adapters take the call over.
-      Argon2,
       Ecto.Migrator,
       Ecto.Query,
       Ecto.UUID,

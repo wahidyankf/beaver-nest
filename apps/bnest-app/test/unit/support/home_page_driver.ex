@@ -10,7 +10,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Codex.{FixtureModels, ModelAccess, RepositoryAccess}
   alias BnestApp.Deployment
   alias BnestApp.FamilyChat
-  alias BnestApp.Identity.{Authorization, Bootstrap, CredentialVerifier, Login, Session}
+  alias BnestApp.Identity
+  alias BnestApp.Identity.{Bootstrap, Login, Sessions}
+  alias BnestApp.Identity.Domain.{Authorization, Credentials}
+  alias BnestApp.Identity.Ports.IdentityStore
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
   alias BnestApp.Storage
@@ -19,6 +22,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Storage.Import
   alias BnestApp.Storage.Ports.RecordBackend
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.InMemory.IdentityStore, as: InMemoryIdentityStore
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
   alias BnestApp.Test.InMemory.StoragePorts
   alias BnestAppWeb.DataMigrationLive
@@ -27,6 +31,17 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias Phoenix.LiveView.{Socket, Utils}
 
   @behaviour_now ~U[2026-09-04 12:00:00Z]
+  @in_memory_flat_root "/in-memory/flat"
+  @synthetic_password "Synthetic password 1!"
+
+  # Mirrors `BnestAppWeb.Endpoint`'s session options, which the router's pipelines expect
+  # the endpoint to have applied.
+  @session_options Plug.Session.init(
+                     store: :cookie,
+                     key: "_bnest_app_key",
+                     signing_salt: "GMjl1ern",
+                     same_site: "Lax"
+                   )
 
   @impl true
   def open(context, "/chat") do
@@ -829,9 +844,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     ModelAccess.resolve(%{"roles" => ["admin"]}, FixtureModels.all())
   end
 
-  defp render_home(context) do
+  defp render_home(context, current_user \\ %{"displayUsername" => "test-user-unit"}) do
     page =
-      %{flash: %{}, current_user: %{"displayUsername" => "test-user-unit"}}
+      %{flash: %{}, current_user: current_user}
       |> BnestAppWeb.PageHTML.home()
       |> Safe.to_iodata()
       |> IO.iodata_to_binary()
@@ -848,6 +863,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       setup_status: Bootstrap.status(store),
       setup_draft: [%{username: "", roles: ["admin"]}],
       setup_error: nil,
+      flash: %{}
+    }
+    |> BnestAppWeb.LoginLive.render()
+    |> Safe.to_iodata()
+    |> IO.iodata_to_binary()
+    |> LazyHTML.from_fragment()
+  end
+
+  # The `/login` template for a visit carrying `return_to`, with the return path
+  # `LoginLive.mount/3` derives from it.
+  defp render_login(return_to) do
+    %{
+      live_action: :login,
+      return_to: BnestAppWeb.UserAuth.safe_return_path(return_to),
       flash: %{}
     }
     |> BnestAppWeb.LoginLive.render()
@@ -968,12 +997,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     end
   end
 
+  # The application holds a bootstrapped account, but the visitor sends no session cookie.
   @impl true
-  def prepare_behaviour(context, :unauthenticated, _args),
-    do: Map.merge(context, %{authenticated: false, repository_accesses: 0})
+  def prepare_behaviour(context, :unauthenticated, _args) do
+    context
+    |> start_request_path([synthetic_account("test-user-unit", ["admin"])])
+    |> Map.put(:authenticated, false)
+  end
 
   def prepare_behaviour(context, :uninitialized, _args),
-    do: Map.put(context, :identity_store, InMemoryRecordBackend.start())
+    do: Map.put(context, :identity_store, InMemoryIdentityStore.start())
 
   def prepare_behaviour(context, :approved_account, _args),
     do: authenticated_memory_context(context)
@@ -982,7 +1015,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context = authenticated_memory_context(context)
 
     {:ok, account} =
-      RecordBackend.read(context.identity_store, :account, context.identity_user["userId"])
+      IdentityStore.read_account(context.identity_store, context.identity_user["userId"])
 
     Map.put(context, :verifier, account["passwordVerifier"])
   end
@@ -1136,19 +1169,22 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   # A flat-primary installation behind the Storage facade's in-memory ports: the flat store
   # holds an account and its chat, learning and theme records, and SQLite already holds a
-  # backfilled copy, so parity is measured rather than assumed.
+  # backfilled copy, so parity is measured rather than assumed. The account is bootstrapped
+  # through the Identity facade, which works on the record store Storage reports as active.
   def prepare_behaviour(context, :all_verification_checks_pass, _args) do
     previous = StoragePorts.install()
     ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous) end)
     flat = InMemoryRecordBackend.start()
     ExUnit.Callbacks.start_supervised!({Records, store: flat})
+    StoragePorts.put(:flat_store, flat)
     username = "test-user-unit-sqlite"
-    password = "Synthetic password 1!"
+    password = @synthetic_password
 
     {:ok, [%{"userId" => owner}]} =
-      Bootstrap.create(flat, [
-        %{"username" => username, "password" => password, "roles" => ["admin"]}
-      ])
+      Identity.bootstrap(
+        [%{"username" => username, "password" => password, "roles" => ["admin"]}],
+        start_identity!()
+      )
 
     Enum.each(recognized_browser_sources(), fn source ->
       {:ok, _accepted} = Import.browser(flat, owner, source)
@@ -1254,8 +1290,19 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def prepare_behaviour(context, :contextual_schedules, _args),
     do: Map.put(context, :scheduler_entries, Registry.entries())
 
-  def prepare_behaviour(context, :denied_settings_visitor, _args),
-    do: Map.put(context, :auth_user, %{"userId" => "unit-child", "roles" => ["children"]})
+  # A non-admin family member with a real session: both accounts are bootstrapped through the
+  # Identity facade and the child logs in through it.
+  def prepare_behaviour(context, :denied_settings_visitor, _args) do
+    context =
+      start_request_path(context, [
+        synthetic_account("test-user-unit-admin", ["admin"]),
+        synthetic_account("test-user-unit-child", ["children"])
+      ])
+
+    {:ok, token} = Identity.login("test-user-unit-child", @synthetic_password)
+    {:ok, visitor} = Identity.current_user(token)
+    Map.merge(context, %{visitor_token: token, visitor: visitor})
+  end
 
   def prepare_behaviour(context, :retention_fixture, _args),
     do: Map.put(context, :retention_receipts, unit_retention_receipts())
@@ -1323,22 +1370,22 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
-    redirected = not context.authenticated
+    {response, accesses} = route_request(route, nil)
 
     Map.merge(context, %{
       attempted_route: route,
-      redirected: redirected,
-      login_form_only: redirected and route == "/"
+      protected_response: response,
+      protected_accesses: accesses
     })
   end
 
   def perform_behaviour(context, :bootstrap_accounts, _args) do
-    accepts_short? = CredentialVerifier.valid_password?("a_1")
-    accepts_long? = CredentialVerifier.valid_password?(String.duplicate("é", 129) <> "_1")
+    accepts_short? = Credentials.valid_password?("a_1")
+    accepts_long? = Credentials.valid_password?(String.duplicate("é", 129) <> "_1")
 
     rejects_missing_requirement? =
       Enum.all?(["password_", "password1", "123_"], fn password ->
-        not CredentialVerifier.valid_password?(password)
+        not Credentials.valid_password?(password)
       end)
 
     accounts = [
@@ -1373,7 +1420,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def perform_behaviour(context, :logout_current_browser, _args) do
-    result = Session.revoke(context.identity_store, context.identity_token)
+    result = Sessions.revoke(context.identity_store, context.identity_token)
     Map.merge(context, %{logout_result: result, authenticated: false})
   end
 
@@ -1382,15 +1429,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       Map.put(
         context,
         :reload_result,
-        Session.current_user(context.identity_store, context.identity_token)
+        Sessions.current_user(context.identity_store, context.identity_token)
       )
 
   def perform_behaviour(context, :logout_browser_a, _args) do
-    revoke_result = Session.revoke(context.identity_store, context.token_a)
+    revoke_result = Sessions.revoke(context.identity_store, context.token_a)
 
     Map.merge(context, %{
-      browser_a_result: Session.current_user(context.identity_store, context.token_a),
-      browser_b_result: Session.current_user(context.identity_store, context.token_b),
+      browser_a_result: Sessions.current_user(context.identity_store, context.token_a),
+      browser_b_result: Sessions.current_user(context.identity_store, context.token_b),
       revoke_result: revoke_result
     })
   end
@@ -1618,23 +1665,27 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def perform_behaviour(context, :commit_authority_switch, _args),
-    do: Map.put(context, :authority_switch, Storage.migrate("/in-memory/flat", true))
+    do: Map.put(context, :authority_switch, Storage.migrate(@in_memory_flat_root, true))
 
-  # Bound to a Then step, so a retirement that leaves identity records behind fails here.
+  # Bound to a Then step: retirement runs through the Storage facade at the pointer's own
+  # generation, and the flat store the Given seeded must hold identity records before it and
+  # none after it, so a retirement that removes nothing fails here.
   def perform_behaviour(context, :retire_flat_identity_sources, _args) do
     store = context.flat_store
+    generation = Storage.database_generation()
 
-    Enum.each(InMemoryRecordBackend.snapshot(store), fn
-      {{type, identity}, record} when type in [:account, :username_index] ->
-        :ok = RecordBackend.remove_exact(store, type, identity, record)
+    if RecordBackend.identity_files_empty?(store),
+      do: raise("the flat store holds no identity records to retire")
 
-      _other ->
-        :ok
-    end)
+    result = Storage.retire(@in_memory_flat_root, generation, false)
 
-    retired? = RecordBackend.identity_files_empty?(store)
-    unless retired?, do: raise("flat identity records remain after retirement")
-    Map.put(context, :flat_identity_retired?, retired?)
+    unless match?({:ok, %{"flatFilesRetiredAt" => _retired_at}}, result) and
+             {:retire, @in_memory_flat_root, generation, false} in StoragePorts.calls() and
+             RecordBackend.identity_files_empty?(store) do
+      raise "flat identity records remain after retirement: #{inspect(result)}"
+    end
+
+    context
   end
 
   # Verification only classifies; it must not write, so the store snapshot is the evidence
@@ -1755,14 +1806,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def perform_behaviour(context, :open_admin_settings, _args) do
-    denied =
-      not Authorization.allow?(context.auth_user, :manage_accounts, context.auth_user["userId"])
-
-    Map.merge(context, %{
-      settings_denied?: denied,
-      protected_reads: 0,
-      admin_home_entry?: not denied
-    })
+    {response, accesses} = route_request("/admin/settings", context.visitor_token)
+    Map.merge(context, %{settings_response: response, settings_accesses: accesses})
   end
 
   def perform_behaviour(context, :verify_new_backup, _args),
@@ -1797,11 +1842,34 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: UnitFamilyChatDriver.perform_behaviour(context, action, args)
 
   @impl true
-  def behaviour_outcome?(context, :redirected_to_login, _args), do: context.redirected
-  def behaviour_outcome?(context, :login_form_only, _args), do: context.login_form_only
+  def behaviour_outcome?(context, :redirected_to_login, _args),
+    do: match?(%URI{}, login_redirect(context.protected_response))
 
+  # The redirect carries the visitor back to the route they asked for, and the login page
+  # rendered for that redirect offers the login form and none of home's protected actions.
+  def behaviour_outcome?(context, :login_form_only, _args) do
+    with %URI{query: query} <- login_redirect(context.protected_response),
+         %{"return_to" => return_to} <- URI.decode_query(query || "") do
+      page = render_login(return_to)
+
+      return_to == context.attempted_route and
+        page
+        |> LazyHTML.query("#login-form input[name=return_to][value='#{return_to}']")
+        |> Enum.any?() and
+        page
+        |> LazyHTML.query("[data-role=chat-entry], [data-role=admin-settings-entry]")
+        |> Enum.empty?()
+    else
+      _not_login -> false
+    end
+  end
+
+  # The flat store's recorder saw the Given's bootstrap, so an empty list here is measured:
+  # the request read and wrote no record before the guard answered.
   def behaviour_outcome?(context, :no_user_data_access, _args),
-    do: context.redirected and context.repository_accesses == 0
+    do:
+      match?(%URI{}, login_redirect(context.protected_response)) and
+        context.protected_accesses == []
 
   # The warning is read from the setup route's production markup, rendered for the bootstrap
   # state the submission left in the store.
@@ -1837,14 +1905,19 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :current_browser_logged_out, _args),
     do:
       not context.authenticated and
-        Session.current_user(context.identity_store, context.identity_token) ==
+        Sessions.current_user(context.identity_store, context.identity_token) ==
           {:error, :unauthenticated}
 
+  # The unit layer hashes through the in-memory credential hasher, so it proves the
+  # application's part: the account keeps the configured hasher's verifier, which checks the
+  # password, and no stored record holds the plaintext. That the verifier is Argon2id is the
+  # real hasher's property, which the integration driver proves.
   def behaviour_outcome?(context, :no_plaintext_password, _args) do
-    records = context.identity_store |> InMemoryRecordBackend.snapshot() |> inspect()
+    records = context.identity_store |> InMemoryIdentityStore.snapshot() |> inspect()
+    hasher = Identity.adapter(:credential_hasher)
 
-    String.starts_with?(context.verifier, "$argon2id$") and
-      CredentialVerifier.verify(context.identity_password, context.verifier) and
+    context.verifier != context.identity_password and
+      hasher.verify(context.identity_password, context.verifier) and
       not String.contains?(records, context.identity_password)
   end
 
@@ -1977,11 +2050,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   # land in SQLite, not the flat store, and still pass the record schema the flat rollback
   # reader enforces.
   def behaviour_outcome?(context, :writes_compatible_with_rollback, _args) do
-    store = Storage.active_store()
-
-    with {:ok, token} <-
-           Login.authenticate(store, context.journey_username, context.journey_password),
-         digest = Session.digest(token),
+    with {:ok, token} <- Identity.login(context.journey_username, context.journey_password),
+         digest = Identity.session_digest(token),
          {:ok, session} <- RecordBackend.read(context.sqlite_store, :session, digest),
          {:error, :missing} <- RecordBackend.read(context.flat_store, :session, digest) do
       Storage.validate_record(session) == {:ok, session}
@@ -1990,25 +2060,29 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     end
   end
 
-  # Restarting the record repository drops any routing it held; afterwards every journey must
-  # still reach the migrated records, with the flat identity records already gone.
+  # Restarting the record repository and Identity drops any routing they held; afterwards
+  # every journey must still reach the migrated records, with the flat identity records
+  # already gone. Logout must also reach the push-subscription and live-session ports, whose
+  # in-memory doubles report to this process.
   def behaviour_outcome?(context, :journeys_survive_restart, _args) do
     :ok = ExUnit.Callbacks.stop_supervised(Records)
     ExUnit.Callbacks.start_supervised!({Records, store: context.flat_store})
-    store = Storage.active_store()
+    identity = start_identity!()
     owner = context.journey_owner
 
-    with true <- context.flat_identity_retired?,
-         :closed <- Bootstrap.status(store),
-         {:ok, token} <-
-           Login.authenticate(store, context.journey_username, context.journey_password),
-         {:ok, %{"userId" => ^owner}} <- Session.current_user(store, token),
+    with true <- RecordBackend.identity_files_empty?(context.flat_store),
+         :closed <- Identity.setup_status(identity),
+         {:ok, token} <- Identity.login(context.journey_username, context.journey_password),
+         {:ok, %{"userId" => ^owner}} <- Identity.current_user(token),
          true <-
            Enum.all?(context.journey_records, fn {type, record} ->
              Records.read(type, owner) == {:ok, record}
            end),
-         {:ok, _digest} <- Session.revoke(store, token),
-         {:error, :unauthenticated} <- Session.current_user(store, token) do
+         digest = Identity.session_digest(token),
+         :ok <- Identity.logout(token),
+         true <- received?({:subscription_revoked, owner, digest}),
+         true <- received?({:session_disconnected, digest}),
+         {:error, :unauthenticated} <- Identity.current_user(token) do
       true
     else
       _failure -> false
@@ -2214,10 +2288,31 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :typed_backup_link, _args),
     do: match?({:ok, %{path: "/admin/settings/schedules"}}, context.backup_settings)
 
-  def behaviour_outcome?(context, :not_found_before_reads, _args),
-    do: context.settings_denied? and context.protected_reads == 0
+  # The router's admin guard answers before the page: the response is a sent 404, and every
+  # record the request touched is the visitor's own session, account or theme, which the
+  # browser pipeline reads to resolve them. No other record was read or written.
+  def behaviour_outcome?(context, :not_found_before_reads, _args) do
+    %{settings_response: response, settings_accesses: accesses} = context
+    own = [Identity.session_digest(context.visitor_token), context.visitor["userId"]]
 
-  def behaviour_outcome?(context, :no_admin_home_entry, _args), do: not context.admin_home_entry?
+    response.halted and response.status == 404 and response.resp_body == "Not found" and
+      accesses != [] and
+      Enum.all?(accesses, fn {operation, _type, identity} ->
+        operation == :read and identity in own
+      end)
+  end
+
+  # The visitor's own home: the user the router resolves from their cookie, rendered by the
+  # home template.
+  def behaviour_outcome?(context, :no_admin_home_entry, _args) do
+    {response, _accesses} = route_request("/", context.visitor_token)
+    user = response.assigns.current_user
+    page = render_home(context, user).page
+
+    not response.halted and user["userId"] == context.visitor["userId"] and
+      page |> LazyHTML.query("[data-role=chat-entry]") |> Enum.any?() and
+      page |> LazyHTML.query("[data-role=admin-settings-entry]") |> Enum.empty?()
+  end
 
   def behaviour_outcome?(context, :owned_retention, _args),
     do: MapSet.size(context.retained_run_ids) == 7
@@ -2404,8 +2499,96 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
+  # An unnamed Identity process over the record store Storage reports as active.
+  defp start_identity! do
+    ExUnit.Callbacks.start_supervised!(
+      Supervisor.child_spec({Identity, name: nil}, id: make_ref())
+    )
+  end
+
+  defp synthetic_account(username, roles),
+    do: %{"username" => username, "password" => @synthetic_password, "roles" => roles}
+
+  # The browser request path over in-memory storage: Storage's ports are doubles, the record
+  # repository runs over a flat store that reports every record access to this process, and
+  # the accounts are bootstrapped through the Identity facade. The recorder must see that
+  # bootstrap, so a request that touches no record is observed rather than assumed.
+  defp start_request_path(context, accounts) do
+    # The signed session cookie caches its derived keys in the in-memory table Plug's own
+    # application creates, which `mix test --no-start` leaves unstarted.
+    {:ok, _apps} = Application.ensure_all_started(:plug)
+    previous = StoragePorts.install()
+    ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous) end)
+    store = InMemoryRecordBackend.start(self())
+    ExUnit.Callbacks.start_supervised!({Records, store: store})
+    {:ok, _users} = Identity.bootstrap(accounts, start_identity!())
+
+    if drain_record_accesses() == [],
+      do: raise("the flat store's recorder saw no bootstrap writes")
+
+    Map.put(context, :request_store, store)
+  end
+
+  # One browser GET through the router's own pipelines for `path`, with the identity cookie
+  # when a token is given. Phoenix's bypass stops the request where the router would hand it
+  # to the page, so the response is whatever the pipeline guards decided, and Phoenix never
+  # dispatches a halted conn. Returns the conn and the record accesses the request made.
+  defp route_request(path, token) do
+    _earlier = drain_record_accesses()
+
+    response =
+      :get
+      |> Plug.Test.conn(path)
+      |> put_identity_cookie(token)
+      |> Map.put(
+        :secret_key_base,
+        Application.get_env(:bnest_app, BnestAppWeb.Endpoint)[:secret_key_base]
+      )
+      |> Plug.Session.call(@session_options)
+      |> Plug.Conn.put_private(:phoenix_bypass, {BnestAppWeb.Router, :current})
+      |> BnestAppWeb.Router.call(BnestAppWeb.Router.init([]))
+
+    {response, drain_record_accesses()}
+  end
+
+  defp put_identity_cookie(conn, nil), do: conn
+
+  defp put_identity_cookie(conn, token),
+    do: Plug.Test.put_req_cookie(conn, "_bnest_identity", token)
+
+  # The record accesses reported so far, oldest first, as `{operation, type, identity}`.
+  defp drain_record_accesses(accesses \\ []) do
+    receive do
+      {:record_access, operation, type, identity} ->
+        drain_record_accesses([{operation, type, identity} | accesses])
+    after
+      0 -> Enum.reverse(accesses)
+    end
+  end
+
+  # The redirect target when the response is a halted redirect to the login page, else nil.
+  defp login_redirect(%{halted: true, status: 302} = response) do
+    with [location] <- Plug.Conn.get_resp_header(response, "location"),
+         %URI{path: "/login"} = target <- URI.parse(location) do
+      target
+    else
+      _not_login -> nil
+    end
+  end
+
+  defp login_redirect(_response), do: nil
+
+  # Whether `message` already sits in this process's mailbox; consumes it if so.
+  defp received?(message) do
+    receive do
+      ^message -> true
+    after
+      0 -> false
+    end
+  end
+
   defp authenticated_memory_context(context) do
-    store = InMemoryRecordBackend.start()
+    store = InMemoryIdentityStore.start()
     username = "test-user-unit"
     password = "Synthetic password 1!"
 

@@ -12,7 +12,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Behaviour.IntegrationFamilyChatDriver
   alias BnestApp.Chat
   alias BnestApp.Codex.FixtureModels
-  alias BnestApp.Identity.{Authorization, Bootstrap, CredentialVerifier, FileStore, Session}
+  alias BnestApp.Identity.Adapters.{Argon2CredentialHasher, RecordIdentityStore}
+  alias BnestApp.Identity.Bootstrap
+  alias BnestApp.Identity.Domain.{Authorization, Credentials}
+  alias BnestApp.Identity.Ports.IdentityStore
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
@@ -31,6 +34,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.TestRuntimeRoot
 
   @behaviour_now ~U[2026-08-30 20:00:00Z]
+  @record_operations [:read, :write, :put_new, :replace, :remove_exact]
 
   @impl true
   def open(%{conn: conn} = context, "/") do
@@ -842,7 +846,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     ExUnit.Callbacks.on_exit(fn -> TestRuntimeRoot.cleanup!(runtime) end)
 
     Map.merge(context, %{
-      identity_store: FileRecordBackend.new!(runtime.path),
+      identity_store: RecordIdentityStore.new(FileRecordBackend.new!(runtime.path)),
       identity_runtime: runtime
     })
   end
@@ -852,9 +856,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def prepare_behaviour(context, :approved_argon2_account, _args) do
     {username, password} = BnestAppWeb.ConnCase.test_credentials()
-    store = Records.store()
-    {:ok, %{"userId" => user_id}} = FileStore.read_username(store, username)
-    {:ok, account} = FileStore.read_account(store, user_id)
+    store = RecordIdentityStore.new(Records.store())
+    {:ok, %{"userId" => user_id}} = IdentityStore.read_username(store, username)
+    {:ok, account} = IdentityStore.read_account(store, user_id)
 
     Map.merge(context, %{
       account_exists: true,
@@ -868,7 +872,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     {username, password} = BnestAppWeb.ConnCase.test_credentials()
     {:ok, token_a} = BnestApp.Identity.login(username, password)
     {:ok, token_b} = BnestApp.Identity.login(username, password)
-    Map.merge(context, %{token_a: token_a, token_b: token_b, browser_a: true, browser_b: true})
+    Map.merge(context, %{token_a: token_a, token_b: token_b})
   end
 
   def prepare_behaviour(context, :multi_role_user, roles),
@@ -1199,7 +1203,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
-    response = get(context.conn, route)
+    {response, record_accesses} = record_accesses_during(fn -> get(context.conn, route) end)
     redirected = response.status == 302
 
     login_response =
@@ -1216,17 +1220,18 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.merge(context, %{
       response: response,
       redirected: redirected,
-      login_form_only: login_form_only
+      login_form_only: login_form_only,
+      record_accesses: record_accesses
     })
   end
 
   def perform_behaviour(context, :bootstrap_accounts, _args) do
-    accepts_short? = CredentialVerifier.valid_password?("a_1")
-    accepts_long? = CredentialVerifier.valid_password?(String.duplicate("é", 129) <> "_1")
+    accepts_short? = Credentials.valid_password?("a_1")
+    accepts_long? = Credentials.valid_password?(String.duplicate("é", 129) <> "_1")
 
     rejects_missing_requirement? =
       Enum.all?(["password_", "password1", "123_"], fn password ->
-        not CredentialVerifier.valid_password?(password)
+        not Credentials.valid_password?(password)
       end)
 
     accounts = [
@@ -1248,12 +1253,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def perform_behaviour(context, :login, _args) do
     {username, password} = BnestAppWeb.ConnCase.test_credentials()
     {:ok, token} = BnestApp.Identity.login(username, password)
-    Map.merge(context, %{authenticated: true, token: token})
+    Map.put(context, :token, token)
   end
 
   def perform_behaviour(context, :logout_current_browser, _args) do
-    if context[:token], do: BnestApp.Identity.logout(context.token)
-    Map.put(context, :authenticated, false)
+    :ok = BnestApp.Identity.logout(context.token)
+    context
   end
 
   def perform_behaviour(context, :reload_same_browser, _args),
@@ -1261,11 +1266,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def perform_behaviour(context, :logout_browser_a, _args) do
     :ok = BnestApp.Identity.logout(context.token_a)
-
-    Map.merge(context, %{
-      browser_a: false,
-      browser_b: match?({:ok, _}, BnestApp.Identity.current_user(context.token_b))
-    })
+    context
   end
 
   def perform_behaviour(context, :authorize_own_data, _args) do
@@ -1660,7 +1661,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def behaviour_outcome?(context, :redirected_to_login, _args), do: context.redirected
   def behaviour_outcome?(context, :login_form_only, _args), do: context.login_form_only
-  def behaviour_outcome?(context, :no_user_data_access, _args), do: context.redirected
+  # The trace saw its own probe read, so an empty list here is measured: the request read and
+  # wrote no record before the guard redirected it.
+  def behaviour_outcome?(context, :no_user_data_access, _args),
+    do: context.redirected and context.record_accesses == []
+
   # The scenario's own runtime root holds the bootstrap journal, while the running app's
   # identity is already set up, so the `/setup` template is rendered for this store's status
   # rather than requested over HTTP.
@@ -1691,28 +1696,37 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :password_requirements_enforced, _args),
     do: context.password_requirements_enforced
 
-  def behaviour_outcome?(context, :protected_home_available, _args), do: context.authenticated
+  def behaviour_outcome?(context, :protected_home_available, _args),
+    do: protected_home?(browser_home(context.token))
 
   def behaviour_outcome?(context, :current_browser_logged_out, _args),
-    do: not context.authenticated
+    do:
+      login_redirect?(browser_home(context.token)) and
+        BnestApp.Identity.current_user(context.token) == {:error, :unauthenticated}
 
   def behaviour_outcome?(context, :no_plaintext_password, _args) do
     bytes =
-      context.identity_store.root
+      context.identity_store.records.root
       |> Path.join("**/*.json")
       |> Path.wildcard()
       |> Enum.map_join(&File.read!/1)
 
     String.starts_with?(context.verifier, "$argon2id$") and
-      CredentialVerifier.verify(context.identity_password, context.verifier) and
+      Argon2CredentialHasher.verify(context.identity_password, context.verifier) and
       not String.contains?(bytes, context.identity_password)
   end
 
   def behaviour_outcome?(context, :same_browser_authenticated, _args),
     do: match?({:ok, %{"userId" => _user_id}}, context.reload_result)
 
-  def behaviour_outcome?(context, :browser_a_logged_out, _args), do: not context.browser_a
-  def behaviour_outcome?(context, :browser_b_authenticated, _args), do: context.browser_b
+  def behaviour_outcome?(context, :browser_a_logged_out, _args),
+    do:
+      login_redirect?(browser_home(context.token_a)) and
+        BnestApp.Identity.current_user(context.token_a) == {:error, :unauthenticated}
+
+  def behaviour_outcome?(context, :browser_b_authenticated, _args),
+    do: protected_home?(browser_home(context.token_b))
+
   def behaviour_outcome?(context, :operation_allowed, _args), do: context.operation_allowed
 
   def behaviour_outcome?(context, :administration_denied, _args),
@@ -1824,7 +1838,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     reader = context.rollback_reader
 
     with {:ok, token} <- BnestApp.Identity.login(identity.username, identity.password),
-         digest = Session.digest(token),
+         digest = BnestApp.Identity.session_digest(token),
          {:ok, session} <- Records.read(:session, digest),
          false <- File.exists?(Path.join(context.flat_root, "system/sessions/#{digest}.json")),
          {:ok, ^session} <- FileRecordBackend.put_new(reader, :session, digest, session) do
@@ -2239,6 +2253,78 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :requested_directory, directory)
   end
 
+  # A fresh browser that holds only the identity cookie for `token`, opening home.
+  defp browser_home(token),
+    do: build_conn() |> Plug.Test.put_req_cookie("_bnest_identity", token) |> get("/")
+
+  # Home's protected actions: the chat entry and the logout form.
+  defp protected_home?(%{status: 200} = response) do
+    page = LazyHTML.from_document(response.resp_body)
+
+    Enum.all?(["[data-role=chat-entry]", "form[action='/logout']"], fn selector ->
+      page |> LazyHTML.query(selector) |> Enum.any?()
+    end)
+  end
+
+  defp protected_home?(_response), do: false
+
+  defp login_redirect?(%{status: 302} = response),
+    do: URI.parse(redirected_to(response)).path == "/login"
+
+  defp login_redirect?(_response), do: false
+
+  # Runs `fun` while an isolated trace session records every record operation the calling
+  # process makes through the routed repository or a record backend; ConnTest dispatches the
+  # request in this process. A probe read must appear first, so an empty result is measured
+  # rather than a session that observed nothing. Returns `fun`'s result and the accesses.
+  defp record_accesses_during(fun) do
+    collector = spawn_link(fn -> collect_record_accesses([]) end)
+    session = :trace.session_create(:bnest_behaviour_record_access, collector, [])
+
+    try do
+      for module <- [Records, BnestApp.Storage.Ports.RecordBackend] do
+        _matched = :trace.function(session, {module, :_, :_}, true, [])
+      end
+
+      _traced = :trace.process(session, self(), true, [:call])
+      probe = "test-user-trace-probe-" <> unique_suffix()
+      _missing = Records.read(:theme, probe)
+      result = fun.()
+      _traced = :trace.process(session, self(), false, [:call])
+      delivered = :trace.delivered(session, self())
+
+      receive do
+        {:trace_delivered, _process, ^delivered} -> :ok
+      end
+
+      send(collector, {:report, self()})
+
+      receive do
+        {:record_accesses, [{Records, :read, [:theme, ^probe]} | accesses]} ->
+          {result, accesses}
+
+        {:record_accesses, accesses} ->
+          raise "record trace missed its probe: #{inspect(accesses)}"
+      end
+    after
+      :trace.session_destroy(session)
+    end
+  end
+
+  defp collect_record_accesses(accesses) do
+    receive do
+      {:trace, _process, :call, {module, operation, arguments}}
+      when operation in @record_operations ->
+        collect_record_accesses([{module, operation, arguments} | accesses])
+
+      {:trace, _process, :call, _other} ->
+        collect_record_accesses(accesses)
+
+      {:report, caller} ->
+        send(caller, {:record_accesses, Enum.reverse(accesses)})
+    end
+  end
+
   defp unique_suffix, do: Base.url_encode64(:crypto.strong_rand_bytes(6), padding: false)
   defp username_suffix, do: Base.encode16(:crypto.strong_rand_bytes(6), case: :lower)
 
@@ -2254,7 +2340,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     user_id = "user-" <> unique_suffix()
     username = "test-user-sqlite-" <> username_suffix()
     password = "Synthetic SQLite Password 123!"
-    {:ok, verifier} = CredentialVerifier.hash(password)
+    {:ok, verifier} = Argon2CredentialHasher.hash(password)
 
     account = %{
       "schemaVersion" => 1,

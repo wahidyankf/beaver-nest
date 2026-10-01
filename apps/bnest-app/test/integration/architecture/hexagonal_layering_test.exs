@@ -22,8 +22,6 @@ defmodule BnestApp.HexagonalLayeringTest do
     BnestApp.Deployment,
     BnestApp.FamilyChat,
     BnestApp.FamilyChat.Store,
-    BnestApp.Identity,
-    BnestApp.Identity.Session,
     BnestApp.PushNotifications,
     BnestApp.PushNotifications.Dispatcher,
     BnestApp.PushNotifications.Sender,

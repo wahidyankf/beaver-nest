@@ -1,14 +1,20 @@
 defmodule BnestApp.Identity.Bootstrap do
-  @moduledoc false
+  @moduledoc """
+  The one-time creation of the first accounts. A pending journal is written before the
+  accounts, and closed after them, so a crash in between is rolled back by `recover/1` on
+  the next start. Once closed, setup never reopens.
+  """
 
-  alias BnestApp.Identity.CredentialVerifier
-  alias BnestApp.Identity.FileStore
+  alias BnestApp.Identity
+  alias BnestApp.Identity.Domain.Credentials
+  alias BnestApp.Identity.Domain.Session
+  alias BnestApp.Identity.Ports.IdentityStore
 
   @roles ~w(children parents admin)
 
-  @spec status(map()) :: :open | :closed | {:error, atom()}
+  @spec status(IdentityStore.handle()) :: :open | :closed | {:error, atom()}
   def status(store) do
-    case FileStore.read_bootstrap(store) do
+    case IdentityStore.read_bootstrap(store) do
       {:ok, %{"state" => "closed"}} ->
         :closed
 
@@ -16,19 +22,19 @@ defmodule BnestApp.Identity.Bootstrap do
         {:error, :recovery_required}
 
       {:error, :missing} ->
-        if FileStore.identity_files_empty?(store), do: :open, else: {:error, :conflict}
+        if IdentityStore.empty?(store), do: :open, else: {:error, :conflict}
 
       {:error, _reason} ->
         {:error, :invalid_state}
     end
   end
 
-  @spec recover(map()) :: :ok | {:error, atom()}
+  @spec recover(IdentityStore.handle()) :: :ok | {:error, atom()}
   def recover(store) do
     :global.trans({transaction_key(store), self()}, fn -> recover_locked(store) end)
   end
 
-  @spec create(map(), [map()]) :: {:ok, [map()]} | {:error, atom()}
+  @spec create(IdentityStore.handle(), [map()]) :: {:ok, [map()]} | {:error, atom()}
   def create(store, accounts) do
     :global.trans({transaction_key(store), self()}, fn -> create_locked(store, accounts) end)
   end
@@ -39,10 +45,10 @@ defmodule BnestApp.Identity.Bootstrap do
          true <- Enum.any?(prepared, &("admin" in &1.account["roles"])),
          :ok <- unique_usernames(prepared),
          {:ok, journal} <- pending_journal(prepared),
-         {:ok, ^journal} <- FileStore.put_bootstrap(store, journal),
+         {:ok, ^journal} <- IdentityStore.put_bootstrap(store, journal),
          :ok <- write_accounts(store, prepared),
          {:ok, _closed} <- close_journal(store, journal) do
-      {:ok, Enum.map(prepared, &public_account(&1.account))}
+      {:ok, Enum.map(prepared, &Session.public_account(&1.account))}
     else
       false -> {:error, :admin_required}
       {:error, reason} -> {:error, reason}
@@ -67,9 +73,10 @@ defmodule BnestApp.Identity.Bootstrap do
   defp prepare_accounts(_accounts), do: {:error, :accounts_required}
 
   defp prepare_account(%{"username" => username, "password" => password, "roles" => roles}) do
-    with {:ok, {display, normalized}} <- FileStore.normalize_username(username),
+    with {:ok, {display, normalized}} <- Credentials.normalize_username(username),
          :ok <- validate_roles(roles),
-         {:ok, verifier} <- CredentialVerifier.hash(password) do
+         :ok <- validate_password(password),
+         {:ok, verifier} <- Identity.adapter(:credential_hasher).hash(password) do
       user_id = new_id("user")
       now = timestamp()
 
@@ -105,6 +112,10 @@ defmodule BnestApp.Identity.Bootstrap do
 
   defp validate_roles(_roles), do: {:error, :invalid_roles}
 
+  defp validate_password(password) do
+    if Credentials.valid_password?(password), do: :ok, else: {:error, :invalid_password}
+  end
+
   defp unique_usernames(prepared) do
     usernames = Enum.map(prepared, & &1.account["normalizedUsername"])
     if Enum.uniq(usernames) == usernames, do: :ok, else: {:error, :duplicate_username}
@@ -134,8 +145,8 @@ defmodule BnestApp.Identity.Bootstrap do
 
   defp write_accounts(store, prepared) do
     Enum.reduce_while(prepared, :ok, fn %{account: account, index: index}, :ok ->
-      with {:ok, ^account} <- FileStore.put_account(store, account),
-           {:ok, ^index} <- FileStore.put_username(store, index),
+      with {:ok, ^account} <- IdentityStore.put_account(store, account),
+           {:ok, ^index} <- IdentityStore.put_username(store, index),
            :ok <- verify_pair(store, account, index) do
         {:cont, :ok}
       else
@@ -145,8 +156,8 @@ defmodule BnestApp.Identity.Bootstrap do
   end
 
   defp verify_pair(store, account, index) do
-    with {:ok, ^account} <- FileStore.read_account(store, account["userId"]),
-         {:ok, ^index} <- FileStore.read_username(store, index["normalizedUsername"]) do
+    with {:ok, ^account} <- IdentityStore.read_account(store, account["userId"]),
+         {:ok, ^index} <- IdentityStore.read_username(store, index["normalizedUsername"]) do
       :ok
     else
       _failure -> {:error, :read_back_failed}
@@ -155,11 +166,11 @@ defmodule BnestApp.Identity.Bootstrap do
 
   defp close_journal(store, journal) do
     closed = %{journal | "state" => "closed", "closedAt" => timestamp()}
-    FileStore.replace_bootstrap(store, closed)
+    IdentityStore.replace_bootstrap(store, closed)
   end
 
   defp recover_locked(store) do
-    case FileStore.read_bootstrap(store) do
+    case IdentityStore.read_bootstrap(store) do
       {:ok, %{"state" => "pending"} = journal} -> rollback_pending(store, journal)
       {:ok, %{"state" => "closed"}} -> :ok
       {:error, :missing} -> :ok
@@ -176,7 +187,7 @@ defmodule BnestApp.Identity.Bootstrap do
         end
       end)
 
-    with :ok <- result, do: FileStore.remove_bootstrap(store, journal)
+    with :ok <- result, do: IdentityStore.remove_bootstrap(store, journal)
   end
 
   defp rollback_pair(store, reference) do
@@ -185,10 +196,10 @@ defmodule BnestApp.Identity.Bootstrap do
   end
 
   defp remove_matching_account(store, reference) do
-    case FileStore.read_account(store, reference["userId"]) do
+    case IdentityStore.read_account(store, reference["userId"]) do
       {:ok, account} ->
         if digest(account) == reference["accountSha256"],
-          do: FileStore.remove_account(store, account),
+          do: IdentityStore.remove_account(store, account),
           else: {:error, :changed}
 
       {:error, :missing} ->
@@ -200,10 +211,10 @@ defmodule BnestApp.Identity.Bootstrap do
   end
 
   defp remove_matching_index(store, reference) do
-    case FileStore.read_username(store, reference["normalizedUsername"]) do
+    case IdentityStore.read_username(store, reference["normalizedUsername"]) do
       {:ok, index} ->
         if digest(index) == reference["indexSha256"],
-          do: FileStore.remove_username(store, index),
+          do: IdentityStore.remove_username(store, index),
           else: {:error, :changed}
 
       {:error, :missing} ->
@@ -213,9 +224,6 @@ defmodule BnestApp.Identity.Bootstrap do
         {:error, :invalid_state}
     end
   end
-
-  defp public_account(account),
-    do: Map.take(account, ~w(userId displayUsername normalizedUsername roles))
 
   defp digest(record),
     do: :crypto.hash(:sha256, Jason.encode!(record)) |> Base.encode16(case: :lower)
@@ -227,7 +235,6 @@ defmodule BnestApp.Identity.Bootstrap do
     "#{prefix}-#{suffix}"
   end
 
-  defp transaction_key(BnestApp.Storage.Records), do: {__MODULE__, :active_repository}
-  defp transaction_key(%{backend: backend, pid: pid}), do: {__MODULE__, backend, pid}
-  defp transaction_key(%{root: root}), do: {__MODULE__, root}
+  # One cluster-wide lock per store, so two nodes cannot bootstrap the same records at once.
+  defp transaction_key(store), do: {__MODULE__, IdentityStore.lock_key(store)}
 end

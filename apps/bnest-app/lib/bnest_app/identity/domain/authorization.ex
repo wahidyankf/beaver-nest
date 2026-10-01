@@ -1,5 +1,8 @@
-defmodule BnestApp.Identity.Authorization do
-  @moduledoc false
+defmodule BnestApp.Identity.Domain.Authorization do
+  @moduledoc """
+  The authorization policy: a user with valid roles may use only their own data, and every
+  other capability is denied.
+  """
 
   @owned_capabilities ~w(use_chat use_sifat_allah use_family_chat read_theme write_theme confirm_import view_import_status)a
 
