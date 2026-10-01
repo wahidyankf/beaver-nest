@@ -495,29 +495,47 @@ Every context phase runs the same nine items, in this order, with the context's 
     listed by `FEATURE_DIFF f258d022d`. Delivery, Web Push and scheduler rows move to U10 and U11; FE, exemption
     and Caddy-routing rows move to the U14 full-corpus review. After the fixes, `APP_QUICK`, `BEHAVIOUR` and
     `INTEGRATION` exit 0 (366 tests) and `BE_E2E` passes. Recorded in [learnings](learnings.md) E9.
-- [ ] [AI] Commit, PR, leak review, gate, merge.
-- [ ] [AI] **Checkpoint 9 (blocking):** U9 merged.
+- [x] [AI] Commit, PR, leak review, gate, merge.
+  - 2026-10-02: PR #125 merged as `0020fcb4f`; four commits, leak review pass on the merged head.
+- [x] [AI] **Checkpoint 9 (blocking):** U9 merged.
+  - 2026-10-02: U9 on `main`; `@legacy_exports` holds 9 entries.
 
 ### Phase 10: U10, PushNotifications
 
-- [ ] [AI] RED (boundary): `lib/bnest_app/push_notifications/{domain,ports,adapters}.ex`; `TYPECHECK` and the scan fail.
-- [ ] [AI] RED (contract): `test/support/contracts/subscription_store_contract.ex` and `delivery_store_contract.ex`,
+- [x] [AI] RED (boundary): `lib/bnest_app/push_notifications/{domain,ports,adapters}.ex`; `TYPECHECK` and the scan fail.
+  - 2026-10-02: base `0020fcb4f`, captured before any caller moved. `TYPECHECK` exit 1 with 32 forbidden
+    references over 10 edges. The scan failed with three L1 violations (`Dispatcher` calling `Ecto.UUID`, `Sender`
+    calling `Req`).
+- [x] [AI] RED (contract): `test/support/contracts/subscription_store_contract.ex` and `delivery_store_contract.ex`,
       used by `test/unit/bnest_app/push_notifications/in_memory_subscription_store_test.exs` and
       `in_memory_delivery_store_test.exs`. `FOCUS_UNIT` fails. AC-DH-07.
-- [ ] [AI] GREEN (contract): `test/unit/support/in_memory/subscription_store.ex`, `delivery_store.ex` and
+  - 2026-10-02: 19 failures, each `UndefinedFunctionError` on the in-memory stores' `start/0`.
+- [x] [AI] GREEN (contract): `test/unit/support/in_memory/subscription_store.ex`, `delivery_store.ex` and
       `push_sender.ex` until `FOCUS_UNIT` passes.
-- [ ] [AI] GREEN (layers): the U10 moves. `:push_notifications_test_provider?` becomes adapter selection; the
+  - 2026-10-02: `FOCUS_UNIT` exit 0, 0 failures.
+- [x] [AI] GREEN (layers): the U10 moves. `:push_notifications_test_provider?` becomes adapter selection; the
       `RetentionJob` handler atom in `scheduler/registry.ex` and `release/migrations/family_chat.ex` becomes
       `Adapters.RetentionTask`; `lib/bnest_app/identity/adapters.ex` swaps its
       `BnestApp` dep for `BnestApp.PushNotifications`. `TYPECHECK` and the scan pass. AC-DH-03 row 3.
-- [ ] [AI] GREEN (contract, real adapter): `FOCUS_INT` passes on
+  - 2026-10-02: `TYPECHECK` exit 0 with no forbidden reference; the scan passes. `@legacy_exports` holds 8 entries.
+    Schedule rows store only the handler key, so the handler atom changed with no data step. As-built differences
+    are in [learnings](learnings.md) E10.
+- [x] [AI] GREEN (contract, real adapter): `FOCUS_INT` passes on
       `test/integration/bnest_app/push_notifications/sqlite_subscription_store_test.exs` and
       `test/integration/bnest_app/push_notifications/sqlite_delivery_store_test.exs`. AC-DH-07.
-- [ ] [AI] GREEN (drivers): `test/unit/support/family_chat_driver.ex` use the facade with in-memory adapters, and the
+  - 2026-10-02: exit 0; the 20 SQLite store tests pass on an isolated database.
+- [x] [AI] GREEN (drivers): `test/unit/support/family_chat_driver.ex` use the facade with in-memory adapters, and the
       `test/behaviour/verify.exs` allow-list loses its U10 lines. `UNIT` and `BEHAVIOUR` pass.
-- [ ] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
-- [ ] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty.
-- [ ] [AI] Gherkin implementation review, recorded.
+  - 2026-10-02: `UNIT` 525 tests, 0 failures, 99.51%; two extra random seeds pass. `BEHAVIOUR` exit 0. The
+    allow-list keeps only lines labelled U11 and U12. After the ceiling fix (E10), 529 tests, 0 failures.
+- [x] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
+  - 2026-10-02: both exit 0.
+- [x] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty.
+  - 2026-10-02: 386 tests, 0 failures, 16 excluded; `FEATURE_DIFF 0020fcb4f` empty. Focused e2e: `BE_E2E` 7
+    passed for the family chat GraphQL and scheduled backup titles; `FE_E2E` 137 passed for "Family chat room" and "Bnest scheduled backups", rerun on the final head with the moved recording sender.
+- [x] [AI] Gherkin implementation review, recorded.
+  - 2026-10-02: 54 rows, none failing because of U10. U9's F10 and F14 pass. N1 (the one-hour ceiling, a product
+    defect) and N2 are fixed in U10, and N3 moves to U11. Recorded in [learnings](learnings.md) E10.
 - [ ] [AI] Commit, PR, leak review, gate, merge.
 - [ ] [AI] **Checkpoint 10 (blocking):** U10 merged.
 
@@ -600,7 +618,7 @@ Every context phase runs the same nine items, in this order, with the context's 
       Codex chat, SifatAllah) at the exact local origin, with LiveView awaited and isolated `test-user-` identities. Proof:
       pass counts. AC-DH-08.
 - [ ] [AI] Full-corpus Gherkin implementation review of every scenario and adapter, so the pre-existing placeholder
-      patterns the unit reviews left out of scope (see [learnings](learnings.md) E4, E5 and E9) are found and fixed. Proof:
+      patterns the unit reviews left out of scope (see [learnings](learnings.md) E4, E5, E9 and E10) are found and fixed. Proof:
       the report's row count matches the corpus, with zero FAIL rows after fixes. AC-DH-08.
 - [ ] [AI] Manual `curl`, per [API testing](../../../repo-governance/development/api-testing.md), against a local test
       server on a leased development port with an isolated run root, once with a `test-user-` session and once
