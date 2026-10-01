@@ -28,9 +28,11 @@ router, so a link to a route that does not exist fails the warnings gate instead
 
 A live view, controller, or component calls the public functions of a
 [context](https://phoenix.hexdocs.pm/contexts.html) module and never reaches the repository or a schema query directly.
-The context is the application boundary: it holds the decisions, returns tagged tuples, and knows nothing about sockets,
-assigns, or templates, as Functional Core, Imperative Shell
-requires. A callback translates an event into one context call and the result into assigns.
+Each context module is one bounded context's facade under [Hexagonal Architecture](../code/hexagonal-architecture.md):
+it holds the decisions, returns tagged tuples, and knows nothing about sockets, assigns, or templates, as
+[Functional Core, Imperative Shell](../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell)
+requires. Live views, controllers, resolvers, plugs, and Mix tasks are inbound adapters; each translates an event into
+one context call and the result into assigns.
 
 ## Type and Boundary Safety
 
@@ -63,7 +65,7 @@ requires. A callback translates an event into one context call and the result in
 Layers follow [Quality Gates](../../quality-gates.md).
 
 - Context functions are unit-tested as plain Elixir, with outbound boundaries replaced per
-  Test Doubles.
+  [Test Doubles](../code/hexagonal-architecture/004-test-doubles.md).
 - A live view is tested through the framework's
   [live test harness](https://phoenix-live-view.hexdocs.pm/Phoenix.LiveViewTest.html), which drives the endpoint
   pipeline in-process: it mounts the view, triggers events and form submissions, and asserts on rendered elements.

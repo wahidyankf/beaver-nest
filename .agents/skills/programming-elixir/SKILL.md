@@ -49,7 +49,7 @@ Before writing a GenServer, name its runtime reason: state that changes over tim
 isolation. If none applies, a module of functions is the answer. When one does, write the pure function of state and
 message first, test it directly, and add the callback that delegates to it last. Keep only a few tests for the process
 itself, as
-Functional Core, Imperative Shell
+[Functional Core, Imperative Shell](../../../repo-governance/development/quality/code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell)
 intends.
 
 Choose the supervisor strategy from the dependency between children:
@@ -70,7 +70,7 @@ before deciding.
 
 Before marking a module `async: true`, list what it touches: application environment, named processes, shared files, or
 the database. Replace a collaborator with an in-memory implementation of its behaviour, as
-Test Doubles prefers. A test that passes alone
+[Test Doubles](../../../repo-governance/development/quality/code/hexagonal-architecture/004-test-doubles.md) prefers. A test that passes alone
 and fails in the full run usually shares one of those.
 
 ## Before Handing Off

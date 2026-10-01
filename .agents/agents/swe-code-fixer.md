@@ -81,7 +81,7 @@ leave one correct edit, typically:
 
 Moving code across layers, choosing an error's fate where more than one fits, removing duplication that may be
 deliberate, and a change for speed without the measurement
-Implementation Stages requires are all `MEDIUM`.
+[Implementation Stages](../../repo-governance/development/quality/code/hexagonal-architecture/003-application-shapes.md#implementation-stages) requires are all `MEDIUM`.
 So is any change to observable behaviour, which its owner decides, per
 [Applying Maker, Checker, and Fixer](../skills/applying-maker-checker-fixer/SKILL.md).
 

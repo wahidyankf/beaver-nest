@@ -51,7 +51,7 @@ skill, so such a suite follows [End-to-End Testing](../../repo-governance/develo
 ## Procedure
 
 1. **State the criteria.** Restate the task as criteria a check can confirm or refute, per
-   Implementation Stages. A requirement too
+   [Implementation Stages](../../repo-governance/development/quality/code/hexagonal-architecture/003-application-shapes.md#implementation-stages). A requirement too
    ambiguous to state that way goes back to the caller as a question.
 2. **Research the repository before adding.** Read the code and tests around the change, and search for a function,
    module, or dependency that already does the work. Extending it beats a near-duplicate, per
@@ -63,7 +63,7 @@ skill, so such a suite follows [End-to-End Testing](../../repo-governance/develo
    [Behaviour-Driven Development](../../repo-governance/development/behaviour-driven-development.md).
    Each increment runs through [Red, Green, Refactor](../../repo-governance/workflows/red-green-refactor.md),
    with its runs recorded where the caller names.
-5. **Make it right, then fast only on a measurement,** in the order Implementation Stages sets, editing surgically.
+5. **Make it right, then fast only on a measurement,** in the order [Implementation Stages](../../repo-governance/development/quality/code/hexagonal-architecture/003-application-shapes.md#implementation-stages) sets, editing surgically.
 6. **Check before handing over.** Run the type check, lint, and format checks and the fast gate that the project README
    or repository adapter records, over the changed projects, plus the end-to-end journeys the change affects. Name every
    check

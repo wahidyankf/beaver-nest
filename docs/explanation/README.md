@@ -6,4 +6,5 @@ See the [Diátaxis explanation guidance](https://diataxis.fr/explanation/) for t
 
 ## Directory Map
 
-This directory currently has no entries other than this README.
+- [Hexagonal architecture](hexagonal-architecture.md) explains why Bnest's application code is split into bounded
+  contexts, ports, and adapters, and how the build enforces the split.
