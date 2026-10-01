@@ -48,8 +48,9 @@ asserted. Each item carries its executor label, as the [Delivery Contract](004-d
   there is nothing to interview about.
 - **Authorization in the [plan lifecycle](../plan-lifecycle.md#authorization):** it needs no separate request when
   written under [Upstream Tool Defects](../../development/upstream-tool-defects.md), or when the owner asks. That
-  standing request also directs its plan quality gate and its execution: once the plan lands, run the gate on it and
-  execute on a passing verdict, without a further prompt.
+  standing request also directs its plan quality gate, its execution, its archival, and its release: once the plan
+  lands, run the gate on it, execute on a passing verdict, archive it on a permitting execution check, and release the
+  fix once its tests pass, without a further prompt.
 
 Every other plan rule holds: slug rules, one root, executor labels, no time estimates, the execution record, knowledge
 capture, and archival.
