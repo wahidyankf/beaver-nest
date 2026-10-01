@@ -117,7 +117,8 @@ Scenario Outline: One contract suite proves both adapters of a port
 Scenario: Every existing behaviour scenario passes unchanged
   Given the specs/apps/bnest Gherkin features at the base revision
   When the closure revision runs test:unit, test:integration and test:coverage:behaviour
-  Then no feature file has changed
+  Then no scenario or step text has changed
+  And the only feature-file changes are review-invalidated exemption tags listed in learnings
   And every scenario passes at both layers
   And the affected e2e states pass at the exact local origin
 ```
