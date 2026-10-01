@@ -65,7 +65,7 @@ says `never-started`. Exit `73`: clean owned storage. Exit `78`: stop and replan
 | `BEHAVIOUR`                   | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour --skip-nx-cache`                                                                                                                                                                                                                                                      |
 | `APP_QUICK`                   | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:quick --skip-nx-cache`                                                                                                                                                                                                                                                                   |
 | `FOCUS_UNIT <path>`           | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- sh -c 'cd apps/bnest-app && BNEST_TEST_LAYER=unit MIX_ENV=test mix test --no-start <path>'`                                                                                                                                                                                                                                      |
-| `FOCUS_INT <path>`            | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- sh -c 'cd apps/bnest-app && BNEST_TEST_LAYER=integration MIX_ENV=test mix test --max-cases 1 <path>'`                                                                                                                                                                                                                            |
+| `FOCUS_INT <path>`            | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- sh -c 'cd apps/bnest-app && BNEST_TEST_LAYER=integration MIX_ENV=test mix test --exclude integration-exempt --max-cases 1 <path>'`                                                                                                                                                                                               |
 | `REPO`                        | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo`                                                                                                                                                                                                                                                                               |
 | `BE_E2E` / `FE_E2E`           | `rtk npm run test:e2e:be` / `rtk npm run test:e2e:fe`                                                                                                                                                                                                                                                                                                                                                         |
 | `FEATURE_DIFF <base>`         | `/usr/bin/git diff --stat <base>..HEAD -- specs/apps/bnest apps/bnest-app/test/behaviour/steps apps/bnest-app/priv/sqlite_repo/migrations apps/bnest-app/tools apps/bnest-app-be-e2e/tests/steps apps/bnest-app-fe-e2e/tests/steps` (must print nothing). In a context phase, `<base>` is the `origin/main` SHA the unit branched from, recorded in its first item; at U14 it is the U1 base SHA from Phase 0 |
@@ -154,42 +154,62 @@ says `never-started`. Exit `73`: clean owned storage. Exit `78`: stop and replan
   - 2026-10-01: generate is current and validate is clean.
 - [x] [AI] `REPO`. Proof: exit 0. AC-DH-01.
   - 2026-10-01: `rhino-consumer:test:repo` exit 0 (all eight gates).
-- [ ] [AI] Commit `docs(governance): adopt ddd and hexagonal architecture standard`; PR, leak review, exact-head gate,
+- [x] [AI] Commit `docs(governance): adopt ddd and hexagonal architecture standard`; PR, leak review, exact-head gate,
       merge. Proof: PR number and merge SHA.
-- [ ] [AI] **Checkpoint 2 (blocking):** U2 merged and `REPO` green on `main`.
+  - 2026-10-01: PR #117 merged as `8819ebff2`.
+- [x] [AI] **Checkpoint 2 (blocking):** U2 merged and `REPO` green on `main`.
+  - 2026-10-01: the exact-head "Repository and consumer contracts" job (which runs `REPO`) passed on #117, and the rebase
+    merge left `main` at that tree.
 
 ## Phase 3: U3, Boundary Tooling (AC-DH-02, AC-DH-03, AC-DH-04)
 
-- [ ] [AI] RED (tooling): add `{:boundary, "~> 0.11", runtime: false}`, the `:boundary` compiler and the
+- [x] [AI] RED (tooling): add `{:boundary, "~> 0.11", runtime: false}`, the `:boundary` compiler and the
       `default: [check: [apps: …]]` settings to `apps/bnest-app/mix.exs`, then fetch dependencies. Declare `BnestApp` with an
       empty `@legacy_exports`, `BnestAppWeb`, `BnestAppCli`, `BnestApp.Application` and `BnestApp.SqliteRepo`. Run
       `TYPECHECK`. Expected: it **fails** with boundary warnings for every web, CLI and application call into
       `BnestApp.*`. Record the warning count and the distinct callee list in
       `local-tmp/ddd-hexa/u3-red-warnings.txt`. AC-DH-03.
-- [ ] [AI] GREEN (tooling): set `@legacy_exports` to exactly the callee list; add the temporary infrastructure deps
+  - 2026-10-01: `TYPECHECK` exit 1 with 285 warnings over 70 distinct edges (29 legacy callees from web and CLI,
+    test drivers classified into the root, and infrastructure calls from the root and `SqliteRepo`); summary in
+    `u3-red-warnings.txt`.
+- [x] [AI] GREEN (tooling): set `@legacy_exports` to exactly the callee list; add the temporary infrastructure deps
       tabled in [003](tech-docs/003-boundary-enforcement.md) to `BnestAppWeb` and `BnestAppCli`, each marked with the unit
       that removes it; classify the Mix tasks; mark the test-support modules as ignored top-level boundaries; and declare
       `BnestApp.Release` (new `lib/bnest_app/release.ex`) as a top-level boundary with its permanent deps. Run `TYPECHECK`.
       Expected: exit 0. AC-DH-02 (partial).
-- [ ] [AI] RED (forbidden edge proof): in the worktree, declare `BnestApp.Backup` (`lib/bnest_app/backup.ex`) a
+  - 2026-10-01: exit 0, no warnings. `@legacy_exports` holds 31 entries (the 29 web and CLI callees plus
+    `FamilyChat.Store` and `Scheduler.Policy`, which `BnestApp.Release` calls). The root also lists the
+    infrastructure its legacy modules call; see [E3](learnings.md#e3-u3-boundary-tooling-findings-2026-10-01).
+- [x] [AI] RED (forbidden edge proof): in the worktree, declare `BnestApp.Backup` (`lib/bnest_app/backup.ex`) a
       top-level strict boundary with no deps and add `BnestApp.SqliteRepo.query!("SELECT 1")` to it. Run `TYPECHECK`.
       Expected: fails with a boundary warning naming both modules. Record it, then
       `/usr/bin/git restore apps/bnest-app/lib/bnest_app/backup.ex`. This proves the gate wiring; the AC-DH-03 rows
       are proved at U14.
-- [ ] [AI] RED (scan): write `test/integration/architecture/hexagonal_layering_test.exs` and
+  - 2026-10-01: exit 1, `references from BnestApp.Backup to BnestApp.SqliteRepo are not allowed`
+    (`lib/bnest_app/backup.ex:19`); file restored.
+- [x] [AI] RED (scan): write `test/integration/architecture/hexagonal_layering_test.exs` and
       `test/integration/support/architecture_scan.ex` with rules L1, L2 and L4, and an empty `@legacy_modules`. Run
       `FOCUS_INT test/integration/architecture/hexagonal_layering_test.exs`. Expected: it fails, listing current
       violations. AC-DH-04.
-- [ ] [AI] GREEN (scan): set `@legacy_modules` to the violators, and assert in the test that every `@legacy_exports`
+  - 2026-10-01: 2 of 3 tests fail; 195 violations (185 L1, 10 L4) over 24 modules.
+- [x] [AI] GREEN (scan): set `@legacy_modules` to the violators, and assert in the test that every `@legacy_exports`
       entry is in `@legacy_modules`. Re-run `FOCUS_INT`. Expected: pass.
-- [ ] [AI] RED (unit guard): add the `BnestApp.SqliteRepo` and `\.Adapters\.(?!InMemory)` patterns to
+  - 2026-10-01: pass. `@legacy_modules` holds 43 entries (24 violators plus the remaining legacy exports).
+- [x] [AI] RED (unit guard): add the `BnestApp.SqliteRepo` and `\.Adapters\.(?!InMemory)` patterns to
       `test/behaviour/verify.exs`. Run `BEHAVIOUR`. Expected: fails, listing the matching lines of
       `test/unit/support/home_page_driver.ex` and `test/unit/support/family_chat_driver.ex`. AC-DH-06 (partial).
-- [ ] [AI] GREEN (unit guard): add an allow-list of exactly those lines, each tagged with the unit that removes it. Run
+  - 2026-10-01: fails on five lines: `backup_restore_test.exs:9`, three `family_chat_test.exs` lines, and
+    `unit/support/family_chat_driver.ex:19`. The home-page driver has none.
+- [x] [AI] GREEN (unit guard): add an allow-list of exactly those lines, each tagged with the unit that removes it. Run
       `BEHAVIOUR`. Expected: pass.
-- [ ] [AI] REFACTOR: replace the named `boundary_adapters` coverage entries with `~r/\.Adapters\./` plus named inbound
+  - 2026-10-01: pass; the allow-list tags the Backup line `U12` and the FamilyChat lines `U9`.
+- [x] [AI] REFACTOR: replace the named `boundary_adapters` coverage entries with `~r/\.Adapters\./` plus named inbound
       modules. Proof: `UNIT` passes with coverage ≥ 99%, and the percentage is recorded.
-- [ ] [AI] `APP_QUICK` and `INTEGRATION`. Proof: both exit 0; `FEATURE_DIFF` empty. AC-DH-08.
+  - 2026-10-01: 99.11%. Legacy core modules that still perform I/O stay named in a `legacy_core` list until
+    their context unit brings them under the threshold.
+- [x] [AI] `APP_QUICK` and `INTEGRATION`. Proof: both exit 0; `FEATURE_DIFF` empty. AC-DH-08.
+  - 2026-10-01: `APP_QUICK` exit 0 (330 unit tests); `INTEGRATION` exit 0 (333 tests, 17 excluded);
+    `FEATURE_DIFF e68a41b44` empty.
 - [ ] [AI] Commit `build(bnest-app): enforce module boundaries with boundary`, with the dependency-selection record in
       the PR body; PR, leak review, gate, merge.
 - [ ] [AI] **Checkpoint 3 (blocking):** U3 merged; `@legacy_exports` recorded with N entries.
