@@ -6,12 +6,14 @@ defmodule BnestApp.PushNotificationsTest do
   # observe the mutated value mid-window.
   use ExUnit.Case, async: false
 
-  alias BnestApp.FamilyChat.Store, as: FamilyChatStore
+  alias BnestApp.FamilyChat
   alias BnestApp.PushNotifications
+  alias BnestApp.Test.LegacySqliteRoomStore
 
+  # PushNotifications keeps its rows in Family Chat's SQLite database until U10.
   setup do
-    FamilyChatStore.ensure_ready!()
-    :ok
+    :ok = LegacySqliteRoomStore.select!()
+    FamilyChat.ensure_ready!()
   end
 
   defp unique_user, do: "test-user-family-chat-pushctx-" <> Ecto.UUID.generate()

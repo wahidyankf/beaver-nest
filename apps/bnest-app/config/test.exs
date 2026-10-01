@@ -139,12 +139,20 @@ else
     credential_hasher: BnestApp.Test.InMemory.CredentialHasher,
     session_notifier: BnestApp.Test.InMemory.SessionNotifier,
     subscription_revoker: BnestApp.Test.InMemory.SubscriptionRevoker
+
+  # Family Chat runs over the in-memory room store a unit test installs, and publishes to a
+  # recorder. PushNotifications, the Scheduler and Backup still keep their own SQL in Family
+  # Chat's SQLite database, so a unit test of theirs selects the SQLite room store itself
+  # until U10-U12 give them in-memory adapters.
+  config :bnest_app, BnestApp.FamilyChat,
+    room_store: BnestApp.Test.InMemory.RoomStore,
+    message_publisher: BnestApp.Test.InMemory.MessagePublisher
 end
 
 # Family Chat's SQLite tables are additive to the shared database but must never
 # resolve through the real `~/.config/bnest/storage.json` pointer during tests (that
 # file is shared/production-adjacent). Every test run (unit or integration) gets its
-# own isolated SQLite path here; `BnestApp.FamilyChat.Store` self-heals the connection
+# own isolated SQLite path here; `FamilyChat.Adapters.SqliteRoomStore` self-heals the connection
 # onto this path before each operation, independent of the legacy flat/sqlite phase.
 family_chat_run_id =
   System.get_env("BNEST_TEST_RUN_ID") ||

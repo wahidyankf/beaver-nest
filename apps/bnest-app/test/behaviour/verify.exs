@@ -22,11 +22,17 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
     {~r/\.Adapters\.(?!InMemory)/u, "a non-in-memory adapter"}
   ]
 
-  # Temporary. Unit driver lines that still reach SQLite, each removed by the named unit.
+  # Temporary. Unit driver lines that still reach SQLite, each removed by the named units.
+  # Family Chat itself is in memory at this layer since U9, its migration included; these
+  # lines serve the PushNotifications, Scheduler and Backup state still kept in its SQLite
+  # database. The driver's raw SQL seeds and retires push subscriptions and delivery rows
+  # (U10) and serves the backup fixtures and restore checks (U12); the SQLite room store is
+  # selected by its push (U10), Scheduler (U11) and Backup (U12) clauses.
   @unit_legacy_lines [
     {"test/unit/bnest_app/backup_restore_test.exs", "alias BnestApp.SqliteRepo", "U12"},
-    {"test/unit/bnest_app/family_chat_test.exs", "BnestApp.SqliteRepo.query!(", "U9"},
-    {"test/unit/support/family_chat_driver.ex", "alias BnestApp.SqliteRepo", "U9"}
+    {"test/unit/support/family_chat_driver.ex", "alias BnestApp.SqliteRepo", "U10, U12"},
+    {"test/unit/support/legacy_sqlite_room_store.ex",
+     "@sqlite_room_store BnestApp.FamilyChat.Adapters.SqliteRoomStore", "U10-U12"}
   ]
 
   # Integration owns a loopback socket it starts and stops; the layer is bounded by its

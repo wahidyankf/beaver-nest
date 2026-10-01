@@ -5,8 +5,8 @@ defmodule BnestAppWeb.SchemaTest do
   Dependency-direction proof for Phase 3's REFACTOR item (delivery.md): the
   GraphQL boundary (`BnestAppWeb.Schema` and its resolvers) must stay a thin
   adapter that authorizes, then delegates to the `BnestApp.FamilyChat`
-  context — never issuing SQL itself, never reaching past the context into
-  `BnestApp.FamilyChat.Store`'s internals, and never hardcoding the
+  context — never issuing SQL itself, never reaching past the facade into
+  `BnestApp.FamilyChat`'s ports or adapters, and never hardcoding the
   authorization/topic/cursor-limit policy that the context centralizes
   (`FamilyChatResolver`'s own moduledoc references this file for exactly
   this check). Scans real source text rather than only exercising behaviour,
@@ -26,7 +26,8 @@ defmodule BnestAppWeb.SchemaTest do
   @forbidden [
     {~r/\bEcto\.(?!Resolution)/, "direct Ecto access (bypasses the FamilyChat context)"},
     {~r/\bSqliteRepo\b/, "direct repo access (bypasses the FamilyChat context)"},
-    {~r/\bFamilyChat\.Store\b/, "reaching past the context into FamilyChat.Store"},
+    {~r/\bFamilyChat\.(?:Ports|Adapters)\b/,
+     "reaching past the facade into FamilyChat's ports or adapters"},
     {~r/"\s*SELECT\s|"\s*INSERT\s|"\s*UPDATE\s|"\s*DELETE\s/i, "inline SQL"},
     {~r/\bPubSub\.(?:broadcast|subscribe)/,
      "raw PubSub use (topic naming must stay centralized in FamilyChat)"}

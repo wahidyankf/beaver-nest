@@ -14,8 +14,6 @@ defmodule BnestApp do
     AdminConfig.Registry,
     Backup.Config,
     Deployment,
-    FamilyChat,
-    FamilyChat.Store,
     PushNotifications,
     Scheduler,
     Scheduler.Policy,
@@ -26,6 +24,7 @@ defmodule BnestApp do
 
   use Boundary,
     deps: [
+      BnestApp.FamilyChat,
       BnestApp.SqliteRepo,
       BnestApp.Storage,
       # legacy: infrastructure the legacy modules call directly. Each entry leaves

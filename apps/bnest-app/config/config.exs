@@ -149,4 +149,9 @@ config :bnest_app, BnestApp.CodexChat,
   model_discovery: BnestApp.CodexChat.Adapters.CodexCliModelDiscovery,
   transcript_store: BnestApp.CodexChat.Adapters.RecordTranscriptStore
 
+# One adapter per Family Chat port.
+config :bnest_app, BnestApp.FamilyChat,
+  room_store: BnestApp.FamilyChat.Adapters.SqliteRoomStore,
+  message_publisher: BnestApp.FamilyChat.Adapters.AbsintheMessagePublisher
+
 import_config "#{config_env()}.exs"

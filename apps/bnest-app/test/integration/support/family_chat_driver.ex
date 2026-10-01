@@ -21,7 +21,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.Backup
   alias BnestApp.Backup.Config, as: BackupConfig
   alias BnestApp.Backup.Run, as: BackupRun
-  alias BnestApp.FamilyChat.Store, as: FamilyChatStore
+  alias BnestApp.FamilyChat.Adapters.SqliteRoomStore
+  alias BnestApp.FamilyChat.Ports.RoomStore
   alias BnestApp.Identity
   alias BnestApp.Identity.Adapters.RecordIdentityStore
   alias BnestApp.Identity.Ports.IdentityStore
@@ -30,8 +31,10 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.Release.Migrations
   alias BnestApp.Scheduler
   alias BnestApp.SqliteRepo
+  alias BnestApp.Storage
   alias BnestApp.Storage.Records
   alias BnestApp.TestBackupDestination
+  alias BnestApp.TestRuntimeRoot
 
   # See the identical attribute on BnestApp.Behaviour.UnitFamilyChatDriver for
   # why this is required during RED (`mix compile --warnings-as-errors`
@@ -39,8 +42,6 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # not-yet-implemented modules/functions).
   @compile {:no_warn_undefined,
             [
-              BnestApp.FamilyChat,
-              BnestApp.FamilyChat.Store,
               BnestApp.PushNotifications,
               BnestApp.PushNotifications.Dispatcher,
               BnestApp.Release.Migrations,
@@ -67,10 +68,38 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   @load_proof_probe_count 20
   @load_proof_room_slug "ruang-keluarga"
 
+  # The last schema version the release before Family Chat shipped, and the tables Family
+  # Chat's migrations added to that database.
+  @prior_release_schema_version 20_260_830_000_000
+  @family_chat_tables ~w(family_chat_push_deliveries web_push_subscriptions family_chat_messages family_chat_rooms)
+
+  # The second slot's PubSub server; the first slot is the application's own.
+  @other_slot_pubsub BnestApp.Behaviour.IntegrationFamilyChatDriver.OtherSlotPubSub
+
   # --- prepare ---
 
-  def prepare_behaviour(context, :room_has_known_history, _args),
-    do: Map.put(context, :family_chat_known_ids, [1, 2, 3])
+  # Commits five messages through the facade into the run's shared room, which may already
+  # hold other scenarios' messages; the known IDs are the middle three, so a page before the
+  # first and a page after the last both have a message of this history to return.
+  def prepare_behaviour(context, :room_has_known_history, _args) do
+    ids =
+      for n <- 1..5 do
+        {:ok, message} =
+          BnestApp.FamilyChat.send_message(
+            "test-user-family-chat-history-" <> unique_uuid(),
+            BnestApp.FamilyChat.canonical_room_slug(),
+            unique_uuid(),
+            "history #{n}"
+          )
+
+        message.id
+      end
+
+    Map.merge(context, %{
+      family_chat_history_ids: ids,
+      family_chat_known_ids: Enum.slice(ids, 1..3)
+    })
+  end
 
   # Genuinely commits the first message through the real boundary (adapter
   # fix; see the unit driver's identical clause and learnings.md's Phase 3
@@ -137,8 +166,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     # *before* sending, since the later afterId query must cursor from a
     # point strictly before this message (afterId is exclusive-after) for
     # this very message to appear in its own catch-up results.
-    room = FamilyChatStore.get_active_room_by_slug("ruang-keluarga")
-    %{nodes: existing} = FamilyChatStore.list_messages(room.id, nil, nil, 10_000)
+    room = RoomStore.get_active_room(SqliteRoomStore.new(), "ruang-keluarga")
+    %{nodes: existing} = RoomStore.list_messages(SqliteRoomStore.new(), room.id, nil, nil, 10_000)
     baseline_id = existing |> Enum.map(& &1.id) |> Enum.max(fn -> 0 end)
 
     {:ok, message} =
@@ -166,11 +195,32 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def prepare_behaviour(context, :fresh_migrated_database, _args),
     do: Map.put(context, :family_chat_migration_state, :fresh)
 
+  # On a database of its own: the schema exactly as the release before Family
+  # Chat left it, holding a schedule of that release; its reads are taken once
+  # there, then the real Family Chat migration runs on the same database.
   def prepare_behaviour(context, :migration_applied, _args) do
-    # Genuinely runs the migration (not a stored sentinel) — see the unit
-    # driver's identical clause for the scenario's actual requirement.
-    {:ok, _room} = FamilyChatStore.migrate!()
-    Map.put(context, :family_chat_migration_state, :applied)
+    database_path = isolated_family_chat_database!("family-chat-prior-release")
+    :ok = Storage.ensure_started!(database_path)
+
+    Ecto.Migrator.run(SqliteRepo, migrations_path(), :up,
+      to: @prior_release_schema_version,
+      log: false
+    )
+
+    schedule_key = "test-prior-release-" <> unique_uuid()
+    :ok = Scheduler.Store.put_test_schedule(schedule_key, "family", "fixture", @behaviour_now)
+    before_migration = prior_release_reads(schedule_key)
+
+    {:ok, _room} = BnestApp.FamilyChat.migrate!()
+
+    Map.merge(context, %{
+      family_chat_migration_state: :applied,
+      family_chat_prior_release: %{
+        database_path: database_path,
+        schedule_key: schedule_key,
+        before_migration: before_migration
+      }
+    })
   end
 
   def prepare_behaviour(context, :trusted_producer, _args),
@@ -298,7 +348,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # than storing a sentinel, because the scenario then re-reads and re-writes
   # the real table through the pre-reply call shape.
   def prepare_behaviour(context, :reply_migration_applied, _args) do
-    {:ok, _room} = FamilyChatStore.migrate!()
+    {:ok, _room} = BnestApp.FamilyChat.migrate!()
     Map.put(context, :family_chat_migration_state, :applied)
   end
 
@@ -377,7 +427,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   end
 
   def prepare_behaviour(context, :schedule_due_and_enabled, [key]) do
-    FamilyChatStore.ensure_ready!()
+    BnestApp.FamilyChat.ensure_ready!()
     Scheduler.Store.force_due_for_test!(key, @behaviour_now)
     Map.put(context, :family_chat_due_schedule_key, key)
   end
@@ -402,7 +452,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # real "family-chat-push-retention-daily" row (never present in a fresh
   # integration test database otherwise) into the exact pristine
   # precondition -- disabled, revision 1, at its real seed time (tech-doc
-  # 002/`FamilyChat.Store`'s own insert: "17:15" UTC, i.e. 00:15 WIB) -- the
+  # 002/`SqliteRoomStore`'s own insert: "17:15" UTC, i.e. 00:15 WIB) -- the
   # activation-CAS scenario's `Given` describes.
   def prepare_behaviour(context, :schedule_disabled_seed, [key]) do
     Scheduler.Store.reset_schedule_for_test!(key, "17:15", false, @behaviour_now)
@@ -468,7 +518,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # Given step itself seeds real fixture data and runs a real `Backup.run/1`
   # to produce a genuine artifact.
   def prepare_behaviour(context, :verified_backup_artifact, _args) do
-    FamilyChatStore.ensure_ready!()
+    BnestApp.FamilyChat.ensure_ready!()
     destination = TestBackupDestination.create!("verified-backup-artifact-integration")
     known_body = "restore-fixture-secret-" <> unique_uuid()
 
@@ -476,10 +526,12 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       create_active_subscription!("test-user-family-chat-restore-" <> unique_uuid())
 
     ExUnit.Callbacks.on_exit(fn -> disable_subscription_row!(subscription_id) end)
-    room = FamilyChatStore.get_active_room_by_slug(FamilyChatStore.canonical_room_slug())
+
+    room =
+      RoomStore.get_active_room(SqliteRoomStore.new(), BnestApp.FamilyChat.canonical_room_slug())
 
     {:ok, _message} =
-      FamilyChatStore.insert_message!(
+      BnestApp.FamilyChat.insert_message!(
         room.id,
         "user",
         "test-user-family-chat-restore-sender-" <> unique_uuid(),
@@ -498,8 +550,26 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     })
   end
 
-  def prepare_behaviour(context, :two_independent_slots, _args),
-    do: Map.put(context, :family_chat_slots, [:blue, :green])
+  # Two slots, each with its own PubSub server and no distribution between them:
+  # the application's own server, and a second one started for this scenario. A
+  # real `familyChatMessageCommitted` subscription document is registered
+  # through the application's endpoint, and one listener per slot subscribes to
+  # that document's topic on its own slot's server.
+  def prepare_behaviour(context, :two_independent_slots, _args) do
+    # A retried attempt starts its slots afresh and drops what the last one forwarded.
+    restart_supervised!({Phoenix.PubSub, name: @other_slot_pubsub}, @other_slot_pubsub)
+    drain_slot_messages(0)
+    document_topic = subscribe_room_document!(context.user_id)
+
+    room_topic =
+      BnestApp.FamilyChat.subscription_topic(BnestApp.FamilyChat.canonical_room().id)
+
+    application_pubsub = Application.fetch_env!(:bnest_app, BnestAppWeb.Endpoint)[:pubsub_server]
+    start_slot_listener!(:this_slot, application_pubsub, [document_topic, room_topic])
+    start_slot_listener!(:other_slot, @other_slot_pubsub, [document_topic, room_topic])
+
+    Map.put(context, :family_chat_slots, [:this_slot, :other_slot])
+  end
 
   def prepare_behaviour(context, :routed_socket_on_prior_slot, _args),
     do: Map.put(context, :family_chat_prior_slot, :blue)
@@ -679,27 +749,37 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   end
 
   def perform_behaviour(context, :run_family_chat_migration, _args),
-    do: Map.put(context, :family_chat_result, BnestApp.FamilyChat.Store.migrate!())
+    do: Map.put(context, :family_chat_result, BnestApp.FamilyChat.migrate!())
 
+  # Re-runs the prior release's reads on the migrated database, then again with
+  # every Family Chat table renamed away, so a read that reached one fails.
   def perform_behaviour(context, :old_code_opens_database, _args) do
-    # Same genuine proxy as the unit driver: see its comment for rationale.
-    Map.put(
-      context,
-      :family_chat_result,
-      Scheduler.Store.get_schedule("family-chat-push-retention-daily")
-    )
+    %{database_path: database_path, schedule_key: schedule_key} =
+      context.family_chat_prior_release
+
+    after_migration = prior_release_reads(schedule_key)
+
+    without_family_chat =
+      with_family_chat_tables_hidden(database_path, fn -> prior_release_reads(schedule_key) end)
+
+    Map.merge(context, %{
+      family_chat_result: after_migration,
+      family_chat_reads_without_family_chat_tables: without_family_chat
+    })
   end
 
+  # The first post's result is kept apart, so the retry's can be compared with it.
   def perform_behaviour(context, :producer_posts_system_message, [slug]) do
-    Map.put(
-      context,
-      :family_chat_result,
+    result =
       BnestApp.FamilyChat.post_system_message(
         slug,
         context.family_chat_producer_key,
         "system notice"
       )
-    )
+
+    context
+    |> Map.put(:family_chat_result, result)
+    |> Map.put_new(:family_chat_first_system_result, result)
   end
 
   def perform_behaviour(context, :producer_retries_same_key, _args),
@@ -779,11 +859,12 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
         display_name_for(context, sender)
       )
 
-    room = FamilyChatStore.get_active_room_by_slug(slug)
+    room = RoomStore.get_active_room(SqliteRoomStore.new(), slug)
 
     Map.merge(context, %{
       family_chat_result: {:ok, committed},
-      family_chat_pre_reply_readback: FamilyChatStore.message_by_id(room.id, committed.id)
+      family_chat_pre_reply_readback:
+        RoomStore.message_by_id(SqliteRoomStore.new(), room.id, committed.id)
     })
   end
 
@@ -988,20 +1069,23 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(context, :family_chat_retry_claim, retried)
   end
 
+  # Commits through the facade on this slot, whose configured publisher is the
+  # production Absinthe one, then collects what each slot's listener received:
+  # until this slot's event arrives, then for a settle window, since the other
+  # slot is expected to receive nothing at all.
   def perform_behaviour(context, :message_commits_on_one_slot, _args) do
-    # Same internal-boundary convention as `:member_sends_durable_message`:
-    # the real, inspectable proxy for cross-slot isolation is the domain
-    # function's own `broadcast_scope` (see the outcome clauses below), which
-    # only a direct call -- not the GraphQL/HTTP round trip -- exposes.
     slug =
       context[:family_chat_room_slug] || context[:family_chat_subscribed_slug] || "ruang-keluarga"
 
     result =
       BnestApp.FamilyChat.send_message(context.user_id, slug, unique_uuid(), "slot-local publish")
 
+    first = receive_slot_message(2_000)
+    received = Enum.reject([first | drain_slot_messages(300)], &is_nil/1)
+
     context
     |> Map.put(:family_chat_result, result)
-    |> Map.update(:family_chat_subscription_events, 1, &(&1 + 1))
+    |> Map.put(:family_chat_slot_received, received)
   end
 
   def perform_behaviour(context, :generate_reverse_proxy_config, _args) do
@@ -1035,23 +1119,42 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def behaviour_outcome?(context, :room_returned, [name]),
     do: match?(%{"data" => %{"familyChatRoom" => %{"name" => ^name}}}, context.family_chat_result)
 
-  def behaviour_outcome?(context, :messages_ascending_max_50, _args), do: ascending_page?(context)
-  def behaviour_outcome?(context, :older_messages_ascending, _args), do: ascending_page?(context)
-  def behaviour_outcome?(context, :newer_messages_ascending, _args), do: ascending_page?(context)
+  # Each page must be exactly the slice of the room's whole history its cursor
+  # names, read back through the SQLite room store (the shared room may hold
+  # other scenarios' messages too), and must reach the history the Given made.
+  def behaviour_outcome?(context, :messages_ascending_max_50, _args) do
+    history = context.family_chat_history_ids
+    ids = page_ids(context)
 
-  def behaviour_outcome?(context, :has_older_correct, _args),
-    do:
-      get_in(context.family_chat_result, ["data", "familyChatMessages", "hasOlder"]) in [
-        true,
-        false
-      ]
+    ids == Enum.take(room_message_ids(context), -50) and List.last(ids) == List.last(history) and
+      Enum.all?(history, &(&1 in ids))
+  end
 
-  def behaviour_outcome?(context, :has_newer_correct, _args),
-    do:
-      get_in(context.family_chat_result, ["data", "familyChatMessages", "hasNewer"]) in [
-        true,
-        false
-      ]
+  def behaviour_outcome?(context, :older_messages_ascending, _args) do
+    first_known = hd(context.family_chat_known_ids)
+    older = context |> room_message_ids() |> Enum.filter(&(&1 < first_known))
+    ids = page_ids(context)
+
+    ids == Enum.take(older, -50) and List.last(ids) == hd(context.family_chat_history_ids)
+  end
+
+  def behaviour_outcome?(context, :newer_messages_ascending, _args) do
+    last_known = List.last(context.family_chat_known_ids)
+    newer = context |> room_message_ids() |> Enum.filter(&(&1 > last_known))
+    ids = page_ids(context)
+
+    ids == Enum.take(newer, 50) and hd(ids) == List.last(context.family_chat_history_ids)
+  end
+
+  def behaviour_outcome?(context, :has_older_correct, _args) do
+    has_older = get_in(context.family_chat_result, ["data", "familyChatMessages", "hasOlder"])
+    has_older == Enum.any?(room_message_ids(context), &(&1 < hd(page_ids(context))))
+  end
+
+  def behaviour_outcome?(context, :has_newer_correct, _args) do
+    has_newer = get_in(context.family_chat_result, ["data", "familyChatMessages", "hasNewer"])
+    has_newer == Enum.any?(room_message_ids(context), &(&1 > List.last(page_ids(context))))
+  end
 
   def behaviour_outcome?(context, :safe_error, [code]), do: error_code?(context, code)
 
@@ -1139,9 +1242,16 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # asserts what a client actually receives for it, not what the fixture wrote.
   def behaviour_outcome?(context, :quoted_body_unshortened, _args) do
     room =
-      FamilyChatStore.get_active_room_by_slug(context[:family_chat_room_slug] || "ruang-keluarga")
+      RoomStore.get_active_room(
+        SqliteRoomStore.new(),
+        context[:family_chat_room_slug] || "ruang-keluarga"
+      )
 
-    case FamilyChatStore.message_by_id(room.id, context.family_chat_reply_target_id) do
+    case RoomStore.message_by_id(
+           SqliteRoomStore.new(),
+           room.id,
+           context.family_chat_reply_target_id
+         ) do
       %{body: body} -> body == context.family_chat_reply_target_body
       nil -> false
     end
@@ -1249,7 +1359,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   end
 
   def behaviour_outcome?(context, :room_gains_no_message, _args),
-    do: Map.has_key?(context.family_chat_result, "errors")
+    do: count_messages_for(context, context.family_chat_client_message_id) == 0
 
   def behaviour_outcome?(context, :subscriber_received_one_event, _args),
     do: context[:family_chat_subscription_events] == 1
@@ -1369,31 +1479,39 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def behaviour_outcome?(context, :room_seed_correct, [slug, name]),
     do: match?({:ok, %{slug: ^slug, name: ^name, id: 1}}, context.family_chat_result)
 
+  # Re-runs the migration for real and compares the whole seeded room it
+  # returns with the first run's, then reads SQLite's active rooms back: the
+  # same single room.
   def behaviour_outcome?(context, :migration_idempotent, _args) do
-    match?({:ok, %{id: 1}}, context.family_chat_result) and
-      match?({:ok, %{id: 1}}, BnestApp.FamilyChat.Store.migrate!())
+    {:ok, %{id: 1} = room} = context.family_chat_result
+    second = BnestApp.FamilyChat.migrate!()
+
+    second == {:ok, room} and RoomStore.list_active_rooms(SqliteRoomStore.new()) == [room]
   end
 
-  def behaviour_outcome?(context, :prior_release_unaffected, _args),
-    do:
-      match?(
-        %{schedule_key: "family-chat-push-retention-daily", handler_key: handler}
-        when is_binary(handler),
-        context.family_chat_result
-      )
+  def behaviour_outcome?(context, :prior_release_unaffected, _args) do
+    %{before_migration: before_migration} = context.family_chat_prior_release
+    before_migration.schedule != nil and context.family_chat_result == before_migration
+  end
 
+  # With every Family Chat table renamed away, the prior release's reads still
+  # succeed and answer exactly what they answered before the migration.
   def behaviour_outcome?(context, :no_prior_release_table_access, _args) do
-    case context.family_chat_result do
-      %{} = schedule -> not Map.has_key?(schedule, :family_chat_room_id)
-      _other -> false
-    end
+    %{before_migration: before_migration} = context.family_chat_prior_release
+    context.family_chat_reads_without_family_chat_tables == {:ok, before_migration}
   end
 
   def behaviour_outcome?(context, :system_message_committed, [sender_kind]),
     do: match?({:ok, %{sender_kind: ^sender_kind}}, context.family_chat_result)
 
-  def behaviour_outcome?(context, :system_message_unchanged, _args),
-    do: match?({:ok, %{}}, context.family_chat_result)
+  # The retry answers with the first post's message itself.
+  def behaviour_outcome?(context, :system_message_unchanged, _args) do
+    {:ok, first} = context.family_chat_first_system_result
+    fields = [:id, :sender_kind, :sender_id, :body, :committed_at]
+
+    match?({:ok, %{}}, context.family_chat_result) and
+      Map.take(elem(context.family_chat_result, 1), fields) == Map.take(first, fields)
+  end
 
   def behaviour_outcome?(context, :exactly_one_system_message, _args),
     do: count_messages_for(context, context.family_chat_producer_key) == 1
@@ -1555,7 +1673,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
         "deliveryStates" => delivery_states
       } = decoded
 
-      slug == FamilyChatStore.canonical_room_slug() and message_ids != [] and
+      slug == BnestApp.FamilyChat.canonical_room_slug() and message_ids != [] and
         message_ids == Enum.sort(message_ids) and is_integer(subscription_count) and
         subscription_count >= 1 and is_list(delivery_states)
     else
@@ -1573,14 +1691,25 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     end
   end
 
-  # See the unit driver's identical clause for the structural-proxy rationale
-  # (no E2E scenario exercises multi-slot isolation; this file is its
-  # designated alternative-proof, so the limitation is flagged in learnings.md).
-  def behaviour_outcome?(context, :only_same_slot_sockets_receive, _args),
-    do: match?({:ok, %{broadcast_scope: :local}}, context.family_chat_result)
+  # This slot's listener received exactly one event: the subscription document
+  # Absinthe rendered for the committed message.
+  def behaviour_outcome?(context, :only_same_slot_sockets_receive, _args) do
+    {:ok, %{id: id}} = context.family_chat_result
+    message_id = to_string(id)
+
+    match?(
+      [
+        %Phoenix.Socket.Broadcast{
+          event: "subscription:data",
+          payload: %{result: %{data: %{"familyChatMessageCommitted" => %{"id" => ^message_id}}}}
+        }
+      ],
+      for({:this_slot, message} <- context.family_chat_slot_received, do: message)
+    )
+  end
 
   def behaviour_outcome?(context, :other_slot_no_event, _args),
-    do: match?({:ok, %{broadcast_scope: :local}}, context.family_chat_result)
+    do: for({:other_slot, message} <- context.family_chat_slot_received, do: message) == []
 
   def behaviour_outcome?(context, :no_nonzero_stream_close_delay, [_setting]) do
     {:ok, config} = context.family_chat_result
@@ -1700,7 +1829,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # Inserted already soft-deleted (`deleted_at`/`deleted_by` populated in the
   # same INSERT): a first version left these active, and every probe-sent
   # message during the load proof fans a pending delivery row out to every
-  # active subscription (`FamilyChat.Store.active_subscription_ids/1`'s
+  # active subscription (`SqliteRoomStore`'s delivery fan-out,
   # `WHERE deleted_at IS NULL`) -- 1800 padding rows times 20 probes produced
   # tens of thousands of delivery rows, which both broke unrelated scenarios
   # asserting an exact delivery count and made this helper's own `on_exit`
@@ -1849,8 +1978,10 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   end
 
   defp live_family_chat_message_ids do
-    room = FamilyChatStore.get_active_room_by_slug(FamilyChatStore.canonical_room_slug())
-    %{nodes: nodes} = FamilyChatStore.list_messages(room.id, nil, nil, 10_000)
+    room =
+      RoomStore.get_active_room(SqliteRoomStore.new(), BnestApp.FamilyChat.canonical_room_slug())
+
+    %{nodes: nodes} = RoomStore.list_messages(SqliteRoomStore.new(), room.id, nil, nil, 10_000)
     MapSet.new(nodes, & &1.id)
   end
 
@@ -2090,7 +2221,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # still has a genuinely foreign message to refuse. `INSERT OR IGNORE` plus a
   # fixed ID keeps repeated scenarios idempotent.
   defp archived_room_message_id do
-    FamilyChatStore.ensure_ready!()
+    BnestApp.FamilyChat.ensure_ready!()
     now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 
     SqliteRepo.query!(
@@ -2104,7 +2235,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     )
 
     {:ok, foreign} =
-      FamilyChatStore.insert_message!(
+      BnestApp.FamilyChat.insert_message!(
         900,
         "user",
         "test-user-family-chat-archive",
@@ -2123,22 +2254,172 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     # client message ID" cannot be verified through the GraphQL response at
     # all (a prior version of this helper compared `client_message_id`
     # against the server `id`, which could never match). Reads through
-    # `FamilyChat.Store` directly instead, matching this driver's own stated
+    # the SQLite room store directly instead, matching this driver's own stated
     # convention for internal-boundary assertions; a bounded 50-row GraphQL
     # page would also risk missing the target given the shared database.
     slug =
       context[:family_chat_room_slug] || context[:family_chat_subscribed_slug] || "ruang-keluarga"
 
-    room = FamilyChatStore.get_active_room_by_slug(slug)
-    %{nodes: nodes} = FamilyChatStore.list_messages(room.id, nil, nil, 10_000)
+    room = RoomStore.get_active_room(SqliteRoomStore.new(), slug)
+    %{nodes: nodes} = RoomStore.list_messages(SqliteRoomStore.new(), room.id, nil, nil, 10_000)
     Enum.count(nodes, &(&1.idempotency_key == client_message_id))
   end
 
-  defp ascending_page?(context) do
-    nodes = get_in(context.family_chat_result, ["data", "familyChatMessages", "nodes"])
+  defp page_ids(context) do
+    context.family_chat_result
+    |> get_in(["data", "familyChatMessages", "nodes"])
+    |> Enum.map(&String.to_integer(&1["id"]))
+  end
 
-    is_list(nodes) and length(nodes) <= 50 and
-      nodes == Enum.sort_by(nodes, &String.to_integer(&1["id"]))
+  # Every message ID the queried room holds, ascending, read through the SQLite
+  # room store rather than the GraphQL page under test.
+  defp room_message_ids(context) do
+    slug =
+      context[:family_chat_subscribed_slug] || context[:family_chat_room_slug] || "ruang-keluarga"
+
+    room = RoomStore.get_active_room(SqliteRoomStore.new(), slug)
+    %{nodes: nodes} = RoomStore.list_messages(SqliteRoomStore.new(), room.id, nil, nil, 10_000)
+    Enum.map(nodes, & &1.id)
+  end
+
+  # Points Family Chat at a database of its own under an isolated test-run root
+  # until the scenario ends; then points the shared repository back at the
+  # run's own database before the isolated one is removed.
+  defp isolated_family_chat_database!(suite) do
+    runtime = TestRuntimeRoot.create!(suite)
+    database_path = Path.join(runtime.sqlite_path, "bnest.sqlite3")
+    previous_path = Application.fetch_env!(:bnest_app, :family_chat_sqlite_path)
+    Application.put_env(:bnest_app, :family_chat_sqlite_path, database_path)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.put_env(:bnest_app, :family_chat_sqlite_path, previous_path)
+      :ok = BnestApp.FamilyChat.ensure_ready!()
+      TestRuntimeRoot.cleanup!(runtime)
+    end)
+
+    database_path
+  end
+
+  defp migrations_path, do: Application.app_dir(:bnest_app, "priv/sqlite_repo/migrations")
+
+  # What code built before Family Chat reads from the shared database: a
+  # schedule of its own, the family schedule inventory, and the run count.
+  defp prior_release_reads(schedule_key) do
+    %{
+      schedule: Scheduler.Store.get_schedule(schedule_key),
+      family_inventory: Scheduler.Store.family_inventory(),
+      run_count: Scheduler.Store.run_count()
+    }
+  end
+
+  # Renames Family Chat's tables away while `fun` runs, then back. Refuses to
+  # touch any database but the scenario's isolated one. A read that fails
+  # without the tables is returned as `{:error, message}`, not raised.
+  defp with_family_chat_tables_hidden(database_path, fun) do
+    if Application.fetch_env!(:bnest_app, SqliteRepo)[:database] != database_path do
+      raise "refusing to rename Family Chat tables outside the scenario's isolated database"
+    end
+
+    rename_family_chat_tables!(& &1, &("hidden_" <> &1))
+
+    try do
+      {:ok, fun.()}
+    rescue
+      error -> {:error, Exception.message(error)}
+    after
+      rename_family_chat_tables!(&("hidden_" <> &1), & &1)
+    end
+  end
+
+  defp rename_family_chat_tables!(from, to) do
+    Enum.each(@family_chat_tables, fn table ->
+      SqliteRepo.query!("ALTER TABLE #{from.(table)} RENAME TO #{to.(table)}")
+    end)
+  end
+
+  # Registers a real `familyChatMessageCommitted` document through the
+  # application's endpoint and returns the document topic its events are
+  # broadcast on. A subscription run without a socket returns
+  # `{:ok, %{"subscribed" => topic}}`, outside `Absinthe.run/3`'s published
+  # spec (see the unit driver's `subscribe_and_get_topic!/2`); matching that
+  # result makes Dialyzer treat this function as never returning. So the topic
+  # is read back from Absinthe's registry instead, which also proves the run
+  # registered: a refused or failed run adds no key and the match below raises.
+  # Each run registers a fresh document key (Absinthe salts it with a unique
+  # context ID), so the key this run added is the one a retry did not.
+  defp subscribe_room_document!(user_id) do
+    registered_before = Registry.keys(BnestAppWeb.Endpoint.Registry, self())
+
+    _subscribed =
+      Absinthe.run(
+        """
+        subscription($roomSlug: String!) {
+          familyChatMessageCommitted(roomSlug: $roomSlug) { id body }
+        }
+        """,
+        BnestAppWeb.Schema,
+        variables: %{"roomSlug" => BnestApp.FamilyChat.canonical_room_slug()},
+        context: %{
+          pubsub: BnestAppWeb.Endpoint,
+          current_user: %{"userId" => user_id, "roles" => ["parents"]}
+        }
+      )
+
+    [document_topic] =
+      for "__absinthe__:doc:" <> _id = key <-
+            Registry.keys(BnestAppWeb.Endpoint.Registry, self()) -- registered_before,
+          do: key
+
+    document_topic
+  end
+
+  # A process standing in for a socket on `slot`: subscribed to `topics` on
+  # that slot's PubSub server, it forwards everything it receives to the test
+  # as `{:slot_received, slot, message}`. The test supervisor stops it.
+  defp start_slot_listener!(slot, pubsub, topics) do
+    test = self()
+
+    listener = fn ->
+      Enum.each(topics, &(:ok = Phoenix.PubSub.subscribe(pubsub, &1)))
+      send(test, {:slot_listening, slot})
+      forward_slot_messages(test, slot)
+    end
+
+    restart_supervised!({Task, listener}, {:slot_listener, slot})
+
+    receive do
+      {:slot_listening, ^slot} -> :ok
+    after
+      1_000 -> raise "the #{slot} listener did not subscribe"
+    end
+  end
+
+  defp restart_supervised!(child_spec, id) do
+    _not_running_is_fine = ExUnit.Callbacks.stop_supervised(id)
+    ExUnit.Callbacks.start_supervised!(child_spec, id: id)
+  end
+
+  defp forward_slot_messages(test, slot) do
+    receive do
+      message ->
+        send(test, {:slot_received, slot, message})
+        forward_slot_messages(test, slot)
+    end
+  end
+
+  defp receive_slot_message(timeout) do
+    receive do
+      {:slot_received, slot, message} -> {slot, message}
+    after
+      timeout -> nil
+    end
+  end
+
+  defp drain_slot_messages(timeout) do
+    case receive_slot_message(timeout) do
+      nil -> []
+      received -> [received | drain_slot_messages(timeout)]
+    end
   end
 
   defp error_code?(context, code) do
@@ -2183,7 +2464,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # Test-fixture-only raw insert — see the unit driver's identical helper for
   # why `PushNotifications` (Phase 5) is bypassed rather than built early.
   defp create_active_subscription!(user_id) do
-    FamilyChatStore.ensure_ready!()
+    BnestApp.FamilyChat.ensure_ready!()
 
     now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
     session_digest = :crypto.hash(:sha256, user_id <> "-session") |> Base.encode16(case: :lower)
@@ -2233,8 +2514,11 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # receives the single row this fixture needs. Mirrors
   # `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical helper.
   defp seed_aged_delivery!(state, age_days, opts \\ []) do
-    FamilyChatStore.ensure_ready!()
-    room = FamilyChatStore.get_active_room_by_slug(FamilyChatStore.canonical_room_slug())
+    BnestApp.FamilyChat.ensure_ready!()
+
+    room =
+      RoomStore.get_active_room(SqliteRoomStore.new(), BnestApp.FamilyChat.canonical_room_slug())
+
     recipient_id = "test-user-family-chat-retention-fixture-" <> unique_uuid()
     subscription_id = create_active_subscription!(recipient_id)
     # Registered immediately -- see `:verified_backup_artifact`'s own
@@ -2244,7 +2528,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     ExUnit.Callbacks.on_exit(fn -> disable_subscription_row!(subscription_id) end)
 
     {:ok, message} =
-      FamilyChatStore.insert_message!(
+      BnestApp.FamilyChat.insert_message!(
         room.id,
         "user",
         "test-user-family-chat-retention-sender-" <> unique_uuid(),

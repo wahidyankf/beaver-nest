@@ -12,7 +12,7 @@ defmodule BnestApp.PushNotifications.Dispatcher do
   sentinel.
   """
 
-  alias BnestApp.FamilyChat.Store, as: FamilyChatStore
+  alias BnestApp.FamilyChat
   alias BnestApp.PushNotifications.Policy
   alias BnestApp.PushNotifications.Sender
   alias BnestApp.SqliteRepo
@@ -21,7 +21,7 @@ defmodule BnestApp.PushNotifications.Dispatcher do
 
   @spec attempt(:retryable | :gone | nil) :: {:ok, map()} | {:error, :no_due_delivery}
   def attempt(simulated \\ nil) do
-    FamilyChatStore.ensure_ready!()
+    FamilyChat.ensure_ready!()
     now = DateTime.utc_now()
 
     case claim_due_row(now) do
@@ -215,12 +215,12 @@ defmodule BnestApp.PushNotifications.Dispatcher do
   # re-claims it. Only ever called when `simulated` is non-nil (see
   # `attempt_bootstrapped/2`'s `nil` clause).
   defp bootstrap_and_claim!(_simulated, now) do
-    room = FamilyChatStore.get_active_room_by_slug(FamilyChatStore.canonical_room_slug())
+    room = FamilyChat.canonical_room()
     subscriber_id = "system:push-dispatcher-fixture-" <> unique_id()
     subscription_id = insert_synthetic_subscription!(subscriber_id, now)
 
     {:ok, _message} =
-      FamilyChatStore.insert_message!(
+      FamilyChat.insert_message!(
         room.id,
         "system",
         "system:push-dispatcher-fixture-sender-" <> unique_id(),

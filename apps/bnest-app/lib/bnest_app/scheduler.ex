@@ -83,7 +83,7 @@ defmodule BnestApp.Scheduler do
   #
   # Skipped specifically on the boot/restart-triggered first tick (see
   # `dispatch/2`'s `dispatch_push?` and `handle_info({:tick, origin}, ...)`):
-  # this call self-heals `FamilyChatStore`'s own storage connection
+  # this call self-heals the Family Chat room store's storage connection
   # independently of whatever path the caller who just restarted this
   # process was relying on, which is safe in production (both resolve to
   # the same configured path there) but not in a test suite, where each

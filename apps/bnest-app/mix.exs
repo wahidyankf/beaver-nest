@@ -192,7 +192,6 @@ defmodule BnestApp.MixProject do
       BnestApp.Backup.Receipt,
       BnestApp.Backup.Run,
       BnestApp.Deployment,
-      BnestApp.FamilyChat.Store,
       BnestApp.PushNotifications,
       BnestApp.PushNotifications.Dispatcher,
       BnestApp.PushNotifications.RetentionJob,

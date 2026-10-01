@@ -21,6 +21,7 @@ defmodule BnestAppWeb do
     deps: [
       BnestApp,
       BnestApp.CodexChat,
+      BnestApp.FamilyChat,
       BnestApp.Identity,
       BnestApp.Preferences,
       BnestApp.SifatAllah,

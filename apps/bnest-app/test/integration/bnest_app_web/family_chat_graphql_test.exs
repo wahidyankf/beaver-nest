@@ -18,6 +18,8 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
   import Phoenix.ConnTest
 
   alias BnestApp.FamilyChat
+  alias BnestApp.FamilyChat.Adapters.SqliteRoomStore
+  alias BnestApp.FamilyChat.Ports.RoomStore
 
   @path "/api/graphql"
 
@@ -48,7 +50,7 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
 
   setup %{conn: conn} do
     conn = authenticated_conn(conn)
-    {:ok, _room} = FamilyChat.Store.migrate!()
+    {:ok, _room} = FamilyChat.migrate!()
     {:ok, conn: conn}
   end
 
@@ -132,7 +134,13 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
       assert message == "The request is invalid."
       refute message =~ "999999999"
 
-      assert FamilyChat.Store.find_message(1, "user", test_user_id(), client_message_id) == nil
+      assert RoomStore.find_message(
+               SqliteRoomStore.new(),
+               1,
+               "user",
+               test_user_id(),
+               client_message_id
+             ) == nil
     end
 
     test "an unauthenticated caller is refused before any room lookup", %{conn: _conn} do

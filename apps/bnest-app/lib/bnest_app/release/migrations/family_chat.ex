@@ -4,16 +4,15 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   `BnestApp.Release.Migrations.PersistentSchedules`'s standalone-callable
   shape (usable both from a running application and from a bare `mix eval`/
   release console before the application supervises anything).
+
+  The name is frozen: `tools/deployment.mjs` evaluates it. The migration and the
+  convergence themselves are the `BnestApp.FamilyChat` facade's; this module owns only the
+  release-time repository, the exclusive storage lock and the handler check around them.
   """
 
-  alias BnestApp.FamilyChat.Store
-  alias BnestApp.Scheduler
+  alias BnestApp.FamilyChat
   alias BnestApp.Scheduler.Registry
-  alias BnestApp.Scheduler.Store, as: SchedulerStore
   alias BnestApp.Storage
-
-  @retention_schedule_key "family-chat-push-retention-daily"
-  @backup_schedule_key "prod-sqlite-backup-daily"
 
   @spec apply_and_verify!() :: :ok
   def apply_and_verify! do
@@ -46,7 +45,7 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   # `Storage.with_exclusive_lock`'s) -- keeps the migration/verification logic at
   # credo's max nesting depth instead of merely satisfying it by relocation.
   defp migrate_and_verify! do
-    {:ok, room} = Store.migrate!()
+    {:ok, room} = FamilyChat.migrate!()
 
     case room do
       %{id: 1, slug: "ruang-keluarga", name: "Ruang Keluarga", room_kind: "conversation"} ->
@@ -78,11 +77,7 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
     :ok
   end
 
-  defp do_converge_after_drain! do
-    SchedulerStore.activate_if_pristine!(@retention_schedule_key, DateTime.utc_now())
-    {:ok, _schedule} = Scheduler.converge_backup_time!(@backup_schedule_key, "18:00")
-    :ok
-  end
+  defp do_converge_after_drain!, do: FamilyChat.converge_after_drain!()
 
   defp verify_registered_handler! do
     case Registry.fetch("family_chat_push_retention") do

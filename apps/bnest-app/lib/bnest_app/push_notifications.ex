@@ -8,7 +8,7 @@ defmodule BnestApp.PushNotifications do
   than inside it, since it is the one place performing egress.
   """
 
-  alias BnestApp.FamilyChat.Store, as: FamilyChatStore
+  alias BnestApp.FamilyChat
   alias BnestApp.PushNotifications.Dispatcher
   alias BnestApp.PushNotifications.Policy
   alias BnestApp.SqliteRepo
@@ -23,7 +23,7 @@ defmodule BnestApp.PushNotifications do
 
   @spec current_subscription(String.t() | nil, String.t()) :: {:ok, map()}
   def current_subscription(user_id, session_key) do
-    FamilyChatStore.ensure_ready!()
+    FamilyChat.ensure_ready!()
 
     case active_row(user_id, digest_session(session_key)) do
       %{expiration_time: expiration_time} ->
@@ -37,7 +37,7 @@ defmodule BnestApp.PushNotifications do
   @spec upsert_subscription(String.t() | nil, String.t(), map()) ::
           {:ok, %{enabled: true, expiration_time: nil}} | {:error, map()}
   def upsert_subscription(user_id, session_key, input) when is_binary(user_id) do
-    FamilyChatStore.ensure_ready!()
+    FamilyChat.ensure_ready!()
 
     case Policy.validate_subscription_input(input) do
       {:ok, validated} ->
@@ -54,7 +54,7 @@ defmodule BnestApp.PushNotifications do
 
   @spec disable_subscription(String.t() | nil, String.t()) :: {:ok, %{enabled: false}}
   def disable_subscription(user_id, session_key) do
-    FamilyChatStore.ensure_ready!()
+    FamilyChat.ensure_ready!()
     now = iso8601(DateTime.utc_now())
     actor = "user:" <> to_string(user_id)
 
@@ -88,7 +88,7 @@ defmodule BnestApp.PushNotifications do
              remaining_active: non_neg_integer()
            }}
   def retain_deliveries(%DateTime{} = now) do
-    FamilyChatStore.ensure_ready!()
+    FamilyChat.ensure_ready!()
     active_cutoff = now |> DateTime.add(-@retention_days * 86_400, :second) |> iso8601()
     purge_cutoff = now |> DateTime.add(-@retention_days * 86_400, :second) |> iso8601()
     now_iso = iso8601(now)
