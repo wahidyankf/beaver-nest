@@ -26,8 +26,7 @@ defmodule BnestApp do
     Scheduler.Policy,
     Scheduler.Registry,
     Scheduler.Run,
-    Scheduler.Store,
-    SifatAllah
+    Scheduler.Store
   ]
 
   use Boundary,

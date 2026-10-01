@@ -4,7 +4,7 @@ defmodule BnestApp.Storage.Domain.RecordSchemaTest do
   use ExUnit.Case, async: true
 
   alias BnestApp.Chat
-  alias BnestApp.SifatAllah
+  alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage
   alias BnestApp.Storage.Domain.RecordSchema
 
@@ -81,7 +81,7 @@ defmodule BnestApp.Storage.Domain.RecordSchemaTest do
         "ownerId" => "user-test-characterization",
         "sourceImportId" => nil,
         "revision" => 0,
-        "progress" => SifatAllah.progress(),
+        "progress" => Quiz.progress(),
         "session" => nil,
         "updatedAt" => @timestamp
       },

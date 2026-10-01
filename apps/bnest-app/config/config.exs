@@ -139,4 +139,8 @@ config :bnest_app, BnestApp.Identity,
 config :bnest_app, BnestApp.Preferences,
   preference_store: BnestApp.Preferences.Adapters.RecordPreferenceStore
 
+# One adapter per Sifat Allah port.
+config :bnest_app, BnestApp.SifatAllah,
+  progress_store: BnestApp.SifatAllah.Adapters.RecordProgressStore
+
 import_config "#{config_env()}.exs"

@@ -17,6 +17,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Preferences
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
+  alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage
   alias BnestApp.Storage.Domain.FlatMigration
   alias BnestApp.Storage.Domain.Location, as: StorageLocation
@@ -54,7 +55,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def open(context, "/"), do: render_home(context)
 
   def open(context, "/apps/sifat-allah") do
-    render_sifat_allah(context, sifat_state())
+    context |> start_sifat_allah_records() |> mount_sifat_allah()
   end
 
   def open(context, "/family-chat") do
@@ -520,8 +521,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> render_chat(chat)
   end
 
-  def reload(%{sifat: state} = context) do
-    render_sifat_allah(context, state)
+  # A reload is a fresh mount over a restarted record repository, so only what the LiveView
+  # saved through the SifatAllah facade can come back. The saved record is checked in the
+  # backend itself before the remount, and the remount must restore exactly that record.
+  def reload(%{sifat_socket: _socket} = context) do
+    owner = context.sifat_user["userId"]
+    :ok = ExUnit.Callbacks.stop_supervised(Records)
+    ExUnit.Callbacks.start_supervised!({Records, store: context.sifat_records})
+
+    {:ok, saved} = SifatAllah.load_progress(owner)
+    %{{:sifat_allah, ^owner} => ^saved} = InMemoryRecordBackend.snapshot(context.sifat_records)
+
+    context = mount_sifat_allah(context)
+    ^saved = context.sifat_socket.assigns.central_record
+    context
   end
 
   @impl true
@@ -541,48 +554,66 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def quiz_mode_available?(context), do: button_visible?(context.page, "Latihan Ujian")
 
   @impl true
-  def start_learning(context) do
-    context
-    |> render_sifat_allah(
-      context.sifat
-      |> Map.put(:mode, :study)
-      |> Map.put(:lesson_pairs, SifatAllah.lesson_pairs(context.sifat.progress))
-      |> Map.put(:lesson_index, 0)
-      |> Map.put(:feedback, nil)
-    )
-  end
+  def start_learning(context),
+    do: click_sifat_allah(context, "button[phx-click=start-learning]", "start-learning")
 
+  # The learner's saved progress is the precondition, so it is saved through the SifatAllah
+  # facade and the page is opened again over it; the Given fails unless the page shows it.
   @impl true
   def remember_every_sifat_pair(context) do
     progress =
-      Enum.reduce(SifatAllah.curriculum(), context.sifat.progress, fn pair, acc ->
-        SifatAllah.remember(acc, pair.id)
+      Enum.reduce(Quiz.curriculum(), Quiz.progress(), fn pair, acc ->
+        Quiz.remember(acc, pair.id)
       end)
 
-    render_sifat_allah(context, %{
-      context.sifat
-      | progress: progress,
-        mode: :dashboard,
-        feedback: nil
-    })
+    {:ok, _saved} =
+      SifatAllah.save_progress(
+        context.sifat_user["userId"],
+        Map.put(progress, "session", %{"mode" => "dashboard"}),
+        context.sifat_socket.assigns.central_record
+      )
+
+    context = mount_sifat_allah(context)
+
+    unless progress_shows?(context, "120 dari 120 soal sudah hafal") do
+      raise "the saved Sifat Allah progress was not restored"
+    end
+
+    context
   end
 
   @impl true
-  def swipe_study_card_left(context), do: move_lesson(context, 1)
+  def swipe_study_card_left(context),
+    do: swipe_sifat_allah(context, "[data-role=study-card]", "swipe-study", "left")
 
   @impl true
-  def swipe_study_card_right(context), do: move_lesson(context, -1)
+  def swipe_study_card_right(context),
+    do: swipe_sifat_allah(context, "[data-role=study-card]", "swipe-study", "right")
 
+  # The button asks the browser to go back; the SifatHistory hook answers that instruction
+  # with the `dashboard` event, after a history step back when the activity pushed an entry.
   @impl true
   def return_to_mission(context) do
-    render_sifat_allah(
-      context,
-      context.sifat |> Map.put(:mode, :dashboard) |> Map.put(:feedback, nil)
-    )
+    context =
+      click_sifat_allah(context, "button[phx-click=back-to-mission]", "back-to-mission")
+
+    unless List.last(context.sifat_pushes) == ["sifat-history-back", %{}] do
+      raise "returning to the mission did not ask the browser to go back"
+    end
+
+    sifat_allah_hook_event(context, "dashboard")
   end
 
+  # Browser Back pops the history entry the activity pushed; the SifatHistory hook then sends
+  # the `dashboard` event.
   @impl true
-  def browser_back_to_mission(context), do: return_to_mission(context)
+  def browser_back_to_mission(context) do
+    unless ["sifat-history-entry", %{}] in context.sifat_pushes do
+      raise "the activity pushed no history entry to go back from"
+    end
+
+    sifat_allah_hook_event(context, "dashboard")
+  end
 
   @impl true
   def study_card_shows?(context, name, meaning) do
@@ -609,18 +640,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
-  def mark_current_pair_remembered(context) do
-    pair = current_pair(context.sifat)
-    progress = SifatAllah.remember(context.sifat.progress, pair.id)
-
-    context
-    |> Map.put(:persisted_sifat_allah, Jason.encode!(progress))
-    |> render_sifat_allah(
-      context.sifat
-      |> Map.put(:progress, progress)
-      |> Map.put(:feedback, %{kind: :success, text: "Hebat!"})
-    )
-  end
+  def mark_current_pair_remembered(context),
+    do: click_sifat_allah(context, "button[phx-click=remember-pair]", "remember-pair")
 
   @impl true
   def progress_shows?(context, progress) do
@@ -632,175 +653,102 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
-  def ask_reset_sifat_progress(context) do
-    render_sifat_allah(context, Map.put(context.sifat, :reset_confirmation?, true))
-  end
+  def ask_reset_sifat_progress(context),
+    do: click_sifat_allah(context, "button[phx-click=ask-reset-progress]", "ask-reset-progress")
 
   @impl true
-  def confirm_reset_sifat_progress(context) do
-    progress = SifatAllah.progress()
-
-    context
-    |> Map.put(:persisted_sifat_allah, Jason.encode!(progress))
-    |> render_sifat_allah(sifat_state(progress: progress))
-  end
+  def confirm_reset_sifat_progress(context),
+    do: click_sifat_allah(context, "button[phx-click=reset-progress]", "reset-progress")
 
   @impl true
-  def start_quiz(context) do
-    {pair, kind} = SifatAllah.first_exam_question(context.sifat.progress)
+  def start_quiz(context),
+    do: click_sifat_allah(context, "button[phx-click=start-quiz]", "start-quiz")
 
-    context
-    |> render_sifat_allah(
-      context.sifat
-      |> Map.put(:mode, :quiz)
-      |> Map.put(:quiz_pair, pair)
-      |> Map.put(:quiz_kind, kind)
-      |> Map.put(:quiz_scope, :all)
-      |> Map.put(:feedback, nil)
-    )
-  end
-
+  # Both positions are read from the rendered answer buttons, before and after the next
+  # question the LiveView itself selects.
   @impl true
   def quiz_answer_positions_vary?(context) do
-    first_pair = context.sifat.quiz_pair
-    second_pair = SifatAllah.next_pair(first_pair)
-
-    answer_position(first_pair, :wajib_meaning) != answer_position(second_pair, :wajib_opposite)
+    first_position = rendered_answer_position(context.page, "Ada")
+    context = click_sifat_allah(context, "button[phx-click=next-question]", "next-question")
+    first_position != rendered_answer_position(context.page, "Hudus")
   end
 
   @impl true
   def quiz_answer_choices_locked?(context) do
-    context.page
-    |> LazyHTML.query(".sifat-answer-grid button")
-    |> Enum.all?(fn button -> LazyHTML.attribute(button, "disabled") != [] end)
+    buttons = context.page |> LazyHTML.query(".sifat-answer-grid button") |> Enum.to_list()
+
+    buttons != [] and
+      Enum.all?(buttons, fn button -> LazyHTML.attribute(button, "disabled") != [] end)
   end
 
+  # The LiveView schedules `{:auto_advance, :quiz, token}` five seconds after an answer; the
+  # message is delivered now with the token the socket holds, so its own token and feedback
+  # guards decide whether the quiz moves on. The real delay is proven at Integration and E2E.
   @impl true
-  def wait_for_quiz_auto_advance(context), do: next_quiz_question(context)
+  def wait_for_quiz_auto_advance(context) do
+    socket = context.sifat_socket
+
+    {:noreply, socket} =
+      SifatAllahLive.handle_info(
+        {:auto_advance, :quiz, socket.assigns.auto_advance_token},
+        socket
+      )
+
+    render_sifat_allah(context, socket)
+  end
 
   @impl true
   def start_learned_review(context) do
-    {pair, kind} = SifatAllah.first_mastered_question(context.sifat.progress)
-
-    render_sifat_allah(
+    click_sifat_allah(
       context,
-      context.sifat
-      |> Map.put(:mode, :quiz)
-      |> Map.put(:quiz_pair, pair)
-      |> Map.put(:quiz_kind, kind)
-      |> Map.put(:quiz_scope, :learned)
-      |> Map.put(:feedback, nil)
+      "button[phx-click=start-learned-review]",
+      "start-learned-review"
     )
   end
 
   @impl true
-  def start_focused_review(context) do
-    {pair, kind} = SifatAllah.first_review_question(context.sifat.progress)
-
-    render_sifat_allah(
-      context,
-      context.sifat
-      |> Map.put(:mode, :review)
-      |> Map.put(:review_pair, pair)
-      |> Map.put(:review_kind, kind)
-      |> Map.put(:feedback, nil)
-    )
-  end
+  def start_focused_review(context),
+    do: click_sifat_allah(context, "button[phx-click=start-review]", "start-review")
 
   @impl true
-  def swipe_quiz_question_left(context), do: move_quiz_question(context, 1)
+  def swipe_quiz_question_left(context),
+    do: swipe_sifat_allah(context, "[data-role=quiz-question]", "swipe-quiz", "left")
 
   @impl true
-  def swipe_quiz_question_right(context), do: move_quiz_question(context, -1)
+  def swipe_quiz_question_right(context),
+    do: swipe_sifat_allah(context, "[data-role=quiz-question]", "swipe-quiz", "right")
 
   @impl true
-  def next_quiz_question(context) do
-    {pair, kind} = next_quiz_question(context.sifat, :next)
-
-    render_sifat_allah(
-      context,
-      context.sifat
-      |> Map.put(:quiz_pair, pair)
-      |> Map.put(:quiz_kind, kind)
-      |> Map.put(:feedback, nil)
-    )
-  end
+  def next_quiz_question(context),
+    do: click_sifat_allah(context, "button[phx-click=next-question]", "next-question")
 
   @impl true
   def answer_quiz(context, answer) do
-    pair = context.sifat.quiz_pair
-    correct? = SifatAllah.correct_answer?(pair, context.sifat.quiz_kind, answer)
-
-    progress =
-      context.sifat.progress
-      |> record_quiz_answer(pair, context.sifat.quiz_kind, correct?, context.sifat.quiz_scope)
-
-    feedback =
-      if correct?,
-        do: %{kind: :success, text: "Betul!"},
-        else: %{
-          kind: :retry,
-          text:
-            "Belum tepat. Jawaban yang benar: #{SifatAllah.correct_answer(pair, context.sifat.quiz_kind)}. Nanti kita ulang lagi, ya."
-        }
-
-    context
-    |> Map.put(:persisted_sifat_allah, Jason.encode!(progress))
-    |> render_sifat_allah(
-      context.sifat
-      |> Map.put(:progress, progress)
-      |> Map.put(:feedback, feedback)
+    click_sifat_allah(
+      context,
+      ~s([data-role=quiz-question] button[phx-click=answer][phx-value-answer="#{answer}"]),
+      "answer",
+      %{"answer" => answer}
     )
   end
 
   @impl true
   def answer_focused_review(context, answer) do
-    pair = context.sifat.review_pair
-    correct? = SifatAllah.correct_answer?(pair, context.sifat.review_kind, answer)
-
-    progress =
-      context.sifat.progress
-      |> SifatAllah.record_answer(pair, context.sifat.review_kind, correct?)
-
-    feedback =
-      if correct? do
-        %{kind: :success, text: "Mantap! #{pair.wajib} sudah kamu kuasai."}
-      else
-        %{
-          kind: :retry,
-          text:
-            "Belum tepat. Jawaban yang benar: #{SifatAllah.correct_answer(pair, context.sifat.review_kind)}. Coba sekali lagi, ya."
-        }
-      end
-
-    context
-    |> Map.put(:persisted_sifat_allah, Jason.encode!(progress))
-    |> render_sifat_allah(
-      context.sifat
-      |> Map.put(:progress, progress)
-      |> Map.put(:feedback, feedback)
+    click_sifat_allah(
+      context,
+      ~s([data-role=review-question] button[phx-click=review-answer][phx-value-answer="#{answer}"]),
+      "review-answer",
+      %{"answer" => answer}
     )
   end
 
   @impl true
   def next_focused_review(context) do
-    case SifatAllah.next_review_question(
-           context.sifat.progress,
-           context.sifat.review_pair,
-           context.sifat.review_kind
-         ) do
-      nil ->
-        return_to_mission(context)
-
-      {pair, kind} ->
-        render_sifat_allah(
-          context,
-          context.sifat
-          |> Map.put(:review_pair, pair)
-          |> Map.put(:review_kind, kind)
-          |> Map.put(:feedback, nil)
-        )
-    end
+    click_sifat_allah(
+      context,
+      "button[phx-click=next-review-question]",
+      "next-review-question"
+    )
   end
 
   @impl true
@@ -901,90 +849,93 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Map.put(:page, page)
   end
 
-  defp render_sifat_allah(context, state) do
+  # Sifat Allah persists through its facade to the configured record-backed progress store,
+  # which reaches Storage's record repository; the repository runs here over an in-memory
+  # record backend, kept in the context so a reload can restart the repository over it.
+  defp start_sifat_allah_records(context) do
+    previous = StoragePorts.install()
+    ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous) end)
+    records = InMemoryRecordBackend.start()
+    ExUnit.Callbacks.start_supervised!({Records, store: records})
+
+    user =
+      context
+      |> identity()
+      |> Map.merge(%{
+        "userId" => "user-test-unit-sifat-allah",
+        "displayUsername" => "test-user-unit-sifat-allah"
+      })
+
+    Map.merge(context, %{sifat_records: records, sifat_user: user})
+  end
+
+  # The production `mount/3` on a fresh socket for the synthetic learner, as a page load does.
+  defp mount_sifat_allah(context) do
+    socket = %Socket{
+      assigns: %{__changed__: %{}, flash: %{}, current_user: context.sifat_user}
+    }
+
+    {:ok, socket} = SifatAllahLive.mount(%{}, %{}, socket)
+
+    context
+    |> Map.put(:sifat_pushes, [])
+    |> render_sifat_allah(socket)
+  end
+
+  # A click reaches the LiveView only through a button the page renders enabled.
+  defp click_sifat_allah(context, selector, event, params \\ %{}) do
+    if context.page |> LazyHTML.query("#{selector}:not([disabled])") |> Enum.empty?() do
+      raise "the Sifat Allah page offers no enabled #{selector}"
+    end
+
+    sifat_allah_event(context, event, params)
+  end
+
+  # The SifatSwipe hook turns a horizontal swipe on its element into the element's event.
+  defp swipe_sifat_allah(context, selector, event, direction) do
+    if context.page |> LazyHTML.query("#{selector}[phx-hook=SifatSwipe]") |> Enum.empty?() do
+      raise "the Sifat Allah page offers no swipeable #{selector}"
+    end
+
+    sifat_allah_event(context, event, %{"direction" => direction})
+  end
+
+  defp sifat_allah_hook_event(context, event) do
+    if context.page
+       |> LazyHTML.query("#sifat-allah-app[phx-hook=SifatHistory]")
+       |> Enum.empty?() do
+      raise "the Sifat Allah page has no SifatHistory hook"
+    end
+
+    sifat_allah_event(context, event, %{})
+  end
+
+  defp sifat_allah_event(context, event, params) do
+    {:noreply, socket} = SifatAllahLive.handle_event(event, params, context.sifat_socket)
+    render_sifat_allah(context, socket)
+  end
+
+  # Renders the socket's assigns with the production template and moves the events the
+  # LiveView pushed into the context, oldest first, as a client receives each once.
+  defp render_sifat_allah(context, socket) do
     page =
-      state
+      socket.assigns
+      |> Map.delete(:__changed__)
       |> SifatAllahLive.render()
       |> Safe.to_iodata()
       |> IO.iodata_to_binary()
       |> LazyHTML.from_fragment()
 
     context
-    |> Map.put(:sifat, state)
+    |> Map.update(:sifat_pushes, [], &(&1 ++ Utils.get_push_events(socket)))
+    |> Map.put(:sifat_socket, Utils.clear_temp(socket))
     |> Map.put(:page, page)
   end
 
-  defp sifat_state(overrides \\ []) do
-    Map.merge(
-      %{
-        current_user: %{"displayUsername" => "test-user-unit"},
-        progress: SifatAllah.progress(),
-        mode: :dashboard,
-        lesson_pairs: [],
-        lesson_index: 0,
-        quiz_pair: nil,
-        quiz_kind: :wajib_meaning,
-        quiz_scope: :all,
-        review_pair: nil,
-        review_kind: :wajib_meaning,
-        feedback: nil,
-        reset_confirmation?: false
-      },
-      Map.new(overrides)
-    )
-  end
-
-  defp current_pair(state), do: Enum.at(state.lesson_pairs, state.lesson_index)
-
-  defp record_quiz_answer(progress, pair, kind, correct?, _scope),
-    do: SifatAllah.record_answer(progress, pair, kind, correct?)
-
-  defp move_lesson(context, direction) do
-    lesson_index =
-      context.sifat.lesson_index
-      |> Kernel.+(direction)
-      |> max(0)
-      |> min(length(context.sifat.lesson_pairs) - 1)
-
-    render_sifat_allah(context, Map.put(context.sifat, :lesson_index, lesson_index))
-  end
-
-  defp move_quiz_question(context, 1) do
-    {pair, kind} = next_quiz_question(context.sifat, :next)
-
-    render_sifat_allah(
-      context,
-      context.sifat
-      |> Map.put(:quiz_pair, pair)
-      |> Map.put(:quiz_kind, kind)
-      |> Map.put(:feedback, nil)
-    )
-  end
-
-  defp move_quiz_question(context, -1) do
-    {pair, kind} = next_quiz_question(context.sifat, :previous)
-
-    render_sifat_allah(
-      context,
-      context.sifat
-      |> Map.put(:quiz_pair, pair)
-      |> Map.put(:quiz_kind, kind)
-      |> Map.put(:feedback, nil)
-    )
-  end
-
-  defp next_quiz_question(%{quiz_scope: :learned} = state, :next),
-    do: SifatAllah.next_mastered_question(state.progress, state.quiz_pair, state.quiz_kind)
-
-  defp next_quiz_question(%{quiz_scope: :learned} = state, :previous),
-    do: SifatAllah.previous_mastered_question(state.progress, state.quiz_pair, state.quiz_kind)
-
-  defp next_quiz_question(state, :next) do
-    SifatAllah.next_exam_question(state.progress, state.quiz_pair, state.quiz_kind)
-  end
-
-  defp next_quiz_question(state, :previous) do
-    SifatAllah.previous_exam_question(state.progress, state.quiz_pair, state.quiz_kind)
+  defp rendered_answer_position(page, answer) do
+    page
+    |> LazyHTML.query("[data-role=quiz-question] .sifat-answer-grid button")
+    |> Enum.find_index(fn button -> button |> LazyHTML.text() |> String.trim() == answer end)
   end
 
   @impl true
@@ -2090,6 +2041,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
              Records.read(type, owner) == {:ok, record}
            end),
          true <- Preferences.theme(owner) == context.journey_records.theme["theme"],
+         true <- SifatAllah.load_progress(owner) == {:ok, context.journey_records.sifat_allah},
          digest = Identity.session_digest(token),
          :ok <- Identity.logout(token),
          true <- received?({:subscription_revoked, owner, digest}),
@@ -2406,12 +2358,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     end)
   end
 
-  defp answer_position(pair, kind) do
-    pair
-    |> SifatAllah.answer_options(kind)
-    |> Enum.find_index(&(&1 == SifatAllah.correct_answer(pair, kind)))
-  end
-
   defp button_visible?(page, label) do
     page
     |> LazyHTML.query("button")
@@ -2681,8 +2627,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     %{
       "storageArea" => "localStorage",
       "storageKey" => "bnest.sifat-allah.v1",
-      "payload" =>
-        Jason.encode!(Map.put(SifatAllah.progress(), "session", %{"mode" => "dashboard"}))
+      "payload" => Jason.encode!(Map.put(Quiz.progress(), "session", %{"mode" => "dashboard"}))
     }
   end
 

@@ -129,6 +129,9 @@ else
   # The preference store stays record-backed for the same reason: the unit drivers read
   # theme preferences through the record repository they start over in-memory record
   # stores, and the Preferences unit tests pass their own in-memory store as `store:`.
+  # Sifat Allah's progress store stays record-backed the same way: the unit driver runs the
+  # Sifat Allah LiveView and the SQLite-migration journey reads learning progress through the
+  # record repository, and the SifatAllah unit tests pass their own in-memory store as `store:`.
   config :bnest_app, BnestApp.Identity,
     credential_hasher: BnestApp.Test.InMemory.CredentialHasher,
     session_notifier: BnestApp.Test.InMemory.SessionNotifier,

@@ -11,6 +11,7 @@ defmodule BnestApp.Application do
       BnestAppWeb,
       BnestApp.Identity,
       BnestApp.Preferences,
+      BnestApp.SifatAllah,
       BnestApp.SqliteRepo,
       BnestApp.Storage,
       BnestApp.Storage.Adapters

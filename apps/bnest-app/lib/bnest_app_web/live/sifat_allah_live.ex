@@ -2,7 +2,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   use BnestAppWeb, :live_view
 
   alias BnestApp.SifatAllah
-  alias BnestApp.Storage.Records
+  alias BnestApp.SifatAllah.Domain.Quiz
 
   @max_snapshot_bytes 10_000
   @quiz_auto_advance_delay 5_000
@@ -18,7 +18,7 @@ defmodule BnestAppWeb.SifatAllahLive do
 
   @impl Phoenix.LiveView
   def handle_event("start-learning", _params, socket) do
-    lesson_pairs = SifatAllah.lesson_pairs(socket.assigns.progress)
+    lesson_pairs = Quiz.lesson_pairs(socket.assigns.progress)
 
     case lesson_pairs do
       [] ->
@@ -79,7 +79,7 @@ defmodule BnestAppWeb.SifatAllahLive do
 
   def handle_event("remember-pair", _params, socket) do
     pair = current_study_pair(socket.assigns)
-    progress = SifatAllah.remember(socket.assigns.progress, pair.id)
+    progress = Quiz.remember(socket.assigns.progress, pair.id)
 
     {:noreply,
      socket
@@ -89,7 +89,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   def handle_event("start-quiz", _params, socket) do
-    {pair, kind} = SifatAllah.first_exam_question(socket.assigns.progress)
+    {pair, kind} = Quiz.first_exam_question(socket.assigns.progress)
 
     {:noreply,
      socket
@@ -104,7 +104,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   def handle_event("start-learned-review", _params, socket) do
-    case SifatAllah.first_mastered_question(socket.assigns.progress) do
+    case Quiz.first_mastered_question(socket.assigns.progress) do
       nil ->
         {:noreply, socket}
 
@@ -123,7 +123,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   def handle_event("start-review", _params, socket) do
-    case SifatAllah.first_review_question(socket.assigns.progress) do
+    case Quiz.first_review_question(socket.assigns.progress) do
       nil ->
         {:noreply, socket}
 
@@ -146,7 +146,7 @@ defmodule BnestAppWeb.SifatAllahLive do
 
   def handle_event("answer", %{"answer" => answer}, socket) do
     pair = socket.assigns.quiz_pair
-    correct? = SifatAllah.correct_answer?(pair, socket.assigns.quiz_kind, answer)
+    correct? = Quiz.correct_answer?(pair, socket.assigns.quiz_kind, answer)
 
     progress =
       socket.assigns.progress
@@ -178,11 +178,11 @@ defmodule BnestAppWeb.SifatAllahLive do
 
   def handle_event("review-answer", %{"answer" => answer}, socket) do
     pair = socket.assigns.review_pair
-    correct? = SifatAllah.correct_answer?(pair, socket.assigns.review_kind, answer)
+    correct? = Quiz.correct_answer?(pair, socket.assigns.review_kind, answer)
 
     progress =
       socket.assigns.progress
-      |> SifatAllah.record_answer(pair, socket.assigns.review_kind, correct?)
+      |> Quiz.record_answer(pair, socket.assigns.review_kind, correct?)
 
     feedback =
       if correct? do
@@ -209,7 +209,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   def handle_event("next-review-question", _params, socket) do
-    case SifatAllah.next_review_question(
+    case Quiz.next_review_question(
            socket.assigns.progress,
            socket.assigns.review_pair,
            socket.assigns.review_kind
@@ -251,7 +251,7 @@ defmodule BnestAppWeb.SifatAllahLive do
 
   def handle_event("reset-progress", _params, %{assigns: %{reset_confirmation?: true}} = socket) do
     reset_state =
-      SifatAllah.progress()
+      Quiz.progress()
       |> default_state()
       |> Map.put(:central_record, socket.assigns.central_record)
 
@@ -302,22 +302,22 @@ defmodule BnestAppWeb.SifatAllahLive do
           <div>
             <span>PROGRES HAFALAN</span>
             <strong class="sifat-percent" data-testid="sifat-allah-percent">
-              {SifatAllah.mastery_percent(@progress)}% hafal
+              {Quiz.mastery_percent(@progress)}% hafal
             </strong>
             <strong data-testid="sifat-allah-progress">
-              {SifatAllah.mastered_count(@progress)} dari {SifatAllah.total_count()} soal sudah hafal
+              {Quiz.mastered_count(@progress)} dari {Quiz.total_count()} soal sudah hafal
             </strong>
             <span class="sifat-unmastered-count" data-testid="sifat-allah-unmastered-count">
-              {SifatAllah.unmastered_count(@progress)} soal masih perlu diulang
+              {Quiz.unmastered_count(@progress)} soal masih perlu diulang
             </span>
             <span class="sifat-correct-count">
-              {SifatAllah.correct_count(@progress)} jawaban benar
+              {Quiz.correct_count(@progress)} jawaban benar
             </span>
           </div>
           <div class="sifat-pebble-trail" aria-hidden="true">
             <i
               :for={index <- 1..20}
-              class={if index <= SifatAllah.learned_count(@progress), do: "is-known"}
+              class={if index <= Quiz.learned_count(@progress), do: "is-known"}
             ></i>
           </div>
         </section>
@@ -340,7 +340,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   attr(:reset_confirmation?, :boolean, default: false)
 
   defp dashboard(assigns) do
-    assigns = assign(assigns, :lesson_available?, SifatAllah.lesson_pairs(assigns.progress) != [])
+    assigns = assign(assigns, :lesson_available?, Quiz.lesson_pairs(assigns.progress) != [])
 
     ~H"""
     <section class="sifat-dashboard" aria-label="Pilih latihan">
@@ -515,10 +515,10 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp quiz(assigns) do
     pair = assigns.assigns.quiz_pair
 
-    question = SifatAllah.question(pair, assigns.assigns.quiz_kind)
+    question = Quiz.question(pair, assigns.assigns.quiz_kind)
 
-    options = SifatAllah.answer_options(pair, assigns.assigns.quiz_kind)
-    revision_pairs = SifatAllah.review_pairs(assigns.assigns.progress)
+    options = Quiz.answer_options(pair, assigns.assigns.quiz_kind)
+    revision_pairs = Quiz.review_pairs(assigns.assigns.progress)
 
     {label, step} =
       case assigns.assigns.quiz_scope do
@@ -593,9 +593,9 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp review(assigns) do
     pair = assigns.assigns.review_pair
 
-    question = SifatAllah.question(pair, assigns.assigns.review_kind)
+    question = Quiz.question(pair, assigns.assigns.review_kind)
 
-    options = SifatAllah.answer_options(pair, assigns.assigns.review_kind)
+    options = Quiz.answer_options(pair, assigns.assigns.review_kind)
     remaining_count = length(assigns.assigns.progress["review_key_ids"])
 
     assigns =
@@ -645,7 +645,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp restore_state(socket) do
     owner_id = socket.assigns.current_user["userId"]
 
-    case Records.read(:sifat_allah, owner_id) do
+    case SifatAllah.load_progress(owner_id) do
       {:ok, record} ->
         record["progress"]
         |> restore_session(record["session"])
@@ -654,7 +654,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       {:error, _missing_or_invalid} ->
         if legacy_browser_user?(socket),
           do: restore_browser_state(socket),
-          else: default_state(SifatAllah.progress())
+          else: default_state(Quiz.progress())
     end
   end
 
@@ -663,14 +663,14 @@ defmodule BnestAppWeb.SifatAllahLive do
       with %{"sifat_allah" => encoded} when is_binary(encoded) <- get_connect_params(socket),
            true <- byte_size(encoded) <= @max_snapshot_bytes,
            {:ok, snapshot} <- Jason.decode(encoded),
-           {:ok, progress} <- SifatAllah.restore(snapshot) do
+           {:ok, progress} <- Quiz.restore(snapshot) do
         restore_session(progress, snapshot["session"])
         |> Map.put(:persist_migrated_snapshot?, snapshot["version"] != progress["version"])
       else
-        _invalid_or_missing -> default_state(SifatAllah.progress())
+        _invalid_or_missing -> default_state(Quiz.progress())
       end
     else
-      default_state(SifatAllah.progress())
+      default_state(Quiz.progress())
     end
   end
 
@@ -729,7 +729,7 @@ defmodule BnestAppWeb.SifatAllahLive do
               "opposite",
               "opposite_meaning"
             ] do
-    case SifatAllah.pair(pair_id) do
+    case Quiz.pair(pair_id) do
       nil ->
         default_state(progress)
 
@@ -739,7 +739,7 @@ defmodule BnestAppWeb.SifatAllahLive do
         kind = quiz_kind_atom(quiz_kind)
 
         if scope == :learned and
-             SifatAllah.key_id(pair, kind) not in progress["mastered_key_ids"] and
+             Quiz.key_id(pair, kind) not in progress["mastered_key_ids"] and
              is_nil(session["feedback"]) do
           default_state(progress)
         else
@@ -771,7 +771,7 @@ defmodule BnestAppWeb.SifatAllahLive do
               "opposite",
               "opposite_meaning"
             ] do
-    case SifatAllah.pair(pair_id) do
+    case Quiz.pair(pair_id) do
       nil ->
         default_state(progress)
 
@@ -792,7 +792,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp restore_session(progress, _session), do: default_state(progress)
 
   defp pairs_from_ids(ids) do
-    pairs = Enum.map(ids, &SifatAllah.pair/1)
+    pairs = Enum.map(ids, &Quiz.pair/1)
 
     if ids != [] and length(ids) == length(Enum.uniq(ids)) and Enum.all?(pairs, & &1) do
       {:ok, pairs}
@@ -824,8 +824,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp retry_feedback(next_step, pair, kind) do
     %{
       kind: :retry,
-      text:
-        "Belum tepat. Jawaban yang benar: #{SifatAllah.correct_answer(pair, kind)}. #{next_step}"
+      text: "Belum tepat. Jawaban yang benar: #{Quiz.correct_answer(pair, kind)}. #{next_step}"
     }
   end
 
@@ -843,7 +842,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp quiz_scope(_scope), do: :all
 
   defp record_quiz_answer(progress, pair, kind, correct?, _scope),
-    do: SifatAllah.record_answer(progress, pair, kind, correct?)
+    do: Quiz.record_answer(progress, pair, kind, correct?)
 
   defp celebrate_if_correct(socket, true), do: push_event(socket, "sifat-celebrate", %{})
   defp celebrate_if_correct(socket, false), do: socket
@@ -852,14 +851,14 @@ defmodule BnestAppWeb.SifatAllahLive do
     next_question =
       case direction do
         :next ->
-          SifatAllah.next_mastered_question(
+          Quiz.next_mastered_question(
             socket.assigns.progress,
             socket.assigns.quiz_pair,
             socket.assigns.quiz_kind
           )
 
         :previous ->
-          SifatAllah.previous_mastered_question(
+          Quiz.previous_mastered_question(
             socket.assigns.progress,
             socket.assigns.quiz_pair,
             socket.assigns.quiz_kind
@@ -876,14 +875,14 @@ defmodule BnestAppWeb.SifatAllahLive do
     next_question =
       case direction do
         :next ->
-          SifatAllah.next_exam_question(
+          Quiz.next_exam_question(
             socket.assigns.progress,
             socket.assigns.quiz_pair,
             socket.assigns.quiz_kind
           )
 
         :previous ->
-          SifatAllah.previous_exam_question(
+          Quiz.previous_exam_question(
             socket.assigns.progress,
             socket.assigns.quiz_pair,
             socket.assigns.quiz_kind
@@ -929,21 +928,8 @@ defmodule BnestAppWeb.SifatAllahLive do
 
   defp persist_learning_snapshot(socket, snapshot) do
     owner_id = socket.assigns.current_user["userId"]
-    previous = socket.assigns.central_record
 
-    candidate = %{
-      "schemaVersion" => 1,
-      "recordType" => "sifat-allah-progress",
-      "ownerId" => owner_id,
-      "sourceImportId" => if(previous, do: previous["sourceImportId"], else: nil),
-      "progress" => Map.delete(snapshot, "session"),
-      "session" => snapshot["session"],
-      "updatedAt" => timestamp()
-    }
-
-    expected_revision = if previous, do: previous["revision"], else: nil
-
-    case Records.write(:sifat_allah, owner_id, expected_revision, candidate) do
+    case SifatAllah.save_progress(owner_id, snapshot, socket.assigns.central_record) do
       {:ok, record} ->
         assign(socket, :central_record, record)
 
@@ -1009,6 +995,4 @@ defmodule BnestAppWeb.SifatAllahLive do
   end
 
   defp session_snapshot(_assigns), do: %{"mode" => "dashboard"}
-
-  defp timestamp, do: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 end

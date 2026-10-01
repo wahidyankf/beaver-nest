@@ -20,6 +20,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
+  alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
   alias BnestApp.Storage.Adapters.FileConfigStore
@@ -36,6 +37,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @behaviour_now ~U[2026-08-30 20:00:00Z]
   @record_operations [:read, :write, :put_new, :replace, :remove_exact]
+  @quiz_auto_advance_ms 5_000
 
   @impl true
   def open(%{conn: conn} = context, "/") do
@@ -604,19 +606,29 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
   end
 
+  # An authenticated learner's progress lives only on the server, so the precondition is saved
+  # there through the SifatAllah facade before the page opens again; the Given fails unless
+  # the opened page shows it.
   @impl true
   def remember_every_sifat_pair(context) do
     progress =
-      Enum.reduce(SifatAllah.curriculum(), SifatAllah.progress(), fn pair, acc ->
-        SifatAllah.remember(acc, pair.id)
+      Enum.reduce(Quiz.curriculum(), Quiz.progress(), fn pair, acc ->
+        Quiz.remember(acc, pair.id)
       end)
 
-    conn =
-      put_connect_params(context.conn, %{
-        "sifat_allah" => Jason.encode!(Map.put(progress, "session", %{"mode" => "dashboard"}))
-      })
+    {:ok, _saved} =
+      SifatAllah.save_progress(
+        context.user_id,
+        Map.put(progress, "session", %{"mode" => "dashboard"}),
+        nil
+      )
 
-    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+    {:ok, view, _html} = live(context.conn, "/apps/sifat-allah")
+
+    unless has_element?(view, ".sifat-stage", "120 dari 120 soal sudah hafal") do
+      raise "the saved Sifat Allah progress was not restored"
+    end
+
     Map.put(context, :view, view)
   end
 
@@ -726,13 +738,54 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def quiz_answer_choices_locked?(context),
-    do: not has_element?(context.view, ".sifat-answer-grid button:not([disabled])")
+    do:
+      has_element?(context.view, ".sifat-answer-grid button[disabled]") and
+        not has_element?(context.view, ".sifat-answer-grid button:not([disabled])")
 
+  # The LiveView's own five-second timer moves the quiz on, so nothing is sent to the view.
+  # The answered question must still be shown just before the five seconds end, and must
+  # change soon after, observed by re-rendering for a bounded time.
   @impl true
   def wait_for_quiz_auto_advance(context) do
-    render_click(context.view, "next-question", %{})
+    question = rendered_quiz_question(context.view)
+
+    if question == nil do
+      raise "no quiz question is shown"
+    end
+
+    Process.sleep(@quiz_auto_advance_ms - 500)
+
+    if rendered_quiz_question(context.view) != question do
+      raise "the quiz moved on before five seconds passed"
+    end
+
+    await_quiz_question_change(context.view, question, 50)
+
     snapshot = await_push_event(context.view, "persist-sifat-allah")
     Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
+  end
+
+  defp await_quiz_question_change(view, question, attempts) do
+    cond do
+      rendered_quiz_question(view) != question ->
+        :ok
+
+      attempts > 0 ->
+        Process.sleep(50)
+        await_quiz_question_change(view, question, attempts - 1)
+
+      true ->
+        raise "the quiz stayed on #{inspect(question)} after five seconds passed"
+    end
+  end
+
+  defp rendered_quiz_question(view) do
+    view
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("[data-role=quiz-question] h2")
+    |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+    |> List.first()
   end
 
   @impl true
@@ -1866,6 +1919,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
              Records.read(type, user_id) == {:ok, record}
            end),
          true <- Preferences.theme(user_id) == context.journey_records.theme["theme"],
+         true <-
+           SifatAllah.load_progress(user_id) == {:ok, context.journey_records.sifat_allah},
          conn = Plug.Test.put_req_cookie(Phoenix.ConnTest.build_conn(), "_bnest_identity", token),
          %{status: 200, resp_body: home} <- get(conn, "/"),
          true <- String.contains?(home, ~s(data-theme="dark")),
@@ -2193,7 +2248,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   defp await_push_event(_view, "persist-sifat-allah") do
     user_id = Process.get(:bnest_behaviour_user_id)
-    {:ok, record} = Records.read(:sifat_allah, user_id)
+    {:ok, record} = SifatAllah.load_progress(user_id)
+    # The facade's read is also checked against the raw :sifat_allah record of the owner.
+    {:ok, ^record} = Records.read(:sifat_allah, user_id)
     Map.put(record["progress"], "session", record["session"])
   end
 
@@ -2494,8 +2551,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     %{
       "storageArea" => "localStorage",
       "storageKey" => "bnest.sifat-allah.v1",
-      "payload" =>
-        Jason.encode!(Map.put(SifatAllah.progress(), "session", %{"mode" => "dashboard"}))
+      "payload" => Jason.encode!(Map.put(Quiz.progress(), "session", %{"mode" => "dashboard"}))
     }
   end
 
