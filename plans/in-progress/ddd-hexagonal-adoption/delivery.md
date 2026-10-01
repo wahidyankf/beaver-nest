@@ -210,9 +210,11 @@ says `never-started`. Exit `73`: clean owned storage. Exit `78`: stop and replan
 - [x] [AI] `APP_QUICK` and `INTEGRATION`. Proof: both exit 0; `FEATURE_DIFF` empty. AC-DH-08.
   - 2026-10-01: `APP_QUICK` exit 0 (330 unit tests); `INTEGRATION` exit 0 (333 tests, 17 excluded);
     `FEATURE_DIFF e68a41b44` empty.
-- [ ] [AI] Commit `build(bnest-app): enforce module boundaries with boundary`, with the dependency-selection record in
+- [x] [AI] Commit `build(bnest-app): enforce module boundaries with boundary`, with the dependency-selection record in
       the PR body; PR, leak review, gate, merge.
-- [ ] [AI] **Checkpoint 3 (blocking):** U3 merged; `@legacy_exports` recorded with N entries.
+  - 2026-10-01: PR #118 merged as `ffa95c40e`; five thematic commits, leak review pass on the merged head.
+- [x] [AI] **Checkpoint 3 (blocking):** U3 merged; `@legacy_exports` recorded with N entries.
+  - 2026-10-01: U3 on `main`; `@legacy_exports` holds 31 entries.
 
 ## Phases 4–13: One Bounded Context Each
 
@@ -242,17 +244,26 @@ Every context phase runs the same nine items, in this order, with the context's 
 
 ### Phase 4: U4, Storage
 
-- [ ] [AI] Characterization (green by design; this is a refactor): `test/unit/bnest_app/storage/domain/record_schema_test.exs`
+- [x] [AI] Characterization (green by design; this is a refactor): `test/unit/bnest_app/storage/domain/record_schema_test.exs`
       pins the accepted and rejected `schemaVersion` of every record kind against today's `DataRepository.Schema`.
       `FOCUS_UNIT` passes before any move and is retargeted at `Storage.Domain.RecordSchema` by GREEN (layers). AC-DH-09.
-- [ ] [AI] RED (boundary): `apps/bnest-app/lib/bnest_app/storage/{domain,ports,adapters}.ex`, with
+  - 2026-10-01: base `ffa95c40e`. Passed before any move (167 tests, 0 failures); retargeted at
+    `RecordSchema.validate(record, Storage.record_kinds())`, with branch tests added.
+- [x] [AI] RED (boundary): `apps/bnest-app/lib/bnest_app/storage/{domain,ports,adapters}.ex`, with
       `lib/bnest_app/storage.ex` strict; delete the `DataRepository.*` and `Storage.*` legacy entries. `TYPECHECK` and the
       scan fail. AC-DH-02, AC-DH-04.
-- [ ] [AI] RED (contract): `test/support/contracts/record_backend_contract.ex`, used by
+  - 2026-10-01: the pre-move failure output was not kept, so the RED was reproduced after GREEN: a probe in
+    `StorageLive` calling `Storage.Adapters.SqliteCoordinator` fails `TYPECHECK` (`forbidden reference … from BnestAppWeb
+    to BnestApp.Storage.Adapters`) and the scan (1 failure, rule L4). The probe was then removed. The same probe in
+    `HealthController` fails only `TYPECHECK`, because the scan lists that module as legacy until U13.
+- [x] [AI] RED (contract): `test/support/contracts/record_backend_contract.ex`, used by
       `test/unit/bnest_app/storage/in_memory_record_backend_test.exs`. `FOCUS_UNIT` fails. AC-DH-07.
-- [ ] [AI] GREEN (contract): `test/unit/support/in_memory/record_backend.ex` (from `MemoryBackend`). `FOCUS_UNIT`
+  - 2026-10-01: the five contract tests fail with `UndefinedFunctionError`. The same run had 17 other failures, from
+    callers that were still being moved; the final `UNIT` has none.
+- [x] [AI] GREEN (contract): `test/unit/support/in_memory/record_backend.ex` (from `MemoryBackend`). `FOCUS_UNIT`
       passes. AC-DH-07.
-- [ ] [AI] GREEN (layers): the U4 moves in 006. Add the `RecordKind` port and register `:chat` and `:sifat_allah` kinds
+  - 2026-10-01: the five contract tests pass against `BnestApp.Test.InMemory.RecordBackend`.
+- [x] [AI] GREEN (layers): the U4 moves in 006. Add the `RecordKind` port and register `:chat` and `:sifat_allah` kinds
       in configuration; the `Storage` facade with the functions 002 names (`ensure_started!/0,1`, `stop/0`,
       `database_path/0`, `database_generation/0`, `phase/0`, `with_shared_lock/1`, `with_exclusive_lock/1`,
       `active_store/0`); every caller 006 lists under U4 moves to them or to `Storage.Records`, and the root boundary
@@ -261,16 +272,29 @@ Every context phase runs the same nine items, in this order, with the context's 
       removes it; `StorageLive`, `DataMigrationLive` and the storage and schema Mix tasks call only `BnestApp.Storage`; the readiness process name becomes `BnestApp.Storage.Records`. The e2e support expressions in
       `apps/bnest-app-be-e2e/tests/support/sqlite-storage.ts` and both projects' `tests/support/storage-authority.ts` name
       the new modules. `TYPECHECK` and the scan pass. AC-DH-04, AC-DH-05.
-- [ ] [AI] GREEN (contract, real adapter): `FOCUS_INT` passes on
+  - 2026-10-01: `TYPECHECK` and the scan pass. `@legacy_exports` drops to 19 entries; `@legacy_records_callers` lists
+    `ChatLive` (U8), `SifatAllahLive` (U7), `ThemeController` (U6) and `UserAuth` (U6). The as-built differences are
+    in [learnings](learnings.md) E4.
+- [x] [AI] GREEN (contract, real adapter): `FOCUS_INT` passes on
       `test/integration/bnest_app/storage/sqlite_record_backend_test.exs` and
       `test/integration/bnest_app/storage/file_record_backend_test.exs`. AC-DH-07.
-- [ ] [AI] GREEN (drivers): the unit `home_page_driver.ex` and `family_chat_driver.ex` use the Storage facade with the
+  - 2026-10-01: pass, five contract tests per adapter.
+- [x] [AI] GREEN (drivers): the unit `home_page_driver.ex` and `family_chat_driver.ex` use the Storage facade with the
       in-memory backend; the allow-list loses the Storage lines. `UNIT` and `BEHAVIOUR` pass. AC-DH-06.
-- [ ] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
-- [ ] [AI] `INTEGRATION` passes and `FEATURE_DIFF` is empty. AC-DH-08, AC-DH-09.
-- [ ] [AI] Focused e2e for the changed support: `BE_E2E` and `FE_E2E`, each with `-- --grep "Bnest SQLite storage"`
+  - 2026-10-01: the unit home-page driver uses `BnestApp.Test.InMemory.RecordBackend`. The allow-list had no
+    Storage lines, and the family-chat driver keeps its U9 line. `UNIT` 389 tests, 0 failures, 99.33%; `BEHAVIOUR`
+    exit 0, after the new unit doubles moved from the process dictionary to agents (the unit guard forbids `Process.`).
+- [x] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
+  - 2026-10-01: both exit 0, after aliasing three nested-module references credo reported.
+- [x] [AI] `INTEGRATION` passes and `FEATURE_DIFF` is empty. AC-DH-08, AC-DH-09.
+  - 2026-10-01: 343 tests, 0 failures, 17 excluded; `FEATURE_DIFF ffa95c40e` empty.
+- [x] [AI] Focused e2e for the changed support: `BE_E2E` and `FE_E2E`, each with `-- --grep "Bnest SQLite storage"`
       appended. Proof: pass counts recorded.
-- [ ] [AI] Gherkin implementation review of the changed drivers and e2e support, recorded.
+  - 2026-10-01: `BE_E2E` 12 passed; `FE_E2E` 3 passed.
+- [x] [AI] Gherkin implementation review of the changed drivers and e2e support, recorded.
+  - 2026-10-01: 101 rows, 10 pre-existing FAIL rows fixed in the drivers; after the fixes, `APP_QUICK`,
+    `BEHAVIOUR` and `INTEGRATION` exit 0 (389 unit tests at 99.33%, 343 integration tests). Recorded in
+    [learnings](learnings.md) E4.
 - [ ] [AI] Commit, PR, leak review, gate, merge `refactor(bnest-app): adopt hexagonal layers in storage`.
 - [ ] [AI] **Checkpoint 4 (blocking):** U4 merged, and the Storage entries are gone from both legacy lists.
 

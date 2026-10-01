@@ -163,3 +163,39 @@ Resolution: accepted deviation from the U2 delivery item; the plan-execution che
   family-chat driver, not the home-page driver.
 
 Resolution: applied in U3; 003 stays as authored, and this entry records the as-built difference.
+
+### E4: U4 Storage as built (2026-10-01)
+
+- **More adapters than 006 lists.** The flat-to-SQLite run became pure `Domain.FlatMigration` plus the
+  `SqliteMigration` adapter. `Adapters.LocalMaintenance` implements the `Maintenance` port by delegating to the
+  migration, relocation, retirement and cleanup adapters. `Adapters.SchemaAudit` holds the audit that left
+  `RecordSchema`.
+- **`RecordKind` names its own key and source.** Besides `record_type/0`, `valid?/1` and `normalize/1`, each kind
+  exports `kind/0` and `source/0`, so `RecordSchema` and `Normalizer` find it without a table. The two kinds live
+  in their owners' trees: `CodexChat.Adapters.TranscriptRecordKind` and `SifatAllah.Adapters.ProgressRecordKind`.
+- **No backend fallback.** `Ports.RecordBackend` dispatches only through the store's `backend` field. Every store
+  now carries one, so the test of the old flat-store fallback was dropped.
+- **The pointer rule is application logic.** `persist_directory/1,2` (write once, then `:immutable`) sits in the
+  facade over the `ConfigStore` port; the adapter only reads, validates and writes.
+- **Agent-backed doubles.** The non-record port doubles share one agent started by `StoragePorts.install/1`, and the
+  import test's failing backend keeps its failure list in an agent. The unit guard forbids `Process.`, so the first
+  process-dictionary version failed `BEHAVIOUR`.
+- **The migration identifier is domain.** Tests read `FlatMigration.migration_id/0`; the adapter has none.
+- **`HealthController` keeps `SqliteRepo`** for its readiness query until U13, and stays in `@legacy_modules`.
+- **The RED (boundary) output was not kept** before the callers moved. It was reproduced after GREEN with a
+  temporary probe; delivery records both outcomes.
+- **Gherkin implementation review.** An agent reviewed the changed drivers, the in-memory backend and the e2e
+  support: 101 rows (unit 20, integration 67, e2e 14), with 84 PASS, 7 EXEMPT and 10 FAIL. No FAIL came from
+  the refactor, and no changed function asserts less than on `origin/main`. All 10 FAIL rows predated U4: each
+  Then read a driver literal, a map the driver built, or a tautology. The scenarios were setup warning (unit,
+  integration), unsafe folder (unit), deterministic inventory (unit), SQLite authority (unit, integration),
+  browser key cleanup (unit, integration), managed default without storage UI (integration) and the
+  Dropbox-synced backup default (integration). U4 fixed all ten in the drivers without production, feature or
+  step changes. Each Then now reads evidence from production code, and each was seen failing against a
+  deliberately broken production path. Synthetic usernames gained the `test-user-` prefix.
+- **Left for later units.** `identity_test.exs` keeps two unprefixed synthetic usernames (U5). The unit backup
+  default and the unit storage-UI visit count still use driver literals (U12, U13). Comments in
+  `experience-release.steps.ts` and `family_chat.feature` still name `StorageCoordinator`, and `FEATURE_DIFF`
+  forbids touching them inside this plan.
+
+Resolution: applied in U4; 006 stays as authored, and this entry records the as-built difference.
