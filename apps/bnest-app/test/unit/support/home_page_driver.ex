@@ -18,9 +18,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Storage.Domain.Location, as: StorageLocation
   alias BnestApp.Storage.Import
   alias BnestApp.Storage.Ports.RecordBackend
+  alias BnestApp.Storage.Records
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
+  alias BnestApp.Test.InMemory.StoragePorts
+  alias BnestAppWeb.DataMigrationLive
   alias BnestAppWeb.SifatAllahLive
   alias Phoenix.HTML.Safe
+  alias Phoenix.LiveView.{Socket, Utils}
 
   @behaviour_now ~U[2026-09-04 12:00:00Z]
 
@@ -836,6 +840,22 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :page, page)
   end
 
+  # The `/setup` template for the bootstrap status the store reports. The draft and flash
+  # assigns are the ones `LoginLive.mount/3` gives a fresh visit.
+  defp render_setup(store) do
+    %{
+      live_action: :setup,
+      setup_status: Bootstrap.status(store),
+      setup_draft: [%{username: "", roles: ["admin"]}],
+      setup_error: nil,
+      flash: %{}
+    }
+    |> BnestAppWeb.LoginLive.render()
+    |> Safe.to_iodata()
+    |> IO.iodata_to_binary()
+    |> LazyHTML.from_fragment()
+  end
+
   defp render_family_chat_room(context, slug) do
     {:ok, room} = FamilyChat.get_room_for("test-user-unit", slug)
 
@@ -953,7 +973,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: Map.merge(context, %{authenticated: false, repository_accesses: 0})
 
   def prepare_behaviour(context, :uninitialized, _args),
-    do: Map.merge(context, %{setup_open: true, identity_store: InMemoryRecordBackend.start()})
+    do: Map.put(context, :identity_store, InMemoryRecordBackend.start())
 
   def prepare_behaviour(context, :approved_account, _args),
     do: authenticated_memory_context(context)
@@ -1038,11 +1058,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def prepare_behaviour(context, :recognized_and_unrelated_keys, _args) do
     context = central_context(context, [chat_source()])
+    ExUnit.Callbacks.start_supervised!({Records, store: context.central_store})
 
-    Map.put(context, :browser_keys, %{
-      "bnest.chat.v1" => chat_source()["payload"],
-      "unrelated" => "keep"
-    })
+    Map.put(context, :browser_storage, [
+      chat_source(),
+      %{"storageArea" => "localStorage", "storageKey" => "unrelated", "payload" => "keep"}
+    ])
   end
 
   def prepare_behaviour(context, :unavailable_codex_thread, _args) do
@@ -1113,17 +1134,51 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :migration_items, [%{path: first_path, outcome: :accepted}])
   end
 
+  # A flat-primary installation behind the Storage facade's in-memory ports: the flat store
+  # holds an account and its chat, learning and theme records, and SQLite already holds a
+  # backfilled copy, so parity is measured rather than assumed.
   def prepare_behaviour(context, :all_verification_checks_pass, _args) do
-    context = prepare_behaviour(context, :flat_primary_default_location, [])
+    previous = StoragePorts.install()
+    ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous) end)
+    flat = InMemoryRecordBackend.start()
+    ExUnit.Callbacks.start_supervised!({Records, store: flat})
+    username = "test-user-unit-sqlite"
+    password = "Synthetic password 1!"
 
-    {:ok, _account} =
-      RecordBackend.put_new(context.migration_store, :account, "unit-verified-account", %{
-        "schemaVersion" => 1,
-        "recordType" => "account",
-        "ownerId" => "unit-verified-account"
-      })
+    {:ok, [%{"userId" => owner}]} =
+      Bootstrap.create(flat, [
+        %{"username" => username, "password" => password, "roles" => ["admin"]}
+      ])
 
-    context
+    Enum.each(recognized_browser_sources(), fn source ->
+      {:ok, _accepted} = Import.browser(flat, owner, source)
+    end)
+
+    {_backend, sqlite} = Storage.record_backend()
+
+    Enum.each(InMemoryRecordBackend.snapshot(flat), fn {{type, identity}, record} ->
+      {:ok, _copied} = RecordBackend.put_new(sqlite, type, identity, record)
+    end)
+
+    StoragePorts.put(
+      :parity?,
+      InMemoryRecordBackend.snapshot(flat) == InMemoryRecordBackend.snapshot(sqlite)
+    )
+
+    journey_records =
+      Map.new([:chat, :sifat_allah, :theme], fn type ->
+        {:ok, record} = RecordBackend.read(flat, type, owner)
+        {type, record}
+      end)
+
+    Map.merge(context, %{
+      flat_store: flat,
+      sqlite_store: sqlite,
+      journey_owner: owner,
+      journey_username: username,
+      journey_password: password,
+      journey_records: journey_records
+    })
   end
 
   def prepare_behaviour(context, :malformed_or_changed_source, _args) do
@@ -1287,16 +1342,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       end)
 
     accounts = [
-      %{"username" => "FamilyAdmin", "password" => "a_1", "roles" => ["admin"]},
-      %{"username" => "FamilyChild", "password" => "é_1", "roles" => ["children"]}
+      %{"username" => "test-user-family-admin", "password" => "a_1", "roles" => ["admin"]},
+      %{"username" => "test-user-family-child", "password" => "é_1", "roles" => ["children"]}
     ]
 
     first_result = Bootstrap.create(context.identity_store, accounts)
     second_result = Bootstrap.create(context.identity_store, accounts)
 
     Map.merge(context, %{
-      setup_open: false,
-      setup_warning: true,
       bootstrap_first_result: first_result,
       bootstrap_second_result: second_result,
       passwords_without_length_rule: accepts_short? and accepts_long?,
@@ -1392,16 +1445,24 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :stale_result, result)
   end
 
+  # The import page's own event handlers run against the in-memory record store. The browser
+  # reports every key it holds, the unrelated one included, so the cleanup instruction Bnest
+  # pushes back is the only thing that decides which keys the browser removes.
   def perform_behaviour(context, :accept_and_read_back, _args) do
-    [source] = context.browser_sources
-    result = Import.browser(context.central_store, context.central_owner, source)
+    socket = %Socket{
+      assigns: %{__changed__: %{}, current_user: %{"userId" => context.central_owner}}
+    }
 
-    keys =
-      if match?({:ok, _}, result),
-        do: Map.delete(context.browser_keys, source["storageKey"]),
-        else: context.browser_keys
+    sources = Enum.map(context.browser_storage, &Map.put(&1, "present", true))
 
-    Map.merge(context, %{accepted_result: result, browser_keys_after: keys})
+    {:noreply, socket} =
+      DataMigrationLive.handle_event("browser-sources", %{"sources" => sources}, socket)
+
+    {:noreply, socket} = DataMigrationLive.handle_event("confirm-imports", %{}, socket)
+
+    [["imports-accepted", %{"storageKeys" => cleared}]] = Utils.get_push_events(socket)
+
+    Map.put(context, :cleared_storage_keys, cleared)
   end
 
   def perform_behaviour(context, :continue_chat, _args) do
@@ -1464,7 +1525,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       ) do
     shared = "/synthetic/bnest-storage/shared"
     candidate = shared <> "/private"
-    {:ok, storage_pointer} = Agent.start_link(fn -> nil end)
 
     filesystem = %{
       lstat: fn _path -> {:error, :enoent} end,
@@ -1475,18 +1535,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       end
     }
 
-    dependencies = %{
-      read: fn ->
-        case Agent.get(storage_pointer, & &1) do
-          nil -> {:error, :absent}
-          config -> {:ok, config}
-        end
-      end,
-      validate: &StorageLocation.validate(&1, filesystem),
-      write: fn config -> Agent.update(storage_pointer, fn _current -> config end) end
-    }
-
-    persist_result = Storage.persist_directory(candidate, dependencies)
+    {persist_result, storage_pointer} = persist_with_pointer(candidate, filesystem)
 
     Map.merge(context, %{
       requested_directory: candidate,
@@ -1495,12 +1544,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
-  def perform_behaviour(context, :enter_unsafe_folder, _args),
-    do:
-      Map.merge(context, %{
-        persist_result: StorageLocation.validate("relative/storage", %{}),
-        storage_config: nil
-      })
+  def perform_behaviour(context, :enter_unsafe_folder, _args) do
+    absent = %{lstat: fn _path -> {:error, :enoent} end, stat: fn _path -> {:error, :enoent} end}
+    {persist_result, storage_pointer} = persist_with_pointer("relative/storage", absent)
+    Map.merge(context, %{persist_result: persist_result, storage_pointer: storage_pointer})
+  end
 
   def perform_behaviour(context, :apply_migration_set_twice, _args) do
     {_first_counts, first_inserted, schema_before} = migration_pass(context)
@@ -1569,28 +1617,24 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
-  def perform_behaviour(context, :commit_authority_switch, _args) do
-    store = InMemoryRecordBackend.start()
-    {:ok, _accepted} = Import.browser(store, "unit-rollback", chat_source())
+  def perform_behaviour(context, :commit_authority_switch, _args),
+    do: Map.put(context, :authority_switch, Storage.migrate("/in-memory/flat", true))
 
-    Map.merge(context, %{
-      storage_config: %{"phase" => "sqlite_primary"},
-      rollback_record_result: RecordBackend.read(store, :chat, "unit-rollback")
-    })
-  end
-
+  # Bound to a Then step, so a retirement that leaves identity records behind fails here.
   def perform_behaviour(context, :retire_flat_identity_sources, _args) do
-    store = context.migration_store
+    store = context.flat_store
 
     Enum.each(InMemoryRecordBackend.snapshot(store), fn
       {{type, identity}, record} when type in [:account, :username_index] ->
-        RecordBackend.remove_exact(store, type, identity, record)
+        :ok = RecordBackend.remove_exact(store, type, identity, record)
 
       _other ->
         :ok
     end)
 
-    Map.put(context, :flat_identity_retired?, RecordBackend.identity_files_empty?(store))
+    retired? = RecordBackend.identity_files_empty?(store)
+    unless retired?, do: raise("flat identity records remain after retirement")
+    Map.put(context, :flat_identity_retired?, retired?)
   end
 
   # Verification only classifies; it must not write, so the store snapshot is the evidence
@@ -1759,7 +1803,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :no_user_data_access, _args),
     do: context.redirected and context.repository_accesses == 0
 
-  def behaviour_outcome?(context, :irreversible_warning, _args), do: context.setup_warning
+  # The warning is read from the setup route's production markup, rendered for the bootstrap
+  # state the submission left in the store.
+  def behaviour_outcome?(context, :irreversible_warning, _args) do
+    context.identity_store
+    |> render_setup()
+    |> LazyHTML.query("[aria-labelledby=setup-closed-title]")
+    |> LazyHTML.text()
+    |> String.contains?("password recovery are unavailable")
+  end
 
   def behaviour_outcome?(context, :accounts_created_once, _args),
     do:
@@ -1767,7 +1819,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         context.bootstrap_second_result == {:error, :closed}
 
   def behaviour_outcome?(context, :setup_closed, _args),
-    do: not context.setup_open and Bootstrap.status(context.identity_store) == :closed
+    do:
+      Bootstrap.status(context.identity_store) == :closed and
+        context.identity_store
+        |> render_setup()
+        |> LazyHTML.query("#bootstrap-form")
+        |> Enum.empty?()
 
   def behaviour_outcome?(context, :passwords_without_length_rule, _args),
     do: context.passwords_without_length_rule
@@ -1848,7 +1905,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: match?({:error, _reason}, context.persist_result)
 
   def behaviour_outcome?(context, :no_storage_created, _args),
-    do: is_nil(context.storage_config)
+    do: is_nil(Agent.get(context.storage_pointer, & &1))
 
   def behaviour_outcome?(context, :schema_matches_checksum, _args),
     do:
@@ -1862,10 +1919,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       context.second_apply_inserted == 0 and
         context.schema_before_second_apply == context.schema_after_second_apply
 
-  def behaviour_outcome?(context, :deterministic_inventory, _args),
-    do:
-      context.flat_sources != Enum.sort(context.flat_sources) and
-        context.migrated_sources == FlatMigration.order_inventory(context.flat_sources)
+  # The fixture lists `z-` before `a-`, so only a path-ordered inventory yields this order.
+  def behaviour_outcome?(context, :deterministic_inventory, _args) do
+    path_order = [
+      "users/a-fixture-user/preferences/theme.json",
+      "users/z-fixture-user/preferences/theme.json"
+    ]
+
+    context.flat_sources != path_order and context.migrated_sources == path_order
+  end
 
   def behaviour_outcome?(context, :database_under_resolved_directory, _args),
     do:
@@ -1905,17 +1967,53 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: context.migration_run_result.accepted > 0
 
   def behaviour_outcome?(context, :future_reads_use_sqlite, _args),
-    do: context.storage_config["phase"] == "sqlite_primary"
-
-  def behaviour_outcome?(context, :writes_compatible_with_rollback, _args),
     do:
-      match?({:ok, record} when is_map(record), context.rollback_record_result) and
-        match?({:ok, _record}, Storage.validate_record(elem(context.rollback_record_result, 1)))
+      match?({:ok, :activated, _report}, context.authority_switch) and
+        Storage.phase() == :sqlite_primary and
+        Records.active_backend(context.flat_store) ==
+          {InMemoryRecordBackend, context.sqlite_store}
 
-  def behaviour_outcome?(context, :journeys_survive_restart, _args),
-    do:
-      context.storage_config["phase"] == "sqlite_primary" and
-        context.flat_identity_retired?
+  # A login after the switch writes its session through the active store. The write must
+  # land in SQLite, not the flat store, and still pass the record schema the flat rollback
+  # reader enforces.
+  def behaviour_outcome?(context, :writes_compatible_with_rollback, _args) do
+    store = Storage.active_store()
+
+    with {:ok, token} <-
+           Login.authenticate(store, context.journey_username, context.journey_password),
+         digest = Session.digest(token),
+         {:ok, session} <- RecordBackend.read(context.sqlite_store, :session, digest),
+         {:error, :missing} <- RecordBackend.read(context.flat_store, :session, digest) do
+      Storage.validate_record(session) == {:ok, session}
+    else
+      _failure -> false
+    end
+  end
+
+  # Restarting the record repository drops any routing it held; afterwards every journey must
+  # still reach the migrated records, with the flat identity records already gone.
+  def behaviour_outcome?(context, :journeys_survive_restart, _args) do
+    :ok = ExUnit.Callbacks.stop_supervised(Records)
+    ExUnit.Callbacks.start_supervised!({Records, store: context.flat_store})
+    store = Storage.active_store()
+    owner = context.journey_owner
+
+    with true <- context.flat_identity_retired?,
+         :closed <- Bootstrap.status(store),
+         {:ok, token} <-
+           Login.authenticate(store, context.journey_username, context.journey_password),
+         {:ok, %{"userId" => ^owner}} <- Session.current_user(store, token),
+         true <-
+           Enum.all?(context.journey_records, fn {type, record} ->
+             Records.read(type, owner) == {:ok, record}
+           end),
+         {:ok, _digest} <- Session.revoke(store, token),
+         {:error, :unauthenticated} <- Session.current_user(store, token) do
+      true
+    else
+      _failure -> false
+    end
+  end
 
   def behaviour_outcome?(context, :sqlite_not_authoritative, _args),
     do: context.migration_run_result.blocked > 0
@@ -2043,8 +2141,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :refresh_required, _args),
     do: match?({:error, :stale_revision, %{"status" => "retryable"}}, context.stale_result)
 
+  # Bnest may tell the browser to clear the chat key only once that record reads back from
+  # the server store.
   def behaviour_outcome?(context, :only_accepted_key_cleared, _args),
-    do: context.browser_keys_after == %{"unrelated" => "keep"}
+    do:
+      context.cleared_storage_keys == ["bnest.chat.v1"] and
+        match?(
+          {:ok, %{"recordType" => "chat"}},
+          RecordBackend.read(context.central_store, :chat, context.central_owner)
+        )
 
   def behaviour_outcome?(context, :server_only_persistence, _args),
     do:
@@ -2211,6 +2316,25 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   defp effort_label("xhigh"), do: "XHigh"
   defp effort_label(effort), do: String.capitalize(effort)
 
+  # Runs the production persist path with the storage pointer held in an Agent and the real
+  # location rules reading `filesystem`, so the pointer can be read back afterwards.
+  defp persist_with_pointer(candidate, filesystem) do
+    {:ok, storage_pointer} = Agent.start_link(fn -> nil end)
+
+    dependencies = %{
+      read: fn ->
+        case Agent.get(storage_pointer, & &1) do
+          nil -> {:error, :absent}
+          config -> {:ok, config}
+        end
+      end,
+      validate: &StorageLocation.validate(&1, filesystem),
+      write: fn config -> Agent.update(storage_pointer, fn _current -> config end) end
+    }
+
+    {Storage.persist_directory(candidate, dependencies), storage_pointer}
+  end
+
   defp sqlite_storage_fixture_sources,
     do: sqlite_storage_fixture_entries() |> Enum.map(&elem(&1, 0))
 
@@ -2282,7 +2406,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   defp authenticated_memory_context(context) do
     store = InMemoryRecordBackend.start()
-    username = "UnitUser"
+    username = "test-user-unit"
     password = "Synthetic password 1!"
 
     {:ok, [user]} =
