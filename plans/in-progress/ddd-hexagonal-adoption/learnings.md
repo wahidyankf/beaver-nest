@@ -244,3 +244,39 @@ Resolution: applied in U4; 006 stays as authored, and this entry records the as-
   that clears them.
 
 Resolution: applied in U5; 006 stays as authored, and this entry records the as-built difference.
+
+### E6: U6 Preferences as built (2026-10-01)
+
+- **`put_theme/3` takes the request time.** The third argument is `now`; the controller passes `DateTime.utc_now/0`,
+  so the facade and domain stay free of clock calls. Choosing `"system"` delegates to `clear_theme/1`, so the
+  controller makes one call.
+- **An optional `store:` handle** on `theme`, `put_theme` and `clear_theme` lets unit tests pass an in-memory store,
+  as 004 describes. Without it the facade uses the configured store's `new/0`, which wraps the routed
+  `Storage.Records`, exactly what both callers read before.
+- **`themes/0` feeds the controller guard**, so an unknown theme still answers 422 before authorization.
+- **The facade exports only `Ports`.** No caller outside the context needs the domain.
+- **Unit configuration keeps the record-backed store.** The unit drivers' routed requests and the restart journey
+  read the theme through `Records`, as U5's identity store does.
+- **The theme integration test keeps its record assertions** and adds a second write at revision 1 and read-backs
+  through `Preferences.theme/1`.
+- **Manual `curl` of `PUT /preferences/theme` is in U14**, with the other routes.
+- **The Gherkin review found 3 FAIL rows already on `main`.** None came from U6.
+  - Unit and integration "Accepted browser import persists future changes only on the server" never made a future
+    change. Both drivers now send `PUT /preferences/theme` through the router and check the server record, the facade
+    read-back and the server-storage attributes on `GET /`.
+  - BE e2e "SQLite becomes authoritative only after complete verification":
+    - it now writes a session and a theme after the switch and proves the rollback flat reader accepts them;
+    - it retires the flat identity sources through production `Storage.retire/3` instead of `rmSync`;
+    - it reads chat, learning and theme back after the restart;
+    - it cleans up in an `After` hook.
+  - Each new Then was proved to fail against a temporary product mutation.
+- **`FEATURE_DIFF 41c69e7ae` is not empty for U6.** The e2e fix moves scenario 7 out of
+  `sqlite_storage_cli.steps.ts` into `sqlite_storage_authority.steps.ts`, to keep within the 300-line step-file budget.
+  No feature file changed, so AC-DH-08 holds. From U6 on, `FEATURE_DIFF` may list step bindings that a Gherkin review
+  required, and this log must name each one; feature files must still not change.
+- **`mix bnest.storage.retire` cannot retire after in-place activation.** It requires `--generation`, but a pointer
+  activated in place and never relocated has no `databaseGeneration`, so the task always reports
+  `:generation_mismatch`. The e2e step calls `Storage.retire/3`, which the task wraps. Changing the task is a product
+  decision outside this structural plan; it is raised with the user at U14.
+
+Resolution: applied in U6; 002 and 006 stay as authored, and this entry records the as-built difference.
