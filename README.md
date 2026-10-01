@@ -2,6 +2,10 @@
 
 Beaver Nest is a private, always-available family application and a focused constituent project of [Open Sharia Enterprise (OSE Public)](https://github.com/wahidyankf/ose-public), the broader initiative for trustworthy, Sharia-compliant products. This separate repository gives Beaver Nest a focused development boundary while keeping its purpose and direction connected to OSE Public. The application uses Phoenix LiveView and Nx for rapid, safe iteration with Codex, Claude Code, or OpenCode under one [repository coding-harness contract](docs/how-to-guides/coding-harnesses.md).
 
+<p align="center">
+  <img src="./apps/bnest-app/priv/static/images/beaver-nest-512.png" alt="Beaver Nest logo" width="220">
+</p>
+
 ## Part of the OSE Code Repositories
 
 Beaver Nest is one of five repositories Open Sharia Enterprise is built and maintained in:
