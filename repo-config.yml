@@ -219,6 +219,7 @@ policies:
     internal-link:
       exclude-sources: ["specs/fixtures/**", "plans/done/**"]
     mermaid:
+      authoring-rule: rendered
       node-label-graphemes: 32
       edge-label-graphemes: 24
       fill-colors:
@@ -234,6 +235,26 @@ policies:
           "#000000",
         ]
       text-colors: ["#000000", "#FFFFFF"]
+      exclude:
+        - "plans/done/**"
+        - ".git/**"
+        - "**/worktrees/**"
+        - "**/node_modules/**"
+        - "**/deps/**"
+        - "**/coverage/**"
+        - "**/playwright-report/**"
+        - "**/test-results/**"
+      require-default-class: true
+      allowed-types:
+        - flowchart
+        - graph
+        - sequenceDiagram
+        - stateDiagram-v2
+        - erDiagram
+      forbid-theme-overrides: true
+      canvas-colors:
+        - "#FFFFFF"
+        - "#0D1117"
   governance:
     word-budget:
       count: letters-and-digits
