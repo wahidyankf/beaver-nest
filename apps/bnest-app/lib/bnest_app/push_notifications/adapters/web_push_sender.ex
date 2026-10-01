@@ -1,4 +1,4 @@
-defmodule BnestApp.PushNotifications.Sender do
+defmodule BnestApp.PushNotifications.Adapters.WebPushSender do
   @moduledoc """
   The one place that performs Web Push egress (tech-doc 004: "egress only in
   the dispatcher"). Encrypts the payload with `WebPush.Encryption` (RFC 8291)
@@ -8,22 +8,27 @@ defmodule BnestApp.PushNotifications.Sender do
   redirect-disabled, bounded-timeout policy tech-doc 004 requires
   (`redirect: false`, explicit connect/receive timeouts) instead of depending
   on an unconfigured Finch pool's defaults.
+
+  The production `BnestApp.PushNotifications.Ports.PushSender`; it dials real
+  providers, so it names no synthetic provider host.
   """
 
+  @behaviour BnestApp.PushNotifications.Ports.PushSender
+
+  alias BnestApp.PushNotifications.Ports.PushSender
   alias WebPush.Encryption
   alias WebPush.Vapid
 
   @connect_timeout_ms 5_000
   @receive_timeout_ms 10_000
 
-  @type outcome :: {:status, non_neg_integer()} | {:transport, atom()}
-
   @doc """
   Sends one encrypted push request to `subscription`'s endpoint. Never raises
   for a network/provider failure -- every outcome is a plain classified
   return value the dispatcher transitions the delivery row from.
   """
-  @spec send(map(), map()) :: outcome()
+  @impl true
+  @spec send(map(), map()) :: PushSender.outcome()
   def send(%{endpoint: endpoint, p256dh: p256dh, auth: auth}, payload) when is_map(payload) do
     case encrypt(payload, p256dh, auth) do
       {:ok, body} -> post(endpoint, body)
@@ -38,10 +43,13 @@ defmodule BnestApp.PushNotifications.Sender do
   # byte length. This module's own moduledoc promises the dispatcher a plain
   # classified outcome, never a raise, so a corrupt row is caught here and
   # classified like any other unreachable-provider failure (`:transport`,
-  # which `Policy.classify_result/1` already maps to `:retryable` -- the
+  # which `Domain.Policy.classify_result/1` already maps to `:retryable` -- the
   # existing retry-ceiling/lease-recovery machinery bounds it exactly like
   # any other persistently-failing delivery) instead of crashing the
   # Scheduler's dispatch task.
+  @impl true
+  def synthetic_provider_hosts, do: []
+
   defp encrypt(payload, p256dh, auth) do
     {:ok, payload |> Jason.encode!() |> Encryption.encrypt(p256dh, auth)}
   rescue

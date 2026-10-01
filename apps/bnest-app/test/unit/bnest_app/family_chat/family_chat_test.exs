@@ -8,6 +8,7 @@ defmodule BnestApp.FamilyChatTest do
   alias BnestApp.FamilyChat.Ports.RoomStore
   alias BnestApp.Test.InMemory.MessagePublisher
   alias BnestApp.Test.InMemory.RoomStore, as: InMemoryRoomStore
+  alias BnestApp.Test.InMemory.SubscriptionStore, as: InMemorySubscriptionStore
 
   setup do
     store = InMemoryRoomStore.install()
@@ -81,7 +82,7 @@ defmodule BnestApp.FamilyChatTest do
     test "insert_message!/6 commits a trusted producer's message as given, unpublished", %{
       store: store
     } do
-      subscription = InMemoryRoomStore.put_subscription(store, "test-user-family-chat-device")
+      subscription = InMemorySubscriptionStore.subscribe!(store, "test-user-family-chat-device")
       room = FamilyChat.canonical_room()
 
       assert {:ok, message} =

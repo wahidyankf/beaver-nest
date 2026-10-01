@@ -14,7 +14,6 @@ defmodule BnestApp do
     AdminConfig.Registry,
     Backup.Config,
     Deployment,
-    PushNotifications,
     Scheduler,
     Scheduler.Policy,
     Scheduler.Registry,
@@ -25,6 +24,7 @@ defmodule BnestApp do
   use Boundary,
     deps: [
       BnestApp.FamilyChat,
+      BnestApp.PushNotifications,
       BnestApp.SqliteRepo,
       BnestApp.Storage,
       # legacy: infrastructure the legacy modules call directly. Each entry leaves
@@ -32,9 +32,7 @@ defmodule BnestApp do
       Ecto.Migrator,
       Ecto.Query,
       Ecto.UUID,
-      Exqlite,
-      Req,
-      WebPush
+      Exqlite
     ],
     exports: @legacy_exports
 end

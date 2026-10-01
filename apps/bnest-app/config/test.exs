@@ -12,17 +12,19 @@ config :bnest_app, :family_chat_enabled, true
 
 # Fixed synthetic VAPID keypair (never a real deployment secret -- generated
 # once via `WebPush.Vapid.generate_keypair/0` and hardcoded here so test
-# runs are deterministic/reproducible). `push_notifications_test_provider?`
-# additionally allowlists the synthetic `push.allowed.example.com` provider
-# host so subscription-validation tests can use an https/allowlisted-shaped
-# endpoint without ever dialing a real Apple/Mozilla/Chromium provider.
+# runs are deterministic/reproducible).
 config :web_push, :vapid,
   public_key:
     "BPGxd0fDWxgSZ-Xx3woJ2NshVgXsIIZp3Y1kPEcR8tM3_MBfPIJRJmH8unEa3SWfcgTIdhWOT95xw6poaIffyuI",
   private_key: "172QFip6G1cnH9jJ4ZCrCGNq33f6UFgjIe2MWzvsUlU",
   subject: "mailto:test@example.com"
 
-config :bnest_app, :push_notifications_test_provider?, true
+# Every test run, the end-to-end servers included, pushes through the recording sender:
+# it never dials a real Apple/Mozilla/Chromium provider, and it names the synthetic
+# `push.allowed.example.com` provider host, which the subscription allowlist therefore
+# accepts so tests can use an https/allowlisted-shaped endpoint. The unit layer swaps in
+# its in-memory doubles below.
+config :bnest_app, BnestApp.PushNotifications, push_sender: BnestApp.Test.RecordingPushSender
 
 config :bnest_app, :storage_profile, {:test, System.get_env("BNEST_TEST_RUN_ID")}
 
@@ -141,12 +143,20 @@ else
     subscription_revoker: BnestApp.Test.InMemory.SubscriptionRevoker
 
   # Family Chat runs over the in-memory room store a unit test installs, and publishes to a
-  # recorder. PushNotifications, the Scheduler and Backup still keep their own SQL in Family
-  # Chat's SQLite database, so a unit test of theirs selects the SQLite room store itself
-  # until U10-U12 give them in-memory adapters.
+  # recorder. The Scheduler and Backup still keep their own SQL in Family Chat's SQLite
+  # database, so a unit test of theirs selects the SQLite room store itself until U11-U12
+  # give them in-memory adapters.
   config :bnest_app, BnestApp.FamilyChat,
     room_store: BnestApp.Test.InMemory.RoomStore,
     message_publisher: BnestApp.Test.InMemory.MessagePublisher
+
+  # Push Notifications keeps its subscriptions and deliveries on that same installed room
+  # store's agent, as both tables live in Family Chat's database, and sends to a push-client
+  # double that answers per endpoint and records each request.
+  config :bnest_app, BnestApp.PushNotifications,
+    subscription_store: BnestApp.Test.InMemory.SubscriptionStore,
+    delivery_store: BnestApp.Test.InMemory.DeliveryStore,
+    push_sender: BnestApp.Test.InMemory.PushSender
 end
 
 # Family Chat's SQLite tables are additive to the shared database but must never

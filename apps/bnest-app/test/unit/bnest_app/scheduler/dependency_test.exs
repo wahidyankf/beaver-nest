@@ -10,7 +10,7 @@ defmodule BnestApp.Scheduler.DependencyTest do
   issue SQL of its own outside `BnestApp.Scheduler.Store`
   (`family_chat_operations.feature`'s "The Scheduler claims ... work only
   through the registered ... handler"). Each registered handler
-  (`BnestApp.Backup.Run`, `BnestApp.PushNotifications.RetentionJob`) must in
+  (`BnestApp.Backup.Run`, Push Notifications' `RetentionTask` adapter) must in
   turn own only Scheduler claim/lease bookkeeping and delegate every domain
   SQL mechanic to its own public service module, never issuing SQL directly
   (the same Gherkin rule's "the handler delegates to the public ... service
@@ -39,7 +39,8 @@ defmodule BnestApp.Scheduler.DependencyTest do
                    SchemaSourceScan.wildcard([
                      "bnest_app",
                      "push_notifications",
-                     "retention_job.ex"
+                     "adapters",
+                     "retention_task.ex"
                    ])
 
   @sql_bypass [
@@ -51,16 +52,17 @@ defmodule BnestApp.Scheduler.DependencyTest do
   @hardcoded_handlers [
     {~r/\bBackup\.Run\b/,
      "hardcoded reference to the Backup.Run handler (must dispatch through Scheduler.Registry only)"},
-    {~r/\bPushNotifications\.RetentionJob\b/,
-     "hardcoded reference to the PushNotifications.RetentionJob handler (must dispatch through Scheduler.Registry only)"}
+    {~r/\bRetentionTask\b/,
+     "hardcoded reference to the Push Notifications RetentionTask handler (must dispatch through Scheduler.Registry only)"}
   ]
 
   test "orchestrator and handler files exist to scan (this test cannot silently pass on an empty set)" do
     assert @orchestrator_files != [],
            "no Scheduler orchestrator files found under lib/bnest_app/scheduler*"
 
-    assert @handler_files != [],
-           "no registered handler files found under lib/bnest_app/backup or push_notifications"
+    assert length(@handler_files) == 2,
+           "expected both registered handler files (backup/run.ex and " <>
+             "push_notifications/adapters/retention_task.ex), found: #{inspect(@handler_files)}"
   end
 
   test "the Scheduler orchestrator never issues SQL directly, only through Scheduler.Store" do

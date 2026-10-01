@@ -27,12 +27,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.Identity.Adapters.RecordIdentityStore
   alias BnestApp.Identity.Ports.IdentityStore
   alias BnestApp.PushNotifications
+  alias BnestApp.PushNotifications.Dispatcher
+  alias BnestApp.PushNotifications.Domain.Policy, as: PushPolicy
   alias BnestApp.Release.CaddyConfig
   alias BnestApp.Release.Migrations
   alias BnestApp.Scheduler
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.InMemory.PushSender, as: InMemoryPushSender
   alias BnestApp.TestBackupDestination
   alias BnestApp.TestRuntimeRoot
 
@@ -42,8 +45,6 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # not-yet-implemented modules/functions).
   @compile {:no_warn_undefined,
             [
-              BnestApp.PushNotifications,
-              BnestApp.PushNotifications.Dispatcher,
               BnestApp.Release.Migrations,
               BnestApp.Backup,
               BnestAppWeb.Schema,
@@ -183,8 +184,16 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     |> Map.put(:family_chat_pre_subscription_id, message.id)
   end
 
-  def prepare_behaviour(context, :has_enabled_subscription, _args),
-    do: Map.put(context, :family_chat_push_subscription_enabled, true)
+  # A real subscription of the session, stored through the GraphQL mutation, so disabling
+  # it acts on something.
+  def prepare_behaviour(context, :has_enabled_subscription, _args) do
+    upserted = perform_behaviour(context, :upsert_valid_subscription, [])
+
+    %{"data" => %{"upsertWebPushSubscription" => %{"enabled" => true}}} =
+      upserted.family_chat_result
+
+    Map.put(context, :family_chat_push_endpoint, upserted.family_chat_push_endpoint)
+  end
 
   # No test-local flag needs forcing: `:no_graphiql_route` below reads the
   # real, already-compiled `BnestAppWeb.Router.dev_routes_enabled?/0`, the
@@ -228,17 +237,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       Map.put(context, :family_chat_producer_key, "system:integration-producer-" <> unique_uuid())
 
   def prepare_behaviour(context, :three_members_with_subscriptions, [slug]) do
-    # Real active `web_push_subscriptions` rows (test-fixture-only raw SQL,
-    # bypassing the not-yet-built `PushNotifications` context — see the unit
-    # driver's identical clause for full rationale). `context.user_id` is
-    # always real here (`before_scenario` logs in every scenario), and is
-    # also given a subscription of its own so "sender excluded from
-    # delivery" is a genuine, non-vacuous assertion.
+    # Real active subscriptions, stored through the PushNotifications facade.
+    # `context.user_id` is always real here (`before_scenario` logs in every
+    # scenario), and is also given a subscription of its own so "sender
+    # excluded from delivery" is a genuine, non-vacuous assertion.
     other_subscribers =
       for suffix <- ~w(a b c), do: "test-user-family-chat-#{suffix}-" <> unique_uuid()
 
-    Enum.each(other_subscribers, &create_active_subscription!/1)
-    sender_subscription_id = create_active_subscription!(context.user_id)
+    Enum.each(other_subscribers, &subscribe_through_facade!(&1, "accepted"))
+    sender_subscription_id = subscribe_through_facade!(context.user_id, "accepted").id
 
     # Mirrors `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical fix (see
     # its own comment): `ExUnit.Callbacks.on_exit/1` fires exactly once at
@@ -355,11 +362,13 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # One other subscriber (not three): this scenario counts delivery rows for a
   # reply, so a single expected row makes "exactly one" an exact assertion.
   # The sender also gets a subscription so their own exclusion stays genuine.
+  # In a Family Chat database of the scenario's own, so dispatching sends only its rows.
   def prepare_behaviour(context, :one_other_active_subscription, [slug]) do
+    context = push_database!(context)
     sender_id = durable_sender(context)
     other_subscriber = "test-user-family-chat-other-" <> unique_uuid()
-    other_subscription_id = create_active_subscription!(other_subscriber)
-    sender_subscription_id = create_active_subscription!(sender_id)
+    other_subscription_id = subscribe_through_facade!(other_subscriber, "accepted").id
+    sender_subscription_id = subscribe_through_facade!(sender_id, "accepted").id
 
     ExUnit.Callbacks.on_exit(fn ->
       disable_subscriptions_for_users!([sender_id, other_subscriber])
@@ -384,34 +393,26 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     })
   end
 
+  # A real delivery, in a Family Chat database of the scenario's own, owed to a
+  # subscription whose provider the push-client double answers with a retryable 503 (or
+  # 410 Gone below): the recipient subscribes through the facade and another member's
+  # commit fans the one pending delivery out to it.
   def prepare_behaviour(context, :delivery_will_fail_retryable, _args),
-    do: Map.put(context, :family_chat_delivery_failure_class, :retryable)
+    do: owe_push_delivery!(context, 503)
 
   def prepare_behaviour(context, :delivery_targets_gone_subscription, _args),
-    do: Map.put(context, :family_chat_delivery_failure_class, :gone)
+    do: owe_push_delivery!(context, 410)
 
-  # Mirrors `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical fix (see its
-  # own comment): these three clauses previously only recorded an
-  # age-in-days parameter without ever inserting the delivery row it
-  # describes, so `retain_deliveries/1` (which only ever sees real SQLite
-  # rows, never test context) had nothing eligible to act on. Each now seeds
-  # one real, backdated delivery row via `seed_aged_delivery!/2,3` (a raw-SQL
-  # test fixture, mirroring this file's existing `create_active_subscription!/1`
-  # pattern).
-  def prepare_behaviour(context, :final_rows_older_than_7_days, _args) do
-    seed_aged_delivery!("delivered", 8)
-    Map.put(context, :family_chat_final_rows_age_days, 8)
-  end
+  # Real deliveries, one per named state, last stamped eight days before the retention
+  # run, in a Family Chat database of the scenario's own.
+  def prepare_behaviour(context, :final_rows_older_than_7_days, _args),
+    do: seed_aged_deliveries!(context, :final, ~w(delivered terminal))
 
-  def prepare_behaviour(context, :nonfinal_rows_same_age, _args) do
-    seed_aged_delivery!("pending", 8)
-    Map.put(context, :family_chat_nonfinal_rows_age_days, 8)
-  end
+  def prepare_behaviour(context, :nonfinal_rows_same_age, _args),
+    do: seed_aged_deliveries!(context, :nonfinal, ~w(pending claimed retryable))
 
-  def prepare_behaviour(context, :soft_deleted_rows_older_than_7_days, _args) do
-    seed_aged_delivery!("terminal", 8, soft_deleted?: true)
-    Map.put(context, :family_chat_soft_deleted_age_days, 8)
-  end
+  def prepare_behaviour(context, :soft_deleted_rows_older_than_7_days, _args),
+    do: seed_aged_deliveries!(context, :soft_deleted, ~w(terminal))
 
   # Mirrors `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical fix (see its
   # own comment): these two clauses previously only recorded the schedule
@@ -666,10 +667,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   end
 
   def perform_behaviour(context, :upsert_valid_subscription, _args) do
-    result = upsert_subscription(context, valid_subscription_input())
-    # Mirrors `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical fix (see
-    # `:three_members_with_subscriptions`'s own `on_exit` comment for the
-    # full mechanism): this scenario's Background logs in with a fixed
+    input = valid_subscription_input()
+
+    result =
+      context
+      |> upsert_subscription(input)
+      |> Map.put(:family_chat_push_endpoint, input["endpoint"])
+
+    # See `:three_members_with_subscriptions`'s own `on_exit` comment for the
+    # full mechanism: this scenario's Background logs in with a fixed
     # sentinel user id, so a genuine active row this call stores would
     # otherwise inflate any LATER scenario's fan-out count for the rest of
     # the shared test database's run. Registering here, right after the row
@@ -686,7 +692,9 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   def perform_behaviour(context, :upsert_subscription_with_endpoint, [endpoint]) do
     result =
-      upsert_subscription(context, Map.put(valid_subscription_input(), "endpoint", endpoint))
+      context
+      |> upsert_subscription(Map.put(valid_subscription_input(), "endpoint", endpoint))
+      |> Map.put(:family_chat_push_endpoint, endpoint)
 
     # Same fixed-sentinel-user pollution risk as `:upsert_valid_subscription`
     # -- see its own `on_exit` comment.
@@ -889,13 +897,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(context, :family_chat_result, result)
   end
 
-  def perform_behaviour(context, :dispatcher_attempts_delivery, _args) do
-    Map.put(
-      context,
-      :family_chat_result,
-      PushNotifications.Dispatcher.attempt(context[:family_chat_delivery_failure_class])
-    )
-  end
+  def perform_behaviour(context, :dispatcher_attempts_delivery, _args),
+    do: Map.put(context, :family_chat_result, Dispatcher.attempt())
 
   def perform_behaviour(context, :retention_job_runs, _args),
     do: Map.put(context, :family_chat_result, PushNotifications.retain_deliveries(@behaviour_now))
@@ -1330,10 +1333,11 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     )
   end
 
-  # `family_chat_push_deliveries` has no payload column at all -- it references
-  # a message id and nothing more. Reads the row back in full and checks no
-  # column carries the quoted text, so a future payload column cannot quietly
-  # start carrying it.
+  # The dispatcher sends the reply's owed deliveries through the recording push sender,
+  # and no payload it received for the reply may carry the quoted text; nor may any
+  # stored delivery column, read back in full so a future payload column cannot quietly
+  # start carrying it. The commit must owe at least one delivery, or there is no payload
+  # to check.
   def behaviour_outcome?(context, :delivery_payload_excludes_quote, _args) do
     {:ok, %{id: message_id}} = context.family_chat_result
     quoted_body = context.family_chat_reply_target_body
@@ -1343,11 +1347,18 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
         message_id
       ])
 
-    Enum.all?(rows, fn row ->
-      Enum.all?(row, fn value ->
-        not (is_binary(value) and String.contains?(value, quoted_body))
+    :ok = PushNotifications.dispatch_all_due!()
+
+    payloads =
+      for {_endpoint, %{"messageId" => ^message_id} = payload} <- push_requests(), do: payload
+
+    rows != [] and length(payloads) == length(rows) and
+      not Enum.any?(payloads, &String.contains?(Jason.encode!(&1), quoted_body)) and
+      Enum.all?(rows, fn row ->
+        Enum.all?(row, fn value ->
+          not (is_binary(value) and String.contains?(value, quoted_body))
+        end)
       end)
-    end)
   end
 
   def behaviour_outcome?(context, :no_hidden_room_state, _args) do
@@ -1399,43 +1410,64 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     configured_branch_ok? and unconfigured_vapid_omits_public_key?(context)
   end
 
+  # The response carries exactly the two fields, and the schema's subscription type has no
+  # others a client could ask for.
   def behaviour_outcome?(context, :reports_enabled_and_expiration_only, _args) do
-    match?(
-      %{"data" => %{"currentWebPushSubscription" => %{"enabled" => _}}},
-      context.family_chat_result
-    )
+    introspected =
+      graphql(
+        context,
+        ~s|query { __type(name: "WebPushSubscription") { fields { name } } }|,
+        %{}
+      ).family_chat_result
+
+    type_fields =
+      for %{"name" => name} <- get_in(introspected, ["data", "__type", "fields"]) || [],
+          do: name
+
+    case context.family_chat_result do
+      %{"data" => %{"currentWebPushSubscription" => %{"enabled" => enabled} = state}} ->
+        is_boolean(enabled) and Enum.sort(Map.keys(state)) == ["enabled", "expirationTime"] and
+          Enum.sort(type_fields) == ["enabled", "expirationTime"]
+
+      _other ->
+        false
+    end
   end
 
-  def behaviour_outcome?(context, :subscription_enabled, _args),
-    do:
-      match?(
-        %{"data" => %{"upsertWebPushSubscription" => %{"enabled" => true}}},
-        context.family_chat_result
-      )
+  def behaviour_outcome?(context, :subscription_enabled, _args) do
+    match?(
+      %{"data" => %{"upsertWebPushSubscription" => %{"enabled" => true}}},
+      context.family_chat_result
+    ) and current_subscription_enabled?(context)
+  end
 
-  def behaviour_outcome?(context, :subscription_bound_to_session, _args),
-    do:
-      match?(
-        %{"data" => %{"upsertWebPushSubscription" => %{"enabled" => true}}},
-        context.family_chat_result
-      )
+  # The stored subscription is the user's and active, and serves the session only: not
+  # another session of the same user, nor the same session of another user.
+  def behaviour_outcome?(context, :subscription_bound_to_session, _args) do
+    user_id = context.user_id
+    session = session_key(context)
+
+    match?(
+      %{user_id: ^user_id, deleted_at: nil},
+      stored_subscription(context.family_chat_push_endpoint)
+    ) and current_subscription_enabled?(context) and
+      not session_subscribed?(user_id, "test-other-session-" <> unique_uuid()) and
+      not session_subscribed?("test-user-family-chat-other-" <> unique_uuid(), session)
+  end
 
   def behaviour_outcome?(context, :subscription_disabled, _args),
-    do:
-      match?(
-        %{"data" => %{"disableCurrentWebPushSubscription" => %{"enabled" => false}}},
-        context.family_chat_result
-      )
+    do: subscription_disabled?(context)
 
   def behaviour_outcome?(context, :subscription_still_disabled, _args),
-    do:
-      match?(
-        %{"data" => %{"disableCurrentWebPushSubscription" => %{"enabled" => false}}},
-        context.family_chat_result
-      )
+    do: subscription_disabled?(context)
 
-  def behaviour_outcome?(context, :no_subscription_stored_or_network, _args),
-    do: error_code?(context, "VALIDATION_FAILED")
+  # Rejected before storage: no subscription holds the endpoint, the session has none, and
+  # the push client was asked for nothing.
+  def behaviour_outcome?(context, :no_subscription_stored_or_network, _args) do
+    error_code?(context, "VALIDATION_FAILED") and
+      stored_subscription(context.family_chat_push_endpoint) == nil and
+      not current_subscription_enabled?(context) and push_requests() == []
+  end
 
   def behaviour_outcome?(context, :socket_context_server_resolved, _args) do
     case socket_absinthe_context(context.family_chat_result) do
@@ -1531,30 +1563,83 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     not Enum.any?(deliveries, &(&1.subscription_id == context.family_chat_sender_subscription_id))
   end
 
-  def behaviour_outcome?(context, :delivery_retryable_with_wait, [state]),
-    do: match?({:ok, %{state: ^state, next_attempt_at: %DateTime{}}}, context.family_chat_result)
+  # One request reached the provider, and the stored delivery waits for the push retry
+  # policy's first wait, counted from that attempt.
+  def behaviour_outcome?(context, :delivery_retryable_with_wait, [state]) do
+    %{family_chat_push_delivery_id: id, family_chat_push_subscription: subscription} = context
+    row = stored_delivery(id)
+    first_wait = PushPolicy.next_wait_seconds(1, row.created_at, row.updated_at)
 
-  def behaviour_outcome?(context, :no_attempt_past_ceiling, _args),
-    do: match?({:ok, %{attempt: attempt}} when attempt in 1..5, context.family_chat_result)
+    match?({:ok, %{state: ^state, attempt: 1}}, context.family_chat_result) and
+      row.state == state and row.attempt_count == 1 and is_integer(first_wait) and
+      row.next_attempt_at == DateTime.add(row.updated_at, first_wait, :second) and
+      length(push_requests(subscription.endpoint)) == 1
+  end
 
-  def behaviour_outcome?(context, :delivery_terminal_subscription_disabled, [state]),
-    do: match?({:ok, %{state: ^state}}, context.family_chat_result)
+  # No sixth attempt: the fifth failed attempt retires the delivery.
+  def behaviour_outcome?(context, :no_attempt_past_ceiling, _args) do
+    %{family_chat_push_delivery_id: id, family_chat_push_subscription: subscription} = context
 
-  def behaviour_outcome?(context, :no_further_attempt_scheduled, _args),
-    do: match?({:ok, %{next_attempt_at: nil}}, context.family_chat_result)
+    fifth_attempt_retires?(id, subscription)
+  end
 
-  def behaviour_outcome?(context, :completed_rows_soft_deleted, _args),
-    do: match?({:ok, %{soft_deleted: n}} when n > 0, context.family_chat_result)
+  # The provider answered Gone: the delivery is retired as such and the subscription it
+  # targeted is disabled, so its session no longer has one.
+  def behaviour_outcome?(context, :delivery_terminal_subscription_disabled, [state]) do
+    %{family_chat_push_delivery_id: id, family_chat_push_subscription: subscription} = context
 
-  def behaviour_outcome?(context, :nonfinal_rows_remain_active, _args),
-    do:
+    match?({:ok, %{state: ^state}}, context.family_chat_result) and
+      match?(%{state: ^state, failure_category: "gone"}, stored_delivery(id)) and
       match?(
-        {:ok, %{soft_deleted: n, remaining_active: active}} when n > 0 and is_integer(active),
-        context.family_chat_result
-      )
+        %{deleted_at: %DateTime{}, deleted_by: "system:push-dispatcher"},
+        stored_subscription(subscription.endpoint)
+      ) and not session_subscribed?(subscription.user_id, subscription.session) and
+      length(push_requests(subscription.endpoint)) == 1
+  end
 
-  def behaviour_outcome?(context, :rows_purged, _args),
-    do: match?({:ok, %{purged: n}} when n > 0, context.family_chat_result)
+  def behaviour_outcome?(context, :no_further_attempt_scheduled, _args) do
+    %{family_chat_push_delivery_id: id, family_chat_push_subscription: subscription} = context
+
+    match?({:ok, %{next_attempt_at: nil}}, context.family_chat_result) and
+      match?(%{next_attempt_at: nil, attempt_count: 1}, stored_delivery(id)) and
+      Dispatcher.attempt() == {:error, :no_due_delivery} and
+      push_requests(subscription.endpoint) == []
+  end
+
+  # Exactly the final rows seeded more than seven days ago were soft-deleted, by retention
+  # at the run's instant.
+  def behaviour_outcome?(context, :completed_rows_soft_deleted, _args) do
+    final = context.family_chat_aged_deliveries.final
+
+    match?({:ok, %{soft_deleted: n}} when n == length(final), context.family_chat_result) and
+      Enum.all?(final, fn {_state, id} ->
+        match?(
+          %{deleted_at: @behaviour_now, deleted_by: "system:push-retention"},
+          stored_delivery(id)
+        )
+      end)
+  end
+
+  # The pending, claimed and retryable rows of the same age are the only active unfinished
+  # rows reported, and each is still active in its state.
+  def behaviour_outcome?(context, :nonfinal_rows_remain_active, _args) do
+    nonfinal = context.family_chat_aged_deliveries.nonfinal
+
+    match?(
+      {:ok, %{remaining_active: n}} when n == length(nonfinal),
+      context.family_chat_result
+    ) and
+      Enum.all?(nonfinal, fn {state, id} ->
+        match?(%{state: ^state, deleted_at: nil}, stored_delivery(id))
+      end)
+  end
+
+  def behaviour_outcome?(context, :rows_purged, _args) do
+    purged = context.family_chat_aged_deliveries.soft_deleted
+
+    match?({:ok, %{purged: n}} when n == length(purged), context.family_chat_result) and
+      Enum.all?(purged, fn {_state, id} -> stored_delivery(id) == nil end)
+  end
 
   # Reads the second call's own independent result snapshot (see
   # `:retention_job_runs_again`'s comment above), not the first call's
@@ -2435,12 +2520,283 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(context, :conn, Phoenix.ConnTest.build_conn())
   end
 
+  # A fresh endpoint on the synthetic provider host the test push senders name.
   defp valid_subscription_input do
     %{
-      "endpoint" => "https://push.allowed.example.com/valid",
+      "endpoint" => synthetic_endpoint("valid-" <> unique_uuid()),
       "p256dh" => Base.url_encode64(:crypto.strong_rand_bytes(65), padding: false),
       "auth" => Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
     }
+  end
+
+  defp synthetic_endpoint(path), do: "https://push.allowed.example.com/" <> path
+
+  # Points the scenario at a Family Chat database of its own, once, so the push rows it
+  # reads are exactly the ones it made.
+  defp push_database!(context) do
+    if context[:family_chat_push_database] do
+      context
+    else
+      database_path = isolated_family_chat_database!("family-chat-push")
+      :ok = BnestApp.FamilyChat.ensure_ready!()
+      Map.put(context, :family_chat_push_database, database_path)
+    end
+  end
+
+  # Until the scenario ends, the push-client double answers the dispatcher instead of the
+  # recording sender: per endpoint (`status-<code>` answers that status), recording each
+  # request in this process. It never reaches the network either.
+  defp answer_push_by_endpoint! do
+    previous = Application.fetch_env!(:bnest_app, PushNotifications)
+    answering = Keyword.put(previous, :push_sender, InMemoryPushSender)
+    Application.put_env(:bnest_app, PushNotifications, answering)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.put_env(:bnest_app, PushNotifications, previous)
+    end)
+
+    InMemoryPushSender.forget_sent()
+  end
+
+  defp owe_push_delivery!(context, status) do
+    context = push_database!(context)
+    :ok = answer_push_by_endpoint!()
+
+    subscription =
+      subscribe_through_facade!(
+        "test-user-family-chat-push-recipient-" <> unique_uuid(),
+        "status-#{status}"
+      )
+
+    Map.merge(context, %{
+      family_chat_push_subscription: subscription,
+      family_chat_push_delivery_id: commit_owed_delivery!(subscription)
+    })
+  end
+
+  # Subscribes `user_id` through the facade for a session of its own, at a synthetic
+  # endpoint whose last segment is `last_segment`.
+  defp subscribe_through_facade!(user_id, last_segment) do
+    session = "test-session-" <> unique_uuid()
+    endpoint = synthetic_endpoint(unique_uuid() <> "/" <> last_segment)
+    input = Map.put(valid_subscription_input(), "endpoint", endpoint)
+    {:ok, %{enabled: true}} = PushNotifications.upsert_subscription(user_id, session, input)
+
+    %{
+      user_id: user_id,
+      session: session,
+      endpoint: endpoint,
+      id: stored_subscription(endpoint).id
+    }
+  end
+
+  # Another member's commit, which owes `subscription` one pending delivery; its ID.
+  defp commit_owed_delivery!(subscription) do
+    {:ok, message} =
+      BnestApp.FamilyChat.send_message(
+        "test-user-family-chat-push-sender-" <> unique_uuid(),
+        BnestApp.FamilyChat.canonical_room_slug(),
+        unique_uuid(),
+        "push delivery fixture"
+      )
+
+    %{rows: [[id]]} =
+      SqliteRepo.query!(
+        "SELECT id FROM family_chat_push_deliveries WHERE message_id = ? AND subscription_id = ?",
+        [message.id, subscription.id]
+      )
+
+    id
+  end
+
+  # Each delivery is owed to a subscription of its own, disabled through the facade once the
+  # commit fanned out to it so later commits owe it nothing. The delivery's row is then put
+  # in its state as last stamped eight days before the retention run, and soft-deleted then
+  # for the `:soft_deleted` group: time that has passed, which only a fixture UPDATE can
+  # stand in for. Records `{state, id}` per delivery under the group.
+  defp seed_aged_deliveries!(context, group, states) do
+    context = push_database!(context)
+    aged_at = DateTime.add(@behaviour_now, -8 * 86_400, :second)
+    aged = iso8601(aged_at)
+
+    seeded =
+      for state <- states do
+        subscription =
+          subscribe_through_facade!(
+            "test-user-family-chat-retention-" <> unique_uuid(),
+            "accepted"
+          )
+
+        id = commit_owed_delivery!(subscription)
+
+        {:ok, %{enabled: false}} =
+          PushNotifications.disable_subscription(subscription.user_id, subscription.session)
+
+        {deleted_at, deleted_by} =
+          if group == :soft_deleted, do: {aged, "system:test-fixture"}, else: {nil, nil}
+
+        lease =
+          if state == "claimed", do: aged_at |> DateTime.add(120, :second) |> iso8601()
+
+        SqliteRepo.query!(
+          """
+          UPDATE family_chat_push_deliveries
+          SET state = ?, updated_at = ?, deleted_at = ?, deleted_by = ?,
+              lease_expires_at = ?, next_attempt_at = NULL
+          WHERE id = ?
+          """,
+          [state, aged, deleted_at, deleted_by, lease, id]
+        )
+
+        {state, id}
+      end
+
+    Map.update(
+      context,
+      :family_chat_aged_deliveries,
+      %{group => seeded},
+      &Map.put(&1, group, seeded)
+    )
+  end
+
+  # The delivery's wait elapses: it ages by that wait (its creation moves back by it) and is
+  # due now.
+  defp elapse_push_wait!(delivery_id) do
+    row = stored_delivery(delivery_id)
+    wait = DateTime.diff(row.next_attempt_at, row.updated_at)
+
+    SqliteRepo.query!(
+      "UPDATE family_chat_push_deliveries SET created_at = ?, next_attempt_at = ? WHERE id = ?",
+      [
+        iso8601(DateTime.add(row.created_at, -wait, :second)),
+        iso8601(row.updated_at),
+        delivery_id
+      ]
+    )
+
+    :ok
+  end
+
+  # Drives the delivery on, letting each wait elapse, until the fifth failed attempt
+  # retires it and nothing is due, so no sixth request is sent.
+  defp fifth_attempt_retires?(id, subscription) do
+    _earlier_requests = push_requests(subscription.endpoint)
+
+    attempts =
+      for _attempt <- 2..5 do
+        :ok = elapse_push_wait!(id)
+        {:ok, _transition} = Dispatcher.attempt()
+        stored_delivery(id)
+      end
+
+    retired = List.last(attempts)
+
+    Enum.map(attempts, & &1.attempt_count) == [2, 3, 4, 5] and
+      Enum.map(attempts, & &1.state) == ~w(retryable retryable retryable terminal) and
+      match?(%{failure_category: "ceiling", next_attempt_at: nil}, retired) and
+      length(push_requests(subscription.endpoint)) == 4 and
+      Dispatcher.attempt() == {:error, :no_due_delivery} and
+      push_requests(subscription.endpoint) == [] and stored_delivery(id).attempt_count == 5
+  end
+
+  # The response reports it disabled, the Given's stored subscription was disabled by the
+  # user, and the session has none.
+  defp subscription_disabled?(context) do
+    stored = stored_subscription(context.family_chat_push_endpoint)
+
+    match?(
+      %{"data" => %{"disableCurrentWebPushSubscription" => %{"enabled" => false}}},
+      context.family_chat_result
+    ) and match?(%{deleted_at: %DateTime{}}, stored) and
+      stored.deleted_by == "user:" <> context.user_id and
+      not current_subscription_enabled?(context)
+  end
+
+  # The session's subscription state, read back over GraphQL with the scenario's session.
+  defp current_subscription_enabled?(context) do
+    context
+    |> graphql("query { currentWebPushSubscription { enabled expirationTime } }", %{})
+    |> Map.fetch!(:family_chat_result)
+    |> get_in(["data", "currentWebPushSubscription", "enabled"]) == true
+  end
+
+  defp session_subscribed?(user_id, session),
+    do: match?({:ok, %{enabled: true}}, PushNotifications.current_subscription(user_id, session))
+
+  # The session key the router hands the GraphQL resolvers for the scenario's session.
+  defp session_key(context) do
+    conn = Plug.Conn.fetch_cookies(context.conn)
+    Identity.session_digest(conn.cookies["_bnest_identity"])
+  end
+
+  # Stored push rows, read back from Family Chat's database (prepared, and the shared
+  # connection pointed at it, first). Observation only.
+  defp stored_delivery(id) do
+    :ok = BnestApp.FamilyChat.ensure_ready!()
+
+    case SqliteRepo.query!(
+           """
+           SELECT state, attempt_count, next_attempt_at, failure_category, created_at,
+                  updated_at, deleted_at, deleted_by
+           FROM family_chat_push_deliveries WHERE id = ?
+           """,
+           [id]
+         ) do
+      %{rows: [[state, attempts, next_at, category, created, updated, deleted, deleted_by]]} ->
+        %{
+          state: state,
+          attempt_count: attempts,
+          next_attempt_at: parse_time(next_at),
+          failure_category: category,
+          created_at: parse_time(created),
+          updated_at: parse_time(updated),
+          deleted_at: parse_time(deleted),
+          deleted_by: deleted_by
+        }
+
+      %{rows: []} ->
+        nil
+    end
+  end
+
+  defp stored_subscription(endpoint) do
+    :ok = BnestApp.FamilyChat.ensure_ready!()
+
+    case SqliteRepo.query!(
+           "SELECT id, user_id, deleted_at, deleted_by FROM web_push_subscriptions WHERE endpoint = ?",
+           [endpoint]
+         ) do
+      %{rows: [[id, user_id, deleted_at, deleted_by]]} ->
+        %{id: id, user_id: user_id, deleted_at: parse_time(deleted_at), deleted_by: deleted_by}
+
+      %{rows: []} ->
+        nil
+    end
+  end
+
+  defp parse_time(nil), do: nil
+  defp parse_time(value), do: value |> DateTime.from_iso8601() |> elem(1)
+
+  defp iso8601(time), do: time |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+  # Every request a test push sender recorded in this process so far, oldest first, as
+  # `{endpoint, payload}`; draining them. The dispatcher, and the endpoint under
+  # `Phoenix.ConnTest`, run in this process.
+  defp push_requests do
+    receive do
+      {:push_notification_sent, endpoint, payload} -> [{endpoint, payload} | push_requests()]
+    after
+      0 -> []
+    end
+  end
+
+  # The payloads of the recorded requests to `endpoint`, oldest first; draining them.
+  defp push_requests(endpoint) do
+    receive do
+      {:push_notification_sent, ^endpoint, payload} -> [payload | push_requests(endpoint)]
+    after
+      0 -> []
+    end
   end
 
   # Test-only enrichment: `Scheduler.Store.claim_due/1`'s run rows carry no
@@ -2461,8 +2817,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   defp unique_uuid, do: Ecto.UUID.generate()
 
-  # Test-fixture-only raw insert — see the unit driver's identical helper for
-  # why `PushNotifications` (Phase 5) is bypassed rather than built early.
+  # Test-fixture-only raw insert of an active subscription, for the backup
+  # fixture, whose rows the backup snapshots directly (U12).
   defp create_active_subscription!(user_id) do
     BnestApp.FamilyChat.ensure_ready!()
 
@@ -2504,84 +2860,10 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     subscription_id
   end
 
-  # Test-fixture-only raw insert (see `create_active_subscription!/1`'s same
-  # comment): seeds one real delivery row, backdated relative to the fixed
-  # `@behaviour_now` clock (not real wall-clock time, so retention cutoffs
-  # computed from that same clock are deterministic), in the exact state a
-  # retention scenario's Given step describes. A distinct sender is required
-  # -- `insert_message!/6` never creates a delivery row for the sender's own
-  # subscription -- so `recipient_id`'s subscription is always the one that
-  # receives the single row this fixture needs. Mirrors
-  # `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical helper.
-  defp seed_aged_delivery!(state, age_days, opts \\ []) do
-    BnestApp.FamilyChat.ensure_ready!()
-
-    room =
-      RoomStore.get_active_room(SqliteRoomStore.new(), BnestApp.FamilyChat.canonical_room_slug())
-
-    recipient_id = "test-user-family-chat-retention-fixture-" <> unique_uuid()
-    subscription_id = create_active_subscription!(recipient_id)
-    # Registered immediately -- see `:verified_backup_artifact`'s own
-    # `on_exit` comment for why cleanup placed after a fallible step
-    # (`insert_message!/6` here) never fires on a failed/ExBdd-retried
-    # attempt.
-    ExUnit.Callbacks.on_exit(fn -> disable_subscription_row!(subscription_id) end)
-
-    {:ok, message} =
-      BnestApp.FamilyChat.insert_message!(
-        room.id,
-        "user",
-        "test-user-family-chat-retention-sender-" <> unique_uuid(),
-        "Retention Fixture",
-        unique_uuid(),
-        "retention fixture message"
-      )
-
-    %{rows: [[delivery_id]]} =
-      SqliteRepo.query!(
-        "SELECT id FROM family_chat_push_deliveries WHERE message_id = ? AND subscription_id = ?",
-        [message.id, subscription_id]
-      )
-
-    aged =
-      @behaviour_now
-      |> DateTime.add(-age_days * 86_400, :second)
-      |> DateTime.truncate(:second)
-      |> DateTime.to_iso8601()
-
-    {deleted_at, deleted_by} =
-      if Keyword.get(opts, :soft_deleted?, false),
-        do: {aged, "system:test-fixture"},
-        else: {nil, nil}
-
-    SqliteRepo.query!(
-      """
-      UPDATE family_chat_push_deliveries
-      SET state = ?, updated_at = ?, deleted_at = ?, deleted_by = ?,
-          lease_expires_at = NULL, next_attempt_at = NULL
-      WHERE id = ?
-      """,
-      [state, aged, deleted_at, deleted_by, delivery_id]
-    )
-
-    # The delivery row above is this fixture's actual subject; the
-    # subscription was only a vehicle to get `insert_message!/6` to create
-    # it. Retiring it immediately (retention never inspects subscription
-    # state) stops it from lingering as an extra "active subscription" that
-    # would silently inflate a LATER scenario's fan-out for the rest of the
-    # test run -- the same cross-scenario pollution class documented on
-    # `BnestApp.PushNotifications.Dispatcher`'s bootstrap fixture.
-    disable_subscription_row!(subscription_id)
-
-    delivery_id
-  end
-
   # Retires a fixture-created subscription that was only ever a vehicle for
-  # producing some other row (a delivery, a backup artifact's contents) --
-  # mirrors `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical
-  # helper/rationale: left active, it would silently inflate a LATER
-  # scenario's "every active subscription" fan-out for the rest of this
-  # shared test database's run.
+  # producing some other row (a backup artifact's contents): left active, it
+  # would silently inflate a LATER scenario's "every active subscription"
+  # fan-out for the rest of this shared test database's run.
   defp disable_subscription_row!(subscription_id) do
     now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 

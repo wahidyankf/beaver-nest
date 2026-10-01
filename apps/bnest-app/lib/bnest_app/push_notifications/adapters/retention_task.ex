@@ -1,6 +1,7 @@
-defmodule BnestApp.PushNotifications.RetentionJob do
+defmodule BnestApp.PushNotifications.Adapters.RetentionTask do
   @moduledoc """
-  Thin Scheduler-callable adapter (`BnestApp.Scheduler.Run.execute/2`'s
+  Inbound adapter: the scheduler task for Delivery Retention. A thin
+  Scheduler-callable adapter (`BnestApp.Scheduler.Run.execute/2`'s
   `handler.execute(claim, now)` contract, mirroring
   `BnestApp.Backup.Run.execute/2`). Zero SQL here -- tech-doc 002: "the
   Scheduler handler contains no family-chat SQL" -- every mutation happens in

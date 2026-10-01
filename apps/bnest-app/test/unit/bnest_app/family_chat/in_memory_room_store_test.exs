@@ -1,12 +1,16 @@
 defmodule BnestApp.FamilyChat.InMemoryRoomStoreTest do
   use BnestApp.Test.Contracts.RoomStoreContract, async: true
 
+  alias BnestApp.Test.InMemory.DeliveryStore, as: InMemoryDeliveryStore
   alias BnestApp.Test.InMemory.RoomStore, as: InMemoryRoomStore
+  alias BnestApp.Test.InMemory.SubscriptionStore, as: InMemorySubscriptionStore
 
   defp new_store(_context), do: InMemoryRoomStore.start()
 
+  # A subscription comes to exist through the in-memory subscription store on the same
+  # agent, as the SQLite contract's comes through PushNotifications.
   defp put_subscription(store, attributes) do
-    InMemoryRoomStore.put_subscription(
+    InMemorySubscriptionStore.subscribe!(
       store,
       Keyword.fetch!(attributes, :user_id),
       Keyword.take(attributes, [:active?])
@@ -14,8 +18,8 @@ defmodule BnestApp.FamilyChat.InMemoryRoomStoreTest do
   end
 
   test "commits one pending delivery per other active subscription", %{store: store} do
-    other = InMemoryRoomStore.put_subscription(store, "test-user-in-memory-other")
-    sender = InMemoryRoomStore.put_subscription(store, "test-user-in-memory-sender")
+    other = put_subscription(store, user_id: "test-user-in-memory-other")
+    sender = put_subscription(store, user_id: "test-user-in-memory-sender")
 
     {:ok, from_user} =
       commit!(store, "key-user", "from a user", nil, "test-user-in-memory-sender")
@@ -40,7 +44,9 @@ defmodule BnestApp.FamilyChat.InMemoryRoomStoreTest do
                %{subscription_id: sender, state: "pending"}
              ]
 
-    assert InMemoryRoomStore.deliveries(store) == [
+    assert store
+           |> InMemoryDeliveryStore.deliveries()
+           |> Enum.map(&Map.take(&1, [:message_id, :subscription_id, :state])) == [
              %{message_id: from_user.id, subscription_id: other, state: "pending"},
              %{message_id: from_system.id, subscription_id: other, state: "pending"},
              %{message_id: from_system.id, subscription_id: sender, state: "pending"}

@@ -111,7 +111,8 @@ if config_env() == :prod do
   # this exact `:web_push, :vapid` config itself -- setting it here, rather
   # than a separate `:bnest_app` key, is the single source of truth so
   # `PushNotifications.configuration/0`'s availability check and the real
-  # signing path in `PushNotifications.Sender` can never drift apart.
+  # signing path in `PushNotifications.Adapters.WebPushSender` can never drift
+  # apart.
   config :web_push, :vapid, public_key: public_key, private_key: private_key, subject: subject
 end
 

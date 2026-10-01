@@ -12,9 +12,7 @@ defmodule BnestApp.Identity.Adapters do
       BnestApp.Identity,
       BnestApp.Storage,
       BnestAppWeb,
-      # legacy: PushSubscriptionRevoker calls BnestApp.PushNotifications; U10 swaps this
-      # for the PushNotifications facade.
-      BnestApp,
+      BnestApp.PushNotifications,
       Argon2
     ],
     exports: :all
