@@ -232,6 +232,7 @@ defmodule BnestApp.Test.InMemory.StoragePorts.Maintenance do
   @behaviour BnestApp.Storage.Ports.Maintenance
 
   alias BnestApp.Test.InMemory.StoragePorts
+  alias BnestApp.Test.InMemory.StoragePorts.ConfigStore
 
   @clean_run %{
     migration_id: "flat-files-v1-to-sqlite-v1",
@@ -259,8 +260,12 @@ defmodule BnestApp.Test.InMemory.StoragePorts.Maintenance do
   @impl true
   def restore_rehearsal_ok?, do: answer(:restore_rehearsal_ok?, :restore?, true)
 
+  # Like the production adapter, activation switches the pointer to SQLite.
   @impl true
-  def activate_sqlite!, do: answer(:activate_sqlite!, :activate, :ok)
+  def activate_sqlite! do
+    ConfigStore.activate_sqlite_primary!()
+    answer(:activate_sqlite!, :activate, :ok)
+  end
 
   @impl true
   def relocate(directory), do: answer({:relocate, directory}, :relocate, {:ok, %{}})
