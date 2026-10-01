@@ -9,7 +9,7 @@ defmodule BnestApp.SqliteRepo do
 
   # Asks the pool's own live connection what file it actually has open,
   # rather than independently recomputing the path from
-  # `BnestApp.Storage.Config`. The two can legitimately diverge (Family
+  # `BnestApp.Storage`. The two can legitimately diverge (Family
   # Chat's isolated test database is one example -- see
   # `BnestApp.FamilyChat.Store.database_path/0`'s own comment), and a
   # backup/capacity guard that reads the wrong file silently measures or

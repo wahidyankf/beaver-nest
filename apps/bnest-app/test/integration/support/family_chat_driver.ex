@@ -21,7 +21,6 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.Backup
   alias BnestApp.Backup.Config, as: BackupConfig
   alias BnestApp.Backup.Run, as: BackupRun
-  alias BnestApp.DataRepository
   alias BnestApp.FamilyChat.Store, as: FamilyChatStore
   alias BnestApp.Identity
   alias BnestApp.Identity.FileStore
@@ -30,6 +29,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.Release.Migrations
   alias BnestApp.Scheduler
   alias BnestApp.SqliteRepo
+  alias BnestApp.Storage.Records
   alias BnestApp.TestBackupDestination
 
   # See the identical attribute on BnestApp.Behaviour.UnitFamilyChatDriver for
@@ -529,13 +529,13 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     do: query_messages(context, %{})
 
   # `FileStore.replace_account/2` writes directly to the real account store
-  # used by `establish_identity/2` (`DataRepository`) -- the same account the
+  # used by `establish_identity/2` (`Records`) -- the same account the
   # earlier send authenticated as, now renamed to prove the later requery
   # reflects the account as it stands *now*, not as it stood at commit time.
   def perform_behaviour(context, :rename_sender_account, [new_name]) do
-    {:ok, account} = FileStore.read_account(DataRepository, context.user_id)
+    {:ok, account} = FileStore.read_account(Records, context.user_id)
     updated = Map.put(account, "displayUsername", new_name)
-    {:ok, ^updated} = FileStore.replace_account(DataRepository, updated)
+    {:ok, ^updated} = FileStore.replace_account(Records, updated)
     context
   end
 

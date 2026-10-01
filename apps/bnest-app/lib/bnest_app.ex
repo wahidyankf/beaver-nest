@@ -18,11 +18,6 @@ defmodule BnestApp do
     Codex.ModelCatalog,
     Codex.RepositoryAccess,
     Codex.Settings,
-    DataRepository,
-    DataRepository.Import,
-    DataRepository.Schema,
-    DataRepository.StorageCoordinator,
-    DataRepository.Store,
     Deployment,
     FamilyChat,
     FamilyChat.Store,
@@ -34,19 +29,13 @@ defmodule BnestApp do
     Scheduler.Registry,
     Scheduler.Run,
     Scheduler.Store,
-    SifatAllah,
-    Storage.Config,
-    Storage.Location,
-    Storage.Lock,
-    Storage.Migration,
-    Storage.Relocation,
-    Storage.Retirement,
-    Storage.TestDataCleanup
+    SifatAllah
   ]
 
   use Boundary,
     deps: [
       BnestApp.SqliteRepo,
+      BnestApp.Storage,
       # legacy: infrastructure the legacy modules call directly. Each entry leaves
       # with its last legacy caller, when that context's adapters take the call over.
       Argon2,

@@ -253,7 +253,7 @@ defmodule BnestApp.Backup do
           quick_check: "ok",
           schema_versions: proof.schema_versions,
           logical_proof_sha256: proof.logical_sha256,
-          source_generation: BnestApp.Storage.Config.database_generation()
+          source_generation: BnestApp.Storage.database_generation()
         }
 
         merge_probe_result({:ok, artifact}, probe_task)

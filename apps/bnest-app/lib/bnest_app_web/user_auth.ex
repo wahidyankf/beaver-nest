@@ -4,9 +4,9 @@ defmodule BnestAppWeb.UserAuth do
   import Phoenix.Controller
   import Plug.Conn
 
-  alias BnestApp.DataRepository
   alias BnestApp.Identity
   alias BnestApp.Identity.Session
+  alias BnestApp.Storage.Records
 
   @identity_cookie "_bnest_identity"
   @legacy_transition_user %{
@@ -114,7 +114,7 @@ defmodule BnestAppWeb.UserAuth do
   def on_mount(:require_admin_user, _params, session, socket) do
     with %{"userId" => user_id} <- session["current_user"],
          {:ok, %{"roles" => roles} = user} <-
-           DataRepository.read(:account, user_id),
+           Records.read(:account, user_id),
          true <- "admin" in roles do
       {:cont,
        Phoenix.Component.assign(
@@ -139,7 +139,7 @@ defmodule BnestAppWeb.UserAuth do
   def safe_return_path(_path), do: "/"
 
   defp current_theme(%{"userId" => user_id}) do
-    case DataRepository.read(:theme, user_id) do
+    case Records.read(:theme, user_id) do
       {:ok, %{"theme" => theme}} -> theme
       {:error, _missing_or_invalid} -> "system"
     end

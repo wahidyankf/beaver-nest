@@ -14,7 +14,7 @@ defmodule BnestApp.Deployment do
 
   @spec readiness() :: {:ok, health()} | {:error, atom()}
   def readiness do
-    with :ok <- running?(BnestApp.DataRepository),
+    with :ok <- running?(BnestApp.Storage.Records),
          :ok <- running?(BnestApp.Identity),
          :ok <- running?(BnestApp.Codex.ModelCatalog),
          :ok <- peer_ready?() do

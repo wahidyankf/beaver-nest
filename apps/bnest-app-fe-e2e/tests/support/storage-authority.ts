@@ -105,7 +105,7 @@ function resetSqlite(
   // reset is about to remove -- a foreign-key failure that reads like a
   // storage fault and is really a race. SQLite serializes writers, so holding
   // the write lock for all six deletes closes it.
-  const expression = `BnestApp.DataRepository.StorageCoordinator.ensure_started!(); BnestApp.SqliteRepo.transaction(fn -> Enum.each(${JSON.stringify(tables)}, fn table -> Ecto.Adapters.SQL.query!(BnestApp.SqliteRepo, "DELETE FROM " <> table) end) end); BnestApp.DataRepository.StorageCoordinator.stop()`;
+  const expression = `BnestApp.Storage.Adapters.SqliteCoordinator.ensure_started!(); BnestApp.SqliteRepo.transaction(fn -> Enum.each(${JSON.stringify(tables)}, fn table -> Ecto.Adapters.SQL.query!(BnestApp.SqliteRepo, "DELETE FROM " <> table) end) end); BnestApp.Storage.Adapters.SqliteCoordinator.stop()`;
   const result = spawnSync("mix", ["run", "-e", expression], {
     cwd: path.join(process.cwd(), "apps/bnest-app"),
     env: {

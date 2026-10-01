@@ -1,8 +1,8 @@
 defmodule BnestAppWeb.SifatAllahLive do
   use BnestAppWeb, :live_view
 
-  alias BnestApp.DataRepository
   alias BnestApp.SifatAllah
+  alias BnestApp.Storage.Records
 
   @max_snapshot_bytes 10_000
   @quiz_auto_advance_delay 5_000
@@ -645,7 +645,7 @@ defmodule BnestAppWeb.SifatAllahLive do
   defp restore_state(socket) do
     owner_id = socket.assigns.current_user["userId"]
 
-    case DataRepository.read(:sifat_allah, owner_id) do
+    case Records.read(:sifat_allah, owner_id) do
       {:ok, record} ->
         record["progress"]
         |> restore_session(record["session"])
@@ -943,7 +943,7 @@ defmodule BnestAppWeb.SifatAllahLive do
 
     expected_revision = if previous, do: previous["revision"], else: nil
 
-    case DataRepository.write(:sifat_allah, owner_id, expected_revision, candidate) do
+    case Records.write(:sifat_allah, owner_id, expected_revision, candidate) do
       {:ok, record} ->
         assign(socket, :central_record, record)
 

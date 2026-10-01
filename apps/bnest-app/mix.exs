@@ -137,7 +137,7 @@ defmodule BnestApp.MixProject do
       BnestApp.Behaviour.Driver,
       BnestApp.Behaviour.IntegrationFamilyChatDriver,
       BnestApp.Behaviour.IntegrationHomePageDriver,
-      BnestApp.Behaviour.MemoryBackend,
+      ~r/\bBnestApp\.Test\./,
       BnestApp.Behaviour.UnitFamilyChatDriver,
       BnestApp.Behaviour.UnitHomePageDriver,
       BnestApp.Codex.FixtureModels,
@@ -195,14 +195,6 @@ defmodule BnestApp.MixProject do
       BnestApp.Backup.Location,
       BnestApp.Backup.Receipt,
       BnestApp.Backup.Run,
-      BnestApp.DataRepository.Backup,
-      BnestApp.DataRepository.Import,
-      BnestApp.DataRepository.Manifest,
-      BnestApp.DataRepository.RecoverySource,
-      BnestApp.DataRepository.Schema,
-      BnestApp.DataRepository.SqliteStore,
-      BnestApp.DataRepository.Store,
-      BnestApp.DataRepository.StorageCoordinator,
       BnestApp.Deployment,
       BnestApp.Identity,
       BnestApp.Identity.Bootstrap,
@@ -217,15 +209,7 @@ defmodule BnestApp.MixProject do
       BnestApp.Scheduler,
       BnestApp.Scheduler.Registry,
       BnestApp.Scheduler.Run,
-      BnestApp.Scheduler.Store,
-      BnestApp.Storage.Config,
-      BnestApp.Storage.Location,
-      BnestApp.Storage.Lock,
-      BnestApp.Storage.Migration,
-      BnestApp.Storage.RecordMap,
-      BnestApp.Storage.Relocation,
-      BnestApp.Storage.Retirement,
-      BnestApp.Storage.TestDataCleanup
+      BnestApp.Scheduler.Store
     ]
 
     # Only the unit layer carries a coverage threshold. `test:integration` still exercises

@@ -19,12 +19,6 @@ defmodule BnestApp.HexagonalLayeringTest do
     BnestApp.Codex.PortSession,
     BnestApp.Codex.RepositoryAccess,
     BnestApp.Codex.Settings,
-    BnestApp.DataRepository,
-    BnestApp.DataRepository.Backup,
-    BnestApp.DataRepository.Import,
-    BnestApp.DataRepository.Schema,
-    BnestApp.DataRepository.StorageCoordinator,
-    BnestApp.DataRepository.Store,
     BnestApp.Deployment,
     BnestApp.FamilyChat,
     BnestApp.FamilyChat.Store,
@@ -39,20 +33,20 @@ defmodule BnestApp.HexagonalLayeringTest do
     BnestApp.Scheduler.Run,
     BnestApp.Scheduler.Store,
     BnestApp.SifatAllah,
-    BnestApp.Storage.Config,
-    BnestApp.Storage.Location,
-    BnestApp.Storage.Lock,
-    BnestApp.Storage.Migration,
-    BnestApp.Storage.Relocation,
-    BnestApp.Storage.Retirement,
-    BnestApp.Storage.TestDataCleanup,
-    BnestAppWeb.HealthController,
-    BnestAppWeb.StorageLive,
-    Mix.Tasks.Bnest.Storage.Migrate
+    BnestAppWeb.HealthController
   ]
 
   # Temporary. Inbound adapters still reading `BnestApp.Storage.Records` directly.
-  @legacy_records_callers []
+  @legacy_records_callers [
+    # U8: the chat transcript moves behind CodexChat.
+    BnestAppWeb.ChatLive,
+    # U7: learning progress moves behind SifatAllah.
+    BnestAppWeb.SifatAllahLive,
+    # U6: the theme preference moves behind Preferences.
+    BnestAppWeb.ThemeController,
+    # U6: the theme read moves behind Preferences.
+    BnestAppWeb.UserAuth
+  ]
 
   test "effects stay in adapters, domains stay pure, and inbound adapters call only facades" do
     violations =

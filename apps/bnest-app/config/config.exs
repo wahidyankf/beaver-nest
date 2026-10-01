@@ -103,7 +103,7 @@ config :phoenix, :json_library, Jason
 
 config :bnest_app, BnestApp.SqliteRepo,
   pool_size: 5,
-  # StorageCoordinator establishes WAL once before the pool starts so pooled
+  # SqliteCoordinator establishes WAL once before the pool starts so pooled
   # connections do not race on the database-wide journal transition.
   journal_mode: nil,
   busy_timeout: 5_000,
@@ -116,5 +116,16 @@ config :bnest_app, BnestApp.SqliteRepo,
   log: false
 
 config :bnest_app, ecto_repos: [BnestApp.SqliteRepo]
+
+# One adapter per Storage port, plus the record kinds other contexts register.
+config :bnest_app, BnestApp.Storage,
+  config_store: BnestApp.Storage.Adapters.FileConfigStore,
+  lock: BnestApp.Storage.Adapters.FileLock,
+  database_lifecycle: BnestApp.Storage.Adapters.SqliteCoordinator,
+  maintenance: BnestApp.Storage.Adapters.LocalMaintenance,
+  record_kinds: [
+    BnestApp.CodexChat.Adapters.TranscriptRecordKind,
+    BnestApp.SifatAllah.Adapters.ProgressRecordKind
+  ]
 
 import_config "#{config_env()}.exs"

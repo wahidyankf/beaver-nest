@@ -1,11 +1,9 @@
 defmodule BnestAppWeb.HealthController do
   use BnestAppWeb, :controller
 
-  alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.Deployment
   alias BnestApp.SqliteRepo
-  alias BnestApp.Storage.Config, as: StorageConfig
-  alias BnestApp.Storage.Lock, as: StorageLock
+  alias BnestApp.Storage
 
   def live(conn, _params) do
     {:ok, health} = Deployment.liveness()
@@ -20,7 +18,7 @@ defmodule BnestAppWeb.HealthController do
         health
         |> Map.put(:sqliteReady, sqlite_primary?())
         |> Map.put(:schedulerReady, scheduler_ready?())
-        |> Map.put(:storageGeneration, StorageConfig.database_generation())
+        |> Map.put(:storageGeneration, Storage.database_generation())
       )
     else
       _not_ready ->
@@ -29,12 +27,12 @@ defmodule BnestAppWeb.HealthController do
   end
 
   # The SQLite phase is optional-timing and decoupled from ordinary releases
-  # (see BnestApp.Storage.Migration): readiness only requires a reachable
+  # (see BnestApp.Storage.migrate/2): readiness only requires a reachable
   # database once the phase pointer has switched storage authority to it.
   defp storage_ready do
     if sqlite_primary?() do
-      StorageLock.with_shared(fn ->
-        StorageCoordinator.ensure_started!()
+      Storage.with_shared_lock(fn ->
+        Storage.ensure_started!()
         storage_query_ready()
       end)
     else
@@ -60,5 +58,5 @@ defmodule BnestAppWeb.HealthController do
   end
 
   defp scheduler_ready?, do: BnestApp.Scheduler.ready?()
-  defp sqlite_primary?, do: StorageConfig.phase() == :sqlite_primary
+  defp sqlite_primary?, do: Storage.phase() == :sqlite_primary
 end

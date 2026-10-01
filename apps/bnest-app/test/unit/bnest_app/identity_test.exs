@@ -1,17 +1,17 @@
 defmodule BnestApp.IdentityUnitTest do
   use ExUnit.Case, async: true
 
-  alias BnestApp.Behaviour.MemoryBackend
   alias BnestApp.Identity
   alias BnestApp.Identity.Authorization
   alias BnestApp.Identity.Login
   alias BnestApp.Identity.Session
+  alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
 
   @username "test-user-identity-unit"
   @password "Synthetic Password 123!"
 
   # The store is a memory backend, so FileStore and Session reach their real logic through
-  # DataRepository.Backend without touching a disk.
+  # the RecordBackend port without touching a disk.
   defmodule NotifierSpy do
     @moduledoc false
 
@@ -22,7 +22,7 @@ defmodule BnestApp.IdentityUnitTest do
   end
 
   defp bootstrapped_store do
-    store = MemoryBackend.start()
+    store = InMemoryRecordBackend.start()
 
     server =
       start_supervised!(
@@ -39,7 +39,7 @@ defmodule BnestApp.IdentityUnitTest do
   end
 
   test "setup_status is open before bootstrap and closed afterwards" do
-    store = MemoryBackend.start()
+    store = InMemoryRecordBackend.start()
 
     server =
       start_supervised!(

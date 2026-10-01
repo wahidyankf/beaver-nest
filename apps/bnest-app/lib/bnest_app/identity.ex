@@ -3,13 +3,12 @@ defmodule BnestApp.Identity do
 
   use GenServer
 
-  alias BnestApp.DataRepository
   alias BnestApp.Identity.Authorization
   alias BnestApp.Identity.Bootstrap
   alias BnestApp.Identity.FileStore
   alias BnestApp.Identity.Login
   alias BnestApp.Identity.Session
-  alias BnestApp.Storage.Config, as: StorageConfig
+  alias BnestApp.Storage
 
   def start_link(options) do
     case Keyword.get(options, :name, __MODULE__) do
@@ -80,10 +79,5 @@ defmodule BnestApp.Identity do
   defp resolve_store({:fixed, store}), do: store
   defp resolve_store(:active), do: active_store()
 
-  defp active_store do
-    case StorageConfig.phase() do
-      :sqlite_primary -> DataRepository
-      :flat_primary -> DataRepository.store()
-    end
-  end
+  defp active_store, do: Storage.active_store()
 end

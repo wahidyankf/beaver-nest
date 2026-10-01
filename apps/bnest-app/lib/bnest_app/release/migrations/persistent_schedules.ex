@@ -1,10 +1,9 @@
 defmodule BnestApp.Release.Migrations.PersistentSchedules do
   @moduledoc false
 
-  alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.Scheduler.Policy
   alias BnestApp.SqliteRepo
-  alias BnestApp.Storage.Lock
+  alias BnestApp.Storage
 
   @version 20_260_830_000_000
   @schedule_key "prod-sqlite-backup-daily"
@@ -20,7 +19,7 @@ defmodule BnestApp.Release.Migrations.PersistentSchedules do
   @spec apply_and_verify!(DateTime.t()) :: :ok
   def apply_and_verify!(%DateTime{} = now) do
     with_repository(fn ->
-      Lock.with_exclusive(fn ->
+      Storage.with_exclusive_lock(fn ->
         Ecto.Migrator.run(SqliteRepo, migrations_path(), :up, all: true)
         reconcile_seed!(now)
         verify!()
@@ -50,12 +49,12 @@ defmodule BnestApp.Release.Migrations.PersistentSchedules do
     ensure_database_apps_started!()
     standalone? = not application_started?(:bnest_app)
     started_here? = is_nil(Process.whereis(SqliteRepo))
-    if started_here?, do: StorageCoordinator.ensure_started!()
+    if started_here?, do: Storage.ensure_started!()
 
     try do
       operation.()
     after
-      if standalone? and started_here?, do: StorageCoordinator.stop()
+      if standalone? and started_here?, do: Storage.stop()
     end
   end
 

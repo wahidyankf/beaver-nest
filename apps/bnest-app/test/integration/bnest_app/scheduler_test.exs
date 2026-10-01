@@ -1,20 +1,20 @@
 defmodule BnestApp.SchedulerTest do
   use ExUnit.Case, async: false
 
-  alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Scheduler.Store
+  alias BnestApp.Storage.Adapters.SqliteCoordinator
   alias BnestApp.TestRuntimeRoot
 
   @now ~U[2026-08-30 20:00:00Z]
 
   setup do
     runtime = TestRuntimeRoot.create!("scheduler")
-    :ok = StorageCoordinator.ensure_started!(Path.join(runtime.sqlite_path, "bnest.sqlite3"))
+    :ok = SqliteCoordinator.ensure_started!(Path.join(runtime.sqlite_path, "bnest.sqlite3"))
     :ok = PersistentSchedules.apply_and_verify!(@now)
 
     on_exit(fn ->
-      StorageCoordinator.stop()
+      SqliteCoordinator.stop()
       TestRuntimeRoot.cleanup!(runtime)
     end)
 

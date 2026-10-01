@@ -1,8 +1,8 @@
 defmodule BnestAppWeb.ThemeController do
   use BnestAppWeb, :controller
 
-  alias BnestApp.DataRepository
   alias BnestApp.Identity
+  alias BnestApp.Storage.Records
 
   def update(conn, %{"theme" => theme}) when theme in ["system", "light", "dark"] do
     user = conn.assigns.current_user
@@ -21,15 +21,15 @@ defmodule BnestAppWeb.ThemeController do
   def update(conn, _params), do: send_resp(conn, :unprocessable_entity, "Invalid theme.")
 
   defp persist(owner_id, "system") do
-    case DataRepository.read(:theme, owner_id) do
-      {:ok, record} -> DataRepository.remove_exact(:theme, owner_id, record)
+    case Records.read(:theme, owner_id) do
+      {:ok, record} -> Records.remove_exact(:theme, owner_id, record)
       {:error, :missing} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp persist(owner_id, theme) do
-    case DataRepository.read(:theme, owner_id) do
+    case Records.read(:theme, owner_id) do
       {:ok, record} -> write(owner_id, theme, record)
       {:error, :missing} -> write(owner_id, theme, nil)
       {:error, reason} -> {:error, reason}
@@ -48,7 +48,7 @@ defmodule BnestAppWeb.ThemeController do
 
     expected_revision = if existing, do: existing["revision"], else: nil
 
-    case DataRepository.write(:theme, owner_id, expected_revision, candidate) do
+    case Records.write(:theme, owner_id, expected_revision, candidate) do
       {:ok, _record} -> :ok
       {:error, reason} -> {:error, reason}
     end

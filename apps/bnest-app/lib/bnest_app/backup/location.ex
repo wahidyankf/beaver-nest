@@ -1,7 +1,8 @@
 defmodule BnestApp.Backup.Location do
   @moduledoc false
 
-  alias BnestApp.Storage.Config, as: StorageConfig
+  alias BnestApp.Backup.Config
+  alias BnestApp.Storage
 
   @marker ".bnest-backup-root.json"
   @scope "bnest-production-backups-v1"
@@ -32,8 +33,8 @@ defmodule BnestApp.Backup.Location do
   @spec validate(String.t()) :: {:ok, String.t()} | {:error, atom()}
   def validate(directory) when is_binary(directory) do
     expanded = Path.expand(directory)
-    repository_root = BnestApp.Backup.Config.repository_root()
-    default_directory = BnestApp.Backup.Config.default_directory()
+    repository_root = Config.repository_root()
+    default_directory = Config.default_directory()
 
     with :ok <- require_absolute(directory),
          :ok <- reject_symlink(expanded),
@@ -121,7 +122,7 @@ defmodule BnestApp.Backup.Location do
   end
 
   defp overlaps_source?(directory) do
-    source = StorageConfig.resolved_database_path() |> Path.expand()
+    source = Storage.database_path() |> Path.expand()
     source_directory = Path.dirname(source)
     inside?(directory, source_directory) or inside?(source_directory, directory)
   end
@@ -135,7 +136,7 @@ defmodule BnestApp.Backup.Location do
   end
 
   defp overlaps_config?(directory) do
-    config_path = BnestApp.Backup.Config.config_path() |> Path.expand()
+    config_path = Config.config_path() |> Path.expand()
     inside?(config_path, directory)
   end
 

@@ -4,10 +4,11 @@ defmodule BnestApp.ScheduledBackupTest do
   alias BnestApp.Backup.Config
   alias BnestApp.Backup.Location
   alias BnestApp.Backup.Run
-  alias BnestApp.DataRepository.StorageCoordinator
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Scheduler.Store
-  alias BnestApp.Storage.Config, as: StorageConfig
+  alias BnestApp.Storage
+  alias BnestApp.Storage.Adapters.FileConfigStore
+  alias BnestApp.Storage.Adapters.SqliteCoordinator
   alias BnestApp.TestRuntimeRoot
 
   @now ~U[2026-08-30 20:00:00Z]
@@ -21,13 +22,13 @@ defmodule BnestApp.ScheduledBackupTest do
     storage_config_path = Path.join(runtime.path, "storage-config/storage.json")
     System.put_env("BNEST_BACKUP_CONFIG", config_path)
     System.put_env("BNEST_STORAGE_CONFIG", storage_config_path)
-    {:ok, _storage} = StorageConfig.persist_directory(database_directory)
-    :ok = StorageCoordinator.ensure_started!(Path.join(database_directory, "bnest.sqlite3"))
+    {:ok, _storage} = Storage.persist_directory(database_directory)
+    :ok = SqliteCoordinator.ensure_started!(Path.join(database_directory, "bnest.sqlite3"))
     :ok = PersistentSchedules.apply_and_verify!(@now)
-    StorageConfig.activate_sqlite_primary!()
+    FileConfigStore.activate_sqlite_primary!()
 
     on_exit(fn ->
-      StorageCoordinator.stop()
+      SqliteCoordinator.stop()
       System.delete_env("BNEST_BACKUP_CONFIG")
       System.delete_env("BNEST_STORAGE_CONFIG")
       File.rm_rf(backup_directory)
@@ -107,7 +108,7 @@ defmodule BnestApp.ScheduledBackupTest do
     config_directory = System.fetch_env!("BNEST_BACKUP_CONFIG") |> Path.dirname()
     assert {:error, :config_overlap} = Location.validate(config_directory)
 
-    source_directory = StorageConfig.resolved_database_path() |> Path.dirname()
+    source_directory = FileConfigStore.resolved_database_path() |> Path.dirname()
     assert {:error, :source_overlap} = Location.validate(source_directory)
 
     link = context.backup_directory <> "-link"

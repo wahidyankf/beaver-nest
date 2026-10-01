@@ -676,7 +676,7 @@ defmodule BnestApp.Scheduler.Store do
   end
 
   # `SqliteRepo` is deliberately started/stopped outside OTP supervision by
-  # `StorageCoordinator` (storage relocation, migration, and per-test-module
+  # `Storage.Adapters.SqliteCoordinator` (storage relocation, migration, and per-test-module
   # database isolation all call `ensure_started!/1` and `stop/0` directly --
   # see its moduledoc). `BnestApp.Scheduler`, by contrast, is a permanently
   # supervised, independently-ticking process that never pauses for that

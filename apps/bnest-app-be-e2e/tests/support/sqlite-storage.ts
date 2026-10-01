@@ -131,11 +131,11 @@ export function inspectStorageMigration(
 ): StorageMigrationEvidence {
   const marker = "BNEST_E2E_STORAGE_EVIDENCE=";
   const expression = `
-    alias BnestApp.DataRepository.{SqliteStore, StorageCoordinator}
+    alias BnestApp.Storage.Adapters.{SqliteCoordinator, SqliteRecordBackend}
     alias BnestApp.SqliteRepo
-    :ok = StorageCoordinator.ensure_started!()
+    :ok = SqliteCoordinator.ensure_started!()
     items = SqliteRepo.query!("SELECT source_relative_path, source_sha256, target_sha256, outcome FROM bnest_migration_items ORDER BY rowid").rows
-    {:ok, record} = SqliteStore.read(SqliteStore.new(SqliteRepo), :theme, "user-fixture-001")
+    {:ok, record} = SqliteRecordBackend.read(SqliteRecordBackend.new(SqliteRepo), :theme, "user-fixture-001")
     IO.puts("${marker}" <> Jason.encode!(%{items: items, record: record}))
   `;
   const result = runStorageCommand(scenario, "run", ["-e", expression]);

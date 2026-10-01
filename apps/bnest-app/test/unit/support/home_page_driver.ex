@@ -1,93 +1,3 @@
-defmodule BnestApp.Behaviour.MemoryBackend do
-  @moduledoc false
-
-  @behaviour BnestApp.DataRepository.Backend
-
-  def start do
-    {:ok, pid} = Agent.start_link(fn -> %{} end)
-    %{backend: __MODULE__, pid: pid}
-  end
-
-  def snapshot(%{pid: pid}), do: Agent.get(pid, & &1)
-
-  @impl true
-  def identity_files_empty?(store) do
-    not Enum.any?(snapshot(store), fn
-      {{type, _identity}, _record} when type in [:account, :username_index] -> true
-      _other -> false
-    end)
-  end
-
-  def fail_next_write(%{pid: pid}) do
-    Agent.update(pid, &Map.put(&1, :fail_next_write, true))
-  end
-
-  @impl true
-  def read(%{pid: pid}, type, identity) do
-    Agent.get(pid, fn records -> Map.fetch(records, {type, identity}) end)
-    |> case do
-      {:ok, record} -> {:ok, record}
-      :error -> {:error, :missing}
-    end
-  end
-
-  @impl true
-  def write(%{pid: pid}, type, identity, expected_revision, candidate) do
-    Agent.get_and_update(pid, fn records ->
-      key = {type, identity}
-      existing = Map.get(records, key)
-      actual_revision = if existing, do: existing["revision"], else: nil
-
-      cond do
-        Map.get(records, :fail_next_write, false) ->
-          {{:error, :injected_failure}, Map.delete(records, :fail_next_write)}
-
-        actual_revision == expected_revision ->
-          prepared = Map.put(candidate, "revision", (actual_revision || -1) + 1)
-          {{:ok, prepared}, Map.put(records, key, prepared)}
-
-        true ->
-          {{:error, :stale}, records}
-      end
-    end)
-  end
-
-  @impl true
-  def put_new(%{pid: pid}, type, identity, candidate) do
-    Agent.get_and_update(pid, fn records ->
-      key = {type, identity}
-
-      if Map.has_key?(records, key),
-        do: {{:error, :exists}, records},
-        else: {{:ok, candidate}, Map.put(records, key, candidate)}
-    end)
-  end
-
-  @impl true
-  def replace(%{pid: pid}, type, identity, candidate) do
-    Agent.get_and_update(pid, fn records ->
-      key = {type, identity}
-
-      if Map.has_key?(records, key),
-        do: {{:ok, candidate}, Map.put(records, key, candidate)},
-        else: {{:error, :missing}, records}
-    end)
-  end
-
-  @impl true
-  def remove_exact(%{pid: pid}, type, identity, expected) do
-    Agent.get_and_update(pid, fn records ->
-      key = {type, identity}
-
-      case Map.fetch(records, key) do
-        {:ok, ^expected} -> {:ok, Map.delete(records, key)}
-        {:ok, _changed} -> {{:error, :changed}, records}
-        :error -> {:ok, records}
-      end
-    end)
-  end
-end
-
 defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @moduledoc false
 
@@ -95,19 +5,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   alias BnestApp.AdminConfig.Registry, as: AdminRegistry
   alias BnestApp.Backup.{Config, Receipt, Run}
-  alias BnestApp.Behaviour.MemoryBackend
   alias BnestApp.Behaviour.UnitFamilyChatDriver
   alias BnestApp.Chat
   alias BnestApp.Codex.{FixtureModels, ModelAccess, RepositoryAccess}
-  alias BnestApp.DataRepository.{Backend, Import, Schema}
   alias BnestApp.Deployment
   alias BnestApp.FamilyChat
   alias BnestApp.Identity.{Authorization, Bootstrap, CredentialVerifier, Login, Session}
   alias BnestApp.Scheduler.{Policy, Registry, Store}
   alias BnestApp.SifatAllah
-  alias BnestApp.Storage.Config, as: StorageConfig
-  alias BnestApp.Storage.Location, as: StorageLocation
-  alias BnestApp.Storage.Migration, as: StorageMigration
+  alias BnestApp.Storage
+  alias BnestApp.Storage.Domain.FlatMigration
+  alias BnestApp.Storage.Domain.Location, as: StorageLocation
+  alias BnestApp.Storage.Import
+  alias BnestApp.Storage.Ports.RecordBackend
+  alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
   alias BnestAppWeb.SifatAllahLive
   alias Phoenix.HTML.Safe
 
@@ -1042,7 +953,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: Map.merge(context, %{authenticated: false, repository_accesses: 0})
 
   def prepare_behaviour(context, :uninitialized, _args),
-    do: Map.merge(context, %{setup_open: true, identity_store: MemoryBackend.start()})
+    do: Map.merge(context, %{setup_open: true, identity_store: InMemoryRecordBackend.start()})
 
   def prepare_behaviour(context, :approved_account, _args),
     do: authenticated_memory_context(context)
@@ -1051,7 +962,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context = authenticated_memory_context(context)
 
     {:ok, account} =
-      Backend.read(context.identity_store, :account, context.identity_user["userId"])
+      RecordBackend.read(context.identity_store, :account, context.identity_user["userId"])
 
     Map.put(context, :verifier, account["passwordVerifier"])
   end
@@ -1093,7 +1004,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
     Map.merge(context, %{
       pending_behaviour_state: :invalid_browser_source,
-      accepted_before: Backend.read(context.central_store, :chat, context.central_owner),
+      accepted_before: RecordBackend.read(context.central_store, :chat, context.central_owner),
       accepted_import: accepted,
       browser_sources: [
         %{"storageArea" => "localStorage", "storageKey" => "unknown", "payload" => "opaque"}
@@ -1103,7 +1014,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def prepare_behaviour(context, :interrupted_import, _args) do
     context = central_context(context, [chat_source()])
-    MemoryBackend.fail_next_write(context.central_store)
+    InMemoryRecordBackend.fail_next_write(context.central_store)
 
     {:error, :read_back_failed, manifest} =
       Import.browser(context.central_store, context.central_owner, chat_source())
@@ -1114,7 +1025,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def prepare_behaviour(context, :stale_browser_revision, _args) do
     context = central_context(context, [])
     {:ok, _accepted} = Import.browser(context.central_store, context.central_owner, chat_source())
-    {:ok, newer} = Backend.read(context.central_store, :chat, context.central_owner)
+    {:ok, newer} = RecordBackend.read(context.central_store, :chat, context.central_owner)
 
     stale_payload =
       chat_source()["payload"] |> Jason.decode!() |> Map.put("model", "stale") |> Jason.encode!()
@@ -1165,7 +1076,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       schema_objects: [],
       flat_sources: Enum.map(entries, &elem(&1, 0)),
       flat_source_records: Map.new(entries),
-      migration_store: MemoryBackend.start()
+      migration_store: InMemoryRecordBackend.start()
     })
   end
 
@@ -1179,20 +1090,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       flat_source_records: Map.new(entries),
       flat_source_snapshot: sources,
       migration_items: [],
-      migration_store: MemoryBackend.start(),
+      migration_store: InMemoryRecordBackend.start(),
       resolved_database_directory: "/var/lib/bnest"
     })
   end
 
   def prepare_behaviour(context, :migration_stopped_after_progress, _args) do
     context = prepare_behaviour(context, :flat_primary_default_location, [])
-    [first_path | _rest] = StorageMigration.order_inventory(context.flat_sources)
+    [first_path | _rest] = FlatMigration.order_inventory(context.flat_sources)
 
     {:accepted, evidence} =
-      StorageMigration.assess_record(first_path, source_bytes(context, first_path))
+      assess_record(first_path, source_bytes(context, first_path))
 
     {:ok, _record} =
-      Backend.put_new(
+      RecordBackend.put_new(
         context.migration_store,
         evidence.classification.type,
         evidence.identity,
@@ -1206,7 +1117,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context = prepare_behaviour(context, :flat_primary_default_location, [])
 
     {:ok, _account} =
-      Backend.put_new(context.migration_store, :account, "unit-verified-account", %{
+      RecordBackend.put_new(context.migration_store, :account, "unit-verified-account", %{
         "schemaVersion" => 1,
         "recordType" => "account",
         "ownerId" => "unit-verified-account"
@@ -1470,7 +1381,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def perform_behaviour(context, :retry_import, _args) do
-    before = MemoryBackend.snapshot(context.central_store)
+    before = InMemoryRecordBackend.snapshot(context.central_store)
     result = Import.browser(context.central_store, context.central_owner, chat_source())
     Map.merge(context, %{before_retry: before, retry_result: result})
   end
@@ -1575,7 +1486,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       write: fn config -> Agent.update(storage_pointer, fn _current -> config end) end
     }
 
-    persist_result = StorageConfig.persist_directory(candidate, dependencies)
+    persist_result = Storage.persist_directory(candidate, dependencies)
 
     Map.merge(context, %{
       requested_directory: candidate,
@@ -1587,7 +1498,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :enter_unsafe_folder, _args),
     do:
       Map.merge(context, %{
-        persist_result: StorageLocation.validate("relative/storage"),
+        persist_result: StorageLocation.validate("relative/storage", %{}),
         storage_config: nil
       })
 
@@ -1600,17 +1511,17 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       schema_after_second_apply: schema_after,
       first_apply_inserted: first_inserted,
       second_apply_inserted: second_inserted,
-      declared_migration_id: StorageMigration.migration_id()
+      declared_migration_id: FlatMigration.migration_id()
     })
   end
 
   def perform_behaviour(context, :run_managed_storage_migration, _args) do
     assessments =
       context.flat_sources
-      |> StorageMigration.order_inventory()
+      |> FlatMigration.order_inventory()
       |> Enum.map(fn path ->
         source_bytes = context.flat_source_records |> Map.fetch!(path) |> Jason.encode!()
-        {path, StorageMigration.assess_record(path, source_bytes)}
+        {path, assess_record(path, source_bytes)}
       end)
 
     accepted =
@@ -1619,7 +1530,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
           record = evidence.record
 
           {:ok, ^record} =
-            Backend.put_new(
+            RecordBackend.put_new(
               context.migration_store,
               evidence.classification.type,
               evidence.identity,
@@ -1635,7 +1546,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     counts =
       assessments
       |> Enum.map(fn {_path, {outcome, _evidence}} -> outcome end)
-      |> StorageMigration.outcome_counts()
+      |> FlatMigration.outcome_counts()
 
     Map.merge(context, %{
       migration_items: accepted,
@@ -1646,7 +1557,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def perform_behaviour(context, :retry_same_migration, _args) do
-    store_before = MemoryBackend.snapshot(context.migration_store)
+    store_before = InMemoryRecordBackend.snapshot(context.migration_store)
     {counts, _inserted, store_after} = migration_pass(context)
 
     Map.merge(context, %{
@@ -1659,47 +1570,47 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def perform_behaviour(context, :commit_authority_switch, _args) do
-    store = MemoryBackend.start()
+    store = InMemoryRecordBackend.start()
     {:ok, _accepted} = Import.browser(store, "unit-rollback", chat_source())
 
     Map.merge(context, %{
       storage_config: %{"phase" => "sqlite_primary"},
-      rollback_record_result: Backend.read(store, :chat, "unit-rollback")
+      rollback_record_result: RecordBackend.read(store, :chat, "unit-rollback")
     })
   end
 
   def perform_behaviour(context, :retire_flat_identity_sources, _args) do
     store = context.migration_store
 
-    Enum.each(MemoryBackend.snapshot(store), fn
+    Enum.each(InMemoryRecordBackend.snapshot(store), fn
       {{type, identity}, record} when type in [:account, :username_index] ->
-        Backend.remove_exact(store, type, identity, record)
+        RecordBackend.remove_exact(store, type, identity, record)
 
       _other ->
         :ok
     end)
 
-    Map.put(context, :flat_identity_retired?, Backend.identity_files_empty?(store))
+    Map.put(context, :flat_identity_retired?, RecordBackend.identity_files_empty?(store))
   end
 
   # Verification only classifies; it must not write, so the store snapshot is the evidence
   # that the flat-primary service is untouched.
   def perform_behaviour(context, :verify_migration, _args) do
-    store_before = MemoryBackend.snapshot(context.migration_store)
+    store_before = InMemoryRecordBackend.snapshot(context.migration_store)
 
     counts =
       context.flat_sources
-      |> StorageMigration.order_inventory()
+      |> FlatMigration.order_inventory()
       |> Enum.map(fn path ->
-        {outcome, _evidence} = StorageMigration.assess_record(path, source_bytes(context, path))
+        {outcome, _evidence} = assess_record(path, source_bytes(context, path))
         outcome
       end)
-      |> StorageMigration.outcome_counts()
+      |> FlatMigration.outcome_counts()
 
     Map.merge(context, %{
       migration_run_result: counts,
       store_before_verification: store_before,
-      store_after_verification: MemoryBackend.snapshot(context.migration_store),
+      store_after_verification: InMemoryRecordBackend.snapshot(context.migration_store),
       flat_sources_after_verification: context.flat_sources
     })
   end
@@ -1873,7 +1784,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
           {:error, :unauthenticated}
 
   def behaviour_outcome?(context, :no_plaintext_password, _args) do
-    records = context.identity_store |> MemoryBackend.snapshot() |> inspect()
+    records = context.identity_store |> InMemoryRecordBackend.snapshot() |> inspect()
 
     String.starts_with?(context.verifier, "$argon2id$") and
       CredentialVerifier.verify(context.identity_password, context.verifier) and
@@ -1941,7 +1852,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def behaviour_outcome?(context, :schema_matches_checksum, _args),
     do:
-      context.declared_migration_id == StorageMigration.migration_id() and
+      context.declared_migration_id == FlatMigration.migration_id() and
         context.first_apply_inserted == length(context.flat_sources)
 
   # put_new refuses an existing key, so a second apply must insert nothing and leave the
@@ -1954,7 +1865,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :deterministic_inventory, _args),
     do:
       context.flat_sources != Enum.sort(context.flat_sources) and
-        context.migrated_sources == StorageMigration.order_inventory(context.flat_sources)
+        context.migrated_sources == FlatMigration.order_inventory(context.flat_sources)
 
   def behaviour_outcome?(context, :database_under_resolved_directory, _args),
     do:
@@ -1975,7 +1886,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :normal_reads_match, _args),
     do:
       Enum.all?(context.migration_items, fn item ->
-        Backend.read(
+        RecordBackend.read(
           context.migration_store,
           item.classification.type,
           item.identity
@@ -1999,7 +1910,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :writes_compatible_with_rollback, _args),
     do:
       match?({:ok, record} when is_map(record), context.rollback_record_result) and
-        match?({:ok, _record}, Schema.validate(elem(context.rollback_record_result, 1)))
+        match?({:ok, _record}, Storage.validate_record(elem(context.rollback_record_result, 1)))
 
   def behaviour_outcome?(context, :journeys_survive_restart, _args),
     do:
@@ -2061,7 +1972,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       {:ok, %{import_id: import_id}} ->
         match?(
           {:ok, %{"payloadEncoding" => "utf8-string"}},
-          Backend.read(context.central_store, :browser_import, {context.central_owner, import_id})
+          RecordBackend.read(
+            context.central_store,
+            :browser_import,
+            {context.central_owner, import_id}
+          )
         )
 
       _failure ->
@@ -2071,7 +1986,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def behaviour_outcome?(context, :normalized_records_read, _args) do
     Enum.all?([:chat, :sifat_allah, :theme], fn type ->
-      case Backend.read(context.central_store, type, context.central_owner) do
+      case RecordBackend.read(context.central_store, type, context.central_owner) do
         {:ok, %{"ownerId" => owner}} -> owner == context.central_owner
         _missing -> false
       end
@@ -2081,7 +1996,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :absent_theme_recorded, _args) do
     with [{:ok, %{import_id: import_id}}] <- context.import_results,
          {:ok, %{"recoverySource" => %{"kind" => "browser-absence"}}} <-
-           Backend.read(context.central_store, :manifest, import_id) do
+           RecordBackend.read(context.central_store, :manifest, import_id) do
       true
     else
       _failure -> false
@@ -2089,20 +2004,23 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def behaviour_outcome?(context, :no_theme_preference, _args),
-    do: Backend.read(context.central_store, :theme, context.central_owner) == {:error, :missing}
+    do:
+      RecordBackend.read(context.central_store, :theme, context.central_owner) ==
+        {:error, :missing}
 
   def behaviour_outcome?(context, :safe_rejected_import, _args),
     do: match?([{:error, :unsupported_source, _manifest}], context.import_results)
 
   def behaviour_outcome?(context, :source_and_record_unchanged, _args),
     do:
-      Backend.read(context.central_store, :chat, context.central_owner) == context.accepted_before
+      RecordBackend.read(context.central_store, :chat, context.central_owner) ==
+        context.accepted_before
 
   def behaviour_outcome?(context, :idempotent_import_identity, _args),
     do: match?({:ok, %{import_id: id}} when id == context.first_import_id, context.retry_result)
 
   def behaviour_outcome?(context, :accepted_data_preserved, _args) do
-    after_retry = MemoryBackend.snapshot(context.central_store)
+    after_retry = InMemoryRecordBackend.snapshot(context.central_store)
 
     envelope_key = {:browser_import, {context.central_owner, context.first_import_id}}
 
@@ -2119,7 +2037,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def behaviour_outcome?(context, :newer_record_preserved, _args),
     do:
-      Backend.read(context.central_store, :chat, context.central_owner) ==
+      RecordBackend.read(context.central_store, :chat, context.central_owner) ==
         {:ok, context.centralized_before}
 
   def behaviour_outcome?(context, :refresh_required, _args),
@@ -2132,7 +2050,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do:
       match?(
         {:ok, %{"recordType" => "chat"}},
-        Backend.read(context.central_store, :chat, context.central_owner)
+        RecordBackend.read(context.central_store, :chat, context.central_owner)
       )
 
   def behaviour_outcome?(context, :transcript_preserved, _args),
@@ -2305,14 +2223,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   defp migration_pass(context) do
     results =
       context.flat_sources
-      |> StorageMigration.order_inventory()
+      |> FlatMigration.order_inventory()
       |> Enum.map(fn path ->
-        case StorageMigration.assess_record(path, source_bytes(context, path)) do
+        case assess_record(path, source_bytes(context, path)) do
           {:accepted, evidence} ->
             inserted? =
               match?(
                 {:ok, _record},
-                Backend.put_new(
+                RecordBackend.put_new(
                   context.migration_store,
                   evidence.classification.type,
                   evidence.identity,
@@ -2327,9 +2245,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         end
       end)
 
-    counts = results |> Enum.map(&elem(&1, 0)) |> StorageMigration.outcome_counts()
+    counts = results |> Enum.map(&elem(&1, 0)) |> FlatMigration.outcome_counts()
 
-    {counts, Enum.count(results, &elem(&1, 1)), MemoryBackend.snapshot(context.migration_store)}
+    {counts, Enum.count(results, &elem(&1, 1)),
+     InMemoryRecordBackend.snapshot(context.migration_store)}
   end
 
   defp sqlite_storage_fixture_entries do
@@ -2355,14 +2274,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   defp central_context(context, sources) do
     Map.merge(context, %{
-      central_store: MemoryBackend.start(),
+      central_store: InMemoryRecordBackend.start(),
       central_owner: "user-unit",
       browser_sources: sources
     })
   end
 
   defp authenticated_memory_context(context) do
-    store = MemoryBackend.start()
+    store = InMemoryRecordBackend.start()
     username = "UnitUser"
     password = "Synthetic password 1!"
 
@@ -2411,4 +2330,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   defp theme_source,
     do: %{"storageArea" => "localStorage", "storageKey" => "phx:theme", "payload" => "dark"}
+
+  defp assess_record(path, bytes),
+    do: FlatMigration.assess_record(path, bytes, Storage.record_kinds())
 end
