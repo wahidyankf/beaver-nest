@@ -280,3 +280,48 @@ Resolution: applied in U5; 006 stays as authored, and this entry records the as-
   decision outside this structural plan; it is raised with the user at U14.
 
 Resolution: applied in U6; 002 and 006 stay as authored, and this entry records the as-built difference.
+
+### E7: U7 SifatAllah as built (2026-10-01)
+
+- **No `record_answer` in the facade.** Recording an answer is a pure progress change, `Domain.Quiz.record_answer/4`,
+  which `SifatAllahLive` already calls through the exported domain before saving. A facade version would either only
+  delegate or merge answering with saving, which would change the LiveView's flow.
+- **A new `Domain.ProgressRecord`**, which 006 does not list, builds the `sifat-allah-progress` record and its expected
+  revision, as `Preferences.Domain.Theme` does for the theme. `Domain.Quiz` stays unchanged, and
+  `ProgressRecordKind.record_type/0` reuses it.
+- **The port takes a handle first.** `ProgressStore` has `new/0`, `read/2` and `write/4`, following 004 and
+  `PreferenceStore`. It has no removal, because a reset writes a fresh revision.
+- **The facade reads the clock by default.** `save_progress/3` keeps the arity that 002 and the delivery item name. An
+  optional `now:` and `store:` override the clock and store; the domain stays clock-free. This differs from E6, where
+  `put_theme/4` takes `now` as an argument.
+- **The facade test uses `InMemory.ProgressStore`**, not the in-memory record backend: the unit layer may not name
+  `RecordProgressStore`. One non-async test drives the configured store over `Records` on `InMemory.RecordBackend`
+  and checks the exact record, a revision-1 save and a stale save.
+- **The facade exports `Domain` and `Ports`**, because `SifatAllahLive` renders with `Quiz`.
+- **Unit configuration keeps the record-backed store**, as in U5 and U6: the unit SQLite-migration journey reads
+  `:sifat_allah` through `Records`.
+- **The integration driver reads persisted progress through `SifatAllah.load_progress/1`.**
+  `centralized_persistence_test.exs` still reads `Records` directly, because it pins the stored record format.
+- **No contract suite.** 004 lists `ProgressStore` as a thin mapping without one.
+- **No manual `curl`.** U7 changes a LiveView only; no REST or GraphQL operation changed.
+- **The Gherkin review found 16 FAIL rows (82 rows: 62 PASS, 4 EXEMPT).** The U7 diff introduced none.
+  - 13 unit rows fell under U7's driver item. The unit driver copied `SifatAllahLive`'s transitions and feedback
+    literals, and its reload never read anything back. It now mounts the real LiveView on a bare socket over in-memory
+    `Records`. It sends the real events and the auto-advance message, and reloads by remounting. The reload is checked
+    against the stored record and `load_progress/1`.
+  - Integration and FE e2e "reinforcement after every pair" seeded progress the server ignores. Both now seed through
+    `save_progress` and check "120 dari 120 soal sudah hafal" in the Given.
+  - The integration exemption on "A quiz locks one answer and moves on automatically" was invalid: the lock and the
+    timer are server-side. The tag and its comment are removed. The driver now waits for the real timer instead of
+    clicking `next-question`, and the RED is in the log.
+  - Both lock checks now also require locked buttons to be present; before, they passed when no buttons rendered.
+  - Each new Then was proved to fail against a temporary product mutation.
+- **A feature file changes: `sifat_allah.feature` loses one `@integration-exempt` tag and its comment.** No scenario
+  or step text changes. AC-DH-08 now says "no scenario or step text has changed", and permits only
+  review-invalidated exemption tags listed here; this is the first.
+- **A test that depended on run order surfaced.** With the scenario no longer exempt, the integration order changed for
+  a given seed. `AdminSettingsLiveTest` "reject invalid fields independently" then failed: it hard-coded revision `1`
+  and time `02:00`, which an earlier schedule test can change. The test now submits the rendered revision and compares
+  against the time it read first. It passes with the failing seed `964352`.
+
+Resolution: applied in U7; 002 and 006 stay as authored, and this entry records the as-built difference.
