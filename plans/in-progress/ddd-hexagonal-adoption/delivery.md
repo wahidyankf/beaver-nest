@@ -253,8 +253,9 @@ Every context phase runs the same nine items, in this order, with the context's 
       `lib/bnest_app/storage.ex` strict; delete the `DataRepository.*` and `Storage.*` legacy entries. `TYPECHECK` and the
       scan fail. AC-DH-02, AC-DH-04.
   - 2026-10-01: the pre-move failure output was not kept, so the RED was reproduced after GREEN: a probe in
-    `StorageLive` calling `Storage.Adapters.SqliteCoordinator` fails `TYPECHECK` (`forbidden reference … from BnestAppWeb
-    to BnestApp.Storage.Adapters`) and the scan (1 failure, rule L4). The probe was then removed. The same probe in
+    `StorageLive` calling `Storage.Adapters.SqliteCoordinator` fails `TYPECHECK` with a forbidden reference from
+    `BnestAppWeb` to `BnestApp.Storage.Adapters`, and the scan with 1 failure under rule L4. The probe was then
+    removed. The same probe in
     `HealthController` fails only `TYPECHECK`, because the scan lists that module as legacy until U13.
 - [x] [AI] RED (contract): `test/support/contracts/record_backend_contract.ex`, used by
       `test/unit/bnest_app/storage/in_memory_record_backend_test.exs`. `FOCUS_UNIT` fails. AC-DH-07.
