@@ -10,6 +10,8 @@ The log itself is shared Bnest infrastructure rather than a learning table. `Bne
 
 ```mermaid
 flowchart TB
+    accTitle: Architecture
+    accDescr: Flowchart with 12 nodes and 15 connections. Nodes: priv/learning corpus Command input, not truth, Learning.Content Sync command handler, LearnLive Mission runner, Learning.Command Decide and append, VerifyLive Parent queue, Absinthe schema /api/graphql, bnest_events Shared system of record, Learning.Projector Same transaction, Projections Content and progress, Rebuild task Replay from event 1, Dispatcher PubSub and cursors, Durable subscribers Redemption, streaks. Connections: priv/learning corpus Command input, not truth to Learning.Content Sync command handler, LearnLive Mission runner to Learning.Command Decide and append, VerifyLive Parent queue to Learning.Command Decide and append, Absinthe schema /api/graphql to Learning.Command Decide and append, Learning.Content Sync command handler to Learning.Command Decide and append, Learning.Command Decide and append to bnest_events Shared system of record, Learning.Command Decide and append to Learning.Projector Same transaction, Learning.Projector Same transaction to Projections Content and progress, bnest_events Shared system of record to Rebuild task Replay from event 1, Rebuild task Replay from event 1 to Projections Content and progress, bnest_events Shared system of record to Dispatcher PubSub and cursors, Dispatcher PubSub and cursors to LearnLive Mission runner, and 3 more.
     Corpus["priv/learning corpus<br/>Command input, not truth"] --> Sync["Learning.Content<br/>Sync command handler"]
     Runner["LearnLive<br/>Mission runner"] --> Cmd["Learning.Command<br/>Decide and append"]
     Verify["VerifyLive<br/>Parent queue"] --> Cmd
@@ -34,6 +36,7 @@ flowchart TB
     class Sync,Cmd,Proj,Rebuild domain
     class Runner,Verify,Api surface
     class Log,Views,Bus store
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 Every write takes the same path: a command handler loads the current state, decides, appends events to a stream with an expected version, and applies the projections in the same transaction. Nothing writes a projection without an event behind it, and nothing reads the log to serve a request.

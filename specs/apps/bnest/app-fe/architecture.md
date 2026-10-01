@@ -10,6 +10,8 @@ delivered by the one running `bnest-app` process and are aggregated by [`specs/a
 
 ```mermaid
 flowchart TB
+    accTitle: System Context
+    accDescr: Flowchart with 7 nodes and 7 connections. Nodes: Person Family member Uses the private family application, Person Administrator Manages schedules and backup settings, External system Tailscale Serve Private HTTPS route to stable local proxy, Container Caddy Loopback reverse proxy Blue/green upstream drain, Software system Bnest frontend Rendered routes Installable PWA, External system Bnest backend See app-be/architecture.md, External system Browser-vendor Web Push service Delivers push events to the service worker. Connections: Person Family member Uses the private family application to External system Tailscale Serve Private HTTPS route to stable local proxy (Remote HTTPS / WebSocket), External system Tailscale Serve Private HTTPS route to stable local proxy to Container Caddy Loopback reverse proxy Blue/green upstream drain (Loopback HTTP), Container Caddy Loopback reverse proxy Blue/green upstream drain to Software system Bnest frontend Rendered routes Installable PWA (Loopback HTTP WebSocket), Person Family member Uses the private family application to Software system Bnest frontend Rendered routes Installable PWA (Direct home-host connection), Person Administrator Manages schedules and backup settings to Software system Bnest frontend Rendered routes Installable PWA (Private admin UI), Software system Bnest frontend Rendered routes Installable PWA to External system Bnest backend See app-be/architecture.md (HTTP and WebSocket events, session cookie), External system Browser-vendor Web Push service Delivers push events to the service worker to Software system Bnest frontend Rendered routes Installable PWA (Push event to service worker).
     visitor(["Person<br/><b>Family member</b><br/>Uses the private<br/>family application"])
     admin(["Person<br/><b>Administrator</b><br/>Manages schedules<br/>and backup settings"])
     tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route<br/>to stable local proxy"}}
@@ -33,6 +35,7 @@ flowchart TB
     class frontend system
     class tailscale,backend,webpush external
     class caddy system
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The frontend surface is the one place family members and administrators interact with Bnest: every rendered route,
@@ -50,6 +53,8 @@ a delivery path that never crosses Tailscale Serve or Caddy. Both are implemente
 
 ```mermaid
 flowchart TB
+    accTitle: Container View
+    accDescr: Flowchart with 11 nodes and 10 connections. Nodes: Person Family member, Person Administrator, External system Tailscale Serve Private HTTPS route, Container Caddy Loopback blue/green reverse proxy, External container Phoenix backend domain See app-be/architecture.md, External system Web Push service, Container Browser / installed PWA HTML, CSS, JavaScript LiveView client, Container / data store Browser legacy sources Allow-listed values Retained until accepted import, Container / data store Room read position Last read message per member and room, Container Phoenix route/LiveView shell Renders rendered UI over the backend boundary, Container Service worker App-shell cache Push permission and events IndexedDB outbox. Connections: Container Browser / installed PWA HTML, CSS, JavaScript LiveView client to Container Phoenix route/LiveView shell Renders rendered UI over the backend boundary (HTTP and WebSocket events and renders), Container Browser / installed PWA HTML, CSS, JavaScript LiveView client to Container / data store Browser legacy sources Allow-listed values Retained until accepted import (Confirmed compatibility import), Container Browser / installed PWA HTML, CSS, JavaScript LiveView client to Container / data store Room read position Last read message per member and room (Remembers the last read message), Container Browser / installed PWA HTML, CSS, JavaScript LiveView client to Container Service worker App-shell cache Push permission and events IndexedDB outbox (Registers and posts messages), Person Family member to Container Browser / installed PWA HTML, CSS, JavaScript LiveView client (Uses), Person Administrator to Container Browser / installed PWA HTML, CSS, JavaScript LiveView client (Uses admin settings), External system Tailscale Serve Private HTTPS route to Container Caddy Loopback blue/green reverse proxy (Loopback HTTP WebSocket), Container Caddy Loopback blue/green reverse proxy to Container Phoenix route/LiveView shell Renders rendered UI over the backend boundary (Loopback HTTP WebSocket), Container Phoenix route/LiveView shell Renders rendered UI over the backend boundary to External container Phoenix backend domain See app-be/architecture.md (Domain calls), Container Service worker App-shell cache Push permission and events IndexedDB outbox to External system Web Push service (Push event).
     visitor(["Person<br/><b>Family member</b>"])
     admin(["Person<br/><b>Administrator</b>"])
     tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route"}}
@@ -87,6 +92,7 @@ flowchart TB
     class legacy,readmarker data
     class tailscale,backend,webpush external
     class caddy container
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The route/LiveView shell runs inside the same Phoenix OTP application as the backend domain; it is drawn as its own
@@ -104,6 +110,8 @@ mirrors it.
 
 ```mermaid
 flowchart TB
+    accTitle: Component View
+    accDescr: Flowchart with 10 nodes and 16 connections. Nodes: External container Browser / installed PWA, External container Service worker, External data store Allow-listed browser sources, External container Phoenix backend domain, Component Chat LiveView BnestAppWeb.ChatLive, Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive, Component Home/auth routes Login, setup, redirects, Component Admin settings UI Storage, schedules, Component Browser import UI data-migration route, Component Family chat route FamilyChatController, not a LiveView. Connections: Component Chat LiveView BnestAppWeb.ChatLive to External container Phoenix backend domain (Chat/learning events), Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive to External container Phoenix backend domain (Chat/learning events), Component Home/auth routes Login, setup, redirects to External container Phoenix backend domain (Auth events), Component Admin settings UI Storage, schedules to External container Phoenix backend domain (Admin events), Component Browser import UI data-migration route to External container Phoenix backend domain (Confirmed source values), Component Family chat route FamilyChatController, not a LiveView to External container Phoenix backend domain (Renders shell, then browser owns it), External container Browser / installed PWA to Component Chat LiveView BnestAppWeb.ChatLive (Chat events and renders), External container Browser / installed PWA to Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive (Learning events renders), External container Browser / installed PWA to Component Home/auth routes Login, setup, redirects (Protected events), External container Browser / installed PWA to Component Admin settings UI Storage, schedules (Admin-only events), External container Browser / installed PWA to Component Browser import UI data-migration route (Confirmed source values), External container Browser / installed PWA to External data store Allow-listed browser sources (Web Storage API until accepted import), and 4 more.
     browser(["External container<br/><b>Browser / installed PWA</b>"])
     worker(["External container<br/><b>Service worker</b>"])
     legacy[("External data store<br/><b>Allow-listed browser sources</b>")]
@@ -144,6 +152,7 @@ flowchart TB
     class chat_live,sifat_live,home,admin_ui,importer,family_chat component
     class legacy data
     class backend external
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The family chat route renders only the initial page shell (room list/composer scaffold); once loaded, the browser
