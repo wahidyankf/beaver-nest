@@ -18,6 +18,8 @@ The precedence hierarchy is:
 
 ```mermaid
 flowchart TD
+    accTitle: Governance Hierarchy
+    accDescr: Flowchart with 5 nodes and 4 connections. Nodes: Vision, Principles, Conventions, Development, Workflows. Connections: Vision to Principles, Principles to Conventions, Conventions to Development, Development to Workflows.
     Vision --> Principles
     Principles --> Conventions
     Conventions --> Development
@@ -25,6 +27,7 @@ flowchart TD
 
     classDef primary fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
     class Vision,Principles,Conventions,Development,Workflows primary
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The hierarchy flows from top to bottom: a lower level cannot contradict any level above it. Higher levels do not need to conform to lower levels. When documents conflict, the higher level takes precedence and the lower-level document must change. Documents should link to higher-level rules rather than duplicate them.

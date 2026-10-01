@@ -23,6 +23,7 @@ flowchart LR
     class Backlog queued
     class InProgress active
     class Done complete
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 - [`ideas/`](ideas/README.md) contains rough two-pager briefs grouped by urgency and importance.

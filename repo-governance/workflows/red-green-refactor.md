@@ -12,6 +12,8 @@ Use this workflow for each behaviour increment required by the [test-driven deve
 
 ```mermaid
 flowchart LR
+    accTitle: Cycle
+    accDescr: Flowchart with 3 nodes and 3 connections. Nodes: Red Expected test failure, Green Minimum implementation passes, Refactor Improve design Keep tests green. Connections: Red Expected test failure to Green Minimum implementation passes, Green Minimum implementation passes to Refactor Improve design Keep tests green, Refactor Improve design Keep tests green to Red Expected test failure.
     Red["Red<br/>Expected test failure"] --> Green["Green<br/>Minimum implementation passes"]
     Green --> Refactor["Refactor<br/>Improve design<br/>Keep tests green"]
     Refactor --> Red
@@ -22,6 +24,7 @@ flowchart LR
     class Red redPhase
     class Green greenPhase
     class Refactor refactorPhase
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 1. **Red:** Write or change one test that expresses the intended behaviour. Run the relevant test target through Nx and confirm it fails because the behaviour is absent or incorrect. Correct the test or environment if it fails for another reason.

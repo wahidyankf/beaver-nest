@@ -24,6 +24,8 @@ No other table is introduced, so no table in this plan carries the six columns.
 
 ```mermaid
 erDiagram
+    accTitle: Entity relationships
+    accDescr: Entity-relationship diagram with 11 items: EVENTS, PROJECTION_CURSORS, EVENT_LISTENERS, LEARNING_MISSIONS, LEARNING_MISSION_PROGRESS, LEARNING_COIN_LEDGER, LEARNING_COURSES, LEARNING_COURSE_TOPICS, LEARNING_TOPICS, LEARNING_TOPIC_MISSIONS, LEARNING_MISSION_ATTEMPTS. Relationships: EVENTS to PROJECTION_CURSORS: advances; EVENTS to EVENT_LISTENERS: consumed by; EVENTS to LEARNING_MISSIONS: projects into; EVENTS to LEARNING_MISSION_PROGRESS: projects into; EVENTS to LEARNING_COIN_LEDGER: projects into; LEARNING_COURSES to LEARNING_COURSE_TOPICS: orders; LEARNING_TOPICS to LEARNING_COURSE_TOPICS: placed in; LEARNING_TOPICS to LEARNING_TOPIC_MISSIONS: orders; LEARNING_MISSIONS to LEARNING_TOPIC_MISSIONS: placed in; LEARNING_MISSIONS to LEARNING_MISSION_PROGRESS: mastered by; LEARNING_MISSIONS to LEARNING_MISSION_ATTEMPTS: attempted in.
     EVENTS ||--o{ PROJECTION_CURSORS : "advances"
     EVENTS ||--o{ EVENT_LISTENERS : "consumed by"
     EVENTS ||--o{ LEARNING_MISSIONS : "projects into"
@@ -114,6 +116,7 @@ erDiagram
         TEXT mission_id FK
         INTEGER amount
     }
+    classDef default fill:#0173B2,stroke:#000000,color:#FFFFFF
 ```
 
 Note what the log is **not** connected to: `bnest_events` carries no foreign key into any projection. A source of truth cannot depend on a table that is dropped and rebuilt. The relationships drawn from it are projection relationships, not referential constraints.

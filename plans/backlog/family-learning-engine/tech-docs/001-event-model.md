@@ -39,6 +39,8 @@ Every append carries an expected `stream_version`. `UNIQUE (domain, stream_id, s
 
 ```mermaid
 flowchart TB
+    accTitle: Concurrency
+    accDescr: Flowchart with 10 nodes and 10 connections. Nodes: Command Answer, verify, sync, Load learner state From projection, Decide Invariants checked here, Append events Expected stream version, Version taken?, Apply projections Same transaction, Commit, Publish after commit, Live subscribers PubSub, may miss, Durable subscribers Own cursor, resume. Connections: Command Answer, verify, sync to Load learner state From projection, Load learner state From projection to Decide Invariants checked here, Decide Invariants checked here to Append events Expected stream version, Append events Expected stream version to Version taken?, Version taken? to Load learner state From projection (Yes), Version taken? to Apply projections Same transaction (No), Apply projections Same transaction to Commit, Commit to Publish after commit, Publish after commit to Live subscribers PubSub, may miss, Publish after commit to Durable subscribers Own cursor, resume.
     Cmd["Command<br/>Answer, verify, sync"] --> Load["Load learner state<br/>From projection"]
     Load --> Decide["Decide<br/>Invariants checked here"]
     Decide --> Append["Append events<br/>Expected stream version"]
@@ -56,6 +58,7 @@ flowchart TB
     class Cmd,Live,Durable surface
     class Load,Decide,Conflict,Publish domain
     class Append,Project,Commit store
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 ## Projections are written in the same transaction

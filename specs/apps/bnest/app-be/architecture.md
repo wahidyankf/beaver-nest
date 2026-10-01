@@ -10,6 +10,8 @@ delivered by the one running `bnest-app` process and are aggregated by [`specs/a
 
 ```mermaid
 flowchart TB
+    accTitle: System Context
+    accDescr: Flowchart with 8 nodes and 7 connections. Nodes: Person Family member Uses the private family application, Person Administrator Manages schedules and backup settings, External system Tailscale Serve Private HTTPS route to stable local proxy, Container Caddy Loopback reverse proxy Blue/green upstream drain, Software system Bnest backend Authenticated data Scheduled backups, External system Local Codex installation Model discovery Read-only Codex threads, External system Dropbox sync client Synchronizes verified backup pairs, External system Browser-vendor Web Push service Delivers VAPID-signed encrypted payloads. Connections: Person Family member Uses the private family application to External system Tailscale Serve Private HTTPS route to stable local proxy (Browser requests via app-fe), Person Administrator Manages schedules and backup settings to External system Tailscale Serve Private HTTPS route to stable local proxy (Admin requests via app-fe), External system Tailscale Serve Private HTTPS route to stable local proxy to Container Caddy Loopback reverse proxy Blue/green upstream drain (Loopback HTTP), Container Caddy Loopback reverse proxy Blue/green upstream drain to Software system Bnest backend Authenticated data Scheduled backups (Loopback HTTP WebSocket), Software system Bnest backend Authenticated data Scheduled backups to External system Local Codex installation Model discovery Read-only Codex threads (Local processes), Software system Bnest backend Authenticated data Scheduled backups to External system Dropbox sync client Synchronizes verified backup pairs (Verified snapshot pairs), Software system Bnest backend Authenticated data Scheduled backups to External system Browser-vendor Web Push service Delivers VAPID-signed encrypted payloads (Signed encrypted push payloads).
     visitor(["Person<br/><b>Family member</b><br/>Uses the private<br/>family application"])
     admin(["Person<br/><b>Administrator</b><br/>Manages schedules<br/>and backup settings"])
     tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route<br/>to stable local proxy"}}
@@ -34,6 +36,7 @@ flowchart TB
     class backend system
     class tailscale,codex,dropbox,webpush external
     class caddy system
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The backend surface serves every authenticated request and scheduled job for the one 24/7 `bnest-app` process. Family
@@ -52,6 +55,8 @@ still defaults to off in this revision (see [Architectural Constraints](#archite
 
 ```mermaid
 flowchart TB
+    accTitle: Container View
+    accDescr: Flowchart with 9 nodes and 8 connections. Nodes: External container app-fe browser/PWA See app-fe/architecture.md, External system Local Codex installation, External system Dropbox sync client, External system Web Push service, Container Phoenix backend domain Elixir / Phoenix / Bandit, Container / data store Local SQLite database Records and schedules Claims and safe results, Container / data store Backup folder Owned snapshots and safe receipts, Container / data store Legacy flat files Migration source Removed after proof, Container Codex bridge processes Node.js / Codex SDK and CLI. Connections: Container Phoenix backend domain Elixir / Phoenix / Bandit to Container / data store Local SQLite database Records and schedules Claims and safe results (Typed atomic operations), Container Phoenix backend domain Elixir / Phoenix / Bandit to Container / data store Backup folder Owned snapshots and safe receipts (Verified owned pairs), Container / data store Legacy flat files Migration source Removed after proof to Container Phoenix backend domain Elixir / Phoenix / Bandit (Verified migration input), Container Phoenix backend domain Elixir / Phoenix / Bandit to Container Codex bridge processes Node.js / Codex SDK and CLI (Ports and JSON lines), External container app-fe browser/PWA See app-fe/architecture.md to Container Phoenix backend domain Elixir / Phoenix / Bandit (HTTP and WebSocket events, session cookie), Container Codex bridge processes Node.js / Codex SDK and CLI to External system Local Codex installation (Discovers models runs or resumes threads), Container / data store Backup folder Owned snapshots and safe receipts to External system Dropbox sync client (Filesystem sync), Container Phoenix backend domain Elixir / Phoenix / Bandit to External system Web Push service (Signed encrypted push payloads).
     frontend[["External container<br/><b>app-fe browser/PWA</b><br/>See app-fe/architecture.md"]]
     codex{{"External system<br/><b>Local Codex installation</b>"}}
     dropbox{{"External system<br/><b>Dropbox sync client</b>"}}
@@ -82,6 +87,7 @@ flowchart TB
     class phoenix,bridge container
     class runtime,legacy_runtime,backup data
     class frontend,codex,dropbox,webpush external
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The Phoenix backend domain, SQLite storage, temporary flat-file migration source, backup folder, and Node bridges run
@@ -105,6 +111,8 @@ private origin.
 
 ```mermaid
 flowchart TD
+    accTitle: Release and Resumable State
+    accDescr: Flowchart with 10 nodes and 9 connections. Nodes: Clean origin main, Fixed uncached gates, Immutable artifact, Migration proof, Inactive slot proof, Caddy promotion, Routed revision proof, Ten-client reconnect, Bounded five-minute drain, Retain active and previous. Connections: Clean origin main to Fixed uncached gates, Fixed uncached gates to Immutable artifact, Immutable artifact to Migration proof, Migration proof to Inactive slot proof, Inactive slot proof to Caddy promotion, Caddy promotion to Routed revision proof, Routed revision proof to Ten-client reconnect, Ten-client reconnect to Bounded five-minute drain, Bounded five-minute drain to Retain active and previous.
     source[Clean origin main] --> gates[Fixed uncached gates]
     gates --> artifact[Immutable artifact]
     artifact --> migration[Migration proof]
@@ -121,6 +129,7 @@ flowchart TD
     class source input
     class gates,artifact,migration,candidate,promote,drain stage
     class routed,reconnect,cleanup proof
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 Backend session and durable-record continuity are the foundation `app-fe`'s reconnect experience relies on: a
@@ -132,6 +141,8 @@ backend today.
 
 ```mermaid
 flowchart TB
+    accTitle: Component View
+    accDescr: Flowchart with 14 nodes and 22 connections. Nodes: External container app-fe browser/PWA, External container Codex bridge processes, External system Web Push service, Component Identity Bootstrap and login Sessions and roles, Component Authorization Capability plus ownership checks, Component Data repository Schemas, coordinator Ecto repo and phase, Component Import and recovery Envelopes and manifests Retry and restore, Component Admin settings domain Typed panel registry, Component Daily scheduler Claims and retries Lease coordination, Component Task supervisor Allowlisted handlers, Component Backup proof VACUUM and quick check Receipts and retention, Component Chat and learning domain BnestApp.Chat, SifatAllah, model catalog, session port, and 2 more. Connections: Component Identity Bootstrap and login Sessions and roles to Component Authorization Capability plus ownership checks, Component Identity Bootstrap and login Sessions and roles to Component Data repository Schemas, coordinator Ecto repo and phase (Accounts and sessions), Component Authorization Capability plus ownership checks to Component Data repository Schemas, coordinator Ecto repo and phase, Component Import and recovery Envelopes and manifests Retry and restore to Component Data repository Schemas, coordinator Ecto repo and phase, Component Admin settings domain Typed panel registry to Component Daily scheduler Claims and retries Lease coordination, Component Daily scheduler Claims and retries Lease coordination to Component Data repository Schemas, coordinator Ecto repo and phase (Schedule ledger), Component Daily scheduler Claims and retries Lease coordination to Component Task supervisor Allowlisted handlers (Dispatches claims), Component Task supervisor Allowlisted handlers to Component Backup proof VACUUM and quick check Receipts and retention, Component Task supervisor Allowlisted handlers to Component Push notifications VAPID delivery, retry Retention job (Dispatches retention claims), Component Backup proof VACUUM and quick check Receipts and retention to Component Data repository Schemas, coordinator Ecto repo and phase (Snapshot source), Component Chat and learning domain BnestApp.Chat, SifatAllah, model catalog, session port to Component Data repository Schemas, coordinator Ecto repo and phase (User-owned records), Component Family chat GraphQL Schema, resolvers Rooms, messages, subscription to Component Data repository Schemas, coordinator Ecto repo and phase (Rooms and messages), and 10 more.
     frontend(["External container<br/><b>app-fe browser/PWA</b>"])
     bridge{{"External container<br/><b>Codex bridge processes</b>"}}
     webpush{{"External system<br/><b>Web Push service</b>"}}
@@ -182,6 +193,7 @@ flowchart TB
     class frontend external
     class identity,auth,repository,imports,settings,scheduler,tasks,backups,appdomain,familychat,push component
     class bridge,webpush process
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 `app-fe` owns the LiveView route/presentation layer (`ChatLive`, `SifatAllahLive`) that renders this domain's state;
