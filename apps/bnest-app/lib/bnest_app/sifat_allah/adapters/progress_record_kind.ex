@@ -6,7 +6,8 @@ defmodule BnestApp.SifatAllah.Adapters.ProgressRecordKind do
 
   @behaviour BnestApp.Storage.Ports.RecordKind
 
-  alias BnestApp.SifatAllah
+  alias BnestApp.SifatAllah.Domain.ProgressRecord
+  alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage.Domain.RecordSchema
 
   @dashboard %{"mode" => "dashboard"}
@@ -15,7 +16,7 @@ defmodule BnestApp.SifatAllah.Adapters.ProgressRecordKind do
   def kind, do: :sifat_allah
 
   @impl true
-  def record_type, do: "sifat-allah-progress"
+  def record_type, do: ProgressRecord.record_type()
 
   @impl true
   def source, do: {"localStorage", "bnest.sifat-allah.v1"}
@@ -30,7 +31,7 @@ defmodule BnestApp.SifatAllah.Adapters.ProgressRecordKind do
   # whole import, so the learner keeps their progress.
   @impl true
   def normalize(source) do
-    case SifatAllah.restore(source) do
+    case Quiz.restore(source) do
       {:ok, progress} ->
         session = source["session"] || @dashboard
 
@@ -51,7 +52,7 @@ defmodule BnestApp.SifatAllah.Adapters.ProgressRecordKind do
       progress,
       ~w(version learned_ids review_ids mastered_key_ids review_key_ids correct_answers incorrect_answers)
     ) and
-      match?({:ok, _progress}, SifatAllah.restore(progress))
+      match?({:ok, _progress}, Quiz.restore(progress))
   end
 
   defp valid_learning_session?(nil), do: true

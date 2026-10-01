@@ -1,6 +1,7 @@
 defmodule BnestApp.BrowserImportTest do
   use BnestAppWeb.ConnCase, async: false
 
+  alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage.Adapters.FileRecordBackend
   alias BnestApp.Storage.Import
   alias BnestApp.Storage.Records
@@ -125,7 +126,7 @@ defmodule BnestApp.BrowserImportTest do
 
     assert candidate["recordType"] == "sifat-allah-progress"
     assert candidate["sourceImportId"] == accepted.import_id
-    assert candidate["progress"] == BnestApp.SifatAllah.progress()
+    assert candidate["progress"] == Quiz.progress()
   end
 
   defp chat_source do
@@ -149,7 +150,7 @@ defmodule BnestApp.BrowserImportTest do
       "storageKey" => "bnest.sifat-allah.v1",
       "payload" =>
         Jason.encode!(
-          BnestApp.SifatAllah.progress()
+          Quiz.progress()
           |> Map.put("session", %{"mode" => "dashboard"})
         )
     }

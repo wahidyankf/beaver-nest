@@ -30,16 +30,13 @@ defmodule BnestApp.HexagonalLayeringTest do
     BnestApp.Scheduler.Registry,
     BnestApp.Scheduler.Run,
     BnestApp.Scheduler.Store,
-    BnestApp.SifatAllah,
     BnestAppWeb.HealthController
   ]
 
   # Temporary. Inbound adapters still reading `BnestApp.Storage.Records` directly.
   @legacy_records_callers [
     # U8: the chat transcript moves behind CodexChat.
-    BnestAppWeb.ChatLive,
-    # U7: learning progress moves behind SifatAllah.
-    BnestAppWeb.SifatAllahLive
+    BnestAppWeb.ChatLive
   ]
 
   test "effects stay in adapters, domains stay pure, and inbound adapters call only facades" do

@@ -3,7 +3,7 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias BnestApp.SifatAllah
+  alias BnestApp.SifatAllah.Domain.Quiz
 
   setup do
     previous = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
@@ -58,9 +58,9 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
 
   test "does not repeat completed pairs in a new lesson", %{conn: conn} do
     all_learned =
-      SifatAllah.curriculum()
+      Quiz.curriculum()
       |> Enum.map(& &1.id)
-      |> Enum.reduce(SifatAllah.progress(), &SifatAllah.remember(&2, &1))
+      |> Enum.reduce(Quiz.progress(), &Quiz.remember(&2, &1))
 
     conn =
       put_connect_params(conn, %{
@@ -80,8 +80,8 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
 
   test "keeps the quiz cycling after every pair is remembered", %{conn: conn} do
     all_remembered =
-      Enum.reduce(SifatAllah.curriculum(), SifatAllah.progress(), fn pair, progress ->
-        SifatAllah.remember(progress, pair.id)
+      Enum.reduce(Quiz.curriculum(), Quiz.progress(), fn pair, progress ->
+        Quiz.remember(progress, pair.id)
       end)
 
     conn =
@@ -387,7 +387,7 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
   end
 
   test "restores an active focused review question from a browser snapshot", %{conn: conn} do
-    progress = SifatAllah.record_answer(SifatAllah.progress(), SifatAllah.pair("wujud"), false)
+    progress = Quiz.record_answer(Quiz.progress(), Quiz.pair("wujud"), false)
 
     conn =
       put_connect_params(conn, %{
@@ -549,6 +549,6 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     snapshot
   end
 
-  defp snapshot(session, progress \\ SifatAllah.progress()),
+  defp snapshot(session, progress \\ Quiz.progress()),
     do: Map.put(progress, "session", session)
 end

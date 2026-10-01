@@ -22,6 +22,7 @@ defmodule BnestAppWeb do
       BnestApp,
       BnestApp.Identity,
       BnestApp.Preferences,
+      BnestApp.SifatAllah,
       BnestApp.Storage,
       # legacy: HealthController; removed in U13
       BnestApp.SqliteRepo

@@ -1,7 +1,7 @@
 defmodule BnestApp.Storage.NormalizerTest do
   use ExUnit.Case, async: true
 
-  alias BnestApp.SifatAllah
+  alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage
   alias BnestApp.Storage.Domain.Normalizer
 
@@ -26,7 +26,7 @@ defmodule BnestApp.Storage.NormalizerTest do
     refute Map.has_key?(chat, "ownerId")
 
     learning_payload =
-      SifatAllah.progress()
+      Quiz.progress()
       |> Map.put("session", %{"mode" => "dashboard"})
       |> Jason.encode!()
 
@@ -47,7 +47,7 @@ defmodule BnestApp.Storage.NormalizerTest do
 
   test "uses a safe dashboard session when legacy learning session data is invalid" do
     payload =
-      SifatAllah.progress()
+      Quiz.progress()
       |> Map.put("session", %{"mode" => "unknown", "private" => "discard-me"})
       |> Jason.encode!()
 
