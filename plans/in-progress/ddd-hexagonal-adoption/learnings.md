@@ -146,3 +146,20 @@ rules-propagation ledger, so U2 adds neither. The standard stays reachable and t
   `--warnings-as-errors` already fails on them from U3.
 
 Resolution: accepted deviation from the U2 delivery item; the plan-execution checker reads it here.
+
+### E3: U3 boundary tooling findings (2026-10-01)
+
+- **The legacy root needs infrastructure deps.** The `default: [check: [apps: …]]` setting applies to the relaxed root
+  as well, so its legacy modules' direct calls to `Argon2`, `Ecto.Migrator`, `Ecto.Query`, `Ecto.UUID`, `Exqlite`,
+  `Req` and `WebPush` failed. [003](tech-docs/003-boundary-enforcement.md) tabled only the inbound adapters' temporary
+  deps. The root now lists them under a `legacy:` comment, and each leaves with its last legacy caller.
+- **Evidence beat the tabled callers.** `BnestAppCli` never names `BnestApp.SqliteRepo`, so it does not list it.
+  `BnestApp.Release` calls `FamilyChat.Store` and `Scheduler.Policy`, so both are legacy exports. `BnestApp.SqliteRepo`
+  lists `Ecto.Repo`, `Ecto.Adapters.SQL` and `Ecto.Multi`.
+- **`FOCUS_INT` lacked `--exclude integration-exempt`.** Without it, a focused run also executes the four exempt
+  scenarios and fails on them. The canonical command now carries the flag that `test:integration` uses.
+- **The scan skips `use Boundary`.** A boundary declaration names dependencies without calling them.
+- **Unit guard lines.** The SQLite lines sit in `backup_restore_test.exs`, `family_chat_test.exs` and the unit
+  family-chat driver, not the home-page driver.
+
+Resolution: applied in U3; 003 stays as authored, and this entry records the as-built difference.
