@@ -5,8 +5,9 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 ## Start
 
 1. Select one backlog or in-progress plan. Require a current `PASS` from an explicitly user-directed
-   [quality-gate](plan-quality-gate.md) run; execution authority does not authorize that gate. A bug-fix plan's
-   direction is Upstream Tool Defects. If absent or blocked, stop without starting or rerunning it.
+   [quality-gate](plan-quality-gate.md) run; execution authority does not authorize that gate. If absent or blocked,
+   stop without starting or rerunning it. Upstream Tool Defects directs each gate run and the archival of a bug-fix
+   plan.
 2. Enter the plan's declared `worktrees/<name>/` checkout before any file or Git mutation, initializing it if new, and
    pass the [integration path](../conventions/integration-path.md) sync gate there. Executing from a stale branch or the
    primary checkout is forbidden, save the release invocation that convention exempts; an unclean tree or a rebase
@@ -59,9 +60,9 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 
 ## Pause Safety
 
-Execution stops at arbitrary moments. At any pause the plan carries enough state to resume: the current checkout, the
-last terminal gate, the next unresolved item, and any bounded budget already partly consumed. A resumed session
-continues a budget; it does not reset one.
+Execution stops at arbitrary moments. At any pause the plan carries enough state to resume: the current checkout, last
+terminal gate, next unresolved item, and any partly consumed bounded budget. Resuming continues a budget; it never
+resets one.
 
 ## Recovery
 

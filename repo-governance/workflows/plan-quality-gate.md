@@ -1,8 +1,8 @@
 # Plan Quality Gate
 
-Run only when the user explicitly names this gate or unambiguously directs its semantic audit. Never infer authorization from creating, editing, reviewing, or executing a plan, Plan mode, or another workflow. An instruction may authorize multiple named checkpoints; otherwise it authorizes one run.
+Run only when the user explicitly names this gate or unambiguously directs its semantic audit. Never infer authorization from creating, editing, reviewing, or executing a plan, Plan mode, or another workflow. For a landed [bug-fix plan](../conventions/plans/010-bug-fix-plan.md), [Upstream Tool Defects](../development/upstream-tool-defects.md) is that direction. An instruction may authorize multiple named checkpoints; otherwise it authorizes one run.
 
-Produce exactly one terminal verdict for one formal plan's semantic readiness: `PASS`, `PASS_WITH_FINDINGS` when recorded findings exist and none blocks proceeding, or a `BLOCKED_*` variant, this repository's `FAIL` named by its reason. When authorized, run at the directed pre-execution, post-material-change, or completion checkpoint.
+Produce exactly one terminal verdict for one formal plan's semantic readiness: `PASS`, `PASS_WITH_FINDINGS`, or a `BLOCKED_*` variant, this repository's `FAIL` named by its reason. Run at the directed pre-execution, post-material-change, or completion checkpoint.
 
 ## Sufficiency and Ownership
 
@@ -16,11 +16,11 @@ Run canonical tooling only in verification and consume its findings. For a check
 
 Freeze the plan path and stage, Git revision plus dirty paths, scope, relevant specification and governance paths, unresolved decisions, and cycle `1`. A material external input change ends the run as `BLOCKED_INPUT_CHANGED`; it never causes an automatic restart. Recorded repairs remain inside this run and do not trigger another quality-gate run.
 
-Audit first. Create a ledger containing `ID`, canonical rule, location, material gap, required repair, proof, and status: `OPEN`, `FIXED`, `NOT_APPLICABLE`, or `BLOCKED`. Only gaps that violate a rule or make scoped execution unsafe, ambiguous, or unprovable enter the ledger. Mandatory findings cannot be waived; `NOT_APPLICABLE` requires evidence. Preserve the snapshot, cycle, ledger, pending verification, and authorization through compaction or handoff under [governance continuity](../principles/governance-continuity.md).
+Create a ledger containing `ID`, canonical rule, location, material gap, required repair, proof, and status: `OPEN`, `FIXED`, `NOT_APPLICABLE`, or `BLOCKED`. Only gaps that violate a rule or make scoped execution unsafe, ambiguous, or unprovable enter the ledger. Mandatory findings cannot be waived; `NOT_APPLICABLE` requires evidence. Preserve the snapshot, cycle, ledger, pending verification, and authorization through compaction or handoff under [governance continuity](../principles/governance-continuity.md).
 
 ## Bounded Procedure
 
-1. Recursively inventory and read the plan, assets, relevant implementation, specifications, and governance. Do not validate machine-owned concerns.
+1. Recursively inventory and read the plan, assets, relevant implementation, specifications, and governance.
 2. Complete one semantic audit without edits. Check:
    - the [plans convention](../conventions/plans.md) and the local [plan lifecycle](../conventions/plan-lifecycle.md): one stage, the six required documents, one technical shape, and truthful status;
    - coherent purpose, decision, scope, risks, acceptance, and a junior-readable route from BRD/PRD through design and delivery;
@@ -37,7 +37,7 @@ Audit first. Create a ledger containing `ID`, canonical rule, location, material
    ```
 
 5. Return `PASS` when no row is `OPEN` or `BLOCKED`, tooling passes, no new material semantic gap appears, and the snapshot changed only through recorded repairs. Return `PASS_WITH_FINDINGS` when the same holds but recorded non-blocking findings remain.
-6. Otherwise allow exactly one stabilization cycle. Add only repair-caused semantic gaps and deterministic-tool findings, set cycle `2`, repair them once, and repeat step 4. A fixed finding cannot reopen without changed input; changed input yields `BLOCKED_INPUT_CHANGED`.
+6. Otherwise allow exactly one stabilization cycle. Add only repair-caused semantic gaps and deterministic-tool findings, set cycle `2`, repair them once, and repeat step 4. A fixed finding never reopens; changed input yields `BLOCKED_INPUT_CHANGED`.
 7. After cycle `2`, return the step 5 verdict if it holds. Otherwise decide at the ceiling rather than retrying: choose between the repaired draft and the last known-good state on the criteria declared before cycle `1`, then return `BLOCKED_NON_CONVERGENT` with that choice, its reasoning, the remaining ledger, and evidence. Do not repair, restart, or invoke this workflow again automatically.
 
 HIPPO recovery required by its canonical standard is infrastructure handling, not another quality-gate cycle.
