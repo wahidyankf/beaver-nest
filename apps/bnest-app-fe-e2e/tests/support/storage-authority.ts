@@ -67,7 +67,7 @@ function activeDatabasePath(configPath: string): string | undefined {
   return databasePath;
 }
 
-function assertRuntimeRoot(): void {
+export function assertRuntimeRoot(): void {
   const resolved = path.resolve(runtimeRoot);
   const expectedParent = path.resolve(process.cwd(), "data/test/runs");
   if (

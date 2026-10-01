@@ -40,11 +40,18 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
   end
 
   test "schedule and backup owners reject invalid fields independently", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/admin/settings/schedules")
+    {:ok, view, html} = live(conn, "/admin/settings/schedules")
+
+    # Earlier tests may have saved a different time; the rejected submit must keep whatever was stored.
+    [stored_time] =
+      html
+      |> LazyHTML.from_document()
+      |> LazyHTML.query("input[name='schedule[daily_time_wib]']")
+      |> LazyHTML.attribute("value")
 
     view
     |> form("form[phx-submit='save_schedule']", %{
-      "schedule" => %{"daily_time_wib" => "99:99", "enabled" => "true", "revision" => "1"}
+      "schedule" => %{"daily_time_wib" => "99:99", "enabled" => "true"}
     })
     |> render_submit()
 
@@ -57,7 +64,7 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
     |> render_submit()
 
     assert has_element?(view, "#settings-error", "could not be saved safely")
-    assert has_element?(view, "input[name='schedule[daily_time_wib]'][value='02:00']")
+    assert has_element?(view, "input[name='schedule[daily_time_wib]'][value='#{stored_time}']")
   end
 
   test "non-admin route denial happens before either settings surface renders", %{conn: conn} do

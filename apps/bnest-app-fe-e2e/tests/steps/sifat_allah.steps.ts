@@ -1,19 +1,9 @@
 import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import { saveEveryPairRemembered } from "../support/sifat-allah-progress";
+import { isolatedTestIdentity } from "../support/test-identity";
 
 const { Given, Then, When } = createBdd();
-
-const questionKinds = [
-  "wajib_meaning",
-  "wajib_opposite",
-  "mustahil_meaning",
-  "meaning_wajib",
-  "mustahil_opposite",
-  "meaning_mustahil",
-];
-
-const masteredQuestionIds = (pairIds: string[]) =>
-  pairIds.flatMap((pairId) => questionKinds.map((kind) => `${pairId}:${kind}`));
 
 async function waitForLiveView(page: Page) {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
@@ -36,48 +26,19 @@ When("the visitor starts learning", async ({ page }) => {
   await page.getByRole("button", { name: "Belajar 3 Pasangan" }).click();
 });
 
-Given("the visitor has remembered every Sifat Allah pair", async ({ page }) => {
-  const pairIds = [
-    "wujud",
-    "qidam",
-    "baqa",
-    "mukhalafatuhu-lil-hawaditsi",
-    "qiyamuhu-binafsihi",
-    "wahdaniyah",
-    "qudrah",
-    "iradah",
-    "ilmun",
-    "hayah",
-    "sama",
-    "basar",
-    "kalam",
-    "qadiran",
-    "muridan",
-    "aliman",
-    "hayyan",
-    "samian",
-    "basiran",
-    "mutakalliman",
-  ];
-
-  const rememberedQuestionIds = masteredQuestionIds(pairIds);
-
-  await page.evaluate((masteredKeyIds) => {
-    localStorage.setItem(
-      "bnest.sifat-allah.v1",
-      JSON.stringify({
-        version: 2,
-        mastered_key_ids: masteredKeyIds,
-        review_key_ids: [],
-        correct_answers: 0,
-        incorrect_answers: 0,
-        session: { mode: "dashboard" },
-      }),
-    );
-  }, rememberedQuestionIds);
-  await page.reload();
-  await waitForLiveView(page);
-});
+// The logged-in child's progress is saved on the server, then the page is
+// opened again over it; the Given fails unless the page shows that progress.
+Given(
+  "the visitor has remembered every Sifat Allah pair",
+  async ({ page, $testInfo }) => {
+    saveEveryPairRemembered(isolatedTestIdentity($testInfo).child.username);
+    await page.reload();
+    await waitForLiveView(page);
+    await expect(
+      page.getByText("120 dari 120 soal sudah hafal", { exact: true }),
+    ).toBeVisible();
+  },
+);
 
 async function swipe(
   page: Page,

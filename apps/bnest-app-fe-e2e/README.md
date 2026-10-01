@@ -58,6 +58,7 @@ The `test:e2e` target owns the single HIPPO boundary because it also owns the E2
 - `tests/support/family-chat-seeding.ts` owns shared-room history top-up and away-member posting.
 - `tests/support/authentication.ts` owns connected-LiveView setup/login helpers and scenario-scoped synthetic identities.
 - `tests/support/routed-rollout.ts` owns Caddy blue/green candidate promotion and live-SQLite activation.
+- `tests/support/sifat-allah-progress.ts` owns saving a synthetic learner's Sifat Allah progress on the server.
 - `tests/support/test-runtime.mts` owns paired marked runtime-root creation and exact cleanup.
 - `tools/run-e2e.mts` owns the guarded runtime lifecycle around the canonical Playwright target.
 - `.features-gen/` contains ignored, disposable generated Playwright tests.
