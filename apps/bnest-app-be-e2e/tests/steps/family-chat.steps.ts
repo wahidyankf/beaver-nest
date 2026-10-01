@@ -114,7 +114,7 @@ Then(
 
 Then(
   "a duplicate retry of the same client message ID publishes no second event",
-  async ({ browser }) => {
+  async ({ browser, page }) => {
     const otherContext = await browser.newContext();
     try {
       const otherPage = await otherContext.newPage();
@@ -123,11 +123,15 @@ Then(
       // UUID here would commit a genuinely new message instead of
       // exercising idempotent retry, which is the entire point of this
       // scenario.
-      await sendFamilyChatMessage(
+      const retry = await sendFamilyChatMessage(
         otherPage,
         otherContext.request,
         "duplicate retry body",
         scenario.clientMessageId,
+      );
+      expect(retry.errors, JSON.stringify(retry.errors)).toBeUndefined();
+      expect(retry.data?.sendFamilyChatMessage?.id).toBe(
+        scenario.serverMessageId,
       );
     } finally {
       await otherContext.close();
@@ -138,6 +142,12 @@ Then(
     await new Promise((resolve) => {
       setTimeout(resolve, 2_000);
     });
+    const events = (await familyChatSubscriptionEvents(page)) as {
+      result: { data: { familyChatMessageCommitted: { id: string } } };
+    }[];
+    expect(
+      events.map((event) => event.result.data.familyChatMessageCommitted.id),
+    ).toEqual([scenario.serverMessageId]);
   },
 );
 
