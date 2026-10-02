@@ -80,6 +80,7 @@ export async function promoteCompatibleCandidate(
   // instead (see `family-chat.steps.ts`'s "the prior-slot socket closes").
   options: { verifyLiveView?: boolean } = {},
 ): Promise<{
+  previousPort: number;
   previousRevision: string;
   revision: string;
 }> {
@@ -87,11 +88,12 @@ export async function promoteCompatibleCandidate(
   const targetPort =
     routedPort === candidatePort ? candidatePort + 1 : candidatePort;
   await ensureCandidate(targetPort);
+  const previousPort = routedPort;
   const previousRevision = requiredRevision(routedPort);
   const revision = requiredRevision(targetPort);
   await reloadRoute(page, targetPort, options.verifyLiveView ?? true);
 
-  return { previousRevision, revision };
+  return { previousPort, previousRevision, revision };
 }
 
 export async function restorePrimaryRoute(page: Page): Promise<void> {
