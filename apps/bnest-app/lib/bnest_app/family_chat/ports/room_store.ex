@@ -29,8 +29,6 @@ defmodule BnestApp.FamilyChat.Ports.RoomStore do
     * `quotes_for/3` resolves the distinct reply targets of a page to the messages with
       those IDs in that room; a target the room has no message for is absent.
     * `message_by_id/3` finds a message only within the given room.
-    * `converge_after_drain!/1` enables the room's seeded push-retention schedule and
-      converges the backup schedule's daily time, each at most once.
 
   A room is a map with `:id`, `:slug`, `:name`, `:room_kind`, `:member_posting_enabled`,
   the audit fields `:created_at`, `:created_by`, `:updated_at` and `:updated_by`. A message
@@ -82,8 +80,6 @@ defmodule BnestApp.FamilyChat.Ports.RoomStore do
 
   @callback message_by_id(handle(), room_id :: pos_integer(), message_id :: pos_integer()) ::
               message() | nil
-
-  @callback converge_after_drain!(handle()) :: :ok
 
   @spec ensure_ready!(handle()) :: :ok
   def ensure_ready!(store), do: store.adapter.ensure_ready!(store)
@@ -141,7 +137,4 @@ defmodule BnestApp.FamilyChat.Ports.RoomStore do
   @spec message_by_id(handle(), pos_integer(), pos_integer()) :: message() | nil
   def message_by_id(store, room_id, message_id),
     do: store.adapter.message_by_id(store, room_id, message_id)
-
-  @spec converge_after_drain!(handle()) :: :ok
-  def converge_after_drain!(store), do: store.adapter.converge_after_drain!(store)
 end

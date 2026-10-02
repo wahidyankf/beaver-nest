@@ -6,8 +6,10 @@ defmodule BnestApp.FamilyChatTest do
 
   alias BnestApp.FamilyChat
   alias BnestApp.FamilyChat.Ports.RoomStore
+  alias BnestApp.Scheduler
   alias BnestApp.Test.InMemory.MessagePublisher
   alias BnestApp.Test.InMemory.RoomStore, as: InMemoryRoomStore
+  alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
   alias BnestApp.Test.InMemory.SubscriptionStore, as: InMemorySubscriptionStore
 
   setup do
@@ -74,9 +76,43 @@ defmodule BnestApp.FamilyChatTest do
       assert FamilyChat.list_rooms_for("test-user-family-chat-rooms") == {:ok, [room]}
     end
 
-    test "converge_after_drain!/0 converges through the room store", %{store: store} do
+    # The start-time convergence is the facade's own, on whatever room store is configured:
+    # the seeded retention schedule becomes enabled and the backup schedule moves to 18:00
+    # UTC, each once, read back through the Scheduler.
+    test "converge_after_drain!/0 enables push retention and converges the backup time once" do
+      schedules = InMemoryScheduleStore.install()
+      now = ~U[2026-09-18 00:00:00Z]
+      backup_key = "prod-sqlite-backup-daily"
+      retention_key = "family-chat-push-retention-daily"
+
+      :ok =
+        InMemoryScheduleStore.put_daily_schedule(
+          schedules,
+          backup_key,
+          "prod_sqlite_backup",
+          "admin_system",
+          now
+        )
+
+      :ok =
+        InMemoryScheduleStore.put_daily_schedule(
+          schedules,
+          retention_key,
+          "family_chat_push_retention",
+          "admin_system",
+          now,
+          %{daily_at_utc: "17:15", enabled: false}
+        )
+
       assert FamilyChat.converge_after_drain!() == :ok
-      assert InMemoryRoomStore.convergences(store) == 1
+      assert %{daily_at_utc: "18:00"} = backup = Scheduler.get_schedule(backup_key)
+
+      assert %{enabled: true, daily_at_utc: "17:15"} =
+               retention = Scheduler.get_schedule(retention_key)
+
+      assert FamilyChat.converge_after_drain!() == :ok
+      assert Scheduler.get_schedule(backup_key) == backup
+      assert Scheduler.get_schedule(retention_key) == retention
     end
 
     test "insert_message!/6 commits a trusted producer's message as given, unpublished", %{

@@ -15,7 +15,6 @@ defmodule BnestApp.FamilyChat.Adapters.SqliteRoomStore do
 
   @behaviour BnestApp.FamilyChat.Ports.RoomStore
 
-  alias BnestApp.Scheduler
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
 
@@ -28,7 +27,6 @@ defmodule BnestApp.FamilyChat.Adapters.SqliteRoomStore do
   }
 
   @retention_schedule_key "family-chat-push-retention-daily"
-  @backup_schedule_key "prod-sqlite-backup-daily"
 
   @room_columns ~w(id slug name room_kind member_posting_enabled created_at created_by updated_at updated_by)a
   @message_columns ~w(id room_id sender_kind sender_id sender_display_name idempotency_key body committed_at reply_to_message_id)a
@@ -229,23 +227,6 @@ defmodule BnestApp.FamilyChat.Adapters.SqliteRoomStore do
 
     %{rows: rows} = SqliteRepo.query!(sql, params)
     Enum.map(rows, &hd/1)
-  end
-
-  # Tech-doc 009 ("Backup Schedule Migration"): "After the compatibility
-  # revision is routed and every runnable slot supports the new Backup
-  # service, managed release calls a public Scheduler operation that
-  # force-converges this key once"; and "Push retention remains a separate
-  # fixed disabled seed at 00:15 WIB and becomes enabled only after old-slot
-  # drain." Both go through the same CAS-on-`revision = 1` seam as
-  # `Scheduler.converge_backup_time!/2`, so calling this again takes effect at
-  # most once and never overrides a later operator edit. It works on whatever
-  # database the caller (the release entry point) started, so it does not
-  # self-heal the connection the way the room and message callbacks do.
-  @impl true
-  def converge_after_drain!(_store) do
-    Scheduler.activate_if_pristine!(@retention_schedule_key, DateTime.utc_now())
-    {:ok, _schedule} = Scheduler.converge_backup_time!(@backup_schedule_key, "18:00")
-    :ok
   end
 
   @doc """
