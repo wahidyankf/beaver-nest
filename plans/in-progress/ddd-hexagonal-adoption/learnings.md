@@ -614,3 +614,31 @@ Resolution: applied in U12; 002, 004 and 006 stay as authored, and this entry re
   string. It used an isolated run root and a leased port, and was stopped afterwards.
 
 Resolution: applied in U13; 002, 004 and 006 stay as authored, and this entry records the as-built difference.
+
+### E14: U14 Closure scope and structural closure (2026-10-02)
+
+- **The full-corpus review found 267 FAIL rows out of 714.** Five reviews covered every Bnest feature (core 132 rows,
+  family chat GraphQL 135, family chat operations 69, frontend family chat 231, chat and SifatAllah 147). Nearly all
+  predate this plan. Their fixes reach unit and integration drivers, e2e support and step bindings, frontend Vitest
+  steps and `assets/js`, feature-file exemption tags and comments, and production code: test-only code shipped in
+  `lib/` (`Release.CaddyConfig`, `Backup.run/1`'s probe workload), the socket's session digest, the service worker's
+  credentialed precache of `/`, the Codex port session after its runner exits, and the flat-to-SQLite migration logic
+  inside an adapter.
+- **Owner decision (2026-10-02): fix every row and the architecture before the release.** This amends the plan:
+  - U14 may edit the paths 006 lists as "Never Touched": feature files (tags, exemption comments and wording that
+    contradicts recorded design), e2e `tests/steps/**`, and `apps/bnest-app/assets/**`. Changed Gherkin follows
+    [specification maintenance](../../../repo-governance/development/specification-maintenance.md) and gets the
+    manual review.
+  - The production changes the review needs are in scope. Each behaviour change lands in its own `fix` commit.
+  - `FEATURE_DIFF` stops being empty. AC-DH-09's purpose, unchanged record schemas and outcomes, is held by the record
+    schema proof and by every changed scenario's review row.
+  - U14 lands as several pull requests: the structural closure, then one or more per review group, then C4 and
+    documentation. Checkpoint 14 is met when the last one merges.
+- **Structural closure as built.**
+  - L3 treats any two-segment `BnestApp.<Name>` with a strict `use Boundary` as a context, found by scanning, so no
+    context list is hard-coded. The other owners allowed are `SqliteRepo`, `Application`, `Release`, `Mailer` and the
+    root, which keeps only itself and the mailer.
+  - The scan's `violations/0` takes no arguments; the two legacy tests were deleted rather than emptied.
+  - The boundary warnings name the caller's boundary, not the caller module; the file and line identify the module.
+- **The Codex test selection fails closed.** Only a `BNEST_CODEX_RUNNER` naming the bundled fixture runner, compared by
+  file identity, selects the real port session; this closes the E8 note and the chat review's X-1.
