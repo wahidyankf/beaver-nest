@@ -72,12 +72,26 @@ jobs:
           set -eu
           shared_root=$(mktemp -d "${RUNNER_TEMP}/hippo-shared.XXXXXX")
           release_file="${shared_root}/release"
+          # One source for the per-owner reservation, which the light tier floors at
+          # 1024 MiB. The active assertion derives its expected total from it, so the
+          # request and the asserted accounting cannot drift apart again.
+          reserve_memory_mib=1024
+          EXPECTED_ALLOCATED_MEMORY_BYTES=$((2 * reserve_memory_mib * 1024 * 1024))
+          export EXPECTED_ALLOCATED_MEMORY_BYTES
           owner_one=
           owner_two=
           cleanup() {
             : > "${release_file}"
             for owner_pid in ${owner_one} ${owner_two}; do
               [ -n "${owner_pid}" ] || continue
+              # A released owner exits within one poll. Signal only after a bounded
+              # grace, so a guard still releasing its reservation never finds the
+              # shared root removed underneath it.
+              grace=0
+              while kill -0 "${owner_pid}" 2>/dev/null && [ "${grace}" -lt 100 ]; do
+                sleep 0.1
+                grace=$((grace + 1))
+              done
               kill "${owner_pid}" 2>/dev/null || true
               wait "${owner_pid}" 2>/dev/null || true
             done
@@ -96,7 +110,7 @@ jobs:
             coordination.activeOwners !== 2 ||
             coordination.waitingOwners !== 0 ||
             coordination.allocated?.cpu !== 2 ||
-            coordination.allocated?.memoryBytes !== 536870912
+            coordination.allocated?.memoryBytes !== Number(process.env.EXPECTED_ALLOCATED_MEMORY_BYTES)
           ) {
             throw new Error(
               "active shared-root reservation evidence is incomplete: " + JSON.stringify(coordination),
@@ -161,7 +175,7 @@ jobs:
             # Variables in the single-quoted command expand inside the guarded child.
             # shellcheck disable=SC2016
             HIPPO_ROOT="${shared_root}" HIPPO_CONFIG="${GITHUB_WORKSPACE}/hippo.local.json.example" \
-              ./hippo run --class ephemeral --resource-tier light --reserve-cpu 1 --reserve-memory-mib 1024 \
+              ./hippo run --class ephemeral --resource-tier light --reserve-cpu 1 --reserve-memory-mib "${reserve_memory_mib}" \
               --disk-path . -- sh -c '
                 printf "%s\n%s\n%s\n" "$NX_PARALLEL" "$GOMAXPROCS" "$DOTNET_PROCESSOR_COUNT" > "$1"
                 : > "$2"
