@@ -67,6 +67,15 @@ export async function sendAsAnotherMember(
     ).toHaveAttribute("data-connection-state", "ready");
     await composerInput(otherPage).fill(body);
     await otherPage.getByRole("button", { name: "Send" }).click();
+    // The send leaves from the outbox after it is stored, so the other
+    // member's page stays open until the server has committed it; closing it
+    // sooner can cancel the message before it was ever posted.
+    await expect(
+      otherPage.locator(
+        '[data-role="family-chat-message"][data-delivery-state="committed"]',
+        { hasText: body },
+      ),
+    ).toHaveCount(1, { timeout: 20_000 });
   } finally {
     await context.close();
   }
@@ -110,6 +119,7 @@ export async function promoteWithConcurrentTraffic(
   page: Page,
   browser: Browser,
   identity: TestIdentity,
+  settled?: () => Promise<void>,
 ): Promise<{ catchUpProbeBody: string; draftBody: string }> {
   const runTag = crypto.randomUUID().slice(0, 8);
   const catchUpProbeBody = `Catch-up probe ${runTag}`;
@@ -130,10 +140,8 @@ export async function promoteWithConcurrentTraffic(
     page.locator("[data-role=family-chat-outbox-status]"),
   ).toContainText("Retrying");
 
-  // Fired concurrently with the promotion itself so the probe message
-  // genuinely lands around the cutover boundary, not safely before or after
-  // it -- the connected client's own live subscription is what has to
-  // survive this, not just its next page load.
+  // Concurrent with the promotion so the probe lands around the cutover, and
+  // the live subscription, not just a page load, has to survive it.
   const [rollout] = await Promise.all([
     promoteCompatibleCandidate(page, { verifyLiveView: false }),
     sendAsAnotherMember(browser, identity, catchUpProbeBody),
@@ -143,7 +151,12 @@ export async function promoteWithConcurrentTraffic(
 
   interceptOwnSend = false;
   await page.unroute("**/api/graphql");
-  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  // The promotion's own reconnect finishes before the connection blips, so
+  // the blip is not a second, overlapping reconnect; the Thens assert the rest.
+  await settled?.().catch(() => null);
+  // Chromium itself fires the `online` event that makes the queue eligible.
+  await page.context().setOffline(true);
+  await page.context().setOffline(false);
 
   return { catchUpProbeBody, draftBody };
 }
@@ -248,7 +261,30 @@ export async function ensureFamilyChatHasOlderPage(page: Page): Promise<void> {
   );
 }
 
-export function inspectCacheStorageEntries(page: Page): Promise<string[]> {
+const SHELL_CACHE = "beaver-nest-shell-v2";
+
+/**
+ * Every request path held in Cache Storage, read once the service worker is
+ * active. A positive control first: the worker's own cache exists and holds
+ * static assets, so an empty result can only mean nothing else was cached,
+ * not that the worker never ran.
+ */
+export async function inspectCacheStorageEntries(
+  page: Page,
+): Promise<string[]> {
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect
+    .poll(() =>
+      page.evaluate(async (name) => {
+        if (!(await caches.has(name))) return 0;
+        const cache = await caches.open(name);
+        const requests = await cache.keys();
+        return requests.filter((request) =>
+          new URL(request.url).pathname.startsWith("/assets/"),
+        ).length;
+      }, SHELL_CACHE),
+    )
+    .toBeGreaterThan(0);
   return page.evaluate(async () => {
     const names = await caches.keys();
     const perCache = await Promise.all(

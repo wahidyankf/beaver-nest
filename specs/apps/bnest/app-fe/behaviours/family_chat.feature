@@ -17,8 +17,8 @@ Feature: Family chat room
   Rule: Online send status
 
   @fe-vitest-unit
-  # Exemption(e2e): queue/status-transition logic is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / A member sends a message online and sees it reach Sent
-  @e2e-exempt
+  # Exemption(integration): the outbox that queues the message and reports its delivery status runs only in browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A member sends a message online and sees it reach Sent
+  @integration-exempt
   Scenario: A member sends a message online and sees it reach Sent
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor sends the family chat message "On my way"
@@ -26,8 +26,8 @@ Feature: Family chat room
     And the message reaches status "Sent"
 
   @fe-vitest-unit
-  # Exemption(e2e): retry/backoff transition logic is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / A network failure shows Retrying then automatic recovery
-  @e2e-exempt
+  # Exemption(integration): a failed browser request and the outbox's own retry run only in browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A network failure shows Retrying then automatic recovery
+  @integration-exempt
   Scenario: A network failure shows Retrying then automatic recovery
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor sends a family chat message during a retryable network failure
@@ -36,8 +36,8 @@ Feature: Family chat room
     Then the message reaches status "Sent"
 
   @fe-vitest-unit
-  # Exemption(e2e): terminal-failure classification logic is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / A non-retryable rejection shows Couldn't send
-  @e2e-exempt
+  # Exemption(integration): classifying a GraphQL rejection into a delivery status is browser outbox logic Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A non-retryable rejection shows Couldn't send
+  @integration-exempt
   Scenario: A non-retryable rejection shows Couldn't send
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor sends a family chat message the server rejects as invalid
@@ -47,8 +47,8 @@ Feature: Family chat room
   Rule: Bounded per-room outbox
 
   @fe-vitest-unit
-  # Exemption(e2e): the bounded-queue cap is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / The 101st queued message for one room is rejected
-  @e2e-exempt
+  # Exemption(integration): the per-room queue lives in the browser's IndexedDB outbox, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / The 101st queued message for one room is rejected
+  @integration-exempt
   Scenario: The 101st queued message for one room is rejected
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the visitor's outbox for this room already holds 100 queued messages
@@ -84,8 +84,8 @@ Feature: Family chat room
     And keyboard focus is on that same message
 
   @fe-vitest-unit
-  # Exemption(e2e): the hold timer and its movement tolerance are pointer-event arithmetic already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / A press that turns into a scroll does not open the menu
-  @e2e-exempt
+  # Exemption(integration): a pointer press and its movement are browser input events the server never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / A press that turns into a scroll does not open the menu
+  @integration-exempt
   Scenario: A press that turns into a scroll does not open the menu
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor presses a message and moves more than 10 pixels before releasing
@@ -109,8 +109,8 @@ Feature: Family chat room
     And both actions are available
 
   @fe-vitest-unit
-  # Exemption(e2e): availability follows from the queued message's delivery state, which the frontend Vitest+Gherkin harness already drives directly; alternative-proof: bnest-app:test:unit:fe / A message that is not yet committed cannot be replied to
-  @e2e-exempt
+  # Exemption(integration): a message that is not yet committed exists only in the browser outbox and its rendered menu, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message that is not yet committed cannot be replied to
+  @integration-exempt
   Scenario Outline: A message that is not yet committed cannot be replied to
     Given the visitor's own message is in the "<state>" state
     When the visitor opens the action menu on it
@@ -126,16 +126,16 @@ Feature: Family chat room
       | Couldn't send          |
 
   @fe-vitest-unit
-  # Exemption(e2e): no sender kind is special-cased, which is a menu-state decision the frontend Vitest+Gherkin harness already covers; alternative-proof: bnest-app:test:unit:fe / A system message can be replied to like any other
-  @e2e-exempt
+  # Exemption(integration): the action menu is rendered and enabled by browser JavaScript the server never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / A system message can be replied to like any other
+  @integration-exempt
   Scenario: A system message can be replied to like any other
     Given the room holds a committed system message
     When the visitor opens the action menu on it
     Then "Reply" is available
 
   @fe-vitest-unit
-  # Exemption(e2e): clipboard writing is exercised against a stubbed Clipboard API in the frontend Vitest+Gherkin harness, which observes the exact written value; alternative-proof: bnest-app:test:unit:fe / Copying a message puts its text on the clipboard
-  @e2e-exempt
+  # Exemption(integration): writing to the system clipboard is a browser API the server never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / Copying a message puts its text on the clipboard
+  @integration-exempt
   Scenario: Copying a message puts its text on the clipboard
     Given the visitor opens the action menu on a message whose body is "Dinner is ready"
     When the visitor chooses "Copy text"
@@ -145,6 +145,8 @@ Feature: Family chat room
   @fe-vitest-unit
   # Exemption(e2e): a rejected Clipboard API promise is driven directly in the frontend Vitest+Gherkin harness, where a real browser would grant permission instead; alternative-proof: bnest-app:test:unit:fe / A refused clipboard is reported, not swallowed
   @e2e-exempt
+  # Exemption(integration): a refused clipboard write is a browser API outcome the server never reaches; alternative-proof: bnest-app:test:unit:fe / A refused clipboard is reported, not swallowed
+  @integration-exempt
   Scenario: A refused clipboard is reported, not swallowed
     Given the browser refuses clipboard write access
     When the visitor chooses "Copy text" on a committed message
@@ -165,8 +167,8 @@ Feature: Family chat room
     And the room announces that the visitor is replying to "Ayah"
 
   @fe-vitest-unit
-  # Exemption(e2e): the strip renders the server's bounded preview, and the frontend Vitest+Gherkin harness observes the rendered string directly; alternative-proof: bnest-app:test:unit:fe / A long quoted message is shortened in the strip
-  @e2e-exempt
+  # Exemption(integration): the composer's reply strip is rendered by browser JavaScript the server never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / A long quoted message is shortened in the strip
+  @integration-exempt
   Scenario: A long quoted message is shortened in the strip
     Given the selected message body is 400 graphemes long
     When the reply strip renders it
@@ -174,8 +176,8 @@ Feature: Family chat room
     And the shown text ends with an ellipsis
 
   @fe-vitest-unit
-  # Exemption(e2e): cancelling a reply target is composer state transition logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / The member abandons the reply
-  @e2e-exempt
+  # Exemption(integration): the reply strip and the draft it leaves behind are browser composer state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The member abandons the reply
+  @integration-exempt
   Scenario Outline: The member abandons the reply
     Given the composer shows a reply strip
     And the visitor has typed "Oke" without sending
@@ -197,8 +199,8 @@ Feature: Family chat room
     Then no reply strip is shown
 
   @fe-vitest-unit
-  # Exemption(e2e): clearing the target on successful queueing is composer lifecycle logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / Sending clears the reply target
-  @e2e-exempt
+  # Exemption(integration): the reply target is browser composer state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Sending clears the reply target
+  @integration-exempt
   Scenario: Sending clears the reply target
     Given the composer shows a reply strip
     When the visitor sends the message
@@ -224,8 +226,8 @@ Feature: Family chat room
       | reconnect catch-up after a dropped socket |
 
   @fe-vitest-unit
-  # Exemption(e2e): flat rendering is a renderer decision the frontend Vitest+Gherkin harness observes directly in the produced markup; alternative-proof: bnest-app:test:unit:fe / A reply to a reply shows only one level of quote
-  @e2e-exempt
+  # Exemption(integration): messages and their quotes are rendered by browser JavaScript from GraphQL results, not by a server-rendered page Phoenix.LiveViewTest observes; alternative-proof: bnest-app-fe-e2e:test:e2e / A reply to a reply shows only one level of quote
+  @integration-exempt
   Scenario: A reply to a reply shows only one level of quote
     Given message A exists
     And message B is a reply to A
@@ -253,8 +255,8 @@ Feature: Family chat room
     And the history scrolls to it
 
   @fe-vitest-unit
-  # Exemption(e2e): the five-page bound and its refusal are paging arithmetic the frontend Vitest+Gherkin harness counts directly; alternative-proof: bnest-app:test:unit:fe / The original is beyond the jump bound
-  @e2e-exempt
+  # Exemption(integration): the jump pages older history in from the browser and announces its refusal there, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / The original is beyond the jump bound
+  @integration-exempt
   Scenario: The original is beyond the jump bound
     Given a reply quotes a message more than five older pages above the loaded window
     When the visitor activates the quote
@@ -301,8 +303,8 @@ Feature: Family chat room
   Rule: Resume, online reaction, backoff, and seven-day expiry
 
   @fe-vitest-unit
-  # Exemption(e2e): resume-on-open queue draining is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / Reopening the app resumes queued sends
-  @e2e-exempt
+  # Exemption(integration): a queue left behind by a closed tab lives in browser IndexedDB, which Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Reopening the app resumes queued sends
+  @integration-exempt
   Scenario: Reopening the app resumes queued sends
     Given the visitor has a queued message left over from a closed session
     When the visitor reopens "/family-chat/ruang-keluarga"
@@ -321,8 +323,8 @@ Feature: Family chat room
     Then the message reaches status "Sent"
 
   @fe-vitest-unit
-  # Exemption(e2e): online-event backoff-eligibility logic is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / An online event makes a retry immediately eligible
-  @e2e-exempt
+  # Exemption(integration): the browser's online event and the outbox's retry timer exist only in the browser; alternative-proof: bnest-app-fe-e2e:test:e2e / An online event makes a retry immediately eligible
+  @integration-exempt
   Scenario: An online event makes a retry immediately eligible
     Given a visitor opens "/family-chat/ruang-keluarga"
     And a queued message is waiting on its backoff timer
@@ -330,16 +332,16 @@ Feature: Family chat room
     Then the queued message becomes immediately eligible for retry
 
   @fe-vitest-unit
-  # Exemption(e2e): the exact backoff/jitter timing formula is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / Automatic retry waits follow the bounded jittered backoff sequence
-  @e2e-exempt
+  # Exemption(integration): the retry timers run in browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / Automatic retry waits follow the bounded jittered backoff sequence
+  @integration-exempt
   Scenario: Automatic retry waits follow the bounded jittered backoff sequence
     Given a visitor opens "/family-chat/ruang-keluarga"
     When a queued message fails five times with a retryable result
     Then each wait follows 1, 2, 4, 8, and 16 seconds with bounded jitter and no wait exceeding 60 seconds
 
   @fe-vitest-unit
-  # Exemption(e2e): the seven-day auto-retry cutoff is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / A message queued more than seven days becomes manual-only
-  @e2e-exempt
+  # Exemption(integration): the queued message and its retry or discard controls live in the browser outbox, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message queued more than seven days becomes manual-only
+  @integration-exempt
   Scenario: A message queued more than seven days becomes manual-only
     Given the visitor has a queued message created more than seven days ago
     When the visitor reopens "/family-chat/ruang-keluarga"
@@ -347,8 +349,8 @@ Feature: Family chat room
     And the visitor can still manually retry or discard it
 
   @fe-vitest-unit
-  # Exemption(e2e): queue admission and the stored record shape are outbox logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / An offline reply queues with its target
-  @e2e-exempt
+  # Exemption(integration): an offline browser and the IndexedDB record it queues are invisible to Phoenix.LiveViewTest; alternative-proof: bnest-app-fe-e2e:test:e2e / An offline reply queues with its target
+  @integration-exempt
   Scenario: An offline reply queues with its target
     Given the visitor is offline with the room open
     When the visitor replies to a committed message
@@ -356,16 +358,16 @@ Feature: Family chat room
     And the queued record carries the reply target
 
   @fe-vitest-unit
-  # Exemption(e2e): durable queue state across a closed session is persistence logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / A queued reply survives closing the app
-  @e2e-exempt
+  # Exemption(integration): surviving a closed app is browser IndexedDB durability, which Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A queued reply survives closing the app
+  @integration-exempt
   Scenario: A queued reply survives closing the app
     Given an offline reply is queued
     When the visitor reopens "/family-chat/ruang-keluarga" while still offline
     Then the queued reply is still present with its target
 
   @fe-vitest-unit
-  # Exemption(e2e): drain-on-reconnect is queue transition logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / A queued reply commits with its link on reconnect
-  @e2e-exempt
+  # Exemption(integration): draining the browser's queue when the network returns runs only in browser JavaScript; alternative-proof: bnest-app-fe-e2e:test:e2e / A queued reply commits with its link on reconnect
+  @integration-exempt
   Scenario: A queued reply commits with its link on reconnect
     Given an offline reply is queued
     When the network recovers
@@ -373,8 +375,8 @@ Feature: Family chat room
     And the committed message renders its quote
 
   @fe-vitest-unit
-  # Exemption(e2e): hydrating a record stored without the new field is persistence-compatibility logic the frontend Vitest+Gherkin harness already drives; alternative-proof: bnest-app:test:unit:fe / A queued record written before this feature still sends
-  @e2e-exempt
+  # Exemption(integration): a record stored in browser IndexedDB before this feature is invisible to Phoenix.LiveViewTest; alternative-proof: bnest-app-fe-e2e:test:e2e / A queued record written before this feature still sends
+  @integration-exempt
   Scenario: A queued record written before this feature still sends
     Given the outbox holds a queued message stored with no reply target field
     When the network recovers
@@ -384,8 +386,8 @@ Feature: Family chat room
   Rule: Auth expiry pause and logout isolation
 
   @fe-vitest-unit
-  # Exemption(e2e): per-namespace pause-on-expiry isolation is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / Authentication expiry pauses the queue without cross-user drain
-  @e2e-exempt
+  # Exemption(integration): pausing the drain is browser outbox state, and a second user's queue on the same device is browser storage Phoenix.LiveViewTest never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / Authentication expiry pauses the queue without cross-user drain
+  @integration-exempt
   Scenario: Authentication expiry pauses the queue without cross-user drain
     Given a visitor opens "/family-chat/ruang-keluarga"
     And a message is queued
@@ -394,8 +396,8 @@ Feature: Family chat room
     And no other user's session drains that queued message
 
   @fe-vitest-unit
-  # Exemption(e2e): logout namespace-clearing and subscription disabling are already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / Logout clears the current user's queue
-  @e2e-exempt
+  # Exemption(integration): the queue being cleared lives in browser IndexedDB, which Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Logout clears the current user's queue
+  @integration-exempt
   Scenario: Logout clears the current user's queue
     Given a visitor opens "/family-chat/ruang-keluarga"
     And a message is queued
@@ -589,8 +591,10 @@ Feature: Family chat room
   Rule: Push permission UX and no authenticated caching
 
   @fe-vitest-unit
-  # Exemption(e2e): the device-state-to-control-text mapping is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / The room shows the correct push permission state
+  # Exemption(e2e): headless Playwright Chromium reports every notification permission as denied, always exposes Notification and PushManager, and is never an iOS browser, so it cannot present an undecided, subscribed, uninstalled, or unsupported device; alternative-proof: bnest-app:test:unit:fe / The room shows the correct push permission state
   @e2e-exempt
+  # Exemption(integration): the device's notification permission, service worker, and push support are browser capabilities the server never sees; alternative-proof: bnest-app:test:unit:fe / The room shows the correct push permission state
+  @integration-exempt
   Scenario Outline: The room shows the correct push permission state
     Given the visitor's device reports push state "<device state>"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -600,13 +604,22 @@ Feature: Family chat room
       | device state                | control text                              |
       | available, not yet decided  | Enable notifications                      |
       | subscription active         | Notifications on                          |
-      | permission denied           | Notifications blocked                     |
       | requires installation       | Install Beaver Nest first                 |
       | unsupported                 | Notifications unavailable in this browser |
 
   @fe-vitest-unit
-  # Exemption(e2e): the disable-subscription control-text transition is already exercised without a browser through the frontend Vitest+Gherkin harness; alternative-proof: bnest-app:test:unit:fe / A member disables notifications from the room
+  # Exemption(integration): the device's notification permission is a browser capability the server never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / The room shows that notifications are blocked
+  @integration-exempt
+  Scenario: The room shows that notifications are blocked
+    Given the visitor's device reports push state "permission denied"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the room shows the control "Notifications blocked"
+
+  @fe-vitest-unit
+  # Exemption(e2e): headless Playwright Chromium reports the notification permission as denied, so the room never offers "Turn off" there and a subscription cannot be turned off from it; alternative-proof: bnest-app:test:unit:fe / A member disables notifications from the room
   @e2e-exempt
+  # Exemption(integration): turning notifications off unsubscribes the browser's push subscription, a browser capability Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app:test:unit:fe / A member disables notifications from the room
+  @integration-exempt
   Scenario: A member disables notifications from the room
     Given a visitor opens "/family-chat/ruang-keluarga" with an active push subscription
     When the visitor selects "Turn off"

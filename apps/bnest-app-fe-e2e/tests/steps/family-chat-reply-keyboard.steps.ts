@@ -1,19 +1,16 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { composerInput } from "../support/family-chat";
 import { createBdd } from "playwright-bdd";
 import { waitForRoomReady } from "../support/family-chat-resume";
 import { ensureAtLeast } from "../support/family-chat-seeding";
-import { promoteCandidateWithReplyFlag } from "../support/routed-rollout";
 import {
   expectMenuOpenFor,
   focusedMessageId,
   MESSAGE,
   messageById,
-  openMenuItems,
   postMessage,
   QUOTE,
   renderedMessageIds,
-  REPLY_STRIP,
   scenario,
   tabbableMessageCount,
   uniqueBody,
@@ -25,14 +22,45 @@ import {
 } from "../support/family-chat-reply-room";
 
 // The keyboard half of family_chat.feature's reply rules: the end-to-end
-// journey without a pointer, the history's single tab stop, the quote's
-// computed accessible name, and the compatibility revision. Split from
+// journey without a pointer, the history's single tab stop, and the quote's
+// computed accessible name (the compatibility revision is in
+// `family-chat-rollback-floor.steps.ts`). Split from
 // `family-chat-reply-reading.steps.ts` purely to stay under this project's
 // max-lines lint budget.
 
 const { Given, Then, When } = createBdd();
 
 // --- The keyboard journey -------------------------------------------------
+
+/** Why the focused element cannot be operated, or null when it can. */
+function inoperableFocus(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active) return "no active element";
+    if (active.getAttribute("aria-disabled") === "true") return "aria";
+    if ((active as HTMLButtonElement).disabled) return "disabled";
+    if (active.hidden || active.closest("[hidden]")) return "hidden";
+    return null;
+  });
+}
+
+/** Presses `key` until `reached` holds, checking focus after every press. */
+async function pressUntil(
+  page: Page,
+  key: string,
+  reached: () => Promise<boolean>,
+  limit: number,
+): Promise<void> {
+  for (let presses = 0; presses < limit; presses += 1) {
+    // eslint-disable-next-line no-await-in-loop -- each press is judged before the next.
+    if (await reached()) return;
+    // eslint-disable-next-line no-await-in-loop -- same.
+    await page.keyboard.press(key);
+    // eslint-disable-next-line no-await-in-loop -- same.
+    expect(await inoperableFocus(page), `after ${key}`).toBeNull();
+  }
+  expect(await reached(), `${key} never got there`).toBe(true);
+}
 
 Given(
   "a visitor opens {string} using only a keyboard",
@@ -48,14 +76,39 @@ Given(
 When(
   "the visitor moves focus into the history, selects a message, opens the menu, chooses {string}, types, and sends",
   async ({ page }, label: string) => {
-    await messageById(page, scenario.targetId).focus();
+    // From the top of the page, Tab until the history's single stop.
+    await pressUntil(
+      page,
+      "Tab",
+      async () => (await focusedMessageId(page)) !== null,
+      40,
+    );
+    await page.keyboard.press("End");
+    await pressUntil(
+      page,
+      "ArrowUp",
+      async () => (await focusedMessageId(page)) === scenario.targetId,
+      60,
+    );
     await page.keyboard.press("Enter");
     await expectMenuOpenFor(page, scenario.targetId);
-    await openMenuItems(page).filter({ hasText: label }).first().focus();
+    expect(await inoperableFocus(page)).toBeNull();
+    await pressUntil(
+      page,
+      "Tab",
+      () =>
+        page.evaluate(
+          (text) => document.activeElement?.textContent?.trim() === text,
+          label,
+        ),
+      5,
+    );
     await page.keyboard.press("Enter");
+    await expect(composerInput(page)).toBeFocused();
     scenario.replyBody = uniqueBody("Keyboard reply");
     await page.keyboard.type(scenario.replyBody);
     await page.keyboard.press("Enter");
+    expect(await inoperableFocus(page)).toBeNull();
   },
 );
 
@@ -73,15 +126,7 @@ Then(
 Then(
   "focus is never left on a control the visitor cannot operate",
   async ({ page }) => {
-    const problem = await page.evaluate(() => {
-      const active = document.activeElement as HTMLElement | null;
-      if (!active) return "no active element";
-      if (active.getAttribute("aria-disabled") === "true") return "aria";
-      if ((active as HTMLButtonElement).disabled) return "disabled";
-      if (active.hidden || active.closest("[hidden]")) return "hidden";
-      return null;
-    });
-    expect(problem).toBeNull();
+    expect(await inoperableFocus(page)).toBeNull();
   },
 );
 
@@ -183,44 +228,4 @@ Then("the quote is exposed as an activatable control", async ({ page }) => {
   await expect(messageById(page, scenario.replyId).locator(QUOTE)).toHaveRole(
     "button",
   );
-});
-
-// --- The compatibility revision ------------------------------------------
-//
-// What makes this a real proof rather than a re-run of the suite: the routed
-// candidate boots with the reply flag pinned off, while the browser in hand
-// still holds the bundle it loaded from the previous, flag-on revision. That
-// is the state a member is in during a release, and no server-rendered
-// assertion can stage it.
-
-Given("the compatibility revision is routed", async ({ page, $testInfo }) => {
-  await ensureRoomOpen(page, $testInfo);
-  await promoteCandidateWithReplyFlag(page, false);
-});
-
-When(
-  "a browser loaded from the previous revision opens {string}",
-  async ({ page }, route: string) => {
-    await page.goto(route);
-    await waitForRoomReady(page);
-  },
-);
-
-Then("the room loads", async ({ page }) => {
-  await expect(page.locator('[data-role="family-chat-room"]')).toHaveAttribute(
-    "data-connection-state",
-    "ready",
-  );
-  // The feature is off, so neither surface is bound; the room is otherwise
-  // exactly the shipped one.
-  await expect(page.locator(REPLY_STRIP)).toHaveAttribute("hidden", /.*/u);
-});
-
-Then("the visitor can send a message normally", async ({ page }) => {
-  const body = uniqueBody("Compatibility send");
-  await composerInput(page).fill(body);
-  await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.locator(MESSAGE).filter({ hasText: body })).toBeVisible({
-    timeout: 15_000,
-  });
 });
