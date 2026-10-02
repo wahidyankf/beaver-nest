@@ -223,10 +223,27 @@ config :bnest_app,
 config :bnest_app,
   backup_repository_root: Path.expand("~/bnest/data/test/backup-repository/#{family_chat_run_id}")
 
-# Both layers talk to the fixture agent session unless a fixture Codex runner is supplied,
-# and offer the fixture model catalog. The transcript store stays record-backed.
+# Both layers talk to the fixture agent session and offer the fixture model catalog. Only a
+# `BNEST_CODEX_RUNNER` naming the bundled fixture runner, which the end-to-end servers set,
+# selects the real port session. Any other value, an empty or missing path, or a real Codex
+# runner inherited from the shell, fails closed to the fixture session, so a test run never
+# starts a real Codex. The file is compared by identity, so a relative or symlinked path to
+# the fixture still counts. The transcript store stays record-backed.
+codex_fixture_runner = Path.expand("../test/support/codex_fixture_runner.mjs", __DIR__)
+
+fixture_codex_runner? =
+  with runner when runner not in [nil, ""] <- System.get_env("BNEST_CODEX_RUNNER"),
+       {:ok, %File.Stat{type: :regular, inode: inode, major_device: device}} <-
+         File.stat(runner),
+       {:ok, %File.Stat{inode: ^inode, major_device: ^device}} <-
+         File.stat(codex_fixture_runner) do
+    true
+  else
+    _not_the_fixture_runner -> false
+  end
+
 agent_session =
-  if System.get_env("BNEST_CODEX_RUNNER"),
+  if fixture_codex_runner?,
     do: BnestApp.CodexChat.Adapters.CodexPortSession,
     else: BnestApp.Test.CodexFixtureSession
 
