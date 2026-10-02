@@ -1,6 +1,6 @@
 # Releasing Bnest
 
-This guide runs a no-downtime Bnest release on a provisioned host. The [Caddy deployment workflow](../../repo-governance/workflows/development-caddy-deployment.md) is the authoritative rule; this page is the procedure that satisfies it.
+This guide runs a no-downtime Bnest release on a provisioned host. The [Caddy deployment workflow](../../repo-governance/workflows/maintenance/development-caddy-deployment.md) is the authoritative rule; this page is the procedure that satisfies it.
 
 The managed `release:run` target is transactional. A single invocation runs the release gates, builds an immutable artifact from a temporary worktree, proves the migration set, prepares the inactive slot, promotes it, proves the routed revision and a connected LiveView, then drains and retires the previous slot. Do not decompose it into `release:build`, `deploy:prepare`, and `deploy:promote` for a routine release.
 

@@ -11,11 +11,10 @@ compatibility: Requires read access to the content under review and to the repor
 
 # Applying Maker, Checker, and Fixer
 
-The check-fix workflows own the loop:
-Specs Quality Gate and its siblings say what runs,
-in what order, and when it stops.
-Finding Criticality and Confidence
-owns the scales. This skill covers the judgement each role needs inside that loop.
+The [Quality Gate Contract](../../../repo-governance/development/quality-gate-contract.md) owns the loop: each
+`<family>-quality-gate` says what runs, in what order, and when it stops, within at most three cycles.
+[Sole-Writer Propagation](../../../repo-governance/development/sole-writer-propagation.md) owns the writer, and Finding
+Criticality and Confidence owns the scales. This skill covers the judgement each role needs inside that loop.
 
 ## Three Roles, Three Questions
 
@@ -25,13 +24,15 @@ owns the scales. This skill covers the judgement each role needs inside that loo
 | checker | does the content meet the rules it is held to               | edits what it judges          |
 | fixer   | which confirmed findings are safe to apply without a person | creates content from scratch  |
 
+A checker rates criticality only. The fixer, as `<family>-fixer`, executes `<family>-propagation`, the family's one
+writer, and rates confidence as it re-validates each row.
+
 A request to create or substantially reshape content is a maker's job. A report of rule violations is a fixer's. A
 finding that needs taste, restructuring, or context nobody recorded is neither: it goes to the maker or a person, and a
 fixer that attempts it produces confident damage.
 
-A checker never edits what it judges, for the reason
-Agent Authoring gives: once it edits, nothing
-independent is left to judge the edit.
+A checker never edits what it judges, for the reason Agent Authoring gives: once it edits, nothing independent is left
+to judge the edit.
 
 ## Re-Validate From the Evidence
 
@@ -63,20 +64,28 @@ When a finding accepted as a false positive is raised again, neither apply it no
 reading the same rule differently means the rule, or the checker's reading of it, is ambiguous. Record the finding once
 for a person who owns the rule, and take it out of the loop's count.
 
+## Confidence Decides the Row's Status
+
+Each rating ends the row in one ledger status, so the gate counts the same outcome whoever wrote it:
+
+| Confidence       | The fixer                                     | Status                        |
+| ---------------- | --------------------------------------------- | ----------------------------- |
+| `HIGH`           | applies the repair, then verifies the row     | `resolved`, or `not-resolved` |
+| `MEDIUM`         | leaves it with the evidence that kept it open | `needs-decision`              |
+| `FALSE_POSITIVE` | records the disproof and what would stop it   | `not-applicable`              |
+
+A row whose target state already holds is `resolved` with no edit. A row the fixer did not reach stays `open`.
+
 ## Stable, Not Empty
 
-A clean report after a fix can mean the checker skipped what the fix touched. The workflows ask for two consecutive
-clean validations for that reason. A count that stops falling usually means a non-deterministic check or a scope that
-grows while it is fixed, and another identical cycle will not change either;
-Bounded Convergence decides what happens next.
+A clean audit after a repair can mean the checker skipped what the repair touched, so every audit is a full one. A count
+that stops falling usually means a non-deterministic check or a scope that grows while it is fixed, and another
+identical cycle will not change either. The gate's cycle ceiling ends the run; no role extends it.
 
-## Planning Has No Separate Fixer
+## Planning Has Its Own Fixer
 
-This pattern is recorded as contradicting the planning roster, and planning wins inside its own scope.
+Planning follows the same split. The plan maker authors and revises its own draft before the gate starts; once
+[Plan Quality Gate](../../../repo-governance/workflows/quality/plan-quality-gate.md) freezes a ledger, `plan-fixer`
+executes Plan Propagation and repairs only its rows, as
 [Skill and Agent Roster](../../../repo-governance/development/planning-capabilities/002-skill-and-agent-roster.md)
-has the plan maker apply validated findings itself, within the repair budget of
-[Plan Quality Gate](../../../repo-governance/workflows/plan-quality-gate.md), because a loop waiting for an empty
-report can always reach one.
-
-Outside planning, a workflow may declare a dedicated fixer. In both arrangements, whoever applies findings uses the
-judgement above.
+records. Whoever applies findings uses the judgement above.

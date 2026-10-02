@@ -32,4 +32,4 @@ The UI Design section of `tech-docs.md`, or its mapped `tech-docs/NNN-ui-design.
 
 Each UI-affecting PRD acceptance criterion names its affected routes, rendered states, and supported viewport classes. `delivery.md` traces exploration, selection, implementation, accessibility checks, and a post-implementation manual browser check of that matrix at the exact served origin. Automation, code inspection, inferred layout behaviour, and static assets supplement but never replace this proof. Record route, state, viewport class, and pass/fail without private values. Never include real accounts, credentials, cookies, private identifiers, or user data in an asset or evidence.
 
-`delivery.md` also includes the [exploratory and usability passes](../workflows/exploratory-and-usability-testing.md) as required tasks with their `learnings.md` proof; every UI-affecting plan carries them regardless of size.
+`delivery.md` also includes the [exploratory and usability passes](../workflows/quality/exploratory-usability-review.md) as required tasks with their `learnings.md` proof; every UI-affecting plan carries them regardless of size.

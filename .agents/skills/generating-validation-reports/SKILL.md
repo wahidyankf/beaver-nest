@@ -11,11 +11,9 @@ compatibility: Requires write access to the repository's designated report direc
 
 # Generating Validation Reports
 
-Temporary Files owns where a report lives, how it
-is named, and that it is written progressively, and its table of adopter decisions records the timestamp timezone.
-Priority and Reporting
-owns the fields of a finding. This skill covers what else a report needs so that someone who never saw the run can act
-on it.
+Temporary Files owns where a report lives, how it is named, and that it is written progressively, and its table of
+adopter decisions records the timestamp timezone. Priority and Reporting owns the fields of a finding. This skill covers
+what else a report needs so that someone who never saw the run can act on it.
 
 ## Open the File Before the First Check
 
@@ -56,15 +54,16 @@ Check-fix loops re-run over the same content, and a report is the only memory be
 | the count has not fallen over several cycles | a convergence warning                                                                        | a stalled loop is visible before its ceiling                    |
 
 Narrowing to changed files is safe only for rules that read one file at a time. A rule that compares files, such as
-consistency or link targets, re-checks every file it spans, because a fix in one file can break another.
-Deterministic and Judgement Validation
-sets the matching rule for reusing a preflight's unchanged result.
+consistency or link targets, re-checks every file it spans, because a fix in one file can break another. Deterministic
+and Judgement Validation sets the matching rule for reusing a preflight's unchanged result.
 
 ## A Frozen Ledger Is Not a Streamed Report
 
-A gate whose workflow defines a finite ledger, written once and then closed row by row, follows that workflow instead.
-[Rules Quality Gate](../../../repo-governance/workflows/rules-quality-gate.md) is one. Its rows need no run
-chain or confidence label, because the ledger is audited once and every row must reach a status.
+A quality gate, such as [Rules Quality Gate](../../../repo-governance/workflows/quality/rules-quality-gate.md), follows
+the [Ledger](../../../repo-governance/development/quality-gate-contract/003-verdicts-ledger-and-relations.md#ledger) its
+contract defines instead. Each of its at most 3 cycles freezes that cycle's blocking rows, and the gate's propagation,
+as the writer, rates each row's confidence when it re-validates the row; the checker leaves that column empty. The rows
+need no run chain, and every row must reach a status.
 
 For the levels a report carries, see
 [Assessing Criticality and Confidence](../assessing-criticality-confidence/SKILL.md).

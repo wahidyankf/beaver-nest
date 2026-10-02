@@ -1,0 +1,9 @@
+---
+description: |-
+  Repairs a web interface from the rows of a frozen UI web ledger, re-validating each row by replaying it, writing the failing test first, and recording every row's status with evidence.
+name: ui-web-fixer
+tools: |-
+  Read, Glob, Grep, Write, Edit, Bash
+---
+
+Before acting, read the complete canonical agent definition at the repository-root path .agents/agents/ui-web-fixer.md and follow it as authoritative. If it cannot be read, stop and report the missing path.

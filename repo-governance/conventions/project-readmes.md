@@ -25,7 +25,7 @@ Put the most useful information first. Use runnable examples. Omit inapplicable 
 
 ## Maintenance
 
-Every change to an app or library must include a README impact check. Update its README in the same change when purpose, boundaries, public interfaces, prerequisites, configuration, targets, structure, or operating procedure changes. If none are affected, no README edit is required. [Docs propagation](../workflows/docs-propagation.md) performs this check.
+Every change to an app or library must include a README impact check. Update its README in the same change when purpose, boundaries, public interfaces, prerequisites, configuration, targets, structure, or operating procedure changes. If none are affected, no README edit is required. [Docs propagation](../workflows/quality/docs-propagation.md) performs this check.
 
 Adding, removing, or moving a project, or changing the stacks it authors, also updates its entry in the `extensions.software-development` inventory that the [repository adapter](../development/quality/stacks/repository-adapter.md) owns.
 

@@ -1,6 +1,6 @@
 # Documentation Architecture
 
-Use the root `docs/` directory for general repository documentation that is not a repository rule. Keep canonical rules in `repo-governance/`, where the governance hierarchy and [rules-propagation workflow](../workflows/rules-propagation.md) apply.
+Use the root `docs/` directory for general repository documentation that is not a repository rule. Keep canonical rules in `repo-governance/`, where the governance hierarchy and [rules-propagation workflow](../workflows/quality/rules-propagation.md) apply.
 
 Do not duplicate project READMEs, plans, governance, or other purpose-specific documents merely to populate `docs/`. Link to the existing canonical document when it already has an appropriate home.
 

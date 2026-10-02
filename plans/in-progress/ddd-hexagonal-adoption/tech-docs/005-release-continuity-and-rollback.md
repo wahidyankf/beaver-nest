@@ -1,7 +1,7 @@
 # 005: Release, Continuity and Rollback
 
 This plan changes an active service, so [live-service continuity](../../../../repo-governance/development/live-service-continuity.md)
-and the [Caddy deployment workflow](../../../../repo-governance/workflows/development-caddy-deployment.md) apply in full.
+and the [Caddy deployment workflow](../../../../repo-governance/workflows/maintenance/development-caddy-deployment.md) apply in full.
 [Releasing Bnest](../../../../docs/how-to-guides/releasing-bnest.md) is the procedure.
 
 ## What Is Released

@@ -61,7 +61,7 @@ skill, so such a suite follows [End-to-End Testing](../../repo-governance/develo
 4. **Build each increment test-first.** Where the project keeps a scenario corpus, a scenario that specifies the
    behaviour is added or updated before its red, per
    [Behaviour-Driven Development](../../repo-governance/development/behaviour-driven-development.md).
-   Each increment runs through [Red, Green, Refactor](../../repo-governance/workflows/red-green-refactor.md),
+   Each increment runs through [Red, Green, Refactor](../../repo-governance/workflows/quality/red-green-refactor.md),
    with its runs recorded where the caller names.
 5. **Make it right, then fast only on a measurement,** in the order [Implementation Stages](../../repo-governance/development/quality/code/hexagonal-architecture/003-application-shapes.md#implementation-stages) sets, editing surgically.
 6. **Check before handing over.** Run the type check, lint, and format checks and the fast gate that the project README
@@ -69,7 +69,7 @@ skill, so such a suite follows [End-to-End Testing](../../repo-governance/develo
    check
    Behaviour Change Verification
    still requires of the change, and every README or document the change leaves stale, per
-   [Docs Propagation](../../repo-governance/workflows/docs-propagation.md), so the caller can route it to
+   [Docs Propagation](../../repo-governance/workflows/quality/docs-propagation.md), so the caller can route it to
    Docs Maker or run that workflow before committing.
 
 ## Shell

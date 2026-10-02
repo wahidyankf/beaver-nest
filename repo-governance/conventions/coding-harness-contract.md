@@ -15,7 +15,7 @@ Matching file names, paths, or counts is not sufficient. Parity means that each 
 
 An adapter fails parity when it is missing, stale, extra, malformed, routes to the wrong canonical source, copies or extends canonical instructions, changes effective content, or weakens a required capability or deny. Adding, renaming, changing, or removing a canonical skill or agent therefore requires all affected harness adapters and deterministic fixtures in the same change.
 
-Follow the [coding-harness contract change workflow](../workflows/coding-harness-contract-change.md) for the canonical edit, adapter reconciliation, enforcement impact, verification, and recovery procedure.
+Follow the [harness propagation](../workflows/quality/harness-propagation.md) workflow for the canonical edit, adapter reconciliation, enforcement impact, verification, and recovery procedure.
 
 ## Canonical Sources
 
@@ -42,4 +42,4 @@ Run `./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm
 
 Runtime discovery smoke checks remain separate because a deterministic repository validator cannot prove vendor model compliance or locally available tools.
 
-Use the [coding-harness parity verification workflow](../workflows/coding-harness-parity-verification.md) to record an evidence-backed audit without changing the contract.
+Use the [harness parity verification workflow](../workflows/quality/harness-parity-verification.md) to record an evidence-backed audit without changing the contract.

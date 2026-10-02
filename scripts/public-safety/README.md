@@ -40,7 +40,7 @@ each pushed update (a new branch starts from `origin/main`) and to the pull requ
 commit by commit, never as its final files: a value one commit adds and the next deletes is still in every clone. Each
 commit contributes only the lines it added, at the line numbers they occupy, labelled `<commit>/<path>:<line>`; a merge
 contributes what it resolved beyond the automatic merge. Content the range did not add is not screened again. This
-screen backs the [push leak review](../../repo-governance/workflows/pr-leak-review/002-push-review.md).
+screen backs the [push leak review](../../repo-governance/workflows/quality/pr-leak-review/002-push-review.md).
 
 `pre-commit` screens the whole tracked tree, not only the change. A leak that is already committed does not become safe
 because this particular commit did not introduce it.

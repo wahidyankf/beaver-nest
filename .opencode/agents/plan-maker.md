@@ -1,6 +1,6 @@
 ---
 description: |-
-  Authors a complete formal plan from a request or groomed brief, runs both decision gates, and repairs its own draft within the declared budget.
+  Authors a complete formal plan from a request or groomed brief, runs both decision gates, and submits the draft to the plan quality gate, whose findings a separate fixer repairs.
 mode: subagent
 permission:
   bash: allow

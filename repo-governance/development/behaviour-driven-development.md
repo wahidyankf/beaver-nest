@@ -34,7 +34,7 @@ A library without integration owns no local resource boundary. Public-boundary p
 - Make each corpus root an Nx input of its aggregating owner and the one E2E harness that owns it, where one exists. A root repository wrapper with no truthful Nx owner instead keeps its corpus and adapter in the scheduled repository contract. `test:quick` runs unit scenarios and static behaviour coverage, never integration or E2E runtime; follow the [quality-gate](quality-gates.md) and [E2E](end-to-end-testing.md) standards.
 - Apply the canonical layer boundaries and folder ownership from the [quality-gate standard](quality-gates.md); boundary setup and assertions count when classifying a test.
 - All test support obeys the [test-data iron rule](test-identities.md#iron-rule); exemptions never authorize production access.
-- Run the [manual Gherkin implementation review](../workflows/gherkin-implementation-review.md) after adding or materially changing a feature, adapter, exemption, or behaviour-compliance mechanism. Static binding coverage cannot prove semantic implementation.
+- Run the [manual Gherkin implementation review](../workflows/quality/gherkin-implementation-review.md) after adding or materially changing a feature, adapter, exemption, or behaviour-compliance mechanism. Static binding coverage cannot prove semantic implementation.
 
 ## Manual Public-Boundary Confirmation
 

@@ -1,7 +1,7 @@
 # Execution Review
 
 Execution review runs once, after every substantive delivery item is terminal and before archival begins. It is
-performed by [`plan-execution-check`](../../workflows/plan-execution-check.md).
+performed by [`plan-execution-check`](../../workflows/plan/plan-execution-check.md).
 
 ## The Fixed Order
 

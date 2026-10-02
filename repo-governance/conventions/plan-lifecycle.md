@@ -46,7 +46,7 @@ backend, repoint Tailscale, require a refresh, or accept a 2xx status alone as r
 
 ## Local Delivery Rules
 
-A checklist item that ships code expresses its [red-green-refactor cycle](../workflows/red-green-refactor.md) as
+A checklist item that ships code expresses its [red-green-refactor cycle](../workflows/quality/red-green-refactor.md) as
 separate RED, GREEN, and REFACTOR checkboxes, each naming the exact test path, command, and expected failure or pass.
 Never combine the cycle into one checkbox or into prose.
 
@@ -54,15 +54,15 @@ Give recovery and rollback checkboxes an explicit trigger. Keep them dormant unt
 evidence-backed `Not triggered` disposition at reconciliation.
 
 When execution may create, change, move, or delete a repository rule, `delivery.md` includes an `[AI]` task that applies
-the bounded [rules-propagation workflow](../workflows/rules-propagation.md) to the resulting rule change and records its
-terminal result; it may return `PASS_NO_CHANGE`. When execution changes a documented C4 element, `delivery.md` includes
+the bounded [rules-propagation workflow](../workflows/quality/rules-propagation.md) to the resulting rule change and records its
+terminal result; it may end `no-change`. When execution changes a documented C4 element, `delivery.md` includes
 an `[AI]` task that updates the exact affected canonical file and view with the final as-built model under the
 [plan specification-change convention](plan-specification-changes.md).
 
 End every phase with a blocking checkpoint.
 
-Run the [plan quality gate](../workflows/plan-quality-gate.md) before execution, after material changes, and at
-completion, only on explicit user direction. Authorize [execution](../workflows/plan-execution.md) separately.
+Run the [plan quality gate](../workflows/quality/plan-quality-gate.md) before execution and after material changes,
+only on explicit user direction or from planning, the caller its Entry lists; it never judges delivered work. Authorize [execution](../workflows/plan/plan-execution.md) separately.
 
 ## Transitions and Specifications
 

@@ -15,7 +15,7 @@ compatibility: Requires a TypeScript project with type check, lint, format, and 
 TypeScript rule, strict typing included. This skill restates none of them. It carries the procedure for applying that
 standard, and the judgement of noticing which rule a decision falls under.
 [developing-applications](../developing-applications/SKILL.md) covers the language-agnostic judgement, and
-[Red, Green, Refactor](../../../repo-governance/workflows/red-green-refactor.md) owns the test-first cycle.
+[Red, Green, Refactor](../../../repo-governance/workflows/quality/red-green-refactor.md) owns the test-first cycle.
 
 ## Before the First Edit
 

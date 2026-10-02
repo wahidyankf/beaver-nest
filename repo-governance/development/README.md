@@ -26,8 +26,12 @@ A development standard should identify:
 - [Planning capabilities modules](planning-capabilities/README.md) hold the ordered modules of that roster.
 - [Quality standards](quality/README.md) hold the adopted language-neutral standards, stack packs, and repository adapter.
 - [Quality gates](quality-gates.md) define unit, local-only integration, dedicated-app E2E, coverage, and Git hook safeguards.
+- [Quality gate adapter](quality-gate-adapter.md) records how this repository adopted the shared quality-gate contract: families, callers, tools, owners, and deviations.
+- [Quality gate contract](quality-gate-contract.md) defines the one bounded, advisory contract every `<family>-quality-gate` follows.
+- [Quality gate contract modules](quality-gate-contract/README.md) hold inputs and scoring, sequence and termination, and verdicts and ledger.
 - [Resource-aware development](resource-aware-development.md) coordinates repository-owned work through shared vector reservations, FIFO admission, and targeted shedding.
 - [Software quality enforcement](software-quality-enforcement.md) maps each maintained quality outcome to its blocking, scheduled, runtime, or evidence route.
+- [Sole-writer propagation](sole-writer-propagation.md) holds the rules every `<family>-propagation`, the one writer of its family, shares.
 - [Specification maintenance](specification-maintenance.md) keeps every relevant artifact under `specs/` synchronized with application changes.
 - [Test-driven development](test-driven-development.md) requires app and library behaviour to be developed through red–green–refactor cycles.
 - [Test identities](test-identities.md) isolates synthetic accounts and makes cleanup safe and deterministic.

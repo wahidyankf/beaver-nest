@@ -1,6 +1,6 @@
 ---
 description: |-
-  Audits a complete plan draft against the plan specification and returns findings with a terminal verdict, without modifying anything.
+  Audits a complete plan draft against the plan specification and returns criticality-rated findings, without modifying anything.
 mode: subagent
 permission:
   bash: allow

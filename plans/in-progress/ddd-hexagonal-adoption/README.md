@@ -127,7 +127,7 @@ synced `origin/main` after the previous unit lands. The release is the one step 
   [dependency selection](../../../repo-governance/development/dependency-selection.md) in
   [tech-doc 003](tech-docs/003-boundary-enforcement.md).
 - **Release:** governed by [live-service continuity](../../../repo-governance/development/live-service-continuity.md)
-  and the [Caddy deployment workflow](../../../repo-governance/workflows/development-caddy-deployment.md). See
+  and the [Caddy deployment workflow](../../../repo-governance/workflows/maintenance/development-caddy-deployment.md). See
   [tech-doc 005](tech-docs/005-release-continuity-and-rollback.md).
 - **Backlog interaction:** [`family-learning-engine`](../../backlog/family-learning-engine/README.md) plans new
   `BnestApp.Learning` and `EventLog` modules and edits `sifat_allah_live.ex` and `application.ex` against today's
@@ -135,7 +135,7 @@ synced `origin/main` after the previous unit lands. The release is the one step 
   completion.
 - **Authority:** the repository owner authorized committing, pushing, opening pull requests, merging under the
   [merge preconditions](../../../repo-governance/conventions/pull-request-merge.md), the production release, archival
-  and [dev artifact clean-up](../../../repo-governance/workflows/dev-artifact-clean-up.md), all in one goal stated on
+  and [dev artifact clean-up](../../../repo-governance/workflows/maintenance/dev-artifact-clean-up.md), all in one goal stated on
   2026-10-01.
 
 ## Directory Map

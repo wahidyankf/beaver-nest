@@ -75,7 +75,7 @@ input into its text.
 
 Start each behaviour with a failing test at the narrowest layer that can prove it: a decision with injected dependencies
 at unit, an adapter against a real local resource at integration, and a journey through the public boundary at
-end-to-end, kept few. [Red, Green, Refactor](../../../repo-governance/workflows/red-green-refactor.md) owns the
+end-to-end, kept few. [Red, Green, Refactor](../../../repo-governance/workflows/quality/red-green-refactor.md) owns the
 cycle.
 
 ## Before Calling It Ready
