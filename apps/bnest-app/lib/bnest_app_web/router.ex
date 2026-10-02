@@ -128,24 +128,20 @@ defmodule BnestAppWeb.Router do
   #   pipe_through :api
   # end
 
-  # Exposes the exact compile-time-captured value the `if` gate below uses
-  # (a plain module attribute, substituted as a literal at compile time --
-  # `if @dev_routes_enabled? do ... end` is exactly as dead-code-eliminated
-  # in a production build as `if Application.compile_env(...) do` was, so
-  # this changes no runtime behavior or production safety). Lets tests
-  # assert the mounting decision below never diverges from this flag -- e.g.
-  # a regression that hardcoded `if true` here would leave this function
-  # still reporting the real configured value while `__routes__()` started
-  # carrying GraphiQL regardless, a mismatch the test-env-only route
-  # inspection this replaced could never have caught.
-  @dev_routes_enabled? Application.compile_env(:bnest_app, :dev_routes)
+  # The mounting decision `BnestAppWeb.DevRoutes.mounted?/1` takes for this build's
+  # `:dev_routes` value, captured once at compile time: the `if` below compiles the dev-only
+  # scopes in or out on it, so a production build carries no such route at all. Exposed so
+  # tests can hold the compiled routes against the same decision.
+  @dev_routes_mounted? BnestAppWeb.DevRoutes.mounted?(
+                         Application.compile_env(:bnest_app, :dev_routes)
+                       )
 
   @doc false
   @spec dev_routes_enabled?() :: boolean()
-  def dev_routes_enabled?, do: !!@dev_routes_enabled?
+  def dev_routes_enabled?, do: @dev_routes_mounted?
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
-  if @dev_routes_enabled? do
+  if @dev_routes_mounted? do
     # If you want to use the LiveDashboard in production, you should put
     # it behind authentication and allow only admins to access it.
     # If your application does not have an admins-only section yet,
