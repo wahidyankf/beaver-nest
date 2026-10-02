@@ -250,39 +250,26 @@ defmodule BnestApp.Backup.FacadeTest do
       assert backups_in(context) == []
     end
 
-    test "probes Family Chat during the backup and reports what they observed", context do
+    # The family chat load proof runs its probes from the test drivers, so a backup runs no
+    # workload of its own: an option naming one changes nothing, the result is the artifact
+    # alone, and the live room gains no message.
+    test "runs no traffic workload of its own", context do
       assert {:ok, artifact} =
                Backup.run(deadline: @now, destination_directory: @destination, probe_watch: true)
 
-      assert %{probe_failures: 0, probe_sent_ids_missing: [], probe_p95_ms: p95} = artifact
-      assert is_integer(p95) and p95 >= 0
+      assert artifact |> Map.keys() |> Enum.sort() ==
+               Enum.sort([
+                 :path,
+                 :basename,
+                 :sha256,
+                 :bytes,
+                 :quick_check,
+                 :schema_versions,
+                 :logical_proof_sha256,
+                 :source_generation
+               ])
 
-      assert {:ok, %{nodes: nodes}} =
-               FamilyChat.list_messages(
-                 "test-user-backup-reader",
-                 FamilyChat.canonical_room_slug(),
-                 limit: 50
-               )
-
-      assert length(nodes) == 20
-
-      assert Enum.sort(DatabaseSnapshot.message_checks(context.snapshot)) ==
-               Enum.map(nodes, &{1, &1.id})
-
-      :ok = DatabaseSnapshot.fail_next(context.snapshot, :vacuum_into, :io_failed)
-
-      assert Backup.run(deadline: @now, destination_directory: @destination, probe_watch: true) ==
-               {:error, {:retryable, :io_failed, nil}}
-    end
-
-    test "counts every probe Family Chat refuses", context do
-      archived = %{FamilyChat.canonical_room() | name: "Ruang Keluarga"}
-      :ok = RoomStore.put_room(context.rooms, archived, deleted?: true)
-
-      assert {:ok, %{probe_failures: 20, probe_sent_ids_missing: []}} =
-               Backup.run(deadline: @now, destination_directory: @destination, probe_watch: true)
-
-      assert DatabaseSnapshot.message_checks(context.snapshot) == []
+      assert %{messages: []} = RoomStore.contents(context.rooms)
     end
 
     test "reports its start and its outcome as telemetry", context do

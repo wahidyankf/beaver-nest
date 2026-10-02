@@ -639,24 +639,18 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :grace_period_present)
   )
 
-  step("a routed socket is held open on the prior slot before promotion", context,
-    do: prepare(context, :routed_socket_on_prior_slot)
+  step(
+    "the deployment tool generates the reverse-proxy configuration that promotes the replacement slot",
+    context,
+    do: perform(context, :generate_promotion_config)
   )
 
-  step("Caddy reloads to route the promoted slot", context,
-    do: perform(context, :caddy_reloads_promoted)
-  )
-
-  step("the prior-slot socket closes", context, do: outcome(context, :prior_slot_socket_closes))
-
-  step("every replacement handshake reaches only the promoted slot", context,
+  step("every replacement handshake is routed only to the promoted slot", context,
     do: outcome(context, :handshake_only_promoted_slot)
   )
 
-  step(
-    "the prior slot remains process-warm and receives no new routed handshake during the observation window",
-    context,
-    do: outcome(context, :prior_slot_warm_unrouted)
+  step("no routed handshake reaches the prior slot", context,
+    do: outcome(context, :prior_slot_unrouted)
   )
 
   # --- family_chat_graphql.feature: replying to a message ---

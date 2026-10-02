@@ -21,7 +21,7 @@ defmodule BnestApp.Backup do
   use Boundary,
     top_level?: true,
     type: :strict,
-    deps: [BnestApp.FamilyChat, Jason],
+    deps: [Jason],
     exports: [{Domain, []}, {Ports, []}]
 
   alias BnestApp.Backup.Domain.CapacityPolicy
@@ -34,10 +34,8 @@ defmodule BnestApp.Backup do
   alias BnestApp.Backup.Ports.ConfigStore
   alias BnestApp.Backup.Ports.DatabaseSnapshot
   alias BnestApp.Backup.Ports.IgnoreCheck
-  alias BnestApp.FamilyChat
 
   @default_timeout_ms 1_800_000
-  @probe_count 20
 
   @type location :: %{directory: String.t(), destination_id: String.t()}
 
@@ -119,10 +117,6 @@ defmodule BnestApp.Backup do
     * `:destination_directory` -- a destination the caller already resolved.
     * `:before_promote` -- run right before the proved candidate is promoted; an
       `{:error, category}` discards it as a retryable failure of that category.
-    * `:probe_watch` -- when truthy, runs a bounded authenticated Family
-      Chat read/send workload concurrently with the backup and reports
-      `probe_failures`, `probe_p95_ms`, and `probe_sent_ids_missing` in the
-      success result.
   """
   @spec run(keyword()) ::
           {:ok, map()} | {:error, {:retryable, atom(), artifact() | nil}} | {:error, atom()}
@@ -255,7 +249,6 @@ defmodule BnestApp.Backup do
     partial_path = artifact_path <> ".partial"
     :ok = ArtifactStore.remove(artifacts, partial_path)
 
-    probe_task = maybe_start_probes(opts[:probe_watch])
     before_promote = Keyword.get(opts, :before_promote, fn -> :ok end)
 
     case DatabaseSnapshot.vacuum_into(snapshot, partial_path, timeout_ms()) do
@@ -266,26 +259,24 @@ defmodule BnestApp.Backup do
           basename: artifact_basename
         }
 
-        finalize_artifact(artifacts, snapshot, candidate, probe_task, before_promote)
+        finalize_artifact(artifacts, snapshot, candidate, before_promote)
 
       {:error, category} ->
         :ok = ArtifactStore.remove(artifacts, partial_path)
-        await_probes(probe_task)
         {:error, {:retryable, category, nil}}
     end
   end
 
-  defp finalize_artifact(artifacts, snapshot, candidate, probe_task, before_promote) do
+  defp finalize_artifact(artifacts, snapshot, candidate, before_promote) do
     :ok = ArtifactStore.restrict(artifacts, candidate.partial_path)
 
     case DatabaseSnapshot.prove(snapshot, candidate.partial_path) do
       {:ok, proof} ->
         :ok = ArtifactStore.sync(artifacts, candidate.partial_path)
-        promote(artifacts, snapshot, candidate, proof, probe_task, before_promote)
+        promote(artifacts, snapshot, candidate, proof, before_promote)
 
       {:error, :corrupt} ->
         :ok = ArtifactStore.remove(artifacts, candidate.partial_path)
-        await_probes(probe_task)
         # `integrity_failed`: tech-doc 009's documented category name for this case, from its
         # closed, safe retryable-category vocabulary ("insufficient_capacity, busy, timeout,
         # cancelled, integrity_failed, stale_claim, or io_failed").
@@ -299,27 +290,25 @@ defmodule BnestApp.Backup do
   # the result" as small as possible. The Scheduler's backup task uses this
   # to re-check its claim's lease without this module ever needing to know
   # what a Scheduler claim is.
-  defp promote(artifacts, snapshot, candidate, proof, probe_task, before_promote) do
+  defp promote(artifacts, snapshot, candidate, proof, before_promote) do
     case before_promote.() do
       :ok ->
         :ok = ArtifactStore.promote(artifacts, candidate.partial_path, candidate.path)
 
-        artifact = %{
-          path: candidate.path,
-          basename: candidate.basename,
-          sha256: ArtifactStore.digest(artifacts, candidate.path),
-          bytes: ArtifactStore.size(artifacts, candidate.path),
-          quick_check: "ok",
-          schema_versions: proof.schema_versions,
-          logical_proof_sha256: proof.logical_sha256,
-          source_generation: DatabaseSnapshot.source_generation(snapshot)
-        }
-
-        merge_probe_result({:ok, artifact}, probe_task, snapshot)
+        {:ok,
+         %{
+           path: candidate.path,
+           basename: candidate.basename,
+           sha256: ArtifactStore.digest(artifacts, candidate.path),
+           bytes: ArtifactStore.size(artifacts, candidate.path),
+           quick_check: "ok",
+           schema_versions: proof.schema_versions,
+           logical_proof_sha256: proof.logical_sha256,
+           source_generation: DatabaseSnapshot.source_generation(snapshot)
+         }}
 
       {:error, reason} ->
         :ok = ArtifactStore.remove(artifacts, candidate.partial_path)
-        await_probes(probe_task)
         {:error, {:retryable, reason, nil}}
     end
   end
@@ -414,105 +403,4 @@ defmodule BnestApp.Backup do
   defp database_snapshot, do: adapter(:database_snapshot).new()
   defp capacity_probe, do: adapter(:capacity_probe).new()
   defp ignore_check, do: adapter(:ignore_check).new()
-
-  # --- concurrent-write load proof (unit-layer mechanism proxy) ---
-  #
-  # Continuous authenticated Family Chat read/send probes, run on the same
-  # live database the backup's dedicated connection reads from
-  # concurrently -- this is the real mechanism a routed HTTP probe would
-  # eventually reach (`BnestApp.FamilyChat.send_message/4` and
-  # `list_messages/3`, the exact functions the GraphQL resolvers call), just
-  # below the HTTP/socket boundary the unit test layer cannot cross (see
-  # `test/behaviour/verify.exs`'s `BoundaryPolicy`). The routed, full-stack
-  # version of this proof lives at the integration layer (learnings.md's
-  # Phase 5 entry).
-  defp maybe_start_probes(truthy) when truthy in [nil, false], do: nil
-
-  defp maybe_start_probes(_truthy) do
-    Task.async(fn -> run_probes() end)
-  end
-
-  defp run_probes do
-    slug = FamilyChat.canonical_room_slug()
-    user_id = "test-user-backup-probe-" <> random_id(8)
-
-    {sent_ids, samples, failures} =
-      Enum.reduce(1..@probe_count, {[], [], 0}, fn index, {sent_ids, samples, failures} ->
-        # `FamilyChat.send_message/4` requires a UUID-shaped client message
-        # id (`FamilyChat.Domain.Message.valid_client_message_id?/1`) -- anything
-        # else is a `VALIDATION_FAILED` error, not a transient probe failure.
-        client_message_id = uuid4()
-
-        {send_ms, send_result} =
-          timed(fn ->
-            FamilyChat.send_message(user_id, slug, client_message_id, "probe #{index}")
-          end)
-
-        {read_ms, read_result} =
-          timed(fn -> FamilyChat.list_messages(user_id, slug, limit: 1) end)
-
-        ok? = match?({:ok, %{}}, send_result) and match?({:ok, %{}}, read_result)
-
-        sent_ids =
-          if match?({:ok, %{id: _}}, send_result),
-            do: [elem(send_result, 1).id | sent_ids],
-            else: sent_ids
-
-        {sent_ids, [send_ms, read_ms | samples], failures + if(ok?, do: 0, else: 1)}
-      end)
-
-    %{sent_ids: sent_ids, samples: samples, failures: failures}
-  end
-
-  # A random (version 4, RFC 4122 variant) UUID in its canonical lowercase text form.
-  defp uuid4 do
-    <<a::48, _version::4, b::12, _variant::2, c::62>> = :crypto.strong_rand_bytes(16)
-
-    <<a::48, 4::4, b::12, 2::2, c::62>>
-    |> Base.encode16(case: :lower)
-    |> then(fn <<p1::binary-8, p2::binary-4, p3::binary-4, p4::binary-4, p5::binary-12>> ->
-      Enum.join([p1, p2, p3, p4, p5], "-")
-    end)
-  end
-
-  defp timed(fun) do
-    started = System.monotonic_time(:millisecond)
-
-    try do
-      {System.monotonic_time(:millisecond) - started, fun.()}
-    rescue
-      error -> {System.monotonic_time(:millisecond) - started, {:error, error}}
-    end
-  end
-
-  defp merge_probe_result(ok_result, nil, _snapshot), do: ok_result
-
-  defp merge_probe_result({:ok, artifact}, probe_task, snapshot) do
-    probes = await_probes(probe_task)
-    missing = Enum.reject(probes.sent_ids, &message_exists?(snapshot, &1))
-
-    {:ok,
-     Map.merge(artifact, %{
-       probe_failures: probes.failures,
-       probe_p95_ms: percentile(probes.samples, 95),
-       probe_sent_ids_missing: missing
-     })}
-  end
-
-  defp await_probes(nil), do: %{sent_ids: [], samples: [0], failures: 0}
-  defp await_probes(task), do: Task.await(task, 60_000)
-
-  defp message_exists?(snapshot, message_id) do
-    room = FamilyChat.canonical_room()
-    DatabaseSnapshot.message_exists?(snapshot, room.id, message_id)
-  end
-
-  defp percentile([], _p), do: 0
-
-  defp percentile(samples, p) do
-    sorted = Enum.sort(samples)
-    count = length(sorted)
-    index = max(0, ceil(p / 100 * count) - 1)
-    Enum.at(sorted, index)
-  end
 end

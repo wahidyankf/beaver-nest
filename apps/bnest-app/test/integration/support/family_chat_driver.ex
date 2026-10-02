@@ -18,6 +18,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   import Phoenix.ConnTest, except: [connect: 2, connect: 3]
   import Phoenix.ChannelTest
 
+  alias Absinthe.Subscription.Proxy, as: SubscriptionProxy
   alias BnestApp.Backup
   alias BnestApp.FamilyChat.Adapters.SqliteRoomStore
   alias BnestApp.FamilyChat.Ports.RoomStore
@@ -27,14 +28,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.PushNotifications
   alias BnestApp.PushNotifications.Dispatcher
   alias BnestApp.PushNotifications.Domain.Policy, as: PushPolicy
-  alias BnestApp.Release.CaddyConfig
   alias BnestApp.Release.Migrations
   alias BnestApp.Scheduler
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.IndependentSlot
   alias BnestApp.Test.InMemory.CapacityProbe, as: InMemoryCapacityProbe
   alias BnestApp.Test.InMemory.PushSender, as: InMemoryPushSender
+  alias BnestApp.Test.PublicMutationProbe
   alias BnestApp.Test.SchedulerDispatch
   alias BnestApp.Test.Seeds.Schedules
   alias BnestApp.TestBackupDestination
@@ -74,8 +76,9 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   @prior_release_schema_version 20_260_830_000_000
   @family_chat_tables ~w(family_chat_push_deliveries web_push_subscriptions family_chat_messages family_chat_rooms)
 
-  # The second slot's PubSub server; the first slot is the application's own.
-  @other_slot_pubsub BnestApp.Behaviour.IntegrationFamilyChatDriver.OtherSlotPubSub
+  # The deployment tool's reverse-proxy configuration generator, run with Node as the tool
+  # runs it.
+  @caddy_config_tool Path.expand("../../../tools/caddy-config.mjs", __DIR__)
 
   # --- prepare ---
 
@@ -201,8 +204,24 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # rather than a stored simulation of "production."
   def prepare_behaviour(context, :endpoint_configured_production, _args), do: context
 
-  def prepare_behaviour(context, :fresh_migrated_database, _args),
-    do: Map.put(context, :family_chat_migration_state, :fresh)
+  # A database of its own, migrated to the schema the release before Family Chat left, so
+  # it holds no Family Chat table yet: the migration under test is the first to add one.
+  def prepare_behaviour(context, :fresh_migrated_database, _args) do
+    database_path = isolated_family_chat_database!("family-chat-fresh")
+    :ok = Storage.ensure_started!(database_path)
+
+    Ecto.Migrator.run(SqliteRepo, migrations_path(), :up,
+      to: @prior_release_schema_version,
+      log: false
+    )
+
+    %{rows: []} =
+      SqliteRepo.query!(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'family_chat_rooms'"
+      )
+
+    Map.put(context, :family_chat_migration_state, :fresh)
+  end
 
   # On a database of its own: the schema exactly as the release before Family
   # Chat left it, holding a schedule of that release; its reads are taken once
@@ -241,10 +260,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     # `context.user_id` is always real here (`before_scenario` logs in every
     # scenario), and is also given a subscription of its own so "sender
     # excluded from delivery" is a genuine, non-vacuous assertion.
+    # On a database of its own, so the active subscriptions are exactly these four.
+    context = push_database!(context)
+
     other_subscribers =
       for suffix <- ~w(a b c), do: "test-user-family-chat-#{suffix}-" <> unique_uuid()
 
-    Enum.each(other_subscribers, &subscribe_through_facade!(&1, "accepted"))
+    other_subscription_ids =
+      Enum.map(other_subscribers, &subscribe_through_facade!(&1, "accepted").id)
+
     sender_subscription_id = subscribe_through_facade!(context.user_id, "accepted").id
 
     # Mirrors `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical fix (see
@@ -262,6 +286,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.merge(context, %{
       family_chat_room_slug: slug,
       family_chat_other_subscribers: other_subscribers,
+      family_chat_other_subscription_ids: other_subscription_ids,
       family_chat_sender_subscription_id: sender_subscription_id
     })
   end
@@ -424,6 +449,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # Scheduler runs for it resolves its destination itself, so the Given also
   # configures an isolated one.
   def prepare_behaviour(context, :schedule_due, [key]) do
+    # Started first: this may be the run's first scenario to reach the database.
+    :ok = BnestApp.FamilyChat.ensure_ready!()
     _location = prepare_isolated_backup_config!()
     Schedules.reset_schedule!(key, "19:00", true, @behaviour_now)
     Schedules.force_due!(key, @behaviour_now)
@@ -508,8 +535,21 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(context, :family_chat_backup_capacity, :insufficient)
   end
 
+  # The room already holds a message, so a snapshot taken before the first probe commits
+  # still has history to restore: on a fresh run database it would otherwise hold none.
+  # The database is started first, since this may be the run's first scenario to reach it.
   def prepare_behaviour(context, :continuous_probes_running, _args) do
+    :ok = BnestApp.FamilyChat.ensure_ready!()
     seed_backup_load_padding!()
+
+    {:ok, _history} =
+      BnestApp.FamilyChat.send_message(
+        "test-user-family-chat-history-" <> unique_uuid(),
+        BnestApp.FamilyChat.canonical_room_slug(),
+        unique_uuid(),
+        "history before the backup"
+      )
+
     Map.put(context, :family_chat_probes_running, true)
   end
 
@@ -547,15 +587,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     destination = TestBackupDestination.create!("verified-backup-artifact-integration")
     known_body = "restore-fixture-secret-" <> unique_uuid()
 
-    subscription_id =
+    subscription =
       create_active_subscription!("test-user-family-chat-restore-" <> unique_uuid())
 
-    ExUnit.Callbacks.on_exit(fn -> disable_subscription_row!(subscription_id) end)
+    ExUnit.Callbacks.on_exit(fn -> disable_subscription_row!(subscription.id) end)
 
     room =
       RoomStore.get_active_room(SqliteRoomStore.new(), BnestApp.FamilyChat.canonical_room_slug())
 
-    {:ok, _message} =
+    {:ok, message} =
       BnestApp.FamilyChat.insert_message!(
         room.id,
         "user",
@@ -571,33 +611,34 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.merge(context, %{
       family_chat_backup_artifact: artifact,
       family_chat_backup_destination: destination,
-      family_chat_known_body: known_body
+      family_chat_known_body: known_body,
+      family_chat_fixture_message_id: message.id,
+      family_chat_fixture_secrets: [subscription.endpoint, subscription.p256dh, subscription.auth]
     })
   end
 
-  # Two slots, each with its own PubSub server and no distribution between them:
-  # the application's own server, and a second one started for this scenario. A
-  # real `familyChatMessageCommitted` subscription document is registered
-  # through the application's endpoint, and one listener per slot subscribes to
-  # that document's topic on its own slot's server.
+  # Two slots started independently: this test's runtime, whose PubSub server is the
+  # application's own, and a second runtime in an OS process of its own with no
+  # distribution, running a PubSub server under the same name (`IndependentSlot`). A real
+  # `familyChatMessageCommitted` subscription document is registered through the
+  # application's endpoint. On each slot a listener subscribes to that document's topic,
+  # the room's topic and every Absinthe proxy shard a publish is relayed through.
   def prepare_behaviour(context, :two_independent_slots, _args) do
     # A retried attempt starts its slots afresh and drops what the last one forwarded.
-    restart_supervised!({Phoenix.PubSub, name: @other_slot_pubsub}, @other_slot_pubsub)
     drain_slot_messages(0)
     document_topic = subscribe_room_document!(context.user_id)
 
     room_topic =
       BnestApp.FamilyChat.subscription_topic(BnestApp.FamilyChat.canonical_room().id)
 
+    topics = [document_topic, room_topic | absinthe_proxy_topics()]
     application_pubsub = Application.fetch_env!(:bnest_app, BnestAppWeb.Endpoint)[:pubsub_server]
     start_slot_listener!(:this_slot, application_pubsub, [document_topic, room_topic])
-    start_slot_listener!(:other_slot, @other_slot_pubsub, [document_topic, room_topic])
+    other_slot = IndependentSlot.start!(topics)
+    ExUnit.Callbacks.on_exit(fn -> IndependentSlot.stop(other_slot) end)
 
-    Map.put(context, :family_chat_slots, [:this_slot, :other_slot])
+    Map.merge(context, %{family_chat_other_slot: other_slot, family_chat_slot_topics: topics})
   end
-
-  def prepare_behaviour(context, :routed_socket_on_prior_slot, _args),
-    do: Map.put(context, :family_chat_prior_slot, :blue)
 
   # --- perform ---
 
@@ -817,8 +858,22 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def perform_behaviour(context, :producer_retries_same_key, _args),
     do: perform_behaviour(context, :producer_posts_system_message, ["ruang-keluarga"])
 
-  def perform_behaviour(context, :inspect_public_schema, _args),
-    do: Map.put(context, :family_chat_schema_fields, BnestAppWeb.Schema.mutation_field_names())
+  # The public schema answers its introspection query over HTTP, as any client asks it, and
+  # every mutation field it declares is then sent over HTTP by the logged-in member, on a
+  # database of its own so what the store holds afterwards is what these requests wrote.
+  def perform_behaviour(context, :inspect_public_schema, _args) do
+    context = push_database!(context)
+
+    %{"data" => data} =
+      graphql(context, PublicMutationProbe.introspection(), %{}).family_chat_result
+
+    fields = PublicMutationProbe.fields(data)
+
+    Map.merge(context, %{
+      family_chat_schema_fields: fields,
+      family_chat_schema_runs: Enum.map(fields, &run_public_mutation(context, &1))
+    })
+  end
 
   def perform_behaviour(context, :member_sends_durable_message, _args) do
     # Unlike the other "member sends a message" steps, this one's own
@@ -993,12 +1048,9 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     destination = TestBackupDestination.create!("capacity-" <> unique_uuid())
     ExUnit.Callbacks.on_exit(fn -> TestBackupDestination.cleanup!(destination) end)
 
-    opts =
-      [deadline: @behaviour_now, destination_directory: destination.directory]
-      |> maybe_put_opt(:probe_watch, context[:family_chat_probes_running])
-
     Map.merge(context, %{
-      family_chat_result: Backup.run(opts),
+      family_chat_result:
+        Backup.run(deadline: @behaviour_now, destination_directory: destination.directory),
       family_chat_backup_directory: destination.directory
     })
   end
@@ -1011,12 +1063,10 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     )
   end
 
-  # Genuinely routed (real GraphQL HTTP via `graphql/3`, the same helper
+  # Genuinely routed probes (real GraphQL HTTP via `graphql/3`, the same helper
   # every other family-chat send/read scenario in this file uses -- never a
-  # direct `FamilyChat.send_message/list_messages` call) counterpart to
-  # `BnestApp.Backup.run/1`'s own `:probe_watch` mechanism proxy (see that
-  # module's comment: "The routed, full-stack version of this proof lives at
-  # the integration layer"). Also genuinely "through Scheduler->handler-
+  # direct `FamilyChat.send_message/list_messages` call) run in a task of their
+  # own while the backup does. Also genuinely "through Scheduler->handler-
   # >service" (tech-doc 009's Concurrent-write Proof step 3): claims a real
   # setup claim through the `Scheduler` facade and dispatches through its generic
   # `execute/2`, which resolves Backup's `ScheduledBackupTask` from the configured
@@ -1128,21 +1178,23 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     |> Map.put(:family_chat_slot_received, received)
   end
 
-  def perform_behaviour(context, :generate_reverse_proxy_config, _args) do
-    Map.put(
-      context,
-      :family_chat_result,
-      CaddyConfig.reverse_proxy_block(:candidate)
-    )
-  end
+  # Every configuration the deployment tool writes: for each slot, with and without the
+  # upstream health check.
+  def perform_behaviour(context, :generate_reverse_proxy_config, _args),
+    do: Map.put(context, :family_chat_generated_configs, generated_caddyfiles())
 
-  def perform_behaviour(context, :caddy_reloads_promoted, _args) do
-    # Same genuine proxy as the unit driver: see its comment for rationale.
-    Map.put(
-      context,
-      :family_chat_result,
-      CaddyConfig.reverse_proxy_block(:promoted)
-    )
+  # The configuration a promotion writes, for each slot promoted over the other one.
+  def perform_behaviour(context, :generate_promotion_config, _args) do
+    configs = generated_caddyfiles()
+    ports = Map.new(configs, &{&1["slot"], &1["port"]})
+
+    promotions =
+      for %{"slot" => slot, "healthChecked" => true, "config" => config} <- configs,
+          {prior, prior_port} <- ports,
+          prior != slot,
+          do: %{promoted_port: ports[slot], prior_port: prior_port, config: config}
+
+    Map.put(context, :family_chat_promotions, promotions)
   end
 
   def perform_behaviour(context, :inspect_router_routes, _args), do: context
@@ -1545,8 +1597,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       not Enum.any?(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
   end
 
-  def behaviour_outcome?(context, :room_seed_correct, [slug, name]),
-    do: match?({:ok, %{slug: ^slug, name: ^name, id: 1}}, context.family_chat_result)
+  # The migration's room, and the room read back from SQLite, both open for posting.
+  def behaviour_outcome?(context, :room_seed_correct, [slug, name]) do
+    seeded = %{id: 1, slug: slug, name: name, member_posting_enabled: true}
+    stored = RoomStore.get_active_room(SqliteRoomStore.new(), slug)
+
+    match?({:ok, %{}}, context.family_chat_result) and
+      Map.take(elem(context.family_chat_result, 1), Map.keys(seeded)) == seeded and
+      Map.take(stored || %{}, Map.keys(seeded)) == seeded
+  end
 
   # Re-runs the migration for real and compares the whole seeded room it
   # returns with the first run's, then reads SQLite's active rooms back: the
@@ -1570,8 +1629,21 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     context.family_chat_reads_without_family_chat_tables == {:ok, before_migration}
   end
 
-  def behaviour_outcome?(context, :system_message_committed, [sender_kind]),
-    do: match?({:ok, %{sender_kind: ^sender_kind}}, context.family_chat_result)
+  # The answer and the stored row both carry the producer's key as sender and idempotency key.
+  def behaviour_outcome?(context, :system_message_committed, [sender_kind]) do
+    key = context.family_chat_producer_key
+
+    case context.family_chat_result do
+      {:ok, %{id: id, room_id: room_id, sender_kind: ^sender_kind, sender_id: ^key}} ->
+        match?(
+          %{sender_kind: ^sender_kind, sender_id: ^key, idempotency_key: ^key},
+          RoomStore.message_by_id(SqliteRoomStore.new(), room_id, id)
+        )
+
+      _other ->
+        false
+    end
+  end
 
   # The retry answers with the first post's message itself.
   def behaviour_outcome?(context, :system_message_unchanged, _args) do
@@ -1585,14 +1657,34 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def behaviour_outcome?(context, :exactly_one_system_message, _args),
     do: count_messages_for(context, context.family_chat_producer_key) == 1
 
-  def behaviour_outcome?(context, :schema_has_no_system_message_field, _args),
-    do: not Enum.any?(context.family_chat_schema_fields, &(&1 =~ "system"))
+  # No field is named for a system message in any letter case, every field ran without an
+  # error, and the scenario's database holds no system message afterwards.
+  def behaviour_outcome?(context, :schema_has_no_system_message_field, _args) do
+    names = Enum.map(context.family_chat_schema_fields, & &1.name)
 
+    %{rows: [[system_messages]]} =
+      SqliteRepo.query!("SELECT COUNT(*) FROM family_chat_messages WHERE sender_kind = 'system'")
+
+    names != [] and not Enum.any?(names, &PublicMutationProbe.names_system?/1) and
+      Enum.all?(context.family_chat_schema_runs, &match?({_name, :ran}, &1)) and
+      system_messages == 0
+  end
+
+  # SQLite holds one pending delivery for each other member's subscription, exactly; and a
+  # commit whose delivery rows fail leaves neither its message nor any delivery behind.
   def behaviour_outcome?(context, :message_and_deliveries_committed_atomically, _args) do
-    match?(
-      {:ok, %{deliveries: deliveries}} when length(deliveries) == 3,
-      context.family_chat_result
-    )
+    {:ok, %{id: message_id, deliveries: returned}} = context.family_chat_result
+
+    %{rows: stored} =
+      SqliteRepo.query!(
+        "SELECT subscription_id, state FROM family_chat_push_deliveries WHERE message_id = ?",
+        [message_id]
+      )
+
+    expected = Enum.map(context.family_chat_other_subscription_ids, &[&1, "pending"])
+
+    length(returned) == 3 and Enum.sort(stored) == Enum.sort(expected) and
+      failed_commit_left_nothing?(context)
   end
 
   def behaviour_outcome?(context, :sender_excluded_from_delivery, _args) do
@@ -1817,18 +1909,23 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
         "deliveryStates" => delivery_states
       } = decoded
 
-      slug == BnestApp.FamilyChat.canonical_room_slug() and message_ids != [] and
+      slug == BnestApp.FamilyChat.canonical_room_slug() and
+        context.family_chat_fixture_message_id in message_ids and
         message_ids == Enum.sort(message_ids) and is_integer(subscription_count) and
-        subscription_count >= 1 and is_list(delivery_states)
+        subscription_count >= 1 and "pending" in delivery_states
     else
       _other -> false
     end
   end
 
+  # Neither the fixture's message body nor its subscription's endpoint or keys.
   def behaviour_outcome?(context, :no_secret_in_restore_evidence, _args) do
     case context.family_chat_result do
       {:ok, %{evidence: evidence}} when is_binary(evidence) ->
-        not String.contains?(evidence, context[:family_chat_known_body] || "\0unset\0")
+        secrets = [context.family_chat_known_body | context.family_chat_fixture_secrets]
+
+        Enum.all?(secrets, &(is_binary(&1) and &1 != "")) and
+          not Enum.any?(secrets, &String.contains?(evidence, &1))
 
       _other ->
         false
@@ -1852,41 +1949,56 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     )
   end
 
-  def behaviour_outcome?(context, :other_slot_no_event, _args),
-    do: for({:other_slot, message} <- context.family_chat_slot_received, do: message) == []
+  # The other slot's listener received nothing, though it is live: a broadcast made inside
+  # that slot reaches it. This runtime has no distribution through which a publish could
+  # reach any other.
+  def behaviour_outcome?(context, :other_slot_no_event, _args) do
+    other_slot = context.family_chat_other_slot
+    received = IndependentSlot.received(other_slot)
+    [document_topic | _topics] = context.family_chat_slot_topics
 
-  def behaviour_outcome?(context, :no_nonzero_stream_close_delay, [_setting]) do
-    {:ok, config} = context.family_chat_result
-    not String.contains?(config, "stream_close_delay")
+    received == [] and IndependentSlot.hears_own_broadcast?(other_slot, document_topic) and
+      Node.alive?() == false and Node.list() == []
   end
 
+  # No configuration names the setting or any stream-close directive at all.
+  def behaviour_outcome?(context, :no_nonzero_stream_close_delay, [setting]) do
+    configs = Enum.map(context.family_chat_generated_configs, & &1["config"])
+
+    configs != [] and
+      not Enum.any?(
+        configs,
+        &(String.contains?(&1, setting) or String.contains?(&1, "stream_close"))
+      )
+  end
+
+  # Every configuration's global options block keeps the five-minute grace period.
   def behaviour_outcome?(context, :grace_period_present, _args) do
-    {:ok, config} = context.family_chat_result
-    String.contains?(config, "grace_period 5m")
+    configs = Enum.map(context.family_chat_generated_configs, & &1["config"])
+    configs != [] and Enum.all?(configs, &("grace_period 5m" in global_options(&1)))
   end
 
-  # See the unit driver's identical clauses for the generated-config-proxy rationale.
-  def behaviour_outcome?(context, :prior_slot_socket_closes, _args) do
-    {:ok, config} = context.family_chat_result
-    not String.contains?(config, "upstream prior active")
-  end
-
+  # The one reverse proxy each promotion configures has the promoted slot as its only upstream.
   def behaviour_outcome?(context, :handshake_only_promoted_slot, _args) do
-    {:ok, config} = context.family_chat_result
+    promotions = context.family_chat_promotions
 
-    String.contains?(config, "upstream promoted") and
-      not String.contains?(config, "upstream prior")
+    promotions != [] and
+      Enum.all?(promotions, fn %{config: config, promoted_port: port} ->
+        reverse_proxy_upstreams(config) == [["127.0.0.1:#{port}"]]
+      end)
   end
 
-  def behaviour_outcome?(context, :prior_slot_warm_unrouted, _args) do
-    {:ok, config} = context.family_chat_result
-    String.contains?(config, "prior") and String.contains?(config, "warm")
+  # No promotion's configuration names the prior slot's port anywhere.
+  def behaviour_outcome?(context, :prior_slot_unrouted, _args) do
+    promotions = context.family_chat_promotions
+
+    promotions != [] and
+      Enum.all?(promotions, fn %{config: config, prior_port: port} ->
+        not String.contains?(config, ":#{port}")
+      end)
   end
 
   # --- helpers ---
-
-  defp maybe_put_opt(opts, _key, nil), do: opts
-  defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
   # Reads the real `config/prod.exs`, chained through `config/config.exs`'s
   # own `import_config "#{config_env()}.exs"` via `env: :prod`, exactly as
@@ -2918,9 +3030,12 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   defp unique_uuid, do: Ecto.UUID.generate()
 
   # Test-fixture-only raw insert of an active subscription, for the backup
-  # fixture, whose rows the backup snapshots directly (U12).
+  # fixture, whose rows the backup snapshots directly (U12). Its keys are fresh per call;
+  # returns its ID with its endpoint and keys.
   defp create_active_subscription!(user_id) do
     BnestApp.FamilyChat.ensure_ready!()
+    p256dh = Base.url_encode64(:crypto.strong_rand_bytes(65), padding: false)
+    auth = Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
 
     now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
     session_digest = :crypto.hash(:sha256, user_id <> "-session") |> Base.encode16(case: :lower)
@@ -2940,8 +3055,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
         session_digest,
         endpoint_sha256,
         endpoint,
-        "fixture-p256dh-key",
-        "fixture-auth-secret",
+        p256dh,
+        auth,
         now,
         actor,
         now,
@@ -2957,7 +3072,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
         endpoint_sha256
       ])
 
-    subscription_id
+    %{id: subscription_id, endpoint: endpoint, p256dh: p256dh, auth: auth}
   end
 
   # Retires a fixture-created subscription that was only ever a vehicle for
@@ -2995,5 +3110,116 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     end)
 
     :ok
+  end
+
+  # Sends one mutation field over HTTP as the logged-in member, its arguments filled by
+  # name. A field that needs an argument no value names cannot run, and is reported so.
+  defp run_public_mutation(context, field) do
+    values = %{
+      "roomSlug" => BnestApp.FamilyChat.canonical_room_slug(),
+      "clientMessageId" => unique_uuid(),
+      "body" => "public schema probe",
+      "endpoint" => synthetic_endpoint("schema-" <> unique_uuid()),
+      "p256dh" => Base.url_encode64(:crypto.strong_rand_bytes(65), padding: false),
+      "auth" => Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
+    }
+
+    with {:ok, document, variables} <- PublicMutationProbe.invocation(field, values),
+         %{"data" => data} = result when not is_map_key(result, "errors") <-
+           graphql(context, document, variables).family_chat_result,
+         %{} <- data[field.name] do
+      {field.name, :ran}
+    else
+      other -> {field.name, {:failed, other}}
+    end
+  end
+
+  # A commit whose delivery rows SQLite refuses (a trigger on the scenario's own database,
+  # dropped again at once) raises, and leaves neither its message nor a delivery behind.
+  defp failed_commit_left_nothing?(context) do
+    if Application.fetch_env!(:bnest_app, SqliteRepo)[:database] !=
+         context.family_chat_push_database do
+      raise "refusing to add a trigger outside the scenario's isolated database"
+    end
+
+    deliveries_before = delivery_row_count()
+    client_message_id = unique_uuid()
+
+    SqliteRepo.query!("""
+    CREATE TRIGGER test_refuse_delivery_rows BEFORE INSERT ON family_chat_push_deliveries
+    BEGIN SELECT RAISE(ABORT, 'delivery rows refused'); END
+    """)
+
+    refused? =
+      try do
+        match?(
+          {:error, _reason},
+          BnestApp.FamilyChat.send_message(
+            context.user_id,
+            context.family_chat_room_slug,
+            client_message_id,
+            "Dinner is ready, again"
+          )
+        )
+      rescue
+        _refused -> true
+      after
+        SqliteRepo.query!("DROP TRIGGER IF EXISTS test_refuse_delivery_rows")
+      end
+
+    refused? and count_messages_for(context, client_message_id) == 0 and
+      delivery_row_count() == deliveries_before
+  end
+
+  defp delivery_row_count do
+    %{rows: [[count]]} = SqliteRepo.query!("SELECT COUNT(*) FROM family_chat_push_deliveries")
+    count
+  end
+
+  # Every topic the application's Absinthe subscription relays a publish through.
+  defp absinthe_proxy_topics do
+    {:ok, pool_size} =
+      BnestAppWeb.Endpoint
+      |> Absinthe.Subscription.registry_name()
+      |> Registry.meta(:pool_size)
+
+    for shard <- 0..(pool_size - 1), do: SubscriptionProxy.topic(shard)
+  end
+
+  # Every configuration `tools/caddy-config.mjs` generates, generated by Node from the very
+  # module the deployment tool imports: `slot`, `port`, `healthChecked` and `config` each.
+  defp generated_caddyfiles do
+    script = """
+    const { caddyfile, slots } = await import(process.argv[1]);
+    const configs = [];
+    for (const [slot, port] of Object.entries(slots))
+      for (const healthChecked of [true, false])
+        configs.push({ slot, port, healthChecked, config: caddyfile(slot, healthChecked) });
+    process.stdout.write(JSON.stringify(configs));
+    """
+
+    {output, 0} =
+      System.cmd("node", [
+        "--input-type=module",
+        "-e",
+        script,
+        URI.to_string(%URI{scheme: "file", path: @caddy_config_tool})
+      ])
+
+    Jason.decode!(output)
+  end
+
+  # The directives of a configuration's leading global options block, trimmed.
+  defp global_options("{\n" <> rest) do
+    [block | _sites] = String.split(rest, "\n}\n", parts: 2)
+    block |> String.split("\n") |> Enum.map(&String.trim/1)
+  end
+
+  defp global_options(_no_global_block), do: []
+
+  # The upstreams of every `reverse_proxy` directive in a configuration.
+  defp reverse_proxy_upstreams(config) do
+    for [_line, upstreams] <- Regex.scan(~r/^\s*reverse_proxy\s+([^{\n]*?)\s*\{?\s*$/m, config),
+        do: String.split(upstreams)
   end
 end

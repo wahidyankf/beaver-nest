@@ -126,17 +126,6 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
     end
   end
 
-  @impl true
-  def message_exists?(_snapshot, room_id, message_id) do
-    %{rows: rows} =
-      SqliteRepo.query!(
-        "SELECT 1 FROM family_chat_messages WHERE id = ? AND room_id = ?",
-        [message_id, room_id]
-      )
-
-    rows != []
-  end
-
   defp escape_sql_literal(value), do: String.replace(value, "'", "''")
 
   defp query_rows(connection, sql) do

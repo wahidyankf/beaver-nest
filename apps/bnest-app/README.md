@@ -167,6 +167,7 @@ The test environment substitutes a deterministic model catalog and session, and 
 - `assets/` contains browser JavaScript, CSS, and declaration boundaries used for strict checking.
 - `config/` contains compile-time and runtime environment configuration.
 - `tools/deployment.mjs` owns machine-local Caddy, release-slot, and rollback primitives.
+- `tools/caddy-config.mjs` builds the reverse-proxy configuration `deployment.mjs` writes into Caddy. It has no side effects, so tests generate the real configuration from it without running a deployment command.
 - `tools/release.mjs` owns the deterministic release transaction and immutable migration identity; its adjacent tests and continuity contract prove recovery, serialization, and future resumable multi-client state.
 - The pinned HIPPO adds routed-service evidence and writes a bounded schema-v5 release summary with hard routed-responsiveness budgets.
 - `tools/production-origin.mjs` validates the routed HTTPS origin and exposes only its normalized origin and hostname.

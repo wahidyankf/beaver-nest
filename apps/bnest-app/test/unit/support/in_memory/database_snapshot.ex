@@ -6,13 +6,16 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
   A snapshot copies everything that store holds into `BnestApp.Test.InMemory.ArtifactStore`
   at the partial path it is given, as SQLite's `VACUUM INTO` writes a file; a restore reads
   the copy back out of that artifact store, never out of the live store, so a restore proves
-  what the copy holds. A copy takes a simulated `copy_ms/0` milliseconds: a timeout shorter
+  what the copy holds. It reads back the copy's rows unshaped, bodies and push keys
+  included, so what keeps them out of the restore evidence is Backup's own shaping. A copy takes a simulated `copy_ms/0` milliseconds: a timeout shorter
   than that cancels it after it wrote part of the file, as the SQLite snapshot does.
 
   The unit layer configures this module as Backup's `:database_snapshot`; its `new/0`
   serves the snapshot a test started with `install/0`, which the test supervisor stops
-  before the next test. `fail_next/3` makes the next copy or proof fail; `snapshots/1`,
-  `proofs/1`, `cancellations/1` and `message_checks/1` report what Backup asked of it.
+  before the next test. `fail_next/3` makes the next copy or proof fail, and `hold_next_copy/2`
+  holds the next copy open until a function of the test's returns, so traffic the test runs
+  meanwhile overlaps it; `snapshots/1`, `proofs/1`, `cancellations/1` and `holds/1` report
+  what Backup asked of it.
   """
 
   @behaviour BnestApp.Backup.Ports.DatabaseSnapshot
@@ -62,6 +65,16 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
   def fail_next(%{pid: pid}, operation, reason),
     do: Agent.update(pid, &put_in(&1.failures[operation], reason))
 
+  @doc """
+  Holds the next copy open, once it started, until `hold` returns: a copy that takes as long
+  as the test's own traffic needs. `hold` runs in the process that runs the backup.
+  """
+  def hold_next_copy(%{pid: pid}, hold) when is_function(hold, 0),
+    do: Agent.update(pid, &%{&1 | hold: hold})
+
+  @doc "What each hold returned once its copy went on, oldest first."
+  def holds(%{pid: pid}), do: Agent.get(pid, &Enum.reverse(&1.holds))
+
   @doc "The partial path of every copy started, oldest first."
   def snapshots(%{pid: pid}), do: Agent.get(pid, &Enum.reverse(&1.snapshots))
 
@@ -71,9 +84,6 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
   @doc "How many copies were cancelled past their timeout."
   def cancellations(%{pid: pid}), do: Agent.get(pid, & &1.cancellations)
 
-  @doc "Every `{room_id, message_id}` checked against the live database, oldest first."
-  def message_checks(%{pid: pid}), do: Agent.get(pid, &Enum.reverse(&1.message_checks))
-
   @impl true
   def source_path(_snapshot), do: @source_path
 
@@ -82,12 +92,17 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
 
   @impl true
   def vacuum_into(%{pid: pid} = snapshot, path, timeout_ms) do
-    failure =
+    {failure, hold} =
       Agent.get_and_update(pid, fn state ->
         {failure, failures} = Map.pop(state.failures, :vacuum_into)
-        {failure, %{state | snapshots: [path | state.snapshots], failures: failures}}
+
+        {{failure, state.hold},
+         %{state | snapshots: [path | state.snapshots], failures: failures, hold: fn -> :ok end}}
       end)
 
+    # Outside the agent, so the held copy blocks only the backup, never the store.
+    held = hold.()
+    Agent.update(pid, &%{&1 | holds: [held | &1.holds]})
     copy = %{database: live_database(), generation: source_generation(snapshot)}
 
     cond do
@@ -127,25 +142,22 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
     with %{content: %{database: database}} <-
            ArtifactStore.file(ArtifactStore.new(), artifact_path),
          [{room, false}] <- Enum.filter(Map.values(database.rooms), &match?({_room, false}, &1)) do
+      messages = for message <- database.messages, message.room_id == room.id, do: message
+
       {:ok,
        %{
-         room: Map.take(room, [:id, :slug, :name, :member_posting_enabled]),
-         message_ids:
-           for(message <- database.messages, message.room_id == room.id, do: message.id)
-           |> Enum.sort(),
+         room: room,
+         message_ids: messages |> Enum.map(& &1.id) |> Enum.sort(),
          subscription_count: length(database.subscriptions),
          delivery_states:
-           database.deliveries |> Enum.map(& &1.state) |> Enum.uniq() |> Enum.sort()
+           database.deliveries |> Enum.map(& &1.state) |> Enum.uniq() |> Enum.sort(),
+         messages: messages,
+         subscriptions: database.subscriptions,
+         deliveries: database.deliveries
        }}
     else
       _unrestorable -> {:error, :restore_failed}
     end
-  end
-
-  @impl true
-  def message_exists?(%{pid: pid}, room_id, message_id) do
-    Agent.update(pid, &%{&1 | message_checks: [{room_id, message_id} | &1.message_checks]})
-    Enum.any?(live_database().messages, &(&1.id == message_id and &1.room_id == room_id))
   end
 
   defp empty do
@@ -153,10 +165,11 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
       generation:
         "test-user-backup-generation-" <> Integer.to_string(:erlang.unique_integer([:positive])),
       failures: %{},
+      hold: fn -> :ok end,
+      holds: [],
       snapshots: [],
       proofs: [],
-      cancellations: 0,
-      message_checks: []
+      cancellations: 0
     }
   end
 
