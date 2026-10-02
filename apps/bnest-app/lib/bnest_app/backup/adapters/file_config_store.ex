@@ -6,7 +6,8 @@ defmodule BnestApp.Backup.Adapters.FileConfigStore do
   (which `config/test.exs` points at each test run's own path), else the operator's real
   `~/.config/bnest/backup.json`, in that order. A test therefore never reads or writes the
   real file, whose destination is the production backup directory. The default repository
-  is `BNEST_REPOSITORY_ROOT`, else the checkout this module was compiled in.
+  is the `:backup_repository_root` application setting, which only `config/test.exs` sets,
+  else `BNEST_REPOSITORY_ROOT`, else the checkout this module was compiled in.
   """
 
   @behaviour BnestApp.Backup.Ports.ConfigStore
@@ -63,7 +64,12 @@ defmodule BnestApp.Backup.Adapters.FileConfigStore do
   @doc "The repository whose ignored `data/backup` is the default destination."
   @spec repository_root() :: String.t()
   def repository_root do
-    System.get_env("BNEST_REPOSITORY_ROOT") || @compiled_repository_root
+    # The test-only setting wins over the variable: the deployment exports
+    # `BNEST_REPOSITORY_ROOT` naming the permanent checkout, whose `data/backup` is the
+    # production backup directory, so a test inheriting it must still resolve its own run's
+    # root. Production configuration never sets `:backup_repository_root`.
+    Application.get_env(:bnest_app, :backup_repository_root) ||
+      System.get_env("BNEST_REPOSITORY_ROOT") || @compiled_repository_root
   end
 
   @doc "The configuration file, resolved in the order the module documentation gives."

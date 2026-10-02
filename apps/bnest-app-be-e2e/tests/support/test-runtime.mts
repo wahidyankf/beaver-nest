@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   existsSync,
@@ -17,6 +18,10 @@ const runsRoot = path.join(repositoryRoot, "data/test/runs");
 const sqliteRunsRoot = path.join(
   process.env["HOME"] ?? "",
   "bnest/data/test/runs",
+);
+const backupRepositoriesRoot = path.join(
+  process.env["HOME"] ?? "",
+  "bnest/data/test/backup-repository",
 );
 
 export function createTestRuntime(suite: string): TestRuntime {
@@ -50,7 +55,45 @@ export function createTestRuntime(suite: string): TestRuntime {
     });
   }
 
+  createBackupRepository(runId);
   return { path: runtimePath, sqlitePath, runId };
+}
+
+// The server's test configuration resolves Backup's default repository root to
+// `~/bnest/data/test/backup-repository/<run id>`, never a checkout, whose `data/backup` is
+// the production backup directory in the permanent checkout. It sits outside the SQLite run
+// root because Backup refuses a destination inside the live database's directory. Making it
+// an isolated git repository that ignores its `data/` gives the admin schedules page a
+// working default destination; the run's cleanup removes it.
+function backupRepositoryPath(runId: string): string {
+  const repository = path.join(backupRepositoriesRoot, runId);
+
+  if (
+    path.dirname(repository) !== backupRepositoriesRoot ||
+    path.basename(repository) !== runId
+  ) {
+    throw new Error(
+      "Bnest E2E backup repository must be one run-id child of ~/bnest/data/test/backup-repository",
+    );
+  }
+
+  return repository;
+}
+
+function createBackupRepository(runId: string): void {
+  const repository = backupRepositoryPath(runId);
+  mkdirSync(repository, { recursive: true });
+  writeFileSync(path.join(repository, ".gitignore"), "/data/*\n", {
+    encoding: "utf8",
+    flag: "wx",
+  });
+  const result = spawnSync("git", ["init", "--quiet", repository], {
+    encoding: "utf8",
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`backup repository init failed: ${result.stderr}`);
+  }
 }
 
 export function cleanupTestRuntime(runtime: TestRuntime): void {
@@ -74,6 +117,7 @@ export function cleanupTestRuntime(runtime: TestRuntime): void {
 
   rmSync(runtime.path, { recursive: true, force: false });
   rmSync(runtime.sqlitePath, { recursive: true, force: false });
+  rmSync(backupRepositoryPath(runtime.runId), { recursive: true, force: true });
 }
 
 export default function globalTeardown(): void {

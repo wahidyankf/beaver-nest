@@ -1555,7 +1555,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.merge(context, %{response: response, home_response: home})
   end
 
+  # The page shows the backup destination, so it is given an isolated working default: the
+  # test run's own repository root fails closed, and the page would fall back to an empty
+  # inventory.
   def perform_behaviour(context, :open_schedules_from_home, _args) do
+    _default = TestBackupDestination.default_repository!("schedules-" <> unique_suffix())
     response = get(context.conn, "/admin/settings/schedules")
     Map.put(context, :response, response)
   end
@@ -2635,9 +2639,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     File.mkdir_p!(repository)
     File.write!(Path.join(repository, ".gitignore"), "/data/*\n")
     {_output, 0} = System.cmd("git", ["init", "--quiet", repository])
-    previous = System.get_env("BNEST_REPOSITORY_ROOT")
-    System.put_env("BNEST_REPOSITORY_ROOT", repository)
-    ExUnit.Callbacks.on_exit(fn -> restore_environment("BNEST_REPOSITORY_ROOT", previous) end)
+    :ok = TestBackupDestination.use_repository_root!(repository)
 
     Map.put(context, :default_backup_directory, Path.join(repository, "data/backup"))
   end

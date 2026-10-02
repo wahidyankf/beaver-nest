@@ -4,6 +4,7 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
   import Phoenix.LiveViewTest
 
   alias BnestApp.Release.Migrations.PersistentSchedules
+  alias BnestApp.TestBackupDestination
 
   @now ~U[2026-08-30 20:00:00Z]
 
@@ -12,6 +13,9 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
     temporary_root = canonical_temporary_root()
     config_path = Path.join(temporary_root, "bnest-admin-settings-#{suffix}/backup.json")
     System.put_env("BNEST_BACKUP_CONFIG", config_path)
+    # The schedules page shows the unconfigured default destination; the test run's own
+    # repository root fails closed, so it gets an isolated working one.
+    _default = TestBackupDestination.default_repository!("admin-settings-#{suffix}")
     :ok = PersistentSchedules.apply_and_verify!(@now)
 
     on_exit(fn ->

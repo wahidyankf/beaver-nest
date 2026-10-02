@@ -14,4 +14,19 @@ defmodule BnestApp.Backup.ConfigTest do
     refute test_path =~ "/.config/bnest/"
     assert Backup.adapter(:config_store) == BnestApp.Test.InMemory.BackupConfigStore
   end
+
+  # The default destination is `<repository root>/data/backup`, and in the permanent checkout
+  # the compiled root's is the production backup directory. Every test run therefore has its
+  # own repository root, which the file store prefers over an inherited
+  # `BNEST_REPOSITORY_ROOT` (`BnestApp.Backup.FileConfigStoreTest` proves the resolution).
+  test "configures the test run's own backup repository root, never a checkout" do
+    root = Application.get_env(:bnest_app, :backup_repository_root)
+
+    assert is_binary(root)
+    assert root =~ "/bnest/data/test/backup-repository/"
+    refute String.starts_with?(__DIR__ <> "/", root <> "/")
+
+    refute String.contains?(root, "/beaver-nest") and
+             not String.contains?(root, "/bnest/data/test/")
+  end
 end

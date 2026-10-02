@@ -205,6 +205,18 @@ config :bnest_app,
   backup_config_path:
     Path.expand("~/bnest/data/test/backup-config/#{family_chat_run_id}/backup.json")
 
+# The unconfigured default destination is `<repository root>/data/backup`, and the compiled
+# checkout's (or an inherited `BNEST_REPOSITORY_ROOT`'s) is the production backup directory
+# in the permanent checkout. Every test run resolves its own root instead, which this setting
+# makes win over that variable. A `mix test` run never creates it, so no git repository
+# ignores its `data/backup` and a backup into the unconfigured default fails closed; a test
+# that needs a working default installs an isolated repository
+# (`BnestApp.TestBackupDestination.default_repository!/1`), and the end-to-end runtime
+# creates this path as one for its run. It lies outside the run's SQLite root, because
+# Backup refuses a destination inside the live database's directory.
+config :bnest_app,
+  backup_repository_root: Path.expand("~/bnest/data/test/backup-repository/#{family_chat_run_id}")
+
 # Both layers talk to the fixture agent session unless a fixture Codex runner is supplied,
 # and offer the fixture model catalog. The transcript store stays record-backed.
 agent_session =
