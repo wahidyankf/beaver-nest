@@ -24,6 +24,10 @@ if (!["read-only", "workspace-write"].includes(sandboxMode)) {
   throw new Error("Fixture runner received an invalid sandbox mode.");
 }
 
+// A Codex runner that has gone away: resuming this thread exits before reading any prompt,
+// so the session holding it must refuse the next prompt itself.
+if (resumedThreadId === "closed-thread") process.exit(0);
+
 for await (const line of lines) {
   const message = JSON.parse(line);
 
@@ -93,14 +97,16 @@ for await (const line of lines) {
       thread_id: resumedThreadId || newThreadId,
     });
 
-    const responseDelay =
-      message.prompt === "Resume after deployment" ? 2_000 : 750;
-    await new Promise((resolve) => setTimeout(resolve, responseDelay));
-
-    if (message.prompt === "Are you there?") {
-      output({ type: "error", message: "Codex is not available." });
+    // The primary slot never finishes this turn, so only the turn a deployed candidate
+    // resends can answer it.
+    if (
+      message.prompt === "Resume after deployment" &&
+      process.env.BNEST_DEPLOY_SLOT === "blue"
+    ) {
       continue;
     }
+
+    await new Promise((resolve) => setTimeout(resolve, 750));
 
     if (message.prompt === "Please fail this turn") {
       output({ type: "error", message: "Turn failed." });
