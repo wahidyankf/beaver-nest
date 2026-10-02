@@ -10,6 +10,7 @@ defmodule BnestApp.ScheduledBackupTest do
   alias BnestApp.Storage
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.Storage.Adapters.SqliteCoordinator
+  alias BnestApp.TestBackupDestination
   alias BnestApp.TestRuntimeRoot
 
   @now ~U[2026-08-30 20:00:00Z]
@@ -47,12 +48,19 @@ defmodule BnestApp.ScheduledBackupTest do
     {_output, 0} = System.cmd("git", ["init", "--quiet", repository])
     previous_root = System.get_env("BNEST_REPOSITORY_ROOT")
     System.put_env("BNEST_REPOSITORY_ROOT", repository)
+    # As in production, which never sets the test run's own `:backup_repository_root`, so the
+    # deployment's `BNEST_REPOSITORY_ROOT` names the runtime checkout; here an isolated one.
+    previous_setting = Application.fetch_env(:bnest_app, :backup_repository_root)
+    Application.delete_env(:bnest_app, :backup_repository_root)
 
     on_exit(fn ->
       case previous_root do
         nil -> System.delete_env("BNEST_REPOSITORY_ROOT")
         root -> System.put_env("BNEST_REPOSITORY_ROOT", root)
       end
+
+      with {:ok, setting} <- previous_setting,
+           do: Application.put_env(:bnest_app, :backup_repository_root, setting)
     end)
 
     expected = Path.join(repository, "data/backup")
@@ -107,7 +115,13 @@ defmodule BnestApp.ScheduledBackupTest do
   test "rejects relative, repository, config, source, and symlink destinations", context do
     assert {:error, :not_absolute} = Backup.validate_destination("relative/backup")
 
-    repository_path = Path.join(File.cwd!(), "apps/bnest-app/data")
+    # The repository is an isolated one, `<root>/data/backup` its default: the test run's own
+    # root is never a checkout.
+    default = TestBackupDestination.default_repository!("repository-path")
+
+    repository_path =
+      default |> Path.dirname() |> Path.dirname() |> Path.join("apps/bnest-app/data")
+
     assert {:error, :repository_path} = Backup.validate_destination(repository_path)
 
     config_directory = System.fetch_env!("BNEST_BACKUP_CONFIG") |> Path.dirname()

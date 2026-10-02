@@ -427,6 +427,12 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     _location = prepare_isolated_backup_config!()
     Schedules.reset_schedule!(key, "19:00", true, @behaviour_now)
     Schedules.force_due!(key, @behaviour_now)
+
+    # After its run this shared row's next slot is still behind the wall clock, which the
+    # Scheduler coordinator's catch-up uses: a later boot tick or reconcile would run a real
+    # backup for it into whatever destination resolves then. A day past the wall clock it is
+    # never due again in this run.
+    ExUnit.Callbacks.on_exit(fn -> :ok = Schedules.force_not_due!(key, DateTime.utc_now()) end)
     Map.put(context, :family_chat_due_schedule_key, key)
   end
 

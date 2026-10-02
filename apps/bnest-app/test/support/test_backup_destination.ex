@@ -56,6 +56,40 @@ defmodule BnestApp.TestBackupDestination do
     location
   end
 
+  @doc """
+  Makes `repository` the backup repository root until the calling test exits, so Backup's
+  unconfigured default destination is its `data/backup`. `config/test.exs` gives every test
+  run a root that is no git repository, so that default fails closed; this replaces it only
+  for a test that needs a working default, and restores it afterwards. Integration layer only.
+  """
+  @spec use_repository_root!(String.t()) :: :ok
+  def use_repository_root!(repository) when is_binary(repository) do
+    previous = Application.fetch_env(:bnest_app, :backup_repository_root)
+    Application.put_env(:bnest_app, :backup_repository_root, repository)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      case previous do
+        {:ok, root} -> Application.put_env(:bnest_app, :backup_repository_root, root)
+        :error -> Application.delete_env(:bnest_app, :backup_repository_root)
+      end
+    end)
+  end
+
+  @doc """
+  Creates an isolated git repository that ignores its `data/` in an OS temporary directory,
+  never inside a checkout, and makes it the backup repository root until the calling test
+  exits (`use_repository_root!/1`). Returns its default destination directory.
+  """
+  @spec default_repository!(String.t()) :: String.t()
+  def default_repository!(tag) when is_binary(tag) do
+    %{directory: root} = destination = create!("repository-" <> tag)
+    ExUnit.Callbacks.on_exit(fn -> cleanup!(destination) end)
+    File.write!(Path.join(root, ".gitignore"), "/data/*\n")
+    {_output, 0} = System.cmd("git", ["init", "--quiet", root])
+    :ok = use_repository_root!(root)
+    Path.join(root, "data/backup")
+  end
+
   @spec cleanup!(map()) :: :ok
   def cleanup!(%{directory: directory}) do
     File.rm_rf(directory)
