@@ -18,6 +18,7 @@ import {
   scrollToBottom,
   setNewMessagesIndicator,
 } from "./message_render.js";
+import { syncManualActions } from "./message_manual_render.js";
 import {
   createAppendNewerMethods,
   createInitialRenderMethods,
@@ -33,8 +34,6 @@ import { createRovingFocus, withRovingRefresh } from "./roving_focus.js";
 function createRealStoreState() {
   return {
     rendered: new Map(),
-    lastAnnouncement: null,
-    newMessagesLabel: null,
     oldestKnownId: null,
     newestKnownId: null,
     hasNewer: false,
@@ -63,7 +62,6 @@ function createPendingRenderMethods(elements, state) {
       // the indicator stays up: it is the way to the messages this send did
       // not catch up on.
       if (!state.hasNewer) {
-        state.newMessagesLabel = null;
         setNewMessagesIndicator(elements, false);
       }
     },
@@ -78,7 +76,16 @@ function createPendingRenderMethods(elements, state) {
         '[data-role="family-chat-message-status"]',
       );
       if (statusNode) statusNode.textContent = status;
-      if (node) node.dataset["deliveryState"] = status;
+      if (node) {
+        node.dataset["deliveryState"] = status;
+        syncManualActions(node, status);
+      }
+    },
+
+    /** A discarded message leaves the room with no committed copy. @param {string} clientMessageId */
+    removePending(clientMessageId) {
+      state.rendered.get(clientMessageId)?.remove();
+      state.rendered.delete(clientMessageId);
     },
   };
 }
@@ -129,14 +136,12 @@ function createReconcileMethod(elements, state, currentUserId) {
 
 /**
  * @param {import("./elements.js").FamilyChatElements} elements
- * @param {RealStoreState} state
  * @param {RenderableMessage} message
  */
-function announceArrival(elements, state, message) {
+function announceArrival(elements, message) {
   const senderLabel =
     message.senderKind === "system" ? "System" : message.senderDisplayName;
-  state.lastAnnouncement = `New message from ${senderLabel}: ${message.body}`;
-  elements.liveRegion.textContent = state.lastAnnouncement;
+  elements.liveRegion.textContent = `New message from ${senderLabel}: ${message.body}`;
 }
 
 /**
@@ -145,7 +150,6 @@ function announceArrival(elements, state, message) {
  */
 function reportPending(elements, state) {
   state.atBottom = false;
-  state.newMessagesLabel = "New messages below";
   setNewMessagesIndicator(elements, true);
 }
 
@@ -170,7 +174,7 @@ function createReceiveRemoteMessageMethod(elements, state, currentUserId) {
       // forward or jumping to the newest page.
       if (state.hasNewer) {
         reportPending(elements, state);
-        announceArrival(elements, state, message);
+        announceArrival(elements, message);
         return;
       }
 
@@ -182,14 +186,13 @@ function createReceiveRemoteMessageMethod(elements, state, currentUserId) {
 
       if (wasNearBottom) {
         state.atBottom = true;
-        state.newMessagesLabel = null;
         setNewMessagesIndicator(elements, false);
         scrollToBottom(elements);
       } else {
         reportPending(elements, state);
       }
 
-      announceArrival(elements, state, message);
+      announceArrival(elements, message);
     },
   };
 }
@@ -200,18 +203,6 @@ function createReceiveRemoteMessageMethod(elements, state, currentUserId) {
  */
 function createArrivalReaderMethods(elements, state) {
   return {
-    lastLiveRegionAnnouncement() {
-      return state.lastAnnouncement;
-    },
-
-    focusMovedFromComposer() {
-      return false;
-    },
-
-    newMessagesIndicatorLabel() {
-      return state.newMessagesLabel;
-    },
-
     isAtBottom() {
       return state.atBottom;
     },
@@ -224,7 +215,6 @@ function createArrivalReaderMethods(elements, state) {
     scrolledToBottom() {
       state.atBottom = true;
       if (!state.hasNewer) {
-        state.newMessagesLabel = null;
         setNewMessagesIndicator(elements, false);
       }
     },

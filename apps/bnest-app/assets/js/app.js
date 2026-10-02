@@ -29,6 +29,7 @@ import { initializeIdentitySetup } from "./identity_setup";
 import { celebrateSifatAnswer } from "./sifat_celebration";
 import { SifatHistory } from "./sifat_history";
 import { initRoomFromDocument } from "./family_chat.js";
+import { wireLogoutQueueClearing } from "./logout.js";
 
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -46,6 +47,7 @@ const browserPersistenceEnabled =
 initializeIdentitySetup();
 // Family chat (tech-doc 005/007): runs only when its feature-flag-gated route's DOM shell is present.
 void initRoomFromDocument();
+wireLogoutQueueClearing();
 
 const storedChat = () => {
   if (!browserPersistenceEnabled) return "";

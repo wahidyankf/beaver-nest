@@ -1,7 +1,7 @@
-// Push permission UX (real browser only; never reached by FE_UNIT, which
-// injects `devicePushState`/`activePushSubscription` directly instead) --
-// split out of `family_chat.js` purely to stay under this project's
-// max-lines lint budget.
+// Push permission UX: what this device supports, and the GraphQL calls that
+// bind or release this session's subscription -- split out of
+// `family_chat.js` purely to stay under this project's max-lines lint
+// budget. Each GraphQL call takes the room's `request`.
 
 import { request as graphqlRequest } from "./graphql.js";
 import { urlBase64ToUint8Array } from "./push.js";
@@ -52,13 +52,12 @@ function detectUnsupportedPushState() {
 }
 
 /** Real read of whether this authenticated session already has a binding,
- * used only to set the control's initial rendered state on room load. */
-export async function fetchCurrentSubscriptionActive() {
+ * used only to set the control's initial rendered state on room load.
+ * @param {import("./graphql.js").GraphqlRequest} [request]
+ */
+export async function fetchCurrentSubscriptionActive(request = graphqlRequest) {
   try {
-    const result = await graphqlRequest(
-      CURRENT_WEB_PUSH_SUBSCRIPTION_QUERY,
-      {},
-    );
+    const result = await request(CURRENT_WEB_PUSH_SUBSCRIPTION_QUERY, {});
     return Boolean(result.data?.currentWebPushSubscription?.enabled);
   } catch {
     return false;
@@ -71,9 +70,10 @@ export async function fetchCurrentSubscriptionActive() {
  * so the browser recognizes the required user gesture -- page load never
  * calls this), subscribes through the real Push API, and binds the result
  * server-side. Returns whether the session ends up genuinely enabled.
+ * @param {import("./graphql.js").GraphqlRequest} [request]
  */
-export async function attemptPushSubscribe() {
-  const configResult = await graphqlRequest(WEB_PUSH_CONFIGURATION_QUERY, {});
+export async function attemptPushSubscribe(request = graphqlRequest) {
+  const configResult = await request(WEB_PUSH_CONFIGURATION_QUERY, {});
   const config = configResult.data?.webPushConfiguration;
   if (!config?.available || !config.publicKey) return false;
 
@@ -88,23 +88,22 @@ export async function attemptPushSubscribe() {
   const keys = subscription.toJSON().keys ?? {};
   if (!keys["p256dh"] || !keys["auth"]) return false;
 
-  const upsertResult = await graphqlRequest(
-    UPSERT_WEB_PUSH_SUBSCRIPTION_MUTATION,
-    {
-      endpoint: subscription.endpoint,
-      p256dh: keys["p256dh"],
-      auth: keys["auth"],
-    },
-  );
+  const upsertResult = await request(UPSERT_WEB_PUSH_SUBSCRIPTION_MUTATION, {
+    endpoint: subscription.endpoint,
+    p256dh: keys["p256dh"],
+    auth: keys["auth"],
+  });
   return Boolean(upsertResult.data?.upsertWebPushSubscription?.enabled);
 }
 
 /** The one real disable attempt: server-side first (the source of truth for
  * whether delivery continues), then a best-effort browser-side unsubscribe
- * so a stale local subscription is not left registered either. */
-export async function attemptPushDisable() {
+ * so a stale local subscription is not left registered either.
+ * @param {import("./graphql.js").GraphqlRequest} [request]
+ */
+export async function attemptPushDisable(request = graphqlRequest) {
   try {
-    await graphqlRequest(DISABLE_CURRENT_WEB_PUSH_SUBSCRIPTION_MUTATION, {});
+    await request(DISABLE_CURRENT_WEB_PUSH_SUBSCRIPTION_MUTATION, {});
   } finally {
     try {
       const registration = await navigator.serviceWorker.ready;

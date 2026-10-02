@@ -1,7 +1,7 @@
 // A deterministic stand-in for `family_chat/clock.js`'s `Clock` shape,
 // shared by both frontend proof layers: the plain Vitest specs under
-// `test/unit/`, and the Gherkin-driven browser-shaped room the reply
-// scenarios open (`test/behaviour/support/reply_room.ts`), whose hold-gesture
+// `test/unit/`, and the Gherkin-driven browser room
+// (`test/behaviour/support/browser_room.ts`), whose hold-gesture
 // and retry timing must advance under the scenario's control rather than
 // real wall-clock. `advance` fires every timer due at or before the
 // requested offset, in the order they become due, so a callback that
@@ -18,10 +18,12 @@ export interface FakeClock {
   // concrete handle type, even though this fake's own handles are numbers.
   clearTimer: (handle: unknown) => void;
   advance: (ms: number) => void;
+  /** When the earliest pending timer fires, or `null` when none is pending. */
+  nextDueAt: () => number | null;
 }
 
-export function createFakeClock(seed = 42): FakeClock {
-  let currentTime = 0;
+export function createFakeClock(seed = 42, startAt = 0): FakeClock {
+  let currentTime = startAt;
   let nextHandle = 1;
   let randomState = seed >>> 0 || 1;
   const timers = new Map<number, { fireAt: number; fn: () => void }>();
@@ -74,6 +76,15 @@ export function createFakeClock(seed = 42): FakeClock {
         timer?.fn();
       }
       currentTime = target;
+    },
+
+    nextDueAt() {
+      let earliest: number | null = null;
+      for (const timer of timers.values()) {
+        if (earliest === null || timer.fireAt < earliest)
+          earliest = timer.fireAt;
+      }
+      return earliest;
     },
   };
 }

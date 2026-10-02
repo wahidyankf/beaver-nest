@@ -21,13 +21,12 @@ import {
   loadInitialMessages,
   attemptInitialSubscribe,
 } from "./mount_browser_sync.js";
-import { wireMessageActions, wireReplyStrip } from "./mount_browser_actions.js";
+import { wireMessageActions } from "./mount_browser_actions.js";
+import { wireReplyStrip } from "./mount_browser_reply_strip.js";
 import { wireQuoteJump } from "./mount_browser_jump.js";
 
 /**
- * Only the fields `mountBrowser` itself reads/writes -- `store` is narrowed
- * to the real (browser) store specifically, since this function only ever
- * runs on the `hasDocument` branch in `initRoom`. Every collaborator type
+ * Only the fields `mountBrowser` itself reads/writes. Every collaborator type
  * below is referenced through an inline `import(...)` (rather than a
  * top-level static import of the factory) since this module never
  * constructs any of them itself -- `family_chat.js` does -- and a plain
@@ -45,6 +44,7 @@ import { wireQuoteJump } from "./mount_browser_jump.js";
  * @property {boolean} [replies]
  * @property {ReturnType<typeof import("./reply_target.js").createReplyTarget>} [replyTarget]
  * @property {import("./clock.js").Clock} clock
+ * @property {import("./graphql.js").GraphqlRequest} request
  */
 
 /** @typedef {ReturnType<typeof import("./graphql.js").createSubscriptionClient>} SubscriptionClient */
@@ -64,7 +64,7 @@ function wirePushControls(room, elements) {
   elements.pushControl.addEventListener("click", () => {
     // Informational states never re-prompt.
     if (room.push.controlText() !== CONTROL_TEXT.OFF) return;
-    void attemptPushSubscribe().then((enabled) => {
+    void attemptPushSubscribe(room.request).then((enabled) => {
       if (enabled) room.push.enable();
       renderPushControl();
     });
@@ -73,12 +73,12 @@ function wirePushControls(room, elements) {
   elements.pushDisable.addEventListener("click", () => {
     void room.push.select("Turn off").then(() => {
       renderPushControl();
-      void attemptPushDisable();
+      void attemptPushDisable(room.request);
     });
   });
 
   renderPushControl();
-  void fetchCurrentSubscriptionActive().then((active) => {
+  void fetchCurrentSubscriptionActive(room.request).then((active) => {
     if (active) {
       room.push.enable();
       renderPushControl();

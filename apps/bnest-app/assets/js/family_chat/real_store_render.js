@@ -24,8 +24,6 @@ import {
  * contiguous with `newestKnownId` (see `receiveRemoteMessage`).
  * @typedef {{
  *   rendered: Map<string, HTMLLIElement>,
- *   lastAnnouncement: string | null,
- *   newMessagesLabel: string | null,
  *   oldestKnownId: string | null,
  *   newestKnownId: string | null,
  *   hasNewer: boolean,
@@ -87,7 +85,6 @@ export function createInitialRenderMethods(elements, state, currentUserId) {
     renderInitial(messages, hasOlder) {
       resetWindow(elements, state);
       state.hasNewer = false;
-      state.newMessagesLabel = null;
       setNewMessagesIndicator(elements, false);
       appendMessages(elements, state, currentUserId, messages);
       elements.empty.hidden = messages.length > 0;
@@ -125,7 +122,6 @@ export function createResumeRenderMethods(elements, state, currentUserId) {
       setHasOlder(elements, hasOlder);
       // More unread messages exist than this window holds, so the indicator
       // stays up as the way back to the newest one.
-      state.newMessagesLabel = hasNewer ? "New messages below" : null;
       setNewMessagesIndicator(elements, hasNewer);
       scrollToResumeAnchor(elements, divider);
       state.atBottom = isNearBottom(elements);
@@ -159,10 +155,6 @@ export function createPrependOlderMethods(elements, state, currentUserId) {
       elements.list.prepend(fragment);
       state.oldestKnownId = messages[0]?.id ?? state.oldestKnownId;
       if (anchor) restoreAnchor(elements, anchor, anchorOffset);
-    },
-
-    scrollAnchorPreserved() {
-      return true;
     },
   };
 }
@@ -199,7 +191,6 @@ export function createAppendNewerMethods(elements, state, currentUserId) {
       appendMessages(elements, state, currentUserId, messages);
       state.hasNewer = Boolean(hasNewer);
       if (!state.hasNewer) {
-        state.newMessagesLabel = null;
         setNewMessagesIndicator(elements, false);
       }
     },

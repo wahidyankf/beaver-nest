@@ -1,19 +1,8 @@
 // What the message composer does, independent of any DOM: validate a draft,
-// hand it to the outbox, decide what a key press means, and -- the part this
-// module exists for -- decide that keyboard focus never leaves the message
-// input. `mount_browser.js` binds a real `<textarea>`, a real Send button,
-// and real key events to these decisions; the FE_UNIT harness exercises the
-// same decisions without a browser.
-//
-// Focus is a decision, not a side effect, which is why it lives here.
-// `focusFollowsSendControl()` is the single source of truth for it: the
-// browser binding reads it to decide whether to let the Send button take
-// focus at all (it calls `preventDefault()` on the pointer-down that would
-// otherwise blur the input, so a mobile on-screen keyboard is never
-// dismissed mid-conversation), and the unit layer reads it to prove the
-// decision itself. Refocusing the input *after* a send would already be too
-// late on iOS and Android: a keyboard dismissed by a blur does not come back
-// without a fresh user gesture.
+// hand it to the outbox, and decide what a key press means.
+// `mount_browser_composer.js` binds a real `<textarea>`, a real Send
+// button, and real key events to these decisions, and keeps keyboard focus
+// on the input across a send.
 //
 // Split into small method-group factories purely to stay under this
 // project's max-lines-per-function lint budget.
@@ -33,7 +22,7 @@ export const QUEUE_REFUSED_REMEDIATION = "Couldn't queue this message.";
  * @property {string | null} remediation
  */
 
-/** @typedef {{body: string, focused: boolean}} DraftState */
+/** @typedef {{body: string}} DraftState */
 
 /**
  * What a successful send hands the store so it can put the member's own
@@ -74,30 +63,8 @@ function createDraftMethods(draftState, state) {
   };
 }
 
-/** @param {DraftState} draftState */
-function createFocusMethods(draftState) {
+function createKeyMethods() {
   return {
-    focused() {
-      return draftState.focused;
-    },
-
-    /**
-     * Activating the send control must never move focus off the message
-     * input. See this module's header for why the answer is a constant the
-     * browser binding consumes rather than a behaviour it reimplements.
-     */
-    focusFollowsSendControl() {
-      return false;
-    },
-
-    focus() {
-      draftState.focused = true;
-    },
-
-    blur() {
-      draftState.focused = false;
-    },
-
     /**
      * `Enter` sends; `Shift`+`Enter` continues the same message. Anything
      * else is the browser's own business.
@@ -183,7 +150,6 @@ function createSubmitMethod(draftState, state, outbox, onQueued, replyTarget) {
       // immediately; a refusal below puts the text back rather than losing
       // what the member wrote.
       draftState.body = "";
-      draftState.focused = true;
 
       const clientMessageId = await outbox.send(body, sendOptions);
       if (clientMessageId === null) {
@@ -212,7 +178,6 @@ function createSubmitMethod(draftState, state, outbox, onQueued, replyTarget) {
  * @param {{
  *   outbox: {send: (body: string, opts?: {replyToMessageId?: string}) => Promise<string | null>},
  *   state: {remediationMessage: string | null},
- *   focused?: boolean,
  *   onQueued?: (message: QueuedMessage) => void,
  *   replyTarget?: import("./reply_target.js").ReplyTargetStore,
  * }} options
@@ -220,15 +185,14 @@ function createSubmitMethod(draftState, state, outbox, onQueued, replyTarget) {
 export function createComposer({
   outbox,
   state,
-  focused = false,
   onQueued = () => {},
   replyTarget,
 }) {
   /** @type {DraftState} */
-  const draftState = { body: "", focused };
+  const draftState = { body: "" };
   return {
     ...createDraftMethods(draftState, state),
-    ...createFocusMethods(draftState),
+    ...createKeyMethods(),
     ...createSubmitMethod(draftState, state, outbox, onQueued, replyTarget),
   };
 }

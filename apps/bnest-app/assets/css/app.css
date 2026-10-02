@@ -1880,7 +1880,9 @@ body {
 .family-chat-message-more:focus-visible,
 .family-chat-message-actions button:focus-visible,
 .family-chat-message-quote:focus-visible,
-.family-chat-reply-strip-cancel:focus-visible {
+.family-chat-reply-strip-cancel:focus-visible,
+.family-chat-message-retry:focus-visible,
+.family-chat-message-discard:focus-visible {
   outline: 0.2rem solid var(--bnest-sun);
   outline-offset: 0.15rem;
 }
@@ -2128,6 +2130,44 @@ body {
   .family-chat-message-status {
   color: var(--bnest-error);
   font-weight: 600;
+}
+
+/* Retry and Discard, under the status of a message that stopped at
+ * "Couldn't send" (tech-doc 005): the room's pill controls at the 44px
+ * target size, Retry in the action colour and Discard in the error one. */
+.family-chat-message-manual {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.family-chat-message--own .family-chat-message-manual {
+  grid-column: 1;
+  justify-content: flex-end;
+}
+
+.family-chat-message-retry,
+.family-chat-message-discard {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.family-chat-message-retry {
+  background: var(--bnest-coral-ink);
+  color: var(--bnest-paper);
+}
+
+.family-chat-message-discard {
+  background: var(--bnest-error-surface);
+  color: var(--bnest-error);
 }
 
 /* "Sent" is the one state allowed a nonessential fade (tech-doc 005:

@@ -26,7 +26,6 @@ const namespaces = new Map();
 /**
  * @typedef {object} NamespaceRecord
  * @property {Map<string, QueuedMessage>} messages
- * @property {boolean} cleared
  * @property {boolean} hydrated
  */
 
@@ -42,7 +41,6 @@ const namespaces = new Map();
  * @property {number} retryCount
  * @property {number} createdAt
  * @property {number} nextRetryAt
- * @property {boolean} neverSucceed
  * @property {unknown} timerHandle
  */
 
@@ -55,7 +53,7 @@ export function namespaceKey(userId, roomSlug) {
 export function getOrCreateNamespace(key) {
   let record = namespaces.get(key);
   if (!record) {
-    record = { messages: new Map(), cleared: false, hydrated: false };
+    record = { messages: new Map(), hydrated: false };
     namespaces.set(key, record);
   }
   return record;
@@ -122,7 +120,6 @@ export function buildQueuedMessage(clock, body, opts) {
     retryCount: 0,
     createdAt: clock.now(),
     nextRetryAt: 0,
-    neverSucceed: false,
     timerHandle: undefined,
   };
 }

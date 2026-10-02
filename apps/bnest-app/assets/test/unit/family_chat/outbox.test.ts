@@ -2,7 +2,7 @@
 // File Impact list), exercising its public API directly rather than through
 // a Gherkin scenario -- edge cases (queue-cap callback wiring, the
 // reconnect-driven pause/resume seam, multi-listener `onChange`, auth-expiry
-// pausing, logout isolation) that `test/behaviour/family_chat.steps.ts`
+// pausing) that `test/behaviour/family_chat.steps.ts`
 // either does not reach at all or reaches only incidentally.
 
 import { describe, expect, it } from "vitest";
@@ -35,8 +35,7 @@ function uniqueIdentity() {
  * `createSystemClock`, or an explicit `clock.advance()` here) rather than a
  * bare microtask -- otherwise `attemptSend`'s own internal `await` would
  * always resolve before a caller's `await outbox.send(...)` did, making the
- * intermediate "Sending" status unobservable (see `family_chat.js`'s
- * matching comment on `createTestTransport`, which hit this exact issue).
+ * intermediate "Sending" status unobservable.
  */
 function okTransport(clock: FakeClock) {
   return ({
@@ -89,7 +88,7 @@ describe("createOutbox", () => {
     ).toThrow(TypeError);
   });
 
-  it("rejects a fourth queued message once 100 are already active", async () => {
+  it("rejects the next queued message once 100 are already active", async () => {
     const { userId, roomSlug } = uniqueIdentity();
     let queueFullCalls = 0;
     const clock = createFakeClock();
@@ -103,7 +102,10 @@ describe("createOutbox", () => {
       },
     });
 
-    await outbox.fillWithQueuedMessages(MAX_QUEUED_PER_ROOM);
+    for (let index = 0; index < MAX_QUEUED_PER_ROOM; index += 1) {
+      expect(await outbox.send(`waiting ${index + 1}`)).not.toBeNull();
+    }
+    expect(queueFullCalls).toBe(0);
     const clientMessageId = await outbox.send("one too many");
 
     expect(clientMessageId).toBeNull();
@@ -130,6 +132,29 @@ describe("createOutbox", () => {
       id: `server-${id}`,
       body: "hello family",
     });
+  });
+
+  it("stops reporting a message as pending the moment it reaches Sent", async () => {
+    const { userId, roomSlug } = uniqueIdentity();
+    const clock = createFakeClock();
+    const outbox = createOutbox({
+      userId,
+      roomSlug,
+      clock,
+      transport: okTransport(clock),
+    });
+    const id = await sendId(outbox, "already committed");
+    expect(
+      outbox.pendingMessages().map((message) => message.clientMessageId),
+    ).toEqual([id]);
+
+    clock.advance(0);
+    await outbox.waitForStatus(id, STATUS.SENT);
+
+    // Its removal from the queue is still a timer away; a room rendering
+    // pending rows in between must not draw one for a committed message.
+    expect(clock.nextDueAt()).not.toBeNull();
+    expect(outbox.pendingMessages()).toEqual([]);
   });
 
   it("reports every transition to a persistent onChange listener until unsubscribed", async () => {
@@ -176,7 +201,6 @@ describe("createOutbox", () => {
     await outbox.waitForStatus(id, STATUS.RETRYING);
 
     expect(authExpiredCalls).toBe(1);
-    expect(outbox.isDraining()).toBe(false);
 
     // A second send is queued but never attempted while paused.
     const secondId = await sendId(outbox, "also queued");
@@ -194,7 +218,6 @@ describe("createOutbox", () => {
     });
 
     outbox.pauseDrain();
-    expect(outbox.isDraining()).toBe(false);
 
     const id = await sendId(outbox, "queued while paused");
     // Gives every pending microtask a chance to run; nothing should have
@@ -204,35 +227,8 @@ describe("createOutbox", () => {
     expect(outbox.status(id)).toBe(STATUS.WAITING);
 
     outbox.resumeDrain();
-    expect(outbox.isDraining()).toBe(true);
     clock.advance(0);
     await outbox.waitForStatus(id, STATUS.SENT);
-  });
-
-  it("clears and isolates a namespace on logout, independent of another user's queue", async () => {
-    const { userId, roomSlug } = uniqueIdentity();
-    const clock = createFakeClock();
-    const outbox = createOutbox({
-      userId,
-      roomSlug,
-      clock,
-      transport: () => new Promise(() => {}),
-    });
-
-    const id = await sendId(outbox, "never delivered before logout");
-    outbox.logout();
-
-    expect(outbox.isCleared()).toBe(true);
-    expect(outbox.status(id)).toBe("not-found");
-
-    // A different user's namespace for the same room is unaffected.
-    const other = createOutbox({
-      userId: `${userId}-other`,
-      roomSlug,
-      clock,
-      transport: okTransport(clock),
-    });
-    expect(other.isCleared()).toBe(false);
   });
 
   it("makes a retrying message immediately eligible on an online hint", async () => {
@@ -262,6 +258,116 @@ describe("createOutbox", () => {
 
   it("exports a schema version for the persisted queue format", () => {
     expect(QUEUE_SCHEMA_VERSION).toBe(1);
+  });
+});
+
+describe("a message that couldn't send", () => {
+  /** A queue whose transport refuses every send terminally until told not to. */
+  async function failedMessage(options: { online?: boolean } = {}) {
+    const { userId, roomSlug } = uniqueIdentity();
+    const clock = createFakeClock();
+    const rows = new Map<string, Record<string, unknown>>();
+    const outcome = { ok: false as boolean };
+    const sent: string[] = [];
+    const outbox = createOutbox({
+      userId,
+      roomSlug,
+      clock,
+      persistence: {
+        loadAll: async () => [],
+        save: (_ns, message) => {
+          rows.set(message.clientMessageId, { ...message });
+        },
+        remove: (_ns, clientMessageId) => {
+          rows.delete(clientMessageId);
+        },
+        clear: () => rows.clear(),
+      },
+      transport: async ({ clientMessageId }) => {
+        sent.push(clientMessageId);
+        return outcome.ok
+          ? { ok: true, message: { id: `server-${clientMessageId}` } }
+          : { ok: false, retryable: false };
+      },
+    });
+    const id = await sendId(outbox, "Ditolak");
+    await outbox.waitForStatus(id, STATUS.FAILED);
+    if (options.online === false) outbox.reportBrowserEvent("offline");
+    return { outbox, id, rows, outcome, sent, clock };
+  }
+
+  it("sends again when the member retries it", async () => {
+    const { outbox, id, outcome, sent } = await failedMessage();
+    outcome.ok = true;
+
+    expect(outbox.retry(id)).toBe(true);
+    await outbox.waitForStatus(id, STATUS.SENT);
+
+    expect(sent).toEqual([id, id]);
+    expect(outbox.committedMessage(id)).toEqual({ id: `server-${id}` });
+  });
+
+  it("restarts the seven-day window from the retry", async () => {
+    const { outbox, id, rows, clock } = await failedMessage({ online: false });
+    clock.advance(8 * 24 * 60 * 60 * 1000);
+
+    outbox.retry(id);
+
+    expect(rows.get(id)?.["createdAt"]).toBe(clock.now());
+  });
+
+  it("waits for the connection when retried offline", async () => {
+    const { outbox, id, sent } = await failedMessage({ online: false });
+
+    outbox.retry(id);
+
+    expect(outbox.status(id)).toBe(STATUS.WAITING);
+    expect(sent).toEqual([id]);
+  });
+
+  it("refuses to retry a message that has not failed", async () => {
+    const { userId, roomSlug } = uniqueIdentity();
+    const outbox = createOutbox({
+      userId,
+      roomSlug,
+      clock: createFakeClock(),
+      transport: () => new Promise(() => {}),
+    });
+    const id = await sendId(outbox, "Still sending");
+
+    expect(outbox.retry(id)).toBe(false);
+    expect(outbox.retry("not-queued")).toBe(false);
+    expect(outbox.status(id)).toBe(STATUS.SENDING);
+  });
+
+  it("drops a discarded message from the queue and the device without sending it", async () => {
+    const { outbox, id, rows, sent } = await failedMessage();
+    const seen: string[] = [];
+    outbox.onChange(id, (status) => seen.push(status));
+
+    expect(outbox.discard(id)).toBe(true);
+
+    expect(outbox.status(id)).toBe("not-found");
+    expect(outbox.pendingMessages()).toEqual([]);
+    expect(rows.has(id)).toBe(false);
+    expect(outbox.retry(id)).toBe(false);
+    expect(sent).toEqual([id]);
+    expect(seen).toEqual([]);
+  });
+
+  it("refuses to discard a message that has not failed", async () => {
+    const { userId, roomSlug } = uniqueIdentity();
+    const outbox = createOutbox({
+      userId,
+      roomSlug,
+      clock: createFakeClock(),
+      transport: () => new Promise(() => {}),
+    });
+    const id = await sendId(outbox, "Still sending");
+
+    expect(outbox.discard(id)).toBe(false);
+    expect(outbox.discard("not-queued")).toBe(false);
+    expect(outbox.status(id)).toBe(STATUS.SENDING);
   });
 });
 
@@ -332,7 +438,6 @@ describe("queuing a reply", () => {
       retryCount: 0,
       createdAt: clock.now(),
       nextRetryAt: 0,
-      neverSucceed: false,
       timerHandle: undefined,
     };
 

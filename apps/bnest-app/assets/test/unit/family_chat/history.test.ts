@@ -10,14 +10,16 @@ import { createHistory } from "../../../js/family_chat/history.js";
 import {
   CONTEXT_PAGE_SIZE,
   MESSAGE_PAGE_SIZE,
-  buildTestMessages,
-  createTestPageSource,
 } from "../../../js/family_chat/page_source.js";
 import {
   createMemoryReadStorage,
   createReadMarker,
 } from "../../../js/family_chat/read_marker.js";
-import { createStore } from "../../../js/family_chat/store.js";
+import { createHistoryStore } from "../../support/history_store";
+import {
+  buildTestMessages,
+  createTestPageSource,
+} from "../../support/page_source";
 
 interface Cursor {
   beforeId?: string | null;
@@ -35,7 +37,7 @@ function roomWith(messageCount: number, lastReadId: string | null) {
     storage: createMemoryReadStorage(),
   });
   if (lastReadId !== null) readMarker.remember(lastReadId);
-  const store = createStore();
+  const store = createHistoryStore();
   const cursors: Cursor[] = [];
   const history = createHistory({
     fetchPage: (cursor: Cursor) => {
@@ -102,7 +104,6 @@ describe("createHistory", () => {
 
     expect(store.hasNewer()).toBe(true);
     expect(store.newestId()).toBe(String(10 + MESSAGE_PAGE_SIZE));
-    expect(store.newMessagesIndicatorLabel()).toBe("New messages below");
   });
 
   it("loads the next page instead of recording a read position at the end of a partial window", async () => {

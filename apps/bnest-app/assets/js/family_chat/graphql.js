@@ -10,10 +10,9 @@
 //   3. Join a channel named after that `subscriptionId`; every commit is
 //      pushed to it as a `"subscription:data"` event with `{result}`.
 //
-// Only constructed by `family_chat.js` when a real browser (`document`)
-// exists -- FE_UNIT (Vitest, `environment: "node"`) never imports this
-// module's socket path, matching this codebase's established "optional
-// real-DOM binding only when `document` exists" pattern.
+// `request` and the socket a subscription client opens are the room's two
+// ways out to the server; `family_chat.js` takes each as a parameter
+// defaulting to the ones here, so a caller can hand the room others.
 
 /** @typedef {import("phoenix").Socket} PhxSocket */
 /** @typedef {import("phoenix").Channel} PhxChannel */
@@ -28,9 +27,17 @@ function csrfToken() {
 }
 
 /**
+ * @typedef {(query: string, variables: Record<string, unknown>) => Promise<any>} GraphqlRequest
+ */
+
+/**
+ * Opens (but does not connect) the socket a subscription client runs over.
+ * @typedef {(path: string) => Promise<PhxSocket>} ConnectSocket
+ */
+
+/**
  * Real HTTP query/mutation transport used by the outbox and room load.
- * @param {string} query
- * @param {Record<string, unknown>} variables
+ * @type {GraphqlRequest}
  */
 export async function request(query, variables) {
   const response = await fetch(GRAPHQL_PATH, {
@@ -47,6 +54,7 @@ export async function request(query, variables) {
 
 /**
  * @typedef {{
+ *   connectSocket: ConnectSocket,
  *   socket: PhxSocket | null,
  *   controlChannel: PhxChannel | null,
  *   hasOpenedBefore: boolean,
@@ -54,9 +62,19 @@ export async function request(query, variables) {
  * }} SubscriptionState
  */
 
-/** @returns {SubscriptionState} */
-function createSubscriptionState() {
+/** @type {ConnectSocket} */
+async function openPhoenixSocket(path) {
+  const { Socket } = await import("phoenix");
+  return new Socket(path);
+}
+
+/**
+ * @param {ConnectSocket} connectSocket
+ * @returns {SubscriptionState}
+ */
+function createSubscriptionState(connectSocket) {
   return {
+    connectSocket,
     socket: null,
     controlChannel: null,
     hasOpenedBefore: false,
@@ -68,8 +86,7 @@ function createSubscriptionState() {
 async function ensureControlChannel(state) {
   if (state.controlChannel) return state.controlChannel;
 
-  const { Socket } = await import("phoenix");
-  const socket = new Socket(SOCKET_PATH);
+  const socket = await state.connectSocket(SOCKET_PATH);
   state.socket = socket;
   // `phoenix`'s own exponential-backoff reconnect fires `onOpen` again after
   // any drop (including a Caddy cutover to a replacement slot) -- every open
@@ -94,11 +111,7 @@ async function ensureControlChannel(state) {
 /**
  * Wires up delivery for one already-established subscription -- the pure
  * (no network I/O of its own) decision of *how* to receive commits once the
- * `"doc"` push already returned a `subscriptionId`. Split out from
- * `subscribe()` so FE_UNIT (which never imports this module's own
- * network-touching `ensureControlChannel`/socket path) can still exercise
- * this exact decision against a plain fake `socket`, the same
- * dependency-injection shape `reconnect.js`'s tests already use.
+ * `"doc"` push already returned a `subscriptionId`.
  *
  * Absinthe delivers each commit as a "fastlane" PubSub push straight to this
  * socket's transport process, addressed by a topic equal to
@@ -116,7 +129,7 @@ async function ensureControlChannel(state) {
  * @param {(result: unknown) => void} onData
  * @returns {PhxChannel} the data channel, for `unsubscribe` to unregister.
  */
-export function attachSubscriptionChannel(socket, subscriptionId, onData) {
+function attachSubscriptionChannel(socket, subscriptionId, onData) {
   const dataChannel = socket.channel(subscriptionId, {});
   dataChannel.on("subscription:data", ({ result }) => onData(result));
   return dataChannel;
@@ -200,9 +213,12 @@ function createLifecycleMethods(state) {
 /**
  * Lazily builds one `phoenix` Socket and one control-channel join per page,
  * shared by every subscription this room opens.
+ * @param {{connectSocket?: ConnectSocket}} [options] a real `phoenix` Socket by default.
  */
-export function createSubscriptionClient() {
-  const state = createSubscriptionState();
+export function createSubscriptionClient({
+  connectSocket = openPhoenixSocket,
+} = {}) {
+  const state = createSubscriptionState(connectSocket);
   return {
     subscribe: createSubscribeMethod(state),
     ...createLifecycleMethods(state),

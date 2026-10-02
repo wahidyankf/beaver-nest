@@ -5,6 +5,7 @@
 // other file's `import("./real_store.js").RenderableMessage` reference stays
 // unchanged.
 
+import { syncManualActions } from "./message_manual_render.js";
 import { quoteNode } from "./message_quote_render.js";
 
 const BOTTOM_THRESHOLD_PX = 80;
@@ -156,8 +157,10 @@ export function messageNode(message, { pending, currentUserId }) {
     const status = document.createElement("p");
     status.className = "family-chat-message-status";
     status.dataset["role"] = "family-chat-message-status";
+    status.id = `family-chat-message-status-${li.dataset["messageId"]}`;
     status.textContent = message.status ?? "";
     li.append(status);
+    syncManualActions(li, message.status ?? "");
   }
 
   return li;

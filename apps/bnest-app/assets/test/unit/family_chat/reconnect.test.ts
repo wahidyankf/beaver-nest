@@ -1,48 +1,33 @@
 // Plain Vitest unit coverage for `js/family_chat/reconnect.js` (tech-doc 007's
-// File Impact list): the ordered six-step promotion sequence (tech-doc 003)
-// and the real-collaborator seam (`bindBrowserCallbacks`) that
-// `family_chat.js` uses in the browser but `test/behaviour/family_chat.
-// steps.ts` never exercises (its `promoteSlot` scenario only ever runs
-// against the document-less, no-collaborator `room.reconnect`).
+// File Impact list): the ordered promotion sequence (tech-doc 003), observed
+// through the collaborators `mount_browser.js` binds in the browser -- the
+// socket client it closes and the callbacks it pauses, resubscribes, fetches,
+// merges and resumes through.
 
 import { describe, expect, it } from "vitest";
 import {
   createReconnect,
   promoteSlot,
+  resumeFromBackground,
 } from "../../../js/family_chat/reconnect.js";
-import { createFakeClock } from "../../support/fake_clock";
 
 describe("createReconnect / promoteSlot", () => {
-  it("runs the six ordered steps and ends draining again", async () => {
-    const clock = createFakeClock();
-    const reconnect = createReconnect({ clock });
-
-    expect(reconnect.isDraining()).toBe(false);
-    await promoteSlot(reconnect);
-
-    expect(reconnect.priorSlotClosed()).toBe(true);
-    expect(reconnect.isDraining()).toBe(true);
-    expect(reconnect.pageReloaded()).toBe(false);
-  });
-
-  it("closes the real socket client during closePriorSocketStep when one is bound", async () => {
-    const clock = createFakeClock();
+  it("closes the bound socket client once per promotion", async () => {
     let closeCalls = 0;
     const reconnect = createReconnect({
-      clock,
       socketClient: { close: () => (closeCalls += 1) },
     });
 
     await promoteSlot(reconnect);
 
     expect(closeCalls).toBe(1);
-    expect(reconnect.priorSlotClosed()).toBe(true);
   });
 
   it("runs every bound browser callback, in order, during one promotion", async () => {
-    const clock = createFakeClock();
-    const reconnect = createReconnect({ clock });
     const calls: string[] = [];
+    const reconnect = createReconnect({
+      socketClient: { close: () => calls.push("close") },
+    });
 
     reconnect.bindBrowserCallbacks({
       resubscribe: async () => {
@@ -64,6 +49,7 @@ describe("createReconnect / promoteSlot", () => {
 
     expect(calls).toEqual([
       "onPause",
+      "close",
       "resubscribe",
       "fetchMissed:server-0",
       "mergeMessages:2",
@@ -71,9 +57,16 @@ describe("createReconnect / promoteSlot", () => {
     ]);
   });
 
+  it("runs a promotion with no socket client and no bound callbacks", async () => {
+    const reconnect = createReconnect();
+
+    await promoteSlot(reconnect);
+
+    expect(reconnect.generation()).toBe(1);
+  });
+
   it("never calls mergeMessages when the catch-up query found nothing to merge", async () => {
-    const clock = createFakeClock();
-    const reconnect = createReconnect({ clock });
+    const reconnect = createReconnect();
     let mergeCalls = 0;
 
     reconnect.bindBrowserCallbacks({
@@ -88,8 +81,7 @@ describe("createReconnect / promoteSlot", () => {
   });
 
   it("keeps the most recently reported committed ID across multiple updates", async () => {
-    const clock = createFakeClock();
-    const reconnect = createReconnect({ clock });
+    const reconnect = createReconnect();
     let fetchMissedArg: unknown;
 
     reconnect.bindBrowserCallbacks({
@@ -108,52 +100,56 @@ describe("createReconnect / promoteSlot", () => {
     expect(fetchMissedArg).toBe("id-2");
   });
 
-  it("discards a stale catch-up write once a newer generation has started", async () => {
-    // Exercises the same generation guard `promoteSlot` relies on
-    // (`catchUpQueryStep` bails if `recreateSocketStep` ran again while its own
-    // `fetchMissed` call was still in flight -- e.g. a second real socket
-    // reconnect firing before the first promotion finished) by driving the
-    // internal steps directly instead of racing two `promoteSlot()` calls
-    // against each other on hand-counted microtask ticks.
-    const clock = createFakeClock();
-    const reconnect = createReconnect({ clock });
-
-    // A plain mutable holder (rather than a closure-captured `let`) so the
-    // resolver assigned inside the executor below is read back through an
-    // ordinary property access -- TypeScript's control-flow narrowing for a
-    // `let` reassigned only inside a nested callback does not reliably widen
-    // back to its declared type at a later, unrelated read site.
+  it("discards a stale catch-up result once a newer generation has started", async () => {
+    // Drives the internal steps directly rather than racing two
+    // `promoteSlot()` calls on hand-counted microtask ticks: a second socket
+    // reconnect starts while the first catch-up query is still in flight.
+    const merged: unknown[][] = [];
     const pending: { resolve: ((messages: unknown[]) => void) | null } = {
       resolve: null,
     };
+    const reconnect = createReconnect();
     reconnect.bindBrowserCallbacks({
       fetchMissed: () =>
         new Promise<unknown[]>((resolve) => {
           pending.resolve = resolve;
         }),
+      mergeMessages: async (messages: unknown[]) => {
+        merged.push(messages);
+      },
     });
 
     await reconnect.recreateSocketStep(); // generation 0 -> 1
     const staleGeneration = reconnect.generation();
-    const catchUpPromise = reconnect.catchUpQueryStep(staleGeneration); // blocks on fetchMissed
+    const catchUpPromise = reconnect.catchUpQueryStep(staleGeneration);
 
-    await reconnect.recreateSocketStep(); // generation 1 -> 2: a newer promotion started
+    await reconnect.recreateSocketStep(); // generation 1 -> 2
     pending.resolve?.([{ id: "late" }]);
     await catchUpPromise;
+    await reconnect.mergeByServerIdStep();
 
-    // The stale write never lands: `catchUpDurationMs` stays at its initial
-    // value instead of being set by a generation that is no longer current.
-    expect(reconnect.catchUpDurationMs()).toBe(0);
+    expect(merged).toEqual([]);
   });
 
-  it("exposes the underlying generation counter, advanced once per promotion", async () => {
-    const clock = createFakeClock();
-    const reconnect = createReconnect({ clock });
+  it("advances the generation counter once per promotion", async () => {
+    const reconnect = createReconnect();
 
     expect(reconnect.generation()).toBe(0);
     await promoteSlot(reconnect);
     expect(reconnect.generation()).toBe(1);
     await promoteSlot(reconnect);
     expect(reconnect.generation()).toBe(2);
+  });
+});
+
+describe("resumeFromBackground", () => {
+  it("forces a reconnect on the socket client every time", () => {
+    let reconnects = 0;
+    const socketClient = { reconnectNow: () => (reconnects += 1) };
+
+    resumeFromBackground(socketClient);
+    resumeFromBackground(socketClient);
+
+    expect(reconnects).toBe(2);
   });
 });

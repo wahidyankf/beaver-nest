@@ -1,6 +1,5 @@
 // Plain Vitest unit coverage for `js/family_chat/composer.js`: draft
-// validation, the key chords, and the focus rule that keeps a mobile
-// on-screen keyboard up across a send. The Gherkin scenarios cover the happy
+// validation and the key chords. The Gherkin scenarios cover the happy
 // journeys; this file covers the refusals and the draft-restoring branch
 // they do not reach.
 
@@ -28,7 +27,6 @@ function composerWith(sendResult: string | null) {
     },
     state,
     replyTarget,
-    focused: true,
   });
   return { composer, sent, state, replyTarget, bodies: sent };
 }
@@ -52,18 +50,6 @@ describe("createComposer", () => {
     expect(bodiesOf(sent)).toEqual(["On my way"]);
     expect(composer.draft()).toBe("");
     expect(composer.remediation()).toBeNull();
-  });
-
-  it("keeps keyboard focus through a send", async () => {
-    const { composer } = composerWith("client-id");
-
-    composer.type("Still typing");
-    await composer.submit();
-
-    expect(composer.focused()).toBe(true);
-    // The browser binding reads this to decide whether to let the Send
-    // button's press take focus at all.
-    expect(composer.focusFollowsSendControl()).toBe(false);
   });
 
   it("refuses an empty draft without reaching the outbox", async () => {
@@ -131,15 +117,6 @@ describe("createComposer", () => {
     composer.appendLine("Second line");
 
     expect(composer.draft()).toBe("First line\nSecond line");
-  });
-
-  it("tracks focus leaving and returning to the input", () => {
-    const { composer } = composerWith("client-id");
-
-    composer.blur();
-    expect(composer.focused()).toBe(false);
-    composer.focus();
-    expect(composer.focused()).toBe(true);
   });
 });
 

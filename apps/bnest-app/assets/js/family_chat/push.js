@@ -1,11 +1,6 @@
-// Web Push permission UX (tech-doc 005's control-text table) and the
-// "authenticated content is never cached" proof surface. Device push state
-// is read from the browser (`Notification.permission`/`PushManager`) only
-// when those globals exist; FE_UNIT supplies `devicePushState`/
-// `activePushSubscription` directly instead, since Vitest's `environment:
-// "node"` has neither.
-
-import { shouldCachePathname } from "./cache_policy.js";
+// Web Push permission UX (tech-doc 005's control-text table), and the
+// notification payload rules the service worker keeps a copy of. The device
+// state itself is read from the browser by `push_ux.js`.
 
 export const CONTROL_TEXT = Object.freeze({
   UNSUPPORTED: "Notifications unavailable in this browser",
@@ -36,9 +31,7 @@ const GENERIC_NOTIFICATION_PAYLOAD = Object.freeze({
  *
  * `priv/static/service-worker.js` is a classic (non-module) worker script
  * and cannot `import` this function -- it keeps its own literal copy of
- * this exact logic, the same documented duplication `cache_policy.js`'s
- * `shouldCachePathname` already uses for the same reason. Keep both copies
- * in sync when either changes.
+ * this exact logic. Keep both copies in sync when either changes.
  *
  * @param {unknown} rawData
  */
@@ -123,14 +116,15 @@ export function urlBase64ToUint8Array(base64String) {
 }
 
 /**
- * @typedef {{enabled: boolean, disabledExplicitly: boolean}} PushState
+ * The room's push control: what it says for this device, and whether this
+ * session is subscribed. Only the server decides the latter -- `enable` is
+ * called once it confirms a binding -- while the device state decides
+ * whether there is anything to enable at all.
+ * @param {{devicePushState?: string | undefined}} options
  */
+export function createPush({ devicePushState } = {}) {
+  const state = { enabled: false };
 
-/**
- * @param {string | undefined} devicePushState
- * @param {PushState} state
- */
-function createEnablementMethods(devicePushState, state) {
   return {
     controlText() {
       if (devicePushState === "unsupported") return CONTROL_TEXT.UNSUPPORTED;
@@ -140,17 +134,10 @@ function createEnablementMethods(devicePushState, state) {
       return state.enabled ? CONTROL_TEXT.ON : CONTROL_TEXT.OFF;
     },
 
-    /**
-     * @param {string} control
-     * @param {(() => void) | undefined} onDisable
-     */
-    async select(control, onDisable) {
+    /** @param {string} control */
+    async select(control) {
       await Promise.resolve();
-      if (control === "Turn off") {
-        state.enabled = false;
-        state.disabledExplicitly = true;
-        onDisable?.();
-      }
+      if (control === "Turn off") state.enabled = false;
     },
 
     // Called only after a real `upsertWebPushSubscription` mutation (or an
@@ -159,65 +146,6 @@ function createEnablementMethods(devicePushState, state) {
     // server has agreed.
     enable() {
       state.enabled = true;
-      state.disabledExplicitly = false;
     },
-
-    disable() {
-      state.enabled = false;
-      state.disabledExplicitly = true;
-    },
-
-    isDisabled() {
-      return state.disabledExplicitly;
-    },
-  };
-}
-
-/**
- * Runs a representative set of requests a room visit makes through the
- * same static-asset-only caching policy the service worker applies, and
- * reports which of them it would keep -- the one inspectable proxy for
- * Cache Storage contents available without a real browser (FE_E2E proves
- * the real service worker's Cache Storage directly).
- */
-async function inspectCacheStorage() {
-  await Promise.resolve();
-  const candidateUrls = [
-    "/assets/app.css",
-    "/assets/app.js",
-    "/",
-    "/family-chat/ruang-keluarga",
-    "/api/graphql",
-  ];
-  const entries = candidateUrls.filter((url) =>
-    shouldCachePathname(new URL(url, "http://localhost").pathname),
-  );
-  return { entries };
-}
-
-/**
- * @param {{devicePushState?: string | undefined, activePushSubscription?: boolean | undefined, onDisable?: () => void}} options
- */
-export function createPush({
-  devicePushState,
-  activePushSubscription = false,
-  onDisable,
-} = {}) {
-  /** @type {PushState} */
-  const state = {
-    enabled:
-      activePushSubscription || devicePushState === "subscription active",
-    disabledExplicitly: false,
-  };
-  const enablementMethods = createEnablementMethods(devicePushState, state);
-
-  return {
-    controlText: enablementMethods.controlText,
-    /** @param {string} control */
-    select: (control) => enablementMethods.select(control, onDisable),
-    enable: enablementMethods.enable,
-    disable: enablementMethods.disable,
-    isDisabled: enablementMethods.isDisabled,
-    inspectCacheStorage,
   };
 }

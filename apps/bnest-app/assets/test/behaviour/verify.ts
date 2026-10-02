@@ -46,12 +46,8 @@ import {
   type StepContext,
   type StepDefinition,
 } from "./family_chat.steps";
-import {
-  familyChatReplySteps,
-  resetReplyScenario,
-} from "./family_chat_reply.steps";
+import { familyChatReplySteps, resetScenario } from "./family_chat_reply.steps";
 import { familyChatOperationsSteps } from "./family_chat_operations.steps";
-import { closeBrowserRoom } from "./support/reply_room";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const behaviours = path.resolve(here, "../../../../../specs/apps/bnest");
@@ -81,7 +77,7 @@ interface Corpus {
   readonly owner: string;
   readonly steps: readonly StepDefinition[];
   // Runs after every scenario, whether it passed or not.
-  readonly afterScenario: () => void;
+  readonly afterScenario: () => void | Promise<void>;
 }
 
 // Requires every step of every pickle tagged `corpus.tag` to match exactly one of
@@ -166,10 +162,21 @@ function verifyCorpus(corpus: Corpus): void {
             const args = match.expression
               .match(pickleStep.text)!
               .map((argument) => String(argument.getValue(undefined)));
-            context = await match.definition.handler(context, ...args);
+            try {
+              context = await match.definition.handler(context, ...args);
+            } catch (error) {
+              // Names the failing step, so a failure (and a killed mutant)
+              // is attributed to the Given, When, or Then that observed it.
+              const reason =
+                error instanceof Error ? error.message : String(error);
+              throw new Error(
+                `Step failed (${pickleStep.type ?? "Unknown"}): ${pickleStep.text}\n${reason}`,
+                { cause: error },
+              );
+            }
           }
         } finally {
-          corpus.afterScenario();
+          await corpus.afterScenario();
         }
       });
     }
@@ -181,19 +188,16 @@ verifyCorpus({
   featurePath: path.join(behaviours, "app-fe/behaviours/family_chat.feature"),
   tag: "fe-vitest-unit",
   owner: "frontend-owned",
-  // Two binding files, one corpus: `family_chat.steps.ts` drives the
-  // document-free room, `family_chat_reply.steps.ts` the browser-shaped one.
-  // They are merged here rather than cross-imported so the "binds exactly
-  // once" and "no unused bindings" checks still see the whole set.
+  // Two binding files, one corpus, one room (`support/browser_room.ts`):
+  // `family_chat.steps.ts` binds the delivery, reading, and device rules,
+  // `family_chat_reply.steps.ts` the reply ones. They are merged here rather
+  // than cross-imported so the "binds exactly once" and "no unused bindings"
+  // checks still see the whole set.
   steps: [...familyChatSteps(), ...familyChatReplySteps()],
-  // A scenario that opened the browser-shaped room installed a `document` on
-  // `globalThis`; leaving it there would silently flip every following
-  // document-free scenario onto `initRoom`'s browser branch, so it comes
-  // down whether the scenario passed or not.
-  afterScenario: () => {
-    closeBrowserRoom();
-    resetReplyScenario();
-  },
+  // Every page a scenario opened installed its `window` and `document` on
+  // `globalThis` and left timers on its clock; they come down whether the
+  // scenario passed or not, so nothing reaches the next scenario.
+  afterScenario: resetScenario,
 });
 
 verifyCorpus({

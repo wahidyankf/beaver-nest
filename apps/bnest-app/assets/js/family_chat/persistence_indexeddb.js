@@ -1,11 +1,8 @@
 // Real-browser IndexedDB binding for `outbox.js`'s write-through
 // `Persistence` contract (`outbox_send.js`'s own typedef) -- the piece this
 // plan's Phase 4 learnings.md and `family_chat.js`'s former "KNOWN GAP"
-// comment both flagged as never actually implemented. `family_chat.js` is
-// the only caller, and only on its `hasDocument` branch: this module touches
-// the global `indexedDB`, which does not exist in FE_UNIT's Node/Vitest
-// process, so nothing here may be imported eagerly by anything that also
-// runs there without a real `document`.
+// comment both flagged as never actually implemented. It touches the global
+// `indexedDB` only when a room is opened without another persistence.
 //
 // Split into several small functions purely to stay under this project's
 // max-lines-per-function lint budget -- `resolvePersistence` below is the
@@ -33,7 +30,6 @@ function rowKey(namespace, clientMessageId) {
  *   retryCount: number,
  *   createdAt: number,
  *   nextRetryAt: number,
- *   neverSucceed: boolean,
  * }} PersistedRow
  */
 
@@ -59,7 +55,6 @@ function toRow(namespace, message) {
     retryCount: message.retryCount,
     createdAt: message.createdAt,
     nextRetryAt: message.nextRetryAt,
-    neverSucceed: message.neverSucceed,
   };
 }
 
@@ -109,9 +104,25 @@ function withStore(database, mode, run) {
  * @param {string} namespace
  */
 function deleteAllForNamespace(store, namespace) {
-  const request = store
-    .index(NAMESPACE_INDEX)
-    .openKeyCursor(IDBKeyRange.only(namespace));
+  deleteAllInRange(store, IDBKeyRange.only(namespace));
+}
+
+/**
+ * The same walk over every room's namespace for one member: namespaces are
+ * `${userId}:${roomSlug}` (`namespaceKey`), so they sort together.
+ * @param {IDBObjectStore} store
+ * @param {string} userId
+ */
+function deleteAllForUser(store, userId) {
+  deleteAllInRange(store, IDBKeyRange.bound(`${userId}:`, `${userId}:￿`));
+}
+
+/**
+ * @param {IDBObjectStore} store
+ * @param {IDBKeyRange} range
+ */
+function deleteAllInRange(store, range) {
+  const request = store.index(NAMESPACE_INDEX).openKeyCursor(range);
   request.addEventListener("success", () => {
     const cursor = request.result;
     if (!cursor) return;
@@ -163,9 +174,9 @@ function writeThrough(db, run) {
 }
 
 /**
- * Real-browser-only persistence adapter (requires a global `indexedDB`);
- * `family_chat.js` only ever constructs this on its `hasDocument` branch.
- * @returns {import("./outbox_send.js").Persistence}
+ * Real-browser persistence adapter (requires a global `indexedDB`), plus
+ * the log-out clearing `logout.js` needs.
+ * @returns {import("./outbox_send.js").Persistence & {clearUser(userId: string): Promise<void>}}
  */
 export function createIndexedDbPersistence() {
   /** @type {Promise<IDBDatabase> | null} */
@@ -182,36 +193,29 @@ export function createIndexedDbPersistence() {
       ),
     clear: (namespace) =>
       writeThrough(db, (store) => deleteAllForNamespace(store, namespace)),
+    // Awaited, unlike the write-throughs above: log-out waits for it.
+    clearUser: async (userId) => {
+      const database = await db();
+      await withStore(database, "readwrite", (store) =>
+        deleteAllForUser(store, userId),
+      );
+    },
   };
 }
 
 /**
  * `family_chat.js`'s own persistence-resolution seam (tech-doc 003 /
  * `outbox.js`'s header comment's "attached separately by `family_chat.js`"
- * design): in the real browser this is always real IndexedDB, unless a test
- * explicitly injects its own (useful for a real-browser E2E harness too); in
- * FE_UNIT's Node process it stays whatever the caller passed (usually
- * undefined -- pure in-memory, exactly as before this fix -- unless a test
- * explicitly opts into proving the write-through contract with a fake; see
- * `family_chat.steps.ts`'s own comment). Hydrating before `createOutbox`
- * (rather than after) means its own `resumeOnOpen` sees any resumed message
- * immediately, with zero special-casing on its part.
- * @param {boolean} hasDocument
+ * design): real IndexedDB, unless the room's caller handed it another.
+ * Hydrating before `createOutbox` (rather than after) means its own
+ * `resumeOnOpen` sees any resumed message immediately, with zero
+ * special-casing on its part.
  * @param {string} userId
  * @param {string} roomSlug
  * @param {import("./outbox_send.js").Persistence | undefined} injected
  */
-export async function resolvePersistence(
-  hasDocument,
-  userId,
-  roomSlug,
-  injected,
-) {
-  const persistence = hasDocument
-    ? (injected ?? createIndexedDbPersistence())
-    : injected;
-  if (persistence) {
-    await hydrateNamespace(namespaceKey(userId, roomSlug), persistence);
-  }
+export async function resolvePersistence(userId, roomSlug, injected) {
+  const persistence = injected ?? createIndexedDbPersistence();
+  await hydrateNamespace(namespaceKey(userId, roomSlug), persistence);
   return persistence;
 }

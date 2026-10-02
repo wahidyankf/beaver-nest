@@ -1,8 +1,8 @@
-// The action-menu and reply-strip half of `mount_browser.js`: binding real
-// pointer, context-menu, and key events to `message_actions.js`'s
-// DOM-independent decisions, and rendering the one menu host and the one
-// reply strip the shipped template provides. Split into its own file purely
-// to stay under this project's max-lines lint budget.
+// The action-menu half of `mount_browser.js`: binding real pointer,
+// context-menu, and key events to `message_actions.js`'s DOM-independent
+// decisions, and rendering the one menu host the shipped template provides
+// (the reply strip is `mount_browser_reply_strip.js`). Split into its own
+// file purely to stay under this project's max-lines lint budget.
 //
 // Every binding here is delegated from the message list rather than attached
 // per message, because messages are created and replaced continuously
@@ -13,10 +13,18 @@
 import {
   createHoldGesture,
   createMenuState,
+  DISCARD_LABEL,
   menuItemsFor,
+  RETRY_LABEL,
   runCopyAction,
 } from "./message_actions.js";
+import { MANUAL_ACTIONS_SELECTOR } from "./message_manual_render.js";
 import { anchorMenu, bindReanchor } from "./menu_anchor.js";
+import {
+  discardFailedMessage,
+  retryFailedMessage,
+} from "./mount_browser_composer.js";
+import { STATUS } from "./outbox.js";
 import { bodyPreview } from "./reply_target.js";
 
 /** @typedef {import("./mount_browser.js").MountableRoom} MountableRoom */
@@ -58,6 +66,7 @@ function messageFrom(element) {
     messageId: committed ? key : null,
     body,
     senderDisplayName,
+    failed: element.dataset["deliveryState"] === STATUS.FAILED,
   };
 }
 
@@ -71,6 +80,14 @@ function messageFrom(element) {
  */
 function runMenuItem(room, elements, menu, message, item) {
   menu.close();
+  if (item.label === RETRY_LABEL) {
+    retryFailedMessage(room, message.clientMessageId);
+    return false;
+  }
+  if (item.label === DISCARD_LABEL) {
+    // Focus goes to the composer only if the row it would return to is gone.
+    return discardFailedMessage(room, elements, message.clientMessageId);
+  }
   if (item.label === "Reply") {
     room.replyTarget?.select({
       messageId: message.messageId ?? null,
@@ -186,6 +203,12 @@ function bindMenuTriggers(elements, menu, clock) {
 
   elements.list.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
+    // A key on the row's own Retry or Discard activates that button.
+    if (
+      event.target instanceof Element &&
+      event.target.closest(MANUAL_ACTIONS_SELECTOR)
+    )
+      return;
     const element = messageElementFrom(event.target);
     if (!element) return;
     event.preventDefault();
@@ -255,38 +278,4 @@ export function wireMessageActions(room, elements, clock) {
   bindMenuDismissal(elements, menu);
   bindReanchor(elements.messageActions, elements.list);
   bindRovingKeys(room, elements);
-}
-
-/**
- * The strip is driven entirely by the reply target's own change
- * notifications, so there is no second place that decides whether it is
- * showing -- selecting, cancelling, sending, and a refused send all reach it
- * through the same one channel.
- * @param {MountableRoom} room
- * @param {FamilyChatElements} elements
- */
-export function wireReplyStrip(room, elements) {
-  const replyTarget = room.replyTarget;
-  if (!replyTarget) return;
-
-  replyTarget.onChange((selection) => {
-    elements.replyStrip.hidden = selection === null;
-    elements.replyStripName.textContent = selection
-      ? `Replying to ${selection.senderDisplayName}`
-      : "";
-    elements.replyStripPreview.textContent = selection?.bodyPreview ?? "";
-  });
-
-  elements.replyStripCancel.addEventListener("click", () => {
-    replyTarget.clear();
-    elements.input.focus({ preventScroll: true });
-  });
-
-  elements.input.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || !replyTarget.isSet()) return;
-    // Only when there is a target to cancel: Escape in a textarea otherwise
-    // belongs to whatever the browser or the member expects it to do.
-    event.preventDefault();
-    replyTarget.clear();
-  });
 }

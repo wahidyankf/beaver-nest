@@ -9,17 +9,11 @@ import { defineConfig } from "vitest/config";
 //
 // `environment: "node"` is the default because most of what these modules
 // decide is not markup. Files that do need a DOM opt in per file with
-// `// @vitest-environment happy-dom`, and the reply scenarios' room
-// (`test/behaviour/support/reply_room.ts`) installs and removes one itself,
-// because its sibling scenarios must keep running without a `document` --
-// `initRoom` branches on exactly that.
+// `// @vitest-environment happy-dom`, and the Gherkin scenarios' browser
+// (`test/behaviour/support/browser_room.ts`) installs and removes one page
+// at a time itself, so no page outlives the scenario that opened it.
 //
-// Coverage thresholds are intentionally not enforced yet: the
-// production modules and their dedicated unit tests
-// (`test/unit/family_chat/{outbox,reconnect,state}.test.ts`) are Phase 3+
-// "code" deliverables, so enforcing "at least 99% line coverage" during
-// Phase 2 RED would fail for a coverage-tooling reason instead of the
-// genuine "feature absent" reason the plan requires (see learnings.md).
+// This config enforces no coverage threshold; `coverage` only reports.
 export default defineConfig({
   test: {
     environment: "node",

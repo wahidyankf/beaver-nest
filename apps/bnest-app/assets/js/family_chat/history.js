@@ -1,8 +1,7 @@
 // Which page of a room's conversation to load, and where to put the visitor
 // in it. This is the DOM-independent half of "open where I left off": it
 // owns the paging decisions and the read-position writes, while the store it
-// is given owns the rendering and the actual scroll (`real_store.js` in a
-// browser, `store.js`'s double everywhere else).
+// is given owns the rendering and the actual scroll (`real_store.js`).
 //
 // The server's own page contract (tech-doc 008's `familyChatMessages`:
 // `beforeId` XOR `afterId`, a bounded `limit`, and truthful `hasOlder`/

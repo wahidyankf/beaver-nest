@@ -16,6 +16,9 @@ export const HOLD_DURATION_MS = 500;
 /** What makes a scroll that begins on a bubble a scroll and not a menu. */
 export const HOLD_MOVE_TOLERANCE_PX = 10;
 
+export const RETRY_LABEL = "Retry";
+export const DISCARD_LABEL = "Discard";
+
 export const COPIED_ANNOUNCEMENT = "Message copied.";
 export const COPY_REFUSED_ANNOUNCEMENT =
   "Couldn't copy. Select the text manually.";
@@ -26,6 +29,8 @@ export const COPY_REFUSED_ANNOUNCEMENT =
  * @property {string | null} [messageId] the server ID, absent until committed.
  * @property {string} body the full body -- what `Copy text` writes.
  * @property {string} senderDisplayName
+ * @property {boolean} [failed] the member's own message stopped at
+ *   "Couldn't send" and waits for them to retry or discard it.
  */
 
 /**
@@ -153,7 +158,7 @@ export function createMenuState() {
  */
 export function menuItemsFor(message) {
   const committed = Boolean(message.messageId);
-  return [
+  const items = [
     {
       label: "Reply",
       available: committed,
@@ -161,6 +166,15 @@ export function menuItemsFor(message) {
     },
     { label: "Copy text", available: true, reason: null },
   ];
+  // The keyboard's way to the Retry and Discard the failed row also shows:
+  // the history keeps one tab stop, so nothing inside a message is tabbable.
+  if (message.failed) {
+    items.push(
+      { label: RETRY_LABEL, available: true, reason: null },
+      { label: DISCARD_LABEL, available: true, reason: null },
+    );
+  }
+  return items;
 }
 
 /**
