@@ -5,13 +5,16 @@ behaviour_roots = [
   Path.expand("../../../specs/apps/bnest/app-fe/behaviours", __DIR__)
 ]
 
-{case_template, support} =
+# `@vitest-unit` scenarios' unit layer is the Vitest harness too; their integration layer
+# stays here (see `BnestApp.Behaviour.FeVitestUnitScope.prune_unit_layer/1`).
+{case_template, support, layer_scope} =
   case System.get_env("BNEST_TEST_LAYER", "unit") do
     "unit" ->
-      {ExUnit.Case, Path.join(__DIR__, "behaviour/support/unit.exs")}
+      {ExUnit.Case, Path.join(__DIR__, "behaviour/support/unit.exs"),
+       &BnestApp.Behaviour.FeVitestUnitScope.prune_unit_layer/1}
 
     "integration" ->
-      {BnestAppWeb.ConnCase, Path.join(__DIR__, "behaviour/support/integration.exs")}
+      {BnestAppWeb.ConnCase, Path.join(__DIR__, "behaviour/support/integration.exs"), & &1}
 
     layer ->
       raise "BNEST_TEST_LAYER must be unit or integration, got: #{inspect(layer)}"
@@ -29,6 +32,7 @@ behaviour_roots = [
 ]
 |> ExBdd.Discovery.discover()
 |> BnestApp.Behaviour.FeVitestUnitScope.prune()
+|> layer_scope.()
 |> ExBdd.Compiler.compile_discovery!(case_template: case_template)
 
 if System.get_env("BNEST_TEST_LAYER") == "integration" and

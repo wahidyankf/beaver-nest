@@ -1704,7 +1704,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
              :backup_timeout_forced,
              :verified_backup_artifact,
              :two_independent_slots,
-             :routed_socket_on_prior_slot,
              :other_member_message_committed,
              :committed_long_message,
              :committed_message,

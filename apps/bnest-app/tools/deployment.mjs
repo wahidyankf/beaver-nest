@@ -9,10 +9,10 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 
+import { caddyfile, slots } from "./caddy-config.mjs";
 import { normalizeProductionOrigin } from "./production-origin.mjs";
 
 const [command, ...arguments_] = process.argv.slice(2);
-const slots = { blue: 4000, green: 4001 };
 const label = "com.bnest.caddy";
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const deploymentRoot = requiredEnvironment("BNEST_DEPLOY_ROOT");
@@ -143,24 +143,6 @@ function state() {
   } catch {
     fail("Deployment state is unreadable; refuse to route traffic blindly.");
   }
-}
-
-function caddyfile(slot, healthChecked) {
-  const healthCheck = healthChecked ? "\t\thealth_uri /health/ready\n" : "";
-
-  return `{
-\tadmin 127.0.0.1:2019
-\tgrace_period 5m
-}
-
-:4100 {
-\tbind 127.0.0.1
-\treverse_proxy 127.0.0.1:${slots[slot]} {
-\t\theader_up X-Forwarded-Proto https
-${healthCheck}
-\t}
-}
-`;
 }
 
 function caddyBinary() {

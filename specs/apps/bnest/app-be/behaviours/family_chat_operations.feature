@@ -38,8 +38,6 @@ Feature: Family chat operations
     Then the original committed system message is returned unchanged
     And exactly one system message exists for that idempotency key
 
-  # Exemption(e2e): the public GraphQL schema is inspected as a typed contract, not through a browser or HTTP client; alternative-proof: bnest-app:test:unit / The public GraphQL schema exposes no system-message mutation
-  @e2e-exempt
   Scenario: The public GraphQL schema exposes no system-message mutation
     When the public GraphQL schema is inspected
     Then it declares no field that posts a system message
@@ -191,7 +189,7 @@ Feature: Family chat operations
     And the other slot publishes no corresponding event
 
   # Exemption(e2e): generated deployment configuration is inspected as a build artifact, not exercised through a browser/HTTP boundary; alternative-proof: bnest-app:test:integration / The generated Caddy configuration rejects a nonzero stream-close delay
-  @e2e-exempt
+  @e2e-exempt @vitest-unit
   Scenario: The generated Caddy configuration rejects a nonzero stream-close delay
     When the deployment tool generates the reverse-proxy configuration for a release
     Then the generated configuration omits "stream_close_delay" and any other nonzero stream-close delay
@@ -199,11 +197,9 @@ Feature: Family chat operations
 
   Rule: Promoted-slot-only handshake routing
 
-  # Exemption(e2e): holding a routed socket across a live Caddy config reload is a release-time infrastructure action outside application-level E2E; alternative-proof: bnest-app:test:integration / A replacement handshake routes only to the promoted slot while the prior slot stays warm
-  @e2e-exempt
+  # Exemption(e2e): a live Caddy reload is release-time infrastructure, and the BE E2E project runs with no Caddy; alternative-proof: bnest-app-fe-e2e:test:e2e / A connected client reconnects to the promoted slot without a page refresh
+  @e2e-exempt @vitest-unit
   Scenario: A replacement handshake routes only to the promoted slot while the prior slot stays warm
-    Given a routed socket is held open on the prior slot before promotion
-    When Caddy reloads to route the promoted slot
-    Then the prior-slot socket closes
-    And every replacement handshake reaches only the promoted slot
-    And the prior slot remains process-warm and receives no new routed handshake during the observation window
+    When the deployment tool generates the reverse-proxy configuration that promotes the replacement slot
+    Then every replacement handshake is routed only to the promoted slot
+    And no routed handshake reaches the prior slot

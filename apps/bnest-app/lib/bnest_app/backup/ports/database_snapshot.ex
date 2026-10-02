@@ -20,7 +20,6 @@ defmodule BnestApp.Backup.Ports.DatabaseSnapshot do
     * `restore/2` restores a copy into a fresh, ownership-marked root of its own, never the
       caller's choice of path, reads back what it holds, then removes that root. It returns
       `{:error, :restore_failed}` when the copy cannot be restored or read.
-    * `message_exists?/3` holds when the live database holds that message in that room.
   """
 
   alias BnestApp.Backup.Domain.RestoreEvidence
@@ -36,8 +35,6 @@ defmodule BnestApp.Backup.Ports.DatabaseSnapshot do
   @callback prove(handle(), path :: String.t()) :: {:ok, proof()} | {:error, :corrupt}
   @callback restore(handle(), artifact_path :: String.t()) ::
               {:ok, RestoreEvidence.facts()} | {:error, :restore_failed}
-  @callback message_exists?(handle(), room_id :: pos_integer(), message_id :: pos_integer()) ::
-              boolean()
 
   @spec source_path(handle()) :: String.t()
   def source_path(snapshot), do: snapshot.adapter.source_path(snapshot)
@@ -55,8 +52,4 @@ defmodule BnestApp.Backup.Ports.DatabaseSnapshot do
   @spec restore(handle(), String.t()) ::
           {:ok, RestoreEvidence.facts()} | {:error, :restore_failed}
   def restore(snapshot, artifact_path), do: snapshot.adapter.restore(snapshot, artifact_path)
-
-  @spec message_exists?(handle(), pos_integer(), pos_integer()) :: boolean()
-  def message_exists?(snapshot, room_id, message_id),
-    do: snapshot.adapter.message_exists?(snapshot, room_id, message_id)
 end

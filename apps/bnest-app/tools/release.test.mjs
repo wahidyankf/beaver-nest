@@ -218,10 +218,20 @@ test("never configures a nonzero Caddy stream-close delay while keeping the shut
   // slots are independent `RELEASE_DISTRIBUTION=none` processes that never
   // share PubSub. `grace_period` is a different, required directive (HTTP
   // server shutdown during Caddy config changes/process stop) and must stay.
+  // The deployment tool writes the configuration `caddy-config.mjs` builds.
   const source = readFileSync(
+    new URL("./caddy-config.mjs", import.meta.url),
+    "utf8",
+  );
+  const deploymentSource = readFileSync(
     new URL("./deployment.mjs", import.meta.url),
     "utf8",
   );
+  assert.match(
+    deploymentSource,
+    /import \{ caddyfile, slots \} from "\.\/caddy-config\.mjs";/u,
+  );
+  assert.doesNotMatch(deploymentSource, /stream_close_delay/u);
   assert.doesNotMatch(source, /stream_close_delay/u);
   assert.match(source, /grace_period 5m/u);
 });

@@ -15,5 +15,5 @@ defmodule BnestApp.Release do
       Ecto.Adapters.SQL,
       Ecto.Migrator
     ],
-    exports: [Migrations, CaddyConfig]
+    exports: [Migrations]
 end
