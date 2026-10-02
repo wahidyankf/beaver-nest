@@ -13,18 +13,23 @@
 
 ## Agents
 
-| Agent                    | Owns                                                           |
-| ------------------------ | -------------------------------------------------------------- |
-| `plan-maker`             | authoring a plan end to end, including its own bounded repairs |
-| `plan-checker`           | auditing a draft against the specification                     |
-| `plan-execution-checker` | auditing finished execution before archival                    |
+| Agent                    | Owns                                                                     |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `plan-maker`             | authoring a plan end to end                                              |
+| `plan-checker`           | auditing a draft against the specification                               |
+| `plan-fixer`             | executing `plan-propagation`: repairing only the rows of a frozen ledger |
+| `plan-execution-checker` | auditing finished execution before archival                              |
 
-There is no separate fixer agent. The maker incorporates validated findings itself, within the repair budget the
-[Quality Gate](../../workflows/plan-quality-gate.md) declares.
+The maker authors and the fixer repairs. When the [Quality Gate](../../workflows/quality/plan-quality-gate.md) hands
+over blocking findings, `plan-fixer` runs `plan-propagation` under
+[Sole-Writer Propagation](../sole-writer-propagation.md): it re-validates each row, repairs only what the row requires,
+and never starts another audit. Keeping the writer apart from the maker and the checker keeps each audit independent of
+the repair before it.
 
-A maker–checker–fixer triangle sounds safer and is not: it creates a workflow that waits for a reviewer to return an
-empty report, and "no findings" is a state a sufficiently persistent loop can always reach. Bounding the repairs and
-ending on a terminal verdict is the property that actually holds.
+A maker–checker–fixer triangle is safe only when it is bounded. "No findings" is a state a sufficiently persistent loop
+can always reach, so the gate never waits for an empty report: the
+[Quality Gate Contract](../quality-gate-contract.md) ends every run on a terminal verdict within three cycles. Bounding
+the repairs and ending on a verdict is the property that actually holds.
 
 ## Exactly Once, In One Form
 

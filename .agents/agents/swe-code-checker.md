@@ -107,6 +107,6 @@ cannot be read, reporting it as not run.
 
 It never edits code, chooses a stack standard, or researches the web. Targets, hooks, and pipelines belong to
 CI Checker, what scenario bindings assert to
-[Gherkin Implementation Review](../../repo-governance/workflows/gherkin-implementation-review.md), a pinned change under review to the review
+[Gherkin Implementation Review](../../repo-governance/workflows/quality/gherkin-implementation-review.md), a pinned change under review to the review
 disciplines such as PR Review Integrity Checker, and documentation to
 Docs Checker.

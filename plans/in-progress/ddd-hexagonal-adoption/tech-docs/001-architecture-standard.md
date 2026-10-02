@@ -109,8 +109,8 @@ Every surface that names the rule gets a link or a pointer, in the same unit (U2
 | `docs/reference/software-development.md`                                                           | Add the standard to the language-neutral list                                                                                                              |
 | `specs/apps/bnest/app-be/architecture.md`                                                          | C4 component view regrouped by bounded context (U14, as-built)                                                                                             |
 
-The [rules-propagation](../../../../repo-governance/workflows/rules-propagation.md) and
-[docs-propagation](../../../../repo-governance/workflows/docs-propagation.md) workflows each run once in U2 and record a
+The [rules-propagation](../../../../repo-governance/workflows/quality/rules-propagation.md) and
+[docs-propagation](../../../../repo-governance/workflows/quality/docs-propagation.md) workflows each run once in U2 and record a
 terminal result. `.claude` route adapters are regenerated only if a skill or agent name or description changes. This
 plan changes content only, so no route adapter is renamed. U2 still runs `./rhino harness adapters generate` after the
 skill and agent edits, because their content digests change, then validates and commits whatever it rewrote.

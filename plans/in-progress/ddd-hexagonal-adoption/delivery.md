@@ -13,7 +13,7 @@ item of the lowest-numbered open phase.
 - the production release of the closure revision (including the `--mode experience` re-promotion if production runs
   with the flags on);
 - archival;
-- [dev artifact clean-up](../../../repo-governance/workflows/dev-artifact-clean-up.md);
+- [dev artifact clean-up](../../../repo-governance/workflows/maintenance/dev-artifact-clean-up.md);
 - a return to the primary checkout's local `main`.
 
 The owner also asked for a status update every 30 minutes and for continuous progress without stalls. Execution starts
@@ -26,7 +26,7 @@ only from a non-blocking plan quality-gate verdict (Phase 1).
 3. REFACTOR: cleanup while green.
 4. The unchanged Gherkin suite proves behaviour at both layers.
 5. Changed drivers (BDD adapters) get the
-   [Gherkin implementation review](../../../repo-governance/workflows/gherkin-implementation-review.md).
+   [Gherkin implementation review](../../../repo-governance/workflows/quality/gherkin-implementation-review.md).
 
 **Test data.** Tests use isolated, marked test-run roots and `test-user-` identities. Production users or data are never
 read or mutated.
@@ -102,7 +102,7 @@ says `never-started`. Exit `73`: clean owned storage. Exit `78`: stop and replan
 
 - [x] [AI] Run the post-write decision gate on the complete draft and record D-entries in `learnings.md`. Proof:
       D15–D17 recorded.
-- [x] [AI] Run the [plan quality gate](../../../repo-governance/workflows/plan-quality-gate.md) through the
+- [x] [AI] Run the [plan quality gate](../../../repo-governance/workflows/quality/plan-quality-gate.md) through the
       `plan-checker` agent on a frozen snapshot, with at most two repair cycles. Proof: a terminal verdict recorded in
       `learnings.md`.
   - 2026-10-01: run 1 `BLOCKED_INPUT_CHANGED`; run 2 `PASS_WITH_FINDINGS` after two cycles; both remaining findings
@@ -142,14 +142,14 @@ says `never-started`. Exit `73`: clean owned storage. Exit `78`: stop and replan
 - [x] [AI] Docs: `docs/explanation/hexagonal-architecture.md` (with an accessible Mermaid context map),
       `docs/explanation/README.md`, `docs/reference/glossary.md`, `docs/reference/software-development.md`.
   - 2026-10-01: written; the diagram is the layers-of-one-context view on the canonical palette.
-- [x] [AI] Apply the [rules-propagation workflow](../../../repo-governance/workflows/rules-propagation.md) to the new
+- [x] [AI] Apply the [rules-propagation workflow](../../../repo-governance/workflows/quality/rules-propagation.md) to the new
       standard and record its terminal result (`PASS_CHANGED` or `PASS_NO_CHANGE`).
   - 2026-10-01: `PASS_CHANGED`.
-- [x] [AI] Apply the [docs-propagation workflow](../../../repo-governance/workflows/docs-propagation.md) and record its
+- [x] [AI] Apply the [docs-propagation workflow](../../../repo-governance/workflows/quality/docs-propagation.md) and record its
       terminal result.
   - 2026-10-01: `PASS_CHANGED`.
 - [x] [AI] Regenerate the harness adapters for the edited skills and agents under the
-      [harness contract change workflow](../../../repo-governance/workflows/coding-harness-contract-change.md): `HARNESS`.
+      [harness propagation workflow](../../../repo-governance/workflows/quality/harness-propagation.md): `HARNESS`.
       Proof: validate exits 0, and the regenerated `.claude/`, `.opencode/` and `.codex/` adapter files are committed.
   - 2026-10-01: generate is current and validate is clean.
 - [x] [AI] `REPO`. Proof: exit 0. AC-DH-01.
@@ -704,7 +704,7 @@ Every context phase runs the same nine items, in this order, with the context's 
       the route's existing integration test asserts. AC-DH-08.
 - [ ] [AI] Manual UI inspection of every thinned LiveView at the exact local origin and the standard viewports, with
       spec-aware and spec-blind
-      [exploratory passes](../../../repo-governance/workflows/exploratory-and-usability-testing.md) recorded in separate
+      [exploratory passes](../../../repo-governance/workflows/quality/exploratory-usability-review.md) recorded in separate
       `learnings.md` sections. Expected: no visible change. AC-DH-08.
 - [ ] [AI] C4 update of `specs/apps/bnest/app-be/architecture.md` per
       [007](tech-docs/007-specification-changes.md): the Component View nodes and relationships, the prose under it, and
@@ -761,11 +761,11 @@ disposition and evidence.
 - [ ] [AI] Report the `family-learning-engine` backlog conflict to the owner in the completion summary (it plans
       against `sifat_allah_live.ex` and `application.ex` as they were before this plan). This plan does not edit
       another plan. Proof: the `learnings.md` entry resolved as "routed to the owner".
-- [ ] [AI] Run the [plan execution check](../../../repo-governance/workflows/plan-execution-check.md) through
+- [ ] [AI] Run the [plan execution check](../../../repo-governance/workflows/plan/plan-execution-check.md) through
       `plan-execution-checker`, and record its verdict in `learnings.md`.
 - [ ] [AI] Move the plan to `plans/done/<completion-date>__ddd-hexagonal-adoption/`; update `plans/in-progress/README.md`,
       `plans/done/README.md` and every live link; run `REPO` from the archived state.
 - [ ] [AI] Commit `docs(plans): archive ddd and hexagonal architecture adoption`; PR, leak review, gate, merge.
-- [ ] [AI] Apply [dev artifact clean-up](../../../repo-governance/workflows/dev-artifact-clean-up.md). Remove this
+- [ ] [AI] Apply [dev artifact clean-up](../../../repo-governance/workflows/maintenance/dev-artifact-clean-up.md). Remove this
       worktree and its local and remote branches once nothing is unpushed or running, and reconcile the primary checkout's
       `main` to `origin/main` (`0 0`).

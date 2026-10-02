@@ -60,7 +60,7 @@ finding is `execution` work.
 A finding that a bug fix lacks its regression test, or that behaviour shipped untested, is fixed by adding a test that
 is seen to fail. For a defect still present, the test fails on the current code for the reason the defect gives, and the
 smallest change then passes it, through
-[Red, Green, Refactor](../../repo-governance/workflows/red-green-refactor.md) and as
+[Red, Green, Refactor](../../repo-governance/workflows/quality/red-green-refactor.md) and as
 [Test-Driven Development](../../repo-governance/development/test-driven-development.md)
 requires. For behaviour that already works, the test proves it can fail by breaking that behaviour, running it, and
 restoring, as Cycle and Evidence describes. A test never seen failing leaves the finding open. A test-first fix loads

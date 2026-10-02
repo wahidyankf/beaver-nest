@@ -1,10 +1,11 @@
 ---
 name: plan-checker
 description: >-
-  Audits a complete plan draft against the plan specification and returns findings with a terminal verdict, without
-  modifying anything.
+  Audits a complete plan draft against the plan specification and returns criticality-rated findings, without modifying
+  anything.
 when_to_use: >-
-  Use after a complete six-document draft, or a one-document bug-fix plan, before execution begins.
+  Use as the checker of a plan quality gate cycle, after a complete six-document draft, before execution begins.
+tier: plan
 skills:
   - plan-validating-quality
 mode: subagent
@@ -33,14 +34,17 @@ Audits a frozen plan draft and reports. It changes nothing.
    `delivery.md` is executable by someone who was not present, whether the technical shape matches the work, and whether
    the six documents each answer their own question — for a bug-fix plan, whether its root cause carries checkable
    evidence and its solution cites references.
-4. Return one terminal verdict with sanitized findings.
+4. Return sanitized findings, each rated for criticality, to the
+   [Plan Quality Gate](../../repo-governance/workflows/quality/plan-quality-gate.md), which records them in its ledger
+   and gives the verdict.
 
 ## Read-Only Is a Property, Not a Preference
 
 A checker that edits has no independent opinion left. It reports what it fixed, and the fix is unreviewed because the
 thing that would have reviewed it is the thing that made it.
 
-Findings go back to the maker, which validates them before applying.
+Findings go to the gate's ledger, and [Plan Fixer](plan-fixer.md) re-validates each row and rates its confidence before
+repairing it.
 
 ## Findings Must Be Actionable
 
@@ -49,10 +53,10 @@ finding — it is a feeling, and the maker cannot act on it except by guessing.
 
 ## Distinguish Blocking From Not
 
-`PASS_WITH_FINDINGS` exists because some findings are worth recording and not worth stopping for. Treating every finding
+Criticality decides which rows block under the gate's `mode`; the rest are recorded, not repaired. Rating every finding
 as blocking trains people to argue with findings instead of fixing them.
 
 ## What It Does Not Do
 
-It does not judge whether the work is worth doing, rewrite anything, or decide when it has looked enough. It runs once
-per cycle against a frozen draft.
+It does not judge whether the work is worth doing, rewrite anything, rate confidence, give the verdict, or decide when
+it has looked enough. It runs once per cycle against a frozen draft.

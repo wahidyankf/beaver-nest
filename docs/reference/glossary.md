@@ -22,10 +22,10 @@ Terms used across Beaver Nest's rules, plans, projects, and commit messages. Eac
 - **Behaviour corpus** — the complete set of `.feature` files under `specs/apps/bnest/app-be/behaviours/` and `specs/apps/bnest/app-fe/behaviours/`, discovered recursively and treated as one body per root. A behaviour is described once here, not once per test layer.
 - **Behaviour adapter** — a layer that binds the corpus to a runtime: Elixir unit and integration adapters in the application project, a browser adapter in the end-to-end project. An adapter that cannot drive a scenario is explicitly exempted rather than given a duplicate scenario.
 - **Quick gate** — `test:quick`, the fail-fast sequence of typecheck, lint, unit tests, and behaviour coverage. `test:e2e` is deliberately excluded because browser tests are slow.
-- **Red–green–refactor** — one behaviour increment: a failing test, the smallest change that passes it, then a design improvement with tests still green. See [the workflow](../../repo-governance/workflows/red-green-refactor.md).
+- **Red–green–refactor** — one behaviour increment: a failing test, the smallest change that passes it, then a design improvement with tests still green. See [the workflow](../../repo-governance/workflows/quality/red-green-refactor.md).
 - **Test identity** — a synthetic account whose username starts with `test-user-`. Real accounts are never used for testing. See [test identities](../../repo-governance/development/test-identities.md).
 - **Marked run root** — the isolated pair of directories a test run owns, one flat-file and one SQLite, carrying the same run marker. A mismatched or shared root fails closed.
-- **Exploratory pass / usability pass** — two separate manual passes over a running UI: the first spec-aware and probing edges, the second structurally spec-blind and judging first-time perception. See [the workflow](../../repo-governance/workflows/exploratory-and-usability-testing.md).
+- **Exploratory pass / usability pass** — two separate manual passes over a running UI: the first spec-aware and probing edges, the second structurally spec-blind and judging first-time perception. See [the workflow](../../repo-governance/workflows/quality/exploratory-usability-review.md).
 
 ## Live service
 
@@ -65,8 +65,8 @@ Terms used across Beaver Nest's rules, plans, projects, and commit messages. Eac
 - **Plan lifecycle** — `ideas/` → `backlog/` → `in-progress/` → `done/`. A plan moves; it is never copied between stages. See the [plans convention](../../repo-governance/conventions/plans.md) and the local [lifecycle](../../repo-governance/conventions/plan-lifecycle.md).
 - **`[AI]` / `[HUMAN]`** — who executes a delivery task. `[HUMAN]` is only for a decision, credential, physical action, or authority unavailable to an agent, never to postpone discovery.
 - **Blocking checkpoint** — the task that ends a delivery phase. Later phases do not start until it passes.
-- **Rules propagation** — the workflow that keeps a changed rule consistent everywhere it is referenced. See [the workflow](../../repo-governance/workflows/rules-propagation.md).
-- **Docs propagation** — the workflow that carries a change into every human-facing document it affects, removing obsolete ones. The on-request [docs quality gate](../../repo-governance/workflows/docs-quality-gate.md) audits documents, hands findings to it, and audits again until two consecutive audits are clean. See [the workflow](../../repo-governance/workflows/docs-propagation.md).
+- **Rules propagation** — the workflow that keeps a changed rule consistent everywhere it is referenced. See [the workflow](../../repo-governance/workflows/quality/rules-propagation.md).
+- **Docs propagation** — the workflow that carries a change into every human-facing document it affects, removing obsolete ones. The on-request [docs quality gate](../../repo-governance/workflows/quality/docs-quality-gate.md) audits documents, hands blocking findings to it, and audits again, for at most three cycles. See [the workflow](../../repo-governance/workflows/quality/docs-propagation.md).
 - **Directory map** — the `## Directory Map` section every governed README carries, listing each direct sibling with a relative link. See [the convention](../../repo-governance/conventions/directory-maps.md).
 - **Diátaxis** — the four-way split this `docs/` tree follows: tutorials, how-to guides, reference, explanation. See [documentation architecture](../../repo-governance/conventions/documentation-architecture.md).
 - **Thematic commit** — a commit scoped to one coherent theme rather than one mechanical batch. See [the convention](../../repo-governance/conventions/thematic-commits.md).

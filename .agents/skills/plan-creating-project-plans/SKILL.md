@@ -45,7 +45,7 @@ Two tests:
 - **Self-contained proof.** If proving it requires finishing the next item, the split is in the wrong place.
 
 A delivery unit that changes what a README, documentation page, or specification describes also carries a
-[Docs Propagation](../../../repo-governance/workflows/docs-propagation.md) item, landing in the same commit as the
+[Docs Propagation](../../../repo-governance/workflows/quality/docs-propagation.md) item, landing in the same commit as the
 change.
 
 ## Write for a Cold Executor

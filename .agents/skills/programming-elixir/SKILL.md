@@ -14,7 +14,7 @@ Every Elixir rule is owned by
 [Elixir Standards](../../../repo-governance/development/quality/stacks/elixir-standards.md).
 [Test-Driven Development](../../../repo-governance/development/test-driven-development.md) and
 [Quality Gates](../../../repo-governance/development/quality-gates.md) govern
-tests and gates, [Red, Green, Refactor](../../../repo-governance/workflows/red-green-refactor.md) runs each
+tests and gates, [Red, Green, Refactor](../../../repo-governance/workflows/quality/red-green-refactor.md) runs each
 cycle, and [Developing Applications](../developing-applications/SKILL.md) carries the judgement on layers, errors, logs,
 and input that holds in every language. This skill adds only the procedure and judgement of applying them in Elixir.
 Where a sentence here seems to state a rule, the standard decides.

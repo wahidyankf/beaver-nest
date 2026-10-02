@@ -1,6 +1,6 @@
 # Test-Driven Development
 
-Develop every new or changed application and library behaviour with test-driven development (TDD), using the [red–green–refactor workflow](../workflows/red-green-refactor.md).
+Develop every new or changed application and library behaviour with test-driven development (TDD), using the [red–green–refactor workflow](../workflows/quality/red-green-refactor.md).
 
 Treat test declarations and implementations as first-class living documentation. Before interpreting or changing production code, read the relevant tests to establish intended behaviour, constraints, and boundaries. For projects governed by [BDD](behaviour-driven-development.md), begin with the canonical Gherkin before reading or changing its test adapters.
 

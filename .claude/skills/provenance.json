@@ -3,14 +3,54 @@
   "profile": "claude",
   "sources": [
     {
+      "id": "agent/api-http-checker",
+      "path": ".agents/agents/api-http-checker.md",
+      "digest": "20e3ce6cd329e0945b7976f0a0b4cfcdf1e7a14fbb771d43d3ab64134f32be2c"
+    },
+    {
+      "id": "agent/api-http-fixer",
+      "path": ".agents/agents/api-http-fixer.md",
+      "digest": "41f1c152cd6553d9d9885562ca848e9aed7f472937b46198267df0d03b7cf8e3"
+    },
+    {
+      "id": "agent/ci-checker",
+      "path": ".agents/agents/ci-checker.md",
+      "digest": "86d36a6adbc446c3b197869c79e499a2053b374f39fe7bbd90f925d883a8a7ab"
+    },
+    {
+      "id": "agent/ci-fixer",
+      "path": ".agents/agents/ci-fixer.md",
+      "digest": "0c06069f5816dce11f58c51658ead5000f00023535b731c1bae85f92e41d65fe"
+    },
+    {
       "id": "agent/ci-monitor-subagent",
       "path": ".agents/agents/ci-monitor-subagent.md",
       "digest": "a6e9d085b8de539aadb57c4c6e77dfee471f71558c088b807ecb1649da8d7bce"
     },
     {
+      "id": "agent/docs-checker",
+      "path": ".agents/agents/docs-checker.md",
+      "digest": "20268a702b440ae6c67fb1edfece3f1a2424cded8e46e2c07825dc36ef1dffe9"
+    },
+    {
+      "id": "agent/docs-fixer",
+      "path": ".agents/agents/docs-fixer.md",
+      "digest": "14096adad518070b41a05be4f8e8e5c2bd360cd6cd72a0b96a2968df9b592e27"
+    },
+    {
+      "id": "agent/harness-checker",
+      "path": ".agents/agents/harness-checker.md",
+      "digest": "86492cc77295b5a5d3782f9eb5cb75a159c41aa7db6b98b0fb7586668dbbb769"
+    },
+    {
+      "id": "agent/harness-fixer",
+      "path": ".agents/agents/harness-fixer.md",
+      "digest": "d468b78d7127365a752a5f31e1d4113857e1002cf560755f9a315e07adbaa1b5"
+    },
+    {
       "id": "agent/plan-checker",
       "path": ".agents/agents/plan-checker.md",
-      "digest": "6db04f35e63bdd1a24f3796eb2d1b8e4c8e741d7d68ce6fa875c6ced2ab854c4"
+      "digest": "9703dbb0d7aa11cfcbb153cdff1b207d4d99356dc0a0105b9ec61d921e94c647"
     },
     {
       "id": "agent/plan-execution-checker",
@@ -18,24 +58,69 @@
       "digest": "49ba4f973fe39daea67aead192f571d98c1e71364bda116244e85b1de604448c"
     },
     {
+      "id": "agent/plan-fixer",
+      "path": ".agents/agents/plan-fixer.md",
+      "digest": "e7e5a1708427213639d728b0bf9bfb39095f55061d065b6e9eb2745092ec4a43"
+    },
+    {
       "id": "agent/plan-maker",
       "path": ".agents/agents/plan-maker.md",
-      "digest": "06c0d61ce2e2fbfea5ee346a344c88c625e509dd1c9476430e488001afe6ae05"
+      "digest": "5ddcb87f50c10227b59d43727ba66cf49744afa2b831a7482c3f1650e2e2f760"
+    },
+    {
+      "id": "agent/pr-review-checker",
+      "path": ".agents/agents/pr-review-checker.md",
+      "digest": "def5d9fa3de91b9ffc9da4807bdb127cf0b556058c5f25c7c8e077e20a0c314d"
+    },
+    {
+      "id": "agent/pr-review-fixer",
+      "path": ".agents/agents/pr-review-fixer.md",
+      "digest": "a553f6d163296e008c8c55f8d95afe75a0b706346a7be23f37e847ece181a517"
+    },
+    {
+      "id": "agent/rules-checker",
+      "path": ".agents/agents/rules-checker.md",
+      "digest": "fe53d673f27f7c324d3b3ee2ddf0d86d238ce390af829403c615c6e0047476e2"
+    },
+    {
+      "id": "agent/rules-fixer",
+      "path": ".agents/agents/rules-fixer.md",
+      "digest": "a8f3df94b047bdd706726141d44958ebefe397dd6533e1f117f934a34335b3f1"
+    },
+    {
+      "id": "agent/specs-checker",
+      "path": ".agents/agents/specs-checker.md",
+      "digest": "07f574879d0016587b463dde9b1669c1a9eb8a40e93c1d309a4687b4fd8fe503"
+    },
+    {
+      "id": "agent/specs-fixer",
+      "path": ".agents/agents/specs-fixer.md",
+      "digest": "47caaa061de4eaf9b0882eaff0853f95bc7f8711562f15063ce5ecede35b9053"
     },
     {
       "id": "agent/swe-code-checker",
       "path": ".agents/agents/swe-code-checker.md",
-      "digest": "b4f04f04a512357b543ea51b542ba67f7b0f4feacc6a3bc81afeb3ab8c25d1a2"
+      "digest": "070f4deab05cc93a9ff7dffc64bf01fe2a037cb2bfa3906363423115d73ac7f2"
     },
     {
       "id": "agent/swe-code-fixer",
       "path": ".agents/agents/swe-code-fixer.md",
-      "digest": "f4d1c6d02b42df9fe24821d37561352bbd74cdaf7fb1afb89be52e81e527d50a"
+      "digest": "1209fe2cf354b876d2cbd4dce1dfc6c6ed18f65f04cb622f4a450bf386bf379f"
     },
     {
       "id": "agent/swe-code-maker",
       "path": ".agents/agents/swe-code-maker.md",
-      "digest": "3a41f5cdde87e22535a40d456259f229725f8f50bbf9722d8acedeabbe68a3da"
+      "digest": "85c95ac601afd802a15a854adf77b50f915469822fd578f2dcf9d4daefa05fc5"
+    },
+    {
+      "id": "agent/ui-web-checker",
+      "path": ".agents/agents/ui-web-checker.md",
+      "digest": "986c5a080caee38603083b91697e9a3914beabff706e241684b7feb1474aae65"
+    },
+    {
+      "id": "agent/ui-web-fixer",
+      "path": ".agents/agents/ui-web-fixer.md",
+      "digest": "f7a632065dd18afbfbd6973a0187ee4b28949134b1a1f43342d54749973b379f"
     },
     {
       "id": "agent/web-researcher",
@@ -45,7 +130,7 @@
     {
       "id": "skill/applying-maker-checker-fixer",
       "path": ".agents/skills/applying-maker-checker-fixer/SKILL.md",
-      "digest": "e575ede9a87629905b326f85fef993e92b5f167dd44ddee2b9ad476fa49a2935"
+      "digest": "9664e4a68a743bbe1add6c7c848e5f910c417f9e2815203c78084f0b2729cbdc"
     },
     {
       "id": "skill/assessing-criticality-confidence",
@@ -60,7 +145,7 @@
     {
       "id": "skill/developing-applications",
       "path": ".agents/skills/developing-applications/SKILL.md",
-      "digest": "5dceff2afe306a899c1fdc8f20f0705db0edde031951ae543db0a2b18561d601"
+      "digest": "4f6976b5bd0c2eab66c7c6db61474809d571c034027ce2c0a8d9e5d254407a2b"
     },
     {
       "id": "skill/framework-phoenix-liveview",
@@ -70,7 +155,7 @@
     {
       "id": "skill/generating-validation-reports",
       "path": ".agents/skills/generating-validation-reports/SKILL.md",
-      "digest": "26b35ae1ed0792cce334686209d115e3e2bacadb68d4b4a565e1d1dceeeee233"
+      "digest": "dd5346fbeef2dd65bca8ff0284290688c7fed52b9af6f1e7b4497e4463acaa63"
     },
     {
       "id": "skill/grill-me",
@@ -115,7 +200,7 @@
     {
       "id": "skill/plan-creating-project-plans",
       "path": ".agents/skills/plan-creating-project-plans/SKILL.md",
-      "digest": "88ec466e41861b74f6aa035fb9aa320c11957412ed40e5aa4ec85b1b03aab6fa"
+      "digest": "e9f33c9f186dc12de60286f3d968d4133eeddaf117f54f8f8f62a4dbccac60e0"
     },
     {
       "id": "skill/plan-grooming-idea-briefs",
@@ -140,22 +225,22 @@
     {
       "id": "skill/programming-elixir",
       "path": ".agents/skills/programming-elixir/SKILL.md",
-      "digest": "558809e833f366bf0925f5ae349777ad735aa418ee69b20a5ba5103eef314850"
+      "digest": "e8858331b336c1063c68c7ddab4d31c1452fb31f223be7cfbb2499e076cb6940"
     },
     {
       "id": "skill/programming-javascript",
       "path": ".agents/skills/programming-javascript/SKILL.md",
-      "digest": "57430b0a6e9b0d3da770f5740dc7f81a5184bd6bedad599ba51837c64f911d0f"
+      "digest": "c17d04590f6d7a7658db5783fcc7ad4cc900efe6634b5be5568b23a85ddb3b36"
     },
     {
       "id": "skill/programming-shell",
       "path": ".agents/skills/programming-shell/SKILL.md",
-      "digest": "7667dc1d1443539795bc233c7f3174bb0674ad4e86f60e703e7037af1d7fea98"
+      "digest": "99ccbd5d699748d3123cdf70e1253e74aad04fd1dd9b894e80a6546c23d72920"
     },
     {
       "id": "skill/programming-typescript",
       "path": ".agents/skills/programming-typescript/SKILL.md",
-      "digest": "c51a3bf1e835daa0f6a3c6bac847ccc3246bd537a184273814a4e0be077d28aa"
+      "digest": "eb323aea903764f122595abdbd4a7e0f465a6a67c4a5379c26adde934a31caf7"
     },
     {
       "id": "skill/tooling-nx",
@@ -165,7 +250,7 @@
     {
       "id": "instruction",
       "path": "AGENTS.md",
-      "digest": "255b109c29950e42404b9d36551fd138e41cf44686daae6db859a2e44b337a18"
+      "digest": "a153551f94799227bcc1ed981b29cb46e8551cdb28cbd12eccbb55b958014927"
     }
   ]
 }

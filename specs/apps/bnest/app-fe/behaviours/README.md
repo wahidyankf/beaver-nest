@@ -9,7 +9,7 @@ Unit implements every scenario. A scenario may omit Integration, E2E, or both on
 fundamentally cannot express the behaviour, using independently documented `@integration-exempt` and `@e2e-exempt`
 tags from the repository [BDD standard](../../../../../repo-governance/development/behaviour-driven-development.md).
 Binding counts are necessary but not sufficient; adapter changes require the
-[manual implementation review](../../../../../repo-governance/workflows/gherkin-implementation-review.md).
+[manual implementation review](../../../../../repo-governance/workflows/quality/gherkin-implementation-review.md).
 
 ## Directory Map
 
