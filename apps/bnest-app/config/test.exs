@@ -120,11 +120,22 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
 
   config :bnest_app, storage_profile: {:test, run_id}
 else
+  # The unit layer never resolves the real `~/.config/bnest/storage.json` pointer, which names
+  # the production database: its pointer path is absent under the run's own test directory,
+  # so storage falls back to that run's isolated default.
+  unit_run_id =
+    System.get_env("BNEST_TEST_RUN_ID") ||
+      "unit-" <>
+        (:crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false) |> String.downcase())
+
   config :bnest_app,
     runtime_root: nil,
     test_sqlite_root: nil,
-    storage_config_path: nil,
+    storage_config_path:
+      Path.expand("~/bnest/data/test/runs/#{unit_run_id}/storage-config/storage.json"),
     test_runtime_owned: false
+
+  config :bnest_app, storage_profile: {:test, unit_run_id}
 
   # The unit layer hashes, notifies and revokes through in-memory doubles; the identity
   # store stays the record-backed one, which unit tests point at in-memory record stores.
