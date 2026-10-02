@@ -536,32 +536,54 @@ Every context phase runs the same nine items, in this order, with the context's 
 - [x] [AI] Gherkin implementation review, recorded.
   - 2026-10-02: 54 rows, none failing because of U10. U9's F10 and F14 pass. N1 (the one-hour ceiling, a product
     defect) and N2 are fixed in U10, and N3 moves to U11. Recorded in [learnings](learnings.md) E10.
-- [ ] [AI] Commit, PR, leak review, gate, merge.
-- [ ] [AI] **Checkpoint 10 (blocking):** U10 merged.
+- [x] [AI] Commit, PR, leak review, gate, merge.
+  - 2026-10-02: PR #126 merged as `753af36fa`; three commits (the refactor, the ceiling fix, the plan record),
+    leak review pass on the merged head.
+- [x] [AI] **Checkpoint 10 (blocking):** U10 merged.
+  - 2026-10-02: U10 on `main`; `@legacy_exports` holds 8 entries.
 
 ### Phase 11: U11, Scheduler
 
-- [ ] [AI] RED (boundary): `lib/bnest_app/scheduler/{domain,ports,adapters}.ex`; `TYPECHECK` and the scan fail.
-- [ ] [AI] RED (contract): `test/support/contracts/schedule_store_contract.ex` (claims, retries, due computation
+- [x] [AI] RED (boundary): `lib/bnest_app/scheduler/{domain,ports,adapters}.ex`; `TYPECHECK` and the scan fail.
+  - 2026-10-02: base `248ee9c39`, captured before any caller moved. `TYPECHECK` exit 1 with 46 forbidden
+    references over 12 edges. The scan passed, as in U5: no Scheduler module broke L1, L2 or L4 before the move,
+    so the boundary RED is `TYPECHECK` alone.
+- [x] [AI] RED (contract): `test/support/contracts/schedule_store_contract.ex` (claims, retries, due computation
       inputs, daily update), used by `test/unit/bnest_app/scheduler/in_memory_schedule_store_test.exs`. `FOCUS_UNIT`
       fails. AC-DH-07.
-- [ ] [AI] GREEN (contract): `test/unit/support/in_memory/schedule_store.ex` until `FOCUS_UNIT` passes.
-- [ ] [AI] GREEN (layers): the U11 moves. Add the `Ports.Task` behaviour; the task map and tick handlers come from
+  - 2026-10-02: 15 failures, each `UndefinedFunctionError` on `InMemory.ScheduleStore.start/0`.
+- [x] [AI] GREEN (contract): `test/unit/support/in_memory/schedule_store.ex` until `FOCUS_UNIT` passes.
+  - 2026-10-02: `FOCUS_UNIT` exit 0, 0 failures.
+- [x] [AI] GREEN (layers): the U11 moves. Add the `Ports.Task` behaviour; the task map and tick handlers come from
       configuration; the `*_for_test!` seams and `put_test_schedule/5` move to `test/integration/support/seeds/schedules.ex`,
       and `apps/bnest-app-fe-e2e/tests/support/scheduled-backups.ts` calls `BnestApp.Test.Seeds.Schedules`;
       `PushNotifications.Adapters.RetentionTask` declares `@behaviour BnestApp.Scheduler.Ports.Task`; `backup/run.ex` and
       `release/migrations/family_chat.ex` call `Scheduler.complete_run/4`, `skip_run/4`, `active_attempt?/3`,
       `activate_if_pristine!/2` and `registered_handler/1`;
       `AdminScheduleSettingsLive` calls only facades. `TYPECHECK` and the scan pass.
-- [ ] [AI] GREEN (contract, real adapter): `FOCUS_INT test/integration/bnest_app/scheduler/sqlite_schedule_store_test.exs`
+  - 2026-10-02: `TYPECHECK` exit 0 with no forbidden reference; the scan passes. `@legacy_exports` holds 3 entries.
+    Schedule rows store only the handler key, so the task map moved to configuration with no data step.
+    As-built differences are in [learnings](learnings.md) E11.
+- [x] [AI] GREEN (contract, real adapter): `FOCUS_INT test/integration/bnest_app/scheduler/sqlite_schedule_store_test.exs`
       passes. AC-DH-07.
-- [ ] [AI] GREEN (drivers): `test/unit/support/home_page_driver.ex` and `test/unit/support/family_chat_driver.ex` use the facade with in-memory adapters, and the
+  - 2026-10-02: exit 0; the 13 contract tests pass against `SqliteScheduleStore` on an isolated database.
+- [x] [AI] GREEN (drivers): `test/unit/support/home_page_driver.ex` and `test/unit/support/family_chat_driver.ex` use the facade with in-memory adapters, and the
       `test/behaviour/verify.exs` allow-list loses its U11 lines. `UNIT` and `BEHAVIOUR` pass.
-- [ ] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
-- [ ] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty.
-- [ ] [AI] Focused e2e for the changed support: `FE_E2E` with `-- --grep "Bnest scheduled backups"` appended.
+  - 2026-10-02: `UNIT` 561 tests, 0 failures, 99.42%; two extra random seeds pass. `BEHAVIOUR` exit 0. The
+    allow-list keeps only three lines labelled U12. After the review fixes and the two `fix` commits (E11), 563
+    tests, 0 failures, 99.42%.
+- [x] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
+  - 2026-10-02: both exit 0.
+- [x] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty.
+  - 2026-10-02: 399 tests, 0 failures, 16 excluded, also on the final head; `FEATURE_DIFF 248ee9c39` empty.
+- [x] [AI] Focused e2e for the changed support: `FE_E2E` with `-- --grep "Bnest scheduled backups"` appended.
       Proof: pass count recorded.
-- [ ] [AI] Gherkin implementation review of the changed drivers and e2e support, recorded.
+  - 2026-10-02: `FE_E2E` 137 passed for "Bnest scheduled backups" and "Family chat room"; `BE_E2E` 7 passed
+    for the scheduled backup and family chat titles.
+- [x] [AI] Gherkin implementation review of the changed drivers and e2e support, recorded.
+  - 2026-10-02: 54 rows, none failing because of U11. U9's F11 and U10's N3 pass. N1–N3 and N6 (push retention
+    never completed its run, a product defect) are fixed in U11; N4 moves to U12 and N5 to U13. Recorded in
+    [learnings](learnings.md) E11, with the test-backup isolation fix.
 - [ ] [AI] Commit, PR, leak review, gate, merge.
 - [ ] [AI] **Checkpoint 11 (blocking):** U11 merged.
 

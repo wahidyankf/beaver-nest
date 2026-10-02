@@ -480,3 +480,62 @@ Resolution: applied in U9; 002, 004 and 006 stay as authored, and this entry rec
     - the G35–G41 e2e exemption reason reads as redundancy rather than a boundary mismatch.
 
 Resolution: applied in U10; 002, 004 and 006 stay as authored, and this entry records the as-built difference.
+
+### E11: U11 Scheduler as built (2026-10-02)
+
+- **The task map and tick handlers are configuration.**
+  - `config :bnest_app, BnestApp.Scheduler, tasks:` maps each handler key to its task module, label, context, settings
+    key and timezone. `TaskRegistry` reads it.
+  - `tick_handlers:` names `{BnestApp.PushNotifications, :dispatch_all_due!, []}`, so `scheduler.ex` names no other
+    context.
+  - Schedule rows store only the handler key, so no data step was needed.
+  - The `"fixture"` family task stays in the shared configuration because the base registry shipped it. U13/U14 decide
+    whether it moves to test configuration.
+- **`Scheduler.Ports.Task` is enforced.** Every task declares it, and `dependency_test.exs` checks this.
+  `registered_handler/1` returns `{:ok, module}` or `:error`; the FamilyChat release migration checks the retention
+  task through it.
+- **The lease-renewal interval is configuration** (`lease_renewal_interval_ms`, still 60 s). Once `Run` left the
+  legacy coverage group, its renewal and rescue branches counted toward coverage, so a unit test exercises them.
+- **Test seams moved to test code.** `BnestApp.Test.Seeds.Schedules` (`test/integration/support/seeds/schedules.ex`)
+  holds the former `*_for_test!` seams and `put_test_schedule/5` with byte-identical SQL. The end-to-end servers run
+  `MIX_ENV=test`, which compiles `test/integration/support`, and reach it through `mix run -e`. The unused
+  `force_daily_time_for_test!` was dropped.
+- **`Domain.Policy` gained `setup_claim_key/1`, `valid_destination_id?/1` and `daily_edit/2`.** Setup-claim
+  validation and the admin edit moved out of `AdminScheduleSettingsLive` into the facade.
+- **Handler Thens observe invocation by BEAM call tracing.** `test/support/call_trace.ex` and `scheduler_dispatch.ex`
+  record which configured task's `execute/2` ran, how often, for which run, and which calls it made, including that it
+  made no `SqliteRepo` call. Tracing is global, so both behaviour layers stay serial. A SQL call through
+  `Ecto.Adapters.SQL` or in tail position could slip past the trace; the `dependency_test.exs` source scan covers it.
+- **Unit "Bnest starts again" converges through `Scheduler.converge_backup_time!`** rather than the release
+  migrations, which need SQLite; integration still runs the real start. Unit O12 still runs the real `Backup.Run` over
+  SQLite through the U12 legacy selection.
+- **A moved test kept a stale relative path.** `persistent_schedules_migration_test.exs` pointed one directory short
+  after its move; moved tests must recompute `__DIR__`-relative paths.
+- **Gherkin review: 54 rows, 28 PASS, 16 EXEMPT, 10 FAIL, none introduced by U11.** U9's F11 and U10's N3 (O12, O13)
+  now pass at both layers. Of the rest:
+  - **Fixed in U11:**
+    - N1 (unit O19) now runs the backup through the Scheduler under the forced timeout;
+    - N2 (S8 at both layers) observes the shared coordinator dispatch the run;
+    - N3 (integration S4) seeds more than one missed slot.
+    - N6, a product defect: push retention never recorded its scheduled run as complete. Each daily run was
+      lease-recovered and rerun until it failed at the attempt limit, and the admin page showed a failure. This
+      contradicted the `Ports.Task` contract and family-chat tech-doc 009. The task now completes its run with an
+      empty receipt. It is U11's only behaviour change, in its own `fix` commit.
+  - **Moved to U12:** N4, the unit backup Thens that assert driver-built values (S1, S2, S5, S7).
+- **Test backups reached the production backup directory (pre-existing, fixed in U11).**
+  - With `BNEST_BACKUP_CONFIG` unset, `Backup.Config.config_path/0` fell back to the real
+    `~/.config/bnest/backup.json`. Its destination is the production backup directory.
+  - Behaviour scenarios that ran a backup without their own configuration wrote there. Read-only inspection found
+    two verified artifacts with `bdd-` schedule keys and dozens of test-sized `.partial` files dating from 2026-09-18.
+    The integration restart scenario's wall-clock tick is one path.
+  - The path now falls back to an application setting first, and `config/test.exs` points it at each run's
+    isolated test root. A unit test proved the real path before the fix and the test path after. The gate run
+    after the fix left the production backup directory unchanged.
+  - The fix is its own commit, first in U11. Removing the test files from the production directory is destructive
+    and waits for the user's approval.
+  - **Lesson:** every configuration path that defaults to a real home-directory file needs a test-environment
+    default, not only an environment variable that each scenario must remember to set.
+  - **Moved to U13:** N5, the contextual schedule Thens (F1 at unit and integration).
+  - **For U14:** `specs/apps/bnest/app-be/architecture.md` still names `Scheduler.Registry` and `RetentionJob`.
+
+Resolution: applied in U11; 002, 004 and 006 stay as authored, and this entry records the as-built difference.
