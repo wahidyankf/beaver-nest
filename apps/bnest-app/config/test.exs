@@ -128,11 +128,22 @@ else
       "unit-" <>
         (:crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false) |> String.downcase())
 
+  # A headless CLI scenario may opt into production's default pointer location
+  # (`~/.config/bnest/storage.json`) with `BNEST_TEST_DEFAULT_POINTER=1`, honoured only when
+  # HOME itself lies under the system temporary directory, so that location is a scratch
+  # file and the operator's real pointer can never be resolved.
+  scratch_default_pointer? =
+    System.get_env("BNEST_TEST_DEFAULT_POINTER") == "1" and
+      String.starts_with?(Path.expand("~"), Path.expand(System.tmp_dir!()) <> "/")
+
   config :bnest_app,
     runtime_root: nil,
     test_sqlite_root: nil,
     storage_config_path:
-      Path.expand("~/bnest/data/test/runs/#{unit_run_id}/storage-config/storage.json"),
+      if(scratch_default_pointer?,
+        do: nil,
+        else: Path.expand("~/bnest/data/test/runs/#{unit_run_id}/storage-config/storage.json")
+      ),
     test_runtime_owned: false
 
   config :bnest_app, storage_profile: {:test, unit_run_id}
