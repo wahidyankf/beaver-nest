@@ -25,10 +25,25 @@ defmodule BnestAppWeb.BootstrapController do
     end
   end
 
+  @doc false
+  # The form posts its account cards as `accounts[<index>][...]`, so the decoded map is
+  # keyed by the index text. Cards keep the form's order: keys order by their numeric
+  # index, not as text, and a key that is not an index orders after every card.
+  def ordered_account_params(params) do
+    Enum.sort_by(params, fn {key, _value} -> card_position(key) end)
+  end
+
+  defp card_position(key) do
+    case Integer.parse(key) do
+      {index, ""} when index >= 0 -> {0, index, key}
+      _not_an_index -> {1, 0, key}
+    end
+  end
+
   defp decode_accounts(params) when is_map(params) do
     accounts =
       params
-      |> Enum.sort_by(fn {key, _value} -> key end)
+      |> ordered_account_params()
       |> Enum.map(fn {_key, account} ->
         %{
           "username" => account["username"],
@@ -91,7 +106,7 @@ defmodule BnestAppWeb.BootstrapController do
 
   defp safe_setup_draft(params) when is_map(params) do
     params
-    |> Enum.sort_by(fn {key, _value} -> key end)
+    |> ordered_account_params()
     |> Enum.flat_map(fn
       {_key, account} when is_map(account) ->
         [
