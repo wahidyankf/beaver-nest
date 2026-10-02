@@ -4,7 +4,8 @@ defmodule BnestApp.Test.SchedulerDispatch do
   behaviour drivers: `claim_and_dispatch/2` claims due work through the `BnestApp.Scheduler`
   facade and runs the schedule's claimed run through it, as the coordinator's tick does,
   while `BnestApp.Test.CallTrace` records every registered task's `execute/2`, every call
-  into the public services those tasks reach, and every call into the SQLite repository.
+  into the public services those tasks reach, every run they record complete through the
+  facade's `complete_run/4`, and every call into the SQLite repository.
   The predicates then read what ran from that record, never from the task registry alone.
   `coordinate/2` observes the coordinator itself claiming and running due work instead.
   """
@@ -137,7 +138,9 @@ defmodule BnestApp.Test.SchedulerDispatch do
   @doc """
   Whether the task that ran delegated to `service`: it called the service's public functions,
   each of which returned the service's `{:ok, result}`, the task itself returned
-  `{:ok, result}`, and the task's own code made no call into the SQLite repository.
+  `{:ok, result}`, and the task's own code made no call into the SQLite repository. As the
+  Scheduler's task behaviour requires, the task also recorded its claimed run complete
+  through the Scheduler facade, which the schedule store accepted.
   """
   @spec delegated_without_sql?(observation(), module()) :: boolean()
   def delegated_without_sql?(seen, service) do
@@ -151,11 +154,26 @@ defmodule BnestApp.Test.SchedulerDispatch do
             results != [] and Enum.all?(results, &match?({:ok, _effect}, &1))
           end) and
           Enum.all?(CallTrace.results(seen.events, task, :execute), &match?({:ok, _}, &1)) and
-          CallTrace.calls_by(seen.events, task, BnestApp.SqliteRepo) == []
+          CallTrace.calls_by(seen.events, task, BnestApp.SqliteRepo) == [] and
+          completed_its_run?(seen, task)
 
       _none_or_several ->
         false
     end
+  end
+
+  # The task's own `Scheduler.complete_run/4` calls name its claimed run and attempt, and
+  # each returned `:ok`: the store recorded that attempt verified.
+  defp completed_its_run?(%{claimed: %{run_id: run_id, attempt: attempt}} = seen, task) do
+    completions =
+      for {^task, [^run_id, ^attempt, _receipt, _now]} <-
+            CallTrace.calls(seen.events, Scheduler, :complete_run),
+          do: :completed
+
+    results = CallTrace.results(seen.events, Scheduler, :complete_run)
+
+    completions != [] and length(results) == length(completions) and
+      Enum.all?(results, &(&1 == :ok))
   end
 
   # Each registered task's `execute/2` call, with the run it was given.
@@ -171,7 +189,7 @@ defmodule BnestApp.Test.SchedulerDispatch do
   defp watched(tasks) do
     Enum.map(tasks, &{{&1, :execute, 2}, results: true}) ++
       Enum.map(@services, &{{&1, :_, :_}, results: true}) ++
-      [{{BnestApp.SqliteRepo, :_, :_}, []}]
+      [{{Scheduler, :complete_run, 4}, results: true}, {{BnestApp.SqliteRepo, :_, :_}, []}]
   end
 
   # Every process the supervisor runs ends: a claimed run when its task returns.
