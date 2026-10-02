@@ -585,3 +585,32 @@ Resolution: applied in U11; 002, 004 and 006 stay as authored, and this entry re
     - U-O18 skips the 2 s per-sample bound, and U-O19 probes before the backup rather than during it.
 
 Resolution: applied in U12; 002, 004 and 006 stay as authored, and this entry records the as-built difference.
+
+### E13: U13 Operations as built (2026-10-02)
+
+- **Health reads SQLite reachability through the Scheduler facade.** 002 names a Storage health probe that does not
+  exist, so `Operations.health/0` matches `Scheduler.get_schedule/1` on the backup schedule's handler and expiration
+  instead of a raw `COUNT`. The schedule store's transient retry and row parsing are the only edge differences; any
+  raise still reports `:sqlite_not_ready`, and the controller still returns 503 `{"status":"not_ready"}`.
+- **Defaults moved to the facade.** The `ReleaseEnvironment` port returns raw values, `nil` when unset, and the facade
+  applies `"development"` and `"standalone"`; an empty value behaves as before. The readiness process list is a facade
+  attribute, and the facade exports only `Ports`.
+- **Panel owners stay context facade atoms** (`BnestApp.Storage`, `BnestApp.Backup`), as the spec requires, rather than
+  002's context names, so `data-config-owner` renders unchanged.
+- **Legacy lists.** `@legacy_exports` and `@legacy_modules` are empty but still declared, and the empty `legacy_core`
+  coverage list is gone from `mix.exs`. U14 deletes the attributes and the remaining `BnestApp` deps of the web, CLI and
+  application boundaries.
+- **Gherkin review: 9 rows, 7 PASS, 1 EXEMPT, 1 FAIL, none introduced by U13.**
+  - **Fixed in U13:** N5 (F1 contextual schedules) at unit and integration, which now persist schedules and read the
+    rendered rows per group; and N2 (F3 allowlisted fields) at unit and integration, which drive the Storage, Backup and
+    Scheduler facades with forged input and read the stored state back. Eight mutants each failed the intended Then.
+  - **Moved to U14:** the e2e part of N2. The frontend e2e support still asserts static attributes only.
+  - **Non-blocking, for U14:** the integration "from home" Whens request the route directly; the F1 safe-status check
+    covers only the family row; no shared contract runs both release-environment adapters.
+- **The `"fixture"` task stays in production configuration.** Moving it to test configuration is safe only after a
+  read-only check confirms no production schedule row names `fixture` as its handler, since the Scheduler could
+  otherwise not resolve that row. U14 or a later change decides, with the owner's approval for the production read.
+- **The curl server ran as a background task**, because the shell guard refuses tmux commands that carry a command
+  string. It used an isolated run root and a leased port, and was stopped afterwards.
+
+Resolution: applied in U13; 002, 004 and 006 stay as authored, and this entry records the as-built difference.
