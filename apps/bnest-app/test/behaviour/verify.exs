@@ -16,16 +16,11 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
   ]
 
   # The unit layer drives contexts through their facades and in-memory adapters only.
-  # Checked line by line so the temporary allow-list below can name exact lines.
+  # Checked line by line so each violation names its exact line.
   @unit_forbidden_lines [
     {~r/\bBnestApp\.SqliteRepo\b/u, "the SQLite repository"},
     {~r/\.Adapters\.(?!InMemory)/u, "a non-in-memory adapter"}
   ]
-
-  # Unit lines allowed to reach SQLite, each as `{file, line, unit}` with the unit that
-  # removes it. None remain: Family Chat has been in memory at this layer since U9,
-  # PushNotifications since U10, the Scheduler since U11 and Backup since U12.
-  @unit_legacy_lines []
 
   # Integration owns a loopback socket it starts and stops; the layer is bounded by its
   # observation point, not by socket permission, so only non-loopback reach and browser
@@ -58,8 +53,7 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
             "test/behaviour/steps/**/*.exs",
             "test/behaviour/support/unit.exs"
           ],
-          @unit_forbidden_lines,
-          @unit_legacy_lines
+          @unit_forbidden_lines
         ) ++
         violations(
           [
@@ -89,14 +83,11 @@ defmodule BnestApp.Behaviour.BoundaryPolicy do
     |> Enum.flat_map(fn file -> violations_in(file, File.read!(file), forbidden, layer) end)
   end
 
-  defp line_violations(patterns, forbidden, allowed) do
-    allowed = MapSet.new(allowed, fn {file, line, _unit} -> {file, line} end)
-
+  defp line_violations(patterns, forbidden) do
     for file <- Enum.flat_map(patterns, &Path.wildcard/1),
         {line, number} <- file |> File.read!() |> String.split("\n") |> Enum.with_index(1),
         {pattern, boundary} <- forbidden,
         Regex.match?(pattern, line),
-        not MapSet.member?(allowed, {file, String.trim(line)}),
         do: "#{file}:#{number} uses forbidden unit #{boundary}: #{String.trim(line)}"
   end
 
