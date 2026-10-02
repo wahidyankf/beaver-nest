@@ -1,8 +1,8 @@
 defmodule BnestApp.Storage.Domain.FlatMigration do
   @moduledoc """
   The rules of the one-time flat-file to SQLite migration: which source files it carries,
-  their order, how each source is judged, and the run's resulting state. The SQLite
-  migration adapter reads the files and records the outcomes.
+  their order, how each source is judged, the checksums that make a run's evidence, and the
+  run's resulting state. `BnestApp.Storage.Migration` applies them over the Storage ports.
   """
 
   alias BnestApp.Storage.Domain.CanonicalJson
@@ -19,6 +19,45 @@ defmodule BnestApp.Storage.Domain.FlatMigration do
 
   @spec order_inventory([String.t()]) :: [String.t()]
   def order_inventory(relative_paths), do: Enum.sort(relative_paths)
+
+  @doc "The supported sources among `relative_paths`, in migration order."
+  @spec inventory([String.t()]) :: [String.t()]
+  def inventory(relative_paths) do
+    relative_paths
+    |> Enum.filter(&match?({:ok, _classification}, classify_source(&1)))
+    |> order_inventory()
+  end
+
+  @doc "The fingerprint of an inventory: each source path with its checksum, in order."
+  @spec source_fingerprint([{String.t(), binary()}]) :: String.t()
+  def source_fingerprint(sources) do
+    sources
+    |> Enum.map_join("\n", fn {relative_path, bytes} -> relative_path <> ":" <> sha256(bytes) end)
+    |> sha256()
+  end
+
+  @doc "The checksum of the committed schema migration sources, given in version order."
+  @spec ddl_checksum([binary()]) :: String.t()
+  def ddl_checksum(schema_sources), do: schema_sources |> Enum.join() |> sha256()
+
+  @doc """
+  How a pass treats a source, given the item an earlier pass recorded for it: an accepted
+  item with the same checksum is reused, an accepted item whose source changed is blocked,
+  and anything else is judged again.
+  """
+  @spec resume_decision(map() | nil, String.t()) :: :reuse | :changed | :assess
+  def resume_decision(%{outcome: "accepted", source_sha256: source_sha256}, source_sha256),
+    do: :reuse
+
+  def resume_decision(%{outcome: "accepted"}, _source_sha256), do: :changed
+  def resume_decision(_recorded_item, _source_sha256), do: :assess
+
+  @doc "Whether a stored legacy recovery payload is exactly the source's bytes."
+  @spec recovery_matches?(map() | nil, binary()) :: boolean()
+  def recovery_matches?(%{payload: bytes, payload_sha256: stored_sha256, byte_size: size}, bytes),
+    do: stored_sha256 == sha256(bytes) and size == byte_size(bytes)
+
+  def recovery_matches?(_stored, _source_bytes), do: false
 
   @doc "Classifies a source path as a record, a legacy recovery payload, or unsupported."
   @spec classify_source(String.t()) ::

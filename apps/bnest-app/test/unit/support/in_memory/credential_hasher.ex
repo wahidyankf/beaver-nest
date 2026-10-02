@@ -3,11 +3,13 @@ defmodule BnestApp.Test.InMemory.CredentialHasher do
   A deterministic `BnestApp.Identity.Ports.CredentialHasher` for the unit layer. Its verifier
   is a SHA-256 digest of a fixed salt and the password, so it never holds the plaintext, but
   it is no password hash: only the Argon2id adapter is, and the integration layer proves it.
+  The verifier carries the stored Argon2id prefix, so an account it made passes the record
+  schema a migration or a rollback reader applies.
   """
 
   @behaviour BnestApp.Identity.Ports.CredentialHasher
 
-  @prefix "$in-memory$"
+  @prefix "$argon2id$in-memory$"
 
   @impl true
   def hash(password) when is_binary(password), do: {:ok, @prefix <> digest(password)}

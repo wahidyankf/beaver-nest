@@ -14,12 +14,6 @@ defmodule BnestApp.Storage.Adapters.LocalMaintenance do
   alias BnestApp.Storage.Adapters.SqliteRelocation
   alias BnestApp.Storage.Adapters.TestDataCleanup
 
-  @impl true
-  def run_migration(flat_root), do: SqliteMigration.run(flat_root)
-
-  @impl true
-  def migration_blocked?, do: SqliteMigration.blocked?()
-
   # A fresh database has no migration tables yet, and an unreachable one cannot have started a
   # migration, so both read as "not started".
   @impl true
@@ -42,9 +36,6 @@ defmodule BnestApp.Storage.Adapters.LocalMaintenance do
   end
 
   @impl true
-  def parity_ok?(flat_root), do: SqliteMigration.parity_ok?(flat_root)
-
-  @impl true
   def integrity_ok?, do: SqliteMigration.integrity_ok?()
 
   @impl true
@@ -57,9 +48,6 @@ defmodule BnestApp.Storage.Adapters.LocalMaintenance do
 
     SqliteMigration.restore_rehearsal(destination)
   end
-
-  @impl true
-  def activate_sqlite!, do: SqliteMigration.activate!()
 
   @impl true
   def relocate(directory), do: SqliteRelocation.run(directory)
