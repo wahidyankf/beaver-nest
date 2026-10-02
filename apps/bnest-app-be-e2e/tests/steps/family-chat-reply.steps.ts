@@ -13,10 +13,17 @@ import { login } from "../support/authentication";
 import {
   requireCatchUp,
   requireIdentity,
+  requireResponse,
   scenario,
 } from "../support/family-chat-state";
 import { isolatedTestIdentity } from "../support/test-identity";
-import { postGraphQl, sendFamilyChatMessage } from "../support/graphql";
+import { sendFromPage, sentMessage } from "../support/family-chat-messages";
+import {
+  newestFamilyChatMessageId,
+  pageNodes,
+  postGraphQl,
+  sendFamilyChatMessage,
+} from "../support/graphql";
 import { familyChatSubscriptionEvents } from "../support/subscriptions";
 
 const { Given, Then, When } = createBdd();
@@ -147,33 +154,33 @@ Given(
 );
 
 Then("the response includes that reply", () => {
-  const nodes = requireCatchUp().data?.familyChatMessages.nodes ?? [];
+  const nodes = pageNodes(requireCatchUp());
   expect(nodes.some((node) => node.id === scenario.replyId)).toBe(true);
 });
 
 Then("that reply carries a quote naming the message it answers", () => {
-  const nodes = requireCatchUp().data?.familyChatMessages.nodes ?? [];
+  const nodes = pageNodes(requireCatchUp());
   const reply = nodes.find((node) => node.id === scenario.replyId);
   expect(reply, "expected the reply in the catch-up page").toBeDefined();
   expect(reply?.replyTo?.id).toBe(scenario.replyTargetId);
 });
 
-// --- A rejected reply target publishes no event --------------------------
+// --- A reply target the server cannot honour ----------------------------
 //
-// The unit layer drains its own mailbox to prove this; here the subscriber
-// is a real socket, so the proof is that nothing arrives on it while the
-// rejection comes back on the HTTP response.
-
-let rejection: Awaited<ReturnType<typeof sendFamilyChatMessage>>;
+// Shared by the rejected-target outline and the subscription scenario: the
+// refusal comes back on the HTTP response, the room commits nothing after the
+// baseline taken just before the send, and a real socket that subscribed
+// before the send receives nothing (the unit layer drains its own mailbox).
 
 When(
   "the user sends a family chat reply whose reply target names a server ID no message has",
   async ({ page }) => {
+    scenario.baselineId = await newestFamilyChatMessageId(page);
     scenario.clientMessageId = randomUUID();
-    rejection = await sendFamilyChatMessage(
+    scenario.knownBody = `Balasan ke pesan yang tidak ada ${scenario.clientMessageId}`;
+    await sendFromPage(
       page,
-      page.context().request,
-      "Balasan ke pesan yang tidak ada",
+      scenario.knownBody,
       scenario.clientMessageId,
       // Far beyond any seeded row, and a valid positive integer, so the
       // refusal can only come from the target not existing.
@@ -183,26 +190,22 @@ When(
 );
 
 Then("the response reports a validation failure", () => {
+  const response = requireResponse();
   expect(
-    rejection.errors,
+    response.errors?.map((error) => error.extensions?.["code"]),
     "expected the send to be refused, not committed",
-  ).toBeDefined();
-  expect(rejection.errors?.[0]?.extensions?.["code"]).toBe("VALIDATION_FAILED");
-  expect(rejection.data?.sendFamilyChatMessage ?? null).toBeNull();
+  ).toEqual(["VALIDATION_FAILED"]);
+  expect(sentMessage()).toBeNull();
 });
 
 Then("no committed-message event is published", async ({ page }) => {
   // Give a push that should not happen time to arrive before concluding it
   // did not: asserting immediately would pass even on an implementation
-  // that publishes a moment later.
+  // that publishes a moment later. The socket subscribed just before the
+  // refused send, and nothing else commits in between, so it holds nothing.
   await page.waitForTimeout(1000);
-  const events = (await familyChatSubscriptionEvents(page)) as {
-    result: { data: { familyChatMessageCommitted: { body: string } } };
-  }[];
-  const forRejected = events.filter(
-    (event) =>
-      event.result.data.familyChatMessageCommitted.body ===
-      "Balasan ke pesan yang tidak ada",
-  );
-  expect(forRejected, "a refused reply must publish nothing").toHaveLength(0);
+  expect(
+    await familyChatSubscriptionEvents(page),
+    "a refused reply must publish nothing",
+  ).toEqual([]);
 });

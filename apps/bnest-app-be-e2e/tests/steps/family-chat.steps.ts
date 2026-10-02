@@ -9,6 +9,7 @@ import {
 } from "../support/family-chat-state";
 import { isolatedTestIdentity } from "../support/test-identity";
 import {
+  pageNodes,
   postGraphQl,
   queryFamilyChatMessagesAfter,
   sendFamilyChatMessage,
@@ -19,14 +20,14 @@ import {
   familyChatSubscriptionEvents,
 } from "../support/subscriptions";
 
-// Only the four family_chat_graphql.feature scenarios that a live Absinthe
-// subscription push actually requires -- the original pair, and the reply
-// plan's pair proving a quote survives both arrival paths (the live push and
-// the afterId catch-up). Every other scenario in that file carries
-// @e2e-exempt, proven instead through bnest-app:test:integration; see the
-// exemption comments in the feature file itself. The one
-// family_chat_operations.feature scenario bound at this layer lives in
-// family-chat-operations.steps.ts.
+// The family_chat_graphql.feature scenarios a live Absinthe subscription push
+// requires -- the original pair here, and the reply plan's pair proving a
+// quote survives both arrival paths (the live push and the afterId catch-up)
+// in family-chat-reply.steps.ts. The feature's other scenarios are bound in
+// family-chat-queries, -send, -quote, -web-push and -session.steps.ts; the
+// few that carry @e2e-exempt name their boundary mismatch in the feature
+// file. The one family_chat_operations.feature scenario bound at this layer
+// lives in family-chat-operations.steps.ts.
 
 const { After, Given, Then, When } = createBdd();
 
@@ -213,7 +214,7 @@ When(
 Then(
   "the response includes the message committed before the subscription started",
   () => {
-    const nodes = requireCatchUp().data?.familyChatMessages.nodes ?? [];
+    const nodes = pageNodes(requireCatchUp());
     expect(nodes.some((node) => node.id === scenario.serverMessageId)).toBe(
       true,
     );
