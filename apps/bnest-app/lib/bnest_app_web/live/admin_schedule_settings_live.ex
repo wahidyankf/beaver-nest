@@ -5,9 +5,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
 
   alias BnestApp.AdminConfig.Registry, as: AdminConfigRegistry
   alias BnestApp.Backup.Config, as: BackupConfig
-  alias BnestApp.Scheduler.Registry, as: SchedulerRegistry
-  alias BnestApp.Scheduler.Run
-  alias BnestApp.Scheduler.Store
+  alias BnestApp.Scheduler
 
   @schedule_key "prod-sqlite-backup-daily"
 
@@ -23,7 +21,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
 
   @impl true
   def handle_event("save_schedule", %{"schedule" => params}, socket) do
-    case Store.update_daily(@schedule_key, params, DateTime.utc_now()) do
+    case Scheduler.update_daily(@schedule_key, params, DateTime.utc_now()) do
       {:ok, _schedule} ->
         {:noreply,
          socket
@@ -40,9 +38,9 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
     case BackupConfig.save(directory) do
       {:ok, location} ->
         {:ok, claim} =
-          Store.claim_setup(@schedule_key, location.destination_id, DateTime.utc_now())
+          Scheduler.claim_setup(@schedule_key, location.destination_id, DateTime.utc_now())
 
-        dispatch(claim)
+        _task = Scheduler.run_now(claim)
 
         {:noreply,
          socket
@@ -169,7 +167,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
 
   defp settings_path(schedule) do
     with {:ok, %{settings_key: settings_key}} when is_binary(settings_key) <-
-           SchedulerRegistry.fetch(schedule.handler_key),
+           Scheduler.task_entry(schedule.handler_key),
          {:ok, %{path: path}} <- AdminConfigRegistry.fetch(settings_key) do
       path
     else
@@ -178,8 +176,8 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
   end
 
   defp refresh(socket) do
-    inventory = Store.admin_inventory()
-    backup_schedule = Store.get_schedule(@schedule_key)
+    inventory = Scheduler.admin_inventory()
+    backup_schedule = Scheduler.get_schedule(@schedule_key)
     {:ok, backup_location} = BackupConfig.resolve()
 
     assign(socket,
@@ -194,18 +192,6 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
         backup_schedule: fallback_schedule(),
         backup_directory: BackupConfig.default_directory()
       )
-  end
-
-  defp dispatch(claim) do
-    case Process.whereis(BnestApp.Scheduler.Tasks) do
-      nil ->
-        Task.start(fn -> Run.execute(claim, DateTime.utc_now()) end)
-
-      _pid ->
-        Task.Supervisor.start_child(BnestApp.Scheduler.Tasks, fn ->
-          Run.execute(claim, DateTime.utc_now())
-        end)
-    end
   end
 
   defp schedule_label(%{handler_key: "prod_sqlite_backup"}), do: "Production database backup"

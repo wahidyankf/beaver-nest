@@ -36,6 +36,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.Storage
   alias BnestApp.Storage.Records
   alias BnestApp.Test.InMemory.PushSender, as: InMemoryPushSender
+  alias BnestApp.Test.SchedulerDispatch
+  alias BnestApp.Test.Seeds.Schedules
   alias BnestApp.TestBackupDestination
   alias BnestApp.TestRuntimeRoot
 
@@ -47,8 +49,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
             [
               BnestApp.Release.Migrations,
               BnestApp.Backup,
-              BnestAppWeb.Schema,
-              {BnestApp.Scheduler, :converge_backup_time!, 2}
+              BnestAppWeb.Schema
             ]}
 
   @endpoint BnestAppWeb.Endpoint
@@ -217,7 +218,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     )
 
     schedule_key = "test-prior-release-" <> unique_uuid()
-    :ok = Scheduler.Store.put_test_schedule(schedule_key, "family", "fixture", @behaviour_now)
+    :ok = Schedules.put_test_schedule(schedule_key, "family", "fixture", @behaviour_now)
     before_migration = prior_release_reads(schedule_key)
 
     {:ok, _room} = BnestApp.FamilyChat.migrate!()
@@ -420,16 +421,19 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # daily" is seeded only by real release/migration code (at real wall-clock
   # boot time, never necessarily due relative to `@behaviour_now`), and the
   # family-chat retention seed ships `enabled = 0` (tech-doc 002), so neither
-  # schedule was ever genuinely claimable without this.
+  # schedule was ever genuinely claimable without this. The backup task the
+  # Scheduler runs for it resolves its destination itself, so the Given also
+  # configures an isolated one.
   def prepare_behaviour(context, :schedule_due, [key]) do
-    Scheduler.Store.reset_schedule_for_test!(key, "19:00", true, @behaviour_now)
-    Scheduler.Store.force_due_for_test!(key, @behaviour_now)
+    _location = prepare_isolated_backup_config!()
+    Schedules.reset_schedule!(key, "19:00", true, @behaviour_now)
+    Schedules.force_due!(key, @behaviour_now)
     Map.put(context, :family_chat_due_schedule_key, key)
   end
 
   def prepare_behaviour(context, :schedule_due_and_enabled, [key]) do
     BnestApp.FamilyChat.ensure_ready!()
-    Scheduler.Store.force_due_for_test!(key, @behaviour_now)
+    Schedules.force_due!(key, @behaviour_now)
     Map.put(context, :family_chat_due_schedule_key, key)
   end
 
@@ -441,7 +445,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # would raise "unknown schedule" instead of genuinely exercising the CAS
   # convergence logic under test.
   def prepare_behaviour(context, :schedule_different_time, [key]) do
-    Scheduler.Store.reset_schedule_for_test!(key, "23:00", true, @behaviour_now)
+    Schedules.reset_schedule!(key, "23:00", true, @behaviour_now)
 
     Map.merge(context, %{
       family_chat_convergence_key: key,
@@ -456,12 +460,12 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # 002/`SqliteRoomStore`'s own insert: "17:15" UTC, i.e. 00:15 WIB) -- the
   # activation-CAS scenario's `Given` describes.
   def prepare_behaviour(context, :schedule_disabled_seed, [key]) do
-    Scheduler.Store.reset_schedule_for_test!(key, "17:15", false, @behaviour_now)
+    Schedules.reset_schedule!(key, "17:15", false, @behaviour_now)
     Map.put(context, :family_chat_activation_key, key)
   end
 
   def prepare_behaviour(context, :convergence_already_ran, _args) do
-    Scheduler.Store.reset_schedule_for_test!(
+    Schedules.reset_schedule!(
       "prod-sqlite-backup-daily",
       "19:00",
       true,
@@ -473,7 +477,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   end
 
   def prepare_behaviour(context, :operator_changed_schedule_time, [key]) do
-    Scheduler.Store.force_operator_edit_for_test!(key, "20:00", @behaviour_now)
+    Schedules.force_operator_edit!(key, "20:00", @behaviour_now)
 
     Map.merge(context, %{
       family_chat_convergence_key: key,
@@ -919,14 +923,16 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(context, :family_chat_idempotent_result, second_result)
   end
 
+  # Claims through the Scheduler facade and runs the claimed run through it, as
+  # the coordinator's tick does, recording which registered task ran and what it
+  # called (see `BnestApp.Test.SchedulerDispatch`).
   def perform_behaviour(context, :scheduler_claims_and_dispatches, _args) do
-    due = Scheduler.Store.claim_due(@behaviour_now)
-    claimed = Enum.find(due, &(&1.schedule_key == context[:family_chat_due_schedule_key]))
+    key = context.family_chat_due_schedule_key
 
     Map.put(
       context,
-      :family_chat_claimed,
-      claimed && Map.put(claimed, :handler_key, resolved_handler_name(claimed))
+      :family_chat_dispatch,
+      SchedulerDispatch.claim_and_dispatch(key, @behaviour_now)
     )
   end
 
@@ -940,12 +946,12 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   def perform_behaviour(context, :call_activation_operation, _args) do
     key = context.family_chat_activation_key
-    :ok = Scheduler.Store.activate_if_pristine!(key, @behaviour_now)
-    # See `Scheduler.Store.force_not_due_for_test!/2`'s own comment: this
+    :ok = Scheduler.activate_if_pristine!(key, @behaviour_now)
+    # See `BnestApp.Test.Seeds.Schedules.force_not_due!/2`'s own comment: this
     # scenario never claims the row, so it must not leave it due for a
     # later, unrelated scenario's broad `claim_due/1` sweep to steal.
-    :ok = Scheduler.Store.force_not_due_for_test!(key, @behaviour_now)
-    Map.put(context, :family_chat_result, Scheduler.Store.get_schedule(key))
+    :ok = Schedules.force_not_due!(key, @behaviour_now)
+    Map.put(context, :family_chat_result, Scheduler.get_schedule(key))
   end
 
   def perform_behaviour(context, :bnest_starts_again, _args) do
@@ -957,7 +963,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(
       context,
       :family_chat_result,
-      {:ok, Scheduler.Store.get_schedule("prod-sqlite-backup-daily")}
+      {:ok, Scheduler.get_schedule("prod-sqlite-backup-daily")}
     )
   end
 
@@ -985,18 +991,18 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # module's comment: "The routed, full-stack version of this proof lives at
   # the integration layer"). Also genuinely "through Scheduler->handler-
   # >service" (tech-doc 009's Concurrent-write Proof step 3): claims a real
-  # setup claim through `Scheduler.Store` and dispatches through the generic
-  # `Scheduler.Run.execute/2`, which resolves `BnestApp.Backup.Run` from the
-  # real `Scheduler.Registry` exactly as the 60s production tick does --
+  # setup claim through the `Scheduler` facade and dispatches through its generic
+  # `execute/2`, which resolves `BnestApp.Backup.Run` from the configured
+  # `Scheduler.TaskRegistry` exactly as the 60s production tick does --
   # never `BnestApp.Backup.run/1` called directly.
   def perform_behaviour(context, :routed_backup_runs_full_duration, _args) do
     location = prepare_isolated_backup_config!()
     key = "bdd-routed-backup-" <> unique_uuid()
 
     :ok =
-      Scheduler.Store.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
+      Schedules.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
 
-    {:ok, claim} = Scheduler.Store.claim_setup(key, location.destination_id, @behaviour_now)
+    {:ok, claim} = Scheduler.claim_setup(key, location.destination_id, @behaviour_now)
 
     probe_task =
       if context[:family_chat_probes_running] do
@@ -1004,7 +1010,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
         Task.async(fn -> run_routed_probes(conn) end)
       end
 
-    :ok = Scheduler.Run.execute(claim, @behaviour_now)
+    :ok = Scheduler.execute(claim, @behaviour_now)
 
     probes =
       if probe_task,
@@ -1047,11 +1053,11 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   end
 
   # Second half: the SAME forced-timeout condition, driven through the real
-  # `Scheduler.Store` claim -> `Scheduler.Run.execute/2` -> registered-
+  # `Scheduler` claim -> `Scheduler.execute/2` -> registered-
   # handler chain (never a hand-crafted `Store.fail_attempt` call), so
   # "Scheduler state remains retryable" is proven from the real retry
-  # bookkeeping `Scheduler.Run.record_failure/3` performs, not asserted by
-  # construction. `Scheduler.Policy.retry_at(1, now)` schedules the retry
+  # bookkeeping `Scheduler.Run`'s failure recording performs, not asserted by
+  # construction. `Scheduler.Domain.Policy.retry_at(1, now)` schedules the retry
   # five minutes out; advancing the deterministic clock past that and
   # re-querying `claim_due/1` is the same technique `reconcile_overlap`
   # already uses above.
@@ -1060,14 +1066,14 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     key = "bdd-timed-out-backup-" <> unique_uuid()
 
     :ok =
-      Scheduler.Store.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
+      Schedules.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
 
-    {:ok, claim} = Scheduler.Store.claim_setup(key, location.destination_id, @behaviour_now)
+    {:ok, claim} = Scheduler.claim_setup(key, location.destination_id, @behaviour_now)
 
-    :ok = Scheduler.Run.execute(claim, @behaviour_now)
+    :ok = Scheduler.execute(claim, @behaviour_now)
 
     later = DateTime.add(@behaviour_now, 6 * 60)
-    retried = Enum.find(Scheduler.Store.claim_due(later), &(&1.run_id == claim.run_id))
+    retried = Enum.find(Scheduler.claim_due(later), &(&1.run_id == claim.run_id))
 
     Map.put(context, :family_chat_retry_claim, retried)
   end
@@ -1651,14 +1657,28 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def behaviour_outcome?(context, :retention_run_idempotent, _args),
     do: match?({:ok, %{purged: 0, soft_deleted: 0}}, context.family_chat_idempotent_result)
 
-  def behaviour_outcome?(context, :only_named_handler_invoked, [name]),
-    do: context.family_chat_claimed != nil and context.family_chat_claimed.handler_key == name
+  # Read from the observed dispatch: exactly one task ran, once, for the claimed
+  # run, and it is the one registered for the schedule (see
+  # `BnestApp.Test.SchedulerDispatch`).
+  def behaviour_outcome?(context, :only_named_handler_invoked, [name]) do
+    SchedulerDispatch.only_registered_task_ran?(context.family_chat_dispatch) and
+      SchedulerDispatch.ran_task_name(context.family_chat_dispatch) == name
+  end
 
-  def behaviour_outcome?(context, :only_retention_handler_invoked, _args),
-    do: context.family_chat_claimed != nil
+  def behaviour_outcome?(context, :only_retention_handler_invoked, _args) do
+    SchedulerDispatch.only_registered_task_ran?(context.family_chat_dispatch) and
+      SchedulerDispatch.ran_task_called?(
+        context.family_chat_dispatch,
+        PushNotifications,
+        :retain_deliveries
+      )
+  end
 
-  def behaviour_outcome?(_context, :handler_delegates_to_service, [service_name]) do
-    service_name |> List.wrap() |> Module.concat() |> Code.ensure_loaded?()
+  def behaviour_outcome?(context, :handler_delegates_to_service, [service_name]) do
+    SchedulerDispatch.delegated_without_sql?(
+      context.family_chat_dispatch,
+      Module.concat([service_name])
+    )
   end
 
   def behaviour_outcome?(context, :schedule_field_updated, [_key, _field, value]),
@@ -1677,8 +1697,8 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   def behaviour_outcome?(context, :activation_call_idempotent, _args) do
     key = context.family_chat_activation_key
     before_revision = context.family_chat_result.revision
-    :ok = Scheduler.Store.activate_if_pristine!(key, @behaviour_now)
-    after_schedule = Scheduler.Store.get_schedule(key)
+    :ok = Scheduler.activate_if_pristine!(key, @behaviour_now)
+    after_schedule = Scheduler.get_schedule(key)
 
     match?(%{enabled: true}, after_schedule) and after_schedule.revision == before_revision
   end
@@ -2395,9 +2415,9 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # schedule of its own, the family schedule inventory, and the run count.
   defp prior_release_reads(schedule_key) do
     %{
-      schedule: Scheduler.Store.get_schedule(schedule_key),
-      family_inventory: Scheduler.Store.family_inventory(),
-      run_count: Scheduler.Store.run_count()
+      schedule: Scheduler.get_schedule(schedule_key),
+      family_inventory: Scheduler.family_inventory(),
+      run_count: Schedules.run_count()
     }
   end
 
@@ -2857,22 +2877,6 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       {:push_notification_sent, ^endpoint, payload} -> [payload | push_requests(endpoint)]
     after
       0 -> []
-    end
-  end
-
-  # Test-only enrichment: `Scheduler.Store.claim_due/1`'s run rows carry no
-  # handler identity (production's Scheduler -> Registry -> Handler -> ...
-  # dependency direction means `Store` itself never looks the handler module
-  # up -- see the dependency-direction test this preserves), so this
-  # resolves it here, driver-side, the same way `Scheduler.Run.execute/2`
-  # does in production (`Store.get_schedule/1` then `Registry.fetch/1`).
-  # Mirrors `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical helper.
-  defp resolved_handler_name(claimed) do
-    with %{handler_key: registry_key} <- Scheduler.Store.get_schedule(claimed.schedule_key),
-         {:ok, %{handler: handler_module}} <- Scheduler.Registry.fetch(registry_key) do
-      handler_module |> Module.split() |> Enum.take(-2) |> Enum.join(".")
-    else
-      _unresolved -> nil
     end
   end
 

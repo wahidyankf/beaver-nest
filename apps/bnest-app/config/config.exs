@@ -161,4 +161,37 @@ config :bnest_app, BnestApp.PushNotifications,
   delivery_store: BnestApp.PushNotifications.Adapters.SqliteDeliveryStore,
   push_sender: BnestApp.PushNotifications.Adapters.WebPushSender
 
+# The Scheduler's schedule store, the task registered under each handler key a schedule row
+# stores, and the handlers every regular tick runs. The Scheduler names no other context:
+# Backup and Push Notifications reach it through these task adapters and tick handlers.
+# A running task renews its lease every `lease_renewal_interval_ms`, well inside the lease
+# `BnestApp.Scheduler.Domain.Policy.lease_until/1` grants.
+config :bnest_app, BnestApp.Scheduler,
+  schedule_store: BnestApp.Scheduler.Adapters.SqliteScheduleStore,
+  tasks: %{
+    "prod_sqlite_backup" => %{
+      label: "Production database backup",
+      context: "admin_system",
+      handler: BnestApp.Backup.Run,
+      settings_key: "schedules-backups",
+      timezone: "WIB (UTC+07:00)"
+    },
+    "family_chat_push_retention" => %{
+      label: "Family chat push delivery retention",
+      context: "admin_system",
+      handler: BnestApp.PushNotifications.Adapters.RetentionTask,
+      settings_key: nil,
+      timezone: "WIB (UTC+07:00)"
+    },
+    "fixture" => %{
+      label: "Family fixture",
+      context: "family",
+      handler: BnestApp.Scheduler.TaskRegistry,
+      settings_key: nil,
+      timezone: "WIB (UTC+07:00)"
+    }
+  },
+  tick_handlers: [{BnestApp.PushNotifications, :dispatch_all_due!, []}],
+  lease_renewal_interval_ms: 60_000
+
 import_config "#{config_env()}.exs"

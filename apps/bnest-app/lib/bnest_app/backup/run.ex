@@ -2,33 +2,36 @@ defmodule BnestApp.Backup.Run do
   @moduledoc """
   The Scheduler-registered `"prod_sqlite_backup"` handler. Owns Scheduler
   claim/lease bookkeeping only (destination-continuity checking, the
-  claim-shaped receipt, and `Store` persistence); every SQL-touching backup
-  mechanic (capacity, `VACUUM INTO`, independent proof) is delegated to
-  `BnestApp.Backup`, the public service, so this module runs no direct SQL
-  of its own (`family_chat_operations.feature`'s "The Scheduler claims
-  backup work only through the registered Backup.Run handler").
+  claim-shaped receipt, and recording the run through the Scheduler facade);
+  every SQL-touching backup mechanic (capacity, `VACUUM INTO`, independent
+  proof) is delegated to `BnestApp.Backup`, the public service, so this
+  module runs no direct SQL of its own (`family_chat_operations.feature`'s
+  "The Scheduler claims backup work only through the registered Backup.Run
+  handler").
   """
+
+  @behaviour BnestApp.Scheduler.Ports.Task
 
   alias BnestApp.Backup
   alias BnestApp.Backup.Config
   alias BnestApp.Backup.Location
   alias BnestApp.Backup.Receipt
-  alias BnestApp.Scheduler.Policy
-  alias BnestApp.Scheduler.Store
+  alias BnestApp.Scheduler
+  alias BnestApp.Scheduler.Domain.Policy
 
-  @spec execute(map(), DateTime.t()) :: {:ok, map()} | {:skipped, atom()} | {:error, atom()}
+  @impl Scheduler.Ports.Task
   def execute(claim, %DateTime{} = now) do
     with {:ok, location} <- Config.resolve(),
          :ok <- destination_matches(claim, location),
          {:ok, artifact} <- run_backup(claim, location, now),
          receipt = Receipt.build(claim, location, now, artifact),
          :ok <- write_receipt!(artifact.path, receipt),
-         :ok <- Store.complete(claim.run_id, claim.attempt, receipt, now) do
+         :ok <- Scheduler.complete_run(claim.run_id, claim.attempt, receipt, now) do
       retain_owned(location.directory)
       {:ok, receipt}
     else
       {:error, :destination_changed} ->
-        _result = Store.skip(claim.run_id, claim.attempt, :destination_changed, now)
+        _result = Scheduler.skip_run(claim.run_id, claim.attempt, :destination_changed, now)
         {:skipped, :destination_changed}
 
       {:error, reason} ->
@@ -79,7 +82,7 @@ defmodule BnestApp.Backup.Run do
   end
 
   defp stale_claim_check(claim, now) do
-    if Store.active_attempt?(claim.run_id, claim.attempt, now),
+    if Scheduler.active_attempt?(claim.run_id, claim.attempt, now),
       do: :ok,
       else: {:error, :stale_claim}
   end

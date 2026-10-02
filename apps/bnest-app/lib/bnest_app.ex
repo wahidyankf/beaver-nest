@@ -13,18 +13,14 @@ defmodule BnestApp do
   @legacy_exports [
     AdminConfig.Registry,
     Backup.Config,
-    Deployment,
-    Scheduler,
-    Scheduler.Policy,
-    Scheduler.Registry,
-    Scheduler.Run,
-    Scheduler.Store
+    Deployment
   ]
 
   use Boundary,
     deps: [
       BnestApp.FamilyChat,
       BnestApp.PushNotifications,
+      BnestApp.Scheduler,
       BnestApp.SqliteRepo,
       BnestApp.Storage,
       # legacy: infrastructure the legacy modules call directly. Each entry leaves

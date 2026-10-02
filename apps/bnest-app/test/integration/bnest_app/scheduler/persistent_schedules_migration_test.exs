@@ -43,9 +43,9 @@ defmodule BnestApp.PersistentSchedulesMigrationTest do
     if Process.whereis(BnestApp.SqliteRepo), do: raise("standalone migration retained repo")
     """
 
-    {_output, status} =
+    {output, status} =
       System.cmd("mix", ["run", "--no-start", "--no-compile", "-e", expression],
-        cd: Path.expand("../../..", __DIR__),
+        cd: Path.expand("../../../..", __DIR__),
         env: [
           {"MIX_ENV", "test"},
           {"BNEST_TEST_LAYER", "unit"},
@@ -54,7 +54,7 @@ defmodule BnestApp.PersistentSchedulesMigrationTest do
         stderr_to_stdout: true
       )
 
-    assert status == 0
+    assert status == 0, output
     :ok = SqliteCoordinator.ensure_started!(database_path)
 
     assert %{rows: [[20_260_830_000_000]]} =

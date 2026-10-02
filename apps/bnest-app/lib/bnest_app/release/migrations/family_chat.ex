@@ -11,7 +11,7 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   """
 
   alias BnestApp.FamilyChat
-  alias BnestApp.Scheduler.Registry
+  alias BnestApp.Scheduler
   alias BnestApp.Storage
 
   @spec apply_and_verify!() :: :ok
@@ -80,8 +80,8 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   defp do_converge_after_drain!, do: FamilyChat.converge_after_drain!()
 
   defp verify_registered_handler! do
-    case Registry.fetch("family_chat_push_retention") do
-      {:ok, %{handler: BnestApp.PushNotifications.Adapters.RetentionTask}} ->
+    case Scheduler.registered_handler("family_chat_push_retention") do
+      {:ok, BnestApp.PushNotifications.Adapters.RetentionTask} ->
         :ok
 
       _missing_or_wrong ->

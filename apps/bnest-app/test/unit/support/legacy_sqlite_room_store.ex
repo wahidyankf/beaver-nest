@@ -1,10 +1,11 @@
 defmodule BnestApp.Test.LegacySqliteRoomStore do
   @moduledoc """
-  Temporary. Scheduler (U11) and Backup (U12) still keep their rows in Family Chat's
-  SQLite database and reach it through `BnestApp.FamilyChat`, so a
-  unit test or scenario that drives them selects the SQLite room store for itself; every
-  other unit test keeps the in-memory one `config/test.exs` selects. Each context unit
-  deletes its callers, and the last one deletes this module and its allow-list line in
+  Temporary. Backup (U12) still snapshots Family Chat's SQLite database and reaches it
+  through `BnestApp.FamilyChat`, so a unit test or scenario that drives a backup, the
+  Scheduler's scheduled one included, selects the SQLite room store for itself; every
+  other unit test keeps the in-memory one `config/test.exs` selects. The Scheduler left
+  it in U11, when its schedules and runs moved to an in-memory store at this layer. U12
+  deletes the remaining callers, this module and its allow-list line in
   `test/behaviour/verify.exs`.
   """
 

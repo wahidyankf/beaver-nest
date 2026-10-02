@@ -13,11 +13,6 @@ defmodule BnestApp.HexagonalLayeringTest do
     BnestApp.Backup.Location,
     BnestApp.Backup.Run,
     BnestApp.Deployment,
-    BnestApp.Scheduler,
-    BnestApp.Scheduler.Policy,
-    BnestApp.Scheduler.Registry,
-    BnestApp.Scheduler.Run,
-    BnestApp.Scheduler.Store,
     BnestAppWeb.HealthController
   ]
 

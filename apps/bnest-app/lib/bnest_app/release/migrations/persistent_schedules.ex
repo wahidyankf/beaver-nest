@@ -1,7 +1,7 @@
 defmodule BnestApp.Release.Migrations.PersistentSchedules do
   @moduledoc false
 
-  alias BnestApp.Scheduler.Policy
+  alias BnestApp.Scheduler.Domain.Policy
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
 

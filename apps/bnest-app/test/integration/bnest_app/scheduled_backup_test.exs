@@ -5,7 +5,7 @@ defmodule BnestApp.ScheduledBackupTest do
   alias BnestApp.Backup.Location
   alias BnestApp.Backup.Run
   alias BnestApp.Release.Migrations.PersistentSchedules
-  alias BnestApp.Scheduler.Store
+  alias BnestApp.Scheduler
   alias BnestApp.Storage
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.Storage.Adapters.SqliteCoordinator
@@ -63,7 +63,7 @@ defmodule BnestApp.ScheduledBackupTest do
     assert {:ok, location} = Config.save(context.backup_directory)
 
     assert {:ok, claim} =
-             Store.claim_setup("prod-sqlite-backup-daily", location.destination_id, @now)
+             Scheduler.claim_setup("prod-sqlite-backup-daily", location.destination_id, @now)
 
     assert {:ok, receipt} = Run.execute(claim, @now)
     assert receipt["quickCheck"] == "ok"
@@ -81,7 +81,11 @@ defmodule BnestApp.ScheduledBackupTest do
       at = DateTime.add(@now, -days * 86_400)
 
       {:ok, claim} =
-        Store.claim_setup("prod-sqlite-backup-daily", "#{location.destination_id}-#{days}", at)
+        Scheduler.claim_setup(
+          "prod-sqlite-backup-daily",
+          "#{location.destination_id}-#{days}",
+          at
+        )
 
       assert {:ok, _receipt} = Run.execute(claim, at)
     end)
@@ -92,7 +96,7 @@ defmodule BnestApp.ScheduledBackupTest do
 
   test "a destination change skips a stale setup claim", context do
     assert {:ok, first} = Config.save(context.backup_directory)
-    {:ok, claim} = Store.claim_setup("prod-sqlite-backup-daily", first.destination_id, @now)
+    {:ok, claim} = Scheduler.claim_setup("prod-sqlite-backup-daily", first.destination_id, @now)
     second_directory = context.backup_directory <> "-second"
     assert {:ok, _second} = Config.save(second_directory)
     assert {:skipped, :destination_changed} = Run.execute(claim, @now)
