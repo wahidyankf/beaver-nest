@@ -182,20 +182,12 @@ defmodule BnestApp.MixProject do
       Mix.Tasks.Bnest.Storage.PurgeTestData
     ]
 
-    # Temporary. Legacy core modules that still perform I/O. The unit that moves each into
-    # a context's layers deletes its entries and brings its facade under the threshold.
-    legacy_core = [
-      BnestApp.AdminConfig.Registry,
-      BnestApp.Deployment
-    ]
-
     # Only the unit layer carries a coverage threshold. `test:integration` still exercises
     # the boundary adapters, but its result is a pass or fail, not a measured denominator.
     [
       output: "cover/unit",
       summary: [threshold: 99],
-      ignore_modules:
-        generated_or_static ++ test_scaffolding ++ adapters_and_entry_points ++ legacy_core
+      ignore_modules: generated_or_static ++ test_scaffolding ++ adapters_and_entry_points
     ]
   end
 

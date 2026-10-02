@@ -24,13 +24,12 @@ defmodule BnestAppWeb do
       BnestApp.CodexChat,
       BnestApp.FamilyChat,
       BnestApp.Identity,
+      BnestApp.Operations,
       BnestApp.Preferences,
       BnestApp.PushNotifications,
       BnestApp.Scheduler,
       BnestApp.SifatAllah,
-      BnestApp.Storage,
-      # legacy: HealthController; removed in U13
-      BnestApp.SqliteRepo
+      BnestApp.Storage
     ],
     exports: [Endpoint, Telemetry]
 

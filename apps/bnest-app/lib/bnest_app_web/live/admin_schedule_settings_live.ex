@@ -3,8 +3,8 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
 
   use BnestAppWeb, :live_view
 
-  alias BnestApp.AdminConfig.Registry, as: AdminConfigRegistry
   alias BnestApp.Backup
+  alias BnestApp.Operations
   alias BnestApp.Scheduler
 
   @schedule_key "prod-sqlite-backup-daily"
@@ -168,7 +168,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
   defp settings_path(schedule) do
     with {:ok, %{settings_key: settings_key}} when is_binary(settings_key) <-
            Scheduler.task_entry(schedule.handler_key),
-         {:ok, %{path: path}} <- AdminConfigRegistry.fetch(settings_key) do
+         {:ok, %{path: path}} <- Operations.fetch_admin_panel(settings_key) do
       path
     else
       _no_typed_settings -> nil

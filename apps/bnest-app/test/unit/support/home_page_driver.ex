@@ -3,19 +3,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @behaviour BnestApp.Behaviour.Driver
 
-  alias BnestApp.AdminConfig.Registry, as: AdminRegistry
   alias BnestApp.Backup
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.Behaviour.UnitFamilyChatDriver
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.CodexChat.ModelCatalog
-  alias BnestApp.Deployment
   alias BnestApp.FamilyChat
   alias BnestApp.Identity
   alias BnestApp.Identity.{Bootstrap, Login, Sessions}
   alias BnestApp.Identity.Domain.{Authorization, Credentials}
   alias BnestApp.Identity.Ports.IdentityStore
+  alias BnestApp.Operations
   alias BnestApp.Preferences
   alias BnestApp.Scheduler
   alias BnestApp.Scheduler.Domain.Policy
@@ -54,6 +53,40 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   ]
   @in_memory_flat_root "/in-memory/flat"
   @synthetic_password "Synthetic password 1!"
+  @unit_admin %{
+    "userId" => "test-user-unit-admin",
+    "displayUsername" => "test-user-unit-admin",
+    "roles" => ["admin"]
+  }
+
+  # The statuses the schedules page may show for a schedule without exposing its failure.
+  @safe_schedule_status ~r/Enabled|Running|Verified|Never run/u
+
+  # A storage location already chosen, so the Storage panel's owner has saved state.
+  @configured_storage_pointer %{
+    "schemaVersion" => 1,
+    "databaseDirectory" => "/srv/test-user-storage/data",
+    "databaseFilename" => "bnest.sqlite3",
+    "phase" => "flat_primary",
+    "migrationId" => "flat-files-v1-to-sqlite-v1"
+  }
+
+  # Schedule columns no admin panel lists as an editable field, submitted with a save as a
+  # forged form would; `daily_at_utc` is the stored column, the panel's field is
+  # `daily_time_wib`.
+  @unlisted_schedule_fields %{
+    "schedule_key" => "test-user-forged-key",
+    "handler_key" => "fixture",
+    "schedule_context" => "family",
+    "cadence" => "hourly",
+    "daily_at_utc" => "00:00",
+    "expiration_kind" => "after_occurrences",
+    "max_occurrences" => "1"
+  }
+
+  # What saving the schedules-backups panel's `enabled` and `daily_time_wib` may change:
+  # those two columns and the save's own revision, next run and update time.
+  @saved_schedule_columns [:daily_at_utc, :enabled, :next_run_at, :revision, :updated_at]
 
   # Mirrors `BnestAppWeb.Endpoint`'s session options, which the router's pipelines expect
   # the endpoint to have applied.
@@ -1528,8 +1561,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :schedule_key, key)
   end
 
-  def prepare_behaviour(context, :contextual_schedules, _args),
-    do: Map.put(context, :scheduler_entries, Scheduler.task_entries())
+  # A family schedule and the admin/system backup schedule, persisted in the Scheduler's
+  # configured store as the release seeds and `BnestApp.Test.Seeds.Schedules` persist them.
+  def prepare_behaviour(context, :contextual_schedules, _args) do
+    family_key = "unit-contextual-family"
+    :ok = put_schedule!("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
+    :ok = put_schedule!(family_key, "fixture", "family")
+
+    Map.put(context, :persisted_schedules, %{
+      family: family_key,
+      admin_system: "prod-sqlite-backup-daily"
+    })
+  end
 
   # A non-admin family member with a real session: both accounts are bootstrapped through the
   # Identity facade and the child logs in through it.
@@ -1569,8 +1612,19 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :schedule_key, key)
   end
 
-  def prepare_behaviour(context, :typed_settings_panels, _args),
-    do: Map.put(context, :declared_panels, AdminRegistry.panels())
+  # The panels the contexts declare, and each owner's saved state: Storage's chosen database
+  # location in its in-memory pointer store, and the backup schedule in the Scheduler's
+  # in-memory store (the schedules-backups panel's daily fields live there).
+  def prepare_behaviour(context, :typed_settings_panels, _args) do
+    previous = StoragePorts.install(config: @configured_storage_pointer)
+    ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous) end)
+    :ok = put_schedule!("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
+
+    Map.merge(context, %{
+      declared_panels: Operations.admin_panels(),
+      allowlist_schedule_key: "prod-sqlite-backup-daily"
+    })
+  end
 
   def prepare_behaviour(context, state, args)
       when state in [
@@ -1987,7 +2041,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :promote_compatible_candidate, _args) do
     context
     |> reconnect()
-    |> Map.put(:routed_health_after, Deployment.readiness())
+    |> Map.put(:routed_health_after, Operations.readiness())
   end
 
   # The destination resolves through the Backup facade, and its setup claim runs the
@@ -2102,15 +2156,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
-  def perform_behaviour(context, :open_schedules_from_home, _args) do
-    backup = Map.fetch!(context.scheduler_entries, "prod_sqlite_backup")
-    family = Map.fetch!(context.scheduler_entries, "fixture")
-
-    Map.merge(context, %{
-      schedule_contexts: MapSet.new([backup.context, family.context]),
-      backup_settings: AdminRegistry.fetch(backup.settings_key)
-    })
-  end
+  def perform_behaviour(context, :open_schedules_from_home, _args),
+    do: Map.put(context, :page, follow_admin_entry("admin-schedules-entry"))
 
   def perform_behaviour(context, :open_admin_settings, _args) do
     {response, accesses} = route_request("/admin/settings", context.visitor_token)
@@ -2162,10 +2209,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :family_handler_dispatch, dispatch)
   end
 
-  def perform_behaviour(context, :open_admin_settings_from_home, _args) do
-    fetched = Enum.map(context.declared_panels, &AdminRegistry.fetch(&1.key))
-    Map.put(context, :fetched_panels, fetched)
-  end
+  def perform_behaviour(context, :open_admin_settings_from_home, _args),
+    do: Map.put(context, :page, follow_admin_entry("admin-settings-entry"))
 
   def perform_behaviour(context, :reconcile_expiry, _args) do
     initial = Scheduler.claim_due(@behaviour_now)
@@ -2747,11 +2792,23 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       Enum.map(context.retry_attempts, & &1.attempt) == [2, 3, 3] and
         List.last(context.retry_attempts).state == "failed"
 
-  def behaviour_outcome?(context, :context_groups, _args),
-    do: context.schedule_contexts == MapSet.new(["admin_system", "family"])
+  # Read from the rendered page: each persisted schedule is one row of its own context's
+  # group, and the family row shows a safe status, as the FE e2e reads it.
+  def behaviour_outcome?(context, :context_groups, _args) do
+    %{family: family, admin_system: admin_system} = context.persisted_schedules
+    family_row = schedule_row(context.page, "family-schedules-title", family)
+
+    Enum.count(family_row) == 1 and
+      family_row |> LazyHTML.text() |> String.match?(@safe_schedule_status) and
+      Enum.count(schedule_row(context.page, "admin-schedules-title", admin_system)) == 1
+  end
 
   def behaviour_outcome?(context, :typed_backup_link, _args),
-    do: match?({:ok, %{path: "/admin/settings/schedules"}}, context.backup_settings)
+    do:
+      context.page
+      |> LazyHTML.query(~s([data-schedule-key="prod-sqlite-backup-daily"] a))
+      |> LazyHTML.attribute("href")
+      |> Kernel.==(["/admin/settings/schedules"])
 
   # The router's admin guard answers before the page: the response is a sent 404, and every
   # record the request touched is the visitor's own session, account or theme, which the
@@ -2824,13 +2881,29 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         schedule.schedule_key == context.schedule_key and schedule.last_run_state == "verified"
       end)
 
+  # Every declared panel renders as one link to its path, under its label.
   def behaviour_outcome?(context, :panels_discoverable, _args),
     do:
-      length(context.fetched_panels) == length(context.declared_panels) and
-        Enum.all?(context.fetched_panels, &match?({:ok, _}, &1))
+      context.page
+      |> rendered_panels()
+      |> Enum.map(&Map.take(&1, [:href, :label]))
+      |> Kernel.==(Enum.map(context.declared_panels, &%{href: &1.path, label: &1.label}))
 
-  def behaviour_outcome?(context, :owner_allowlists, _args),
-    do: Enum.all?(context.declared_panels, &(is_atom(&1.owner) and is_list(&1.editable_fields)))
+  # Each rendered panel names its declared owner and editable fields, and that owner, driven
+  # through its facade, refuses or ignores every field outside them and keeps its stored
+  # state; a panel whose owner has no proof here fails.
+  def behaviour_outcome?(context, :owner_allowlists, _args) do
+    panels = rendered_panels(context.page)
+
+    declared =
+      Enum.map(
+        context.declared_panels,
+        &%{owner: inspect(&1.owner), fields: Enum.join(&1.editable_fields, ",")}
+      )
+
+    Enum.map(panels, &Map.take(&1, [:owner, :fields])) == declared and
+      Enum.all?(panels, &owner_saves_only_allowlisted?(context, &1))
+  end
 
   def behaviour_outcome?(context, :expiry_blocks_future, _args) do
     same_schedule_claims =
@@ -3138,6 +3211,103 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   defp assess_record(path, bytes),
     do: FlatMigration.assess_record(path, bytes, Storage.record_kinds())
+
+  # Home as an administrator sees it, then the page its `role` entry links to: the production
+  # `mount/3` of the LiveView the router serves there, on a connected socket, rendered with
+  # its template.
+  defp follow_admin_entry(role) do
+    [href] =
+      %{}
+      |> render_home(@unit_admin)
+      |> Map.fetch!(:page)
+      |> LazyHTML.query("[data-role=#{role}]")
+      |> LazyHTML.attribute("href")
+
+    view = routed_live_view(href)
+
+    socket = %Socket{
+      view: view,
+      transport_pid: self(),
+      assigns: %{__changed__: %{}, flash: %{}, current_user: @unit_admin}
+    }
+
+    {:ok, socket} = view.mount(%{}, %{}, socket)
+
+    socket.assigns
+    |> Map.delete(:__changed__)
+    |> view.render()
+    |> Safe.to_iodata()
+    |> IO.iodata_to_binary()
+    |> LazyHTML.from_fragment()
+  end
+
+  defp schedule_row(page, group_title_id, schedule_key),
+    do:
+      LazyHTML.query(
+        page,
+        ~s(section[aria-labelledby="#{group_title_id}"] .schedule-row[data-schedule-key="#{schedule_key}"])
+      )
+
+  defp rendered_panels(page) do
+    page
+    |> LazyHTML.query("a.admin-settings-panel")
+    |> Enum.map(fn panel ->
+      %{
+        href: panel |> LazyHTML.attribute("href") |> List.first(),
+        label: panel |> LazyHTML.query("strong") |> LazyHTML.text(),
+        owner: panel |> LazyHTML.attribute("data-config-owner") |> List.first(),
+        fields: panel |> LazyHTML.attribute("data-editable-fields") |> List.first()
+      }
+    end)
+  end
+
+  # Storage lists no editable field: once a location is chosen, its facade refuses to save
+  # another, and the pointer store sees no write.
+  defp owner_saves_only_allowlisted?(_context, %{owner: "BnestApp.Storage", fields: ""}) do
+    path = Storage.database_path()
+    refused = Storage.persist_directory("/srv/test-user-storage/elsewhere")
+
+    refused == {:error, :immutable} and Storage.database_path() == path and
+      not Enum.any?(StoragePorts.calls(), &match?({:write_config, _config}, &1))
+  end
+
+  # Backup lists the destination and the backup schedule's `enabled` and `daily_time_wib`.
+  # A schedule save carrying only unlisted fields is refused and changes nothing; one that
+  # also carries the listed fields changes only what they and the save itself decide. An
+  # unsafe destination is refused before anything is written.
+  defp owner_saves_only_allowlisted?(context, %{
+         owner: "BnestApp.Backup",
+         fields: "destination_directory,enabled,daily_time_wib"
+       }) do
+    key = context.allowlist_schedule_key
+    before = Scheduler.get_schedule(key)
+    revision = %{"revision" => Integer.to_string(before.revision)}
+
+    unlisted =
+      Scheduler.update_daily(key, Map.merge(@unlisted_schedule_fields, revision), @behaviour_now)
+
+    after_unlisted = Scheduler.get_schedule(key)
+
+    listed =
+      Map.merge(@unlisted_schedule_fields, %{
+        "daily_time_wib" => "03:30",
+        "enabled" => "false",
+        "revision" => revision["revision"]
+      })
+
+    saved = Scheduler.update_daily(key, listed, @behaviour_now)
+    after_saved = Scheduler.get_schedule(key)
+    destination = Backup.save_destination("test-user-relative/backup")
+
+    match?({:error, _reason}, unlisted) and after_unlisted == before and
+      match?({:ok, _schedule}, saved) and
+      Map.drop(after_saved, @saved_schedule_columns) == Map.drop(before, @saved_schedule_columns) and
+      after_saved.daily_at_utc == "20:30" and after_saved.enabled == false and
+      destination == {:error, :not_absolute} and
+      InMemoryBackupConfigStore.writes(InMemoryBackupConfigStore.new()) == []
+  end
+
+  defp owner_saves_only_allowlisted?(_context, _panel_without_proof), do: false
 
   # A pristine, enabled daily schedule at 19:00 UTC, due at its latest slot, in the
   # scenario's in-memory schedule store, with `fields` replaced.

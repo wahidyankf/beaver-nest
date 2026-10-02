@@ -169,6 +169,10 @@ config :bnest_app, BnestApp.Backup,
   capacity_probe: BnestApp.Backup.Adapters.DfCapacityProbe,
   ignore_check: BnestApp.Backup.Adapters.GitIgnoreCheck
 
+# One adapter per Operations port: the release environment the running node reports from.
+config :bnest_app, BnestApp.Operations,
+  release_environment: BnestApp.Operations.Adapters.SystemReleaseEnvironment
+
 # The Scheduler's schedule store, the task registered under each handler key a schedule row
 # stores, and the handlers every regular tick runs. The Scheduler names no other context:
 # Backup and Push Notifications reach it through these task adapters and tick handlers.
