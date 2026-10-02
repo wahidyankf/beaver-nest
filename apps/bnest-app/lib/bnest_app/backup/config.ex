@@ -49,6 +49,7 @@ defmodule BnestApp.Backup.Config do
   @spec config_path() :: String.t()
   def config_path do
     System.get_env("BNEST_BACKUP_CONFIG") ||
+      Application.get_env(:bnest_app, :backup_config_path) ||
       Path.expand("~/.config/bnest/backup.json")
   end
 
