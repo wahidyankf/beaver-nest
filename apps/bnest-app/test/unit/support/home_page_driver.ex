@@ -27,6 +27,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Storage.Import
   alias BnestApp.Storage.Ports.RecordBackend
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.CodexFixtureConversation
   alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
   alias BnestApp.Test.InMemory.AgentSession, as: InMemoryAgentSession
   alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
@@ -45,12 +46,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias Phoenix.LiveView.{Socket, Utils}
 
   @behaviour_now ~U[2026-09-04 12:00:00Z]
-  @streamed_answer [
-    {:thread_started, "fixture-thread"},
-    {:assistant_update, "fixture-answer", "Fixture response"},
-    {:assistant_update, "fixture-answer", "Fixture response complete."},
-    :turn_completed
-  ]
+  @composer_textarea "form#chat-composer-form textarea[data-role=chat-composer]"
+  @composer_button "form#chat-composer-form .send-button"
   @in_memory_flat_root "/in-memory/flat"
   @synthetic_password "Synthetic password 1!"
   @unit_admin %{
@@ -100,7 +97,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @impl true
   def open(context, "/chat"), do: context |> start_chat_runtime() |> mount_chat("/chat")
 
-  def open(context, "/"), do: render_home(context)
+  def open(%{authenticated: true} = context, "/"), do: render_home(context)
+
+  # A visitor with no session is routed from "/" like a browser: the document it lands on.
+  def open(context, "/"), do: Map.put(context, :page, visitor_document(context, "/"))
 
   def open(context, "/apps/sifat-allah") do
     context |> start_sifat_allah_records() |> mount_sifat_allah()
@@ -117,16 +117,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @impl true
   def brand_logo_visible?(context) do
     context.page
-    |> LazyHTML.query("[data-role=brand-logo][src='/images/beaver-nest-logo.png']")
+    |> LazyHTML.query("img[src='/images/beaver-nest-logo.png'][alt='Beaver Nest logo']")
     |> Enum.any?()
   end
 
-  # Installability is what the document a visitor lands on after opening "/" declares: the
+  # Installability is what the document a visitor landed on after opening "/" declares: the
   # root layout's manifest and icon links, each at a path the endpoint serves statically.
   # The manifest's contents and service-worker activation are proven at E2E.
   @impl true
   def installable_as_app?(context) do
-    document = visitor_document(context, "/")
+    document = context.page
     manifest = document |> LazyHTML.query("link[rel=manifest]") |> LazyHTML.attribute("href")
 
     icons =
@@ -189,9 +189,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def data_migration_entry_absent?(context) do
-    context.page
-    |> LazyHTML.query("[data-role=data-migration-entry]")
-    |> Enum.empty?()
+    not Enum.empty?(LazyHTML.query(context.page, "main.home-shell")) and
+      context.page |> LazyHTML.query("[data-role=data-migration-entry]") |> Enum.empty?()
   end
 
   @impl true
@@ -283,12 +282,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def composer_available?(context) do
-    enabled?(context.page, "textarea") and enabled?(context.page, ".send-button")
+    enabled?(context.page, @composer_textarea) and enabled?(context.page, @composer_button)
   end
 
   @impl true
   def composer_unavailable?(context) do
-    not enabled?(context.page, "textarea") and not enabled?(context.page, ".send-button")
+    disabled?(context.page, @composer_textarea) and disabled?(context.page, @composer_button)
   end
 
   @impl true
@@ -380,7 +379,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def stream_codex_response(context) do
-    context = answer_prompt(context, @streamed_answer)
+    context = stream_answer(context)
     {assistant_update_count(context) >= 2, context}
   end
 
@@ -513,7 +512,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
     remounted =
       if Enum.any?(new_calls(remounted, context), &match?({:agent_session, :prompt, _, _}, &1)),
-        do: answer_prompt(remounted, @streamed_answer),
+        do: stream_answer(remounted),
         else: remounted
 
     case {draft, form_recovery_event(remounted.page, "form#chat-composer-form")} do
@@ -614,11 +613,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def study_mode_available?(context) do
-    button_visible?(context.page, "Belajar 3 Pasangan")
+    enabled_button?(context.page, "button[phx-click=start-learning]", "Belajar 3 Pasangan")
   end
 
   @impl true
-  def quiz_mode_available?(context), do: button_visible?(context.page, "Latihan Ujian")
+  def quiz_mode_available?(context),
+    do: enabled_button?(context.page, "button[phx-click=start-quiz]", "Latihan Ujian")
 
   @impl true
   def start_learning(context),
@@ -689,21 +689,19 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     String.contains?(text, name) and String.contains?(text, meaning)
   end
 
+  # The card's colours come from the stylesheet's `.sifat-wajib-side` (green) and
+  # `.sifat-mustahil-side` (orange) rules, so each side must carry its own colour class. The
+  # computed colours are read at E2E.
   @impl true
   def study_card_colors_attributes?(context) do
-    wajib? =
-      context.page
-      |> LazyHTML.query("[data-memory-color=wajib]")
-      |> LazyHTML.attribute("data-memory-color")
-      |> Enum.member?("wajib")
+    side_label(context.page, ".sifat-wajib-side") == ["SIFAT WAJIB"] and
+      side_label(context.page, ".sifat-mustahil-side") == ["SIFAT MUSTAHIL"]
+  end
 
-    mustahil? =
-      context.page
-      |> LazyHTML.query("[data-memory-color=mustahil]")
-      |> LazyHTML.attribute("data-memory-color")
-      |> Enum.member?("mustahil")
-
-    wajib? and mustahil?
+  defp side_label(page, side) do
+    page
+    |> LazyHTML.query("[data-role=study-card] #{side} > span")
+    |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
   end
 
   @impl true
@@ -737,7 +735,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def quiz_answer_positions_vary?(context) do
     first_position = rendered_answer_position(context.page, "Ada")
     context = click_sifat_allah(context, "button[phx-click=next-question]", "next-question")
-    first_position != rendered_answer_position(context.page, "Hudus")
+    second_position = rendered_answer_position(context.page, "Hudus")
+
+    is_integer(first_position) and is_integer(second_position) and
+      first_position != second_position
   end
 
   @impl true
@@ -966,13 +967,59 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     end
   end
 
-  # The driver plays Codex: it answers only a prompt the LiveView's current session received,
-  # with events sent from that session to the LiveView's own `handle_info/2`.
+  # The driver plays Codex: it answers only a prompt the LiveView's current session received
+  # since the last answer, with events sent from that session to the LiveView's own
+  # `handle_info/2`.
   defp answer_prompt(context, events) do
-    session = context.chat_socket.assigns.codex_session
+    {_prompt, context} = unanswered_prompt!(context)
+    deliver_codex_events(context, events)
+  end
 
-    unless Enum.any?(context.codex_calls, &match?({:agent_session, :prompt, ^session, _}, &1)),
-      do: raise("the current Codex session received no prompt to answer")
+  # The fixture Codex's own answer, decided from the session the prompt reached and the
+  # prompts its conversation's thread answered before. The current session is the one the
+  # LiveView opened last; a fresh one starts its own thread.
+  defp stream_answer(context) do
+    {prompt, context} = unanswered_prompt!(context)
+    session = context.chat_socket.assigns.codex_session
+    {:agent_session, :open, {thread_id, model, effort, _mode}} = last_open(context)
+
+    unless thread_id == session.thread_id,
+      do: raise("the current Codex session is not the conversation opened last")
+
+    {events, threads} =
+      CodexFixtureConversation.answer(
+        Map.get(context, :codex_threads, %{}),
+        %{
+          thread_id: thread_id,
+          new_thread_id: "fixture-thread-#{:erlang.phash2(session.ref)}",
+          model: model,
+          reasoning_effort: effort
+        },
+        prompt
+      )
+
+    context |> Map.put(:codex_threads, threads) |> deliver_codex_events(events)
+  end
+
+  defp unanswered_prompt!(context) do
+    session = context.chat_socket.assigns.codex_session
+    answered = Map.get(context, :answered_codex_calls, 0)
+
+    context.codex_calls
+    |> Enum.drop(answered)
+    |> Enum.filter(&match?({:agent_session, :prompt, ^session, _}, &1))
+    |> List.last()
+    |> case do
+      {:agent_session, :prompt, ^session, prompt} ->
+        {prompt, Map.put(context, :answered_codex_calls, length(context.codex_calls))}
+
+      nil ->
+        raise "the current Codex session received no new prompt to answer"
+    end
+  end
+
+  defp deliver_codex_events(context, events) do
+    session = context.chat_socket.assigns.codex_session
 
     Enum.reduce(events, context, fn event, context ->
       {:noreply, socket} = ChatLive.handle_info({:codex, session, event}, context.chat_socket)
@@ -2932,17 +2979,24 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       "/srv/test-user-backup/" <>
         tag <> "-" <> Integer.to_string(:erlang.unique_integer([:positive]))
 
-  defp button_visible?(page, label) do
+  defp enabled_button?(page, selector, label) do
     page
-    |> LazyHTML.query("button")
+    |> LazyHTML.query("#{selector}:not([disabled])")
     |> Enum.any?(fn button -> button |> LazyHTML.text() |> String.contains?(label) end)
   end
 
+  # Whether the page renders the control and none of its matches is disabled.
   defp enabled?(page, selector) do
-    page
-    |> LazyHTML.query(selector)
-    |> LazyHTML.attribute("disabled")
-    |> Enum.empty?()
+    controls = LazyHTML.query(page, selector)
+    not Enum.empty?(controls) and controls |> LazyHTML.attribute("disabled") |> Enum.empty?()
+  end
+
+  # Whether the page renders the control and every one of its matches is disabled.
+  defp disabled?(page, selector) do
+    controls = LazyHTML.query(page, selector)
+
+    not Enum.empty?(controls) and
+      length(LazyHTML.attribute(controls, "disabled")) == Enum.count(controls)
   end
 
   defp assistant_update_count(context) do
