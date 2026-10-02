@@ -650,25 +650,43 @@ Every context phase runs the same nine items, in this order, with the context's 
 - [x] [AI] Gherkin implementation review, recorded.
   - 2026-10-02: 9 rows, 7 PASS, 1 EXEMPT, 1 FAIL that predates U13. N5 and the unit and integration parts of N2
     pass; the e2e part of N2 moves to U14. Recorded in [learnings](learnings.md) E13.
-- [ ] [AI] Commit, PR, leak review, gate, merge.
-- [ ] [AI] **Checkpoint 13 (blocking):** U13 merged; `@legacy_exports` holds no context module.
+- [x] [AI] Commit, PR, leak review, gate, merge.
+  - 2026-10-02: PR #129 merged as `cfe57f3b6`; two commits (the refactor and the plan record). CI passed on the
+    first run; leak review pass on the merged head.
+- [x] [AI] **Checkpoint 13 (blocking):** U13 merged; `@legacy_exports` holds no context module.
+  - 2026-10-02: U13 on `main`; `@legacy_exports` is empty.
 
 ## Phase 14: U14, Closure (AC-DH-01 to AC-DH-09)
 
-- [ ] [AI] RED: enable scan rule L3 and delete `@legacy_exports`, `@legacy_modules`, every remaining `BnestApp` dep of
+- [x] [AI] RED: enable scan rule L3 and delete `@legacy_exports`, `@legacy_modules`, every remaining `BnestApp` dep of
       an `Adapters`, web, CLI, release or application boundary, `@legacy_records_callers` (already empty after U8), and the
       `verify.exs` allow-list. `TYPECHECK`, the scan and `BEHAVIOUR` fail if anything remains.
       Record the result; an immediate pass is recorded as such.
-- [ ] [AI] GREEN: resolve any remainder. `TYPECHECK`, the scan and `BEHAVIOUR` pass. AC-DH-02, AC-DH-04, AC-DH-06.
-- [ ] [AI] Forbidden-edge proof: for each AC-DH-03 example row in turn, add the call to the caller's file in the
+  - 2026-10-02: base `cfe57f3b6`. `TYPECHECK`, the scan and `BEHAVIOUR` passed immediately, because U13 had already
+    emptied every list. A temporary module outside any context failed the scan with an L3 violation, so L3 is not a
+    no-op.
+- [x] [AI] GREEN: resolve any remainder. `TYPECHECK`, the scan and `BEHAVIOUR` pass. AC-DH-02, AC-DH-04, AC-DH-06.
+  - 2026-10-02: nothing remained. `TYPECHECK`, the scan and `BEHAVIOUR` exit 0 (13 features, 163 scenarios per
+    layer).
+- [x] [AI] Forbidden-edge proof: for each AC-DH-03 example row in turn, add the call to the caller's file in the
       worktree, run `TYPECHECK`, record the boundary warning naming both modules, then
       `/usr/bin/git restore <that file>`. Proof: four recorded failures and a clean `git status`. AC-DH-03.
+  - 2026-10-02: four `TYPECHECK` exit 1 runs, each with a boundary warning naming the caller's file and the forbidden
+    module (`BnestAppWeb` → `SqliteRepo`, `FamilyChat.Domain` → `Ecto.Adapters.SQL`, `PushNotifications` and
+    `FamilyChat` → `FamilyChat.Adapters`). Each file was restored from a byte-identical copy instead of
+    `git restore`, so no uncommitted change was lost; `git status` showed none of the four files.
 - [ ] [AI] `grep -rnE "_for_test|put_test_" apps/bnest-app/lib` prints nothing; `FEATURE_DIFF <U1 base>` prints nothing.
       AC-DH-08, AC-DH-09.
-- [ ] [AI] Record schema proof: `FOCUS_UNIT test/unit/bnest_app/storage/domain/record_schema_test.exs` passes with its
+  - 2026-10-02: the grep prints nothing. `FEATURE_DIFF 7e23669c9` lists 9 paths: the e2e step fixes of E6–E9, the
+    `sifat_allah.feature` exemption removal of E7, and a repository-wide Mermaid palette commit on `main`. The
+    owner's decision in [learnings](learnings.md) E14 widens U14 to feature files and e2e steps, so this item is
+    reconciled at the end of U14.
+- [x] [AI] Record schema proof: `FOCUS_UNIT test/unit/bnest_app/storage/domain/record_schema_test.exs` passes with its
       assertions unchanged since U4, and `BEHAVIOUR` passed above, which reads and writes every record kind. Supporting
       value check: `/usr/bin/git grep -hoE '"schemaVersion" => [0-9]+' <U1 base> -- apps/bnest-app/lib | sort -u` prints
       the same set as the same command at `HEAD` (whitespace and counts are excluded by `-o` and `-u`). AC-DH-09.
+  - 2026-10-02: `FOCUS_UNIT` exit 0 with the 12 record-schema tests passing. Since U4 the test changed only by alias
+    and sample-builder renames, no assertion. The `schemaVersion` set is `1` at both the U1 base and `HEAD`.
 - [ ] [AI] `APP_QUICK`, `INTEGRATION`, `REPO`, `BE_COVERAGE` and `FE_COVERAGE` pass. AC-DH-08.
 - [ ] [AI] `BE_E2E` and `FE_E2E` for the affected states (storage, identity, family chat, push, scheduler/backup admin,
       Codex chat, SifatAllah) at the exact local origin, with LiveView awaited and isolated `test-user-` identities. Proof:
