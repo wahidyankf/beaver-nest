@@ -20,17 +20,22 @@ defmodule BnestAppWeb.UserAuth do
 
     case Identity.current_user(conn.cookies[@identity_cookie]) do
       {:ok, user} ->
-        conn
-        |> assign(:current_user, user)
-        |> assign(:current_theme, current_theme(user))
-        |> assign(:theme_storage, :server)
         # Web Push subscriptions bind per-session, not per-user (tech-doc
         # 004): the raw session token is only ever available here, at the
         # real cookie-authenticated path, so this is the one place able to
         # derive it. Never the legacy/transition path below -- that
-        # synthetic identity has no real session token to digest.
-        |> assign(:session_digest, Identity.session_digest(conn.cookies[@identity_cookie]))
+        # synthetic identity has no real session token to digest. The
+        # signed session carries the digest beside the user, so the GraphQL
+        # socket (`BnestAppWeb.UserSocket`) resolves the same session.
+        session_digest = Identity.session_digest(conn.cookies[@identity_cookie])
+
+        conn
+        |> assign(:current_user, user)
+        |> assign(:current_theme, current_theme(user))
+        |> assign(:theme_storage, :server)
+        |> assign(:session_digest, session_digest)
         |> put_session(:current_user, user)
+        |> put_session(:session_digest, session_digest)
 
       {:error, :unauthenticated} ->
         case transition_user(cutover_enabled?()) do
@@ -41,6 +46,7 @@ defmodule BnestAppWeb.UserAuth do
             |> assign(:current_theme, "system")
             |> assign(:theme_storage, :browser)
             |> delete_session(:current_user)
+            |> delete_session(:session_digest)
 
           user ->
             conn
@@ -49,6 +55,7 @@ defmodule BnestAppWeb.UserAuth do
             |> assign(:current_theme, "system")
             |> assign(:theme_storage, :browser)
             |> put_session(:current_user, user)
+            |> delete_session(:session_digest)
         end
     end
   end

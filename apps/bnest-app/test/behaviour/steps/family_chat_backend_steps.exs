@@ -689,8 +689,10 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: perform(context, :send_reply_to_known_target)
   )
 
-  step("the response's quote preview is at most 160 graphemes long", context,
-    do: outcome(context, :quote_preview_within_budget)
+  step(
+    "the response's quote preview keeps at most {int} graphemes before its ellipsis",
+    %{args: [budget]} = context,
+    do: outcome(context, :quote_preview_within_budget, [budget])
   )
 
   step("the response's quote preview ends with an ellipsis", context,

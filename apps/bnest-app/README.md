@@ -161,7 +161,8 @@ The test environment substitutes a deterministic model catalog and session, and 
 - `lib/mix/tasks/bnest.storage.*.ex` runs headless migration, relocation, and verified retirement without a browser visit.
 - `lib/bnest_app_web/` contains the endpoint, protected router, authentication/import controllers and LiveViews, chat/learning LiveViews, admin-only storage/settings/schedule LiveViews, and components.
 - `lib/bnest_app_web/schema.ex`, `lib/bnest_app_web/schema/`, and `lib/bnest_app_web/resolvers/` own the authenticated family chat GraphQL schema, its types, and its resolvers (`family_chat_resolver.ex`, `web_push_resolver.ex`).
-- `lib/bnest_app_web/user_socket.ex` owns the Absinthe GraphQL subscription socket at `/api/graphql/socket`, resolving identity only from the server-decoded session in `connect_info`.
+- `lib/bnest_app_web/user_socket.ex` owns the Absinthe GraphQL subscription socket at `/api/graphql/socket`, resolving identity and the browser session's digest only from the server-decoded session in `connect_info`; `BnestAppWeb.UserAuth.fetch_current_user/2` stores that digest beside the user on every authenticated request, and socket parameters are never read.
+- `lib/bnest_app_web/dev_routes.ex` holds the pure decision `BnestAppWeb.Router` takes at compile time for the dev-only routes (LiveDashboard, the mailbox preview and GraphiQL); only `config/dev.exs` sets `:dev_routes`, so test and production builds compile none of them.
 - `priv/codex/` contains the SDK chat runner and the app-server model discovery helper.
 - `priv/sqlite_repo/migrations/` contains the versioned, committed SQLite DDL, including persistent schedule and run ledgers.
 - `assets/` contains browser JavaScript, CSS, and declaration boundaries used for strict checking.
