@@ -1,6 +1,10 @@
-const CACHE_NAME = "beaver-nest-shell-v1";
+// v2 drops the "/" entry v1 precached: `cache.addAll` sends the session
+// cookie, so v1 could hold a signed-in page. Bumping the name is what makes
+// `activate` delete that older cache on every device that still has it.
+const CACHE_NAME = "beaver-nest-shell-v2";
+// Static files only -- never a page. A page is per-visitor and may be signed
+// in, so no navigation response is ever written to Cache Storage.
 const APP_SHELL = [
-  "/",
   "/manifest.webmanifest",
   "/assets/css/app.css",
   "/assets/js/app.js",
@@ -37,12 +41,8 @@ self.addEventListener("fetch", (event) => {
 
   // Only true static build assets are ever written to or read from Cache
   // Storage (Family Chat plan requirement: authenticated GraphQL/page
-  // responses must never be cached). This is a literal copy of
-  // `assets/js/family_chat/cache_policy.js`'s `shouldCachePathname`
-  // predicate -- this classic, unbundled worker script cannot `import` that
-  // ES module (registered without `{type: "module"}`), so it keeps its own
-  // copy of the same one-line rule rather than importing it (see that
-  // file's matching comment).
+  // responses must never be cached). `assets/test/unit/service_worker.test.ts`
+  // runs this file to prove it.
   const pathname = new URL(event.request.url).pathname;
   const cacheable =
     pathname.startsWith("/assets/") || pathname.startsWith("/images/");
@@ -67,13 +67,35 @@ self.addEventListener("fetch", (event) => {
   // Every other request -- every authenticated page and every GraphQL
   // response included -- always goes straight to the network, never cached
   // and never served from cache. A failed top-level navigation while
-  // offline still falls back to the pre-installed app shell (`/`) rather
-  // than a bare browser error, but nothing dynamic is ever read back from
-  // Cache Storage.
+  // offline gets a page built here rather than a bare browser error; it
+  // carries nothing about the visitor, and is never stored.
   if (event.request.mode === "navigate") {
-    event.respondWith(fetch(event.request).catch(() => caches.match("/")));
+    event.respondWith(fetch(event.request).catch(() => offlinePage()));
   }
 });
+
+const OFFLINE_PAGE = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Beaver Nest</title>
+    <link rel="stylesheet" href="/assets/css/app.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Beaver Nest</h1>
+      <p>You are offline. Reconnect to open this page.</p>
+    </main>
+  </body>
+</html>`;
+
+function offlinePage() {
+  return new Response(OFFLINE_PAGE, {
+    status: 503,
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
 
 // The one room this plan seeds; tech-doc 004 fixes both the payload's `url`
 // and the generic fallback notification to this exact same-origin path.
@@ -87,10 +109,10 @@ const GENERIC_NOTIFICATION_PAYLOAD = {
 };
 
 // Literal copy of `assets/js/family_chat/push.js`'s `resolveNotificationPayload`
-// -- this classic, unbundled worker script cannot `import` that ES module
-// (see this file's matching comment on the `fetch` handler above), so it
-// keeps its own copy of the same bounded-parse rule rather than importing
-// it. Keep both copies in sync when either changes.
+// -- this classic, unbundled worker script (registered without
+// `{type: "module"}`) cannot `import` that ES module, so it keeps its own
+// copy of the same bounded-parse rule rather than importing it. Keep both
+// copies in sync when either changes.
 function resolveNotificationPayload(rawData) {
   if (
     rawData !== null &&
