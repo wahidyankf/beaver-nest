@@ -73,6 +73,27 @@ export async function sendAsAnotherMember(
 }
 
 /**
+ * After a promotion, the prior slot's process is still up and ready, answering directly
+ * with its own revision, while the routed origin answers only with the promoted slot's:
+ * no routed request reaches the prior slot.
+ */
+async function expectPriorSlotWarmAndUnrouted(
+  page: Page,
+  rollout: { previousPort: number; previousRevision: string; revision: string },
+): Promise<void> {
+  const prior = await page.request.get(
+    `http://127.0.0.1:${rollout.previousPort}/health/ready`,
+  );
+  expect(prior.status(), "the prior slot is still ready").toBe(200);
+  expect(prior.headers()["x-bnest-revision"]).toBe(rollout.previousRevision);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    // eslint-disable-next-line no-await-in-loop -- each routed request is observed on its own, after the one before it.
+    const routed = await page.request.get("/health/ready");
+    expect(routed.headers()["x-bnest-revision"]).toBe(rollout.revision);
+  }
+}
+
+/**
  * Drives a real Caddy promotion (`promoteCompatibleCandidate`, never a
  * LiveView route) while `page`'s own connected client has a genuine queued
  * send in flight and another member posts a genuine message concurrently --
@@ -118,6 +139,7 @@ export async function promoteWithConcurrentTraffic(
     sendAsAnotherMember(browser, identity, catchUpProbeBody),
   ]);
   expect(rollout.revision).not.toBe(rollout.previousRevision);
+  await expectPriorSlotWarmAndUnrouted(page, rollout);
 
   interceptOwnSend = false;
   await page.unroute("**/api/graphql");
