@@ -112,7 +112,11 @@ export function runStorageCommand(
     ASDF_DATA_DIR: process.env["ASDF_DATA_DIR"] ?? path.join(realHome, ".asdf"),
   };
   delete env["BNEST_STORAGE_CONFIG"];
-  if (!useDefaultPointer) env["BNEST_STORAGE_CONFIG"] = scenario.pointerPath;
+  delete env["BNEST_TEST_DEFAULT_POINTER"];
+  // The test configuration lets production's `~/.config/bnest` pointer location apply only
+  // because HOME is this scenario's scratch directory under the temporary directory.
+  if (useDefaultPointer) env["BNEST_TEST_DEFAULT_POINTER"] = "1";
+  else env["BNEST_STORAGE_CONFIG"] = scenario.pointerPath;
 
   const result = spawnSync("mix", [command, ...args], {
     cwd: appDirectory,

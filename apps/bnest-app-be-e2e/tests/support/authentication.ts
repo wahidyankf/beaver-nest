@@ -40,6 +40,19 @@ export function runtimeDigest(relative: string): string {
   return hash.digest("hex");
 }
 
+// The account file the marked runtime holds for `username`, found through its username index.
+export function storedAccountFile(username: string): string {
+  const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
+  if (!root) throw new Error("Missing marked E2E runtime root");
+  const index = JSON.parse(
+    readFileSync(
+      path.join(root, "system/usernames", `${username}.json`),
+      "utf8",
+    ),
+  ) as { userId: string };
+  return path.join(root, "system/accounts", `${index.userId}.json`);
+}
+
 export function jsonFiles(directory: string): string[] {
   if (!existsSync(directory)) return [];
 
@@ -78,12 +91,26 @@ export async function fillInitialAccounts(
   await fillInitialAccounts(page, accounts, index + 1);
 }
 
+// A synthetic account only a character-count rule would refuse (3 characters). One extra
+// keeps the form at ten cards: setup orders card indexes as strings, so an eleventh card
+// would be redrawn out of order (the 131-character case is proven at unit/integration).
+const passwordLengthAccounts: InitialAccount[] = [
+  {
+    username: "test-user-e2e-short-password",
+    password: "a_1",
+    role: "Children",
+    admin: false,
+  },
+];
+
+// No length rule holds only if each password-length account then logs in from a new browser.
 export async function submitInitialAccountsWithSafetyChecks(
   page: Page,
-  accounts: InitialAccount[],
+  requestedAccounts: InitialAccount[],
 ): Promise<SetupSafetyChecks> {
+  const accounts = [...requestedAccounts, ...passwordLengthAccounts];
   const sawIrreversibleWarning = await page.getByRole("note").isVisible();
-  const noPasswordLengthRule = await checkPasswordFormRules(page);
+  const noLengthAttributes = await checkPasswordFormRules(page);
 
   await fillInitialAccounts(page, accounts);
   await checkInitialAccountCardControls(page, accounts.length);
@@ -111,15 +138,59 @@ export async function submitInitialAccountsWithSafetyChecks(
     "aria-describedby",
     "setup-error",
   );
-  await verifyAndRestorePasswords(page, accounts);
-  await setInitialAdmins(page, accounts, true);
-  await confirmAndSubmitSetup(page);
+  const accepted = await submitCorrectedSetup(page, accounts);
+  const lengthAccountsLoggedIn = accepted
+    ? await Promise.all(
+        passwordLengthAccounts.map((account) => logsInToHome(page, account)),
+      )
+    : [false];
 
   return {
     sawIrreversibleWarning,
     passwordRequirementsEnforced,
-    noPasswordLengthRule,
+    noPasswordLengthRule:
+      noLengthAttributes && lengthAccountsLoggedIn.every(Boolean),
   };
+}
+
+// Submits the corrected form; a refusal is evidence for the length Then, not a When failure.
+async function submitCorrectedSetup(
+  page: Page,
+  accounts: InitialAccount[],
+): Promise<boolean> {
+  await verifyAndRestorePasswords(page, accounts);
+  await setInitialAdmins(page, accounts, true);
+  // The earlier refusal's #setup-error is still on screen until the POST's page loads.
+  const answered = page.waitForEvent("load");
+  await confirmAndSubmitSetup(page);
+  await answered;
+  const created = page.getByText(
+    "Initial accounts created. Setup is now permanently closed.",
+  );
+  await expect(created.or(page.locator("#setup-error"))).toBeVisible();
+  return created.isVisible();
+}
+
+// A login from a fresh browser context, which never touches `page`'s own session.
+async function logsInToHome(
+  page: Page,
+  identity: { username: string; password: string },
+): Promise<boolean> {
+  const browser = page.context().browser();
+  if (!browser) throw new Error("Browser fixture is unavailable");
+  const context = await browser.newContext({
+    baseURL: new URL(page.url()).origin,
+  });
+
+  try {
+    const freshPage = await context.newPage();
+    await login(freshPage, identity);
+    return new URL(freshPage.url()).pathname === "/";
+  } catch {
+    return false;
+  } finally {
+    await context.close();
+  }
 }
 
 async function checkInitialAccountCardControls(

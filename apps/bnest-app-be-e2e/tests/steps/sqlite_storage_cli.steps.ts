@@ -1,9 +1,11 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import {
   cleanupStorageScenario,
   defaultDatabaseDirectory,
+  defaultPointerPath,
   digestFile,
   inspectStorageMigration,
   isolatedStorageScenario,
@@ -15,6 +17,15 @@ import {
   type StorageScenario,
   type StorageMigrationEvidence,
 } from "../support/sqlite-storage";
+import {
+  declaredMigrationSet,
+  inspectSchema,
+  interruptRecordWrite,
+  resumeRecordWrites,
+  themeMigrationRows,
+  type MigrationRows,
+  type SchemaEvidence,
+} from "../support/sqlite-migration-evidence";
 
 // Headless mix bnest.storage.migrate CLI flows (feature scenarios 1, 4, 5, 6,
 // 8). Split out of sqlite_storage.steps.ts to stay under the repository's
@@ -32,24 +43,41 @@ let migrationEvidence: StorageMigrationEvidence;
 
 // --- Scenario 1: headless default location, no browser confirmation -------
 
-let visitedStorageUI = false;
+// Every request the scenario's browser sends to the storage UI, from the Given on.
+const storageUIRequests: string[] = [];
 
 Given("Bnest has no storage configuration", ({ $testInfo }) => {
   scenario = isolatedStorageScenario($testInfo, "default-location");
-  visitedStorageUI = false;
+  expect(readDefaultPointer(scenario)).toBeUndefined();
+  expect(readPointer(scenario)).toBeUndefined();
 });
 
-Given("the storage UI has not been visited", () => {
-  expect(visitedStorageUI).toBe(false);
+Given("the storage UI has not been visited", ({ page }) => {
+  storageUIRequests.length = 0;
+  page.context().on("request", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/storage"))
+      storageUIRequests.push(request.url());
+  });
+  expect(storageUIRequests).toEqual([]);
 });
 
 When("managed migration starts", () => {
   migrateResult = runStorageMigrate(scenario, [], { useDefaultPointer: true });
 });
 
+// The pointer is in the configuration home the scenario's HOME gives, outside the database
+// directory it names.
 Then("Bnest keeps the storage pointer under the configuration home", () => {
-  expect(migrateResult.status, migrateResult.stderr).toBe(0);
-  expect(readDefaultPointer(scenario)).toBeDefined();
+  const pointer = readDefaultPointer(scenario);
+  expect(pointer).toBeDefined();
+  expect(path.dirname(defaultPointerPath(scenario))).toBe(
+    path.join(scenario.homeDirectory, ".config/bnest"),
+  );
+  expect(
+    defaultPointerPath(scenario).startsWith(
+      `${String(pointer?.["databaseDirectory"])}/`,
+    ),
+  ).toBe(false);
 });
 
 Then("Bnest uses the environment-specific data directory for SQLite", () => {
@@ -58,11 +86,17 @@ Then("Bnest uses the environment-specific data directory for SQLite", () => {
     defaultDatabaseDirectory(scenario),
   );
   expect(pointer?.["databaseFilename"]).toBe("bnest.sqlite3");
+  expect(
+    existsSync(path.join(defaultDatabaseDirectory(scenario), "bnest.sqlite3")),
+  ).toBe(true);
 });
 
+// The command finished on its own, and the browser sent nothing to the storage UI while it
+// ran.
 Then("migration does not require a browser confirmation", () => {
-  expect(visitedStorageUI).toBe(false);
+  expect(migrateResult.status, migrateResult.stderr).toBe(0);
   expect(migrateResult.stdout).toContain("dry run complete");
+  expect(storageUIRequests).toEqual([]);
   cleanupStorageScenario(scenario);
 });
 
@@ -72,21 +106,43 @@ Given("an empty isolated database", ({ $testInfo }) => {
   scenario = isolatedStorageScenario($testInfo, "empty-database");
 });
 
+let schemaAfterFirstRun: SchemaEvidence;
+let schemaAfterSecondRun: SchemaEvidence;
+
+// The schema is read from the database after each run.
 When("the committed migration set is applied twice", () => {
   migrateResult = runStorageMigrate(scenario, []);
+  schemaAfterFirstRun = inspectSchema(scenario);
   secondMigrateResult = runStorageMigrate(scenario, []);
+  schemaAfterSecondRun = inspectSchema(scenario);
 });
 
+// The run's DDL checksum is the committed migration files' digest, computed here, the
+// applied versions are their versions, and the indexes are exactly the ones they create.
 Then("the schema version and indexes match the declared checksum", () => {
   expect(migrateResult.status, migrateResult.stderr).toBe(0);
-  expect(secondMigrateResult.status, secondMigrateResult.stderr).toBe(0);
+  const declared = declaredMigrationSet();
+  expect(schemaAfterFirstRun.runs).toEqual([
+    ["flat-files-v1-to-sqlite-v1", declared.checksum],
+  ]);
+  expect(schemaAfterFirstRun.versions).toEqual(declared.versions);
+  expect(
+    schemaAfterFirstRun.objects
+      .filter(([type, , sql]) => type === "index" && sql !== null)
+      .map(([, name]) => name)
+      .toSorted(),
+  ).toEqual(declared.indexes);
 });
 
 Then(
   "the second run makes no duplicate table, index, or migration record",
   () => {
-    expect(migrateResult.stdout).toContain("accepted=0 blocked=0");
-    expect(secondMigrateResult.stdout).toContain("accepted=0 blocked=0");
+    expect(secondMigrateResult.status, secondMigrateResult.stderr).toBe(0);
+    expect(schemaAfterSecondRun).toEqual(schemaAfterFirstRun);
+    expect(schemaAfterSecondRun.runs).toHaveLength(1);
+    expect(new Set(schemaAfterSecondRun.versions).size).toBe(
+      schemaAfterSecondRun.versions.length,
+    );
     cleanupStorageScenario(scenario);
   },
 );
@@ -156,36 +212,45 @@ Then("normal repository reads return the same validated record", () => {
 
 // --- Scenario 6: interrupted migration resumes idempotently -----------------
 
+let firstRowsBeforeRetry: MigrationRows;
+
+// Two theme sources; the run fails at the second one's record write, as a killed migration
+// would, after the path-first source was accepted. The failure is then cleared.
 Given("migration stopped after at least one accepted item", ({ $testInfo }) => {
   scenario = isolatedStorageScenario($testInfo, "retry");
-  writeThemeFixture(scenario);
+  writeThemeFixture(scenario, "user-aaa-fixture");
+  writeThemeFixture(scenario, "user-zzz-fixture");
+  interruptRecordWrite(scenario, "user-zzz-fixture");
   migrateResult = runStorageMigrate(scenario, []);
-  expect(migrateResult.status, migrateResult.stderr).toBe(0);
-  expect(migrateResult.stdout).toContain("accepted=1 blocked=0");
+  expect(migrateResult.status).not.toBe(0);
+  expect(migrateResult.stderr).toContain("interrupted migration");
+  resumeRecordWrites(scenario);
+  firstRowsBeforeRetry = themeMigrationRows(scenario, "user-aaa-fixture");
+  expect(firstRowsBeforeRetry.item).toHaveLength(1);
+  expect(themeMigrationRows(scenario, "user-zzz-fixture").item).toEqual([]);
 });
 
 When("the administrator retries the same migration identifier", () => {
   secondMigrateResult = runStorageMigrate(scenario, []);
 });
 
+// The accepted item's ledger row and migrated record keep every column, timestamps included.
 Then("accepted matching items are not rewritten or duplicated", () => {
   expect(secondMigrateResult.status, secondMigrateResult.stderr).toBe(0);
-  expect(secondMigrateResult.stdout).toContain("accepted=1 blocked=0");
+  expect(themeMigrationRows(scenario, "user-aaa-fixture")).toEqual(
+    firstRowsBeforeRetry,
+  );
+  expect(inspectSchema(scenario).runs).toHaveLength(1);
 });
 
 Then("remaining items continue from their recorded outcomes", () => {
-  // Only the outcome summary line is compared: the first run's stdout also
-  // carries one-time Ecto DDL creation logging that a retry naturally omits
-  // ("Migrations already up"), which is not itself evidence of duplication.
-  expect(migrationSummaryLine(secondMigrateResult.stdout)).toBe(
-    migrationSummaryLine(migrateResult.stdout),
-  );
+  const remaining = themeMigrationRows(scenario, "user-zzz-fixture");
+  expect(remaining.item).toHaveLength(1);
+  expect(remaining.item[0]).toContain("accepted");
+  expect(remaining.record).toHaveLength(1);
+  expect(secondMigrateResult.stdout).toContain("accepted=2 blocked=0");
   cleanupStorageScenario(scenario);
 });
-
-function migrationSummaryLine(stdout: string): string | undefined {
-  return stdout.split("\n").find((line) => line.startsWith("migration "));
-}
 
 // --- Scenario 8: malformed/changed source blocks cutover --------------------
 
@@ -198,8 +263,9 @@ Given(
   },
 );
 
+// Verification asks for the authority switch, so only the refusal keeps the flat phase.
 When("Bnest verifies migration", () => {
-  migrateResult = runStorageMigrate(scenario, []);
+  migrateResult = runStorageMigrate(scenario, ["--activate"]);
 });
 
 Then("SQLite does not become authoritative", () => {

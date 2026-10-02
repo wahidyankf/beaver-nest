@@ -1,10 +1,9 @@
 import { readFileSync } from "node:fs";
-import path from "node:path";
 import { expect, type BrowserContext, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
-  jsonFiles,
   login,
+  storedAccountFile,
   submitInitialAccountsWithSafetyChecks,
   type InitialAccount,
 } from "../support/authentication";
@@ -25,6 +24,9 @@ const { Given, Then, When } = createBdd();
 
 let browserBContext: BrowserContext | undefined;
 let browserBPage: Page | undefined;
+let restartedContext: BrowserContext | undefined;
+let restartedPage: Page | undefined;
+let droppedSessionCookies: string[] = [];
 let setupSafetyChecks = {
   sawIrreversibleWarning: false,
   passwordRequirementsEnforced: false,
@@ -87,10 +89,15 @@ Then(
   },
 );
 
+// The account the identity's username index names stores an Argon2id verifier.
 Given(
   "an approved user account exists with an Argon2id verifier",
   async ({ page, $testInfo }) => {
     activeIdentity = isolatedTestIdentity($testInfo);
+    const account = JSON.parse(
+      readFileSync(storedAccountFile(activeIdentity.admin.username), "utf8"),
+    ) as { passwordVerifier: string };
+    expect(account.passwordVerifier).toMatch(/^\$argon2id\$v=19\$/u);
     await page.context().clearCookies();
     await page.goto("/login");
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
@@ -103,37 +110,69 @@ When("the user logs in with valid credentials", async ({ page }) => {
   await page.getByRole("button", { name: "Log in" }).click();
 });
 
+// The login must have reached the protected home. Its account still holds only the Argon2id
+// verifier, and neither the home it rendered nor the login page holds the password. The
+// webServer's log stream is outside this project's steps and support; the unit and
+// integration layers capture the login's log and assert the password is absent from it.
 Then(
   "no plaintext password is stored, logged, or rendered",
   async ({ page }) => {
-    const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
-    if (!root) throw new Error("Missing marked E2E runtime root");
-    const accountBytes = jsonFiles(path.join(root, "system/accounts"))
-      .map((file) => readFileSync(file, "utf8"))
-      .join("");
-    const pageContent = await page.content();
-    for (const identity of initialTestIdentities) {
-      expect(accountBytes).not.toContain(identity.admin.password);
-      expect(accountBytes).not.toContain(identity.child.password);
-      expect(pageContent).not.toContain(identity.admin.password);
-      expect(pageContent).not.toContain(identity.child.password);
-    }
+    const password = activeIdentity.admin.password;
+    await expect(page).toHaveURL(/\/$/u);
+    await expect(page.locator(".home-status")).toContainText(
+      activeIdentity.admin.username,
+    );
+    const accountBytes = readFileSync(
+      storedAccountFile(activeIdentity.admin.username),
+      "utf8",
+    );
+    expect(accountBytes).toMatch(/"passwordVerifier":"\$argon2id\$/u);
+    expect(accountBytes).not.toContain(password);
+    expect(await page.content()).not.toContain(password);
+    const loginPage = await page.request.get("/login");
+    expect(await loginPage.text()).not.toContain(password);
   },
 );
 
+// A reload, then a browser restart: a new browser context opened from the saved storage
+// state without the cookies that end with the browser session.
 When(
   "the user reloads and reopens Bnest in the same browser",
   async ({ page }) => {
-    await page.goto("about:blank");
-    await page.goto("/");
+    await page.reload();
+    await expect(page.locator(".home-status")).toContainText(
+      activeIdentity.admin.username,
+    );
+    const state = await page.context().storageState();
+    droppedSessionCookies = state.cookies
+      .filter((cookie) => cookie.expires === -1)
+      .map((cookie) => cookie.name);
+    const browser = page.context().browser();
+    if (!browser) throw new Error("Browser fixture is unavailable");
+    restartedContext = await browser.newContext({
+      baseURL: new URL(page.url()).origin,
+      storageState: {
+        ...state,
+        cookies: state.cookies.filter((cookie) => cookie.expires !== -1),
+      },
+    });
+    restartedPage = await restartedContext.newPage();
+    await restartedPage.goto("/");
   },
 );
 
 Then("the same browser remains authenticated", async ({ page }) => {
-  await expect(page).toHaveURL(/\/$/u);
-  await expect(page.locator(".home-status")).toContainText(
+  void page;
+  if (!restartedPage || !restartedContext)
+    throw new Error("The browser was not restarted");
+  expect(droppedSessionCookies).toContain("_bnest_app_key");
+  await expect(restartedPage).toHaveURL(/\/$/u);
+  await expect(restartedPage.locator(".home-status")).toContainText(
     activeIdentity.admin.username,
   );
+  await restartedContext.close();
+  restartedContext = undefined;
+  restartedPage = undefined;
 });
 
 Given(

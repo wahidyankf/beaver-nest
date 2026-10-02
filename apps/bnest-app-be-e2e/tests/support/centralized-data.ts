@@ -59,6 +59,30 @@ export function readChatState(username: string): ChatState {
   return record.state;
 }
 
+type InterruptedImport = {
+  envelopePath: string;
+  envelopeDigest: string;
+  importId: string;
+};
+
+// The import `seedInterruptedChatImport` last preserved, as it seeded it.
+let lastInterruptedImport: InterruptedImport | undefined;
+
+// The preserved envelope keeps its bytes, and the chat record the retry completed is the
+// first revision written from that same import.
+export function expectInterruptedImportCompleted(username: string): void {
+  const seeded = lastInterruptedImport;
+  if (seeded === undefined) throw new Error("no interrupted import was seeded");
+  expect(digestFile(seeded.envelopePath)).toBe(seeded.envelopeDigest);
+  const record = JSON.parse(
+    readFileSync(userPath("chat/current.json", username), "utf8"),
+  ) as { revision: number; sourceImportId: string };
+  expect({
+    revision: record.revision,
+    sourceImportId: record.sourceImportId,
+  }).toEqual({ revision: 0, sourceImportId: seeded.importId });
+}
+
 export function digestFile(file: string): string {
   return existsSync(file)
     ? createHash("sha256").update(readFileSync(file)).digest("hex")
@@ -72,6 +96,8 @@ export function importCount(username: string): number {
     : 0;
 }
 
+// Records the preserved envelope's path, digest and import id for
+// `expectInterruptedImportCompleted`.
 export function seedInterruptedChatImport(username: string): void {
   const owner = ownerId(username);
   const checksum = createHash("sha256").update(chatPayload).digest("hex");
@@ -85,8 +111,15 @@ export function seedInterruptedChatImport(username: string): void {
     .toString("base64url");
   const importId = `import-${suffix}`;
   const timestamp = new Date().toISOString();
+  const envelopePath = path.join(
+    runtimeRoot(),
+    "users",
+    owner,
+    "imports",
+    `${importId}.json`,
+  );
   writeJsonNew(
-    path.join(runtimeRoot(), "users", owner, "imports", `${importId}.json`),
+    envelopePath,
     browserEnvelope(owner, importId, checksum, timestamp),
   );
   writeJsonNew(
@@ -94,6 +127,11 @@ export function seedInterruptedChatImport(username: string): void {
     retryableManifest(owner, importId, checksum, timestamp),
     `system/manifests/${importId}.json`,
   );
+  lastInterruptedImport = {
+    envelopePath,
+    envelopeDigest: digestFile(envelopePath),
+    importId,
+  };
 }
 
 function browserEnvelope(

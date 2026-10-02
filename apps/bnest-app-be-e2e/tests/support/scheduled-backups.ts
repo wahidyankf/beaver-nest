@@ -14,9 +14,10 @@ import { login } from "./authentication";
 import { ensureLiveSqlite, runLiveMix } from "./live-sqlite";
 import { isolatedTestIdentity, type TestIdentity } from "./test-identity";
 
-// Trimmed from bnest-app-e2e's scheduled-backups.ts to this project's one
-// owned, non-exempt scenario ("Save a safe override"); the contextual
-// schedule/deny/discover scenarios moved to bnest-app-fe-e2e.
+// Trimmed from bnest-app-e2e's scheduled-backups.ts to this project's
+// "Save a safe override" scenario; "Use the Dropbox-synced default" lives in
+// default-backup-destination.ts, and the contextual schedule/deny/discover
+// scenarios moved to bnest-app-fe-e2e.
 export type ScheduledBackupWorld = {
   backupConfig?: Record<string, unknown>;
   backupConfigPath?: string;
