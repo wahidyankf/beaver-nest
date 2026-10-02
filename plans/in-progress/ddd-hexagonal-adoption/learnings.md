@@ -545,3 +545,43 @@ Resolution: applied in U10; 002, 004 and 006 stay as authored, and this entry re
   - **For U14:** `specs/apps/bnest/app-be/architecture.md` still names `Scheduler.Registry` and `RetentionJob`.
 
 Resolution: applied in U11; 002, 004 and 006 stay as authored, and this entry records the as-built difference.
+
+### E12: U12 Backup as built (2026-10-02)
+
+- **The facade gained functions** beyond 002: `validate_destination/1`, `record_receipt/4`, `owned_receipts/1` and
+  `retain_owned/1`, which returns `{:ok, kept}`. The handler Thens need that `{:ok, _}` shape to prove the task makes
+  no direct SQL.
+- **A domain module and a port callback outside 006.** `Domain.RestoreEvidence` holds the restore evidence rules, and
+  the `DatabaseSnapshot` port carries `message_exists?/3` for the restore probe.
+- **`Domain.Retention` duplicates the WIB +7 h rule** from `Scheduler.Domain.Policy`, because Backup's Domain has no
+  dependencies.
+- **The test-only `:capacity_check` option is gone.** The integration capacity scenario swaps in the in-memory capacity
+  probe through application env, restored on exit, so the integration target stays serial.
+- **Naming.** `SchedulerDispatch` maps `Backup.Adapters.ScheduledBackupTask` to the feature's "Backup.Run". Mutant
+  B10 shows the mapping still tells modules apart. U14's C4 and spec pass should note the feature's name.
+- **The unit layer no longer opens SQLite.** Every Backup port has an in-memory double that raises unless installed.
+  The `verify.exs` allow-list is empty, and `test/unit/support/legacy_sqlite_room_store.ex` is deleted.
+- **The moved integration `backup_test.exs` tests Storage's `FileRecordExport`.** It moved as 006 says; U14 may move it
+  under `storage/`.
+- **Gherkin review: 30 rows, 17 PASS, 8 EXEMPT, 5 FAIL, none introduced by U12.** U11's carried N4 (S1, S2, S5, S7 at
+  unit) now passes. Of the rest:
+  - **Fixed in U12:** N1, the integration O17 and O19 Thens, which never read the destination. They now run against
+    an isolated destination and assert that no artifact or partial remains.
+  - **Test-data safety S-1 (pre-existing, fixed in U12 in its own commit).** The default backup destination is
+    `<repository root>/data/backup`, with the root compiled from the checkout.
+    - In the permanent checkout that is the production backup directory. A test build there, or a run with an
+      inherited `BNEST_REPOSITORY_ROOT`, resolved it.
+    - The integration coordinator also caught up the shared daily backup row that one scenario forced due, running a
+      real backup at wall-clock time. The worktree's ignored `data/backup` held two such test pairs.
+    - Tests now resolve a per-run repository root that wins over the environment variable. It is not a git
+      repository, so a default-destination backup fails closed. The forced-due row is returned to not-due on exit.
+    - With E11 this is the third test path into production-adjacent state. **Lesson:** every default that derives
+      from the checkout or the home directory needs a test-only override that wins.
+  - **Moved to U13:** N2, "each owner validates and saves only its allowlisted fields" (F3 at all layers; U9's F17).
+  - **Non-blocking, for U14:**
+    - the in-memory snapshot double returns constant proof values;
+    - its restore strips message bodies itself, so the unit O20 Then cannot fail and only integration proves it;
+    - no shared contract suite runs the Backup doubles and real adapters through the same tests;
+    - U-O18 skips the 2 s per-sample bound, and U-O19 probes before the backup rather than during it.
+
+Resolution: applied in U12; 002, 004 and 006 stay as authored, and this entry records the as-built difference.

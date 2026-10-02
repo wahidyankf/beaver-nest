@@ -584,22 +584,39 @@ Every context phase runs the same nine items, in this order, with the context's 
   - 2026-10-02: 54 rows, none failing because of U11. U9's F11 and U10's N3 pass. N1–N3 and N6 (push retention
     never completed its run, a product defect) are fixed in U11; N4 moves to U12 and N5 to U13. Recorded in
     [learnings](learnings.md) E11, with the test-backup isolation fix.
-- [ ] [AI] Commit, PR, leak review, gate, merge.
-- [ ] [AI] **Checkpoint 11 (blocking):** U11 merged.
+- [x] [AI] Commit, PR, leak review, gate, merge.
+  - 2026-10-02: PR #127 merged as `19777b6dd`; six commits (two test-isolation fixes, the refactor, the retention
+    fix and two plan records). The first CI run failed on the unit storage pointer (E11); leak review pass on the
+    merged head.
+- [x] [AI] **Checkpoint 11 (blocking):** U11 merged.
+  - 2026-10-02: U11 on `main`; `@legacy_exports` holds 3 entries.
 
 ### Phase 12: U12, Backup
 
-- [ ] [AI] RED (boundary): `lib/bnest_app/backup/{domain,ports,adapters}.ex`; `TYPECHECK` and the scan fail.
-- [ ] [AI] RED (facade): `test/unit/bnest_app/backup/backup_test.exs` covers capacity refusal, retention selection,
+- [x] [AI] RED (boundary): `lib/bnest_app/backup/{domain,ports,adapters}.ex`; `TYPECHECK` and the scan fail.
+  - 2026-10-02: base `19777b6dd`, captured before any caller moved. `TYPECHECK` exit 1 with 32 forbidden
+    references over 8 edges; the scan failed with 73 L1 violations.
+- [x] [AI] RED (facade): `test/unit/bnest_app/backup/backup_test.exs` covers capacity refusal, retention selection,
       receipt writing and ignore-check refusal with in-memory probes. `FOCUS_UNIT` fails.
-- [ ] [AI] GREEN (layers): the U12 moves; `ScheduledBackupTask` implements `Scheduler.Ports.Task`; the handler atom in
+  - 2026-10-02: 19 failures, each `UndefinedFunctionError`.
+- [x] [AI] GREEN (layers): the U12 moves; `ScheduledBackupTask` implements `Scheduler.Ports.Task`; the handler atom in
       `config/config.exs` and the panel owner atom in `admin_config/registry.ex` follow the renames. `TYPECHECK`, the scan
       and `FOCUS_UNIT` pass.
-- [ ] [AI] GREEN (drivers): `test/unit/support/home_page_driver.ex` and `test/unit/support/family_chat_driver.ex` use the facade with in-memory adapters, and the
+  - 2026-10-02: `TYPECHECK` exit 0 with no forbidden reference; the scan and `FOCUS_UNIT` pass. The panel owner is
+    `BnestApp.Backup`, and the FE e2e support expects it exactly. As-built differences are in
+    [learnings](learnings.md) E12.
+- [x] [AI] GREEN (drivers): `test/unit/support/home_page_driver.ex` and `test/unit/support/family_chat_driver.ex` use the facade with in-memory adapters, and the
       `test/behaviour/verify.exs` allow-list loses its U12 lines. `UNIT` and `BEHAVIOUR` pass.
-- [ ] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
-- [ ] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty.
-- [ ] [AI] Gherkin implementation review, recorded.
+  - 2026-10-02: `UNIT` 593 tests, 0 failures, 99.39%; two extra random seeds pass. `BEHAVIOUR` exit 0. The allow-list is
+    empty.
+- [x] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
+  - 2026-10-02: both exit 0.
+- [x] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty.
+  - 2026-10-02: 406 tests, 0 failures, 16 excluded; `FEATURE_DIFF 19777b6dd` empty. Focused e2e:
+    `FE_E2E` 10 passed for "Bnest scheduled backups"; `BE_E2E` 2 passed for "Bnest scheduled backups".
+- [x] [AI] Gherkin implementation review, recorded.
+  - 2026-10-02: 30 rows, none failing because of U12. U11's N4 passes. N1 and the test-data safety finding S-1
+    are fixed in U12; N2 moves to U13. Recorded in [learnings](learnings.md) E12.
 - [ ] [AI] Commit, PR, leak review, gate, merge.
 - [ ] [AI] **Checkpoint 12 (blocking):** U12 merged.
 
