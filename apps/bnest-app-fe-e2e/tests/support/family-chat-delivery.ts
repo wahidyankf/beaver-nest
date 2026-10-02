@@ -74,9 +74,7 @@ export function sendAttempts(page: Page): SendAttempt[] {
   const attempts: SendAttempt[] = [];
   const byRequest = new Map<Request, SendAttempt>();
   logs.set(page, attempts);
-  page.on("request", (request) =>
-    recordAttempt(attempts, byRequest, request),
-  );
+  page.on("request", (request) => recordAttempt(attempts, byRequest, request));
   page.on("requestfailed", (request) => {
     const attempt = byRequest.get(request);
     if (attempt) attempt.failed = true;
@@ -177,7 +175,10 @@ export async function pendingRowId(page: Page, body: string): Promise<string> {
  * server answered one of this message's sends with a committed ID, and the
  * room shows exactly one committed message under that ID.
  */
-export async function expectCommitted(page: Page, body: string): Promise<string> {
+export async function expectCommitted(
+  page: Page,
+  body: string,
+): Promise<string> {
   await expect(page.locator(OUTBOX_STATUS)).toHaveText("", { timeout: 20_000 });
   await expect
     .poll(

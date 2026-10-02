@@ -57,9 +57,12 @@ async function replyToTarget(page: Page): Promise<void> {
   await sendThroughComposer(page, uniqueBody("Offline reply"));
 }
 
-Given("the visitor is offline with the room open", async ({ page, $testInfo }) => {
-  await goOfflineWithCommittedTarget(page, $testInfo);
-});
+Given(
+  "the visitor is offline with the room open",
+  async ({ page, $testInfo }) => {
+    await goOfflineWithCommittedTarget(page, $testInfo);
+  },
+);
 
 When("the visitor replies to a committed message", async ({ page }) => {
   await replyToTarget(page);
@@ -92,16 +95,13 @@ When(
   },
 );
 
-Then(
-  "the queued reply is still present with its target",
-  async ({ page }) => {
-    // This is the reopened document -- the worker's offline page, since no
-    // signed-in page is ever cached -- reading the same origin's IndexedDB.
-    await expect(page.getByText("You are offline.")).toBeVisible();
-    const row = await storedRowFor(page, delivery.body);
-    expect(row?.replyToMessageId).toBe(scenario.targetId);
-  },
-);
+Then("the queued reply is still present with its target", async ({ page }) => {
+  // This is the reopened document -- the worker's offline page, since no
+  // signed-in page is ever cached -- reading the same origin's IndexedDB.
+  await expect(page.getByText("You are offline.")).toBeVisible();
+  const row = await storedRowFor(page, delivery.body);
+  expect(row?.replyToMessageId).toBe(scenario.targetId);
+});
 
 Then(
   "the reply reaches status {string} exactly once",
@@ -144,10 +144,13 @@ Given(
   },
 );
 
-Then("that message reaches status {string}", async ({ page }, status: string) => {
-  expect(status).toBe("Sent");
-  scenario.replyId = await expectCommitted(page, delivery.body);
-});
+Then(
+  "that message reaches status {string}",
+  async ({ page }, status: string) => {
+    expect(status).toBe("Sent");
+    scenario.replyId = await expectCommitted(page, delivery.body);
+  },
+);
 
 Then("it commits as an ordinary message", async ({ page }) => {
   expect(
