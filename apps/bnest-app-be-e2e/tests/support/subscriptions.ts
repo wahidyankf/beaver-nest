@@ -105,6 +105,28 @@ export async function connectFamilyChatSubscription(
   await page.evaluate(runFamilyChatHandshake, { query, variables });
 }
 
+/**
+ * Opens the GraphQL socket from the page, carrying whatever session cookies
+ * the page holds, and reports whether the server completed the WebSocket
+ * handshake. A refused handshake never opens: the browser reports an error
+ * and closes it.
+ */
+export function openFamilyChatSocket(page: Page): Promise<"open" | "rejected"> {
+  return page.evaluate(
+    () =>
+      new Promise<"open" | "rejected">((resolve) => {
+        const socket = new WebSocket(
+          `${window.location.origin.replace(/^http/u, "ws")}/api/graphql/socket/websocket?vsn=2.0.0`,
+        );
+        socket.addEventListener("open", () => {
+          socket.close();
+          resolve("open");
+        });
+        socket.addEventListener("close", () => resolve("rejected"));
+      }),
+  );
+}
+
 export function familyChatSubscriptionEvents(page: Page): Promise<unknown[]> {
   return page.evaluate(() => window.familyChatSocketState?.events ?? []);
 }
