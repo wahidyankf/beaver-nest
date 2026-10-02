@@ -138,15 +138,7 @@ defmodule BnestAppWeb.ChatLiveTest do
   end
 
   test "CodexPortSession classifies a fixture resume failure" do
-    runner = Path.expand("../../support/codex_fixture_runner.mjs", __DIR__)
-    previous = System.get_env("BNEST_CODEX_RUNNER")
-    System.put_env("BNEST_CODEX_RUNNER", runner)
-
-    on_exit(fn ->
-      if previous,
-        do: System.put_env("BNEST_CODEX_RUNNER", previous),
-        else: System.delete_env("BNEST_CODEX_RUNNER")
-    end)
+    use_fixture_runner()
 
     assert {:ok, session} =
              CodexPortSession.open(
@@ -166,15 +158,7 @@ defmodule BnestAppWeb.ChatLiveTest do
   end
 
   test "CodexPortSession forwards public progress with stable runner item IDs" do
-    runner = Path.expand("../../support/codex_fixture_runner.mjs", __DIR__)
-    previous = System.get_env("BNEST_CODEX_RUNNER")
-    System.put_env("BNEST_CODEX_RUNNER", runner)
-
-    on_exit(fn ->
-      if previous,
-        do: System.put_env("BNEST_CODEX_RUNNER", previous),
-        else: System.delete_env("BNEST_CODEX_RUNNER")
-    end)
+    use_fixture_runner()
 
     assert {:ok, session} =
              CodexPortSession.open(self(), nil, "gpt-5.6-terra", "medium", :read_only)
@@ -199,16 +183,23 @@ defmodule BnestAppWeb.ChatLiveTest do
     assert :ok = CodexPortSession.close(session)
   end
 
-  test "CodexPortSession passes allowlisted repository modes to fresh and resumed runners" do
-    runner = Path.expand("../../support/codex_fixture_runner.mjs", __DIR__)
-    previous = System.get_env("BNEST_CODEX_RUNNER")
-    System.put_env("BNEST_CODEX_RUNNER", runner)
+  test "CodexPortSession refuses a prompt once its runner has exited" do
+    use_fixture_runner()
 
-    on_exit(fn ->
-      if previous,
-        do: System.put_env("BNEST_CODEX_RUNNER", previous),
-        else: System.delete_env("BNEST_CODEX_RUNNER")
-    end)
+    assert {:ok, session} =
+             CodexPortSession.open(self(), "closed-thread", "gpt-5.6-terra", "medium", :read_only)
+
+    monitor = Process.monitor(session)
+
+    assert_receive {:codex, ^session, {:error, "Codex runner exited with status 0."}}, 2_000
+    refute_receive {:DOWN, ^monitor, :process, ^session, _reason}, 100
+    assert {:error, :closed} = CodexPortSession.send_prompt(session, "Are you there?")
+    assert :ok = CodexPortSession.close(session)
+    assert_receive {:DOWN, ^monitor, :process, ^session, :normal}
+  end
+
+  test "CodexPortSession passes allowlisted repository modes to fresh and resumed runners" do
+    use_fixture_runner()
 
     for {thread_id, mode, expected} <- [
           {nil, :read_only, "Fixture sandbox: read-only"},
@@ -271,5 +262,17 @@ defmodule BnestAppWeb.ChatLiveTest do
   test "the production runner is located in the packaged application" do
     assert CodexPortSession.bundled_runner() ==
              Application.app_dir(:bnest_app, "priv/codex/chat_runner.mjs")
+  end
+
+  defp use_fixture_runner do
+    runner = Path.expand("../../support/codex_fixture_runner.mjs", __DIR__)
+    previous = System.get_env("BNEST_CODEX_RUNNER")
+    System.put_env("BNEST_CODEX_RUNNER", runner)
+
+    on_exit(fn ->
+      if previous,
+        do: System.put_env("BNEST_CODEX_RUNNER", previous),
+        else: System.delete_env("BNEST_CODEX_RUNNER")
+    end)
   end
 end

@@ -9,6 +9,9 @@ defmodule BnestApp.CodexChat.Ports.AgentSession do
   `{:assistant_update, text}`, `{:reasoning_update, item_id, text}`,
   `{:activity_update, item_id, text}`, `:turn_completed`, `{:error, message}` or
   `{:resume_failed, message}`.
+
+  A session that can no longer reach the agent refuses `send_prompt/2` with
+  `{:error, :closed}` until it is closed.
   """
 
   alias BnestApp.CodexChat.Domain.RepositoryAccess

@@ -3,6 +3,9 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
   The `BnestApp.CodexChat.Ports.AgentSession` over the local Codex CLI: each session is a
   process that runs the bundled Node chat runner through a port and forwards the runner's
   events to its owner.
+
+  When the runner exits, the owner receives an error event and the session stays open until
+  the owner closes it, refusing every later prompt with `{:error, :closed}`.
   """
 
   @behaviour BnestApp.CodexChat.Ports.AgentSession
@@ -47,6 +50,9 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
   end
 
   @impl GenServer
+  def handle_call({:send_prompt, _prompt}, _from, %{port: nil} = state),
+    do: {:reply, {:error, :closed}, state}
+
   def handle_call({:send_prompt, prompt}, _from, state) do
     payload = Jason.encode!(%{type: "prompt", prompt: prompt}) <> "\n"
     {:reply, port_command(state.port, payload), state}
@@ -64,7 +70,7 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
       {:codex, self(), {:error, "Codex runner exited with status #{status}."}}
     )
 
-    {:stop, :normal, %{state | port: nil}}
+    {:noreply, %{state | port: nil}}
   end
 
   def handle_info(
