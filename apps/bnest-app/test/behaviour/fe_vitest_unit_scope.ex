@@ -44,9 +44,25 @@ defmodule BnestApp.Behaviour.FeVitestUnitScope do
 
   @tag "fe-vitest-unit"
   @unit_layer_tag "vitest-unit"
+  @integration_exempt "integration-exempt"
 
+  @doc """
+  Drops the `@fe-vitest-unit` scenarios from both Elixir adapters. Integration loses them
+  too, so each must carry `@integration-exempt` (with its exemption comment); one that does
+  not raises rather than vanishing from integration unrecorded.
+  """
   @spec prune(DiscoveryResult.t()) :: DiscoveryResult.t()
-  def prune(%DiscoveryResult{} = discovery), do: prune(discovery, @tag)
+  def prune(%DiscoveryResult{} = discovery) do
+    case Enum.reject(tagged(discovery, @tag), &(@integration_exempt in &1.tags)) do
+      [] ->
+        prune(discovery, @tag)
+
+      unrecorded ->
+        raise ArgumentError,
+              "@#{@tag} scenarios lacking @#{@integration_exempt}: " <>
+                Enum.map_join(unrecorded, "; ", & &1.name)
+    end
+  end
 
   @doc "Drops the `@vitest-unit` scenarios, whose unit layer is the Vitest harness."
   @spec prune_unit_layer(DiscoveryResult.t()) :: DiscoveryResult.t()
@@ -67,4 +83,12 @@ defmodule BnestApp.Behaviour.FeVitestUnitScope do
   defp prune_rule(rule, tag), do: Map.update!(rule, :scenarios, &reject_tagged(&1, tag))
 
   defp reject_tagged(scenarios, tag), do: Enum.reject(scenarios, &(tag in &1.tags))
+
+  defp tagged(%DiscoveryResult{features: features}, tag) do
+    features
+    |> Enum.flat_map(fn feature ->
+      feature.scenarios ++ Enum.flat_map(feature.rules, & &1.scenarios)
+    end)
+    |> Enum.filter(&(tag in &1.tags))
+  end
 end

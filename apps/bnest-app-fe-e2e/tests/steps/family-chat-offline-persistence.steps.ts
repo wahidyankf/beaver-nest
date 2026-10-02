@@ -1,6 +1,13 @@
-import { expect, type Page } from "@playwright/test";
-import { composerInput } from "../support/family-chat";
+import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import {
+  delivery,
+  expectOutboxStatus,
+  interfereWithSends,
+  OUTBOX_STATUS,
+  sendThroughComposer,
+  stopInterfering,
+} from "../support/family-chat-delivery";
 
 // family_chat.feature's "Rule: Resume, online reaction, backoff, and
 // seven-day expiry" -- "A queued message survives a real browser reload
@@ -12,15 +19,12 @@ import { createBdd } from "playwright-bdd";
 // exactly like a real closed tab would -- so a message still shown queued
 // after reload can only have come back from the browser's own IndexedDB,
 // never from memory.
+//
+// The status Thens here are shared with every delivery scenario
+// (`family-chat-delivery.steps.ts`): they judge `delivery.body`, whichever
+// step sent it.
 
 const { Given, Then, When } = createBdd();
-
-// "ruang-keluarga" is one shared room whose message history persists across
-// every project/run this suite makes (chromium/tablet-chromium/
-// mobile-chromium all exercise this same scenario in the same process) --
-// a fixed body text would false-positive-match an earlier run's own already-
-// committed message, not just this run's, so each run gets its own.
-let offlineMessage = "";
 
 Given("a fresh visitor opens {string}", async ({ page }, route: string) => {
   // Every E2E test worker already gets its own isolated `test-user-`
@@ -28,23 +32,8 @@ Given("a fresh visitor opens {string}", async ({ page }, route: string) => {
   // approved user is logged in" binding) -- "fresh" only matters for
   // FE_UNIT's shared-process namespace (see that layer's own binding); here
   // it is the same real navigation as the plain opener.
-  offlineMessage = `Offline reload probe ${crypto.randomUUID().slice(0, 8)}`;
   await page.goto(route);
 });
-
-async function outboxStatusMatches(page: Page, status: string) {
-  const indicator = page.locator("[data-role=family-chat-outbox-status]");
-  if (status === "Sent") {
-    await expect(indicator).toHaveText("", { timeout: 10_000 });
-    await expect(
-      page.locator('[data-role="family-chat-message"]', {
-        hasText: offlineMessage,
-      }),
-    ).toHaveCount(1);
-    return;
-  }
-  await expect(indicator).toHaveText(status, { timeout: 10_000 });
-}
 
 When(
   "the visitor sends a family chat message during a retryable network failure",
@@ -54,27 +43,24 @@ When(
     // requests -- and the reload this scenario does next -- working
     // normally, mirroring `experience-release.steps.ts`'s established
     // "one member queues a message while offline" technique.
-    await page.route("**/api/graphql", async (routeHandle) => {
-      const body = routeHandle.request().postData() ?? "";
-      if (body.includes("SendFamilyChatMessage")) {
-        await routeHandle.abort("connectionfailed");
-        return;
-      }
-      await routeHandle.continue();
-    });
-    await composerInput(page).fill(offlineMessage);
-    await page.getByRole("button", { name: "Send" }).click();
+    await interfereWithSends(page, "abort");
+    // "ruang-keluarga" is one shared room whose history persists across
+    // every project this suite runs, so each run's body is its own.
+    await sendThroughComposer(
+      page,
+      `Offline reload probe ${crypto.randomUUID().slice(0, 8)}`,
+    );
   },
 );
 
 Then("the message shows status {string}", async ({ page }, status: string) => {
-  await outboxStatusMatches(page, status);
+  await expectOutboxStatus(page, status);
 });
 
 Then(
   "the message reaches status {string}",
   async ({ page }, status: string) => {
-    await outboxStatusMatches(page, status);
+    await expectOutboxStatus(page, status);
   },
 );
 
@@ -88,16 +74,20 @@ Then(
     // now-gone in-memory outbox namespace.
     await expect(
       page.locator('[data-role="family-chat-message"]', {
-        hasText: offlineMessage,
+        hasText: delivery.body,
       }),
     ).toHaveCount(1, { timeout: 10_000 });
-    await expect(
-      page.locator("[data-role=family-chat-outbox-status]"),
-    ).not.toHaveText("", { timeout: 10_000 });
+    await expect(page.locator(OUTBOX_STATUS)).not.toHaveText("", {
+      timeout: 10_000,
+    });
   },
 );
 
 When("the network recovers", async ({ page }) => {
-  await page.unroute("**/api/graphql");
-  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  // Both ways a scenario takes the network away are given back: the
+  // browser's own offline state, which fires a real `online` event, and the
+  // failing sends. Nothing is dispatched by hand; a queue that only drained
+  // on a synthetic event would not drain for a member.
+  await stopInterfering(page);
+  await page.context().setOffline(false);
 });

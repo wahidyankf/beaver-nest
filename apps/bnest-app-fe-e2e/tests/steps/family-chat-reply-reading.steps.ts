@@ -1,6 +1,12 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { waitForRoomReady } from "../support/family-chat-resume";
+import {
+  gateRoomSocket,
+  recordCatchUps,
+  watchSubscriptions,
+  type SocketGate,
+} from "../support/family-chat-socket";
 import {
   asAnotherMember,
   focusedMessageId,
@@ -82,18 +88,54 @@ When(
   },
 );
 
+/**
+ * Reopens the room with its socket routed through a gate, and cuts that
+ * socket once the room is subscribed on it -- a socket the room was really
+ * receiving on, not its first connect.
+ */
+async function openThenDropSubscribedSocket(page: Page): Promise<SocketGate> {
+  const gate = await gateRoomSocket(page);
+  const subscriptions = watchSubscriptions(page);
+  await page.reload();
+  await waitForRoomReady(page);
+  // Ready comes before the room opens its socket and subscribes on it.
+  await expect.poll(() => subscriptions.acknowledged).toBe(1);
+  expect(gate.openedAt).toHaveLength(1);
+  await gate.drop();
+  return gate;
+}
+
 When(
   "the reply reaches the visitor through reconnect catch-up after a dropped socket",
   async ({ page, browser }) => {
-    await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+    const catchUps = recordCatchUps(page);
+    const gate = await openThenDropSubscribedSocket(page);
+
+    // Committed while this browser holds no socket at all, so no live push
+    // can bring it.
     scenario.replyBody = uniqueBody("Catch-up reply");
     scenario.replyId = await replyAsAnotherMember(
       browser,
       scenario.replyBody,
       scenario.targetId,
     );
-    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    // Long enough for a live push to have landed, had there been a socket.
+    await page.waitForTimeout(1_500);
+    expect(await messageById(page, scenario.replyId).count()).toBe(0);
+    expect(gate.openedAt).toHaveLength(1);
+
+    gate.restore();
     await waitForMessage(page, scenario.replyId);
+    // It arrived in a catch-up page, asked for after a new socket opened.
+    expect(gate.openedAt.length).toBeGreaterThanOrEqual(2);
+    const reopenedAt = gate.openedAt[1] ?? Number.POSITIVE_INFINITY;
+    expect(
+      catchUps.some(
+        (catchUp) =>
+          catchUp.answeredAt >= reopenedAt &&
+          catchUp.ids.includes(scenario.replyId),
+      ),
+    ).toBe(true);
   },
 );
 

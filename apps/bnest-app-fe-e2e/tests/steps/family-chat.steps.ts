@@ -1,63 +1,109 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { restorePrimaryRoute } from "../support/routed-rollout";
-import type { TestIdentity } from "../support/test-identity";
+import {
+  isolatedTestIdentity,
+  type TestIdentity,
+} from "../support/test-identity";
 import {
   composerInput,
   ensureFamilyChatHasOlderPage,
-  inspectCacheStorageEntries,
   openFamilyChatRoom,
   promoteWithConcurrentTraffic,
   seedFamilyChatScrollOverflow,
   sendAsAnotherMember,
 } from "../support/family-chat";
+import {
+  sendAttempts,
+  type SendAttempt,
+} from "../support/family-chat-delivery";
+import {
+  recordCatchUps,
+  watchSockets,
+  type CatchUp,
+  type SocketLog,
+} from "../support/family-chat-socket";
 
-// The five family_chat.feature scenarios that genuinely need a real browser
-// layout engine, accessibility tree, Cache Storage implementation, or a live
-// Caddy promotion -- everything else in that feature is proven either by
-// Elixir ExBdd (the two "Canonical route" scenarios, which reuse the
-// existing generic `a visitor opens {string}` bindings below for free) or by
-// the frontend Vitest+Gherkin harness (`@e2e-exempt`, alternative-proof
-// `bnest-app:test:unit:fe`).
+// family_chat.feature's browser-only scenarios about the live room: a Caddy
+// promotion under a connected client, the scroll anchor, and the live-region
+// announcement. Everything else in that feature is proven by its own step
+// files, by Elixir ExBdd (the two "Canonical route" scenarios, which reuse
+// the generic `a visitor opens {string}` binding), or -- where the feature
+// says so -- by the frontend Vitest+Gherkin harness alone.
 
 const { Given, Then, When } = createBdd();
 
 let identity: TestIdentity;
-let cacheEntries: string[] = [];
 let catchUpProbeBody = "";
 let draftBody = "";
+let sockets: SocketLog = { opened: [], closed: [] };
+let catchUps: CatchUp[] = [];
+let sends: SendAttempt[] = [];
+let anchor = { id: "", offset: 0 };
+
+const ANCHOR_TOLERANCE_PX = 4;
 
 Given(
   "a visitor opens {string} with the socket connected to the current slot",
-  async ({ page, $testInfo }, route: string) => {
+  async ({ page, $testInfo, browser }, route: string) => {
+    // The room's catch-up asks for "everything after the newest message it
+    // knows"; an empty room has none, so it would refetch the latest page
+    // instead, and a run alone on a fresh server would not be proving the
+    // gap-fill at all. One earlier message makes the room open with a baseline.
+    await sendAsAnotherMember(
+      browser,
+      isolatedTestIdentity($testInfo),
+      `Catch-up baseline ${crypto.randomUUID().slice(0, 8)}`,
+    );
+    // Watching from before the room opens its socket, so the first socket
+    // seen is the one connected to the current slot.
+    sockets = watchSockets(page);
+    catchUps = recordCatchUps(page);
+    sends = sendAttempts(page);
     identity = await openFamilyChatRoom(page, $testInfo);
     expect(page.url()).toContain(route);
+    // The room reports itself ready once its history is shown, and only
+    // then opens the socket it subscribes on.
+    await expect.poll(() => sockets.opened.length, { timeout: 15_000 }).toBe(1);
+    // Lives only as long as this window does: a reload would drop it.
+    await page.evaluate(() => {
+      Object.assign(window, { bnestNoReloadProbe: "held" });
+    });
   },
 );
 
 When("Caddy promotes a replacement slot", async ({ page, browser }) => {
-  // The room is a plain controller, not a LiveView -- see this file's own
-  // "the prior-slot socket closes" step for the equivalent real proof. A
-  // real exact-once-catch-up proof needs a message this client never sent
-  // itself and a message it tried to send but couldn't, both genuinely in
-  // flight around the cutover -- see `promoteWithConcurrentTraffic`'s own
-  // header comment (this scenario's previous
-  // `toBeGreaterThanOrEqual(0)`/`not.toHaveText("Sending", ...)` assertions
-  // were both vacuous; see delivery.md's Phase 9 correction note).
+  // The room is a plain controller, not a LiveView. A real
+  // exact-once-catch-up proof needs a message this client never sent itself
+  // and a message it tried to send but couldn't, both genuinely in flight
+  // around the cutover -- see `promoteWithConcurrentTraffic`'s own header
+  // comment.
   ({ catchUpProbeBody, draftBody } = await promoteWithConcurrentTraffic(
     page,
     browser,
     identity,
+    () =>
+      expect
+        .poll(
+          () => {
+            const reopenedAt = sockets.opened[1];
+            return (
+              reopenedAt !== undefined &&
+              catchUps.some((entry) => entry.answeredAt >= reopenedAt)
+            );
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true),
   ));
 });
 
 Then("the prior-slot socket closes", async ({ page }) => {
-  // The room is a plain Phoenix controller, never a LiveView (tech-doc 005),
-  // so it never carries `[data-phx-main]`/`phx-connected`. Its own reconnect
-  // module (`family_chat/reconnect.js`, driven by `graphql.js`'s socket
-  // `onOpen` reconnect signal) re-subscribes and returns the room to its
-  // real readiness state once the new slot's socket is up -- the equivalent
-  // proof that the prior slot's socket is gone and a new one replaced it.
+  // The socket connected to the prior slot emitted `close`, and a new one
+  // was opened after it -- the room's own reconnect, not a page load.
+  await expect.poll(() => sockets.closed.length).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => sockets.opened.length).toBeGreaterThanOrEqual(2);
+  expect(sockets.opened[1] ?? 0).toBeGreaterThanOrEqual(sockets.closed[0] ?? 0);
   await expect(page.locator('[data-role="family-chat-room"]')).toHaveAttribute(
     "data-connection-state",
     "ready",
@@ -68,11 +114,10 @@ Then("the prior-slot socket closes", async ({ page }) => {
 Then(
   "the browser subscribes on the promoted slot and completes catch-up within ten seconds",
   async ({ page }) => {
-    // Real proof: a message this client never sent itself, posted by
-    // another member concurrently with the promotion (see the `When` step
-    // above), must arrive exactly once through the resubscribed channel --
-    // not zero (lost across the cutover) and not more than once
-    // (duplicated by the reconnect module's merge-by-server-ID step).
+    // A message this client never sent itself, posted by another member
+    // concurrently with the promotion, must arrive exactly once -- not zero
+    // (lost across the cutover) and not more than once (duplicated by the
+    // reconnect module's merge-by-server-ID step).
     await expect(
       page.locator('[data-role="family-chat-message"]', {
         hasText: catchUpProbeBody,
@@ -84,26 +129,38 @@ Then(
 Then(
   "any queued send drains only after catch-up completes",
   async ({ page }) => {
-    // Real proof: the message this client itself tried to send during the
-    // cutover (queued, retried, and shown "Retrying" by the `When` step
-    // above) must actually reach the server and render -- not just "isn't
-    // showing Sending 1 second from now" (always true whether or not it
-    // ever sends). This checks the outcome (both catch-up and this
-    // client's own drain reach their correct terminal state), not strict
-    // sub-second ordering between the two, which is not reliably
-    // observable from the DOM without a flaky race.
+    // The message this client tried to send during the cutover reaches the
+    // server and renders once.
     await expect(
       page.locator("[data-role=family-chat-outbox-status]"),
-    ).not.toContainText("Retrying", { timeout: 10_000 });
+    ).not.toContainText("Retrying", { timeout: 20_000 });
     await expect(
       page.locator('[data-role="family-chat-message"]', {
         hasText: draftBody,
       }),
     ).toHaveCount(1);
+    // And in order: once the new socket opened, the room asked for the gap
+    // first, and the first send it attempted on that socket followed the
+    // gap's answer.
+    const reopenedAt = sockets.opened[1] ?? Number.POSITIVE_INFINITY;
+    const catchUp = catchUps.find((entry) => entry.answeredAt >= reopenedAt);
+    const firstSend = sends.find(
+      (attempt) => attempt.body === draftBody && attempt.at >= reopenedAt,
+    );
+    expect(catchUp, "no catch-up after the new socket").toBeDefined();
+    expect(firstSend, "no send after the new socket").toBeDefined();
+    expect(firstSend?.at ?? 0).toBeGreaterThanOrEqual(catchUp?.answeredAt ?? 0);
   },
 );
 
 Then("the page does not reload", async ({ page }) => {
+  // A reloaded page is a new window with a navigation entry of its own, so
+  // counting entries alone cannot see it; the Given's probe can.
+  const probe = await page.evaluate(
+    () =>
+      (window as unknown as { bnestNoReloadProbe?: string }).bnestNoReloadProbe,
+  );
+  expect(probe, "the page was reloaded").toBe("held");
   const navigations = await page.evaluate(
     () => performance.getEntriesByType("navigation").length,
   );
@@ -111,14 +168,49 @@ Then("the page does not reload", async ({ page }) => {
   await restorePrimaryRoute(page);
 });
 
+// --- Scroll anchor ----------------------------------------------------------
+
+/** The first message showing at the top of the history, and where it sits. */
+function topVisibleMessage(
+  page: Page,
+): Promise<{ id: string; offset: number }> {
+  return page.evaluate(() => {
+    const history = document.querySelector('[data-role="family-chat-history"]');
+    if (!history) throw new Error("the history is not rendered");
+    const top = history.getBoundingClientRect().top;
+    const visible = [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-role="family-chat-message"]',
+      ),
+    ].find((message) => message.getBoundingClientRect().bottom > top);
+    if (!visible) throw new Error("no message is visible");
+    return {
+      id: visible.dataset["messageId"] ?? "",
+      offset: visible.getBoundingClientRect().top - top,
+    };
+  });
+}
+
+function offsetOf(page: Page, id: string): Promise<number | null> {
+  return page.evaluate((messageId) => {
+    const history = document.querySelector('[data-role="family-chat-history"]');
+    const message = document.querySelector(
+      `[data-role="family-chat-message"][data-message-id="${messageId}"]`,
+    );
+    if (!history || !message) return null;
+    return (
+      message.getBoundingClientRect().top - history.getBoundingClientRect().top
+    );
+  }, id);
+}
+
 Given(
   "a visitor opens {string} scrolled to a known older message",
   async ({ page, $testInfo }, _route: string) => {
     identity = await openFamilyChatRoom(page, $testInfo);
     // "Load older messages" only stays clickable while the server still
-    // reports `hasOlder: true` (tech-doc 005's "Beginning of family chat"
-    // exhausted state) -- guarantee that regardless of how many messages
-    // this shared-room suite run has already accumulated by this point.
+    // reports `hasOlder: true` -- guarantee that regardless of how many
+    // messages this shared-room suite run has already accumulated.
     await ensureFamilyChatHasOlderPage(page);
     await page.locator("[data-role=family-chat-history]").evaluate((el) => {
       el.scrollTop = 0;
@@ -127,32 +219,38 @@ Given(
 );
 
 When("the visitor loads an older history page", async ({ page }) => {
+  // Measured by the test, from the layout, before anything moves.
+  anchor = await topVisibleMessage(page);
+  const before = await page.locator("[data-role=family-chat-message]").count();
   await page.getByRole("button", { name: "Load older" }).click();
+  await expect
+    .poll(() => page.locator("[data-role=family-chat-message]").count())
+    .toBeGreaterThan(before);
 });
 
 Then(
   "the previously visible message remains at the same visual position",
   async ({ page }) => {
-    const anchor = page.locator("[data-role=family-chat-scroll-anchor]");
-    const before = await anchor.getAttribute("data-anchor-offset");
     await expect
-      // `anchor` is a Playwright Locator, not a DOM node -- `getAttribute` is
-      // its own (Promise-returning) API method; there is no `.dataset` here.
-      // eslint-disable-next-line unicorn/prefer-dom-node-dataset
-      .poll(() => anchor.getAttribute("data-anchor-offset"))
-      .toBe(before);
+      .poll(async () => {
+        const offset = await offsetOf(page, anchor.id);
+        return offset === null
+          ? Number.POSITIVE_INFINITY
+          : Math.abs(offset - anchor.offset);
+      })
+      .toBeLessThanOrEqual(ANCHOR_TOLERANCE_PX);
   },
 );
+
+// --- Announcements ----------------------------------------------------------
 
 Given(
   "a visitor opens {string} with focus in the composer",
   async ({ page, $testInfo }, _route: string) => {
     identity = await openFamilyChatRoom(page, $testInfo);
     // The following scenario needs the visitor to genuinely be scrolled away
-    // from the bottom when the remote message arrives -- meaningless on a
-    // freshly opened, still-empty room, where there is no overflow to be
-    // scrolled away from at all (see `seedFamilyChatScrollOverflow`'s
-    // comment).
+    // from the bottom when the remote message arrives (see
+    // `seedFamilyChatScrollOverflow`'s comment).
     await seedFamilyChatScrollOverflow(page);
     await composerInput(page).focus();
   },
@@ -181,104 +279,3 @@ Then(
     await expect(page.getByRole("button", { name: label })).toBeVisible();
   },
 );
-
-Given(
-  "a visitor opens {string} and exchanges messages",
-  async ({ page, $testInfo }, _route: string) => {
-    identity = await openFamilyChatRoom(page, $testInfo);
-    await composerInput(page).fill("cache inspection probe");
-    await page.getByRole("button", { name: "Send" }).click();
-  },
-);
-
-When("the service worker's Cache Storage is inspected", async ({ page }) => {
-  cacheEntries = await inspectCacheStorageEntries(page);
-});
-
-// `priv/static/service-worker.js` precaches a small, fixed app shell (`/`,
-// `/manifest.webmanifest`, plus `/assets/` and `/images/` entries) at
-// `install` time -- pre-existing, already-shipped PWA-installability
-// behavior from before this plan (see `d6af11e81`), untouched by this
-// plan's own fetch-handler rewrite. Those exact entries are genuinely
-// static (identical for every visitor, written once at install, never
-// re-written per request), so they are not "a navigation response" in the
-// sense this plan's requirement cares about: no *authenticated* page or
-// GraphQL response is ever written to Cache Storage. This list is the
-// alternative-proof's own definition of that fixed shell, kept separate
-// from `cache_policy.js`'s `shouldCachePathname` (which governs only the
-// dynamic, per-request runtime caching decision).
-const PRECACHED_APP_SHELL_ENTRIES = new Set(["/", "/manifest.webmanifest"]);
-
-Then("it contains only static build assets", () => {
-  const nonStatic = cacheEntries.filter(
-    (entry) =>
-      !entry.startsWith("/assets/") &&
-      !entry.startsWith("/images/") &&
-      !PRECACHED_APP_SHELL_ENTRIES.has(entry),
-  );
-  expect(nonStatic, JSON.stringify(nonStatic)).toEqual([]);
-});
-
-Then("it contains no navigation response, message, or GraphQL response", () => {
-  // The precached app shell's own "/" entry is the pre-existing,
-  // unauthenticated install-time shell (see the comment above), not a
-  // dynamic navigation response -- the fetch handler never caches a real
-  // page navigation (see its own comment). What this step actually
-  // guards is that no *family-chat* page and no GraphQL response ever
-  // lands in Cache Storage.
-  const forbidden = cacheEntries.filter(
-    (entry) => entry.includes("family-chat") || entry.includes("/api/graphql"),
-  );
-  expect(forbidden, JSON.stringify(forbidden)).toEqual([]);
-});
-
-Given("the viewport is set to {string}", async ({ page }, viewport: string) => {
-  const size = parseViewport(viewport);
-  await page.setViewportSize(size);
-});
-
-// The Responsive Outline's "When a visitor opens {string}" step reuses the
-// existing generic binding in browser.steps.ts (same as the two Canonical
-// route scenarios) -- no separate binding needed here.
-
-Then(
-  "every control is reachable by keyboard with a visible focus indicator",
-  async ({ page }) => {
-    // The shared "a visitor opens {string}" step (`browser.steps.ts`) is a
-    // bare `page.goto`, reused across features that each have their own
-    // readiness signal; family-chat's composer starts `disabled` until its
-    // own JS finishes the initial message load, so this step -- which is
-    // family-chat-specific -- waits for that readiness itself rather than
-    // racing a disabled textarea (a disabled element can never receive
-    // focus, which was surfacing as a flaky "inactive" focus state on
-    // slower/mobile projects).
-    await expect(
-      page.locator('[data-role="family-chat-room"]'),
-    ).toHaveAttribute("data-connection-state", "ready", { timeout: 10_000 });
-    await composerInput(page).focus();
-    await expect(composerInput(page)).toBeFocused();
-    await page.keyboard.press("Tab");
-    const focused = await page.evaluate(
-      () => document.activeElement?.tagName ?? null,
-    );
-    expect(focused).not.toBeNull();
-  },
-);
-
-Then("no horizontal page scroll is present", async ({ page }) => {
-  const [scrollWidth, clientWidth] = await page.evaluate(() => [
-    document.documentElement.scrollWidth,
-    document.documentElement.clientWidth,
-  ]);
-  expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
-});
-
-function parseViewport(spec: string): { width: number; height: number } {
-  const match = /^(\w+) (\d+)x(\d+)(?: (\d+)%)?$/u.exec(spec);
-  if (!match) throw new Error(`unrecognized viewport spec: ${spec}`);
-  const [, , widthText, heightText, zoomText] = match;
-  const width = Number(widthText);
-  const height = Number(heightText);
-  const zoom = zoomText ? Number(zoomText) / 100 : 1;
-  return { width: Math.round(width / zoom), height: Math.round(height / zoom) };
-}
