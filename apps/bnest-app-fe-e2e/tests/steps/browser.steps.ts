@@ -1,9 +1,11 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import { saveChatOnExitedCodexThread } from "../support/codex-chat-transcript";
 import {
   promoteCompatibleCandidate,
   restorePrimaryRoute,
 } from "../support/routed-rollout";
+import { isolatedTestIdentity } from "../support/test-identity";
 
 const { After, Then, When } = createBdd();
 
@@ -225,10 +227,18 @@ Then(
   },
 );
 
+// The admin's Codex session must be one whose runner has gone away: their
+// saved chat resumes the fixture thread whose runner exits at once, the page
+// opens over it, and the runner's exit is shown before the visitor sends.
 When(
   "Codex rejects the visitor message {string}",
-  async ({ page }, message: string) => {
+  async ({ page, $testInfo }, message: string) => {
+    saveChatOnExitedCodexThread(isolatedTestIdentity($testInfo).admin.username);
+    await page.reload();
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    await expect(page.getByRole("alert")).toHaveText(
+      /^Codex runner exited with status \d+\.$/u,
+    );
     await page.getByLabel("Message").fill(message);
     await page.locator(".send-button").click();
   },
