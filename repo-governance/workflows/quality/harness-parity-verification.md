@@ -18,7 +18,9 @@ Record `git status --short` and resolve the project configuration:
 npm exec -- nx show project rhino-consumer --json
 ```
 
-Confirm that `test:repo` contains the `harness parity validate` command. Treat later repository changes as invalidating results from this baseline.
+Confirm that `test:repo` runs `./rhino gate run --surface pre-push`, which reaches the `harness-adapters` gate entry
+`repo-config.yml` declares to run `./rhino harness adapters validate`. Treat later repository changes as invalidating
+results from this baseline.
 
 ### 2. Review the canonical topology
 
