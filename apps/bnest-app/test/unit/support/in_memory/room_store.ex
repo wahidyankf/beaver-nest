@@ -18,7 +18,9 @@ defmodule BnestApp.Test.InMemory.RoomStore do
   from a fresh store. The test seam `put_room/3` stands in for rooms other than the
   canonical one, which the store's own callbacks never write. `calls/1` reports every room
   store callback the store has served, so a test can prove that code it ran never reached
-  Family Chat's store.
+  Family Chat's store. `pristine?/1` tells whether nothing was seeded or committed yet, and
+  `fail_next_delivery_insert/1` makes the next commit fail at its delivery rows, rolling the
+  whole commit back as the SQLite store's transaction does.
   """
 
   @behaviour BnestApp.FamilyChat.Ports.RoomStore
@@ -91,8 +93,15 @@ defmodule BnestApp.Test.InMemory.RoomStore do
         &(&1 |> seed() |> Map.take([:rooms, :messages, :subscriptions, :deliveries]))
       )
 
-  @doc "How many times the store converged after a drain."
-  def convergences(%{pid: pid}), do: Agent.get(pid, & &1.convergences)
+  @doc "Whether the store holds no room and no message: nothing seeded or committed yet."
+  def pristine?(%{pid: pid}), do: Agent.get(pid, &(&1.rooms == %{} and &1.messages == []))
+
+  @doc """
+  Makes the next commit fail while it writes its delivery rows. Nothing of that commit is
+  kept: not the message, not a delivery.
+  """
+  def fail_next_delivery_insert(%{pid: pid}),
+    do: Agent.update(pid, &%{&1 | fail_delivery_insert: true})
 
   @doc "The name of every port callback the store has served, oldest first."
   def calls(%{pid: pid}), do: Agent.get(pid, &Enum.reverse(&1.calls))
@@ -167,7 +176,7 @@ defmodule BnestApp.Test.InMemory.RoomStore do
 
         case refusal(state, message) do
           nil -> commit(state, message)
-          reason -> {{:error, reason}, state}
+          reason -> {{:error, reason}, %{state | fail_delivery_insert: false}}
         end
       end)
 
@@ -203,13 +212,6 @@ defmodule BnestApp.Test.InMemory.RoomStore do
     end)
   end
 
-  @impl true
-  def converge_after_drain!(%{pid: pid}) do
-    Agent.update(pid, fn state ->
-      %{seed(state) | convergences: state.convergences + 1} |> called(:converge_after_drain!)
-    end)
-  end
-
   defp empty do
     %{
       rooms: %{},
@@ -219,7 +221,7 @@ defmodule BnestApp.Test.InMemory.RoomStore do
       next_subscription_id: 1,
       deliveries: [],
       next_delivery_id: 1,
-      convergences: 0,
+      fail_delivery_insert: false,
       calls: []
     }
   end
@@ -253,6 +255,9 @@ defmodule BnestApp.Test.InMemory.RoomStore do
 
   defp refusal(state, message) do
     cond do
+      state.fail_delivery_insert ->
+        "the delivery rows could not be written"
+
       not Map.has_key?(state.rooms, message.room_id) ->
         "room #{message.room_id} does not exist"
 

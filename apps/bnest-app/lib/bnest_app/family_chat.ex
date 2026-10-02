@@ -21,11 +21,15 @@ defmodule BnestApp.FamilyChat do
   use Boundary,
     top_level?: true,
     type: :strict,
-    deps: [],
+    deps: [BnestApp.Scheduler],
     exports: [{Domain, []}, {Ports, []}]
 
   alias BnestApp.FamilyChat.Domain.{Cursor, Message, Policy}
   alias BnestApp.FamilyChat.Ports.RoomStore
+  alias BnestApp.Scheduler
+
+  @retention_schedule_key "family-chat-push-retention-daily"
+  @backup_schedule_key "prod-sqlite-backup-daily"
 
   @type safe_error :: Policy.safe_error()
 
@@ -58,10 +62,22 @@ defmodule BnestApp.FamilyChat do
 
   @doc """
   Release-time convergence after the prior slot drained: enables the seeded push-retention
-  schedule and converges the backup schedule's daily time, each at most once.
+  schedule and converges the backup schedule's daily time to 18:00 UTC, each at most once.
+
+  Tech-doc 009 ("Backup Schedule Migration"): "After the compatibility revision is routed
+  and every runnable slot supports the new Backup service, managed release calls a public
+  Scheduler operation that force-converges this key once"; and "Push retention remains a
+  separate fixed disabled seed at 00:15 WIB and becomes enabled only after old-slot drain."
+  Both go through the Scheduler's compare-and-swap on `revision = 1`, so calling this again
+  takes effect at most once and never overrides a later operator edit. It works on whatever
+  database the caller (the release entry point) started.
   """
   @spec converge_after_drain!() :: :ok
-  def converge_after_drain!, do: RoomStore.converge_after_drain!(store())
+  def converge_after_drain! do
+    Scheduler.activate_if_pristine!(@retention_schedule_key, DateTime.utc_now())
+    {:ok, _schedule} = Scheduler.converge_backup_time!(@backup_schedule_key, "18:00")
+    :ok
+  end
 
   @doc """
   Commits a message in `room_id` exactly as given, with no validation and no publish, and
@@ -123,7 +139,7 @@ defmodule BnestApp.FamilyChat do
   end
 
   # `sender_display_name` defaults to the raw user id for callers with no real
-  # account to display (the backup module's synthetic load probes): only the
+  # account to display (test drivers' synthetic load probes): only the
   # GraphQL resolver, which has a real session-derived `displayUsername`,
   # passes one explicitly.
   @spec send_message(

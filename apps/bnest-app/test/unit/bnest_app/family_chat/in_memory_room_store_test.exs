@@ -70,12 +70,4 @@ defmodule BnestApp.FamilyChat.InMemoryRoomStoreTest do
     assert RoomStore.message_by_id(store, 1, foreign.id) == nil
     assert RoomStore.message_by_id(store, 900, foreign.id) == stored(foreign)
   end
-
-  test "records each convergence after drain" do
-    store = InMemoryRoomStore.start()
-
-    assert RoomStore.converge_after_drain!(store) == :ok
-    assert RoomStore.converge_after_drain!(store) == :ok
-    assert InMemoryRoomStore.convergences(store) == 2
-  end
 end

@@ -10,7 +10,6 @@ defmodule BnestApp.FamilyChat.Adapters do
     type: :strict,
     deps: [
       BnestApp.FamilyChat,
-      BnestApp.Scheduler,
       BnestApp.SqliteRepo,
       BnestApp.Storage,
       BnestAppWeb,
