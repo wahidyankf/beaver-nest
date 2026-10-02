@@ -41,7 +41,7 @@ function prepareContextualSchedules(
     .digest("hex")
     .slice(0, 12)}`;
   const result = runLiveMix(
-    `:ok = BnestApp.Scheduler.Store.put_test_schedule("${key}", "family", "fixture", DateTime.utc_now()); IO.puts("schedule-created")`,
+    `:ok = BnestApp.Test.Seeds.Schedules.put_test_schedule("${key}", "family", "fixture", DateTime.utc_now()); IO.puts("schedule-created")`,
   );
   expect(result.status, result.stderr).toBe(0);
   expect(result.stdout).toContain("schedule-created");

@@ -16,7 +16,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Identity.Domain.{Authorization, Credentials}
   alias BnestApp.Identity.Ports.IdentityStore
   alias BnestApp.Preferences
-  alias BnestApp.Scheduler.{Policy, Registry, Store}
+  alias BnestApp.Scheduler
+  alias BnestApp.Scheduler.Domain.Policy
+  alias BnestApp.Scheduler.Ports.ScheduleStore
   alias BnestApp.SifatAllah
   alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage
@@ -29,7 +31,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Test.InMemory.AgentSession, as: InMemoryAgentSession
   alias BnestApp.Test.InMemory.IdentityStore, as: InMemoryIdentityStore
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
+  alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
   alias BnestApp.Test.InMemory.StoragePorts
+  alias BnestApp.Test.SchedulerDispatch
   alias BnestAppWeb.ChatLive
   alias BnestAppWeb.DataMigrationLive
   alias BnestAppWeb.SifatAllahLive
@@ -1461,34 +1465,55 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def prepare_behaviour(context, :no_backup_override, _args),
     do: Map.put(context, :repository_root, "/workspace")
 
-  def prepare_behaviour(context, :admin_opened_schedules, _args),
-    do:
-      Map.merge(context, %{
-        backup_directory: "/private/backups",
-        destination_id: "unit-destination"
-      })
+  # The Scheduler's schedules live in the scenario's in-memory schedule store
+  # (`UnitSupport`), put there as the release seeds put them.
+  def prepare_behaviour(context, :admin_opened_schedules, _args) do
+    key = "prod-sqlite-backup-daily"
+    :ok = put_schedule!(key, "prod_sqlite_backup", "admin_system")
 
-  def prepare_behaviour(context, :saved_daily_schedule, _args) do
-    schedule = %{
-      enabled: true,
-      daily_at_utc: "19:00",
-      next_run_at: Policy.next_slot("19:00", @behaviour_now)
-    }
-
-    Map.put(context, :schedule_before_restart, schedule)
+    Map.merge(context, %{
+      backup_directory: "/private/backups",
+      destination_id: "unit-destination",
+      schedule_key: key
+    })
   end
 
-  def prepare_behaviour(context, :multiple_missed_slots, _args),
-    do: Map.put(context, :daily_at_utc, "19:00")
+  # Saved through the facade operation the admin schedules page calls: 02:00 WIB is
+  # 19:00 UTC, later on the scenario's day than its 12:00 UTC clock.
+  def prepare_behaviour(context, :saved_daily_schedule, _args) do
+    key = "prod-sqlite-backup-daily"
+    :ok = put_schedule!(key, "prod_sqlite_backup", "admin_system")
+
+    {:ok, _schedule} =
+      Scheduler.update_daily(
+        key,
+        %{"daily_time_wib" => "02:00", "enabled" => "true", "revision" => "1"},
+        @behaviour_now
+      )
+
+    Map.merge(context, %{schedule_key: key, schedule_before_restart: Scheduler.get_schedule(key)})
+  end
+
+  # Due three days before its latest slot: the scheduler missed that slot and the
+  # three before it.
+  def prepare_behaviour(context, :multiple_missed_slots, _args) do
+    key = "unit-catchup"
+    missed = DateTime.add(Policy.latest_slot("19:00", @behaviour_now), -3 * 86_400)
+    :ok = put_schedule!(key, "fixture", "family", %{next_run_at: missed})
+    Map.put(context, :schedule_key, key)
+  end
 
   def prepare_behaviour(context, :accepted_backup_claim, _args),
     do: Map.merge(context, unit_backup_fixture())
 
-  def prepare_behaviour(context, :overlapping_coordinators, _args),
-    do: Map.put(context, :destination_id, "shared-destination")
+  def prepare_behaviour(context, :overlapping_coordinators, _args) do
+    key = "unit-overlap"
+    :ok = put_schedule!(key, "fixture", "family")
+    Map.put(context, :schedule_key, key)
+  end
 
   def prepare_behaviour(context, :contextual_schedules, _args),
-    do: Map.put(context, :scheduler_entries, Registry.entries())
+    do: Map.put(context, :scheduler_entries, Scheduler.task_entries())
 
   # A non-admin family member with a real session: both accounts are bootstrapped through the
   # Identity facade and the child logs in through it.
@@ -1507,8 +1532,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def prepare_behaviour(context, :retention_fixture, _args),
     do: Map.put(context, :retention_receipts, unit_retention_receipts())
 
-  def prepare_behaviour(context, :second_family_handler, _args),
-    do: Map.put(context, :family_handler, Registry.fetch("fixture"))
+  def prepare_behaviour(context, :second_family_handler, _args) do
+    key = "unit-second-family"
+    :ok = put_schedule!(key, "fixture", "family")
+    Map.put(context, :schedule_key, key)
+  end
 
   def prepare_behaviour(context, :typed_settings_panels, _args),
     do: Map.put(context, :declared_panels, AdminRegistry.panels())
@@ -1559,13 +1587,21 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def prepare_behaviour(context, :expiry_policies, _args) do
+    key = "unit-expires"
+
+    :ok =
+      put_schedule!(key, "fixture", "family", %{
+        expiration_kind: "after_occurrences",
+        max_occurrences: 1
+      })
+
     policies = [
       %{expiration_kind: "never"},
       %{expiration_kind: "at", expires_at: DateTime.add(@behaviour_now, 60)},
       %{expiration_kind: "after_occurrences", claimed_occurrences: 0, max_occurrences: 1}
     ]
 
-    Map.put(context, :expiration_policies, policies)
+    Map.merge(context, %{schedule_key: key, expiration_policies: policies})
   end
 
   @impl true
@@ -1932,24 +1968,45 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
+  # Saving the destination queues its setup claim through the Scheduler facade, and
+  # saving it again queues the same one.
   def perform_behaviour(context, :save_backup_override, _args) do
-    claim_key = Store.setup_claim_key(context.destination_id)
+    key = context.schedule_key
+    destination_id = context.destination_id
+    before = run_count()
+    {:ok, first} = Scheduler.claim_setup(key, destination_id, @behaviour_now)
+    {:ok, second} = Scheduler.claim_setup(key, destination_id, @behaviour_now)
 
     Map.merge(context, %{
       backup_document: Config.document(context.backup_directory),
-      setup_claim_keys: MapSet.new([claim_key, Store.setup_claim_key(context.destination_id)])
+      first_setup_claim: first,
+      second_setup_claim: second,
+      setup_run_delta: run_count() - before
     })
   end
 
+  # Starts the Scheduler's coordinator over the scenario's store at the scenario's
+  # clock, stops it, starts it again, and has the new one reconcile.
   def perform_behaviour(context, :restart_scheduler, _args) do
-    persisted = context.schedule_before_restart |> Jason.encode!() |> Jason.decode!(keys: :atoms)
-    Map.put(context, :schedule_after_restart, persisted)
+    clock = fn -> @behaviour_now end
+    ExUnit.Callbacks.start_supervised!({Task.Supervisor, name: BnestApp.Scheduler.Tasks})
+    ExUnit.Callbacks.start_supervised!({Scheduler, clock: clock, automatic?: false})
+    :ok = ExUnit.Callbacks.stop_supervised!(Scheduler)
+    ExUnit.Callbacks.start_supervised!({Scheduler, clock: clock, automatic?: false})
+    :ok = Scheduler.reconcile()
+
+    Map.merge(context, %{
+      schedule_after_restart: Scheduler.get_schedule(context.schedule_key),
+      scheduler_restarted?: true
+    })
   end
 
   def perform_behaviour(context, :reconcile_startup, _args) do
+    claims = Scheduler.claim_due(@behaviour_now)
+
     Map.merge(context, %{
-      reconciled_slot: Policy.latest_slot(context.daily_at_utc, @behaviour_now),
-      reconciled_next: Policy.next_slot(context.daily_at_utc, @behaviour_now)
+      reconciled_claim: Enum.find(claims, &(&1.schedule_key == context.schedule_key)),
+      reconciled_schedule: Scheduler.get_schedule(context.schedule_key)
     })
   end
 
@@ -1982,16 +2039,32 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :backup_receipt, receipt)
   end
 
+  # Two coordinators claim the same due slot at once, then the one claimed attempt
+  # fails transiently each time it is retried.
   def perform_behaviour(context, :reconcile_overlap, _args) do
-    claim_key = Store.setup_claim_key(context.destination_id)
+    claims =
+      1..2
+      |> Task.async_stream(fn _coordinator -> Scheduler.claim_due(@behaviour_now) end,
+        max_concurrency: 2
+      )
+      |> Enum.flat_map(fn {:ok, rows} ->
+        Enum.filter(rows, &(&1.schedule_key == context.schedule_key))
+      end)
+
+    # The Thens judge how many claims there were and what each failure recorded, so
+    # this follows the first claim through whatever the store answers.
+    claim = List.first(claims)
+    attempt_2 = fail_attempt(claim.run_id, claim.attempt, @behaviour_now)
+    at_2 = DateTime.add(@behaviour_now, 5 * 60)
+    retried_2 = Enum.find(Scheduler.claim_due(at_2), &(&1.run_id == claim.run_id))
+    attempt_3 = fail_attempt(claim.run_id, retried_2.attempt, at_2)
+    at_3 = DateTime.add(at_2, 30 * 60)
+    retried_3 = Enum.find(Scheduler.claim_due(at_3), &(&1.run_id == claim.run_id))
+    final = fail_attempt(claim.run_id, retried_3.attempt, at_3)
 
     Map.merge(context, %{
-      overlap_claim_keys: MapSet.new([claim_key, claim_key]),
-      retry_schedule: [
-        Policy.retry_at(1, @behaviour_now),
-        Policy.retry_at(2, @behaviour_now),
-        Policy.retry_at(3, @behaviour_now)
-      ]
+      overlap_claims: claims,
+      retry_attempts: Enum.map([attempt_2, attempt_3, final], &elem(&1, 1))
     })
   end
 
@@ -2013,13 +2086,24 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :verify_new_backup, _args),
     do: Map.put(context, :retained_run_ids, Run.retained_run_ids(context.retention_receipts))
 
-  def perform_behaviour(context, :run_second_handler, _args),
-    do:
-      Map.put(
-        context,
-        :family_handler_registered?,
-        match?({:ok, %{context: "family"}}, context.family_handler)
-      )
+  # The slot is due at the scenario's clock: the Scheduler's coordinator starts at that
+  # clock over the shared `Scheduler.Tasks` supervisor and reconciles, so the coordinator
+  # claims the slot and that supervisor runs it. The driver claims and runs nothing itself;
+  # `SchedulerDispatch.coordinate/2` records what the supervisor's processes ran.
+  def perform_behaviour(context, :run_second_handler, _args) do
+    ExUnit.Callbacks.start_supervised!({Task.Supervisor, name: BnestApp.Scheduler.Tasks})
+
+    dispatch =
+      SchedulerDispatch.coordinate(context.schedule_key, fn ->
+        ExUnit.Callbacks.start_supervised!(
+          {Scheduler, clock: fn -> @behaviour_now end, automatic?: false}
+        )
+
+        :ok = Scheduler.reconcile()
+      end)
+
+    Map.put(context, :family_handler_dispatch, dispatch)
+  end
 
   def perform_behaviour(context, :open_admin_settings_from_home, _args) do
     fetched = Enum.map(context.declared_panels, &AdminRegistry.fetch(&1.key))
@@ -2027,15 +2111,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def perform_behaviour(context, :reconcile_expiry, _args) do
-    eligibility = Enum.map(context.expiration_policies, &Policy.eligible?(&1, @behaviour_now))
+    initial = Scheduler.claim_due(@behaviour_now)
+    first = Enum.find(initial, &(&1.schedule_key == context.schedule_key))
+    {:retryable, retry} = fail_attempt(first.run_id, first.attempt, @behaviour_now)
+    later = Scheduler.claim_due(DateTime.add(@behaviour_now, 86_400))
 
-    retries = [
-      Policy.retry_at(1, @behaviour_now),
-      Policy.retry_at(2, @behaviour_now),
-      Policy.retry_at(3, @behaviour_now)
-    ]
-
-    Map.merge(context, %{expiration_eligibility: eligibility, expiration_retries: retries})
+    Map.merge(context, %{
+      expiration_eligibility:
+        Enum.map(context.expiration_policies, &Policy.eligible?(&1, @behaviour_now)),
+      expiration_first_claim: first,
+      expiration_retry: retry,
+      expiration_later_claims: later
+    })
   end
 
   def perform_behaviour(context, action, args),
@@ -2508,21 +2595,25 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       }
 
   def behaviour_outcome?(context, :one_setup_claim, _args),
-    do: MapSet.size(context.setup_claim_keys) == 1
+    do:
+      context.first_setup_claim.run_id == context.second_setup_claim.run_id and
+        context.setup_run_delta == 1
 
   def behaviour_outcome?(context, :schedule_persisted, _args),
-    do: context.schedule_after_restart.enabled
+    do: context.scheduler_restarted? and context.schedule_after_restart.enabled
 
   def behaviour_outcome?(context, :same_future_slot, _args),
-    do:
-      Policy.parse_datetime!(context.schedule_after_restart.next_run_at) ==
-        context.schedule_before_restart.next_run_at
+    do: context.schedule_after_restart.next_run_at == context.schedule_before_restart.next_run_at
 
   def behaviour_outcome?(context, :latest_slot_only, _args),
-    do: context.reconciled_slot == Policy.latest_slot(context.daily_at_utc, @behaviour_now)
+    do:
+      context.reconciled_claim.scheduled_for ==
+        Policy.latest_slot(context.reconciled_schedule.daily_at_utc, @behaviour_now)
 
   def behaviour_outcome?(context, :next_future_day, _args),
-    do: context.reconciled_next == Policy.next_slot(context.daily_at_utc, @behaviour_now)
+    do:
+      context.reconciled_schedule.next_run_at ==
+        Policy.next_slot(context.reconciled_schedule.daily_at_utc, @behaviour_now)
 
   def behaviour_outcome?(context, :authoritative_vacuum, _args),
     do: context.backup_receipt["sourceGeneration"] == context.backup_artifact.source_generation
@@ -2531,10 +2622,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: Receipt.valid?(context.backup_receipt, context.backup_location.destination_id)
 
   def behaviour_outcome?(context, :single_nonoverlap_claim, _args),
-    do: MapSet.size(context.overlap_claim_keys) == 1
+    do: length(context.overlap_claims) == 1
 
   def behaviour_outcome?(context, :bounded_attempts, _args),
-    do: match?([%DateTime{}, %DateTime{}, nil], context.retry_schedule)
+    do:
+      Enum.map(context.retry_attempts, & &1.attempt) == [2, 3, 3] and
+        List.last(context.retry_attempts).state == "failed"
 
   def behaviour_outcome?(context, :context_groups, _args),
     do: context.schedule_contexts == MapSet.new(["admin_system", "family"])
@@ -2574,11 +2667,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :preserve_unowned, _args),
     do: Enum.all?(context.retention_receipts, &Map.has_key?(&1, "runId"))
 
+  # Read from the coordinator's observed dispatch: the registered fixture task alone ran,
+  # once, under the shared supervisor, and returned its artifact-free receipt.
   def behaviour_outcome?(context, :shared_execution, _args),
-    do: context.family_handler_registered?
+    do:
+      match?(
+        {:ok, %{"artifactBasename" => nil}},
+        SchedulerDispatch.coordinated_result(context.family_handler_dispatch)
+      )
 
   def behaviour_outcome?(context, :shared_inventory, _args),
-    do: match?({:ok, %{label: "Family fixture"}}, context.family_handler)
+    do:
+      Enum.any?(Scheduler.family_inventory(), fn schedule ->
+        schedule.schedule_key == context.schedule_key and schedule.last_run_state == "verified"
+      end)
 
   def behaviour_outcome?(context, :panels_discoverable, _args),
     do:
@@ -2588,11 +2690,23 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :owner_allowlists, _args),
     do: Enum.all?(context.declared_panels, &(is_atom(&1.owner) and is_list(&1.editable_fields)))
 
-  def behaviour_outcome?(context, :expiry_blocks_future, _args),
-    do: context.expiration_eligibility == [true, true, true]
+  def behaviour_outcome?(context, :expiry_blocks_future, _args) do
+    same_schedule_claims =
+      Enum.filter(context.expiration_later_claims, &(&1.schedule_key == context.schedule_key))
+
+    context.expiration_eligibility == [true, true, true] and
+      match?(
+        [%{run_id: run_id, occurrence_number: 1, attempt: 2}]
+        when run_id == context.expiration_first_claim.run_id,
+        same_schedule_claims
+      )
+  end
 
   def behaviour_outcome?(context, :retry_occurrence_rules, _args),
-    do: match?([%DateTime{}, %DateTime{}, nil], context.expiration_retries)
+    do:
+      context.expiration_retry.occurrence_number ==
+        context.expiration_first_claim.occurrence_number and
+        context.expiration_retry.attempt == 2
 
   def behaviour_outcome?(context, expected, args),
     do: UnitFamilyChatDriver.behaviour_outcome?(context, expected, args)
@@ -2604,7 +2718,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       backup_claim: %{
         schedule_key: "prod-sqlite-backup-daily",
         claim_kind: "setup",
-        claim_key: Store.setup_claim_key(destination_id),
+        claim_key: Policy.setup_claim_key(destination_id),
         scheduled_for: nil,
         run_id: "unit-run",
         schedule_revision: 1
@@ -2913,4 +3027,24 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   defp assess_record(path, bytes),
     do: FlatMigration.assess_record(path, bytes, Storage.record_kinds())
+
+  # A pristine, enabled daily schedule at 19:00 UTC, due at its latest slot, in the
+  # scenario's in-memory schedule store, with `fields` replaced.
+  defp put_schedule!(key, handler_key, schedule_context, fields \\ %{}) do
+    InMemoryScheduleStore.put_daily_schedule(
+      Scheduler.store(),
+      key,
+      handler_key,
+      schedule_context,
+      @behaviour_now,
+      fields
+    )
+  end
+
+  defp run_count, do: Scheduler.store() |> InMemoryScheduleStore.runs() |> length()
+
+  # A transient failure of a claimed attempt, recorded in the Scheduler's configured store
+  # the way its run records one.
+  defp fail_attempt(run_id, attempt, now),
+    do: ScheduleStore.fail_attempt(Scheduler.store(), run_id, attempt, :capacity, now)
 end

@@ -1,7 +1,7 @@
-defmodule BnestApp.Scheduler.PolicyTest do
+defmodule BnestApp.Scheduler.Domain.PolicyTest do
   use ExUnit.Case, async: true
 
-  alias BnestApp.Scheduler.Policy
+  alias BnestApp.Scheduler.Domain.Policy
 
   @now ~U[2026-08-30 10:00:00Z]
 
@@ -55,5 +55,41 @@ defmodule BnestApp.Scheduler.PolicyTest do
 
   test "maps UTC instants to WIB calendar dates" do
     assert Policy.wib_date(~U[2026-08-29 18:59:59Z]) == ~D[2026-08-30]
+  end
+
+  test "names setup claims only for safe destination IDs" do
+    assert Policy.setup_claim_key("destination-1_a") == "setup:destination-1_a"
+    assert Policy.valid_destination_id?("destination-1_a")
+    refute Policy.valid_destination_id?("../escape")
+    refute Policy.valid_destination_id?("")
+  end
+
+  test "an operator's daily edit converts WIB and validates enabled and revision" do
+    backup = %{handler_key: "prod_sqlite_backup"}
+
+    assert Policy.daily_edit(backup, %{
+             "daily_time_wib" => "02:00",
+             "enabled" => "on",
+             "revision" => "4"
+           }) == {:ok, %{daily_at_utc: "19:00", enabled: true, revision: 4}}
+
+    assert {:ok, %{enabled: false, revision: 2}} =
+             Policy.daily_edit(backup, %{"daily_time_wib" => "02:00", "revision" => 2})
+
+    assert {:error, :not_editable} =
+             Policy.daily_edit(%{handler_key: "fixture"}, %{"daily_time_wib" => "02:00"})
+
+    assert {:error, :invalid_time} = Policy.daily_edit(backup, %{"revision" => "1"})
+
+    for {enabled, revision, reason} <- [
+          {"maybe", "1", :invalid_enabled},
+          {"true", "0", :invalid_revision},
+          {"true", "1x", :invalid_revision},
+          {"true", 0, :invalid_revision},
+          {"true", nil, :invalid_revision}
+        ] do
+      params = %{"daily_time_wib" => "02:00", "enabled" => enabled, "revision" => revision}
+      assert Policy.daily_edit(backup, params) == {:error, reason}
+    end
   end
 end

@@ -12,6 +12,7 @@ defmodule BnestApp.Application do
       BnestApp.CodexChat,
       BnestApp.Identity,
       BnestApp.Preferences,
+      BnestApp.Scheduler,
       BnestApp.SifatAllah,
       BnestApp.SqliteRepo,
       BnestApp.Storage,

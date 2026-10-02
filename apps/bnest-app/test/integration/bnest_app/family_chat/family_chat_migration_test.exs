@@ -6,14 +6,20 @@ defmodule BnestApp.FamilyChatMigrationTest do
   alias BnestApp.FamilyChat.Ports.RoomStore
   alias BnestApp.TestRuntimeRoot
 
-  # Each eval below stands in for a release node, which runs Family Chat's production
-  # adapters. `BNEST_TEST_LAYER=unit` keeps the integration runtime-root setup out of those
-  # evals, but it also selects the unit layer's in-memory Family Chat doubles, so every eval
-  # restores the production adapters first.
+  # Each eval below stands in for a release node, which runs Family Chat's and the
+  # Scheduler's production adapters. `BNEST_TEST_LAYER=unit` keeps the integration
+  # runtime-root setup out of those evals, but it also selects the unit layer's in-memory
+  # Family Chat doubles and schedule store, so every eval restores the production adapters
+  # first.
   @release_adapters """
   Application.put_env(:bnest_app, BnestApp.FamilyChat,
     room_store: BnestApp.FamilyChat.Adapters.SqliteRoomStore,
     message_publisher: BnestApp.FamilyChat.Adapters.AbsintheMessagePublisher
+  )
+
+  Application.put_env(:bnest_app, BnestApp.Scheduler,
+    Keyword.put(Application.fetch_env!(:bnest_app, BnestApp.Scheduler),
+      :schedule_store, BnestApp.Scheduler.Adapters.SqliteScheduleStore)
   )
   """
 

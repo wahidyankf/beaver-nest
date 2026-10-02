@@ -1,10 +1,10 @@
 defmodule BnestApp.FamilyChat.Adapters.SqliteRoomStore do
   @moduledoc """
   The `BnestApp.FamilyChat.Ports.RoomStore` over raw SQL, mirroring
-  `BnestApp.Scheduler.Store`'s convention (no Ecto schema/changeset layer, direct
-  `SqliteRepo.query!/2` calls, audit columns written explicitly). Every room and message
-  callback first self-heals the shared `SqliteRepo` connection onto Family Chat's database
-  path: the SQLite connection is a single named process shared with other SQLite-backed
+  `BnestApp.Scheduler.Adapters.SqliteScheduleStore`'s convention (no Ecto schema/changeset
+  layer, direct `SqliteRepo.query!/2` calls, audit columns written explicitly). Every room
+  and message callback first self-heals the shared `SqliteRepo` connection onto Family
+  Chat's database path: the SQLite connection is a single named process shared with other SQLite-backed
   features (scheduler, backup), and other tests/processes may stop or repoint it between
   calls, so each operation re-asserts its own connection rather than assuming a prior
   bootstrap is still in effect.
@@ -15,9 +15,7 @@ defmodule BnestApp.FamilyChat.Adapters.SqliteRoomStore do
 
   @behaviour BnestApp.FamilyChat.Ports.RoomStore
 
-  # legacy: the release convergence goes through Scheduler until U11 gives it a facade.
   alias BnestApp.Scheduler
-  alias BnestApp.Scheduler.Store, as: SchedulerStore
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
 
@@ -245,7 +243,7 @@ defmodule BnestApp.FamilyChat.Adapters.SqliteRoomStore do
   # self-heal the connection the way the room and message callbacks do.
   @impl true
   def converge_after_drain!(_store) do
-    SchedulerStore.activate_if_pristine!(@retention_schedule_key, DateTime.utc_now())
+    Scheduler.activate_if_pristine!(@retention_schedule_key, DateTime.utc_now())
     {:ok, _schedule} = Scheduler.converge_backup_time!(@backup_schedule_key, "18:00")
     :ok
   end

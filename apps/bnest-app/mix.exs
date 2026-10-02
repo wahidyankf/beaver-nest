@@ -140,6 +140,7 @@ defmodule BnestApp.MixProject do
       BnestApp.Behaviour.UnitFamilyChatDriver,
       BnestApp.Behaviour.UnitHomePageDriver,
       BnestApp.SchemaSourceScan,
+      BnestApp.TestBackupDestination,
       BnestApp.TestIdentity,
       BnestApp.TestRuntimeRoot,
       BnestAppWeb.ConnCase
@@ -191,11 +192,7 @@ defmodule BnestApp.MixProject do
       BnestApp.Backup.Location,
       BnestApp.Backup.Receipt,
       BnestApp.Backup.Run,
-      BnestApp.Deployment,
-      BnestApp.Scheduler,
-      BnestApp.Scheduler.Registry,
-      BnestApp.Scheduler.Run,
-      BnestApp.Scheduler.Store
+      BnestApp.Deployment
     ]
 
     # Only the unit layer carries a coverage threshold. `test:integration` still exercises

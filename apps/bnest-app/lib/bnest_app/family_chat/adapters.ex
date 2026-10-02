@@ -10,14 +10,12 @@ defmodule BnestApp.FamilyChat.Adapters do
     type: :strict,
     deps: [
       BnestApp.FamilyChat,
+      BnestApp.Scheduler,
       BnestApp.SqliteRepo,
       BnestApp.Storage,
       BnestAppWeb,
       Absinthe.Subscription,
-      Ecto.Migrator,
-      # legacy: SqliteRoomStore's release convergence calls BnestApp.Scheduler and
-      # Scheduler.Store; U11 swaps this for the Scheduler facade.
-      BnestApp
+      Ecto.Migrator
     ],
     exports: :all
 end
