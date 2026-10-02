@@ -7,7 +7,6 @@ defmodule BnestApp.Application do
   use Boundary,
     top_level?: true,
     deps: [
-      BnestApp,
       BnestAppWeb,
       BnestApp.CodexChat,
       BnestApp.Identity,

@@ -1,7 +1,7 @@
 defmodule BnestApp.ArchitectureScan do
   @moduledoc """
-  Static layering scan behind `BnestApp.HexagonalLayeringTest`, the rules L1, L2 and L4 of
-  the hexagonal architecture standard.
+  Static layering scan behind `BnestApp.HexagonalLayeringTest`, the rules L1 to L4 of the
+  hexagonal architecture standard.
 
   `boundary` checks references between boundaries and to infrastructure applications. It
   cannot see the standard library (`File`, `System`, `:os`), which is no separate
@@ -47,68 +47,93 @@ defmodule BnestApp.ArchitectureScan do
     BnestAppWeb.Telemetry
   ]
 
+  # L3: the core modules that belong to no context, besides the `BnestApp` root itself.
+  @core_owners [BnestApp.SqliteRepo, BnestApp.Application, BnestApp.Release, BnestApp.Mailer]
+
   @type violation :: %{
-          rule: :l1 | :l2 | :l4,
+          rule: :l1 | :l2 | :l3 | :l4,
           module: module(),
-          ref: module() | atom(),
+          ref: module() | atom() | nil,
           fun: atom() | nil,
           file: String.t(),
           line: non_neg_integer()
         }
 
-  @doc """
-  Every L1, L2 and L4 violation under `lib/`. `:records_callers` lists the inbound adapters
-  still allowed to reference `BnestApp.Storage.Records`.
-  """
-  @spec violations(keyword()) :: [violation()]
-  def violations(opts \\ []) do
-    records_callers = Keyword.get(opts, :records_callers, [])
-
-    for {file, module, ref} <- references(),
-        rule <- broken_rules(module, ref, records_callers) do
-      %{rule: rule, module: module, ref: ref.module, fun: ref.fun, file: file, line: ref.line}
-    end
-  end
-
-  @doc "Every module that a `lib/` file defines."
-  @spec defined_modules() :: [module()]
-  def defined_modules do
-    for {_file, ast} <- sources(), {module, _body} <- modules(ast, nil), uniq: true, do: module
-  end
-
-  @doc "The `@legacy_exports` entries of the `BnestApp` root boundary, as full module names."
-  @spec legacy_exports() :: [module()]
-  def legacy_exports do
-    {_file, ast} = Enum.find(sources(), fn {file, _ast} -> file == "lib/bnest_app.ex" end)
-
-    {_ast, exports} =
-      Macro.prewalk(ast, [], fn
-        {:@, _, [{:legacy_exports, _, [entries]}]} = node, _acc when is_list(entries) ->
-          {node,
-           Enum.map(entries, fn {:__aliases__, _, parts} -> Module.concat([BnestApp | parts]) end)}
-
-        node, acc ->
-          {node, acc}
-      end)
-
-    exports
+  @doc "Every L1, L2, L3 and L4 violation under `lib/`."
+  @spec violations() :: [violation()]
+  def violations do
+    sources = sources()
+    reference_violations(sources) ++ unclassified(sources)
   end
 
   @doc "Formats violations one per line for an assertion message."
   @spec format([violation()]) :: String.t()
   def format(violations) do
     Enum.map_join(violations, "\n", fn v ->
-      callee = if v.fun, do: "#{inspect(v.ref)}.#{v.fun}", else: inspect(v.ref)
-
-      "#{v.rule |> Atom.to_string() |> String.upcase()} #{v.file}:#{v.line} #{inspect(v.module)} -> #{callee}"
+      rule = v.rule |> Atom.to_string() |> String.upcase()
+      "#{rule} #{v.file}:#{v.line} #{inspect(v.module)} #{subject(v)}"
     end)
   end
 
-  defp broken_rules(module, ref, records_callers) do
+  defp subject(%{rule: :l3}), do: "is in no context"
+  defp subject(%{ref: ref, fun: nil}), do: "-> #{inspect(ref)}"
+  defp subject(%{ref: ref, fun: fun}), do: "-> #{inspect(ref)}.#{fun}"
+
+  defp reference_violations(sources) do
+    for {file, ast} <- sources,
+        {module, body, _line} <- modules(ast, nil),
+        ref <- body_references(body, module),
+        rule <- broken_rules(module, ref) do
+      %{rule: rule, module: module, ref: ref.module, fun: ref.fun, file: file, line: ref.line}
+    end
+  end
+
+  # L3: a core module outside every context would fall into the relaxed root boundary.
+  defp unclassified(sources) do
+    owners = contexts(sources) ++ @core_owners
+
+    for {file, ast} <- sources,
+        core_file?(file),
+        {module, _body, line} <- modules(ast, nil),
+        module != BnestApp,
+        not Enum.any?(owners, &within?(module, &1)) do
+      %{rule: :l3, module: module, ref: nil, fun: nil, file: file, line: line}
+    end
+  end
+
+  defp core_file?(file),
+    do: file == "lib/bnest_app.ex" or String.starts_with?(file, "lib/bnest_app/")
+
+  # A declared context is a `BnestApp.<Name>` facade that declares a strict boundary.
+  defp contexts(sources) do
+    for {_file, ast} <- sources,
+        {module, body, _line} <- modules(ast, nil),
+        match?(["BnestApp", _name], Module.split(module)),
+        strict_boundary?(body),
+        do: module
+  end
+
+  defp strict_boundary?(body) do
+    {_ast, strict?} =
+      Macro.prewalk(body, false, fn
+        {:defmodule, _, _}, acc ->
+          {nil, acc}
+
+        {:use, _, [{:__aliases__, _, [:Boundary]}, opts]} = node, acc when is_list(opts) ->
+          {node, acc or Keyword.get(opts, :type) == :strict}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    strict?
+  end
+
+  defp broken_rules(module, ref) do
     [
       {:l1, l1?(module) and effect?(ref, @effect_modules, @effect_functions)},
       {:l2, domain?(module) and effect?(ref, @impure_modules, @impure_functions)},
-      {:l4, inbound?(module) and internal?(ref.module, module, records_callers)}
+      {:l4, inbound?(module) and internal?(ref.module)}
     ]
     |> Enum.filter(fn {_rule, broken?} -> broken? end)
     |> Enum.map(fn {rule, _} -> rule end)
@@ -127,10 +152,10 @@ defmodule BnestApp.ArchitectureScan do
     Enum.any?(modules, &within?(ref, &1)) or {ref, fun} in functions
   end
 
-  defp internal?(ref, caller, records_callers) do
+  defp internal?(ref) do
     within?(ref, BnestApp) and
       (segment?(ref, "Adapters") or segment?(ref, "Ports") or within?(ref, BnestApp.SqliteRepo) or
-         (within?(ref, BnestApp.Storage.Records) and caller not in records_callers))
+         within?(ref, BnestApp.Storage.Records))
   end
 
   defp within?(module, parent) when is_atom(module) and is_atom(parent) do
@@ -139,13 +164,6 @@ defmodule BnestApp.ArchitectureScan do
 
   defp segment?(module, name), do: name in Module.split(module)
 
-  defp references do
-    for {file, ast} <- sources(),
-        {module, body} <- modules(ast, nil),
-        ref <- body_references(body, module),
-        do: {file, module, ref}
-  end
-
   defp sources do
     for path <- Path.wildcard(Path.join(@lib_root, "**/*.ex")) |> Enum.sort() do
       {:ok, ast} = path |> File.read!() |> Code.string_to_quoted(columns: false)
@@ -153,13 +171,14 @@ defmodule BnestApp.ArchitectureScan do
     end
   end
 
-  # Every `defmodule` with its full name and its own body; nested modules are listed separately.
+  # Every `defmodule` with its full name, its own body and its line; nested modules are
+  # listed separately.
   defp modules(ast, parent) do
     {_ast, found} =
       Macro.prewalk(ast, [], fn
-        {:defmodule, _, [name, [do: body]]}, acc ->
+        {:defmodule, meta, [name, [do: body]]}, acc ->
           module = module_name(name, parent)
-          {nil, acc ++ [{module, body} | modules(body, module)]}
+          {nil, acc ++ [{module, body, meta[:line] || 0} | modules(body, module)]}
 
         node, acc ->
           {node, acc}

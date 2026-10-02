@@ -7,14 +7,8 @@ defmodule BnestApp do
   if it comes from the database, an external API or others.
   """
 
-  # Temporary. Every entry is a module not yet moved into a strict context
-  # boundary that a module outside this root calls. Delete entries as each
-  # context lands; the closure unit requires this list empty. Empty since U13 (Operations);
-  # the closure unit deletes the attribute.
-  @legacy_exports []
-
-  # The legacy modules left here call no context facade and no infrastructure directly.
-  use Boundary,
-    deps: [],
-    exports: @legacy_exports
+  # The root boundary exports nothing and no boundary depends on it. Every core module sits
+  # in a context, `SqliteRepo`, `Application`, `Release` or `Mailer`, which the layering
+  # scan's rule L3 enforces.
+  use Boundary, deps: [], exports: []
 end

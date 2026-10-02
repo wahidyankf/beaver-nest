@@ -3,27 +3,9 @@ defmodule BnestApp.HexagonalLayeringTest do
 
   alias BnestApp.ArchitectureScan
 
-  # Temporary. Modules not yet moved into a context's layers, whose violations the scan
-  # tolerates. Each context unit deletes its entries; the closure unit requires it empty.
-  @legacy_modules []
-
-  # Temporary. Inbound adapters still reading `BnestApp.Storage.Records` directly.
-  @legacy_records_callers []
-
-  test "effects stay in adapters, domains stay pure, and inbound adapters call only facades" do
-    violations =
-      [records_callers: @legacy_records_callers]
-      |> ArchitectureScan.violations()
-      |> Enum.reject(&(&1.module in @legacy_modules))
+  test "every core module sits in a context whose layers keep effects, purity and facades" do
+    violations = ArchitectureScan.violations()
 
     assert violations == [], ArchitectureScan.format(violations)
-  end
-
-  test "every legacy export of the root boundary is a legacy module" do
-    assert ArchitectureScan.legacy_exports() -- @legacy_modules == []
-  end
-
-  test "every legacy module still exists" do
-    assert @legacy_modules -- ArchitectureScan.defined_modules() == []
   end
 end
