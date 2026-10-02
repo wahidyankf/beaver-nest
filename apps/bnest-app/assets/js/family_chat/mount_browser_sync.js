@@ -3,11 +3,11 @@
 // file purely to stay under this project's max-lines lint budget.
 // `mount_browser.js` is the only importer.
 
-import { request as graphqlRequest } from "./graphql.js";
 import {
   familyChatMessagesQuery,
   familyChatMessageCommittedSubscription,
 } from "./operations.js";
+import { MESSAGE_PAGE_SIZE } from "./page_source.js";
 
 /** @typedef {import("./mount_browser.js").MountableRoom} MountableRoom */
 /** @typedef {import("./mount_browser.js").SubscriptionClient} SubscriptionClient */
@@ -58,18 +58,31 @@ export async function subscribeToRoom(room, subscriptionClient) {
 
 /**
  * Real gap-fill query for `reconnect.js`'s catch-up step: every message
- * committed after the last one this room saw.
- * @param {string} roomSlug
+ * committed after the last one this room saw, a server-sized page at a
+ * time (the server refuses a larger limit outright).
+ * @param {MountableRoom} room
  * @param {string | null} afterId
- * @param {boolean} replies
  */
-async function fetchMissedMessages(roomSlug, afterId, replies) {
-  const result = await graphqlRequest(familyChatMessagesQuery({ replies }), {
-    roomSlug,
-    afterId: afterId ?? undefined,
-    limit: 200,
-  });
-  return result.data?.familyChatMessages?.nodes ?? [];
+async function fetchMissedMessages(room, afterId) {
+  const { request, roomSlug, replies = false } = room;
+  const document = familyChatMessagesQuery({ replies });
+  /** @type {{id?: string}[]} */
+  const missed = [];
+  let cursor = afterId;
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop -- each page starts after the last message of the one before it.
+    const result = await request(document, {
+      roomSlug,
+      afterId: cursor ?? undefined,
+      limit: MESSAGE_PAGE_SIZE,
+    });
+    const page = result.data?.familyChatMessages;
+    const nodes = page?.nodes ?? [];
+    missed.push(...nodes);
+    const last = nodes.at(-1)?.id;
+    if (!page?.hasNewer || last === undefined) return missed;
+    cursor = last;
+  }
 }
 
 /**
@@ -98,8 +111,7 @@ export async function mergeMissedMessages(room, rawMessages) {
 export function bindReconnectCallbacks(room, subscriptionClient) {
   room.reconnect.bindBrowserCallbacks({
     resubscribe: () => subscribeToRoom(room, subscriptionClient),
-    fetchMissed: (afterId) =>
-      fetchMissedMessages(room.roomSlug, afterId, room.replies ?? false),
+    fetchMissed: (afterId) => fetchMissedMessages(room, afterId),
     mergeMessages: (rawMessages) => mergeMissedMessages(room, rawMessages),
     // Pausing/resuming the outbox's own drain (not just reconnect's
     // internal flag) is what actually stops a send from racing ahead of

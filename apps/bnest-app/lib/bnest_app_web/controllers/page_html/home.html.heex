@@ -25,7 +25,12 @@
           <Layouts.theme_toggle />
         </nav>
         <%= unless @current_user["migrationMode"] do %>
-          <form action="/logout" method="post">
+          <form
+            action="/logout"
+            method="post"
+            data-role="logout"
+            data-current-user-id={@current_user["userId"]}
+          >
             <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
             <input type="hidden" name="_method" value="delete" />
             <button class="home-logout" type="submit">Log out</button>

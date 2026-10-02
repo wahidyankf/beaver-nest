@@ -22,17 +22,15 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * @typedef {object} SendOptions
- * @property {"retryable"|"non-retryable"} [simulateNetworkFailure] test-only
- *   per-call override; see `attemptSend`'s own comment.
  * @property {string} [replyToMessageId] the server ID of the message this one
  *   answers. Absent for an ordinary message.
  */
 
 /**
- * The real-IndexedDB-vs-Node split lives entirely in `family_chat.js` (see
- * `persistence_indexeddb.js`'s own header comment) -- `outbox.js`/this file
- * only ever see this narrow write-through contract, which is why FE_UNIT can
- * prove the contract itself with a plain in-memory fake.
+ * Which storage backs the queue is `family_chat.js`'s choice (real
+ * IndexedDB unless its caller passed another, see
+ * `persistence_indexeddb.js`) -- `outbox.js`/this file only ever see this
+ * narrow write-through contract.
  * @typedef {{
  *   loadAll(namespace: string): Promise<import("./outbox_namespace.js").QueuedMessage[]>,
  *   save(namespace: string, message: import("./outbox_namespace.js").QueuedMessage): void,
@@ -51,7 +49,6 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
  *   clock: import("./clock.js").Clock,
  *   transport: (message: {clientMessageId: string, body: string, replyToMessageId?: string}) => Promise<TransportResult>,
  *   onQueueFull: (() => void) | undefined,
- *   onLogout: (() => void) | undefined,
  *   onAuthExpired: (() => void) | undefined,
  *   draining: boolean,
  *   online: boolean,
@@ -59,7 +56,7 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
  */
 
 /**
- * @param {{namespace: import("./outbox_namespace.js").NamespaceRecord, namespaceKey: string, persistence?: Persistence | undefined, clock: import("./clock.js").Clock, transport: OutboxState["transport"], onQueueFull?: (() => void) | undefined, onLogout?: (() => void) | undefined, onAuthExpired?: (() => void) | undefined}} options
+ * @param {{namespace: import("./outbox_namespace.js").NamespaceRecord, namespaceKey: string, persistence?: Persistence | undefined, clock: import("./clock.js").Clock, transport: OutboxState["transport"], onQueueFull?: (() => void) | undefined, onAuthExpired?: (() => void) | undefined}} options
  * @returns {OutboxState}
  */
 export function createOutboxState({
@@ -69,7 +66,6 @@ export function createOutboxState({
   clock,
   transport,
   onQueueFull,
-  onLogout,
   onAuthExpired,
 }) {
   return {
@@ -81,7 +77,6 @@ export function createOutboxState({
     clock,
     transport,
     onQueueFull,
-    onLogout,
     onAuthExpired,
     // Per-instance, not per-namespace: a fresh `initRoom` call represents a
     // new page load behind an already-revalidated session, so it always
@@ -143,7 +138,7 @@ function scheduleRetry(state, message) {
   message.timerHandle = state.clock.setTimer(() => {
     message.attempt += 1;
     message.retryCount += 1;
-    attemptSend(state, message, {});
+    attemptSend(state, message);
   }, delayMs);
 }
 
@@ -188,9 +183,8 @@ function handleTransportResult(state, message, result) {
 /**
  * @param {OutboxState} state
  * @param {import("./outbox_namespace.js").QueuedMessage} message
- * @param {SendOptions} opts
  */
-export async function attemptSend(state, message, opts) {
+export async function attemptSend(state, message) {
   if (!state.draining) return;
   // Left in whatever state it was queued or scheduled in. `reportOnline`
   // picks every one of those up again, so nothing is lost by not trying.
@@ -198,21 +192,6 @@ export async function attemptSend(state, message, opts) {
 
   message.status = STATUS.SENDING;
   notify(state, message);
-
-  // Test-only per-call override (see `family_chat.steps.ts`): lets FE_UNIT
-  // force a specific outcome deterministically without needing a fake
-  // transport wired for every scenario. Production callers
-  // (`family_chat.js`) never pass this.
-  if (message.neverSucceed || opts.simulateNetworkFailure === "retryable") {
-    scheduleRetry(state, message);
-    return;
-  }
-
-  if (opts.simulateNetworkFailure === "non-retryable") {
-    message.status = STATUS.FAILED;
-    notify(state, message);
-    return;
-  }
 
   // The only path that actually reaches the server: every real send/retry
   // goes through the injected transport, so "Sent" here always means a real
@@ -235,9 +214,45 @@ export async function attemptSend(state, message, opts) {
   handleTransportResult(state, message, result);
 }
 
+/**
+ * The member's own retry of a message that stopped at "Couldn't send". It
+ * is a fresh attempt: the seven-day window and the backoff start over, and
+ * an offline browser holds it at "Waiting for connection" like a new send.
+ * @param {OutboxState} state
+ * @param {string} clientMessageId
+ * @returns {boolean} whether there was a failed message to retry.
+ */
+export function retryFailed(state, clientMessageId) {
+  const message = state.namespace.messages.get(clientMessageId);
+  if (!message || message.status !== STATUS.FAILED) return false;
+  message.createdAt = state.clock.now();
+  message.attempt = 0;
+  message.retryCount = 0;
+  message.nextRetryAt = 0;
+  message.status = STATUS.WAITING;
+  notify(state, message);
+  void attemptSend(state, message);
+  return true;
+}
+
+/**
+ * The member's decision to drop a message that stopped at "Couldn't send":
+ * it leaves the queue and the device, and nothing is ever sent for it.
+ * @param {OutboxState} state
+ * @param {string} clientMessageId
+ * @returns {boolean} whether there was a failed message to discard.
+ */
+export function discardFailed(state, clientMessageId) {
+  const message = state.namespace.messages.get(clientMessageId);
+  if (!message || message.status !== STATUS.FAILED) return false;
+  state.namespace.messages.delete(clientMessageId);
+  state.listeners.delete(clientMessageId);
+  state.persistence?.remove(state.namespaceKey, clientMessageId);
+  return true;
+}
+
 /** @param {OutboxState} state */
 export function resumeOnOpen(state) {
-  if (state.namespace.cleared) return;
   for (const message of state.namespace.messages.values()) {
     if (message.status === STATUS.SENT || message.status === STATUS.FAILED)
       continue;
@@ -250,6 +265,6 @@ export function resumeOnOpen(state) {
 
     if (message.timerHandle !== undefined)
       state.clock.clearTimer(message.timerHandle);
-    attemptSend(state, message, {});
+    attemptSend(state, message);
   }
 }

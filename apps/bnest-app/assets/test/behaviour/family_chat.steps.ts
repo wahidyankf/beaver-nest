@@ -1,19 +1,72 @@
 // Step bindings for the `@fe-vitest-unit` scenarios of
-// specs/apps/bnest/app-fe/behaviours/family_chat.feature.
+// specs/apps/bnest/app-fe/behaviours/family_chat.feature -- every rule
+// except the reply ones, which `family_chat_reply.steps.ts` binds.
 //
-// These scenarios cover the IndexedDB outbox, retry backoff, reconnect/
-// reconcile, push-permission UI, and scroll/accessibility concerns that
-// tech-doc 006's Proof Matrix marks "Not applicable"/"Not layout-capable"
-// for the combined BE unit/integration column and "Required" for frontend
-// Vitest instead (see learnings.md and test/behaviour/verify.exs's
-// `BnestApp.Behaviour.FeVitestUnitScope` for the BE-side half of this split).
-//
-// Every handler below imports the real (not-yet-built) production module
-// with a *dynamic* `import()` inside the handler body, not a static
-// top-level import. That keeps RED failures scoped to the scenario that
-// actually exercises the missing module, instead of one module-load error
-// failing the whole file — mirroring how the Elixir unit/integration
-// drivers fail per scenario via UndefinedFunctionError, not at compile time.
+// Every scenario runs the production room the way a browser does
+// (`support/browser_room.ts`): the shipped template, a fresh copy of
+// `js/family_chat.js` per page load, and the member's own input. A When acts
+// the way a member or the network does -- typing, pressing a key, clicking,
+// the connection going away -- and a Then reads what the room rendered or
+// what reached the server, never a flag the room keeps about itself.
+
+import {
+  MESSAGE_PAGE_SIZE,
+  CONTEXT_PAGE_SIZE,
+} from "../../js/family_chat/page_source.js";
+import { STATUS } from "../../js/family_chat/outbox.js";
+import {
+  AUTHENTICATED_MARKER,
+  loadServiceWorker,
+} from "../support/service_worker";
+import {
+  activate,
+  activePage,
+  announcement,
+  clickOn,
+  closePage,
+  committedFor,
+  computedStyleOf,
+  createDevice,
+  device,
+  dropSockets,
+  hasActivePage,
+  hidden,
+  isInView,
+  isRendered,
+  messageRows,
+  namespaceOf,
+  offsetInHistory,
+  openHomePage,
+  openRoomPage,
+  otherMember,
+  type Page,
+  post,
+  pressKey,
+  reconnectSockets,
+  reloadPage,
+  requireRow,
+  requireWorld,
+  ROOM_SLUG,
+  routeRevision,
+  rowFor,
+  scrollHistoryTo,
+  sendThroughComposer,
+  server,
+  setDeviceOnline,
+  setVisibility,
+  settle,
+  shownStatus,
+  startWorld,
+  tabOrder,
+  typeText,
+  useVisitor,
+  visibleRemediation,
+  visitor,
+  waitFor,
+  watchPendingRows,
+  type Member,
+} from "./support/browser_room";
+import { recall, remember } from "./support/scenario_memory";
 
 export type StepContext = Record<string, unknown>;
 
@@ -29,1312 +82,1396 @@ export interface StepDefinition {
 
 const registry: StepDefinition[] = [];
 
-function step(expression: string, handler: StepHandler): void {
-  registry.push({ expression, handler });
+function step(
+  expression: string,
+  handler: (...args: string[]) => void | Promise<void>,
+): void {
+  registry.push({
+    expression,
+    handler: async (context, ...args) => {
+      await handler(...args);
+      return context;
+    },
+  });
 }
 
 export function familyChatSteps(): readonly StepDefinition[] {
   return registry;
 }
 
-// --- Shared helpers -------------------------------------------------------
-
-// Resolved against this module's own URL (not the Vite/vite-node root) so
-// dynamic `import()` finds the sibling js/ tree regardless of the runner's
-// working directory or root option; a plain relative specifier here would
-// resolve against vite-node's root instead of this file's location.
-const ROOM_JS = new URL("../../js/family_chat.js", import.meta.url).href;
-const OUTBOX_JS = new URL("../../js/family_chat/outbox.js", import.meta.url)
-  .href;
-const RECONNECT_JS = new URL(
-  "../../js/family_chat/reconnect.js",
-  import.meta.url,
-).href;
-const GRAPHQL_JS = new URL("../../js/family_chat/graphql.js", import.meta.url)
-  .href;
-
-interface RoomOptions {
-  scrolledToOlderMessage?: boolean;
-  focusInComposer?: boolean;
-  socketConnectedToCurrentSlot?: boolean;
-  activePushSubscription?: boolean;
-  exchangesMessages?: boolean;
-  devicePushState?: string | undefined;
+function expect(condition: boolean, message: string): void {
+  if (!condition) throw new Error(message);
 }
 
-// A real, executing (never `vi.mock`ed) in-memory double for `outbox.js`'s
-// `Persistence` write-through contract (`outbox_send.js`'s own typedef) --
-// proves the same save/remove/clear calls a real IndexedDB binding would
-// receive, without a browser. Real cross-reload durability itself (a
-// genuinely destroyed JS process reading this back out of actual
-// IndexedDB) has no Node/Vitest equivalent; that's
-// `family-chat-offline-persistence.steps.ts`'s (FE_E2E) job.
-interface FakePersistedRow {
-  namespace: string;
-  clientMessageId: string;
-  body: string;
-  status: string;
-}
+const AYAH = (): Member => otherMember("Ayah");
 
-interface FakePersistence {
-  rows: Map<string, FakePersistedRow>;
-  loadAll: (namespace: string) => Promise<FakePersistedRow[]>;
-  save: (namespace: string, message: Record<string, unknown>) => void;
-  remove: (namespace: string, clientMessageId: string) => void;
-  clear: (namespace: string) => void;
-}
-
-function createFakePersistence(): FakePersistence {
-  const rows = new Map<string, FakePersistedRow>();
-  return {
-    rows,
-    async loadAll(namespace) {
-      return Array.from(rows.values()).filter(
-        (row) => row.namespace === namespace,
-      );
-    },
-    save(namespace, message) {
-      const clientMessageId = message["clientMessageId"] as string;
-      rows.set(`${namespace}::${clientMessageId}`, {
-        namespace,
-        clientMessageId,
-        body: message["body"] as string,
-        status: message["status"] as string,
-      });
-    },
-    remove(namespace, clientMessageId) {
-      rows.delete(`${namespace}::${clientMessageId}`);
-    },
-    clear(namespace) {
-      for (const key of rows.keys()) {
-        if (key.startsWith(`${namespace}::`)) rows.delete(key);
-      }
-    },
-  };
-}
-
-async function openRoom(
-  context: StepContext,
-  path: string,
-  options: RoomOptions = {},
-): Promise<StepContext> {
-  const { initRoom } = await import(/* @vite-ignore */ ROOM_JS);
-  const persistence =
-    (context["persistence"] as FakePersistence | undefined) ??
-    createFakePersistence();
-  // Carried across a reopen for the same reason `persistence` is: a scenario
-  // that opens the same room twice is asking what this device already knows,
-  // which is exactly what a fresh page source or read storage would erase.
-  const pageSource = context["pageSource"] as TestPageSource | undefined;
-  const readStorage = context["readStorage"] as ReadMarkerStorage | undefined;
-  const room = await initRoom(path, {
-    user: context["user"],
-    persistence,
-    ...(pageSource ? { pageSource } : {}),
-    ...(readStorage ? { readStorage } : {}),
-    ...options,
-  });
-  const next: StepContext = {
-    ...context,
-    room,
-    roomPath: path,
-    persistence,
-  };
-  // Only a scenario that seeded a conversation is asking where the room
-  // opens; every other scenario leaves the message list to the store double's
-  // own synthetic history, which an empty initial load would replace.
-  if (pageSource) {
-    await (room as Room).history.loadInitial();
+/** The family room as a visitor usually finds it: a few messages in. */
+function ensureConversation(count = 3): void {
+  if (server().messages.length > 0) return;
+  for (let index = 1; index <= count; index += 1) {
+    post({ body: `Kabar rumah ${index}`, sender: AYAH() });
   }
-  return next;
 }
 
-interface TestPageSource {
-  fetchPage: (cursor: {
-    beforeId?: string | null;
-    afterId?: string | null;
-    limit: number;
-  }) => Promise<unknown>;
-  append: (messages: SeededMessage[]) => void;
-  all: () => SeededMessage[];
+/** Opens the room, closing whatever this member had open first. */
+async function reopenRoom(pathname: string): Promise<Page> {
+  if (hasActivePage()) await closePage(activePage());
+  return openRoomPage({ pathname });
 }
 
-interface ReadMarkerStorage {
-  getItem: (key: string) => string | null;
-  setItem: (key: string, value: string) => void;
-  removeItem: (key: string) => void;
+function clientMessageId(): string {
+  return recall<string>("clientMessageId");
 }
 
-interface SeededMessage {
-  id?: string;
-  body: string;
-}
-
-interface ResumeStore {
-  firstMessageInViewId: () => string | null;
-  unreadDividerBeforeId: () => string | null;
-  contextCount: () => number;
-  hasOlder: () => boolean;
-  hasNewer: () => boolean;
-  newestId: () => string | null;
-  newMessagesIndicatorLabel: () => string | null;
-}
-
-interface RoomComposer {
-  draft: () => string;
-  focused: () => boolean;
-  focusFollowsSendControl: () => boolean;
-  keyIntent: (event: { key: string; shiftKey?: boolean }) => string;
-  type: (body: string) => void;
-  appendLine: (text?: string) => void;
-  submit: () => Promise<{ queued: boolean; clientMessageId: string | null }>;
-}
-
-interface Room {
-  history: {
-    loadInitial: () => Promise<{ mode: string; newestId: string | null }>;
-    jumpToLatest: () => Promise<void>;
-    reportScrolledToBottom: () => Promise<void>;
-  };
-  store: ResumeStore;
-  composer: RoomComposer;
-  pageSource: TestPageSource;
-}
-
-function requireResumeRoom(context: StepContext): Room {
-  return requireRoom(context) as unknown as Room;
-}
-
-function requireRoom(context: StepContext): Record<string, unknown> {
-  const room = context["room"];
-  if (room === undefined || room === null) {
-    throw new Error("no room has been opened yet in this scenario");
-  }
-  return room as Record<string, unknown>;
-}
-
-// --- Background -------------------------------------------------------
-
-step("an approved user is logged in", (context) => {
-  // Synthetic identity only; never a real production account
-  // (test-identities.md iron rule).
-  return { ...context, user: { id: "test-user-family-chat", approved: true } };
-});
-
-// --- Rule: Online send status ------------------------------------------
-
-step("a visitor opens {string}", async (context, path) =>
-  // Forwards a push state set by a prior "the visitor's device reports push
-  // state ..." Given step (the Scenario Outline at "The room shows the
-  // correct push permission state" has no specialized opening wording of
-  // its own, unlike the other room-option variants below).
-  openRoom(context, path, {
-    devicePushState: context["devicePushState"] as string | undefined,
-  }),
-);
-
-step(
-  "the visitor sends the family chat message {string}",
-  async (context, body) => {
-    const room = requireRoom(context);
-    const outbox = room["outbox"] as {
-      send: (body: string) => Promise<string>;
-    };
-    const clientMessageId = await outbox.send(body);
-    return { ...context, lastClientMessageId: clientMessageId };
-  },
-);
-
-step("the message shows status {string}", async (context, expected) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    status: (clientMessageId: string) => string;
-  };
-  const status = outbox.status(context["lastClientMessageId"] as string);
-  if (status !== expected) {
-    throw new Error(`expected status "${expected}", got "${status}"`);
-  }
-  return context;
-});
-
-step("the message reaches status {string}", async (context, expected) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    waitForStatus: (clientMessageId: string, status: string) => Promise<string>;
-  };
-  const status = await outbox.waitForStatus(
-    context["lastClientMessageId"] as string,
-    expected,
+function attemptsFor(id: string, memberId = visitor().id) {
+  return server().sendAttempts.filter(
+    (attempt) =>
+      attempt.clientMessageId === id && attempt.memberId === memberId,
   );
-  if (status !== expected) {
-    throw new Error(`expected status "${expected}", got "${status}"`);
+}
+
+/** Lets the page's timers run up to their next deadline. */
+function advanceToNextTimer(page: Page): number {
+  const due = page.clock.nextDueAt();
+  if (due === null) throw new Error("the page has no timer pending");
+  page.clock.advance(due - page.clock.now());
+  return due;
+}
+
+async function expectStatus(id: string, expected: string): Promise<void> {
+  if (expected === STATUS.SENT) {
+    await waitFor(() => {
+      const committed = committedFor(id);
+      return (
+        committed !== undefined &&
+        rowFor(committed.id) !== null &&
+        rowFor(id) === null
+      );
+    }, `message ${id} to reach Sent`).catch((error: unknown) => {
+      const row = rowFor(id);
+      throw new Error(
+        `${String(error)} (attempts ${JSON.stringify(attemptsFor(id).map((attempt) => attempt.outcome))}, ` +
+          `committed ${String(committedFor(id)?.id)}, pending row ${row ? JSON.stringify(shownStatus(row)) : "none"})`,
+      );
+    });
+    const committed = committedFor(id);
+    const copies = messageRows().filter(
+      (row) => row.dataset["messageId"] === committed?.id,
+    );
+    expect(copies.length === 1, `Sent rendered ${copies.length} copies`);
+    expect(
+      activePage().elements.outboxStatus.textContent === "",
+      "the outbox status still reports a pending send",
+    );
+    return;
   }
-  return context;
+  await waitFor(
+    () => rowFor(id) !== null && shownStatus(requireRow(id)) === expected,
+    `message ${id} to show ${JSON.stringify(expected)}`,
+  );
+}
+
+// --- Background ---------------------------------------------------------------
+
+step("an approved user is logged in", () => {
+  startWorld();
+});
+
+// --- Rule: Online send status ---------------------------------------------------
+
+step("a visitor opens {string}", async (pathname) => {
+  ensureConversation();
+  await openRoomPage({ pathname });
+});
+
+step("the visitor sends the family chat message {string}", async (body) => {
+  const id = await sendThroughComposer(body);
+  expect(id !== null, "the room refused to queue the message");
+  remember("clientMessageId", id);
+});
+
+step("the message shows status {string}", async (expected) => {
+  await expectStatus(clientMessageId(), expected);
+});
+
+step("the message reaches status {string}", async (expected) => {
+  await expectStatus(clientMessageId(), expected);
 });
 
 step(
   "the visitor sends a family chat message during a retryable network failure",
-  async (context) => {
-    const room = requireRoom(context);
-    const outbox = room["outbox"] as {
-      send: (body: string, opts: Record<string, unknown>) => Promise<string>;
-    };
-    const clientMessageId = await outbox.send("On my way", {
-      simulateNetworkFailure: "retryable",
-    });
-    return { ...context, lastClientMessageId: clientMessageId };
+  async () => {
+    // Every send fails to get an answer, the way an aborted fetch does;
+    // the rest of the page keeps working.
+    server().setSendOutcome(visitor().id, "offline");
+    const id = await sendThroughComposer("On my way");
+    expect(id !== null, "the room refused to queue the message");
+    remember("clientMessageId", id);
   },
 );
 
-step("the network recovers", async (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as { reportOnline: () => void };
-  outbox.reportOnline();
-  return context;
-});
-
-// A distinct synthetic identity (never the Background's shared
-// "test-user-family-chat"), mirroring "two members each open"'s own
-// precedent below: this scenario's namespace must stay unpolluted by any
-// earlier scenario sharing that default user+room (e.g. "The 101st queued
-// message for one room is rejected" permanently fills it to its 100-message
-// cap), since this scenario's own assertions need a real, freshly queued
-// message to still be findable by its exact clientMessageId.
-step("a fresh visitor opens {string}", async (context, path) => {
-  const user = {
-    id: "test-user-family-chat-offline-persistence",
-    approved: true,
-  };
-  return openRoom({ ...context, user }, path);
-});
-
-step("the visitor reloads the page", async (context) => {
-  // A real reload's actual effect -- discarding the JS module's in-memory
-  // outbox state while real IndexedDB survives it -- has no Node/Vitest
-  // equivalent for the document-free room (there is no process to destroy);
-  // that scenario's real cross-reload proof is
-  // `family-chat-offline-persistence.steps.ts` (FE_E2E, a genuine
-  // `page.reload()`). What this layer proves instead is the write-through
-  // contract behind that persistence: see the next step.
-  //
-  // The browser-shaped room (`support/reply_room.ts`) does have an
-  // equivalent, because every collaborator it holds is rebuilt from the
-  // retained server and device storage, so a reload there really does
-  // discard whatever only lived in memory -- which is exactly what "The
-  // reply target does not survive a reload" is asking about.
-  const { hasBrowserRoom, reopenBrowserRoom } =
-    await import("./support/reply_room");
-  if (!hasBrowserRoom()) return context;
-  const reopened = await reopenBrowserRoom();
-  return { ...context, room: reopened.room };
-});
-
-step("the message is durably queued for a closed tab to resume", (context) => {
-  const persistence = context["persistence"] as FakePersistence;
-  const clientMessageId = context["lastClientMessageId"] as string;
-  const row = Array.from(persistence.rows.values()).find(
-    (candidate) => candidate.clientMessageId === clientMessageId,
-  );
-  if (!row) {
-    throw new Error(
-      "expected the queued message to have a durable (persisted) row",
-    );
-  }
-  return context;
+step("the network recovers", async () => {
+  server().setSendOutcome(visitor().id, "commit");
+  setDeviceOnline(activePage().device, true);
+  await settle();
 });
 
 step(
   "the visitor sends a family chat message the server rejects as invalid",
-  async (context) => {
-    const room = requireRoom(context);
-    const outbox = room["outbox"] as {
-      send: (body: string, opts: Record<string, unknown>) => Promise<string>;
-    };
-    const clientMessageId = await outbox.send("On my way", {
-      simulateNetworkFailure: "non-retryable",
-    });
-    return { ...context, lastClientMessageId: clientMessageId };
+  async () => {
+    server().setSendOutcome(visitor().id, { code: "VALIDATION_FAILED" });
+    const id = await sendThroughComposer("On my way");
+    expect(id !== null, "the room refused to queue the message");
+    remember("clientMessageId", id);
   },
 );
 
-step("no automatic retry is attempted", (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    retryCount: (clientMessageId: string) => number;
-  };
-  const retries = outbox.retryCount(context["lastClientMessageId"] as string);
-  if (retries !== 0) {
-    throw new Error(`expected zero automatic retries, got ${retries}`);
-  }
-  return context;
+step("no automatic retry is attempted", async () => {
+  const page = activePage();
+  const id = clientMessageId();
+  await expectStatus(id, STATUS.FAILED);
+  page.clock.advance(10 * 60 * 1000);
+  await settle();
+  const attempts = attemptsFor(id).length;
+  expect(
+    attempts === 1,
+    `the room sent the rejected message ${attempts} times`,
+  );
+  expect(
+    shownStatus(requireRow(id)) === STATUS.FAILED,
+    "the rejected message left Couldn't send on its own",
+  );
 });
 
-// --- Rule: Bounded per-room outbox --------------------------------------
+// --- Rule: Bounded per-room outbox ------------------------------------------------
 
 step(
   "the visitor's outbox for this room already holds {int} queued messages",
-  async (context, count) => {
-    const room = requireRoom(context);
-    const outbox = room["outbox"] as {
-      fillWithQueuedMessages: (count: number) => Promise<void>;
-    };
-    await outbox.fillWithQueuedMessages(Number(count));
-    return context;
+  async (count) => {
+    // Offline, every message the member writes waits in the queue.
+    setDeviceOnline(activePage().device, false);
+    for (let index = 1; index <= Number(count); index += 1) {
+      const id = await sendThroughComposer(`Waiting message ${index}`);
+      expect(id !== null, `message ${index} was refused before the cap`);
+    }
+    const stored = device().persistence.rowsFor(namespaceOf(visitor())).length;
+    expect(stored === Number(count), `the queue holds ${stored} messages`);
   },
 );
 
-step("the visitor attempts to queue one more message", async (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    send: (body: string) => Promise<string | null>;
-  };
-  const clientMessageId = await outbox.send("one more message");
-  return { ...context, lastClientMessageId: clientMessageId };
+step("the visitor attempts to queue one more message", async () => {
+  remember("refusedId", await sendThroughComposer("One more message"));
 });
 
-step("the new message is not queued", (context) => {
-  if (context["lastClientMessageId"] !== null) {
-    throw new Error("expected the outbox to reject the 101st message");
-  }
-  return context;
+step("the new message is not queued", () => {
+  const page = activePage();
+  expect(
+    recall<string | null>("refusedId") === null,
+    "the 101st message was queued",
+  );
+  const stored = device().persistence.rowsFor(namespaceOf(visitor())).length;
+  expect(stored === 100, `the queue holds ${stored} messages`);
+  const pending = messageRows().filter(
+    (row) => row.dataset["deliveryState"] !== "committed",
+  ).length;
+  expect(pending === 100, `the room shows ${pending} queued messages`);
+  expect(
+    page.elements.input.value === "One more message",
+    "the refused draft was not kept in the input",
+  );
 });
 
-step("the composer explains the retry-or-discard remediation", (context) => {
-  const room = requireRoom(context);
-  const composer = room["composer"] as { remediation: () => string | null };
-  if (!composer.remediation()) {
-    throw new Error("expected the composer to show a remediation message");
-  }
-  return context;
+step("the composer explains the retry-or-discard remediation", () => {
+  const shown = visibleRemediation().toLowerCase();
+  expect(
+    shown.includes("retry") && shown.includes("discard"),
+    `the composer shows ${JSON.stringify(visibleRemediation())}`,
+  );
 });
 
-// --- Rule: Resume, online reaction, backoff, and seven-day expiry ------
+// --- Rule: Resume, online reaction, backoff, and seven-day expiry ------------------
 
-step(
-  "the visitor has a queued message left over from a closed session",
-  async (context) => {
-    const { seedQueuedMessage } = await import(/* @vite-ignore */ OUTBOX_JS);
-    const seed = await seedQueuedMessage({ ageMs: 0 });
-    return { ...context, seededMessage: seed };
-  },
-);
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-step("the visitor reopens {string}", async (context, path) =>
-  openRoom(context, path),
-);
+/** A row a tab closed earlier left in IndexedDB, in the shape it writes. */
+function seedQueuedRow(id: string, body: string, createdAgoMs: number): void {
+  const now = device().now;
+  device().persistence.seed(namespaceOf(visitor()), {
+    clientMessageId: id,
+    body,
+    status: STATUS.RETRYING,
+    attempt: 1,
+    retryCount: 0,
+    createdAt: now - createdAgoMs,
+    nextRetryAt: now + 1000,
+  });
+  remember("clientMessageId", id);
+}
+
+step("the visitor has a queued message left over from a closed session", () => {
+  ensureConversation();
+  seedQueuedRow(
+    "a1b2c3d4-0000-4000-8000-000000000040",
+    "Left over from a closed tab",
+    60_000,
+  );
+});
+
+step("the visitor reopens {string}", async (pathname) => {
+  await reopenRoom(pathname);
+});
 
 step(
   "the queued message resumes toward Sent without visitor action",
-  async (context) => {
-    const room = requireRoom(context);
-    const outbox = room["outbox"] as {
-      status: (clientMessageId: string) => string;
-    };
-    const seed = context["seededMessage"] as { clientMessageId: string };
-    const status = outbox.status(seed.clientMessageId);
-    if (status === "queued" || status === "Not sent") {
-      throw new Error("expected the queue to resume draining automatically");
-    }
-    return context;
+  async () => {
+    // Nothing is pressed between the reopen and this: whatever sends it is
+    // the room's own resume.
+    await expectStatus(clientMessageId(), STATUS.SENT);
+    expect(
+      attemptsFor(clientMessageId()).length >= 1,
+      "the left-over message never reached the server",
+    );
   },
 );
 
-step("a queued message is waiting on its backoff timer", async (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    queueWithPendingBackoff: () => Promise<string>;
-  };
-  const clientMessageId = await outbox.queueWithPendingBackoff();
-  return { ...context, lastClientMessageId: clientMessageId };
+step("a fresh visitor opens {string}", async (pathname) => {
+  useVisitor(otherMember("Fresh"));
+  ensureConversation();
+  await openRoomPage({ pathname });
 });
 
-step("the browser reports the {string} event", (context, eventName) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    reportBrowserEvent: (name: string) => void;
-  };
-  outbox.reportBrowserEvent(eventName);
-  return context;
+step("the visitor reloads the page", async () => {
+  await reloadPage();
 });
 
-step("the queued message becomes immediately eligible for retry", (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    nextRetryEtaMs: (clientMessageId: string) => number;
-  };
-  const eta = outbox.nextRetryEtaMs(context["lastClientMessageId"] as string);
-  if (eta > 0) {
-    throw new Error(`expected an immediate retry, next attempt in ${eta}ms`);
+step("the message is durably queued for a closed tab to resume", async () => {
+  const id = clientMessageId();
+  const stored = device()
+    .persistence.rowsFor(namespaceOf(visitor()))
+    .some((row) => row.clientMessageId === id);
+  expect(stored, "the queued message has no row in the device's outbox store");
+  // This page's runtime is new: the row it renders came back from storage.
+  await waitFor(() => rowFor(id) !== null, "the reloaded room to show it");
+  expect(
+    shownStatus(requireRow(id)) !== STATUS.SENT,
+    "the message was already sent",
+  );
+});
+
+step("a queued message is waiting on its backoff timer", async () => {
+  server().setSendOutcome(visitor().id, "offline");
+  const id = await sendThroughComposer("Waiting for the network");
+  expect(id !== null, "the room refused to queue the message");
+  remember("clientMessageId", id);
+  await expectStatus(id ?? "", STATUS.RETRYING);
+  const page = activePage();
+  const due = page.clock.nextDueAt();
+  expect(
+    due !== null && due > page.clock.now(),
+    "the message has no backoff timer pending",
+  );
+  remember("attemptsBefore", attemptsFor(id ?? "").length);
+});
+
+step("the browser reports the {string} event", async (name) => {
+  const page = activePage();
+  server().setSendOutcome(visitor().id, "commit");
+  remember("eventAt", page.clock.now());
+  page.window.dispatchEvent(new page.window.Event(name));
+  await settle();
+});
+
+step("the queued message becomes immediately eligible for retry", () => {
+  const attempts = attemptsFor(clientMessageId());
+  const before = recall<number>("attemptsBefore");
+  expect(
+    attempts.length === before + 1,
+    `the online event led to ${attempts.length - before} attempts`,
+  );
+  expect(
+    attempts.at(-1)?.at === recall<number>("eventAt"),
+    "the retry waited for its backoff timer instead",
+  );
+});
+
+step("a queued message fails five times with a retryable result", async () => {
+  const page = activePage();
+  server().setSendOutcome(visitor().id, "offline");
+  const id = await sendThroughComposer("Retry me");
+  expect(id !== null, "the room refused to queue the message");
+  const waits: number[] = [];
+  for (let failure = 1; failure <= 5; failure += 1) {
+    await waitFor(
+      () => attemptsFor(id ?? "").length === failure,
+      `attempt ${failure}`,
+    );
+    await expectStatus(id ?? "", STATUS.RETRYING);
+    const failedAt = attemptsFor(id ?? "").at(-1)?.at ?? 0;
+    const due = page.clock.nextDueAt();
+    if (due === null)
+      throw new Error(`no retry was scheduled after failure ${failure}`);
+    waits.push(due - failedAt);
+    if (failure < 5) advanceToNextTimer(page);
   }
-  return context;
+  remember("waits", waits);
 });
-
-step(
-  "a queued message fails five times with a retryable result",
-  async (context) => {
-    const room = requireRoom(context);
-    const outbox = room["outbox"] as {
-      failRepeatedly: (times: number) => Promise<number[]>;
-    };
-    const delaysMs = await outbox.failRepeatedly(5);
-    return { ...context, observedBackoffDelaysMs: delaysMs };
-  },
-);
 
 step(
   "each wait follows 1, 2, 4, 8, and 16 seconds with bounded jitter and no wait exceeding 60 seconds",
-  (context) => {
-    const baseDelaysMs = [1_000, 2_000, 4_000, 8_000, 16_000];
-    const delaysMs = context["observedBackoffDelaysMs"] as number[];
-    delaysMs.forEach((delayMs, index) => {
-      const base = baseDelaysMs[index];
-      if (base === undefined) {
-        throw new Error(
-          `no expected base delay defined for attempt ${index + 1}`,
-        );
-      }
-      const min = base * 0.8;
-      const max = Math.min(base * 1.2, 60_000);
-      if (delayMs < min || delayMs > max) {
-        throw new Error(
-          `attempt ${index + 1}: expected ${delayMs}ms within [${min}, ${max}]ms`,
-        );
-      }
+  () => {
+    const waits = recall<number[]>("waits");
+    const bases = [1000, 2000, 4000, 8000, 16_000];
+    expect(waits.length === bases.length, `measured ${waits.length} waits`);
+    bases.forEach((base, index) => {
+      const wait = waits[index] ?? Number.NaN;
+      expect(
+        wait >= base * 0.8 && wait <= base * 1.2 && wait <= 60_000,
+        `wait ${index + 1} was ${wait} ms against a ${base} ms base`,
+      );
     });
-    return context;
   },
 );
 
 step(
   "the visitor has a queued message created more than seven days ago",
-  async (context) => {
-    const { seedQueuedMessage } = await import(/* @vite-ignore */ OUTBOX_JS);
-    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-    const seed = await seedQueuedMessage({ ageMs: sevenDaysMs + 1_000 });
-    return { ...context, seededMessage: seed };
+  () => {
+    ensureConversation();
+    seedQueuedRow(
+      "a1b2c3d4-0000-4000-8000-000000000044",
+      "Queued a week ago",
+      7 * DAY_MS + 60_000,
+    );
+    remember(
+      "seededRows",
+      device().persistence.rowsFor(namespaceOf(visitor())),
+    );
   },
 );
 
-step("the message is not automatically retried", (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    isAutoRetrying: (clientMessageId: string) => boolean;
-  };
-  const seed = context["seededMessage"] as { clientMessageId: string };
-  if (outbox.isAutoRetrying(seed.clientMessageId)) {
-    throw new Error("expected automatic retry to have stopped at seven days");
+step("the message is not automatically retried", async () => {
+  const id = clientMessageId();
+  await expectStatus(id, STATUS.FAILED);
+  activePage().clock.advance(10 * 60 * 1000);
+  await settle();
+  const attempts = attemptsFor(id).length;
+  expect(attempts === 0, `the expired message was sent ${attempts} times`);
+});
+
+function manualControl(id: string, role: string): HTMLButtonElement {
+  const control = requireRow(id).querySelector<HTMLButtonElement>(
+    `[data-role="${role}"]`,
+  );
+  if (!control || !isRendered(control) || control.disabled) {
+    throw new Error(`message ${id} offers no ${role}`);
   }
-  return context;
-});
+  return control;
+}
 
-step("the visitor can still manually retry or discard it", (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    canManuallyRetryOrDiscard: (clientMessageId: string) => boolean;
-  };
-  const seed = context["seededMessage"] as { clientMessageId: string };
-  if (!outbox.canManuallyRetryOrDiscard(seed.clientMessageId)) {
-    throw new Error("expected manual retry/discard to remain available");
+step("the visitor can still manually retry or discard it", async () => {
+  const id = clientMessageId();
+  // Retrying sends it.
+  await clickOn(manualControl(id, "family-chat-message-retry"));
+  await expectStatus(id, STATUS.SENT);
+  expect(attemptsFor(id).length === 1, "the retry sent it more than once");
+
+  // The same expired message on another visit: discarding drops it, from
+  // the room and from the device, without sending it.
+  await closePage(activePage());
+  for (const row of recall<Record<string, unknown>[]>("seededRows")) {
+    device().persistence.seed(namespaceOf(visitor()), row);
   }
-  return context;
+  device().now += 1;
+  const page = await openRoomPage();
+  await expectStatus(id, STATUS.FAILED);
+  // Discarding removes the only copy, so the room asks first; a member who
+  // says no keeps the message.
+  page.confirmAnswer = false;
+  await clickOn(manualControl(id, "family-chat-message-discard"));
+  await settle();
+  expect(page.dialogs.length === 1, "discarding did not ask for confirmation");
+  expect(rowFor(id) !== null, "a declined discard still removed the message");
+  page.confirmAnswer = true;
+  await clickOn(manualControl(id, "family-chat-message-discard"));
+  await waitFor(
+    () => rowFor(id) === null,
+    "the discarded message to leave the room",
+  );
+  await settle();
+  const stored = device()
+    .persistence.rowsFor(namespaceOf(visitor()))
+    .some((row) => row.clientMessageId === id);
+  expect(!stored, "the discarded message is still stored on the device");
+  expect(attemptsFor(id).length === 1, "discarding sent the message");
 });
 
-// --- Rule: Auth expiry pause and logout isolation ------------------------
+// --- Rule: Auth expiry pause and logout isolation -----------------------------------
 
-step("a message is queued", async (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as { send: (body: string) => Promise<string> };
-  const clientMessageId = await outbox.send("queued before expiry");
-  return { ...context, lastClientMessageId: clientMessageId };
+step("a message is queued", async () => {
+  server().setSendOutcome(visitor().id, "offline");
+  const id = await sendThroughComposer("Queued before the session ended");
+  expect(id !== null, "the room refused to queue the message");
+  remember("clientMessageId", id);
+  await expectStatus(id ?? "", STATUS.RETRYING);
 });
 
-step("the visitor's authentication expires", (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as { reportAuthExpired: () => void };
-  outbox.reportAuthExpired();
-  return context;
+step("the visitor's authentication expires", async () => {
+  const page = activePage();
+  server().setSendOutcome(visitor().id, { code: "UNAUTHENTICATED" });
+  const before = attemptsFor(clientMessageId()).length;
+  advanceToNextTimer(page);
+  await waitFor(
+    () => attemptsFor(clientMessageId()).length === before + 1,
+    "the retry the server refuses as unauthenticated",
+  );
+  await settle();
+  remember("attemptsAtExpiry", attemptsFor(clientMessageId()).length);
 });
 
-step("queue draining pauses for that namespace", (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as { isDraining: () => boolean };
-  if (outbox.isDraining()) {
-    throw new Error("expected draining to be paused after auth expiry");
-  }
-  return context;
+step("queue draining pauses for that namespace", async () => {
+  const page = activePage();
+  // The server would take it again now; a paused queue does not ask.
+  server().setSendOutcome(visitor().id, "commit");
+  page.clock.advance(10 * 60 * 1000);
+  await settle();
+  const attempts = attemptsFor(clientMessageId()).length;
+  expect(
+    attempts === recall<number>("attemptsAtExpiry"),
+    `the queue kept sending after expiry (${attempts} attempts)`,
+  );
+  expect(
+    page.elements.room?.dataset["connectionState"] === "auth-expired",
+    "the room does not show that the session expired",
+  );
 });
 
-step("no other user's session drains that queued message", async (context) => {
-  requireRoom(context); // validates a room was opened; the value itself is unused here
-  const { initRoom } = await import(/* @vite-ignore */ ROOM_JS);
-  const otherUserRoom = await initRoom(context["roomPath"] as string, {
-    user: { id: "test-user-family-chat-other", approved: true },
-  });
-  const otherOutbox = (otherUserRoom as Record<string, unknown>)["outbox"] as {
-    status: (clientMessageId: string) => string;
-  };
-  const status = otherOutbox.status(context["lastClientMessageId"] as string);
-  if (status !== "not-found") {
-    throw new Error("expected the other session's namespace to be isolated");
-  }
-  return context;
+step("no other user's session drains that queued message", async () => {
+  const id = clientMessageId();
+  const owner = visitor();
+  await closePage(activePage());
+  // Another member signs in on the same device, with the same IndexedDB.
+  const other = otherMember("Bunda");
+  const page = await openRoomPage({ member: other });
+  page.clock.advance(10 * 60 * 1000);
+  await settle(page);
+  const drained = server().sendAttempts.filter(
+    (attempt) =>
+      attempt.clientMessageId === id && attempt.memberId !== owner.id,
+  );
+  expect(drained.length === 0, "another member's session sent the message");
+  expect(rowFor(id, page) === null, "another member's room shows the message");
+  const stillQueued = device()
+    .persistence.rowsFor(namespaceOf(owner))
+    .some((row) => row.clientMessageId === id);
+  expect(stillQueued, "the owner's queued message was lost");
+  expect(messageRows(page).length > 0, "the other member's room did not load");
 });
 
-step("the visitor logs out", (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as { logout: () => void };
-  outbox.logout();
-  return context;
+step("the visitor logs out", async () => {
+  const id = clientMessageId();
+  const stored = device()
+    .persistence.rowsFor(namespaceOf(visitor()))
+    .some((row) => row.clientMessageId === id);
+  expect(stored, "nothing was queued on the device before logging out");
+  // This session had notifications on, so logout has a binding to end.
+  server().pushBindings.set(visitor().id, true);
+  await closePage(activePage());
+  const home = await openHomePage();
+  const button = home.document.querySelector<HTMLButtonElement>(
+    "form button[type=submit]",
+  );
+  if (!button) throw new Error("the home page has no Log out button");
+  await clickOn(button);
+  await waitFor(() => home.navigatedTo === "/login", "the log-out to submit");
 });
 
-step("the visitor's local outbox namespace is cleared", (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as { isCleared: () => boolean };
-  if (!outbox.isCleared()) {
-    throw new Error("expected the outbox namespace to be cleared on logout");
-  }
-  return context;
+step("the visitor's local outbox namespace is cleared", () => {
+  const rows = device().persistence.rowsFor(namespaceOf(visitor()));
+  expect(rows.length === 0, `${rows.length} queued messages survived logout`);
 });
 
-step("the current session's Web Push subscription is disabled", (context) => {
-  const room = requireRoom(context);
-  const push = room["push"] as { isDisabled: () => boolean };
-  if (!push.isDisabled()) {
-    throw new Error("expected the push subscription to be disabled on logout");
-  }
-  return context;
+step("the current session's Web Push subscription is disabled", () => {
+  expect(
+    server().logouts.includes(visitor().id),
+    "the log-out never reached the server",
+  );
+  expect(
+    server().pushBindings.get(visitor().id) === false,
+    "the session's push binding is still enabled",
+  );
 });
 
-// --- Rule: Reconnect across Caddy promotion ------------------------------
+// --- Rules: Reconnect across Caddy promotion, visibility, handshake ---------------------
+
+const CONTROL_TOPIC = "__absinthe__:control";
 
 step(
   "a visitor opens {string} with the socket connected to the current slot",
-  async (context, path) =>
-    openRoom(context, path, { socketConnectedToCurrentSlot: true }),
+  async (pathname) => {
+    ensureConversation();
+    const page = await openRoomPage({ pathname });
+    const [socket] = page.sockets;
+    expect(
+      page.sockets.length === 1 &&
+        socket?.record.open === true &&
+        socket.record.joins.includes(CONTROL_TOPIC),
+      "the room did not connect its socket to the current slot",
+    );
+    remember("priorSockets", [...page.sockets]);
+    remember("firstRow", messageRows(page)[0]);
+  },
 );
 
-step("Caddy promotes a replacement slot", async (context) => {
-  const { promoteSlot } = await import(/* @vite-ignore */ RECONNECT_JS);
-  const room = requireRoom(context);
-  await promoteSlot(room["reconnect"]);
-  return context;
+step("Caddy promotes a replacement slot", async () => {
+  const page = activePage();
+  // A send that is waiting on its retry timer when the cutover happens.
+  server().setSendOutcome(visitor().id, "offline");
+  const queued = await sendThroughComposer("Queued across the promotion");
+  expect(queued !== null, "the room refused to queue the message");
+  await expectStatus(queued ?? "", STATUS.RETRYING);
+  remember("clientMessageId", queued);
+  server().setSendOutcome(visitor().id, "commit");
+
+  remember("priorSockets", [...page.sockets]);
+  remember("wireMark", server().wire.length);
+  remember("promotedAt", performance.now());
+  // Caddy's reload closes the prior slot's upstream connection; a message
+  // committed in that gap never reaches this socket.
+  dropSockets(page);
+  remember(
+    "gapMessage",
+    post({ body: "Sent during the cutover", sender: AYAH() }),
+  );
+  // phoenix reconnects to whatever Caddy now routes.
+  reconnectSockets(page);
+  await Promise.resolve();
+  await Promise.resolve();
+  // The queued send's retry comes due while the room is catching up.
+  page.clock.advance(60_000);
+  await settle();
 });
 
-step("the prior-slot socket closes", (context) => {
-  const room = requireRoom(context);
-  const reconnect = room["reconnect"] as { priorSlotClosed: () => boolean };
-  if (!reconnect.priorSlotClosed()) {
-    throw new Error("expected the prior-slot socket to close");
+step("the prior-slot socket closes", () => {
+  for (const socket of recall<Page["sockets"]>("priorSockets")) {
+    expect(
+      socket.record.disconnects >= 1 && !socket.record.open,
+      "the prior slot's socket was never closed by the room",
+    );
   }
-  return context;
 });
 
 step(
   "the browser subscribes on the promoted slot and completes catch-up within ten seconds",
-  (context) => {
-    const room = requireRoom(context);
-    const reconnect = room["reconnect"] as { catchUpDurationMs: () => number };
-    const durationMs = reconnect.catchUpDurationMs();
-    if (durationMs > 10_000) {
-      throw new Error(`catch-up took ${durationMs}ms, expected <= 10000ms`);
-    }
-    return context;
+  async () => {
+    const page = activePage();
+    const prior = recall<Page["sockets"]>("priorSockets");
+    const fresh = page.sockets.filter((socket) => !prior.includes(socket));
+    expect(
+      fresh.some(
+        (socket) =>
+          socket.record.open && socket.record.joins.includes(CONTROL_TOPIC),
+      ),
+      "no socket on the promoted slot joined the control channel",
+    );
+    const gap = recall<{ id: string }>("gapMessage");
+    await waitFor(
+      () => rowFor(gap.id) !== null,
+      "the gap message to be caught up",
+    );
+    const elapsed = performance.now() - recall<number>("promotedAt");
+    expect(elapsed < 10_000, `catch-up took ${Math.round(elapsed)} ms`);
   },
 );
 
-step("any queued send drains only after catch-up completes", (context) => {
-  const room = requireRoom(context);
-  const reconnect = room["reconnect"] as {
-    drainedBeforeCatchUp: () => boolean;
-  };
-  if (reconnect.drainedBeforeCatchUp()) {
-    throw new Error("expected the queue to wait for catch-up before draining");
-  }
-  return context;
+step("any queued send drains only after catch-up completes", async () => {
+  const id = clientMessageId();
+  await expectStatus(id, STATUS.SENT);
+  const wire = server().wire.slice(recall<number>("wireMark"));
+  const caughtUp = wire.findIndex(
+    (event) =>
+      event.kind === "response" &&
+      event.operation === "FamilyChatMessages" &&
+      event.variables["afterId"] !== undefined,
+  );
+  const sent = wire.findIndex(
+    (event) =>
+      event.kind === "request" &&
+      event.operation === "SendFamilyChatMessage" &&
+      event.variables["clientMessageId"] === id,
+  );
+  expect(caughtUp !== -1, "the room never ran a catch-up query");
+  expect(sent !== -1, "the queued send never drained");
+  expect(sent > caughtUp, "the queued send went out before catch-up finished");
 });
 
-step("the page does not reload", (context) => {
-  const room = requireRoom(context);
-  const reconnect = room["reconnect"] as { pageReloaded: () => boolean };
-  if (reconnect.pageReloaded()) {
-    throw new Error("expected reconnect to avoid a full page reload");
-  }
-  return context;
+step("the page does not reload", () => {
+  const page = activePage();
+  const loads = requireWorld().pages.filter(
+    (candidate) =>
+      candidate.kind === "room" && candidate.member === page.member,
+  ).length;
+  expect(loads === 1, `the room was loaded ${loads} times`);
+  const firstRow = recall<HTMLElement>("firstRow");
+  expect(
+    firstRow.isConnected && page.document.contains(firstRow),
+    "the room's rendered history was replaced",
+  );
 });
-
-// --- Rule: Reconnect on visibility resume ---------------------------------
 
 step(
   "the tab is backgrounded with its connection silently dropped",
-  (context) => context,
-);
-
-step("the tab becomes visible again", async (context) => {
-  const { resumeFromBackground } = await import(
-    /* @vite-ignore */ RECONNECT_JS
-  );
-  let reconnectedNow = false;
-  resumeFromBackground({
-    reconnectNow: () => {
-      reconnectedNow = true;
-    },
-  });
-  return { ...context, forcedReconnect: reconnectedNow };
-});
-
-step("a fresh socket connection replaces the prior one", (context) => {
-  if (!context["forcedReconnect"]) {
-    throw new Error(
-      "expected the tab becoming visible again to force a fresh socket connection",
-    );
-  }
-  return context;
-});
-
-// --- Rule: Subscription channel handshake ---------------------------------
-//
-// Reuses this rule's own Given/When bindings above (a reconnect is what
-// re-triggers a subscribe attempt); only the join-avoidance decision itself
-// is new. `graphql.js`'s real socket path stays untouched here (this file's
-// header/vitest.config's own network boundary) -- `attachSubscriptionChannel`
-// is the pure wiring decision `subscribe()` delegates to, proven here
-// against a plain fake `socket`, the same dependency-injection shape as
-// `reconnect.js`'s `resumeFromBackground` fake above.
-
-step(
-  "no phx_join frame is sent for any topic other than the control channel",
-  async (context) => {
-    const { attachSubscriptionChannel } = await import(
-      /* @vite-ignore */ GRAPHQL_JS
-    );
-    let joined = false;
-    const fakeChannel = {
-      on: () => {},
-      join: () => {
-        joined = true;
-      },
-    };
-    const fakeSocket = { channel: () => fakeChannel };
-    attachSubscriptionChannel(fakeSocket, "__absinthe__:doc:fake", () => {});
-    if (joined) {
-      throw new Error(
-        "expected the per-message data channel to never be joined",
-      );
-    }
-    return context;
+  async () => {
+    const page = activePage();
+    remember("priorSockets", [...page.sockets]);
+    setVisibility(page, "hidden");
+    dropSockets(page);
+    await settle();
   },
 );
 
-// --- Rule: Experience release candidate proof -----------------------------
-//
-// The candidate/Caddy promotion itself is release infrastructure this layer
-// cannot observe (see this file's header); "Caddy has promoted the
-// flag-enabled experience candidate" is a no-op here, mirroring how
-// `reconnect.js`'s `subscribeFirstStep` treats an unbound `resubscribe` as a
-// pure ordering guarantee for FE_UNIT's document-less room. What this layer
-// *can* prove is the outbox's own draft/offline-queue/reconnect/exact-once
-// behavior, and that a second session's outbox namespace never observes the
-// first session's queued message -- cross-client delivery itself (the other
-// member's UI actually rendering it) is bnest-app-fe-e2e:test:e2e's job.
+step("the tab becomes visible again", async () => {
+  setVisibility(activePage(), "visible");
+  await settle();
+});
+
+step("a fresh socket connection replaces the prior one", () => {
+  const page = activePage();
+  const prior = recall<Page["sockets"]>("priorSockets");
+  for (const socket of prior) {
+    expect(!socket.record.open, "the dead connection is still the room's");
+  }
+  const fresh = page.sockets.filter(
+    (socket) => !prior.includes(socket) && socket.record.open,
+  );
+  expect(
+    fresh.length === 1 &&
+      fresh[0]?.record.joins.includes(CONTROL_TOPIC) === true,
+    `${fresh.length} fresh sockets joined the control channel`,
+  );
+});
 
 step(
-  "Caddy has promoted the flag-enabled experience candidate",
-  (context) => context,
+  "no phx_join frame is sent for any topic other than the control channel",
+  () => {
+    const joins = activePage().sockets.flatMap((socket) => socket.record.joins);
+    const others = joins.filter((topic) => topic !== CONTROL_TOPIC);
+    expect(others.length === 0, `the room joined ${JSON.stringify(others)}`);
+    // The positive control: the capture saw the joins that did happen,
+    // before the drop and after the resume.
+    const control = joins.filter((topic) => topic === CONTROL_TOPIC).length;
+    expect(control >= 2, `only ${control} control-channel joins were seen`);
+  },
 );
 
-step("two members each open {string}", async (context, path) => {
-  const withMemberA = await openRoom(context, path);
-  const { initRoom } = await import(/* @vite-ignore */ ROOM_JS);
-  const memberBRoom = await initRoom(path, {
-    user: {
-      id: "test-user-family-chat-experience-release-other",
-      approved: true,
-    },
+// --- Rule: Experience release candidate proof ------------------------------------
+
+step("Caddy has promoted the flag-enabled experience candidate", () => {
+  routeRevision(true);
+});
+
+step("two members each open {string}", async (pathname) => {
+  ensureConversation();
+  const first = await openRoomPage({ pathname });
+  const second = await openRoomPage({
+    pathname,
+    member: otherMember("Bunda"),
+    device: createDevice(),
   });
-  return { ...withMemberA, memberBRoom };
+  remember("members", [first, second]);
 });
 
-step("one member queues a message while offline", async (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    send: (body: string, opts: Record<string, unknown>) => Promise<string>;
-  };
-  const clientMessageId = await outbox.send(
-    "Queued before the experience release promotion",
-    {
-      simulateNetworkFailure: "retryable",
-    },
-  );
-  return { ...context, lastClientMessageId: clientMessageId };
+step("one member queues a message while offline", async () => {
+  const [first] = recall<Page[]>("members");
+  if (!first) throw new Error("no members opened the room");
+  activate(first);
+  setDeviceOnline(first.device, false);
+  const id = await sendThroughComposer("Queued while offline", first);
+  expect(id !== null, "the room refused to queue the message");
+  remember("clientMessageId", id);
+  await expectStatus(id ?? "", STATUS.WAITING);
 });
 
-step("the offline member's connection is restored", (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as { reportOnline: () => void };
-  outbox.reportOnline();
-  return context;
+step("the offline member's connection is restored", async () => {
+  const [first] = recall<Page[]>("members");
+  if (!first) throw new Error("no members opened the room");
+  activate(first);
+  remember("wireMark", server().wire.length);
+  setDeviceOnline(first.device, true);
+  await settle(first);
 });
 
 step(
   "the offline member's queued message drains exactly once after reconnect",
-  async (context) => {
-    const room = requireRoom(context);
-    const outbox = room["outbox"] as {
-      waitForStatus: (
-        clientMessageId: string,
-        status: string,
-      ) => Promise<string>;
-    };
-    const clientMessageId = context["lastClientMessageId"] as string;
-    const status = await outbox.waitForStatus(clientMessageId, "Sent");
-    if (status !== "Sent") {
-      throw new Error(`expected status "Sent", got "${status}"`);
-    }
-    return context;
+  async () => {
+    const id = clientMessageId();
+    await expectStatus(id, STATUS.SENT);
+    const committed = server().sendAttempts.filter(
+      (attempt) =>
+        attempt.clientMessageId === id && attempt.outcome === "commit",
+    );
+    expect(
+      committed.length === 1,
+      `the message was sent ${committed.length} times`,
+    );
+    const stored = server().messages.filter(
+      (message) => message.body === "Queued while offline",
+    );
+    expect(stored.length === 1, `the server holds ${stored.length} copies`);
+    const after = server()
+      .wire.slice(recall<number>("wireMark"))
+      .some(
+        (event) =>
+          event.operation === "SendFamilyChatMessage" &&
+          event.variables["clientMessageId"] === id,
+      );
+    expect(after, "the message did not drain after the reconnect");
   },
 );
 
-step("neither member sees a duplicate or lost message", (context) => {
-  const room = requireRoom(context);
-  const outbox = room["outbox"] as {
-    status: (clientMessageId: string) => string;
-  };
-  const clientMessageId = context["lastClientMessageId"] as string;
-  if (outbox.status(clientMessageId) !== "Sent") {
-    throw new Error(
-      "expected the sending member's outbox to hold exactly one Sent copy",
+step("neither member sees a duplicate or lost message", async () => {
+  const expected = server()
+    .messages.map((message) => message.id)
+    .sort();
+  for (const page of recall<Page[]>("members")) {
+    activate(page);
+    await settle(page);
+    const shown = messageRows(page)
+      .map((row) => row.dataset["messageId"] ?? "")
+      .sort();
+    expect(
+      JSON.stringify(shown) === JSON.stringify(expected),
+      `${page.member.displayName} sees ${JSON.stringify(shown)}, the room holds ${JSON.stringify(expected)}`,
     );
   }
-
-  const memberBRoom = context["memberBRoom"] as Record<string, unknown>;
-  const memberBOutbox = memberBRoom["outbox"] as {
-    status: (clientMessageId: string) => string;
-  };
-  if (memberBOutbox.status(clientMessageId) !== "not-found") {
-    throw new Error(
-      "expected the other member's outbox namespace to be isolated from this send",
-    );
-  }
-  return context;
 });
 
-// --- Rule: Resuming at the last read position ----------------------------
+// --- Rule: Resuming at the last read position -------------------------------------
 
-// Where the room places a returning visitor is decided by `history.js`
-// (which pages it asks for, around which cursor, and when it writes the read
-// position back) and only *rendered* by the store -- so these scenarios run
-// the real production decisions against a page source that reproduces the
-// server's own cursor contract, and read the outcome off the store double.
-// Measured scroll offsets are FE_E2E's job (see each scenario's own
-// Exemption comment).
+const READ_KEY_PREFIX = "bnest.family-chat.last-read";
 
-const PAGE_SOURCE_JS = new URL(
-  "../../js/family_chat/page_source.js",
-  import.meta.url,
-).href;
-const READ_MARKER_JS = new URL(
-  "../../js/family_chat/read_marker.js",
-  import.meta.url,
-).href;
-
-const ROOM_PATH = "/family-chat/ruang-keluarga";
-
-async function seedConversation(
-  context: StepContext,
-  count: number,
-): Promise<StepContext> {
-  if (context["pageSource"]) return context;
-  const { buildTestMessages, createTestPageSource } = await import(
-    /* @vite-ignore */ PAGE_SOURCE_JS
+function storedReadPosition(member: Member = visitor()): string | null {
+  return (
+    device().readStorage.get(`${READ_KEY_PREFIX}.${member.id}.${ROOM_SLUG}`) ??
+    null
   );
-  const { createMemoryReadStorage } = await import(
-    /* @vite-ignore */ READ_MARKER_JS
-  );
-  return {
-    ...context,
-    pageSource: createTestPageSource(
-      buildTestMessages({ startId: 1, count, body: "Earlier family message" }),
-    ),
-    readStorage: createMemoryReadStorage(),
-  };
 }
 
-function pageSourceOf(context: StepContext): TestPageSource {
-  const pageSource = context["pageSource"] as TestPageSource | undefined;
-  if (!pageSource) throw new Error("no conversation has been seeded");
-  return pageSource;
+/** Reads to the end of the conversation the way a member does: scrolling. */
+async function readDownToNewest(page: Page): Promise<void> {
+  for (let pass = 0; pass < 20; pass += 1) {
+    scrollHistoryTo(page, Number.MAX_SAFE_INTEGER);
+    await settle(page);
+    const rows = messageRows(page);
+    if (
+      storedReadPosition(page.member) === server().newest()?.id &&
+      rows.at(-1)?.dataset["messageId"] === server().newest()?.id
+    ) {
+      return;
+    }
+  }
+  throw new Error("reading down never reached the newest message");
 }
 
-function newestSeededId(context: StepContext): string {
-  const newest = pageSourceOf(context).all().at(-1);
-  if (!newest?.id) throw new Error("the seeded conversation is empty");
-  return newest.id;
+async function readUpToNewest(): Promise<void> {
+  const page = await openRoomPage();
+  await readDownToNewest(page);
+  remember("readUpTo", storedReadPosition());
+  await closePage(page);
 }
 
-/** Appends `count` messages after everything the room already holds. */
-async function appendArrivals(
-  context: StepContext,
-  count: number,
-): Promise<StepContext> {
-  const { buildTestMessages } = await import(/* @vite-ignore */ PAGE_SOURCE_JS);
-  const startId = Number(newestSeededId(context)) + 1;
-  pageSourceOf(context).append(
-    buildTestMessages({ startId, count, body: "While you were away" }),
+function divider(page: Page = activePage()): HTMLElement | null {
+  return page.elements.list.querySelector<HTMLElement>(
+    '[data-role="family-chat-unread-divider"]',
   );
-  return { ...context, firstUnreadId: String(startId) };
+}
+
+function postFromAyah(count: number, label: string): string {
+  let first = "";
+  for (let index = 1; index <= count; index += 1) {
+    const message = post({ body: `${label} ${index}`, sender: AYAH() });
+    if (index === 1) first = message.id;
+  }
+  return first;
 }
 
 step(
   "the family chat holds more earlier messages than one context page",
-  async (context) => seedConversation(context, 60),
-);
-
-step(
-  "the visitor has read the family chat up to a known message",
-  async (context) => {
-    const seeded = await seedConversation(context, 30);
-    // Established by genuinely opening and reading the room once, so the
-    // stored position is whatever production would really have written --
-    // never a value this harness invented.
-    return openRoom(seeded, ROOM_PATH);
+  () => {
+    postFromAyah(CONTEXT_PAGE_SIZE + 10, "Earlier message");
   },
 );
 
-step("the visitor has read every message in the family chat", async (context) =>
-  openRoom(await seedConversation(context, 30), ROOM_PATH),
-);
-
-step(
-  "the visitor has never opened the family chat on this device",
-  async (context) => seedConversation(context, 30),
-);
-
-step(
-  "{int} newer messages arrived while the visitor was away",
-  (context, count) => appendArrivals(context, Number(count)),
-);
-
-step(
-  "the visitor left more unread messages behind than one page holds",
-  async (context) => {
-    const read = await openRoom(await seedConversation(context, 10), ROOM_PATH);
-    return appendArrivals(read, 60);
-  },
-);
-
-step("the visitor scrolls down to the newest message", async (context) => {
-  await requireResumeRoom(context).history.reportScrolledToBottom();
-  return context;
+step("the visitor has read the family chat up to a known message", async () => {
+  ensureConversation(5);
+  await readUpToNewest();
 });
 
-step("the visitor jumps to the newest message", async (context) => {
-  await requireResumeRoom(context).history.jumpToLatest();
-  return context;
+step("{int} newer messages arrived while the visitor was away", (count) => {
+  remember("firstUnread", postFromAyah(Number(count), "While away"));
 });
 
-step("the first unread message is the first message in view", (context) => {
-  const expected = context["firstUnreadId"] as string;
-  const actual = requireResumeRoom(context).store.firstMessageInViewId();
-  if (actual !== expected) {
-    throw new Error(
-      `expected the room to open on message ${expected}, opened on ${actual}`,
-    );
+step("the first unread message is the first message in view", () => {
+  const marker = divider();
+  expect(marker !== null, "the room shows no unread marker");
+  const first = marker?.nextElementSibling as HTMLElement | null;
+  expect(
+    first?.dataset["messageId"] === recall<string>("firstUnread"),
+    `the first message after the marker is ${String(first?.dataset["messageId"])}`,
+  );
+  expect(
+    first !== null && isInView(first),
+    "the first unread message is not in view",
+  );
+  // The marker sits at the top of the view, unless the unread messages are
+  // too few to scroll that far -- then the room rests at the bottom.
+  const history = activePage().elements.history;
+  const atBottom =
+    history.scrollHeight - history.scrollTop - history.clientHeight <= 1;
+  const markerOffset = offsetInHistory(marker as HTMLElement);
+  expect(
+    markerOffset >= 0 && (markerOffset <= 100 || atBottom),
+    `the marker sits ${markerOffset} px into the view`,
+  );
+});
+
+step("an unread marker separates the read messages from the new ones", () => {
+  const marker = divider();
+  if (!marker) throw new Error("the room shows no unread marker");
+  const before = marker.previousElementSibling as HTMLElement | null;
+  const after = marker.nextElementSibling as HTMLElement | null;
+  expect(
+    before?.dataset["messageId"] === recall<string>("readUpTo"),
+    `the marker follows ${String(before?.dataset["messageId"])}`,
+  );
+  expect(
+    after?.dataset["messageId"] === recall<string>("firstUnread"),
+    `the marker precedes ${String(after?.dataset["messageId"])}`,
+  );
+});
+
+function rowsAboveMarker(): number {
+  const marker = divider();
+  if (!marker) throw new Error("the room shows no unread marker");
+  let count = 0;
+  for (
+    let node = marker.previousElementSibling;
+    node;
+    node = node.previousElementSibling
+  ) {
+    count += 1;
   }
-  return context;
-});
-
-step(
-  "an unread marker separates the read messages from the new ones",
-  (context) => {
-    const store = requireResumeRoom(context).store;
-    const expected = context["firstUnreadId"] as string;
-    if (store.unreadDividerBeforeId() !== expected) {
-      throw new Error(
-        `expected the unread marker directly above message ${expected}`,
-      );
-    }
-    if (store.contextCount() === 0) {
-      throw new Error("expected already-read messages above the unread marker");
-    }
-    return context;
-  },
-);
+  return count;
+}
 
 step(
   "one bounded page of earlier messages is loaded above the unread marker",
-  async (context) => {
-    const { CONTEXT_PAGE_SIZE } = await import(
-      /* @vite-ignore */ PAGE_SOURCE_JS
+  () => {
+    const above = rowsAboveMarker();
+    // The bound itself, as a number: compared with the module's own constant
+    // it would follow any change to it.
+    expect(
+      above === 20,
+      `${above} earlier messages are loaded above the marker`,
     );
-    const store = requireResumeRoom(context).store;
-    if (store.contextCount() !== CONTEXT_PAGE_SIZE) {
-      throw new Error(
-        `expected ${CONTEXT_PAGE_SIZE} earlier messages above the marker, got ${store.contextCount()}`,
-      );
-    }
-    const total = pageSourceOf(context).all().length;
-    if (total <= CONTEXT_PAGE_SIZE) {
-      throw new Error(
-        "this proves nothing unless the room holds more than one context page",
-      );
-    }
-    return context;
   },
 );
 
-step("older history can still be loaded on request", (context) => {
-  if (!requireResumeRoom(context).store.hasOlder()) {
-    throw new Error("expected earlier history to remain loadable");
-  }
-  return context;
+step("older history can still be loaded on request", async () => {
+  const page = activePage();
+  const before = rowsAboveMarker();
+  expect(
+    !page.elements.loadOlder.disabled && isRendered(page.elements.loadOlder),
+    "the room offers no way to load older history",
+  );
+  await clickOn(page.elements.loadOlder);
+  await settle();
+  expect(rowsAboveMarker() > before, "loading older history added nothing");
 });
 
-step("the newest message is in view", (context) => {
-  const expected = newestSeededId(context);
-  const actual = requireResumeRoom(context).store.firstMessageInViewId();
-  if (actual !== expected) {
-    throw new Error(
-      `expected the room to open on the newest message ${expected}, opened on ${actual}`,
-    );
-  }
-  return context;
+step("the visitor has read every message in the family chat", async () => {
+  ensureConversation(5);
+  await readUpToNewest();
 });
 
-step("no unread marker is shown", (context) => {
-  const marker = requireResumeRoom(context).store.unreadDividerBeforeId();
-  if (marker !== null) {
-    throw new Error(`expected no unread marker, found one above ${marker}`);
-  }
-  return context;
+step("the newest message is in view", async () => {
+  await settle();
+  const newest = server().newest();
+  if (!newest) throw new Error("the room holds no messages");
+  const row = rowFor(newest.id);
+  expect(row !== null, "the newest message is not rendered");
+  expect(row !== null && isInView(row), "the newest message is not in view");
 });
 
-step("{string} offers a way back to the newest message", (context, label) => {
-  const store = requireResumeRoom(context).store;
-  if (store.newMessagesIndicatorLabel() !== label) {
-    throw new Error(`expected the indicator label "${label}"`);
-  }
-  if (!store.hasNewer()) {
-    throw new Error(
-      "this proves nothing unless the room stops short of the newest message",
-    );
-  }
-  return context;
+step("no unread marker is shown", () => {
+  expect(divider() === null, "the room shows an unread marker");
 });
 
-// --- Rule: Composer focus and keyboard -----------------------------------
+step("the visitor has never opened the family chat on this device", () => {
+  ensureConversation(5);
+  expect(
+    storedReadPosition() === null,
+    "this device already has a read position",
+  );
+});
 
-step(
-  "the visitor sends {string} through the composer",
-  async (context, body) => {
-    const composer = requireResumeRoom(context).composer;
-    composer.type(body);
-    const result = await composer.submit();
-    if (!result.queued) throw new Error(`the composer refused "${body}"`);
-    return { ...context, sentClientMessageId: result.clientMessageId };
-  },
-);
-
-step("the visitor's own message is in view", (context) => {
-  const store = requireResumeRoom(context).store;
-  const sent = context["sentClientMessageId"];
-  if (typeof sent !== "string") {
-    throw new Error("no message was sent through the composer");
-  }
-  const inView = store.firstMessageInViewId();
-  if (inView !== sent) {
-    throw new Error(
-      `expected the room to be on the sent message ${sent}, it is on ${String(inView)}`,
-    );
-  }
-  return context;
+step("the visitor scrolls down to the newest message", async () => {
+  await readDownToNewest(activePage());
 });
 
 step(
-  "the visitor submits {string} with the Enter key",
-  async (context, body) => {
-    const composer = requireResumeRoom(context).composer;
-    const intent = composer.keyIntent({ key: "Enter" });
-    if (intent !== "send") {
-      throw new Error(`expected Enter to send, it means "${intent}"`);
-    }
-    composer.type(body);
-    const result = await composer.submit();
-    if (!result.queued) throw new Error(`the composer refused "${body}"`);
-    return context;
+  "the visitor left more unread messages behind than one page holds",
+  async () => {
+    ensureConversation(5);
+    await readUpToNewest();
+    remember(
+      "firstUnread",
+      postFromAyah(MESSAGE_PAGE_SIZE + 10, "Unread backlog"),
+    );
   },
 );
+
+step("{string} offers a way back to the newest message", (label) => {
+  const button = activePage().elements.newMessages;
+  expect(
+    isRendered(button) && button.textContent?.trim() === label,
+    `the room shows ${JSON.stringify(button.textContent?.trim())} hidden=${String(button.hidden)}`,
+  );
+  expect(
+    rowFor(server().newest()?.id ?? "") === null,
+    "the newest message was already loaded",
+  );
+});
+
+step("the visitor jumps to the newest message", async () => {
+  await clickOn(activePage().elements.newMessages);
+  await settle();
+});
+
+// --- Rule: Composer focus and keyboard ---------------------------------------------
 
 step(
-  "the visitor presses Shift and Enter while writing {string}",
-  async (context, text) => {
-    const room = requireResumeRoom(context);
-    const composer = room.composer;
-    const newestBefore = room.store.newestId();
-    // Carry out whatever the composer decided rather than asserting the
-    // decision here: a composer that had regressed to sending on Shift+Enter
-    // must actually send, so the Then below sees an empty draft and a new
-    // message instead of a green step that never exercised the mistake.
-    const intent = composer.keyIntent({ key: "Enter", shiftKey: true });
-    if (intent === "send") {
-      await composer.submit();
-    } else {
-      composer.appendLine(text);
-    }
-    return {
-      ...context,
-      continuationText: text,
-      newestBeforeContinuation: newestBefore,
-    };
+  "a visitor opens {string} with focus in the composer",
+  async (pathname) => {
+    ensureConversation(30);
+    const page = await openRoomPage({ pathname });
+    await clickOn(page.elements.input);
+    expect(
+      page.document.activeElement === page.elements.input,
+      "the message input did not take focus",
+    );
   },
 );
 
-step("the composer still holds keyboard focus", (context) => {
-  if (!requireResumeRoom(context).composer.focused()) {
-    throw new Error("expected the composer to keep keyboard focus");
+/** Counts every time focus leaves the input, or lands on Send. */
+function watchComposerFocus(page: Page): {
+  inputBlurs: number;
+  sendFocuses: number;
+} {
+  const counts = { inputBlurs: 0, sendFocuses: 0 };
+  page.elements.input.addEventListener("blur", () => (counts.inputBlurs += 1));
+  page.elements.send.addEventListener("focus", () => (counts.sendFocuses += 1));
+  return counts;
+}
+
+step("the visitor sends {string} through the composer", async (body) => {
+  const page = activePage();
+  if (page.document.activeElement !== page.elements.input) {
+    await clickOn(page.elements.input);
   }
-  return context;
+  const counts = watchComposerFocus(page);
+  const queued = watchPendingRows(page);
+  typeText(body);
+  const press = await clickOn(page.elements.send);
+  await waitFor(() => queued.length > 0, "the message to be queued");
+  remember("clientMessageId", queued[0]);
+  remember("sendPress", { ...press, counts });
+  await settle();
+});
+
+step("the composer still holds keyboard focus", () => {
+  const page = activePage();
+  expect(
+    page.document.activeElement === page.elements.input,
+    `focus is on ${String((page.document.activeElement as HTMLElement | null)?.dataset?.["role"] ?? page.document.activeElement?.tagName)}`,
+  );
 });
 
 step(
   "activating the send control never takes focus from the message input",
-  (context) => {
-    if (requireResumeRoom(context).composer.focusFollowsSendControl()) {
-      throw new Error(
-        "expected the send control never to take focus from the input",
-      );
-    }
-    return context;
+  () => {
+    const press = recall<{
+      focusMoved: boolean;
+      counts: { inputBlurs: number; sendFocuses: number };
+    }>("sendPress");
+    expect(!press.focusMoved, "pressing Send moved focus");
+    expect(press.counts.sendFocuses === 0, "the Send button took focus");
+    expect(press.counts.inputBlurs === 0, "the message input lost focus");
   },
 );
 
-step("the composer is empty and ready for the next message", (context) => {
-  const draft = requireResumeRoom(context).composer.draft();
-  if (draft !== "") {
-    throw new Error(
-      `expected an empty composer, found ${JSON.stringify(draft)}`,
-    );
-  }
-  return context;
+step("the composer is empty and ready for the next message", () => {
+  const { input, send } = activePage().elements;
+  expect(
+    input.value === "",
+    `the input still holds ${JSON.stringify(input.value)}`,
+  );
+  expect(!input.disabled && !send.disabled, "the composer is disabled");
 });
 
-step("the composer holds an unsent multi-line draft", (context) => {
-  const room = requireResumeRoom(context);
-  const draft = room.composer.draft();
-  const written = context["continuationText"];
-  if (typeof written !== "string") {
-    throw new Error("nothing was written after Shift and Enter");
-  }
-  if (!draft.includes("\n") || !draft.includes(written)) {
-    throw new Error(
-      `expected a multi-line draft still holding ${JSON.stringify(written)}, found ${JSON.stringify(draft)}`,
-    );
-  }
-  // "Unsent" is the other half of the claim, and it is the half a composer
-  // that sent on Shift+Enter would break: nothing new may have reached the
-  // room.
-  if (room.store.newestId() !== context["newestBeforeContinuation"]) {
-    throw new Error("expected Shift and Enter to send nothing");
-  }
-  return context;
+step("the visitor submits {string} with the Enter key", async (body) => {
+  const queued = watchPendingRows();
+  typeText(body);
+  await pressKey("Enter");
+  await waitFor(() => queued.length > 0, "Enter to queue the message");
+  remember("clientMessageId", queued[0]);
+  await settle();
 });
 
-// --- Rule: Scroll anchor and live-region announcements -------------------
+step(
+  "the visitor presses Shift and Enter while writing {string}",
+  async (text) => {
+    typeText(text);
+    await pressKey("Enter", { shiftKey: true });
+    await settle();
+    remember("draftText", text);
+  },
+);
+
+step("the composer holds an unsent multi-line draft", () => {
+  const text = recall<string>("draftText");
+  const value = activePage().elements.input.value;
+  expect(
+    value.startsWith(text) && value.split("\n").length >= 2,
+    `the input holds ${JSON.stringify(value)}`,
+  );
+  const sent = server().sendAttempts.some((attempt) =>
+    attempt.body.includes(text),
+  );
+  expect(!sent, "Shift+Enter sent the draft");
+});
 
 step(
   "a visitor opens {string} scrolled to a known older message",
-  async (context, path) => {
-    const next = await openRoom(context, path, {
-      scrolledToOlderMessage: true,
-    });
-    // Fail closed on the precondition itself: every Then below distinguishes
-    // "brought back to the end" from "was already there", so a room that
-    // opened at the end would make them pass for the wrong reason.
-    const store = requireResumeRoom(next).store;
-    const positioned = store.firstMessageInViewId();
-    if (positioned === null || positioned === store.newestId()) {
-      throw new Error(
-        `expected the room to open on an older message, it is on ${String(positioned)}`,
-      );
-    }
-    return next;
+  async (pathname) => {
+    // More than the first page holds, so there is older history to load.
+    postFromAyah(MESSAGE_PAGE_SIZE + 30, "History");
+    const page = await openRoomPage({ pathname });
+    scrollHistoryTo(page, 0);
+    await settle();
+    const known = messageRows(page)[0];
+    if (!known || !isInView(known))
+      throw new Error("no older message is in view");
+    expect(
+      !isInView(requireRow(server().newest()?.id ?? "")),
+      "the newest message is still in view",
+    );
+    remember("knownRow", known);
   },
 );
 
-step("the visitor loads an older history page", async (context) => {
-  const room = requireRoom(context);
-  const store = room["store"] as { loadOlderPage: () => Promise<void> };
-  await store.loadOlderPage();
-  return context;
+step("the visitor's own message is in view", async () => {
+  const id = clientMessageId();
+  await waitFor(() => committedFor(id) !== undefined, "the message to commit");
+  await settle();
+  const row = rowFor(committedFor(id)?.id ?? "") ?? rowFor(id);
+  expect(
+    row !== null && isInView(row),
+    "the visitor's own message is not in view",
+  );
+});
+
+// --- Rule: Scroll anchor and live-region announcements --------------------------------
+
+step("the visitor loads an older history page", async () => {
+  const page = activePage();
+  const known = recall<HTMLElement>("knownRow");
+  remember("knownOffset", offsetInHistory(known));
+  const before = messageRows(page).length;
+  await clickOn(page.elements.loadOlder);
+  await waitFor(
+    () => messageRows(page).length > before,
+    "older messages to load",
+  );
+  await settle();
 });
 
 step(
   "the previously visible message remains at the same visual position",
-  (context) => {
-    const room = requireRoom(context);
-    const store = room["store"] as { scrollAnchorPreserved: () => boolean };
-    if (!store.scrollAnchorPreserved()) {
-      throw new Error("expected the scroll anchor to be preserved");
-    }
-    return context;
+  () => {
+    const known = recall<HTMLElement>("knownRow");
+    expect(
+      known.isConnected,
+      "the message the visitor was reading was replaced",
+    );
+    const drift = Math.abs(
+      offsetInHistory(known) - recall<number>("knownOffset"),
+    );
+    expect(drift <= 1, `the message the visitor was reading moved ${drift} px`);
   },
-);
-
-step(
-  "a visitor opens {string} with focus in the composer",
-  async (context, path) => openRoom(context, path, { focusInComposer: true }),
 );
 
 step(
   "another member's message arrives away from the bottom of the scroll position",
-  async (context) => {
-    const room = requireRoom(context);
-    const store = room["store"] as {
-      receiveRemoteMessage: (opts: Record<string, unknown>) => Promise<void>;
-    };
-    await store.receiveRemoteMessage({ scrolledAwayFromBottom: true });
-    return context;
+  async () => {
+    const page = activePage();
+    scrollHistoryTo(page, 0);
+    await settle();
+    remember("scrollTopBefore", page.elements.history.scrollTop);
+    remember(
+      "arrival",
+      post({ body: "Sudah di jalan pulang", sender: AYAH() }),
+    );
+    await settle();
   },
 );
 
-step("a live-region announcement names the new message", (context) => {
-  const room = requireRoom(context);
-  const store = room["store"] as {
-    lastLiveRegionAnnouncement: () => string | null;
-  };
-  if (!store.lastLiveRegionAnnouncement()) {
-    throw new Error("expected a live-region announcement");
-  }
-  return context;
+step("a live-region announcement names the new message", async () => {
+  const arrival = recall<{ body: string }>("arrival");
+  await waitFor(
+    () =>
+      announcement().includes(arrival.body) && announcement().includes("Ayah"),
+    "the arrival to be announced",
+  );
 });
 
-step("focus remains in the composer", (context) => {
-  const room = requireRoom(context);
-  const store = room["store"] as { focusMovedFromComposer: () => boolean };
-  if (store.focusMovedFromComposer()) {
-    throw new Error("expected focus to remain in the composer");
-  }
-  return context;
+step("focus remains in the composer", () => {
+  const page = activePage();
+  expect(
+    page.document.activeElement === page.elements.input,
+    "focus moved away from the message input",
+  );
 });
 
-step("{string} is shown instead of auto-scrolling", (context, label) => {
-  const room = requireRoom(context);
-  const store = room["store"] as {
-    newMessagesIndicatorLabel: () => string | null;
-  };
-  if (store.newMessagesIndicatorLabel() !== label) {
-    throw new Error(`expected the indicator label "${label}"`);
-  }
-  return context;
+step("{string} is shown instead of auto-scrolling", (label) => {
+  const page = activePage();
+  const button = page.elements.newMessages;
+  expect(
+    isRendered(button) && button.textContent?.trim() === label,
+    `the room shows ${JSON.stringify(button.textContent?.trim())}`,
+  );
+  expect(
+    page.elements.history.scrollTop === recall<number>("scrollTopBefore"),
+    "the history scrolled on its own",
+  );
+  const arrival = recall<{ id: string }>("arrival");
+  const row = rowFor(arrival.id);
+  expect(row === null || !isInView(row), "the arrival was scrolled into view");
 });
 
-// --- Rule: Push permission UX and no authenticated caching ---------------
+// --- Rule: Push permission UX and no authenticated caching ------------------------------
 
-step(
-  "the visitor's device reports push state {string}",
-  async (context, deviceState) => {
-    return { ...context, devicePushState: deviceState };
-  },
-);
-
-step("the room shows the control {string}", (context, controlText) => {
-  const room = requireRoom(context);
-  const push = room["push"] as { controlText: () => string };
-  const actual = push.controlText();
-  if (actual !== controlText) {
-    throw new Error(`expected control text "${controlText}", got "${actual}"`);
+step("the visitor's device reports push state {string}", (state) => {
+  device().push = state as ReturnType<typeof device>["push"];
+  if (state === "subscription active") {
+    server().pushBindings.set(visitor().id, true);
   }
-  return context;
+});
+
+step("the room shows the control {string}", async (text) => {
+  const control = activePage().elements.pushControl;
+  await waitFor(
+    () => control.textContent?.trim() === text,
+    `the push control to read ${JSON.stringify(text)} (it reads ${JSON.stringify(control.textContent?.trim())})`,
+  );
 });
 
 step(
   "a visitor opens {string} with an active push subscription",
-  async (context, path) =>
-    openRoom(context, path, { activePushSubscription: true }),
-);
-
-step("the visitor selects {string}", async (context, control) => {
-  const room = requireRoom(context);
-  const push = room["push"] as { select: (control: string) => Promise<void> };
-  await push.select(control);
-  return context;
-});
-
-step("a visitor opens {string} and exchanges messages", async (context, path) =>
-  openRoom(context, path, { exchangesMessages: true }),
-);
-
-step("the service worker's Cache Storage is inspected", async (context) => {
-  const room = requireRoom(context);
-  const push = room["push"] as {
-    inspectCacheStorage: () => Promise<{ entries: string[] }>;
-  };
-  const inspection = await push.inspectCacheStorage();
-  return { ...context, cacheStorageEntries: inspection.entries };
-});
-
-step("it contains only static build assets", (context) => {
-  const entries = context["cacheStorageEntries"] as string[];
-  const nonStatic = entries.filter((entry) => !entry.startsWith("/assets/"));
-  if (nonStatic.length > 0) {
-    throw new Error(
-      `expected only static assets, found ${nonStatic.join(", ")}`,
+  async (pathname) => {
+    device().push = "subscription active";
+    server().pushBindings.set(visitor().id, true);
+    ensureConversation();
+    const page = await openRoomPage({ pathname });
+    await waitFor(
+      () => !hidden(page.elements.pushDisable),
+      "the room to offer turning notifications off",
     );
-  }
-  return context;
-});
-
-step(
-  "it contains no navigation response, message, or GraphQL response",
-  (context) => {
-    const entries = context["cacheStorageEntries"] as string[];
-    const forbidden = entries.filter(
-      (entry) =>
-        entry === "/" ||
-        entry.includes("family-chat") ||
-        entry.includes("/api/graphql"),
-    );
-    if (forbidden.length > 0) {
-      throw new Error(
-        `expected no authenticated entries, found ${forbidden.join(", ")}`,
-      );
-    }
-    return context;
   },
 );
 
-// --- Rule: Responsive and accessible presentation -------------------------
-
-step("the viewport is set to {string}", (context, viewport) => {
-  return { ...context, viewport };
+step("the visitor selects {string}", async (label) => {
+  const page = activePage();
+  const control = [page.elements.pushControl, page.elements.pushDisable].find(
+    (button) => button.textContent?.trim() === label && isRendered(button),
+  );
+  if (!control) throw new Error(`the room offers no ${JSON.stringify(label)}`);
+  await clickOn(control);
+  await settle();
 });
+
+step("a visitor opens {string} and exchanges messages", async (pathname) => {
+  const worker = loadServiceWorker();
+  await worker.install();
+  await worker.activate();
+  device().serviceWorker = worker;
+  ensureConversation();
+  await openRoomPage({ pathname });
+  const id = await sendThroughComposer("Cache probe from the visitor");
+  expect(id !== null, "the room refused to queue the message");
+  await expectStatus(id ?? "", STATUS.SENT);
+  const reply = post({ body: "Cache probe from Ayah", sender: AYAH() });
+  await waitFor(() => rowFor(reply.id) !== null, "the reply to arrive");
+});
+
+step("the service worker's Cache Storage is inspected", async () => {
+  const worker = device().serviceWorker;
+  if (!worker) throw new Error("no service worker is installed");
+  const entries: { pathname: string; body: string }[] = [];
+  for (const cache of worker.caches.values()) {
+    for (const [pathname, response] of cache) {
+      entries.push({ pathname, body: await response.clone().text() });
+    }
+  }
+  remember("cacheEntries", entries);
+});
+
+const STATIC_PATH = /^\/(?:assets|images)\/|^\/manifest\.webmanifest$/u;
+
+step("it contains only static build assets", () => {
+  const entries = recall<{ pathname: string }[]>("cacheEntries");
+  // The positive control: the worker did cache what the page loaded.
+  expect(
+    entries.some((entry) => entry.pathname.startsWith("/assets/")),
+    "Cache Storage holds no build asset at all",
+  );
+  const other = entries.filter((entry) => !STATIC_PATH.test(entry.pathname));
+  expect(
+    other.length === 0,
+    `Cache Storage holds ${JSON.stringify(other.map((e) => e.pathname))}`,
+  );
+});
+
+step("it contains no navigation response, message, or GraphQL response", () => {
+  const entries = recall<{ pathname: string; body: string }[]>("cacheEntries");
+  const leaked = entries.filter(
+    (entry) =>
+      entry.pathname === "/" ||
+      entry.pathname.startsWith("/family-chat") ||
+      entry.pathname.startsWith("/api/") ||
+      entry.body.includes(AUTHENTICATED_MARKER) ||
+      entry.body.includes("Cache probe"),
+  );
+  expect(
+    leaked.length === 0,
+    `Cache Storage holds ${JSON.stringify(leaked.map((e) => e.pathname))}`,
+  );
+});
+
+// --- Rule: Responsive and accessible presentation ------------------------------------
+
+step("the viewport is set to {string}", (description) => {
+  const match = /(\d+)x(\d+)(?:\s+(\d+)%)?/u.exec(description);
+  if (!match) throw new Error(`unreadable viewport ${description}`);
+  const zoom = match[3] ? Number(match[3]) / 100 : 1;
+  // Zooming in is a narrower viewport in CSS pixels.
+  device().viewport = {
+    width: Math.round(Number(match[1]) / zoom),
+    height: Math.round(Number(match[2]) / zoom),
+    deviceScaleFactor: zoom,
+  };
+});
+
+/** Every control a member can operate in the room, outside the message rows. */
+function roomControls(page: Page): HTMLElement[] {
+  const room = page.elements.room;
+  if (!room) throw new Error("no room is rendered");
+  const controls = [
+    ...room.querySelectorAll<HTMLElement>(
+      "a[href], button, textarea, input, select",
+    ),
+  ].filter(
+    (element) =>
+      !(element as HTMLButtonElement).disabled &&
+      isRendered(element) &&
+      element.closest('[data-role="family-chat-message"]') === null,
+  );
+  const stop = page.elements.list.querySelector<HTMLElement>(
+    '[data-role="family-chat-message"][tabindex="0"]',
+  );
+  return stop ? [...controls, stop] : controls;
+}
+
+function hasFocusRing(element: HTMLElement): boolean {
+  const style = computedStyleOf(element);
+  const outline =
+    style.outlineStyle !== "" &&
+    style.outlineStyle !== "none" &&
+    Number.parseFloat(style.outlineWidth || "0") > 0;
+  const shadow = style.boxShadow !== "" && style.boxShadow !== "none";
+  return outline || shadow;
+}
 
 step(
   "every control is reachable by keyboard with a visible focus indicator",
-  async (context) => {
-    const { initRoom } = await import(/* @vite-ignore */ ROOM_JS);
-    const room = await initRoom("/family-chat/ruang-keluarga", {
-      user: context["user"],
-      viewport: context["viewport"],
-    });
-    const accessibility = (room as Record<string, unknown>)[
-      "accessibility"
-    ] as {
-      keyboardReachable: () => boolean;
-    };
-    if (!accessibility.keyboardReachable()) {
-      throw new Error("expected every control to be keyboard-reachable");
+  async () => {
+    const page = activePage();
+    const sheet = page.document.styleSheets[0];
+    expect(
+      sheet !== undefined && sheet.cssRules.length > 0,
+      "the shipped stylesheet did not load into the page",
+    );
+    const controls = roomControls(page);
+    expect(controls.length > 0, "the room renders no controls");
+    (page.document.activeElement as HTMLElement | null)?.blur?.();
+    const reached = new Set<HTMLElement>();
+    const order = tabOrder(page.document);
+    for (let press = 0; press < order.length + 1; press += 1) {
+      await pressKey("Tab");
+      const focused = page.document.activeElement as HTMLElement | null;
+      if (!focused) continue;
+      reached.add(focused);
+      expect(
+        focused.matches(":focus-visible") && hasFocusRing(focused),
+        `${focused.dataset["role"] ?? focused.tagName} shows no focus indicator ` +
+          `(:focus-visible ${String(focused.matches(":focus-visible"))}, outline ` +
+          `${JSON.stringify(computedStyleOf(focused).outline)})`,
+      );
     }
-    return { ...context, room };
+    const missed = controls.filter((control) => !reached.has(control));
+    expect(
+      missed.length === 0,
+      `Tab never reaches ${JSON.stringify(missed.map((control) => control.dataset["role"] ?? control.tagName))}`,
+    );
   },
 );
 
-step("no horizontal page scroll is present", (context) => {
-  const room = requireRoom(context);
-  const accessibility = room["accessibility"] as {
-    hasHorizontalScroll: () => boolean;
-  };
-  if (accessibility.hasHorizontalScroll()) {
-    throw new Error("expected no horizontal page scroll");
+/** A length the browser would resolve without layout, in CSS pixels. */
+function absoluteLength(value: string): number | null {
+  const match = /^(-?[\d.]+)(px|rem|em)$/u.exec(value.trim());
+  if (!match) return null;
+  const amount = Number(match[1]);
+  return match[2] === "px" ? amount : amount * 16;
+}
+
+step("no horizontal page scroll is present", () => {
+  const page = activePage();
+  const viewport = page.device.viewport.width;
+  const win = page.window;
+  expect(
+    win.innerWidth === viewport,
+    `the page is ${win.innerWidth} px wide, not ${viewport}`,
+  );
+  const room = page.elements.room;
+  if (!room) throw new Error("no room is rendered");
+  const roomStyle = win.getComputedStyle(room as never);
+  expect(
+    roomStyle.display !== "",
+    "the shipped stylesheet did not apply to the room",
+  );
+  const tooWide: string[] = [];
+  for (const element of [room, ...room.querySelectorAll<HTMLElement>("*")]) {
+    if (!isRendered(element)) continue;
+    const style = win.getComputedStyle(element as never);
+    for (const property of ["width", "min-width"] as const) {
+      const length = absoluteLength(style.getPropertyValue(property));
+      if (length !== null && length > viewport) {
+        tooWide.push(
+          `${element.className || element.tagName} ${property}: ${style.getPropertyValue(property)}`,
+        );
+      }
+    }
   }
-  return context;
+  expect(
+    tooWide.length === 0,
+    `wider than the ${viewport} px viewport: ${tooWide.join(", ")}`,
+  );
 });

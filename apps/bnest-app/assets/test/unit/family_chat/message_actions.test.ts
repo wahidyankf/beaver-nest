@@ -204,6 +204,22 @@ describe("menuItemsFor", () => {
     expect(copy?.reason).toBeNull();
   });
 
+  it("adds Retry and Discard, after the rest, for a message that couldn't send", () => {
+    const items = menuItemsFor({ ...QUEUED, failed: true });
+
+    expect(items.map((item) => item.label)).toEqual([
+      "Reply",
+      "Copy text",
+      "Retry",
+      "Discard",
+    ]);
+    expect(items.slice(2).every((item) => item.available)).toBe(true);
+  });
+
+  it("offers neither Retry nor Discard for a message still on its way", () => {
+    expect(menuItemsFor({ ...QUEUED, failed: false })).toHaveLength(2);
+  });
+
   it("does not special-case a sender kind: a system message can be replied to", () => {
     const system = { ...COMMITTED, senderKind: "system" };
 

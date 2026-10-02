@@ -5,20 +5,13 @@
 // any callback from a socket this instance has since replaced.
 //
 // Split into several small factory functions (state, callback binder,
-// bookkeeping steps, async steps, outcome readers) purely to stay under this
-// project's max-lines-per-function lint budget -- `createReconnect` below
-// composes them, and is the only export a caller needs to know about.
-
-import { createSystemClock } from "./clock.js";
+// bookkeeping steps, async steps) purely to stay under this project's
+// max-lines-per-function lint budget -- `createReconnect` below composes
+// them, and is the only export a caller needs to know about.
 
 /**
  * @typedef {{
  *   generation: number,
- *   priorSlotClosed: boolean,
- *   catchUpDurationMs: number,
- *   drainedBeforeCatchUp: boolean,
- *   pageReloaded: boolean,
- *   draining: boolean,
  *   highestCommittedId: string | null,
  *   pendingCatchUpMessages: unknown[],
  *   resubscribe: (() => Promise<void>) | null,
@@ -33,11 +26,6 @@ import { createSystemClock } from "./clock.js";
 function createReconnectState() {
   return {
     generation: 0,
-    priorSlotClosed: false,
-    catchUpDurationMs: 0,
-    drainedBeforeCatchUp: false,
-    pageReloaded: false,
-    draining: false,
     highestCommittedId: null,
     pendingCatchUpMessages: [],
     resubscribe: null,
@@ -51,8 +39,8 @@ function createReconnectState() {
 /**
  * Late-binds the real browser collaborators. Safe to call at most once,
  * right after `family_chat.js` finishes wiring its DOM/subscription
- * closures; every argument is optional so a partial binding degrades
- * gracefully to the corresponding step's synthetic/no-op behavior.
+ * closures; every argument is optional so a partial binding skips the
+ * corresponding step.
  * @param {ReconnectState} state
  */
 function createCallbackBinder(state) {
@@ -90,13 +78,11 @@ function createCallbackBinder(state) {
 function createBookkeepingSteps(state, socketClient) {
   return {
     pauseDrainStep() {
-      state.draining = false;
       state.onPause?.();
     },
 
     closePriorSocketStep() {
       socketClient?.close();
-      state.priorSlotClosed = true;
     },
 
     recreateSocketStep() {
@@ -104,39 +90,29 @@ function createBookkeepingSteps(state, socketClient) {
     },
 
     resumeDrainStep() {
-      state.draining = true;
       state.onResume?.();
     },
   };
 }
 
-/**
- * @param {ReconnectState} state
- * @param {import("./clock.js").Clock} clock
- */
-function createAsyncSteps(state, clock) {
+/** @param {ReconnectState} state */
+function createAsyncSteps(state) {
   return {
     async subscribeFirstStep() {
-      // Real production ordering requirement: the GraphQL subscription
-      // channel join must complete before the catch-up query runs, so no
-      // committed message can land in the gap between them. When a real
-      // `resubscribe` is bound, this actually re-joins the socket channel;
-      // FE_UNIT's document-less room has none bound, so this step's job for
-      // that tier is purely the *ordering* guarantee around it.
+      // The GraphQL subscription channel join must complete before the
+      // catch-up query runs, so no committed message can land in the gap
+      // between them.
       if (state.resubscribe) await state.resubscribe();
     },
 
     /** @param {number} myGeneration */
     async catchUpQueryStep(myGeneration) {
-      const startedAt = clock.now();
-      if (state.fetchMissed) {
-        state.pendingCatchUpMessages =
-          (await state.fetchMissed(state.highestCommittedId)) ?? [];
-      } else {
-        await Promise.resolve();
-      }
+      if (!state.fetchMissed) return;
+      const missed = (await state.fetchMissed(state.highestCommittedId)) ?? [];
+      // A newer promotion started while this query was in flight; its own
+      // catch-up owns the gap from here.
       if (myGeneration !== state.generation) return;
-      state.catchUpDurationMs = clock.now() - startedAt;
+      state.pendingCatchUpMessages = missed;
     },
 
     async mergeByServerIdStep() {
@@ -148,40 +124,23 @@ function createAsyncSteps(state, clock) {
   };
 }
 
-/** @param {ReconnectState} state */
-function createOutcomeReaders(state) {
-  return {
-    priorSlotClosed: () => state.priorSlotClosed,
-    catchUpDurationMs: () => state.catchUpDurationMs,
-    drainedBeforeCatchUp: () => state.drainedBeforeCatchUp,
-    pageReloaded: () => state.pageReloaded,
-    isDraining: () => state.draining,
-    generation: () => state.generation,
-  };
-}
-
 /**
- * @param {{clock?: import("./clock.js").Clock, socketClient?: {close: () => void}|null}} options
- *   `socketClient` is the real `graphql.js` subscription client when a
- *   browser mounted this room; FE_UNIT's document-less `room` never passes
- *   one, so `closePriorSocketStep` stays a pure bookkeeping flag flip for it.
- *   The other real collaborators (`resubscribe`/`fetchMissed`/
- *   `mergeMessages`/`onPause`/`onResume`) are late-bound via
- *   `bindBrowserCallbacks` below, because `family_chat.js` only has the
- *   closures they need (DOM `elements`, `roomSlug`, `room.store`,
- *   `room.outbox`) once it has finished mounting -- after this factory has
- *   already run and handed `room.reconnect` back to `initRoom`.
+ * @param {{socketClient?: {close: () => void}|null}} options
+ *   `socketClient` is the room's `graphql.js` subscription client. The other
+ *   real collaborators (`resubscribe`/`fetchMissed`/`mergeMessages`/
+ *   `onPause`/`onResume`) are late-bound via `bindBrowserCallbacks` below,
+ *   because `family_chat.js` only has the closures they need (DOM
+ *   `elements`, `roomSlug`, `room.store`, `room.outbox`) once it has
+ *   finished mounting -- after this factory has already run and handed
+ *   `room.reconnect` back to `initRoom`.
  *
- *   Every method below other than `setHighestCommittedId` and the outcome
- *   readers is an internal seam driven only by `promoteSlot`/this module's
- *   own tests, not a stable feature-author-facing API -- deliberately named
- *   without a leading underscore (oxlint's `no-underscore-dangle` forbids
- *   that convention here), so the doc comments carry that signal instead.
+ *   Every method below other than `setHighestCommittedId` is an internal
+ *   seam driven only by `promoteSlot`/this module's own tests, not a stable
+ *   feature-author-facing API -- deliberately named without a leading
+ *   underscore (oxlint's `no-underscore-dangle` forbids that convention
+ *   here), so the doc comments carry that signal instead.
  */
-export function createReconnect({
-  clock = createSystemClock(),
-  socketClient = null,
-} = {}) {
+export function createReconnect({ socketClient = null } = {}) {
   const state = createReconnectState();
 
   return {
@@ -195,21 +154,14 @@ export function createReconnect({
     },
 
     ...createBookkeepingSteps(state, socketClient),
-    ...createAsyncSteps(state, clock),
-    ...createOutcomeReaders(state),
-
-    // Exposed so `outbox`-driven sends can be told to wait; not exercised by
-    // FE_UNIT directly, but keeps the "drains only after catch-up" invariant
-    // real rather than a hardcoded flag (see `promoteSlot`).
-    markDrainedBeforeCatchUp() {
-      state.drainedBeforeCatchUp = true;
-    },
+    ...createAsyncSteps(state),
+    generation: () => state.generation,
   };
 }
 
 /**
- * Test/production entry point (tech-doc 003): runs the full ordered
- * reconnect sequence once Caddy has routed a replacement slot.
+ * Runs the full ordered reconnect sequence once Caddy has routed a
+ * replacement slot (tech-doc 003).
  *
  * @param {ReturnType<typeof createReconnect>} reconnect
  */
@@ -225,22 +177,22 @@ export async function promoteSlot(reconnect) {
 }
 
 /**
- * Test/production entry point: forces a fresh connection attempt every time
- * the page becomes visible again. A mobile PWA suspended in the background
- * routinely freezes JS timers and silently kills the underlying transport
- * without ever firing a clean close event -- the native WebSocket's own
- * `readyState` can go on reporting "open" long after the connection is
- * actually dead, so a check like "only reconnect if not connected" is not a
- * reliable gate here (confirmed against a real severed connection in this
- * plan's own E2E proof: gating on that check left the stale connection
- * undetected and no reconnect ever fired). Unconditional means an
- * occasional harmless extra reconnect cycle on an already-healthy
- * connection -- cheap and idempotent, since it only re-runs the existing
- * `onReconnect` catch-up sequence (`mount_browser.js`) -- which is a much
- * better trade than a silently stale room. Deliberately does *not* call
- * `promoteSlot` itself: forcing the transport reconnect here is enough,
- * since that catch-up sequence already runs once the fresh connection
- * actually opens, exactly as it does for a Caddy promotion.
+ * Forces a fresh connection attempt every time the page becomes visible
+ * again. A mobile PWA suspended in the background routinely freezes JS
+ * timers and silently kills the underlying transport without ever firing a
+ * clean close event -- the native WebSocket's own `readyState` can go on
+ * reporting "open" long after the connection is actually dead, so a check
+ * like "only reconnect if not connected" is not a reliable gate here
+ * (confirmed against a real severed connection in this plan's own E2E
+ * proof: gating on that check left the stale connection undetected and no
+ * reconnect ever fired). Unconditional means an occasional harmless extra
+ * reconnect cycle on an already-healthy connection -- cheap and idempotent,
+ * since it only re-runs the existing `onReconnect` catch-up sequence
+ * (`mount_browser.js`) -- which is a much better trade than a silently stale
+ * room. Deliberately does *not* call `promoteSlot` itself: forcing the
+ * transport reconnect here is enough, since that catch-up sequence already
+ * runs once the fresh connection actually opens, exactly as it does for a
+ * Caddy promotion.
  * @param {{reconnectNow: () => void}} socketClient
  */
 export function resumeFromBackground(socketClient) {

@@ -4,6 +4,7 @@
 // file purely to stay under this project's max-lines lint budget;
 // `mount_browser.js` is the only importer.
 
+import { DISCARD_ROLE, RETRY_ROLE } from "./message_manual_render.js";
 import { STATUS } from "./outbox.js";
 
 /** @typedef {import("./mount_browser.js").MountableRoom} MountableRoom */
@@ -40,8 +41,65 @@ function watchPendingMessage(room, elements, clientMessageId) {
         room.history.noteArrival();
       }
       unsubscribe();
-    } else if (status === STATUS.FAILED) {
-      unsubscribe();
+    }
+    // Still listening at "Couldn't send": the member can retry it from
+    // there, and the retry's statuses land on this same row. A discard
+    // drops the listener with the message (`outbox.discard`).
+  });
+}
+
+export const DISCARD_CONFIRMATION =
+  "Discard this message? It hasn't been sent, and it will be removed from this device.";
+export const DISCARDED_ANNOUNCEMENT = "Message discarded.";
+
+/**
+ * @param {MountableRoom} room
+ * @param {string} clientMessageId
+ */
+export function retryFailedMessage(room, clientMessageId) {
+  room.outbox.retry(clientMessageId);
+}
+
+/**
+ * Discarding removes the only copy there is, so the member confirms first
+ * (tech-doc 005). Focus goes to the message input: the row it came from is
+ * gone.
+ * @param {MountableRoom} room
+ * @param {FamilyChatElements} elements
+ * @param {string} clientMessageId
+ * @returns {boolean} whether the message was discarded.
+ */
+export function discardFailedMessage(room, elements, clientMessageId) {
+  if (!window.confirm(DISCARD_CONFIRMATION)) return false;
+  if (!room.outbox.discard(clientMessageId)) return false;
+  room.store.removePending(clientMessageId);
+  elements.outboxStatus.textContent = "";
+  elements.liveRegion.textContent = DISCARDED_ANNOUNCEMENT;
+  elements.input.focus({ preventScroll: true });
+  return true;
+}
+
+/**
+ * The row's own Retry and Discard, delegated from the list like every
+ * other per-message control (see `mount_browser_actions.js`'s header).
+ * @param {MountableRoom} room
+ * @param {FamilyChatElements} elements
+ */
+function wireManualActions(room, elements) {
+  elements.list.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest(
+      `[data-role="${RETRY_ROLE}"], [data-role="${DISCARD_ROLE}"]`,
+    );
+    if (!(button instanceof HTMLElement)) return;
+    const row = button.closest('[data-role="family-chat-message"]');
+    const clientMessageId =
+      row instanceof HTMLElement ? row.dataset["messageId"] : undefined;
+    if (!clientMessageId) return;
+    if (button.dataset["role"] === RETRY_ROLE) {
+      retryFailedMessage(room, clientMessageId);
+    } else {
+      discardFailedMessage(room, elements, clientMessageId);
     }
   });
 }
@@ -76,26 +134,25 @@ async function submitComposer(room, elements) {
   watchPendingMessage(room, elements, result.clientMessageId);
 }
 
+/** @param {Event} event */
+function keepFocus(event) {
+  event.preventDefault();
+}
+
 /**
  * Keeps the on-screen keyboard up across a send. Activating the Send button
  * would otherwise blur the textarea, and a mobile keyboard dismissed by a
  * blur does not come back without a fresh user gesture -- which is exactly
- * the "hard to keep typing" this fixes. Preventing the pointer/mouse press
- * default suppresses only the focus change; the `click` that submits the
- * form still fires.
+ * the "hard to keep typing" this fixes. Refocusing the input *after* a send
+ * would already be too late on iOS and Android. Preventing the pointer/mouse
+ * press default suppresses only the focus change; the `click` that submits
+ * the form still fires.
  * @param {MountableRoom} room
  * @param {import("./elements.js").FamilyChatElements} elements
  */
 function wireComposerFocus(room, elements) {
-  /** @param {Event} event */
-  function keepFocus(event) {
-    if (!room.composer.focusFollowsSendControl()) event.preventDefault();
-  }
   elements.send.addEventListener("pointerdown", keepFocus);
   elements.send.addEventListener("mousedown", keepFocus);
-
-  elements.input.addEventListener("focus", () => room.composer.focus());
-  elements.input.addEventListener("blur", () => room.composer.blur());
 
   elements.input.addEventListener("keydown", (event) => {
     if (room.composer.keyIntent(event) !== "send") return;
@@ -126,6 +183,16 @@ function renderResumedPendingMessages(room, elements) {
     });
     watchPendingMessage(room, elements, message.clientMessageId);
   }
+  // A resumed send that committed after the history page was read is Sent, so
+  // not pending above, and in no history page. `reconcile` appends it, or
+  // leaves the row alone when the history already shows it.
+  for (const [clientMessageId, committed] of room.outbox.committedMessages()) {
+    room.store.reconcile(
+      clientMessageId,
+      /** @type {import("./real_store.js").RenderableMessage} */
+      (committed),
+    );
+  }
 }
 
 /**
@@ -138,6 +205,7 @@ export function wireComposer(room, elements) {
     void submitComposer(room, elements);
   });
   wireComposerFocus(room, elements);
+  wireManualActions(room, elements);
 }
 
 export { renderResumedPendingMessages };

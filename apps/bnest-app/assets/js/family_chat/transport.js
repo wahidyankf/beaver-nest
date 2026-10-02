@@ -1,5 +1,5 @@
-// Send transports for `outbox.js` -- split out of `family_chat.js` purely to
-// stay under this project's max-lines lint budget.
+// The send transport for `outbox.js` -- split out of `family_chat.js` purely
+// to stay under this project's max-lines lint budget.
 
 import { request as graphqlRequest } from "./graphql.js";
 import {
@@ -7,16 +7,23 @@ import {
   NON_RETRYABLE_CODES,
 } from "./operations.js";
 
-/** Real GraphQL-backed transport: the only path a production message ever
- * takes to actually reach the server. */
 /**
+ * The GraphQL-backed transport: the only path a message ever takes to reach
+ * the server, and the one place a server answer is classified for the
+ * outbox -- a request that never got an answer is retryable, an expired
+ * session pauses the queue, and an error code is terminal or retryable by
+ * tech-doc 008's matrix.
+ *
  * `replies` is the room's reply flag. It gates the document, so with the flag
  * off the mutation does not declare `replyToMessageId` at all and an older
  * slot cannot be sent one.
  * @param {string} roomSlug
- * @param {{replies?: boolean}} [options]
+ * @param {{replies?: boolean, request?: import("./graphql.js").GraphqlRequest}} [options]
  */
-export function createRealTransport(roomSlug, { replies = false } = {}) {
+export function createRealTransport(
+  roomSlug,
+  { replies = false, request = graphqlRequest } = {},
+) {
   const document = sendFamilyChatMessageMutation({ replies });
 
   /**
@@ -30,7 +37,7 @@ export function createRealTransport(roomSlug, { replies = false } = {}) {
   }) {
     let response;
     try {
-      response = await graphqlRequest(document, {
+      response = await request(document, {
         roomSlug,
         clientMessageId,
         body,
@@ -50,37 +57,5 @@ export function createRealTransport(roomSlug, { replies = false } = {}) {
 
     const message = response.data?.sendFamilyChatMessage;
     return message ? { ok: true, message } : { ok: false, retryable: true };
-  };
-}
-
-/**
- * FE_UNIT's default transport (tech-doc 006 Proof Matrix: the outbox's
- * queue/status-transition logic is a `@fe-vitest-unit`/`@e2e-exempt` proof,
- * deliberately without a browser or a real server -- see the feature file's
- * own exemption comments). Every scenario that needs a *specific* outcome
- * passes `simulateNetworkFailure` instead, which `outbox.js` intercepts
- * before this transport is ever called; this only has to stand in for "the
- * server accepted it" on the happy path.
- *
- * Resolves on the injected clock's timer (a real macrotask via
- * `createSystemClock`, i.e. never synchronously/via a microtask alone) so a
- * scenario's very next Gherkin step -- checked with no `await` of its own --
- * can still observe the intermediate "Sending" status `attemptSend` sets
- * before this settles, the same way a real network response never resolves
- * within the same turn as the request that triggered it.
- */
-/** @param {import("./clock.js").Clock} clock */
-export function createTestTransport(clock) {
-  /**
-   * @param {{clientMessageId: string, body: string}} message
-   * @returns {Promise<import("./outbox.js").TransportResult>}
-   */
-  return function testTransport({ clientMessageId, body }) {
-    return new Promise((resolve) => {
-      clock.setTimer(
-        () => resolve({ ok: true, message: { id: clientMessageId, body } }),
-        0,
-      );
-    });
   };
 }
