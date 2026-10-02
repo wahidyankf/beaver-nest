@@ -22,10 +22,11 @@ import {
 // Only the four family_chat_graphql.feature scenarios that a live Absinthe
 // subscription push actually requires -- the original pair, and the reply
 // plan's pair proving a quote survives both arrival paths (the live push and
-// the afterId catch-up). Every other scenario in that file and all of
-// family_chat_operations.feature carry @e2e-exempt, proven instead through
-// bnest-app:test:integration; see the exemption comments in the feature files
-// themselves.
+// the afterId catch-up). Every other scenario in that file carries
+// @e2e-exempt, proven instead through bnest-app:test:integration; see the
+// exemption comments in the feature file itself. The one
+// family_chat_operations.feature scenario bound at this layer lives in
+// family-chat-operations.steps.ts.
 
 const { After, Given, Then, When } = createBdd();
 
