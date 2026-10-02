@@ -52,15 +52,32 @@ Then("Bnest reveals no host path or migration inventory", () => {
 // --- Scenario 10: routed client reconnects across a compatible rollout ------
 
 let draftMessage = "";
+const acknowledgedMessage = "Acknowledged before rollout";
+const acknowledgedReply = "Fixture response complete.";
 
+// The acknowledged state is a sent message whose Codex reply finished streaming on the
+// current route's revision; only then is the next message typed and left unsent.
 Given(
   "the current Caddy route is healthy and a connected user has acknowledged state",
   async ({ page, $testInfo }) => {
     activeIdentity = isolatedTestIdentity($testInfo);
     await page.context().clearCookies();
     await login(page, activeIdentity.admin);
+    expect((await page.request.get("/health/ready")).status()).toBe(200);
     await page.goto("/chat");
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    await page.getByLabel("Message").fill(acknowledgedMessage);
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(
+      page.locator("[data-role=user-message]", {
+        hasText: acknowledgedMessage,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-role=assistant-message][data-streaming="false"]', {
+        hasText: acknowledgedReply,
+      }),
+    ).toBeVisible();
     draftMessage = "Unsent draft before rollout";
     await page.getByLabel("Message").fill(draftMessage);
   },
@@ -87,9 +104,21 @@ Then("the LiveView reconnects without a manual refresh", async ({ page }) => {
   await expect(page).toHaveURL(/\/chat$/u);
 });
 
+// Revision B rendered the conversation it loaded, so the acknowledged exchange is there
+// once, beside the draft the client recovered into the composer.
 Then(
   "the acknowledged state and unsent draft remain available",
   async ({ page }) => {
+    await expect(
+      page.locator("[data-role=user-message]", {
+        hasText: acknowledgedMessage,
+      }),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('[data-role=assistant-message][data-streaming="false"]', {
+        hasText: acknowledgedReply,
+      }),
+    ).toHaveCount(1);
     await expect(page.getByLabel("Message")).toHaveValue(draftMessage);
   },
 );

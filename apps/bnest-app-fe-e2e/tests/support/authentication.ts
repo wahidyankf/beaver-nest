@@ -78,11 +78,28 @@ export async function fillInitialAccounts(
   await fillInitialAccounts(page, accounts, index + 1);
 }
 
+// The warning is the setup form's note naming the lost-password outcome, beside the
+// confirmation that setup closes for good; any other note does not count.
+async function sawIrreversibleSetupWarning(page: Page): Promise<boolean> {
+  const note = page.getByRole("note");
+  return (
+    (await note.isVisible()) &&
+    (await note.innerText()).includes(
+      "This is irreversible: losing a password makes that account unavailable.",
+    ) &&
+    (await page
+      .getByLabel(
+        "I understand setup closes permanently after this submission.",
+      )
+      .isVisible())
+  );
+}
+
 export async function submitInitialAccountsWithSafetyChecks(
   page: Page,
   accounts: InitialAccount[],
 ): Promise<SetupSafetyChecks> {
-  const sawIrreversibleWarning = await page.getByRole("note").isVisible();
+  const sawIrreversibleWarning = await sawIrreversibleSetupWarning(page);
   const noPasswordLengthRule = await checkPasswordFormRules(page);
 
   await fillInitialAccounts(page, accounts);
