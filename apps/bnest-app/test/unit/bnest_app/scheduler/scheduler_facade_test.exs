@@ -120,7 +120,14 @@ defmodule BnestApp.Scheduler.FacadeTest do
       assert {:ok, %{context: "family", handler: BnestApp.Scheduler.TaskRegistry}} =
                Scheduler.task_entry("fixture")
 
-      assert Scheduler.registered_handler("prod_sqlite_backup") == {:ok, BnestApp.Backup.Run}
+      # Backup's task, an adapter of the Backup context the unit layer may not name.
+      assert {:ok, backup_task} = Scheduler.registered_handler("prod_sqlite_backup")
+      assert ["BnestApp", "Backup" | _adapter] = Module.split(backup_task)
+
+      assert BnestApp.Scheduler.Ports.Task in (backup_task.module_info(:attributes)
+                                               |> Keyword.get_values(:behaviour)
+                                               |> List.flatten())
+
       assert Scheduler.registered_handler("missing") == :error
       assert Scheduler.task_entry("missing") == :error
       assert [{_module, _function, _arguments}] = Scheduler.configuration(:tick_handlers)

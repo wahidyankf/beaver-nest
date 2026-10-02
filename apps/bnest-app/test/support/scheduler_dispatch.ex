@@ -112,14 +112,22 @@ defmodule BnestApp.Test.SchedulerDispatch do
 
   def only_registered_task_ran?(_seen), do: false
 
-  @doc "The task that ran, named by its last two module segments, as the scenarios name it."
+  @doc """
+  The task that ran, as the scenarios name it: by the name a scenario gave it before it
+  moved into its context's adapters, otherwise by its last two module segments.
+  """
   @spec ran_task_name(observation()) :: String.t() | nil
   def ran_task_name(seen) do
     case invocations(seen) do
-      [{task, _run_id}] -> task |> Module.split() |> Enum.take(-2) |> Enum.join(".")
+      [{task, _run_id}] -> scenario_name(task)
       _none_or_several -> nil
     end
   end
+
+  # `family_chat_operations.feature` names Backup's task "Backup.Run", the module it ran
+  # as before it became `Backup.Adapters.ScheduledBackupTask`.
+  defp scenario_name(BnestApp.Backup.Adapters.ScheduledBackupTask), do: "Backup.Run"
+  defp scenario_name(task), do: task |> Module.split() |> Enum.take(-2) |> Enum.join(".")
 
   @doc """
   Whether the task that ran called `service`'s public `function` itself.

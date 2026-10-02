@@ -8,7 +8,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   import Phoenix.LiveViewTest
 
   alias BnestApp.AdminConfig.Registry, as: AdminRegistry
-  alias BnestApp.Backup.{Config, Receipt, Run}
+  alias BnestApp.Backup
+  alias BnestApp.Backup.Adapters.ScheduledBackupTask
+  alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.Behaviour.IntegrationFamilyChatDriver
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Domain.Transcript
@@ -1032,7 +1034,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     context = prepare_backup_destination(context)
     key = schedule_key("backup")
     :ok = Schedules.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
-    {:ok, location} = Config.save(context.backup_directory)
+    {:ok, location} = Backup.save_destination(context.backup_directory)
     {:ok, claim} = Scheduler.claim_setup(key, location.destination_id, @behaviour_now)
     Map.merge(context, %{backup_claim: claim, backup_location: location})
   end
@@ -1566,19 +1568,19 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   # The daily backup handler resolves its destination again when it runs, so its verified
   # receipt is the public result produced for the resolved default.
   def perform_behaviour(context, :resolve_backup_destination, _args) do
-    {:ok, location} = result = Config.resolve()
+    {:ok, location} = result = Backup.destination()
     key = schedule_key("default")
     :ok = Schedules.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
     {:ok, claim} = Scheduler.claim_setup(key, location.destination_id, @behaviour_now)
 
     Map.merge(context, %{
       backup_resolution: result,
-      backup_execution: Run.execute(claim, @behaviour_now)
+      backup_execution: ScheduledBackupTask.execute(claim, @behaviour_now)
     })
   end
 
   def perform_behaviour(context, :save_backup_override, _args) do
-    result = Config.save(context.backup_directory)
+    result = Backup.save_destination(context.backup_directory)
     {:ok, location} = result
     key = schedule_key("save")
     :ok = Schedules.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
@@ -1637,7 +1639,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def perform_behaviour(context, :run_backup_handler, _args),
-    do: Map.put(context, :backup_execution, Run.execute(context.backup_claim, @behaviour_now))
+    do:
+      Map.put(
+        context,
+        :backup_execution,
+        ScheduledBackupTask.execute(context.backup_claim, @behaviour_now)
+      )
 
   def perform_behaviour(context, :reconcile_overlap, _args) do
     claims =
@@ -1688,7 +1695,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def perform_behaviour(context, :verify_new_backup, _args) do
-    {:ok, location} = Config.save(context.backup_directory)
+    {:ok, location} = Backup.save_destination(context.backup_directory)
     key = schedule_key("retention")
     :ok = Schedules.put_test_schedule(key, "admin_system", "prod_sqlite_backup", @behaviour_now)
 
@@ -1696,7 +1703,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       Enum.map(0..8, fn days ->
         at = DateTime.add(@behaviour_now, -days * 86_400)
         {:ok, claim} = Scheduler.claim_setup(key, "#{location.destination_id}-#{days}", at)
-        {:ok, receipt} = Run.execute(claim, at)
+        {:ok, receipt} = ScheduledBackupTask.execute(claim, at)
         receipt
       end)
 
@@ -2241,7 +2248,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
         not String.contains?(context.home_response.resp_body, "Schedules &amp; backups")
 
   def behaviour_outcome?(context, :owned_retention, _args),
-    do: length(Run.owned_receipts(context.backup_directory)) == 7
+    do: length(Backup.owned_receipts(context.backup_directory)) == 7
 
   def behaviour_outcome?(context, :preserve_unowned, _args),
     do:

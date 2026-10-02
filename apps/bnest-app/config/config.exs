@@ -161,6 +161,14 @@ config :bnest_app, BnestApp.PushNotifications,
   delivery_store: BnestApp.PushNotifications.Adapters.SqliteDeliveryStore,
   push_sender: BnestApp.PushNotifications.Adapters.WebPushSender
 
+# One adapter per Backup port.
+config :bnest_app, BnestApp.Backup,
+  config_store: BnestApp.Backup.Adapters.FileConfigStore,
+  artifact_store: BnestApp.Backup.Adapters.FileArtifactStore,
+  database_snapshot: BnestApp.Backup.Adapters.SqliteDatabaseSnapshot,
+  capacity_probe: BnestApp.Backup.Adapters.DfCapacityProbe,
+  ignore_check: BnestApp.Backup.Adapters.GitIgnoreCheck
+
 # The Scheduler's schedule store, the task registered under each handler key a schedule row
 # stores, and the handlers every regular tick runs. The Scheduler names no other context:
 # Backup and Push Notifications reach it through these task adapters and tick handlers.
@@ -172,7 +180,7 @@ config :bnest_app, BnestApp.Scheduler,
     "prod_sqlite_backup" => %{
       label: "Production database backup",
       context: "admin_system",
-      handler: BnestApp.Backup.Run,
+      handler: BnestApp.Backup.Adapters.ScheduledBackupTask,
       settings_key: "schedules-backups",
       timezone: "WIB (UTC+07:00)"
     },

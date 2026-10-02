@@ -79,6 +79,18 @@ defmodule BnestApp.Test.InMemory.RoomStore do
   @doc "A room store handle on the agent of `handle`, a handle of any in-memory store."
   def over(%{pid: pid}), do: %{adapter: __MODULE__, pid: pid}
 
+  @doc """
+  Everything the store holds, as Family Chat's SQLite database would: its rooms (by ID, each
+  with whether it is archived), messages, push subscriptions and deliveries. Backup's
+  in-memory snapshot copies it.
+  """
+  def contents(%{pid: pid}),
+    do:
+      Agent.get(
+        pid,
+        &(&1 |> seed() |> Map.take([:rooms, :messages, :subscriptions, :deliveries]))
+      )
+
   @doc "How many times the store converged after a drain."
   def convergences(%{pid: pid}), do: Agent.get(pid, & &1.convergences)
 

@@ -4,7 +4,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
   use BnestAppWeb, :live_view
 
   alias BnestApp.AdminConfig.Registry, as: AdminConfigRegistry
-  alias BnestApp.Backup.Config, as: BackupConfig
+  alias BnestApp.Backup
   alias BnestApp.Scheduler
 
   @schedule_key "prod-sqlite-backup-daily"
@@ -35,7 +35,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
   end
 
   def handle_event("save_backup", %{"backup" => %{"destination_directory" => directory}}, socket) do
-    case BackupConfig.save(directory) do
+    case Backup.save_destination(directory) do
       {:ok, location} ->
         {:ok, claim} =
           Scheduler.claim_setup(@schedule_key, location.destination_id, DateTime.utc_now())
@@ -178,7 +178,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
   defp refresh(socket) do
     inventory = Scheduler.admin_inventory()
     backup_schedule = Scheduler.get_schedule(@schedule_key)
-    {:ok, backup_location} = BackupConfig.resolve()
+    {:ok, backup_location} = Backup.destination()
 
     assign(socket,
       inventory: inventory,
@@ -190,7 +190,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
       assign(socket,
         inventory: %{family: [], admin_system: []},
         backup_schedule: fallback_schedule(),
-        backup_directory: BackupConfig.default_directory()
+        backup_directory: Backup.default_directory()
       )
   end
 

@@ -1,32 +1,32 @@
-defmodule BnestApp.Backup.Capacity do
+defmodule BnestApp.Backup.Adapters.DfCapacityProbe do
   @moduledoc """
-  Measured backup-destination capacity guard (Phase 5). Replaces the earlier
-  `source_bytes * 2 + 256MiB` naive doubling: a `VACUUM INTO` output is
-  bounded by the source's live logical size (`page_count * page_size`) plus
-  whatever is still resident in the WAL file (pages not yet checkpointed
-  into the main file, which a consistent read still has to account for) --
-  never twice the whole source file, which over-rejects destinations that
-  are in fact large enough.
+  `BnestApp.Backup.Ports.CapacityProbe` over `df` and the live SQLite database: the
+  destination's free bytes from `df -Pk`, and the source's `page_count`, `page_size` and
+  WAL file size, read on a read-only connection of its own.
   """
 
-  @reserve_bytes 256 * 1024 * 1024
+  @behaviour BnestApp.Backup.Ports.CapacityProbe
 
-  @spec sufficient?(String.t()) :: boolean()
-  def sufficient?(directory) do
-    available_bytes(directory) >= required_bytes()
-  rescue
-    # A capacity PREFLIGHT that cannot even measure (destination or source
-    # unreadable) must fail closed as "insufficient", not raise past the
-    # caller's retryable-failure contract.
-    _error -> false
-  end
+  @impl true
+  def new, do: %{adapter: __MODULE__}
 
-  @doc false
-  @spec required_bytes() :: non_neg_integer()
-  def required_bytes do
+  # A capacity preflight that cannot even measure (destination or source unreadable) must
+  # fail closed, never raise past the caller's retryable-failure contract.
+  @impl true
+  def measure(_probe, directory) do
+    available_bytes = available_bytes(directory)
     source = BnestApp.SqliteRepo.main_database_path()
     {page_count, page_size} = page_geometry(source)
-    page_count * page_size + wal_bytes(source) + @reserve_bytes
+
+    {:ok,
+     %{
+       available_bytes: available_bytes,
+       page_count: page_count,
+       page_size: page_size,
+       wal_bytes: wal_bytes(source)
+     }}
+  rescue
+    _error -> {:error, :unmeasurable}
   end
 
   defp wal_bytes(source) do

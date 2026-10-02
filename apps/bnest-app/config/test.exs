@@ -154,8 +154,7 @@ else
     subscription_revoker: BnestApp.Test.InMemory.SubscriptionRevoker
 
   # Family Chat runs over the in-memory room store a unit test installs, and publishes to a
-  # recorder. Backup still keeps its own SQL in Family Chat's SQLite database, so a unit test
-  # of its run selects the SQLite room store itself until U12 gives Backup in-memory adapters.
+  # recorder.
   config :bnest_app, BnestApp.FamilyChat,
     room_store: BnestApp.Test.InMemory.RoomStore,
     message_publisher: BnestApp.Test.InMemory.MessagePublisher
@@ -171,6 +170,17 @@ else
   # The Scheduler keeps its schedules and runs in the in-memory schedule store a unit test
   # installs; its tasks and tick handlers stay the configured ones.
   config :bnest_app, BnestApp.Scheduler, schedule_store: BnestApp.Test.InMemory.ScheduleStore
+
+  # Backup keeps its configuration, destination files and snapshots in in-memory doubles a
+  # unit test installs; the snapshot copies the installed in-memory room store. The unit
+  # layer therefore never reads or writes a backup configuration file, a destination
+  # directory or a database.
+  config :bnest_app, BnestApp.Backup,
+    config_store: BnestApp.Test.InMemory.BackupConfigStore,
+    artifact_store: BnestApp.Test.InMemory.ArtifactStore,
+    database_snapshot: BnestApp.Test.InMemory.DatabaseSnapshot,
+    capacity_probe: BnestApp.Test.InMemory.CapacityProbe,
+    ignore_check: BnestApp.Test.InMemory.IgnoreCheck
 end
 
 # Family Chat's SQLite tables are additive to the shared database but must never

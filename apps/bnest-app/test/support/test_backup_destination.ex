@@ -3,7 +3,7 @@ defmodule BnestApp.TestBackupDestination do
   Test-only isolated backup destination, mirroring
   `BnestApp.ScheduledBackupTest`'s own `canonical_temporary_root/0` pattern
   (a real OS temp directory, never inside the repository checkout --
-  `BnestApp.Backup.Location.validate/1` refuses any repository-internal
+  `BnestApp.Backup.validate_destination/1` refuses any repository-internal
   directory other than its own default). Lives under `test/support/` (not
   `test/unit/`), so calling it from the unit behaviour driver does not trip
   the unit-layer `File`/`System` boundary scan (`test/behaviour/verify.exs`)
@@ -14,13 +14,13 @@ defmodule BnestApp.TestBackupDestination do
 
   use Boundary, top_level?: true, check: [in: false, out: false]
 
-  alias BnestApp.Backup.Config
+  alias BnestApp.Backup
 
   @spec create!(String.t()) :: %{directory: String.t()}
   def create!(tag) when is_binary(tag) do
     # `System.tmp_dir!/0` can itself be reached through a symlink (macOS's
     # `/var` -> `/private/var`, which its default TMPDIR sits under) --
-    # `Location.validate/1` refuses any destination reached through a
+    # `Backup.validate_destination/1` refuses any destination reached through a
     # symlink, so this resolves the real path first, exactly like
     # `BnestApp.ScheduledBackupTest`'s own `canonical_temporary_root/0`.
     {resolved, 0} = System.cmd("realpath", [System.tmp_dir!()])
@@ -33,8 +33,10 @@ defmodule BnestApp.TestBackupDestination do
   @doc """
   Makes an isolated destination the configured backup destination until the calling test
   exits: `BNEST_BACKUP_CONFIG` points at a configuration file beside it, which
-  `BnestApp.Backup.Config.save/1` writes, so the Backup task the Scheduler runs resolves it
-  and never the real `~/.config/bnest/backup.json`. Returns the saved location.
+  `BnestApp.Backup.save_destination/1` writes through the file configuration store, so the
+  Backup task the Scheduler runs resolves it and never the real
+  `~/.config/bnest/backup.json`. Returns the saved location. Integration layer only: the
+  unit layer's configuration store is in memory.
   """
   @spec configure!(String.t()) :: map()
   def configure!(tag) when is_binary(tag) do
@@ -50,7 +52,7 @@ defmodule BnestApp.TestBackupDestination do
       cleanup!(destination)
     end)
 
-    {:ok, location} = Config.save(Path.join(root, "destination"))
+    {:ok, location} = Backup.save_destination(Path.join(root, "destination"))
     location
   end
 

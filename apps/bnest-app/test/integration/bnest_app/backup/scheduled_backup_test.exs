@@ -1,11 +1,12 @@
 defmodule BnestApp.ScheduledBackupTest do
   use ExUnit.Case, async: false
 
-  alias BnestApp.Backup.Config
-  alias BnestApp.Backup.Location
-  alias BnestApp.Backup.Run
+  alias BnestApp.Backup
+  alias BnestApp.Backup.Adapters.ScheduledBackupTask
+  alias BnestApp.FamilyChat
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Scheduler
+  alias BnestApp.SqliteRepo
   alias BnestApp.Storage
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.Storage.Adapters.SqliteCoordinator
@@ -55,17 +56,17 @@ defmodule BnestApp.ScheduledBackupTest do
     end)
 
     expected = Path.join(repository, "data/backup")
-    assert Config.default_directory() == expected
-    assert {:ok, %{directory: ^expected}} = Config.resolve()
+    assert Backup.default_directory() == expected
+    assert {:ok, %{directory: ^expected}} = Backup.destination()
   end
 
   test "writes and independently verifies one private owned pair", context do
-    assert {:ok, location} = Config.save(context.backup_directory)
+    assert {:ok, location} = Backup.save_destination(context.backup_directory)
 
     assert {:ok, claim} =
              Scheduler.claim_setup("prod-sqlite-backup-daily", location.destination_id, @now)
 
-    assert {:ok, receipt} = Run.execute(claim, @now)
+    assert {:ok, receipt} = ScheduledBackupTask.execute(claim, @now)
     assert receipt["quickCheck"] == "ok"
     assert File.exists?(Path.join(context.backup_directory, receipt["artifactBasename"]))
     refute inspect(receipt) =~ context.backup_directory
@@ -73,7 +74,7 @@ defmodule BnestApp.ScheduledBackupTest do
 
   test "retains one owned pair per current seven WIB dates and preserves unknown files",
        context do
-    assert {:ok, location} = Config.save(context.backup_directory)
+    assert {:ok, location} = Backup.save_destination(context.backup_directory)
     unknown = Path.join(context.backup_directory, "keep-me.txt")
     File.write!(unknown, "synthetic")
 
@@ -87,38 +88,68 @@ defmodule BnestApp.ScheduledBackupTest do
           at
         )
 
-      assert {:ok, _receipt} = Run.execute(claim, at)
+      assert {:ok, _receipt} = ScheduledBackupTask.execute(claim, at)
     end)
 
     assert File.exists?(unknown)
-    assert Run.owned_receipts(context.backup_directory) |> length() == 7
+    assert Backup.owned_receipts(context.backup_directory) |> length() == 7
   end
 
   test "a destination change skips a stale setup claim", context do
-    assert {:ok, first} = Config.save(context.backup_directory)
+    assert {:ok, first} = Backup.save_destination(context.backup_directory)
     {:ok, claim} = Scheduler.claim_setup("prod-sqlite-backup-daily", first.destination_id, @now)
     second_directory = context.backup_directory <> "-second"
-    assert {:ok, _second} = Config.save(second_directory)
-    assert {:skipped, :destination_changed} = Run.execute(claim, @now)
+    assert {:ok, _second} = Backup.save_destination(second_directory)
+    assert {:skipped, :destination_changed} = ScheduledBackupTask.execute(claim, @now)
     refute File.exists?(Path.join(second_directory, claim.run_id <> ".sqlite3"))
   end
 
   test "rejects relative, repository, config, source, and symlink destinations", context do
-    assert {:error, :not_absolute} = Location.validate("relative/backup")
+    assert {:error, :not_absolute} = Backup.validate_destination("relative/backup")
 
     repository_path = Path.join(File.cwd!(), "apps/bnest-app/data")
-    assert {:error, :repository_path} = Location.validate(repository_path)
+    assert {:error, :repository_path} = Backup.validate_destination(repository_path)
 
     config_directory = System.fetch_env!("BNEST_BACKUP_CONFIG") |> Path.dirname()
-    assert {:error, :config_overlap} = Location.validate(config_directory)
+    assert {:error, :config_overlap} = Backup.validate_destination(config_directory)
 
     source_directory = FileConfigStore.resolved_database_path() |> Path.dirname()
-    assert {:error, :source_overlap} = Location.validate(source_directory)
+    assert {:error, :source_overlap} = Backup.validate_destination(source_directory)
 
     link = context.backup_directory <> "-link"
     File.mkdir_p!(context.backup_directory)
     File.ln_s!(context.backup_directory, link)
-    assert {:error, :symlink} = Location.validate(Path.join(link, "nested"))
+    assert {:error, :symlink} = Backup.validate_destination(Path.join(link, "nested"))
+  end
+
+  # The SQLite snapshot's restore reads only the active room, so an archived room, which the
+  # schema can represent, never turns a restore into a failure. The room is the archived
+  # second room the reply scenarios use, soft-deleted from the start; `INSERT OR IGNORE`
+  # with its fixed ID keeps the run's shared Family Chat database idempotent.
+  test "restores the active room of a real snapshot even when an archived room exists",
+       context do
+    FamilyChat.ensure_ready!()
+    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+    SqliteRepo.query!(
+      """
+      INSERT OR IGNORE INTO family_chat_rooms (
+        id, slug, name, room_kind, member_posting_enabled,
+        created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+      ) VALUES (900, 'ruang-arsip', 'Ruang Arsip', 'conversation', 1, ?, 'test', ?, 'test', ?, 'test')
+      """,
+      [now, now, now]
+    )
+
+    {:ok, location} = Backup.save_destination(context.backup_directory)
+
+    {:ok, artifact} =
+      Backup.run(deadline: @now, destination_directory: location.directory)
+
+    assert {:ok, %{evidence: evidence}} = Backup.restore(artifact)
+    assert %{"room" => room} = Jason.decode!(evidence)
+    assert room["slug"] == FamilyChat.canonical_room_slug()
+    refute room["slug"] == "ruang-arsip"
   end
 
   defp canonical_temporary_root do

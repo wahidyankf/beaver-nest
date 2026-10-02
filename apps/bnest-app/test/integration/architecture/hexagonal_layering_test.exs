@@ -7,11 +7,6 @@ defmodule BnestApp.HexagonalLayeringTest do
   # tolerates. Each context unit deletes its entries; the closure unit requires it empty.
   @legacy_modules [
     BnestApp.AdminConfig.Registry,
-    BnestApp.Backup,
-    BnestApp.Backup.Capacity,
-    BnestApp.Backup.Config,
-    BnestApp.Backup.Location,
-    BnestApp.Backup.Run,
     BnestApp.Deployment,
     BnestAppWeb.HealthController
   ]

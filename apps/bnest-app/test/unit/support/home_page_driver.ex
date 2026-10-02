@@ -4,7 +4,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @behaviour BnestApp.Behaviour.Driver
 
   alias BnestApp.AdminConfig.Registry, as: AdminRegistry
-  alias BnestApp.Backup.{Config, Receipt, Run}
+  alias BnestApp.Backup
+  alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.Behaviour.UnitFamilyChatDriver
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Domain.Transcript
@@ -29,7 +30,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Storage.Records
   alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
   alias BnestApp.Test.InMemory.AgentSession, as: InMemoryAgentSession
+  alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
+  alias BnestApp.Test.InMemory.BackupConfigStore, as: InMemoryBackupConfigStore
+  alias BnestApp.Test.InMemory.DatabaseSnapshot, as: InMemoryDatabaseSnapshot
   alias BnestApp.Test.InMemory.IdentityStore, as: InMemoryIdentityStore
+  alias BnestApp.Test.InMemory.IgnoreCheck, as: InMemoryIgnoreCheck
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
   alias BnestApp.Test.InMemory.StoragePorts
@@ -1462,8 +1467,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Map.put(:flat_sources, sqlite_storage_fixture_sources())
   end
 
-  def prepare_behaviour(context, :no_backup_override, _args),
-    do: Map.put(context, :repository_root, "/workspace")
+  # Nothing is saved in the scenario's in-memory backup configuration store
+  # (`UnitSupport`), whose synthetic repository holds the default folder.
+  def prepare_behaviour(context, :no_backup_override, _args) do
+    store = InMemoryBackupConfigStore.new()
+    {:error, :absent} = InMemoryBackupConfigStore.read(store)
+    Map.put(context, :repository_root, InMemoryBackupConfigStore.repository_root(store))
+  end
 
   # The Scheduler's schedules live in the scenario's in-memory schedule store
   # (`UnitSupport`), put there as the release seeds put them.
@@ -1472,8 +1482,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     :ok = put_schedule!(key, "prod_sqlite_backup", "admin_system")
 
     Map.merge(context, %{
-      backup_directory: "/private/backups",
-      destination_id: "unit-destination",
+      backup_directory: unit_backup_directory("override"),
       schedule_key: key
     })
   end
@@ -1503,8 +1512,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.put(context, :schedule_key, key)
   end
 
-  def prepare_behaviour(context, :accepted_backup_claim, _args),
-    do: Map.merge(context, unit_backup_fixture())
+  # The setup claim of a destination saved through the Backup facade, as saving it on the
+  # admin schedules page queues it.
+  def prepare_behaviour(context, :accepted_backup_claim, _args) do
+    key = "prod-sqlite-backup-daily"
+    :ok = put_schedule!(key, "prod_sqlite_backup", "admin_system")
+    {:ok, location} = Backup.save_destination(unit_backup_directory("authoritative"))
+    {:ok, claim} = Scheduler.claim_setup(key, location.destination_id, @behaviour_now)
+    Map.merge(context, %{backup_claim: claim, backup_location: location})
+  end
 
   def prepare_behaviour(context, :overlapping_coordinators, _args) do
     key = "unit-overlap"
@@ -1529,8 +1545,23 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.merge(context, %{visitor_token: token, visitor: visitor})
   end
 
-  def prepare_behaviour(context, :retention_fixture, _args),
-    do: Map.put(context, :retention_receipts, unit_retention_receipts())
+  # An unknown file beside the owned pairs, and a file of a previous destination, in the
+  # scenario's in-memory artifact store.
+  def prepare_behaviour(context, :retention_fixture, _args) do
+    directory = unit_backup_directory("retention")
+    unknown = directory <> "/keep-me.txt"
+    previous = directory <> "-previous/previous-destination.txt"
+    store = InMemoryArtifactStore.new()
+    :ok = InMemoryArtifactStore.put_file(store, unknown, "synthetic-unowned")
+    :ok = InMemoryArtifactStore.put_file(store, previous, "retain")
+    :ok = put_schedule!("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
+
+    Map.merge(context, %{
+      backup_directory: directory,
+      unknown_backup_file: unknown,
+      previous_destination_file: previous
+    })
+  end
 
   def prepare_behaviour(context, :second_family_handler, _args) do
     key = "unit-second-family"
@@ -1959,26 +1990,34 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Map.put(:routed_health_after, Deployment.readiness())
   end
 
+  # The destination resolves through the Backup facade, and its setup claim runs the
+  # registered Backup task through the Scheduler; the verified result is the receipt the
+  # destination then owns.
   def perform_behaviour(context, :resolve_backup_destination, _args) do
-    directory = Config.default_directory(context.repository_root)
+    {:ok, location} = result = Backup.destination()
+    key = "prod-sqlite-backup-daily"
+    :ok = put_schedule!(key, "prod_sqlite_backup", "admin_system")
+    {:ok, claim} = Scheduler.claim_setup(key, location.destination_id, @behaviour_now)
+    :ok = Scheduler.execute(claim, @behaviour_now)
 
     Map.merge(context, %{
-      resolved_backup_directory: directory,
-      public_backup_result: %{status: :verified}
+      backup_resolution: result,
+      backup_receipts: Backup.owned_receipts(location.directory)
     })
   end
 
+  # The override is saved through the facade operation the admin schedules page calls.
   # Saving the destination queues its setup claim through the Scheduler facade, and
   # saving it again queues the same one.
   def perform_behaviour(context, :save_backup_override, _args) do
+    {:ok, location} = result = Backup.save_destination(context.backup_directory)
     key = context.schedule_key
-    destination_id = context.destination_id
     before = run_count()
-    {:ok, first} = Scheduler.claim_setup(key, destination_id, @behaviour_now)
-    {:ok, second} = Scheduler.claim_setup(key, destination_id, @behaviour_now)
+    {:ok, first} = Scheduler.claim_setup(key, location.destination_id, @behaviour_now)
+    {:ok, second} = Scheduler.claim_setup(key, location.destination_id, @behaviour_now)
 
     Map.merge(context, %{
-      backup_document: Config.document(context.backup_directory),
+      backup_save_result: result,
       first_setup_claim: first,
       second_setup_claim: second,
       setup_run_delta: run_count() - before
@@ -2027,16 +2066,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     )
   end
 
+  # The accepted claim runs the registered Backup task through the Scheduler; what it
+  # produced is read back from the destination it owns.
   def perform_behaviour(context, :run_backup_handler, _args) do
-    receipt =
-      Receipt.build(
-        context.backup_claim,
-        context.backup_location,
-        @behaviour_now,
-        context.backup_artifact
-      )
-
-    Map.put(context, :backup_receipt, receipt)
+    :ok = Scheduler.execute(context.backup_claim, @behaviour_now)
+    Map.put(context, :backup_receipts, Backup.owned_receipts(context.backup_location.directory))
   end
 
   # Two coordinators claim the same due slot at once, then the one claimed attempt
@@ -2083,8 +2117,31 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.merge(context, %{settings_response: response, settings_accesses: accesses})
   end
 
-  def perform_behaviour(context, :verify_new_backup, _args),
-    do: Map.put(context, :retained_run_ids, Run.retained_run_ids(context.retention_receipts))
+  # Nine daily setup runs of the saved destination, oldest first, each through the
+  # Scheduler's registered Backup task, which applies retention once its backup is
+  # verified. Each receipt is read while it is the destination's newest.
+  def perform_behaviour(context, :verify_new_backup, _args) do
+    {:ok, location} = Backup.save_destination(context.backup_directory)
+
+    receipts =
+      Enum.map(8..0//-1, fn days ->
+        at = DateTime.add(@behaviour_now, -days * 86_400)
+
+        {:ok, claim} =
+          Scheduler.claim_setup(
+            "prod-sqlite-backup-daily",
+            "#{location.destination_id}-#{days}",
+            at
+          )
+
+        :ok = Scheduler.execute(claim, at)
+        [%{"runId" => run_id} = receipt | _older] = Backup.owned_receipts(location.directory)
+        ^run_id = claim.run_id
+        receipt
+      end)
+
+    Map.put(context, :retention_receipts, Enum.reverse(receipts))
+  end
 
   # The slot is due at the scenario's clock: the Scheduler's coordinator starts at that
   # clock over the shared `Scheduler.Tasks` supervisor and reconciles, so the coordinator
@@ -2581,18 +2638,48 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       )
   end
 
-  def behaviour_outcome?(context, :default_backup_folder, _args),
-    do: context.resolved_backup_directory == "/workspace/data/backup"
+  # The destination is the repository's `data/backup`, which the repository ignores: the
+  # ignore check was asked about exactly that folder.
+  def behaviour_outcome?(context, :default_backup_folder, _args) do
+    default = context.repository_root <> "/data/backup"
 
-  def behaviour_outcome?(context, :no_private_path, _args),
-    do: context.public_backup_result == %{status: :verified}
+    match?({:ok, %{directory: ^default}}, context.backup_resolution) and
+      InMemoryIgnoreCheck.checks(InMemoryIgnoreCheck.new())
+      |> Enum.member?({context.repository_root, "data/backup"})
+  end
 
-  def behaviour_outcome?(context, :atomic_backup_config, _args),
-    do:
-      context.backup_document == %{
-        "schemaVersion" => 1,
-        "destinationDirectory" => context.backup_directory
-      }
+  # The verified receipt names its destination only by id and its artifact only by basename;
+  # neither the backup folder, the repository holding it, nor the live database path appears.
+  def behaviour_outcome?(context, :no_private_path, _args) do
+    with {:ok, location} <- context.backup_resolution,
+         [receipt] <- context.backup_receipts,
+         true <- Receipt.valid?(receipt, location.destination_id) do
+      encoded = Jason.encode!(receipt)
+      source = InMemoryDatabaseSnapshot.source_path(InMemoryDatabaseSnapshot.new())
+
+      Enum.all?(
+        [context.repository_root, location.directory, source],
+        &(not String.contains?(encoded, &1))
+      )
+    else
+      _failure -> false
+    end
+  end
+
+  # One whole document was written, naming the saved destination, and the destination
+  # now resolves to it.
+  def behaviour_outcome?(context, :atomic_backup_config, _args) do
+    store = InMemoryBackupConfigStore.new()
+    document = %{"schemaVersion" => 1, "destinationDirectory" => context.backup_directory}
+
+    match?(
+      {:ok, %{directory: directory}} when directory == context.backup_directory,
+      context.backup_save_result
+    ) and
+      InMemoryBackupConfigStore.writes(store) == [document] and
+      InMemoryBackupConfigStore.document(store) == document and
+      Backup.destination() == context.backup_save_result
+  end
 
   def behaviour_outcome?(context, :one_setup_claim, _args),
     do:
@@ -2615,11 +2702,42 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       context.reconciled_schedule.next_run_at ==
         Policy.next_slot(context.reconciled_schedule.daily_at_utc, @behaviour_now)
 
-  def behaviour_outcome?(context, :authoritative_vacuum, _args),
-    do: context.backup_receipt["sourceGeneration"] == context.backup_artifact.source_generation
+  # The one snapshot taken copied the configured live database: its generation is the
+  # receipt's, and the artifact the receipt names is present in the destination.
+  def behaviour_outcome?(context, :authoritative_vacuum, _args) do
+    snapshot = InMemoryDatabaseSnapshot.new()
 
-  def behaviour_outcome?(context, :independent_proof, _args),
-    do: Receipt.valid?(context.backup_receipt, context.backup_location.destination_id)
+    case context.backup_receipts do
+      [%{"artifactBasename" => basename} = receipt] ->
+        artifact = context.backup_location.directory <> "/" <> basename
+
+        receipt["sourceGeneration"] == InMemoryDatabaseSnapshot.source_generation(snapshot) and
+          InMemoryDatabaseSnapshot.snapshots(snapshot) == [artifact <> ".partial"] and
+          InMemoryArtifactStore.regular?(InMemoryArtifactStore.new(), artifact)
+
+      _none_or_several ->
+        false
+    end
+  end
+
+  # The candidate was proved on its own before promotion, and the receipt records that
+  # proof for the destination that owns it.
+  def behaviour_outcome?(context, :independent_proof, _args) do
+    case context.backup_receipts do
+      [
+        %{"artifactBasename" => basename, "quickCheck" => "ok", "logicalProofSha256" => proof} =
+            receipt
+      ]
+      when byte_size(proof) == 64 ->
+        partial = context.backup_location.directory <> "/" <> basename <> ".partial"
+
+        InMemoryDatabaseSnapshot.proofs(InMemoryDatabaseSnapshot.new()) == [partial] and
+          Receipt.valid?(receipt, context.backup_location.destination_id)
+
+      _unproved ->
+        false
+    end
+  end
 
   def behaviour_outcome?(context, :single_nonoverlap_claim, _args),
     do: length(context.overlap_claims) == 1
@@ -2661,11 +2779,35 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       page |> LazyHTML.query("[data-role=admin-settings-entry]") |> Enum.empty?()
   end
 
-  def behaviour_outcome?(context, :owned_retention, _args),
-    do: MapSet.size(context.retained_run_ids) == 7
+  # Nine runs fell on nine WIB dates: the destination owns the seven newest pairs, and the
+  # two oldest are gone from it, artifact and receipt both.
+  def behaviour_outcome?(context, :owned_retention, _args) do
+    store = InMemoryArtifactStore.new()
+    {kept, removed} = Enum.split(context.retention_receipts, 7)
+    owned = Backup.owned_receipts(context.backup_directory)
 
-  def behaviour_outcome?(context, :preserve_unowned, _args),
-    do: Enum.all?(context.retention_receipts, &Map.has_key?(&1, "runId"))
+    Enum.map(owned, & &1["runId"]) == Enum.map(kept, & &1["runId"]) and
+      Enum.all?(removed, fn receipt ->
+        artifact = context.backup_directory <> "/" <> receipt["artifactBasename"]
+        receipt_path = String.replace_suffix(artifact, ".sqlite3", ".receipt.json")
+
+        not InMemoryArtifactStore.regular?(store, artifact) and
+          not InMemoryArtifactStore.regular?(store, receipt_path)
+      end)
+  end
+
+  def behaviour_outcome?(context, :preserve_unowned, _args) do
+    store = InMemoryArtifactStore.new()
+
+    match?(
+      %{content: "synthetic-unowned"},
+      InMemoryArtifactStore.file(store, context.unknown_backup_file)
+    ) and
+      match?(
+        %{content: "retain"},
+        InMemoryArtifactStore.file(store, context.previous_destination_file)
+      )
+  end
 
   # Read from the coordinator's observed dispatch: the registered fixture task alone ran,
   # once, under the shared supervisor, and returned its artifact-free receipt.
@@ -2711,42 +2853,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, expected, args),
     do: UnitFamilyChatDriver.behaviour_outcome?(context, expected, args)
 
-  defp unit_backup_fixture do
-    destination_id = "unit-destination"
-
-    %{
-      backup_claim: %{
-        schedule_key: "prod-sqlite-backup-daily",
-        claim_kind: "setup",
-        claim_key: Policy.setup_claim_key(destination_id),
-        scheduled_for: nil,
-        run_id: "unit-run",
-        schedule_revision: 1
-      },
-      backup_location: %{directory: "/private/backups", destination_id: destination_id},
-      backup_artifact: %{
-        source_generation: "sqlite-generation-1",
-        basename: "bnest-prod-unit.sqlite3",
-        sha256: String.duplicate("a", 64),
-        bytes: 42,
-        quick_check: "ok",
-        schema_versions: [1],
-        logical_proof_sha256: String.duplicate("b", 64)
-      }
-    }
-  end
-
-  defp unit_retention_receipts do
-    Enum.map(0..8, fn days ->
-      %{
-        "runId" => "unit-retention-#{days}",
-        "createdAt" =>
-          @behaviour_now
-          |> DateTime.add(-days * 86_400)
-          |> DateTime.to_iso8601()
-      }
-    end)
-  end
+  # A synthetic destination no disk holds: the scenario's in-memory artifact store keeps it.
+  defp unit_backup_directory(tag),
+    do:
+      "/srv/test-user-backup/" <>
+        tag <> "-" <> Integer.to_string(:erlang.unique_integer([:positive]))
 
   defp button_visible?(page, label) do
     page
