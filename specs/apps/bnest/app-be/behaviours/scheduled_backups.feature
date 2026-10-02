@@ -3,8 +3,6 @@ Feature: Bnest scheduled backups
   Background:
     Given an approved user is logged in
 
-  # Exemption(e2e): destination resolution and public receipt redaction have no public command or browser action; alternative-proof: bnest-app:test:integration / Use the Dropbox-synced default
-  @e2e-exempt
   Scenario: Use the Dropbox-synced default
     Given no backup override exists
     When the daily backup destination resolves
@@ -49,7 +47,7 @@ Feature: Bnest scheduled backups
     Then SQLite accepts one claim and backup tasks do not overlap
     And transient failure receives at most three persisted attempts
 
-  # Exemption(e2e): receipt ownership and retention operate on private server files without a public trigger; alternative-proof: bnest-app:test:integration / Retain only owned verified artifacts
+  # Exemption(e2e): verified history across more than seven WIB dates needs a controlled clock the public boundary lacks; alternative-proof: bnest-app:test:integration / Retain only owned verified artifacts
   @e2e-exempt
   Scenario: Retain only owned verified artifacts
     Given verified owned pairs span more than seven WIB dates beside unknown files

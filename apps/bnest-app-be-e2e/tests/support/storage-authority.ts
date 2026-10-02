@@ -23,6 +23,11 @@ export function captureStorageAuthority(): void {
   captured = true;
 }
 
+// Whether a snapshot is held, so the live SQLite activation it covers is still in place.
+export function storageAuthorityCaptured(): boolean {
+  return captured;
+}
+
 export function restoreStorageAuthority(): void {
   if (!captured) return;
   const configPath = routedStorageConfigPath();

@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   captureStorageAuthority,
   routedStorageConfigPath,
+  storageAuthorityCaptured,
 } from "./storage-authority";
 
 // This project has no Caddy candidate/rollout apparatus (see project.json /
@@ -32,8 +33,10 @@ function liveEnvironment(): NodeJS.ProcessEnv {
   };
 }
 
+// The universal After hook restores the captured authority after every scenario, which
+// undoes the activation and empties the schedule tables, so a later scenario activates again.
 export function ensureLiveSqlite(): void {
-  if (storageActivated) return;
+  if (storageActivated && storageAuthorityCaptured()) return;
   if (runtimeRoot === "" || runId === "") {
     throw new Error("live SQLite activation requires the marked E2E runtime");
   }

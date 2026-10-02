@@ -6,6 +6,7 @@ import {
   chatPayload,
   confirmImports,
   digestFile,
+  expectInterruptedImportCompleted,
   importCount,
   learningPayload,
   readChatState,
@@ -155,6 +156,7 @@ Then(
     await expect(
       page.getByText("Chat conversation: accepted and verified"),
     ).toBeVisible();
+    expectInterruptedImportCompleted(activeIdentity.admin.username);
   },
 );
 

@@ -1,11 +1,11 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
 import { isolatedTestIdentity } from "../support/test-identity";
-import { readLivePointer } from "../support/sqlite-storage";
+import { liveRuntimeRoot, readLivePointer } from "../support/sqlite-storage";
 import {
   captureStorageAuthority,
   restoreStorageAuthority,
@@ -130,11 +130,22 @@ Then(
 
 // --- Scenario 3: unsafe folder rejected without mutation --------------------
 
+// A folder that does not exist yet inside the marked E2E runtime root, the flat migration
+// source the webServer serves from: it overlaps a migration source and sits inside the
+// repository, so the same rule refuses it as the repository's own data directory. The
+// production data directory is never named.
+let unsafeFolder = "";
+
 When(
   "the folder is relative, symlinked, world-writable, inside the repository, or overlaps a migration source",
   async ({ page }) => {
     livePointerBefore = readLivePointer();
-    const unsafeFolder = path.join(repositoryRoot, "data");
+    const runtimeRoot = liveRuntimeRoot();
+    unsafeFolder = path.join(runtimeRoot, "test-user-unsafe-storage");
+    expect(unsafeFolder.startsWith(`${runtimeRoot}/`)).toBe(true);
+    expect(
+      `${unsafeFolder}/`.startsWith(path.join(repositoryRoot, "data/prod/")),
+    ).toBe(false);
     await page
       .getByRole("textbox", { name: "Database folder" })
       .fill(unsafeFolder);
@@ -150,4 +161,5 @@ Then("Bnest explains the safe correction", async ({ page }) => {
 
 Then("Bnest creates no database or storage configuration", () => {
   expect(readLivePointer()).toEqual(livePointerBefore);
+  expect(existsSync(unsafeFolder)).toBe(false);
 });
