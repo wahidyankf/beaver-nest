@@ -617,22 +617,39 @@ Every context phase runs the same nine items, in this order, with the context's 
 - [x] [AI] Gherkin implementation review, recorded.
   - 2026-10-02: 30 rows, none failing because of U12. U11's N4 passes. N1 and the test-data safety finding S-1
     are fixed in U12; N2 moves to U13. Recorded in [learnings](learnings.md) E12.
-- [ ] [AI] Commit, PR, leak review, gate, merge.
-- [ ] [AI] **Checkpoint 12 (blocking):** U12 merged.
+- [x] [AI] Commit, PR, leak review, gate, merge.
+  - 2026-10-02: PR #128 merged as `9a4f627a5`; three commits (the refactor, the backup repository root fix
+    and the plan record). CI passed on the first run; leak review pass on the merged head.
+- [x] [AI] **Checkpoint 12 (blocking):** U12 merged.
+  - 2026-10-02: U12 on `main`; `@legacy_exports` holds 2 entries.
 
 ### Phase 13: U13, Operations
 
-- [ ] [AI] RED (boundary): `lib/bnest_app/operations.ex` and `lib/bnest_app/operations/{domain,ports,adapters}.ex`;
+- [x] [AI] RED (boundary): `lib/bnest_app/operations.ex` and `lib/bnest_app/operations/{domain,ports,adapters}.ex`;
       delete the `Deployment` and `AdminConfig` legacy entries. `TYPECHECK` and the scan fail.
-- [ ] [AI] RED (facade): `test/unit/bnest_app/operations/operations_test.exs` covers liveness, readiness and health
+  - 2026-10-02: base `9a4f627a5`. `TYPECHECK` exit 1 with 5 forbidden references over 3 edges; the scan failed
+    with 5 violations (3 L1, 2 L4).
+- [x] [AI] RED (facade): `test/unit/bnest_app/operations/operations_test.exs` covers liveness, readiness and health
       aggregation with an in-memory `ReleaseEnvironment`. `FOCUS_UNIT` fails.
-- [ ] [AI] GREEN (layers): the U13 moves. `HealthController`, `ReleaseHeaders`, `AdminSettingsLive` and
+  - 2026-10-02: 18 failures, each `UndefinedFunctionError`.
+- [x] [AI] GREEN (layers): the U13 moves. `HealthController`, `ReleaseHeaders`, `AdminSettingsLive` and
       `AdminScheduleSettingsLive` call only facades. `TYPECHECK`, the scan and `FOCUS_UNIT` pass.
-- [ ] [AI] GREEN (drivers): `test/unit/support/home_page_driver.ex` use the facade with in-memory adapters, and the
+  - 2026-10-02: `TYPECHECK` exit 0 with no forbidden reference; the scan and `FOCUS_UNIT` pass. As-built
+    differences are in [learnings](learnings.md) E13.
+- [x] [AI] GREEN (drivers): `test/unit/support/home_page_driver.ex` use the facade with in-memory adapters, and the
       `test/behaviour/verify.exs` allow-list loses its U13 lines. `UNIT` and `BEHAVIOUR` pass.
-- [ ] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
-- [ ] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty.
-- [ ] [AI] Gherkin implementation review, recorded.
+  - 2026-10-02: `UNIT` 611 tests, 0 failures, 99.40%; three extra seeds pass. `BEHAVIOUR` exit 0. The allow-list was
+    already empty after U12.
+- [x] [AI] REFACTOR: `LINT` and `APP_QUICK` pass.
+  - 2026-10-02: both exit 0.
+- [x] [AI] `INTEGRATION` passes; `FEATURE_DIFF` is empty.
+  - 2026-10-02: 408 tests, 0 failures, 16 excluded; `FEATURE_DIFF 9a4f627a5` empty. Focused e2e: `FE_E2E` 11 passed for
+    "Bnest scheduled backups" and the routed SQLite rollout reconnect, which reads `/health/ready` and the revision
+    header; `BE_E2E` 2 passed. Manual `curl` on an isolated test server: `/health/live` and `/health/ready` 200 with
+    the configured revision and slot in the body and `X-Bnest-Revision`.
+- [x] [AI] Gherkin implementation review, recorded.
+  - 2026-10-02: 9 rows, 7 PASS, 1 EXEMPT, 1 FAIL that predates U13. N5 and the unit and integration parts of N2
+    pass; the e2e part of N2 moves to U14. Recorded in [learnings](learnings.md) E13.
 - [ ] [AI] Commit, PR, leak review, gate, merge.
 - [ ] [AI] **Checkpoint 13 (blocking):** U13 merged; `@legacy_exports` holds no context module.
 
