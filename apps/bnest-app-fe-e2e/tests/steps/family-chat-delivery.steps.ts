@@ -155,17 +155,14 @@ Then(
   },
 );
 
-Given(
-  "a queued message is waiting on its backoff timer",
-  async ({ page }) => {
-    await waitForRoomReady(page);
-    await interfereWithSends(page, "abort");
-    await sendThroughComposer(page, uniqueBody("Backing off"));
-    // Four failures: the next automatic try is 8 s (at least 6.4 s) away.
-    await awaitAttempts(page, delivery.body, 4, 20_000);
-    await stopInterfering(page);
-  },
-);
+Given("a queued message is waiting on its backoff timer", async ({ page }) => {
+  await waitForRoomReady(page);
+  await interfereWithSends(page, "abort");
+  await sendThroughComposer(page, uniqueBody("Backing off"));
+  // Four failures: the next automatic try is 8 s (at least 6.4 s) away.
+  await awaitAttempts(page, delivery.body, 4, 20_000);
+  await stopInterfering(page);
+});
 
 When(
   "the browser reports the {string} event",
@@ -209,18 +206,20 @@ When(
 Then(
   "each wait follows 1, 2, 4, 8, and 16 seconds with bounded jitter and no wait exceeding 60 seconds",
   ({ page }) => {
-    const times = attemptsFor(page, delivery.body).map(
-      (attempt) => attempt.at,
-    );
+    const times = attemptsFor(page, delivery.body).map((attempt) => attempt.at);
     const waits = BACKOFF_BASES_MS.map(
       (_base, index) => (times[index + 1] ?? 0) - (times[index] ?? 0),
     );
     for (const [index, base] of BACKOFF_BASES_MS.entries()) {
       const wait = waits[index] ?? 0;
-      expect(wait, `wait ${index + 1} of ${JSON.stringify(waits)}`).toBeGreaterThanOrEqual(
-        0.8 * base - OBSERVATION_SLACK_MS,
-      );
-      expect(wait, `wait ${index + 1} of ${JSON.stringify(waits)}`).toBeLessThanOrEqual(
+      expect(
+        wait,
+        `wait ${index + 1} of ${JSON.stringify(waits)}`,
+      ).toBeGreaterThanOrEqual(0.8 * base - OBSERVATION_SLACK_MS);
+      expect(
+        wait,
+        `wait ${index + 1} of ${JSON.stringify(waits)}`,
+      ).toBeLessThanOrEqual(
         Math.min(1.2 * base, 60_000) + OBSERVATION_SLACK_MS,
       );
     }

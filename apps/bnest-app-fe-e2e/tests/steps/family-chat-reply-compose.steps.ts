@@ -40,9 +40,9 @@ let firstBody = "";
 let olderPageRequests = 0;
 
 function graphemes(text: string): string[] {
-  return [...new Intl.Segmenter("en", { granularity: "grapheme" }).segment(text)].map(
-    (part) => part.segment,
-  );
+  return [
+    ...new Intl.Segmenter("en", { granularity: "grapheme" }).segment(text),
+  ].map((part) => part.segment);
 }
 
 async function chooseReplyOn(page: Page, messageId: string): Promise<void> {
@@ -104,9 +104,7 @@ Given(
 When(
   "the visitor activates the cancel control on the strip",
   async ({ page }) => {
-    await page
-      .locator('[data-role="family-chat-reply-strip-cancel"]')
-      .click();
+    await page.locator('[data-role="family-chat-reply-strip-cancel"]').click();
   },
 );
 

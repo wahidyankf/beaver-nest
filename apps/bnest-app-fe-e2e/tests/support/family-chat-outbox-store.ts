@@ -74,7 +74,10 @@ export async function storedRowFor(
 }
 
 /** Waits until the room has written `body` through to IndexedDB. */
-export async function expectStored(page: Page, body: string): Promise<StoredRow> {
+export async function expectStored(
+  page: Page,
+  body: string,
+): Promise<StoredRow> {
   await expect
     .poll(async () => (await storedRowFor(page, body)) !== undefined, {
       timeout: 10_000,
@@ -89,6 +92,8 @@ export async function expectStored(page: Page, body: string): Promise<StoredRow>
 export async function expectServiceWorkerControl(page: Page): Promise<void> {
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect
-    .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
+    .poll(() =>
+      page.evaluate(() => navigator.serviceWorker.controller !== null),
+    )
     .toBe(true);
 }

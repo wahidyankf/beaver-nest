@@ -93,8 +93,7 @@ function currentStop(page: Page): Promise<TabStop | null> {
       key: `${active.tagName}#${[...document.querySelectorAll("*")].indexOf(active)}`,
       inRoom: active.closest('[data-role="family-chat-room"]') !== null,
       role: active.dataset["role"] ?? active.tagName.toLowerCase(),
-      visible:
-        box.width > 0 && box.height > 0 && style.visibility !== "hidden",
+      visible: box.width > 0 && box.height > 0 && style.visibility !== "hidden",
       indicated: outlined || style.boxShadow !== "none",
     };
   });
@@ -125,10 +124,7 @@ function roomTabOrder(page: Page): Promise<string[]> {
           getComputedStyle(element).visibility !== "hidden"
         );
       })
-      .map(
-        (element) =>
-          `${element.tagName}#${all.indexOf(element)}`,
-      );
+      .map((element) => `${element.tagName}#${all.indexOf(element)}`);
   });
 }
 
@@ -160,10 +156,7 @@ Then(
     const roles = stops.map((stop) => stop.role);
     // A positive control: the composer is among what Tab reached, so an
     // empty walk cannot pass the comparison below.
-    for (const required of [
-      "family-chat-message-input",
-      "family-chat-send",
-    ]) {
+    for (const required of ["family-chat-message-input", "family-chat-send"]) {
       expect(roles, `reached ${JSON.stringify(walked)}`).toContain(required);
     }
     const reached = new Set(stops.map((stop) => stop.key));

@@ -64,7 +64,9 @@ Then("the message is not automatically retried", async ({ page }) => {
     expiredBodies.map((body) => pendingRowId(page, body)),
   );
   // Everything these messages ever sent was in the session that queued them.
-  attemptsAtReopen = expiredBodies.map((body) => attemptsFor(page, body).length);
+  attemptsAtReopen = expiredBodies.map(
+    (body) => attemptsFor(page, body).length,
+  );
   await page.waitForTimeout(QUIET_WINDOW_MS);
   for (const [index, body] of expiredBodies.entries()) {
     expect(attemptsFor(page, body)).toHaveLength(attemptsAtReopen[index] ?? -1);
@@ -76,36 +78,33 @@ Then("the message is not automatically retried", async ({ page }) => {
   }
 });
 
-Then(
-  "the visitor can still manually retry or discard it",
-  async ({ page }) => {
-    const [retryBody, discardBody] = expiredBodies;
-    const [retryId, discardId] = expiredIds;
-    if (!retryBody || !discardBody || !retryId || !discardId) {
-      throw new Error("the expired messages were not found");
-    }
-    await page
-      .locator(`[data-message-id="${retryId}"]`)
-      .getByRole("button", { name: "Retry" })
-      .click();
-    await expectCommitted(page, retryBody);
+Then("the visitor can still manually retry or discard it", async ({ page }) => {
+  const [retryBody, discardBody] = expiredBodies;
+  const [retryId, discardId] = expiredIds;
+  if (!retryBody || !discardBody || !retryId || !discardId) {
+    throw new Error("the expired messages were not found");
+  }
+  await page
+    .locator(`[data-message-id="${retryId}"]`)
+    .getByRole("button", { name: "Retry" })
+    .click();
+  await expectCommitted(page, retryBody);
 
-    page.once("dialog", (dialog) => {
-      void dialog.accept();
-    });
-    await page
-      .locator(`[data-message-id="${discardId}"]`)
-      .getByRole("button", { name: "Discard" })
-      .click();
-    await expect(pendingRow(page, discardBody)).toHaveCount(0);
-    await expect(
-      page.locator('[data-role="family-chat-live-region"]'),
-    ).toHaveText("Message discarded.");
-    await expect
-      .poll(async () => (await storedRowFor(page, discardBody)) === undefined)
-      .toBe(true);
-    expect(attemptsFor(page, discardBody)).toHaveLength(
-      attemptsAtReopen[1] ?? -1,
-    );
-  },
-);
+  page.once("dialog", (dialog) => {
+    void dialog.accept();
+  });
+  await page
+    .locator(`[data-message-id="${discardId}"]`)
+    .getByRole("button", { name: "Discard" })
+    .click();
+  await expect(pendingRow(page, discardBody)).toHaveCount(0);
+  await expect(
+    page.locator('[data-role="family-chat-live-region"]'),
+  ).toHaveText("Message discarded.");
+  await expect
+    .poll(async () => (await storedRowFor(page, discardBody)) === undefined)
+    .toBe(true);
+  expect(attemptsFor(page, discardBody)).toHaveLength(
+    attemptsAtReopen[1] ?? -1,
+  );
+});

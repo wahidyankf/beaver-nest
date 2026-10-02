@@ -146,16 +146,13 @@ Given(
   },
 );
 
-Then(
-  "the room shows the control {string}",
-  async ({ page }, text: string) => {
-    await waitForRoomReady(page);
-    const control = page.locator('[data-role="family-chat-push-control"]');
-    await expect(control).toHaveText(text);
-    // Informational: nothing to press, and nothing to turn off.
-    await expect(control).toBeDisabled();
-    await expect(
-      page.locator('[data-role="family-chat-push-disable"]'),
-    ).toBeHidden();
-  },
-);
+Then("the room shows the control {string}", async ({ page }, text: string) => {
+  await waitForRoomReady(page);
+  const control = page.locator('[data-role="family-chat-push-control"]');
+  await expect(control).toHaveText(text);
+  // Informational: nothing to press, and nothing to turn off.
+  await expect(control).toBeDisabled();
+  await expect(
+    page.locator('[data-role="family-chat-push-disable"]'),
+  ).toBeHidden();
+});

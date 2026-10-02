@@ -70,15 +70,9 @@ When("the visitor opens the action menu on it", async ({ page }) => {
   await expectMenuOpenFor(page, scenario.targetId);
 });
 
-Then(
-  "{string} is present and unavailable",
-  async ({ page }, label: string) => {
-    await expect(menuItem(page, label)).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
-  },
-);
+Then("{string} is present and unavailable", async ({ page }, label: string) => {
+  await expect(menuItem(page, label)).toHaveAttribute("aria-disabled", "true");
+});
 
 Then(
   "the menu states that the message must send before it can be replied to",
@@ -141,14 +135,11 @@ Given(
   },
 );
 
-Then(
-  "the clipboard holds exactly {string}",
-  async ({ page }, text: string) => {
-    await expect
-      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-      .toBe(text);
-  },
-);
+Then("the clipboard holds exactly {string}", async ({ page }, text: string) => {
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe(text);
+});
 
 Then("the room announces that the message was copied", async ({ page }) => {
   await expect.poll(() => liveRegionText(page)).toBe("Message copied.");

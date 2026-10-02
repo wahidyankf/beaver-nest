@@ -73,9 +73,21 @@ function randomKey(bytes: number): string {
 export async function bindPushSubscription(page: Page): Promise<void> {
   const bound = (await graphql(
     page,
-    `mutation UpsertWebPushSubscription($endpoint: String!, $p256dh: String!, $auth: String!) {
-      upsertWebPushSubscription(endpoint: $endpoint, p256dh: $p256dh, auth: $auth) { enabled }
-    }`,
+    `
+      mutation UpsertWebPushSubscription(
+        $endpoint: String!
+        $p256dh: String!
+        $auth: String!
+      ) {
+        upsertWebPushSubscription(
+          endpoint: $endpoint
+          p256dh: $p256dh
+          auth: $auth
+        ) {
+          enabled
+        }
+      }
+    `,
     {
       endpoint: `https://${SYNTHETIC_PUSH_HOST}/${crypto.randomUUID()}`,
       p256dh: randomKey(65),
