@@ -5,11 +5,7 @@ defmodule BnestApp.HexagonalLayeringTest do
 
   # Temporary. Modules not yet moved into a context's layers, whose violations the scan
   # tolerates. Each context unit deletes its entries; the closure unit requires it empty.
-  @legacy_modules [
-    BnestApp.AdminConfig.Registry,
-    BnestApp.Deployment,
-    BnestAppWeb.HealthController
-  ]
+  @legacy_modules []
 
   # Temporary. Inbound adapters still reading `BnestApp.Storage.Records` directly.
   @legacy_records_callers []

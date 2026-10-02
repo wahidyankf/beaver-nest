@@ -9,11 +9,9 @@ defmodule BnestApp do
 
   # Temporary. Every entry is a module not yet moved into a strict context
   # boundary that a module outside this root calls. Delete entries as each
-  # context lands; the closure unit requires this list empty.
-  @legacy_exports [
-    AdminConfig.Registry,
-    Deployment
-  ]
+  # context lands; the closure unit requires this list empty. Empty since U13 (Operations);
+  # the closure unit deletes the attribute.
+  @legacy_exports []
 
   # The legacy modules left here call no context facade and no infrastructure directly.
   use Boundary,

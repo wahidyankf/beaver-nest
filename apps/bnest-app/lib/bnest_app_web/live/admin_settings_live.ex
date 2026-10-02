@@ -3,11 +3,11 @@ defmodule BnestAppWeb.AdminSettingsLive do
 
   use BnestAppWeb, :live_view
 
-  alias BnestApp.AdminConfig.Registry
+  alias BnestApp.Operations
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Admin settings", panels: Registry.panels())}
+    {:ok, assign(socket, page_title: "Admin settings", panels: Operations.admin_panels())}
   end
 
   @impl true

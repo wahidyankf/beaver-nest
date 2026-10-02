@@ -1,5 +1,18 @@
-defmodule BnestApp.AdminConfig.Registry do
-  @moduledoc false
+defmodule BnestApp.Operations.Domain.AdminPanels do
+  @moduledoc """
+  The typed admin settings panels the contexts declare: where each panel lives, which
+  context owns it, and the only fields that owner validates and saves. The owner is the
+  owning context's facade, which the admin settings page renders as `data-config-owner`.
+  """
+
+  @type panel :: %{
+          key: String.t(),
+          label: String.t(),
+          description: String.t(),
+          path: String.t(),
+          owner: module(),
+          editable_fields: [String.t()]
+        }
 
   @panels [
     %{
@@ -20,9 +33,9 @@ defmodule BnestApp.AdminConfig.Registry do
     }
   ]
 
-  @spec panels() :: [map()]
+  @spec panels() :: [panel()]
   def panels, do: @panels
 
-  @spec fetch(String.t()) :: {:ok, map()} | :error
+  @spec fetch(String.t()) :: {:ok, panel()} | :error
   def fetch(key), do: Enum.find_value(@panels, :error, &if(&1.key == key, do: {:ok, &1}))
 end

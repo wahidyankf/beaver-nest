@@ -181,6 +181,12 @@ else
     database_snapshot: BnestApp.Test.InMemory.DatabaseSnapshot,
     capacity_probe: BnestApp.Test.InMemory.CapacityProbe,
     ignore_check: BnestApp.Test.InMemory.IgnoreCheck
+
+  # Operations reads the revision, slot and peer from an in-memory release environment a unit
+  # test installs, so the unit layer never reads the deployment's environment variables or
+  # dials a peer node.
+  config :bnest_app, BnestApp.Operations,
+    release_environment: BnestApp.Test.InMemory.ReleaseEnvironment
 end
 
 # Family Chat's SQLite tables are additive to the shared database but must never

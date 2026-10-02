@@ -8,9 +8,9 @@ defmodule BnestApp.EndpointPolicyTest do
   end
 
   test "exposes liveness and readiness contracts without starting an HTTP server" do
-    assert {:ok, %{status: "live", revision: revision}} = BnestApp.Deployment.liveness()
+    assert {:ok, %{status: "live", revision: revision}} = BnestApp.Operations.liveness()
     assert is_binary(revision)
 
-    assert {:ok, %{status: "ready", revision: ^revision}} = BnestApp.Deployment.readiness()
+    assert {:ok, %{status: "ready", revision: ^revision}} = BnestApp.Operations.readiness()
   end
 end
