@@ -37,6 +37,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Storage.Domain.Normalizer
   alias BnestApp.Storage.Import
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.CodexFixtureConversation
   alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
   alias BnestApp.Test.InterruptedChatWriteBackend
   alias BnestApp.Test.SchedulerDispatch
@@ -71,7 +72,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def open(%{conn: conn} = context, "/") do
     response = get(conn, "/")
-    Map.put(context, :page, LazyHTML.from_fragment(response.resp_body))
+    Map.put(context, :page, LazyHTML.from_fragment(html_response(response, 200)))
   end
 
   def open(%{conn: conn} = context, "/family-chat") do
@@ -108,26 +109,18 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     has_element?(context.view, "[data-role=brand-logo][src='/images/beaver-nest-logo.png']")
   end
 
+  # Integration cannot express a browser-only mechanism. Every scenario that needs one is
+  # @integration-exempt and proven at FE E2E, so reaching one of these fails instead of
+  # giving partial proof.
   @impl true
-  def installable_as_app?(context) do
-    manifest_response = get(context.conn, "/manifest.webmanifest")
-
-    with 200 <- manifest_response.status,
-         {:ok, manifest} <- Jason.decode(manifest_response.resp_body),
-         "Beaver Nest" <- manifest["name"],
-         "standalone" <- manifest["display"],
-         [
-           %{"src" => "/images/beaver-nest-192.png", "sizes" => "192x192"},
-           %{"src" => "/images/beaver-nest-512.png", "sizes" => "512x512"}
-         ] <- manifest["icons"],
-         200 <- get(context.conn, "/service-worker.js").status,
-         200 <- get(context.conn, "/images/beaver-nest-192.png").status,
-         200 <- get(context.conn, "/images/beaver-nest-512.png").status do
-      true
-    else
-      _not_installable -> false
-    end
-  end
+  def installable_as_app?(_context),
+    do:
+      raise(
+        exempt_message(
+          "service-worker installability",
+          "A visitor can install Beaver Nest as an app"
+        )
+      )
 
   @impl true
   def heading_visible?(%{page: page}, heading) do
@@ -157,13 +150,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
-  def home_controls_arranged?(context) do
-    page = context.page
-
-    not Enum.empty?(LazyHTML.query(page, ".home-header > .home-brand")) and
-      not Enum.empty?(LazyHTML.query(page, ".home-header > .home-account")) and
-      not Enum.empty?(LazyHTML.query(page, ".home-hero"))
-  end
+  def home_controls_arranged?(_context),
+    do:
+      raise(
+        exempt_message("rendered geometry", "Home controls and content remain visually separated")
+      )
 
   @impl true
   def follow_brand_home_link(context) do
@@ -176,9 +167,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def data_migration_entry_absent?(context) do
-    context.page
-    |> LazyHTML.query("[data-role=data-migration-entry]")
-    |> Enum.empty?()
+    not Enum.empty?(LazyHTML.query(context.page, "main.home-shell")) and
+      context.page |> LazyHTML.query("[data-role=data-migration-entry]") |> Enum.empty?()
   end
 
   @impl true
@@ -196,8 +186,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def selected_model?(context, display_name) do
     model = FixtureModels.fetch_by_display_name!(display_name)
 
-    has_element?(context.view, "[data-role=model-selector] option[value='#{model.id}'][selected]") or
-      has_element?(context.view, ".model-badge[data-model='#{model.id}']")
+    selected_setting?(
+      context.view,
+      "[data-role=model-selector]",
+      "option[value='#{model.id}'][selected]",
+      ".model-badge[data-model='#{model.id}']"
+    )
   end
 
   @impl true
@@ -231,8 +225,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def selected_effort?(context, effort) do
     effort = String.downcase(effort)
 
-    has_element?(context.view, "[data-role=effort-selector] option[value='#{effort}'][selected]") or
-      has_element?(context.view, ".model-badge[data-reasoning-effort='#{effort}']")
+    selected_setting?(
+      context.view,
+      "[data-role=effort-selector]",
+      "option[value='#{effort}'][selected]",
+      ".model-badge[data-reasoning-effort='#{effort}']"
+    )
   end
 
   @impl true
@@ -288,14 +286,17 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def composer_available?(context) do
-    not has_element?(context.view, "textarea[disabled]") and
-      not has_element?(context.view, ".send-button[disabled]")
+    has_element?(context.view, "#chat-composer-form textarea[data-role=chat-composer]") and
+      not has_element?(context.view, "#chat-composer-form textarea[disabled]") and
+      has_element?(context.view, "#chat-composer-form .send-button:not([disabled])")
   end
 
   @impl true
   def composer_unavailable?(context) do
-    has_element?(context.view, "textarea[disabled]") and
-      has_element?(context.view, ".send-button[disabled]")
+    has_element?(context.view, "#chat-composer-form textarea[data-role=chat-composer][disabled]") and
+      not has_element?(context.view, "#chat-composer-form textarea:not([disabled])") and
+      has_element?(context.view, "#chat-composer-form .send-button[disabled]") and
+      not has_element?(context.view, "#chat-composer-form .send-button:not([disabled])")
   end
 
   @impl true
@@ -305,7 +306,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def chat_controls_arranged?(context) do
-    has_element?(context.view, ".chat-actions > .model-badge") and
+    actions =
+      context.view |> render() |> LazyHTML.from_fragment() |> LazyHTML.query(".chat-actions > *")
+
+    Enum.count(actions) == 4 and
+      has_element?(context.view, ".chat-actions > .model-badge") and
+      has_element?(context.view, ".chat-actions > .repository-access-badge") and
       has_element?(context.view, ".chat-actions > .chat-theme-control") and
       has_element?(
         context.view,
@@ -346,23 +352,25 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
-  def attempt_empty_message(context) do
-    render_submit(context.view, "send", %{"chat" => %{"prompt" => "   "}})
-    context
-  end
+  def attempt_empty_message(context), do: submit_composer(context, "   ")
 
   @impl true
-  def send_message(context, message) do
-    render_submit(context.view, "send", %{"chat" => %{"prompt" => message}})
-    context
-  end
+  def send_message(context, message), do: submit_composer(context, message)
 
   @impl true
-  def submit_with_shift_enter(context, message), do: send_message(context, message)
+  def submit_with_shift_enter(_context, _message),
+    do: raise(exempt_message("a keyboard chord", "A visitor sends a message with Shift+Enter"))
 
+  # The composer is disabled while Codex works, so the rendered form is submitted as a forced
+  # browser submission would; the LiveView's own busy guard decides what happens.
   @impl true
   def attempt_message_before_finished(context, message) do
-    render_submit(context.view, "send", %{"chat" => %{"prompt" => message}})
+    unless composer_unavailable?(context), do: raise("the chat composer is not disabled")
+
+    context.view
+    |> element("#chat-composer-form[phx-submit=send]")
+    |> render_submit(%{"chat" => %{"prompt" => message}})
+
     context
   end
 
@@ -378,21 +386,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def stream_codex_response(context) do
-    session = context.view.pid
-    send(context.view.pid, {:codex, session, {:thread_started, "fixture-thread"}})
+    {prompt, session, context} = unanswered_prompt!(context)
 
-    send(
-      context.view.pid,
-      {:codex, session, {:assistant_update, "fixture-answer", "Fixture response"}}
-    )
+    {events, threads} =
+      CodexFixtureConversation.answer(Map.get(context, :codex_threads, %{}), session, prompt)
 
-    send(
-      context.view.pid,
-      {:codex, session, {:assistant_update, "fixture-answer", "Fixture response complete."}}
-    )
-
-    send(context.view.pid, {:codex, session, :turn_completed})
-
+    context = context |> Map.put(:codex_threads, threads) |> deliver_codex_events(events)
     snapshot = await_push_event(context.view, "persist-chat")
 
     streamed? =
@@ -430,24 +429,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def report_public_codex_progress(context) do
-    session = context.view.pid
+    {_prompt, _session, context} = unanswered_prompt!(context)
 
-    send(
-      context.view.pid,
-      {:codex, session, {:reasoning_update, "fixture-reasoning", "Fixture reasoning summary"}}
-    )
-
-    send(
-      context.view.pid,
-      {:codex, session, {:assistant_update, "fixture-progress", "Fixture progress"}}
-    )
-
-    send(
-      context.view.pid,
-      {:codex, session, {:assistant_update, "fixture-final", "Fixture final answer"}}
-    )
-
-    send(context.view.pid, {:codex, session, :turn_completed})
+    context =
+      deliver_codex_events(context, [
+        {:reasoning_update, "fixture-reasoning", "Fixture reasoning summary"},
+        {:assistant_update, "fixture-progress", "Fixture progress"},
+        {:assistant_update, "fixture-final", "Fixture final answer"},
+        :turn_completed
+      ])
 
     snapshot = await_push_event(context.view, "persist-chat")
     Map.put(context, :persisted_chat, Jason.encode!(snapshot))
@@ -484,17 +474,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     |> Kernel.==(1)
   end
 
+  # The fixture session refuses this prompt, so what the page shows is the facade's own
+  # handling of a session that cannot accept a message.
   @impl true
-  def reject_message(context, message) do
-    render_submit(context.view, "send", %{"chat" => %{"prompt" => message}})
-    context
-  end
+  def reject_message(context, message), do: submit_composer(context, message)
 
   @impl true
   def report_codex_error(context, message) do
-    send(context.view.pid, {:codex, context.view.pid, {:error, message}})
-    render(context.view)
-    context
+    {_prompt, _session, context} = unanswered_prompt!(context)
+    deliver_codex_events(context, [{:error, message}])
   end
 
   @impl true
@@ -521,6 +509,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def reconnect(_context) do
     raise "integration cannot reconnect after a deployment; " <>
             "the scenario is @integration-exempt (FE E2E proves it)"
+  end
+
+  defp exempt_message(mechanism, scenario) do
+    "integration cannot express #{mechanism}; " <>
+      "#{scenario} is @integration-exempt (FE E2E proves it)"
   end
 
   @impl true
@@ -590,11 +583,17 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def study_mode_available?(context) do
-    has_element?(context.view, "button", "Belajar 3 Pasangan")
+    has_element?(
+      context.view,
+      "button[phx-click=start-learning]:not([disabled])",
+      "Belajar 3 Pasangan"
+    )
   end
 
   @impl true
-  def quiz_mode_available?(context), do: has_element?(context.view, "button", "Latihan Ujian")
+  def quiz_mode_available?(context),
+    do:
+      has_element?(context.view, "button[phx-click=start-quiz]:not([disabled])", "Latihan Ujian")
 
   @impl true
   def start_learning(context) do
@@ -633,18 +632,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
-  def swipe_study_card_left(context) do
-    render_hook(context.view, "swipe-study", %{"direction" => "left"})
-    snapshot = await_push_event(context.view, "persist-sifat-allah")
-    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
-  end
+  def swipe_study_card_left(_context),
+    do: raise(exempt_message("a touch swipe", "every swiping scenario"))
 
   @impl true
-  def swipe_study_card_right(context) do
-    render_hook(context.view, "swipe-study", %{"direction" => "right"})
-    snapshot = await_push_event(context.view, "persist-sifat-allah")
-    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
-  end
+  def swipe_study_card_right(_context),
+    do: raise(exempt_message("a touch swipe", "every swiping scenario"))
 
   @impl true
   def return_to_mission(context) do
@@ -660,11 +653,14 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
-  def browser_back_to_mission(context) do
-    render_hook(context.view, "dashboard", %{})
-    snapshot = await_push_event(context.view, "persist-sifat-allah")
-    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
-  end
+  def browser_back_to_mission(_context),
+    do:
+      raise(
+        exempt_message(
+          "browser history",
+          "Browser Back returns a child from a quiz to the mission"
+        )
+      )
 
   @impl true
   def study_card_shows?(context, name, meaning) do
@@ -672,10 +668,21 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       has_element?(context.view, "[data-role=study-card]", meaning)
   end
 
+  # The card's colours come from the stylesheet's `.sifat-wajib-side` (green) and
+  # `.sifat-mustahil-side` (orange) rules, so each side must carry its own colour class. The
+  # computed colours are read at E2E.
   @impl true
   def study_card_colors_attributes?(context) do
-    has_element?(context.view, "[data-memory-color=wajib]") and
-      has_element?(context.view, "[data-memory-color=mustahil]")
+    has_element?(
+      context.view,
+      "[data-role=study-card] .sifat-wajib-side > span",
+      ~r/^SIFAT WAJIB$/
+    ) and
+      has_element?(
+        context.view,
+        "[data-role=study-card] .sifat-mustahil-side > span",
+        ~r/^SIFAT MUSTAHIL$/
+      )
   end
 
   @impl true
@@ -733,7 +740,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     _snapshot = await_push_event(context.view, "persist-sifat-allah")
     second_position = answer_position(context.view, "Hudus")
 
-    first_position != second_position
+    is_integer(first_position) and is_integer(second_position) and
+      first_position != second_position
   end
 
   @impl true
@@ -809,18 +817,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
-  def swipe_quiz_question_left(context) do
-    render_hook(context.view, "swipe-quiz", %{"direction" => "left"})
-    snapshot = await_push_event(context.view, "persist-sifat-allah")
-    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
-  end
+  def swipe_quiz_question_left(_context),
+    do: raise(exempt_message("a touch swipe", "every swiping scenario"))
 
   @impl true
-  def swipe_quiz_question_right(context) do
-    render_hook(context.view, "swipe-quiz", %{"direction" => "right"})
-    snapshot = await_push_event(context.view, "persist-sifat-allah")
-    Map.put(context, :persisted_sifat_allah, Jason.encode!(snapshot))
-  end
+  def swipe_quiz_question_right(_context),
+    do: raise(exempt_message("a touch swipe", "every swiping scenario"))
 
   @impl true
   def next_quiz_question(context) do
@@ -2382,6 +2384,76 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def behaviour_outcome?(context, expected, args),
     do: IntegrationFamilyChatDriver.behaviour_outcome?(context, expected, args)
+
+  # The setting the page shows: the badge, which the selector's selected option must agree
+  # with where a selector is offered.
+  defp selected_setting?(view, selector, selected_option, badge) do
+    has_element?(view, badge) and
+      (not has_element?(view, selector) or has_element?(view, "#{selector} #{selected_option}"))
+  end
+
+  defp submit_composer(context, prompt) do
+    unless composer_available?(context), do: raise("the chat composer is not available")
+
+    context.view
+    |> form("#chat-composer-form[phx-submit=send]", chat: %{prompt: prompt})
+    |> render_submit()
+
+    context
+  end
+
+  # The test plays Codex: it answers only the newest prompt the LiveView's current session
+  # received since the last answer, as the fixture session reported it. The session is the
+  # LiveView itself, and its conversation is the one the LiveView opened last, before that
+  # prompt.
+  defp unanswered_prompt!(context) do
+    owner = context.view.pid
+    calls = Map.get(context, :codex_calls, []) ++ codex_fixture_calls()
+    answered = Map.get(context, :answered_codex_calls, 0)
+
+    owned =
+      calls
+      |> Enum.with_index()
+      |> Enum.filter(fn {{_call, call_owner, _detail}, _index} -> call_owner == owner end)
+
+    prompt = owned |> Enum.filter(&match?({{:prompt, _, _}, _}, &1)) |> List.last()
+    open = owned |> Enum.filter(&match?({{:open, _, _}, _}, &1)) |> List.last()
+
+    case {prompt, open} do
+      {{{:prompt, _, text}, prompt_index}, {{:open, _, settings}, open_index}}
+      when prompt_index >= answered and open_index < prompt_index ->
+        {thread_id, model, effort, _mode} = settings
+
+        session = %{
+          thread_id: thread_id,
+          new_thread_id: "fixture-thread-#{open_index}",
+          model: model,
+          reasoning_effort: effort
+        }
+
+        {text, session,
+         Map.merge(context, %{codex_calls: calls, answered_codex_calls: length(calls)})}
+
+      _no_new_prompt ->
+        raise "the current Codex session received no new prompt to answer"
+    end
+  end
+
+  defp codex_fixture_calls(calls \\ []) do
+    receive do
+      {:codex_fixture_session, call} -> codex_fixture_calls([call | calls])
+    after
+      0 -> Enum.reverse(calls)
+    end
+  end
+
+  # Events reach the LiveView from its session, which is the LiveView itself; rendering
+  # afterwards waits until it has handled them.
+  defp deliver_codex_events(context, events) do
+    Enum.each(events, &send(context.view.pid, {:codex, context.view.pid, &1}))
+    render(context.view)
+    context
+  end
 
   defp await_push_event(_view, "persist-chat") do
     user_id = Process.get(:bnest_behaviour_user_id)
