@@ -102,11 +102,29 @@ Then(
   },
 );
 
+// Green has green as its strongest channel; orange has red strongest, then
+// green, then blue.
+function hueOf(color: string): "green" | "orange" | "other" {
+  const [red = 0, green = 0, blue = 0] = (color.match(/\d+/gu) ?? []).map(
+    Number,
+  );
+  if (green > red && green > blue) return "green";
+  if (red > green && green > blue) return "orange";
+  return "other";
+}
+
 Then(
   "the study card uses green for wajib and orange for mustahil",
   async ({ page }) => {
-    await expect(page.locator("[data-memory-color=wajib]")).toBeVisible();
-    await expect(page.locator("[data-memory-color=mustahil]")).toBeVisible();
+    const card = page.locator("[data-role=study-card]");
+    const backgroundOf = (label: string) =>
+      card
+        .locator(".sifat-side", { hasText: label })
+        .evaluate((side) => getComputedStyle(side).backgroundColor);
+
+    await expect(card).toBeVisible();
+    expect(hueOf(await backgroundOf("SIFAT WAJIB"))).toBe("green");
+    expect(hueOf(await backgroundOf("SIFAT MUSTAHIL"))).toBe("orange");
   },
 );
 
@@ -143,6 +161,9 @@ When("the visitor starts a quiz", async ({ page }) => {
 
 Then("the quiz puts correct answers in varied positions", async ({ page }) => {
   const answerButtons = page.locator(".sifat-answer-grid button");
+  await expect(page.locator("[data-role=quiz-question] h2")).toHaveText(
+    "Apa arti Wujud?",
+  );
   const firstPosition = await answerButtons.evaluateAll((buttons) =>
     buttons.findIndex((button) => button.textContent?.trim() === "Ada"),
   );
@@ -157,6 +178,8 @@ Then("the quiz puts correct answers in varied positions", async ({ page }) => {
     buttons.findIndex((button) => button.textContent?.trim() === "Hudus"),
   );
 
+  expect(firstPosition).toBeGreaterThanOrEqual(0);
+  expect(secondPosition).toBeGreaterThanOrEqual(0);
   expect(firstPosition).not.toBe(secondPosition);
 });
 
@@ -164,13 +187,15 @@ Then("the quiz answer choices are locked", async ({ page }) => {
   const answerButtons = page.locator(".sifat-answer-grid button");
   await expect
     .poll(() =>
-      answerButtons.evaluateAll((buttons) =>
-        buttons.every(
-          (button) =>
-            button instanceof HTMLButtonElement &&
-            button.disabled &&
-            getComputedStyle(button).pointerEvents === "none",
-        ),
+      answerButtons.evaluateAll(
+        (buttons) =>
+          buttons.length > 0 &&
+          buttons.every(
+            (button) =>
+              button instanceof HTMLButtonElement &&
+              button.disabled &&
+              getComputedStyle(button).pointerEvents === "none",
+          ),
       ),
     )
     .toBe(true);
