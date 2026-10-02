@@ -123,6 +123,8 @@ config :bnest_app, BnestApp.Storage,
   lock: BnestApp.Storage.Adapters.FileLock,
   database_lifecycle: BnestApp.Storage.Adapters.SqliteCoordinator,
   maintenance: BnestApp.Storage.Adapters.LocalMaintenance,
+  flat_source: BnestApp.Storage.Adapters.LocalFlatSource,
+  migration_ledger: BnestApp.Storage.Adapters.SqliteMigration,
   record_kinds: [
     BnestApp.CodexChat.Adapters.TranscriptRecordKind,
     BnestApp.SifatAllah.Adapters.ProgressRecordKind

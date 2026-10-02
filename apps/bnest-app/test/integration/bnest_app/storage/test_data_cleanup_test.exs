@@ -5,8 +5,8 @@ defmodule BnestApp.TestDataCleanupTest do
   alias BnestApp.Storage
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.Storage.Adapters.SqliteCoordinator
-  alias BnestApp.Storage.Adapters.SqliteMigration
   alias BnestApp.Storage.Adapters.TestDataCleanup
+  alias BnestApp.Storage.Migration, as: StorageMigration
   alias BnestApp.TestRuntimeRoot
 
   setup do
@@ -19,8 +19,8 @@ defmodule BnestApp.TestDataCleanupTest do
     {:ok, _config} = Storage.persist_directory(runtime.sqlite_path)
     :ok = SqliteCoordinator.ensure_started!(database_path)
     {:ok, _versions, _apps} = migrate(:up)
-    SqliteMigration.run(runtime.path)
-    SqliteMigration.activate!()
+    StorageMigration.run(runtime.path)
+    StorageMigration.activate!()
 
     FileConfigStore.restore!(
       FileConfigStore.read()

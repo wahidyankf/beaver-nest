@@ -1,7 +1,8 @@
 defmodule BnestApp.Storage.Adapters.SqliteCoordinator do
   @moduledoc """
   Owns the `BnestApp.SqliteRepo` process: starts it against the configured database path,
-  restarts it when the path changed, stops it, and applies its schema migrations.
+  restarts it when the path changed, stops it, and applies its schema migrations and names
+  their committed sources.
   """
 
   @behaviour BnestApp.Storage.Ports.DatabaseLifecycle
@@ -21,6 +22,15 @@ defmodule BnestApp.Storage.Adapters.SqliteCoordinator do
   def migrate_schema! do
     Ecto.Migrator.run(SqliteRepo, migrations_path(), :up, all: true)
     :ok
+  end
+
+  @impl true
+  def schema_sources do
+    migrations_path()
+    |> Path.join("*.exs")
+    |> Path.wildcard()
+    |> Enum.sort()
+    |> Enum.map(&File.read!/1)
   end
 
   @impl true

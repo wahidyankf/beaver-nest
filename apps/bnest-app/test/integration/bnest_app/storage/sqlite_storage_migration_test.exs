@@ -7,6 +7,7 @@ defmodule BnestApp.SqliteStorageMigrationTest do
   alias BnestApp.Storage.Adapters.SqliteMigration
   alias BnestApp.Storage.Adapters.SqliteRecordBackend
   alias BnestApp.Storage.Domain.FlatMigration
+  alias BnestApp.Storage.Migration, as: StorageMigration
   alias BnestApp.TestRuntimeRoot
 
   setup do
@@ -33,7 +34,7 @@ defmodule BnestApp.SqliteStorageMigrationTest do
   test "backfills every recognized flat-file record with immutable checksum evidence", %{
     flat_root: flat_root
   } do
-    result = SqliteMigration.run(flat_root)
+    result = StorageMigration.run(flat_root)
 
     assert result.accepted == 4
     assert result.blocked == 0
@@ -41,9 +42,9 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     assert result.state == "copying"
     assert result.migration_id == FlatMigration.migration_id()
 
-    refute SqliteMigration.blocked?()
+    refute StorageMigration.blocked?()
     assert SqliteMigration.integrity_ok?()
-    assert SqliteMigration.parity_ok?(flat_root)
+    assert StorageMigration.parity_ok?(flat_root)
 
     %{rows: rows} =
       SqliteRepo.query!(
@@ -69,12 +70,12 @@ defmodule BnestApp.SqliteStorageMigrationTest do
   test "retrying the same migration identifier does not rewrite or duplicate accepted items", %{
     flat_root: flat_root
   } do
-    first = SqliteMigration.run(flat_root)
+    first = StorageMigration.run(flat_root)
 
     %{rows: [[items_after_first]]} =
       SqliteRepo.query!("SELECT count(*) FROM bnest_migration_items")
 
-    second = SqliteMigration.run(flat_root)
+    second = StorageMigration.run(flat_root)
 
     %{rows: [[items_after_second]]} =
       SqliteRepo.query!("SELECT count(*) FROM bnest_migration_items")
@@ -89,12 +90,12 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     flat_root: flat_root,
     database_path: database_path
   } do
-    SqliteMigration.run(flat_root)
+    StorageMigration.run(flat_root)
     destination = Path.join(Path.dirname(database_path), "restore-rehearsal.sqlite3")
 
     assert SqliteMigration.restore_rehearsal(destination)
     refute File.exists?(destination)
-    assert SqliteMigration.parity_ok?(flat_root)
+    assert StorageMigration.parity_ok?(flat_root)
     assert SqliteMigration.integrity_ok?()
   end
 
@@ -102,11 +103,11 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     flat_root: flat_root
   } do
     FileConfigStore.ensure_default!()
-    SqliteMigration.run(flat_root)
+    StorageMigration.run(flat_root)
 
     assert FileConfigStore.phase() == :flat_primary
 
-    assert :ok = SqliteMigration.activate!()
+    assert :ok = StorageMigration.activate!()
 
     assert FileConfigStore.phase() == :sqlite_primary
 
@@ -122,8 +123,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     flat_root: flat_root
   } do
     FileConfigStore.ensure_default!()
-    SqliteMigration.run(flat_root)
-    SqliteMigration.activate!()
+    StorageMigration.run(flat_root)
+    StorageMigration.activate!()
 
     relative_path = theme_relative_path(flat_root)
     ["users", user_id, "preferences", "theme.json"] = String.split(relative_path, "/")
@@ -138,8 +139,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     assert {:ok, authoritative} = SqliteRecordBackend.write(store, :theme, user_id, 0, newer)
 
     assert authoritative["revision"] == 1
-    assert SqliteMigration.run(flat_root).state == "verified"
-    assert SqliteMigration.parity_ok?(flat_root)
+    assert StorageMigration.run(flat_root).state == "verified"
+    assert StorageMigration.parity_ok?(flat_root)
 
     assert {:ok, ^authoritative} = SqliteRecordBackend.read(store, :theme, user_id)
   end
@@ -147,7 +148,7 @@ defmodule BnestApp.SqliteStorageMigrationTest do
   test "a source that changes after inventory blocks cutover with a value-free retry category", %{
     flat_root: flat_root
   } do
-    first = SqliteMigration.run(flat_root)
+    first = StorageMigration.run(flat_root)
     assert first.accepted == 4
     assert first.blocked == 0
 
@@ -158,12 +159,12 @@ defmodule BnestApp.SqliteStorageMigrationTest do
       Jason.encode!(%{"schemaVersion" => 1, "recordType" => "theme-preference"})
     )
 
-    second = SqliteMigration.run(flat_root)
+    second = StorageMigration.run(flat_root)
 
     assert second.blocked > 0
     assert second.state == "failed"
-    assert SqliteMigration.blocked?()
-    refute SqliteMigration.parity_ok?(flat_root)
+    assert StorageMigration.blocked?()
+    refute StorageMigration.parity_ok?(flat_root)
   end
 
   defp migrate(direction) do

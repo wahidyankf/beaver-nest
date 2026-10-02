@@ -17,11 +17,12 @@ defmodule BnestApp.Storage do
   alias BnestApp.Storage.Domain.Location
   alias BnestApp.Storage.Domain.RecordSchema
   alias BnestApp.Storage.Import
+  alias BnestApp.Storage.Migration
   alias BnestApp.Storage.Ports.RecordBackend
   alias BnestApp.Storage.Records
 
   @type migration_report :: %{
-          run: BnestApp.Storage.Ports.Maintenance.migration_result(),
+          run: Migration.result(),
           verification: %{parity: boolean(), integrity: boolean(), restore: boolean()} | nil
         }
 
@@ -162,10 +163,10 @@ defmodule BnestApp.Storage do
       )
 
       maintenance = adapter(:maintenance)
-      run = maintenance.run_migration(flat_root)
+      run = Migration.run(flat_root)
 
       cond do
-        run.blocked > 0 or maintenance.migration_blocked?() ->
+        run.blocked > 0 or Migration.blocked?() ->
           {:error, :blocked, %{run: run, verification: nil}}
 
         not activate? ->
@@ -181,15 +182,15 @@ defmodule BnestApp.Storage do
   Moves the flat-file records into SQLite for the browser flow, and activates SQLite when the
   run is clean and verified. It returns the migration run.
   """
-  @spec move_data(String.t()) :: BnestApp.Storage.Ports.Maintenance.migration_result()
+  @spec move_data(String.t()) :: Migration.result()
   def move_data(flat_root) do
     adapter(:config_store).ensure_default!()
     start_and_migrate_schema!(database_path())
     maintenance = adapter(:maintenance)
-    run = maintenance.run_migration(flat_root)
+    run = Migration.run(flat_root)
 
-    if run.blocked == 0 and maintenance.integrity_ok?() and maintenance.parity_ok?(flat_root),
-      do: maintenance.activate_sqlite!()
+    if run.blocked == 0 and maintenance.integrity_ok?() and Migration.parity_ok?(flat_root),
+      do: Migration.activate!()
 
     run
   end
@@ -220,7 +221,7 @@ defmodule BnestApp.Storage do
 
   defp verify_and_activate(maintenance, flat_root, run) do
     verification = %{
-      parity: maintenance.parity_ok?(flat_root),
+      parity: Migration.parity_ok?(flat_root),
       integrity: maintenance.integrity_ok?(),
       restore: maintenance.restore_rehearsal_ok?()
     }
@@ -228,7 +229,7 @@ defmodule BnestApp.Storage do
     report = %{run: run, verification: verification}
 
     if verification.parity and verification.integrity and verification.restore do
-      :ok = maintenance.activate_sqlite!()
+      :ok = Migration.activate!()
       {:ok, :activated, report}
     else
       {:error, :verification_failed, report}
