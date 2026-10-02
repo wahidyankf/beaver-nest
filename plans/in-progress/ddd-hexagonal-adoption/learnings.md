@@ -535,6 +535,12 @@ Resolution: applied in U10; 002, 004 and 006 stay as authored, and this entry re
     and waits for the user's approval.
   - **Lesson:** every configuration path that defaults to a real home-directory file needs a test-environment
     default, not only an environment variable that each scenario must remember to set.
+- **The unit layer also read the real storage pointer (pre-existing, fixed in U11).** Its `storage_config_path` was
+  unset, so storage resolved the real `~/.config/bnest/storage.json`, which names the production database. Locally
+  that file exists, so the gates passed. On CI it is absent and no run identifier is set, so resolving the default
+  directory raised, and CI failed the two scenarios whose new Givens configure a backup destination. The unit layer now
+  has an absent pointer and a run identifier under its own test directory, so local runs match CI. A unit test pins
+  both.
   - **Moved to U13:** N5, the contextual schedule Thens (F1 at unit and integration).
   - **For U14:** `specs/apps/bnest/app-be/architecture.md` still names `Scheduler.Registry` and `RetentionJob`.
 
