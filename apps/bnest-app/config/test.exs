@@ -173,6 +173,14 @@ config :bnest_app,
   family_chat_sqlite_path:
     Path.expand("~/bnest/data/test/family-chat/#{family_chat_run_id}/bnest.sqlite3")
 
+# A test that runs a backup without setting `BNEST_BACKUP_CONFIG` must never resolve the
+# real `~/.config/bnest/backup.json`: its destination is the production backup directory,
+# where an artifact would be written and retention would prune. Every test run gets its own
+# unconfigured backup configuration path instead.
+config :bnest_app,
+  backup_config_path:
+    Path.expand("~/bnest/data/test/backup-config/#{family_chat_run_id}/backup.json")
+
 # Both layers talk to the fixture agent session unless a fixture Codex runner is supplied,
 # and offer the fixture model catalog. The transcript store stays record-backed.
 agent_session =
