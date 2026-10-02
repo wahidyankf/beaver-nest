@@ -30,13 +30,16 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   alias BnestApp.PushNotifications.Dispatcher
   alias BnestApp.PushNotifications.Domain.Policy, as: PushPolicy
   alias BnestApp.Scheduler
+  alias BnestApp.Storage.Records
   alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
   alias BnestApp.Test.InMemory.CapacityProbe, as: InMemoryCapacityProbe
   alias BnestApp.Test.InMemory.DatabaseSnapshot, as: InMemoryDatabaseSnapshot
   alias BnestApp.Test.InMemory.DeliveryStore, as: InMemoryDeliveryStore
   alias BnestApp.Test.InMemory.PreferenceStore, as: InMemoryPreferenceStore
+  alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
   alias BnestApp.Test.InMemory.RoomStore, as: InMemoryRoomStore
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
+  alias BnestApp.Test.InMemory.StoragePorts
   alias BnestApp.Test.InMemory.SubscriptionStore, as: InMemorySubscriptionStore
   alias BnestApp.Test.PublicMutationProbe
   alias BnestApp.Test.SchedulerDispatch
@@ -136,8 +139,9 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # as `{:family_chat_published, topic, message}`, which the outcome steps
   # below actually receive and match on that topic and the committed
   # message's server ID, instead of trusting a counter. Absinthe rendering the
-  # event payload for a live socket is the BE E2E layer's evidence (these
-  # scenarios are `@integration-exempt`). `mix test --no-start` never boots
+  # event payload for a socket is the integration layer's evidence (it joins the
+  # real `UserSocket` through `Phoenix.ChannelTest`), and a live browser socket
+  # the BE E2E layer's. `mix test --no-start` never boots
   # `BnestApp.Application`, so `ensure_family_chat_subscriptions_started!/0`
   # below starts the minimal, real, in-memory process infrastructure the
   # subscription document needs -- never an HTTP/socket listener.
@@ -188,11 +192,12 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     Map.put(context, :family_chat_push_endpoint, input["endpoint"])
   end
 
-  # No test-local flag needs forcing: `:no_graphiql_route` below reads the
-  # real, already-compiled `BnestAppWeb.Router.dev_routes_enabled?/0` and the
-  # real `__routes__()` directly, rather than a stored simulation of
-  # "production."
-  def prepare_behaviour(context, :endpoint_configured_production, _args), do: context
+  # The `:dev_routes` value a production build compiles with: unset, because
+  # `config/prod.exs` names no such key. This layer reads no files, so the value
+  # is stated here; the integration layer's identical Given reads it out of
+  # `config/prod.exs` itself.
+  def prepare_behaviour(context, :endpoint_configured_production, _args),
+    do: Map.put(context, :family_chat_production_dev_routes, nil)
 
   # The scenario's room store is fresh: no room seeded and no message committed yet. Checked
   # before the migration runs, so a store some earlier step seeded fails here.
@@ -624,8 +629,14 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     query_messages(context, [], limit: limit)
   end
 
+  # A member's send is the GraphQL mutation their browser posts, so it runs through the
+  # real schema and resolver with the member's session: the resolver chooses the sender
+  # name it commits, and the message type answers the name a reader sees. A user without
+  # the capability is refused by the same resolver (`send_family_chat_message/4`).
   def perform_behaviour(context, :send_message_fresh_id, [body]) do
-    send_family_chat_message(context, unique_uuid(), body)
+    if context[:family_chat_capability] == false,
+      do: send_family_chat_message(context, unique_uuid(), body),
+      else: send_through_schema(context, unique_uuid(), body)
   end
 
   def perform_behaviour(context, :rename_sender_account, [new_name]) do
@@ -677,8 +688,17 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     send_family_chat_message(context, unique_uuid(), body, sender: :other_member)
   end
 
+  # The same real subscription document `:holds_subscription` runs, after the
+  # message the Given committed: `subscribe_and_get_topic!/2` raises unless the
+  # document registered this process on a topic.
   def perform_behaviour(context, :establish_subscription, [_subscription_name, slug]) do
-    Map.put(context, :family_chat_subscribed_slug, slug)
+    :ok = ensure_family_chat_subscriptions_started!()
+    user_id = current_user(context)
+    topic = subscribe_and_get_topic!(slug, %{"userId" => user_id, "roles" => ["parents"]})
+
+    context
+    |> Map.put(:family_chat_subscribed_slug, slug)
+    |> Map.put(:family_chat_subscription_topic, topic)
   end
 
   def perform_behaviour(context, :query_web_push_configuration, _args) do
@@ -722,8 +742,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   end
 
   # Genuinely calls the real production socket handler
-  # (`BnestAppWeb.UserSocket.connect/3`) directly -- not
-  # `FamilyChat.socket_context_for/1` alone -- with a spoofed `userId`/`role`
+  # (`BnestAppWeb.UserSocket.connect/3`) directly, with a spoofed `userId`/`role`
   # in the socket CONNECT PARAMS alongside a real, distinct session-derived
   # identity, so a regression that started trusting client-supplied params
   # for identity would actually be caught. Built via a bare `%Phoenix.Socket{}`
@@ -732,15 +751,31 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # layer bypasses the real HTTP/socket transport entirely, per this module's
   # moduledoc); the integration driver exercises the same real function
   # through the genuine transport.
+  #
+  # The session is what `BnestAppWeb.UserAuth.fetch_current_user/2` writes for a
+  # logged-in member without the admin role: the account, and the digest of the
+  # browser's own session token, taken through the Identity facade from a
+  # synthetic token.
   def perform_behaviour(context, :open_socket_authenticated, _args) do
     real_user_id = current_user(context)
-    spoofed_user_id = "spoofed-" <> unique_uuid()
+    spoofed_user_id = "test-user-family-chat-spoofed-" <> unique_uuid()
 
-    session = %{"current_user" => %{"userId" => real_user_id}}
-    spoofed_params = %{"userId" => spoofed_user_id, "role" => "admin"}
+    session = %{
+      "current_user" => %{
+        "userId" => real_user_id,
+        "displayUsername" => synthetic_display_name(real_user_id),
+        "roles" => ["parents"]
+      },
+      "session_digest" => Identity.session_digest("test-user-unit-session-" <> unique_uuid())
+    }
+
+    spoofed_params = %{"userId" => spoofed_user_id, "role" => "admin", "roles" => ["admin"]}
 
     context
-    |> Map.put(:family_chat_spoofed_user_id, spoofed_user_id)
+    |> Map.merge(%{
+      family_chat_spoofed_user_id: spoofed_user_id,
+      family_chat_socket_session: session
+    })
     |> Map.put(:family_chat_result, connect_family_chat_socket(spoofed_params, session))
   end
 
@@ -1036,7 +1071,16 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     |> Map.put(:family_chat_published_events, published_events())
   end
 
-  def perform_behaviour(context, :inspect_router_routes, _args), do: context
+  # The router's own mounting decision (`BnestAppWeb.DevRoutes.mounted?/1`, which its
+  # compile-time branch calls) taken for the production configuration, beside the routes
+  # this build's router compiled from its own configuration.
+  def perform_behaviour(context, :inspect_router_routes, _args) do
+    Map.merge(context, %{
+      family_chat_production_mounts_dev_routes:
+        BnestAppWeb.DevRoutes.mounted?(context.family_chat_production_dev_routes),
+      family_chat_graphiql_routes: graphiql_routes()
+    })
+  end
 
   # --- outcome ---
 
@@ -1111,14 +1155,16 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     count_messages_for(context, context.family_chat_client_message_id) == 1
   end
 
+  # The name the response carries is the session's display username, which differs from
+  # the user ID the same session names.
   def behaviour_outcome?(context, :message_reports_real_display_name, _args) do
-    case context.family_chat_result do
-      {:ok, %{sender_display_name: name, sender_id: sender_id}} ->
-        name == synthetic_display_name(sender_id) and name != sender_id
+    %{"userId" => user_id, "displayUsername" => display} = context.family_chat_session_user
 
-      _other ->
-        false
-    end
+    display != user_id and
+      match?(
+        {:ok, %{sender_display_name: ^display, sender_id: ^user_id}},
+        context.family_chat_result
+      )
   end
 
   def behaviour_outcome?(context, :message_shows_current_sender_display_name, [expected_name]) do
@@ -1178,13 +1224,21 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       quoted.body_preview == context.family_chat_reply_target_body
   end
 
-  def behaviour_outcome?(context, :message_has_no_quote, _args),
-    do: match?({:ok, %{reply_to: nil, reply_to_message_id: nil}}, context.family_chat_result)
+  # The response carries no quote, and the commit it reports names no reply target.
+  def behaviour_outcome?(context, :message_has_no_quote, _args) do
+    case context.family_chat_result do
+      {:ok, %{id: id, reply_to: nil}} ->
+        match?(%{reply_to_message_id: nil}, stored_message(room_slug(context), id))
 
-  def behaviour_outcome?(context, :quote_preview_within_budget, _args) do
+      _other ->
+        false
+    end
+  end
+
+  # The graphemes the preview keeps before the ellipsis that marks the cut.
+  def behaviour_outcome?(context, :quote_preview_within_budget, [budget]) do
     {:ok, %{reply_to: quoted}} = context.family_chat_result
-    # 160 budgeted graphemes plus the one ellipsis that marks the cut.
-    String.length(quoted.body_preview) <= 161
+    quoted.body_preview |> String.trim_trailing("…") |> String.length() <= budget
   end
 
   def behaviour_outcome?(context, :quote_preview_elided, _args) do
@@ -1192,15 +1246,17 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     String.ends_with?(quoted.body_preview, "…")
   end
 
-  # Reads the quoted message back through the ordinary page, so this asserts
-  # what a client actually receives for it, not what the fixture wrote.
+  # Reads the quoted message back through the page a client gets, and compares it with
+  # the 400-grapheme body the Given wrote, not with anything the commit echoed.
   def behaviour_outcome?(context, :quoted_body_unshortened, _args) do
     target_id = context.family_chat_reply_target_id
-    slug = context[:family_chat_room_slug] || "ruang-keluarga"
 
-    case stored_message(slug, target_id) do
-      %{body: body} -> body == context.family_chat_reply_target_body
-      nil -> false
+    case FamilyChat.list_messages(current_user(context), room_slug(context),
+           after_id: target_id - 1,
+           limit: 1
+         ) do
+      {:ok, %{nodes: [%{id: ^target_id, body: body}]}} -> body == String.duplicate("a", 400)
+      _other -> false
     end
   end
 
@@ -1473,20 +1529,25 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       push_requests() == []
   end
 
+  # The context is the session's own user and the digest of the session's own token.
   def behaviour_outcome?(context, :socket_context_server_resolved, _args) do
-    case socket_absinthe_context(context.family_chat_result) do
-      %{user_id: user_id, session_digest: digest} -> is_binary(user_id) and is_binary(digest)
-      _other -> false
-    end
+    %{"current_user" => user, "session_digest" => digest} = context.family_chat_socket_session
+
+    match?(
+      %{current_user: ^user, session_digest: ^digest},
+      socket_absinthe_context(context.family_chat_result)
+    )
   end
 
-  # Genuine negative-input check: the spoofed `userId`/`role` connect params
-  # `:open_socket_authenticated` actually sent must never surface as the
-  # resolved identity -- only the real, server/session-derived user id may.
+  # Genuine negative-input check: the spoofed `userId` and `admin` role the connect
+  # params `:open_socket_authenticated` sent must never surface in the resolved
+  # identity -- only the session's member, with the session's roles.
   def behaviour_outcome?(context, :socket_params_ignored, _args) do
     case socket_absinthe_context(context.family_chat_result) do
-      %{user_id: user_id} ->
-        user_id == current_user(context) and user_id != context[:family_chat_spoofed_user_id]
+      %{current_user: %{"userId" => user_id, "roles" => roles}} ->
+        user_id == current_user(context) and user_id != context.family_chat_spoofed_user_id and
+          "admin" not in roles and
+          roles == context.family_chat_socket_session["current_user"]["roles"]
 
       _other ->
         false
@@ -1497,22 +1558,15 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     context.family_chat_result == :error or match?({:error, _}, context.family_chat_result)
   end
 
-  # Genuinely depends on the real compile-time-captured `dev_routes` flag
-  # (`BnestAppWeb.Router.dev_routes_enabled?/0` -- the same module attribute
-  # value the router's own mounting `if` uses), not just on the ordinary
-  # test-env-compiled router's route list alone: a regression where the
-  # mounting decision diverged from that flag (e.g. a hardcoded `if true`)
-  # would leave `dev_routes_enabled?/0` still reporting this build's real
-  # (falsy) value while `__routes__()` started carrying GraphiQL regardless,
-  # which this conjunction catches. Catching a `config/prod.exs` edit that
-  # flipped the flag itself requires reading that file, which the unit-layer
-  # boundary scan forbids (filesystem reads); `IntegrationFamilyChatDriver`'s
-  # identical scenario reads it for real. Flagged in learnings.md as a
-  # structural proxy, mirroring this driver's other documented proxies (e.g.
-  # `:only_same_slot_sockets_receive`).
-  def behaviour_outcome?(_context, :no_graphiql_route, _args) do
-    BnestAppWeb.Router.dev_routes_enabled?() == false and
-      not Enum.any?(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
+  # The production configuration mounts nothing, and the router follows that same
+  # decision: the routes it compiled carry GraphiQL exactly when the decision it took for
+  # this build's own configuration says so. A router that mounted GraphiQL regardless of
+  # the decision, or a decision that mounted it for production, fails here.
+  def behaviour_outcome?(context, :no_graphiql_route, _args) do
+    context.family_chat_production_mounts_dev_routes == false and
+      BnestAppWeb.Router.dev_routes_enabled?() ==
+        BnestAppWeb.DevRoutes.mounted?(Application.get_env(:bnest_app, :dev_routes)) and
+      context.family_chat_graphiql_routes != [] == BnestAppWeb.Router.dev_routes_enabled?()
   end
 
   # The migration's room, and the room read back from the store, both open for posting.
@@ -2093,6 +2147,77 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     |> Map.put(:family_chat_client_message_id, client_message_id)
   end
 
+  # Runs `sendFamilyChatMessage` through the real schema, with the session a logged-in
+  # member's browser carries: its display username differs from its user ID. The
+  # response's message is answered in the facade's own shape for the shared Thens.
+  defp send_through_schema(context, client_message_id, body) do
+    :ok = start_identity_records!()
+    user_id = current_user(context)
+
+    session_user = %{
+      "userId" => user_id,
+      "roles" => ["parents"],
+      "displayUsername" => synthetic_display_name(user_id)
+    }
+
+    {:ok, response} =
+      Absinthe.run(
+        """
+        mutation($roomSlug: String!, $clientMessageId: ID!, $body: String!) {
+          sendFamilyChatMessage(roomSlug: $roomSlug, clientMessageId: $clientMessageId, body: $body) {
+            id senderId senderDisplayName body committedAt
+            replyTo { id senderKind senderDisplayName bodyPreview }
+          }
+        }
+        """,
+        BnestAppWeb.Schema,
+        variables: %{
+          "roomSlug" => room_slug(context),
+          "clientMessageId" => client_message_id,
+          "body" => expand_body_fixture(body)
+        },
+        context: %{current_user: session_user}
+      )
+
+    Map.merge(context, %{
+      family_chat_result: response_message(response),
+      family_chat_client_message_id: client_message_id,
+      family_chat_session_user: session_user
+    })
+  end
+
+  # `Identity.display_name_for/1`, the lookup the message type resolves a sender's name
+  # through, reads accounts over Storage's records, which `mix test --no-start` leaves
+  # unstarted. In-memory Storage and record doubles stand in, holding no account, so the
+  # lookup finds none and the type answers the name the resolver stamped on the commit.
+  # Started once per scenario, an ExBdd retry included.
+  defp start_identity_records! do
+    if is_nil(GenServer.whereis(Records)) do
+      previous = StoragePorts.install()
+      ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous) end)
+      ExUnit.Callbacks.start_supervised!({Records, store: InMemoryRecordBackend.start()})
+    end
+
+    :ok
+  end
+
+  defp response_message(%{data: %{"sendFamilyChatMessage" => %{} = sent}}) do
+    {:ok, committed_at, 0} = DateTime.from_iso8601(sent["committedAt"])
+
+    {:ok,
+     %{
+       id: String.to_integer(sent["id"]),
+       sender_id: sent["senderId"],
+       sender_display_name: sent["senderDisplayName"],
+       body: sent["body"],
+       committed_at: committed_at,
+       reply_to: sent["replyTo"]
+     }}
+  end
+
+  defp response_message(%{errors: [%{extensions: %{code: code}} | _]}),
+    do: {:error, %{code: code}}
+
   # `use_family_chat` is authorized in `BnestAppWeb.Resolvers.FamilyChatResolver`
   # (`FamilyChat` itself only checks authentication), so a user without the
   # capability runs the GraphQL document through the real schema and resolver.
@@ -2185,6 +2310,14 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     %{nodes: nodes} = RoomStore.list_messages(store, room.id, nil, nil, 10_000)
     nodes
   end
+
+  defp room_slug(context),
+    do:
+      context[:family_chat_room_slug] || context[:family_chat_subscribed_slug] ||
+        "ruang-keluarga"
+
+  defp graphiql_routes,
+    do: Enum.filter(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
 
   defp stored_message(slug, message_id) do
     store = FamilyChat.adapter(:room_store).new()

@@ -211,14 +211,6 @@ defmodule BnestApp.FamilyChat do
     end
   end
 
-  @spec socket_context_for(String.t() | nil) ::
-          {:ok, %{user_id: String.t(), session_digest: String.t()}} | safe_error()
-  def socket_context_for(nil), do: Policy.unauthenticated()
-
-  def socket_context_for(user_id) when is_binary(user_id) do
-    {:ok, %{user_id: user_id, session_digest: Policy.session_digest(user_id)}}
-  end
-
   @doc "The internal PubSub topic for a room's committed-message subscription (tech-doc 003: resolved room ID)."
   @spec subscription_topic(pos_integer()) :: String.t()
   def subscription_topic(room_id) when is_integer(room_id),

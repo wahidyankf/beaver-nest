@@ -42,16 +42,6 @@ defmodule BnestApp.FamilyChatTest do
                  "hi"
                )
     end
-
-    # `BnestAppWeb.UserSocket.connect/3` itself never reaches this clause (its
-    # own `with %{"userId" => _} = user <- session_user(connect_info)` gates
-    # on a non-nil user id before ever calling `socket_context_for/1`), so
-    # this is the one place `socket_context_for(nil)`'s own documented safe
-    # error is exercised directly.
-    test "socket_context_for/1 rejects a nil user id" do
-      assert {:error, %{code: "UNAUTHENTICATED", details: nil}} =
-               FamilyChat.socket_context_for(nil)
-    end
   end
 
   describe "the configured room store" do
@@ -282,17 +272,6 @@ defmodule BnestApp.FamilyChatTest do
 
       assert {:error, %{code: "VALIDATION_FAILED"}} =
                FamilyChat.post_system_message(slug, "system:test-producer-2", " ")
-    end
-  end
-
-  describe "socket_context_for/1" do
-    test "carries the user and a SHA-256 session digest of it" do
-      assert {:ok, %{user_id: "test-user-family-chat-socket", session_digest: digest}} =
-               FamilyChat.socket_context_for("test-user-family-chat-socket")
-
-      assert digest ==
-               :crypto.hash(:sha256, "test-user-family-chat-socket")
-               |> Base.encode16(case: :lower)
     end
   end
 

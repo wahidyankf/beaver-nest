@@ -641,18 +641,21 @@ step("the reply strip renders it", async (context) => {
   return context;
 });
 
-step("at most {int} graphemes are shown", async (context, budget) => {
-  const { elements } = await current();
-  const shown = elements.replyStripPreview.textContent ?? "";
-  // The budget plus the one ellipsis that marks the cut -- the same
-  // allowance the backend driver's `quote_preview_within_budget` makes.
-  const allowed = Number(budget) + 1;
-  expect(
-    graphemeCount(shown) <= allowed,
-    `the strip shows ${graphemeCount(shown)} graphemes`,
-  );
-  return context;
-});
+step(
+  "at most {int} graphemes are shown before the ellipsis",
+  async (context, budget) => {
+    const { elements } = await current();
+    const shown = elements.replyStripPreview.textContent ?? "";
+    // The graphemes kept before the one ellipsis that marks the cut, as the
+    // backend driver's `quote_preview_within_budget` counts them.
+    const kept = shown.endsWith("…") ? shown.slice(0, -1) : shown;
+    expect(
+      graphemeCount(kept) <= Number(budget),
+      `the strip shows ${graphemeCount(kept)} graphemes before the ellipsis`,
+    );
+    return context;
+  },
+);
 
 step("the shown text ends with an ellipsis", async (context) => {
   const { elements } = await current();

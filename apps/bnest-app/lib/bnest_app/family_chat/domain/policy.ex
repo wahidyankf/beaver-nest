@@ -61,11 +61,6 @@ defmodule BnestApp.FamilyChat.Domain.Policy do
     end
   end
 
-  @doc "The digest a subscription socket carries in place of the user ID."
-  @spec session_digest(String.t()) :: String.t()
-  def session_digest(user_id),
-    do: :crypto.hash(:sha256, user_id) |> Base.encode16(case: :lower)
-
   @spec unauthenticated() :: safe_error()
   def unauthenticated, do: {:error, %{code: "UNAUTHENTICATED", details: nil}}
 

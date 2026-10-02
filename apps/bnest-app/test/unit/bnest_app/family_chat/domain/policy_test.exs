@@ -48,11 +48,6 @@ defmodule BnestApp.FamilyChat.Domain.PolicyTest do
     assert Policy.validate_reply_target("12abc") == @validation_failed
   end
 
-  test "the session digest is the user ID's lowercase SHA-256" do
-    assert Policy.session_digest("test-user-policy") ==
-             :crypto.hash(:sha256, "test-user-policy") |> Base.encode16(case: :lower)
-  end
-
   test "every refusal is a safe error without details" do
     assert Policy.unauthenticated() == {:error, %{code: "UNAUTHENTICATED", details: nil}}
     assert Policy.room_not_found() == {:error, %{code: "ROOM_NOT_FOUND", details: nil}}

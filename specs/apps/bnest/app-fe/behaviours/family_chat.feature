@@ -170,7 +170,7 @@ Feature: Family chat room
   Scenario: A long quoted message is shortened in the strip
     Given the selected message body is 400 graphemes long
     When the reply strip renders it
-    Then at most 160 graphemes are shown
+    Then at most 160 graphemes are shown before the ellipsis
     And the shown text ends with an ellipsis
 
   @fe-vitest-unit
