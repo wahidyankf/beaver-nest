@@ -114,8 +114,21 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context |> start_sifat_allah_records() |> mount_sifat_allah()
   end
 
+  # The browser lands wherever the router's "/family-chat" action redirects it to.
+  # A location naming no room the visitor may open is the controller's "Not found" page.
   def open(context, "/family-chat") do
-    render_family_chat_room(context, FamilyChat.canonical_room_slug())
+    location = family_chat_redirect_location()
+    slug = String.replace_prefix(location, "/family-chat/", "")
+
+    case FamilyChat.get_room_for("test-user-unit", slug) do
+      {:ok, _room} ->
+        context |> render_family_chat_room(slug) |> Map.put(:route, location)
+
+      {:error, _safe_error} ->
+        context
+        |> Map.put(:route, location)
+        |> Map.put(:page, LazyHTML.from_fragment("Not found"))
+    end
   end
 
   def open(context, "/family-chat/" <> slug) do
@@ -1159,6 +1172,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Safe.to_iodata()
     |> IO.iodata_to_binary()
     |> LazyHTML.from_fragment()
+  end
+
+  # The router's own route for "/family-chat", resolved without dispatching and run on a bare
+  # conn, so the location is the one the controller answers rather than one this driver knows.
+  defp family_chat_redirect_location do
+    %{plug: controller, plug_opts: action} =
+      Phoenix.Router.route_info(BnestAppWeb.Router, "GET", "/family-chat", "")
+
+    {BnestAppWeb.FamilyChatController, :redirect_to_canonical} = {controller, action}
+    response = apply(controller, action, [Plug.Test.conn(:get, "/family-chat"), %{}])
+    {302, [location]} = {response.status, Plug.Conn.get_resp_header(response, "location")}
+    location
   end
 
   defp render_family_chat_room(context, slug) do
