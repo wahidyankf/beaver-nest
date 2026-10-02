@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/wahidyankf/rhino/v0.8.0/schemas/repo-config/v2.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/wahidyankf/rhino/v0.9.0/schemas/repo-config/v2.schema.json
 # Beaver-Nest consumer policy for the immutable Rhino v0.4.0 release.
 
 schema: rhino/repo-config/v2
@@ -282,6 +282,42 @@ policies:
         - { path: specs/apps }
         - { path: specs/tools }
         - { path: plans }
+    # Owner: repo-governance/development/quality-gate-adapter.md
+    quality-gates:
+      root: repo-governance/workflows
+      agents: .agents/agents
+      groups: [plan, quality, maintenance]
+      gate-group: quality
+      gate-headings:
+        - Entry
+        - Inputs
+        - Deterministic Boundary
+        - Cycle
+        - Termination
+        - Verdict
+        - Ledger
+      verdict-heading: Verdict
+      verdicts: [PASS, PASS_WITH_FINDINGS, FAIL, BLOCKED]
+      retired-inputs: [max-iterations, min-iterations, max-audits]
+      propagation-headings:
+        - Contract
+        - Scope
+        - Executor
+        - Row Verification
+        - Family Rules
+      defaults:
+        mode: normal
+        max-cycles: 3
+      gates:
+        - family: plan
+        - family: docs
+        - family: rules
+        - family: harness
+        - family: ci
+        - family: pr-review
+        - family: specs
+        - { family: ui-web, subject: apps/bnest-app }
+        - { family: api-http, subject: apps/bnest-app }
 
 gates:
   composition:
@@ -366,6 +402,17 @@ gates:
           [
             { literal: governance },
             { literal: directory-map },
+            { literal: validate },
+          ]
+      run-on: { pre-push: {}, pull-request: {} }
+    - id: quality-gates
+      type: check
+      command:
+        executable: ./rhino
+        args:
+          [
+            { literal: governance },
+            { literal: quality-gates },
             { literal: validate },
           ]
       run-on: { pre-push: {}, pull-request: {} }

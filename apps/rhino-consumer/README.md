@@ -51,13 +51,14 @@ update record that pushes `HEAD` as a new ref, because the `public-safety-range`
 and refuses to run without one; a new ref starts from `origin/main`, so the range is the checkout's unpushed commits.
 
 Two of them screen what may leave this repository and run first — `public-safety-tree` over the tracked tree, and
-`public-safety-range` over the range commit by commit. The other six are the validators:
+`public-safety-range` over the range commit by commit. The other seven are the validators:
 
 | Invocation                                | What it checks                                            |
 | ----------------------------------------- | --------------------------------------------------------- |
 | `rhino repo-config validate`              | the declared policy itself is complete and usable         |
 | `rhino governance word-budget validate`   | every governed surface is inside its declared word budget |
 | `rhino governance directory-map validate` | every mapped tree's READMEs name their siblings           |
+| `rhino governance quality-gates validate` | every quality gate and propagation keeps the contract     |
 | `rhino harness adapters validate`         | every declared harness adapter still routes to the canon  |
 | `rhino md internal-link validate`         | every relative Markdown link resolves                     |
 | `rhino md mermaid validate`               | every diagram stays inside the label and colour rules     |
@@ -66,7 +67,8 @@ Badakmini ran eight invocations to cover the same ground. The count fell rather 
 its four `--directory` calls became one, because the four mapped trees are now declared in
 `repo-config.yml` and the call site no longer restates them. `repo-config validate` is the one
 addition, and it has no Badakmini counterpart — the policy only became a checkable artifact when it
-stopped being compiled into the validator.
+stopped being compiled into the validator. `governance quality-gates validate` came later, with the
+bounded quality-gate contract, and has no Badakmini counterpart either.
 
 Until this cutover the target ran `./rhino --bootstrap-exec apps/rhino-consumer/repository-gate.sh`,
 a local script naming six checks to run in parallel against one resolution. Both retire here. The
