@@ -186,12 +186,6 @@ defmodule BnestApp.MixProject do
     # a context's layers deletes its entries and brings its facade under the threshold.
     legacy_core = [
       BnestApp.AdminConfig.Registry,
-      BnestApp.Backup,
-      BnestApp.Backup.Capacity,
-      BnestApp.Backup.Config,
-      BnestApp.Backup.Location,
-      BnestApp.Backup.Receipt,
-      BnestApp.Backup.Run,
       BnestApp.Deployment
     ]
 

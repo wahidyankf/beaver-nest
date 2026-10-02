@@ -19,8 +19,6 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   import Phoenix.ChannelTest
 
   alias BnestApp.Backup
-  alias BnestApp.Backup.Config, as: BackupConfig
-  alias BnestApp.Backup.Run, as: BackupRun
   alias BnestApp.FamilyChat.Adapters.SqliteRoomStore
   alias BnestApp.FamilyChat.Ports.RoomStore
   alias BnestApp.Identity
@@ -35,6 +33,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.InMemory.CapacityProbe, as: InMemoryCapacityProbe
   alias BnestApp.Test.InMemory.PushSender, as: InMemoryPushSender
   alias BnestApp.Test.SchedulerDispatch
   alias BnestApp.Test.Seeds.Schedules
@@ -485,8 +484,23 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     })
   end
 
-  def prepare_behaviour(context, :insufficient_capacity, _args),
-    do: Map.put(context, :family_chat_backup_capacity, :insufficient)
+  # The destination's free space cannot be made insufficient on a real disk, so Backup
+  # measures it through the in-memory capacity probe, which reports none at all, until the
+  # scenario exits. The context key tells the home page driver's shared "the backup handler
+  # runs" step which scenario it serves.
+  def prepare_behaviour(context, :insufficient_capacity, _args) do
+    adapters = Application.fetch_env!(:bnest_app, BnestApp.Backup)
+
+    Application.put_env(
+      :bnest_app,
+      BnestApp.Backup,
+      Keyword.put(adapters, :capacity_probe, InMemoryCapacityProbe)
+    )
+
+    ExUnit.Callbacks.on_exit(fn -> Application.put_env(:bnest_app, BnestApp.Backup, adapters) end)
+    :ok = InMemoryCapacityProbe.put_available_bytes(InMemoryCapacityProbe.install(), 0)
+    Map.put(context, :family_chat_backup_capacity, :insufficient)
+  end
 
   def prepare_behaviour(context, :continuous_probes_running, _args) do
     seed_backup_load_padding!()
@@ -967,13 +981,20 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     )
   end
 
+  # Always injects its own isolated destination, never the configured default, and keeps it
+  # until the scenario exits so a Then can read what the destination holds afterwards.
   def perform_behaviour(context, :backup_runs_full_duration, _args) do
+    destination = TestBackupDestination.create!("capacity-" <> unique_uuid())
+    ExUnit.Callbacks.on_exit(fn -> TestBackupDestination.cleanup!(destination) end)
+
     opts =
-      [deadline: @behaviour_now]
-      |> maybe_put_opt(:capacity_check, context[:family_chat_backup_capacity])
+      [deadline: @behaviour_now, destination_directory: destination.directory]
       |> maybe_put_opt(:probe_watch, context[:family_chat_probes_running])
 
-    Map.put(context, :family_chat_result, BnestApp.Backup.run(opts))
+    Map.merge(context, %{
+      family_chat_result: Backup.run(opts),
+      family_chat_backup_directory: destination.directory
+    })
   end
 
   def perform_behaviour(context, :restore_artifact_isolated_root, _args) do
@@ -992,7 +1013,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # the integration layer"). Also genuinely "through Scheduler->handler-
   # >service" (tech-doc 009's Concurrent-write Proof step 3): claims a real
   # setup claim through the `Scheduler` facade and dispatches through its generic
-  # `execute/2`, which resolves `BnestApp.Backup.Run` from the configured
+  # `execute/2`, which resolves Backup's `ScheduledBackupTask` from the configured
   # `Scheduler.TaskRegistry` exactly as the 60s production tick does --
   # never `BnestApp.Backup.run/1` called directly.
   def perform_behaviour(context, :routed_backup_runs_full_duration, _args) do
@@ -1019,7 +1040,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
     Map.merge(context, %{
       family_chat_load_probes: probes,
-      family_chat_load_receipts: BackupRun.owned_receipts(location.directory),
+      family_chat_load_receipts: Backup.owned_receipts(location.directory),
       family_chat_load_directory: location.directory
     })
   end
@@ -1049,7 +1070,11 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
     ExUnit.Callbacks.on_exit(fn -> TestBackupDestination.cleanup!(destination) end)
 
-    Map.merge(context, %{family_chat_result: result, family_chat_load_probes: probes})
+    Map.merge(context, %{
+      family_chat_result: result,
+      family_chat_load_probes: probes,
+      family_chat_backup_directory: destination.directory
+    })
   end
 
   # Second half: the SAME forced-timeout condition, driven through the real
@@ -1719,8 +1744,12 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     match?({:error, {:retryable, ^expected_category, _artifact}}, context.family_chat_result)
   end
 
-  def behaviour_outcome?(context, :no_partial_or_final_artifact, _args),
-    do: match?({:error, {:retryable, _category, nil}}, context.family_chat_result)
+  # The failure names no artifact, and the real destination the run wrote to holds no backup
+  # file, partial or final, afterwards: read from the disk while it still exists.
+  def behaviour_outcome?(context, :no_partial_or_final_artifact, _args) do
+    backups = Path.wildcard(Path.join(context.family_chat_backup_directory, "bnest-prod-*"))
+    match?({:error, {:retryable, _category, nil}}, context.family_chat_result) and backups == []
+  end
 
   def behaviour_outcome?(context, :probes_within_budget, _args) do
     %{failures: failures, samples: samples} = context.family_chat_load_probes
@@ -1902,9 +1931,9 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     )
   end
 
-  # Isolated `BnestApp.Backup.Config` destination for Item 5's Scheduler-
-  # driven scenarios: `BnestApp.Backup.Run.execute/2` always calls
-  # `Config.resolve/0` itself (it never accepts a `:destination_directory`
+  # Isolated configured Backup destination for Item 5's Scheduler-driven
+  # scenarios: Backup's `ScheduledBackupTask.execute/2` always calls
+  # `Backup.destination/0` itself (it never accepts a `:destination_directory`
   # opt -- unlike `Backup.run/1` directly), so reaching it through the real
   # Scheduler chain requires actually configuring the destination, exactly
   # as `home_page_driver.ex`'s own `prepare_backup_destination/1` already
@@ -1925,7 +1954,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       File.rm_rf(root)
     end)
 
-    {:ok, location} = BackupConfig.save(Path.join(root, "destination"))
+    {:ok, location} = Backup.save_destination(Path.join(root, "destination"))
     location
   end
 

@@ -15,7 +15,7 @@ defmodule BnestApp.AdminConfig.Registry do
       label: "Schedules & backups",
       description: "Daily jobs and verified production database backups",
       path: "/admin/settings/schedules",
-      owner: BnestApp.Backup.Config,
+      owner: BnestApp.Backup,
       editable_fields: ["destination_directory", "enabled", "daily_time_wib"]
     }
   ]

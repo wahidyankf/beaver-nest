@@ -15,9 +15,10 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   and deliveries on that same in-memory store and pushes to a push-client double
   (`BnestApp.Test.InMemory.PushSender`) that records each request in the calling process. The
   Scheduler keeps its schedules and runs in the in-memory schedule store `UnitSupport` installs
-  for every scenario. The scenarios that drive Backup, which still snapshots Family Chat's SQLite
-  database until U12, select the SQLite room store for themselves through
-  `sqlite_room_store!/0`.
+  for every scenario. Backup keeps its configuration and destination files in the in-memory
+  doubles `UnitSupport` installs for every scenario, and snapshots that scenario's in-memory
+  room store (`BnestApp.Test.InMemory.DatabaseSnapshot`); its destinations are synthetic
+  `/srv/test-user-backup` paths no disk holds.
   """
 
   alias BnestApp.Backup
@@ -30,15 +31,15 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   alias BnestApp.PushNotifications.Domain.Policy, as: PushPolicy
   alias BnestApp.Release.CaddyConfig
   alias BnestApp.Scheduler
-  alias BnestApp.SqliteRepo
+  alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
+  alias BnestApp.Test.InMemory.CapacityProbe, as: InMemoryCapacityProbe
+  alias BnestApp.Test.InMemory.DatabaseSnapshot, as: InMemoryDatabaseSnapshot
   alias BnestApp.Test.InMemory.DeliveryStore, as: InMemoryDeliveryStore
   alias BnestApp.Test.InMemory.PreferenceStore, as: InMemoryPreferenceStore
   alias BnestApp.Test.InMemory.RoomStore, as: InMemoryRoomStore
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
   alias BnestApp.Test.InMemory.SubscriptionStore, as: InMemorySubscriptionStore
-  alias BnestApp.Test.LegacySqliteRoomStore
   alias BnestApp.Test.SchedulerDispatch
-  alias BnestApp.TestBackupDestination
   alias BnestAppWeb.Plugs.GraphQLPipeline
 
   # This driver's whole purpose during RED is to call domain functions that do
@@ -55,10 +56,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
 
   @behaviour_now ~U[2026-09-18 00:00:00Z]
 
-  # See the identical constants on `BnestApp.Behaviour.IntegrationFamilyChatDriver`
-  # for why padding lives in `web_push_subscriptions` (cleanable) rather than
-  # `family_chat_messages` (trigger-enforced permanent).
-  @load_proof_padding_rows 1800
   @load_proof_probe_count 20
 
   # --- prepare ---
@@ -412,12 +409,10 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # (00:15 WIB) seed time, both pristine at revision 1.
   #
   # The backup schedule is due now, so its claim runs the registered Backup task,
-  # which resolves its destination itself and snapshots Family Chat's SQLite
-  # database (U12): the Given configures an isolated destination and prepares
-  # that database.
+  # which resolves its destination itself and snapshots the scenario's in-memory
+  # room store: the Given saves a synthetic destination through the Backup facade.
   def prepare_behaviour(context, :schedule_due, [key]) do
-    :ok = backup_database!()
-    _location = TestBackupDestination.configure!("scheduled-" <> unique_uuid())
+    _location = backup_destination!("scheduled")
     :ok = put_backup_schedule!(key, %{next_run_at: @behaviour_now})
     Map.put(context, :family_chat_due_schedule_key, key)
   end
@@ -470,7 +465,11 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     })
   end
 
+  # The destination's measured free space is none at all, so the capacity preflight
+  # refuses whatever the snapshot needs. The context key tells the home page driver's
+  # shared "the backup handler runs" step which scenario it serves.
   def prepare_behaviour(context, :insufficient_capacity, _args) do
+    :ok = InMemoryCapacityProbe.put_available_bytes(InMemoryCapacityProbe.new(), 0)
     Map.put(context, :family_chat_backup_capacity, :insufficient)
   end
 
@@ -479,18 +478,11 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     # `list_messages/3` directly, with no `ensure_ready!/0` of its own (that
     # self-healing step is Family Chat's, not the backup service's, concern
     # -- see `BnestApp.Backup`'s moduledoc); this scenario needs the
-    # canonical room to already exist for probes to succeed regardless of
-    # whether an earlier scenario in this shared test database happened to
-    # have created it yet. The backup snapshots Family Chat's SQLite
-    # database, so the probes write there too (U12).
-    :ok = sqlite_room_store!()
+    # canonical room to already exist for probes to succeed.
     FamilyChat.ensure_ready!()
-    seed_backup_load_padding!()
 
     # The live room holds history before the backup starts, so the snapshot's
-    # self-consistency check always has committed messages to compare. The
-    # SQLite database used to get them from whichever earlier scenarios ran
-    # first; those now commit to their own in-memory store.
+    # self-consistency check always has committed messages to compare.
     {:ok, _history} =
       FamilyChat.send_message(
         unique_sender_id(),
@@ -527,18 +519,14 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # is the literal message text `:no_secret_in_restore_evidence` asserts never
   # appears in restore's evidence string.
   def prepare_behaviour(context, :verified_backup_artifact, _args) do
-    # The backup snapshots Family Chat's SQLite database (U12).
-    :ok = sqlite_room_store!()
     FamilyChat.ensure_ready!()
-    destination = TestBackupDestination.create!("verified-backup-artifact")
+    destination = backup_destination!("verified-backup-artifact")
     known_body = "restore-fixture-secret-" <> unique_uuid()
-    subscription_id = create_active_subscription!(unique_sender_id())
-    # Registered immediately, not after the steps below that can themselves
-    # raise (`insert_message!/6`, `Backup.run/1`) -- see
-    # `:three_members_with_subscriptions`'s own `on_exit` comment for why a
-    # cleanup call placed AFTER a fallible step never fires on a failed (or
-    # ExBdd-retried) attempt, leaking this row into later scenarios' fan-out.
-    ExUnit.Callbacks.on_exit(fn -> disable_subscription_row!(subscription_id) end)
+    # An active subscription in the scenario's own store, so the message below fans a
+    # pending delivery out to it.
+    _subscription =
+      InMemorySubscriptionStore.subscribe!(InMemoryRoomStore.new(), unique_sender_id())
+
     room = FamilyChat.canonical_room()
 
     {:ok, _message} =
@@ -556,7 +544,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
 
     Map.merge(context, %{
       family_chat_backup_artifact: artifact,
-      family_chat_backup_destination: destination,
       family_chat_known_body: known_body
     })
   end
@@ -953,21 +940,19 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     Map.put(context, :family_chat_result, {:ok, Scheduler.get_schedule(key)})
   end
 
-  # Always injects its own isolated destination (never the real
-  # `BnestApp.Backup.Config.resolve/0` default) and cleans it up
-  # immediately after -- this call is the whole scenario, so nothing later
-  # needs the directory to still exist.
+  # Always injects its own synthetic destination, never the configured default, and
+  # keeps it so a Then can read what the destination holds afterwards.
   def perform_behaviour(context, :backup_runs_full_duration, _args) do
-    destination = TestBackupDestination.create!("run-full-duration")
+    destination = backup_destination!("run-full-duration")
 
     opts =
       [deadline: @behaviour_now, destination_directory: destination.directory]
-      |> maybe_put_opt(:capacity_check, context[:family_chat_backup_capacity])
       |> maybe_put_opt(:probe_watch, context[:family_chat_probes_running])
 
-    result = Backup.run(opts)
-    TestBackupDestination.cleanup!(destination)
-    Map.put(context, :family_chat_result, result)
+    Map.merge(context, %{
+      family_chat_result: Backup.run(opts),
+      family_chat_backup_directory: destination.directory
+    })
   end
 
   # Item 5's unit-layer proxy: reuses `BnestApp.Backup.run/1`'s own
@@ -978,7 +963,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # since this scenario (unlike "A restored backup contains all family chat
   # state") has no separate restore step of its own.
   def perform_behaviour(context, :routed_backup_runs_full_duration, _args) do
-    destination = TestBackupDestination.create!("routed-run-full-duration")
+    destination = backup_destination!("routed-run-full-duration")
 
     opts =
       [deadline: @behaviour_now, destination_directory: destination.directory]
@@ -986,7 +971,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
 
     result = Backup.run(opts)
     restorable? = restorable_self_consistent?(result)
-    TestBackupDestination.cleanup!(destination)
 
     Map.merge(context, %{
       family_chat_result: result,
@@ -1001,7 +985,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # this runs its own probes independently instead, via the same in-process
   # technique `BnestApp.Backup.run_probes/0` itself uses.
   def perform_behaviour(context, :timed_out_backup_direct, _args) do
-    destination = TestBackupDestination.create!("timed-out-direct-" <> unique_uuid())
+    destination = backup_destination!("timed-out-direct")
 
     probes =
       if context[:family_chat_probes_running],
@@ -1009,9 +993,12 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
         else: %{sent_ids: [], samples: [], failures: 0}
 
     result = Backup.run(deadline: @behaviour_now, destination_directory: destination.directory)
-    TestBackupDestination.cleanup!(destination)
 
-    Map.merge(context, %{family_chat_result: result, family_chat_load_probes: probes})
+    Map.merge(context, %{
+      family_chat_result: result,
+      family_chat_load_probes: probes,
+      family_chat_backup_directory: destination.directory
+    })
   end
 
   # Second half: the same timed-out backup, claimed through the Scheduler as the setup
@@ -1022,7 +1009,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # again only because the Scheduler recorded it retryable. The claim names the
   # destination's own ID, since the Backup task skips a setup run of another destination.
   def perform_behaviour(context, :timed_out_backup_via_scheduler, _args) do
-    location = TestBackupDestination.configure!("timed-out-scheduler-" <> unique_uuid())
+    location = backup_destination!("timed-out-scheduler")
     key = "bdd-timed-out-backup-" <> unique_uuid()
     :ok = put_backup_schedule!(key, %{})
 
@@ -1037,11 +1024,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
 
   def perform_behaviour(context, :restore_artifact_isolated_root, _args) do
     result = Backup.restore(context[:family_chat_backup_artifact])
-
-    if destination = context[:family_chat_backup_destination] do
-      TestBackupDestination.cleanup!(destination)
-    end
-
     Map.put(context, :family_chat_result, result)
   end
 
@@ -1766,8 +1748,17 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     match?({:error, {:retryable, ^expected_category, _artifact}}, context.family_chat_result)
   end
 
-  def behaviour_outcome?(context, :no_partial_or_final_artifact, _args),
-    do: match?({:error, {:retryable, _category, nil}}, context.family_chat_result)
+  # The failure names no artifact, and the destination the run wrote to holds no backup
+  # file, partial or final, afterwards: read from the artifact store the run wrote through.
+  def behaviour_outcome?(context, :no_partial_or_final_artifact, _args) do
+    backups =
+      InMemoryArtifactStore.new()
+      |> InMemoryArtifactStore.paths(context.family_chat_backup_directory)
+      |> Enum.filter(&String.contains?(&1, "/bnest-prod-"))
+
+    match?({:error, {:retryable, _category, nil}}, context.family_chat_result) and backups == [] and
+      refused_before_snapshot?(context)
+  end
 
   def behaviour_outcome?(context, :probes_within_budget, _args),
     do:
@@ -2188,9 +2179,8 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   end
 
   # What the room store holds, read through the port on the handle the
-  # facade itself is configured with: the scenario's in-memory store, or the
-  # SQLite one a scenario selected with `sqlite_room_store!/0`. Observation
-  # only; every write goes through the facade.
+  # facade itself is configured with: the scenario's in-memory store.
+  # Observation only; every write goes through the facade.
   defp stored_messages(slug) do
     store = FamilyChat.adapter(:room_store).new()
     room = RoomStore.get_active_room(store, slug)
@@ -2207,19 +2197,22 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   defp latest_message_id(slug),
     do: slug |> stored_messages() |> Enum.map(& &1.id) |> Enum.max(fn -> 0 end)
 
-  # Temporary: the scenarios that drive Backup (U12) reach state it still
-  # snapshots from Family Chat's SQLite database, so they select the SQLite room
-  # store for the rest of the scenario. Every other scenario stays on the
-  # in-memory store.
-  defp sqlite_room_store!, do: LegacySqliteRoomStore.select!()
+  # A synthetic destination, saved through the Backup facade as the operator's override, in
+  # the scenario's in-memory Backup doubles.
+  defp backup_destination!(tag) do
+    {:ok, location} =
+      Backup.save_destination("/srv/test-user-backup/" <> tag <> "-" <> unique_uuid())
 
-  # Backup snapshots Family Chat's SQLite database until U12: selects the SQLite room
-  # store and prepares that database, which starts the shared repository on it, so a
-  # backup scenario never depends on an earlier one having started it.
-  defp backup_database! do
-    :ok = sqlite_room_store!()
-    FamilyChat.ensure_ready!()
+    location
   end
+
+  # A capacity refusal comes before VACUUM INTO, so the snapshot double recorded no copy at
+  # all. Only the capacity scenario carries `:family_chat_backup_capacity`; the timeout
+  # scenario's copy legitimately starts before it is cancelled.
+  defp refused_before_snapshot?(%{family_chat_backup_capacity: :insufficient}),
+    do: InMemoryDatabaseSnapshot.snapshots(InMemoryDatabaseSnapshot.new()) == []
+
+  defp refused_before_snapshot?(_context), do: true
 
   # The production backup schedule as the release seeds it, pristine and enabled at
   # 19:00 UTC, with `fields` replaced.
@@ -2558,84 +2551,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
 
   defp unique_uuid, do: Ecto.UUID.generate()
 
-  # Padding lives in `web_push_subscriptions` (soft-delete only, real
-  # `DELETE` still allowed at the SQL level), never `family_chat_messages`
-  # (trigger-enforced permanent/immutable -- see the migration), so this can
-  # genuinely clean up in `on_exit` instead of permanently growing the
-  # shared test database on every suite run. Mirrors the integration
-  # driver's identical helper exactly.
-  #
-  # Inserted already soft-deleted (`deleted_at`/`deleted_by` populated in the
-  # same INSERT): a first version left these active, and every probe-sent
-  # message during the load proof fans a pending delivery row out to every
-  # active subscription (the SQLite room store's `active_subscription_ids/2`
-  # `WHERE deleted_at IS NULL`) -- 1800 padding rows times 20 probes produced
-  # tens of thousands of delivery rows, which both broke unrelated scenarios
-  # asserting an exact delivery count and made this helper's own `on_exit`
-  # cleanup fail with a foreign-key violation (`family_chat_push_deliveries`
-  # has no `ON DELETE CASCADE`). A soft-deleted row is still real on-disk
-  # bytes for `VACUUM INTO` to copy, but is excluded from delivery fan-out
-  # and from the `deleted_at IS NULL` unique indexes, and carries nothing
-  # left for `on_exit` to conflict with.
-  defp seed_backup_load_padding! do
-    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
-    tag = "test-backup-load-padding-" <> unique_uuid()
-    endpoint_padding = String.duplicate("e", 1900)
-    key_padding = String.duplicate("k", 250)
-    auth_padding = String.duplicate("a", 100)
-
-    1..@load_proof_padding_rows
-    |> Enum.chunk_every(200)
-    |> Enum.each(fn chunk ->
-      values_sql = Enum.map_join(chunk, ",", fn _ -> "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" end)
-
-      params =
-        Enum.flat_map(chunk, fn index ->
-          suffix = tag <> "-" <> Integer.to_string(index)
-
-          session_digest =
-            :crypto.hash(:sha256, suffix <> "-session") |> Base.encode16(case: :lower)
-
-          # Fragmented scheme (see `valid_subscription_input/0`'s own
-          # comment elsewhere in this file) so the unit-layer boundary
-          # scan's forbidden-network-URL rule never matches this literal.
-          endpoint = "https:" <> "//padding.invalid/" <> suffix <> endpoint_padding
-          endpoint_sha256 = :crypto.hash(:sha256, endpoint) |> Base.encode16(case: :lower)
-
-          [
-            tag,
-            session_digest,
-            endpoint_sha256,
-            endpoint,
-            key_padding,
-            auth_padding,
-            now,
-            tag,
-            now,
-            tag,
-            now,
-            tag
-          ]
-        end)
-
-      SqliteRepo.query!(
-        """
-        INSERT INTO web_push_subscriptions (
-          user_id, session_digest, endpoint_sha256, endpoint, p256dh, auth_secret,
-          created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
-        ) VALUES #{values_sql}
-        """,
-        params
-      )
-    end)
-
-    ExUnit.Callbacks.on_exit(fn ->
-      SqliteRepo.query!("DELETE FROM web_push_subscriptions WHERE user_id = ?", [tag])
-    end)
-
-    :ok
-  end
-
   # Independent, directly-visible probe run for the cancellation scenario:
   # `BnestApp.Backup.run/1`'s own `:probe_watch` mechanism only merges probe
   # results into its *successful* return value (`merge_probe_result/2`); on
@@ -2683,18 +2598,10 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     {:erlang.monotonic_time(:millisecond) - started, fun.()}
   end
 
-  # Reads live message ids the same way `BnestApp.Backup`'s own
-  # `message_exists?/1` does (raw `SqliteRepo` query, not the room store's
-  # cursor-paged `list_messages`), so ids compare directly against
-  # `restore_evidence/1`'s `orderedMessageIds` (also raw-SQL integers) with
-  # no id-shape conversion needed.
+  # The live room's message IDs, read from the scenario's room store, so they compare
+  # directly against the restore evidence's `orderedMessageIds`.
   defp live_family_chat_message_ids do
-    room = FamilyChat.canonical_room()
-
-    %{rows: rows} =
-      SqliteRepo.query!("SELECT id FROM family_chat_messages WHERE room_id = ?", [room.id])
-
-    MapSet.new(rows, &hd/1)
+    FamilyChat.canonical_room_slug() |> stored_messages() |> MapSet.new(& &1.id)
   end
 
   # Used only by `:routed_backup_runs_full_duration`: restores the artifact
@@ -2720,53 +2627,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   end
 
   defp restorable_self_consistent?(_other), do: false
-
-  # Test-fixture-only raw insert of an active SQLite push subscription, for
-  # the backup fixture, whose scenario selects the SQLite room store (U12) so
-  # a commit fans out to it.
-  defp create_active_subscription!(user_id) do
-    FamilyChat.ensure_ready!()
-
-    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
-    session_digest = :crypto.hash(:sha256, user_id <> "-session") |> Base.encode16(case: :lower)
-    # Fragmented scheme (see `valid_subscription_input/0` above) so this synthetic
-    # fixture does not trip the unit-layer boundary policy's network-URL scan.
-    endpoint = "https:" <> "//push.allowed.example.com/" <> user_id
-    endpoint_sha256 = :crypto.hash(:sha256, endpoint) |> Base.encode16(case: :lower)
-    actor = "user:" <> user_id
-
-    SqliteRepo.query!(
-      """
-      INSERT INTO web_push_subscriptions (
-        user_id, session_digest, endpoint_sha256, endpoint, p256dh, auth_secret,
-        expiration_time, created_at, created_by, updated_at, updated_by
-      ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
-      """,
-      [
-        user_id,
-        session_digest,
-        endpoint_sha256,
-        endpoint,
-        "fixture-p256dh-key",
-        "fixture-auth-secret",
-        now,
-        actor,
-        now,
-        actor
-      ]
-    )
-
-    # `last_insert_rowid()` is connection-local; a separate `query!` call can
-    # land on a different pooled connection than the INSERT (unlike the
-    # room store's `insert_message!`, which wraps both in one transaction), so
-    # this looks the row up by its own unique key instead.
-    %{rows: [[subscription_id]]} =
-      SqliteRepo.query!("SELECT id FROM web_push_subscriptions WHERE endpoint_sha256 = ?", [
-        endpoint_sha256
-      ])
-
-    subscription_id
-  end
 
   # Records what the next reply must quote: the target's server ID, and the
   # sender name and body a correct quote has to report back.
@@ -2819,23 +2679,4 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   end
 
   defp unique_sender_id, do: "test-user-family-chat-sender-" <> unique_uuid()
-
-  # Retires a fixture-created subscription that was only ever a vehicle for
-  # producing some other row (a backup artifact's contents): left active in
-  # the shared SQLite test database, it would inflate a later scenario's
-  # fan-out.
-  defp disable_subscription_row!(subscription_id) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
-
-    SqliteRepo.query!(
-      "UPDATE web_push_subscriptions SET deleted_at = ?, deleted_by = ? WHERE id = ?",
-      [
-        now,
-        "system:test-fixture",
-        subscription_id
-      ]
-    )
-
-    :ok
-  end
 end

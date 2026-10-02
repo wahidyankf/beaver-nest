@@ -12,23 +12,11 @@ defmodule BnestApp do
   # context lands; the closure unit requires this list empty.
   @legacy_exports [
     AdminConfig.Registry,
-    Backup.Config,
     Deployment
   ]
 
+  # The legacy modules left here call no context facade and no infrastructure directly.
   use Boundary,
-    deps: [
-      BnestApp.FamilyChat,
-      BnestApp.PushNotifications,
-      BnestApp.Scheduler,
-      BnestApp.SqliteRepo,
-      BnestApp.Storage,
-      # legacy: infrastructure the legacy modules call directly. Each entry leaves
-      # with its last legacy caller, when that context's adapters take the call over.
-      Ecto.Migrator,
-      Ecto.Query,
-      Ecto.UUID,
-      Exqlite
-    ],
+    deps: [],
     exports: @legacy_exports
 end

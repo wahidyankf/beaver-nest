@@ -1,27 +1,45 @@
 defmodule BnestApp.Backup do
   @moduledoc """
-  The public backup/restore service (Phase 5). Owns every SQL-touching step
-  of one backup run -- measured capacity, the dedicated (non-pooled)
-  connection `VACUUM INTO`, cooperative timeout/cancellation via
-  `Exqlite.Sqlite3.cancel/1`, independent integrity/logical proof, and
-  restore-into-an-isolated-marked-root -- so `BnestApp.Backup.Run` (the
-  Scheduler-registered handler) can delegate to it without any direct SQL of
-  its own (`family_chat_operations.feature`'s "the handler delegates to the
-  public 'BnestApp.Backup' service without direct SQL").
+  The Backup bounded context: verified backups of the production SQLite database to an
+  owned destination, their retention, and restore into an isolated root.
 
-  This module knows nothing about Scheduler claims/leases; `Backup.Run`
-  translates between a Scheduler claim and this module's plain `run/1`
-  options, and is the only caller that persists a claim-shaped receipt.
+  This module is the context's application-service facade. The admin schedules page reads
+  and saves the destination through it, and the Scheduler's backup task
+  (`BnestApp.Backup.Adapters.ScheduledBackupTask`) runs each claimed backup through it, so
+  the task runs no SQL of its own (`family_chat_operations.feature`'s "the handler
+  delegates to the public 'BnestApp.Backup' service without direct SQL"). This module knows
+  nothing about Scheduler claims or leases beyond the receipt it records for one.
+
+  One backup run measures the destination's capacity, snapshots the live database on a
+  connection of its own with a cooperative timeout, proves the copy independently, and only
+  then promotes it. Every effect goes through a port in `BnestApp.Backup.Ports`, whose
+  adapters come from `config :bnest_app, BnestApp.Backup` (`:config_store`,
+  `:artifact_store`, `:database_snapshot`, `:capacity_probe`, `:ignore_check`); the rules
+  are the pure `BnestApp.Backup.Domain`.
   """
 
-  alias BnestApp.Backup.Capacity
-  alias BnestApp.Backup.Config
+  use Boundary,
+    top_level?: true,
+    type: :strict,
+    deps: [BnestApp.FamilyChat, Jason],
+    exports: [{Domain, []}, {Ports, []}]
+
+  alias BnestApp.Backup.Domain.CapacityPolicy
+  alias BnestApp.Backup.Domain.Location
+  alias BnestApp.Backup.Domain.Receipt
+  alias BnestApp.Backup.Domain.RestoreEvidence
+  alias BnestApp.Backup.Domain.Retention
+  alias BnestApp.Backup.Ports.ArtifactStore
+  alias BnestApp.Backup.Ports.CapacityProbe
+  alias BnestApp.Backup.Ports.ConfigStore
+  alias BnestApp.Backup.Ports.DatabaseSnapshot
+  alias BnestApp.Backup.Ports.IgnoreCheck
   alias BnestApp.FamilyChat
 
-  @progress_handler_steps 2_000
-  @cancel_grace_ms 5_000
   @default_timeout_ms 1_800_000
   @probe_count 20
+
+  @type location :: %{directory: String.t(), destination_id: String.t()}
 
   @type artifact :: %{
           path: String.t(),
@@ -35,19 +53,72 @@ defmodule BnestApp.Backup do
         }
 
   @doc """
-  Runs one full backup against the configured (or, for tests only,
-  explicitly injected -- see `opts[:destination_directory]`) destination.
+  The configured adapter for a Backup port: `:config_store`, `:artifact_store`,
+  `:database_snapshot`, `:capacity_probe` or `:ignore_check`.
+  """
+  @spec adapter(atom()) :: module()
+  def adapter(port), do: :bnest_app |> Application.fetch_env!(__MODULE__) |> Keyword.fetch!(port)
+
+  @doc """
+  The destination backups go to: the saved override, or else the repository's ignored
+  `data/backup`. It is validated, created when missing and marked as owned, so its
+  destination ID stays the same across calls.
+  """
+  @spec destination() :: {:ok, location()} | {:error, atom()}
+  def destination do
+    config = config_store()
+
+    directory =
+      case ConfigStore.read(config) do
+        {:ok, document} ->
+          Location.configured_directory(document)
+
+        {:error, :absent} ->
+          {:ok, Location.default_directory(ConfigStore.repository_root(config))}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+
+    with {:ok, directory} <- directory do
+      ensure(directory, DateTime.utc_now())
+    end
+  end
+
+  @doc """
+  Saves `directory` as the destination override once it is validated, created and marked
+  as owned, and returns the destination.
+  """
+  @spec save_destination(term()) :: {:ok, location()} | {:error, atom()}
+  def save_destination(directory) do
+    now = DateTime.utc_now()
+
+    with {:ok, location} <- ensure(directory, now),
+         :ok <- ConfigStore.write(config_store(), Location.config_document(location.directory)) do
+      {:ok, location}
+    end
+  end
+
+  @doc "The repository's default destination, used when no override is saved."
+  @spec default_directory() :: String.t()
+  def default_directory,
+    do: Location.default_directory(ConfigStore.repository_root(config_store()))
+
+  @doc "Validates `directory` as a destination without creating or saving anything."
+  @spec validate_destination(term()) :: {:ok, String.t()} | {:error, atom()}
+  def validate_destination(directory), do: validate(directory, config_store())
+
+  @doc """
+  Runs one full backup into the configured destination, or into
+  `opts[:destination_directory]`, a destination already resolved.
 
   Options:
     * `:deadline` -- the `DateTime` to treat as "now" for the artifact's
-      timestamp-derived basename and receipt facts. Defaults to
-      `DateTime.utc_now/0`; production callers never need to pass this.
-    * `:destination_directory` -- test-only dependency injection seam
-      (production always resolves the destination through
-      `BnestApp.Backup.Config.resolve/0`, exactly like every other caller).
-    * `:capacity_check` -- test-only seam: `:insufficient` forces the
-      retryable insufficient-capacity outcome without touching disk state,
-      for exercising that failure path deterministically.
+      timestamp-derived basename. Defaults to `DateTime.utc_now/0`; production
+      callers never need to pass this.
+    * `:destination_directory` -- a destination the caller already resolved.
+    * `:before_promote` -- run right before the proved candidate is promoted; an
+      `{:error, category}` discards it as a retryable failure of that category.
     * `:probe_watch` -- when truthy, runs a bounded authenticated Family
       Chat read/send workload concurrently with the backup and reports
       `probe_failures`, `probe_p95_ms`, and `probe_sent_ids_missing` in the
@@ -62,7 +133,7 @@ defmodule BnestApp.Backup do
 
     result =
       with {:ok, directory} <- resolve_directory(opts),
-           :ok <- check_capacity(directory, opts[:capacity_check]) do
+           :ok <- check_capacity(directory) do
         create_backup(directory, now, opts)
       end
 
@@ -76,6 +147,58 @@ defmodule BnestApp.Backup do
   end
 
   @doc """
+  Writes the receipt of `claim`'s run beside its verified `artifact` in `location`, and
+  returns it.
+  """
+  @spec record_receipt(map(), location(), DateTime.t(), artifact()) :: {:ok, map()}
+  def record_receipt(claim, location, %DateTime{} = now, artifact) do
+    receipt = Receipt.build(claim, location, now, artifact)
+    :ok = ArtifactStore.write_receipt(artifact_store(), Receipt.path(artifact.path), receipt)
+    {:ok, receipt}
+  end
+
+  @doc """
+  The receipts `directory` owns, newest first: valid receipts of its marked destination
+  whose artifact is present and unchanged.
+  """
+  @spec owned_receipts(String.t()) :: [map()]
+  def owned_receipts(directory) do
+    artifacts = artifact_store()
+
+    case read_marker(artifacts, directory) do
+      {:ok, marker} ->
+        artifacts
+        |> ArtifactStore.receipts(directory)
+        |> Enum.filter(&owned?(artifacts, &1, directory, marker["destinationId"]))
+        |> Retention.newest_first()
+
+      {:error, _reason} ->
+        []
+    end
+  end
+
+  @doc """
+  Removes every owned pair in `directory` that retention does not keep, and returns the
+  run IDs of those it keeps. Unknown files are never touched.
+  """
+  @spec retain_owned(String.t()) :: {:ok, MapSet.t(String.t())}
+  def retain_owned(directory) do
+    artifacts = artifact_store()
+    receipts = owned_receipts(directory)
+    kept = Retention.retained_run_ids(receipts)
+
+    Enum.each(receipts, fn receipt ->
+      unless MapSet.member?(kept, receipt["runId"]) do
+        artifact_path = Path.join(directory, receipt["artifactBasename"])
+        :ok = ArtifactStore.remove(artifacts, artifact_path)
+        :ok = ArtifactStore.remove(artifacts, Receipt.path(artifact_path))
+      end
+    end)
+
+    {:ok, kept}
+  end
+
+  @doc """
   Restores an artifact (as returned in `run/1`'s success map) into a fresh,
   function-owned, ownership-marked temporary root -- never the caller's
   choice of path, so restore can never target (or be mistaken for) a live
@@ -86,37 +209,21 @@ defmodule BnestApp.Backup do
   """
   @spec restore(map()) :: {:ok, map()} | {:error, atom()}
   def restore(%{path: artifact_path}) when is_binary(artifact_path) do
-    root = isolated_restore_root!()
-    restored_path = Path.join(root, "restored.sqlite3")
-
-    try do
-      File.cp!(artifact_path, restored_path)
-      {:ok, connection} = Exqlite.Sqlite3.open(restored_path, mode: :readonly)
-
-      try do
-        {:ok, %{evidence: Jason.encode!(restore_evidence(connection))}}
-      after
-        :ok = Exqlite.Sqlite3.close(connection)
-      end
-    rescue
-      _error -> {:error, :restore_failed}
-    after
-      File.rm_rf(root)
+    case DatabaseSnapshot.restore(database_snapshot(), artifact_path) do
+      {:ok, facts} -> {:ok, %{evidence: Jason.encode!(RestoreEvidence.document(facts))}}
+      {:error, :restore_failed} -> {:error, :restore_failed}
     end
   end
 
   def restore(_invalid_artifact), do: {:error, :invalid_artifact}
 
   # `:destination_directory`, when given, is already a validated/created
-  # directory (either `Run.execute/2`'s own `Config.resolve/0` result, or a
-  # test-only isolated fixture directory) -- resolving it again here would
-  # be redundant, and for the test-fixture case would also fail
-  # `Location.validate/1` (it deliberately validates a narrower set of
-  # directories than tests need to construct in isolation).
+  # directory (`ScheduledBackupTask`'s own `destination/0` result) --
+  # resolving it again here would be redundant.
   defp resolve_directory(opts) do
     case Keyword.get(opts, :destination_directory) do
       nil ->
-        case Config.resolve() do
+        case destination() do
           {:ok, location} -> {:ok, location.directory}
           {:error, reason} -> {:error, reason}
         end
@@ -126,110 +233,62 @@ defmodule BnestApp.Backup do
     end
   end
 
-  defp check_capacity(_directory, :insufficient),
-    do: {:error, {:retryable, :insufficient_capacity, nil}}
-
-  defp check_capacity(directory, _real_check) do
-    if Capacity.sufficient?(directory),
-      do: :ok,
-      else: {:error, {:retryable, :insufficient_capacity, nil}}
+  # A capacity preflight that cannot even measure (destination or source
+  # unreadable) fails closed as insufficient, never past the caller's
+  # retryable-failure contract.
+  defp check_capacity(directory) do
+    with {:ok, measurement} <- CapacityProbe.measure(capacity_probe(), directory),
+         true <- CapacityPolicy.sufficient?(measurement) do
+      :ok
+    else
+      _insufficient_or_unmeasurable -> {:error, {:retryable, :insufficient_capacity, nil}}
+    end
   end
 
   defp create_backup(directory, now, opts) do
+    artifacts = artifact_store()
+    snapshot = database_snapshot()
     timestamp = Calendar.strftime(now, "%Y%m%dT%H%M%SZ")
     run_id = Base.url_encode64(:crypto.strong_rand_bytes(15), padding: false)
     artifact_basename = "bnest-prod-#{timestamp}-#{run_id}.sqlite3"
     artifact_path = Path.join(directory, artifact_basename)
     partial_path = artifact_path <> ".partial"
-    File.rm(partial_path)
+    :ok = ArtifactStore.remove(artifacts, partial_path)
 
-    source = BnestApp.SqliteRepo.main_database_path()
     probe_task = maybe_start_probes(opts[:probe_watch])
     before_promote = Keyword.get(opts, :before_promote, fn -> :ok end)
 
-    case vacuum_into(source, partial_path, timeout_ms()) do
+    case DatabaseSnapshot.vacuum_into(snapshot, partial_path, timeout_ms()) do
       :ok ->
-        finalize_artifact(
-          partial_path,
-          artifact_path,
-          artifact_basename,
-          probe_task,
-          before_promote
-        )
+        candidate = %{
+          partial_path: partial_path,
+          path: artifact_path,
+          basename: artifact_basename
+        }
+
+        finalize_artifact(artifacts, snapshot, candidate, probe_task, before_promote)
 
       {:error, category} ->
-        File.rm(partial_path)
+        :ok = ArtifactStore.remove(artifacts, partial_path)
         await_probes(probe_task)
         {:error, {:retryable, category, nil}}
     end
   end
 
-  # A dedicated, non-pooled connection: a `VACUUM INTO` that ran on a
-  # borrowed `SqliteRepo` pool connection (the pre-Phase-5 shape) held that
-  # connection, and the forced `PRAGMA wal_checkpoint(FULL)` that used to
-  # precede it, out of ordinary application traffic for the whole backup
-  # duration. Opening our own connection here, plus `set_busy_timeout/2` and
-  # `set_progress_handler_steps/2` (both required for `cancel/1` to reach a
-  # busy-wait or long-running statement -- see their own docs), is what
-  # makes the deadline below a genuine abort rather than an unbounded wait.
-  defp vacuum_into(source, partial_path, timeout_ms) do
-    {:ok, connection} = Exqlite.Sqlite3.open(source, mode: :readonly)
-    :ok = Exqlite.Sqlite3.set_busy_timeout(connection, timeout_ms)
-    :ok = Exqlite.Sqlite3.set_progress_handler_steps(connection, @progress_handler_steps)
+  defp finalize_artifact(artifacts, snapshot, candidate, probe_task, before_promote) do
+    :ok = ArtifactStore.restrict(artifacts, candidate.partial_path)
 
-    sql = "VACUUM INTO '" <> escape_sql_literal(partial_path) <> "'"
-    task = Task.async(fn -> Exqlite.Sqlite3.execute(connection, sql) end)
-
-    outcome =
-      case Task.yield(task, timeout_ms) do
-        {:ok, :ok} ->
-          :ok
-
-        # `io_failed`: tech-doc 009's Observability section names the
-        # closed, safe retryable-category vocabulary ("insufficient_capacity,
-        # busy, timeout, cancelled, integrity_failed, stale_claim, or
-        # io_failed") explicitly so telemetry and Scheduler retry state never
-        # carry a raw exception/path string; a live `VACUUM INTO` execute
-        # error or an unexpected task exit are both bucketed here rather than
-        # surfacing `_reason` (which could itself contain a path).
-        {:ok, {:error, _reason}} ->
-          {:error, :io_failed}
-
-        {:exit, _reason} ->
-          {:error, :io_failed}
-
-        nil ->
-          :ok = Exqlite.Sqlite3.cancel(connection)
-          _ = Task.yield(task, @cancel_grace_ms) || Task.shutdown(task, :brutal_kill)
-          {:error, :timeout}
-      end
-
-    :ok = Exqlite.Sqlite3.close(connection)
-    outcome
-  end
-
-  defp escape_sql_literal(value), do: String.replace(value, "'", "''")
-
-  defp finalize_artifact(
-         partial_path,
-         artifact_path,
-         artifact_basename,
-         probe_task,
-         before_promote
-       ) do
-    File.chmod!(partial_path, 0o600)
-
-    case independent_proof(partial_path) do
+    case DatabaseSnapshot.prove(snapshot, candidate.partial_path) do
       {:ok, proof} ->
-        sync_file!(partial_path)
-        promote(partial_path, artifact_path, artifact_basename, proof, probe_task, before_promote)
+        :ok = ArtifactStore.sync(artifacts, candidate.partial_path)
+        promote(artifacts, snapshot, candidate, proof, probe_task, before_promote)
 
       {:error, :corrupt} ->
-        File.rm(partial_path)
+        :ok = ArtifactStore.remove(artifacts, candidate.partial_path)
         await_probes(probe_task)
-        # `integrity_failed`: tech-doc 009's documented category name for
-        # this case (see `vacuum_into/3`'s identical `io_failed` comment for
-        # the whole vocabulary this module draws from).
+        # `integrity_failed`: tech-doc 009's documented category name for this case, from its
+        # closed, safe retryable-category vocabulary ("insufficient_capacity, busy, timeout,
+        # cancelled, integrity_failed, stale_claim, or io_failed").
         {:error, {:retryable, :integrity_failed, nil}}
     end
   end
@@ -237,109 +296,108 @@ defmodule BnestApp.Backup do
   # `before_promote` runs as late as possible -- right before the rename
   # that makes this artifact the canonical, retained one -- to keep the
   # race window between "are we still the owner of this run" and "commit
-  # the result" as small as possible. `BnestApp.Backup.Run` (the Scheduler
-  # handler) uses this to re-check its claim's lease without this module
-  # ever needing to know what a Scheduler claim is.
-  defp promote(partial_path, artifact_path, artifact_basename, proof, probe_task, before_promote) do
+  # the result" as small as possible. The Scheduler's backup task uses this
+  # to re-check its claim's lease without this module ever needing to know
+  # what a Scheduler claim is.
+  defp promote(artifacts, snapshot, candidate, proof, probe_task, before_promote) do
     case before_promote.() do
       :ok ->
-        File.rename!(partial_path, artifact_path)
+        :ok = ArtifactStore.promote(artifacts, candidate.partial_path, candidate.path)
 
         artifact = %{
-          path: artifact_path,
-          basename: artifact_basename,
-          sha256: sha256_file(artifact_path),
-          bytes: File.stat!(artifact_path).size,
+          path: candidate.path,
+          basename: candidate.basename,
+          sha256: ArtifactStore.digest(artifacts, candidate.path),
+          bytes: ArtifactStore.size(artifacts, candidate.path),
           quick_check: "ok",
           schema_versions: proof.schema_versions,
           logical_proof_sha256: proof.logical_sha256,
-          source_generation: BnestApp.Storage.database_generation()
+          source_generation: DatabaseSnapshot.source_generation(snapshot)
         }
 
-        merge_probe_result({:ok, artifact}, probe_task)
+        merge_probe_result({:ok, artifact}, probe_task, snapshot)
 
       {:error, reason} ->
-        File.rm(partial_path)
+        :ok = ArtifactStore.remove(artifacts, candidate.partial_path)
         await_probes(probe_task)
         {:error, {:retryable, reason, nil}}
     end
   end
 
-  defp independent_proof(path) do
-    {:ok, connection} = Exqlite.Sqlite3.open(path, mode: :readonly)
-
-    try do
-      case query_rows(connection, "PRAGMA quick_check") do
-        [["ok"]] ->
-          schema_versions =
-            connection
-            |> query_rows("SELECT version FROM schema_migrations ORDER BY version")
-            |> Enum.map(&hd/1)
-
-          logical_rows =
-            query_rows(
-              connection,
-              "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
-            )
-
-          logical_sha256 =
-            %{schema_versions: schema_versions, schema: logical_rows}
-            |> Jason.encode!()
-            |> then(&:crypto.hash(:sha256, &1))
-            |> Base.encode16(case: :lower)
-
-          {:ok, %{schema_versions: schema_versions, logical_sha256: logical_sha256}}
-
-        _not_ok ->
-          {:error, :corrupt}
-      end
-    after
-      :ok = Exqlite.Sqlite3.close(connection)
+  # The destination checks run in this order, each only after the one before passed, so a
+  # refusal always names the first rule a directory breaks.
+  defp validate(directory, config) do
+    with {:ok, expanded} <- Location.absolute(directory),
+         :ok <- reject_symlink(expanded),
+         :ok <-
+           Location.outside_source(expanded, DatabaseSnapshot.source_path(database_snapshot())),
+         :ok <- Location.outside_config(expanded, ConfigStore.config_path(config)),
+         repository_root = ConfigStore.repository_root(config),
+         :ok <- Location.repository_placement(expanded, repository_root),
+         :ok <- require_ignored_default(expanded, repository_root) do
+      {:ok, expanded}
     end
   end
 
-  defp query_rows(connection, sql) do
-    {:ok, statement} = Exqlite.Sqlite3.prepare(connection, sql)
+  defp reject_symlink(directory) do
+    if ArtifactStore.symlink_in_path?(artifact_store(), directory),
+      do: {:error, :symlink},
+      else: :ok
+  end
 
-    try do
-      collect_rows(connection, statement, [])
-    after
-      :ok = Exqlite.Sqlite3.release(connection, statement)
+  defp require_ignored_default(directory, repository_root) do
+    cond do
+      not Location.default?(directory, repository_root) ->
+        :ok
+
+      IgnoreCheck.ignored?(ignore_check(), repository_root, Location.default_relative_path()) ->
+        :ok
+
+      true ->
+        {:error, :default_not_ignored}
     end
   end
 
-  defp collect_rows(connection, statement, rows) do
-    case Exqlite.Sqlite3.step(connection, statement) do
-      {:row, row} -> collect_rows(connection, statement, [row | rows])
-      :done -> Enum.reverse(rows)
-      {:error, reason} -> raise "backup proof query failed: #{inspect(reason)}"
+  defp ensure(directory, %DateTime{} = now) do
+    artifacts = artifact_store()
+
+    with {:ok, directory} <- validate(directory, config_store()),
+         :ok <- ArtifactStore.prepare_directory(artifacts, directory),
+         {:ok, marker} <- read_or_create_marker(artifacts, directory, now) do
+      {:ok, %{directory: directory, destination_id: marker["destinationId"]}}
     end
   end
 
-  defp sync_file!(path) do
-    {:ok, file} = :file.open(String.to_charlist(path), [:read, :binary])
-    :ok = :file.sync(file)
-    :ok = :file.close(file)
-  end
+  defp read_or_create_marker(artifacts, directory, now) do
+    case read_marker(artifacts, directory) do
+      {:ok, marker} ->
+        {:ok, marker}
 
-  defp sha256_file(path) do
-    {:ok, file} = :file.open(String.to_charlist(path), [:read, :binary, :raw])
+      {:error, :absent} ->
+        marker = Location.new_marker(random_id(16), now)
+        :ok = ArtifactStore.write_marker(artifacts, directory, marker)
+        {:ok, marker}
 
-    try do
-      file
-      |> hash_chunks(:crypto.hash_init(:sha256))
-      |> :crypto.hash_final()
-      |> Base.encode16(case: :lower)
-    after
-      :ok = :file.close(file)
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
-  defp hash_chunks(file, hash) do
-    case :file.read(file, 64 * 1024) do
-      {:ok, bytes} -> hash_chunks(file, :crypto.hash_update(hash, bytes))
-      :eof -> hash
-      {:error, reason} -> raise "backup digest failed: #{inspect(reason)}"
+  defp read_marker(artifacts, directory) do
+    with {:ok, marker} <- ArtifactStore.read_marker(artifacts, directory),
+         true <- Location.valid_marker?(marker) do
+      {:ok, marker}
+    else
+      {:error, :absent} -> {:error, :absent}
+      _invalid -> {:error, :invalid_marker}
+    end
+  end
+
+  defp owned?(artifacts, receipt, directory, destination_id) do
+    with true <- Receipt.valid?(receipt, destination_id),
+         artifact_path = Path.join(directory, receipt["artifactBasename"]),
+         true <- ArtifactStore.regular?(artifacts, artifact_path) do
+      ArtifactStore.digest(artifacts, artifact_path) == receipt["artifactSha256"]
     end
   end
 
@@ -349,10 +407,18 @@ defmodule BnestApp.Backup do
   defp outcome_tag({:error, {:retryable, category, _artifact}}), do: category
   defp outcome_tag({:error, category}), do: category
 
+  defp random_id(bytes), do: Base.url_encode64(:crypto.strong_rand_bytes(bytes), padding: false)
+
+  defp config_store, do: adapter(:config_store).new()
+  defp artifact_store, do: adapter(:artifact_store).new()
+  defp database_snapshot, do: adapter(:database_snapshot).new()
+  defp capacity_probe, do: adapter(:capacity_probe).new()
+  defp ignore_check, do: adapter(:ignore_check).new()
+
   # --- concurrent-write load proof (unit-layer mechanism proxy) ---
   #
   # Continuous authenticated Family Chat read/send probes, run on the same
-  # live `SqliteRepo` pool the backup's dedicated connection reads from
+  # live database the backup's dedicated connection reads from
   # concurrently -- this is the real mechanism a routed HTTP probe would
   # eventually reach (`BnestApp.FamilyChat.send_message/4` and
   # `list_messages/3`, the exact functions the GraphQL resolvers call), just
@@ -368,16 +434,14 @@ defmodule BnestApp.Backup do
 
   defp run_probes do
     slug = FamilyChat.canonical_room_slug()
-
-    user_id =
-      "test-user-backup-probe-" <> Base.url_encode64(:crypto.strong_rand_bytes(8), padding: false)
+    user_id = "test-user-backup-probe-" <> random_id(8)
 
     {sent_ids, samples, failures} =
       Enum.reduce(1..@probe_count, {[], [], 0}, fn index, {sent_ids, samples, failures} ->
         # `FamilyChat.send_message/4` requires a UUID-shaped client message
         # id (`FamilyChat.Domain.Message.valid_client_message_id?/1`) -- anything
         # else is a `VALIDATION_FAILED` error, not a transient probe failure.
-        client_message_id = Ecto.UUID.generate()
+        client_message_id = uuid4()
 
         {send_ms, send_result} =
           timed(fn ->
@@ -400,6 +464,17 @@ defmodule BnestApp.Backup do
     %{sent_ids: sent_ids, samples: samples, failures: failures}
   end
 
+  # A random (version 4, RFC 4122 variant) UUID in its canonical lowercase text form.
+  defp uuid4 do
+    <<a::48, _version::4, b::12, _variant::2, c::62>> = :crypto.strong_rand_bytes(16)
+
+    <<a::48, 4::4, b::12, 2::2, c::62>>
+    |> Base.encode16(case: :lower)
+    |> then(fn <<p1::binary-8, p2::binary-4, p3::binary-4, p4::binary-4, p5::binary-12>> ->
+      Enum.join([p1, p2, p3, p4, p5], "-")
+    end)
+  end
+
   defp timed(fun) do
     started = System.monotonic_time(:millisecond)
 
@@ -410,11 +485,11 @@ defmodule BnestApp.Backup do
     end
   end
 
-  defp merge_probe_result(ok_result, nil), do: ok_result
+  defp merge_probe_result(ok_result, nil, _snapshot), do: ok_result
 
-  defp merge_probe_result({:ok, artifact}, probe_task) do
+  defp merge_probe_result({:ok, artifact}, probe_task, snapshot) do
     probes = await_probes(probe_task)
-    missing = missing_sent_ids(probes.sent_ids)
+    missing = Enum.reject(probes.sent_ids, &message_exists?(snapshot, &1))
 
     {:ok,
      Map.merge(artifact, %{
@@ -427,18 +502,9 @@ defmodule BnestApp.Backup do
   defp await_probes(nil), do: %{sent_ids: [], samples: [0], failures: 0}
   defp await_probes(task), do: Task.await(task, 60_000)
 
-  defp missing_sent_ids(sent_ids), do: Enum.reject(sent_ids, &message_exists?/1)
-
-  defp message_exists?(message_id) do
+  defp message_exists?(snapshot, message_id) do
     room = FamilyChat.canonical_room()
-
-    %{rows: rows} =
-      BnestApp.SqliteRepo.query!(
-        "SELECT 1 FROM family_chat_messages WHERE id = ? AND room_id = ?",
-        [message_id, room.id]
-      )
-
-    rows != []
+    DatabaseSnapshot.message_exists?(snapshot, room.id, message_id)
   end
 
   defp percentile([], _p), do: 0
@@ -448,69 +514,5 @@ defmodule BnestApp.Backup do
     count = length(sorted)
     index = max(0, ceil(p / 100 * count) - 1)
     Enum.at(sorted, index)
-  end
-
-  defp restore_evidence(connection) do
-    # Scoped to ACTIVE rooms. The schema has carried `deleted_at` on
-    # `family_chat_rooms` since the family chat migration, so an archived room
-    # is a representable state -- and an unscoped single-row match turned that
-    # representable state into a restore failure. Evidence is about the room
-    # the product serves, which is the one that is not soft-deleted. The
-    # single-row match stays: exactly one ACTIVE room is the v1 invariant, and
-    # a restore that found two should still fail loudly.
-    [[room_id, room_slug, room_name, member_posting_enabled]] =
-      query_rows(
-        connection,
-        "SELECT id, slug, name, member_posting_enabled FROM family_chat_rooms WHERE deleted_at IS NULL ORDER BY id"
-      )
-
-    # Scoped to that same active room, for the same reason: these ids are read
-    # back against the live room's messages, so an archived room's messages
-    # would look like ids the restore invented. `room_id` is the INTEGER
-    # primary key just read out of this same connection, never caller input,
-    # so interpolating it into SQL carries no injection surface (`query_rows/2`
-    # takes no bindings).
-    message_ids =
-      connection
-      |> query_rows("SELECT id FROM family_chat_messages WHERE room_id = #{room_id} ORDER BY id")
-      |> Enum.map(&hd/1)
-
-    subscription_count =
-      connection |> query_rows("SELECT COUNT(*) FROM web_push_subscriptions") |> hd() |> hd()
-
-    delivery_states =
-      connection
-      |> query_rows("SELECT DISTINCT state FROM family_chat_push_deliveries ORDER BY state")
-      |> Enum.map(&hd/1)
-
-    %{
-      "room" => %{
-        "id" => room_id,
-        "slug" => room_slug,
-        "name" => room_name,
-        "memberPostingEnabled" => member_posting_enabled == 1
-      },
-      "orderedMessageIds" => message_ids,
-      "subscriptionCount" => subscription_count,
-      "deliveryStates" => delivery_states
-    }
-  end
-
-  defp isolated_restore_root! do
-    root =
-      Path.join(
-        System.tmp_dir!(),
-        "bnest-restore-" <> Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false)
-      )
-
-    File.mkdir_p!(root)
-    File.chmod!(root, 0o700)
-
-    File.write!(
-      Path.join(root, ".bnest-restore-root.json"),
-      Jason.encode!(%{"schemaVersion" => 1, "ownershipScope" => "bnest-production-restores-v1"})
-    )
-
-    root
   end
 end

@@ -1,5 +1,10 @@
-defmodule BnestApp.Backup.Receipt do
-  @moduledoc false
+defmodule BnestApp.Backup.Domain.Receipt do
+  @moduledoc """
+  The receipt a verified backup writes beside its artifact: which destination, schedule
+  claim and run it belongs to, and the artifact's digest, size and independent proof. A
+  receipt names its artifact by basename only and its destination by ID only, so it carries
+  no private path. Retention keeps only artifacts a valid receipt owns.
+  """
 
   @scope "bnest-production-backups-v1"
   @required_keys ~w(
@@ -16,7 +21,11 @@ defmodule BnestApp.Backup.Receipt do
 
   def valid?(_receipt, _destination_id), do: false
 
-  @doc false
+  @doc "The receipt's path, beside the artifact at `artifact_path`."
+  @spec path(String.t()) :: String.t()
+  def path(artifact_path), do: String.replace_suffix(artifact_path, ".sqlite3", ".receipt.json")
+
+  @doc "The receipt of `claim`'s run, verified at `now` into `artifact` at `location`."
   @spec build(map(), map(), DateTime.t(), map()) :: map()
   def build(claim, location, %DateTime{} = now, artifact) do
     %{

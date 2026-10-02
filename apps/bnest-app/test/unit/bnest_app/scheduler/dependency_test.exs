@@ -10,7 +10,7 @@ defmodule BnestApp.Scheduler.DependencyTest do
   module or another context -- and must never issue SQL of its own outside
   its `Ports.ScheduleStore` adapter (`family_chat_operations.feature`'s "The
   Scheduler claims ... work only through the registered ... handler"). Each
-  registered handler (`BnestApp.Backup.Run`, Push Notifications'
+  registered handler (Backup's `ScheduledBackupTask` adapter, Push Notifications'
   `RetentionTask` adapter) declares the `BnestApp.Scheduler.Ports.Task`
   behaviour and must in turn own only Scheduler claim/lease bookkeeping and
   delegate every domain SQL mechanic to its own public service module, never
@@ -36,7 +36,12 @@ defmodule BnestApp.Scheduler.DependencyTest do
                         SchemaSourceScan.wildcard(["bnest_app", "scheduler", "run.ex"]) ++
                         SchemaSourceScan.wildcard(["bnest_app", "scheduler", "task_registry.ex"])
 
-  @handler_files SchemaSourceScan.wildcard(["bnest_app", "backup", "run.ex"]) ++
+  @handler_files SchemaSourceScan.wildcard([
+                   "bnest_app",
+                   "backup",
+                   "adapters",
+                   "scheduled_backup_task.ex"
+                 ]) ++
                    SchemaSourceScan.wildcard([
                      "bnest_app",
                      "push_notifications",
@@ -52,7 +57,7 @@ defmodule BnestApp.Scheduler.DependencyTest do
 
   @hardcoded_handlers [
     {~r/\bBackup\b/,
-     "hardcoded reference to Backup or its Backup.Run handler (must dispatch through the configured tasks only)"},
+     "hardcoded reference to Backup or its ScheduledBackupTask handler (must dispatch through the configured tasks only)"},
     {~r/\bRetentionTask\b/,
      "hardcoded reference to the Push Notifications RetentionTask handler (must dispatch through the configured tasks only)"},
     {~r/\bPushNotifications\b/,
@@ -68,7 +73,7 @@ defmodule BnestApp.Scheduler.DependencyTest do
              inspect(@orchestrator_files)
 
     assert length(@handler_files) == 2,
-           "expected both registered handler files (backup/run.ex and " <>
+           "expected both registered handler files (backup/adapters/scheduled_backup_task.ex and " <>
              "push_notifications/adapters/retention_task.ex), found: #{inspect(@handler_files)}"
   end
 

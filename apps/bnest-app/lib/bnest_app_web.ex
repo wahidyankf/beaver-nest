@@ -20,6 +20,7 @@ defmodule BnestAppWeb do
   use Boundary,
     deps: [
       BnestApp,
+      BnestApp.Backup,
       BnestApp.CodexChat,
       BnestApp.FamilyChat,
       BnestApp.Identity,
