@@ -80,18 +80,26 @@ defmodule BnestAppWeb.UserAuth do
     |> halt()
   end
 
+  # The one "not found" answer of the web layer. It names its content type because every response
+  # carries `x-content-type-options: nosniff`, so a body without one is offered to the visitor as a
+  # file download instead of being shown.
+  @doc false
+  def not_found(conn) do
+    conn |> put_resp_content_type("text/plain") |> send_resp(:not_found, "Not found") |> halt()
+  end
+
   def require_open_setup(conn, _options) do
     case {cutover_enabled?(), Identity.setup_status()} do
       {true, :open} -> conn
-      _closed_or_invalid -> conn |> send_resp(:not_found, "Not found") |> halt()
+      _closed_or_invalid -> not_found(conn)
     end
   end
 
   def require_admin_role(%{assigns: %{current_user: %{"roles" => roles}}} = conn, _options) do
-    if "admin" in roles, do: conn, else: conn |> send_resp(:not_found, "Not found") |> halt()
+    if "admin" in roles, do: conn, else: not_found(conn)
   end
 
-  def require_admin_role(conn, _options), do: conn |> send_resp(:not_found, "Not found") |> halt()
+  def require_admin_role(conn, _options), do: not_found(conn)
 
   @doc false
   def family_chat_enabled?, do: Application.get_env(:bnest_app, :family_chat_enabled, false)
@@ -102,9 +110,7 @@ defmodule BnestAppWeb.UserAuth do
   # same "not found" shape every other role/flag gate in this module uses),
   # and the later experience release flips it on without a redeploy.
   def require_family_chat_enabled(conn, _options) do
-    if family_chat_enabled?(),
-      do: conn,
-      else: conn |> send_resp(:not_found, "Not found") |> halt()
+    if family_chat_enabled?(), do: conn, else: not_found(conn)
   end
 
   def on_mount(:require_authenticated_user, _params, session, socket) do

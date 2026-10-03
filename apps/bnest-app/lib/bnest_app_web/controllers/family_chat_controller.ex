@@ -34,7 +34,7 @@ defmodule BnestAppWeb.FamilyChatController do
         )
 
       {:error, _safe_error} ->
-        conn |> send_resp(:not_found, "Not found") |> halt()
+        BnestAppWeb.UserAuth.not_found(conn)
     end
   end
 end
