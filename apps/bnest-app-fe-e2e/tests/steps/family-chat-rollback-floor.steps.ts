@@ -60,34 +60,65 @@ function navigationCount(page: Page): Promise<number> {
  * reply does. So wait until the routed slot will actually answer a
  * database-backed read before asking it to commit anything.
  */
-async function waitForRoutedReads(page: Page): Promise<void> {
+async function waitForRoutedReads(page: Page, revision: string): Promise<void> {
   await expect
     .poll(
       () =>
-        page.evaluate(async () => {
-          const response = await fetch("/api/graphql", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-              "content-type": "application/json",
-              "x-csrf-token":
-                document.querySelector<HTMLMetaElement>(
-                  "meta[name='csrf-token']",
-                )?.content ?? "",
-            },
-            body: JSON.stringify({
-              query:
-                "query Probe($roomSlug: String!) { familyChatMessages(roomSlug: $roomSlug, limit: 1) { nodes { id } } }",
-              variables: { roomSlug: "ruang-keluarga" },
-            }),
-          });
-          if (!response.ok) return false;
-          const payload = (await response.json()) as { errors?: unknown };
-          return payload.errors === undefined;
-        }),
+        page.evaluate(async (expected) => {
+          const probe = async (): Promise<boolean> => {
+            const response = await fetch("/api/graphql", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: {
+                "content-type": "application/json",
+                "x-csrf-token":
+                  document.querySelector<HTMLMetaElement>(
+                    "meta[name='csrf-token']",
+                  )?.content ?? "",
+              },
+              body: JSON.stringify({
+                query:
+                  "query Probe($roomSlug: String!) { familyChatMessages(roomSlug: $roomSlug, limit: 1) { nodes { id } } }",
+                variables: { roomSlug: "ruang-keluarga" },
+              }),
+            });
+            if (!response.ok) return false;
+            // Answered by the revision just routed, not one still draining.
+            if (response.headers.get("x-bnest-revision") !== expected)
+              return false;
+            const payload = (await response.json()) as { errors?: unknown };
+            return payload.errors === undefined;
+          };
+          // Side by side, so the browser's other pooled connections to the
+          // origin are asked too: the next real request may not reuse this one.
+          const answers = await Promise.all(
+            Array.from({ length: 6 }, () => probe().catch(() => false)),
+          );
+          return answers.every(Boolean);
+        }, revision),
       { timeout: 20_000 },
     )
     .toBe(true);
+}
+
+/**
+ * Reloads into the routed room. The page itself comes from the slot just
+ * routed, and a slot still settling can answer that one request with an error
+ * page that has no room in it; reloading again is what a person would do.
+ */
+async function reloadRoutedRoom(page: Page): Promise<void> {
+  const room = page.locator('[data-role="family-chat-room"]');
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    // eslint-disable-next-line no-await-in-loop -- each reload is judged on its own result.
+    await page.reload();
+    // eslint-disable-next-line no-await-in-loop -- see above.
+    const loaded = await room
+      .waitFor({ state: "attached", timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (loaded) break;
+  }
+  await waitForRoomReady(page);
 }
 
 // --- The compatibility revision ------------------------------------------
@@ -103,9 +134,8 @@ Given("the compatibility revision is routed", async ({ page, $testInfo }) => {
     page,
     false,
   ));
-  await waitForRoutedReads(page);
-  await page.reload();
-  await waitForRoomReady(page);
+  await waitForRoutedReads(page, heldRevision);
+  await reloadRoutedRoom(page);
   ({ revision: routedRevision } = await promoteCandidateWithReplyFlag(
     page,
     false,
@@ -120,7 +150,7 @@ When(
     expect(new URL(page.url()).pathname).toBe(route);
     expect(await navigationCount(page)).toBe(1);
     await waitForRoomReady(page);
-    await waitForRoutedReads(page);
+    await waitForRoutedReads(page, routedRevision);
   },
 );
 
@@ -159,11 +189,10 @@ Given(
     scenario.targetId = await postMessage(page, scenario.targetBody);
     await waitForMessage(page, scenario.targetId);
 
-    await promoteCandidateWithReplyFlag(page, true);
-    await waitForRoutedReads(page);
-    await page.reload();
-    await waitForRoomReady(page);
-    await waitForRoutedReads(page);
+    const { revision } = await promoteCandidateWithReplyFlag(page, true);
+    await waitForRoutedReads(page, revision);
+    await reloadRoutedRoom(page);
+    await waitForRoutedReads(page, revision);
 
     scenario.replyId = await postMessage(
       page,
@@ -195,7 +224,7 @@ When(
     // and the browser has to re-subscribe against the floor before it can be
     // asked anything. Without this the next step races the reconnect.
     await waitForRoomReady(page);
-    await waitForRoutedReads(page);
+    await waitForRoutedReads(page, routedRevision);
   },
 );
 

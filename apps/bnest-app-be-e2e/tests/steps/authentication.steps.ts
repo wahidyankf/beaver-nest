@@ -192,6 +192,11 @@ Given(
 
 When("the user logs out from browser A", async ({ page }) => {
   await page.getByRole("button", { name: "Log out" }).click();
+  // Logging out first clears this member's queued messages from the device, so
+  // the form is submitted a moment after the click; a member is logged out once
+  // the server's redirect to the login page has landed, not when the button
+  // was pressed.
+  await page.waitForURL(/\/login$/u);
 });
 
 Then("browser A must log in again", async ({ page }) => {
