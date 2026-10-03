@@ -167,13 +167,18 @@ export function createReconnect({ socketClient = null } = {}) {
  */
 export async function promoteSlot(reconnect) {
   await reconnect.pauseDrainStep();
-  await reconnect.closePriorSocketStep();
-  await reconnect.recreateSocketStep();
-  const myGeneration = reconnect.generation();
-  await reconnect.subscribeFirstStep();
-  await reconnect.catchUpQueryStep(myGeneration);
-  await reconnect.mergeByServerIdStep();
-  await reconnect.resumeDrainStep();
+  // Resumed whether or not the rest finished: a catch-up that gave up would
+  // otherwise leave the outbox paused for good, holding every queued send.
+  try {
+    await reconnect.closePriorSocketStep();
+    await reconnect.recreateSocketStep();
+    const myGeneration = reconnect.generation();
+    await reconnect.subscribeFirstStep();
+    await reconnect.catchUpQueryStep(myGeneration);
+    await reconnect.mergeByServerIdStep();
+  } finally {
+    await reconnect.resumeDrainStep();
+  }
 }
 
 /**

@@ -178,7 +178,10 @@ export async function mountBrowser(room, elements, { subscriptionClient }) {
   wireOnlineOfflineBanner(room, elements);
   bindReconnectCallbacks(room, subscriptionClient);
 
-  await loadInitialMessages(room);
+  const loaded = await loadInitialMessages(room);
+  // Every attempt failed: say so where the member already looks for it, and
+  // carry on -- a queued send still goes out when the connection returns.
+  if (!loaded) elements.offlineBanner.hidden = false;
   renderResumedPendingMessages(room, elements);
   elements.input.disabled = false;
   elements.send.disabled = false;
@@ -192,7 +195,9 @@ export async function mountBrowser(room, elements, { subscriptionClient }) {
   // drain (tech-doc 003) -- rather than silently missing messages or racing
   // a send ahead of the gap-fill.
   subscriptionClient.onReconnect(() => {
-    void promoteSlot(room.reconnect);
+    // A promotion that gave up has already resumed the drain; the next
+    // reconnect runs the sequence again, so there is nothing more to do here.
+    promoteSlot(room.reconnect).catch(() => null);
   });
 
   // A backgrounded mobile PWA routinely freezes JS timers and silently

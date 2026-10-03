@@ -142,6 +142,22 @@ describe("createReconnect / promoteSlot", () => {
   });
 });
 
+describe("a promotion that cannot finish", () => {
+  it("still resumes the outbox drain when the catch-up fails, so queued sends are not held for good", async () => {
+    const calls: string[] = [];
+    const reconnect = createReconnect();
+    reconnect.bindBrowserCallbacks({
+      onPause: () => calls.push("pause"),
+      fetchMissed: () => Promise.reject(new Error("Internal Server Error")),
+      onResume: () => calls.push("resume"),
+    });
+
+    await expect(promoteSlot(reconnect)).rejects.toThrow("Internal Server");
+
+    expect(calls).toEqual(["pause", "resume"]);
+  });
+});
+
 describe("resumeFromBackground", () => {
   it("forces a reconnect on the socket client every time", () => {
     let reconnects = 0;
