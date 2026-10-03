@@ -3,6 +3,7 @@
 // file purely to stay under this project's max-lines lint budget.
 // `mount_browser.js` is the only importer.
 
+import { computeBackoffDelayMs } from "./backoff.js";
 import {
   familyChatMessagesQuery,
   familyChatMessageCommittedSubscription,
@@ -111,7 +112,8 @@ export async function mergeMissedMessages(room, rawMessages) {
 export function bindReconnectCallbacks(room, subscriptionClient) {
   room.reconnect.bindBrowserCallbacks({
     resubscribe: () => subscribeToRoom(room, subscriptionClient),
-    fetchMissed: (afterId) => fetchMissedMessages(room, afterId),
+    fetchMissed: (afterId) =>
+      retryWithBackoff(room, () => fetchMissedMessages(room, afterId)),
     mergeMessages: (rawMessages) => mergeMissedMessages(room, rawMessages),
     // Pausing/resuming the outbox's own drain (not just reconnect's
     // internal flag) is what actually stops a send from racing ahead of
@@ -122,14 +124,59 @@ export function bindReconnectCallbacks(room, subscriptionClient) {
 }
 
 /**
+ * How many times the room asks the server for a page it needs to carry on:
+ * up to four attempts, waiting 1 s, 2 s, then 4 s (jittered, at most 8.4 s in
+ * all) between them, on the room's own clock.
+ */
+export const INITIAL_LOAD_ATTEMPTS = 4;
+
+/**
+ * Runs `task`, and again after a bounded backoff while it rejects -- no
+ * network, or a request landing in a Caddy cutover and meeting a non-JSON 5xx.
+ * Rejects with the last failure once the attempts run out.
+ * @template T
+ * @param {MountableRoom} room
+ * @param {() => Promise<T>} task
+ * @returns {Promise<T>}
+ */
+async function retryWithBackoff(room, task) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop -- an attempt starts only once the one before it has failed.
+      return await task();
+    } catch (error) {
+      if (attempt >= INITIAL_LOAD_ATTEMPTS) throw error;
+      const delayMs = computeBackoffDelayMs(attempt, room.clock.random);
+      // eslint-disable-next-line no-await-in-loop -- the next attempt waits out this one's backoff.
+      await new Promise((resolve) => {
+        room.clock.setTimer(() => resolve(null), delayMs);
+      });
+    }
+  }
+}
+
+/**
  * Where the room opens is `history.js`'s decision (the newest page, or a
  * window anchored on this member's unread marker); this only has to tell
  * reconnect which committed message the room has caught up to.
+ *
+ * A failed load is tried again (`retryWithBackoff`) and the room keeps
+ * "booting" meanwhile. Nothing is rendered by a failed attempt, so a retry
+ * starts clean. Resolves `false` rather than rejecting once the attempts run
+ * out, so the caller decides what the member is shown.
  * @param {MountableRoom} room
+ * @returns {Promise<boolean>} whether the first page loaded.
  */
 export async function loadInitialMessages(room) {
-  const { newestId } = await room.history.loadInitial();
-  if (newestId !== null) room.reconnect.setHighestCommittedId(newestId);
+  try {
+    const { newestId } = await retryWithBackoff(room, () =>
+      room.history.loadInitial(),
+    );
+    if (newestId !== null) room.reconnect.setHighestCommittedId(newestId);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

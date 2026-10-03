@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { bindReconnectCallbacks } from "../../../js/family_chat/mount_browser_sync.js";
+import { createFakeClock } from "../../support/fake_clock";
 import { MESSAGE_PAGE_SIZE } from "../../../js/family_chat/page_source.js";
 
 interface Variables {
@@ -93,5 +94,51 @@ describe("the reconnect catch-up query", () => {
 
     expect(await catchUp(request)("5")).toEqual([]);
     expect(asked).toHaveLength(1);
+  });
+});
+
+describe("the reconnect catch-up query meeting a failing server", () => {
+  it("asks again after a backoff, on the room's clock, and returns what the retry got", async () => {
+    const clock = createFakeClock();
+    const { request, asked } = serverWith([11]);
+    let failures = 2;
+    function flaky(document: string, variables: Variables) {
+      if (failures > 0) {
+        failures -= 1;
+        return Promise.reject(new SyntaxError("Unexpected token 'I'"));
+      }
+      return request(document, variables);
+    }
+    let fetchMissed: FetchMissed | null = null;
+    bindReconnectCallbacks(
+      {
+        request: flaky,
+        clock,
+        roomSlug: "ruang-keluarga",
+        reconnect: {
+          bindBrowserCallbacks(callbacks: { fetchMissed: FetchMissed }) {
+            fetchMissed = callbacks.fetchMissed;
+          },
+        },
+      } as never,
+      {} as never,
+    );
+    if (!fetchMissed) throw new Error("no catch-up query was bound");
+
+    const missing = (fetchMissed as FetchMissed)("10");
+    let done = false;
+    void missing.then(() => {
+      done = true;
+    });
+    for (let turn = 0; turn < 50 && !done; turn += 1) {
+      // eslint-disable-next-line no-await-in-loop -- one macrotask lets the query's own awaits settle before time moves.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const due = clock.nextDueAt();
+      if (due !== null) clock.advance(due - clock.now());
+    }
+
+    expect((await missing).map((message) => message.id)).toEqual(["11"]);
+    expect(asked).toHaveLength(1);
+    expect(failures).toBe(0);
   });
 });
