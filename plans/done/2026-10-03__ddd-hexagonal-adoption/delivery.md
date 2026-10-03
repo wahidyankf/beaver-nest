@@ -765,7 +765,7 @@ deploy:retire -- --slot <unrouted colour>` once, then `lsof -nP -iTCP:4000 -iTCP
       routed slot. If routing is ambiguous or the retire fails, stop the release and report to the owner. Never retire
       the routed slot. Proof: the routed colour, the retired colour (or "already free"), and the listener check.
   - 2026-10-03: `proxy:status` and the routed `/health/ready` named green (4001) at `5b08a27f`. `deploy:retire --slot
-    blue` ran once under `./hippo run --class transactional --resource-tier light` and exited 0; `lsof` then showed
+blue` ran once under `./hippo run --class transactional --resource-tier light` and exited 0; `lsof` then showed
     only Caddy (4100) and green (4001).
 - [x] [AI] Preflight: `proxy:status`, readiness local and routed, 12 exact-origin samples within budget, a
       representative journey, `./hippo status` normal, inactive slot free. Proof: sample summary recorded.
