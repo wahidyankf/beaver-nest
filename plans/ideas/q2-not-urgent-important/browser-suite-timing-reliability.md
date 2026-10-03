@@ -48,6 +48,20 @@ records cite this gate as proof. The reply plan's delivery asserted `FE_E2E` gre
 not, and that went unnoticed for two rounds of corrections precisely because a suite that is usually green reads
 as green.
 
+**Fourth cause, wider again, measured 2026-10-03 during the `ddd-hexagonal-adoption` production release.** About a dozen
+`release:run` attempts for one unchanged application tree (the last was docs-only on top) mostly failed at the
+gate, each time on a different load-sensitive check and never on the same product assertion twice. The causes were a
+candidate that did not answer `/health/ready` for the first chromium run (`fetch failed`), `routed SQLite activation
+failed: storage drain lock timed out` (twice: two tests in one run, then four consecutive tests after the first
+project passed, which suggests a lease that outlives its test rather than load alone), a unit test that started a
+named process twice (`StoragePorts.install/1` returned `{:error, {:already_started, _}}`), and an integration
+scenario that broke its p95 budget during a full backup. The host was in `memory-warning` for most of the day and shared
+with other repositories' runs. One further attempt promoted the revision, passed the routed LiveView proof, and was
+rolled back by the release's own monitor at the end of the drain on a single routed-journey sample (status 0 at the
+3 s cap) that an independent sampler on the same origin did not reproduce; whether that sample was a real stall or
+a probe cut short as the monitor stopped is unmeasured. The promotion signal below ("a second observation of the
+drain-lock window outside a back-to-back run") has fired.
+
 ## Prior Art / Precedents
 
 - [End-to-end testing](../../../repo-governance/development/end-to-end-testing.md) already owns how these
