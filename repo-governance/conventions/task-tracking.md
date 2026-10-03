@@ -14,6 +14,16 @@ Represent repository work as a granular task list or to-do list, and keep that l
 - Before reporting completion, reconcile the entire list with the repository state. Complete remaining items or clearly report what remains and why.
 - Preserve the current list and its accurate status across context compaction or handoff under the [governance-continuity principle](../principles/governance-continuity.md).
 
+## Written Progress Record
+
+Plan-mediated work records its progress in the plan's `delivery.md`, under the [delivery contract](plans/004-delivery-contract.md#single-progress-surface). Outside plan-mediated work, a progress file in `local-tmp/` is the written progress record. Open it before the task's first action, record the goal, every active rule decision, and each item with its status, and update it as items resolve, so a session that breaks off resumes from it. It stays until the whole task has ended, delivery and cleanup in every repository included, and is then removed under [dev artifact clean-up](../workflows/maintenance/dev-artifact-clean-up.md).
+
+## Delegated-Agent Concurrency
+
+At most 3 delegated agents run at once; the main thread is the `+1` and takes no slot. The count covers every delegated agent alive in the session, foreground or background, at any depth: an agent that a delegated agent spawns takes a slot of its own. It binds in every harness whose session can spawn delegated agents, whatever that harness calls them, including Claude Code's `Agent` tool, Codex spawned agents, and OpenCode's `task` tool. Work beyond the cap waits until a running agent returns; it is never launched over the cap. Only a plan or the user changes the cap.
+
+Both rules are unenforced by tooling, by decision: the user declined hooks and harness settings for them, so review verifies them.
+
 ## New Direction Mid-Task
 
 New, follow-on, or changed direction reaches the list before it reaches the work. Read it against every open item first: some are now wrong, some are superseded, some are unaffected, and the new direction is usually more than one item. Record that reconciliation, then continue.
