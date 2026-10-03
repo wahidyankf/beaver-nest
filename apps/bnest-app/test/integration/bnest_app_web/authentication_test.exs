@@ -19,6 +19,15 @@ defmodule BnestAppWeb.AuthenticationTest do
     assert post(recycle(conn), "/setup", %{}).status == 404
   end
 
+  # The responses are sent with `x-content-type-options: nosniff`, so a body without a content
+  # type is offered to the visitor as a file download instead of being shown.
+  test "a page that is not available is shown as text, not offered as a download", %{conn: conn} do
+    for conn <- [get(conn, "/setup"), get(recycle(conn), "/family-chat/tidak-ada")] do
+      assert conn.status == 404
+      assert ["text/plain" <> _charset] = get_resp_header(conn, "content-type")
+    end
+  end
+
   test "theme preference is written and cleared only in the authenticated server store", %{
     conn: conn,
     test_identity: identity

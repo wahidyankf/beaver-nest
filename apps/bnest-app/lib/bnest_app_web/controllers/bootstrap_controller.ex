@@ -123,5 +123,5 @@ defmodule BnestAppWeb.BootstrapController do
 
   defp safe_setup_draft(_params), do: []
 
-  defp not_found(conn), do: send_resp(conn, :not_found, "Not found")
+  defp not_found(conn), do: BnestAppWeb.UserAuth.not_found(conn)
 end
