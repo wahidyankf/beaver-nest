@@ -58,8 +58,8 @@ and vanishes with the session; it is not a second record. The scratch directory 
 discards — scripts, assets, logs, the touched-path ledger — and never a copy of the checklist, its ticks, or its status.
 Two written records drift apart, and nothing decides which one was true.
 
-Outside plan-mediated work there is no `delivery.md`, and a scratch file may hold working notes that have to survive a
-context boundary.
+Outside plan-mediated work there is no `delivery.md`; a progress file in `local-tmp/` takes its place, under
+[Task Tracking](../task-tracking.md#written-progress-record).
 
 ## Cold-Executor Resumability
 
