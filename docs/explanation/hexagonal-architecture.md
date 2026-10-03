@@ -62,6 +62,32 @@ makes the unit layer fast and genuinely isolated. A fake that drifts from the re
 stateful port has one contract suite that runs against both: the in-memory adapter at unit level, and the SQLite
 adapter at integration level. The two cannot quietly disagree.
 
+## How Bnest Is Built Today
+
+The whole backend is migrated: no module sits outside a boundary, and no list of exceptions remains. Ten bounded
+contexts each publish one facade, `BnestApp.<Context>`:
+
+| Context             | What it owns                                                       |
+| ------------------- | ------------------------------------------------------------------ |
+| `Identity`          | Bootstrap, login, sessions, roles and the authorization policy     |
+| `Preferences`       | A signed-in user's theme                                           |
+| `Storage`           | Records, the path lock, the storage lifecycle, import and recovery |
+| `Operations`        | Admin panels, liveness, readiness and the release revision         |
+| `Scheduler`         | Daily schedules, durable claims, retries and leases                |
+| `Backup`            | Snapshot proof, fenced publication, receipts and retention         |
+| `CodexChat`         | The Codex conversation and its model and repository access         |
+| `SifatAllah`        | The learning activity and its progress                             |
+| `FamilyChat`        | Rooms, messages, replies and publishing                            |
+| `PushNotifications` | Web Push subscriptions, delivery, retry and retention              |
+
+The web layer, the command-line tasks and the release entry points call only those facades. Every effect, such as SQL,
+the filesystem, the network or an operating-system call, sits in an `Adapters` module, and `Application`, `Release`
+and `SqliteRepo` are the named owners beside them. Test workloads and doubles live under `test/`, never in `lib/`.
+
+The browser side follows the same idea on a smaller scale. The family chat room opens through injected collaborators
+(request, socket, persistence, storage and clock), so the shipped code has no test seam, and its unit scenarios run the
+real room against in-process doubles.
+
 ## Where to Look
 
 - The canonical rule: the
