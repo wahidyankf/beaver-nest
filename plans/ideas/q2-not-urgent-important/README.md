@@ -20,6 +20,9 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
   runtime flag to cover the release path, and a phase checkpoint to name its typecheck target.
 - [Browser suite timing reliability](browser-suite-timing-reliability.md) makes `FE_E2E` return the same result
   twice on an unchanged tree, so a gate plans cite as proof keeps meaning something.
+- [Bnest post-closure follow-ups](bnest-post-closure-follow-ups.md) keeps the storage retire contract, the
+  `fixture` task, the closure review's Low findings and the missing-backup investigation from the archived
+  hexagonal plan, plus the word-budget gap for the standard.
 
 ## Directory Map
 
@@ -41,3 +44,5 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
 - [Browser suite timing reliability](browser-suite-timing-reliability.md) records the fixed press-and-hold margin
   with the trace that settled it, the open visibility-resume failure at one run in eight, the slot-activation
   window that took a whole rule in one run, and why a retry is rejected as the remedy.
+- [Bnest post-closure follow-ups](bnest-post-closure-follow-ups.md) records the five decisions the structural plan did
+  not take and the owner approval one of them needs.

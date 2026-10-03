@@ -2,10 +2,13 @@
 
 ## Status
 
-**In progress.** Requested 2026-10-01 by the repository owner, who asked for this plan to be written directly under
-`plans/in-progress/` and executed through to production. All six documents exist. Both planning decision gates have
-run, and their records are in [`learnings.md`](learnings.md) (D1–D17). The plan quality-gate verdict is recorded there
-too. [`delivery.md`](delivery.md) is the only progress record.
+**Done, completed 2026-10-03.** Requested 2026-10-01 by the repository owner, who asked for this plan to be written
+directly under `plans/in-progress/` and executed through to production. The closure revision `3edca7e0a` (PR #141)
+reached production as `e92f1ec2c`, the closure plus two documentation-only commits that landed on `main` during the
+release, after a compatibility release and the `--mode experience` re-promotion. The execution check returned
+`PASS_WITH_FINDINGS` (see [`learnings.md`](learnings.md), "Plan Execution Check"). [`delivery.md`](delivery.md) is the
+progress record, and follow-up work lives in the
+[post-closure follow-ups brief](../../ideas/q2-not-urgent-important/bnest-post-closure-follow-ups.md).
 
 ## Outcome
 

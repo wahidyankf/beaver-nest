@@ -6,12 +6,11 @@ Start work by moving one folder from [`../backlog/`](../backlog/README.md) witho
 
 ## Active Plan
 
-[`ddd-hexagonal-adoption/`](ddd-hexagonal-adoption/README.md) adopts Domain-Driven Design and hexagonal architecture
-across Bnest, enforced by the `boundary` compiler, and releases the result to production.
+No plan is currently in progress.
 
 Completed records live in [`../done/`](../done/README.md), and additional candidates are queued in
 [`../backlog/`](../backlog/README.md).
 
 ## Directory Map
 
-- [DDD and Hexagonal Architecture Adoption](ddd-hexagonal-adoption/README.md): the active plan.
+- No plan folder is currently in progress.

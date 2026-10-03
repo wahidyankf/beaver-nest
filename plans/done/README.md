@@ -16,6 +16,7 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [HIPPO and RHINO governance adoption](2026-09-09__hippo-rhino-governance-adoption/README.md) completed a governance hierarchy, a three-harness contract, one merge-blocking pull-request gate, and a no-bypass default-branch ruleset in both CLI repositories.
 - [Family Chat Room](2026-09-20__family-chat-room/README.md) completed an authenticated GraphQL family chat room with durable SQLite history, IndexedDB offline recovery, opt-in Web Push, low-impact whole-database backup, and a two-stage no-downtime production release.
 - [Family Chat Message Reply](2026-09-23__family-chat-message-reply/README.md) completed quoted replies in Ruang Keluarga — a per-message action menu reachable by touch, mouse, and keyboard, a composer quote strip, an additive reply reference, bounded jump-to-original, offline reply queuing, and a two-stage no-downtime production release.
+- [DDD and hexagonal architecture adoption](2026-10-03__ddd-hexagonal-adoption/README.md) completed ten bounded contexts with compiler-enforced layers, in-memory adapters with contract suites, the full-corpus Gherkin review, and a two-stage no-downtime production release.
 
 ## Directory Map
 
@@ -29,3 +30,4 @@ Before archiving, reconcile required and conditional delivery, acceptance, verif
 - [HIPPO and RHINO governance adoption](2026-09-09__hippo-rhino-governance-adoption/README.md) contains the completed governance-adoption, harness-contract, gate, and ruleset delivery record.
 - [Family Chat Room](2026-09-20__family-chat-room/README.md) contains the completed family chat requirements, technical design, UI assets, and execution-grade delivery record.
 - [Family Chat Message Reply](2026-09-23__family-chat-message-reply/README.md) contains the completed reply requirements, technical design, UI assets, delivery record, eight accepted-as-permanently-unmet items, and the decision to archive over a `BLOCKED` execution verdict.
+- [DDD and hexagonal architecture adoption](2026-10-03__ddd-hexagonal-adoption/README.md) contains the completed architecture standard, per-context delivery record, closure review, and release evidence.

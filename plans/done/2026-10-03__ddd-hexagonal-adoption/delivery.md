@@ -97,6 +97,7 @@ says `never-started`. Exit `73`: clean owned storage. Exit `78`: stop and replan
     Caddy routes and whether the second listener is a retained slot.
 - [x] [AI] **Checkpoint 0 (blocking):** baseline green. If it is red, stop. A pre-existing red baseline is a defect to report,
       not to absorb.
+  - 2026-10-01: baseline `APP_QUICK` exit 0 (unit coverage 99.11%) and `INTEGRATION` exit 0 (330 tests, 0 failures).
 
 ## Phase 1: U1, Plan
 
@@ -117,6 +118,7 @@ says `never-started`. Exit `73`: clean owned storage. Exit `78`: stop and replan
   - 2026-10-01: PR #116 merged as `e68a41b44`. It supersedes #113 and #115: each fell behind `main` (the second on
     the new Mermaid palette policy), and a force push is not authorized.
 - [x] [AI] **Checkpoint 1 (blocking):** verdict `PASS` or `PASS_WITH_FINDINGS` with every finding accepted; U1 merged.
+  - 2026-10-01: verdict `PASS_WITH_FINDINGS` after two repair cycles, both findings accepted; PR #116 merged as `e68a41b44`.
 
 ## Phase 2: U2, Architecture Standard (AC-DH-01)
 
@@ -675,12 +677,18 @@ Every context phase runs the same nine items, in this order, with the context's 
     module (`BnestAppWeb` → `SqliteRepo`, `FamilyChat.Domain` → `Ecto.Adapters.SQL`, `PushNotifications` and
     `FamilyChat` → `FamilyChat.Adapters`). Each file was restored from a byte-identical copy instead of
     `git restore`, so no uncommitted change was lost; `git status` showed none of the four files.
-- [ ] [AI] `grep -rnE "_for_test|put_test_" apps/bnest-app/lib` prints nothing; `FEATURE_DIFF <U1 base>` prints nothing.
+- [x] [AI] `grep -rnE "_for_test|put_test_" apps/bnest-app/lib` prints nothing; `FEATURE_DIFF <U1 base>` prints nothing.
       AC-DH-08, AC-DH-09.
   - 2026-10-02: the grep prints nothing. `FEATURE_DIFF 7e23669c9` lists 9 paths: the e2e step fixes of E6–E9, the
     `sifat_allah.feature` exemption removal of E7, and a repository-wide Mermaid palette commit on `main`. The
     owner's decision in [learnings](learnings.md) E14 widens U14 to feature files and e2e steps, so this item is
     reconciled at the end of U14.
+  - 2026-10-03, reconciled at archival against `origin/main`: the grep still prints nothing. `FEATURE_DIFF 7e23669c9`
+    is no longer empty (45 paths), by the owner's amendment in E14 ("`FEATURE_DIFF` stops being empty"): the feature
+    files, e2e and behaviour step bindings, two specification files, and the extraction of the Caddyfile text into
+    `tools/caddy-config.mjs` with identical content. AC-DH-09's purpose is held by the paths that must stay empty:
+    `git diff 7e23669c9..HEAD -- apps/bnest-app/priv/sqlite_repo/migrations` prints nothing, the release manifest
+    carries one migration (`bnest-persistent-schedules-v1`), and the release log reports "Migrations already up".
 - [x] [AI] Record schema proof: `FOCUS_UNIT test/unit/bnest_app/storage/domain/record_schema_test.exs` passes with its
       assertions unchanged since U4, and `BEHAVIOUR` passed above, which reads and writes every record kind. Supporting
       value check: `/usr/bin/git grep -hoE '"schemaVersion" => [0-9]+' <U1 base> -- apps/bnest-app/lib | sort -u` prints
@@ -732,32 +740,74 @@ Every context phase runs the same nine items, in this order, with the context's 
 - [x] [AI] Stop every non-production server, watcher and proxy started during execution. Proof: `lsof` on ports
       `4010`–`4039` is empty.
   - 2026-10-03: `lsof` on ports 4010 to 4039 is empty.
-- [ ] [AI] Commit, PR, leak review, gate, merge `refactor(bnest-app): complete hexagonal architecture adoption`.
-- [ ] [AI] **Checkpoint 14 (blocking):** U14 merged; every AC except AC-DH-10 is met with evidence.
+- [x] [AI] Commit, PR, leak review, gate, merge `refactor(bnest-app): complete hexagonal architecture adoption`.
+  - 2026-10-03: PR #141 merged as `3edca7e0ad6bd2dda3868c724df93535ce3765f1` (the closure revision).
+- [x] [AI] **Checkpoint 14 (blocking):** U14 merged; every AC except AC-DH-10 is met with evidence.
+  - 2026-10-03: U14 landed as several pull requests (#128 to #141, per E14); the last merged as the closure revision.
 
 ## Phase 15: Production Release (AC-DH-10)
 
 Run per [005](tech-docs/005-release-continuity-and-rollback.md), from the primary checkout.
 
-- [ ] [AI] Reconcile the primary checkout `main` to `origin/main`. Proof: `0 0` divergence and a clean tree.
-- [ ] [AI] Load the machine-local deploy environment (paths only) and read the active slot's flag mode.
-- [ ] [AI] Free the inactive slot (Phase 0 found both `4000` and `4001` listening). Identify the routed slot with
+- [x] [AI] Reconcile the primary checkout `main` to `origin/main`. Proof: `0 0` divergence and a clean tree.
+  - 2026-10-03: `git rev-list --left-right --count HEAD...origin/main` read `0 0` at `3edca7e0a` and empty
+    `git status --porcelain`. `origin/main` then advanced twice by documentation-only commits while the release was
+    retried (`69e5f45b0`, then `e92f1ec2c`); the primary checkout was fast-forwarded each time and re-proved `0 0`
+    and clean before each attempt.
+- [x] [AI] Load the machine-local deploy environment (paths only) and read the active slot's flag mode.
+  - 2026-10-03: `~/.bnest-deployment/deploy-env.sh` loaded (exit 0; paths only). The routed green slot ran with
+    `BNEST_FAMILY_CHAT_ENABLED` and `BNEST_FAMILY_CHAT_REPLY_ENABLED` both `true`; blue had neither set. The
+    experience re-promotion therefore applies.
+- [x] [AI] Free the inactive slot (Phase 0 found both `4000` and `4001` listening). Identify the routed slot with
       `proxy:status` and the routed `/health/ready` revision and port. If exactly one slot is routed and the other is not,
       run `rtk ./hippo run --class transactional --resource-tier light --disk-path . -- npm exec -- nx run -p bnest-app -t
 deploy:retire -- --slot <unrouted colour>` once, then `lsof -nP -iTCP:4000 -iTCP:4001 -sTCP:LISTEN` shows only the
       routed slot. If routing is ambiguous or the retire fails, stop the release and report to the owner. Never retire
       the routed slot. Proof: the routed colour, the retired colour (or "already free"), and the listener check.
-- [ ] [AI] Preflight: `proxy:status`, readiness local and routed, 12 exact-origin samples within budget, a
+  - 2026-10-03: `proxy:status` and the routed `/health/ready` named green (4001) at `5b08a27f`. `deploy:retire --slot
+    blue` ran once under `./hippo run --class transactional --resource-tier light` and exited 0; `lsof` then showed
+    only Caddy (4100) and green (4001).
+- [x] [AI] Preflight: `proxy:status`, readiness local and routed, 12 exact-origin samples within budget, a
       representative journey, `./hippo status` normal, inactive slot free. Proof: sample summary recorded.
-- [ ] [AI] Start the background exact-origin sampler.
-- [ ] [AI] `release:run -- --revision <closure-sha>`. Proof: `outcome: passed`.
-- [ ] [AI] Experience re-promotion, only if the active mode had the flags on. Proof: `outcome: passed`, or "not
+  - 2026-10-03: `proxy:status`, local and routed readiness all 200 at `5b08a27f`; 12 samples of the exact origin, all
+    200, p95 0.34 s, maximum 0.34 s; `/` answered 302 to `/login`, `/login` 200, `/health/live` 200; `./hippo status`
+    `normal`; blue free.
+- [x] [AI] Start the background exact-origin sampler.
+  - 2026-10-03: a 2 s `/health/ready` sampler wrote `local-tmp/ddd-hexa/release-samples.ndjson` from 03:10Z.
+- [x] [AI] `release:run -- --revision <closure-sha>`. Proof: `outcome: passed`.
+  - 2026-10-03: `outcome: passed` for **`e92f1ec2c82e9ee42fa535cd5ac2a1c1a2592b3e`**, not the closure SHA itself.
+    `release:run` accepts only the current `origin/main`, and two documentation-only commits landed on `main` while
+    the release was retried (`69e5f45b0`, an example file for HIPPO; `e92f1ec2c`, three governance documents). The
+    application tree is identical to the closure revision. The owner confirmed each newer revision when asked, and
+    gave a standing permission to release a newer `origin/main` whose delta from `3edca7e0a` is documentation only.
+    About a dozen invocations were needed (some deferred by HIPPO or refused at preflight because `main` had moved).
+    Only two changed production: one promotion that was rolled back (see Recovery) and the final one. Every other
+    failure was a gate failure that stopped before any build or cutover: a missing `boundary` dependency in the primary
+    checkout (fixed by fetching the dependencies), a stale link in an ignored local report, and load-sensitive checks
+    that failed differently each time (see the brief
+    [browser-suite-timing-reliability](../../ideas/q2-not-urgent-important/browser-suite-timing-reliability.md)). The
+    last attempt passed with `migrationState: applied` (the idempotent migration step ran and the log reads "Migrations already up"; no
+    migration was added) and evidence ending `promotion`, `routed-liveview`, `cleanup`,
+    `convergence`.
+- [x] [AI] Experience re-promotion, only if the active mode had the flags on. Proof: `outcome: passed`, or "not
       applicable" with the recorded mode.
-- [ ] [AI] Routed proof: Caddy and Tailnet `/health/ready` revision equal the closure SHA; synthetic LiveView connected;
+  - 2026-10-03: `release:run -- --mode experience --revision e92f1ec2c…` returned `outcome: passed` (evidence
+    `experience-release-e2e`, `experience-candidate-proof`, `promotion`, `routed-liveview`, `cleanup`). Green now runs
+    with both flags `true`.
+- [x] [AI] Routed proof: Caddy and Tailnet `/health/ready` revision equal the closure SHA; synthetic LiveView connected;
       its JSON reports `reconnected: true`, per [005](tech-docs/005-release-continuity-and-rollback.md) step 8; sampler
       budget met.
-- [ ] [AI] Drain and cleanup: one slot listening, no release worktree, sampler stopped.
-- [ ] [AI] **Checkpoint 15 (blocking):** AC-DH-10 met.
+  - 2026-10-03: local Caddy (`127.0.0.1:4100`) and Tailnet HTTPS `/health/ready` both report slot green, revision
+    `e92f1ec2c82e9ee42fa535cd5ac2a1c1a2592b3e`. `tools/verify-liveview.mjs` at the exact origin printed
+    `{"outcome":"passed","liveView":true,"reconnected":true,"clientCount":10,"groupCount":3}`. The sampler recorded 5,967
+    samples from 03:10Z to 06:54Z, covering every attempt, the rolled-back promotion, the final compatibility promotion and the experience re-promotion: 0 non-200 and none over 2 s, p95 0.31 s,
+    maximum 1.06 s.
+- [x] [AI] Drain and cleanup: one slot listening, no release worktree, sampler stopped.
+  - 2026-10-03: `lsof` shows only green on 4001 and Caddy on 4100; `~/.bnest-deployment/worktrees` is empty and
+    `git worktree list` has no release worktree; the sampler process is gone.
+- [x] [AI] **Checkpoint 15 (blocking):** AC-DH-10 met.
+  - 2026-10-03: the routed backend serves the intended application tree at a revision whose delta from the closure
+    revision is documentation only, with the flags restored and the continuity budget met.
 
 ## Recovery and Rollback
 
@@ -766,20 +816,38 @@ disposition and evidence.
 
 - [ ] [AI] Trigger: a unit's merged revision fails a gate on `main`. Action: revert the merge through a pull request,
       then diagnose on a new branch.
+  - 2026-10-03: Not triggered. No unit revision failed a gate on `main`; the release gates that failed ran on the
+    primary checkout before any cutover and were environment or load causes, not a regression in a merged unit.
 - [ ] [AI] Trigger: candidate health, revision, LiveView or routed proof fails during the release. Action:
       `npm exec -- nx run -p bnest-app -t deploy:rollback`, then diagnose.
-- [ ] [AI] Trigger: a responsiveness sample fails or the budget is exceeded during promotion or drain. Action:
+  - 2026-10-03: Not triggered. Candidate health, the revision header and the routed LiveView proof passed in both
+    promotions.
+- [x] [AI] Trigger: a responsiveness sample fails or the budget is exceeded during promotion or drain. Action:
       `deploy:rollback` immediately, then re-verify the journey and budget.
+  - 2026-10-03: Triggered once. After a promotion to blue at `69e5f45b0` passed the routed LiveView proof, the
+    release monitor recorded one routed-journey sample with status 0 at its 3 s cap (05:26:21Z, at the end of the
+    drain) against a budget of zero failures; `release:run` ran `deploy:rollback` itself (`outcome: rolled-back`,
+    `errorCategory: continuity`) and green at `5b08a27f` served again. Re-verified: routed readiness 200 at
+    `5b08a27f`, one slot listening. The independent sampler on the same origin saw no failure in that window (p95 0.34
+    s, maximum 0.56 s), so whether the sample was a real stall or a probe cut short as the monitor stopped is
+    unmeasured and is recorded in the idea brief. The next attempt, on a quiet host, passed with the budget met.
 - [ ] [AI] Trigger: a post-drain defect. Action: request the owner's confirmation and re-release the previous revision.
+  - 2026-10-03: Not triggered. No defect was found after the final drain.
 
 ## Archival
 
-- [ ] [AI] Resolve every `learnings.md` entry to a durable owner or a reasoned discard.
-- [ ] [AI] Report the `family-learning-engine` backlog conflict to the owner in the completion summary (it plans
+- [x] [AI] Resolve every `learnings.md` entry to a durable owner or a reasoned discard.
+  - 2026-10-03: the "Archival Resolution" section of [learnings](learnings.md) resolves every decision and
+    execution entry: promoted to the docs, the standard, two idea briefs and the release guide, or discarded with a
+    reason.
+- [x] [AI] Report the `family-learning-engine` backlog conflict to the owner in the completion summary (it plans
       against `sifat_allah_live.ex` and `application.ex` as they were before this plan). This plan does not edit
       another plan. Proof: the `learnings.md` entry resolved as "routed to the owner".
-- [ ] [AI] Run the [plan execution check](../../../repo-governance/workflows/plan/plan-execution-check.md) through
+  - 2026-10-03: resolved as "routed to the owner" in the Archival Resolution table; the completion summary carries it.
+- [x] [AI] Run the [plan execution check](../../../repo-governance/workflows/plan/plan-execution-check.md) through
       `plan-execution-checker`, and record its verdict in `learnings.md`.
+  - 2026-10-03: `PASS_WITH_FINDINGS`, archival permitted; five findings fixed (see "Plan Execution Check" in
+    [learnings](learnings.md)).
 - [ ] [AI] Move the plan to `plans/done/<completion-date>__ddd-hexagonal-adoption/`; update `plans/in-progress/README.md`,
       `plans/done/README.md` and every live link; run `REPO` from the archived state.
 - [ ] [AI] Commit `docs(plans): archive ddd and hexagonal architecture adoption`; PR, leak review, gate, merge.

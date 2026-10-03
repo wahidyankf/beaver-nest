@@ -113,6 +113,10 @@ Scenario Outline: One contract suite proves both adapters of a port
 
 ### AC-DH-08: Behaviour is unchanged
 
+> **Amended 2026-10-02 by the owner** (learnings E14): feature files, e2e step bindings and `assets/**` may change
+> where the full-corpus Gherkin review required it, so `FEATURE_DIFF` is not empty. Every changed scenario carries
+> its review row, and the final corpus is 714 rows with 0 FAIL. The scenarios below keep their original wording.
+
 ```gherkin
 Scenario: Every existing behaviour scenario passes unchanged
   Given the specs/apps/bnest Gherkin features at the base revision
@@ -135,6 +139,11 @@ Scenario: The release carries no migration and no format change
 ```
 
 ### AC-DH-10: Production serves the new architecture without disruption
+
+> **As met 2026-10-03:** `release:run` accepts only the current `origin/main`, which had advanced by two
+> documentation-only commits, so production serves `e92f1ec2c82e9ee42fa535cd5ac2a1c1a2592b3e`: the closure revision
+> `3edca7e0a` plus those commits, with an identical application tree. The owner confirmed the newer revision. The
+> scenario below keeps its wording.
 
 ```gherkin
 Scenario: The no-downtime cutover promotes the closure revision
