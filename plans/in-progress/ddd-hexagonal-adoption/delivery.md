@@ -687,14 +687,21 @@ Every context phase runs the same nine items, in this order, with the context's 
       the same set as the same command at `HEAD` (whitespace and counts are excluded by `-o` and `-u`). AC-DH-09.
   - 2026-10-02: `FOCUS_UNIT` exit 0 with the 12 record-schema tests passing. Since U4 the test changed only by alias
     and sample-builder renames, no assertion. The `schemaVersion` set is `1` at both the U1 base and `HEAD`.
-- [ ] [AI] `APP_QUICK`, `INTEGRATION`, `REPO`, `BE_COVERAGE` and `FE_COVERAGE` pass. AC-DH-08.
-- [ ] [AI] `BE_E2E` and `FE_E2E` for the affected states (storage, identity, family chat, push, scheduler/backup admin,
+- [x] [AI] `APP_QUICK`, `INTEGRATION`, `REPO`, `BE_COVERAGE` and `FE_COVERAGE` pass. AC-DH-08.
+  - 2026-10-03: on the closure tree one run of typecheck, lint, `test:quick`, `test:coverage:behaviour` and
+    `test:integration` exited 0; `REPO` exited 0; `BE_COVERAGE` and `FE_COVERAGE` exited 0.
+- [x] [AI] `BE_E2E` and `FE_E2E` for the affected states (storage, identity, family chat, push, scheduler/backup admin,
       Codex chat, SifatAllah) at the exact local origin, with LiveView awaited and isolated `test-user-` identities. Proof:
       pass counts. AC-DH-08.
-- [ ] [AI] Full-corpus Gherkin implementation review of every scenario and adapter, so the pre-existing placeholder
+  - 2026-10-03: full backend e2e 61 tests (one logout race, fixed, then 5 of 5) and full frontend e2e 383 tests
+    (see [learnings](learnings.md) E16). After the last fixes the full "Family chat" run was 212 passed, 0 failed.
+    One flake stays open and is recorded in E16: the rollback-floor reply scenario failed 1 of 8 valid promotion
+    loop runs.
+- [x] [AI] Full-corpus Gherkin implementation review of every scenario and adapter, so the pre-existing placeholder
       patterns the unit reviews left out of scope (see [learnings](learnings.md) E4, E5, E9 and E10) are found and fixed. Proof:
       the report's row count matches the corpus, with zero FAIL rows after fixes. AC-DH-08.
-- [ ] [AI] Manual `curl`, per [API testing](../../../repo-governance/development/api-testing.md), against a local test
+  - 2026-10-03: 714 expanded rows, 582 PASS, 132 EXEMPT, 0 FAIL ([learnings](learnings.md) E15).
+- [x] [AI] Manual `curl`, per [API testing](../../../repo-governance/development/api-testing.md), against a local test
       server on a leased development port with an isolated run root, once with a `test-user-` session and once
       unauthenticated where authentication applies: `GET /health/live`, `GET /health/ready`, `POST /login`,
       `DELETE /logout`, `POST /setup`, `PUT /preferences/theme`, `GET /family-chat`, `GET /family-chat/:slug`, and
@@ -702,19 +709,29 @@ Every context phase runs the same nine items, in this order, with the context's 
       operations, and the subscription handshake. Proof: per operation, the status, content type, response shape and
       side effect (for example, `DELETE /logout` disabling the session's push subscription) recorded, each matching what
       the route's existing integration test asserts. AC-DH-08.
-- [ ] [AI] Manual UI inspection of every thinned LiveView at the exact local origin and the standard viewports, with
+  - 2026-10-03: recorded in [learnings](learnings.md) E16; no High or Critical mismatch.
+- [x] [AI] Manual UI inspection of every thinned LiveView at the exact local origin and the standard viewports, with
       spec-aware and spec-blind
       [exploratory passes](../../../repo-governance/workflows/quality/exploratory-usability-review.md) recorded in separate
       `learnings.md` sections. Expected: no visible change. AC-DH-08.
-- [ ] [AI] C4 update of `specs/apps/bnest/app-be/architecture.md` per
+  - 2026-10-03: recorded in [learnings](learnings.md) E16 (spec-aware and spec-blind passes); the one defect from
+    before this plan is fixed.
+- [x] [AI] C4 update of `specs/apps/bnest/app-be/architecture.md` per
       [007](tech-docs/007-specification-changes.md): the Component View nodes and relationships, the prose under it, and
       the Architectural Constraints entries named there, synchronized with the as-built code. Proof: `REPO` (Mermaid,
       links) exits 0, and every component node names a facade that exists in `apps/bnest-app/lib`.
-- [ ] [AI] Rules propagation for any rule changed during execution; record the terminal result.
-- [ ] [AI] Update `apps/bnest-app/README.md` (architecture section) and `docs/explanation/hexagonal-architecture.md`
+  - 2026-10-03: Component View (14 nodes, 27 connections), prose and two constraints updated; Mermaid validated.
+- [x] [AI] Rules propagation for any rule changed during execution; record the terminal result.
+  - 2026-10-03: no rule or governance file changed in U14 (`repo-governance/` and agent instructions are absent from
+    the change), so no propagation ran; `REPO` exited 0.
+- [x] [AI] Update `apps/bnest-app/README.md` (architecture section) and `docs/explanation/hexagonal-architecture.md`
       (as-built map); run docs propagation and record the result.
-- [ ] [AI] Stop every non-production server, watcher and proxy started during execution. Proof: `lsof` on ports
+  - 2026-10-03: README and the as-built section of `docs/explanation/hexagonal-architecture.md` updated. Docs
+    propagation: status `no-change`, no stale document found; the Mermaid check (5 diagrams) and the internal
+    link check (1435 links) exited 0.
+- [x] [AI] Stop every non-production server, watcher and proxy started during execution. Proof: `lsof` on ports
       `4010`–`4039` is empty.
+  - 2026-10-03: `lsof` on ports 4010 to 4039 is empty.
 - [ ] [AI] Commit, PR, leak review, gate, merge `refactor(bnest-app): complete hexagonal architecture adoption`.
 - [ ] [AI] **Checkpoint 14 (blocking):** U14 merged; every AC except AC-DH-10 is met with evidence.
 

@@ -389,8 +389,9 @@ Resolution: applied in U8; 002 and 006 stay as authored, and this entry records 
 - **No `adapters:` option on the facade.** 004 describes one. Instead, the configured `InMemory.RoomStore.new/0`
   serves a named store that each test installs, so resolvers, the controller and the socket reach it without threading
   options. The facade's unit tests therefore run `async: false`.
-- **`converge_after_drain!/0` is a `RoomStore` callback.** The SQLite adapter still calls `Scheduler.Store` and
-  `Scheduler`, so the `FamilyChat.Adapters` boundary keeps `BnestApp` as a legacy dependency until U11.
+- **`converge_after_drain!/0` was a `RoomStore` callback.** The SQLite adapter then called `Scheduler.Store` and
+  `Scheduler`, so the `FamilyChat.Adapters` boundary kept `BnestApp` as a legacy dependency until U11. U14 moved the
+  call into the `FamilyChat` facade, which calls the Scheduler facade itself (E15 and PR #133).
 - **`Domain.Message` absorbed the quote rules**: the quote, the 160-grapheme preview and the live sender name. The
   facade keeps `live_sender_display_name/2` as a delegate. **`Domain.Policy`** holds the safe errors and the session
   digest. **`Domain.Cursor`** only validates; paging stays in the adapters.
@@ -552,7 +553,8 @@ Resolution: applied in U11; 002, 004 and 006 stay as authored, and this entry re
   `retain_owned/1`, which returns `{:ok, kept}`. The handler Thens need that `{:ok, _}` shape to prove the task makes
   no direct SQL.
 - **A domain module and a port callback outside 006.** `Domain.RestoreEvidence` holds the restore evidence rules, and
-  the `DatabaseSnapshot` port carries `message_exists?/3` for the restore probe.
+  the `DatabaseSnapshot` port carried `message_exists?/3` for the restore probe. U14 removed that callback and the
+  `:probe_watch` option of `Backup.run/1`, because test workloads no longer ship in `lib/` (E15).
 - **`Domain.Retention` duplicates the WIB +7 h rule** from `Scheduler.Domain.Policy`, because Backup's Domain has no
   dependencies.
 - **The test-only `:capacity_check` option is gone.** The integration capacity scenario swaps in the in-memory capacity
@@ -642,3 +644,71 @@ Resolution: applied in U13; 002, 004 and 006 stay as authored, and this entry re
   - The boundary warnings name the caller's boundary, not the caller module; the file and line identify the module.
 - **The Codex test selection fails closed.** Only a `BNEST_CODEX_RUNNER` naming the bundled fixture runner, compared by
   file identity, selects the real port session; this closes the E8 note and the chat review's X-1.
+
+### E15: U14 fix streams as built (2026-10-03)
+
+The full-corpus review's 267 FAIL rows were fixed in five streams, each its own pull request with a leak review and
+green required checks: chat and SifatAllah (#131), operations (#133), GraphQL (#135), core (#136), and the frontend
+family chat (#140). After the fixes the five reports cover all 714 expanded rows with 582 PASS, 132 EXEMPT and 0 FAIL
+(core 124/8/0 of 132, GraphQL 124/11/0 of 135, operations 47/22/0 of 69, frontend 150/81/0 of 231, chat and
+SifatAllah 137/10/0 of 147). Every changed Then was proved against a temporary production mutant that failed at the
+intended step, and each mutated file was restored from a copy and compared byte for byte.
+
+- **Production defects the review found and fixed.** The push ceiling, retention completion, backup path and root
+  isolation, Codex fail-closed selection, the Codex session crash after its runner exits, the socket's session digest,
+  test workloads shipped in `lib/`, the flat-to-SQLite migration logic inside an adapter, setup's text ordering of
+  account cards, the service worker's credentialed precache of `/`, a resumed send that committed while the room's
+  history loaded and then never rendered, a catch-up page size the server refuses, and a failed send with no way to
+  retry or discard it.
+- **Mutation jobs must not outlive their turn.** A subagent's background jobs died when its turn ended, three times
+  leaving mutants applied to production JavaScript. Each time the tree was restored from the batch backups and proved
+  clean with `cmp` and a scan for each mutant's original text; the mutation runner now refuses to start over an
+  existing backup. Overlapping mutant chains also corrupted one another's summaries, so a result is trusted only from
+  a single sequential run, and a stray mutant is found by checking that every mutant's original text still occurs
+  exactly once.
+- **Repeated runs found harness races that one green run hid.** An empty room's catch-up carries no `afterId`, so a
+  scenario run alone saw no catch-up (it passed in the full suite only because earlier scenarios leave messages
+  behind); a reload straight after a slot swap met a 500 from the history fetch; and a logout click followed at once
+  by a navigation cancelled the form submit that now waits for the device queue to clear. The bindings now start
+  from a known room, wait for routed reads before reloading, and wait for the login redirect after logging out.
+- **Known gap at the time of the fix streams, closed in E16.** The room's first history load had no retry, so a failed
+  first load, for example a 500 during a slot swap, left it in "booting" until a reload.
+
+### E16: U14 closure verification (2026-10-03)
+
+- **Full e2e.** The backend e2e ran 61 tests and the frontend e2e 383 on the closure tree. The one backend failure was the
+  logout race (the shipped log-out script now clears the device queue before it submits), fixed in the step by waiting
+  for the login redirect and then run 5 of 5. The frontend failures were the first-load hang (below) and a catch-up
+  assertion.
+- **A first history load that meets a 500 stayed in "booting" forever.** Right after a slot swap the history request
+  can return 500; the room made one attempt and gave up, so a user reloading during a release cutover would have had
+  to reload again. U14 adds a bounded retry to that load: four attempts, 1 s, 2 s, then 4 s apart with jitter, on the
+  room's own clock. When they run out the room shows its offline banner and still opens, so queued sends survive. The
+  catch-up fetch after a promotion uses the same retry. Unit tests failed before the change and pass after it, and
+  four temporary mutants (one attempt, never retry, no retry on catch-up, no resume of the drain) each failed them.
+- **A failed promotion left the outbox paused for good.** `promoteSlot` paused the drain and resumed it only if every
+  step succeeded, so a catch-up that gave up held every queued send. The resume now runs in a `finally`, with a unit
+  test, and the browser catches the rejection.
+- **Open flake, not explained.** In the Caddy promotion loop on chromium, "The rollback floor can still answer the
+  reply-aware bundle" failed in 1 of 8 valid runs (two more were shed by host pressure and are not counted): the send
+  was held past the 2-minute timeout and answered by the restored route. A diagnostic showed no send request for the
+  first 60 s. A subscribe with no timeout leaving the drain paused is a hypothesis, not a finding. The e2e hardening
+  (probing routed reads before a reload, reloading until the room appears) removes known races and is not a proven
+  fix; the full "Family chat" run after it was 212 passed, 0 failed.
+- **Manual `curl`** of every listed route (health, setup, login, logout, theme, the family chat page, and the GraphQL
+  queries, send mutation, four Web Push operations, unauthenticated refusals and the subscription handshake) against an
+  isolated test server matched the route tests and the specs, with no High or Critical mismatch. Low findings, all
+  predating this plan: malformed JSON to `/api/graphql` returns an HTML 400 although the pipeline documents a JSON
+  envelope; an unauthenticated `PUT /preferences/theme` redirects to a `return_to` that a GET cannot serve; no integration
+  test pins the Web Push operations or the socket handshake. The subscription lifecycle after the handshake is still
+  proved only by the backend e2e.
+- **Manual UI inspection** (8 pages at 320, 390, 768 and 1280 px, plus the login, theme, family chat, log-out, Codex
+  chat and Sifat Allah flows) found no regression. One real defect predated the plan: the closed `/setup`, an unknown
+  room and the admin and flag-gated routes answered a bare 404 with no content type under `nosniff`, which Chrome offers
+  as a file download. They now share one `UserAuth.not_found/1` that names `text/plain`, with an integration test.
+  Low findings, none from this plan: `/admin/settings/schedules` crashes on a root with no backup schedule row, the
+  theme toggle overlaps the admin breadcrumb at 320 px, some inline targets are under 24 px, the login form is four tab
+  stops in and drops focus after a rejected login, most page titles are identical, and "dark" leaves the page surfaces
+  light.
+- **Leftover test data.** The UI checker and curl agent left marked run roots under `~/bnest/data/test/`; the
+  harness's stale-data cleanup removes them in the cleanup phase.

@@ -142,7 +142,7 @@ backend today.
 ```mermaid
 flowchart TB
     accTitle: Component View
-    accDescr: Flowchart with 14 nodes and 22 connections. Nodes: External container app-fe browser/PWA, External container Codex bridge processes, External system Web Push service, Component Identity Bootstrap and login Sessions and roles, Component Authorization Capability plus ownership checks, Component Data repository Schemas, coordinator Ecto repo and phase, Component Import and recovery Envelopes and manifests Retry and restore, Component Admin settings domain Typed panel registry, Component Daily scheduler Claims and retries Lease coordination, Component Task supervisor Allowlisted handlers, Component Backup proof VACUUM and quick check Receipts and retention, Component Chat and learning domain BnestApp.Chat, SifatAllah, model catalog, session port, and 2 more. Connections: Component Identity Bootstrap and login Sessions and roles to Component Authorization Capability plus ownership checks, Component Identity Bootstrap and login Sessions and roles to Component Data repository Schemas, coordinator Ecto repo and phase (Accounts and sessions), Component Authorization Capability plus ownership checks to Component Data repository Schemas, coordinator Ecto repo and phase, Component Import and recovery Envelopes and manifests Retry and restore to Component Data repository Schemas, coordinator Ecto repo and phase, Component Admin settings domain Typed panel registry to Component Daily scheduler Claims and retries Lease coordination, Component Daily scheduler Claims and retries Lease coordination to Component Data repository Schemas, coordinator Ecto repo and phase (Schedule ledger), Component Daily scheduler Claims and retries Lease coordination to Component Task supervisor Allowlisted handlers (Dispatches claims), Component Task supervisor Allowlisted handlers to Component Backup proof VACUUM and quick check Receipts and retention, Component Task supervisor Allowlisted handlers to Component Push notifications VAPID delivery, retry Retention job (Dispatches retention claims), Component Backup proof VACUUM and quick check Receipts and retention to Component Data repository Schemas, coordinator Ecto repo and phase (Snapshot source), Component Chat and learning domain BnestApp.Chat, SifatAllah, model catalog, session port to Component Data repository Schemas, coordinator Ecto repo and phase (User-owned records), Component Family chat GraphQL Schema, resolvers Rooms, messages, subscription to Component Data repository Schemas, coordinator Ecto repo and phase (Rooms and messages), and 10 more.
+    accDescr: Flowchart with 14 nodes and 27 connections. Nodes: External container app-fe browser/PWA, External container Codex bridge processes, External system Web Push service, Component Inbound adapters BnestAppWeb, BnestAppCli Release entry points, Context Identity Bootstrap, login, sessions Roles and authorization, Context Preferences Per-user theme, Context Storage Records, lock, lifecycle Import and recovery, Context Operations Admin panels Liveness and readiness, Context Scheduler Claims and retries Configured task ports, Context Backup VACUUM and quick check Receipts and retention, Context CodexChat Transcripts, model access Agent session port, Context SifatAllah Quiz and progress, Context FamilyChat Rooms and messages Replies and publishing, and 1 more. Connections: app-fe to Inbound adapters (Opaque cookie, events, GraphQL over UserSocket), Inbound adapters to each of the ten context facades, Identity to Storage (Accounts and sessions), Operations to Scheduler and Storage, FamilyChat to Scheduler (Catch-up convergence), PushNotifications to FamilyChat (Committed messages), Scheduler to Backup and PushNotifications (Dispatches claims through task ports), Preferences, CodexChat, SifatAllah, Scheduler, Backup, PushNotifications and FamilyChat to Storage (Records through adapters), CodexChat to Codex bridge processes (Ports and JSON lines), and PushNotifications to Web Push service (Signed encrypted push payloads).
     frontend(["External container<br/><b>app-fe browser/PWA</b>"])
     bridge{{"External container<br/><b>Codex bridge processes</b>"}}
     webpush{{"External system<br/><b>Web Push service</b>"}}
@@ -150,48 +150,53 @@ flowchart TB
     subgraph phoenix["Container: Phoenix<br/>backend domain"]
         direction TB
 
-        identity["Component<br/><b>Identity</b><br/>Bootstrap and login<br/>Sessions and roles"]
-        auth["Component<br/><b>Authorization</b><br/>Capability plus ownership checks"]
-        repository["Component<br/><b>Data repository</b><br/>Schemas, coordinator<br/>Ecto repo and phase"]
-        imports["Component<br/><b>Import and recovery</b><br/>Envelopes and manifests<br/>Retry and restore"]
-        settings["Component<br/><b>Admin settings domain</b><br/>Typed panel registry"]
-        scheduler["Component<br/><b>Daily scheduler</b><br/>Claims and retries<br/>Lease coordination"]
-        tasks["Component<br/><b>Task supervisor</b><br/>Allowlisted handlers"]
-        backups["Component<br/><b>Backup proof</b><br/>VACUUM and quick check<br/>Receipts and retention"]
-        appdomain["Component<br/><b>Chat and learning domain</b><br/>BnestApp.Chat, SifatAllah,<br/>model catalog, session port"]
-        familychat["Component<br/><b>Family chat GraphQL</b><br/>Schema, resolvers<br/>Rooms, messages,<br/>subscription"]
-        push["Component<br/><b>Push notifications</b><br/>VAPID delivery, retry<br/>Retention job"]
+        inbound["Component<br/><b>Inbound adapters</b><br/>BnestAppWeb, BnestAppCli<br/>Release entry points"]
+        identity["Context<br/><b>Identity</b><br/>Bootstrap, login, sessions<br/>Roles and authorization"]
+        preferences["Context<br/><b>Preferences</b><br/>Per-user theme"]
+        storage["Context<br/><b>Storage</b><br/>Records, lock, lifecycle<br/>Import and recovery"]
+        operations["Context<br/><b>Operations</b><br/>Admin panels<br/>Liveness and readiness"]
+        scheduler["Context<br/><b>Scheduler</b><br/>Claims and retries<br/>Configured task ports"]
+        backup["Context<br/><b>Backup</b><br/>VACUUM and quick check<br/>Receipts and retention"]
+        codexchat["Context<br/><b>CodexChat</b><br/>Transcripts, model access<br/>Agent session port"]
+        sifatallah["Context<br/><b>SifatAllah</b><br/>Quiz and progress"]
+        familychat["Context<br/><b>FamilyChat</b><br/>Rooms and messages<br/>Replies and publishing"]
+        push["Context<br/><b>PushNotifications</b><br/>VAPID delivery, retry<br/>Retention task"]
 
-        identity --> auth
-        identity -->|Accounts and sessions| repository
-        auth --> repository
-        imports --> repository
-        settings --> scheduler
-        scheduler -->|Schedule ledger| repository
-        scheduler -->|Dispatches claims| tasks
-        tasks --> backups
-        tasks -->|Dispatches<br/>retention claims| push
-        backups -->|Snapshot source| repository
-        appdomain -->|User-owned records| repository
-        familychat -->|Rooms and messages| repository
-        familychat -->|Committed message,<br/>subscription mgmt| push
-        auth --> familychat
-        push -->|Subscription records| repository
-        push -->|Signed encrypted<br/>push payloads| webpush
+        inbound --> identity
+        inbound --> preferences
+        inbound --> storage
+        inbound --> operations
+        inbound --> scheduler
+        inbound --> backup
+        inbound --> codexchat
+        inbound --> sifatallah
+        inbound --> familychat
+        inbound --> push
+        identity -->|Accounts and sessions| storage
+        operations -->|Schedule state| scheduler
+        operations -->|Storage lifecycle| storage
+        familychat -->|Catch-up convergence| scheduler
+        push -->|Committed messages| familychat
+        scheduler -->|Dispatches claims<br/>through task ports| backup
+        scheduler -->|Dispatches retention<br/>claims via task ports| push
+        preferences -->|Records through<br/>adapters| storage
+        codexchat -->|Records through<br/>adapters| storage
+        sifatallah -->|Records through<br/>adapters| storage
+        scheduler -->|Schedule ledger<br/>through adapters| storage
+        backup -->|Snapshot source<br/>through adapters| storage
+        push -->|Subscriptions<br/>through adapters| storage
+        familychat -->|Rooms and messages<br/>through adapters| storage
     end
 
-    frontend -->|Opaque cookie<br/>protected events| identity
-    frontend -->|Chat/learning events| appdomain
-    frontend -->|Confirmed source values| imports
-    frontend -->|Admin-only events| settings
-    frontend -->|GraphQL ops over<br/>UserSocket| familychat
-    appdomain -->|Ports and JSON lines| bridge
+    frontend -->|Opaque cookie, events,<br/>GraphQL over UserSocket| inbound
+    codexchat -->|Ports and JSON lines| bridge
+    push -->|Signed encrypted<br/>push payloads| webpush
 
     classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
     classDef component fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
     classDef process fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
     class frontend external
-    class identity,auth,repository,imports,settings,scheduler,tasks,backups,appdomain,familychat,push component
+    class inbound,identity,preferences,storage,operations,scheduler,backup,codexchat,sifatallah,familychat,push component
     class bridge,webpush process
     classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
@@ -209,12 +214,22 @@ component, with subscription identity
 resolved only from the server-decoded session carried in `UserSocket`'s `connect_info` — never from client-supplied
 socket params. Push-subscription lifecycle (`web_push_configuration`, `current_web_push_subscription` queries;
 `upsert_web_push_subscription`, `disable_current_web_push_subscription` mutations) is served through that same
-schema and routed into the `push` component. Push notifications also owns a second, independent `Scheduler.Registry`
-handler (`family_chat_push_retention`, routed to `PushNotifications.RetentionJob`) alongside the pre-existing backup
-handler; both share the same daily-scheduler claim/retry/lease machinery in `tasks` but dispatch to unrelated
-allowlisted handler modules. `BnestApp.Chat` (the existing Codex conversation domain in `appdomain`) and the new
-family chat feature are unrelated: distinct schemas, distinct transports (LiveView events vs. GraphQL/Absinthe
-subscription), and distinct data stores.
+schema and routed into the `push` component. Push notifications also owns a second, independent
+`Scheduler.TaskRegistry` handler (`family_chat_push_retention`, routed to `PushNotifications.Adapters.RetentionTask`)
+alongside the pre-existing backup handler; both share the same daily-scheduler claim/retry/lease machinery in
+`scheduler` but dispatch to unrelated allowlisted handler modules. `BnestApp.CodexChat` (the Codex conversation
+context) and the family chat feature are unrelated: distinct schemas, distinct transports (LiveView events vs.
+GraphQL/Absinthe subscription), and distinct data stores.
+
+Each node is a bounded context published through one facade module, `BnestApp.<Context>`, with the context's pure
+`Domain`, outbound `Ports`, and effectful `Adapters` beneath it: `BnestApp.Identity` (bootstrap, login, sessions,
+roles, and the authorization policy), `BnestApp.Preferences`, `BnestApp.Storage` (records, the path lock, the storage
+lifecycle, import, and recovery), `BnestApp.Operations` (admin panels, liveness, readiness, and the release revision),
+`BnestApp.Scheduler`, `BnestApp.Backup`, `BnestApp.CodexChat`, `BnestApp.SifatAllah`, `BnestApp.FamilyChat`, and
+`BnestApp.PushNotifications`. A context reaches another only through that context's facade, except that every
+context reaches `Storage` through its own adapters, and `Scheduler` reaches `Backup` and `PushNotifications` only
+through the task ports it is configured with. `BnestApp.SqliteRepo`, `BnestApp.Application`, and `BnestApp.Release`
+are the infrastructure owners the contexts' adapters and the release entry points use.
 
 ## Architectural Constraints
 
@@ -243,6 +258,13 @@ subscription), and distinct data stores.
   replacement, and read-back. Sessions have no time expiry and remain independent per browser.
 - Test adapters use only synthetic `test-user-` identities and paired marked flat-file and SQLite run roots;
   production structural audit is read-only.
+- Each bounded context publishes one facade, `BnestApp.<Context>`. Inbound adapters (`BnestAppWeb`, `BnestAppCli`,
+  release entry points) call only facades and exported domain types, and a context calls another only through its
+  facade. The `boundary` compiler fails `typecheck` on any other edge, and every module under `lib/bnest_app` belongs
+  to a strict context or to a named infrastructure owner.
+- Only `*.Adapters.*` modules, `BnestApp.SqliteRepo`, `BnestApp.Application` and `BnestApp.Release.*` perform effects:
+  SQL, filesystem, network and operating-system calls. Domain modules are pure. The hexagonal layering integration
+  test enforces both rules, and test workloads and doubles live under `test/`, never in `lib/`.
 - Routine releases are clean-revision transactions owning release and resource locks, with fixed uncached gates,
   capacity and port admission, immutable artifact and migration manifests, revision proofs, rollback, bounded drain,
   and two-artifact retention. Repository-owned development consumes fixed CPU-and-memory allocations from the shared
