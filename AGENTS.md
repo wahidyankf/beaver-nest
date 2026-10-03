@@ -45,7 +45,8 @@
 
 - Prefix shell commands with `rtk`, preserving repository-mandated command forms and safety rules.
 - Use [English](repo-governance/conventions/language.md).
-- Follow [minimal sufficiency](repo-governance/principles/minimal-sufficiency.md): understand, reuse, minimize, verify; follow [dependency selection](repo-governance/development/dependency-selection.md).
+- Dispatch coding work to `swe-*` agents per [SWE delegation](repo-governance/conventions/swe-delegation.md).
+- Follow [minimal sufficiency](repo-governance/principles/minimal-sufficiency.md) and [dependency selection](repo-governance/development/dependency-selection.md).
 - Comment non-obvious shell safety invariants and lifecycle boundaries; avoid line-by-line narration.
 - New tables need [audit columns](repo-governance/conventions/database-audit-columns.md); event logs and projections are exempt.
 - Bnest is 24/7; obey [continuity](repo-governance/development/live-service-continuity.md); failed health stops work.
@@ -59,4 +60,4 @@
 - **Test-data iron rule:** tests use isolated roots and synthetic `test-user-` [identities](repo-governance/development/test-identities.md), never production users/data. Inspect production schemas read-only.
 - **Project rule** (except `libs/ex-bdd`): follow [specifications](repo-governance/development/specification-maintenance.md): Gherkin → bindings → Nx red → code → smoke. Reject placeholders/no-ops/outcome tables; unit mandatory. Exempt either/both layers for documented boundary mismatches. Changed Gherkin/adapters need the [manual review](repo-governance/workflows/quality/gherkin-implementation-review.md).
 - Update project [READMEs](repo-governance/conventions/project-readmes.md).
-- Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md): node/state segments ≤32 graphemes; edge/transition segments ≤24. Scope RHINO to changed files.
+- Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md); scope RHINO to changed files.

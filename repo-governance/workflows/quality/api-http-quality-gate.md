@@ -37,10 +37,9 @@ own owns leaves the table and becomes judgeable.
 
 ## Cycle
 
-Each cycle is one full audit by `api-http-checker` and one repair by [API HTTP Propagation](api-http-propagation.md),
-run by `api-http-fixer`, per
-[Sequence and Termination](../../development/quality-gate-contract/002-sequence-and-termination.md). The checker may
-delegate the requests to the repository's interface tester. It sends real requests against the contract and behaviour
+Each cycle is one full audit by the judge, `swe-api-tester` under its `contract` charter, and one repair by
+[API HTTP Propagation](api-http-propagation.md), run by `swe-developer` in its Apply Findings mode, per
+[Sequence and Termination](../../development/quality-gate-contract/002-sequence-and-termination.md). The judge sends real requests against the contract and behaviour
 specifications, and judges:
 
 - status codes, and response and error shapes, where no schema test already pins them;

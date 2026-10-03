@@ -1,16 +1,14 @@
 ---
 name: ci-monitor-subagent
 description: CI helper for /monitor-ci. Fetches CI status, retrieves fix details, or updates self-healing fixes. Executes one MCP tool call and returns the result.
-mode: subagent
-requires:
-  - nx-mcp
-denies:
-  - repository-write
-  - shell
-  - nested-agent
-  - web-search
-  - web-fetch
+when_to_use: >-
+  Use when the monitor-ci skill needs one Nx Cloud operation run, such as fetching CI status or fix details, or
+  applying or rejecting a self-healing fix.
+tier: fast
+capabilities:
+  - network
 constraints:
+  - read-only
   - single-mcp-operation
   - inline-result-only
 ---

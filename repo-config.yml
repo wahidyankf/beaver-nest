@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/wahidyankf/rhino/v0.9.1/schemas/repo-config/v2.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/wahidyankf/rhino/v0.10.0/schemas/repo-config/v2.schema.json
 # Beaver-Nest consumer policy for the immutable Rhino v0.4.0 release.
 
 schema: rhino/repo-config/v2
@@ -21,9 +21,11 @@ harness:
     agents:
       name: name
       description: description
-      grants: requires
+      tier: tier
+      grants: capabilities
       denials: denies
       constraints: constraints
+      dispatches: dispatches
     skills:
       name: name
       description: description
@@ -31,12 +33,11 @@ harness:
     capabilities:
       - repository-read
       - repository-write
-      - web-search
-      - web-fetch
       - shell
-      - nested-agent
-      - nx-mcp
+      - network
+      - subagent
     constraints:
+      - read-only
       - inline-result-only
       - single-mcp-operation
     routes:
@@ -47,16 +48,8 @@ harness:
     - id: claude
       supports:
         capabilities:
-          [
-            repository-read,
-            repository-write,
-            web-search,
-            web-fetch,
-            shell,
-            nested-agent,
-            nx-mcp,
-          ]
-        constraints: [inline-result-only, single-mcp-operation]
+          [repository-read, repository-write, shell, network, subagent]
+        constraints: [read-only, inline-result-only, single-mcp-operation]
         routes: [canonical-import]
         identities: [description]
       instruction-adapter:
@@ -68,6 +61,9 @@ harness:
         route-field: body
         route: "Before acting, read the complete canonical agent definition at the repository-root path {path} and follow it as authoritative. If it cannot be read, stop and report the missing path."
         identity: { name: name, description: description }
+        tier-fields: { model: model, effort: effort }
+        dispatches: { field: tools, format: "Agent({names})" }
+        empty-tier: { model: inherit }
         translations:
           - { when: always, field: tools, members: [Read] }
           - {
@@ -78,40 +74,22 @@ harness:
             }
           - {
               when: requires,
-              capability: web-search,
-              field: tools,
-              members: [WebSearch],
-            }
-          - {
-              when: requires,
-              capability: web-fetch,
-              field: tools,
-              members: [WebFetch],
-            }
-          - {
-              when: requires,
               capability: repository-write,
               field: tools,
               members: [Write, Edit],
             }
           - { when: requires, capability: shell, field: tools, members: [Bash] }
           - {
-              when: denies,
-              capability: repository-write,
+              when: requires,
+              capability: network,
+              field: tools,
+              members: [WebSearch, WebFetch],
+            }
+          - {
+              when: constrains,
+              capability: read-only,
               field: tools,
               absent-members: [Write, Edit],
-            }
-          - {
-              when: denies,
-              capability: shell,
-              field: tools,
-              absent-members: [Bash, PowerShell],
-            }
-          - {
-              when: denies,
-              capability: nested-agent,
-              field: tools,
-              absent-members: [Agent, Task],
             }
       skill-adapter:
         path: ".claude/skills/{name}/SKILL.md"
@@ -119,19 +97,16 @@ harness:
         route-field: body
         route: "Read {path} completely, resolve every relative resource from that skill directory, and follow it as authoritative before acting."
         identity: { name: name, description: description }
+      tiers:
+        ultra: {}
+        plan: {}
+        execution: { model: sonnet, effort: xhigh }
+        fast: { model: haiku, effort: xhigh }
     - id: codex
       supports:
         capabilities:
-          [
-            repository-read,
-            repository-write,
-            web-search,
-            web-fetch,
-            shell,
-            nested-agent,
-            nx-mcp,
-          ]
-        constraints: [inline-result-only, single-mcp-operation]
+          [repository-read, repository-write, shell, network, subagent]
+        constraints: [read-only, inline-result-only, single-mcp-operation]
         routes: [canonical-import]
         identities: [description]
       agent-adapter:
@@ -140,20 +115,22 @@ harness:
         route-field: developer_instructions
         route: "Before acting, read the complete canonical agent definition at the repository-root path {path} and follow it as authoritative. If it cannot be read, stop and report the missing path."
         identity: { name: name, description: description }
-        absent: [model, effort]
+        tier-fields: { model: model, effort: model_reasoning_effort }
+      tiers:
+        ultra: {}
+        plan: {}
+        execution: {}
+        fast:
+          model-resolve:
+            command: [codex, debug, models]
+            pattern: gpt-*-luna
+            fallback: gpt-6-luna
+          effort: xhigh
     - id: opencode
       supports:
         capabilities:
-          [
-            repository-read,
-            repository-write,
-            web-search,
-            web-fetch,
-            shell,
-            nested-agent,
-            nx-mcp,
-          ]
-        constraints: [inline-result-only, single-mcp-operation]
+          [repository-read, repository-write, shell, network, subagent]
+        constraints: [read-only, inline-result-only, single-mcp-operation]
         routes: [canonical-import]
         identities: [description]
       agent-adapter:
@@ -163,25 +140,26 @@ harness:
         route: "Before acting, read the complete canonical agent definition at the repository-root path {path} and follow it as authoritative. If it cannot be read, stop and report the missing path."
         identity: { description: description }
         fixed: { mode: subagent }
+        dispatches: { field: permission.task, format: allow-map }
         translations:
-          - { when: always, field: permission, entries: { read: allow } }
+          # Deny by default; each granted capability below re-allows its entry.
+          - {
+              when: always,
+              field: permission,
+              entries:
+                {
+                  read: allow,
+                  edit: deny,
+                  bash: deny,
+                  webfetch: deny,
+                  websearch: deny,
+                },
+            }
           - {
               when: requires,
               capability: repository-read,
               field: permission,
               entries: { glob: allow, grep: allow },
-            }
-          - {
-              when: requires,
-              capability: web-search,
-              field: permission,
-              entries: { websearch: allow },
-            }
-          - {
-              when: requires,
-              capability: web-fetch,
-              field: permission,
-              entries: { webfetch: allow },
             }
           - {
               when: requires,
@@ -196,26 +174,22 @@ harness:
               entries: { bash: allow },
             }
           - {
-              when: denies,
-              capability: repository-write,
+              when: requires,
+              capability: network,
               field: permission,
-              entries: { edit: deny },
-            }
-          - {
-              when: denies,
-              capability: shell,
-              field: permission,
-              entries: { bash: deny },
-            }
-          - {
-              when: denies,
-              capability: nested-agent,
-              field: permission,
-              entries: { task: deny },
+              entries: { webfetch: allow, websearch: allow },
             }
 
 policies:
   markdown:
+    metadata:
+      surfaces:
+        - glob: ".agents/skills/*/SKILL.md"
+          schema: skill
+        - glob: ".agents/agents/*.md"
+          schema: agent
+        - glob: ".agents/agents/README.md"
+          schema: governance
     internal-link:
       exclude-sources: ["specs/fixtures/**", "plans/done/**"]
     mermaid:
@@ -316,8 +290,14 @@ policies:
         - family: ci
         - family: pr-review
         - family: specs
-        - { family: ui-web, subject: apps/bnest-app }
-        - { family: api-http, subject: apps/bnest-app }
+        - family: ui-web
+          subject: apps/bnest-app
+          judge: swe-web-tester
+          repairer: swe-developer
+        - family: api-http
+          subject: apps/bnest-app
+          judge: swe-api-tester
+          repairer: swe-developer
 
 gates:
   composition:

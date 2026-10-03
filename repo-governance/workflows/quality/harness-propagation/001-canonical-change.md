@@ -17,7 +17,7 @@ Choose every affected concern, then edit its canonical source before any adapter
 
 - **Rules:** edit root `AGENTS.md`. Keep root `CLAUDE.md` as the exact `@AGENTS.md` import. Do not add nested or harness-specific instruction files unless the convention and validator first define equivalent routing.
 - **Skills:** edit the complete `.agents/skills/<name>/` bundle, including `SKILL.md` and supporting resources. The directory and frontmatter `name` must match.
-- **Agents:** edit `.agents/agents/<name>.md`, including its prompt and semantic `requires`, `denies`, and `constraints`.
+- **Agents:** edit `.agents/agents/<name>.md`, including its prompt and semantic `tier`, `capabilities`, and `constraints`.
 - **Required capabilities:** define the credential-free executable behaviour in the convention and validator before changing harness-native declarations.
 
 ### 2. Reconcile the adapters

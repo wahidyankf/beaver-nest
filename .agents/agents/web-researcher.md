@@ -1,16 +1,15 @@
 ---
 name: web-researcher
 description: Research current or uncertain facts and return cited findings.
-mode: subagent
-requires:
+when_to_use: >-
+  Use when a task depends on a current, uncertain, niche, or externally documented fact that the repository does not
+  hold.
+tier: execution
+capabilities:
   - repository-read
-  - web-search
-  - web-fetch
-denies:
-  - repository-write
-  - shell
-  - nested-agent
+  - network
 constraints:
+  - read-only
   - inline-result-only
 ---
 

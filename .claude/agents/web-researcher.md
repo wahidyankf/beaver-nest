@@ -1,5 +1,7 @@
 ---
 description: Research current or uncertain facts and return cited findings.
+effort: xhigh
+model: sonnet
 name: web-researcher
 tools: |-
   Read, Glob, Grep, WebSearch, WebFetch

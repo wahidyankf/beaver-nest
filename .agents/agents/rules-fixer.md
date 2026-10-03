@@ -6,20 +6,15 @@ description: >-
 when_to_use: >-
   Use as the writer's executor in a rules quality gate cycle, or once a rules checker has returned findings, as the
   repair step of a rules consistency check.
+tier: execution
+capabilities:
+  - repository-read
+  - repository-write
+  - shell
 skills:
   - applying-maker-checker-fixer
   - assessing-criticality-confidence
   - generating-validation-reports
-mode: subagent
-requires:
-  - repository-read
-  - repository-write
-  - shell
-denies:
-  - web-search
-  - web-fetch
-  - nested-agent
-  - nx-mcp
 ---
 
 # Rules Fixer

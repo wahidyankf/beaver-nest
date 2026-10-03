@@ -4,19 +4,14 @@ description: >-
   Audits finished plan execution in fixed order and returns the terminal verdict that permits or blocks archival.
 when_to_use: >-
   Use once every substantive delivery item is terminal and archival is the next step.
-skills:
-  - plan-verifying-execution
-mode: subagent
-requires:
+tier: plan
+capabilities:
   - repository-read
   - shell
-denies:
-  - repository-write
-  - web-search
-  - web-fetch
-  - nested-agent
-  - nx-mcp
+skills:
+  - plan-verifying-execution
 constraints:
+  - read-only
   - inline-result-only
 ---
 

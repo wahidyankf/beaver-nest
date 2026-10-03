@@ -6,19 +6,14 @@ description: >-
 when_to_use: >-
   Use as the checker in a CI quality gate, after adding a project or changing hooks or pipeline definitions, or for a
   periodic audit of gate wiring.
-skills:
-  - assessing-criticality-confidence
-mode: subagent
-requires:
+tier: execution
+capabilities:
   - repository-read
   - shell
-denies:
-  - repository-write
-  - web-search
-  - web-fetch
-  - nested-agent
-  - nx-mcp
+skills:
+  - assessing-criticality-confidence
 constraints:
+  - read-only
   - inline-result-only
 ---
 

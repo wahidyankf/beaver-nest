@@ -1,6 +1,12 @@
 ---
 name: nx-workspace
-description: "Explore and understand Nx workspaces. USE WHEN answering questions about the workspace, projects, or tasks. ALSO USE WHEN an nx command fails or you need to check available targets/configuration before running a task. EXAMPLES: 'What projects are in this workspace?', 'How is project X configured?', 'What depends on library Y?', 'What targets can I run?', 'Cannot find configuration for task', 'debug nx task failure'."
+description: >-
+  Explore and understand Nx workspaces. EXAMPLES: 'What projects are in this workspace?', 'How is project X
+  configured?', 'What depends on library Y?', 'What targets can I run?', 'Cannot find configuration for task', 'debug
+  nx task failure'.
+when_to_use: >-
+  Use when answering questions about the workspace, projects, or tasks, when an nx command fails, or when you need to
+  check available targets or configuration before running a task.
 ---
 
 # Nx Workspace Exploration

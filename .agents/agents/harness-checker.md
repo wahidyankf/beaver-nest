@@ -6,19 +6,14 @@ description: >-
 when_to_use: >-
   Use in harness parity verification or a harness quality gate, after changing canonical agents, skills, root
   instructions, or the adapter generator, or after a harness announces a configuration change.
-skills:
-  - assessing-criticality-confidence
-mode: subagent
-requires:
+tier: execution
+capabilities:
   - repository-read
   - shell
-denies:
-  - repository-write
-  - web-search
-  - web-fetch
-  - nested-agent
-  - nx-mcp
+skills:
+  - assessing-criticality-confidence
 constraints:
+  - read-only
   - inline-result-only
 ---
 

@@ -6,21 +6,16 @@ description: >-
 when_to_use: >-
   Use as the writer's executor in a plan quality gate cycle, once the plan checker's findings are frozen in a ledger, or
   when someone explicitly names rows of one to repair.
+tier: execution
+capabilities:
+  - repository-read
+  - repository-write
+  - shell
 skills:
   - plan-creating-project-plans
   - plan-writing-gherkin-criteria
   - applying-maker-checker-fixer
   - assessing-criticality-confidence
-mode: subagent
-requires:
-  - repository-read
-  - repository-write
-  - shell
-denies:
-  - web-search
-  - web-fetch
-  - nested-agent
-  - nx-mcp
 ---
 
 # Plan Fixer

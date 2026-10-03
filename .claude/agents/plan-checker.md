@@ -1,6 +1,7 @@
 ---
 description: |-
   Audits a complete plan draft against the plan specification and returns criticality-rated findings, without modifying anything.
+model: inherit
 name: plan-checker
 tools: |-
   Read, Glob, Grep, Bash
