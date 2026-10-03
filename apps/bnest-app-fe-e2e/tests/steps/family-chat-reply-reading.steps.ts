@@ -129,13 +129,17 @@ When(
     // It arrived in a catch-up page, asked for after a new socket opened.
     expect(gate.openedAt.length).toBeGreaterThanOrEqual(2);
     const reopenedAt = gate.openedAt[1] ?? Number.POSITIVE_INFINITY;
-    expect(
-      catchUps.some(
-        (catchUp) =>
-          catchUp.answeredAt >= reopenedAt &&
-          catchUp.ids.includes(scenario.replyId),
-      ),
-    ).toBe(true);
+    // Polled: the recorder notes a page once it has read the response body,
+    // which can land a moment after the room has already drawn the reply.
+    await expect
+      .poll(() =>
+        catchUps.some(
+          (catchUp) =>
+            catchUp.answeredAt >= reopenedAt &&
+            catchUp.ids.includes(scenario.replyId),
+        ),
+      )
+      .toBe(true);
   },
 );
 
