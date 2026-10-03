@@ -18,6 +18,8 @@ git status --porcelain           # must be empty
 ./hippo status                   # must report state=normal
 ```
 
+The gates run in the primary checkout, so it needs its own dependencies. After a merge that changes `mix.exs`, run `mix deps.get` in `apps/bnest-app` under `./hippo run --class transactional --resource-tier light` first; otherwise `test:quick` fails on an unavailable dependency before anything is built. `main` also moves while a release is retried, because other work lands in parallel. `release:run` refuses a `--revision` that is not the current `origin/main`, so fast-forward and re-check what changed before releasing a newer revision, and treat a revision the owner did not authorize as needing its own confirmation.
+
 A release also needs the inactive slot free. Production uses `4000` and `4001`; Caddy routes on `4100`:
 
 ```sh
@@ -105,10 +107,13 @@ curl -fsS "$BNEST_PRODUCTION_ORIGIN/health/ready"
 
 ```sh
 . <machine-local>/deploy-env.sh
-npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>
+rtk ./hippo run --class transactional --resource-tier standard --disk-path . -- \
+  npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>
 ```
 
-The run takes tens of minutes because it executes the full gate manifest before building. Expect it to be long-running rather than hung. It prints one JSON result. `outcome` is `passed` on success; `queued` means another release owns the host lock and `deferred` means HIPPO withheld capacity — neither is a failure, and neither leaves a partial cutover. Any other outcome sets a non-zero exit status.
+The repository's shell guard refuses `npm exec` without an outer `./hippo run`, so the target is wrapped even though it is self-guarded; the nested admission works and does not stall.
+
+The run takes tens of minutes because it executes the full gate manifest before building. Expect it to be long-running rather than hung. It prints one JSON result. `outcome` is `passed` on success; `queued` means another release owns the host lock and `deferred` means HIPPO withheld capacity — neither is a failure, and neither leaves a partial cutover. Any other outcome sets a non-zero exit status. A `failed` outcome with `errorCategory: gate` and `evidenceIds: ["preflight"]` stopped in the gates, before any build or cutover, so production is unchanged: read `<deploy-root>/logs/release-<sha>.log` for the failing check. `rolled-back` means the candidate was promoted and then reverted by the release's own monitor; production is back on the previous slot, and the routed-journey sample that tripped it is in `<deploy-root>/metrics/`. Gates that depend on load, such as the browser reconnect scenarios, can fail differently on consecutive attempts on a busy host; diagnose each failure instead of repeating blindly.
 
 A compatibility release ships every feature flag off by design: it omits `BNEST_FAMILY_CHAT_ENABLED` and `BNEST_FAMILY_CHAT_REPLY_ENABLED` from the slot entirely, so `config/runtime.exs` supplies `false` for both. The experience re-promotion passes both as `true`. They are separate variables because the server answers a reply-aware GraphQL document whichever way the second one is set — that asymmetry is what lets the reply bundle ship one release ahead of the flag that reveals it — but there is one experience mode, and it turns both on together.
 
