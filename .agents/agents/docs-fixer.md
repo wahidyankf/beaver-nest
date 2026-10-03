@@ -6,20 +6,15 @@ description: >-
 when_to_use: >-
   Use as the documentation fixer in a quality gate, once a documentation checker has returned findings for the current
   content.
+tier: execution
+capabilities:
+  - repository-read
+  - repository-write
+  - shell
 skills:
   - applying-maker-checker-fixer
   - assessing-criticality-confidence
   - generating-validation-reports
-mode: subagent
-requires:
-  - repository-read
-  - repository-write
-  - shell
-denies:
-  - web-search
-  - web-fetch
-  - nested-agent
-  - nx-mcp
 ---
 
 # Docs Fixer

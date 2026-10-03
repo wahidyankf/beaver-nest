@@ -37,10 +37,11 @@ and becomes judgeable.
 
 ## Cycle
 
-Each cycle is one full audit by `ui-web-checker` and one repair by [UI Web Propagation](ui-web-propagation.md), run by
-`ui-web-fixer`, per [Sequence and Termination](../../development/quality-gate-contract/002-sequence-and-termination.md).
-The checker may delegate reading to the repository's interface testers and judges, through the interface's components
-and interactions:
+Each cycle is one full audit by the judge, `swe-web-tester` under its `spec` charter, and one repair by
+[UI Web Propagation](ui-web-propagation.md), run by `swe-developer` in its Apply Findings mode, per
+[Sequence and Termination](../../development/quality-gate-contract/002-sequence-and-termination.md). The judge
+may read findings other passes recorded on the same build, and judges, through the interface's components and
+interactions:
 
 - behaviour against the specification's scenarios, including empty, error, and loading states;
 - fidelity to the adopted design rules and design system;

@@ -5,20 +5,15 @@ description: >-
   plan quality gate, whose findings a separate fixer repairs.
 when_to_use: >-
   Use when a formal plan is requested and no draft exists yet.
+tier: plan
+capabilities:
+  - repository-read
+  - repository-write
+  - shell
 skills:
   - grill-me
   - plan-creating-project-plans
   - plan-writing-gherkin-criteria
-mode: subagent
-requires:
-  - repository-read
-  - repository-write
-  - shell
-denies:
-  - web-search
-  - web-fetch
-  - nested-agent
-  - nx-mcp
 ---
 
 # Plan Maker

@@ -6,20 +6,15 @@ description: >-
 when_to_use: >-
   Use as the fixer in a specification quality gate, once a specification checker has returned findings for the current
   revision of the listed folders.
+tier: execution
+capabilities:
+  - repository-read
+  - repository-write
+  - shell
 skills:
   - applying-maker-checker-fixer
   - assessing-criticality-confidence
   - generating-validation-reports
-mode: subagent
-requires:
-  - repository-read
-  - repository-write
-  - shell
-denies:
-  - web-search
-  - web-fetch
-  - nested-agent
-  - nx-mcp
 ---
 
 # Specs Fixer

@@ -3,129 +3,144 @@
   "profile": "claude",
   "sources": [
     {
-      "id": "agent/api-http-checker",
-      "path": ".agents/agents/api-http-checker.md",
-      "digest": "20e3ce6cd329e0945b7976f0a0b4cfcdf1e7a14fbb771d43d3ab64134f32be2c"
-    },
-    {
-      "id": "agent/api-http-fixer",
-      "path": ".agents/agents/api-http-fixer.md",
-      "digest": "41f1c152cd6553d9d9885562ca848e9aed7f472937b46198267df0d03b7cf8e3"
-    },
-    {
       "id": "agent/ci-checker",
       "path": ".agents/agents/ci-checker.md",
-      "digest": "86d36a6adbc446c3b197869c79e499a2053b374f39fe7bbd90f925d883a8a7ab"
+      "digest": "c4cd404cf7b00712d73ba4c9b9c097454ebb8ed4bb6228715f875437bae91593"
     },
     {
       "id": "agent/ci-fixer",
       "path": ".agents/agents/ci-fixer.md",
-      "digest": "0c06069f5816dce11f58c51658ead5000f00023535b731c1bae85f92e41d65fe"
+      "digest": "a4ff1bfc4d15652b9a62038036af5d90f59f6f412dfd252c00cd841c011112c0"
     },
     {
       "id": "agent/ci-monitor-subagent",
       "path": ".agents/agents/ci-monitor-subagent.md",
-      "digest": "a6e9d085b8de539aadb57c4c6e77dfee471f71558c088b807ecb1649da8d7bce"
+      "digest": "abcc961eff43bb914b9673dadccaf7c4f8cf3412f51551a568cb117e526f65e5"
     },
     {
       "id": "agent/docs-checker",
       "path": ".agents/agents/docs-checker.md",
-      "digest": "20268a702b440ae6c67fb1edfece3f1a2424cded8e46e2c07825dc36ef1dffe9"
+      "digest": "388214ec692d7fe1a3010df1fb14992885cb074920ec7015dd7c88a5b711f025"
     },
     {
       "id": "agent/docs-fixer",
       "path": ".agents/agents/docs-fixer.md",
-      "digest": "14096adad518070b41a05be4f8e8e5c2bd360cd6cd72a0b96a2968df9b592e27"
+      "digest": "0fbc122402cbb91d69dca2440f1aef3ca0a9c0fde07d7854471fef58f86231fe"
     },
     {
       "id": "agent/harness-checker",
       "path": ".agents/agents/harness-checker.md",
-      "digest": "86492cc77295b5a5d3782f9eb5cb75a159c41aa7db6b98b0fb7586668dbbb769"
+      "digest": "0b564244596201aeb472860c25a5c2e58b7f11ab1e2a297c9c6e7a0b6fca805e"
     },
     {
       "id": "agent/harness-fixer",
       "path": ".agents/agents/harness-fixer.md",
-      "digest": "d468b78d7127365a752a5f31e1d4113857e1002cf560755f9a315e07adbaa1b5"
+      "digest": "806f985ca0f80ca662d597d2db1b1e272660ebc3d86fce6c23839aecafbe4255"
     },
     {
       "id": "agent/plan-checker",
       "path": ".agents/agents/plan-checker.md",
-      "digest": "9703dbb0d7aa11cfcbb153cdff1b207d4d99356dc0a0105b9ec61d921e94c647"
+      "digest": "e6a1362fa58000c3506763dffa66654f8f0ed37eef1a8eb2239b3d1312b3b8bb"
     },
     {
       "id": "agent/plan-execution-checker",
       "path": ".agents/agents/plan-execution-checker.md",
-      "digest": "49ba4f973fe39daea67aead192f571d98c1e71364bda116244e85b1de604448c"
+      "digest": "464f67ccb0b0acccf1ff8090c61367afb4367452ad9afb5a2cfc58738e87747a"
     },
     {
       "id": "agent/plan-fixer",
       "path": ".agents/agents/plan-fixer.md",
-      "digest": "e7e5a1708427213639d728b0bf9bfb39095f55061d065b6e9eb2745092ec4a43"
+      "digest": "cc42e6d473f73bd8add6be5264c7a6dd6b358aa052f439024a55dd0dca653db6"
     },
     {
       "id": "agent/plan-maker",
       "path": ".agents/agents/plan-maker.md",
-      "digest": "5ddcb87f50c10227b59d43727ba66cf49744afa2b831a7482c3f1650e2e2f760"
+      "digest": "96c5276a8e2a7b62995bb02e3e9f98d21f0efa8f075acacd9b4c9623583a37e7"
     },
     {
       "id": "agent/pr-review-checker",
       "path": ".agents/agents/pr-review-checker.md",
-      "digest": "def5d9fa3de91b9ffc9da4807bdb127cf0b556058c5f25c7c8e077e20a0c314d"
+      "digest": "8a77b421eba8cb47d7308e09530485fa6d3b8834a8cfc553d22933b6239cf644"
     },
     {
       "id": "agent/pr-review-fixer",
       "path": ".agents/agents/pr-review-fixer.md",
-      "digest": "a553f6d163296e008c8c55f8d95afe75a0b706346a7be23f37e847ece181a517"
+      "digest": "714329c9cee41fda72279f0a2775a78c294480b257e6eb30e2873efca581eb74"
     },
     {
       "id": "agent/rules-checker",
       "path": ".agents/agents/rules-checker.md",
-      "digest": "fe53d673f27f7c324d3b3ee2ddf0d86d238ce390af829403c615c6e0047476e2"
+      "digest": "64dbcf89a1eeb91b7667db767093a237d72aeaa7bf021374bc742f8b3c1bf3fa"
     },
     {
       "id": "agent/rules-fixer",
       "path": ".agents/agents/rules-fixer.md",
-      "digest": "a8f3df94b047bdd706726141d44958ebefe397dd6533e1f117f934a34335b3f1"
+      "digest": "dceb3c934ac7b5950a39467f0963ec844dc0f11f9a7000aaacf04ebd35622985"
     },
     {
       "id": "agent/specs-checker",
       "path": ".agents/agents/specs-checker.md",
-      "digest": "07f574879d0016587b463dde9b1669c1a9eb8a40e93c1d309a4687b4fd8fe503"
+      "digest": "07bb0aea4812a8e26aa3aca04f0f77cf72016f5eb902ff2d3e513e844a31655c"
     },
     {
       "id": "agent/specs-fixer",
       "path": ".agents/agents/specs-fixer.md",
-      "digest": "47caaa061de4eaf9b0882eaff0853f95bc7f8711562f15063ce5ecede35b9053"
+      "digest": "472701b29e4d5d2443e401958700aca1c72b7bdb12f736af181c402c2e298c60"
     },
     {
-      "id": "agent/swe-code-checker",
-      "path": ".agents/agents/swe-code-checker.md",
-      "digest": "070f4deab05cc93a9ff7dffc64bf01fe2a037cb2bfa3906363423115d73ac7f2"
+      "id": "agent/swe-api-tester",
+      "path": ".agents/agents/swe-api-tester.md",
+      "digest": "ca58f523e16892c8235ccfca8212cc10c6dee4d5f7d40dbeff01f4d91c4d1857"
     },
     {
-      "id": "agent/swe-code-fixer",
-      "path": ".agents/agents/swe-code-fixer.md",
-      "digest": "1209fe2cf354b876d2cbd4dce1dfc6c6ed18f65f04cb622f4a450bf386bf379f"
+      "id": "agent/swe-architect",
+      "path": ".agents/agents/swe-architect.md",
+      "digest": "5ce837f408b6c7effd57ab555d45957d28adb2df0d1cec240880234ab1d0ef80"
     },
     {
-      "id": "agent/swe-code-maker",
-      "path": ".agents/agents/swe-code-maker.md",
-      "digest": "85c95ac601afd802a15a854adf77b50f915469822fd578f2dcf9d4daefa05fc5"
+      "id": "agent/swe-debugger",
+      "path": ".agents/agents/swe-debugger.md",
+      "digest": "b36b6b4b6f6b49d9063b8a5b3067b78bb229808af0e89a8984c8b0d34ddec398"
     },
     {
-      "id": "agent/ui-web-checker",
-      "path": ".agents/agents/ui-web-checker.md",
-      "digest": "986c5a080caee38603083b91697e9a3914beabff706e241684b7feb1474aae65"
+      "id": "agent/swe-developer",
+      "path": ".agents/agents/swe-developer.md",
+      "digest": "1bea382ec4ce5d330597ce4924060739c90461a708dc88c4da1583cf049c3d59"
     },
     {
-      "id": "agent/ui-web-fixer",
-      "path": ".agents/agents/ui-web-fixer.md",
-      "digest": "f7a632065dd18afbfbd6973a0187ee4b28949134b1a1f43342d54749973b379f"
+      "id": "agent/swe-infra-tester",
+      "path": ".agents/agents/swe-infra-tester.md",
+      "digest": "2e8272972400ccb50f0163b6286b2340e50a2844cea3d97958d6742729082b39"
+    },
+    {
+      "id": "agent/swe-orchestrator",
+      "path": ".agents/agents/swe-orchestrator.md",
+      "digest": "ad58a074a36876bb42a82a0bcefd97c3d717423db31c25a55a94d64aa8612bd4"
+    },
+    {
+      "id": "agent/swe-releaser",
+      "path": ".agents/agents/swe-releaser.md",
+      "digest": "43641a4501f2f6dac70ff264e146ca85b3f26ee46f915244e904d8082ae6dd81"
+    },
+    {
+      "id": "agent/swe-reviewer",
+      "path": ".agents/agents/swe-reviewer.md",
+      "digest": "3914a2d067f958d568e0ff7b692eeb0b6bf3c91492ad274342fc7381b44996c8"
+    },
+    {
+      "id": "agent/swe-usability-tester",
+      "path": ".agents/agents/swe-usability-tester.md",
+      "digest": "9d4b79e77d37ac109b99c55eb25f56e92d633660647a899ab21cf9696cc7e348"
+    },
+    {
+      "id": "agent/swe-web-tester",
+      "path": ".agents/agents/swe-web-tester.md",
+      "digest": "43e34e4d923bc919537f6f53cf5012c632aaeb27208074bb93608498131d0363"
     },
     {
       "id": "agent/web-researcher",
       "path": ".agents/agents/web-researcher.md",
-      "digest": "442bd8db52cda18f5cc7fcbafa4cfa62d680691bca187b78592a328154fb966f"
+      "digest": "569710fb26d5fa0077de0b2fe5fbc174c0e15392c624a75545c712ab5b7ad050"
     },
     {
       "id": "skill/applying-maker-checker-fixer",
@@ -143,9 +158,29 @@
       "digest": "e424522a1e6dd1f3918028eef815f08cc0b9a970929603603a49340a33eefdf1"
     },
     {
+      "id": "skill/design-fidelity-review",
+      "path": ".agents/skills/design-fidelity-review/SKILL.md",
+      "digest": "0fa4615e1ae3cec7688eafe277e77510d81f76637a9c0e1064fe1d8a03557f25"
+    },
+    {
       "id": "skill/developing-applications",
       "path": ".agents/skills/developing-applications/SKILL.md",
       "digest": "4f6976b5bd0c2eab66c7c6db61474809d571c034027ce2c0a8d9e5d254407a2b"
+    },
+    {
+      "id": "skill/developing-frontend-ui",
+      "path": ".agents/skills/developing-frontend-ui/SKILL.md",
+      "digest": "dbbaf43e134f456004574b953c476de0bd04c8e3e5692ef18506d049491035dd"
+    },
+    {
+      "id": "skill/evolving-database-schemas",
+      "path": ".agents/skills/evolving-database-schemas/SKILL.md",
+      "digest": "0204fe1b3d02062bd404cc26752c2217c443850c021d368ca669d6e664d30c4a"
+    },
+    {
+      "id": "skill/exploratory-testing",
+      "path": ".agents/skills/exploratory-testing/SKILL.md",
+      "digest": "5e8c7d4b47f618fbe679ddbdbf79e330350e0afa18ac4413c76b28150992fadc"
     },
     {
       "id": "skill/framework-phoenix-liveview",
@@ -165,37 +200,42 @@
     {
       "id": "skill/link-workspace-packages",
       "path": ".agents/skills/link-workspace-packages/SKILL.md",
-      "digest": "f1f4a8dfc3e6392fe834807587f86de69109738b2b75ae4d2c21ddaec84fe454"
+      "digest": "4f6ce96a2e9d6422357c9ce8beb7444acc959ccff2975ab170ed2fc4e991fa81"
+    },
+    {
+      "id": "skill/modeling-threats",
+      "path": ".agents/skills/modeling-threats/SKILL.md",
+      "digest": "2b76d97c516c83b5b8e020ed4b43631153356aeed6c9ad506426121f998f578a"
     },
     {
       "id": "skill/monitor-ci",
       "path": ".agents/skills/monitor-ci/SKILL.md",
-      "digest": "a9682befd65b1d3135f91dde12102ca37cfb3f2d859f5adc0ac28380432e8d63"
+      "digest": "f711ce3d2dfa88b22d0cc3b1287e72c75401bef5bd5f52e0fca3cde07230c925"
     },
     {
       "id": "skill/nx-generate",
       "path": ".agents/skills/nx-generate/SKILL.md",
-      "digest": "a5b05db0cbb24fd61bec18946aadfc5b1375ebfd650fc45841babd4635c67ec6"
+      "digest": "8a71ea1153bc5d0ddd6c8c2f7e8a351f62e5c1e0da6d820114c4d96913d7f63a"
     },
     {
       "id": "skill/nx-import",
       "path": ".agents/skills/nx-import/SKILL.md",
-      "digest": "bc9a0fdfcf92fd51d3b8ce70bf57f26c91594a77f9646bd50e283772d746b669"
+      "digest": "f41124d8de34619700f669497ad7e69f54f8298ff9dbe2fc088b00a5e309afe6"
     },
     {
       "id": "skill/nx-plugins",
       "path": ".agents/skills/nx-plugins/SKILL.md",
-      "digest": "96659fc0ea92b133445cf5d356f4ee710396fc4da22aaa515ad7a6f7ef39a5dd"
+      "digest": "8fbb7219088d2ea3a973156f00b7ebe5a8e4947ccb94d7323ae4e37cee12894f"
     },
     {
       "id": "skill/nx-run-tasks",
       "path": ".agents/skills/nx-run-tasks/SKILL.md",
-      "digest": "92d1a5b3046629014aa61031410a5a0f37bfe136eb7af88660b035fdce902b5e"
+      "digest": "30eb3d2c68110b866e3b73496f42f084d3cfff8336f9cee660c43d765fd8ec78"
     },
     {
       "id": "skill/nx-workspace",
       "path": ".agents/skills/nx-workspace/SKILL.md",
-      "digest": "e1a0c99a3f4528c2e5cc371ba24d6acc1d03af1c342b2beff62966712cc626df"
+      "digest": "2551fd109101cbd8af057ca0611e4a23df9a05b65402798880103d9103390235"
     },
     {
       "id": "skill/plan-creating-project-plans",
@@ -223,6 +263,11 @@
       "digest": "c8f6cbaa5d7a7bf6c13514ddfd6de1c343887b4aa839d4af348e2d3c2b16a29d"
     },
     {
+      "id": "skill/producing-review-findings",
+      "path": ".agents/skills/producing-review-findings/SKILL.md",
+      "digest": "2a2a4086defe3655807a254de7204fd39a6bf2a49556293e3960c1c302d967d0"
+    },
+    {
       "id": "skill/programming-elixir",
       "path": ".agents/skills/programming-elixir/SKILL.md",
       "digest": "e8858331b336c1063c68c7ddab4d31c1452fb31f223be7cfbb2499e076cb6940"
@@ -248,9 +293,19 @@
       "digest": "d116cd91a8b7fbe00018b40657ebbf5429ca193d7977c5605fd4e734dad83880"
     },
     {
+      "id": "skill/usability-heuristic-evaluation",
+      "path": ".agents/skills/usability-heuristic-evaluation/SKILL.md",
+      "digest": "3c5a642c24ef9e21de4ce4c9f80c299513977852facd25318470cdd360fa6d5c"
+    },
+    {
+      "id": "skill/writing-browser-e2e-tests",
+      "path": ".agents/skills/writing-browser-e2e-tests/SKILL.md",
+      "digest": "44b9d987cca85b45d8f1f551c0947a1367fe7af9e0496b87939724146aeabb30"
+    },
+    {
       "id": "instruction",
       "path": "AGENTS.md",
-      "digest": "a153551f94799227bcc1ed981b29cb46e8551cdb28cbd12eccbb55b958014927"
+      "digest": "9b83a0e5d95e766291ddad0b8470f000063529a5e1f7f210cd53fa9f7206e416"
     }
   ]
 }

@@ -1,6 +1,8 @@
 ---
 description: |-
   Applies a CI checker's findings to test targets, hooks, and pipeline definitions after re-validating each one, and records what it fixed, disproved, and left for a person.
+effort: xhigh
+model: sonnet
 name: ci-fixer
 tools: |-
   Read, Glob, Grep, Write, Edit, Bash

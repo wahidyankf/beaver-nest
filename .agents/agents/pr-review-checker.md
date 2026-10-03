@@ -8,20 +8,14 @@ when_to_use: >-
   Use as the checker of a PR review quality gate cycle, or at the synthesis step of any review pass on a pull request or
   a local commit range, once the selected lens checkers have returned their findings, or alone when the tier runs none.
 tier: plan
+capabilities:
+  - repository-read
+  - shell
 skills:
   - generating-validation-reports
   - assessing-criticality-confidence
-mode: subagent
-requires:
-  - repository-read
-  - shell
-denies:
-  - repository-write
-  - web-search
-  - web-fetch
-  - nested-agent
-  - nx-mcp
 constraints:
+  - read-only
   - inline-result-only
 ---
 

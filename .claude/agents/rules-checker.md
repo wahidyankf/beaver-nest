@@ -1,6 +1,7 @@
 ---
 description: |-
   Audits a repository's rules as a whole for contradictions across levels, inaccurate references, inconsistent terms and strengths, missing traceability, and duplicated bodies, and returns rated findings without editing.
+model: inherit
 name: rules-checker
 tools: |-
   Read, Glob, Grep, Bash
