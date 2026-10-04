@@ -53,6 +53,17 @@ defmodule BnestApp.Test.ObservedArtifactStore do
     end)
   end
 
+  @doc """
+  Lets every read that starts from now on pass: a reader already waiting keeps waiting, until
+  it is killed or the test ends. A test uses it to hold one check mid-read while a later one
+  runs freely.
+  """
+  @spec unblock!() :: :ok
+  def unblock! do
+    settings = Application.fetch_env!(:bnest_app, __MODULE__)
+    Application.put_env(:bnest_app, __MODULE__, Keyword.put(settings, :block_path, nil))
+  end
+
   @doc "How many artifact reads processes other than the test's own have made so far."
   @spec read_count() :: non_neg_integer()
   def read_count, do: length(:ets.match_object(@table, {:read, :_, :_, :_}))
