@@ -19,7 +19,7 @@ defmodule BnestApp.Test.BackupIntegrity do
     * a When calls production code (`perform/3`, `run_task/2`): `Scheduler.verified_runs/1`,
       `Backup.reconcile/2`, `Backup.retain_owned/1`, `Scheduler.execute/2`, `Backup.destination/0`;
     * a Then reads the evidence back on its own (`outcome?/3`): the destination's files, the
-      ledger's rows and the process table, never a value the When returned alone.
+      ledger's rows and the call trace of the task, never a value the When returned alone.
 
   Dates are WIB dates. A fixture run of WIB date `D` is a nightly run: slot 19:00 UTC on `D-1`,
   finished a minute later, so its WIB date is `D`.
@@ -28,6 +28,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   alias BnestApp.Backup
+  alias BnestApp.Backup.Domain.Location
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.Backup.Ports.ArtifactStore
   alias BnestApp.Scheduler
@@ -36,6 +37,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
   alias BnestApp.Test.IntegrityLabel
   alias BnestApp.Test.ObservedArtifactStore
+  alias BnestApp.Test.SchedulerWatch
   alias BnestApp.Test.Seeds.Schedules
   alias BnestApp.Test.UnreadableArtifactStore
   alias BnestApp.Test.UnreadableLedger
@@ -56,7 +58,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   @label_missing_date "2030-05-12"
   @label_changed_date "2030-05-14"
   @label_newest_date "2030-05-16"
-  @label_kinds ~w(all_present missing_and_changed two_problems missing missing_and_unknown raising ceiling watched)
+  @label_kinds ~w(all_present missing_and_changed two_problems missing missing_and_unknown raising ceiling watched empty_ledger)
 
   # Slot times of a run on WIB date `D`, all on `D-1` UTC: the nightly slot, an earlier run on
   # the same WIB date and a later one.
@@ -356,12 +358,15 @@ defmodule BnestApp.Test.BackupIntegrity do
 
   @doc """
   Runs the reconcile task through `task_fun`, which returns the task's `%{exit_status:, lines:}`,
-  and records the Scheduler processes alive before it so a Then can compare them afterwards.
+  under call tracing of the Scheduler's start and claim entry points (`SchedulerWatch`), and
+  keeps the trace and the ledger's rows from before the run so a Then can read what the task
+  did with the Scheduler.
   """
   @spec run_task(map(), (-> map())) :: map()
   def run_task(context, task_fun) do
-    schedulers = scheduler_pids()
-    Map.merge(context, %{task: task_fun.(), scheduler_before: schedulers})
+    ledger = readable_ledger()
+    {task, trace} = SchedulerWatch.record(task_fun)
+    Map.merge(context, %{task: task, task_trace: trace, task_ledger_before: ledger})
   end
 
   @doc """
@@ -477,8 +482,15 @@ defmodule BnestApp.Test.BackupIntegrity do
   def outcome?(context, :report_no_date_line, []),
     do: lines(context) != [] and not Enum.any?(lines(context), &Regex.match?(@date_line, &1))
 
-  def outcome?(context, :scheduler_not_started, []),
-    do: scheduler_pids() == context.scheduler_before
+  # Read from the BEAM's own call trace of the task run and from the ledger, not from the
+  # Scheduler processes the VM holds: no start or claim entry point was called, the trace did
+  # see the task read the ledger through the Scheduler (so it was watching), and no run row was
+  # claimed or changed.
+  def outcome?(context, :scheduler_not_started, []) do
+    SchedulerWatch.read_ledger?(context.task_trace) and
+      SchedulerWatch.starts_or_claims(context.task_trace) == [] and
+      readable_ledger() == context.task_ledger_before
+  end
 
   def outcome?(context, :exit_nonzero, []),
     do: is_integer(context.task.exit_status) and context.task.exit_status != 0
@@ -571,11 +583,6 @@ defmodule BnestApp.Test.BackupIntegrity do
       else: Schedules.runs()
   end
 
-  @doc "The processes of the Scheduler's coordinator and task supervisor (`nil` when absent)."
-  @spec scheduler_pids() :: [pid() | nil]
-  def scheduler_pids,
-    do: Enum.map([BnestApp.Scheduler, BnestApp.Scheduler.Tasks], &Process.whereis/1)
-
   @doc """
   What the destination really holds of the runs retention keeps a backup for, read from its
   files and never from reconciliation: how many runs are expected, each problem as the date
@@ -608,14 +615,17 @@ defmodule BnestApp.Test.BackupIntegrity do
 
   @doc """
   Puts the routed browser run's ledger and its configured destination into the state `kind`
-  describes (`all_present`, `missing_and_changed` or `two_problems`) and returns what the
-  journey asserts on: the expected run count, each problem line, and the private values no
-  page may show. It runs in the live mix, over the run's own SQLite database and isolated
-  destination, never the operator's.
+  describes (`all_present`, `missing_and_changed`, `two_problems`, `empty_ledger`, ...) and
+  returns what the journey asserts on: the expected run count, each problem line, and the
+  private values no page may show. It runs in the live mix, over the run's own SQLite database
+  and isolated destination, never the operator's. The destination first loses what earlier
+  journeys of the shared routed run left in it (its ownership marker stays), so it holds only
+  what `kind` describes.
   """
   @spec seed_for_browser!(String.t()) :: map()
   def seed_for_browser!(kind) do
     {:ok, location} = Backup.destination()
+    :ok = empty_destination!(location.directory)
 
     %{backup_directory: location.directory, backup_location: location}
     |> prepare(:label_destination, [kind])
@@ -647,6 +657,51 @@ defmodule BnestApp.Test.BackupIntegrity do
   @spec browser_report!() :: map()
   def browser_report!, do: %{"lines" => Reconcile.execute([]).lines}
 
+  @doc """
+  What the routed browser run's server holds, for a journey that compares it before and after
+  it opens the page: every path under the configured destination with its kind and, for a
+  file, its bytes (base 64), and every ledger row. A read only: the destination is read and
+  never created.
+  """
+  @spec witness_for_browser!() :: map()
+  def witness_for_browser! do
+    {:ok, location} = Backup.read_destination()
+    destination = snapshot(location.directory)
+
+    %{
+      "destination" => %{
+        "present" => destination.present?,
+        "entries" =>
+          Map.new(destination.entries, fn {path, entry} -> {path, witness_entry(entry)} end)
+      },
+      "ledger" => ledger_rows()
+    }
+  end
+
+  defp witness_entry(:directory), do: "directory"
+  defp witness_entry(bytes), do: "file:" <> Base.encode64(bytes)
+
+  # Fail closed: only the run's own isolated default destination is ever emptied.
+  defp empty_destination!(directory) do
+    unless isolated_default?(directory),
+      do: raise("refusing to empty a destination that is not this test run's own")
+
+    marker = Location.marker_path(directory)
+
+    directory
+    |> File.ls!()
+    |> Enum.map(&Path.join(directory, &1))
+    |> Enum.reject(&(&1 == marker))
+    |> Enum.each(&File.rm_rf!/1)
+  end
+
+  # The ledger's rows, or `:unreadable` for the scenarios whose ledger cannot be opened.
+  defp readable_ledger do
+    {:ok, ledger_rows()}
+  rescue
+    RuntimeError -> :unreadable
+  end
+
   defp seed_ledger(context, runs) do
     clear_ledger()
     persist_schedule()
@@ -659,6 +714,9 @@ defmodule BnestApp.Test.BackupIntegrity do
     |> seed_ledger(runs(@retained_dates, @label_first_date))
     |> prepare(:destination_holds_every_run, [])
   end
+
+  # No verified run in the ledger, so no destination state to describe: a failed attempt only.
+  defp label_destination(context, "empty_ledger"), do: prepare(context, :empty_ledger, [])
 
   defp label_destination(context, "missing_and_changed") do
     context

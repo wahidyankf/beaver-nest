@@ -42,8 +42,6 @@ Feature: Bnest scheduled backups
     Then the label states that the backup files could not be checked
     And the rest of the page is rendered and its forms remain usable
 
-  # Exemption(e2e): an empty ledger needs the routed service's database emptied of verified runs, which no browser journey may do to the shared routed run; alternative-proof: bnest-app:test:integration / The page says plainly when there is nothing to check
-  @e2e-exempt
   Scenario: The page says plainly when there is nothing to check
     Given a ledger holding no verified backup run
     When the administrator opens Schedules & backups
@@ -63,8 +61,6 @@ Feature: Bnest scheduled backups
       | daily schedule                |
       | backup folder, left unchanged |
 
-  # Exemption(e2e): the destination directory listing, file bytes and ledger rows are compared on the server's filesystem and database, which a browser cannot read; alternative-proof: bnest-app:test:integration / Rendering the label never writes
-  @e2e-exempt
   Scenario: Rendering the label never writes
     Given an isolated destination with a missing artifact and an unknown file
     When the administrator opens the page and reloads it

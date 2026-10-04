@@ -7,7 +7,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   alias BnestApp.Backup
   alias BnestApp.Backup.Domain.Receipt
-  alias BnestApp.Backup.Domain.Reconciliation
   alias BnestApp.Behaviour.UnitFamilyChatDriver
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Domain.Transcript
@@ -54,6 +53,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestAppWeb.DataMigrationLive
   alias BnestAppWeb.SifatAllahLive
   alias BnestAppWeb.StorageLive
+  alias Mix.Tasks.Bnest.Backup.Reconcile
   alias Phoenix.HTML.Safe
   alias Phoenix.LiveView.{Socket, Utils}
 
@@ -2565,7 +2565,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :read_label_and_report, []) do
     context
     |> open_label_page()
-    |> BackupIntegrity.run_task(fn -> reconcile_report(context.backup_directory) end)
+    |> BackupIntegrity.run_task(&reconcile_task/0)
   end
 
   # The page is opened over a check that never finishes: the first render is read at once,
@@ -2605,14 +2605,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
+  # The reconcile task's own entry point over the scenario's in-memory ledger and destination.
   def perform_behaviour(context, :reconcile_task, _args),
-    do: BackupIntegrity.run_task(context, fn -> reconcile_report(context.backup_directory) end)
+    do: BackupIntegrity.run_task(context, &reconcile_task/0)
 
-  def perform_behaviour(context, :read_report_and_log, _args) do
-    BackupIntegrity.read_report_and_log(context, fn ->
-      reconcile_report(context.backup_directory)
-    end)
-  end
+  def perform_behaviour(context, :read_report_and_log, _args),
+    do: BackupIntegrity.read_report_and_log(context, &reconcile_task/0)
 
   def perform_behaviour(context, action, args) when action in @integrity_performs,
     do: BackupIntegrity.perform(context, action, args)
@@ -3573,19 +3571,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       "/srv/test-user-backup/" <>
         tag <> "-" <> Integer.to_string(:erlang.unique_integer([:positive]))
 
-  # What the reconcile task reports in the unit layer, composed the way it composes its own
-  # reads: only the unit double's unreadable ledger raises, and reports as could not be checked.
-  defp reconcile_report(directory) do
-    outcome =
-      try do
-        Backup.reconcile(directory, Scheduler.verified_runs("prod_sqlite_backup"))
-      rescue
-        RuntimeError -> {:error, :ledger_unreadable}
-      end
-
-    report = Reconciliation.report(outcome)
-    %{exit_status: report.exit_status, lines: Reconciliation.render(report)}
-  end
+  defp reconcile_task, do: Reconcile.execute([])
 
   defp enabled_button?(page, selector, label) do
     page

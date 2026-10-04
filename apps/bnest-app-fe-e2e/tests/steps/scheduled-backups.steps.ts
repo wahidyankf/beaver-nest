@@ -8,6 +8,10 @@ import {
   readReport,
 } from "../support/backup-integrity-change";
 import {
+  expectNoPresentClaim,
+  expectNothingToCheck,
+} from "../support/backup-integrity-empty";
+import {
   expectAllPresent,
   expectAttentionCount,
   expectIntactCounted,
@@ -31,6 +35,11 @@ import {
   openWithTrace,
   walkPage,
 } from "../support/backup-integrity-layout";
+import {
+  expectDestinationUnchanged,
+  expectLedgerUnchanged,
+  openAndReload,
+} from "../support/backup-integrity-writes";
 import {
   expectAdminPanels,
   expectDeniedSettings,
@@ -85,6 +94,11 @@ const integrityStates = new Map<string, string>([
     "missing_and_changed",
   ],
   ["reconciliation found a missing artifact", "missing"],
+  ["a ledger holding no verified backup run", "empty_ledger"],
+  [
+    "an isolated destination with a missing artifact and an unknown file",
+    "missing_and_unknown",
+  ],
   [
     "an isolated ledger holding two verified runs whose artifacts are absent or changed",
     "two_problems",
@@ -146,6 +160,9 @@ When("the administrator saves the daily schedule", ({ page }) =>
 When("the administrator saves the backup folder, left unchanged", ({ page }) =>
   saveForm(page, integrity, "backup folder"),
 );
+When("the administrator opens the page and reloads it", ({ page }) =>
+  openAndReload(page, integrity),
+);
 When("the page's rendered text and attributes are read", ({ page }) =>
   readLabelHtml(page, integrity),
 );
@@ -171,6 +188,18 @@ Then(
   "the label lists the intact retained dates as present or counts them as present",
   ({ page }) => expectIntactCounted(page, integrity),
 );
+Then(
+  "the label states that there is no verified backup to check yet",
+  ({ page }) => expectNothingToCheck(page, integrity),
+);
+Then("it does not state that the backups are present", ({ page }) =>
+  expectNoPresentClaim(page),
+);
+Then(
+  "the destination directory listing and every file's bytes are unchanged",
+  ({ page }) => expectDestinationUnchanged(page, integrity),
+);
+Then("the ledger rows are unchanged", () => expectLedgerUnchanged(integrity));
 Then("the label reads checking until the new result arrives", ({ page }) =>
   expectCheckingThenResult(page, integrity),
 );
