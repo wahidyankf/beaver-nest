@@ -166,6 +166,15 @@ the menu, and the composer strip together. The service worker is drawn as a seco
 `routes` component) because it runs independently of any open route: it can display a push notification, extend the
 offline app-shell cache, or retry a queued outbox entry while no family chat tab is open.
 
+The Admin settings UI component includes the Schedules page's integrity label, drawn inside it rather than as a
+component of its own. On the connected mount, and again after every successful schedule or backup-folder save, the
+LiveView starts one check that runs off the render path: it asks the backend for the ledger's verified runs and reconciles
+them against the configured backup folder inside a task the check owns, and a ceiling (five seconds by default) cancels
+that task and turns the label into its could-not-be-checked state, so the page and both forms never wait on it. The first,
+disconnected render shows the checking state and reads neither the ledger nor the folder. The label prints the structured
+result through the one wording function the backend serves to its log, telemetry and Mix task, so the page formats no
+word or date of its own.
+
 ## Architectural Constraints
 
 - Chat runners default to read-only, retain approval policy `never` and disabled network and web search, and accept
@@ -221,9 +230,21 @@ offline app-shell cache, or retry a queued outbox entry while no family chat tab
   room chooses — the resumed reading position, the newest message, following a live arrival — is expressed as a
   scroll offset inside that one container, so a layout that let the page scroll instead would silently disable all
   of them.
+- The Schedules page integrity label is read-only and stores nothing: it writes no file, table, flat file or cache, adds
+  no route and no authorization path (the existing admin-only guard runs before the check starts), and shows no
+  filesystem path, digest, destination identifier or run ID. It never delays the page, announces the change from
+  checking to a result politely without moving focus, conveys every state by words and a marker as well as colour, and
+  wraps its problem lines at every supported width without horizontal scrolling.
 
 ## Behaviour Traceability
 
 Executable frontend behaviour is specified in [`behaviours/`](behaviours/). `bnest-app`'s unit and local-only
 integration adapters, aggregated with [`app-be`](../app-be/architecture.md)'s root, must implement that exact
 recursive corpus; `bnest-app-fe-e2e` implements this root's E2E adapter alone.
+
+The Schedules page integrity label is specified by the backup-integrity scenarios of
+[`scheduled_backups.feature`](behaviours/scheduled_backups.feature): the all-present, missing-or-changed,
+could-not-be-checked and nothing-to-check states, the check after a save, the read-only, path-free and time-boxed
+properties, the non-administrator denial, and the width and keyboard scenarios. The scenarios that need a forced
+failure, a controlled store that outlasts the ceiling, an empty ledger, a filesystem comparison or a server-side process observation carry
+`@e2e-exempt` with their integration alternative; the rest run in the browser at every supported viewport.

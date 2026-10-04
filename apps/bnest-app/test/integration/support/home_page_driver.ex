@@ -45,6 +45,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
   alias BnestApp.Test.InterruptedChatWriteBackend
   alias BnestApp.Test.InterruptedMigrationLedger
+  alias BnestApp.Test.IntegrityLabel
+  alias BnestApp.Test.ObservedArtifactStore
   alias BnestApp.Test.RestoreDrill
   alias BnestApp.Test.SchedulerDispatch
   alias BnestApp.Test.Seeds.Schedules
@@ -53,6 +55,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias Mix.Tasks.Bnest.Backup.Reconcile
 
   @behaviour_now ~U[2026-08-30 20:00:00Z]
+  @schedules_route "/admin/settings/schedules"
   @record_operations [:read, :write, :put_new, :replace, :remove_exact]
   @quiz_auto_advance_ms 5_000
 
@@ -62,6 +65,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @integrity_prepares BackupIntegrity.prepares()
   @integrity_performs BackupIntegrity.performs()
   @integrity_outcomes BackupIntegrity.outcomes()
+  @label_outcomes IntegrityLabel.outcomes()
 
   # The same for the restore drill (`BnestApp.Test.RestoreDrill`).
   @drill_destination_prepares RestoreDrill.destination_prepares()
@@ -1418,6 +1422,28 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, state, args) when state in @drill_prepares,
     do: RestoreDrill.prepare(context, state, args)
 
+  # The administrator opened the page and its label stated that every retained backup is
+  # present: where the checks that follow a save start.
+  def prepare_behaviour(context, :label_opened_all_present, _args) do
+    context =
+      context
+      |> prepare_behaviour(:label_destination, ["all_present"])
+      |> open_label_view()
+
+    unless IntegrityLabel.outcome?(context, :label_states_all_present, []),
+      do: raise("the schedules page did not state that every retained backup is present")
+
+    context
+  end
+
+  # A family member with a real session who is no administrator, beside a destination whose
+  # artifact reads are counted.
+  def prepare_behaviour(context, :label_denied_visitor, _args) do
+    context
+    |> prepare_behaviour(:denied_settings_visitor, [])
+    |> prepare_behaviour(:label_destination, ["watched"])
+  end
+
   def prepare_behaviour(context, state, args),
     do: IntegrationFamilyChatDriver.prepare_behaviour(context, state, args)
 
@@ -1943,6 +1969,79 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       expiration_first_claim: first,
       expiration_retry: retry,
       expiration_later_claims: later
+    })
+  end
+
+  # The page as a connected administrator opens it: the first render, then the render once
+  # the check it started has reported.
+  def perform_behaviour(context, :open_schedules_label, args),
+    do: context |> open_label_view() |> note_viewport(args)
+
+  # One of the page's forms submitted with the fields as rendered: the label is read right
+  # after the event and again once the check the save started has reported.
+  def perform_behaviour(context, :save_label_form, [form]) do
+    view = context.schedules_view
+
+    after_save =
+      view |> form("form[phx-submit=#{label_form_event(form)}]") |> render_submit()
+
+    settled = render_async(view, IntegrityLabel.settle_ms())
+    await_scheduler_tasks()
+
+    Map.merge(context, %{
+      label_after_save: LazyHTML.from_fragment(after_save),
+      label_settled_after_save: LazyHTML.from_fragment(settled)
+    })
+  end
+
+  def perform_behaviour(context, :open_and_reload_label, []) do
+    evidence = %{
+      destination: BackupIntegrity.snapshot(context.backup_directory),
+      ledger: BackupIntegrity.ledger_rows()
+    }
+
+    context |> open_label_view() |> open_label_view() |> Map.put(:evidence_before, evidence)
+  end
+
+  def perform_behaviour(context, :read_label_and_report, []),
+    do: context |> open_label_view() |> BackupIntegrity.run_task(&reconcile_task/0)
+
+  # The page is opened over a check that never finishes: the first render is read at once,
+  # and the result only when the page's ceiling ends the check.
+  def perform_behaviour(context, :open_label_past_ceiling, []) do
+    started = IntegrityLabel.now()
+    context = open_label_view(context)
+
+    Map.put(context, :ceiling, IntegrityLabel.observe_ceiling(IntegrityLabel.now() - started))
+  end
+
+  # The visitor's request is stopped by the router's admin guard. The artifact reads it
+  # caused are counted, and so are the reads of an administrator's visit to the same route:
+  # the probe sees a reconciliation when one runs, so no reads for the visitor is a measurement.
+  def perform_behaviour(context, :open_schedules_route_denied, []) do
+    reads = ObservedArtifactStore.read_count()
+
+    {response, accesses} =
+      record_accesses_during(fn -> get(context.conn, @schedules_route) end)
+
+    denied = ObservedArtifactStore.read_count() - reads
+
+    {administrator, _identity} =
+      BnestAppWeb.ConnCase.scenario_authenticated_conn(
+        Phoenix.ConnTest.build_conn(),
+        "#{context.feature_file}:#{context.scenario_name}:label-control",
+        ["admin"]
+      )
+
+    reads = ObservedArtifactStore.read_count()
+    _control = open_label_view(%{context | conn: administrator})
+    control = ObservedArtifactStore.read_count() - reads
+
+    Map.merge(context, %{
+      response: response,
+      response_accesses: accesses,
+      denied_reads: denied,
+      control_reads: control
     })
   end
 
@@ -2732,6 +2831,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, expected, args) when expected in @integrity_outcomes,
     do: BackupIntegrity.outcome?(context, expected, args)
 
+  def behaviour_outcome?(context, expected, args) when expected in @label_outcomes,
+    do: IntegrityLabel.outcome?(context, expected, args)
+
   def behaviour_outcome?(context, expected, args) when expected in @drill_outcomes,
     do: RestoreDrill.outcome?(context, expected, args)
 
@@ -3414,6 +3516,25 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   defp schedule_key(prefix), do: "bdd-#{prefix}-#{unique_suffix()}"
 
   defp reconcile_task, do: Reconcile.execute([])
+
+  # The routed schedules page as a connected administrator opens it: the render of the
+  # connected mount, then the render once the check it started has reported.
+  defp open_label_view(context) do
+    {:ok, view, first} = live(context.conn, @schedules_route)
+    settled = render_async(view, IntegrityLabel.settle_ms())
+
+    Map.merge(context, %{
+      schedules_view: view,
+      label_first: LazyHTML.from_fragment(first),
+      label_page: LazyHTML.from_fragment(settled)
+    })
+  end
+
+  defp note_viewport(context, [width, height]), do: Map.put(context, :viewport, {width, height})
+  defp note_viewport(context, []), do: context
+
+  defp label_form_event("daily"), do: "save_schedule"
+  defp label_form_event("backup_folder"), do: "save_backup"
 
   defp ensure_scheduler_storage do
     :ok = SqliteCoordinator.ensure_started!(FileConfigStore.resolved_database_path())

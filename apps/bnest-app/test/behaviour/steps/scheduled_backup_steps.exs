@@ -456,6 +456,209 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: outcome(context, :live_database_not_opened)
   )
 
+  # Backup integrity: the Schedules page's `Backup files` label, read from the page the
+  # administrator opens.
+
+  step(
+    "an administrator and an isolated destination holding the artifact of every expected verified run",
+    context,
+    do: prepare(context, :label_destination, ["all_present"])
+  )
+
+  step(
+    "an isolated ledger holding one verified run whose artifact is absent and one whose bytes differ from the ledger",
+    context,
+    do: prepare(context, :label_destination, ["missing_and_changed"])
+  )
+
+  step("a reconciliation that raises or a ledger that cannot be read", context,
+    do: prepare(context, :label_destination, ["raising"])
+  )
+
+  step("a ledger holding no verified backup run", context, do: prepare(context, :empty_ledger))
+
+  step(
+    "an administrator who opened Schedules & backups while the label stated that all retained backups are present",
+    context,
+    do: prepare(context, :label_opened_all_present)
+  )
+
+  step("an expected artifact is then removed from the isolated destination", context,
+    do: prepare(context, :expected_artifact_removed)
+  )
+
+  step("an isolated destination with a missing artifact and an unknown file", context,
+    do: prepare(context, :label_destination, ["missing_and_unknown"])
+  )
+
+  step("reconciliation found a missing artifact", context,
+    do: prepare(context, :label_destination, ["missing"])
+  )
+
+  step("a reconciliation that takes longer than the page's wait ceiling", context,
+    do: prepare(context, :label_destination, ["ceiling"])
+  )
+
+  step("a visitor who is not an administrator", context,
+    do: prepare(context, :label_denied_visitor)
+  )
+
+  step(
+    "an isolated ledger holding two verified runs whose artifacts are absent or changed",
+    context,
+    do: prepare(context, :label_destination, ["two_problems"])
+  )
+
+  step("an administrator using only the keyboard and a screen reader", context,
+    do: prepare(context, :label_destination, ["all_present"])
+  )
+
+  step("the administrator opens Schedules & backups", context,
+    do: perform(context, :open_schedules_label)
+  )
+
+  step(
+    "the administrator opens Schedules & backups at {int} x {int}",
+    %{args: [width, height]} = context,
+    do: perform(context, :open_schedules_label, [width, height])
+  )
+
+  step("the administrator saves the daily schedule", context,
+    do: perform(context, :save_label_form, ["daily"])
+  )
+
+  step("the administrator saves the backup folder, left unchanged", context,
+    do: perform(context, :save_label_form, ["backup_folder"])
+  )
+
+  step("the administrator opens the page and reloads it", context,
+    do: perform(context, :open_and_reload_label)
+  )
+
+  step("the page's rendered text and attributes are read", context,
+    do: perform(context, :read_label_and_report)
+  )
+
+  step("the administrator opens the page", context,
+    do: perform(context, :open_label_past_ceiling)
+  )
+
+  step("the visitor opens the schedules route", context,
+    do: perform(context, :open_schedules_route_denied)
+  )
+
+  step("the administrator moves through the page in reading order", context,
+    do: perform(context, :open_schedules_label)
+  )
+
+  step(
+    "the Production database backup section carries a backup-files label stating that all retained backups are present",
+    context,
+    do: outcome(context, :label_states_all_present)
+  )
+
+  step("the label lists no problem date", context, do: outcome(context, :label_no_problem_dates))
+
+  step("the label states how many retained backups need attention", context,
+    do: outcome(context, :label_counts_attention)
+  )
+
+  step("it lists each problem as its date and its state, missing or changed", context,
+    do: outcome(context, :label_lists_problems)
+  )
+
+  step("the label lists the intact retained dates as present or counts them as present", context,
+    do: outcome(context, :label_counts_intact_present)
+  )
+
+  step("the label states that the backup files could not be checked", context,
+    do: outcome(context, :label_states_could_not_check)
+  )
+
+  step("the rest of the page is rendered and its forms remain usable", context,
+    do: outcome(context, :page_and_forms_usable)
+  )
+
+  step("the label states that there is no verified backup to check yet", context,
+    do: outcome(context, :label_states_nothing_to_check)
+  )
+
+  step("it does not state that the backups are present", context,
+    do: outcome(context, :label_not_present)
+  )
+
+  step("the label reads checking until the new result arrives", context,
+    do: outcome(context, :label_checking_then_result)
+  )
+
+  step("it then states that one retained backup needs attention", context,
+    do: outcome(context, :label_one_needs_attention)
+  )
+
+  step("the focus does not move", context, do: outcome(context, :focus_does_not_move))
+
+  step("the destination directory listing and every file's bytes are unchanged", context,
+    do: outcome(context, :rendered_destination_unchanged)
+  )
+
+  step("they contain no filesystem path, digest, destination identifier or run ID", context,
+    do: outcome(context, :label_private_free)
+  )
+
+  step("they name the same dates and states as the reconcile task's report", context,
+    do: outcome(context, :label_matches_report)
+  )
+
+  step("the page and its forms are rendered and usable before the result arrives", context,
+    do: outcome(context, :forms_usable_before_result)
+  )
+
+  step("the label reads checking until the result or the ceiling", context,
+    do: outcome(context, :label_checking_until_ceiling)
+  )
+
+  step("at the ceiling the label states that the backup files could not be checked", context,
+    do: outcome(context, :label_could_not_check_at_ceiling)
+  )
+
+  step(
+    "the check is cancelled at the ceiling and nothing keeps reading the destination afterwards",
+    context,
+    do: outcome(context, :check_cancelled_at_ceiling)
+  )
+
+  step("Bnest returns not found before any protected read", context,
+    do: outcome(context, :not_found_before_reads)
+  )
+
+  step("no reconciliation is started", context, do: outcome(context, :no_reconciliation_started))
+
+  step("the page does not scroll horizontally", context, do: outcome(context, :label_reflows))
+
+  step("each problem line is fully visible, wrapped rather than truncated", context,
+    do: outcome(context, :problem_lines_whole)
+  )
+
+  step("each problem is conveyed by text, not by colour alone", context,
+    do: outcome(context, :problems_conveyed_by_text)
+  )
+
+  step(
+    "the label is announced with its name and its state in its place before the forms",
+    context,
+    do: outcome(context, :label_announced_in_place)
+  )
+
+  step("the focus order of the existing controls is unchanged", context,
+    do: outcome(context, :focus_order_unchanged)
+  )
+
+  step(
+    "the change from checking to the result is announced politely and does not move focus",
+    context,
+    do: outcome(context, :result_announced_politely)
+  )
+
   defp prepare(context, state, args \\ []),
     do: context.behaviour_driver.prepare_behaviour(context, state, args)
 

@@ -411,7 +411,8 @@ with the 320 px reflow floor checked inside the mobile class.
 
 ```gherkin
 Scenario Outline: No horizontal scrolling and no hidden problem appears at any supported width
-  Given the Schedules page is open at <viewport> with a label listing two problem dates
+  Given an isolated ledger holding two verified runs whose artifacts are absent or changed
+  When the administrator opens Schedules & backups at <viewport>
   Then the page does not scroll horizontally
   And each problem line is fully visible, wrapped rather than truncated
   And each problem is conveyed by text, not by colour alone
