@@ -45,6 +45,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
   alias BnestApp.Test.InMemory.StoragePorts
   alias BnestApp.Test.InMemory.StoragePorts.{FlatSource, MigrationLedger}
+  alias BnestApp.Test.RestoreDrill
   alias BnestApp.Test.SchedulerDispatch
   alias BnestAppWeb.AdminScheduleSettingsLive
   alias BnestAppWeb.ChatLive
@@ -72,6 +73,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @integrity_prepares BackupIntegrity.prepares()
   @integrity_performs BackupIntegrity.performs()
   @integrity_outcomes BackupIntegrity.outcomes()
+
+  # The same for the restore drill (`BnestApp.Test.RestoreDrill`).
+  @drill_destination_prepares RestoreDrill.destination_prepares()
+  @drill_prepares RestoreDrill.prepares()
+  @drill_performs RestoreDrill.performs()
+  @drill_outcomes RestoreDrill.outcomes()
 
   # The statuses the schedules page may show for a schedule without exposing its failure.
   @safe_schedule_status ~r/Enabled|Running|Verified|Never run/u
@@ -1912,6 +1919,19 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def prepare_behaviour(context, state, args) when state in @integrity_prepares,
     do: BackupIntegrity.prepare(context, state, args)
 
+  # A configured destination in the scenario's in-memory artifact store, which the restore
+  # drill reads and holds the artifacts it restores.
+  def prepare_behaviour(context, state, args) when state in @drill_destination_prepares do
+    {:ok, location} = Backup.save_destination(unit_backup_directory("restore-drill"))
+
+    context
+    |> Map.merge(%{backup_directory: location.directory, backup_location: location})
+    |> RestoreDrill.prepare(state, args)
+  end
+
+  def prepare_behaviour(context, state, args) when state in @drill_prepares,
+    do: RestoreDrill.prepare(context, state, args)
+
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
     {response, accesses} = route_request(route, nil)
@@ -2497,6 +2517,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def perform_behaviour(context, action, args) when action in @integrity_performs,
     do: BackupIntegrity.perform(context, action, args)
+
+  def perform_behaviour(context, action, args) when action in @drill_performs,
+    do: RestoreDrill.perform(context, action, args)
 
   def perform_behaviour(context, action, args),
     do: UnitFamilyChatDriver.perform_behaviour(context, action, args)
@@ -3435,6 +3458,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def behaviour_outcome?(context, expected, args) when expected in @integrity_outcomes,
     do: BackupIntegrity.outcome?(context, expected, args)
+
+  def behaviour_outcome?(context, expected, args) when expected in @drill_outcomes,
+    do: RestoreDrill.outcome?(context, expected, args)
 
   def behaviour_outcome?(context, expected, args),
     do: UnitFamilyChatDriver.behaviour_outcome?(context, expected, args)

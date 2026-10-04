@@ -375,6 +375,87 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: outcome(context, :default_directory_unchanged)
   )
 
+  # Backup integrity: the restore drill task, what it restores, prints and refuses.
+
+  step(
+    "an isolated destination holding a synthetic artifact of 1 room, {int} messages and {int} push subscriptions with deliveries {string} and {string}",
+    %{args: args} = context,
+    do: prepare(context, :drill_artifact, args)
+  )
+
+  step("an isolated destination holding a synthetic artifact", context,
+    do: prepare(context, :drill_artifact)
+  )
+
+  step("a restorable regular file sits outside the destination", context,
+    do: prepare(context, :drill_outside_file)
+  )
+
+  step("a directory sits inside the destination", context, do: prepare(context, :drill_directory))
+
+  step(
+    "a symbolic link inside the destination points to a restorable file outside it",
+    context,
+    do: prepare(context, :drill_symlink)
+  )
+
+  step("the restore drill task is run against that artifact", context,
+    do: perform(context, :restore_drill, ["artifact"])
+  )
+
+  step(
+    "the restore drill task is run against the file outside the destination by its absolute path",
+    context,
+    do: perform(context, :restore_drill, ["outside_absolute"])
+  )
+
+  step(
+    "the restore drill task is run against the file outside the destination by a relative path that climbs out of it",
+    context,
+    do: perform(context, :restore_drill, ["outside_relative"])
+  )
+
+  step("the restore drill task is run against that directory", context,
+    do: perform(context, :restore_drill, ["directory"])
+  )
+
+  step("the restore drill task is run against that symbolic link", context,
+    do: perform(context, :restore_drill, ["symlink"])
+  )
+
+  step("it exits 0 and its first line is {string}", %{args: [line]} = context,
+    do: outcome(context, :drill_exit_zero_first_line, [line])
+  )
+
+  step("it prints the line {string}", %{args: [line]} = context,
+    do: outcome(context, :drill_prints_line, [line])
+  )
+
+  step("its last line is {string}", %{args: [line]} = context,
+    do: outcome(context, :drill_last_line, [line])
+  )
+
+  step("it prints only the line {string}", %{args: [line]} = context,
+    do: outcome(context, :drill_only_line, [line])
+  )
+
+  step(
+    "its output carries no message body, push credential, filesystem path or artifact name",
+    context,
+    do: outcome(context, :drill_output_private_free)
+  )
+
+  step("it restored the artifact once into a fresh root that no longer exists", context,
+    do: outcome(context, :drill_restored_once_root_gone)
+  )
+
+  step("nothing is restored", context, do: outcome(context, :drill_nothing_restored))
+  step("no restore root is created", context, do: outcome(context, :drill_no_root_created))
+
+  step("the live database is not opened", context,
+    do: outcome(context, :live_database_not_opened)
+  )
+
   defp prepare(context, state, args \\ []),
     do: context.behaviour_driver.prepare_behaviour(context, state, args)
 

@@ -45,6 +45,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
   alias BnestApp.Test.InterruptedChatWriteBackend
   alias BnestApp.Test.InterruptedMigrationLedger
+  alias BnestApp.Test.RestoreDrill
   alias BnestApp.Test.SchedulerDispatch
   alias BnestApp.Test.Seeds.Schedules
   alias BnestApp.TestBackupDestination
@@ -61,6 +62,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @integrity_prepares BackupIntegrity.prepares()
   @integrity_performs BackupIntegrity.performs()
   @integrity_outcomes BackupIntegrity.outcomes()
+
+  # The same for the restore drill (`BnestApp.Test.RestoreDrill`).
+  @drill_destination_prepares RestoreDrill.destination_prepares()
+  @drill_prepares RestoreDrill.prepares()
+  @drill_performs RestoreDrill.performs()
+  @drill_outcomes RestoreDrill.outcomes()
 
   # The statuses the schedules page may show for a schedule without exposing its failure.
   @safe_schedule_status ~r/Enabled|Running|Verified|Never run/u
@@ -1398,6 +1405,19 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, state, args) when state in @integrity_prepares,
     do: BackupIntegrity.prepare(context, state, args)
 
+  # A real temporary destination, saved as the configured one: the restore drill reads it and
+  # the artifacts it restores are real SQLite files in it.
+  def prepare_behaviour(context, state, args) when state in @drill_destination_prepares do
+    location = TestBackupDestination.configure!("restore-drill")
+
+    context
+    |> Map.merge(%{backup_directory: location.directory, backup_location: location})
+    |> RestoreDrill.prepare(state, args)
+  end
+
+  def prepare_behaviour(context, state, args) when state in @drill_prepares,
+    do: RestoreDrill.prepare(context, state, args)
+
   def prepare_behaviour(context, state, args),
     do: IntegrationFamilyChatDriver.prepare_behaviour(context, state, args)
 
@@ -1935,6 +1955,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def perform_behaviour(context, action, args) when action in @integrity_performs,
     do: BackupIntegrity.perform(context, action, args)
+
+  def perform_behaviour(context, action, args) when action in @drill_performs,
+    do: RestoreDrill.perform(context, action, args)
 
   def perform_behaviour(context, action, args),
     do: IntegrationFamilyChatDriver.perform_behaviour(context, action, args)
@@ -2708,6 +2731,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def behaviour_outcome?(context, expected, args) when expected in @integrity_outcomes,
     do: BackupIntegrity.outcome?(context, expected, args)
+
+  def behaviour_outcome?(context, expected, args) when expected in @drill_outcomes,
+    do: RestoreDrill.outcome?(context, expected, args)
 
   def behaviour_outcome?(context, expected, args),
     do: IntegrationFamilyChatDriver.behaviour_outcome?(context, expected, args)
