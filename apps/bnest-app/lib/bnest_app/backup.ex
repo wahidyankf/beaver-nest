@@ -27,6 +27,7 @@ defmodule BnestApp.Backup do
   alias BnestApp.Backup.Domain.CapacityPolicy
   alias BnestApp.Backup.Domain.Location
   alias BnestApp.Backup.Domain.Receipt
+  alias BnestApp.Backup.Domain.Reconciliation
   alias BnestApp.Backup.Domain.RestoreEvidence
   alias BnestApp.Backup.Domain.Retention
   alias BnestApp.Backup.Ports.ArtifactStore
@@ -64,22 +65,23 @@ defmodule BnestApp.Backup do
   """
   @spec destination() :: {:ok, location()} | {:error, atom()}
   def destination do
-    config = config_store()
-
-    directory =
-      case ConfigStore.read(config) do
-        {:ok, document} ->
-          Location.configured_directory(document)
-
-        {:error, :absent} ->
-          {:ok, Location.default_directory(ConfigStore.repository_root(config))}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-
-    with {:ok, directory} <- directory do
+    with {:ok, directory} <- configured_directory() do
       ensure(directory, DateTime.utc_now())
+    end
+  end
+
+  @doc """
+  The destination as `destination/0` names it, read and never prepared: the same
+  configuration and checks, then the marker the directory already holds. It creates no
+  directory, writes no marker and changes no mode, so a missing directory or marker is
+  `{:error, :absent}` and an unreadable marker `{:error, :invalid_marker}`.
+  """
+  @spec read_destination() :: {:ok, location()} | {:error, atom()}
+  def read_destination do
+    with {:ok, directory} <- configured_directory(),
+         {:ok, directory} <- validate(directory, config_store()),
+         {:ok, marker} <- read_marker(artifact_store(), directory) do
+      {:ok, %{directory: directory, destination_id: marker["destinationId"]}}
     end
   end
 
@@ -190,6 +192,26 @@ defmodule BnestApp.Backup do
     end)
 
     {:ok, kept}
+  end
+
+  @doc """
+  Checks the verified ledger `runs` (see `BnestApp.Backup.Domain.Reconciliation`) against the
+  artifacts `directory` holds, and returns each run's outcome, oldest first: `:present`,
+  `:missing`, `:changed`, or `:not_expected` when retention would legitimately have removed
+  it. The runs are data, so this context knows nothing of the Scheduler that recorded them.
+
+  Read-only: it asks only whether an expected run's artifact is a regular file and, when it
+  is, for its digest and size; it writes and removes nothing, and it reads no file the ledger
+  does not list. A read the artifact store cannot make raises, so the caller decides how an
+  unreadable destination is reported. `directory` must be an absolute path.
+  """
+  @spec reconcile(term(), [Reconciliation.run()]) ::
+          {:ok, [Reconciliation.result()]} | {:error, :not_absolute | :invalid_directory}
+  def reconcile(directory, runs) when is_list(runs) do
+    with {:ok, directory} <- Location.absolute(directory) do
+      observed = observe(artifact_store(), directory, Reconciliation.expected(runs))
+      {:ok, Reconciliation.classify(runs, observed)}
+    end
   end
 
   @doc """
@@ -347,6 +369,17 @@ defmodule BnestApp.Backup do
     end
   end
 
+  # The directory the configuration names, or else the repository's default, before any check.
+  defp configured_directory do
+    config = config_store()
+
+    case ConfigStore.read(config) do
+      {:ok, document} -> Location.configured_directory(document)
+      {:error, :absent} -> {:ok, Location.default_directory(ConfigStore.repository_root(config))}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   defp ensure(directory, %DateTime{} = now) do
     artifacts = artifact_store()
 
@@ -379,6 +412,21 @@ defmodule BnestApp.Backup do
     else
       {:error, :absent} -> {:error, :absent}
       _invalid -> {:error, :invalid_marker}
+    end
+  end
+
+  # What `directory` holds of each run's artifact: its digest and size, for the runs whose
+  # artifact exists, so a missing file is never digested.
+  defp observe(artifacts, directory, runs) do
+    for run <- runs,
+        path = Path.join(directory, run.artifact_basename),
+        ArtifactStore.regular?(artifacts, path),
+        into: %{} do
+      {run.artifact_basename,
+       %{
+         sha256: ArtifactStore.digest(artifacts, path),
+         bytes: ArtifactStore.size(artifacts, path)
+       }}
     end
   end
 

@@ -96,6 +96,35 @@ defmodule BnestApp.Backup.DomainTest do
         ])
       end
     end
+
+    test "dates an instant on the WIB calendar, seven hours ahead of UTC" do
+      assert Retention.wib_date(~U[2026-09-17 16:59:59Z]) == ~D[2026-09-17]
+      assert Retention.wib_date(~U[2026-09-17 17:00:00Z]) == ~D[2026-09-18]
+    end
+
+    test "groups items newest first by the WIB date of their instant, latest seven dates only" do
+      items =
+        for days <- 0..8, hour <- [12, 1] do
+          %{
+            id: "item-#{days}-#{hour}",
+            at: DateTime.add(~U[2026-09-18 00:00:00Z], -days * 86_400 + hour * 3_600)
+          }
+        end
+
+      groups = Retention.retained_groups(items, & &1.at)
+
+      assert Enum.map(groups, &elem(&1, 0)) ==
+               for(days <- 0..6, do: Date.add(~D[2026-09-18], -days))
+
+      assert Enum.map(groups, fn {_date, [newest | _older]} -> newest.id end) ==
+               for(days <- 0..6, do: "item-#{days}-12")
+
+      assert groups |> Enum.flat_map(&elem(&1, 1)) |> length() == 14
+    end
+
+    test "groups nothing when there is nothing to group" do
+      assert Retention.retained_groups([], & &1) == []
+    end
   end
 
   describe "Location.valid_marker?/1" do

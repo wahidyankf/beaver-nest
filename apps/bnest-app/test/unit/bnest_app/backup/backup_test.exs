@@ -6,6 +6,7 @@ defmodule BnestApp.Backup.FacadeTest do
   alias BnestApp.Backup
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.FamilyChat
+  alias BnestApp.Test.CallTrace
   alias BnestApp.Test.InMemory.ArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore
   alias BnestApp.Test.InMemory.CapacityProbe
@@ -13,6 +14,7 @@ defmodule BnestApp.Backup.FacadeTest do
   alias BnestApp.Test.InMemory.IgnoreCheck
   alias BnestApp.Test.InMemory.RoomStore
   alias BnestApp.Test.InMemory.SubscriptionStore
+  alias BnestApp.Test.UnreadableArtifactStore
 
   @now ~U[2026-09-18 00:00:00Z]
   @wib_offset_seconds 7 * 60 * 60
@@ -31,6 +33,15 @@ defmodule BnestApp.Backup.FacadeTest do
       ignore: IgnoreCheck.install(),
       config: BackupConfigStore.install()
     }
+  end
+
+  defp store_state(context), do: Agent.get(context.artifacts.pid, & &1)
+
+  defp put_override(context, directory) do
+    BackupConfigStore.put_document(context.config, %{
+      "schemaVersion" => 1,
+      "destinationDirectory" => directory
+    })
   end
 
   describe "destination" do
@@ -137,6 +148,93 @@ defmodule BnestApp.Backup.FacadeTest do
       unavailable = "/srv/test-user-backup/unavailable"
       :ok = ArtifactStore.put_unavailable(context.artifacts, unavailable)
       assert Backup.save_destination(unavailable) == {:error, :unavailable}
+    end
+  end
+
+  describe "read_destination/0" do
+    test "reads the marked destination a saved override names and changes nothing", context do
+      assert {:ok, location} = Backup.save_destination(@destination)
+      before = store_state(context)
+      document = BackupConfigStore.document(context.config)
+
+      assert Backup.read_destination() == {:ok, location}
+
+      # The store's whole state (directories, files, modes, flush marks, links) is as it was,
+      # and nothing more was written to the configuration.
+      assert store_state(context) == before
+      assert BackupConfigStore.writes(context.config) == [document]
+    end
+
+    test "reads the marked default the same way", context do
+      assert {:ok, location} = Backup.destination()
+      before = store_state(context)
+
+      assert Backup.read_destination() == {:ok, location}
+      assert store_state(context) == before
+      assert BackupConfigStore.writes(context.config) == []
+    end
+
+    test "finds an absent destination absent and creates nothing", context do
+      :ok = put_override(context, @destination)
+      before = store_state(context)
+
+      assert Backup.read_destination() == {:error, :absent}
+      assert ArtifactStore.directories(context.artifacts) == []
+      assert store_state(context) == before
+    end
+
+    test "finds an absent default absent and creates nothing", context do
+      before = store_state(context)
+
+      assert Backup.read_destination() == {:error, :absent}
+      assert ArtifactStore.directories(context.artifacts) == []
+      assert store_state(context) == before
+    end
+
+    test "finds a directory without a marker absent and does not mark it", context do
+      :ok = ArtifactStore.prepare_directory(context.artifacts, @destination)
+      :ok = put_override(context, @destination)
+      before = store_state(context)
+
+      assert Backup.read_destination() == {:error, :absent}
+      assert ArtifactStore.paths(context.artifacts, @destination) == []
+      assert store_state(context) == before
+    end
+
+    test "refuses an invalid marker and leaves it as it is", context do
+      :ok =
+        ArtifactStore.put_file(context.artifacts, @destination <> "/.bnest-backup-root.json", %{})
+
+      :ok = put_override(context, @destination)
+      before = store_state(context)
+
+      assert Backup.read_destination() == {:error, :invalid_marker}
+      assert store_state(context) == before
+    end
+
+    test "refuses what destination/0 refuses, for the same reason and creating nothing",
+         context do
+      :ok = ArtifactStore.put_symlink(context.artifacts, "/srv/test-user-backup/link")
+      before = store_state(context)
+
+      :ok = BackupConfigStore.put_document(context.config, %{"schemaVersion" => 1})
+      assert Backup.read_destination() == {:error, :invalid_config}
+
+      :ok = BackupConfigStore.put_read_error(context.config, :unavailable)
+      assert Backup.read_destination() == {:error, :unavailable}
+      :ok = BackupConfigStore.put_read_error(context.config, nil)
+
+      :ok = put_override(context, "relative/backup")
+      assert Backup.read_destination() == {:error, :not_absolute}
+
+      :ok = put_override(context, "/srv/test-user-backup/link/nested")
+      assert Backup.read_destination() == {:error, :symlink}
+
+      :ok = BackupConfigStore.put_document(context.config, nil)
+      :ok = IgnoreCheck.put_ignored(context.ignore, false)
+      assert Backup.read_destination() == {:error, :default_not_ignored}
+
+      assert store_state(context) == before
     end
   end
 
@@ -371,6 +469,110 @@ defmodule BnestApp.Backup.FacadeTest do
     end
   end
 
+  describe "reconcile/2" do
+    test "reports an intact run present and a run whose digest changed changed, writing nothing",
+         context do
+      dates = [~D[2030-05-14], ~D[2030-05-15], ~D[2030-05-16]]
+      [first, second, third] = runs = nightly_runs(context, dates)
+      :ok = ArtifactStore.put_file(context.artifacts, artifact_path(second), "changed bytes")
+      :ok = ArtifactStore.put_file(context.artifacts, @destination <> "/unknown-note.txt", "note")
+      before = Agent.get(context.artifacts.pid, & &1)
+
+      assert Backup.reconcile(@destination, runs) ==
+               {:ok,
+                [
+                  expected_result(first, ~D[2030-05-14], :present),
+                  expected_result(second, ~D[2030-05-15], :changed),
+                  expected_result(third, ~D[2030-05-16], :present)
+                ]}
+
+      # The store's whole state, files, modes, flush marks and directories, is as it was.
+      assert Agent.get(context.artifacts.pid, & &1) == before
+    end
+
+    test "reports a run whose artifact is absent as missing and lists no file the ledger lacks",
+         context do
+      [first, second] = runs = nightly_runs(context, [~D[2030-05-14], ~D[2030-05-15]])
+      :ok = ArtifactStore.remove(context.artifacts, artifact_path(second))
+      :ok = ArtifactStore.put_file(context.artifacts, @destination <> "/unknown-note.txt", "note")
+
+      assert Backup.reconcile(@destination, runs) ==
+               {:ok,
+                [
+                  expected_result(first, ~D[2030-05-14], :present),
+                  expected_result(second, ~D[2030-05-15], :missing)
+                ]}
+    end
+
+    test "reports nothing for a ledger with no verified run" do
+      assert Backup.reconcile(@destination, []) == {:ok, []}
+    end
+
+    test "refuses a destination that is not an absolute path before reading anything", context do
+      runs = nightly_runs(context, [~D[2030-05-14]])
+
+      {result, events} =
+        CallTrace.record([{{ArtifactStore, :_, :_}, []}], fn ->
+          [
+            Backup.reconcile("relative/backup", runs),
+            Backup.reconcile(nil, runs)
+          ]
+        end)
+
+      assert result == [{:error, :not_absolute}, {:error, :invalid_directory}]
+      assert events == []
+    end
+
+    test "reads and digests only the artifacts of the runs it expects that exist", context do
+      # Nine runs: eight WIB dates, the oldest outside the window, and a second run on the
+      # newest date. Of the seven expected runs, one artifact is absent.
+      dates = Enum.map(0..7, &Date.add(~D[2030-05-11], &1))
+      by_date = nightly_runs(context, dates)
+      superseded = ledger_run(context, "superseded", ~U[2030-05-18 00:00:30Z])
+      runs = [superseded | by_date]
+      [outside_window | expected] = by_date
+      {absent, present} = List.pop_at(expected, 2)
+      :ok = ArtifactStore.remove(context.artifacts, artifact_path(absent))
+
+      {{:ok, results}, events} =
+        CallTrace.record(
+          [
+            {{ArtifactStore, :regular?, 2}, []},
+            {{ArtifactStore, :digest, 2}, []},
+            {{ArtifactStore, :size, 2}, []}
+          ],
+          fn -> Backup.reconcile(@destination, runs) end
+        )
+
+      assert Enum.frequencies_by(results, & &1.state) ==
+               %{present: 6, missing: 1, not_expected: 2}
+
+      read = fn function ->
+        events
+        |> CallTrace.calls(ArtifactStore, function)
+        |> Enum.map(fn {_caller, [_store, path]} -> path end)
+        |> Enum.sort()
+      end
+
+      # Existence is asked of the seven expected runs only; digest and size of those that exist.
+      assert read.(:regular?) == Enum.sort(Enum.map(expected, &artifact_path/1))
+      assert read.(:digest) == Enum.sort(Enum.map(present, &artifact_path/1))
+      assert read.(:size) == read.(:digest)
+      refute artifact_path(outside_window) in read.(:digest)
+      refute artifact_path(superseded) in read.(:digest)
+    end
+
+    test "lets a read failure raise instead of reporting a state it did not establish",
+         context do
+      [_first, second] = runs = nightly_runs(context, [~D[2030-05-14], ~D[2030-05-15]])
+      :ok = UnreadableArtifactStore.install!(artifact_path(second))
+
+      assert_raise RuntimeError, ~r/cannot be read/, fn ->
+        Backup.reconcile(@destination, runs)
+      end
+    end
+  end
+
   describe "restore/1" do
     test "reports the active room, its ordered messages, subscriptions and delivery states",
          context do
@@ -435,6 +637,38 @@ defmodule BnestApp.Backup.FacadeTest do
     |> ArtifactStore.paths(@destination)
     |> Enum.filter(&String.contains?(&1, "/bnest-prod-"))
   end
+
+  # A verified ledger run finished at `finished_at`, whose artifact the in-memory destination
+  # holds; the run records the digest and size the store reports for that artifact.
+  defp ledger_run(context, name, finished_at, content \\ nil) do
+    basename = "bnest-prod-#{name}.sqlite3"
+    path = @destination <> "/" <> basename
+    :ok = ArtifactStore.put_file(context.artifacts, path, content || "synthetic backup #{name}")
+
+    %{
+      run_id: "test-run-#{name}",
+      slot: DateTime.add(finished_at, -60),
+      finished_at: finished_at,
+      artifact_basename: basename,
+      artifact_sha256: ArtifactStore.digest(context.artifacts, path),
+      artifact_bytes: ArtifactStore.size(context.artifacts, path)
+    }
+  end
+
+  defp nightly_runs(context, dates) do
+    for date <- dates do
+      ledger_run(
+        context,
+        Date.to_iso8601(date, :basic),
+        DateTime.new!(date, ~T[00:01:00], "Etc/UTC")
+      )
+    end
+  end
+
+  defp artifact_path(run), do: @destination <> "/" <> run.artifact_basename
+
+  defp expected_result(run, date, state),
+    do: %{date: date, slot: run.slot, artifact_basename: run.artifact_basename, state: state}
 
   defp claim(run_id, location) do
     %{
