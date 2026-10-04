@@ -3,7 +3,7 @@
 ## Execution Status and Authority
 
 **In progress (2026-10-04).** Phases 1 and 2 were executed on 2026-10-04 (pre-state 07:28Z, post-state 07:37Z, between
-the slots of 2026-10-03T19:00Z and 2026-10-04T19:00Z); Phase 3 was executed the same day (V1 recorded); Phase 4 and later are started in order. The plan sits in
+the slots of 2026-10-03T19:00Z and 2026-10-04T19:00Z); Phases 3 to 5 were executed the same day (V1 recorded, the specifications and the detector built, the early live reconcile run at 09:21Z); Phase 6 is not started and waits for the owner's confirmation of V1. The plan sits in
 `plans/in-progress/`; the gate verdict is recorded in the first Phase 1 item (`PASS_WITH_FINDINGS`, gate pass 6). Read all six plan
 documents and the [plan-execution workflow](../../../repo-governance/workflows/plan/plan-execution.md) first. Start only
 from a current, explicitly authorized, non-blocking verdict (`PASS`, or `PASS_WITH_FINDINGS` with every finding
@@ -408,7 +408,7 @@ the affected Rules are added or removed as their own Gherkin, binding and red cy
       (AC-BI-07, 17); no private value (AC-BI-07); a raising reconciliation never fails the backup (AC-BI-16); the task exit
       status (AC-BI-17: all present exits 0 with the summary line and no per-date line, missing, changed, unreadable
       ledger, empty ledger); AC-BI-08 and AC-BI-09 as applicable. The singular forms (`1 of 7 retained backups needs
-    attention`) are agent proposals for Phase 8 to review. **Deviation (recorded):** the AC-BI-11 and AC-BI-18 Rules are
+  attention`) are agent proposals for Phase 8 to review. **Deviation (recorded):** the AC-BI-11 and AC-BI-18 Rules are
       not written now but as the first cycle of Phase 7 (Gherkin, bindings, red, code), because their task is built
       only in Phase 7 and the Phase 5 checkpoint requires green `BE_UNIT`, `INTEGRATION` and `BEHAVIOUR`; the Phase 5
       item that lists AC-BI-18 among the scenarios made green is therefore satisfied for AC-BI-18 in Phase 7. AC-BI-10
@@ -475,33 +475,47 @@ detector reported the gap is lost. Once the slot of 2026-10-07T19:00Z has finish
 `Not applicable: aged out` for the first lost night as the early-read item below states, and one slot later for the
 second.
 
-- [ ] `[AI] [AC-BI-03, AC-BI-05, AC-BI-15]` **RED** — create
+- [x] `[AI] [AC-BI-03, AC-BI-05, AC-BI-15]` **RED** — create
       `apps/bnest-app/test/unit/bnest_app/backup/reconciliation_test.exs`: a missing artifact is `:missing`; a run
       older than the seven latest WIB dates is `:not_expected`; of two verified runs on one date only the newest is
       expected; a run whose slot (16:59Z) and `finished_at` (17:01Z) fall on different WIB dates is grouped by
       `finished_at`, the date `Retention` gives its receipt's `createdAt`. **Proof:** `BE_UNIT` fails naming the undefined `Reconciliation`. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-BI-03, AC-BI-05, AC-BI-15]` **GREEN** — add
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** `reconciliation_test.exs` written first; with a temporary
+      wrong-value stub (an undefined function is not a red) 12 assertions failed behaviourally (missing, not-expected, newest
+      of a date, `finished_at` grouping). Extra cases: changed by digest or size, the window counts dates holding a run,
+      a setup run (null slot) is dated by `finished_at`, the expected set equals `Retention.retained_run_ids`.
+- [x] `[AI] [AC-BI-03, AC-BI-05, AC-BI-15]` **GREEN** — add
       `apps/bnest-app/lib/bnest_app/backup/domain/reconciliation.ex` and expose the WIB-date grouping from
       `retention.ex` so both use one definition. **Proof:** `BE_UNIT` passes. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-BI-05, AC-BI-15]` **REFACTOR** — delete any copy of the window rule, leaving `Retention` its only
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** `Reconciliation.expected/1` and `classify/2` added; `Retention`
+      exposes `wib_date/1` and `retained_groups/2`. Deviation: `classify/2`, not the `/3` the design names, because no
+      third input exists. Final `BE_UNIT` below: 690 tests, 0 failures.
+- [x] `[AI] [AC-BI-05, AC-BI-15]` **REFACTOR** — delete any copy of the window rule, leaving `Retention` its only
       owner. **Proof:** `BE_UNIT` still passes and one grep for the seven-date constant finds one definition.
-- [ ] `[AI] [AC-BI-04, AC-BI-06]` **RED** — extend `apps/bnest-app/test/unit/bnest_app/backup/backup_test.exs`:
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** `retained_run_ids/1` itself goes through `retained_groups/2`; `grep retained_dates` over `lib` finds the constant once.
+- [x] `[AI] [AC-BI-04, AC-BI-06]` **RED** — extend `apps/bnest-app/test/unit/bnest_app/backup/backup_test.exs`:
       `Backup.reconcile/2` over the in-memory artifact store reports a changed digest as `:changed`, reports intact
       runs `:present`, and leaves the store's contents byte-identical. **Proof:** `BE_UNIT` fails on the undefined
       `reconcile/2`. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-BI-04, AC-BI-06]` **GREEN** — add `Backup.reconcile/2` using only `ArtifactStore.regular?/2`,
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** 6 behavioural failures against a wrong-value stub (changed digest, intact, store byte-identical, unknown file neither read nor listed, invalid directory refused with no store call, read failure propagates).
+- [x] `[AI] [AC-BI-04, AC-BI-06]` **GREEN** — add `Backup.reconcile/2` using only `ArtifactStore.regular?/2`,
       `digest/2` and `size/2`. **Proof:** `BE_UNIT` passes. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-BI-04, AC-BI-06]` **REFACTOR** — compute a digest only for expected runs whose file exists. **Proof:**
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** `Backup.reconcile(directory, runs)` uses only `ArtifactStore.regular?/2`, `digest/2`, `size/2`; returns `{:ok, [%{date, slot, artifact_basename, state}]}`; store failures raise (so the AC-BI-16 guard has something to guard).
+- [x] `[AI] [AC-BI-04, AC-BI-06]` **REFACTOR** — compute a digest only for expected runs whose file exists. **Proof:**
       `BE_UNIT` still passes; a test asserts no digest call for a missing file.
-- [ ] `[AI] [AC-BI-03]` **RED** — extend the Scheduler contract suite for `Scheduler.verified_runs/1`: returns verified
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** a call-trace test asserts `regular?` is asked only of the 7 expected runs and `digest`/`size` only of the 6 that exist; a mutation check (passing all runs) failed it, then was restored.
+- [x] `[AI] [AC-BI-03]` **RED** — extend the Scheduler contract suite for `Scheduler.verified_runs/1`: returns verified
       backup runs with artifact basename, digest, bytes, slot and `finished_at`, excludes failed, skipped and running
       runs, and changes nothing. Run it against the in-memory and the SQLite adapters. **Proof:** `BE_UNIT` and
       `INTEGRATION` fail on the undefined function. Commands: `BE_UNIT`, `INTEGRATION`.
-- [ ] `[AI] [AC-BI-03]` **GREEN** — add `verified_runs/1` to `scheduler.ex`, the `ScheduleStore` port, both adapters.
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** new contract cases run against the in-memory and SQLite adapters failed against a stub: only verified backup runs with run id, slot, `finished_at`, basename, digest and bytes; failed, skipped, running and other-handler runs excluded; nothing changed. Decision: a setup claim has a null `scheduled_for`, so it is included with `slot: nil` and dated by `finished_at`.
+- [x] `[AI] [AC-BI-03]` **GREEN** — add `verified_runs/1` to `scheduler.ex`, the `ScheduleStore` port, both adapters.
       **Proof:** both commands pass.
-- [ ] `[AI] [AC-BI-03]` **REFACTOR** — share the column list with the existing completion query. **Proof:** both
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** `Scheduler.verified_runs/1` on the facade, the `ScheduleStore` port, `SqliteScheduleStore` and the in-memory store; `BE_UNIT` and `INTEGRATION` pass (final results below).
+- [x] `[AI] [AC-BI-03]` **REFACTOR** — share the column list with the existing completion query. **Proof:** both
       commands still pass.
-- [ ] `[AI] [AC-BI-07, AC-BI-17]` **RED** — extend
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** the SQLite query selects the shared `@run_columns` through one `qualified/2` helper and `Policy.verified_run/1`; both commands still pass.
+- [x] `[AI] [AC-BI-07, AC-BI-17]` **RED** — extend
       `apps/bnest-app/test/unit/bnest_app/backup/reconciliation_test.exs` with the full state-to-wording mapping that the
       log, the telemetry metadata, the Mix task and the label all render (one function; see **One wording function** in
       [`tech-docs.md`](tech-docs.md#reconciliation-detector)): `checking` gives `Backup files: checking`; every one of N
@@ -517,21 +531,25 @@ second.
       `Runs lost without a surviving receipt cannot be seen this way`. The Phase 4 wording Rule pins in Gherkin the
       states the task report can show; these unit cases cover every state, `checking` included. **Proof:**
       `BE_UNIT` fails naming the undefined wording function. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-BI-07, AC-BI-17]` **GREEN** — add the wording function to
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** 12 behavioural failures against a stub. Forms agent-proposed, pending Phase 8 review: N=1 `the retained backup is present`; k=1 `1 of N retained backups needs attention`; N=1,k=1 `the retained backup needs attention`; `checking` renders `Backup files: checking` (exit status 1). C-DEST case omitted (`Not applicable` under V1). A leak assertion over every state (no path, digest, destination id, run id) was strengthened after it passed vacuously.
+- [x] `[AI] [AC-BI-07, AC-BI-17]` **GREEN** — add the wording function to
       `apps/bnest-app/lib/bnest_app/backup/domain/reconciliation.ex`, mapping a structured result to those parts for every
       state, with an empty set of expected runs yielding the nothing-to-check state and never the all-present state.
       **Proof:** `BE_UNIT` passes, including the empty-ledger case. Command: `BE_UNIT`.
-- [ ] `[AI] [AC-BI-07, AC-BI-16]` **RED** — add integration cases in
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** `Reconciliation.report/1` (label, summary, problems, footer, exit status) and `render/1`; empty or all-not-expected results give the nothing-to-check state with exit status 1, never the all-present words; an error's reason is never rendered. `BE_UNIT` passes.
+- [x] `[AI] [AC-BI-07, AC-BI-16]` **RED** — add integration cases in
       `apps/bnest-app/test/integration/bnest_app/backup/scheduled_backup_test.exs`: after a scheduled run in an
       isolated destination whose earlier artifact was removed, the task emits one `[:bnest_app, :backup, :integrity]`
       event and one log line naming the date and state and containing no path, digest, destination or run ID; a
       reconciliation that raises leaves the run `verified` with its artifact and receipt present and logs one path-free
       error line. **Proof:** `INTEGRATION` fails on the absent event and on the unguarded raise. Command:
       `INTEGRATION`.
-- [ ] `[AI] [AC-BI-07, AC-BI-16]` **GREEN** — call `Backup.reconcile/2` from `ScheduledBackupTask` after retention,
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** 3 integration cases (removed earlier artifact, all present, raising reconciliation via an unreadable-artifact store wrapper) failed behaviourally: no integrity event, no error line; the unguarded raise escaped `execute/2`.
+- [x] `[AI] [AC-BI-07, AC-BI-16]` **GREEN** — call `Backup.reconcile/2` from `ScheduledBackupTask` after retention,
       inside a `rescue`, emitting the telemetry event and the log line. **Proof:** `INTEGRATION` passes. Command:
       `INTEGRATION`.
-- [ ] `[AI] [AC-BI-07, AC-BI-17]` **RED** — add
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** the task composes `Scheduler.verified_runs/1` and `Backup.reconcile/2` after retention inside a rescue-and-catch, emits one `[:bnest_app, :backup, :integrity]` event and one log entry (info when exit status 0, error otherwise) through `Reconciliation.render`; a raise logs only the could-not-be-checked line. Deviation: one multi-line log entry per run rather than one line per problem run (the drivers count exactly one error entry).
+- [x] `[AI] [AC-BI-07, AC-BI-17]` **RED** — add
       `apps/bnest-app/test/integration/mix/tasks/bnest_backup_reconcile_test.exs` for the Mix task over an isolated
       destination and ledger: with at least one expected run and every expected run present it exits `0`, prints the summary
       `Backup files: all N retained backups are present` and no per-date line (agent-proposed rewording of 2026-10-04,
@@ -549,7 +567,8 @@ second.
       cannot run in the test VM, where the application already started the Scheduler. These cases need a real
       filesystem, hence integration. **Proof:** `INTEGRATION` fails on the undefined task.
       Command: `INTEGRATION`.
-- [ ] `[AI] [AC-BI-07, AC-BI-17]` **GREEN** — add `apps/bnest-app/lib/mix/tasks/bnest.backup.reconcile.ex`, printing
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** 12 subprocess cases (a `--no-start` run, isolated source pointer, crash-image copy of an isolated database with a non-empty `-wal`): 7 of 8 failed behaviourally at first (no report, no non-zero exits); later cases for the read-only destination (a 0o755 directory not chmodded, a removed directory not recreated, a removed marker not recreated) failed against the first implementation.
+- [x] `[AI] [AC-BI-07, AC-BI-17]` **GREEN** — add `apps/bnest-app/lib/mix/tasks/bnest.backup.reconcile.ex`, printing
       the same path-free report as the log. It resolves the production database path with `Storage.database_path/0`,
       copies the database and its `-wal` twice into a private scratch directory and accepts the pair as the
       [Scratch-copy read](tech-docs.md#reconciliation-detector) states, writes a scratch storage pointer file (`schemaVersion` `1`,
@@ -560,12 +579,15 @@ second.
       start the Scheduler against the production `runtime_root`), sets `:scheduler_automatic?` to `false` before any
       start, and never opens the production file. **Proof:** `INTEGRATION` passes, including the no-Scheduler
       assertion. Command: `INTEGRATION`.
-- [ ] `[AI] [AC-BI-07]` **REFACTOR** — make the log line, the telemetry metadata and the task call the wording function
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** the task resolves the production database path, then `Storage.with_database_copy/2` copies the database and `-wal` twice as plain bytes into a private 0700 scratch directory, requires both copies to agree (verified-run count and latest `finished_at`; one fresh pair on disagreement, then a path-free `ledger unstable` reason), writes a scratch pointer with every key `FileConfigStore` requires, sets `BNEST_STORAGE_CONFIG`, starts only `ecto_sql`, `exqlite` and the repository on the copy, never `app.start`, sets `scheduler_automatic?` false first, restores the setting and removes the scratch directory on exit. The subprocess cases assert the source database and `-wal` byte-identical, no `-shm` created, and `Process.whereis` of `BnestApp.Scheduler` and `.Tasks` both nil. **Deviation:** the copy effects live in a Storage facade function, a `Maintenance` port callback pair and `Storage.Adapters.ScratchCopy`, because the architecture scan forbids `File` and `System.cmd` in `Mix.Tasks.Bnest.*`; the scan was not weakened. **Safety fix:** destination resolution is the new read-only `Backup.read_destination/0` (no mkdir, chmod or marker creation), after the executor found that `destination/0` would write.
+- [x] `[AI] [AC-BI-07]` **REFACTOR** — make the log line, the telemetry metadata and the task call the wording function
       added above and delete any formatting of their own, so that the Phase 9 label renders from the same result.
       **Proof:** `INTEGRATION` and `BE_UNIT` still pass, and one grep for each state's wording finds one definition.
-- [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18]` Make the behavioural red from Phase 4 green. Command: `BEHAVIOUR`. **Proof:**
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** the log, telemetry metadata and task call `report/1` and `render/1` only; a grep of `lib/` for each state's wording finds one definition in `reconciliation.ex`; `BE_UNIT` and `INTEGRATION` still pass.
+- [x] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18]` Make the behavioural red from Phase 4 green. Command: `BEHAVIOUR`. **Proof:**
       it passes.
-- [ ] `[AI] [AC-BI-14]` **Early live read-only reconcile (dated).** As soon as the items above pass, run
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** all 19 Phase 4 scenarios pass in both layers (suite totals below). `BEHAVIOUR` exit 0 (13 features, 182 scenarios, 1087 steps, 492 bindings per layer; Vitest binding coverage passed). AC-BI-18 is not part of this green: its Rule moves to Phase 7 (deviation recorded in Phase 4).
+- [x] `[AI] [AC-BI-14]` **Early live read-only reconcile (dated).** As soon as the items above pass, run
       `mix bnest.backup.reconcile` from the execution worktree against production, with the deployment environment [Releasing Bnest](../../../docs/how-to-guides/releasing-bnest.md) derives, under
       the Phase 1 approval. It must complete before the nightly slot of 2026-10-07T19:00Z (the first run on WIB date
       2026-10-08) finishes retention, when the first lost night leaves the seven latest WIB dates. Record the run's
@@ -577,10 +599,24 @@ second.
       and note the other retained runs are reported present. If the decision point of the fallback timing above passed
       first, record the disposition that paragraph selects instead (`Detector not ready: Phase 2 table stands`,
       `Detector not ready: Phase 2 only` or `Phase 2 not run by the slot`).
-- [ ] `[AI]` Commit U2 as thematic commits when authorized. **Proof:** the authorization line and the commit subjects,
+      **Evidence 2026-10-04T09:21Z (run ended 09:21:41Z; between the slots of 2026-10-03T19:00Z and 2026-10-04T19:00Z):**
+      `mix bnest.backup.reconcile` run from the execution worktree under the Phase 1 approval (OD-1, R1), exit status 1,
+      report: `Backup files: 2 of 7 retained backups need attention`, `2026-10-01: file missing`, `2026-10-02: file missing`.
+      The dates are the WIB dates of the slots 2026-09-30T19:00Z and 2026-10-01T19:00Z, so the two lost nights are reported
+      missing and the other five retained verified runs are reported present (counted, not listed). AC-BI-01: the pre-state
+      (09:21:25Z) and post-state snapshots of the backup directory listing and extended attributes, the marker hash, the
+      private configuration directory listing and file hashes, and the ledger rows are equal under the comparison rule as
+      the owner amended it; the single difference is the storage lock directory's modification time (service-owned,
+      excluded by the amendment). The task never ran `app.start` and started no Scheduler (proved by the subprocess
+      test); it read the ledger from scratch copies, so it never opened the production file (a `-shm` file exists beside
+      the production database because the running service holds it open; the task created none). The window had not
+      closed: AC-BI-14 is proved here; no fallback disposition applies.
+- [x] `[AI]` Commit U2 as thematic commits when authorized. **Proof:** the authorization line and the commit subjects,
       or `No commit authorized`.
-- [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18]` **Blocking checkpoint — Phase 5.** `BE_UNIT`, `INTEGRATION`, `BEHAVIOUR` and
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** authorized by the owner's execution authority relayed to the executor. Commits: `docs(plans): record the backup integrity phase 4 evidence`; `test(backup): specify and bind the backup reconciliation scenarios`; `feat(scheduler): add a read-only verified runs query`; `feat(storage): read the database from scratch copies`; `feat(backup): reconcile verified runs against the backup folder`; the Phase 5 evidence commit follows.
+- [x] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18]` **Blocking checkpoint — Phase 5.** `BE_UNIT`, `INTEGRATION`, `BEHAVIOUR` and
       the architecture boundary scan are green and the early live run, or its fallback disposition, is recorded.
+      **Checkpoint passed 2026-10-04:** `BE_UNIT` 690 tests 0 failures (coverage 99.69%), `INTEGRATION` 457 tests 0 failures (11 `@integration-exempt` front-end scenarios excluded by the target; the architecture boundary scan `hexagonal_layering_test.exs` is part of it), `BEHAVIOUR` exit 0, `typecheck` and `lint` exit 0, `REPO` exit 0, all re-run by the executor after the last code change; the early live run is recorded above.
 
 ## Phase 6 — Verdict Confirmation, Idea Brief and Cause-Specific Fix
 
