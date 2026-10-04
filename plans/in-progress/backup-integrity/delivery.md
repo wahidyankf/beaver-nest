@@ -767,7 +767,7 @@ Every item after them is conditional on the confirmed verdict and carries that d
 
 ## Phase 7 — Restore Drill Tooling
 
-- [ ] `[AI] [AC-BI-11, AC-BI-18]` **Specification and bindings (moved here from Phases 4 and 5; an agent proposal, not
+- [x] `[AI] [AC-BI-11, AC-BI-18]` **Specification and bindings (moved here from Phases 4 and 5; an agent proposal, not
       owner-confirmed).** Add the AC-BI-11 Rule (against an isolated destination standing for the owner's artifact) and the
       AC-BI-18 Rule to `specs/apps/bnest/app-be/behaviours/scheduled_backups.feature`, each `@e2e-exempt` with an
       `Exemption(e2e)` comment naming its `bnest-app:test:integration` alternative, bind them in
@@ -776,7 +776,8 @@ Every item after them is conditional on the confirmed verdict and carries that d
       `INTEGRATION`. **Proof:** each scenario names an outcome visible in a task result, an exit status or a directory
       listing (no placeholder, no-op or outcome table), the scenarios fail on the undefined task, not on compilation or
       configuration, and `REPO` passes.
-- [ ] `[AI] [AC-BI-11, AC-BI-18]` **RED** — add
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor; the move is an agent proposal, not owner-confirmed):** two Rules and 8 scenarios appended to `scheduled_backups.feature` (AC-BI-11: restores a synthetic artifact and prints redacted evidence, prints no private value, leaves the destination unchanged and removes its root; AC-BI-18: a regular file inside the destination restores beside the entries it refuses, an absolute path outside, a relative path that climbs out, a directory and a symbolic link are each refused), each `@e2e-exempt` with an `Exemption(e2e)` comment naming its `bnest-app:test:integration` alternative; 19 bindings in `scheduled_backup_steps.exs` with a shared support module and glue in both drivers; `architecture.md` updated (Backup node text and description, the Mix tasks paragraph, one Constraints bullet: the drill never opens the live database; Container View unchanged). Behavioural red under the canonical commands: `BE_UNIT` 699 tests, 8 failures and `INTEGRATION` 467 tests, 8 failures (11 excluded), exactly the 8 scenarios, each at its `When` step with `Mix.NoTaskError`; the task is resolved by name, so the red is a runtime failure, not a compile failure. `BEHAVIOUR` exit 0 (190 scenarios, 511 bindings per layer). `REPO` exit 0. The fixtures were validated against a temporary stub task (deleted) that passed all 8, and seven mutations of the stub (no symlink check, no inside-destination check, live-database snapshot, live-database open, stray restore root, printed artifact path, live-database open before the refusal) each failed the expected scenarios. Commit `test(backup): specify and bind the restore drill scenarios`.
+- [x] `[AI] [AC-BI-11, AC-BI-18]` **RED** — add
       `apps/bnest-app/test/integration/mix/tasks/bnest_backup_restore_drill_test.exs` (a real filesystem is needed, so
       this is an integration test, not a unit test): the task restores a synthetic artifact from an isolated
       destination into a fresh marked root, prints redacted evidence, removes that root, refuses a path outside the
@@ -784,24 +785,27 @@ Every item after them is conditional on the confirmed verdict and carries that d
       database. Any pure target-classification rule exposed on the `Backup` facade is a unit case in
       `apps/bnest-app/test/unit/bnest_app/backup/backup_test.exs`. **Proof:** `INTEGRATION` (and `BE_UNIT` for the
       pure case) fails on the undefined task. Commands: `INTEGRATION`, `BE_UNIT`.
-- [ ] `[AI] [AC-BI-11, AC-BI-18]` **GREEN** — add `apps/bnest-app/lib/mix/tasks/bnest.backup.restore_drill.ex` over
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** the integration test file and the unit cases (`Backup.restore_target/2` and `restore_roots/0` in `backup_test.exs`, the report and the task wiring in two new unit files) were written before the task. Red: `BE_UNIT` 718 tests, 27 failures (8 report cases and 8 `restore_target`/`restore_roots` cases on `UndefinedFunctionError`; 8 scenarios and 3 wiring cases on `Mix.NoTaskError`) and `INTEGRATION` 489 tests, 31 failures (8 scenarios and 22 new cases on `Mix.NoTaskError` or `UndefinedFunctionError`; plus one unrelated failure of the `family_chat_operations.feature` performance scenario `Routed reads and writes continue within budget during a full backup`, a latency budget missed once, which passed in every later run including my own re-runs). The cases invoke the task by name, so compilation passed and the red is a runtime failure.
+- [x] `[AI] [AC-BI-11, AC-BI-18]` **GREEN** — add `apps/bnest-app/lib/mix/tasks/bnest.backup.restore_drill.ex` over
       `Backup.restore/1`. **Proof:** `INTEGRATION` and `BE_UNIT` pass. Commands: `INTEGRATION`, `BE_UNIT`.
-- [ ] `[AI] [AC-BI-11, AC-BI-18]` **REFACTOR** — reuse the destination resolution and exit-code conventions of the
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** the task `Mix.Tasks.Bnest.Backup.RestoreDrill`, `Backup.restore_target/2`, `Backup.restore_roots/0` (a `DatabaseSnapshot` port callback and its SQLite and in-memory implementations) and the pure `Backup.Domain.RestoreDrillReport` that words every line. The task starts only `exqlite`, sets `:scheduler_automatic?` false first, resolves the destination with the read-only `Backup.read_destination/0`, accepts only a bare file name that is a regular file with no symbolic link in its path, and brackets the restore with `Backup.restore_roots/0` so `Restore root: removed` is earned, not printed. Executor re-run after the last code change: `BE_UNIT` exit 0 (718 tests, 0 failures), `INTEGRATION` exit 0 (489 tests, 0 failures, 11 excluded). Commit `feat(backup): add the restore drill task`.
+- [x] `[AI] [AC-BI-11, AC-BI-18]` **REFACTOR** — reuse the destination resolution and exit-code conventions of the
       neighbouring Mix tasks. **Proof:** `INTEGRATION` still passes. Command: `INTEGRATION`.
-- [ ] `[AI] [AC-BI-11]` Smoke the task end to end against a synthetic artifact in an isolated destination, never the
+      **Evidence 2026-10-04:** the task reuses `Backup.read_destination/0`, the `execute/1` plus `run/1` split, the `%{exit_status, lines}` result and the `exit({:shutdown, status})` convention of `Mix.Tasks.Bnest.Backup.Reconcile`; nothing shared was extracted (the common part is three lines). The test hooks became static references. `INTEGRATION` still passes (489 tests, 0 failures).
+- [x] `[AI] [AC-BI-11]` Smoke the task end to end against a synthetic artifact in an isolated destination, never the
       production directory. **Proof:** exit status 0, redacted evidence printed, the restored root removed.
-- [ ] `[AI] [AC-BI-11]` Write `docs/how-to-guides/restoring-a-bnest-backup.md` (a how-to, per
+      **Evidence 2026-10-04 (run by `swe-developer`, scratch deleted):** `MIX_ENV=test mix bnest.backup.restore_drill --artifact <basename>` against a synthetic artifact in an isolated destination under ignored `local-tmp/`, an isolated backup configuration and a redirected temporary directory (never the production directory or configuration): exit status 0 and the printed lines `Restore drill: restored the artifact into a fresh isolated root`, `Rooms readable: 1`, `Messages readable: 3, in ascending order`, `Push subscriptions: 2`, `Delivery states: delivered, pending`, `Restore root: removed`. The artifact's bytes and the destination listing were unchanged, no restore root remained, and no body, credential, path or artifact name appeared. The same file passed by absolute path exited 1 with only the refusal line.
+- [x] `[AI] [AC-BI-11]` Write `docs/how-to-guides/restoring-a-bnest-backup.md` (a how-to, per
       [Diátaxis](../../../repo-governance/conventions/documentation-architecture.md)): choose an artifact, run the
       task, read the evidence, what a failure means, what to do on a failure. Add it to
       `docs/how-to-guides/README.md`. **Proof:** the guide exists, is linked, and a cold reader can follow it.
-      acceptance: `grep -c 'restoring-a-bnest-backup' docs/how-to-guides/README.md` prints at least `1` (the guide is
-      linked).
-- [ ] `[AI]` Commit U4 as thematic commits when authorized. **Proof:** the authorization line and the commit subjects,
+      **Evidence 2026-10-04:** the guide (choose an artifact, run the task, read the evidence, what each failure line means and what to do) exists and is linked from `docs/how-to-guides/README.md`; it quotes the task's own lines, including the zero-message, no-delivery, out-of-order and not-removed readings. `rhino md internal-link validate` (1500 links) and `rhino governance directory-map validate` report no findings. A cold read by a person is the Phase 13 owner drill. Commit `docs(how-to): add the Bnest backup restore guide`.
+- [x] `[AI]` Commit U4 as thematic commits when authorized. **Proof:** the authorization line and the commit subjects,
       or `No commit authorized`.
-- [ ] `[AI] [AC-BI-11, AC-BI-18]` **Blocking checkpoint — Phase 7.** The task is proven on a synthetic artifact and the
+      **Evidence 2026-10-04:** authorized by the owner's execution authority relayed to the executor (thematic commit per unit). Subjects: `test(backup): specify and bind the restore drill scenarios`; `feat(backup): add the restore drill task`; `docs(how-to): add the Bnest backup restore guide`; the Phase 7 evidence commit follows.
+- [x] `[AI] [AC-BI-11, AC-BI-18]` **Blocking checkpoint — Phase 7.** The task is proven on a synthetic artifact and the
       guide is linked.
-      acceptance: `grep -c 'restoring-a-bnest-backup' docs/how-to-guides/README.md` prints at least `1` (the guide is
-      linked).
+      **Checkpoint passed 2026-10-04:** the task is proven on a synthetic artifact and the guide is linked. Executor re-run after the last code change: `BE_UNIT` 718 tests 0 failures, `INTEGRATION` 489 tests 0 failures (11 excluded), `BEHAVIOUR` exit 0, `REPO` exit 0, `typecheck` exit 0, `lint` exit 0. **Deviations (for the owner):** (1) `apps/bnest-app/mix.exs` adds the task to the unit-coverage ignore list beside `Reconcile`, since the unit scenarios cover `execute/1` but `run/1` starts apps; this is a gate-configuration change that follows the Reconcile precedent; (2) the Phase 7 Gherkin and bindings move, and the Phase 5 label fix, are agent proposals; (3) `Backup.Domain` declares a `Jason` dependency for the report decoder (precedent `Storage.Domain`); (4) wording designed by the executor beyond the scenarios: `Messages readable: 0`, `Delivery states: none`, `not in ascending order`, `Rooms readable: 0`, `Restore root: not removed`, and the destination-unreadable and restore-failed lines. The restore of a real artifact is the owner's, in Phase 13 (`[HUMAN]`).
 
 ## Phase 8 — UI Design: Copy Reconciliation and Owner Design Review
 
