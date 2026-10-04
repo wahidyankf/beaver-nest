@@ -819,21 +819,23 @@ checked, nothing to check yet, and destination mismatch on the C-DEST branch onl
 tablet 768 × 1024 and mobile 393 × 851. The assets travel with the folder to `plans/in-progress/backup-integrity/assets/`
 in Phase 1 and carry fictional content only.
 
-- [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Copy reconciliation. Replace the draft copy in the States and Real Copy table
+- [x] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Copy reconciliation. Replace the draft copy in the States and Real Copy table
       of the UI Design section with the exact output of the Phase 5 wording function for every state in the confirmed
       state set, and decide and record the date convention the page states (the ledger's slot date in UTC, or the WIB
       date that retention groups by). Where the function's output differs from the text drawn in the assets (the summary
       sentences, the singular and plural forms, the term and summary split, the date text), edit only that text in every
       affected asset, lo-fi and hi-fi alike, keeping the twelve file names. **Proof:** the table with each row traced to
       the function's output, the date convention stated, and the list of edited assets or `no asset text changed`.
-- [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Verify the assets and the section after any edit: `xmllint --noout assets/*.svg`
+      **Evidence 2026-10-04 (Phase 8 executor):** the States and Real Copy table of the UI Design section now holds the exact output of `Reconciliation.report/1` and `render/1`, each row traced to the function's unit cases in `reconciliation_test.exs`: checking `checking`; all present `all N retained backups are present` (N = 1 `the retained backup is present`); needs attention `k of N retained backups need attention` (k = 1 `1 of N retained backups needs attention`; N = k = 1 `the retained backup needs attention`) with `<date>: file missing|changed` lines in date order; could not be checked `could not be checked. Run mix bnest.backup.reconcile on the host.`; nothing to check yet `no verified backup to check yet`. The label prints the term `Backup files` as the `dt` and the rest as the `dd`. The destination-mismatch row now says the state has no wording because C-DEST was not selected. **Date convention: the WIB date** of the run's `finished_at` (the date retention groups by and the function returns), never the UTC slot date; the label adds no suffix, because the page already labels its times in WIB, so the one wording string stays identical on every surface. This is an agent decision for the owner to confirm or turn into an explicit suffix (a change of the wording function). **Edited assets: `no asset text changed`.** Every text the assets draw (the plural summary `2 of 7 retained backups need attention`, `all 7 retained backups are present`, `checking`, the two problem lines, the could-not-be-checked sentence, `no verified backup to check yet`) equals the function's output for those inputs; the singular forms are not drawn, so there is nothing to edit; the mismatch sheet stays as drawn and is already tagged `C-DEST BRANCH ONLY`.
+- [x] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Verify the assets and the section after any edit: `xmllint --noout assets/*.svg`
       reports no error, `rtk grep -h "<title" assets/*.svg` lists twelve distinct titles,
       `rtk grep -c "<desc" assets/*.svg` shows one description in each, Prettier passes over the plan folder
       (`rtk ./hippo run --class ephemeral --resource-tier light --disk-path . -- npm exec -- prettier --check plans/in-progress/backup-integrity`),
       `rtk ./rhino md internal-link validate` and `rtk ./rhino governance directory-map validate` report no findings, and
       no asset or section contains a real account, credential, private identifier or production value. **Proof:** each
       command's result and the manual scan.
-- [ ] `[HUMAN] [AC-BI-21, AC-BI-22, AC-BI-23]` Owner design review. The owner reviews the UI Design section: the nine
+      **Evidence 2026-10-04:** `xmllint --noout assets/*.svg` printed no error; twelve distinct `<title>` lines; `grep -c "<desc"` shows `1` in each of the twelve files; Prettier over the plan folder passes after formatting `tech-docs.md`; `rtk ./rhino md internal-link validate` (1500 links) and `rtk ./rhino governance directory-map validate` (78 directories) report no findings; the manual scan of the edited section and the assets finds only fictional 2030 dates, the placeholder folder `/example/backup-folder` and no real account, credential, private identifier or production value.
+- [x] `[HUMAN] [AC-BI-21, AC-BI-22, AC-BI-23]` Owner design review. The owner reviews the UI Design section: the nine
       lo-fi and three hi-fi assets, the comparison, the selected alternative `row` (D7) and the reconciled copy, and
       records `Approved`, or `Changed to <option>`. Reason: external authority (approving a design is the owner's
       decision, not significance). **Proof:** a dated decision line naming what was put to the owner and what they chose.
@@ -842,13 +844,14 @@ in Phase 1 and carry fictional content only.
       assets, updates the selected and not-selected labels, the comparison rationale, the plan `README.md` preview, the
       assets `README.md` and File Impact, and asks once more for approval; if the owner cannot review, Phase 9 does not
       start, because the label is not built on an unreviewed design, and the executor reports the wait.
-- [ ] `[AI]` Commit U5 (design copy) as a thematic commit when authorized. **Proof:** the authorization line and the
+      **Evidence 2026-10-04 (owner, in the executing session): `Approved`.** Put to the owner: the UI Design section (the nine lo-fi and three hi-fi assets, the comparison, the selected alternative `row` (D7)) and the draft copy including the singular forms (`the retained backup is present`, `1 of N retained backups needs attention`). The owner chose the selected alternative `row` (one status row on the Schedules page, six states) and approved the draft copy and those singular forms, and requested no change, so the predeclared fallback does not apply. Only D7 and this copy are approved by this review; D2 to D6 and D8 to D11 and every other agent proposal remain unconfirmed agent proposals, and the date convention above is an agent decision awaiting the owner.
+- [x] `[AI]` Commit U5 (design copy) as a thematic commit when authorized. **Proof:** the authorization line and the
       commit subject, or `No commit authorized`.
-- [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` **Blocking checkpoint — Phase 8.** The copy is reconciled and agrees between
+      **Evidence 2026-10-04:** authorized by the owner's execution authority relayed to the executor (thematic commit per unit). Subject: `docs(plans): reconcile the integrity label copy and record the design review`.
+- [x] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` **Blocking checkpoint — Phase 8.** The copy is reconciled and agrees between
       the section and the assets, the twelve assets exist and are embedded with one alternative selected, the owner's
       design review is recorded, and no file under `apps/` or `specs/` has changed.
-      acceptance: `grep -c '^Phase 8 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
-      (the item writes a line beginning `Phase 8 checkpoint met:`).
+      **Evidence 2026-10-04:** the copy is reconciled and agrees between the section and the assets (`no asset text changed`), the twelve assets exist and are embedded with `row` selected, the owner's design review is recorded as `Approved`, and `git diff --stat` against the Phase 7 head shows no file under `apps/` or `specs/`.
 
 ## Phase 9 — Schedules-Page Integrity Label: Specification and Implementation
 

@@ -136,7 +136,7 @@ Everything else is an agent proposal pending owner confirmation, and nothing in 
 including the residual effect that a candidate backend may win a nightly slot, the reason the restore drill is `[HUMAN]`
 and the C-LEDGER path; D4 (the source of the label's data); D5 (the label shares one release with the detector); D6
 beyond the F1 resolution (Phase 8 reduced to copy reconciliation and the design review); D7 (the selected alternative
-`row`, confirmed or changed at the Phase 8 design review); D8 (the label re-checks after a save) and its residual (what
+`row`, approved by the owner at the Phase 8 design review on 2026-10-04); D8 (the label re-checks after a save) and its residual (what
 the re-check reports right after a destination change); D9 (the browser binding sets the viewport per Examples row); D10
 (the reconcile task exits non-zero on an empty ledger); and D11 (Phases 4 and 5 start on the AI-recorded verdict, the
 owner's confirmation falls before Phase 6 and the release, the fallback decision point is 2026-10-07T12:00Z, and the
