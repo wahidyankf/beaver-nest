@@ -23,6 +23,8 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
 - [Bnest post-closure follow-ups](bnest-post-closure-follow-ups.md) keeps the storage retire contract, the
   `fixture` task, the closure review's Low findings and the missing-backup investigation from the archived
   hexagonal plan, plus the word-budget gap for the standard.
+- [Off-Dropbox backup second copy](off-dropbox-backup-second-copy.md) keeps a second copy of the nightly backup
+  outside the Dropbox-synced folder, uncommitted, after the lost-night cause stayed unproven.
 
 ## Directory Map
 
@@ -46,3 +48,5 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
   window that took a whole rule in one run, and why a retry is rejected as the remedy.
 - [Bnest post-closure follow-ups](bnest-post-closure-follow-ups.md) records the five decisions the structural plan did
   not take and the owner approval one of them needs.
+- [Off-Dropbox backup second copy](off-dropbox-backup-second-copy.md) records why one Dropbox-synced destination is the
+  exposure the unproven verdict leaves, a sketch, the open questions, and the promotion signal.
