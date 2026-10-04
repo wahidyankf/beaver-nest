@@ -7,6 +7,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   alias BnestApp.Backup
   alias BnestApp.Backup.Domain.Receipt
+  alias BnestApp.Backup.Domain.Reconciliation
   alias BnestApp.Behaviour.UnitFamilyChatDriver
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Domain.Transcript
@@ -30,6 +31,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Storage.Migration, as: StorageMigration
   alias BnestApp.Storage.Ports.RecordBackend
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.BackupIntegrity
   alias BnestApp.Test.CodexFixtureConversation
   alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
   alias BnestApp.Test.InMemory.AgentSession, as: InMemoryAgentSession
@@ -63,6 +65,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     "displayUsername" => "test-user-unit-admin",
     "roles" => ["admin"]
   }
+
+  # The backup-integrity states, actions and checks `BnestApp.Test.BackupIntegrity` serves in
+  # both layers; the Givens that start from a destination establish it here first.
+  @integrity_destination_prepares BackupIntegrity.destination_prepares()
+  @integrity_prepares BackupIntegrity.prepares()
+  @integrity_performs BackupIntegrity.performs()
+  @integrity_outcomes BackupIntegrity.outcomes()
 
   # The statuses the schedules page may show for a schedule without exposing its failure.
   @safe_schedule_status ~r/Enabled|Running|Verified|Never run/u
@@ -1884,6 +1893,25 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.merge(context, %{schedule_key: key, expiration_policies: policies})
   end
 
+  # The unit layer's repository ignores nothing, as a test run's root is no git repository, so
+  # the default destination, which must be ignored, is refused.
+  def prepare_behaviour(context, :test_environment, _args) do
+    :ok = InMemoryIgnoreCheck.put_ignored(InMemoryIgnoreCheck.new(), false)
+    BackupIntegrity.prepare(context, :test_environment, [])
+  end
+
+  # A destination in the scenario's in-memory artifact store, saved as the configured one.
+  def prepare_behaviour(context, state, args) when state in @integrity_destination_prepares do
+    {:ok, location} = Backup.save_destination(unit_backup_directory("integrity"))
+
+    context
+    |> Map.merge(%{backup_directory: location.directory, backup_location: location})
+    |> BackupIntegrity.prepare(state, args)
+  end
+
+  def prepare_behaviour(context, state, args) when state in @integrity_prepares,
+    do: BackupIntegrity.prepare(context, state, args)
+
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
     {response, accesses} = route_request(route, nil)
@@ -2455,6 +2483,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       expiration_later_claims: later
     })
   end
+
+  # The reconcile task over the unit layer's adapters: the ledger's verified runs, the
+  # destination read through the artifact store, the one wording function.
+  def perform_behaviour(context, :reconcile_task, _args),
+    do: BackupIntegrity.run_task(context, fn -> reconcile_report(context.backup_directory) end)
+
+  def perform_behaviour(context, :read_report_and_log, _args) do
+    BackupIntegrity.read_report_and_log(context, fn ->
+      reconcile_report(context.backup_directory)
+    end)
+  end
+
+  def perform_behaviour(context, action, args) when action in @integrity_performs,
+    do: BackupIntegrity.perform(context, action, args)
 
   def perform_behaviour(context, action, args),
     do: UnitFamilyChatDriver.perform_behaviour(context, action, args)
@@ -3391,6 +3433,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         context.expiration_first_claim.occurrence_number and
         context.expiration_retry.attempt == 2
 
+  def behaviour_outcome?(context, expected, args) when expected in @integrity_outcomes,
+    do: BackupIntegrity.outcome?(context, expected, args)
+
   def behaviour_outcome?(context, expected, args),
     do: UnitFamilyChatDriver.behaviour_outcome?(context, expected, args)
 
@@ -3399,6 +3444,20 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do:
       "/srv/test-user-backup/" <>
         tag <> "-" <> Integer.to_string(:erlang.unique_integer([:positive]))
+
+  # What the reconcile task reports in the unit layer, composed the way it composes its own
+  # reads: only the unit double's unreadable ledger raises, and reports as could not be checked.
+  defp reconcile_report(directory) do
+    outcome =
+      try do
+        Backup.reconcile(directory, Scheduler.verified_runs("prod_sqlite_backup"))
+      rescue
+        RuntimeError -> {:error, :ledger_unreadable}
+      end
+
+    report = Reconciliation.report(outcome)
+    %{exit_status: report.exit_status, lines: Reconciliation.render(report)}
+  end
 
   defp enabled_button?(page, selector, label) do
     page

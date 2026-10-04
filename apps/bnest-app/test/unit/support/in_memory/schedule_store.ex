@@ -63,6 +63,22 @@ defmodule BnestApp.Test.InMemory.ScheduleStore do
   end
 
   @doc """
+  Stores `run` as is, after the runs the store already holds. Like `put_schedule/2` it is a
+  test seam: it puts the ledger into the state a scenario's Given describes (a verified run
+  of an earlier night, a failed one) instead of claiming and completing one.
+  """
+  def put_run(%{pid: pid}, run) do
+    run =
+      Enum.reduce(
+        [:lease_expires_at, :next_attempt_at, :started_at, :finished_at],
+        run,
+        &Map.update!(&2, &1, fn t -> second(t) end)
+      )
+
+    Agent.update(pid, &add_run(&1, run))
+  end
+
+  @doc """
   Stores a pristine (revision 1), enabled, never-expiring daily schedule of `handler_key` in
   `context`, due at the latest slot of its daily time before `now`, the way the release
   seeds and `BnestApp.Test.Seeds.Schedules` put one; `fields` replaces any of its fields.

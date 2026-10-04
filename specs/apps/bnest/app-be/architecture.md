@@ -142,7 +142,7 @@ backend today.
 ```mermaid
 flowchart TB
     accTitle: Component View
-    accDescr: Flowchart with 14 nodes and 27 connections. Nodes: External container app-fe browser/PWA, External container Codex bridge processes, External system Web Push service, Component Inbound adapters BnestAppWeb, BnestAppCli Release entry points, Context Identity Bootstrap, login, sessions Roles and authorization, Context Preferences Per-user theme, Context Storage Records, lock, lifecycle Import and recovery, Context Operations Admin panels Liveness and readiness, Context Scheduler Claims and retries Configured task ports, Context Backup VACUUM and quick check Receipts and retention, Context CodexChat Transcripts, model access Agent session port, Context SifatAllah Quiz and progress, Context FamilyChat Rooms and messages Replies and publishing, and 1 more. Connections: app-fe to Inbound adapters (Opaque cookie, events, GraphQL over UserSocket), Inbound adapters to each of the ten context facades, Identity to Storage (Accounts and sessions), Operations to Scheduler and Storage, FamilyChat to Scheduler (Catch-up convergence), PushNotifications to FamilyChat (Committed messages), Scheduler to Backup and PushNotifications (Dispatches claims through task ports), Preferences, CodexChat, SifatAllah, Scheduler, Backup, PushNotifications and FamilyChat to Storage (Records through adapters), CodexChat to Codex bridge processes (Ports and JSON lines), and PushNotifications to Web Push service (Signed encrypted push payloads).
+    accDescr: Flowchart with 14 nodes and 27 connections. Nodes: External container app-fe browser/PWA, External container Codex bridge processes, External system Web Push service, Component Inbound adapters BnestAppWeb, BnestAppCli Release entry points, Context Identity Bootstrap, login, sessions Roles and authorization, Context Preferences Per-user theme, Context Storage Records, lock, lifecycle Import and recovery, Context Operations Admin panels Liveness and readiness, Context Scheduler Claims and retries Configured task ports, Context Backup VACUUM and quick check Receipts, retention and reconciliation, Context CodexChat Transcripts, model access Agent session port, Context SifatAllah Quiz and progress, Context FamilyChat Rooms and messages Replies and publishing, and 1 more. Connections: app-fe to Inbound adapters (Opaque cookie, events, GraphQL over UserSocket), Inbound adapters to each of the ten context facades, Identity to Storage (Accounts and sessions), Operations to Scheduler and Storage, FamilyChat to Scheduler (Catch-up convergence), PushNotifications to FamilyChat (Committed messages), Scheduler to Backup and PushNotifications (Dispatches claims through task ports), Preferences, CodexChat, SifatAllah, Scheduler, Backup, PushNotifications and FamilyChat to Storage (Records through adapters), CodexChat to Codex bridge processes (Ports and JSON lines), and PushNotifications to Web Push service (Signed encrypted push payloads).
     frontend(["External container<br/><b>app-fe browser/PWA</b>"])
     bridge{{"External container<br/><b>Codex bridge processes</b>"}}
     webpush{{"External system<br/><b>Web Push service</b>"}}
@@ -156,7 +156,7 @@ flowchart TB
         storage["Context<br/><b>Storage</b><br/>Records, lock, lifecycle<br/>Import and recovery"]
         operations["Context<br/><b>Operations</b><br/>Admin panels<br/>Liveness and readiness"]
         scheduler["Context<br/><b>Scheduler</b><br/>Claims and retries<br/>Configured task ports"]
-        backup["Context<br/><b>Backup</b><br/>VACUUM and quick check<br/>Receipts and retention"]
+        backup["Context<br/><b>Backup</b><br/>VACUUM and quick check<br/>Receipts, retention<br/>and reconciliation"]
         codexchat["Context<br/><b>CodexChat</b><br/>Transcripts, model access<br/>Agent session port"]
         sifatallah["Context<br/><b>SifatAllah</b><br/>Quiz and progress"]
         familychat["Context<br/><b>FamilyChat</b><br/>Rooms and messages<br/>Replies and publishing"]
@@ -231,6 +231,15 @@ context reaches `Storage` through its own adapters, and `Scheduler` reaches `Bac
 through the task ports it is configured with. `BnestApp.SqliteRepo`, `BnestApp.Application`, and `BnestApp.Release`
 are the infrastructure owners the contexts' adapters and the release entry points use.
 
+Backup also owns **reconciliation**: `BnestApp.Backup.reconcile/2` compares the verified runs the Scheduler reports
+(`BnestApp.Scheduler.verified_runs/1`, one read-only query on the `ScheduleStore` port) with the owned artifacts present
+in the destination, and the pure `Backup.Domain.Reconciliation` classifies each expected run as present, missing or
+changed, over the same retained WIB dates `Retention` uses. Reconciliation reads through the `ArtifactStore` port only
+and writes nothing. One wording function in `Reconciliation` renders the result for every surface, so the post-run log
+line and telemetry event the Backup task emits after retention, the `mix bnest.backup.reconcile` report and the
+Schedules page label cannot disagree. A second Mix task, `mix bnest.backup.restore_drill`, is a thin inbound adapter
+over `Backup.restore/1`. Neither task starts the Scheduler.
+
 ## Architectural Constraints
 
 - Every protected route and data operation resolves an unrevoked opaque-cookie session and current user before
@@ -249,6 +258,10 @@ are the infrastructure owners the contexts' adapters and the release entry point
 - The production SQLite backup schedule never expires. It verifies a `VACUUM INTO` snapshot through an independent
   read-only connection, checks the attempt fence before atomic publication, and retains only owned receipt-backed
   pairs for the latest seven WIB dates.
+- Backup reconciliation is read-only: it writes no file, removes no file and changes no ledger row, and a failure of
+  the post-run reconciliation never changes a backup run's recorded outcome. `mix bnest.backup.reconcile` never opens
+  the production SQLite file: it reads the ledger from scratch copies of the database and its `-wal` sidecar, starts
+  only the repository on a copy, and starts no Scheduler, so a read cannot claim a slot.
 - Only the exact Git-ignored `data/backup/` path may be used inside the repository. External overrides reject
   symbolic links, live-source/config overlap, and unsafe repository paths; no route downloads or exposes backup
   paths or payloads.
