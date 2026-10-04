@@ -18,21 +18,10 @@ Criticality and Confidence owns the scales. This skill covers the judgement each
 
 ## Three Roles, Three Questions
 
-| Role    | Asks                                                        | Never                         |
-| ------- | ----------------------------------------------------------- | ----------------------------- |
-| maker   | what should exist, and what else must change with it        | grades its own output as done |
-| checker | does the content meet the rules it is held to               | edits what it judges          |
-| fixer   | which confirmed findings are safe to apply without a person | creates content from scratch  |
+A maker creates, a checker judges and never edits, and a fixer repairs only confirmed findings.
 
-A checker rates criticality only. The fixer, as `<family>-fixer`, executes `<family>-propagation`, the family's one
-writer, and rates confidence as it re-validates each row.
-
-A request to create or substantially reshape content is a maker's job. A report of rule violations is a fixer's. A
-finding that needs taste, restructuring, or context nobody recorded is neither: it goes to the maker or a person, and a
-fixer that attempts it produces confident damage.
-
-A checker never edits what it judges, for the reason Agent Authoring gives: once it edits, nothing independent is left
-to judge the edit.
+The rest of this section is in [Three Roles, Three Questions](references/three-roles.md#three-roles-three-questions);
+read it in full before acting.
 
 ## Re-Validate From the Evidence
 
@@ -68,13 +57,9 @@ for a person who owns the rule, and take it out of the loop's count.
 
 Each rating ends the row in one ledger status, so the gate counts the same outcome whoever wrote it:
 
-| Confidence       | The fixer                                     | Status                        |
-| ---------------- | --------------------------------------------- | ----------------------------- |
-| `HIGH`           | applies the repair, then verifies the row     | `resolved`, or `not-resolved` |
-| `MEDIUM`         | leaves it with the evidence that kept it open | `needs-decision`              |
-| `FALSE_POSITIVE` | records the disproof and what would stop it   | `not-applicable`              |
-
-A row whose target state already holds is `resolved` with no edit. A row the fixer did not reach stays `open`.
+The rest of this section is in
+[Confidence Decides the Row's Status](references/confidence-and-status.md#confidence-decides-the-rows-status); read it
+in full before acting.
 
 ## Stable, Not Empty
 

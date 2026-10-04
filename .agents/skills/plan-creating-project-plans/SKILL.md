@@ -16,17 +16,11 @@ convention's Bug-Fix Plan module says what makes each useful.
 
 ## Each Document Answers Its Own Question
 
-| Document        | Answers                           | Fails by                                    |
-| --------------- | --------------------------------- | ------------------------------------------- |
-| `README.md`     | what is this and where do I start | duplicating the other five                  |
-| `brd.md`        | why is this worth doing           | describing the solution instead of the need |
-| `prd.md`        | what must be true when it is done | listing tasks instead of testable outcomes  |
-| technical shape | how will it be built              | re-arguing whether it should be             |
-| `delivery.md`   | what do I do, in order            | describing intentions rather than actions   |
-| `learnings.md`  | what did executing it teach       | being written at the end from memory        |
+Each of the six documents answers one question, and a document that answers another's is the commonest defect.
 
-A document that answers someone else's question is the most common defect, and it is invisible while writing — each
-paragraph feels relevant. The check is to read each document alone and ask whether it still makes sense.
+The rest of this section is in
+[Each Document Answers Its Own Question](references/document-questions.md#each-document-answers-its-own-question); read
+it in full before acting.
 
 ## Write `delivery.md` Last
 

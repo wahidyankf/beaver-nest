@@ -40,6 +40,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Plan validator contract modules](plan-validator-contract/README.md) hold the ordered modules of that contract.
 - [Plans](plans.md) defines the plan lifecycle, the six required documents, delivery, validation, evidence, and archival.
 - [Plans modules](plans/README.md) hold the ordered modules that carry the complete plans rule.
+- [PR review agent procedures](pr-review-agent-procedures/README.md) hold the procedure of the `pr-review-checker` agent.
 - [Project READMEs](project-readmes.md) make every application and library independently understandable and operable.
 - [Public repository data safety](public-repository-data-safety.md) prevents secrets and machine-local identifiers from entering public history.
 - [Pull request body](pull-request-body.md) states what every description must carry and requires it to be rewritten whenever a push moves the head.
@@ -50,6 +51,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.
 - [Runtime flat-file data](runtime-flat-file-data.md) defines the private `data/` layout and safe flat-file persistence boundaries.
 - [Structure](structure/README.md) holds the adopted stack-packs convention that places stack standards and skills.
+- [SWE agent procedures](swe-agent-procedures/README.md) hold procedure sections moved out of four `swe-*` agents.
 - [SWE delegation](swe-delegation.md) sends coding work to the fitting `swe-*` agent and names the three exceptions.
 - [Task tracking](task-tracking.md) requires granular task lists whose status stays synchronized with the work, an outside-plan progress file, and the delegated-agent concurrency cap.
 - [Thematic commits](thematic-commits.md) keep each commit focused on one coherent purpose.

@@ -6,6 +6,7 @@ permission:
   bash: deny
   edit: deny
   read: allow
+  task: deny
   webfetch: allow
   websearch: allow
 ---
