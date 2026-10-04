@@ -258,8 +258,9 @@ nothing else was excluded on this ground.
 
 ## V1 Cause verdict (Phase 3), 2026-10-04
 
-**AI-recorded; pending owner confirmation** (the owner confirms V1 at the start of Phase 6, decision D11, an agent
-proposal). Nothing below is an owner decision.
+**AI-recorded; owner-confirmed 2026-10-04** (the owner confirmed V1 as `C-UNPROVEN` at the start of Phase 6: cause not
+proven, `C-DROPBOX` and `C-TEST` stay open and honestly recorded). The observations and dispositions below are the AI's;
+the confirmation is the owner's and covers V1 only, not D2 to D11.
 
 **Verdict: `C-UNPROVEN`, with two candidates open and none confirmed.** The open candidates are `C-DROPBOX` (H2) and
 `C-TEST` (H3). The verdict is not a union, because no cause is confirmed. It is not `C-RET` (H1 is eliminated for
@@ -302,6 +303,23 @@ attention` with `2026-10-01: file missing` and `2026-10-02: file missing`: the W
 2026-10-01T19:00Z slots. The other 5 retained verified runs were present. Pre-state (09:21:25Z) and post-state: equal
 under the amended comparison rule (V0.13); the one difference was the storage lock directory's modification time. A
 `-shm` file sits beside the production database because the running service holds it open; the task created none.
+
+## V3 Phase 6 results and routed owner-side actions, 2026-10-04
+
+- The AC-BI-08 and AC-BI-09 characterization pins pass on unmodified code and fail under their predeclared mutations
+  (evidence in the Phase 6 items of `delivery.md`). Neither found a repository-side defect, which agrees with V1.
+- **Owner-side actions routed here (resolution is the owner's):** the Dropbox event history or deleted-files list of the
+  backup folder for WIB 2026-10-02 02:00 to 2026-10-03 02:00 (settles H2); whether any other device or client was
+  syncing that folder in the window; and the OD-4 idea brief, which exists and commits to nothing.
+- **Finding on the AC-BI-09 wording (no scope widened).** The pins prove that the test environment's *default*
+  destination is inside the per-run test root and that resolving it fails closed. They do not prove that an
+  *explicit override* naming the checkout's `data/backup` is refused: placement is judged against the configured
+  repository root (`Location.repository_placement/2`), which in the test environment is the isolated root, so such an
+  override is not refused by that check. A test that saves that path would be doing so deliberately, and the production
+  protection for the default path rests on the per-run `BNEST_BACKUP_CONFIG` and the isolated root the pins now hold.
+  No code was changed; if the owner wants explicit overrides naming the checkout refused in tests, that is a new item.
+- The mutated AC-BI-09 `INTEGRATION` run created a synthetic test backup under the worktree's ignored `data/backup`
+  (never the production directory); it was deleted afterwards.
 
 ## Phase 3 to 5 deviations and agent proposals
 
