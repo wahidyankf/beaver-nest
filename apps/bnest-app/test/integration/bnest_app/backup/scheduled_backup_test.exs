@@ -1,8 +1,11 @@
 defmodule BnestApp.ScheduledBackupTest do
   use ExUnit.Case, async: false
 
+  import ExUnit.CaptureLog
+
   alias BnestApp.Backup
   alias BnestApp.Backup.Adapters.ScheduledBackupTask
+  alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.FamilyChat
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Scheduler
@@ -10,6 +13,7 @@ defmodule BnestApp.ScheduledBackupTest do
   alias BnestApp.Storage
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.Storage.Adapters.SqliteCoordinator
+  alias BnestApp.Test.UnreadableArtifactStore
   alias BnestApp.TestBackupDestination
   alias BnestApp.TestRuntimeRoot
 
@@ -136,6 +140,100 @@ defmodule BnestApp.ScheduledBackupTest do
     assert {:error, :symlink} = Backup.validate_destination(Path.join(link, "nested"))
   end
 
+  # The reconciliation after a run: the destination is checked against the ledger once the run
+  # is recorded and retention has run. It reports through one telemetry event and one log
+  # entry, names a run by its WIB date and state only, and can never fail the backup.
+  describe "the reconciliation after a run" do
+    setup context do
+      assert {:ok, location} = Backup.save_destination(context.backup_directory)
+      handler = "integrity-" <> Integer.to_string(System.unique_integer([:positive]))
+
+      :ok =
+        :telemetry.attach(
+          handler,
+          [:bnest_app, :backup, :integrity],
+          &__MODULE__.forward_integrity/4,
+          self()
+        )
+
+      on_exit(fn -> :telemetry.detach(handler) end)
+      %{location: location}
+    end
+
+    test "reports the date and state of a run whose artifact was removed, once and privately",
+         context do
+      first = run_backup!(context.location, 1)
+      File.rm!(artifact_path(context, first))
+      File.rm!(Receipt.path(artifact_path(context, first)))
+      drain_events()
+
+      {second, log} = with_log(fn -> run_backup!(context.location, 0) end)
+
+      assert_received {:integrity, %{problem_count: 1}, metadata}
+      refute_received {:integrity, _measurements, _metadata}
+
+      assert metadata == %{
+               summary: "1 of 2 retained backups needs attention",
+               problems: ["2026-08-30: file missing"],
+               exit_status: 1
+             }
+
+      assert [_entry] = Regex.scan(~r/\[error\]/, log)
+      assert log =~ "2026-08-30: file missing"
+      assert_no_private_value(inspect(metadata) <> log, context, [first, second])
+    end
+
+    test "reports every retained backup present, without an error", context do
+      first = run_backup!(context.location, 1)
+      drain_events()
+
+      {second, log} = with_log(fn -> run_backup!(context.location, 0) end)
+
+      assert_received {:integrity, %{problem_count: 0}, metadata}
+      refute_received {:integrity, _measurements, _metadata}
+
+      assert metadata == %{
+               summary: "all 2 retained backups are present",
+               problems: [],
+               exit_status: 0
+             }
+
+      refute log =~ "[error]"
+      assert_no_private_value(inspect(metadata) <> log, context, [first, second])
+    end
+
+    test "a reconciliation that raises leaves the run verified and logs one path-free error",
+         context do
+      first = run_backup!(context.location, 1)
+      # Without its receipt the first artifact is read by reconciliation alone: backup,
+      # receipt writing and retention never look at it. It cannot be read, as by a disk error.
+      File.rm!(Receipt.path(artifact_path(context, first)))
+      :ok = UnreadableArtifactStore.install!(artifact_path(context, first))
+      drain_events()
+
+      {second, log} = with_log(fn -> run_backup!(context.location, 0) end)
+
+      assert Enum.any?(
+               Scheduler.verified_runs("prod_sqlite_backup"),
+               &(&1.run_id == second.claim.run_id)
+             )
+
+      assert File.regular?(artifact_path(context, second))
+      assert File.regular?(Receipt.path(artifact_path(context, second)))
+
+      assert [_entry] = Regex.scan(~r/\[error\]/, log)
+      assert log =~ "Backup files: could not be checked"
+      refute log =~ "cannot be read"
+
+      assert_received {:integrity, %{problem_count: 0}, metadata}
+      refute_received {:integrity, _measurements, _metadata}
+      assert metadata.exit_status == 1
+      assert metadata.summary =~ "could not be checked"
+
+      assert_no_private_value(inspect(metadata) <> log, context, [first, second])
+    end
+  end
+
   # The SQLite snapshot's restore reads only the active room, so an archived room, which the
   # schema can represent, never turns a restore into a failure. The room is the archived
   # second room the reply scenarios use, soft-deleted from the start; `INSERT OR IGNORE`
@@ -164,6 +262,49 @@ defmodule BnestApp.ScheduledBackupTest do
     assert %{"room" => room} = Jason.decode!(evidence)
     assert room["slug"] == FamilyChat.canonical_room_slug()
     refute room["slug"] == "ruang-arsip"
+  end
+
+  @doc false
+  def forward_integrity(_event, measurements, metadata, pid),
+    do: send(pid, {:integrity, measurements, metadata})
+
+  # One scheduled-equivalent backup, `days_ago` days before the suite's clock, as the Scheduler
+  # would run it: claimed, executed by the task and recorded verified.
+  defp run_backup!(location, days_ago) do
+    at = DateTime.add(@now, -days_ago * 86_400)
+
+    {:ok, claim} =
+      Scheduler.claim_setup(
+        "prod-sqlite-backup-daily",
+        "#{location.destination_id}-#{days_ago}",
+        at
+      )
+
+    assert {:ok, receipt} = ScheduledBackupTask.execute(claim, at)
+    %{claim: claim, receipt: receipt, destination_id: location.destination_id}
+  end
+
+  defp artifact_path(context, run),
+    do: Path.join(context.backup_directory, run.receipt["artifactBasename"])
+
+  defp drain_events do
+    receive do
+      {:integrity, _measurements, _metadata} -> drain_events()
+    after
+      0 -> :ok
+    end
+  end
+
+  # What a log entry or an event must never carry: the destination's path or identifier, a run
+  # ID, an artifact name, a digest, or any absolute path.
+  defp assert_no_private_value(text, context, runs) do
+    private =
+      [context.backup_directory | Enum.map(runs, & &1.destination_id)] ++
+        Enum.flat_map(runs, &[&1.claim.run_id, &1.receipt["artifactBasename"]])
+
+    refute Enum.any?(private, &String.contains?(text, &1))
+    refute text =~ ~r/[0-9a-f]{64}/
+    refute text =~ ~r{(?:^|[\s"'(=:])/[\w.~-]}
   end
 
   defp canonical_temporary_root do

@@ -14,7 +14,8 @@ defmodule BnestApp.Backup.Adapters do
       BnestApp.SqliteRepo,
       BnestApp.Storage,
       Exqlite,
-      Jason
+      Jason,
+      Logger
     ],
     exports: :all
 end

@@ -49,6 +49,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Test.Seeds.Schedules
   alias BnestApp.TestBackupDestination
   alias BnestApp.TestRuntimeRoot
+  alias Mix.Tasks.Bnest.Backup.Reconcile
 
   @behaviour_now ~U[2026-08-30 20:00:00Z]
   @record_operations [:read, :write, :put_new, :replace, :remove_exact]
@@ -3386,7 +3387,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   defp restore_environment(name, value), do: System.put_env(name, value)
   defp schedule_key(prefix), do: "bdd-#{prefix}-#{unique_suffix()}"
 
-  defp reconcile_task, do: Mix.Tasks.Bnest.Backup.Reconcile.execute([])
+  defp reconcile_task, do: Reconcile.execute([])
 
   defp ensure_scheduler_storage do
     :ok = SqliteCoordinator.ensure_started!(FileConfigStore.resolved_database_path())

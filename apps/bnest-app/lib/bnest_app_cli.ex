@@ -6,7 +6,9 @@ defmodule BnestAppCli do
 
   use Boundary,
     deps: [
+      BnestApp.Backup,
       BnestApp.Identity,
+      BnestApp.Scheduler,
       BnestApp.Storage
     ]
 end

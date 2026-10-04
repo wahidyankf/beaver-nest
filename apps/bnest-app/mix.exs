@@ -174,6 +174,7 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.Resolvers.FamilyChatResolver,
       BnestAppWeb.Resolvers.WebPushResolver,
       BnestAppWeb.UserSocket,
+      Mix.Tasks.Bnest.Backup.Reconcile,
       Mix.Tasks.Bnest.Identity.Benchmark,
       Mix.Tasks.Bnest.Schema.Audit,
       Mix.Tasks.Bnest.Storage.Migrate,
