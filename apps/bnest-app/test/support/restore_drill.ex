@@ -13,9 +13,8 @@ defmodule BnestApp.Test.RestoreDrill do
 
     * a Given puts a destination, a synthetic artifact and the entries the drill must refuse
       into place (`prepare/3`);
-    * the When runs the drill task by name (`perform/3`), as the command line reaches it, while
-      `BnestApp.Test.CallTrace` records the calls that could open the live database or restore
-      a copy, and, in the integration layer, with the operating system's temporary directory
+    * the When runs the drill task's `execute/1` (`perform/3`) while `BnestApp.Test.CallTrace`
+      records the calls that could open the live database or restore a copy, and, in the integration layer, with the operating system's temporary directory
       redirected to an empty directory of the scenario's own, where `restore/1` creates its
       root;
     * a Then reads that evidence back (`outcome?/3`): the task's `exit_status` and `lines`, the
@@ -35,8 +34,8 @@ defmodule BnestApp.Test.RestoreDrill do
   alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore, as: InMemoryBackupConfigStore
   alias BnestApp.Test.InMemory.RoomStore, as: InMemoryRoomStore
+  alias Mix.Tasks.Bnest.Backup.RestoreDrill, as: DrillTask
 
-  @task "bnest.backup.restore_drill"
   @artifact_basename "bnest-prod-20300518T190100Z-test-restore-drill.sqlite3"
   @outside_basename "bnest-prod-20300518T190200Z-test-outside.sqlite3"
   @directory_basename "bnest-prod-20300518T190300Z-test-directory.sqlite3"
@@ -106,8 +105,12 @@ defmodule BnestApp.Test.RestoreDrill do
   def prepare(context, :drill_artifact, []),
     do: prepare(context, :drill_artifact, [3, 2, "pending", "delivered"])
 
-  def prepare(context, :drill_artifact, [messages, subscriptions, first_state, second_state]) do
-    spec = fixture(messages, subscriptions, [first_state, second_state])
+  def prepare(context, :drill_artifact, [messages, subscriptions, first_state, second_state]),
+    do: prepare(context, :drill_artifact, [messages, subscriptions, [first_state, second_state]])
+
+  # Any number of delivery states, none included, for the cases the scenarios do not name.
+  def prepare(context, :drill_artifact, [messages, subscriptions, states]) when is_list(states) do
+    spec = fixture(messages, subscriptions, states)
     path = Path.join(context.backup_directory, @artifact_basename)
     write_artifact(path, spec)
 
@@ -146,7 +149,7 @@ defmodule BnestApp.Test.RestoreDrill do
   # ---------------------------------------------------------------------------------------
 
   @doc """
-  Runs the restore drill task by name against `kind` of target, recording the destination
+  Runs the restore drill task against `kind` of target, recording the destination
   before it and the watched calls during it.
   """
   @spec perform(map(), atom(), list()) :: map()
@@ -157,11 +160,9 @@ defmodule BnestApp.Test.RestoreDrill do
     Map.merge(context, %{task: result, evidence_before: before, drill_events: events})
   end
 
-  # The task is reached by name, as the command line reaches it, and its `execute/1` is the
-  # entry point that returns `%{exit_status:, lines:}` without printing or exiting. Resolving it
-  # when the scenario runs makes a task nobody has built a failure of the scenario instead of
-  # of the project's compilation.
-  defp execute(arguments), do: Mix.Task.get!(@task).execute(arguments)
+  # The task's `execute/1` is the entry point that returns `%{exit_status:, lines:}` without
+  # printing or exiting.
+  defp execute(arguments), do: DrillTask.execute(arguments)
 
   defp argument(context, "artifact"), do: Path.basename(context.drill.artifact_path)
   defp argument(context, "outside_absolute"), do: context.drill.outside_path

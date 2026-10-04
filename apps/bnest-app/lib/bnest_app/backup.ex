@@ -233,6 +233,35 @@ defmodule BnestApp.Backup do
 
   def restore(_invalid_artifact), do: {:error, :invalid_artifact}
 
+  @doc """
+  The artifact a restore may act on, from what an operator typed: `argument` must be the bare
+  name of a regular file directly inside `directory`, and the result names it as
+  `restore/1` takes it. Anything else is `{:error, :refused}`: a path of any kind, a name that
+  climbs (`..`) or stays (`.`, empty), a file the directory does not hold, a directory, and a
+  symbolic link, which a test for a regular file alone would follow out of the destination.
+  `directory` must be a destination already resolved (`read_destination/0`).
+  """
+  @spec restore_target(String.t(), term()) :: {:ok, %{path: String.t()}} | {:error, :refused}
+  def restore_target(directory, argument) when is_binary(directory) do
+    with true <- bare_name?(argument),
+         path = Path.join(directory, argument),
+         artifacts = artifact_store(),
+         false <- ArtifactStore.symlink_in_path?(artifacts, path),
+         true <- ArtifactStore.regular?(artifacts, path) do
+      {:ok, %{path: path}}
+    else
+      _refused -> {:error, :refused}
+    end
+  end
+
+  @doc """
+  The restore roots the operating system's temporary directory holds now, in order. A restore
+  creates one and removes it; a root present after a restore that was absent before it is one
+  the restore failed to remove.
+  """
+  @spec restore_roots() :: [String.t()]
+  def restore_roots, do: DatabaseSnapshot.restore_roots(database_snapshot())
+
   # `:destination_directory`, when given, is already a validated/created
   # directory (`ScheduledBackupTask`'s own `destination/0` result) --
   # resolving it again here would be redundant.
@@ -429,6 +458,11 @@ defmodule BnestApp.Backup do
        }}
     end
   end
+
+  defp bare_name?(argument) when is_binary(argument),
+    do: argument not in ["", ".", ".."] and Path.basename(argument) == argument
+
+  defp bare_name?(_argument), do: false
 
   defp owned?(artifacts, receipt, directory, destination_id) do
     with true <- Receipt.valid?(receipt, destination_id),

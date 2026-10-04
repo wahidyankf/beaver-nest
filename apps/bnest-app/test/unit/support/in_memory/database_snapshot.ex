@@ -15,7 +15,10 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
   before the next test. `fail_next/3` makes the next copy or proof fail, and `hold_next_copy/2`
   holds the next copy open until a function of the test's returns, so traffic the test runs
   meanwhile overlaps it; `snapshots/1`, `proofs/1`, `cancellations/1` and `holds/1` report
-  what Backup asked of it.
+  what Backup asked of it. A restore of this double creates no restore root, as a real restore
+  removes its own; `put_restore_roots/2` stands in for roots the operating system's temporary
+  directory held before, and `leave_root_on_restore/1` for a restore that failed to remove its
+  root, which `restore_roots/1` then reports.
   """
 
   @behaviour BnestApp.Backup.Ports.DatabaseSnapshot
@@ -84,6 +87,16 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
   @doc "How many copies were cancelled past their timeout."
   def cancellations(%{pid: pid}), do: Agent.get(pid, & &1.cancellations)
 
+  @doc "Makes `names` the restore roots the temporary directory holds."
+  def put_restore_roots(%{pid: pid}, names) when is_list(names),
+    do: Agent.update(pid, &%{&1 | roots: names})
+
+  @doc "Makes the next restore leave the root it used in the temporary directory."
+  def leave_root_on_restore(%{pid: pid}), do: Agent.update(pid, &%{&1 | leave_root?: true})
+
+  @impl true
+  def restore_roots(%{pid: pid}), do: Agent.get(pid, &Enum.sort(&1.roots))
+
   @impl true
   def source_path(_snapshot), do: @source_path
 
@@ -138,11 +151,13 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
   end
 
   @impl true
-  def restore(_snapshot, artifact_path) do
+  def restore(snapshot, artifact_path) do
     with %{content: %{database: database}} <-
            ArtifactStore.file(ArtifactStore.new(), artifact_path),
          [{room, false}] <- Enum.filter(Map.values(database.rooms), &match?({_room, false}, &1)) do
       messages = for message <- database.messages, message.room_id == room.id, do: message
+
+      leave_root(snapshot)
 
       {:ok,
        %{
@@ -160,6 +175,17 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
     end
   end
 
+  # A restore that failed to remove its root, once, when the test asked for one.
+  defp leave_root(%{pid: pid}) do
+    Agent.update(pid, fn
+      %{leave_root?: true} = state ->
+        %{state | leave_root?: false, roots: ["bnest-restore-left-behind" | state.roots]}
+
+      state ->
+        state
+    end)
+  end
+
   defp empty do
     %{
       generation:
@@ -169,7 +195,9 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
       holds: [],
       snapshots: [],
       proofs: [],
-      cancellations: 0
+      cancellations: 0,
+      roots: [],
+      leave_root?: false
     }
   end
 

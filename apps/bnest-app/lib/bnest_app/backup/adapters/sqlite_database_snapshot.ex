@@ -13,6 +13,7 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
 
   @progress_handler_steps 2_000
   @cancel_grace_ms 5_000
+  @restore_root_prefix "bnest-restore-"
 
   @impl true
   def new, do: %{adapter: __MODULE__}
@@ -126,6 +127,14 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
     end
   end
 
+  @impl true
+  def restore_roots(_snapshot) do
+    System.tmp_dir!()
+    |> File.ls!()
+    |> Enum.filter(&String.starts_with?(&1, @restore_root_prefix))
+    |> Enum.sort()
+  end
+
   defp escape_sql_literal(value), do: String.replace(value, "'", "''")
 
   defp query_rows(connection, sql) do
@@ -196,7 +205,7 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
     root =
       Path.join(
         System.tmp_dir!(),
-        "bnest-restore-" <> Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false)
+        @restore_root_prefix <> Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false)
       )
 
     File.mkdir_p!(root)
