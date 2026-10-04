@@ -5,7 +5,7 @@
 **In progress since 2026-10-04.** Gate pass 6 returned `PASS_WITH_FINDINGS` and execution was authorized. Phases 1
 and 2 are complete (see [`delivery.md`](delivery.md) and [`learnings.md`](learnings.md) entries V0.1 to V0.12); Phases 3 to 5
 (the AI-recorded cause verdict V1, the specifications and the reconciliation detector, with its early live run) are
-complete; Phase 6 is in progress after the owner confirmed V1 as `C-UNPROVEN` on 2026-10-04. The history paragraph below describes the plan as it stood in the backlog.
+complete; Phases 6 to 11 are executed (V1 confirmed as `C-UNPROVEN` on 2026-10-04; the label, its rendered inspection and the review passes are done); Phase 12 (release) has not started. The history paragraph below describes the plan as it stood in the backlog.
 
 **Backlog. Drafted 2026-10-03, expanded the same day for the owner decisions OD-1 to OD-4, and repaired on 2026-10-04
 after plan quality gate passes 4 and 5; not authorized for execution.** The six documents and the UI design assets are

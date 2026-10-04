@@ -332,3 +332,164 @@ under the amended comparison rule (V0.13); the one difference was the storage lo
 - Singular wording forms (`the retained backup is present`, `1 of N retained backups needs attention`) are agent
   proposals for the Phase 8 copy review.
 - The README of `apps/bnest-app` (tasks line, Backup context, Storage description) is a Phase 11 item.
+
+## V4 Phase 8 and 9 results and deviations, 2026-10-04
+
+- Owner design review (Phase 8): the owner approved the alternative `row` and the draft copy including the singular forms in
+  the executing session on 2026-10-04 and requested no change. Only D7 and that copy are settled; D2 to D6 and D8 to D11
+  stay agent proposals. The wording function's output equals the draft strings, so no asset text changed.
+- Date convention: the label shows the WIB date of a run's `finished_at` and adds no suffix; the page already labels its own
+  times in WIB. This is an agent decision for the owner to confirm or turn into an explicit suffix (a change of the
+  wording function and of every surface).
+- The PRD text of AC-BI-23 had a scenario outline without a `When` step and the execution gates reject that; the outline
+  now opens the page at each viewport as its `When`. An exemption comment may not use the word `slow`.
+- `BEHAVIOUR` is a static binding check (it passes once every step is bound and never runs a scenario), so the red of a
+  new UI scenario comes from `BE_UNIT`, `INTEGRATION` and `FE_E2E_CASE`.
+- A pre-existing defect was found by the new browser scenario and fixed: every successful save on the Schedules page
+  dropped keyboard focus to the document body, because the unkeyed status paragraph made LiveView recreate both forms.
+  The feedback paragraphs now sit in one stable container.
+- Observation for the owner: the page's existing `refresh/0` calls `Backup.destination/0` on every render, and that call
+  creates, marks and sets the mode of the destination folder (the label's own check uses the read-only
+  `Backup.read_destination/0`). The AC-BI-22 never-writes scenarios pass because the folder is already prepared by then,
+  so a first render over a never-prepared destination is the one place a render can still write. Not changed here.
+- The LiveView, the Mix task and the post-run reconciliation each hold the same short verified-runs-then-reconcile
+  composition (candidate follow-up, not extracted).
+- The fixture schedule used by the shared test seeds has the same handler as the production backup, so an isolated page
+  shows two `Backup files` items; production has one such row.
+- The state words of a problem line (`file missing`, `file changed`) are not bold as the hi-fi draws them, and the marker sits
+  about 10px further from the strip than the hi-fi draws it; both follow from using the one wording string and the
+  stated padding. Owner call.
+
+## Phase 10 rendered verification, 2026-10-04
+
+Isolated origin `http://localhost:4660` (host `localhost`, port 4660), started from the execution checkout in its own tmux
+window with an isolated runtime root, storage pointer, backup configuration and SQLite database, and two synthetic
+`test-user-` accounts (an administrator and a non-administrator). The production service, its ports and its data were not
+touched (ports before and after compared; production listeners unchanged). States were seeded through the shared test
+seeds: all present (7 dates), one missing, two problems (a missing and a changed date), exactly one retained date present,
+exactly one retained date missing, none verified, could not be checked (the newest artifact made unreadable), and checking
+(the server's disconnected first render).
+
+### Accessibility audit
+
+| Route                     | State                                      | Viewport class                  | Result                                                                                                                                                                                                                           |
+| ------------------------- | ------------------------------------------ | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| /admin/settings/schedules | needs attention (two problems)             | desktop, mobile (Lighthouse)    | pass: accessibility 100, best practices 100, 31 audits passed, 0 failed                                                                                                                                                          |
+| /admin/settings/schedules | all states                                 | desktop, tablet, mobile, 320 px | pass: the item is a `dt` and `dd` pair in the existing list; the `dd` is the only live region, polite, named by its term; no `role=alert` for the label; no focusable control or tab stop inside it; the marker is `aria-hidden` |
+| /admin/settings/schedules | all states                                 | all                             | pass: every state has words and a marker shape as well as a strip colour (non-colour cue)                                                                                                                                        |
+| /admin/settings/schedules | all states                                 | all                             | pass: contrast measured in the rendered page: text on paper 10.99:1; strip 3.24:1 (coral), 3.26:1 (green), 7.28:1 (neutral), each at least the 3:1 a non-text cue needs                                                          |
+| /admin/settings/schedules | needs attention                            | 320 px, 393 px                  | pass: no horizontal scroll at 320 and 393; problem lines wrap and are never truncated (a date line wraps onto two lines at 320)                                                                                                  |
+| /admin/settings/schedules | needs attention                            | mobile at 200 percent text      | label passes (nothing cut off); the page overflows horizontally because of the Backup folder form's path field, which pre-exists and is not the label                                                                            |
+| /admin/settings/schedules | dark theme, forced colours, reduced motion | mobile                          | pass: the cards keep the cream surface in the dark theme so the contrast above holds; the strip stays a 6px solid border in forced colours; nothing animates                                                                     |
+
+### Hand-walk matrix (route, state, viewport class, pass or fail)
+
+| Route                     | State                          | Desktop 1440 | Tablet 768 | Mobile 393 | 320 px floor |
+| ------------------------- | ------------------------------ | ------------ | ---------- | ---------- | ------------ |
+| /admin/settings/schedules | checking (disconnected render) | pass         | pass       | pass       | pass         |
+| /admin/settings/schedules | all present                    | pass         | pass       | pass       | pass         |
+| /admin/settings/schedules | needs attention, two problems  | pass         | pass       | pass       | pass         |
+| /admin/settings/schedules | needs attention, singular      | pass         | pass       | pass       | pass         |
+| /admin/settings/schedules | all present, singular          | pass         | pass       | pass       | pass         |
+| /admin/settings/schedules | could not be checked           | pass         | pass       | pass       | pass         |
+| /admin/settings/schedules | nothing to check yet           | pass         | pass       | pass       | pass         |
+
+Placement: beside `Last result` in the second column at 1440 (828px wide, three columns) and at 768 (second column); stacked
+under `Last result` at 393 and 320. Changed interaction, at all four widths: a reload shows checking and then the result;
+saving the daily schedule and saving the unchanged backup folder each turn the label to checking and back to the result
+with focus returning to the pressed button; a failed save (a relative folder) shows the existing alert, leaves the label
+unchanged and starts no check; two quick saves leave one final result; the keyboard path (theme buttons, breadcrumb,
+the row title link, the enabled box, the time field, Save schedule, the folder field, Save and create first backup) has no
+extra stop for the label and both forms stay usable. The destination-mismatch state is Not applicable (C-DEST not
+selected) and was not rendered on the page.
+
+## Exploratory findings
+
+Spec-aware pass, Playwright against the isolated origin, three viewport classes and 320 px, synthetic identities only,
+nothing shared or production touched. Compared with the Gherkin of `scheduled_backups.feature` and probed beyond it.
+
+| ID  | Route and state                                                      | Category                 | Finding                                                                                                                                                                                                                                                                     | Disposition                                                                                                                 |
+| --- | -------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| E1  | /admin/settings/schedules, all states                                | Spec conformance         | The label states, order, singular forms, polite region, no control, no private value and the re-check after both saves all behave as the scenarios say; the label text carries no path, digest, destination identifier or run ID (scan of its markup and attributes: none). | None needed                                                                                                                 |
+| E2  | /admin/settings/schedules, needs attention                           | Visual fidelity          | The state words of a problem line are not bold and the marker is about 10px further from the strip than the hi-fi draws it.                                                                                                                                                 | Accepted, non-blocking: bolding needs a split of the one wording string; reason recorded in V4; owner call                  |
+| E3  | /admin/settings/schedules, any state, mobile at 200 percent text     | Responsive               | The page scrolls horizontally because the Backup folder form's field overflows; the label does not.                                                                                                                                                                         | Accepted, non-blocking: pre-existing form outside this plan's scope (changes to the page beyond the label are out of scope) |
+| E4  | any state                                                            | Console                  | One console warning on every load: the deprecated `apple-mobile-web-app-capable` meta tag. No error.                                                                                                                                                                        | Accepted, non-blocking: pre-existing, not the label                                                                         |
+| E5  | route variants                                                       | Route structure          | `/admin/settings/schedules/` and `?x=1` render the page; a path traversal and `/integrity` return not found; an unauthenticated visitor and the non-administrator get not found.                                                                                            | None needed                                                                                                                 |
+| E6  | /admin/settings/schedules                                            | Passive security         | The Backup folder field shows the full path of the resolved backup folder to the administrator (pre-existing by design, administrator only); the label never shows a path.                                                                                                  | Accepted, non-blocking: outside the label's contract                                                                        |
+| E7  | /admin/settings/schedules, first render over a never-prepared folder | Write on render          | The page's existing refresh calls the folder-preparing `Backup.destination/0`, so a render can create or re-mark the folder before the label's read-only check runs; the integration scenarios pass because the folder is already prepared.                                 | Accepted, non-blocking here, reported to the owner as an observation (see V4)                                               |
+| E8  | /admin/settings/schedules, two backup rows                           | Test artifact            | The fixture schedule used by the test seeds has the production handler, so an isolated page shows two `Backup files` items; production has one.                                                                                                                             | Accepted: test seed, not a product defect                                                                                   |
+| E9  | /admin/settings/schedules, focus after a save                        | Regression found earlier | Focus was lost on every successful save before the stable feedback container (fixed in Phase 9); verified fixed here at all four widths.                                                                                                                                    | Fixed                                                                                                                       |
+
+## Usability findings
+
+Spec-blind pass, run after the exploratory pass was recorded. Structural blindness: a fresh `swe-usability-tester`
+context was given only the isolated origin, the route, the viewport classes, synthetic administrator credentials, six
+neutrally lettered situations and seven frozen tasks; the specs, the source, the design assets and the plan were withheld
+and it reported reading none (it read its own agent definition, its usability skill and a public probes document). It
+visited all six situations at 1440, 768, 393 and 320 px, saved the schedule and the folder, walked the page by keyboard,
+checked dark theme and a simulated offline save. Findings about the new line are NEW, findings about the rest of the page
+are PRE.
+
+| ID           | Situation                                          | Heuristic  | Severity          | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Disposition                                                                                                                                                                                                 |
+| ------------ | -------------------------------------------------- | ---------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| N-01         | could not be checked                               | H2, H9     | Major             | The remedy `Run mix bnest.backup.reconcile on the host.` means nothing to a household administrator and gives no reason or word on whether the backups are safe.                                                                                                                                                                                                                                                                                                    | Accepted, non-blocking, owner decision: the copy is the owner-approved wording of 2026-10-04 and the one wording function serves four surfaces; changing it is a copy change for the owner (see the report) |
+| N-02         | needs attention                                    | H9         | Major             | `file changed` is not explained, and the only action, `Save and create first backup`, is far below.                                                                                                                                                                                                                                                                                                                                                                 | Accepted, owner decision: same wording constraint; the lines are the approved `date: file missing or changed` form                                                                                          |
+| N-03         | nothing to check yet                               | H1, H6     | Major             | The neutral calm style and `no verified backup to check yet` can reassure or confuse.                                                                                                                                                                                                                                                                                                                                                                               | Accepted, owner decision: the nothing-to-check state is a designed neutral state by decision D10 and the PRD (AC-BI-17, AC-BI-21); the owner may ask for an attention style                                 |
+| N-04         | needs attention, could not be checked, all present | H1, H4     | Major             | The line can disagree with `Last result` on the same card (`Verified` beside `2 of 7 ... need attention`).                                                                                                                                                                                                                                                                                                                                                          | Accepted: they answer different questions (last run result versus files on disk now); that is the purpose of the label                                                                                      |
+| N-05         | after Save and create first backup                 | H1         | Major             | There is no checked-at time and the line does not refresh when the queued first verification finishes; it stayed at its first result until a reload.                                                                                                                                                                                                                                                                                                                | Accepted, owner decision: this is the recorded D8 residual (whether to hold the label at checking until the verification finishes); no live refresh was specified                                           |
+| N-06         | all present                                        | H2         | Minor             | `present` does not say intact.                                                                                                                                                                                                                                                                                                                                                                                                                                      | Accepted: a changed file is reported separately as `file changed`, so `present` means present and unchanged by the check                                                                                    |
+| N-07         | all                                                | H8         | Minor             | The line appears under two cards.                                                                                                                                                                                                                                                                                                                                                                                                                                   | Not a product defect: the isolated page has a fixture schedule with the production handler (see E8); production has one such row. Root cause shared with P-03                                               |
+| N-08         | needs attention                                    | H2         | Minor             | The dates carry no time zone.                                                                                                                                                                                                                                                                                                                                                                                                                                       | Accepted: the dates are WIB dates per the Phase 8 date convention, an agent decision awaiting the owner; the fixture dates in 2030 are synthetic                                                            |
+| N-09         | singular                                           | H4         | Cosmetic          | Lower-case sentence fragments and a singular beside the seven-day policy.                                                                                                                                                                                                                                                                                                                                                                                           | Accepted: the approved copy                                                                                                                                                                                 |
+| N-10, N-11   | all, narrow                                        | WCAG 1.4.1 | Pass              | Every state has an icon and words; the long command token wraps.                                                                                                                                                                                                                                                                                                                                                                                                    | None                                                                                                                                                                                                        |
+| P-01 to P-12 | rest of the page                                   | various    | Major to Cosmetic | Pre-existing page issues: the save confirmation at the top far from the button, raw ISO next-run times, two cards with the same title (a fixture artifact in the isolated page), jargon in the folder panel, a cut-off folder path on mobile, a first-backup button label, flat headings, title links to the page itself, the theme toggle overlapping the breadcrumb at 320 px, a dark theme that keeps cream cards, no offline feedback and inconsistent wording. | Accepted, non-blocking: the plan's scope is the label (changes to the page beyond it are out of scope); listed here for the owner                                                                           |
+
+Tasks: 1 pass with caveats, 2 partial (the next step is missing), 3 fail on the developer command, 4 fail on the neutral
+wording, 5 fail on the distant save confirmation (pre-existing), 6 pass with caveats, 7 pass (the theme toggle overlaps at
+320 px). Not covered: more than two problem days, slow networks, locales and browsers other than Chromium.
+
+### Cross-references
+
+- E3 (exploratory: the page overflows at 200 percent text) and P-05 (usability: the folder path is cut off on mobile) are
+  one root cause, the Backup folder form's long path field, which pre-exists and is outside the label.
+- E8 (exploratory: two `Backup files` items) and N-07 and P-03 (usability: two cards with one title) are one root cause, the
+  test fixture schedule that shares the production handler; the production page has one row.
+- N-08 (usability: dates without a zone) and the Phase 8 date-convention decision are one open owner decision.
+- N-05 (usability: no refresh after the queued first verification) is the recorded D8 residual.
+- E7 (exploratory: the page's folder-preparing call on render) has no usability counterpart.
+
+### Phase 10 confirmation (the five conditions)
+
+1. Both passes ran: the exploratory pass first and recorded above, then the usability pass. 2. Findings are present in both
+   sections. 3. The headings `## Exploratory findings` and `## Usability findings` are separate and labelled. 4. Cross-references
+   are noted above. 5. No spec proposal was accepted, so no unreconciled proposal entered `specs/**`: the usability-sourced
+   suggestions all change owner-approved copy or the layout of the pre-existing page and wait for the owner.
+
+## Phase 11 Gherkin implementation review, 2026-10-04
+
+A `swe-reviewer` context reviewed the backup-integrity scope (27 backend scenarios and 15 expanded frontend scenarios, by
+the Unit, Integration and E2E adapters: 126 rows). First pass: 80 PASS, 30 EXEMPT, 16 FAIL. The FAILs were repaired
+(`swe-developer`, each fix proved able to fail by a mutation that was reverted):
+
+- The step `it starts no scheduler` compared Scheduler pids inside one VM and could not fail; it now runs the task under
+  the BEAM call trace and passes only when the task read the ledger, called no start or claim entry point and left the
+  ledger rows equal (`SchedulerWatch`, with its own unit test). Mutations: a claim call and an application start inside
+  the task turned both target scenarios red in Unit and Integration.
+- The Unit driver re-composed the reconcile task; it now calls the real `Mix.Tasks.Bnest.Backup.Reconcile.execute/1`.
+  Mutations: an always-zero exit status and a narrowed rescue turned Unit red.
+- Two E2E exemptions had invalid reasons (the browser harness already empties and reseeds the routed ledger and reads
+  server state): `The page says plainly when there is nothing to check` and `Rendering the label never writes` were
+  unexempted and bound in the browser, in three projects. Mutations: a wrong copy for an empty ledger and a file written
+  into the destination during the check turned both red, which also exposed that the shared routed destination kept a
+  mutation's file between projects, so the browser seed now empties the destination first (it refuses any directory that
+  is not the run's isolated default).
+- Advisory fixed: an arithmetic clause that held by construction was removed from the label oracle.
+
+Left for the owner (not a FAIL): 18 backend exemptions (the reconcile task's wording and exit scenarios and the restore
+drill scenarios) say they are `below every public application boundary`, but the operator command line is a public
+process boundary and the backend E2E app already runs Mix tasks as subprocesses. Their integration alternatives are
+strong, so the reviewer kept them EXEMPT; either bind them through a command-line E2E step or rewrite each reason to a real
+boundary mismatch. Other advisories left: the Unit layer cannot prove the restore root is gone (the in-memory double
+creates none; Integration does), the viewport examples are markup proxies below E2E, the backend E2E coverage file is
+stale and read by no gate, and the Mix task bindings call `execute/1` while the start-up glue of `run/1` is proved only by
+the subprocess test.
