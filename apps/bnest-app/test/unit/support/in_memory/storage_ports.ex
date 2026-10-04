@@ -352,6 +352,26 @@ defmodule BnestApp.Test.InMemory.StoragePorts.Maintenance do
   @impl true
   def audit_schema(root), do: answer({:audit_schema, root}, :audit, {:ok, []})
 
+  # Each copy is numbered by the opens recorded so far, and `put(:copy_failure?, true)` makes
+  # the copy fail as a vanished source would. No file is read or written.
+  @impl true
+  def open_database_copy(source) do
+    StoragePorts.record({:open_database_copy, source})
+
+    if StoragePorts.get(:copy_failure?, false) do
+      {:error, :copy_failed}
+    else
+      opened = Enum.count(StoragePorts.calls(), &match?({:open_database_copy, _source}, &1))
+      {:ok, %{database_path: "/in-memory/copy-#{opened}/bnest.sqlite3"}}
+    end
+  end
+
+  @impl true
+  def close_database_copy(copy) do
+    StoragePorts.record({:close_database_copy, copy.database_path})
+    :ok
+  end
+
   defp answer(call, key, default) do
     StoragePorts.record(call)
     StoragePorts.get(key, default)

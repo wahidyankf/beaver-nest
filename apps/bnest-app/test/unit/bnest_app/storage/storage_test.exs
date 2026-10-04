@@ -111,6 +111,85 @@ defmodule BnestApp.StorageTest do
     end
   end
 
+  describe "a scratch copy of the database" do
+    @source "/in-memory/sqlite/bnest.sqlite3"
+
+    setup do
+      StoragePorts.put(:config, @sqlite_config)
+      :ok
+    end
+
+    # A fingerprint that answers the scripted values in order, one per copy it is asked of.
+    defp scripted(values) do
+      {:ok, script} = Agent.start_link(fn -> values end)
+      fn -> Agent.get_and_update(script, fn [head | rest] -> {head, rest} end) end
+    end
+
+    defp copy_cycle(number) do
+      [
+        {:open_database_copy, @source},
+        :ensure_started,
+        :stop,
+        {:close_database_copy, "/in-memory/copy-#{number}/bnest.sqlite3"}
+      ]
+    end
+
+    test "reads the second of two copies that agree and closes both" do
+      assert {:ok, :read} =
+               Storage.with_database_copy(scripted([{3, :latest}, {3, :latest}]), fn ->
+                 send(self(), {:calls_at_read, StoragePorts.calls()})
+                 :read
+               end)
+
+      # The second copy is open and the database started on it when it is read; the first is
+      # already closed.
+      assert_received {:calls_at_read, at_read}
+      assert at_read == copy_cycle(1) ++ [{:open_database_copy, @source}, :ensure_started]
+      assert StoragePorts.calls() == copy_cycle(1) ++ copy_cycle(2)
+    end
+
+    test "tries again after two copies that disagree, then reads the pair that agrees" do
+      assert {:ok, :read} =
+               Storage.with_database_copy(scripted([1, 2, 3, 3]), fn -> :read end)
+
+      assert StoragePorts.calls() ==
+               Enum.flat_map(1..4, &copy_cycle/1)
+    end
+
+    test "is unstable after two attempts whose copies disagree, and reads nothing" do
+      assert Storage.with_database_copy(scripted([1, 2, 3, 4]), fn ->
+               flunk("a ledger that kept changing must not be read")
+             end) == {:error, :unstable}
+
+      assert StoragePorts.calls() == Enum.flat_map(1..4, &copy_cycle/1)
+    end
+
+    test "cannot copy a database it cannot read, and starts nothing" do
+      StoragePorts.put(:copy_failure?, true)
+
+      assert Storage.with_database_copy(scripted([]), fn -> flunk("no copy to read") end) ==
+               {:error, :copy_failed}
+
+      assert StoragePorts.calls() == [{:open_database_copy, @source}]
+    end
+
+    test "closes the copy and passes on a failure of the fingerprint" do
+      assert_raise RuntimeError, "unreadable ledger", fn ->
+        Storage.with_database_copy(fn -> raise "unreadable ledger" end, fn -> :unreached end)
+      end
+
+      assert StoragePorts.calls() == copy_cycle(1)
+    end
+
+    test "closes the copy and passes on a failure of the read" do
+      assert_raise RuntimeError, "unreadable read", fn ->
+        Storage.with_database_copy(scripted([1, 1]), fn -> raise "unreadable read" end)
+      end
+
+      assert StoragePorts.calls() == copy_cycle(1) ++ copy_cycle(2)
+    end
+  end
+
   describe "the record store" do
     setup do
       flat = InMemoryRecordBackend.start()
