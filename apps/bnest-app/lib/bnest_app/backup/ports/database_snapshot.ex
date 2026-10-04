@@ -20,6 +20,9 @@ defmodule BnestApp.Backup.Ports.DatabaseSnapshot do
     * `restore/2` restores a copy into a fresh, ownership-marked root of its own, never the
       caller's choice of path, reads back what it holds, then removes that root. It returns
       `{:error, :restore_failed}` when the copy cannot be restored or read.
+    * `restore_roots/1` names, in order, the restore roots the operating system's temporary
+      directory holds now, so a caller can tell that a restore removed its own. It names only
+      what the directory lists, never a path, and raises when the directory cannot be listed.
   """
 
   alias BnestApp.Backup.Domain.RestoreEvidence
@@ -35,6 +38,7 @@ defmodule BnestApp.Backup.Ports.DatabaseSnapshot do
   @callback prove(handle(), path :: String.t()) :: {:ok, proof()} | {:error, :corrupt}
   @callback restore(handle(), artifact_path :: String.t()) ::
               {:ok, RestoreEvidence.facts()} | {:error, :restore_failed}
+  @callback restore_roots(handle()) :: [String.t()]
 
   @spec source_path(handle()) :: String.t()
   def source_path(snapshot), do: snapshot.adapter.source_path(snapshot)
@@ -52,4 +56,7 @@ defmodule BnestApp.Backup.Ports.DatabaseSnapshot do
   @spec restore(handle(), String.t()) ::
           {:ok, RestoreEvidence.facts()} | {:error, :restore_failed}
   def restore(snapshot, artifact_path), do: snapshot.adapter.restore(snapshot, artifact_path)
+
+  @spec restore_roots(handle()) :: [String.t()]
+  def restore_roots(snapshot), do: snapshot.adapter.restore_roots(snapshot)
 end

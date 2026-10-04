@@ -244,7 +244,10 @@ regular file inside that destination, through the `ArtifactStore` port: a path o
 climbs out of it, a missing file, a directory and a symbolic link are all refused with one fixed line and a non-zero
 exit before anything is restored. It restores through `Backup.restore/1` into the root that call creates and removes
 and prints the redacted evidence it returns (counts, order and states, never a path, a message body or a push
-credential). Neither task starts the Scheduler.
+credential). Around that call it lists the operating system's temporary directory through `Backup.restore_roots/0`,
+and a restore root that is there afterwards and was not there before is reported as not removed with a non-zero exit.
+One pure function, `Backup.Domain.RestoreDrillReport`, words the result, so a failure is always one fixed line that
+carries no error message. Neither task starts the Scheduler.
 
 ## Architectural Constraints
 

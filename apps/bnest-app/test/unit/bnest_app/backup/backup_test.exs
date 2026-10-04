@@ -628,6 +628,90 @@ defmodule BnestApp.Backup.FacadeTest do
     end
   end
 
+  describe "restore_target/2" do
+    @artifact "bnest-prod-20300518T190100Z-test-restore.sqlite3"
+
+    setup context do
+      path = @destination <> "/" <> @artifact
+      :ok = ArtifactStore.put_file(context.artifacts, path, "synthetic backup")
+      %{path: path}
+    end
+
+    test "accepts the bare name of a regular file inside the destination", %{path: path} do
+      assert Backup.restore_target(@destination, @artifact) == {:ok, %{path: path}}
+    end
+
+    test "refuses any name that is not a bare file name, whatever the path holds", context do
+      outside = "/srv/test-user-backup/outside/" <> @artifact
+      :ok = ArtifactStore.put_file(context.artifacts, outside, "synthetic backup")
+
+      :ok =
+        ArtifactStore.put_file(context.artifacts, @destination <> "/nested/" <> @artifact, "x")
+
+      for argument <- [
+            outside,
+            "../outside/" <> @artifact,
+            "nested/" <> @artifact,
+            "./" <> @artifact,
+            @artifact <> "/",
+            "",
+            ".",
+            ".."
+          ] do
+        assert Backup.restore_target(@destination, argument) == {:error, :refused}, argument
+      end
+    end
+
+    test "refuses what is no name at all" do
+      for argument <- [nil, 7, :artifact, [@artifact], %{name: @artifact}] do
+        assert Backup.restore_target(@destination, argument) == {:error, :refused}
+      end
+    end
+
+    test "refuses a file the destination does not hold" do
+      assert Backup.restore_target(
+               @destination,
+               "bnest-prod-20300518T190600Z-test-absent.sqlite3"
+             ) ==
+               {:error, :refused}
+    end
+
+    test "refuses a directory, which holds no regular file", context do
+      :ok = ArtifactStore.prepare_directory(context.artifacts, @destination <> "/directory")
+      assert Backup.restore_target(@destination, "directory") == {:error, :refused}
+    end
+
+    test "refuses a symbolic link, which a check of the target alone would follow out", context do
+      outside = "/srv/test-user-backup/outside/target"
+      link = @destination <> "/link"
+      :ok = ArtifactStore.put_file(context.artifacts, outside, "synthetic backup")
+      :ok = ArtifactStore.put_file(context.artifacts, link, "synthetic backup")
+      :ok = ArtifactStore.put_symlink(context.artifacts, link)
+
+      assert Backup.restore_target(@destination, "link") == {:error, :refused}
+    end
+
+    test "refuses a file in a destination reached through a symbolic link", context do
+      :ok = ArtifactStore.put_symlink(context.artifacts, @destination)
+      assert Backup.restore_target(@destination, @artifact) == {:error, :refused}
+    end
+  end
+
+  describe "restore_roots/0" do
+    test "reports the restore roots the snapshot's temporary directory holds, in order",
+         context do
+      assert Backup.restore_roots() == []
+
+      :ok =
+        DatabaseSnapshot.put_restore_roots(context.snapshot, [
+          "bnest-restore-b",
+          "bnest-restore-a"
+        ])
+
+      assert Backup.restore_roots() == ["bnest-restore-a", "bnest-restore-b"]
+    end
+  end
+
   @doc false
   def forward_telemetry(event, measurements, metadata, test_pid),
     do: send(test_pid, {:telemetry, event, measurements, metadata})
