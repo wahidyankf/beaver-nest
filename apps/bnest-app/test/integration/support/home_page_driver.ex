@@ -40,6 +40,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Storage.Migration, as: StorageMigration
   alias BnestApp.Storage.Ports.RecordBackend
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.BackupIntegrity
   alias BnestApp.Test.CodexFixtureConversation
   alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
   alias BnestApp.Test.InterruptedChatWriteBackend
@@ -52,6 +53,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @behaviour_now ~U[2026-08-30 20:00:00Z]
   @record_operations [:read, :write, :put_new, :replace, :remove_exact]
   @quiz_auto_advance_ms 5_000
+
+  # The backup-integrity states, actions and checks `BnestApp.Test.BackupIntegrity` serves in
+  # both layers; the Givens that start from a destination establish it here first.
+  @integrity_destination_prepares BackupIntegrity.destination_prepares()
+  @integrity_prepares BackupIntegrity.prepares()
+  @integrity_performs BackupIntegrity.performs()
+  @integrity_outcomes BackupIntegrity.outcomes()
 
   # The statuses the schedules page may show for a schedule without exposing its failure.
   @safe_schedule_status ~r/Enabled|Running|Verified|Never run/u
@@ -1368,6 +1376,27 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, :denied_settings_visitor, _args),
     do: establish_identity(context, :child)
 
+  # No override saved: the scenario's configuration path names a file nothing writes, so the
+  # destination resolves to the repository default of this run's own isolated root.
+  def prepare_behaviour(context, :test_environment, _args) do
+    context
+    |> prepare_backup_destination()
+    |> BackupIntegrity.prepare(:test_environment, [])
+  end
+
+  # A real temporary destination, saved as the configured one, in the isolated ledger database.
+  def prepare_behaviour(context, state, args) when state in @integrity_destination_prepares do
+    ensure_scheduler_storage()
+    location = TestBackupDestination.configure!("integrity")
+
+    context
+    |> Map.merge(%{backup_directory: location.directory, backup_location: location})
+    |> BackupIntegrity.prepare(state, args)
+  end
+
+  def prepare_behaviour(context, state, args) when state in @integrity_prepares,
+    do: BackupIntegrity.prepare(context, state, args)
+
   def prepare_behaviour(context, state, args),
     do: IntegrationFamilyChatDriver.prepare_behaviour(context, state, args)
 
@@ -1895,6 +1924,16 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       expiration_later_claims: later
     })
   end
+
+  # The reconcile task's own entry point, in this VM over the isolated ledger and destination.
+  def perform_behaviour(context, :reconcile_task, _args),
+    do: BackupIntegrity.run_task(context, &reconcile_task/0)
+
+  def perform_behaviour(context, :read_report_and_log, _args),
+    do: BackupIntegrity.read_report_and_log(context, &reconcile_task/0)
+
+  def perform_behaviour(context, action, args) when action in @integrity_performs,
+    do: BackupIntegrity.perform(context, action, args)
 
   def perform_behaviour(context, action, args),
     do: IntegrationFamilyChatDriver.perform_behaviour(context, action, args)
@@ -2666,6 +2705,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
         context.expiration_first_claim.occurrence_number and
         context.expiration_retry.attempt == 2
 
+  def behaviour_outcome?(context, expected, args) when expected in @integrity_outcomes,
+    do: BackupIntegrity.outcome?(context, expected, args)
+
   def behaviour_outcome?(context, expected, args),
     do: IntegrationFamilyChatDriver.behaviour_outcome?(context, expected, args)
 
@@ -3343,6 +3385,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   defp restore_environment(name, nil), do: System.delete_env(name)
   defp restore_environment(name, value), do: System.put_env(name, value)
   defp schedule_key(prefix), do: "bdd-#{prefix}-#{unique_suffix()}"
+
+  defp reconcile_task, do: Mix.Tasks.Bnest.Backup.Reconcile.execute([])
 
   defp ensure_scheduler_storage do
     :ok = SqliteCoordinator.ensure_started!(FileConfigStore.resolved_database_path())

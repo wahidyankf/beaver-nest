@@ -178,13 +178,211 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: outcome(context, :retry_occurrence_rules)
   )
 
-  defp prepare(context, state), do: context.behaviour_driver.prepare_behaviour(context, state, [])
+  # Backup integrity: reconciliation of the ledger against the destination, the reconcile
+  # task's report, the post-run reconciliation and retention's ownership.
 
-  defp perform(context, action),
-    do: context.behaviour_driver.perform_behaviour(context, action, [])
+  step(
+    "an isolated ledger of {int} verified runs on consecutive WIB dates from {string}",
+    %{args: [count, first_date]} = context,
+    do: prepare(context, :integrity_ledger, [count, first_date])
+  )
 
-  defp outcome(context, expected) do
-    assert context.behaviour_driver.behaviour_outcome?(context, expected, [])
+  step("the destination holds the artifact and receipt of every run", context,
+    do: prepare(context, :destination_holds_every_run)
+  )
+
+  step("the artifact and receipt of {string} are absent", %{args: [date]} = context,
+    do: prepare(context, :pair_absent, [date])
+  )
+
+  step(
+    "the artifact of {string} has a different digest from the ledger",
+    %{args: [date]} = context,
+    do: prepare(context, :artifact_digest_differs, [date])
+  )
+
+  step(
+    "the artifact and receipt of {string} are absent because retention removed them",
+    %{args: [date]} = context,
+    do: prepare(context, :pair_removed_by_retention, [date])
+  )
+
+  step(
+    "the ledger holds an older verified run on {string} whose artifact and receipt are absent",
+    %{args: [date]} = context,
+    do: prepare(context, :older_run_without_files, [date])
+  )
+
+  step("an unknown file sits in the destination", context, do: prepare(context, :unknown_file))
+
+  step("an isolated destination and a ledger that cannot be read", context,
+    do: prepare(context, :unreadable_ledger)
+  )
+
+  step("an isolated destination and a ledger holding no verified backup run", context,
+    do: prepare(context, :empty_ledger)
+  )
+
+  step(
+    "a scheduled backup in an isolated destination whose post-run reconciliation raises",
+    context,
+    do: prepare(context, :raising_reconciliation)
+  )
+
+  step("a destination holding owned pairs for eight WIB dates", context,
+    do: prepare(context, :owned_pairs_for_eight_dates)
+  )
+
+  step(
+    "receipts bearing another destination identifier, unreceipted artifacts and a malformed receipt",
+    context,
+    do: prepare(context, :foreign_and_unowned_files)
+  )
+
+  step("the test environment", context, do: prepare(context, :test_environment))
+
+  step("reconciliation runs", context, do: perform(context, :reconcile_ledger))
+  step("the reconcile task runs", context, do: perform(context, :reconcile_task))
+
+  step("the reconcile task's printed report and the post-run log line are read", context,
+    do: perform(context, :read_report_and_log)
+  )
+
+  step("the scheduled run completes", context, do: perform(context, :complete_scheduled_run))
+  step("retention runs", context, do: perform(context, :run_retention))
+
+  step("a test resolves the repository's default backup directory", context,
+    do: perform(context, :resolve_default_directory)
+  )
+
+  step(
+    "it reports the run of {string} as missing with its artifact basename",
+    %{args: [date]} = context,
+    do: outcome(context, :run_reported_missing, [date])
+  )
+
+  step(
+    "it reports the runs of {string} and {string} as present",
+    %{args: dates} = context,
+    do: outcome(context, :runs_reported_present, dates)
+  )
+
+  step("it reports the run of {string} as changed", %{args: [date]} = context,
+    do: outcome(context, :run_reported_changed, [date])
+  )
+
+  step("it does not report the run of {string}", %{args: [date]} = context,
+    do: outcome(context, :run_not_reported, [date])
+  )
+
+  step("it reports the {int} other runs as present", %{args: [count]} = context,
+    do: outcome(context, :other_runs_present, [count])
+  )
+
+  step("it reports the newer run of {string} as present", %{args: [date]} = context,
+    do: outcome(context, :newer_run_present, [date])
+  )
+
+  step("it does not report the older run of {string}", %{args: [date]} = context,
+    do: outcome(context, :older_run_not_reported, [date])
+  )
+
+  step("the destination listing and every file's bytes are unchanged", context,
+    do: outcome(context, :destination_unchanged)
+  )
+
+  step("the ledger rows are unchanged", context, do: outcome(context, :ledger_unchanged))
+
+  step("the report's first line is {string}", %{args: [line]} = context,
+    do: outcome(context, :report_first_line, [line])
+  )
+
+  step("the report has no problem line", context, do: outcome(context, :report_no_problem_line))
+
+  step("the report's problem lines are {string} and {string}", %{args: lines} = context,
+    do: outcome(context, :report_problem_lines, lines)
+  )
+
+  step("the report's only problem line is {string}", %{args: [line]} = context,
+    do: outcome(context, :report_problem_lines, [line])
+  )
+
+  step(
+    "neither contains a filesystem path, a digest, a destination identifier or a run ID",
+    context,
+    do: outcome(context, :report_and_log_private_free)
+  )
+
+  step("the run is recorded verified and its artifact and receipt exist", context,
+    do: outcome(context, :run_verified_with_files)
+  )
+
+  step("one path-free error line states that reconciliation failed", context,
+    do: outcome(context, :reconciliation_failure_logged)
+  )
+
+  step(
+    "it exits 0 and prints the summary line stating that all retained backups are present",
+    context,
+    do: outcome(context, :exit_zero_all_present)
+  )
+
+  step("it prints no per-date line", context, do: outcome(context, :report_no_date_line))
+  step("it starts no scheduler", context, do: outcome(context, :scheduler_not_started))
+  step("it exits non-zero", context, do: outcome(context, :exit_nonzero))
+
+  step("the report names the date {string} and the state file missing", %{args: [date]} = context,
+    do: outcome(context, :report_names_problem, [date, "file missing"])
+  )
+
+  step("the report names the date {string} and the state file changed", %{args: [date]} = context,
+    do: outcome(context, :report_names_problem, [date, "file changed"])
+  )
+
+  step("the report contains no path, digest, destination identifier or run ID", context,
+    do: outcome(context, :report_private_free)
+  )
+
+  step("the report states a path-free reason", context,
+    do: outcome(context, :report_path_free_reason)
+  )
+
+  step("it prints that there is no verified backup to check yet", context,
+    do: outcome(context, :report_nothing_to_check)
+  )
+
+  step("it prints no date as present and does not state that backups are present", context,
+    do: outcome(context, :report_nothing_present)
+  )
+
+  step("exactly the owned pairs outside the seven latest dates are removed", context,
+    do: outcome(context, :owned_pairs_outside_window_removed)
+  )
+
+  step("every foreign receipt, unreceipted artifact and malformed receipt is untouched", context,
+    do: outcome(context, :unowned_files_untouched)
+  )
+
+  step("no foreign receipt changes which owned run is kept for a date", context,
+    do: outcome(context, :foreign_receipts_never_counted)
+  )
+
+  step("the operation fails closed before any file is created", context,
+    do: outcome(context, :default_directory_fails_closed)
+  )
+
+  step("the listing of the default backup directory is unchanged", context,
+    do: outcome(context, :default_directory_unchanged)
+  )
+
+  defp prepare(context, state, args \\ []),
+    do: context.behaviour_driver.prepare_behaviour(context, state, args)
+
+  defp perform(context, action, args \\ []),
+    do: context.behaviour_driver.perform_behaviour(context, action, args)
+
+  defp outcome(context, expected, args \\ []) do
+    assert context.behaviour_driver.behaviour_outcome?(context, expected, args)
     context
   end
 end

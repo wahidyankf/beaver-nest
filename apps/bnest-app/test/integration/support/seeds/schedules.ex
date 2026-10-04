@@ -16,6 +16,12 @@ defmodule BnestApp.Test.Seeds.Schedules do
     next_run_at revision inserted_at updated_at
   )a
 
+  @run_columns ~w(
+    schedule_key claim_key claim_kind scheduled_for run_id schedule_revision occurrence_number
+    attempt state lease_expires_at next_attempt_at artifact_basename artifact_sha256 artifact_bytes
+    failure_category started_at finished_at
+  )a
+
   @doc """
   A pristine, enabled daily schedule at 19:00 UTC under the handler key, due at its latest
   slot before `now`; `max_occurrences:` makes it expire after that many claims. The FE e2e
@@ -165,6 +171,53 @@ defmodule BnestApp.Test.Seeds.Schedules do
     )
 
     :ok
+  end
+
+  @doc """
+  Stores a run (every `bnest_schedule_runs` column, as the
+  `BnestApp.Scheduler.Ports.ScheduleStore` run type names them) as is, the ledger state a
+  Given describes: a verified night, a failed attempt, a claim running at a slot. Its
+  schedule must exist.
+  """
+  @spec put_run!(map()) :: :ok
+  def put_run!(run) do
+    SqliteRepo.query!(
+      """
+      INSERT INTO bnest_schedule_runs (#{Enum.map_join(@run_columns, ", ", &to_string/1)})
+      VALUES (#{Enum.map_join(@run_columns, ", ", fn _column -> "?" end)})
+      """,
+      Enum.map(@run_columns, &column_value(Map.fetch!(run, &1)))
+    )
+
+    :ok
+  end
+
+  @doc """
+  Removes every run of the schedules under `handler_key`, so a scenario's ledger holds only
+  the runs its Given seeds. The database is the test run's own, never the operator's.
+  """
+  @spec clear_runs!(String.t()) :: :ok
+  def clear_runs!(handler_key) do
+    SqliteRepo.query!(
+      """
+      DELETE FROM bnest_schedule_runs
+      WHERE schedule_key IN (SELECT schedule_key FROM bnest_schedules WHERE handler_key = ?)
+      """,
+      [handler_key]
+    )
+
+    :ok
+  end
+
+  @doc "Every run the database holds, oldest run ID first, each as a map of its stored columns."
+  @spec runs() :: [map()]
+  def runs do
+    %{rows: rows} =
+      SqliteRepo.query!(
+        "SELECT #{Enum.map_join(@run_columns, ", ", &to_string/1)} FROM bnest_schedule_runs ORDER BY run_id"
+      )
+
+    Enum.map(rows, fn row -> @run_columns |> Enum.zip(row) |> Map.new() end)
   end
 
   @doc "How many runs the database holds, of every schedule."

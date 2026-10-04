@@ -70,3 +70,199 @@ Feature: Bnest scheduled backups
     When the coordinator reconciles claims and retries
     Then expiry blocks only ineligible future claims
     And retries do not consume occurrences or suppress the final occurrence
+
+  Rule: Reconciliation reports a verified run whose artifact is absent or changed
+
+    # Exemption(e2e): reconciliation reads the ledger and the destination below every public application boundary; alternative-proof: bnest-app:test:integration / A verified run without its artifact is reported missing
+    @e2e-exempt
+    Scenario: A verified run without its artifact is reported missing
+      Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
+      And the destination holds the artifact and receipt of every run
+      And the artifact and receipt of "2030-05-16" are absent
+      When reconciliation runs
+      Then it reports the run of "2030-05-16" as missing with its artifact basename
+      And it reports the runs of "2030-05-14" and "2030-05-15" as present
+
+    # Exemption(e2e): reconciliation reads the ledger and the destination below every public application boundary; alternative-proof: bnest-app:test:integration / A changed artifact is reported changed
+    @e2e-exempt
+    Scenario: A changed artifact is reported changed
+      Given an isolated ledger of 2 verified runs on consecutive WIB dates from "2030-05-14"
+      And the destination holds the artifact and receipt of every run
+      And the artifact of "2030-05-15" has a different digest from the ledger
+      When reconciliation runs
+      Then it reports the run of "2030-05-15" as changed
+
+    # Exemption(e2e): the retained-date window of retention needs a ledger spanning more than seven WIB dates below every public application boundary; alternative-proof: bnest-app:test:integration / A run older than the retained dates is not reported
+    @e2e-exempt
+    Scenario: A run older than the retained dates is not reported
+      Given an isolated ledger of 8 verified runs on consecutive WIB dates from "2030-05-11"
+      And the destination holds the artifact and receipt of every run
+      And the artifact and receipt of "2030-05-11" are absent because retention removed them
+      When reconciliation runs
+      Then it does not report the run of "2030-05-11"
+      And it reports the 7 other runs as present
+
+    # Exemption(e2e): two verified runs on one WIB date need a controlled ledger below every public application boundary; alternative-proof: bnest-app:test:integration / Only the newest verified run of a retained date is expected
+    @e2e-exempt
+    Scenario: Only the newest verified run of a retained date is expected
+      Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
+      And the destination holds the artifact and receipt of every run
+      And the ledger holds an older verified run on "2030-05-15" whose artifact and receipt are absent
+      When reconciliation runs
+      Then it reports the newer run of "2030-05-15" as present
+      And it does not report the older run of "2030-05-15"
+
+    # Exemption(e2e): the read-only guarantee is observed on the destination files and the ledger rows below every public application boundary; alternative-proof: bnest-app:test:integration / Reconciliation never writes
+    @e2e-exempt
+    Scenario: Reconciliation never writes
+      Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
+      And the destination holds the artifact and receipt of every run
+      And the artifact and receipt of "2030-05-16" are absent
+      And an unknown file sits in the destination
+      When reconciliation runs
+      Then the destination listing and every file's bytes are unchanged
+      And the ledger rows are unchanged
+
+  Rule: The reconcile report states each result in one fixed wording
+
+    # Exemption(e2e): the printed report is rendered by the Mix task below every public application boundary; alternative-proof: bnest-app:test:integration / The report states that every retained backup is present
+    @e2e-exempt
+    Scenario: The report states that every retained backup is present
+      Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
+      And the destination holds the artifact and receipt of every run
+      When the reconcile task runs
+      Then the report's first line is "Backup files: all 3 retained backups are present"
+      And the report has no problem line
+
+    # Exemption(e2e): the printed report is rendered by the Mix task below every public application boundary; alternative-proof: bnest-app:test:integration / The report counts several backups that need attention
+    @e2e-exempt
+    Scenario: The report counts several backups that need attention
+      Given an isolated ledger of 7 verified runs on consecutive WIB dates from "2030-05-12"
+      And the destination holds the artifact and receipt of every run
+      And the artifact and receipt of "2030-05-14" are absent
+      And the artifact of "2030-05-16" has a different digest from the ledger
+      When the reconcile task runs
+      Then the report's first line is "Backup files: 2 of 7 retained backups need attention"
+      And the report's problem lines are "2030-05-14: file missing" and "2030-05-16: file changed"
+
+    # Exemption(e2e): the printed report is rendered by the Mix task below every public application boundary; alternative-proof: bnest-app:test:integration / The report counts one backup that needs attention
+    @e2e-exempt
+    Scenario: The report counts one backup that needs attention
+      Given an isolated ledger of 7 verified runs on consecutive WIB dates from "2030-05-12"
+      And the destination holds the artifact and receipt of every run
+      And the artifact and receipt of "2030-05-14" are absent
+      When the reconcile task runs
+      Then the report's first line is "Backup files: 1 of 7 retained backups needs attention"
+      And the report's only problem line is "2030-05-14: file missing"
+
+    # Exemption(e2e): the printed report is rendered by the Mix task below every public application boundary; alternative-proof: bnest-app:test:integration / The report says plainly when the check could not run
+    @e2e-exempt
+    Scenario: The report says plainly when the check could not run
+      Given an isolated destination and a ledger that cannot be read
+      When the reconcile task runs
+      Then the report's first line is "Backup files: could not be checked. Run mix bnest.backup.reconcile on the host."
+      And the report has no problem line
+
+    # Exemption(e2e): the printed report is rendered by the Mix task below every public application boundary; alternative-proof: bnest-app:test:integration / The report says plainly when there is nothing to check
+    @e2e-exempt
+    Scenario: The report says plainly when there is nothing to check
+      Given an isolated destination and a ledger holding no verified backup run
+      When the reconcile task runs
+      Then the report's first line is "Backup files: no verified backup to check yet"
+      And the report has no problem line
+
+  Rule: The report and the log line disclose no private value
+
+    # Exemption(e2e): the printed report and the post-run log line are internal output below every public application boundary; alternative-proof: bnest-app:test:integration / The report and the log line carry no private value
+    @e2e-exempt
+    Scenario: The report and the log line carry no private value
+      Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
+      And the destination holds the artifact and receipt of every run
+      And the artifact and receipt of "2030-05-16" are absent
+      When the reconcile task's printed report and the post-run log line are read
+      Then neither contains a filesystem path, a digest, a destination identifier or a run ID
+
+  Rule: A reconciliation that fails never fails the backup
+
+    # Exemption(e2e): the scheduled run and its post-run reconciliation are an internal same-machine boundary; alternative-proof: bnest-app:test:integration / A reconciliation that raises leaves the backup verified
+    @e2e-exempt
+    Scenario: A reconciliation that raises leaves the backup verified
+      Given a scheduled backup in an isolated destination whose post-run reconciliation raises
+      When the scheduled run completes
+      Then the run is recorded verified and its artifact and receipt exist
+      And one path-free error line states that reconciliation failed
+
+  Rule: The reconcile task's exit status follows its report
+
+    # Exemption(e2e): the task's exit status is observed on the Mix task below every public application boundary; alternative-proof: bnest-app:test:integration / The task exits zero only when every expected run is present
+    @e2e-exempt
+    Scenario: The task exits zero only when every expected run is present
+      Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
+      And the destination holds the artifact and receipt of every run
+      When the reconcile task runs
+      Then it exits 0 and prints the summary line stating that all retained backups are present
+      And it prints no per-date line
+      And it starts no scheduler
+
+    # Exemption(e2e): the task's exit status is observed on the Mix task below every public application boundary; alternative-proof: bnest-app:test:integration / The task exits non-zero when a run is missing
+    @e2e-exempt
+    Scenario: The task exits non-zero when a run is missing
+      Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
+      And the destination holds the artifact and receipt of every run
+      And the artifact and receipt of "2030-05-16" are absent
+      When the reconcile task runs
+      Then it exits non-zero
+      And the report names the date "2030-05-16" and the state file missing
+      And the report contains no path, digest, destination identifier or run ID
+
+    # Exemption(e2e): the task's exit status is observed on the Mix task below every public application boundary; alternative-proof: bnest-app:test:integration / The task exits non-zero when a run is changed
+    @e2e-exempt
+    Scenario: The task exits non-zero when a run is changed
+      Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
+      And the destination holds the artifact and receipt of every run
+      And the artifact of "2030-05-15" has a different digest from the ledger
+      When the reconcile task runs
+      Then it exits non-zero
+      And the report names the date "2030-05-15" and the state file changed
+      And the report contains no path, digest, destination identifier or run ID
+
+    # Exemption(e2e): the task's exit status is observed on the Mix task below every public application boundary; alternative-proof: bnest-app:test:integration / The task exits non-zero when the ledger is unreadable
+    @e2e-exempt
+    Scenario: The task exits non-zero when the ledger is unreadable
+      Given an isolated destination and a ledger that cannot be read
+      When the reconcile task runs
+      Then it exits non-zero
+      And the report states a path-free reason
+      And the report contains no path, digest, destination identifier or run ID
+
+    # Exemption(e2e): the task's exit status is observed on the Mix task below every public application boundary; alternative-proof: bnest-app:test:integration / The task does not report an empty ledger as present
+    @e2e-exempt
+    Scenario: The task does not report an empty ledger as present
+      Given an isolated destination and a ledger holding no verified backup run
+      When the reconcile task runs
+      Then it prints that there is no verified backup to check yet
+      And it prints no date as present and does not state that backups are present
+      And it exits non-zero
+      And it starts no scheduler
+
+  Rule: Receipts and artifacts that retention does not own never influence it
+
+    # Exemption(e2e): retention over a destination holding foreign and malformed files is an internal same-machine boundary; alternative-proof: bnest-app:test:integration / Foreign receipts and unreceipted files are never removed or counted
+    @e2e-exempt
+    Scenario: Foreign receipts and unreceipted files are never removed or counted
+      Given a destination holding owned pairs for eight WIB dates
+      And receipts bearing another destination identifier, unreceipted artifacts and a malformed receipt
+      When retention runs
+      Then exactly the owned pairs outside the seven latest dates are removed
+      And every foreign receipt, unreceipted artifact and malformed receipt is untouched
+      And no foreign receipt changes which owned run is kept for a date
+
+  Rule: A test cannot reach the production backup directory
+
+    # Exemption(e2e): the test environment's destination resolution is an internal configuration boundary; alternative-proof: bnest-app:test:integration / The test environment refuses the production backup destination
+    @e2e-exempt
+    Scenario: The test environment refuses the production backup destination
+      Given the test environment
+      When a test resolves the repository's default backup directory
+      Then the operation fails closed before any file is created
+      And the listing of the default backup directory is unchanged
