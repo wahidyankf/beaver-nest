@@ -2,6 +2,7 @@ defmodule BnestApp.Backup.ConfigTest do
   use ExUnit.Case, async: true
 
   alias BnestApp.Backup
+  alias BnestApp.Backup.Domain.Location
 
   # The real backup configuration names the production backup directory, so a test that runs
   # a backup without its own `BNEST_BACKUP_CONFIG` must resolve the test run's own path. The
@@ -28,5 +29,27 @@ defmodule BnestApp.Backup.ConfigTest do
 
     refute String.contains?(root, "/beaver-nest") and
              not String.contains?(root, "/bnest/data/test/")
+  end
+
+  # The destination a backup run reaches when nothing is saved is the repository default
+  # derived from that root, and in the permanent checkout the checkout's own `data/backup` is
+  # the production backup directory. The test environment's default must be its own run's, and
+  # the checkout's must not be a default of it, so a run that saves nothing cannot reach it.
+  test "derives the test run's default destination inside its own root, never the checkout's" do
+    root = Application.get_env(:bnest_app, :backup_repository_root)
+    assert is_binary(root)
+
+    default = Location.default_directory(root)
+    [checkout, _tests] = String.split(__DIR__, "/apps/bnest-app/", parts: 2)
+    checkout_default = Location.default_directory(checkout)
+
+    assert default == root <> "/data/backup"
+    assert Location.default?(default, root)
+    assert String.starts_with?(default, root <> "/")
+    assert default =~ "/bnest/data/test/backup-repository/"
+
+    refute default == checkout_default
+    refute Location.default?(checkout_default, root)
+    refute String.starts_with?(default, checkout <> "/")
   end
 end
