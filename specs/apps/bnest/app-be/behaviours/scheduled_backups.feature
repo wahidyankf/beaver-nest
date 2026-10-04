@@ -266,3 +266,94 @@ Feature: Bnest scheduled backups
       When a test resolves the repository's default backup directory
       Then the operation fails closed before any file is created
       And the listing of the default backup directory is unchanged
+
+  Rule: The restore drill restores one artifact into a root it creates and removes
+
+    # Exemption(e2e): the restore drill is a Mix task whose temporary restore root and printed evidence lie below every public application boundary; alternative-proof: bnest-app:test:integration / The drill restores a synthetic artifact and prints redacted evidence
+    @e2e-exempt
+    Scenario: The drill restores a synthetic artifact and prints redacted evidence
+      Given an isolated destination holding a synthetic artifact of 1 room, 3 messages and 2 push subscriptions with deliveries "pending" and "delivered"
+      When the restore drill task is run against that artifact
+      Then it exits 0 and its first line is "Restore drill: restored the artifact into a fresh isolated root"
+      And it prints the line "Rooms readable: 1"
+      And it prints the line "Messages readable: 3, in ascending order"
+      And it prints the line "Push subscriptions: 2"
+      And it prints the line "Delivery states: delivered, pending"
+      And its last line is "Restore root: removed"
+
+    # Exemption(e2e): the restore drill is a Mix task whose printed evidence lies below every public application boundary; alternative-proof: bnest-app:test:integration / The drill prints no private value
+    @e2e-exempt
+    Scenario: The drill prints no private value
+      Given an isolated destination holding a synthetic artifact
+      When the restore drill task is run against that artifact
+      Then it exits 0 and its first line is "Restore drill: restored the artifact into a fresh isolated root"
+      And its output carries no message body, push credential, filesystem path or artifact name
+
+    # Exemption(e2e): the restore root, the destination files and the live database are observed below every public application boundary; alternative-proof: bnest-app:test:integration / The drill leaves the destination unchanged and removes its root
+    @e2e-exempt
+    Scenario: The drill leaves the destination unchanged and removes its root
+      Given an isolated destination holding a synthetic artifact
+      When the restore drill task is run against that artifact
+      Then it restored the artifact once into a fresh root that no longer exists
+      And the destination listing and every file's bytes are unchanged
+      And the live database is not opened
+
+  Rule: The restore drill restores only a regular file inside the configured destination
+
+    # Exemption(e2e): the restore drill is a Mix task whose target classification is observed on its result below every public application boundary; alternative-proof: bnest-app:test:integration / A regular file inside the destination restores beside the entries it refuses
+    @e2e-exempt
+    Scenario: A regular file inside the destination restores beside the entries it refuses
+      Given an isolated destination holding a synthetic artifact
+      And a restorable regular file sits outside the destination
+      And a directory sits inside the destination
+      And a symbolic link inside the destination points to a restorable file outside it
+      When the restore drill task is run against that artifact
+      Then it exits 0 and its first line is "Restore drill: restored the artifact into a fresh isolated root"
+
+    # Exemption(e2e): the refusal is observed on the Mix task result, the temporary directory and the live database below every public application boundary; alternative-proof: bnest-app:test:integration / A regular file outside the destination is refused
+    @e2e-exempt
+    Scenario: A regular file outside the destination is refused
+      Given an isolated destination holding a synthetic artifact
+      And a restorable regular file sits outside the destination
+      When the restore drill task is run against the file outside the destination by its absolute path
+      Then it exits non-zero
+      And it prints only the line "Restore drill: refused. The artifact must be a regular file inside the configured backup destination."
+      And nothing is restored
+      And no restore root is created
+      And the live database is not opened
+
+    # Exemption(e2e): the refusal is observed on the Mix task result, the temporary directory and the live database below every public application boundary; alternative-proof: bnest-app:test:integration / A relative path that climbs out of the destination is refused
+    @e2e-exempt
+    Scenario: A relative path that climbs out of the destination is refused
+      Given an isolated destination holding a synthetic artifact
+      And a restorable regular file sits outside the destination
+      When the restore drill task is run against the file outside the destination by a relative path that climbs out of it
+      Then it exits non-zero
+      And it prints only the line "Restore drill: refused. The artifact must be a regular file inside the configured backup destination."
+      And nothing is restored
+      And no restore root is created
+      And the live database is not opened
+
+    # Exemption(e2e): the refusal is observed on the Mix task result, the temporary directory and the live database below every public application boundary; alternative-proof: bnest-app:test:integration / A directory inside the destination is refused
+    @e2e-exempt
+    Scenario: A directory inside the destination is refused
+      Given an isolated destination holding a synthetic artifact
+      And a directory sits inside the destination
+      When the restore drill task is run against that directory
+      Then it exits non-zero
+      And it prints only the line "Restore drill: refused. The artifact must be a regular file inside the configured backup destination."
+      And nothing is restored
+      And no restore root is created
+      And the live database is not opened
+
+    # Exemption(e2e): the refusal is observed on the Mix task result, the temporary directory and the live database below every public application boundary; alternative-proof: bnest-app:test:integration / A symbolic link inside the destination is refused
+    @e2e-exempt
+    Scenario: A symbolic link inside the destination is refused
+      Given an isolated destination holding a synthetic artifact
+      And a symbolic link inside the destination points to a restorable file outside it
+      When the restore drill task is run against that symbolic link
+      Then it exits non-zero
+      And it prints only the line "Restore drill: refused. The artifact must be a regular file inside the configured backup destination."
+      And nothing is restored
+      And no restore root is created
+      And the live database is not opened
