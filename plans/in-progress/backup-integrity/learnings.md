@@ -311,9 +311,9 @@ under the amended comparison rule (V0.13); the one difference was the storage lo
 - **Owner-side actions routed here (resolution is the owner's):** the Dropbox event history or deleted-files list of the
   backup folder for WIB 2026-10-02 02:00 to 2026-10-03 02:00 (settles H2); whether any other device or client was
   syncing that folder in the window; and the OD-4 idea brief, which exists and commits to nothing.
-- **Finding on the AC-BI-09 wording (no scope widened).** The pins prove that the test environment's *default*
+- **Finding on the AC-BI-09 wording (no scope widened).** The pins prove that the test environment's _default_
   destination is inside the per-run test root and that resolving it fails closed. They do not prove that an
-  *explicit override* naming the checkout's `data/backup` is refused: placement is judged against the configured
+  _explicit override_ naming the checkout's `data/backup` is refused: placement is judged against the configured
   repository root (`Location.repository_placement/2`), which in the test environment is the isolated root, so such an
   override is not refused by that check. A test that saves that path would be doing so deliberately, and the production
   protection for the default path rests on the per-run `BNEST_BACKUP_CONFIG` and the isolated root the pins now hold.

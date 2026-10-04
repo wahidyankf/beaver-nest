@@ -408,7 +408,7 @@ the affected Rules are added or removed as their own Gherkin, binding and red cy
       (AC-BI-07, 17); no private value (AC-BI-07); a raising reconciliation never fails the backup (AC-BI-16); the task exit
       status (AC-BI-17: all present exits 0 with the summary line and no per-date line, missing, changed, unreadable
       ledger, empty ledger); AC-BI-08 and AC-BI-09 as applicable. The singular forms (`1 of 7 retained backups needs
-  attention`) are agent proposals for Phase 8 to review. **Deviation (recorded):** the AC-BI-11 and AC-BI-18 Rules are
+attention`) are agent proposals for Phase 8 to review. **Deviation (recorded):** the AC-BI-11 and AC-BI-18 Rules are
       not written now but as the first cycle of Phase 7 (Gherkin, bindings, red, code), because their task is built
       only in Phase 7 and the Phase 5 checkpoint requires green `BE_UNIT`, `INTEGRATION` and `BEHAVIOUR`; the Phase 5
       item that lists AC-BI-18 among the scenarios made green is therefore satisfied for AC-BI-18 in Phase 7. AC-BI-10
