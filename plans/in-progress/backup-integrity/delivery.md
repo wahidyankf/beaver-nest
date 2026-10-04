@@ -3,7 +3,7 @@
 ## Execution Status and Authority
 
 **In progress (2026-10-04).** Phases 1 and 2 were executed on 2026-10-04 (pre-state 07:28Z, post-state 07:37Z, between
-the slots of 2026-10-03T19:00Z and 2026-10-04T19:00Z); Phase 3 and later are not started. The plan sits in
+the slots of 2026-10-03T19:00Z and 2026-10-04T19:00Z); Phase 3 was executed the same day (V1 recorded); Phase 4 and later are started in order. The plan sits in
 `plans/in-progress/`; the gate verdict is recorded in the first Phase 1 item (`PASS_WITH_FINDINGS`, gate pass 6). Read all six plan
 documents and the [plan-execution workflow](../../../repo-governance/workflows/plan/plan-execution.md) first. Start only
 from a current, explicitly authorized, non-blocking verdict (`PASS`, or `PASS_WITH_FINDINGS` with every finding
@@ -159,7 +159,7 @@ disposition names are exact strings, so a later reader finds them by search.
       **Evidence 2026-10-04:** `plan-quality-gate: PASS_WITH_FINDINGS` (gate pass 6, on the folder as the fifth
       propagation left it). Findings recorded for resolution when Phase 4 writes the Gherkin; neither is edited now:
       **Medium**, AC-BI-17 "prints each date as present" contradicts the all-present summary wording `Backup files: all N
-    retained backups are present` in the PRD AC-BI-17 and the Phase 5 RED; **Low**, there is no PRD reconciliation note.
+retained backups are present` in the PRD AC-BI-17 and the Phase 5 RED; **Low**, there is no PRD reconciliation note.
       Non-blocking, so execution may start.
 - [x] `[HUMAN] [AC-BI-01]` The owner approves, as a dated line here naming what was put to them, the production reads
       Phase 2 and Phase 5 perform and nothing else: a plain file read of the production SQLite database and its `-wal`
@@ -188,7 +188,7 @@ disposition names are exact strings, so a later reader finds them by search.
       **Evidence 2026-10-04:** the approval line above (OD-1, 2026-10-03: Approved) was confirmed current by the owner's
       authority relayed to the executor on 2026-10-04 (execution authorized; OD-1 approved; R1 to R4 approved). Reads R1 to
       R4 are current: `Confirmed 2026-10-03: R1`, `R2`, `R3` and `R4` stand; none withdrawn, none recorded `Unavailable: not
-    approved`. No write to the backup directory or `~/.config/bnest/*` was made.
+approved`. No write to the backup directory or `~/.config/bnest/*` was made.
 - [x] `[AI] [AC-BI-02]` Record OD-2: the owner decided on 2026-10-03 that Dropbox web access is not available, so the
       deleted-files list, the event history and the list of devices linked to the backup folder cannot be read. No item in
       this plan needs the owner's Dropbox view. **Proof:** the dated line `Unavailable (OD-2, 2026-10-03)` in
@@ -251,7 +251,9 @@ The surviving pairs for the earliest dates are pruned by later nightly runs, so 
 Phase 1 pre-state before anything else in Phase 2 depends on them.
 
 **Comparison rule.** AC-BI-01's rule in [`prd.md`](prd.md#ac-bi-01--the-investigation-changes-nothing-in-production)
-is the single statement; this phase applies it and does not restate it.
+is the single statement; this phase applies it and does not restate it. The owner amended it on 2026-10-04 to exclude
+the storage lock directory's modification time (a service-owned heartbeat); the Phase 2 items below were executed
+before the amendment and recorded that difference as a deviation, which the amendment now covers.
 
 - [x] `[AI] [AC-BI-02]` **H5, H4 data.** Run `LEDGER_COPY`, `LEDGER_CHECK` and `LEDGER_QUERY` (the query covers every backup-schedule
       row since 2026-09-18: slot, state, attempt, `finished_at`, the artifact basename's timestamp, bytes), then
@@ -336,26 +338,43 @@ This phase records the AI's verdict V1. The owner's confirmation of V1 is not a 
 (decision D11): it is the first item of Phase 6 and is also required before the Phase 12 release. The dispositions and the
 label's state set below are provisional until then.
 
-- [ ] `[AI] [AC-BI-02]` Write learnings entry V1: the verdict (`C-TEST`, `C-RET`, `C-DROPBOX`, `C-DEST`, `C-LEDGER`,
+- [x] `[AI] [AC-BI-02]` Write learnings entry V1: the verdict (`C-TEST`, `C-RET`, `C-DROPBOX`, `C-DEST`, `C-LEDGER`,
       `C-UNPROVEN` or a union), the observation that confirmed or eliminated each of H1 to H5, and, for `C-UNPROVEN`,
       the observation that would settle it. H2 is `unproven` unless an H2 local signal confirmed it (OD-2); a verdict that
       eliminates H1, H3, H4 and H5 and leaves only H2 open is `C-UNPROVEN`, which is expected in that case. If H1, H3a or
       H5 is the cause, also record the minimal reproduction Phase 6 will test. **Proof:** the entry exists and satisfies
       AC-BI-02.
-- [ ] `[AI] [AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-19]` Mark each conditional item in Phases 4, 6, 9, 10 and 11 as
+      **Evidence 2026-10-04:** `learnings.md` entry V1 (AI-recorded, pending owner confirmation): verdict `C-UNPROVEN` with
+      `C-DROPBOX` (H2 unproven) and `C-TEST` (H3 not eliminated) open and none confirmed; H1 eliminated for production
+      writers alone, H3a not reproduced, H4 and H5 eliminated, each with its observation; the Phase 2 loss window (WIB
+      2026-10-02 02:00 to 2026-10-03 02:00, a single-instant removal assumption, 7 h 12 min of it before the test guards)
+      is stated as keeping H3 open without making it likely; the observations that would settle H2 and H3 are named; no
+      minimal reproduction is recorded because no repository-side cause is confirmed.
+- [x] `[AI] [AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-19]` Mark each conditional item in Phases 4, 6, 9, 10 and 11 as
       applicable or `Not applicable` **provisionally** from V1, per the branch table in
       [`tech-docs.md`](tech-docs.md#branch-selection), with the reason. **Proof:** every conditional item carries a
       provisional disposition.
-- [ ] `[AI] [AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Fix the label's state set provisionally from V1: all present, needs
+      **Evidence 2026-10-04:** 21 items carry a `Provisional disposition (V1, ...)` line: AC-BI-08 and AC-BI-09
+      applicable (H3 open, defence in depth; the GREEN items act only if the unmodified characterization fails);
+      AC-BI-10 reproduction and fix items `Not applicable` (no repository-side cause), with the C-DROPBOX or C-UNPROVEN
+      routing item applicable; AC-BI-19 items in Phases 4, 6, 9 and 10 `Not applicable` (C-DEST not selected, H4
+      eliminated); the Phase 11 rules propagation provisionally `Not applicable`.
+- [x] `[AI] [AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Fix the label's state set provisionally from V1: all present, needs
       attention, could not be checked and nothing to check yet, plus the destination-mismatch state only on C-DEST. Record
       it in the [UI Design section](tech-docs.md#ui-design) of `tech-docs.md`. The label itself is decided (OD-3) and is not
       conditional on the verdict. **Proof:** the section lists the state set and names the verdict that fixed it.
-- [ ] `[AI]` Commit the learnings entries when authorized (see Execution Status and Authority). **Proof:** the
+      **Evidence 2026-10-04:** the [UI Design section](tech-docs.md#states-and-real-copy) now lists the provisional state
+      set (checking as page-only, all present, needs attention, could not be checked, nothing to check yet) and names V1
+      `C-UNPROVEN` as the verdict that fixed it; the destination-mismatch state is excluded unless the confirmed verdict
+      is `C-DEST`.
+- [x] `[AI]` Commit the learnings entries when authorized (see Execution Status and Authority). **Proof:** the
       authorization line and the commit subject, or `No commit authorized`.
-- [ ] `[AI] [AC-BI-02]` **Blocking checkpoint — Phase 3.** V1 recorded, provisional dispositions made and the label's
+      **Evidence 2026-10-04:** authorized by the owner's execution authority relayed to the executor (thematic commit per
+      unit). Subject: `docs(plans): record the backup integrity cause verdict V1 and the AC-BI-01 amendment`.
+- [x] `[AI] [AC-BI-02]` **Blocking checkpoint — Phase 3.** V1 recorded, provisional dispositions made and the label's
       state set fixed provisionally. The owner's confirmation and the idea brief are Phase 6 items.
-      acceptance: `grep -c '^Phase 3 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
-      (the item writes a line beginning `Phase 3 checkpoint met:`).
+      **Checkpoint passed 2026-10-04:** V1 recorded as AI-recorded and pending owner confirmation, provisional
+      dispositions made, label state set fixed provisionally. The owner's confirmation and the idea brief stay in Phase 6.
 
 ## Phase 4 — Specifications
 
@@ -381,6 +400,7 @@ the affected Rules are added or removed as their own Gherkin, binding and red cy
       pinned by the Phase 5 unit cases and, on the page, by AC-BI-21 and AC-BI-22 in Phase 9. **Proof:** each scenario
       names an outcome visible in a report, an exit status or a directory listing, and the wording Rule names the
       report line for each state; no placeholder, no-op or outcome table.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** AC-BI-08 and AC-BI-09 applicable (H3 stays open, so they apply as defence in depth); AC-BI-10 `Not applicable` (no repository-side cause and no verdict-named reproduction); AC-BI-19 `Not applicable` (C-DEST not selected, H4 eliminated), so the wording Rule omits the mismatch scenario and footer.
 - [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18]` Update `specs/apps/bnest/app-be/architecture.md` as
       [`tech-docs.md`](tech-docs.md#specification-changes) states: Component View for reconciliation, the Scheduler
       read and the Mix tasks; Constraints for read-only reconciliation that never opens the production database. Record the Container View
@@ -480,8 +500,9 @@ second.
       `INTEGRATION`.
 - [ ] `[AI] [AC-BI-07, AC-BI-17]` **RED** — add
       `apps/bnest-app/test/integration/mix/tasks/bnest_backup_reconcile_test.exs` for the Mix task over an isolated
-      destination and ledger: with at least one expected run and every expected run present it exits `0` and prints each
-      date as present; with a missing or changed run it exits non-zero and the report names the date and state; with a
+      destination and ledger: with at least one expected run and every expected run present it exits `0`, prints the summary
+      `Backup files: all N retained backups are present` and no per-date line (agent-proposed rewording of 2026-10-04,
+      resolving the gate pass 6 finding; see the PRD reconciliation note); with a missing or changed run it exits non-zero and the report names the date and state; with a
       ledger holding no verified run it prints `Backup files: no verified backup to check yet`, prints no date as
       present, never says `present`, and exits non-zero (the empty case, decision D10); the printed report contains no
       path, digest, destination identifier or run ID; an unreadable ledger or destination exits non-zero with a
@@ -516,7 +537,8 @@ second.
       the Phase 1 approval. It must complete before the nightly slot of 2026-10-07T19:00Z (the first run on WIB date
       2026-10-08) finishes retention, when the first lost night leaves the seven latest WIB dates. Record the run's
       date and time. **Proof:** the report lists the 2026-09-30T19:00Z and 2026-10-01T19:00Z slots as missing and the
-      other retained verified runs as present, the production directory is equal under the Phase 2 comparison rule, and
+      other retained verified runs as present, the production directory is equal under the Phase 2 comparison rule (as the owner amended it on 2026-10-04: the
+      storage lock directory's modification time is also excluded), and
       the task started no Scheduler and opened no production database file (no `-shm` or `-wal` created or touched by
       it; the running service's own changes are excluded). If the window has closed, record AC-BI-14 `Not applicable: aged out` with the date,
       and note the other retained runs are reported present. If the decision point of the fallback timing above passed
@@ -565,20 +587,26 @@ Every item after them is conditional on the confirmed verdict and carries that d
       `Backup.owned_receipts/1` count foreign receipts. Run first on unmodified code (a failure here is a real defect and
       the item is a normal red), then with the mutation. **Proof:** the unmodified run's result and the mutated run
       failing for the behavioural reason. Command: `INTEGRATION`.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** applicable (H3 stays open, so AC-BI-08 applies as defence in depth).
 - [ ] `[AI] [AC-BI-08]` **Conditional: as above.** **GREEN** — change retention only if the unmodified run failed.
       **Proof:** `INTEGRATION` passes. Command: `INTEGRATION`.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** applicable, and the GREEN edit happens only if the unmodified run fails.
 - [ ] `[AI] [AC-BI-08]` **Conditional: as above.** **REFACTOR** — remove the mutation. **Proof:** `INTEGRATION` still
       passes and the tree has no leftover mutation.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** applicable (H3 stays open, so AC-BI-08 applies as defence in depth).
 - [ ] `[AI] [AC-BI-09]` **Conditional: C-TEST, or C-UNPROVEN with H3 open; not C-RET.** **Characterization** — add a
       unit test in `apps/bnest-app/test/unit/bnest_app/backup/config_test.exs` and an integration case that the test
       environment's default destination is under the per-run test root and that resolving the checkout's `data/backup`
       fails closed, with the production listing unchanged. Predeclare the mutation: remove the `:backup_repository_root`
       setting from `config/test.exs`. Run first on unmodified code, then with the mutation. **Proof:** the unmodified
       result and the mutated run failing for the behavioural reason. Commands: `BE_UNIT`, `INTEGRATION`.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** applicable (H3 stays open, so AC-BI-09 applies as defence in depth).
 - [ ] `[AI] [AC-BI-09]` **Conditional: as above.** **GREEN** — close any remaining path in `config/test.exs` or
       `test/support/test_backup_destination.ex` only if the unmodified run failed. **Proof:** both commands pass.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** applicable, and the GREEN edit happens only if the unmodified run fails.
 - [ ] `[AI] [AC-BI-09]` **Conditional: as above.** **REFACTOR** — remove the mutation; one place states the test-root
       derivation. **Proof:** both commands pass and the tree has no leftover mutation.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** applicable (H3 stays open, so AC-BI-09 applies as defence in depth).
 - [ ] `[AI] [AC-BI-10]` **Conditional: C-RET or a supersession cause (H1, H3a), or C-LEDGER (H5).** **RED** — a test
       reproducing the minimal case Phase 3 recorded in V1: for supersession, in
       `apps/bnest-app/test/integration/bnest_app/backup/backup_test.exs`, a newer same-date owned receipt removing the
@@ -586,29 +614,38 @@ Every item after them is conditional on the confirmed verdict and carries that d
       `apps/bnest-app/test/integration/bnest_app/backup/scheduled_backup_test.exs`, the completion path recording
       `verified` without a promoted artifact. **Proof:** `INTEGRATION` fails for exactly that reason. Command:
       `INTEGRATION`.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable`: V1 names no repository-side cause and records no minimal reproduction (H1 eliminated for production writers alone, H3a not reproduced, H5 eliminated).
 - [ ] `[AI] [AC-BI-10]` **Conditional: C-RET or a supersession cause.** **GREEN** — apply the rule the owner confirmed
       in the first Phase 6 item in `retention.ex`. **Proof:** `INTEGRATION` and `BE_UNIT` pass.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable`: V1 names no repository-side cause and records no minimal reproduction (H1 eliminated for production writers alone, H3a not reproduced, H5 eliminated).
 - [ ] `[AI] [AC-BI-10]` **Conditional: C-RET or a supersession cause.** **GREEN** — update
       `repo-governance/conventions/runtime-flat-file-data.md` and `specs/` if the rule restates "one newest pair per
       date". **Proof:** the changed lines name the rule; `REPO` passes.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable`: V1 names no repository-side cause and records no minimal reproduction (H1 eliminated for production writers alone, H3a not reproduced, H5 eliminated).
 - [ ] `[AI] [AC-BI-10]` **Conditional: C-LEDGER.** **GREEN** — correct the completion path the reproduction names in
       `scheduled_backup_task.ex` or `sqlite_schedule_store.ex`. **Proof:** `INTEGRATION` and `BE_UNIT` pass.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable`: V1 names no repository-side cause and records no minimal reproduction (H1 eliminated for production writers alone, H3a not reproduced, H5 eliminated).
 - [ ] `[AI] [AC-BI-10]` **Conditional: as the RED item above.** **REFACTOR** — keep `Reconciliation` and `Retention` on
       one shared definition. **Proof:** `BE_UNIT` still passes.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable`: V1 names no repository-side cause and records no minimal reproduction (H1 eliminated for production writers alone, H3a not reproduced, H5 eliminated).
 - [ ] `[AI] [AC-BI-19]` **Conditional: C-DEST.** **RED** — extend
       `apps/bnest-app/test/unit/bnest_app/backup/reconciliation_test.exs`: a receipt for a retained date naming a
       destination identity different from the marker's is reported as a destination mismatch by date (the words themselves are pinned by the Phase 5 wording cases), the report
       names neither identifier, and it states that runs lost without a surviving receipt are not seen. **Proof:** `BE_UNIT`
       fails on the undefined mismatch state. Command: `BE_UNIT`.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable`: C-DEST is not selected (H4 eliminated).
 - [ ] `[AI] [AC-BI-19]` **Conditional: C-DEST.** **GREEN** — the facade reads the destination identity of each
       receipt in the directory (not only owned ones) and `Reconciliation` classifies a differing one as the mismatch
       state, in `reconciliation.ex` and `backup.ex`. **Proof:** `BE_UNIT` passes. Command: `BE_UNIT`.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable`: C-DEST is not selected (H4 eliminated).
 - [ ] `[AI] [AC-BI-19]` **Conditional: C-DEST.** **REFACTOR** — keep the mismatch wording in the one formatting function
       the log, telemetry and Mix task share. **Proof:** `BE_UNIT` and `INTEGRATION` still pass. Commands: `BE_UNIT`,
       `INTEGRATION`.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable`: C-DEST is not selected (H4 eliminated).
 - [ ] `[AI] [AC-BI-10]` **Conditional: C-DROPBOX or C-UNPROVEN.** Record `Not applicable: no repository-side cause`
       for the fix items, and route any owner-side action (Dropbox settings, a second device) to `learnings.md` for
       resolution. **Proof:** the disposition and the routed entry.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** applicable: V1 is `C-UNPROVEN`, so the fix items are recorded `Not applicable: no repository-side cause`.
 - [ ] `[AI]` Commit U3 as thematic commits when authorized. **Proof:** the authorization line and the commit subjects,
       or `No commit authorized`.
 - [ ] `[AI] [AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-19]` **Blocking checkpoint — Phase 6.** The owner's confirmation of V1 and the idea
@@ -705,7 +742,7 @@ Phase 6 states; its C-DEST items are conditional. It adds no migration and store
       comment naming its `bnest-app:test:integration` alternative. No AC-BI-23 Examples row is exempted. Omit the AC-BI-19
       scenario if its disposition is `Not applicable`. **Proof:** each scenario names an outcome visible on the page; no
       placeholder, no-op or outcome table.
-      acceptance: `grep -c 'Scenario' specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature` prints at least `1`.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** AC-BI-19 page scenario `Not applicable` (C-DEST not selected).
 - [ ] `[AI] [AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Update `specs/apps/bnest/app-fe/architecture.md` as
       [`tech-docs.md`](tech-docs.md#specification-changes) states: Component View for the Schedules page integrity label,
       its off-render-path time-boxed check and its re-check after a save; Constraints for a read-only label that stores
@@ -763,8 +800,10 @@ Phase 6 states; its C-DEST items are conditional. It adds no migration and store
       date that names another destination identity: the label lists that date as a destination mismatch, names neither
       identifier, and states that runs lost without a surviving receipt cannot be seen this way. **Proof:** `INTEGRATION`
       fails on the absent state. Command: `INTEGRATION`.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable`: C-DEST is not selected (H4 eliminated).
 - [ ] `[AI] [AC-BI-19]` **Conditional: C-DEST. GREEN** — render the mismatch state from the structured result in
       `admin_schedule_settings_live.ex`. **Proof:** `INTEGRATION` passes. Command: `INTEGRATION`.
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable`: C-DEST is not selected (H4 eliminated).
 - [ ] `[AI] [AC-BI-23]` **Styling (format and lint proof, not a RED/GREEN cycle of its own)** — add the label styles
       to `apps/bnest-app/assets/css/app.css` per the selected hi-fi: the page's tokens, problem lines that wrap and are
       never truncated, a text and marker cue for every state, a 2.75rem minimum target for any control, and any
@@ -799,8 +838,7 @@ production data are never used. Both passes are passive and non-destructive unde
       changed, could not be checked, none verified, and the mismatch on C-DEST), by seeding the isolated destination and
       ledger or by lowering the ceiling. **Proof:** the exact origin (host and port) and the state list by name, no private
       value.
-      acceptance: `grep -c '^Isolated origin:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the item
-      writes a line beginning `Isolated origin:`).
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** the mismatch state is `Not applicable` (C-DEST not selected); the other states apply.
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Audit the rendered states at each viewport class for accessibility: the accessibility tree, controls,
       keyboard and focus, non-colour cues, narrow reflow and contrast, with Lighthouse when available. A passing functional
       run waives no finding. **Proof:** a route, state, viewport class and result table in `learnings.md`.
@@ -867,8 +905,7 @@ production data are never used. Both passes are passive and non-destructive unde
 - [ ] `[AI] [AC-BI-10]` **Conditional: Phase 6 changed a rule.** Apply the bounded
       [rules-propagation workflow](../../../repo-governance/workflows/quality/rules-propagation.md) to any rule changed
       in Phase 6, and record its terminal result, which may be `no-change`.
-      acceptance: `grep -c '^Rules Propagation result:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
-      (the item writes a line beginning `Rules Propagation result:`).
+      **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable` provisionally: no rule change is expected (the AC-BI-10 fix items are `Not applicable`); applies only if a Phase 6 characterization fails on unmodified code and its fix changes a rule.
 - [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Run the
       [Gherkin implementation review](../../../repo-governance/workflows/quality/gherkin-implementation-review.md) over
       the changed backend and frontend features, bindings and exemptions. **Proof:** a row per expanded scenario with
@@ -963,7 +1000,8 @@ The `[AI]` items are delivery unit U8 and the two `[HUMAN]` items are delivery u
       Phase 5 early run and record this repeat `Not applicable: aged out`. **Proof:** the report lists the
       2026-09-30T19:00Z and 2026-10-01T19:00Z slots as missing and the other retained verified runs as present, or the
       aged-out disposition with the other retained runs reported present, and the production directory listing is equal
-      to the Phase 2 post-state under the comparison rule.
+      to the Phase 2 post-state under the comparison rule as the owner amended it on 2026-10-04 (the storage lock directory's
+      modification time is also excluded).
 - [ ] `[HUMAN] [AC-BI-11]` The owner runs the restore drill once on one present production artifact following the
       guide, and records the redacted evidence and pass or fail. Reason (external authority, not significance): the
       artifact holds household members' chat content, which the test-data iron rule withholds from an agent, so only the
