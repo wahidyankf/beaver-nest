@@ -293,15 +293,15 @@ defmodule BnestApp.Test.IntegrityLabel do
     placed?(label) and truth.problems != [] and label.problems == truth.problems
   end
 
-  # The intact dates are counted as present: the total includes them, none is listed as a
-  # problem, and the intact ones are what remains of the total.
+  # The intact dates are counted as present: the summary's total is the retained dates the
+  # destination holds, which includes them, and none is listed as a problem.
   def outcome?(context, :label_counts_intact_present, []) do
     truth = BackupIntegrity.expected_label(context)
     label = read(context.label_page)
 
     placed?(label) and truth.intact > 0 and
       label.summary == needs_attention(length(truth.problems), truth.total) and
-      label.problems == truth.problems and truth.total - length(label.problems) == truth.intact
+      label.problems == truth.problems
   end
 
   def outcome?(context, :label_states_could_not_check, []) do

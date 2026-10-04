@@ -27,6 +27,13 @@ export type IntegrityFacts = {
   total: number;
 };
 
+// What the server holds of the routed run, read before and after a journey: every path under
+// the destination with its kind and bytes, and every ledger row.
+export type ServerWitness = {
+  destination: { entries: Record<string, string>; present: boolean };
+  ledger: Record<string, unknown>[];
+};
+
 export type IntegrityWorld = {
   facts?: IntegrityFacts;
   focusOnSave?: string;
@@ -34,6 +41,7 @@ export type IntegrityWorld = {
   labelHtml?: string;
   report?: string[];
   viewport?: { height: number; width: number };
+  witness?: ServerWitness;
 };
 
 // The plan's States and Real Copy table, written out as the oracle (never the page's own
@@ -48,7 +56,10 @@ export function attentionCopy(problems: number, total: number): string {
     : `${problems} of ${total} retained backups need attention`;
 }
 
+export const nothingToCheckCopy = "no verified backup to check yet";
+
 export function expectedSummary(facts: IntegrityFacts): string {
+  if (facts.total === 0) return nothingToCheckCopy;
   return facts.problems.length === 0
     ? allPresentCopy(facts.total)
     : attentionCopy(facts.problems.length, facts.total);

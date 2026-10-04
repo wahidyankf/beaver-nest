@@ -246,5 +246,6 @@ The Schedules page integrity label is specified by the backup-integrity scenario
 [`scheduled_backups.feature`](behaviours/scheduled_backups.feature): the all-present, missing-or-changed,
 could-not-be-checked and nothing-to-check states, the check after a save, the read-only, path-free and time-boxed
 properties, the non-administrator denial, and the width and keyboard scenarios. The scenarios that need a forced
-failure, a controlled store that outlasts the ceiling, an empty ledger, a filesystem comparison or a server-side process observation carry
-`@e2e-exempt` with their integration alternative; the rest run in the browser at every supported viewport.
+failure, a controlled store that outlasts the ceiling, or a server-side process observation carry `@e2e-exempt` with their
+integration alternative; the rest, including the empty-ledger and never-writes scenarios, run in the browser at every
+supported viewport.
