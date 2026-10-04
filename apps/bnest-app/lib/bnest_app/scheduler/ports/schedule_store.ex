@@ -35,6 +35,10 @@ defmodule BnestApp.Scheduler.Ports.ScheduleStore do
       runs under a lease that expires after `now`.
     * `inventory/1` lists every schedule by context, then key, each with the state, failure
       category and finish of its latest started run (nil before its first run).
+    * `verified_runs/2` lists the verified runs of the schedules under a handler key, oldest
+      finish first and then by run ID, each as the view of `t:verified_run/0`: a run in any
+      other state (running, retryable, failed or skipped) is left out, and a setup run, which
+      is claimed without a slot, is reported with a nil slot. It reads and changes nothing.
     * `update_daily/6` applies an edit only at the expected revision, else
       `{:error, :conflict}`; `converge_daily_time_if_pristine!/4` and
       `activate_if_pristine!/3` only at revision 1. Each moves the revision on by one; the
@@ -79,6 +83,14 @@ defmodule BnestApp.Scheduler.Ports.ScheduleStore do
           failure_category: String.t() | nil,
           started_at: DateTime.t(),
           finished_at: DateTime.t() | nil
+        }
+  @type verified_run :: %{
+          run_id: String.t(),
+          slot: DateTime.t() | nil,
+          finished_at: DateTime.t(),
+          artifact_basename: String.t() | nil,
+          artifact_sha256: String.t() | nil,
+          artifact_bytes: non_neg_integer() | nil
         }
   @type inventory_row :: map()
   @type stale :: {:error, :stale_attempt}
@@ -128,6 +140,8 @@ defmodule BnestApp.Scheduler.Ports.ScheduleStore do
   @callback get_schedule(handle(), schedule_key :: String.t()) :: schedule() | nil
 
   @callback inventory(handle()) :: [inventory_row()]
+
+  @callback verified_runs(handle(), handler_key :: String.t()) :: [verified_run()]
 
   @callback update_daily(
               handle(),
@@ -181,6 +195,9 @@ defmodule BnestApp.Scheduler.Ports.ScheduleStore do
 
   @spec inventory(handle()) :: [inventory_row()]
   def inventory(store), do: store.adapter.inventory(store)
+
+  @spec verified_runs(handle(), String.t()) :: [verified_run()]
+  def verified_runs(store, handler_key), do: store.adapter.verified_runs(store, handler_key)
 
   @spec update_daily(handle(), String.t(), String.t(), boolean(), pos_integer(), DateTime.t()) ::
           {:ok, schedule()} | {:error, :conflict}

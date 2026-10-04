@@ -144,6 +144,23 @@ defmodule BnestApp.Scheduler.Domain.Policy do
     end
   end
 
+  @doc """
+  The view of a verified run that reconciliation reads: its slot (`scheduled_for`, nil for a
+  setup run, which is claimed without one), when it finished and the artifact it recorded.
+  Every store reports a verified run through this one projection.
+  """
+  @spec verified_run(map()) :: map()
+  def verified_run(run) do
+    %{
+      run_id: run.run_id,
+      slot: run.scheduled_for,
+      finished_at: run.finished_at,
+      artifact_basename: run.artifact_basename,
+      artifact_sha256: run.artifact_sha256,
+      artifact_bytes: run.artifact_bytes
+    }
+  end
+
   @spec wib_date(DateTime.t()) :: Date.t()
   def wib_date(%DateTime{} = instant),
     do: instant |> DateTime.add(@wib_offset_seconds) |> DateTime.to_date()

@@ -173,6 +173,41 @@ defmodule BnestApp.Scheduler.FacadeTest do
     end
   end
 
+  describe "verified runs" do
+    test "reads a handler's verified runs through the configured store" do
+      put_schedule("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
+      put_schedule("family-daily", "fixture", "family")
+      {:ok, first} = Scheduler.claim_setup("prod-sqlite-backup-daily", "dest-1", @now)
+      {:ok, second} = Scheduler.claim_setup("prod-sqlite-backup-daily", "dest-2", @now)
+      {:ok, third} = Scheduler.claim_setup("family-daily", "dest-3", @now)
+
+      receipt = %{
+        "artifactBasename" => "a.sqlite3",
+        "artifactSha256" => "s",
+        "artifactBytes" => 1
+      }
+
+      assert :ok = Scheduler.complete_run(first.run_id, 1, receipt, @now)
+      assert :ok = Scheduler.complete_run(third.run_id, 1, receipt, @now)
+      assert :ok = Scheduler.skip_run(second.run_id, 1, :destination_changed, @now)
+
+      assert Scheduler.verified_runs("prod_sqlite_backup") == [
+               %{
+                 run_id: first.run_id,
+                 slot: nil,
+                 finished_at: @now,
+                 artifact_basename: "a.sqlite3",
+                 artifact_sha256: "s",
+                 artifact_bytes: 1
+               }
+             ]
+
+      assert [%{run_id: run_id}] = Scheduler.verified_runs("fixture")
+      assert run_id == third.run_id
+      assert Scheduler.verified_runs("unregistered") == []
+    end
+  end
+
   describe "schedules" do
     test "groups the inventory by context" do
       put_schedule("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
