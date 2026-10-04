@@ -293,3 +293,24 @@ has no verdict-named reproduction to test). AC-BI-08 and AC-BI-09 apply as defen
 **What would change this verdict.** The Dropbox event history for the loss window (settles H2), or a retained record of a
 test run in that window that resolved the real destination (settles H3). If a repository-side defect is later proved,
 the verdict becomes the union with that cause and the matching Phase 6 items are triggered by their own RED.
+
+## V2 Early live reconcile (Phase 5), 2026-10-04T09:21Z
+
+`mix bnest.backup.reconcile`, run read-only from the execution worktree against production (scratch copies of the
+database and its `-wal`; no application start, no Scheduler), exited 1 and reported `2 of 7 retained backups need
+attention` with `2026-10-01: file missing` and `2026-10-02: file missing`: the WIB dates of the 2026-09-30T19:00Z and
+2026-10-01T19:00Z slots. The other 5 retained verified runs were present. Pre-state (09:21:25Z) and post-state: equal
+under the amended comparison rule (V0.13); the one difference was the storage lock directory's modification time. A
+`-shm` file sits beside the production database because the running service holds it open; the task created none.
+
+## Phase 3 to 5 deviations and agent proposals
+
+- AC-BI-11 and AC-BI-18 Rules and bindings move to Phase 7 (their task is built there; Phase 5 needs a green suite). The
+  Phase 5 item that lists AC-BI-18 cannot be satisfied in Phase 5 for that reason.
+- The copy effects of the reconcile task sit in a Storage facade function and adapter (architecture scan), and
+  destination resolution is a new read-only `Backup.read_destination/0` because `Backup.destination/0` creates, marks
+  and chmods the directory.
+- One multi-line log entry per run, and `classify/2` instead of `classify/3`.
+- Singular wording forms (`the retained backup is present`, `1 of N retained backups needs attention`) are agent
+  proposals for the Phase 8 copy review.
+- The README of `apps/bnest-app` (tasks line, Backup context, Storage description) is a Phase 11 item.
