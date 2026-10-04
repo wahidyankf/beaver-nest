@@ -214,7 +214,7 @@ defmodule BnestApp.Test.IntegrityLabel do
       description: if(dd, do: text(dd, &decoration?/1), else: ""),
       problems:
         if(dd,
-          do: dd |> all() |> Enum.filter(&(tag(&1) == "li")) |> Enum.map(&plain_text/1),
+          do: [dd] |> all() |> Enum.filter(&(tag(&1) == "li")) |> Enum.map(&plain_text/1),
           else: []
         ),
       in_place?: ordered?(terms, @last_result, @term),
@@ -257,7 +257,7 @@ defmodule BnestApp.Test.IntegrityLabel do
       "form[phx-submit=save_backup] input[name='backup[destination_directory]']",
       "form[phx-submit=save_backup] button[type=submit]:not([disabled])"
     ]
-    |> Enum.all?(&(Enum.count(LazyHTML.query(page, &1)) > 0))
+    |> Enum.all?(&(not Enum.empty?(LazyHTML.query(page, &1))))
   end
 
   # ---------------------------------------------------------------------------------------
@@ -314,7 +314,7 @@ defmodule BnestApp.Test.IntegrityLabel do
 
     forms_usable?(page) and
       LazyHTML.text(LazyHTML.query(page, "h1")) == "Schedules & backups" and
-      Enum.count(LazyHTML.query(page, @row)) > 0
+      not Enum.empty?(LazyHTML.query(page, @row))
   end
 
   def outcome?(context, :label_states_nothing_to_check, []) do
@@ -352,8 +352,8 @@ defmodule BnestApp.Test.IntegrityLabel do
     result = read(context.label_settled_after_save)
 
     placed?(result) and focus_inert?(result) and
-      without_labels(nodes(context.label_after_save)) ==
-        without_labels(nodes(context.label_settled_after_save))
+      without_labels(shell(context.label_after_save)) ==
+        without_labels(shell(context.label_settled_after_save))
   end
 
   # The check ran (the missing artifact is named), so an unchanged destination is a measured
@@ -465,7 +465,7 @@ defmodule BnestApp.Test.IntegrityLabel do
     placed?(first) and placed?(result) and first.summary == @checking and
       result_state?(result.summary) and polite?(first) and polite?(result) and
       same_region?(first.region, result.region) and focus_inert?(result) and
-      without_labels(nodes(context.label_first)) == without_labels(nodes(context.label_page))
+      without_labels(shell(context.label_first)) == without_labels(shell(context.label_page))
   end
 
   # ---------------------------------------------------------------------------------------
@@ -516,8 +516,7 @@ defmodule BnestApp.Test.IntegrityLabel do
     nodes
     |> all()
     |> Enum.filter(&(attribute(&1, "id") in wanted))
-    |> Enum.map(&text/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &text/1)
     |> Kernel.==(@term)
   end
 
@@ -580,6 +579,11 @@ defmodule BnestApp.Test.IntegrityLabel do
       _other -> false
     end
   end
+
+  # The page's own landmark: in the integration layer the render after a submit is the page
+  # itself, the first render the whole dead-render document and the settled render the
+  # LiveView container, so only the landmark is the same element in all of them.
+  defp shell(page), do: page |> LazyHTML.query("main") |> nodes()
 
   # Every element that holds a `Backup files` term as a direct child, with everything inside it.
   defp without_labels(nodes) do

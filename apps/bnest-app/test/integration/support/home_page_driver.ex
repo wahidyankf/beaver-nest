@@ -43,9 +43,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Test.BackupIntegrity
   alias BnestApp.Test.CodexFixtureConversation
   alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
+  alias BnestApp.Test.IntegrityLabel
   alias BnestApp.Test.InterruptedChatWriteBackend
   alias BnestApp.Test.InterruptedMigrationLedger
-  alias BnestApp.Test.IntegrityLabel
   alias BnestApp.Test.ObservedArtifactStore
   alias BnestApp.Test.RestoreDrill
   alias BnestApp.Test.SchedulerDispatch
@@ -3517,8 +3517,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   defp reconcile_task, do: Reconcile.execute([])
 
-  # The routed schedules page as a connected administrator opens it: the render of the
-  # connected mount, then the render once the check it started has reported.
+  # The routed schedules page as a connected administrator opens it: the first render
+  # `live/2` returns (the dead-render document, which states checking), then the render once
+  # the check the connected mount started has reported.
   defp open_label_view(context) do
     {:ok, view, first} = live(context.conn, @schedules_route)
     settled = render_async(view, IntegrityLabel.settle_ms())

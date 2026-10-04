@@ -4,10 +4,18 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
   use BnestAppWeb, :live_view
 
   alias BnestApp.Backup
+  alias BnestApp.Backup.Domain.Reconciliation
   alias BnestApp.Operations
   alias BnestApp.Scheduler
+  alias Phoenix.LiveView.AsyncResult
 
   @schedule_key "prod-sqlite-backup-daily"
+  @backup_handler "prod_sqlite_backup"
+
+  # How long the label waits for the check, in milliseconds. `assign_async/4` has no timeout of
+  # its own, so the check enforces it; the application configuration lowers it for a test:
+  # `config :bnest_app, BnestAppWeb.AdminScheduleSettingsLive, integrity_ceiling_ms: <ms>`.
+  @default_integrity_ceiling_ms 5_000
 
   @impl true
   def mount(_params, _session, socket) do
@@ -16,7 +24,8 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
      |> assign(:page_title, "Schedules & backups")
      |> assign(:error, nil)
      |> assign(:status_message, nil)
-     |> refresh()}
+     |> refresh()
+     |> start_integrity_check()}
   end
 
   @impl true
@@ -27,7 +36,8 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
          socket
          |> assign(:error, nil)
          |> assign(:status_message, "Daily schedule saved.")
-         |> refresh()}
+         |> refresh()
+         |> start_integrity_check()}
 
       {:error, reason} ->
         {:noreply, assign(socket, error: schedule_error(reason), status_message: nil)}
@@ -46,7 +56,8 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
          socket
          |> assign(:error, nil)
          |> assign(:status_message, "Backup folder saved and its first verification was queued.")
-         |> refresh()}
+         |> refresh()
+         |> start_integrity_check()}
 
       {:error, reason} ->
         {:noreply, assign(socket, error: backup_error(reason), status_message: nil)}
@@ -64,23 +75,36 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
       <p class="admin-settings-kicker">DAILY OPERATIONS</p>
       <h1 id="schedules-title">Schedules &amp; backups</h1>
 
-      <p :if={@error} id="settings-error" role="alert" tabindex="-1" class="admin-settings-error">
-        {@error}
-      </p>
-      <p :if={@status_message} aria-live="polite" class="admin-settings-status">
-        {@status_message}
-      </p>
+      <%!-- One stable container (not a live region): a message that appears or goes away must not
+           shift the unkeyed siblings after it, or the patch recreates both forms and the focus
+           on the control that was just used is lost. --%>
+      <div id="settings-feedback">
+        <p :if={@error} id="settings-error" role="alert" tabindex="-1" class="admin-settings-error">
+          {@error}
+        </p>
+        <p :if={@status_message} aria-live="polite" class="admin-settings-status">
+          {@status_message}
+        </p>
+      </div>
 
       <section class="schedule-group" aria-labelledby="family-schedules-title">
         <h2 id="family-schedules-title">Family schedules</h2>
         <p :if={@inventory.family == []}>No family schedules are configured.</p>
-        <.schedule_row :for={schedule <- @inventory.family} schedule={schedule} />
+        <.schedule_row
+          :for={schedule <- @inventory.family}
+          schedule={schedule}
+          integrity={integrity_outcome(@integrity)}
+        />
       </section>
 
       <section class="schedule-group" aria-labelledby="admin-schedules-title">
         <h2 id="admin-schedules-title">Admin/system schedules</h2>
         <p :if={@inventory.admin_system == []}>No admin/system schedules are configured.</p>
-        <.schedule_row :for={schedule <- @inventory.admin_system} schedule={schedule} />
+        <.schedule_row
+          :for={schedule <- @inventory.admin_system}
+          schedule={schedule}
+          integrity={integrity_outcome(@integrity)}
+        />
       </section>
 
       <section class="settings-form-card" aria-labelledby="schedule-form-title">
@@ -132,7 +156,10 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
   end
 
   defp schedule_row(assigns) do
-    assigns = assign(assigns, :settings_path, settings_path(assigns.schedule))
+    assigns =
+      assigns
+      |> assign(:settings_path, settings_path(assigns.schedule))
+      |> assign(:integrity?, assigns.schedule.handler_key == @backup_handler)
 
     ~H"""
     <article
@@ -160,8 +187,106 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
         <div>
           <dt>Last result</dt><dd>{last_result(@schedule)}</dd>
         </div>
+        <.integrity_item
+          :if={@integrity?}
+          term_id={"integrity-term-" <> @schedule.schedule_key}
+          outcome={@integrity}
+        />
       </dl>
     </article>
+    """
+  end
+
+  # The integrity item of the backup row: its words are `Reconciliation.report/1`'s alone, so
+  # the page can never disagree with the log, the telemetry and the Mix task. The description is
+  # the one polite region; it holds no control and its attributes never change with the state, so
+  # a result replaces the text in place and announces it without moving focus.
+  attr :term_id, :string, required: true
+  attr :outcome, :any, required: true
+
+  defp integrity_item(assigns) do
+    report = Reconciliation.report(assigns.outcome)
+
+    assigns =
+      assigns
+      |> assign(:report, report)
+      |> assign(:state, integrity_state(assigns.outcome, report))
+
+    ~H"""
+    <div class="integrity-label" data-integrity-state={@state}>
+      <dt id={@term_id}>{@report.label}</dt>
+      <dd class="integrity-label__result" aria-live="polite" aria-labelledby={@term_id}>
+        <.integrity_marker state={@state} />
+        <span class="integrity-label__summary">{@report.summary}</span>
+        <ul :if={@report.problems != []} class="integrity-label__problems">
+          <li :for={problem <- @report.problems}>{problem}</li>
+        </ul>
+      </dd>
+    </div>
+    """
+  end
+
+  # A shape per state beside the words, so no state rests on colour alone; decorative, because
+  # the summary beside it says the same.
+  attr :state, :atom, required: true
+
+  defp integrity_marker(assigns) do
+    ~H"""
+    <svg
+      class="integrity-label__marker"
+      viewBox="0 0 20 20"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <.integrity_shape state={@state} />
+    </svg>
+    """
+  end
+
+  attr :state, :atom, required: true
+
+  defp integrity_shape(%{state: :checking} = assigns) do
+    ~H"""
+    <circle cx="10" cy="10" r="9" stroke-dasharray="3 3" />
+    <circle cx="5.5" cy="10" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="10" cy="10" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="14.5" cy="10" r="1.4" fill="currentColor" stroke="none" />
+    """
+  end
+
+  defp integrity_shape(%{state: :all_present} = assigns) do
+    ~H"""
+    <circle cx="10" cy="10" r="9" />
+    <path d="M5.5 10.5 L8.5 13.5 L14.5 6.5" />
+    """
+  end
+
+  defp integrity_shape(%{state: :needs_attention} = assigns) do
+    ~H"""
+    <polygon points="10,2 19,18 1,18" />
+    <path d="M10 8 L10 12.5" />
+    <circle cx="10" cy="15.2" r="1.2" fill="currentColor" stroke="none" />
+    """
+  end
+
+  defp integrity_shape(%{state: :could_not_check} = assigns) do
+    ~H"""
+    <rect x="1" y="1" width="18" height="18" rx="3" />
+    <path d="M7 7 Q7 4 10 4 Q13.5 4 13.5 7.5 Q13.5 9.5 10 11 L10 12.5" stroke-width="1.8" />
+    <circle cx="10" cy="15.5" r="1.1" fill="currentColor" stroke="none" />
+    """
+  end
+
+  defp integrity_shape(%{state: :nothing_to_check} = assigns) do
+    ~H"""
+    <circle cx="10" cy="10" r="9" />
+    <path d="M5.5 10 L14.5 10" />
     """
   end
 
@@ -174,6 +299,71 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
       _no_typed_settings -> nil
     end
   end
+
+  # The one place a check starts: the connected mount and each successful save call it. The
+  # label returns to checking, and a check still in flight is cancelled first, so that only the
+  # newest check can report (a result that arrives from a superseded one is dropped by its
+  # reference). It runs off the render path and only on the connected mount: `assign_async/4`
+  # runs nothing on the disconnected render, which shows the checking state and opens neither
+  # the ledger nor the destination.
+  defp start_integrity_check(socket) do
+    ceiling_ms = integrity_ceiling_ms()
+
+    socket
+    |> cancel_integrity_check()
+    |> assign_async(:integrity, fn -> {:ok, %{integrity: check_integrity(ceiling_ms)}} end,
+      reset: true
+    )
+  end
+
+  defp cancel_integrity_check(%{assigns: %{integrity: %AsyncResult{} = running}} = socket),
+    do: cancel_async(socket, running)
+
+  defp cancel_integrity_check(socket), do: socket
+
+  defp integrity_ceiling_ms do
+    :bnest_app
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:integrity_ceiling_ms, @default_integrity_ceiling_ms)
+  end
+
+  # The reconciliation runs in a task this function owns and monitors, so that the ceiling can
+  # cancel it: a shutdown kills the process that is reading the destination, where giving up on
+  # its answer alone would leave it reading. A check that is cancelled, exits or raises is the
+  # outcome of a check that could not be made.
+  defp check_integrity(ceiling_ms) do
+    task = Task.async(&reconcile_outcome/0)
+
+    case Task.yield(task, ceiling_ms) || Task.shutdown(task, :brutal_kill) do
+      {:ok, outcome} -> outcome
+      {:exit, _reason} -> {:error, :exited}
+      nil -> {:error, :ceiling}
+    end
+  end
+
+  # The destination is read, never prepared (`Backup.read_destination/0`), and a failure of any
+  # kind is the outcome of a check that could not be made: its reason may name a path, so none
+  # is kept.
+  defp reconcile_outcome do
+    with {:ok, location} <- Backup.read_destination() do
+      Backup.reconcile(location.directory, Scheduler.verified_runs(@backup_handler))
+    end
+  rescue
+    _error -> {:error, :raised}
+  catch
+    :exit, _reason -> {:error, :exited}
+  end
+
+  defp integrity_outcome(%AsyncResult{loading: loading}) when loading != nil, do: :checking
+  defp integrity_outcome(%AsyncResult{ok?: true, result: outcome}), do: outcome
+  defp integrity_outcome(%AsyncResult{}), do: {:error, :failed}
+
+  # Which marker shows: read off the report, whose problems and exit status say what it found.
+  defp integrity_state(:checking, _report), do: :checking
+  defp integrity_state({:error, _reason}, _report), do: :could_not_check
+  defp integrity_state({:ok, _results}, %{problems: [_ | _]}), do: :needs_attention
+  defp integrity_state({:ok, _results}, %{exit_status: 0}), do: :all_present
+  defp integrity_state({:ok, _results}, _report), do: :nothing_to_check
 
   defp refresh(socket) do
     inventory = Scheduler.admin_inventory()
@@ -194,7 +384,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
       )
   end
 
-  defp schedule_label(%{handler_key: "prod_sqlite_backup"}), do: "Production database backup"
+  defp schedule_label(%{handler_key: @backup_handler}), do: "Production database backup"
   defp schedule_label(schedule), do: schedule.schedule_key
   defp schedule_state(%{expired_at: expired_at}) when not is_nil(expired_at), do: "Expired"
   defp schedule_state(%{enabled: true}), do: "Enabled"

@@ -39,6 +39,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   alias BnestApp.Test.Seeds.Schedules
   alias BnestApp.Test.UnreadableArtifactStore
   alias BnestApp.Test.UnreadableLedger
+  alias Mix.Tasks.Bnest.Backup.Reconcile
 
   @handler "prod_sqlite_backup"
   @ledger_schedule "bdd-integrity-ledger"
@@ -644,7 +645,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   the host operator would read them: a journey compares the page's label with them.
   """
   @spec browser_report!() :: map()
-  def browser_report!, do: %{"lines" => Mix.Tasks.Bnest.Backup.Reconcile.execute([]).lines}
+  def browser_report!, do: %{"lines" => Reconcile.execute([]).lines}
 
   defp seed_ledger(context, runs) do
     clear_ledger()
