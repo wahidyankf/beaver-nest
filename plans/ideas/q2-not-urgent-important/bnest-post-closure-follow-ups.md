@@ -46,6 +46,8 @@ that none is lost with the archived plan.
 3. Group the Low findings by surface (API envelope, authentication redirect, admin page, accessibility) and open one
    plan per surface when the owner picks one up.
 4. Investigate the two missing backups read-only before any change to the production schedule.
+   Promoted on 2026-10-03 to the formal plan
+   [`backup-integrity`](../../backlog/backup-integrity/README.md); remove this item when that plan is archived.
 5. Decide which counted rule to trim, or whether the word budget should change, so the entry points can link the
    standard.
 

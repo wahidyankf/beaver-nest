@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="2660" viewBox="0 0 1440 2660" role="img" aria-labelledby="ui-row-hifi-desktop-t ui-row-hifi-desktop-d" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="ui-row-hifi-desktop-t">Option row, hi-fi, desktop: Backup files item inside the Production database backup row</title>
+<desc id="ui-row-hifi-desktop-d">Schedules &amp; backups page at 1440 pixels wide, hi-fi mockup of the row alternative, showing the task: the administrator opens the page and learns that two of seven retained backups need attention, 2030-05-14 file missing and 2030-05-16 file changed. All content is synthetic. The Backup files item sits inside the Production database backup row, after Last result: Verified. On desktop the item spans three columns beside Last result. Each state is conveyed by a marker shape and text as well as by any colour. Below the page, a state sheet shows the same Backup files item in six states: checking, all present, needs attention, could not be checked, nothing to check yet, and destination mismatch on the C-DEST branch.</desc>
+<defs><radialGradient id="glow" gradientUnits="userSpaceOnUse" cx="288" cy="36" r="544"><stop offset="0" stop-color="#153f42" stop-opacity="0.14"/><stop offset="1" stop-color="#153f42" stop-opacity="0"/></radialGradient></defs>
+<rect x="0" y="36" width="1440" height="2624" fill="#d8f1ec"/>
+<rect x="0" y="36" width="1440" height="2624" fill="url(#glow)"/>
+<rect x="0" y="0" width="1440" height="36" fill="#153f42"/>
+<text x="16" y="22.55" font-size="13" font-weight="700" fill="#fff9ed">Option row | hi-fi | desktop 1440 px | selected</text>
+<text x="1424" y="22.55" font-size="13" text-anchor="end" fill="#fff9ed">synthetic content</text>
+<text x="144" y="85.6" font-size="16" fill="#153f42" xml:space="preserve"><tspan>Admin home</tspan><tspan> / </tspan><tspan>Admin settings</tspan></text>
+<text x="144" y="141.6" font-size="16" font-weight="800" letter-spacing="1.92" fill="#153f42">DAILY OPERATIONS</text>
+<text x="144" y="165.6" font-size="16" fill="#153f42">Schedules &amp; backups</text>
+<text x="144" y="213.6" font-size="16" fill="#153f42">Family schedules</text>
+<text x="144" y="253.6" font-size="16" fill="#153f42">No family schedules are configured.</text>
+<text x="144" y="301.6" font-size="16" fill="#153f42">Admin/system schedules</text>
+<rect x="149.6" y="329.6" width="1152" height="253.6" rx="16" fill="#80c5b8"/>
+<rect x="144" y="324" width="1152" height="253.6" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="166" y="363.6" font-size="16" fill="#153f42">Production database backup</text>
+<text x="166" y="395.2" font-size="12" font-weight="800" fill="#153f42">CADENCE</text>
+<text x="166" y="417.6" font-size="16" fill="#153f42">Daily at 02:00 WIB</text>
+<text x="446" y="395.2" font-size="12" font-weight="800" fill="#153f42">NEXT RUN</text>
+<text x="446" y="417.6" font-size="16" fill="#153f42">2030-05-18 19:00:00Z</text>
+<text x="726" y="395.2" font-size="12" font-weight="800" fill="#153f42">STATE</text>
+<text x="726" y="417.6" font-size="16" fill="#153f42">Enabled</text>
+<text x="1006" y="395.2" font-size="12" font-weight="800" fill="#153f42">EXPIRATION</text>
+<text x="1006" y="417.6" font-size="16" fill="#153f42">Never expires</text>
+<text x="166" y="449.2" font-size="12" font-weight="800" fill="#153f42">LAST RESULT</text>
+<text x="166" y="471.6" font-size="16" fill="#153f42">Verified</text>
+<text x="446" y="449.2" font-size="12" font-weight="800" fill="#153f42">BACKUP FILES</text>
+<rect x="446" y="454" width="6.4" height="101.6" fill="#e5633d"/>
+<polygon points="474.2,469.3 484.2,486.8 464.2,486.8" fill="#fff9ed" stroke="#153f42" stroke-width="2" stroke-linejoin="round"/>
+<path d="M474.2 475.8 L474.2 481.3" fill="none" stroke="#153f42" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="474.2" cy="484" r="1.2" fill="#153f42"/>
+<text x="491.2" y="484.4" font-size="16" font-weight="700" fill="#153f42" xml:space="preserve"><tspan font-weight="700">2 of 7 retained backups need attention</tspan></text>
+<text x="491.2" y="512.4" font-size="16" fill="#153f42" xml:space="preserve"><tspan>2030-05-14: </tspan><tspan font-weight="800">file missing</tspan></text>
+<text x="491.2" y="536.4" font-size="16" fill="#153f42" xml:space="preserve"><tspan>2030-05-16: </tspan><tspan font-weight="800">file changed</tspan></text>
+<rect x="149.6" y="599.2" width="1152" height="176" rx="16" fill="#80c5b8"/>
+<rect x="144" y="593.6" width="1152" height="176" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="166" y="633.2" font-size="16" fill="#153f42">Family chat push delivery retention</text>
+<text x="166" y="664.8" font-size="12" font-weight="800" fill="#153f42">CADENCE</text>
+<text x="166" y="687.2" font-size="16" fill="#153f42">Daily at 03:00 WIB</text>
+<text x="446" y="664.8" font-size="12" font-weight="800" fill="#153f42">NEXT RUN</text>
+<text x="446" y="687.2" font-size="16" fill="#153f42">2030-05-18 20:00:00Z</text>
+<text x="726" y="664.8" font-size="12" font-weight="800" fill="#153f42">STATE</text>
+<text x="726" y="687.2" font-size="16" fill="#153f42">Enabled</text>
+<text x="1006" y="664.8" font-size="12" font-weight="800" fill="#153f42">EXPIRATION</text>
+<text x="1006" y="687.2" font-size="16" fill="#153f42">Never expires</text>
+<text x="166" y="718.8" font-size="12" font-weight="800" fill="#153f42">LAST RESULT</text>
+<text x="166" y="741.2" font-size="16" fill="#153f42">Verified</text>
+<rect x="149.6" y="799.2" width="1152" height="288" rx="16" fill="#80c5b8"/>
+<rect x="144" y="793.6" width="1152" height="288" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="166" y="833.2" font-size="16" fill="#153f42">Production database backup</text>
+<text x="166" y="869.2" font-size="16" fill="#153f42" xml:space="preserve"><tspan>Expiration: </tspan><tspan font-weight="700">Never</tspan></text>
+<rect x="166" y="892.6" width="14" height="14" rx="2" fill="#fff9ed" stroke="#153f42" stroke-width="1.5"/>
+<path d="M169 899.6 L172 902.6 L177 896.1" fill="none" stroke="#153f42" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="188" y="905.2" font-size="16" fill="#153f42">Enabled</text>
+<text x="166" y="941.2" font-size="16" fill="#153f42">Daily time (WIB)</text>
+<rect x="166" y="959.6" width="1108" height="44" rx="8" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="176" y="987.2" font-size="16" fill="#153f42">02:00</text>
+<rect x="166" y="1015.6" width="156.8" height="44" rx="22" fill="#153f42"/>
+<text x="244.4" y="1043.2" font-size="16" font-weight="800" text-anchor="middle" fill="#fff9ed">Save schedule</text>
+<rect x="149.6" y="1111.2" width="1152" height="324" rx="16" fill="#80c5b8"/>
+<rect x="144" y="1105.6" width="1152" height="324" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="166" y="1145.2" font-size="16" fill="#153f42">Backup folder</text>
+<text x="166" y="1181.2" font-size="16" fill="#153f42" xml:space="preserve"><tspan>Default: </tspan><tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">@data/backup/</tspan></text>
+<text x="166" y="1217.2" font-size="16" fill="#153f42">Keep one per day for 7 days.</text>
+<text x="166" y="1253.2" font-size="16" fill="#153f42">Private destination override</text>
+<rect x="166" y="1271.6" width="1108" height="44" rx="8" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="176" y="1299.2" font-size="16" fill="#153f42">/example/backup-folder</text>
+<text x="166" y="1345.2" font-size="16" fill="#153f42">Leave the current resolved folder unchanged or enter a safe absolute override.</text>
+<rect x="166" y="1363.6" width="300.8" height="44" rx="22" fill="#153f42"/>
+<text x="316.4" y="1391.2" font-size="16" font-weight="800" text-anchor="middle" fill="#fff9ed">Save and create first backup</text>
+<rect x="0" y="1493.6" width="1440" height="36" fill="#153f42"/>
+<text x="16" y="1516.15" font-size="13" font-weight="700" fill="#fff9ed">Option row | hi-fi | label states</text>
+<text x="144" y="1566.8" font-size="12" font-weight="800" fill="#205c5d">STATE: CHECKING - shown on the disconnected render and while a check runs or re-runs</text>
+<rect x="149.6" y="1583.2" width="872" height="111.6" rx="16" fill="#80c5b8"/>
+<rect x="144" y="1577.6" width="872" height="111.6" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="166" y="1612.8" font-size="12" font-weight="800" fill="#153f42">BACKUP FILES</text>
+<rect x="166" y="1617.6" width="6.4" height="49.6" fill="#205c5d"/>
+<circle cx="194.2" cy="1642.4" r="9" fill="#fff9ed" stroke="#153f42" stroke-width="2" stroke-dasharray="3 3"/>
+<circle cx="189.7" cy="1642.4" r="1.4" fill="#153f42"/>
+<circle cx="194.2" cy="1642.4" r="1.4" fill="#153f42"/>
+<circle cx="198.7" cy="1642.4" r="1.4" fill="#153f42"/>
+<text x="211.2" y="1648" font-size="16" font-weight="700" fill="#153f42" xml:space="preserve"><tspan font-weight="700">checking</tspan></text>
+<text x="144" y="1726.4" font-size="12" font-weight="800" fill="#205c5d">STATE: ALL PRESENT - every expected run is present</text>
+<rect x="149.6" y="1742.8" width="872" height="111.6" rx="16" fill="#80c5b8"/>
+<rect x="144" y="1737.2" width="872" height="111.6" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="166" y="1772.4" font-size="12" font-weight="800" fill="#153f42">BACKUP FILES</text>
+<rect x="166" y="1777.2" width="6.4" height="49.6" fill="#029e73"/>
+<circle cx="194.2" cy="1802" r="9" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<path d="M189.7 1802.5 L192.7 1805.5 L198.7 1798.5" fill="none" stroke="#153f42" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="211.2" y="1807.6" font-size="16" font-weight="700" fill="#153f42" xml:space="preserve"><tspan font-weight="700">all 7 retained backups are present</tspan></text>
+<text x="144" y="1886" font-size="12" font-weight="800" fill="#205c5d">STATE: NEEDS ATTENTION - at least one expected run is missing or changed</text>
+<rect x="149.6" y="1902.4" width="872" height="163.6" rx="16" fill="#80c5b8"/>
+<rect x="144" y="1896.8" width="872" height="163.6" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="166" y="1932" font-size="12" font-weight="800" fill="#153f42">BACKUP FILES</text>
+<rect x="166" y="1936.8" width="6.4" height="101.6" fill="#e5633d"/>
+<polygon points="194.2,1952.1 204.2,1969.6 184.2,1969.6" fill="#fff9ed" stroke="#153f42" stroke-width="2" stroke-linejoin="round"/>
+<path d="M194.2 1958.6 L194.2 1964.1" fill="none" stroke="#153f42" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="194.2" cy="1966.8" r="1.2" fill="#153f42"/>
+<text x="211.2" y="1967.2" font-size="16" font-weight="700" fill="#153f42" xml:space="preserve"><tspan font-weight="700">2 of 7 retained backups need attention</tspan></text>
+<text x="211.2" y="1995.2" font-size="16" fill="#153f42" xml:space="preserve"><tspan>2030-05-14: </tspan><tspan font-weight="800">file missing</tspan></text>
+<text x="211.2" y="2019.2" font-size="16" fill="#153f42" xml:space="preserve"><tspan>2030-05-16: </tspan><tspan font-weight="800">file changed</tspan></text>
+<text x="144" y="2097.6" font-size="12" font-weight="800" fill="#205c5d">STATE: COULD NOT BE CHECKED - reconciliation raised, the ledger is unreadable or unstable, or the ceiling passed</text>
+<rect x="149.6" y="2114" width="872" height="111.6" rx="16" fill="#80c5b8"/>
+<rect x="144" y="2108.4" width="872" height="111.6" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="166" y="2143.6" font-size="12" font-weight="800" fill="#153f42">BACKUP FILES</text>
+<rect x="166" y="2148.4" width="6.4" height="49.6" fill="#e5633d"/>
+<rect x="185.2" y="2164.2" width="18" height="18" rx="3" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<path d="M191.2 2170.2 Q191.2 2167.2 194.2 2167.2 Q197.7 2167.2 197.7 2170.7 Q197.7 2172.7 194.2 2174.2 L194.2 2175.7" fill="none" stroke="#153f42" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="194.2" cy="2179.2" r="1.1" fill="#153f42"/>
+<text x="211.2" y="2178.8" font-size="16" font-weight="700" fill="#153f42" xml:space="preserve"><tspan font-weight="700">could not be checked. Run </tspan><tspan font-weight="700" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">mix bnest.backup.reconcile </tspan><tspan font-weight="700">on the host.</tspan></text>
+<text x="144" y="2257.2" font-size="12" font-weight="800" fill="#205c5d">STATE: NOTHING TO CHECK YET - the ledger holds no verified backup run</text>
+<rect x="149.6" y="2273.6" width="872" height="111.6" rx="16" fill="#80c5b8"/>
+<rect x="144" y="2268" width="872" height="111.6" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="166" y="2303.2" font-size="12" font-weight="800" fill="#153f42">BACKUP FILES</text>
+<rect x="166" y="2308" width="6.4" height="49.6" fill="#205c5d"/>
+<circle cx="194.2" cy="2332.8" r="9" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<path d="M189.7 2332.8 L198.7 2332.8" fill="none" stroke="#153f42" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="211.2" y="2338.4" font-size="16" font-weight="700" fill="#153f42" xml:space="preserve"><tspan font-weight="700">no verified backup to check yet</tspan></text>
+<text x="144" y="2416.8" font-size="12" font-weight="800" fill="#205c5d">STATE: DESTINATION MISMATCH (C-DEST BRANCH ONLY) - a surviving receipt for a retained date names another destination</text>
+<rect x="149.6" y="2433.2" width="872" height="191.6" rx="16" fill="#80c5b8"/>
+<rect x="144" y="2427.6" width="872" height="191.6" rx="16" fill="#fff9ed" stroke="#153f42" stroke-width="2"/>
+<text x="166" y="2462.8" font-size="12" font-weight="800" fill="#153f42">BACKUP FILES</text>
+<rect x="166" y="2467.6" width="6.4" height="129.6" fill="#e5633d"/>
+<polygon points="194.2,2482.4 204.2,2492.4 194.2,2502.4 184.2,2492.4" fill="#fff9ed" stroke="#153f42" stroke-width="2" stroke-linejoin="round"/>
+<path d="M189.7 2490.2 L198.7 2490.2 M196.4 2487.8 L198.8 2490.2 L196.4 2492.6" fill="none" stroke="#153f42" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M198.7 2495.2 L189.7 2495.2 M192 2492.8 L189.6 2495.2 L192 2497.6" fill="none" stroke="#153f42" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="211.2" y="2498" font-size="16" font-weight="700" fill="#153f42" xml:space="preserve"><tspan font-weight="700">2 of 7 retained backups need attention</tspan></text>
+<text x="211.2" y="2526" font-size="16" fill="#153f42" xml:space="preserve"><tspan>2030-05-13: </tspan><tspan font-weight="800">receipt names another destination</tspan></text>
+<text x="211.2" y="2550" font-size="16" fill="#153f42" xml:space="preserve"><tspan>2030-05-15: </tspan><tspan font-weight="800">receipt names another destination</tspan></text>
+<text x="211.2" y="2578" font-size="16" fill="#153f42">Runs lost without a surviving receipt cannot be seen this way</text>
+</svg>
