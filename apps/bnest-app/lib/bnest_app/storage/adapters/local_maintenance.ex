@@ -9,6 +9,7 @@ defmodule BnestApp.Storage.Adapters.LocalMaintenance do
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Adapters.FlatRetirement
   alias BnestApp.Storage.Adapters.SchemaAudit
+  alias BnestApp.Storage.Adapters.ScratchCopy
   alias BnestApp.Storage.Adapters.SqliteCoordinator
   alias BnestApp.Storage.Adapters.SqliteMigration
   alias BnestApp.Storage.Adapters.SqliteRelocation
@@ -62,4 +63,10 @@ defmodule BnestApp.Storage.Adapters.LocalMaintenance do
 
   @impl true
   def audit_schema(root), do: SchemaAudit.audit_root(root)
+
+  @impl true
+  def open_database_copy(source), do: ScratchCopy.open(source)
+
+  @impl true
+  def close_database_copy(copy), do: ScratchCopy.close(copy)
 end

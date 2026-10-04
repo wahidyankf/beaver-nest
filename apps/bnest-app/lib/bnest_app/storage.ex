@@ -21,6 +21,10 @@ defmodule BnestApp.Storage do
   alias BnestApp.Storage.Ports.RecordBackend
   alias BnestApp.Storage.Records
 
+  # A copy of the database is trusted when a second copy agrees, and a disagreeing pair gets
+  # one fresh pair.
+  @copy_attempts 2
+
   @type migration_report :: %{
           run: Migration.result(),
           verification: %{parity: boolean(), integrity: boolean(), restore: boolean()} | nil
@@ -212,6 +216,62 @@ defmodule BnestApp.Storage do
 
   @spec audit_schema(String.t()) :: {:ok, [map()]} | {:error, atom()}
   def audit_schema(root), do: adapter(:maintenance).audit_schema(root)
+
+  @doc """
+  Runs `read` while storage resolves to a private scratch copy of the authoritative database
+  instead of the database itself, and returns `{:ok, result}`. It is how a read-only tool uses
+  the database without opening the live file: SQLite creates or touches the `-shm` and `-wal`
+  sidecars of a database it opens, which a service writing to it must keep to itself.
+
+  The database and its write-ahead log are copied one after the other while the service may
+  write, so a copy is trusted only when a second one agrees. `fingerprint` reads something
+  that identifies a copy's content, with the database started on that copy; `read` runs on
+  the second copy only when both fingerprints are equal. After two attempts whose copies
+  disagree nothing is read and the result is `{:error, :unstable}`; a copy that cannot be
+  made is `{:error, :copy_failed}`. Every copy is closed, and the pointer restored, before
+  this returns or raises, and the database is left stopped.
+  """
+  @spec with_database_copy((-> term()), (-> result)) ::
+          {:ok, result} | {:error, :unstable | :copy_failed}
+        when result: var
+  def with_database_copy(fingerprint, read)
+      when is_function(fingerprint, 0) and is_function(read, 0),
+      do: read_agreed_copy(database_path(), fingerprint, read, @copy_attempts)
+
+  defp read_agreed_copy(_source, _fingerprint, _read, 0), do: {:error, :unstable}
+
+  defp read_agreed_copy(source, fingerprint, read, attempts) do
+    case agreed_read(source, fingerprint, read) do
+      {:ok, {:agreed, result}} -> {:ok, result}
+      {:ok, :disagreed} -> read_agreed_copy(source, fingerprint, read, attempts - 1)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # The fingerprint of a first copy, then the second copy read if its fingerprint agrees.
+  defp agreed_read(source, fingerprint, read) do
+    with {:ok, first} <- through_copy(source, fingerprint),
+         do: through_copy(source, fn -> read_if_agreed(first, fingerprint, read) end)
+  end
+
+  defp read_if_agreed(first, fingerprint, read),
+    do: if(fingerprint.() == first, do: {:agreed, read.()}, else: :disagreed)
+
+  # `fun` on a fresh copy of `source` with the database started on it; the database is
+  # stopped and the copy closed whatever `fun` does.
+  defp through_copy(source, fun) do
+    maintenance = adapter(:maintenance)
+
+    with {:ok, copy} <- maintenance.open_database_copy(source) do
+      try do
+        ensure_started!()
+        {:ok, fun.()}
+      after
+        stop()
+        maintenance.close_database_copy(copy)
+      end
+    end
+  end
 
   defp start_and_migrate_schema!(database_path) do
     lifecycle = adapter(:database_lifecycle)
