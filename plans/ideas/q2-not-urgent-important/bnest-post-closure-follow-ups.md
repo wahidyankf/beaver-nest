@@ -47,7 +47,7 @@ that none is lost with the archived plan.
    plan per surface when the owner picks one up.
 4. Investigate the two missing backups read-only before any change to the production schedule.
    Promoted on 2026-10-03 to the formal plan
-   [`backup-integrity`](../../backlog/backup-integrity/README.md); remove this item when that plan is archived.
+   [`backup-integrity`](../../in-progress/backup-integrity/README.md); remove this item when that plan is archived.
 5. Decide which counted rule to trim, or whether the word budget should change, so the entry points can link the
    standard.
 

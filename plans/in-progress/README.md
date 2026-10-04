@@ -6,11 +6,11 @@ Start work by moving one folder from [`../backlog/`](../backlog/README.md) witho
 
 ## Active Plan
 
-No plan is currently in progress.
+- [`backup-integrity/`](backup-integrity/README.md) is in execution (Phases 1 and 2 first). It establishes why two verified production backups are absent from disk and adds a detector, a Schedules-page label and a restore drill.
 
 Completed records live in [`../done/`](../done/README.md), and additional candidates are queued in
 [`../backlog/`](../backlog/README.md).
 
 ## Directory Map
 
-- No plan folder is currently in progress.
+- [`backup-integrity/`](backup-integrity/README.md) — establishes why two verified production backups are absent from disk, adds a detector for a verified run without an artifact (a Mix task, a log line, telemetry and a label on the Schedules page), and gives the owner a restore drill.

@@ -8,5 +8,4 @@ Before starting work, confirm that the plan still matches current repository evi
 
 ## Directory Map
 
-- [`backup-integrity/`](backup-integrity/README.md) — establishes why two verified production backups are absent from disk, adds a detector for a verified run without an artifact (a Mix task, a log line, telemetry and a label on the Schedules page), and gives the owner a restore drill.
 - [`family-learning-engine/`](family-learning-engine/README.md) — reusable course, topic, and mission learning engine with coin earning, a GraphQL boundary, a generic mission runner, and the Sifat Allah cutover.
