@@ -193,12 +193,16 @@ disposition names are exact strings, so a later reader finds them by search.
       read-only, so no continuity budget applies yet; this item records the baseline Phase 12 compares against. Follow
       [live-service continuity](../../../repo-governance/development/live-service-continuity.md). **Proof:** active
       port, proxy upstream, and an HTTP status for the loopback and routed origins; no identifiers.
+      acceptance: `grep -c '^Baseline recorded:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the
+      item writes a line beginning `Baseline recorded:`).
 - [ ] `[AI] [AC-BI-01]` Prerequisite timing: the pre-state, Phase 2 and the post-state run between scheduled slots. The
       backup slot is daily at 19:00 UTC, so start only after the latest slot's ledger row is terminal (`verified`,
       `failed` or `skipped`), so the next slot is about a day away, and record the start and end times. **Proof:** both
       times, and that no 19:00 UTC slot lies between them. If one unavoidably does, the comparison rule below applies
       and the exclusion is recorded. Also record the authorization date against the
       [Dated Preconditions](#dated-preconditions): `Late authorization: <date>` when it is after 2026-10-06T19:00Z.
+      acceptance: `grep -c '^Slot window:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the item
+      writes a line beginning `Slot window:`).
 - [ ] `[AI] [AC-BI-01]` Capture the pre-state with `LOCATE`, `DIR_LISTING` and `MARKER_HASH`, plus a listing of the
       private configuration directory (`~/.config/bnest`) and the ledger row count of the backup schedule from
       `LEDGER_COPY`, `LEDGER_CHECK` and `LEDGER_QUERY`, all into `local-tmp/backup-integrity/pre-state.txt`. `LOCATE` and the
@@ -207,6 +211,8 @@ disposition names are exact strings, so a later reader finds them by search.
 - [ ] `[AI] [AC-BI-01]` **Blocking checkpoint — Phase 1.** Approvals recorded (or declined with the reads removed from
       Phase 2), the scope-check reads R1 to R4 (confirmed 2026-10-03) current or recorded `Unavailable: not approved` if
       withdrawn, baseline recorded, pre-state captured, timing prerequisite satisfied.
+      acceptance: `grep -c '^Phase 1 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 1 checkpoint met:`).
 
 ## Phase 2 — Read-Only Investigation
 
@@ -262,6 +268,8 @@ is the single statement; this phase applies it and does not restate it.
 - [ ] `[AI] [AC-BI-01, AC-BI-02]` **Blocking checkpoint — Phase 2.** Every hypothesis has either an eliminating or a
       confirming observation recorded, or a stated `Unavailable`; H2 is `unproven` unless a local signal confirmed it;
       AC-BI-01's comparison is clean under the rule.
+      acceptance: `grep -c '^Phase 2 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 2 checkpoint met:`).
 
 ## Phase 3 — Cause Verdict and Branch Selection
 
@@ -287,6 +295,8 @@ label's state set below are provisional until then.
       authorization line and the commit subject, or `No commit authorized`.
 - [ ] `[AI] [AC-BI-02]` **Blocking checkpoint — Phase 3.** V1 recorded, provisional dispositions made and the label's
       state set fixed provisionally. The owner's confirmation and the idea brief are Phase 6 items.
+      acceptance: `grep -c '^Phase 3 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 3 checkpoint met:`).
 
 ## Phase 4 — Specifications
 
@@ -316,6 +326,7 @@ the affected Rules are added or removed as their own Gherkin, binding and red cy
       [`tech-docs.md`](tech-docs.md#specification-changes) states: Component View for reconciliation, the Scheduler
       read and the Mix tasks; Constraints for read-only reconciliation that never opens the production database. Record the Container View
       as deliberately unchanged. **Proof:** those locations changed and no other.
+      acceptance: `git diff --name-only main -- specs/apps/bnest/app-be/architecture.md` prints that path.
 - [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-11, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19]` Bind the new scenarios in
       `apps/bnest-app/test/behaviour/steps/scheduled_backup_steps.exs` against isolated destinations, then capture the
       behavioural **RED**. Command: `BEHAVIOUR`. **Proof:** it fails because reconciliation and the Mix tasks do not exist, not because of compilation or configuration.
@@ -566,10 +577,14 @@ Every item after them is conditional on the confirmed verdict and carries that d
       [Diátaxis](../../../repo-governance/conventions/documentation-architecture.md)): choose an artifact, run the
       task, read the evidence, what a failure means, what to do on a failure. Add it to
       `docs/how-to-guides/README.md`. **Proof:** the guide exists, is linked, and a cold reader can follow it.
+      acceptance: `grep -c 'restoring-a-bnest-backup' docs/how-to-guides/README.md` prints at least `1` (the guide is
+      linked).
 - [ ] `[AI]` Commit U4 as thematic commits when authorized. **Proof:** the authorization line and the commit subjects,
       or `No commit authorized`.
 - [ ] `[AI] [AC-BI-11, AC-BI-18]` **Blocking checkpoint — Phase 7.** The task is proven on a synthetic artifact and the
       guide is linked.
+      acceptance: `grep -c 'restoring-a-bnest-backup' docs/how-to-guides/README.md` prints at least `1` (the guide is
+      linked).
 
 ## Phase 8 — UI Design: Copy Reconciliation and Owner Design Review
 
@@ -611,6 +626,8 @@ in Phase 1 and carry fictional content only.
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` **Blocking checkpoint — Phase 8.** The copy is reconciled and agrees between
       the section and the assets, the twelve assets exist and are embedded with one alternative selected, the owner's
       design review is recorded, and no file under `apps/` or `specs/` has changed.
+      acceptance: `grep -c '^Phase 8 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 8 checkpoint met:`).
 
 ## Phase 9 — Schedules-Page Integrity Label: Specification and Implementation
 
@@ -630,11 +647,13 @@ Phase 6 states; its C-DEST items are conditional. It adds no migration and store
       comment naming its `bnest-app:test:integration` alternative. No AC-BI-23 Examples row is exempted. Omit the AC-BI-19
       scenario if its disposition is `Not applicable`. **Proof:** each scenario names an outcome visible on the page; no
       placeholder, no-op or outcome table.
+      acceptance: `grep -c 'Scenario' specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature` prints at least `1`.
 - [ ] `[AI] [AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Update `specs/apps/bnest/app-fe/architecture.md` as
       [`tech-docs.md`](tech-docs.md#specification-changes) states: Component View for the Schedules page integrity label,
       its off-render-path time-boxed check and its re-check after a save; Constraints for a read-only label that stores
       nothing; Behaviour Traceability for the new scenarios. Record the Container View as deliberately unchanged.
       **Proof:** those locations changed and no other.
+      acceptance: `git diff --name-only main -- specs/apps/bnest/app-fe/architecture.md` prints that path.
 - [ ] `[AI] [AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Bind the new scenarios in
       `apps/bnest-app/test/behaviour/steps/scheduled_backup_steps.exs` with the drivers in
       `apps/bnest-app/test/unit/support/home_page_driver.ex` and `apps/bnest-app/test/integration/support/home_page_driver.ex`,
@@ -701,6 +720,8 @@ Phase 6 states; its C-DEST items are conditional. It adds no migration and store
       pass, with no undefined, ambiguous or unused binding.
 - [ ] `[AI]` Commit U5 (specification and implementation) as thematic commits when authorized. **Proof:** the
       authorization line and the commit subjects, or `No commit authorized`.
+      acceptance: `grep -c '^U5 specification commits:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `U5 specification commits:`).
 - [ ] `[AI] [AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` **Blocking checkpoint — Phase 9.** `BE_UNIT`, `INTEGRATION`, `BEHAVIOUR`,
       `FE_E2E_COVERAGE` and the affected `FE_E2E_CASE` runs are green; the label exists in every Phase 3 state; no
       migration and no stored state were added.
@@ -723,13 +744,19 @@ production data are never used. Both passes are passive and non-destructive unde
       changed, could not be checked, none verified, and the mismatch on C-DEST), by seeding the isolated destination and
       ledger or by lowering the ceiling. **Proof:** the exact origin (host and port) and the state list by name, no private
       value.
+      acceptance: `grep -c '^Isolated origin:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the item
+      writes a line beginning `Isolated origin:`).
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Audit the rendered states at each viewport class for accessibility: the accessibility tree, controls,
       keyboard and focus, non-colour cues, narrow reflow and contrast, with Lighthouse when available. A passing functional
       run waives no finding. **Proof:** a route, state, viewport class and result table in `learnings.md`.
+      acceptance: `grep -c 'Accessibility audit' plans/backlog/backup-integrity/learnings.md` prints at least `1` (the
+      item writes a table headed `Accessibility audit` in `learnings.md`).
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Walk the full matrix by hand at the exact origin: route, every state, every viewport class and the 320 px
       floor. Exercise the changed interaction (a reload, the change from checking to the result, a save of each form and the
       re-check that follows, the keyboard path through the page, and both existing forms still usable) and confirm layout, content, focus and responsive behaviour.
       **Proof:** a route, state, viewport class and pass or fail table in `learnings.md`, with no private values.
+      acceptance: `grep -c 'Manual matrix' plans/backlog/backup-integrity/learnings.md` prints at least `1` (the item
+      writes a table headed `Manual matrix` in `learnings.md`).
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` **Exploratory pass (spec-aware), first.** Drive Playwright MCP against the running origin across all
       three viewport classes with isolated `test-user-` identities, mutating no shared or production state. Compare live
       behaviour with the changed `specs/**` Gherkin and probe beyond the scripted cases: boundary conditions, route
@@ -745,6 +772,8 @@ production data are never used. Both passes are passive and non-destructive unde
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Cross-reference the two sets: where an exploratory and a usability finding describe one underlying
       defect, add a short note in both sections naming the shared root cause. **Proof:** the notes, or a statement that no
       pair shared a root cause.
+      acceptance: `grep -c 'Shared root cause' plans/backlog/backup-integrity/learnings.md` prints at least `1` (the
+      item writes each note, or the no-pair statement, containing `Shared root cause`).
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Reconcile every finding that reveals correct-but-unspecced behaviour through the
       [BDD Iron Rule](../../../repo-governance/development/behaviour-driven-development.md#iron-rule) as its own cycle:
       update the Gherkin, bind failing steps, confirm RED, then implement; label a usability-sourced proposal as such and
@@ -752,6 +781,8 @@ production data are never used. Both passes are passive and non-destructive unde
       accepted proposal the scenario name with its RED and GREEN results, or a statement that none was proposed.
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Fix every finding or accept it as non-blocking with its reason written in `learnings.md`, and rerun
       the affected automated commands after each fix. **Proof:** a resolution per finding and the green reruns.
+      acceptance: `grep -c 'Finding resolution' plans/backlog/backup-integrity/learnings.md` prints at least `1` (the
+      item writes a per-finding table headed `Finding resolution` in `learnings.md`).
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Confirm, before the checkpoint, that both passes ran, that findings are present or recorded as none
       found, that both headings are correctly labelled, that cross-references are noted, and that every accepted spec
       proposal completed the Iron Rule. **Proof:** the confirmation in `learnings.md` against each of the five conditions.
@@ -760,9 +791,13 @@ production data are never used. Both passes are passive and non-destructive unde
       no controlled tab and no isolated server process remains.
 - [ ] `[AI]` Commit U5 (findings and fixes) as thematic commits when authorized. **Proof:** the authorization line and the
       commit subjects, or `No commit authorized`.
+      acceptance: `grep -c '^U5 findings commits:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the
+      item writes a line beginning `U5 findings commits:`).
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` **Blocking checkpoint — Phase 10.** The matrix, the accessibility audit, the exploratory pass and the
       usability pass are recorded and separately labelled; every finding is fixed or accepted with its reason; cleanup is
       complete.
+      acceptance: `grep -c '^Phase 10 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 10 checkpoint met:`).
 
 ## Phase 11 — Documentation, Rules and Repository Gates
 
@@ -770,17 +805,25 @@ production data are never used. Both passes are passive and non-destructive unde
       Schedules page label, per [project READMEs](../../../repo-governance/conventions/project-readmes.md), and run
       [Docs Propagation](../../../repo-governance/workflows/quality/docs-propagation.md). **Proof:** its terminal result,
       which may be `no-change`.
+      acceptance: `grep -c '^Docs Propagation result:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Docs Propagation result:`).
 - [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Re-read
       `specs/apps/bnest/app-be/architecture.md` and `specs/apps/bnest/app-fe/architecture.md` against the as-built code and
       reconcile them: Component View, Constraints, and any verdict-specific change from Phase 6. **Proof:** a line per
       changed location, or `no-change` with the reason.
+      acceptance: `grep -c '^Architecture reconcile:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Architecture reconcile:`).
 - [ ] `[AI] [AC-BI-10]` **Conditional: Phase 6 changed a rule.** Apply the bounded
       [rules-propagation workflow](../../../repo-governance/workflows/quality/rules-propagation.md) to any rule changed
       in Phase 6, and record its terminal result, which may be `no-change`.
+      acceptance: `grep -c '^Rules Propagation result:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Rules Propagation result:`).
 - [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Run the
       [Gherkin implementation review](../../../repo-governance/workflows/quality/gherkin-implementation-review.md) over
       the changed backend and frontend features, bindings and exemptions. **Proof:** a row per expanded scenario with
       `PASS` or `EXEMPT`; any `FAIL` is repaired before the checkpoint.
+      acceptance: `grep -c '^Gherkin review:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the item
+      writes a line beginning `Gherkin review:`).
 - [ ] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Confirm the [exploratory and spec-blind usability passes](../../../repo-governance/workflows/quality/exploratory-usability-review.md)
       are **applicable**, because the owner's OD-3 added a rendered surface (they are not `Not applicable`), and that
       Phase 10 recorded them under `## Exploratory findings` and `## Usability findings` in `learnings.md`, each finding
@@ -792,8 +835,12 @@ production data are never used. Both passes are passive and non-destructive unde
       identifiers, digests, destination IDs, run IDs) under
       [data safety](../../../repo-governance/conventions/public-repository-data-safety.md). Leak-review every commit
       before push. **Proof:** the review result per commit.
+      acceptance: `grep -c '^Leak review result:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the
+      item writes a line beginning `Leak review result:`).
 - [ ] `[AI]` Commit U6 as thematic commits when authorized. **Proof:** the authorization line and the commit subjects,
       or `No commit authorized`.
+      acceptance: `grep -c '^U6 commits:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the item
+      writes a line beginning `U6 commits:`).
 - [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-11, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` **Blocking checkpoint — Phase 11.** All commands green, propagation results recorded, Gherkin
       review has no `FAIL`, and the review passes are confirmed applicable and recorded.
 
@@ -812,16 +859,22 @@ production by the owner in Phase 13; no administrator session is provisioned for
 - [ ] `[AI] [AC-BI-12]` Release preconditions: the owner's confirmation of V1 (the first Phase 6 item) and the owner's
       design review (Phase 8) are recorded and current, and the Phase 1 plan quality gate verdict is non-blocking.
       **Proof:** the two dated lines and the verdict line; without them the release does not start (decision D11).
+      acceptance: `grep -c '^Release preconditions:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Release preconditions:`).
 - [ ] `[AI] [AC-BI-12]` Integrate the change by pull request under the
       [integration path](../../../repo-governance/conventions/integration-path.md); leak-review the exact head; wait
       for the `leak-review` status, polling no more often than every three minutes. **Proof:** merged head commit.
+      acceptance: `git merge-base --is-ancestor <merged head> origin/main` exits 0.
 - [ ] `[AI] [AC-BI-12]` Record the pre-release baseline: at least 12 exact-origin samples and the read-only anonymous
       routed journey. **Proof:** sample count, p95 and maximum.
 - [ ] `[AI] [AC-BI-12]` Start the candidate on a separate loopback port from the release revision. The active backend
       stays up; Tailscale is not repointed; nothing under the active server's watched tree is edited. **Proof:**
       candidate port and a healthy local HTTP response.
+      acceptance: `curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$CANDIDATE_PORT/"` prints `200`.
 - [ ] `[AI] [AC-BI-12, AC-BI-13]` Verify the candidate: reported revision equals the release revision, read-back and
       the anonymous journey pass, LiveView and WebSocket connect. **Proof:** each check's result.
+      acceptance: `grep -c '^Candidate verification:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Candidate verification:`).
 - [ ] `[AI] [AC-BI-12]` Mixed-version safety: confirm the change adds read queries and no migration or schema change (the page
       label stores nothing), so both versions can share the store. Both run the scheduler; the slot claim makes that safe (decision G12 in
       [`tech-docs.md`](tech-docs.md#decision-record-pre-write-gate)). **Proof:** the diff shows no migration, and
@@ -834,6 +887,8 @@ production by the owner in Phase 13; no administrator session is provisioned for
       sample at most 2 s.
 - [ ] `[AI] [AC-BI-12]` Verify reconnect: an already-open anonymous LiveView session reconnects to the candidate
       without a manual refresh within the bounded drain. **Proof:** the reconnect observation.
+      acceptance: `grep -c '^Reconnect observed:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the
+      item writes a line beginning `Reconnect observed:`).
 - [ ] `[AI] [AC-BI-12, AC-BI-13]` Routed proof: query the routed origin and the loopback backend for their revision.
       **Proof:** both report the release revision.
 - [ ] `[AI] [AC-BI-12]` One ledger row per slot across candidate and active backend. While the candidate and the
@@ -852,6 +907,8 @@ production by the owner in Phase 13; no administrator session is provisioned for
       process list shows only the active route and the explicitly retained rollback capacity.
 - [ ] `[AI] [AC-BI-12, AC-BI-13]` **Blocking checkpoint — Phase 12.** Routed backend serves the release revision, the
       budget held, cleanup is complete.
+      acceptance: `grep -c '^Phase 12 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 12 checkpoint met:`).
 
 ## Phase 13 — Owner Drill and Live Detection Proof
 
@@ -869,6 +926,8 @@ The `[AI]` items are delivery unit U8 and the two `[HUMAN]` items are delivery u
       artifact holds household members' chat content, which the test-data iron rule withholds from an agent, so only the
       data's owner can authorize reading it; the executor holds neither that authority nor an approved read. **Proof:**
       the evidence and a statement that the artifact and live database were not changed.
+      acceptance: `grep -c '^Restore drill result:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the
+      item writes a line beginning `Restore drill result:`).
 - [ ] `[HUMAN] [AC-BI-21, AC-BI-22, AC-BI-23]` The owner opens Schedules & backups on the routed origin with their own
       administrator session and reports, for the route `/admin/settings/schedules`, which state the label showed, the
       viewport class used (desktop, tablet or mobile), pass or fail, and whether it matched the reconcile report; no
@@ -880,13 +939,19 @@ The `[AI]` items are delivery unit U8 and the two `[HUMAN]` items are delivery u
       owner's report. Predeclared fallback: if the owner declines or cannot, record `Not performed` with the reason; the
       Phase 10 matrix at the isolated exact origin then stands as the rendered proof, labelled as such, and AC-BI-21 to
       AC-BI-23 are not claimed for the production origin.
+      acceptance: `grep -c '^Owner label look:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the
+      item writes a line beginning `Owner label look:`).
 - [ ] `[AI] [AC-BI-11, AC-BI-14, AC-BI-21, AC-BI-22, AC-BI-23]` Record the drill, the live detection and the label look
       in `learnings.md` as sanitized entries. If the drill failed, record it as an escalation to the owner and not as a
       plan failure. **Proof:** the entries.
+      acceptance: `grep -c 'Restore drill' plans/backlog/backup-integrity/learnings.md` prints at least `1` (the item
+      writes the drill entry containing `Restore drill` in `learnings.md`).
 - [ ] `[AI] [AC-BI-11, AC-BI-14, AC-BI-21, AC-BI-22, AC-BI-23]` **Blocking checkpoint — Phase 13.** The live detector
       reported the known gap (here or in Phase 5) or its window is recorded as aged out, the drill outcome is recorded,
       and the owner's look at the label on the live origin is recorded, with the state it showed (likely only all present), or
       `Not performed` with its reason.
+      acceptance: `grep -c '^Phase 13 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 13 checkpoint met:`).
 
 ## Recovery and Rollback
 
@@ -898,12 +963,16 @@ Dormant until triggered. Each carries its trigger; otherwise record a dated `Not
       after the rollback.
 - [ ] `[AI]` **Trigger: Phase 2 post-state differs from the pre-state beyond the comparison rule.** Stop, do not attempt
       to repair production, report the difference to the owner. **Proof:** the report.
+      acceptance: `grep -c '^Phase 2 difference report:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 2 difference report:`).
 - [ ] `[AI]` **Trigger: the post-run reconciliation fails or slows a scheduled backup in the candidate.** Revert the
       unit's commits and release the revert by the Phase 12 procedure. **Proof:** a clean backup run on the reverted
       revision.
 - [ ] `[AI]` **Trigger: the label slows, breaks or alarms the Schedules page in the candidate or after the cutover.**
       Revert the label commits of Phases 9 and 10 and release the revert by the Phase 12 procedure, keeping the detector.
       **Proof:** the page renders both forms on the reverted revision and the routed revision is recorded.
+      acceptance: `grep -c '^Label revert result:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the
+      item writes a line beginning `Label revert result:`).
 
 ## Archival
 
@@ -914,6 +983,8 @@ Archival runs after every substantive phase and is separate from them.
       [knowledge capture](../../../repo-governance/conventions/plans/008-knowledge-capture-and-archival.md). The OD-4 idea
       brief already exists from Phase 6: keep it current with the final verdict, and route any other owner-side Dropbox
       finding to an idea brief if it describes work. **Proof:** a resolution row per entry.
+      acceptance: `grep -c '^Learnings resolved:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the
+      item writes a line beginning `Learnings resolved:`).
 - [ ] `[AI]` Update `plans/ideas/q2-not-urgent-important/bnest-post-closure-follow-ups.md`: remove item 4 and its
       entries in the Problem, Direction and Risks sections now that this plan owns them, and fix its Q2 index line if the
       summary changed. **Proof:** the brief no longer lists the missing-backups investigation.
