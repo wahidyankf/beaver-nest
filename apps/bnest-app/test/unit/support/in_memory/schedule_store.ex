@@ -255,6 +255,19 @@ defmodule BnestApp.Test.InMemory.ScheduleStore do
   end
 
   @impl true
+  def verified_runs(%{pid: pid}, handler_key) do
+    Agent.get(pid, fn state ->
+      schedule_keys =
+        for {key, %{handler_key: ^handler_key}} <- state.schedules, into: MapSet.new(), do: key
+
+      state.runs
+      |> Enum.filter(&(&1.state == "verified" and MapSet.member?(schedule_keys, &1.schedule_key)))
+      |> Enum.map(&Policy.verified_run/1)
+      |> Enum.sort_by(&{DateTime.to_unix(&1.finished_at), &1.run_id})
+    end)
+  end
+
+  @impl true
   def update_daily(%{pid: pid}, schedule_key, daily_at_utc, enabled, revision, now) do
     now = second(now)
 

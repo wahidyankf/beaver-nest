@@ -171,7 +171,7 @@ defmodule BnestApp.Scheduler.Adapters.SqliteScheduleStore do
   def inventory(_store) do
     %{rows: rows} =
       SqliteRepo.query!("""
-      SELECT #{columns(Enum.map(@schedule_columns, &("s." <> Atom.to_string(&1))))},
+      SELECT #{qualified(@schedule_columns, "s")},
              r.state, r.failure_category, r.finished_at
       FROM bnest_schedules AS s
       LEFT JOIN bnest_schedule_runs AS r ON r.run_id = (
@@ -191,6 +191,23 @@ defmodule BnestApp.Scheduler.Adapters.SqliteScheduleStore do
       |> Map.put(:last_failure_category, failure_category)
       |> Map.put(:last_finished_at, nullable_datetime(finished_at))
     end)
+  end
+
+  @impl true
+  def verified_runs(_store, handler_key) do
+    %{rows: rows} =
+      SqliteRepo.query!(
+        """
+        SELECT #{qualified(@run_columns, "r")}
+        FROM bnest_schedule_runs AS r
+        JOIN bnest_schedules AS s ON s.schedule_key = r.schedule_key
+        WHERE s.handler_key = ? AND r.state = 'verified'
+        ORDER BY r.finished_at, r.run_id
+        """,
+        [handler_key]
+      )
+
+    rows |> Enum.map(&run_row/1) |> Enum.map(&Policy.verified_run/1)
   end
 
   @impl true
@@ -518,6 +535,7 @@ defmodule BnestApp.Scheduler.Adapters.SqliteScheduleStore do
   defp transient_repo_error?(_other), do: false
 
   defp columns(fields), do: Enum.map_join(fields, ", ", &to_string/1)
+  defp qualified(fields, table_alias), do: Enum.map_join(fields, ", ", &"#{table_alias}.#{&1}")
   defp nullable_datetime(nil), do: nil
   defp nullable_datetime(value), do: Policy.parse_datetime!(value)
   defp iso8601(value), do: value |> DateTime.truncate(:second) |> DateTime.to_iso8601()

@@ -102,6 +102,15 @@ defmodule BnestApp.Scheduler do
   @spec get_schedule(String.t()) :: ScheduleStore.schedule() | nil
   def get_schedule(schedule_key), do: ScheduleStore.get_schedule(store(), schedule_key)
 
+  @doc """
+  The verified runs of the schedules under `handler_key`, oldest finish first, each with the
+  slot it was claimed for (nil for a setup run), when it finished and the artifact it
+  recorded. A read: it changes nothing.
+  """
+  @spec verified_runs(String.t()) :: [ScheduleStore.verified_run()]
+  def verified_runs(handler_key) when is_binary(handler_key),
+    do: ScheduleStore.verified_runs(store(), handler_key)
+
   @doc "Every schedule with its latest run, grouped into the family and admin/system contexts."
   @spec admin_inventory() :: %{family: [map()], admin_system: [map()]}
   def admin_inventory do

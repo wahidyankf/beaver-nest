@@ -2,7 +2,8 @@ defmodule BnestApp.Test.Contracts.ScheduleStoreContract do
   @moduledoc """
   The behaviour every `BnestApp.Scheduler.Ports.ScheduleStore` implementation shares: due
   claims and the inputs their slots are computed from, setup claims, leases, retries and
-  results, the inventory, and the daily and pristine edits. A test module uses this
+  results, the inventory, the verified runs a handler's ledger reports, and the daily and
+  pristine edits. A test module uses this
   template and defines:
 
     * `new_store/1`, which takes the ExUnit context and returns a handle over a fresh store
@@ -62,6 +63,33 @@ defmodule BnestApp.Test.Contracts.ScheduleStoreContract do
       },
       fields
     )
+  end
+
+  @doc """
+  The receipt of a verified run's artifact `name`, as the backup task records it, and the
+  verified-run view `verified_runs/2` reports it as.
+  """
+  @spec receipt(String.t()) :: map()
+  def receipt(name) do
+    %{
+      "artifactBasename" => "bnest-contract-#{name}.sqlite3",
+      "artifactSha256" => :sha256 |> :crypto.hash(name) |> Base.encode16(case: :lower),
+      "artifactBytes" => byte_size(name) * 1_000
+    }
+  end
+
+  @spec verified_view(String.t(), DateTime.t() | nil, DateTime.t(), String.t()) :: map()
+  def verified_view(run_id, slot, finished_at, name) do
+    receipt = receipt(name)
+
+    %{
+      run_id: run_id,
+      slot: slot,
+      finished_at: finished_at,
+      artifact_basename: receipt["artifactBasename"],
+      artifact_sha256: receipt["artifactSha256"],
+      artifact_bytes: receipt["artifactBytes"]
+    }
   end
 
   @doc "The keys of the claimed runs, in claim order."
@@ -199,6 +227,7 @@ defmodule BnestApp.Test.Contracts.ScheduleStoreContract do
 
       ScheduleStoreContract.setup_and_retry_cases()
       ScheduleStoreContract.run_result_cases()
+      ScheduleStoreContract.verified_run_cases()
       ScheduleStoreContract.schedule_edit_cases()
     end
   end
@@ -458,6 +487,103 @@ defmodule BnestApp.Test.Contracts.ScheduleStoreContract do
                    row(store, "a-family")
 
           assert row(store, "a-family").last_finished_at == at(120)
+        end
+      end
+    end
+  end
+
+  @doc """
+  The cases pinning `verified_runs/2`, the verified runs of a handler's schedules, injected
+  by `using/1` (kept apart so no quote grows past a readable length). They rely on the
+  caller's `put_schedule/2` and the `store` from the template's setup.
+  """
+  defmacro verified_run_cases do
+    quote do
+      describe "ScheduleStore verified runs contract" do
+        test "lists a handler's verified runs oldest finish first, leaving out every other state",
+             %{store: store} do
+          backup = %{schedule_context: "admin_system", handler_key: "prod_sqlite_backup"}
+          put_schedule(store, schedule(Map.put(backup, :schedule_key, "backup-daily")))
+          put_schedule(store, schedule(Map.put(backup, :schedule_key, "backup-failing")))
+          put_schedule(store, schedule(%{schedule_key: "other-daily"}))
+
+          [daily, failing, other] = ScheduleStore.claim_due(store, at())
+
+          assert keys([daily, failing, other]) == [
+                   "backup-daily",
+                   "backup-failing",
+                   "other-daily"
+                 ]
+
+          setup_verified =
+            ScheduleStore.claim_setup(store, "backup-daily", "setup:verified", at(60))
+
+          setup_skipped =
+            ScheduleStore.claim_setup(store, "backup-daily", "setup:skipped", at(60))
+
+          :ok = ScheduleStore.complete(store, setup_verified.run_id, 1, receipt("setup"), at(120))
+          :ok = ScheduleStore.skip(store, setup_skipped.run_id, 1, :destination_changed, at(130))
+          :ok = ScheduleStore.complete(store, daily.run_id, 1, receipt("night"), at(300))
+          :ok = ScheduleStore.complete(store, other.run_id, 1, receipt("other"), at(300))
+
+          # The failing run loses its lease at every attempt and ends failed; a setup run is
+          # then claimed and left running.
+          for seconds <- [15 * 60, 30 * 60, 45 * 60],
+              do: ScheduleStore.claim_due(store, at(seconds))
+
+          assert %{last_run_state: "failed"} = row(store, "backup-failing")
+
+          assert %{state: "running"} =
+                   ScheduleStore.claim_setup(store, "backup-daily", "setup:running", at(46 * 60))
+
+          before = ScheduleStore.inventory(store)
+
+          # The setup run, claimed without a slot, finished first; the nightly run followed.
+          assert ScheduleStore.verified_runs(store, "prod_sqlite_backup") == [
+                   verified_view(setup_verified.run_id, nil, at(120), "setup"),
+                   verified_view(daily.run_id, slot(), at(300), "night")
+                 ]
+
+          assert ScheduleStore.verified_runs(store, "fixture") ==
+                   [verified_view(other.run_id, slot(), at(300), "other")]
+
+          assert ScheduleStore.inventory(store) == before
+        end
+
+        test "reports a verified setup run, claimed without a slot, with a nil slot",
+             %{store: store} do
+          put_schedule(
+            store,
+            schedule(%{
+              schedule_key: "backup-setup",
+              schedule_context: "admin_system",
+              handler_key: "prod_sqlite_backup",
+              next_run_at: at(86_400)
+            })
+          )
+
+          setup_run = ScheduleStore.claim_setup(store, "backup-setup", "setup:destination", at())
+          assert setup_run.scheduled_for == nil
+          :ok = ScheduleStore.complete(store, setup_run.run_id, 1, receipt("setup"), at(60))
+
+          assert ScheduleStore.verified_runs(store, "prod_sqlite_backup") ==
+                   [verified_view(setup_run.run_id, nil, at(60), "setup")]
+        end
+
+        test "lists nothing for a handler with no verified run or no schedule", %{store: store} do
+          put_schedule(
+            store,
+            schedule(%{
+              schedule_key: "backup-running",
+              schedule_context: "admin_system",
+              handler_key: "prod_sqlite_backup"
+            })
+          )
+
+          assert [%{state: "running"}] = ScheduleStore.claim_due(store, at())
+
+          assert ScheduleStore.verified_runs(store, "prod_sqlite_backup") == []
+          assert ScheduleStore.verified_runs(store, "unregistered") == []
         end
       end
     end
