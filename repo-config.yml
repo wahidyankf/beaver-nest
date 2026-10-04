@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/wahidyankf/rhino/v0.10.0/schemas/repo-config/v2.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/wahidyankf/rhino/v0.11.0/schemas/repo-config/v2.schema.json
 # Beaver-Nest consumer policy for the immutable Rhino v0.4.0 release.
 
 schema: rhino/repo-config/v2
@@ -155,6 +155,7 @@ harness:
                   websearch: deny,
                 },
             }
+          - { when: no-dispatches, field: permission, entries: { task: deny } }
           - {
               when: requires,
               capability: repository-read,

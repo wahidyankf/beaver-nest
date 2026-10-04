@@ -51,28 +51,9 @@ requires. An unreachable origin, an unresolved specification, or no browser ends
 
 ## Procedure
 
-1. **Sweep before browsing.** Run the functions of
-   [Enumerated Coverage][catalog-007-enumerated-coverage] the
-   charter needs: consistent styling for `design`; shared controls, state round-trips, and declared invariants for
-   `spec` and `exploratory`.
-2. **Judge under the charter.** `spec` answers the gate's cycle questions, using
-   [Exploratory Testing](../skills/exploratory-testing/SKILL.md) for empty, error, and loading states and
-   [Developing Frontend UI](../skills/developing-frontend-ui/SKILL.md) for focus order, keyboard paths, and names.
-   `design` compares each observation with the sources
-   [Design-Fidelity Pass][catalog-001-design-fidelity-pass]
-   lists, as [Design Fidelity Review](../skills/design-fidelity-review/SKILL.md) teaches. `exploratory` runs varied
-   tours, probing boundary, invalid, repeated, and out-of-order input, and recomputes any shown total or ordering.
-3. **Tell a defect from a gap.** Behaviour contradicting a cited source is a defect that quotes it. Correct behaviour no
-   scenario protects becomes a scenario proposal, written as
-   [Writing Gherkin Criteria](../skills/plan-writing-gherkin-criteria/SKILL.md) teaches, never written into a
-   specification.
-4. **Close with the completeness critic** of
-   [Usability Probes and Completeness][catalog-008-usability-probes-and-completeness],
-   recording each category never enumerated as an open gap.
-5. **Rate and record** each finding with its route, viewport class, locale, theme, state, the source it departs from,
-   reproduction steps with placeholder credentials, and a criticality from
-   [Criticality Levels][catalog-001-criticality-levels].
-   A tester rating on another severity scale maps severity, never priority, onto it.
+The rest of this section is in
+[SWE Web Tester Procedure](../../repo-governance/conventions/swe-agent-procedures/swe-web-tester-procedure.md#procedure);
+read it in full before acting.
 
 ## Inside the UI Web Quality Gate
 
@@ -87,7 +68,7 @@ One findings record, at the location the caller names or else under the temporar
 [Temporary Files][catalog-temporary-files], plus the sanitized captures
 [Evidence Safety][catalog-005-evidence-safety] requires. The
 record opens in progress, gains each finding as confirmed, and closes with totals, per
-[Agent Authoring][catalog-agent-authoring].
+[Agent Authoring][catalog-agent-authoring-reports-are-written-as-findings-are-confirmed].
 Under the gate, findings also return to the gate for its ledger.
 
 ## Shell and Network
@@ -111,11 +92,7 @@ component source. Repairs belong to [SWE Developer](swe-developer.md), first-use
 
 [catalog-ux-review-fix-planning]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/workflows/quality/ux-review-fix-planning.md
 [catalog-006-behaviour-change-verification]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/development/quality/manual-verification/006-behaviour-change-verification.md
-[catalog-007-enumerated-coverage]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/development/quality/manual-verification/007-enumerated-coverage.md
-[catalog-001-design-fidelity-pass]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/workflows/quality/ux-review-fix-planning/001-design-fidelity-pass.md
-[catalog-008-usability-probes-and-completeness]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/development/quality/manual-verification/008-usability-probes-and-completeness.md
-[catalog-001-criticality-levels]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/development/quality/evidence/finding-criticality-and-confidence/001-criticality-levels.md
 [catalog-temporary-files]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/conventions/structure/temporary-files.md
 [catalog-005-evidence-safety]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/development/quality/manual-verification/005-evidence-safety.md
-[catalog-agent-authoring]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/development/agents/agent-authoring.md#reports-are-written-as-findings-are-confirmed
+[catalog-agent-authoring-reports-are-written-as-findings-are-confirmed]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/development/agents/agent-authoring.md#reports-are-written-as-findings-are-confirmed
 [catalog-web-research-delegation]: https://github.com/wahidyankf/ose-rules/blob/18760a44f7ae4d88e89c0aa79349297f55bb9d9c/repo-governance/development/agents/web-research-delegation.md

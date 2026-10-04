@@ -60,7 +60,7 @@
     {
       "id": "agent/pr-review-checker",
       "path": ".agents/agents/pr-review-checker.md",
-      "digest": "8a77b421eba8cb47d7308e09530485fa6d3b8834a8cfc553d22933b6239cf644"
+      "digest": "d2a200e94fc11b8c50178684eb5451163d541732ba0fb1f6e2f4794ca1241b67"
     },
     {
       "id": "agent/pr-review-fixer",
@@ -95,7 +95,7 @@
     {
       "id": "agent/swe-architect",
       "path": ".agents/agents/swe-architect.md",
-      "digest": "5ce837f408b6c7effd57ab555d45957d28adb2df0d1cec240880234ab1d0ef80"
+      "digest": "30eadb53b7e4f0d4f78b53172589dab2227afc15a7530ef3cb13deb445d57afa"
     },
     {
       "id": "agent/swe-debugger",
@@ -105,7 +105,7 @@
     {
       "id": "agent/swe-developer",
       "path": ".agents/agents/swe-developer.md",
-      "digest": "1bea382ec4ce5d330597ce4924060739c90461a708dc88c4da1583cf049c3d59"
+      "digest": "a7690ecce057ffd40b4af555d7ad12e2ef364989add0847ff7179ec567a0be56"
     },
     {
       "id": "agent/swe-infra-tester",
@@ -125,7 +125,7 @@
     {
       "id": "agent/swe-reviewer",
       "path": ".agents/agents/swe-reviewer.md",
-      "digest": "3914a2d067f958d568e0ff7b692eeb0b6bf3c91492ad274342fc7381b44996c8"
+      "digest": "a15ffe2a9c68275c2389ffbcb24638084245f273c928cd76acb0c1ea46ce70ab"
     },
     {
       "id": "agent/swe-usability-tester",
@@ -135,7 +135,7 @@
     {
       "id": "agent/swe-web-tester",
       "path": ".agents/agents/swe-web-tester.md",
-      "digest": "43e34e4d923bc919537f6f53cf5012c632aaeb27208074bb93608498131d0363"
+      "digest": "21872ade2611f0209cbcb8a9b0e00ba5e2abf0a98b1363d7f40f2a505efb4e0a"
     },
     {
       "id": "agent/web-researcher",
@@ -145,7 +145,7 @@
     {
       "id": "skill/applying-maker-checker-fixer",
       "path": ".agents/skills/applying-maker-checker-fixer/SKILL.md",
-      "digest": "9664e4a68a743bbe1add6c7c848e5f910c417f9e2815203c78084f0b2729cbdc"
+      "digest": "1a859868385e6f33caceb1e06d59e055b2027d94a2f59e5b0c3434d3b7335c7e"
     },
     {
       "id": "skill/assessing-criticality-confidence",
@@ -240,7 +240,7 @@
     {
       "id": "skill/plan-creating-project-plans",
       "path": ".agents/skills/plan-creating-project-plans/SKILL.md",
-      "digest": "e9f33c9f186dc12de60286f3d968d4133eeddaf117f54f8f8f62a4dbccac60e0"
+      "digest": "71323b4e9e9788b6793393ce022c28113d077f01e78fefc64b8427deeb9e73bf"
     },
     {
       "id": "skill/plan-grooming-idea-briefs",
