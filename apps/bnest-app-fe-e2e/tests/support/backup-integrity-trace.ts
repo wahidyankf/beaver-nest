@@ -53,20 +53,31 @@ export function readingOrder(page: Page): Promise<ReadingOrder> {
   });
 }
 
+const focusableSelector =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// Which of the page's focusable controls holds focus, in document order, or -1 for none.
+function focusedControl(page: Page): Promise<number> {
+  return page.evaluate((selector) => {
+    const focusable = [...document.querySelectorAll(selector)].filter(
+      (element) => element.getClientRects().length > 0,
+    );
+    return focusable.indexOf(document.activeElement as Element);
+  }, focusableSelector);
+}
+
 // The page's focusable controls in document order, those inside the label among them.
 function focusableControls(
   page: Page,
 ): Promise<{ domOrder: string[]; labelStops: string[] }> {
-  return page.evaluate(() => {
+  return page.evaluate((selector) => {
     const helpers = (window as unknown as Record<string, PageHelpers>)[
       "__backupLabel"
     ] as PageHelpers;
     const item = helpers.item();
-    const focusable = [
-      ...document.querySelectorAll(
-        'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
-    ].filter((element) => element.getClientRects().length > 0);
+    const focusable = [...document.querySelectorAll(selector)].filter(
+      (element) => element.getClientRects().length > 0,
+    );
     (document.activeElement as HTMLElement | null)?.blur();
     window.scrollTo(0, 0);
     return {
@@ -75,7 +86,7 @@ function focusableControls(
         .filter((element) => item?.contains(element) ?? false)
         .map((element) => helpers.describe(element)),
     };
-  });
+  }, focusableSelector);
 }
 
 function focusIsInsideLabel(page: Page): Promise<boolean> {
@@ -87,16 +98,29 @@ function focusIsInsideLabel(page: Page): Promise<boolean> {
   });
 }
 
-// Presses Tab once per focusable control and names each stop, next to the controls the page
-// holds in document order and the stops that fall inside the label.
+// Presses Tab until every focusable control of the page has been reached and names each stop,
+// next to the controls the page holds in document order and the stops that fall inside the
+// label. A control made of segments, such as a time input, takes one press per segment and is
+// one stop, so a press that stays on the same control does not count.
 export async function walkTabStops(page: Page): Promise<TabWalk> {
   const { domOrder, labelStops } = await focusableControls(page);
   const stops: string[] = [];
   const insideLabel = [...labelStops];
-  for (let stop = 0; stop < domOrder.length; stop += 1) {
+  const segmentsPerControl = 4;
+  let previous = -1;
+  for (
+    let press = 0;
+    stops.length < domOrder.length &&
+    press < domOrder.length * segmentsPerControl;
+    press += 1
+  ) {
     // eslint-disable-next-line no-await-in-loop -- each press moves focus from where the last one left it.
     await page.keyboard.press("Tab");
     // eslint-disable-next-line no-await-in-loop -- the stop is read before the next press moves it.
+    const control = await focusedControl(page);
+    if (control !== -1 && control === previous) continue;
+    previous = control;
+    // eslint-disable-next-line no-await-in-loop -- same.
     const current = await focusDescriptor(page);
     stops.push(current);
     // eslint-disable-next-line no-await-in-loop -- same.

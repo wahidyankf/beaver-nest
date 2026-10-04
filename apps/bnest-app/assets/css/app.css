@@ -83,6 +83,48 @@
   overflow-wrap: anywhere;
 }
 
+/* The Backup files item of the production backup row: the three columns right of Last result
+   above 52rem (the media queries below return it to one column), with a status strip on its
+   description. A strip colour is never the only cue; the marker shape and the words repeat it.
+   Problem lines wrap, so nothing here clips or truncates. */
+.integrity-label {
+  grid-column: span 3;
+}
+
+.integrity-label dd {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: start;
+  margin-top: 0.25rem;
+  border-left: 0.4rem solid var(--bnest-ink-soft);
+  padding: 0.8rem;
+}
+
+.integrity-label[data-integrity-state="all_present"] dd {
+  border-left-color: #029e73;
+}
+
+.integrity-label[data-integrity-state="needs_attention"] dd,
+.integrity-label[data-integrity-state="could_not_check"] dd {
+  border-left-color: var(--bnest-coral);
+}
+
+.integrity-label__marker {
+  margin-top: 0.1875rem;
+}
+
+.integrity-label__summary {
+  font-weight: 700;
+}
+
+.integrity-label__problems {
+  grid-column: 2;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
 .settings-form-card {
   margin-top: 1.5rem;
 }
@@ -125,6 +167,10 @@
 @media (max-width: 52rem) {
   .schedule-row dl {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .integrity-label {
+    grid-column: auto;
   }
 }
 

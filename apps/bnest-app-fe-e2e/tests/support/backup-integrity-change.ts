@@ -50,11 +50,18 @@ export async function expectFocusStays(
   page: Page,
   world: IntegrityWorld,
 ): Promise<void> {
-  const stays = required(world.focusAfterAction);
+  const stays = required(world.focusOnSave);
   expect(stays).not.toBe("body");
+  // LiveView blurs the submitting control while a form is in flight and focuses it again from
+  // the reply, for every form of the app: the control must be back in focus once the save has
+  // settled, and while the label changed focus was on it or nowhere, never on anything else.
+  await expect
+    .poll(() => focusDescriptor(page), { timeout: resultTimeout })
+    .toBe(stays);
   const trace = await readTrace(page);
-  expect([...new Set(trace.focus)]).toEqual([stays]);
-  expect(await focusDescriptor(page)).toBe(stays);
+  expect(
+    trace.focus.filter((held) => held !== stays && held !== "body"),
+  ).toEqual([]);
 }
 
 // ---------------------------------------------------------------------------------------

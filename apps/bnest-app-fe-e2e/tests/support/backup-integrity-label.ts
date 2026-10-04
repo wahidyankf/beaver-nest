@@ -29,7 +29,7 @@ export type IntegrityFacts = {
 
 export type IntegrityWorld = {
   facts?: IntegrityFacts;
-  focusAfterAction?: string;
+  focusOnSave?: string;
   identity?: TestIdentity;
   labelHtml?: string;
   report?: string[];
@@ -106,15 +106,18 @@ export async function saveForm(
   form: "backup folder" | "daily schedule",
 ): Promise<void> {
   await traceFromNow(page);
-  await page
-    .getByRole("button", {
-      name:
-        form === "daily schedule"
-          ? "Save schedule"
-          : "Save and create first backup",
-    })
-    .click();
-  world.focusAfterAction = await focusDescriptor(page);
+  const save = page.getByRole("button", {
+    name:
+      form === "daily schedule"
+        ? "Save schedule"
+        : "Save and create first backup",
+  });
+  // The administrator acts from the save control, so focus is on it when the form is submitted.
+  // It is read here and not after the click: LiveView blurs the submitting control while the
+  // save is in flight, so a read right after the click would race the reply.
+  await save.focus();
+  world.focusOnSave = await focusDescriptor(page);
+  await save.click();
 }
 
 export async function readLabelHtml(
