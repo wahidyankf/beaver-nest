@@ -2,8 +2,9 @@
 
 ## Execution Status and Authority
 
-**Not started.** The plan is drafted, sits in `plans/backlog/`, and awaits a passing quality-gate verdict recorded in
-the Plan Quality Gate paragraph below. Integrating this plan does not start the checklist or authorize execution. Read all six plan
+**In progress (2026-10-04).** Phases 1 and 2 were executed on 2026-10-04 (pre-state 07:28Z, post-state 07:37Z, between
+the slots of 2026-10-03T19:00Z and 2026-10-04T19:00Z); Phase 3 and later are not started. The plan sits in
+`plans/in-progress/`; the gate verdict is recorded in the first Phase 1 item (`PASS_WITH_FINDINGS`, gate pass 6). Read all six plan
 documents and the [plan-execution workflow](../../../repo-governance/workflows/plan/plan-execution.md) first. Start only
 from a current, explicitly authorized, non-blocking verdict (`PASS`, or `PASS_WITH_FINDINGS` with every finding
 recorded). Phase 1 moves the folder to `plans/in-progress/` once execution is authorized.
@@ -150,12 +151,17 @@ disposition names are exact strings, so a later reader finds them by search.
 
 ## Phase 1 — Authorization, Preflight and Baseline
 
-- [ ] `[AI]` Re-run the plan quality gate on the folder as the fifth propagation left it (the 2026-10-03 expansion for
+- [x] `[AI]` Re-run the plan quality gate on the folder as the fifth propagation left it (the 2026-10-03 expansion for
       the owner decisions OD-1 to OD-4, the UI design assets, the repairs of F1 to F7 of gate pass 4, which returned
       `BLOCKED`, and the repairs of M1, M2 and L1 to L5 of gate pass 5, which returned `PASS_WITH_FINDINGS`, both on
       2026-10-04) with mode normal and record its terminal verdict line here. Execution does not start before a
       non-blocking verdict. **Proof:** the `plan-quality-gate:` verdict line.
-- [ ] `[HUMAN] [AC-BI-01]` The owner approves, as a dated line here naming what was put to them, the production reads
+      **Evidence 2026-10-04:** `plan-quality-gate: PASS_WITH_FINDINGS` (gate pass 6, on the folder as the fifth
+      propagation left it). Findings recorded for resolution when Phase 4 writes the Gherkin; neither is edited now:
+      **Medium**, AC-BI-17 "prints each date as present" contradicts the all-present summary wording `Backup files: all N
+    retained backups are present` in the PRD AC-BI-17 and the Phase 5 RED; **Low**, there is no PRD reconciliation note.
+      Non-blocking, so execution may start.
+- [x] `[HUMAN] [AC-BI-01]` The owner approves, as a dated line here naming what was put to them, the production reads
       Phase 2 and Phase 5 perform and nothing else: a plain file read of the production SQLite database and its `-wal`
       sidecar into scratch copies that are then queried `SELECT`-only (`LEDGER_COPY`, `LEDGER_CHECK`, `LEDGER_QUERY`), so
       SQLite never opens the production file; directory listings and file metadata (names, sizes, times, extended
@@ -179,36 +185,61 @@ disposition names are exact strings, so a later reader finds them by search.
       2026-10-03 session and recorded here on 2026-10-04. The executor confirms these lines are
       current before the first read of each; a read the owner has since withdrawn is recorded
       `Unavailable: not approved` for the affected observation and is not performed.
-- [ ] `[AI] [AC-BI-02]` Record OD-2: the owner decided on 2026-10-03 that Dropbox web access is not available, so the
+      **Evidence 2026-10-04:** the approval line above (OD-1, 2026-10-03: Approved) was confirmed current by the owner's
+      authority relayed to the executor on 2026-10-04 (execution authorized; OD-1 approved; R1 to R4 approved). Reads R1 to
+      R4 are current: `Confirmed 2026-10-03: R1`, `R2`, `R3` and `R4` stand; none withdrawn, none recorded `Unavailable: not
+    approved`. No write to the backup directory or `~/.config/bnest/*` was made.
+- [x] `[AI] [AC-BI-02]` Record OD-2: the owner decided on 2026-10-03 that Dropbox web access is not available, so the
       deleted-files list, the event history and the list of devices linked to the backup folder cannot be read. No item in
       this plan needs the owner's Dropbox view. **Proof:** the dated line `Unavailable (OD-2, 2026-10-03)` in
       `learnings.md`, with the consequence stated: H2 can end only `unproven` unless a local signal confirms it.
-- [ ] `[AI]` Authorization recorded: move this folder unchanged from `plans/backlog/` to `plans/in-progress/`, update its
+      **Evidence 2026-10-04:** `Unavailable (OD-2, 2026-10-03)` recorded in `learnings.md` entry V0.2, with the consequence
+      stated: H2 can end only `unproven` unless a local signal confirms it.
+- [x] `[AI]` Authorization recorded: move this folder unchanged from `plans/backlog/` to `plans/in-progress/`, update its
       status, and update both stage indexes in the same change. **Proof:** the folder exists under one root only and
       both READMEs list it correctly.
-- [ ] `[AI]` Create the new execution worktree and branch from current `origin/main`, pass the integration sync gate,
+      **Evidence 2026-10-04:** `git mv` from `plans/backlog/backup-integrity` to `plans/in-progress/backup-integrity`; the
+      folder exists under one root only; `plans/backlog/README.md` no longer lists it, `plans/in-progress/README.md` lists it
+      in its Active Plan and Directory Map sections, this file's status now reads in progress, and the idea-brief link that
+      pointed at the backlog path is updated.
+- [x] `[AI]` Create the new execution worktree and branch from current `origin/main`, pass the integration sync gate,
       and confirm a clean tree. Command: `rtk git status` (fall back to `/usr/bin/git status` in a worktree). **Proof:**
       worktree, branch name, head commit and clean status recorded.
-- [ ] `[AI] [AC-BI-12]` Identify the active Bnest backend and proxy and record safe local and routed health. Phase 2 is
+      **Evidence 2026-10-04:** worktree `worktrees/backup-integrity-exec`, branch `backup-integrity-exec`, head
+      `351f10434` (equal to `origin/main` after `git fetch origin`; `git merge-base --is-ancestor origin/main HEAD`
+      succeeded), dependencies installed before execution; `git status` clean at start (run with `/usr/bin/git` because of
+      the `rtk` worktree guard).
+- [x] `[AI] [AC-BI-12]` Identify the active Bnest backend and proxy and record safe local and routed health. Phase 2 is
       read-only, so no continuity budget applies yet; this item records the baseline Phase 12 compares against. Follow
       [live-service continuity](../../../repo-governance/development/live-service-continuity.md). **Proof:** active
       port, proxy upstream, and an HTTP status for the loopback and routed origins; no identifiers.
-- [ ] `[AI] [AC-BI-01]` Prerequisite timing: the pre-state, Phase 2 and the post-state run between scheduled slots. The
+      **Evidence 2026-10-04:** active backend: the green slot on loopback port 4001 (port 4000 idle); proxy: Caddy on
+      loopback port 4100 routing to it. HTTP status of `/health/ready`: loopback 4001 200, loopback 4100 200, routed origin
+      200 on five consecutive samples (0.02 to 0.04 s). The body reports `ready`, scheduler and SQLite ready, and release
+      revision `e92f1ec2c82e9ee42fa535cd5ac2a1c1a2592b3e`. No identifiers recorded. See `learnings.md` V0.1.
+- [x] `[AI] [AC-BI-01]` Prerequisite timing: the pre-state, Phase 2 and the post-state run between scheduled slots. The
       backup slot is daily at 19:00 UTC, so start only after the latest slot's ledger row is terminal (`verified`,
       `failed` or `skipped`), so the next slot is about a day away, and record the start and end times. **Proof:** both
       times, and that no 19:00 UTC slot lies between them. If one unavoidably does, the comparison rule below applies
       and the exclusion is recorded. Also record the authorization date against the
       [Dated Preconditions](#dated-preconditions): `Late authorization: <date>` when it is after 2026-10-06T19:00Z.
-- [ ] `[AI] [AC-BI-01]` Capture the pre-state with `LOCATE`, `DIR_LISTING` and `MARKER_HASH`, plus a listing of the
+      **Evidence 2026-10-04:** latest slot 2026-10-03T19:00Z is `verified` (finished 19:00:39Z). Start 07:28Z (pre-state),
+      end 07:37Z (post-state); no 19:00Z slot lies between them (the next is 2026-10-04T19:00Z). Authorization date
+      2026-10-04 is before 2026-10-06T19:00Z, so no `Late authorization` is recorded.
+- [x] `[AI] [AC-BI-01]` Capture the pre-state with `LOCATE`, `DIR_LISTING` and `MARKER_HASH`, plus a listing of the
       private configuration directory (`~/.config/bnest`) and the ledger row count of the backup schedule from
       `LEDGER_COPY`, `LEDGER_CHECK` and `LEDGER_QUERY`, all into `local-tmp/backup-integrity/pre-state.txt`. `LOCATE` and the
       configuration listing are read R1 of the scope check above. Read-only commands only.
       **Proof:** the file exists; `learnings.md` records counts and a yes/no for each item, never names.
-- [ ] `[AI] [AC-BI-01]` **Blocking checkpoint — Phase 1.** Approvals recorded (or declined with the reads removed from
+      **Evidence 2026-10-04T07:28Z:** `pre-state.txt` exists in the ignored scratch area. `learnings.md` V0.3 records counts
+      and yes/no: 27 directory entries, extended attributes present on all, the marker hashed, 3 entries in the private
+      configuration directory, 53 ledger runs of which 39 verified and 38 for the backup schedule, ledger copy pair
+      `stable` on the first attempt. Read-only commands only; the production database was copied, not opened.
+- [x] `[AI] [AC-BI-01]` **Blocking checkpoint — Phase 1.** Approvals recorded (or declined with the reads removed from
       Phase 2), the scope-check reads R1 to R4 (confirmed 2026-10-03) current or recorded `Unavailable: not approved` if
       withdrawn, baseline recorded, pre-state captured, timing prerequisite satisfied.
-      acceptance: `grep -c '^Phase 1 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
-      (the item writes a line beginning `Phase 1 checkpoint met:`).
+      **Checkpoint passed 2026-10-04:** approvals current, R1 to R4 current, baseline recorded, pre-state captured at
+      07:28Z, timing prerequisite satisfied.
 
 ## Phase 2 — Read-Only Investigation
 
@@ -222,50 +253,82 @@ Phase 1 pre-state before anything else in Phase 2 depends on them.
 **Comparison rule.** AC-BI-01's rule in [`prd.md`](prd.md#ac-bi-01--the-investigation-changes-nothing-in-production)
 is the single statement; this phase applies it and does not restate it.
 
-- [ ] `[AI] [AC-BI-02]` **H5, H4 data.** Run `LEDGER_COPY`, `LEDGER_CHECK` and `LEDGER_QUERY` (the query covers every backup-schedule
+- [x] `[AI] [AC-BI-02]` **H5, H4 data.** Run `LEDGER_COPY`, `LEDGER_CHECK` and `LEDGER_QUERY` (the query covers every backup-schedule
       row since 2026-09-18: slot, state, attempt, `finished_at`, the artifact basename's timestamp, bytes), then
       compare against `DIR_LISTING` and record whether each surviving receipt's destination identity equals the present
       marker's (read R2; equality only; the ledger records no destination, so a lost run is not attributed this way). Query output stays in `local-tmp/`. **Proof:** a per-date table of present/absent on disk next
       to the ledger state, with the lost dates marked.
-- [ ] `[AI] [AC-BI-02]` **H5.** Compare each lost row to its intact neighbours on slot versus `finished_at`, attempt
+      **Evidence 2026-10-04:** per-date table in `learnings.md` V0.4. Slots 2026-09-25 to 09-29, 10-02 and 10-03 are
+      present with bytes and digests equal to the ledger; 2026-09-30 and 2026-10-01 are absent (artifact and receipt);
+      2026-09-18 to 09-24 are absent as retention's oldest dates. All 7 surviving receipts name the present marker's
+      destination (equality only).
+- [x] `[AI] [AC-BI-02]` **H5.** Compare each lost row to its intact neighbours on slot versus `finished_at`, attempt
       count, name timestamp versus slot, and byte-size progression (both lost rows are exactly 684032 bytes).
       **Proof:** one line per compared field stating "indistinguishable" or the difference.
-- [ ] `[AI] [AC-BI-02]` **H4.** Search the host (read R3) for the two lost basenames, including the user Trash, the Dropbox
+      **Evidence 2026-10-04:** `learnings.md` V0.5: slot versus `finished_at` indistinguishable; attempt count
+      indistinguishable; name timestamp versus slot indistinguishable; byte size indistinguishable and not unique (684032
+      bytes is also the size of three intact runs). H5 eliminated by the plan's rule.
+- [x] `[AI] [AC-BI-02]` **H4.** Search the host (read R3) for the two lost basenames, including the user Trash, the Dropbox
       cache folder and any prior destination the logs name, with read-only commands (`find`, `mdfind`), and read the
       service logs for a saved destination override around the two slots. H4 is discriminated by this search, the logs
       and the surviving receipts only. **Proof:** found/not found per location class, and override seen or not seen per
       slot.
-- [ ] `[AI] [AC-BI-02]` **H3.** Read birth and modification times of the twelve fixtures and the surviving pairs
+      **Evidence 2026-10-04:** `learnings.md` V0.6: neither lost name found in the Trash, the Dropbox cache (also searched by
+      content digest), the Dropbox folder, the whole home directory, temporary directories or mounted volumes; override seen:
+      no (configuration file unchanged since 2026-08-30; no log line). H4 eliminated, with the limit that the logs carry no
+      dates.
+- [x] `[AI] [AC-BI-02]` **H3.** Read birth and modification times of the twelve fixtures and the surviving pairs
       (`DIR_LISTING`), search the repository for every writer of `bnest-prod-` names, and tabulate the commits that
       touched Backup, the Scheduler and `config/test.exs` per WIB date from 2026-09-18 with `/usr/bin/git log`.
       **Proof:** a per-WIB-date table of fixture birth times, test-guard landing times (`c6f654ec8`, `ca0e437e9`) and
       the lost nights.
-- [ ] `[AI] [AC-BI-02]` **H1 and H3a.** In `local-tmp/`, replay the real `Retention.retained_run_ids/1` over
+      **Evidence 2026-10-04:** per-WIB-date table in `learnings.md` V0.7: twelve fixtures all born WIB 2026-09-18, none on the
+      lost nights; commits per WIB date 09-19: 5, 09-22: 1, 10-01: 4, 10-02: 12; guards `c6f654ec8` and `ca0e437e9` landed
+      WIB 2026-10-02 07:18 and 09:12 (author dates). H3 not eliminated: temporal overlap, no direct evidence.
+- [x] `[AI] [AC-BI-02]` **H1 and H3a.** In `local-tmp/`, replay the real `Retention.retained_run_ids/1` over
       receipt histories reconstructed from the ledger with synthetic receipts only. Run (a) production runs alone, (b)
       production runs plus a synthetic newer same-date owned receipt on each lost WIB date, (c) production runs plus
       twelve synthetic fixture receipts dated 2026-09-18. **Proof:** for each reconstruction, whether the lost nights
       are removed. Reconstruction (a) is expected to keep them; a reconstruction that loses exactly the two nights and
       keeps the rest is the finding.
-- [ ] `[AI] [AC-BI-02]` Read the service and slot logs (`SERVICE_LOGS`) for the two lost slots and the following runs:
+      **Evidence 2026-10-04:** `learnings.md` V0.8. (a) production runs alone: lost nights kept; (b) plus a synthetic newer
+      same-date receipt on each lost date: lost nights removed, but 09-25 and 09-26 also pruned, so the disk is not
+      reproduced; (c) plus twelve fixture receipts dated 2026-09-18: lost nights kept. Extra labelled probe: the disk is
+      reproduced only by a removal between the retention of the 2026-10-01T19:00Z slot and that of 2026-10-02T19:00Z.
+- [x] `[AI] [AC-BI-02]` Read the service and slot logs (`SERVICE_LOGS`) for the two lost slots and the following runs:
       backup start and stop telemetry, retain events, errors, destination changes, restarts. **Proof:** per slot, the
       sequence of events (names of event kinds and times only) or `No log retained`.
-- [ ] `[AI] [AC-BI-02]` **H2 local.** Read extended attributes (`xattr -l`) and Dropbox metadata of the folder and
+      **Evidence 2026-10-04:** `learnings.md` V0.9: both slots `No log retained`: the logs hold a time of day without a date and
+      no line naming a backup, retention, destination or verified run.
+- [x] `[AI] [AC-BI-02]` **H2 local.** Read extended attributes (`xattr -l`) and Dropbox metadata of the folder and
       surviving files, and look for conflicted-copy or placeholder files. These are the only H2 signals available, because
       the Dropbox web history is not (OD-2). **Proof:** found/not found per signal.
-- [ ] `[AI] [AC-BI-02]` **H2 disposition (OD-2).** The Dropbox deleted-files list, event history and linked-device list
+      **Evidence 2026-10-04:** `learnings.md` V0.10: extended attributes uniform on all 28 entries (found: both Dropbox and
+      provenance attributes, no difference); conflicted copies in the backup directory or repository folder: not found;
+      placeholder or partial files: not found; local cache copy of a lost artifact: not found.
+- [x] `[AI] [AC-BI-02]` **H2 disposition (OD-2).** The Dropbox deleted-files list, event history and linked-device list
       are unavailable, so H2 cannot be eliminated. Record H2 as `confirmed` only when the H2 local item above found a
       signal; otherwise record it `unproven` together with the observation that would settle it: the folder's Dropbox
       event history around the two slots. **Proof:** the H2 line in `learnings.md`: `confirmed` with the local signal, or
       `unproven` with the settling observation.
-- [ ] `[AI] [AC-BI-01]` Capture the post-state with the commands used for the pre-state and compare under the comparison
+      **Evidence 2026-10-04:** `learnings.md` V0.11: H2 `unproven`; the settling observation is the Dropbox event history of the
+      backup folder between 2026-10-02 02:00 WIB and 2026-10-03 02:00 WIB, unavailable under OD-2.
+- [x] `[AI] [AC-BI-01]` Capture the post-state with the commands used for the pre-state and compare under the comparison
       rule above. Command: `diff` of the two files, then the rule's justification per difference. **Proof:** the
       listing, marker hash, directory listing and row count are equal under the rule; an unjustified difference stops
       the plan and is reported to the owner.
-- [ ] `[AI] [AC-BI-01, AC-BI-02]` **Blocking checkpoint — Phase 2.** Every hypothesis has either an eliminating or a
+      **Evidence 2026-10-04T07:37Z:** `diff` of `pre-state.txt` and `post-state.txt`: directory listing, extended attributes,
+      marker hash, configuration listing and file hashes, and ledger row counts are equal. One difference: the modification
+      time of the storage lock directory in the private configuration directory, a heartbeat the running service rewrites
+      about every 30 seconds (seen advancing between two `stat` reads 20 seconds apart). It is not a slot-related
+      difference, so the rule's exclusions do not cover it; recorded as a deviation (`learnings.md` V0.12) and judged
+      service-owned, not a write by this execution. No pre-existing backup-directory file has a later modification time.
+- [x] `[AI] [AC-BI-01, AC-BI-02]` **Blocking checkpoint — Phase 2.** Every hypothesis has either an eliminating or a
       confirming observation recorded, or a stated `Unavailable`; H2 is `unproven` unless a local signal confirmed it;
       AC-BI-01's comparison is clean under the rule.
-      acceptance: `grep -c '^Phase 2 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
-      (the item writes a line beginning `Phase 2 checkpoint met:`).
+      **Checkpoint passed 2026-10-04 with one recorded deviation:** H1 eliminated for production writers alone, H2
+      `unproven`, H3 not eliminated, H4 eliminated, H5 eliminated (table in `learnings.md`); AC-BI-01's comparison is clean
+      under the rule except the service-owned lock-directory mtime, reported to the owner. Phase 3 is not started.
 
 ## Phase 3 — Cause Verdict and Branch Selection
 

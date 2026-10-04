@@ -67,6 +67,183 @@ and records the terminal verdict line, so the pass 5 verdict is not claimed as c
 
 ## Execution Entries
 
-None yet. Phase 2 findings are recorded here as sanitized entries V0 onward; the Phase 3 verdict is entry V1. Phase 10
-records two separately labelled sections in this file, `## Exploratory findings` and `## Usability findings`, and the
-route, state, viewport class and result tables of the rendered checks.
+Phase 2 findings are recorded below as sanitized entries V0 onward; the Phase 3 verdict is entry V1. Phase 10 records two
+separately labelled sections in this file, `## Exploratory findings` and `## Usability findings`, and the route, state,
+viewport class and result tables of the rendered checks. Entries V0.1 to V0.12 record Phases 1 and 2, executed on
+2026-10-04 between the 2026-10-03T19:00Z and 2026-10-04T19:00Z slots. Times are UTC; the WIB date of a slot is the next
+calendar day (the slot of a given UTC date at 19:00Z is 02:00 WIB the following day).
+
+### V0.1 Gate, authority and baseline (Phase 1), 2026-10-04
+
+- Gate pass 6 returned `plan-quality-gate: PASS_WITH_FINDINGS`. Two findings are recorded for resolution when Phase 4
+  writes the Gherkin, and neither is edited now: **Medium**, AC-BI-17 says the all-present run "prints each date as
+  present", which contradicts the all-present summary wording `Backup files: all N retained backups are present` in the
+  PRD AC-BI-17 and the Phase 5 RED; **Low**, the PRD has no reconciliation note.
+- Authority relayed to the executor on 2026-10-04 from the owner's 2026-10-03 and 2026-10-04 session: execution
+  authorized; OD-1 read-only production reads approved; R1 to R4 approved; OD-2 Dropbox web access not available.
+  Agent proposals D2 to D11 are not owner-confirmed and are not treated as owner decisions.
+- Execution checkout: a clean worktree on its own branch at the planning commit, equal to `origin/main` after a fetch
+  (`merge-base --is-ancestor` succeeded).
+- Active backend: the green slot on loopback port 4001, the Caddy proxy on loopback port 4100; the blue port 4000 is
+  idle. Readiness: loopback 4001 HTTP 200, loopback 4100 HTTP 200, routed origin HTTP 200 on five consecutive samples
+  (0.02 to 0.04 s each); the readiness body reports `ready`, the green slot, a scheduler ready, SQLite ready and the
+  release revision `e92f1ec2c82e9ee42fa535cd5ac2a1c1a2592b3e`. This is the baseline Phase 12 compares against.
+- Timing: the latest slot, 2026-10-03T19:00Z, is `verified` (finished 19:00:39Z). Pre-state started 07:28Z, the
+  post-state ended 07:37Z, so no 19:00Z slot lies between them. The authorization date 2026-10-04 is before the
+  2026-10-06T19:00Z precondition; no `Late authorization` is recorded.
+
+### V0.2 OD-2 (Phase 1)
+
+`Unavailable (OD-2, 2026-10-03)`: the owner has no Dropbox web access, so the deleted-files list, the event history and
+the list of devices linked to the backup folder cannot be read. Consequence: H2 can end only `unproven` unless a local
+signal confirms it.
+
+### V0.3 Pre-state (Phase 1), 2026-10-04T07:28Z
+
+Captured to the ignored scratch area: the backup directory listing (27 entries: 12 test-fixture artifacts, 7 receipts,
+7 production artifacts, the ownership marker), extended attributes of the directory and each entry, the marker hash, the
+private configuration directory listing (3 entries: the backup configuration file, the storage pointer file and a
+storage lock directory) with the two configuration files' hashes, and the ledger summary from a stable scratch copy of
+the database and its `-wal` sidecar (53 runs, 39 verified, latest `finished_at` 2026-10-03T19:00:39Z; 38 rows for the
+backup schedule). The production database was only copied, never opened by SQLite. The copy pair was accepted as
+`stable` on the first attempt.
+
+### V0.4 Ledger against disk (Phase 2: H5 and H4 data), 2026-10-04
+
+Per slot, ledger state against the files on disk; the backup schedule has 36 scheduled and 2 setup runs, all verified.
+
+| Slot (UTC)          | Ledger   | Artifact on disk | Receipt on disk | Bytes and digest equal ledger |
+| ------------------- | -------- | ---------------- | --------------- | ----------------------------- |
+| 2026-09-18 to 09-24 | verified | no               | no              | not applicable                |
+| 2026-09-25 to 09-29 | verified | yes              | yes             | yes                           |
+| **2026-09-30**      | verified | **no**           | **no**          | not applicable                |
+| **2026-10-01**      | verified | **no**           | **no**          | not applicable                |
+| 2026-10-02, 10-03   | verified | yes              | yes             | yes                           |
+
+The seven slots 2026-09-18 to 09-24 are older than the seven retained dates, so their absence is retention (all seven
+absent as the oldest dates). The seven surviving receipts all name the same destination as the present marker (equality
+only, read R2); every surviving receipt carries the production schedule key and a `scheduled` claim whose slot equals
+its ledger row. The twelve fixtures are artifacts with no receipt. The ledger records no destination, so a lost run is not
+attributed to a destination by this comparison. The surviving seven pairs are exactly seven WIB dates, which is
+consistent with retention having seen only seven owned dates (see V0.8).
+
+### V0.5 H5 (Phase 2), 2026-10-04
+
+Compared the two lost rows to their intact neighbours (2026-09-25 to 09-29 and 2026-10-02, 10-03):
+
+- slot versus `finished_at`: indistinguishable (offsets of 5 to 57 seconds; the lost rows are 40 s and 6 s);
+- attempt count: indistinguishable (1 each); occurrence numbers are contiguous across the lost rows;
+- name timestamp versus slot: indistinguishable (the artifact name's UTC time equals `finished_at` for all 16 rows);
+- byte size: indistinguishable, and **not unique**: 684032 bytes is also the size of the intact 2026-09-29, 10-02 and
+  10-03 runs (the plan's note that both lost rows are exactly 684032 bytes is true but does not set them apart);
+- digests: all 16 verified rows since 2026-09-18 carry 16 distinct digests and 16 distinct basenames.
+
+H5 observation: the rows are indistinguishable from intact neighbours in every compared field, so H5 is eliminated by
+the plan's rule. The other schedule in the ledger (the push-retention schedule) has 14 failed and 1 verified runs and
+is unrelated to the backup schedule.
+
+### V0.6 H4 (Phase 2), 2026-10-04
+
+- Host search for the two lost artifact names (read R3): not found in the user Trash, the Dropbox cache folder, the
+  Dropbox folder, the home directory (whole, one filesystem), the temporary directories, mounted volumes (one) and the
+  shared and library folders. A positive control (a surviving name) was found. The Dropbox cache stores obfuscated
+  names, so it was also searched by content: no file of 100 KB or more in it (47 files) matches either lost digest. A
+  size-and-digest search over the home and temporary directories (3 files of the lost size, all intact survivors) found
+  no copy under another name.
+- Saved destination override: the backup configuration file's modification time is 2026-08-30, and the marker's is
+  2026-08-30, both earlier than the first lost slot. No log line about a destination change exists (see V0.9).
+- Surviving receipts all match the present marker's destination, which does not eliminate H4 for the lost runs (the
+  ledger has no destination column).
+
+H4 observation: no copy found anywhere on the host, no override after 2026-08-30. H4 is eliminated by the plan's rule
+("a copy search and the logs find no copy and no override across the two slots"), with the stated limit that the logs
+carry no dates (V0.9).
+
+### V0.7 H3 (Phase 2), 2026-10-04
+
+- The twelve fixtures were all born on WIB 2026-09-18 (UTC 13:46 to 15:29) and none on the lost WIB dates (2026-10-01
+  and 2026-10-02) or after. Repository writers of `bnest-prod-` names: one in `lib` (the scheduled backup artifact
+  name); the others are unit and integration test helpers and tests.
+- The ledger holds no non-production backup schedule key.
+- Commits touching Backup, the Scheduler and the test configuration, per WIB date from 2026-09-18: 09-19: 5, 09-22: 1,
+  10-01: 4, 10-02: 12, none on the other dates. Test-guard landings by author date: `c6f654ec8` 2026-10-02 07:18 WIB and
+  `ca0e437e9` 2026-10-02 09:12 WIB (committer dates 07:42 and 09:25).
+
+| WIB date   | Fixture births | Commits to the three areas | Guard landing | Lost night |
+| ---------- | -------------- | -------------------------- | ------------- | ---------- |
+| 2026-09-18 | 12             | 0                          | no            | no         |
+| 2026-09-19 | 0              | 5                          | no            | no         |
+| 2026-09-22 | 0              | 1                          | no            | no         |
+| 2026-10-01 | 0              | 4                          | no            | slot 09-30 |
+| 2026-10-02 | 0              | 12                         | both          | slot 10-01 |
+
+H3 observation: the ledger has no foreign schedule key and no fixture is dated on a lost night, but a window of Backup,
+Scheduler and test-configuration commits (hexagonal refactor, pre-guard) covers WIB 2026-10-01 evening to 2026-10-02
+09:12, which overlaps the loss window V0.8 derives. This is temporal fit, not proof: H3 is **not eliminated**, and
+nothing recovered shows a test pair.
+
+### V0.8 H1 and H3a replay (Phase 2), 2026-10-04
+
+The real `Retention.retained_run_ids/1` was replayed in scratch over receipt histories rebuilt from the ledger (36
+scheduled verified runs, synthetic receipts only, each slot adding its receipt and then removing every pair not kept):
+
+| Reconstruction                                                     | Lost nights removed? | Final survivors                   |
+| ------------------------------------------------------------------ | -------------------- | --------------------------------- |
+| (a) production runs alone                                          | no                   | 2026-09-27 to 10-03 (7 dates)     |
+| (b) plus a synthetic newer same-WIB-date receipt on each lost date | yes                  | 09-27, 09-28, 09-29, 10-02, 10-03 |
+| (c) plus twelve synthetic fixture receipts dated 2026-09-18        | no                   | 2026-09-27 to 10-03 (7 dates)     |
+
+Reconstruction (a) keeps the lost nights, as expected, so production retention alone does not remove them (H1 alone is
+eliminated). Reconstruction (b) removes exactly the two nights but also prunes 09-25 and 09-26, which the disk still
+holds, so it does not reproduce the disk. One more probe (not in the plan, labelled): removing both production pairs
+outside retention at a chosen instant reproduces the disk exactly (09-25 to 09-29, 10-02, 10-03) only when the removal
+falls **after the retention of the 2026-10-01T19:00Z slot and before the retention of the 2026-10-02T19:00Z slot**,
+that is between WIB 2026-10-02 02:00 and 2026-10-03 02:00. Removal after the lost slot's own retention, or after the
+2026-10-02 retention, does not.
+
+### V0.9 Service and slot logs (Phase 2), 2026-10-04
+
+The blue and green service logs carry a time of day without a date, and the release logs and metrics concern releases.
+They contain no line naming a backup, retention, a destination or a verified run, so for both lost slots: `No log
+retained` (event sequence unavailable). The logs also record scheduler SQLite connection timeouts on the green service
+(5 occurrences, undated, at times of day 08:55 to 12:33); no relation to a lost slot can be shown and none is claimed.
+Destination override seen: no (nothing logged; the configuration file is unchanged since 2026-08-30).
+
+### V0.10 H2 local signals (Phase 2), 2026-10-04
+
+Extended attributes: every entry in the backup directory (the directory, the fixtures, the surviving pairs and the
+marker) carries the same two attributes, `com.dropbox.attrs` and `com.apple.provenance`, uniformly: no entry differs.
+Conflicted-copy files: none in the backup directory or anywhere in the repository's Dropbox folder (the machine does
+hold 176 conflicted copies in one unrelated top-level Dropbox folder, which shows conflicts occur on this machine but is
+no signal for this folder). Placeholder, partial or temporary files in the backup directory: not found. Local Dropbox cache: no copy of
+either lost artifact (V0.6). No local H2 signal.
+
+### V0.11 H2 disposition (OD-2), 2026-10-04
+
+H2 is `unproven`: no local signal confirmed it, and it cannot be eliminated without the Dropbox event history. The
+observation that would settle it: the Dropbox event history of the backup folder between 2026-10-02 02:00 WIB and
+2026-10-03 02:00 WIB (the loss window of V0.8), or the deleted-files list for the two lost artifacts. Unavailable under
+OD-2.
+
+### V0.12 AC-BI-01 comparison (Phase 2), 2026-10-04
+
+Pre-state 07:28Z and post-state 07:37Z, with no scheduled slot between. Equal: the backup directory listing (names,
+sizes, modification and birth times), extended attributes, the marker hash, the configuration directory listing and the
+two configuration files' hashes, the ledger summary and the 38 backup-schedule rows. **One difference, not covered by
+the comparison rule's exclusions:** the modification time of the storage lock directory in the private configuration
+directory advances about every 30 seconds while the service runs (observed advancing between two reads 20 seconds
+apart with only `stat` running; it differed again between the pre-state and the post-state). It is the running
+service's own heartbeat on its lock, not a write by this execution. The comparison rule says to exclude only
+slot-created or slot-removed entries, so this is recorded as a deviation and as a defect of the rule: no entry other
+than that lock directory, whose mtime is service-owned, changed. Recommended rule amendment: exclude the storage lock
+directory's mtime.
+
+### Phase 2 observation table (H1 to H5), dates and counts only
+
+| Hypothesis | Disposition                             | Observation                                                                                                                                              |
+| ---------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H1         | eliminated for production writers alone | Replay (a) keeps both nights; retention alone cannot remove them. Interacts with H3 (b).                                                                 |
+| H2         | unproven                                | No local signal (V0.10); settling observation unavailable under OD-2 (V0.11).                                                                            |
+| H3         | not eliminated                          | Loss window 2026-10-02 02:00 to 2026-10-03 02:00 WIB overlaps pre-guard refactor commits; no fixture on a lost night; no direct evidence of a test pair. |
+| H4         | eliminated                              | No copy on the host or in the Dropbox cache; no destination override after 2026-08-30; surviving receipts match the marker.                              |
+| H5         | eliminated                              | The lost rows are indistinguishable from intact neighbours in every compared field.                                                                      |
