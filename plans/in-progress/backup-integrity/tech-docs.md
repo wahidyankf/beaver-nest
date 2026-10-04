@@ -249,6 +249,13 @@ an expected verified run (fewer than seven early on). The dates are fictional, l
 | Could not be checked               | Reconciliation raised, the ledger is unreadable or unstable, or the ceiling passed  | `Backup files: could not be checked. Run mix bnest.backup.reconcile on the host.`                                                                      |
 | Nothing to check yet               | The ledger holds no verified backup run                                             | `Backup files: no verified backup to check yet`                                                                                                        |
 
+**State set (provisional, fixed 2026-10-04 from the AI-recorded verdict V1 `C-UNPROVEN`; pending the owner's
+confirmation in Phase 6).** The label shows checking (page-only), all present, needs attention, could not be checked and
+nothing to check yet. The destination-mismatch state is **not** in the set, because it exists only on the `C-DEST`
+branch and V1 eliminated H4; its draft row above and its sheet in the hi-fi assets stay as drawn until Phase 8 decides
+whether to keep them, and no scenario, binding or code is written for it unless the confirmed verdict is `C-DEST`. The
+label itself is decided (OD-3) and does not depend on the verdict.
+
 In the selected `row` alternative `Backup files` is the item's term (`dt`) and the rest of each string is its
 description (`dd`); the log and the Mix task print them joined with a colon. The nothing-to-check state is a designed
 neutral state for the label; the Mix task reports the same words but exits non-zero (decision D10).

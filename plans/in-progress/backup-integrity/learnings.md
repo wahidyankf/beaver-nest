@@ -238,6 +238,14 @@ slot-created or slot-removed entries, so this is recorded as a deviation and as 
 than that lock directory, whose mtime is service-owned, changed. Recommended rule amendment: exclude the storage lock
 directory's mtime.
 
+### V0.13 AC-BI-01 comparison rule amended (owner decision), 2026-10-04
+
+The owner decided on 2026-10-04 to amend AC-BI-01's comparison rule so that it also excludes the modification time of the
+`storage.json.lock` directory under the private configuration directory, which the running service rewrites about every
+30 seconds (V0.12). The amendment is recorded in the PRD under AC-BI-01 and applies to the Phase 5 early live reconcile
+and the Phase 13 re-run as well as to Phase 2. The deviation recorded in V0.12 is therefore covered by the amended rule;
+nothing else was excluded on this ground.
+
 ### Phase 2 observation table (H1 to H5), dates and counts only
 
 | Hypothesis | Disposition                             | Observation                                                                                                                                              |
@@ -247,3 +255,41 @@ directory's mtime.
 | H3         | not eliminated                          | Loss window 2026-10-02 02:00 to 2026-10-03 02:00 WIB overlaps pre-guard refactor commits; no fixture on a lost night; no direct evidence of a test pair. |
 | H4         | eliminated                              | No copy on the host or in the Dropbox cache; no destination override after 2026-08-30; surviving receipts match the marker.                              |
 | H5         | eliminated                              | The lost rows are indistinguishable from intact neighbours in every compared field.                                                                      |
+
+## V1 Cause verdict (Phase 3), 2026-10-04
+
+**AI-recorded; pending owner confirmation** (the owner confirms V1 at the start of Phase 6, decision D11, an agent
+proposal). Nothing below is an owner decision.
+
+**Verdict: `C-UNPROVEN`, with two candidates open and none confirmed.** The open candidates are `C-DROPBOX` (H2) and
+`C-TEST` (H3). The verdict is not a union, because no cause is confirmed. It is not `C-RET` (H1 is eliminated for
+production writers alone), not `C-DEST` (H4 eliminated) and not `C-LEDGER` (H5 eliminated).
+
+| Hypothesis | Disposition                   | Observation that confirmed or eliminated it, or that would settle it                                                                                                                                                                                                                                                                        |
+| ---------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H1         | eliminated (production alone) | V0.8 replay (a): the real retention function keeps both nights over receipt histories rebuilt from the ledger. Only a newer same-WIB-date receipt that production did not write (reconstruction (b)) removes them, and that reconstruction also prunes two dates the disk still holds, so it does not reproduce the disk.                   |
+| H2         | unproven                      | No local signal (V0.10). Would be settled by the Dropbox event history, or the deleted-files list, of the backup folder between 2026-10-02 02:00 WIB and 2026-10-03 02:00 WIB. Unavailable under OD-2.                                                                                                                                      |
+| H3         | not eliminated                | Temporal overlap only (V0.7, V0.8): no fixture is dated on a lost night, the ledger holds no foreign schedule key, and no direct trace of a test pair exists. Would be settled by a retained record of a pre-guard test run in the loss window that resolved the real backup destination; none is retained (V0.9: the logs carry no dates). |
+| H3a        | not reproduced                | V0.8 (b): supersession by a synthetic newer same-date receipt removes the two nights but also two dates that survive, so the mechanism as formulated does not explain the disk.                                                                                                                                                             |
+| H4         | eliminated                    | V0.6: no copy of either name or digest anywhere on the host, no destination override after 2026-08-30.                                                                                                                                                                                                                                      |
+| H5         | eliminated                    | V0.5: the lost rows are indistinguishable from intact neighbours in every compared field.                                                                                                                                                                                                                                                   |
+
+**What the Phase 2 narrowing does and does not show.** Under a single-instant removal assumption, the only removal time
+that reproduces the disk lies between the retention of the 2026-10-01T19:00Z slot and that of the 2026-10-02T19:00Z
+slot, that is WIB 2026-10-02 02:00 to 2026-10-03 02:00, a window of 24 hours (V0.8). The two test-guard commits landed at
+07:18 and 09:12 WIB on 2026-10-02 by author date (V0.7), so the pre-guard part of that window is its first 7 hours 12
+minutes and the post-guard part is the remaining 16 hours 48 minutes. Commits show when code changed, not when a test
+ran, and no test-run record is retained. The overlap with pre-guard refactor activity therefore keeps H3 open and does
+not make it likely: a Dropbox deletion, move or conflict at any time in the same 24 hours fits the disk equally well,
+and nothing observed separates the two. The replay also does not support the supersession form of H3 (H3a): a test that
+removed exactly the two production pairs would need a path other than supersession, and Phase 2 did not identify a code
+path that does that. The window assumes both pairs left the disk at one instant; removals at two instants would widen
+it.
+
+**Minimal reproduction for Phase 6.** None is recorded, because H1, H3a and H5 are not confirmed as the cause (AC-BI-10
+has no verdict-named reproduction to test). AC-BI-08 and AC-BI-09 apply as defence in depth only, because H3 stays open
+(branch table, `C-UNPROVEN` row; decision G7).
+
+**What would change this verdict.** The Dropbox event history for the loss window (settles H2), or a retained record of a
+test run in that window that resolved the real destination (settles H3). If a repository-side defect is later proved,
+the verdict becomes the union with that cause and the matching Phase 6 items are triggered by their own RED.

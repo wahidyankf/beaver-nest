@@ -48,13 +48,20 @@ Scenario: Read-only investigation leaves production untouched
   Then the same listing, marker bytes, configuration listing and row count are recorded after it, equal under the
     comparison rule
   And no pre-existing file under the backup directory or the private configuration directory has a later
-    modification time
+    modification time, except the modification time of the storage lock directory the comparison rule excludes
 ```
 
 **Comparison rule.** Equality excludes only entries created or removed by a scheduled slot inside the window: the new
 artifact and receipt pair whose ledger row carries that slot's `scheduled_for`, the owned pair that slot's retention
 removed, and that slot's ledger rows. Each excluded difference must be justified by a ledger row in the window. The
 nightly slot is 19:00 UTC, so Phase 2 is started and finished between slots; the rule covers a slot that arrives anyway.
+
+**Amendment (owner decision, 2026-10-04).** The comparison also excludes the modification time of the `storage.json.lock`
+directory under the private configuration directory. The running service rewrites that directory's modification time
+about every 30 seconds as a heartbeat on its storage lock; it is a service-owned change, not a write by this
+execution, and no other entry in either directory is excluded on this ground. Phase 2 found the difference (see
+[`learnings.md`](learnings.md), entry V0.12); the owner amended the rule on 2026-10-04. The amendment applies to every
+comparison this plan makes: Phase 2, the Phase 5 early live reconcile and the Phase 13 re-run.
 
 ### AC-BI-02 — The verdict is evidenced and discriminating
 
@@ -231,7 +238,8 @@ Scenario: A reconciliation that raises leaves the backup verified
 Scenario: The task exits zero only when at least one expected run exists and every expected run is present
   Given an isolated destination and ledger in which at least one expected run exists and every expected run is present
   When the reconcile task runs
-  Then it exits 0 and prints each date as present
+  Then it exits 0 and prints the summary line stating that all N retained backups are present
+  And it prints no per-date line
   And it starts no scheduler
 
 Scenario: The task exits non-zero when a run is missing, changed or unreadable
@@ -249,6 +257,10 @@ Scenario: The task does not report an empty ledger as present
   And it exits non-zero
   And it starts no scheduler
 ```
+
+**Reconciliation note (agent-proposed resolution, 2026-10-04, pending owner confirmation).** Gate pass 6 found that
+"prints each date as present" contradicted the all-present summary wording `Backup files: all N retained backups are
+present`. The first scenario now names the summary line and no per-date line; the Phase 5 RED says the same.
 
 An empty set of expected runs is vacuously all present; the task must not let that read as healthy, so the empty ledger
 is neither an exit `0` nor a `present` line (decision D10). The same words are the label's nothing-to-check state, which
