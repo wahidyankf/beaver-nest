@@ -383,7 +383,7 @@ conditional Rules follow V1's provisional dispositions, and if the owner's confi
 the affected Rules are added or removed as their own Gherkin, binding and red cycle. The Schedules-page scenarios
 (AC-BI-21 to AC-BI-23) wait for the design review and are specified in Phase 9, after Phase 8.
 
-- [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-11, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19]` Add the `Rule`s to
+- [x] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-11, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19]` Add the `Rule`s to
       `specs/apps/bnest/app-be/behaviours/scheduled_backups.feature` transcribing the backend-observable criteria:
       AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-11 (against an isolated destination standing for the owner's
       artifact), AC-BI-15, AC-BI-16, AC-BI-17 and AC-BI-18, plus the conditional AC-BI-08, AC-BI-09, AC-BI-10 (rewritten
@@ -401,17 +401,50 @@ the affected Rules are added or removed as their own Gherkin, binding and red cy
       names an outcome visible in a report, an exit status or a directory listing, and the wording Rule names the
       report line for each state; no placeholder, no-op or outcome table.
       **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** AC-BI-08 and AC-BI-09 applicable (H3 stays open, so they apply as defence in depth); AC-BI-10 `Not applicable` (no repository-side cause and no verdict-named reproduction); AC-BI-19 `Not applicable` (C-DEST not selected, H4 eliminated), so the wording Rule omits the mismatch scenario and footer.
-- [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18]` Update `specs/apps/bnest/app-be/architecture.md` as
+      **Evidence 2026-10-04:** 8 Rules and 19 scenarios appended, each `@e2e-exempt` with an `Exemption(e2e)` comment naming
+      its `bnest-app:test:integration` alternative (comment and scenario names checked equal): reconciliation missing,
+      changed, older-than-retained, newest-of-date and never-writes (AC-BI-03, 04, 05, 15, 06); the wording Rule with one
+      scenario each for all present, several need attention, one needs attention, could not run and nothing to check
+      (AC-BI-07, 17); no private value (AC-BI-07); a raising reconciliation never fails the backup (AC-BI-16); the task exit
+      status (AC-BI-17: all present exits 0 with the summary line and no per-date line, missing, changed, unreadable
+      ledger, empty ledger); AC-BI-08 and AC-BI-09 as applicable. The singular forms (`1 of 7 retained backups needs
+    attention`) are agent proposals for Phase 8 to review. **Deviation (recorded):** the AC-BI-11 and AC-BI-18 Rules are
+      not written now but as the first cycle of Phase 7 (Gherkin, bindings, red, code), because their task is built
+      only in Phase 7 and the Phase 5 checkpoint requires green `BE_UNIT`, `INTEGRATION` and `BEHAVIOUR`; the Phase 5
+      item that lists AC-BI-18 among the scenarios made green is therefore satisfied for AC-BI-18 in Phase 7. AC-BI-10
+      and AC-BI-19 omitted (`Not applicable`). No placeholder, no-op or outcome table.
+- [x] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18]` Update `specs/apps/bnest/app-be/architecture.md` as
       [`tech-docs.md`](tech-docs.md#specification-changes) states: Component View for reconciliation, the Scheduler
       read and the Mix tasks; Constraints for read-only reconciliation that never opens the production database. Record the Container View
       as deliberately unchanged. **Proof:** those locations changed and no other.
-- [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-11, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19]` Bind the new scenarios in
+      **Evidence 2026-10-04:** changed locations only: Component View (the Backup node text and its accessible description, and
+      a paragraph on reconciliation, the Scheduler `verified_runs/1` read and the two Mix tasks) and Constraints (one
+      bullet: reconciliation is read-only, never opens the production database, starts no Scheduler). Container View
+      deliberately unchanged.
+- [x] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-11, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19]` Bind the new scenarios in
       `apps/bnest-app/test/behaviour/steps/scheduled_backup_steps.exs` against isolated destinations, then capture the
       behavioural **RED**. Command: `BEHAVIOUR`. **Proof:** it fails because reconciliation and the Mix tasks do not exist, not because of compilation or configuration.
-- [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-11, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19]` Run the repository specification-map gate. Command: `REPO`. **Proof:** it
+      **Evidence 2026-10-04 (delegated to `swe-developer`, verified by the executor):** about 50 steps bound; both drivers
+      (unit in-memory, integration real filesystem and SQLite ledger with synthetic roots) and new test-support modules
+      call the final Phase 5 API (`Scheduler.verified_runs/1`, `Backup.reconcile/2`, `Reconciliation.report/1` and
+      `render/1`, `Mix.Tasks.Bnest.Backup.Reconcile.execute/1`); no production code written. `BEHAVIOUR` exit 0
+      (13 features, 182 scenarios, 1087 steps, 492 bindings per layer; no unbound, ambiguous or unused step). **RED:** the
+      canonical `BE_UNIT` and `INTEGRATION` fail at compile under `--warnings-as-errors` on 7 undefined-production-function
+      warnings (the intended red; recorded honestly as a compile-time failure). The behavioural red, run without
+      `--warnings-as-errors`: unit 639 tests, 17 failures (16 on `Scheduler.verified_runs/1` undefined, 1 missing log
+      line for the raising-reconciliation scenario); integration 17 of 31 feature tests (10 on the undefined Mix task, 6
+      on `verified_runs/1`, 1 missing log line). AC-BI-08 and AC-BI-09 pass on unmodified code, as characterization pins
+      whose mutation runs are the Phase 6 items; every pre-existing test still passes. **Deviation:** `BEHAVIOUR` is a
+      binding-coverage verifier, so it passes; the red is in the scenario runs.
+- [x] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-11, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19]` Run the repository specification-map gate. Command: `REPO`. **Proof:** it
       passes and the record names every specification file changed.
-- [ ] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-11, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19]` **Blocking checkpoint — Phase 4.** Specifications describe the intended
+      **Evidence 2026-10-04:** `REPO` passed (directory-map, quality-gates, harness-adapters, internal-links, mermaid).
+      Specification files changed: `specs/apps/bnest/app-be/behaviours/scheduled_backups.feature` and
+      `specs/apps/bnest/app-be/architecture.md`; the behaviours README map is unchanged (no file added).
+- [x] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-11, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19]` **Blocking checkpoint — Phase 4.** Specifications describe the intended
       behaviour, the behavioural red is on record, `REPO` is green, and no production code has changed.
+      **Checkpoint passed 2026-10-04 with the recorded deviations:** specifications describe the intended behaviour, the
+      behavioural red is on record, `REPO` is green, and no production code (`lib/`) has changed.
 
 ## Phase 5 — Reconciliation Detector
 
