@@ -22,9 +22,10 @@ import {
 export async function openWithTrace(
   page: Page,
   world: IntegrityWorld,
+  size?: { height: number; width: number },
 ): Promise<void> {
   await traceBeforeNavigation(page);
-  await openSchedules(page, world);
+  await openSchedules(page, world, size);
 }
 
 async function problemsRendered(

@@ -28,6 +28,7 @@ import {
   expectPoliteAnnouncement,
   expectProblemLinesWhole,
   expectProblemsInText,
+  openWithTrace,
   walkPage,
 } from "../support/backup-integrity-layout";
 import {
@@ -137,7 +138,7 @@ When("the administrator opens Schedules & backups", ({ page }) =>
 When(
   "the administrator opens Schedules & backups at {int} x {int}",
   ({ page }, width: number, height: number) =>
-    openSchedules(page, integrity, { height, width }),
+    openWithTrace(page, integrity, { height, width }),
 );
 When("the administrator saves the daily schedule", ({ page }) =>
   saveForm(page, integrity, "daily schedule"),
