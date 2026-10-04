@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="393" height="1608" viewBox="0 0 393 1608" role="img" aria-labelledby="ui-card-lofi-mobile-t ui-card-lofi-mobile-d" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="ui-card-lofi-mobile-t">Option card, lo-fi, mobile: Backup integrity card between the schedule groups and the forms</title>
+<desc id="ui-card-lofi-mobile-d">Schedules &amp; backups page at 393 pixels wide, lo-fi wireframe of the card alternative, showing the task: the administrator opens the page and learns that two of seven retained backups need attention, 2030-05-14 file missing and 2030-05-16 file changed. All content is synthetic. A Backup integrity card sits between Admin/system schedules and the Production database backup form, listing all seven retained dates. On mobile the dates form one column. Each state is conveyed by a marker shape and text as well as by any colour. </desc>
+<rect x="0" y="36" width="393" height="1572" fill="#ffffff"/>
+<rect x="0" y="0" width="393" height="36" fill="#e4e4e4"/>
+<text x="16" y="22.55" font-size="13" font-weight="700" fill="#1b1b1b">Option card | lo-fi | mobile 393 px</text>
+<text x="16" y="85.6" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>Admin home</tspan><tspan> / </tspan><tspan>Admin settings</tspan></text>
+<text x="16" y="141.6" font-size="16" font-weight="800" letter-spacing="1.92" fill="#1b1b1b">DAILY OPERATIONS</text>
+<text x="16" y="165.6" font-size="16" font-weight="700" fill="#1b1b1b">Schedules &amp; backups</text>
+<text x="16" y="213.6" font-size="16" font-weight="700" fill="#1b1b1b">Family schedules</text>
+<text x="16" y="253.6" font-size="16" fill="#1b1b1b">No family schedules are configured.</text>
+<text x="16" y="301.6" font-size="16" font-weight="700" fill="#1b1b1b">Admin/system schedules</text>
+<rect x="16" y="324" width="361" height="338" rx="6" fill="#fafafa" stroke="#444444" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="38" y="363.6" font-size="16" font-weight="700" fill="#1b1b1b">Production database backup</text>
+<text x="38" y="395.2" font-size="12" font-weight="800" fill="#1b1b1b">CADENCE</text>
+<text x="38" y="417.6" font-size="16" fill="#1b1b1b">Daily at 02:00 WIB</text>
+<text x="38" y="449.2" font-size="12" font-weight="800" fill="#1b1b1b">NEXT RUN</text>
+<text x="38" y="471.6" font-size="16" fill="#1b1b1b">2030-05-18 19:00:00Z</text>
+<text x="38" y="503.2" font-size="12" font-weight="800" fill="#1b1b1b">STATE</text>
+<text x="38" y="525.6" font-size="16" fill="#1b1b1b">Enabled</text>
+<text x="38" y="557.2" font-size="12" font-weight="800" fill="#1b1b1b">EXPIRATION</text>
+<text x="38" y="579.6" font-size="16" fill="#1b1b1b">Never expires</text>
+<text x="38" y="611.2" font-size="12" font-weight="800" fill="#1b1b1b">LAST RESULT</text>
+<text x="38" y="633.6" font-size="16" fill="#1b1b1b">Verified</text>
+<rect x="16" y="678" width="361" height="78" rx="6" fill="#fafafa" stroke="#444444" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="32" y="702.6" font-size="16" font-weight="700" fill="#1b1b1b">Family chat push delivery retention</text>
+<text x="32" y="722.55" font-size="13" fill="#555555">Cadence, Next run, State, Expiration, Last</text>
+<text x="32" y="742.55" font-size="13" fill="#555555">result (unchanged)</text>
+<rect x="16" y="780" width="361" height="361.6" rx="6" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+<rect x="321" y="771" width="48" height="18" rx="2" fill="#000000"/>
+<text x="345" y="783.85" font-size="11" font-weight="800" text-anchor="middle" letter-spacing="1" fill="#ffffff">NEW</text>
+<text x="38" y="819.6" font-size="16" font-weight="700" fill="#1b1b1b">Backup integrity</text>
+<rect x="38" y="838" width="6.4" height="73.6" fill="#1b1b1b"/>
+<polygon points="66.2,853.3 76.2,870.8 56.2,870.8" fill="#ffffff" stroke="#1b1b1b" stroke-width="2" stroke-linejoin="round"/>
+<path d="M66.2 859.8 L66.2 865.3" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="66.2" cy="868" r="1.2" fill="#1b1b1b"/>
+<text x="83.2" y="868.4" font-size="16" font-weight="700" fill="#1b1b1b" xml:space="preserve"><tspan font-weight="700">2 of 7 retained backups</tspan></text>
+<text x="83.2" y="892.4" font-size="16" font-weight="700" fill="#1b1b1b" xml:space="preserve"><tspan font-weight="700">need attention</tspan></text>
+<g transform="translate(47 935.6) scale(0.8)">
+<circle cx="0" cy="0" r="9" fill="#ffffff" stroke="#1b1b1b" stroke-width="2"/>
+<path d="M-4.5 0.5 L-1.5 3.5 L4.5 -3.5" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="64" y="941.2" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>2030-05-12: </tspan><tspan>file present</tspan></text>
+<g transform="translate(47 963.6) scale(0.8)">
+<circle cx="0" cy="0" r="9" fill="#ffffff" stroke="#1b1b1b" stroke-width="2"/>
+<path d="M-4.5 0.5 L-1.5 3.5 L4.5 -3.5" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="64" y="969.2" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>2030-05-13: </tspan><tspan>file present</tspan></text>
+<g transform="translate(47 991.6) scale(0.8)">
+<polygon points="0,-9.5 10,8 -10,8" fill="#ffffff" stroke="#1b1b1b" stroke-width="2" stroke-linejoin="round"/>
+<path d="M0 -3 L0 2.5" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="0" cy="5.2" r="1.2" fill="#1b1b1b"/>
+</g>
+<text x="64" y="997.2" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>2030-05-14: </tspan><tspan font-weight="800">file missing</tspan></text>
+<g transform="translate(47 1019.6) scale(0.8)">
+<circle cx="0" cy="0" r="9" fill="#ffffff" stroke="#1b1b1b" stroke-width="2"/>
+<path d="M-4.5 0.5 L-1.5 3.5 L4.5 -3.5" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="64" y="1025.2" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>2030-05-15: </tspan><tspan>file present</tspan></text>
+<g transform="translate(47 1047.6) scale(0.8)">
+<polygon points="0,-9.5 10,8 -10,8" fill="#ffffff" stroke="#1b1b1b" stroke-width="2" stroke-linejoin="round"/>
+<path d="M0 -3 L0 2.5" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="0" cy="5.2" r="1.2" fill="#1b1b1b"/>
+</g>
+<text x="64" y="1053.2" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>2030-05-16: </tspan><tspan font-weight="800">file changed</tspan></text>
+<g transform="translate(47 1075.6) scale(0.8)">
+<circle cx="0" cy="0" r="9" fill="#ffffff" stroke="#1b1b1b" stroke-width="2"/>
+<path d="M-4.5 0.5 L-1.5 3.5 L4.5 -3.5" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="64" y="1081.2" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>2030-05-17: </tspan><tspan>file present</tspan></text>
+<g transform="translate(47 1103.6) scale(0.8)">
+<circle cx="0" cy="0" r="9" fill="#ffffff" stroke="#1b1b1b" stroke-width="2"/>
+<path d="M-4.5 0.5 L-1.5 3.5 L4.5 -3.5" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="64" y="1109.2" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>2030-05-18: </tspan><tspan>file present</tspan></text>
+<rect x="16" y="1165.6" width="361" height="78" rx="6" fill="#fafafa" stroke="#444444" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="32" y="1190.2" font-size="16" font-weight="700" fill="#1b1b1b">Production database backup</text>
+<text x="32" y="1210.15" font-size="13" fill="#555555">Schedule form with Enabled, Daily time (WIB)</text>
+<text x="32" y="1230.15" font-size="13" fill="#555555">and Save schedule (unchanged)</text>
+<rect x="16" y="1267.6" width="361" height="78" rx="6" fill="#fafafa" stroke="#444444" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="32" y="1292.2" font-size="16" font-weight="700" fill="#1b1b1b">Backup folder</text>
+<text x="32" y="1312.15" font-size="13" fill="#555555">Folder form with Save and create first backup</text>
+<text x="32" y="1332.15" font-size="13" fill="#555555">(unchanged)</text>
+<rect x="16" y="1409.6" width="361" height="182" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="32" y="1437.15" font-size="13" font-weight="800" fill="#1b1b1b">Notes for this alternative</text>
+<text x="32" y="1462.15" font-size="13" fill="#1b1b1b">Placement: the same card, with the date list</text>
+<text x="32" y="1482.15" font-size="13" fill="#1b1b1b">in one column.</text>
+<text x="32" y="1506.15" font-size="13" fill="#1b1b1b">Seven date lines plus the headline make the</text>
+<text x="32" y="1526.15" font-size="13" fill="#1b1b1b">card tall on a phone.</text>
+<text x="32" y="1550.15" font-size="13" fill="#1b1b1b">Drawbacks: the longest page of the three</text>
+<text x="32" y="1570.15" font-size="13" fill="#1b1b1b">alternatives on mobile.</text>
+</svg>

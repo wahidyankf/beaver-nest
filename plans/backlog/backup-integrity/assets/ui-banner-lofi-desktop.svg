@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1074" viewBox="0 0 1440 1074" role="img" aria-labelledby="ui-banner-lofi-desktop-t ui-banner-lofi-desktop-d" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="ui-banner-lofi-desktop-t">Option banner, lo-fi, desktop: status banner above the schedule groups</title>
+<desc id="ui-banner-lofi-desktop-d">Schedules &amp; backups page at 1440 pixels wide, lo-fi wireframe of the banner alternative, showing the task: the administrator opens the page and learns that two of seven retained backups need attention, 2030-05-14 file missing and 2030-05-16 file changed. All content is synthetic. A status banner sits between the page title and Family schedules. On desktop the banner spans the full content width. Each state is conveyed by a marker shape and text as well as by any colour. </desc>
+<rect x="0" y="36" width="1440" height="1038" fill="#ffffff"/>
+<rect x="0" y="0" width="1440" height="36" fill="#e4e4e4"/>
+<text x="16" y="22.55" font-size="13" font-weight="700" fill="#1b1b1b">Option banner | lo-fi | desktop 1440 px</text>
+<text x="1424" y="22.55" font-size="13" text-anchor="end" fill="#1b1b1b">synthetic content</text>
+<text x="144" y="85.6" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>Admin home</tspan><tspan> / </tspan><tspan>Admin settings</tspan></text>
+<text x="144" y="141.6" font-size="16" font-weight="800" letter-spacing="1.92" fill="#1b1b1b">DAILY OPERATIONS</text>
+<text x="144" y="165.6" font-size="16" font-weight="700" fill="#1b1b1b">Schedules &amp; backups</text>
+<rect x="144" y="188" width="1152" height="117.6" rx="6" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+<rect x="152" y="196" width="6.4" height="101.6" fill="#1b1b1b"/>
+<polygon points="180.2,211.3 190.2,228.8 170.2,228.8" fill="#ffffff" stroke="#1b1b1b" stroke-width="2" stroke-linejoin="round"/>
+<path d="M180.2 217.8 L180.2 223.3" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="180.2" cy="226" r="1.2" fill="#1b1b1b"/>
+<text x="197.2" y="226.4" font-size="16" font-weight="700" fill="#1b1b1b" xml:space="preserve"><tspan font-weight="700">2 of 7 retained backups need attention</tspan></text>
+<text x="197.2" y="254.4" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>2030-05-14: </tspan><tspan font-weight="800">file missing</tspan></text>
+<text x="197.2" y="278.4" font-size="16" fill="#1b1b1b" xml:space="preserve"><tspan>2030-05-16: </tspan><tspan font-weight="800">file changed</tspan></text>
+<rect x="1240" y="179" width="48" height="18" rx="2" fill="#000000"/>
+<text x="1264" y="191.85" font-size="11" font-weight="800" text-anchor="middle" letter-spacing="1" fill="#ffffff">NEW</text>
+<text x="144" y="347.2" font-size="16" font-weight="700" fill="#1b1b1b">Family schedules</text>
+<text x="144" y="387.2" font-size="16" fill="#1b1b1b">No family schedules are configured.</text>
+<text x="144" y="435.2" font-size="16" font-weight="700" fill="#1b1b1b">Admin/system schedules</text>
+<rect x="144" y="457.6" width="1152" height="176" rx="6" fill="#fafafa" stroke="#444444" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="166" y="497.2" font-size="16" font-weight="700" fill="#1b1b1b">Production database backup</text>
+<text x="166" y="528.8" font-size="12" font-weight="800" fill="#1b1b1b">CADENCE</text>
+<text x="166" y="551.2" font-size="16" fill="#1b1b1b">Daily at 02:00 WIB</text>
+<text x="446" y="528.8" font-size="12" font-weight="800" fill="#1b1b1b">NEXT RUN</text>
+<text x="446" y="551.2" font-size="16" fill="#1b1b1b">2030-05-18 19:00:00Z</text>
+<text x="726" y="528.8" font-size="12" font-weight="800" fill="#1b1b1b">STATE</text>
+<text x="726" y="551.2" font-size="16" fill="#1b1b1b">Enabled</text>
+<text x="1006" y="528.8" font-size="12" font-weight="800" fill="#1b1b1b">EXPIRATION</text>
+<text x="1006" y="551.2" font-size="16" fill="#1b1b1b">Never expires</text>
+<text x="166" y="582.8" font-size="12" font-weight="800" fill="#1b1b1b">LAST RESULT</text>
+<text x="166" y="605.2" font-size="16" fill="#1b1b1b">Verified</text>
+<rect x="144" y="649.6" width="1152" height="58" rx="6" fill="#fafafa" stroke="#444444" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="160" y="674.2" font-size="16" font-weight="700" fill="#1b1b1b">Family chat push delivery retention</text>
+<text x="160" y="694.15" font-size="13" fill="#555555">Cadence, Next run, State, Expiration, Last result (unchanged)</text>
+<rect x="144" y="731.6" width="1152" height="58" rx="6" fill="#fafafa" stroke="#444444" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="160" y="756.2" font-size="16" font-weight="700" fill="#1b1b1b">Production database backup</text>
+<text x="160" y="776.15" font-size="13" fill="#555555">Schedule form with Enabled, Daily time (WIB) and Save schedule (unchanged)</text>
+<rect x="144" y="813.6" width="1152" height="58" rx="6" fill="#fafafa" stroke="#444444" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="160" y="838.2" font-size="16" font-weight="700" fill="#1b1b1b">Backup folder</text>
+<text x="160" y="858.15" font-size="13" fill="#555555">Folder form with Save and create first backup (unchanged)</text>
+<rect x="16" y="935.6" width="1408" height="122" rx="6" fill="#ffffff" stroke="#444444" stroke-width="1.5"/>
+<text x="32" y="963.15" font-size="13" font-weight="800" fill="#1b1b1b">Notes for this alternative</text>
+<text x="32" y="988.15" font-size="13" fill="#1b1b1b">Placement: a status banner between the page title and Family schedules, rendered only when something needs attention or the check failed.</text>
+<text x="32" y="1012.15" font-size="13" fill="#1b1b1b">Silent when all retained backups are present, while checking and when there is nothing to check: no positive assurance.</text>
+<text x="32" y="1036.15" font-size="13" fill="#1b1b1b">Drawbacks: pushes every schedule down when it appears, which moves content the administrator may be reading.</text>
+</svg>
