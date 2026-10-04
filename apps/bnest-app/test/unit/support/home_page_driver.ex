@@ -45,6 +45,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
   alias BnestApp.Test.InMemory.StoragePorts
   alias BnestApp.Test.InMemory.StoragePorts.{FlatSource, MigrationLedger}
+  alias BnestApp.Test.IntegrityLabel
+  alias BnestApp.Test.ObservedArtifactStore
   alias BnestApp.Test.RestoreDrill
   alias BnestApp.Test.SchedulerDispatch
   alias BnestAppWeb.AdminScheduleSettingsLive
@@ -73,6 +75,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @integrity_prepares BackupIntegrity.prepares()
   @integrity_performs BackupIntegrity.performs()
   @integrity_outcomes BackupIntegrity.outcomes()
+  @label_outcomes IntegrityLabel.outcomes()
 
   # The same for the restore drill (`BnestApp.Test.RestoreDrill`).
   @drill_destination_prepares RestoreDrill.destination_prepares()
@@ -1932,6 +1935,28 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def prepare_behaviour(context, state, args) when state in @drill_prepares,
     do: RestoreDrill.prepare(context, state, args)
 
+  # The administrator opened the page and its label stated that every retained backup is
+  # present: where the checks that follow a save start.
+  def prepare_behaviour(context, :label_opened_all_present, _args) do
+    context =
+      context
+      |> prepare_behaviour(:label_destination, ["all_present"])
+      |> open_label_page()
+
+    unless IntegrityLabel.outcome?(context, :label_states_all_present, []),
+      do: raise("the schedules page did not state that every retained backup is present")
+
+    context
+  end
+
+  # A family member with a real session who is no administrator, beside a destination whose
+  # artifact reads are counted.
+  def prepare_behaviour(context, :label_denied_visitor, _args) do
+    context
+    |> prepare_behaviour(:denied_settings_visitor, [])
+    |> prepare_behaviour(:label_destination, ["watched"])
+  end
+
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
     {response, accesses} = route_request(route, nil)
@@ -2506,6 +2531,80 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   # The reconcile task over the unit layer's adapters: the ledger's verified runs, the
   # destination read through the artifact store, the one wording function.
+  # The page as a connected administrator opens it: the first render, then the render once
+  # the check it started has reported (`IntegrityLabel.settle/1`).
+  def perform_behaviour(context, :open_schedules_label, args),
+    do: context |> open_label_page() |> note_viewport(args)
+
+  # One of the page's forms submitted with the fields as rendered: the label is read right
+  # after the event and again once the check the save started has reported.
+  def perform_behaviour(context, :save_label_form, [form]) do
+    socket = context.schedules_socket
+    {event, params} = label_form(render_schedules_page(socket), form)
+    {:noreply, saved} = AdminScheduleSettingsLive.handle_event(event, params, socket)
+    after_save = render_schedules_page(saved)
+    settled = IntegrityLabel.settle(saved)
+    await_scheduler_tasks()
+
+    Map.merge(context, %{
+      schedules_socket: settled,
+      label_after_save: after_save,
+      label_settled_after_save: render_schedules_page(settled)
+    })
+  end
+
+  def perform_behaviour(context, :open_and_reload_label, []) do
+    evidence = %{
+      destination: BackupIntegrity.snapshot(context.backup_directory),
+      ledger: BackupIntegrity.ledger_rows()
+    }
+
+    context |> open_label_page() |> open_label_page() |> Map.put(:evidence_before, evidence)
+  end
+
+  def perform_behaviour(context, :read_label_and_report, []) do
+    context
+    |> open_label_page()
+    |> BackupIntegrity.run_task(fn -> reconcile_report(context.backup_directory) end)
+  end
+
+  # The page is opened over a check that never finishes: the first render is read at once,
+  # and the result only when the page's ceiling ends the check.
+  def perform_behaviour(context, :open_label_past_ceiling, []) do
+    started = IntegrityLabel.now()
+    socket = mount_schedules_page()
+    first = render_schedules_page(socket)
+    settled = IntegrityLabel.settle(socket)
+    elapsed = IntegrityLabel.now() - started
+
+    Map.merge(context, %{
+      schedules_socket: settled,
+      label_first: first,
+      label_page: render_schedules_page(settled),
+      ceiling: IntegrityLabel.observe_ceiling(elapsed)
+    })
+  end
+
+  # The visitor's request is stopped by the router's admin guard. The artifact reads it
+  # caused are counted, and so are the reads of an administrator's visit to the same route:
+  # the probe sees a reconciliation when one runs, so no reads for the visitor is a measurement.
+  def perform_behaviour(context, :open_schedules_route_denied, []) do
+    reads = ObservedArtifactStore.read_count()
+    {response, accesses} = route_request("/admin/settings/schedules", context.visitor_token)
+    denied = ObservedArtifactStore.read_count() - reads
+
+    reads = ObservedArtifactStore.read_count()
+    _control = open_label_page(context)
+    control = ObservedArtifactStore.read_count() - reads
+
+    Map.merge(context, %{
+      settings_response: response,
+      settings_accesses: accesses,
+      denied_reads: denied,
+      control_reads: control
+    })
+  end
+
   def perform_behaviour(context, :reconcile_task, _args),
     do: BackupIntegrity.run_task(context, fn -> reconcile_report(context.backup_directory) end)
 
@@ -3459,6 +3558,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, expected, args) when expected in @integrity_outcomes,
     do: BackupIntegrity.outcome?(context, expected, args)
 
+  def behaviour_outcome?(context, expected, args) when expected in @label_outcomes,
+    do: IntegrityLabel.outcome?(context, expected, args)
+
   def behaviour_outcome?(context, expected, args) when expected in @drill_outcomes,
     do: RestoreDrill.outcome?(context, expected, args)
 
@@ -3954,6 +4056,70 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       @behaviour_now,
       fields
     )
+  end
+
+  # The administrator's schedules page, mounted connected: the check it starts reports to this
+  # process, and `IntegrityLabel.settle/1` hands that report to the socket, as the LiveView
+  # channel would. The backup schedule row is the Scheduler's singleton, put as the release
+  # seeds put it.
+  defp mount_schedules_page do
+    :ok = put_schedule!("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
+
+    if is_nil(GenServer.whereis(BnestApp.Scheduler.Tasks)),
+      do: ExUnit.Callbacks.start_supervised!({Task.Supervisor, name: BnestApp.Scheduler.Tasks})
+
+    socket = %Socket{
+      view: AdminScheduleSettingsLive,
+      transport_pid: self(),
+      assigns: %{__changed__: %{}, flash: %{}, current_user: @unit_admin}
+    }
+
+    {:ok, socket} = AdminScheduleSettingsLive.mount(%{}, %{}, socket)
+    socket
+  end
+
+  defp open_label_page(context) do
+    socket = mount_schedules_page()
+    first = render_schedules_page(socket)
+    settled = IntegrityLabel.settle(socket)
+
+    Map.merge(context, %{
+      schedules_socket: settled,
+      label_first: first,
+      label_page: render_schedules_page(settled)
+    })
+  end
+
+  defp note_viewport(context, [width, height]), do: Map.put(context, :viewport, {width, height})
+  defp note_viewport(context, []), do: context
+
+  # A form's submission as the browser sends it: every field as the page rendered it.
+  defp label_form(page, "daily") do
+    value = fn selector ->
+      [value] = page |> LazyHTML.query(selector) |> LazyHTML.attribute("value")
+      value
+    end
+
+    schedule = %{
+      "revision" => value.("input[name='schedule[revision]']"),
+      "daily_time_wib" => value.("input[name='schedule[daily_time_wib]']")
+    }
+
+    enabled? =
+      page |> LazyHTML.query("input[name='schedule[enabled]']") |> LazyHTML.attribute("checked") !=
+        []
+
+    {"save_schedule",
+     %{"schedule" => if(enabled?, do: Map.put(schedule, "enabled", "true"), else: schedule)}}
+  end
+
+  defp label_form(page, "backup_folder") do
+    [directory] =
+      page
+      |> LazyHTML.query("input[name='backup[destination_directory]']")
+      |> LazyHTML.attribute("value")
+
+    {"save_backup", %{"backup" => %{"destination_directory" => directory}}}
   end
 
   defp render_schedules_page(socket) do

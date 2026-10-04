@@ -255,7 +255,7 @@ function fileBytes(file: string): string | null {
   return existsSync(file) ? readFileSync(file, "utf8") : null;
 }
 
-function connected(page: Page): Promise<void> {
+export function connected(page: Page): Promise<void> {
   return expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
 }
 

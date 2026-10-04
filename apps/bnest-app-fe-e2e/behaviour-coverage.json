@@ -6,9 +6,9 @@
   "generatedFrom": "plans/in-progress/family-chat-room/delivery.md Phase 1 Item 3",
   "summary": {
     "featureCount": 6,
-    "scenarioCount": 60,
-    "e2eExemptScenarioCount": 0,
-    "e2eCoveredScenarioCount": 60
+    "scenarioCount": 71,
+    "e2eExemptScenarioCount": 5,
+    "e2eCoveredScenarioCount": 66
   },
   "features": [
     {
@@ -163,6 +163,50 @@
         },
         {
           "name": "Discover typed admin configuration",
+          "e2eExempt": false
+        },
+        {
+          "name": "The page states that every retained backup is present",
+          "e2eExempt": false
+        },
+        {
+          "name": "The page names each date whose backup is missing or changed",
+          "e2eExempt": false
+        },
+        {
+          "name": "The page says plainly when the check could not run",
+          "e2eExempt": true
+        },
+        {
+          "name": "The page says plainly when there is nothing to check",
+          "e2eExempt": true
+        },
+        {
+          "name": "The page checks again after the administrator saves",
+          "e2eExempt": false
+        },
+        {
+          "name": "Rendering the label never writes",
+          "e2eExempt": true
+        },
+        {
+          "name": "The label discloses no private path",
+          "e2eExempt": false
+        },
+        {
+          "name": "The label does not delay the page",
+          "e2eExempt": true
+        },
+        {
+          "name": "A non-administrator causes no integrity check",
+          "e2eExempt": true
+        },
+        {
+          "name": "No horizontal scrolling and no hidden problem appears at any supported width",
+          "e2eExempt": false
+        },
+        {
+          "name": "The label is reachable and announced without a pointer",
           "e2eExempt": false
         }
       ]

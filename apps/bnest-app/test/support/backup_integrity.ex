@@ -34,6 +34,8 @@ defmodule BnestApp.Test.BackupIntegrity do
   alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore, as: InMemoryBackupConfigStore
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
+  alias BnestApp.Test.IntegrityLabel
+  alias BnestApp.Test.ObservedArtifactStore
   alias BnestApp.Test.Seeds.Schedules
   alias BnestApp.Test.UnreadableArtifactStore
   alias BnestApp.Test.UnreadableLedger
@@ -45,6 +47,15 @@ defmodule BnestApp.Test.BackupIntegrity do
   @scheduled_slot ~U[2030-05-16 19:00:00Z]
   @scheduled_at ~U[2030-05-16 19:01:00Z]
   @retained_dates 7
+
+  # The Schedules page's label is read against seven nightly runs from this WIB date; the
+  # fixtures damage these dates (the newest, 2030-05-16, is read first and is the one a
+  # blocked read waits on).
+  @label_first_date ~D[2030-05-10]
+  @label_missing_date "2030-05-12"
+  @label_changed_date "2030-05-14"
+  @label_newest_date "2030-05-16"
+  @label_kinds ~w(all_present missing_and_changed two_problems missing missing_and_unknown raising ceiling watched)
 
   # Slot times of a run on WIB date `D`, all on `D-1` UTC: the nightly slot, an earlier run on
   # the same WIB date and a later one.
@@ -61,7 +72,8 @@ defmodule BnestApp.Test.BackupIntegrity do
     :unreadable_ledger,
     :empty_ledger,
     :raising_reconciliation,
-    :owned_pairs_for_eight_dates
+    :owned_pairs_for_eight_dates,
+    :label_destination
   ]
   @prepares [
     :destination_holds_every_run,
@@ -71,6 +83,7 @@ defmodule BnestApp.Test.BackupIntegrity do
     :older_run_without_files,
     :unknown_file,
     :foreign_and_unowned_files,
+    :expected_artifact_removed,
     :test_environment
   ]
   @performs [
@@ -184,6 +197,20 @@ defmodule BnestApp.Test.BackupIntegrity do
     runs = runs(8, @eight_dates_from)
     Enum.each(runs, &write_pair(context, &1, context.backup_location))
     Map.put(context, :owned_runs, runs)
+  end
+
+  # The ledger and the destination the Schedules page's label is read against, one `kind` per
+  # state the page scenarios describe. Seven nightly runs unless the kind says otherwise; a
+  # kind installs the doubles it needs (an unreadable or observed artifact store) until the
+  # calling test exits.
+  def prepare(context, :label_destination, [kind]) when kind in @label_kinds,
+    do: label_destination(context, kind)
+
+  # The first of the seven dates loses its pair after the label has been read: one expected
+  # artifact is then gone from the destination.
+  def prepare(context, :expected_artifact_removed, []) do
+    context = prepare(context, :pair_absent, [@label_missing_date])
+    Map.put(context, :removed_date, @label_missing_date)
   end
 
   def prepare(context, :destination_holds_every_run, []) do
@@ -548,12 +575,160 @@ defmodule BnestApp.Test.BackupIntegrity do
   def scheduler_pids,
     do: Enum.map([BnestApp.Scheduler, BnestApp.Scheduler.Tasks], &Process.whereis/1)
 
+  @doc """
+  What the destination really holds of the runs retention keeps a backup for, read from its
+  files and never from reconciliation: how many runs are expected, each problem as the date
+  and state a surface prints for it, oldest first, and how many are intact. It assumes one run
+  per WIB date, as the label fixtures seed.
+  """
+  @spec expected_label(map()) :: %{
+          total: non_neg_integer(),
+          problems: [String.t()],
+          intact: non_neg_integer()
+        }
+  def expected_label(context) do
+    states =
+      context.ledger_runs
+      |> Enum.sort_by(& &1.date, {:desc, Date})
+      |> Enum.take(@retained_dates)
+      |> Enum.sort_by(& &1.date, Date)
+      |> Enum.map(&{&1, disk_state(context, &1)})
+
+    %{
+      total: length(states),
+      problems: for({run, state} <- states, state != :present, do: problem_line(run.date, state)),
+      intact: Enum.count(states, &(elem(&1, 1) == :present))
+    }
+  end
+
+  @doc "Whether `text` carries a private value of this scenario's destination or ledger."
+  @spec leaks_private_value?(map(), String.t()) :: boolean()
+  def leaks_private_value?(context, text), do: leaks?(text, context)
+
+  @doc """
+  Puts the routed browser run's ledger and its configured destination into the state `kind`
+  describes (`all_present`, `missing_and_changed` or `two_problems`) and returns what the
+  journey asserts on: the expected run count, each problem line, and the private values no
+  page may show. It runs in the live mix, over the run's own SQLite database and isolated
+  destination, never the operator's.
+  """
+  @spec seed_for_browser!(String.t()) :: map()
+  def seed_for_browser!(kind) do
+    {:ok, location} = Backup.destination()
+
+    %{backup_directory: location.directory, backup_location: location}
+    |> prepare(:label_destination, [kind])
+    |> browser_facts()
+  end
+
+  @doc """
+  Removes the pair of `date` from the routed browser run's destination, as a retention
+  mishap or a stray delete would, and returns the facts as `seed_for_browser!/1` does. The
+  ledger is the seven nights of `all_present`.
+  """
+  @spec remove_for_browser!(String.t()) :: map()
+  def remove_for_browser!(date) do
+    {:ok, location} = Backup.destination()
+
+    %{
+      backup_directory: location.directory,
+      backup_location: location,
+      ledger_runs: runs(@retained_dates, @label_first_date)
+    }
+    |> prepare(:pair_absent, [date])
+    |> browser_facts()
+  end
+
+  @doc """
+  The reconcile task's printed lines over the routed browser run's ledger and destination, as
+  the host operator would read them: a journey compares the page's label with them.
+  """
+  @spec browser_report!() :: map()
+  def browser_report!, do: %{"lines" => Mix.Tasks.Bnest.Backup.Reconcile.execute([]).lines}
+
   defp seed_ledger(context, runs) do
     clear_ledger()
     persist_schedule()
     Enum.each(runs, &persist_run(ledger_row(&1)))
     Map.put(context, :ledger_runs, runs)
   end
+
+  defp label_destination(context, "all_present") do
+    context
+    |> seed_ledger(runs(@retained_dates, @label_first_date))
+    |> prepare(:destination_holds_every_run, [])
+  end
+
+  defp label_destination(context, "missing_and_changed") do
+    context
+    |> label_destination("missing")
+    |> prepare(:artifact_digest_differs, [@label_changed_date])
+  end
+
+  defp label_destination(context, "two_problems") do
+    runs = runs(2, Date.add(Date.from_iso8601!(@label_newest_date), -1))
+
+    context
+    |> seed_ledger(runs)
+    |> prepare(:destination_holds_every_run, [])
+    |> prepare(:pair_absent, [Date.to_iso8601(hd(runs).date)])
+    |> prepare(:artifact_digest_differs, [@label_newest_date])
+  end
+
+  defp label_destination(context, "missing") do
+    context
+    |> label_destination("all_present")
+    |> prepare(:pair_absent, [@label_missing_date])
+  end
+
+  defp label_destination(context, "missing_and_unknown") do
+    context |> label_destination("missing") |> prepare(:unknown_file, [])
+  end
+
+  # An expected artifact whose every read raises, as a disk read error would.
+  defp label_destination(context, "raising") do
+    context = label_destination(context, "all_present")
+    :ok = UnreadableArtifactStore.install!(artifact_path(context, newest_label_run(context)))
+    context
+  end
+
+  # A reconciliation that never finishes: reading the newest expected artifact waits for ever,
+  # and the page's ceiling is lowered so that the scenario meets it.
+  defp label_destination(context, "ceiling") do
+    context = label_destination(context, "all_present")
+    :ok = ObservedArtifactStore.install!(block: artifact_path(context, newest_label_run(context)))
+    :ok = IntegrityLabel.lower_ceiling!()
+    context
+  end
+
+  # A destination whose reads are counted and never blocked.
+  defp label_destination(context, "watched") do
+    context = label_destination(context, "all_present")
+    :ok = ObservedArtifactStore.install!()
+    context
+  end
+
+  defp newest_label_run(context), do: nightly(context, @label_newest_date)
+
+  defp browser_facts(context) do
+    label = expected_label(context)
+
+    %{
+      "total" => label.total,
+      "problems" => label.problems,
+      "privateValues" => private_values(context)
+    }
+  end
+
+  defp disk_state(context, run) do
+    cond do
+      not on_disk?(context, run) -> :missing
+      not intact?(context, run) -> :changed
+      true -> :present
+    end
+  end
+
+  defp problem_line(date, state), do: "#{Date.to_iso8601(date)}: file #{state}"
 
   defp runs(count, first_date) do
     for offset <- 0..(count - 1)//1, do: run(Date.add(first_date, offset), :nightly)
