@@ -237,7 +237,8 @@ in the destination, and the pure `Backup.Domain.Reconciliation` classifies each 
 changed, over the same retained WIB dates `Retention` uses. Reconciliation reads through the `ArtifactStore` port only
 and writes nothing. One wording function in `Reconciliation` renders the result for every surface, so the post-run log
 line and telemetry event the Backup task emits after retention, the `mix bnest.backup.reconcile` report and the
-Schedules page label cannot disagree. A second Mix task, `mix bnest.backup.restore_drill --artifact <basename>`, is a
+Schedules page label cannot disagree about the result. Only the advice of a check that could not be made differs by
+audience: the task and the log line name the operator's command, while the label asks the reader to reload the page. A second Mix task, `mix bnest.backup.restore_drill --artifact <basename>`, is a
 thin inbound adapter over `Backup.restore/1`. It reads the destination as `Backup.read_destination/0` names it, never
 creating or marking it, and `Backup.restore_target/2` accepts the artifact only as a bare file name that resolves to a
 regular file inside that destination, through the `ArtifactStore` port: a path outside the destination, a path that
