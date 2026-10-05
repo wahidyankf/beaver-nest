@@ -222,7 +222,10 @@ defmodule BnestApp.ScheduledBackupTest do
       assert File.regular?(Receipt.path(artifact_path(context, second)))
 
       assert [_entry] = Regex.scan(~r/\[error\]/, log)
-      assert log =~ "Backup files: could not be checked"
+
+      assert log =~
+               "Backup files: could not be checked. Run mix bnest.backup.reconcile on the host."
+
       refute log =~ "cannot be read"
 
       assert_received {:integrity, %{problem_count: 0}, metadata}

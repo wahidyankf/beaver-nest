@@ -5,7 +5,9 @@ defmodule BnestApp.Backup.ReconciliationTest do
   alias BnestApp.Backup.Domain.Retention
 
   @label "Backup files"
-  @could_not_check "could not be checked. Run mix bnest.backup.reconcile on the host."
+  @could_not_check "could not be checked."
+  @remedy "Run mix bnest.backup.reconcile on the host."
+  @hint "Reload this page to try again."
 
   # A verified run finished at `finished_at`, one minute after its slot, with a synthetic
   # artifact named and digested after `name`.
@@ -231,6 +233,8 @@ defmodule BnestApp.Backup.ReconciliationTest do
                summary: "checking",
                problems: [],
                footer: nil,
+               remedy: nil,
+               hint: nil,
                exit_status: 1
              }
 
@@ -243,6 +247,8 @@ defmodule BnestApp.Backup.ReconciliationTest do
                summary: "all 3 retained backups are present",
                problems: [],
                footer: nil,
+               remedy: nil,
+               hint: nil,
                exit_status: 0
              }
 
@@ -272,6 +278,8 @@ defmodule BnestApp.Backup.ReconciliationTest do
                summary: "2 of 7 retained backups need attention",
                problems: ["2030-05-14: file missing", "2030-05-16: file changed"],
                footer: nil,
+               remedy: nil,
+               hint: nil,
                exit_status: 1
              }
 
@@ -329,10 +337,28 @@ defmodule BnestApp.Backup.ReconciliationTest do
                  summary: @could_not_check,
                  problems: [],
                  footer: nil,
+                 remedy: @remedy,
+                 hint: @hint,
                  exit_status: 1
                }
 
-        assert lines({:error, reason}) == ["Backup files: " <> @could_not_check]
+        # The operator's line is what it always was: the remedy follows the summary after one space.
+        assert lines({:error, reason}) == [
+                 "Backup files: could not be checked. Run mix bnest.backup.reconcile on the host."
+               ]
+      end
+    end
+
+    test "keeps the operator's remedy out of the words a reader of the page sees" do
+      %{summary: summary, hint: hint} = Reconciliation.report({:error, :timeout})
+
+      assert "#{summary} #{hint}" == "could not be checked. Reload this page to try again."
+      refute summary <> hint =~ ~r/mix|bnest\.backup/i
+    end
+
+    test "carries neither a remedy nor a hint when the check ran or is running" do
+      for scenario <- [:checking, {:ok, []}, outcome(3), outcome(3, %{1 => :missing})] do
+        assert %{remedy: nil, hint: nil} = Reconciliation.report(scenario)
       end
     end
 
@@ -342,6 +368,8 @@ defmodule BnestApp.Backup.ReconciliationTest do
                summary: "no verified backup to check yet",
                problems: [],
                footer: nil,
+               remedy: nil,
+               hint: nil,
                exit_status: 1
              }
 
@@ -360,12 +388,30 @@ defmodule BnestApp.Backup.ReconciliationTest do
       refute Enum.any?(lines({:ok, []}), &(&1 =~ ~r/present|all \d/i))
     end
 
+    test "appends a remedy to the first line after a single space and no hint" do
+      report = %{
+        label: @label,
+        summary: "could not be checked.",
+        problems: [],
+        footer: nil,
+        remedy: "Run a command.",
+        hint: "Reload the page.",
+        exit_status: 1
+      }
+
+      assert Reconciliation.render(report) == [
+               "Backup files: could not be checked. Run a command."
+             ]
+    end
+
     test "renders the footer after the problems when a report carries one" do
       report = %{
         label: @label,
         summary: "1 of 3 retained backups needs attention",
         problems: ["2030-05-14: file missing"],
         footer: "A note for the reader",
+        remedy: nil,
+        hint: nil,
         exit_status: 1
       }
 

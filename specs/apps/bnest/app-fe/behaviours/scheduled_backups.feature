@@ -40,6 +40,8 @@ Feature: Bnest scheduled backups
     Given a reconciliation that raises or a ledger that cannot be read
     When the administrator opens Schedules & backups
     Then the label states that the backup files could not be checked
+    And the label asks the administrator to reload the page
+    And the label names no command
     And the rest of the page is rendered and its forms remain usable
 
   Scenario: The page says plainly when there is nothing to check
@@ -81,6 +83,8 @@ Feature: Bnest scheduled backups
     Then the page and its forms are rendered and usable before the result arrives
     And the label reads checking until the result or the ceiling
     And at the ceiling the label states that the backup files could not be checked
+    And the label asks the administrator to reload the page
+    And the label names no command
     And the check is cancelled at the ceiling and nothing keeps reading the destination afterwards
 
   # Exemption(e2e): that no reconciliation starts for a denied visitor is a server-side process observation a browser cannot make, and the not found response itself is already proved in the browser by the deny scenario above; alternative-proof: bnest-app:test:integration / A non-administrator causes no integrity check

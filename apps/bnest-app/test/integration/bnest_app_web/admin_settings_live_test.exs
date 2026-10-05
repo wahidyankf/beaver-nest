@@ -20,7 +20,7 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
   # The exact copy of the plan's States and Real Copy table, written out here so no check calls
   # the wording function it verifies.
   @checking "checking"
-  @could_not_check "could not be checked. Run mix bnest.backup.reconcile on the host."
+  @could_not_check "could not be checked. Reload this page to try again."
   @nothing_to_check "no verified backup to check yet"
   @all_present "all 7 retained backups are present"
 
@@ -149,6 +149,7 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
 
       assert label.summary == @could_not_check
       assert label.problems == []
+      assert_names_no_command(label)
       assert IntegrityLabel.forms_usable?(page)
       assert page |> LazyHTML.query("h1") |> LazyHTML.text() == "Schedules & backups"
     end
@@ -290,6 +291,7 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
 
       assert label!(settled).summary == @could_not_check
       assert label!(settled).problems == []
+      assert_names_no_command(label!(settled))
       assert elapsed >= @ceiling_ms
       assert IntegrityLabel.forms_usable?(LazyHTML.from_fragment(settled))
 
@@ -418,6 +420,11 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       refute Process.alive?(first_reader)
       assert label!(render(view)).summary == "1 of 7 retained backups needs attention"
     end
+  end
+
+  # The label speaks to the reader of the page: no command of the host, in text or attribute.
+  defp assert_names_no_command(label) do
+    refute String.downcase(label.html) =~ ~r/mix|bnest\.backup/
   end
 
   # The label of the Production database backup row of `html`; the assertion names the absent
