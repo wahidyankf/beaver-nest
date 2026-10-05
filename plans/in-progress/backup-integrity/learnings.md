@@ -382,7 +382,7 @@ exactly one retained date missing, none verified, could not be checked (the newe
 | /admin/settings/schedules | needs attention                            | mobile at 200 percent text      | label passes (nothing cut off); the page overflows horizontally because of the Backup folder form's path field, which pre-exists and is not the label                                                                            |
 | /admin/settings/schedules | dark theme, forced colours, reduced motion | mobile                          | pass: the cards keep the cream surface in the dark theme so the contrast above holds; the strip stays a 6px solid border in forced colours; nothing animates                                                                     |
 
-### Hand-walk matrix (route, state, viewport class, pass or fail)
+### Manual matrix: hand walk (route, state, viewport class, pass or fail)
 
 | Route                     | State                          | Desktop 1440 | Tablet 768 | Mobile 393 | 320 px floor |
 | ------------------------- | ------------------------------ | ------------ | ---------- | ---------- | ------------ |
@@ -447,6 +447,12 @@ are PRE.
 Tasks: 1 pass with caveats, 2 partial (the next step is missing), 3 fail on the developer command, 4 fail on the neutral
 wording, 5 fail on the distant save confirmation (pre-existing), 6 pass with caveats, 7 pass (the theme toggle overlaps at
 320 px). Not covered: more than two problem days, slow networks, locales and browsers other than Chromium.
+
+### Finding resolution
+
+The `Disposition` column of the exploratory and usability tables above is the per-finding resolution: each
+finding is fixed (E9, N-01) or accepted as non-blocking with its reason, and the affected automated commands were rerun
+green after each fix (Phase 9, Phase 10 and the N-01 resolution below).
 
 ### Cross-references
 
