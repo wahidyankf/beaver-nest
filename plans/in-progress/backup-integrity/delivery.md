@@ -238,6 +238,9 @@ approved`. No write to the backup directory or `~/.config/bnest/*` was made.
 - [x] `[AI] [AC-BI-01]` **Blocking checkpoint — Phase 1.** Approvals recorded (or declined with the reads removed from
       Phase 2), the scope-check reads R1 to R4 (confirmed 2026-10-03) current or recorded `Unavailable: not approved` if
       withdrawn, baseline recorded, pre-state captured, timing prerequisite satisfied.
+      acceptance: `grep -c '^Phase 1 checkpoint met:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 1 checkpoint met:`).
+      Phase 1 checkpoint met: 2026-10-04, approvals and R1 to R4 current, baseline recorded, pre-state at 07:28Z, timing satisfied.
       **Checkpoint passed 2026-10-04:** approvals current, R1 to R4 current, baseline recorded, pre-state captured at
       07:28Z, timing prerequisite satisfied.
 
@@ -328,6 +331,9 @@ before the amendment and recorded that difference as a deviation, which the amen
 - [x] `[AI] [AC-BI-01, AC-BI-02]` **Blocking checkpoint — Phase 2.** Every hypothesis has either an eliminating or a
       confirming observation recorded, or a stated `Unavailable`; H2 is `unproven` unless a local signal confirmed it;
       AC-BI-01's comparison is clean under the rule.
+      acceptance: `grep -c '^Phase 2 checkpoint met:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 2 checkpoint met:`).
+      Phase 2 checkpoint met: 2026-10-04, every hypothesis dispositioned (table in `learnings.md`), AC-BI-01 clean under the amended rule.
       **Checkpoint passed 2026-10-04 with one recorded deviation:** H1 eliminated for production writers alone, H2
       `unproven`, H3 not eliminated, H4 eliminated, H5 eliminated (table in `learnings.md`); AC-BI-01's comparison is clean
       under the rule except the service-owned lock-directory mtime, reported to the owner. Phase 3 is not started.
@@ -373,6 +379,9 @@ label's state set below are provisional until then.
       unit). Subject: `docs(plans): record the backup integrity cause verdict V1 and the AC-BI-01 amendment`.
 - [x] `[AI] [AC-BI-02]` **Blocking checkpoint — Phase 3.** V1 recorded, provisional dispositions made and the label's
       state set fixed provisionally. The owner's confirmation and the idea brief are Phase 6 items.
+      acceptance: `grep -c '^Phase 3 checkpoint met:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 3 checkpoint met:`).
+      Phase 3 checkpoint met: 2026-10-04, V1 recorded (`C-UNPROVEN`, owner-confirmed in Phase 6), dispositions and state set fixed.
       **Checkpoint passed 2026-10-04:** V1 recorded as AI-recorded and pending owner confirmation, provisional
       dispositions made, label state set fixed provisionally. The owner's confirmation and the idea brief stay in Phase 6.
 
@@ -799,12 +808,16 @@ Every item after them is conditional on the confirmed verdict and carries that d
       [Diátaxis](../../../repo-governance/conventions/documentation-architecture.md)): choose an artifact, run the
       task, read the evidence, what a failure means, what to do on a failure. Add it to
       `docs/how-to-guides/README.md`. **Proof:** the guide exists, is linked, and a cold reader can follow it.
+      acceptance: `grep -c 'restoring-a-bnest-backup' docs/how-to-guides/README.md` prints at least `1` (the guide is
+      linked).
       **Evidence 2026-10-04:** the guide (choose an artifact, run the task, read the evidence, what each failure line means and what to do) exists and is linked from `docs/how-to-guides/README.md`; it quotes the task's own lines, including the zero-message, no-delivery, out-of-order and not-removed readings. `rhino md internal-link validate` (1500 links) and `rhino governance directory-map validate` report no findings. A cold read by a person is the Phase 13 owner drill. Commit `docs(how-to): add the Bnest backup restore guide`.
 - [x] `[AI]` Commit U4 as thematic commits when authorized. **Proof:** the authorization line and the commit subjects,
       or `No commit authorized`.
       **Evidence 2026-10-04:** authorized by the owner's execution authority relayed to the executor (thematic commit per unit). Subjects: `test(backup): specify and bind the restore drill scenarios`; `feat(backup): add the restore drill task`; `docs(how-to): add the Bnest backup restore guide`; the Phase 7 evidence commit follows.
 - [x] `[AI] [AC-BI-11, AC-BI-18]` **Blocking checkpoint — Phase 7.** The task is proven on a synthetic artifact and the
       guide is linked.
+      acceptance: `grep -c 'restoring-a-bnest-backup' docs/how-to-guides/README.md` prints at least `1` (the guide is
+      linked).
       **Checkpoint passed 2026-10-04:** the task is proven on a synthetic artifact and the guide is linked. Executor re-run after the last code change: `BE_UNIT` 718 tests 0 failures, `INTEGRATION` 489 tests 0 failures (11 excluded), `BEHAVIOUR` exit 0, `REPO` exit 0, `typecheck` exit 0, `lint` exit 0. **Deviations (for the owner):** (1) `apps/bnest-app/mix.exs` adds the task to the unit-coverage ignore list beside `Reconcile`, since the unit scenarios cover `execute/1` but `run/1` starts apps; this is a gate-configuration change that follows the Reconcile precedent; (2) the Phase 7 Gherkin and bindings move, and the Phase 5 label fix, are agent proposals; (3) `Backup.Domain` declares a `Jason` dependency for the report decoder (precedent `Storage.Domain`); (4) wording designed by the executor beyond the scenarios: `Messages readable: 0`, `Delivery states: none`, `not in ascending order`, `Rooms readable: 0`, `Restore root: not removed`, and the destination-unreadable and restore-failed lines. The restore of a real artifact is the owner's, in Phase 13 (`[HUMAN]`).
 
 ## Phase 8 — UI Design: Copy Reconciliation and Owner Design Review
@@ -851,6 +864,9 @@ in Phase 1 and carry fictional content only.
 - [x] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` **Blocking checkpoint — Phase 8.** The copy is reconciled and agrees between
       the section and the assets, the twelve assets exist and are embedded with one alternative selected, the owner's
       design review is recorded, and no file under `apps/` or `specs/` has changed.
+      acceptance: `grep -c '^Phase 8 checkpoint met:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 8 checkpoint met:`).
+      Phase 8 checkpoint met: 2026-10-04, copy reconciled, twelve assets embedded with `row` selected, owner's design review `Approved`.
       **Evidence 2026-10-04:** the copy is reconciled and agrees between the section and the assets (`no asset text changed`), the twelve assets exist and are embedded with `row` selected, the owner's design review is recorded as `Approved`, and `git diff --stat` against the Phase 7 head shows no file under `apps/` or `specs/`.
 
 ## Phase 9 — Schedules-Page Integrity Label: Specification and Implementation
@@ -871,6 +887,7 @@ Phase 6 states; its C-DEST items are conditional. It adds no migration and store
       comment naming its `bnest-app:test:integration` alternative. No AC-BI-23 Examples row is exempted. Omit the AC-BI-19
       scenario if its disposition is `Not applicable`. **Proof:** each scenario names an outcome visible on the page; no
       placeholder, no-op or outcome table.
+      acceptance: `grep -c 'Scenario' specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature` prints at least `1`.
       **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** AC-BI-19 page scenario `Not applicable` (C-DEST not selected).
       **Evidence 2026-10-04 (Phase 9 executor):** `specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature` gains 11 scenarios expanding to 15 with the four AC-BI-23 and two AC-BI-21 Examples rows (all-present; missing or changed; could not run; nothing to check; check again after a save, two forms; never writes; no private path; does not delay; non-administrator; four viewport rows; keyboard and announcement), each transcribing the PRD text and naming an outcome visible on the page, with no placeholder, no-op or outcome table. Rendered in the browser: all present, missing or changed, check again after a save (both forms), no private path, the four AC-BI-23 viewport rows and the keyboard scenario (no AC-BI-23 row is exempted). `@e2e-exempt` with an `Exemption(e2e)` comment naming the `bnest-app:test:integration` alternative: could not run (forced failure), nothing to check (empty ledger), never writes (filesystem comparison), does not delay (controlled slow store and process monitoring), non-administrator (server-side process observation; the not found response is already browser-proved by the deny scenario). The AC-BI-19 page scenario is omitted: `Not applicable` (C-DEST not selected, H4 eliminated; the owner confirmed V1 on 2026-10-04).
 - [x] `[AI] [AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Update `specs/apps/bnest/app-fe/architecture.md` as
@@ -984,16 +1001,23 @@ production data are never used. Both passes are passive and non-destructive unde
       changed, could not be checked, none verified, and the mismatch on C-DEST), by seeding the isolated destination and
       ledger or by lowering the ceiling. **Proof:** the exact origin (host and port) and the state list by name, no private
       value.
+      acceptance: `grep -c '^Isolated origin:' plans/in-progress/backup-integrity/delivery.md` prints at least `1` (the item
+      writes a line beginning `Isolated origin:`).
+      Isolated origin: `http://localhost:4660`; states all present, one missing, missing and changed, one date present, one date missing, none verified, could not be checked, checking; C-DEST mismatch `Not applicable`.
       **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** the mismatch state is `Not applicable` (C-DEST not selected); the other states apply.
       **Evidence 2026-10-04 (environment by `swe-developer`, verified by the executor):** exact origin `http://localhost:4660` (host `localhost`, port 4660), started from the execution checkout in its own tmux window with `MIX_ENV=test` and `BNEST_TEST_LAYER=integration` (the isolated-origin environment the browser harness uses; the Nx `serve` target runs the dev environment on leased ports 4020 to 4029 and would have used production-adjacent configuration), an isolated runtime root, storage pointer, backup configuration, backup repository and SQLite database keyed by a marked run id, and synthetic `test-user-` administrator and child accounts. Deviation: the roots are the harness's own marked test locations, not `local-tmp`, because `config/test.exs` fails closed on any other root. States reachable by seed script: all present (7 dates), one missing, missing and changed (two problems), exactly one date present, exactly one date missing, none verified, could not be checked (newest artifact unreadable; a ceiling of 1 ms also yields it), and checking (the disconnected first render). The mismatch state is `Not applicable` (C-DEST not selected). Production listeners were identical before and after (the only additions were the isolated origin's ports).
 - [x] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Audit the rendered states at each viewport class for accessibility: the accessibility tree, controls,
       keyboard and focus, non-colour cues, narrow reflow and contrast, with Lighthouse when available. A passing functional
       run waives no finding. **Proof:** a route, state, viewport class and result table in `learnings.md`.
+      acceptance: `grep -c 'Accessibility audit' plans/in-progress/backup-integrity/learnings.md` prints at least `1` (the
+      item writes a table headed `Accessibility audit` in `learnings.md`).
       **Evidence 2026-10-04:** the route, state, viewport class and result table is under `### Accessibility audit` in `learnings.md`: Lighthouse accessibility 100 and best practices 100 on desktop and mobile (31 audits passed, 0 failed), accessibility tree (a `dt` and `dd` pair, one polite live region named by its term, no tab stop, markers hidden from assistive technology), non-colour cues in all states, contrast 10.99:1 text and 3.24:1, 3.26:1 and 7.28:1 strips, no horizontal scroll at 320 and 393, dark theme and forced colours. A passing functional run waived no finding; the 200 percent text overflow is the pre-existing folder field (E3).
 - [x] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Walk the full matrix by hand at the exact origin: route, every state, every viewport class and the 320 px
       floor. Exercise the changed interaction (a reload, the change from checking to the result, a save of each form and the
       re-check that follows, the keyboard path through the page, and both existing forms still usable) and confirm layout, content, focus and responsive behaviour.
       **Proof:** a route, state, viewport class and pass or fail table in `learnings.md`, with no private values.
+      acceptance: `grep -c 'Manual matrix' plans/in-progress/backup-integrity/learnings.md` prints at least `1` (the item
+      writes a table headed `Manual matrix` in `learnings.md`).
       **Evidence 2026-10-04:** the route, state, viewport class and pass table (seven states by 1440, 768, 393 and 320) is under `### Hand-walk matrix` in `learnings.md`, all pass, with the changed interactions (a reload, checking to result, a save of each form and the re-check, a failed save, two quick saves, the keyboard path, both forms usable, focus returning to the pressed button). Rendered with Playwright at the exact origin, supplemented by screenshots kept in ignored scratch.
 - [x] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` **Exploratory pass (spec-aware), first.** Drive Playwright MCP against the running origin across all
       three viewport classes with isolated `test-user-` identities, mutating no shared or production state. Compare live
@@ -1021,6 +1045,8 @@ production data are never used. Both passes are passive and non-destructive unde
       **Evidence 2026-10-04:** none proposed. The usability suggestions change owner-approved copy, the D8 residual or the pre-existing page, so no scenario was added, no RED was needed and nothing entered `specs/**`.
 - [x] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Fix every finding or accept it as non-blocking with its reason written in `learnings.md`, and rerun
       the affected automated commands after each fix. **Proof:** a resolution per finding and the green reruns.
+      acceptance: `grep -c 'Finding resolution' plans/in-progress/backup-integrity/learnings.md` prints at least `1` (the
+      item writes a per-finding table headed `Finding resolution` in `learnings.md`).
       **Evidence 2026-10-04:** a resolution per finding is in `learnings.md`: nothing needed a code fix after the Phase 9 focus fix; the accepted findings carry reasons and the owner decisions are listed in the report (the label copy N-01 to N-03, the D8 residual N-05, the date convention N-08, bold state words E2). No fix was made, so no affected command needed a rerun here; the full gates are re-run in Phase 11 after the last code change.
 - [x] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` Confirm, before the checkpoint, that both passes ran, that findings are present or recorded as none
       found, that both headings are correctly labelled, that cross-references are noted, and that every accepted spec
@@ -1036,6 +1062,9 @@ production data are never used. Both passes are passive and non-destructive unde
 - [x] `[AI] [AC-BI-21, AC-BI-22, AC-BI-23]` **Blocking checkpoint — Phase 10.** The matrix, the accessibility audit, the exploratory pass and the
       usability pass are recorded and separately labelled; every finding is fixed or accepted with its reason; cleanup is
       complete.
+      acceptance: `grep -c '^Phase 10 checkpoint met:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Phase 10 checkpoint met:`).
+      Phase 10 checkpoint met: 2026-10-04, matrix, accessibility audit and both passes recorded and labelled, findings resolved, cleanup complete.
       **Evidence 2026-10-04:** the matrix, the accessibility audit, the exploratory pass and the usability pass are recorded and separately labelled; every finding is fixed or accepted with its reason; cleanup is complete.
 
 ## Phase 11 — Documentation, Rules and Repository Gates
@@ -1044,15 +1073,24 @@ production data are never used. Both passes are passive and non-destructive unde
       Schedules page label, per [project READMEs](../../../repo-governance/conventions/project-readmes.md), and run
       [Docs Propagation](../../../repo-governance/workflows/quality/docs-propagation.md). **Proof:** its terminal result,
       which may be `no-change`.
+      acceptance: `grep -c '^Docs Propagation result:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Docs Propagation result:`).
+      Docs Propagation result: `landed` (2026-10-04, `apps/bnest-app/README.md` updated; N-01 follow-up on 2026-10-05).
       **Evidence 2026-10-04 (`docs-fixer`, Docs Propagation over the Phase 8 to 10 range):** terminal result `landed`; `apps/bnest-app/README.md` changed in four places (the project description, the scheduler paragraph that now carries the `Backup files` item, the post-run reconciliation, the states, the ceiling and its configuration key, the Backup context bullet with the reconciliation, the wording module and the restore drill, and a new Mix task bullet for `mix bnest.backup.reconcile` and `mix bnest.backup.restore_drill` linking the how-to guide); the admin LiveView line and the Scheduler bullet are `no-change`; the stable feedback container is `not-applicable` for a README. Prettier, `rhino md internal-link validate` (1502 links) and `rhino governance directory-map validate` (78 directories) report no findings. The two tasks were not run (they read the production destination).
 - [x] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Re-read
       `specs/apps/bnest/app-be/architecture.md` and `specs/apps/bnest/app-fe/architecture.md` against the as-built code and
       reconcile them: Component View, Constraints, and any verdict-specific change from Phase 6. **Proof:** a line per
       changed location, or `no-change` with the reason.
+      acceptance: `grep -c '^Architecture reconcile:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Architecture reconcile:`).
+      Architecture reconcile: 2026-10-04, `app-be/architecture.md` `no-change`, `app-fe/architecture.md` reconciled (see the evidence line).
       **Evidence 2026-10-04:** `specs/apps/bnest/app-be/architecture.md`: `no-change`; its reconciliation paragraph, the shared wording function (log, telemetry, Mix task and Schedules page label) and the read-only and restore-drill constraints already match the as-built code (the label reads the service repository through the Scheduler facade and the destination through `Backup.read_destination/0`, so the scratch-copy constraint, which governs only the Mix task, is unaffected). `specs/apps/bnest/app-fe/architecture.md`: Component View prose, the label constraint and Behaviour Traceability (Phase 9) reconciled again after the review: the Behaviour Traceability sentence now lists only the forced-failure, controlled-store and server-side-observation scenarios as exempt, because the empty-ledger and never-writes scenarios were unexempted and bound in the browser.
 - [x] `[AI] [AC-BI-10]` **Conditional: Phase 6 changed a rule.** Apply the bounded
       [rules-propagation workflow](../../../repo-governance/workflows/quality/rules-propagation.md) to any rule changed
       in Phase 6, and record its terminal result, which may be `no-change`.
+      acceptance: `grep -c '^Rules Propagation result:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
+      (the item writes a line beginning `Rules Propagation result:`).
+      Rules Propagation result: `Not applicable` (2026-10-04, Phase 6 changed no rule).
       **Provisional disposition (V1, `C-UNPROVEN`, AI-recorded 2026-10-04, pending owner confirmation):** `Not applicable` provisionally: no rule change is expected (the AC-BI-10 fix items are `Not applicable`); applies only if a Phase 6 characterization fails on unmodified code and its fix changes a rule.
       **Evidence 2026-10-04:** `Not applicable`: Phase 6 changed no rule (V1 `C-UNPROVEN`, confirmed by the owner on 2026-10-04; every Phase 6 characterization passed on unmodified code), so Rules Propagation has no entry.
 - [x] `[AI] [AC-BI-03, AC-BI-04, AC-BI-05, AC-BI-06, AC-BI-07, AC-BI-15, AC-BI-16, AC-BI-17, AC-BI-18, AC-BI-19, AC-BI-21, AC-BI-22, AC-BI-23]` Run the
@@ -1073,6 +1111,9 @@ production data are never used. Both passes are passive and non-destructive unde
       identifiers, digests, destination IDs, run IDs) under
       [data safety](../../../repo-governance/conventions/public-repository-data-safety.md). Leak-review every commit
       before push. **Proof:** the review result per commit.
+      acceptance: `grep -c '^Leak review result:' plans/in-progress/backup-integrity/delivery.md` prints at least `1` (the
+      item writes a line beginning `Leak review result:`).
+      Leak review result: `pass` for the outgoing range of 2026-10-05 (27 commits after the rebase onto `origin/main`), no finding in any class; the posted pull-request review is recorded in Phase 12.
       **Evidence 2026-10-04:** the diff of every commit and `learnings.md` were inspected for prohibited data: no absolute private path, no digest or run or destination identifier, no real account or credential (the only strings are synthetic `test-user-` names and fictional 2030 dates); the pre-commit `public-safety-tree` and `commit-message` gates passed for each commit. Leak-review runs before push, which is not part of this task.
 - [x] `[AI]` Commit U6 as thematic commits when authorized. **Proof:** the authorization line and the commit subjects,
       or `No commit authorized`.
@@ -1107,7 +1148,7 @@ production by the owner in Phase 13; no administrator session is provisioned for
       candidate port and a healthy local HTTP response.
 - [ ] `[AI] [AC-BI-12, AC-BI-13]` Verify the candidate: reported revision equals the release revision, read-back and
       the anonymous journey pass, LiveView and WebSocket connect. **Proof:** each check's result.
-      acceptance: `grep -c '^Candidate verification:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      acceptance: `grep -c '^Candidate verification:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
       (the item writes a line beginning `Candidate verification:`).
 - [ ] `[AI] [AC-BI-12]` Mixed-version safety: confirm the change adds read queries and no migration or schema change (the page
       label stores nothing), so both versions can share the store. Both run the scheduler; the slot claim makes that safe (decision G12 in
@@ -1121,7 +1162,7 @@ production by the owner in Phase 13; no administrator session is provisioned for
       sample at most 2 s.
 - [ ] `[AI] [AC-BI-12]` Verify reconnect: an already-open anonymous LiveView session reconnects to the candidate
       without a manual refresh within the bounded drain. **Proof:** the reconnect observation.
-      acceptance: `grep -c '^Reconnect observed:' plans/backlog/backup-integrity/delivery.md` prints at least `1` (the
+      acceptance: `grep -c '^Reconnect observed:' plans/in-progress/backup-integrity/delivery.md` prints at least `1` (the
       item writes a line beginning `Reconnect observed:`).
 - [ ] `[AI] [AC-BI-12, AC-BI-13]` Routed proof: query the routed origin and the loopback backend for their revision.
       **Proof:** both report the release revision.
@@ -1141,7 +1182,7 @@ production by the owner in Phase 13; no administrator session is provisioned for
       process list shows only the active route and the explicitly retained rollback capacity.
 - [ ] `[AI] [AC-BI-12, AC-BI-13]` **Blocking checkpoint — Phase 12.** Routed backend serves the release revision, the
       budget held, cleanup is complete.
-      acceptance: `grep -c '^Phase 12 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      acceptance: `grep -c '^Phase 12 checkpoint met:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
       (the item writes a line beginning `Phase 12 checkpoint met:`).
 
 ## Phase 13 — Owner Drill and Live Detection Proof
@@ -1179,7 +1220,7 @@ The `[AI]` items are delivery unit U8 and the two `[HUMAN]` items are delivery u
       reported the known gap (here or in Phase 5) or its window is recorded as aged out, the drill outcome is recorded,
       and the owner's look at the label on the live origin is recorded, with the state it showed (likely only all present), or
       `Not performed` with its reason.
-      acceptance: `grep -c '^Phase 13 checkpoint met:' plans/backlog/backup-integrity/delivery.md` prints at least `1`
+      acceptance: `grep -c '^Phase 13 checkpoint met:' plans/in-progress/backup-integrity/delivery.md` prints at least `1`
       (the item writes a line beginning `Phase 13 checkpoint met:`).
 
 ## Recovery and Rollback
