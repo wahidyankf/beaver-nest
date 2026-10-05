@@ -337,6 +337,8 @@ Scenario: The page says plainly when the check could not run
   Given a reconciliation that raises or a ledger that cannot be read
   When the administrator opens Schedules & backups
   Then the label states that the backup files could not be checked
+  And the label asks the administrator to reload the page
+  And the label names no command
   And the rest of the page is rendered and its forms remain usable
 ```
 
@@ -391,6 +393,8 @@ Scenario: The label does not delay the page
   Then the page and its forms are rendered and usable before the result arrives
   And the label reads checking until the result or the ceiling
   And at the ceiling the label states that the backup files could not be checked
+  And the label asks the administrator to reload the page
+  And the label names no command
   And the check is cancelled at the ceiling and nothing keeps reading the destination afterwards
 ```
 

@@ -248,8 +248,10 @@ run (fewer than seven early on) and `k` the problem dates. The dates are fiction
 | All present                        | Every expected run is present                                                       | `all N retained backups are present`, and for N = 1 `the retained backup is present`                                                                                                                                                                        |
 | Needs attention                    | At least one expected run is missing or changed                                     | `k of N retained backups need attention`; for k = 1 `1 of N retained backups needs attention`; for N = 1 and k = 1 `the retained backup needs attention`. Then one line per problem in date order: `2030-05-14: file missing` or `2030-05-16: file changed` |
 | Destination mismatch (C-DEST only) | A surviving receipt for a retained date names another destination                   | Not in the function: the state exists only on the C-DEST branch, which V1 did not select, so no wording is built; its drawn text stays as a design reference only                                                                                           |
-| Could not be checked               | Reconciliation raised, the ledger is unreadable or unstable, or the ceiling passed  | `could not be checked. Run mix bnest.backup.reconcile on the host.`                                                                                                                                                                                         |
+| Could not be checked               | Reconciliation raised, the ledger is unreadable or unstable, or the ceiling passed  | Label: `could not be checked. Reload this page to try again.` The task and the log line: `could not be checked. Run mix bnest.backup.reconcile on the host.`                                                                                                |
 | Nothing to check yet               | The ledger holds no verified backup run                                             | `no verified backup to check yet`                                                                                                                                                                                                                           |
+
+**N-01 resolved by owner decision (2026-10-05).** The owner directed that the label no longer name a developer command. The label's reader-facing sentence `Reload this page to try again.` is an **agent proposal pending owner confirmation** (the owner asked for a short neutral sentence and left the wording to the agent). The wording function carries both audiences in its report: `summary` is `could not be checked.` for every surface, `hint` (`Reload this page to try again.`) is shown only by the label, and `remedy` (`Run mix bnest.backup.reconcile on the host.`) is printed only by `render/1`, so the task and the post-run log line stay byte-identical to before and AC-BI-07 and AC-BI-17 are unchanged. The split was needed because one string cannot be right for both a household administrator and an operator. All other copy and the singular forms are unchanged.
 
 Each string is the description of the `Backup files` term; the log and the Mix task print `Backup files: <summary>`.
 
@@ -358,14 +360,14 @@ the second column from 38rem to 52rem, and stacks below 38rem.
 | Problem line list | a plain list with no bullets, one item per `date: state`                      | each missing, changed or mismatched date                             |
 | Result region     | the description wrapper carrying `aria-live="polite"`                         | announcing the change from checking to a result without moving focus |
 
-| State                | Marker shape                  | Strip     | Words in the summary                                                |
-| -------------------- | ----------------------------- | --------- | ------------------------------------------------------------------- |
-| Checking             | dotted circle with three dots | neutral   | `checking`                                                          |
-| All present          | circle with a check mark      | present   | `all N retained backups are present`                                |
-| Needs attention      | triangle with an exclamation  | attention | `k of N retained backups need attention`                            |
-| Could not be checked | square with a question mark   | attention | `could not be checked. Run mix bnest.backup.reconcile on the host.` |
-| Nothing to check yet | circle with a dash            | neutral   | `no verified backup to check yet`                                   |
-| Destination mismatch | diamond with opposed arrows   | attention | `k of N retained backups need attention` and a footer               |
+| State                | Marker shape                  | Strip     | Words in the summary                                           |
+| -------------------- | ----------------------------- | --------- | -------------------------------------------------------------- |
+| Checking             | dotted circle with three dots | neutral   | `checking`                                                     |
+| All present          | circle with a check mark      | present   | `all N retained backups are present`                           |
+| Needs attention      | triangle with an exclamation  | attention | `k of N retained backups need attention`                       |
+| Could not be checked | square with a question mark   | attention | `could not be checked. Reload this page to try again.` (label) |
+| Nothing to check yet | circle with a dash            | neutral   | `no verified backup to check yet`                              |
+| Destination mismatch | diamond with opposed arrows   | attention | `k of N retained backups need attention` and a footer          |
 
 Expectations, checked against the selected `row` alternative:
 
