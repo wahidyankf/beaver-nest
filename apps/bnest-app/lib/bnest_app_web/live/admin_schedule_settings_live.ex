@@ -198,7 +198,9 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
   end
 
   # The integrity item of the backup row: its words are `Reconciliation.report/1`'s alone, so
-  # the page can never disagree with the log, the telemetry and the Mix task. The description is
+  # the page states the same result as the log, the telemetry and the Mix task; only the advice of
+  # a check that could not be made differs, the reader's hint here and the operator's remedy
+  # there. The description is
   # the one polite region; it holds no control and its attributes never change with the state, so
   # a result replaces the text in place and announces it without moving focus.
   attr :term_id, :string, required: true
@@ -217,7 +219,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
       <dt id={@term_id}>{@report.label}</dt>
       <dd class="integrity-label__result" aria-live="polite" aria-labelledby={@term_id}>
         <.integrity_marker state={@state} />
-        <span class="integrity-label__summary">{@report.summary}</span>
+        <span class="integrity-label__summary">{reader_summary(@report)}</span>
         <ul :if={@report.problems != []} class="integrity-label__problems">
           <li :for={problem <- @report.problems}>{problem}</li>
         </ul>
@@ -364,6 +366,11 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
   defp integrity_state({:ok, _results}, %{problems: [_ | _]}), do: :needs_attention
   defp integrity_state({:ok, _results}, %{exit_status: 0}), do: :all_present
   defp integrity_state({:ok, _results}, _report), do: :nothing_to_check
+
+  # What the page's reader is told: the summary, then what they can do about it. The remedy,
+  # which belongs to the operator at the host, is never shown here.
+  defp reader_summary(%{summary: summary, hint: nil}), do: summary
+  defp reader_summary(%{summary: summary, hint: hint}), do: summary <> " " <> hint
 
   defp refresh(socket) do
     inventory = Scheduler.admin_inventory()

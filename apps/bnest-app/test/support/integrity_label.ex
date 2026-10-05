@@ -35,7 +35,10 @@ defmodule BnestApp.Test.IntegrityLabel do
   @term "Backup files"
   @last_result "Last result"
   @checking "checking"
-  @could_not_check "could not be checked. Run mix bnest.backup.reconcile on the host."
+  @could_not_check "could not be checked. Reload this page to try again."
+  @reload_hint "Reload this page to try again."
+  # What only an operator's terminal runs: no reader of the page is sent to it.
+  @command_words ["mix", "bnest.backup"]
   @nothing_to_check "no verified backup to check yet"
   @problem_line ~r/^\d{4}-\d{2}-\d{2}: file (?:missing|changed)$/
   @date ~r/\d{4}-\d{2}-\d{2}/
@@ -67,6 +70,8 @@ defmodule BnestApp.Test.IntegrityLabel do
     :label_lists_problems,
     :label_counts_intact_present,
     :label_states_could_not_check,
+    :label_asks_reload,
+    :label_names_no_command,
     :page_and_forms_usable,
     :label_states_nothing_to_check,
     :label_not_present,
@@ -307,6 +312,21 @@ defmodule BnestApp.Test.IntegrityLabel do
   def outcome?(context, :label_states_could_not_check, []) do
     label = read(context.label_page)
     placed?(label) and label.summary == @could_not_check and label.problems == []
+  end
+
+  # The reader is asked for the one thing the page can do, and the ask ends the summary.
+  def outcome?(context, :label_asks_reload, []) do
+    label = read(context.label_page)
+    placed?(label) and String.ends_with?(label.summary, " " <> @reload_hint)
+  end
+
+  # The markup is searched, text and attributes alike, so a command cannot hide in a title or
+  # an accessible name.
+  def outcome?(context, :label_names_no_command, []) do
+    label = read(context.label_page)
+
+    placed?(label) and
+      not Enum.any?(@command_words, &String.contains?(String.downcase(label.html), &1))
   end
 
   def outcome?(context, :page_and_forms_usable, []) do

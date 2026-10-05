@@ -57,17 +57,26 @@ defmodule BnestApp.Backup.Domain.Reconciliation do
   The words of an outcome, in parts: the `label`, the `summary` that follows it, one line per
   problem run, an optional `footer`, and the exit status of a task that reports it, zero only
   when at least one backup is expected and every one is present.
+
+  A check that could not be made also carries what each reader is told to do about it, for
+  none of them can do what the other can: the `remedy` is addressed to the operator at the
+  host, in the line the log and the Mix task print, and the `hint` to the reader of the
+  Schedules page, who has no host to run a command on. Both are `nil` for every other outcome.
   """
   @type report :: %{
           label: String.t(),
           summary: String.t(),
           problems: [String.t()],
           footer: String.t() | nil,
+          remedy: String.t() | nil,
+          hint: String.t() | nil,
           exit_status: 0 | 1
         }
 
   @label "Backup files"
-  @could_not_check "could not be checked. Run mix bnest.backup.reconcile on the host."
+  @could_not_check "could not be checked."
+  @remedy "Run mix bnest.backup.reconcile on the host."
+  @hint "Reload this page to try again."
 
   @doc """
   The runs retention keeps a backup for: the newest run of each of the seven latest WIB dates
@@ -104,11 +113,14 @@ defmodule BnestApp.Backup.Domain.Reconciliation do
   @doc """
   The words of an `outcome`. Only the runs expected of a retained date are counted, so a run
   retention legitimately removed never appears; a reason an outcome could not be checked is
-  never shown, because it may name a path.
+  never shown, because it may name a path. The remedy and the hint are fixed words, never built
+  from the reason.
   """
   @spec report(outcome()) :: report()
   def report(:checking), do: parts("checking", [], 1)
-  def report({:error, _reason}), do: parts(@could_not_check, [], 1)
+
+  def report({:error, _reason}),
+    do: %{parts(@could_not_check, [], 1) | remedy: @remedy, hint: @hint}
 
   def report({:ok, results}) do
     expected = Enum.reject(results, &(&1.state == :not_expected))
@@ -122,12 +134,16 @@ defmodule BnestApp.Backup.Domain.Reconciliation do
   end
 
   @doc """
-  The lines a surface prints for a report: `Backup files: <summary>`, then the problems and
-  the footer.
+  The lines a surface prints for a report: `Backup files: <summary>`, followed after a space by
+  the remedy when the report has one, then the problems and the footer. The hint is the page's
+  alone and is never printed here.
   """
   @spec render(report()) :: [String.t()]
   def render(report),
-    do: ["#{report.label}: #{report.summary}" | report.problems] ++ List.wrap(report.footer)
+    do: [first_line(report) | report.problems] ++ List.wrap(report.footer)
+
+  defp first_line(%{remedy: nil} = report), do: "#{report.label}: #{report.summary}"
+  defp first_line(report), do: "#{report.label}: #{report.summary} #{report.remedy}"
 
   defp age(run), do: {DateTime.to_unix(run.finished_at), run.run_id}
 
@@ -151,6 +167,8 @@ defmodule BnestApp.Backup.Domain.Reconciliation do
       summary: summary,
       problems: problems,
       footer: nil,
+      remedy: nil,
+      hint: nil,
       exit_status: exit_status
     }
 

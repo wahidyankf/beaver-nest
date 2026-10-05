@@ -575,6 +575,12 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: outcome(context, :label_states_could_not_check)
   )
 
+  step("the label asks the administrator to reload the page", context,
+    do: outcome(context, :label_asks_reload)
+  )
+
+  step("the label names no command", context, do: outcome(context, :label_names_no_command))
+
   step("the rest of the page is rendered and its forms remain usable", context,
     do: outcome(context, :page_and_forms_usable)
   )
