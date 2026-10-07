@@ -118,7 +118,9 @@ which blocks.
 ## What Is Prohibited
 
 Secrets and credentials; personal data not intentionally public; maintainer absolute home paths; internal hostnames,
-addresses, and topology; private repository identifiers; and raw detector output that could reproduce any of them.
+addresses, and topology; private repository identifiers; and raw detector output that could reproduce any of them. The
+one exception, `ose-private`'s name and URL, is defined in
+[Public Repository Data Safety](../../repo-governance/conventions/public-repository-data-safety.md#prohibited-content).
 
 Replace safe examples with semantic placeholders — `<api-token>`, `<private-host>`, `<repository-path>`. If replacement
 destroys the artifact's meaning, the artifact does not belong in a public repository.
