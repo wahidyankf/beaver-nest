@@ -28,8 +28,8 @@ Confirm the intended sources and adapters before interpreting the gate:
 
 - root `AGENTS.md` and the exact root `CLAUDE.md` import;
 - every `.agents/skills/<name>/` bundle and its single Claude command wrapper;
-- every `.agents/agents/<name>.md` and one matching adapter per harness; and
-- `.mcp.json` and `opencode.json` declarations for the credential-free `npx nx mcp` capability; the `.codex/config.toml` entry is outside the reconciled roster.
+- every `.agents/agents/<name>.md`, its selected native adapters, and canonical main-session routes; and
+- shared `.mcp.json` (also read natively by Command Code) and `opencode.json` declarations for the credential-free `npx nx mcp` capability; the `.codex/config.toml` entry is outside the reconciled roster.
 
 Do not infer parity from matching names or counts. Content digests, canonical routes, native permissions, denies, constraints, and executable behaviour remain authoritative.
 

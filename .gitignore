@@ -117,3 +117,6 @@ CLAUDE.local.md
 # Local Git worktrees. Keep only the directory placeholder in version control.
 /worktrees/*
 !/worktrees/.gitkeep
+# Command Code personal project state
+/.commandcode/settings.local.json
+/.commandcode/taste/

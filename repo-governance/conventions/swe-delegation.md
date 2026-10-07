@@ -40,8 +40,8 @@ needs no reason, because this convention names it.
 
 ## Why
 
-Execution-tier agents run on the cheaper model the repository maps to that tier, and the files they read stay out of the
-main session's context, which keeps the reasoning that follows clear, as
+Execution-tier agents run on a cheaper model when the repository maps one to that tier. The files they read stay out of
+the main session's context, which keeps the reasoning that follows clear, as
 [Agent Workflow Orchestration][catalog-agent-workflow-orchestration] explains.
 
 ## Enforcement
