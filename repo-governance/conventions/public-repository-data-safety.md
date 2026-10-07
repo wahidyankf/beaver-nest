@@ -13,7 +13,7 @@ Unless a value is deliberately public and approved for this repository, do not c
 - private network or infrastructure identifiers, including tailnet or VPN names, internal domains or DNS names, private addresses, hardware addresses, Wi-Fi names, account identifiers, and local mount or share paths; or
 - logs, screenshots, fixtures, generated files, configuration, or examples that contain any such value.
 
-Public project identifiers intentionally documented by the repository, such as its canonical GitHub URL, are allowed. Public commit-author identity configured intentionally by its owner is also allowed; do not copy unrelated machine-derived identity into repository content.
+Public project identifiers intentionally documented by the repository, such as its canonical GitHub URL, are allowed. So are the private operations repository's name, `ose-private`, and its GitHub URL, made public by the maintainer's 2026-10-07 decision; its contents, paths, and internals stay private. Public commit-author identity configured intentionally by its owner is also allowed; do not copy unrelated machine-derived identity into repository content.
 
 ## Safe Representation
 
