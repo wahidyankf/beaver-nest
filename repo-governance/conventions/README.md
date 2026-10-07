@@ -1,6 +1,6 @@
 # Conventions
 
-Conventions define shared choices that keep the repository predictable. They cover areas such as naming, directory layout, documentation, configuration, and version-control practices.
+Conventions define shared choices that keep the repository predictable. They cover areas including naming, directory layout, documentation, configuration, and version-control practices.
 
 Conventions are subordinate to the repository [vision](../vision/README.md) and [principles](../principles/README.md), and take precedence over [development standards](../development/README.md) and [workflows](../workflows/README.md). A convention must change if it conflicts with either higher level; lower-level documents must change if they conflict with a convention.
 
@@ -18,7 +18,9 @@ Prefer one canonical convention over repeating the same rule in several document
 ## Directory Map
 
 - [Bug reports](bug-reports.md) fix the recorded duplicate search and the fields a bug report or bug-fix plan's report carries.
-- [Coding-harness contract](coding-harness-contract.md) keeps repository-owned rules, skills, custom agents, and required capabilities equivalent across supported coding harnesses.
+- [Harness contract](coding-harness-contract.md) keeps rules, skills, custom agents, and required capabilities equivalent
+  across supported harnesses.
+- [Details](coding-harness-contract/README.md): coordination.
 - [Command-line interface](command-line-interface.md) fixes the two-layer contract a command-line tool presents to its callers: one closed exit vocabulary, and a body that says what happened.
 - [Command-line interface modules](command-line-interface/README.md) hold the ordered modules of that convention.
 - [Commit authorization](commit-authorization.md) defines when commits and pushes may be performed.

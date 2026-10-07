@@ -214,9 +214,9 @@ jobs:
               PUBLIC_SAFETY_BASE="$(git rev-parse FETCH_HEAD)" PUBLIC_SAFETY_HEAD="$(git rev-parse HEAD)" \
               bash scripts/public-safety/check.sh
 
-      # The same three path sets `.husky/pre-push` routes on, so a change that
-      # skips a suite locally skips it here and no other. Each set also includes
-      # this workflow, because an edit to the gate itself must re-prove it.
+      # Mirror the three `.husky/pre-push` path sets; governed changes include all
+      # four harnesses. A suite skips here only when it skips locally. Each set
+      # includes this workflow because an edit to the gate itself must re-prove it.
       - name: Route the conditional suites
         id: route
         env:
@@ -234,7 +234,7 @@ jobs:
             ':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
             'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
             ':(glob)scripts/public-safety/**' ':(glob)scripts/leak-review/**' \
-            ':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' \
+            ':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' ':(glob).commandcode/**' \
             '.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc' \
             '.github/workflows/pr-quality-gate.yml')
 
