@@ -5,3 +5,6 @@ English is the primary language for repository-authored content. Use English for
 Use another language only when it is the subject of the content, required by an external interface or product requirement, or quoted faithfully. Keep any surrounding explanation in English.
 
 This convention applies to repository artifacts, not to conversations with contributors or users. Contributors may communicate with agents in any language, including Bahasa Indonesia.
+
+Use clear, simple, natural English that readers who learned English later can understand. Keep code comments and work
+notes brief. Explain why code is needed or shaped this way, not what the code already shows.

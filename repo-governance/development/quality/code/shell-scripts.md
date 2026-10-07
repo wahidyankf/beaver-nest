@@ -53,10 +53,10 @@ The file mode is part of what version control records, so the executable bit is 
 otherwise shows up as a permission failure on the next machine or pipeline that runs the script, far from the change
 that dropped it.
 
-## Comments Say What and Why
+## Comments Preserve Purpose and Reasons
 
-Each script carries descriptive comments: what it is for, and why a step whose reason is not evident from the code is
-shaped the way it is.
+Each script carries a brief purpose comment. Explain why a step whose reason is not evident from the code is shaped the
+way it is.
 
 Comments do not narrate each line. They hold what the code cannot show.
 
