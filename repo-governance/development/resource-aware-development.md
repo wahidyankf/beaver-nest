@@ -63,8 +63,11 @@ owning guard signals, reaps, and releases its child.
 
 An unguarded sibling Nx fan-out once forced a host restart. HIPPO cannot shed unknown work.
 
-[The boundary hook](../../.claude/hooks/require-hippo-boundary.sh) rejects unguarded compute before spawn. All three
-harnesses bind the shared byte-identical hook.
+[The boundary hook](../../.claude/hooks/require-hippo-boundary.sh) rejects unguarded compute before spawn. All four
+harnesses bind this shared consumer boundary. Command Code registers it in
+[native settings](../../.commandcode/settings.json) through
+[its policy bridge](../../.commandcode/hooks/run-policy-hook.sh), which maps native shell payloads and delegates to
+the same boundary hook.
 
 It checks presence, not class judgment, and matches compute verbs only in command position.
 
