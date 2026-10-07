@@ -28,7 +28,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Directory maps](directory-maps.md) keep governance, documentation, and specification trees self-describing and navigable.
 - [Integration path](integration-path.md) applies trunk-based development, routing every change through a `worktrees/` checkout and a pull request into `main`, the only persistent branch.
 - [Last-resort questions](last-resort-questions.md) require exhausting safe ways to proceed before asking the user.
-- [Language](language.md) sets English for artifacts and clear writing for documents and agent replies.
+- [Language](language.md) guides English in artifacts and replies.
 - [Markdown links](markdown-links.md) keep internal links resolvable across repository-owned Markdown.
 - [Markdown visualizations](markdown-visualizations.md) prefer useful Mermaid diagrams and require accessible color, contrast, and non-color cues.
 - [No destructive Git operations](no-destructive-git-operations.md) requires approval for any Git command that destroys work or history.
