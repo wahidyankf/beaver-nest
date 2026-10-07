@@ -12,9 +12,7 @@ Six things, and nothing else: the worktree this work provisioned, its local bran
 
 Build output means `dist/`, `.next/`, and the build caches a documented command rebuilds — in the worktree, and the same regenerable output in the primary checkout. It never means a `.env*` file or any other local secret, in any location.
 
-Scratch means what this work itself wrote under `local-tmp/`, never another actor's. Scratch a crashed session left behind is reclaimed only deliberately, never by an ambient sweep: once unmodified for seven days, it moves to `local-tmp/.reclaim-quarantine-YYYY-MM-DD/`, and is deleted once nothing needs it.
-
-An exact ignored, nonshared cache such as `.fvm-cache` may be scratch even when another task created it, but only after recorded regeneration, non-use, and secret-free evidence. This never makes a shared cache removable.
+Scratch means what this work itself wrote under `local-tmp/`, never another actor's; see [other actors and bare clones](dev-artifact-clean-up/001-other-actors-and-bare-clones.md).
 
 Everything else on the machine belongs to someone else — a worktree this work did not create, a branch it did not open, another repository's state — even when they look abandoned.
 
@@ -42,15 +40,15 @@ git push origin --delete worktree/<name>
 
 Purge the build output this work produced, and its own scratch, once delivery has landed and nothing uses it. Retain logs, traces, and any other non-regenerable evidence a failure would need.
 
-`--prune` drops the remote-tracking ref for a branch the forge deleted on merge; without it the deleted branch lingers in `git branch -a`. Delete on `origin` only if merging did not.
-
-Where a clone has no primary checkout, `git fetch origin main:main` reconciles without one, never against a branch checked out elsewhere.
+`--prune` drops the remote-tracking ref for a branch the forge deleted on merge; without it the deleted branch lingers in `git branch -a`. Delete on `origin` only if merging did not. A clone with no primary checkout: [other actors and bare clones](dev-artifact-clean-up/001-other-actors-and-bare-clones.md).
 
 ## When `-d` Refuses
 
 `git branch -d` refuses a branch whose commits `main` does not literally contain, so after a rebase or squash merge it always refuses: the landed commits carry different hashes.
 
-Read the refusal before answering it. Where the pull request reports merged and the change is on `origin/main`, `-D` is correct: `-d` asks about hashes, not content. Where that is not established, `-D` discards work.
+Read the refusal first. After the steps' fetch and worktree removal, `git branch -D` is correct only for a branch that **landed** — its pull request `MERGED` with `headRefOid` equal to the tip, or `git cherry origin/main <branch>` printing only `-` lines — or is **stale** — its tip over 72 hours old, with no open pull request.
+
+When that cherry prints a `+` line, preserve a stale tip first: keep `origin/<branch>` if it holds the tip, else `git bundle create <path> origin/main..<branch>` under the primary checkout's ignored `local-tmp/`, recording the path; its `origin` copy goes only after that. Otherwise `-D` discards work: retain the branch and say why.
 
 ## Verification
 
@@ -65,5 +63,3 @@ A deleted branch whose commits are unreachable is recoverable from `git reflog` 
 Never delete a `.env*` file or any other local secret-bearing file or directory. They are gitignored and unregenerable; deleting one permanently loses the operator's configuration. That holds inside a worktree being removed too, which is why removal is never forced: `git worktree remove` refuses while untracked files remain, and that refusal is a signal to stop.
 
 In the primary checkout, only regenerable build output and this work's own scratch are removable. Every other removal targets the worktree this work provisioned or the branch it opened. The primary checkout holds the only copies of gitignored secrets and local state, so a deletion there is unrecoverable. Never delete `main` itself, locally or on `origin`.
-
-Never delete an artifact another actor created. Never stash to clear a worktree before removing it — the stash stack is shared across every worktree of a clone, so a pop elsewhere takes an entry it did not create.

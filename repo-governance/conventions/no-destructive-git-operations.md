@@ -2,7 +2,7 @@
 
 Git keeps no undo for uncommitted work, and a rewrite of pushed history reaches every clone that holds it. Assume someone else is using the same machine and remote at the same moment.
 
-Adapted from the catalog rule of the same name. What changed: a branch whose pull request merged is still deleted with `-D` where [dev artifact clean-up](../workflows/maintenance/dev-artifact-clean-up.md) establishes that the change is on `origin/main`, and that workflow's own refusals stand beside this rule.
+Adapted from the catalog rule of the same name. What changed: an unused task branch is deleted with `-D` where [dev artifact clean-up](../workflows/maintenance/dev-artifact-clean-up.md#when--d-refuses) establishes that it landed or went stale, after preserving a stale tip, and that workflow's own refusals stand beside this rule.
 
 ## The Rule Is the Effect
 
@@ -10,17 +10,17 @@ Any Git invocation whose effect is to discard uncommitted changes, destroy work 
 
 ## Common Cases
 
-| Operation                                                             | Destroys                                        | Use instead                                                      |
-| --------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
-| `git push --force`, or `--force-with-lease` without an expected value | remote commits absent locally                   | `--force-with-lease=<branch>:<expected-sha> --force-if-includes` |
-| rebasing or amending commits already pushed                           | history others built on                         | a new commit; for the sync rebase, the lease form above          |
-| `git reset --hard`, `git checkout -f`, `git switch --discard-changes` | uncommitted changes                             | commit first, or `git stash push -- <path>` and keep the entry   |
-| `git checkout -- <path>` or `git restore <path>` over edits           | the unstaged edits at those paths               | commit or stash first                                            |
-| `git clean -fd` or `git clean -fdx`                                   | untracked and ignored files, local secrets too  | `git clean -n` to preview, then delete named paths               |
-| `git stash drop`, `git stash clear`                                   | stash entries, which then become prunable       | leave the entries                                                |
-| `git branch -D`, `git update-ref -d`                                  | a branch, skipping the merged check             | `git branch -d`                                                  |
-| expiring the reflog and pruning at once                               | the recovery path itself                        | let automatic maintenance run                                    |
-| `git worktree remove --force`, deleting a worktree folder             | a working tree and everything uncommitted in it | plain `git worktree remove`                                      |
+| Operation                                                             | Destroys                                        | Use instead                                                                                                                                                                                           |
+| --------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `git push --force`, or `--force-with-lease` without an expected value | remote commits absent locally                   | `--force-with-lease=<branch>:<expected-sha> --force-if-includes`                                                                                                                                      |
+| rebasing or amending commits already pushed                           | history others built on                         | a new commit; for the sync rebase, the lease form above                                                                                                                                               |
+| `git reset --hard`, `git checkout -f`, `git switch --discard-changes` | uncommitted changes                             | commit first, or `git stash push -- <path>` and keep the entry                                                                                                                                        |
+| `git checkout -- <path>` or `git restore <path>` over edits           | the unstaged edits at those paths               | commit or stash first                                                                                                                                                                                 |
+| `git clean -fd` or `git clean -fdx`                                   | untracked and ignored files, local secrets too  | `git clean -n` to preview, then delete named paths                                                                                                                                                    |
+| `git stash drop`, `git stash clear`                                   | stash entries, which then become prunable       | leave the entries                                                                                                                                                                                     |
+| `git branch -D`, `git update-ref -d`                                  | a branch, skipping the merged check             | `git branch -d`; the one exception is an unused task branch under [dev artifact clean-up](../workflows/maintenance/dev-artifact-clean-up.md#when--d-refuses), and any other `-D` still needs approval |
+| expiring the reflog and pruning at once                               | the recovery path itself                        | let automatic maintenance run                                                                                                                                                                         |
+| `git worktree remove --force`, deleting a worktree folder             | a working tree and everything uncommitted in it | plain `git worktree remove`                                                                                                                                                                           |
 
 The lease form is still a force push and still needs approval; it only refuses to overwrite commits nobody has seen. Runtime data under `data/` and SQLite files are ignored, so `git clean -fdx` destroys them too.
 
