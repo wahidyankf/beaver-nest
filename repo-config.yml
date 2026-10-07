@@ -183,19 +183,19 @@ harness:
     - id: commandcode
       supports:
         capabilities:
-        - repository-read
-        - repository-write
-        - shell
-        - network
-        - subagent
+          - repository-read
+          - repository-write
+          - shell
+          - network
+          - subagent
         constraints:
-        - read-only
-        - inline-result-only
-        - single-mcp-operation
+          - read-only
+          - inline-result-only
+          - single-mcp-operation
         routes:
-        - canonical-import
+          - canonical-import
         identities:
-        - description
+          - description
       agent-adapter:
         path: ".commandcode/agents/{name}.md"
         format: front-matter
@@ -208,131 +208,131 @@ harness:
           name: name
           description: description
         agents:
-        - ci-checker
-        - ci-fixer
-        - ci-monitor-subagent
-        - docs-checker
-        - docs-fixer
-        - harness-checker
-        - harness-fixer
-        - plan-checker
-        - plan-execution-checker
-        - plan-fixer
-        - plan-maker
-        - pr-review-checker
-        - pr-review-fixer
-        - rules-checker
-        - rules-fixer
-        - specs-checker
-        - specs-fixer
-        - swe-api-tester
-        - swe-architect
-        - swe-debugger
-        - swe-developer
-        - swe-infra-tester
-        - swe-releaser
-        - swe-reviewer
-        - swe-usability-tester
-        - swe-web-tester
-        - web-researcher
+          - ci-checker
+          - ci-fixer
+          - ci-monitor-subagent
+          - docs-checker
+          - docs-fixer
+          - harness-checker
+          - harness-fixer
+          - plan-checker
+          - plan-execution-checker
+          - plan-fixer
+          - plan-maker
+          - pr-review-checker
+          - pr-review-fixer
+          - rules-checker
+          - rules-fixer
+          - specs-checker
+          - specs-fixer
+          - swe-api-tester
+          - swe-architect
+          - swe-debugger
+          - swe-developer
+          - swe-infra-tester
+          - swe-releaser
+          - swe-reviewer
+          - swe-usability-tester
+          - swe-web-tester
+          - web-researcher
         absent:
-        - model
-        - featureModels
-        - effort
-        - reasoningEffort
+          - model
+          - featureModels
+          - effort
+          - reasoningEffort
         translations:
-        - when: always
-          field: tools
-          members:
-          - read_file
-        - when: always
-          field: disallowedTools
-          members:
-          - agent
-          - agent_output
-        - when: requires
-          capability: repository-read
-          field: tools
-          members:
-          - read_directory
-          - grep
-          - glob
-        - when: requires
-          capability: repository-write
-          field: tools
-          members:
-          - write_file
-          - edit_file
-        - when: requires
-          capability: shell
-          field: tools
-          members:
-          - shell_command
-          - run_command
-          - kill_shell
-        - when: requires
-          capability: network
-          field: tools
-          members:
-          - web_search
-          - web_fetch
-        - when: constrains
-          capability: read-only
-          field: disallowedTools
-          members:
-          - write_file
-          - edit_file
-        - when: constrains
-          capability: inline-result-only
-          field: disallowedTools
-          members:
-          - write_file
-          - edit_file
-        - when: denies
-          capability: repository-read
-          field: disallowedTools
-          members:
-          - read_file
-          - read_directory
-          - grep
-          - glob
-        - when: denies
-          capability: repository-write
-          field: disallowedTools
-          members:
-          - write_file
-          - edit_file
-        - when: denies
-          capability: shell
-          field: disallowedTools
-          members:
-          - shell_command
-          - run_command
-          - kill_shell
-        - when: denies
-          capability: network
-          field: disallowedTools
-          members:
-          - web_search
-          - web_fetch
-        - when: constrains
-          capability: single-mcp-operation
-          field: tools
-          members:
-          - mcp__nx-mcp__ci_information
-          - mcp__nx-mcp__update_self_healing_fix
-        - when: constrains
-          capability: single-mcp-operation
-          field: tools
-          absent-members:
-          - web_search
-          - web_fetch
-        - when: constrains
-          capability: single-mcp-operation
-          field: disallowedTools
-          members:
-          - web_search
-          - web_fetch
+          - when: always
+            field: tools
+            members:
+              - read_file
+          - when: always
+            field: disallowedTools
+            members:
+              - agent
+              - agent_output
+          - when: requires
+            capability: repository-read
+            field: tools
+            members:
+              - read_directory
+              - grep
+              - glob
+          - when: requires
+            capability: repository-write
+            field: tools
+            members:
+              - write_file
+              - edit_file
+          - when: requires
+            capability: shell
+            field: tools
+            members:
+              - shell_command
+              - run_command
+              - kill_shell
+          - when: requires
+            capability: network
+            field: tools
+            members:
+              - web_search
+              - web_fetch
+          - when: constrains
+            capability: read-only
+            field: disallowedTools
+            members:
+              - write_file
+              - edit_file
+          - when: constrains
+            capability: inline-result-only
+            field: disallowedTools
+            members:
+              - write_file
+              - edit_file
+          - when: denies
+            capability: repository-read
+            field: disallowedTools
+            members:
+              - read_file
+              - read_directory
+              - grep
+              - glob
+          - when: denies
+            capability: repository-write
+            field: disallowedTools
+            members:
+              - write_file
+              - edit_file
+          - when: denies
+            capability: shell
+            field: disallowedTools
+            members:
+              - shell_command
+              - run_command
+              - kill_shell
+          - when: denies
+            capability: network
+            field: disallowedTools
+            members:
+              - web_search
+              - web_fetch
+          - when: constrains
+            capability: single-mcp-operation
+            field: tools
+            members:
+              - mcp__nx-mcp__ci_information
+              - mcp__nx-mcp__update_self_healing_fix
+          - when: constrains
+            capability: single-mcp-operation
+            field: tools
+            absent-members:
+              - web_search
+              - web_fetch
+          - when: constrains
+            capability: single-mcp-operation
+            field: disallowedTools
+            members:
+              - web_search
+              - web_fetch
 
 policies:
   markdown:
