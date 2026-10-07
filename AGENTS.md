@@ -19,6 +19,12 @@
 
 <!-- nx configuration end-->
 
+## Writing
+
+When writing in English, including replies to users, use clear, simple, and natural English that is easy for non-native
+speakers to understand. Follow [Language](repo-governance/conventions/language.md) for repository artifacts, plans, and
+other documents.
+
 ## Version Control
 
 - Only `main` persists. Worktrees live at `{repository location}/worktrees/<task>`; sibling `*-worktrees/` paths are forbidden. Integrate by PR under [integration](repo-governance/conventions/integration-path.md), never direct push; [leak-review](repo-governance/workflows/quality/pr-leak-review.md) every commit pre-push and every merge's exact head (`leak-review` status); delete both afterward.
@@ -44,7 +50,6 @@
 ## Development
 
 - Prefix shell commands with `rtk`, preserving repository-mandated command forms and safety rules.
-- Use [English](repo-governance/conventions/language.md).
 - Dispatch coding work to `swe-*` agents per [SWE delegation](repo-governance/conventions/swe-delegation.md).
 - Follow [minimal sufficiency](repo-governance/principles/minimal-sufficiency.md) and [dependency selection](repo-governance/development/dependency-selection.md).
 - Comment non-obvious shell safety invariants and lifecycle boundaries; avoid line-by-line narration.
