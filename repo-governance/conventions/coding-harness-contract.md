@@ -1,6 +1,9 @@
 # Coding-Harness Contract
 
-Codex, Claude Code, and OpenCode must receive the same repository-owned rules, skill workflows, and deterministic Nx task routes. Claude Code and OpenCode also receive the same custom-agent intent, safety constraints, and required MCP capabilities under deterministic proof; Codex receives the custom agents without native permissions, for the reason under [Codex](#codex). Vendor system prompts, built-in tools, models, credentials, local memory, plugins, and approval interfaces are outside this equality claim.
+Every declared harness receives the same repository-owned rules, skills, deterministic Nx routes, custom-agent intent,
+safety constraints, and required MCP capabilities. Native enforcement follows the exceptions under [Codex](#codex)
+and [Session Coordination](coding-harness-contract/001-session-coordination.md). Vendor system prompts, built-in tools,
+models, credentials, local memory, plugins, and approval interfaces remain outside this equality claim.
 
 Matching file names, paths, or counts is not sufficient. Parity means that each harness reaches the same effective canonical content and that every native adapter preserves the canonical semantics without adding instructions or weakening restrictions.
 
@@ -9,7 +12,7 @@ Matching file names, paths, or counts is not sufficient. Parity means that each 
 | Concern               | Requirement                                                                                                    | Deterministic proof                                                                                                                                                           |
 | --------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Rules                 | Every harness reaches the normalized root `AGENTS.md` body and no additional always-on repository instruction. | Exact Claude import, canonical-content digest, and rejection of competing instruction sources.                                                                                |
-| Skills                | Every canonical skill, including its complete supporting-resource bundle, is available in all three harnesses. | One-to-one adapter coverage where required, exact description and route, and a digest of `SKILL.md` plus every supporting file.                                               |
+| Skills                | Every canonical skill, including its complete supporting-resource bundle, is available in every declared harness. | One-to-one adapter coverage where required, exact description and route, and a digest of `SKILL.md` plus every supporting file.                                               |
 | Agents                | Every canonical agent is available in every declared harness with the same prompt intent and safety boundary.  | One-to-one native adapter coverage, exact canonical route, prompt digest, and equivalent identity, mode, tier, capabilities, constraints, dispatches, and native permissions. |
 | Required capabilities | Every declared harness declares the same credential-free repository capability.                                | Semantic comparison of the executable vector and working-directory behaviour rather than raw vendor syntax.                                                                   |
 
@@ -24,7 +27,8 @@ Follow the [harness propagation](../workflows/quality/harness-propagation.md) wo
 - `.agents/agents/<name>.md` is the only full custom-agent prompt and semantic capability source.
 - The required committed MCP capability is the credential-free `npx nx mcp` executable vector rooted at the workspace.
 
-Adapters must route to these sources without copying, extending, or weakening them. Claude command wrappers mirror each canonical skill description and contain only the fixed canonical route. Each canonical custom agent has exactly one native adapter in `.claude/agents/`, `.codex/agents/`, and `.opencode/agents/`.
+Adapters must route to these sources without copying, extending, or weakening them. Claude command wrappers mirror each canonical skill description and contain only the fixed canonical route. Native agent coverage follows each declared profile and the
+[session-coordination exception](coding-harness-contract/001-session-coordination.md).
 
 ## Codex
 
