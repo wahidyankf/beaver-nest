@@ -3,9 +3,11 @@
 Choose Codex, Claude Code, OpenCode, or Command Code for repository work. The committed harness contract declares all four against the same repository-owned rules, skills, and Nx task routes. Command Code has 27 generated native leaf adapters with static parity verified; native runtime discovery and enforcement remain unverified. The other three bindings provide custom agents; Claude Code and OpenCode also get their safety boundaries and a verified `nx-mcp` capability, while Codex, which has no per-agent permissions, gets each agent's limits only through its definition. Vendor models, built-in tools, credentials, local memory, plugins, and approval interfaces can still differ.
 
 Command Code reads root `AGENTS.md` and `.agents/skills/` natively, without a shim or skill copies. It pins no model or
-effort: the model follows the active session, and omitted `reasoningEffort` uses the model default. Roles declaring
-`subagent` or nonempty `dispatches` run from their complete canonical definition in the main session, following the
-role's dispatch allowlist. Native leaves cannot dispatch nested agents.
+effort: the model follows the active session, and Command Code 1.77.0's native caller/resolver passes supported session
+reasoning effort to inherited-model leaves; absent or unsupported effort supplies no override. Pure-function checks
+verify this behavior; provider calls remain unverified. Roles declaring `subagent` or nonempty `dispatches` run from
+their complete canonical definition in the main session, following the role's dispatch allowlist. Native leaves cannot
+dispatch nested agents.
 
 ## Prepare the Workspace
 
