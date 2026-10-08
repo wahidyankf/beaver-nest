@@ -4,6 +4,9 @@ set -euo pipefail
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 [[ $# == 1 ]] || exit 2
 policy=$1
+if [[ $policy == agent-policy ]]; then
+	exec /bin/bash "$repo/scripts/agent-policy-router.sh" --scope local --harness commandcode
+fi
 source_dir="$repo/.claude/hooks"
 [[ $(dirname "${BASH_SOURCE[0]}") != "$repo/commandcode/hooks" ]] || source_dir="$repo/claude/hooks"
 case "$policy" in

@@ -28,6 +28,21 @@
       "dotnet test*": "deny",
       "rtk dotnet test*": "deny",
       "*./hippo run*": "allow"
+    },
+    "*": "allow",
+    "read": {
+      "*": "allow",
+      "**/.env*": "deny",
+      "**/.env.example": "allow",
+      "**/secrets/**": "deny",
+      "**/credentials/**": "deny"
+    },
+    "edit": {
+      "*": "allow",
+      "**/.env*": "deny",
+      "**/.env.example": "allow",
+      "**/secrets/**": "deny",
+      "**/credentials/**": "deny"
     }
   }
 }

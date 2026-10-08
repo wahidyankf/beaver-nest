@@ -47,3 +47,12 @@ Run `./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm
 Runtime discovery smoke checks remain separate because a deterministic repository validator cannot prove vendor model compliance or locally available tools.
 
 Use the [harness parity verification workflow](../workflows/quality/harness-parity-verification.md) to record an evidence-backed audit without changing the contract.
+
+## Repository Policy
+
+Bindings invoke [`scripts/agent-policy-hook.sh`](../../scripts/agent-policy-hook.sh) for this
+checkout. Claude Code, OpenCode, and Command Code cross-repository operations use neutral destination routing.
+OpenCode Serena registration is deferred; Claude Code and Command Code retain semantic integration.
+Codex retains its existing guards; new routing and Serena are deferred. Protected paths: [`.agents/agent-policy.json`](../../.agents/agent-policy.json); semantic indexing exclusions use the
+tracked
+[Serena project config](../../.serena/project.yml). Shared MCP and capture integrations remain user-global.

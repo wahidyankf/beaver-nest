@@ -120,3 +120,8 @@ CLAUDE.local.md
 # Command Code personal project state
 /.commandcode/settings.local.json
 /.commandcode/taste/
+
+# Track Serena project policy; keep generated and personal state local.
+/.serena/*
+!/.serena/project.yml
+!/.serena/README.md

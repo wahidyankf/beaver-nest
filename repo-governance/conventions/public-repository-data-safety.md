@@ -22,3 +22,13 @@ Use repository-relative paths wherever possible. Otherwise use unmistakable plac
 Before every commit, inspect the complete proposed change—including staged content, intended untracked files, generated artifacts, and the commit message—for prohibited data. Remove or replace it and recheck before committing.
 
 If sensitive data has already entered Git history, do not repeat it in diagnostics or reports. Treat credentials as compromised and revoke or rotate them. Preserve evidence without exposing the value, report the affected scope, and obtain any authority needed before rewriting shared history.
+
+## Agent Tool Access
+
+Agent tools must not directly read, write, or edit `.env*` files, except `.env.example`. Paths under `secrets/` and
+`credentials/` are also protected.
+The repository owns these restrictions. [`.agents/agent-policy.json`](../../.agents/agent-policy.json) declares the
+path patterns for `scripts/agent-policy-hook.sh`; the tracked `.serena/project.yml` excludes the same paths from
+semantic indexing. Claude Code, OpenCode, and Command Code native bindings enforce their own physical checkout;
+neutral routing covers
+cross-repository operations. Compute-admission exemptions do not waive these restrictions.
