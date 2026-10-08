@@ -1,0 +1,4 @@
+{
+  "protected_paths": ["**/.env*", "**/secrets/**", "**/credentials/**"],
+  "allowed_paths": ["**/.env.example"]
+}

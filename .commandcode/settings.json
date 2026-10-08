@@ -2,12 +2,12 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "^SHELL$",
+        "matcher": "^(SHELL|READ|READ_MULTI|LIST|WRITE|EDIT|SEARCH|GLOB)$",
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/.commandcode/hooks/run-policy-hook.sh\" require-hippo-boundary",
-            "timeout": 3,
+            "command": "bash \"$(git rev-parse --show-toplevel)/.commandcode/hooks/run-policy-hook.sh\" agent-policy",
+            "timeout": 30,
             "failClosed": true
           }
         ]

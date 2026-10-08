@@ -145,3 +145,6 @@ run_bridge require-hippo-boundary 'not json'
 check 'malformed native payload fails before delegation' test "$code" -ne 0
 printf 'Native policy adapter: %s passed, %s failed\n' "$pass" "$fail"
 [[ $fail == 0 ]]
+
+# Exercise the neutral selector after all original native adapter assertions.
+bash "$repo/.commandcode/hooks/agent-policy-selector.test.sh"

@@ -1,0 +1,11 @@
+project_name: "beaver-nest"
+language_servers:
+  - elixir
+  - typescript
+encoding: utf-8
+ignore_all_files_in_gitignore: true
+ignored_paths:
+  - "**/.[eE][nN][vV]*"
+  - "!**/.[eE][nN][vV].[eE][xX][aA][mM][pP][lL][eE]"
+  - "**/[sS][eE][cC][rR][eE][tT][sS]/**"
+  - "**/[cC][rR][eE][dD][eE][nN][tT][iI][aA][lL][sS]/**"
