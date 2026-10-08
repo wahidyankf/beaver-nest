@@ -1,22 +1,46 @@
 #!/usr/bin/env bash
 # Native policy adapter tests use synthetic repositories and unchanged policy delegates.
 set -euo pipefail
+# Git hooks export selectors; discover every native name before any fixture Git operation.
+git_local_env_vars=$(git rev-parse --local-env-vars) || exit 1
+while IFS= read -r git_local_env_var; do
+	unset "$git_local_env_var"
+done <<<"$git_local_env_vars"
+while IFS= read -r git_config_env_var; do
+	case "$git_config_env_var" in GIT_CONFIG_KEY_* | GIT_CONFIG_VALUE_*) unset "$git_config_env_var" ;; esac
+done < <(compgen -e)
+unset GIT_TEMPLATE_DIR
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 scratch=$(mktemp -d)
+scratch=$(cd "$scratch" && pwd -P)
 trap 'rm -rf "$scratch"' EXIT
 pass=0
 fail=0
 check() {
 	local label=$1
 	shift
-	if "$@" >/dev/null; then pass=$((pass + 1)); else echo "FAIL: $label"; fail=$((fail + 1)); fi
+	if "$@" >/dev/null; then pass=$((pass + 1)); else
+		echo "FAIL: $label"
+		fail=$((fail + 1))
+	fi
 }
 bridge="$(dirname "$0")/run-policy-hook.sh"
-if [[ ! -f $bridge ]]; then echo 'FAIL: native policy adapter is missing'; exit 1; fi
+if [[ ! -f $bridge ]]; then
+	echo 'FAIL: native policy adapter is missing'
+	exit 1
+fi
 fixture="$scratch/repository"
-mkdir -p "$fixture/.commandcode/hooks" "$fixture/.claude/hooks" "$scratch/session" "$scratch/home"
+mkdir -p "$fixture/.commandcode/hooks" "$fixture/.claude/hooks" "$scratch/session" "$scratch/home" "$scratch/git-template"
 cp "$bridge" "$fixture/.commandcode/hooks/"
-git -C "$fixture" init -q
+[[ $fixture == "$scratch/"* && ! -e $fixture/.git ]] || exit 1
+GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+	GIT_CEILING_DIRECTORIES="$scratch" GIT_TEMPLATE_DIR="$scratch/git-template" \
+	git --git-dir="$fixture/.git" --work-tree="$fixture" -C "$fixture" init -q
+fixture_git() {
+	GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+		GIT_CEILING_DIRECTORIES="$scratch" git --git-dir="$fixture/.git" -C "$fixture" "$@"
+}
+[[ $(fixture_git rev-parse --show-toplevel) == "$fixture" ]] || exit 1
 printf '#!/usr/bin/env bash\ncat\n' >"$fixture/hippo"
 chmod +x "$fixture/hippo"
 touch "$fixture/hippo.lock"
@@ -44,12 +68,12 @@ run_bridge remind-rules-propagation "$(jq -nc --arg cwd "$fixture" '{tool_name:"
 check 'argv is assembled and retained' jq -e '.tool_name == "Bash" and .tool_input.command == "npm install" and .tool_input.args == ["install"]' <<<"$out"
 check 'native cwd identifies the consumer' jq -e '.tool_input.workdir == .tool_input.cwd' <<<"$out"
 if [[ -f $fixture/.claude/hooks/require-hippo-boundary.sh ]]; then
-run_bridge require-hippo-boundary "$(jq -nc --arg cwd "$fixture" '{tool_name:"shell_command",tool_input:{command:"npm",args:["install"],cwd:$cwd}}')"
-check 'existing HIPPO policy denies unguarded native argv' jq -e '.hookSpecificOutput.permissionDecision == "deny"' <<<"$out"
-run_bridge require-hippo-boundary "$(jq -nc --arg cwd "$fixture" '{tool_name:"shell_command",tool_input:{command:"npm",args:["run","check:complete"],cwd:$cwd}}')"
-check 'already guarded scripts stay permitted' test -z "$out"
-run_bridge require-hippo-boundary "$(jq -nc --arg cwd "$fixture" '{tool_name:"shell_command",tool_input:{command:"./hippo run --class ephemeral --resource-tier light --disk-path . -- npm install",directory:$cwd}}')"
-check 'guarded native shell commands stay permitted' test -z "$out"
+	run_bridge require-hippo-boundary "$(jq -nc --arg cwd "$fixture" '{tool_name:"shell_command",tool_input:{command:"npm",args:["install"],cwd:$cwd}}')"
+	check 'existing HIPPO policy denies unguarded native argv' jq -e '.hookSpecificOutput.permissionDecision == "deny"' <<<"$out"
+	run_bridge require-hippo-boundary "$(jq -nc --arg cwd "$fixture" '{tool_name:"shell_command",tool_input:{command:"npm",args:["run","check:complete"],cwd:$cwd}}')"
+	check 'already guarded scripts stay permitted' test -z "$out"
+	run_bridge require-hippo-boundary "$(jq -nc --arg cwd "$fixture" '{tool_name:"shell_command",tool_input:{command:"./hippo run --class ephemeral --resource-tier light --disk-path . -- npm install",directory:$cwd}}')"
+	check 'guarded native shell commands stay permitted' test -z "$out"
 fi
 cat >"$fixture/.claude/hooks/block-env-file-access.sh" <<'DELEGATE'
 #!/usr/bin/env bash
@@ -103,7 +127,8 @@ check 'non-markdown formatter delegation remains successful' test "$code" -eq 0
 if [[ -f $repo/scripts/ensure-hooks.sh ]]; then
 	mkdir -p "$fixture/scripts" "$fixture/node_modules"
 	cp "$repo/scripts/ensure-hooks.sh" "$fixture/scripts/"
-	git -C "$fixture" config core.hooksPath .husky/_
+	[[ $(fixture_git rev-parse --show-toplevel) == "$fixture" ]] || exit 1
+	fixture_git config core.hooksPath .husky/_
 	run_bridge ensure-hooks '{}'
 	check 'native session bootstrap delegates its installed happy path silently' test -z "$out"
 	check 'native session bootstrap succeeds' test "$code" -eq 0
@@ -148,3 +173,5 @@ printf 'Native policy adapter: %s passed, %s failed\n' "$pass" "$fail"
 
 # Exercise the neutral selector after all original native adapter assertions.
 bash "$repo/.commandcode/hooks/agent-policy-selector.test.sh"
+
+bash "$repo/.commandcode/hooks/git-fixture-isolation.test.sh"
