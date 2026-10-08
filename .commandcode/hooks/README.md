@@ -7,6 +7,9 @@ live in [`settings.json`](../settings.json); the adapter invokes each existing d
 
 - [`run-policy-hook.sh`](run-policy-hook.sh) — Normalizes native payload fields and invokes the existing policy.
 - [`policy-hooks.test.sh`](policy-hooks.test.sh) — Exercises mappings and policy delegation in synthetic repositories.
+- [Git fixture isolation regression](git-fixture-isolation.test.sh) — Checks native Git-local environment purge,
+  physical fixture ownership, and unchanged disposable parent config, index and HEAD. The
+  [policy driver](policy-hooks.test.sh) runs it once after the selector regression without recursively invoking the full driver.
 
 ## Local Policy Endpoint
 
