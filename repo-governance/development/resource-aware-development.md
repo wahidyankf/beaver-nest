@@ -84,3 +84,7 @@ credentials, contents, and user data. Raw evidence rolls for seven days;
 compacted daily summaries roll for 30 days under byte caps.
 
 Verify wrapper changes with its bootstrap suite, guarded Nx checks, and repository gate. Test pressure synthetically.
+
+## Modules
+
+- [Nx cache eviction](resource-aware-development/001-external-nx-cache-eviction.md)
