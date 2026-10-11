@@ -36,13 +36,16 @@ targets, the 99% unit floor, exclusions, and required build, code generation, re
 fixtures, and cleanup. A missing focused capability must be supplied through normal target and test-first standards
 before it can serve as evidence; never invent a target in a command or weaken the complete gate.
 
-At each phase end and before creating or updating the pull request, run the complete affected mandatory regression,
-coverage, and quick gates, plus applicable Integration and E2E gates. One recorded complete run may satisfy both
-boundaries when code, tests, configuration, and affected scope are unchanged; otherwise rerun affected gates. Focused
-runs replace no hook, CI, or delivery gate. Existing TDD scope exceptions remain unchanged.
+At each phase end, and before pull-request ready-for-review or session end as a safety net, run the whole automated
+suite except the full E2E suite, plus only the affected E2E flow. One recorded complete run may satisfy both
+boundaries when code, tests, configuration, and affected scope are unchanged; otherwise rerun. Focused
+runs replace no hook, CI, or delivery gate. Existing TDD scope exceptions remain unchanged. A full E2E run is never a
+completion condition for a plan phase or plan execution; full E2E stays a separately batched set on its scheduled
+workflow.
 
 Followed evidence names relevant executed cases with positive counts and the complete boundary runs. A per-item whole
-suite, an omitted affected shared boundary, nonexecuting evidence, or a missing required complete gate violates this
+suite, an omitted affected shared boundary, nonexecuting evidence, a required full E2E as a gate, or a missing required
+complete gate violates this
 rule.
 
 **Enforcement: unenforced by decision.** Selecting the meaningful affected scope and proving its recorded evidence
