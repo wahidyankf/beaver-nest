@@ -2,6 +2,9 @@
 
 Use this workflow for each behaviour increment required by the [test-driven development standard](../../development/test-driven-development.md).
 
+Follow [Focused Runs and Regression Gates][focused-runs] for local Nx selections, execution evidence, and complete
+boundary verification.
+
 ## Prerequisites
 
 - Complete the living-documentation review required by the [BDD](../../development/behaviour-driven-development.md) and [TDD](../../development/test-driven-development.md) standards before inspecting or changing production code.
@@ -37,3 +40,5 @@ flowchart LR
 After the final cycle, run the affected project's broader Nx test target and any required repository checks. The completed work must have evidence of the expected red failure and a final green result.
 
 If the test cannot reach red because the test harness or environment is broken, repair or diagnose that problem first. Do not use an unrelated failure as evidence that the behaviour test is valid.
+
+[focused-runs]: ../../development/test-driven-development.md#focused-runs-and-regression-gates

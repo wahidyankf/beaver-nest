@@ -56,3 +56,8 @@ fail. "Restarting mid-write leaves no partial file" can.
 
 Criteria that cannot fail are the ones that get marked complete without anyone checking, because there is nothing to
 check.
+
+Apply [Focused Runs and Regression Gates][focused-runs] when writing local Nx test commands and phase or PR
+verification items.
+
+[focused-runs]: ../../../repo-governance/development/test-driven-development.md#focused-runs-and-regression-gates
