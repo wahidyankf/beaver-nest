@@ -53,3 +53,8 @@ act on except by guessing is worse than no finding, because it consumes a repair
 
 Separate blocking from non-blocking honestly. Treating every finding as blocking teaches people to argue with findings
 rather than fix them.
+
+Apply [Focused Runs and Regression Gates][focused-runs] when checking local Nx selections, executed case evidence,
+and phase or PR verification items.
+
+[focused-runs]: ../../../repo-governance/development/test-driven-development.md#focused-runs-and-regression-gates

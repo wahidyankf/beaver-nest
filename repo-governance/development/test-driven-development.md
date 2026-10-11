@@ -19,3 +19,31 @@ Treat test declarations and implementations as first-class living documentation.
 Pure refactoring must begin from a green test baseline, preserve behaviour, and keep relevant tests green throughout. If existing code lacks coverage for the behaviour being refactored, add characterization tests before restructuring it.
 
 TDD provides executable evidence for intended behaviour, catches regressions early, and encourages simpler designs. This standard is subordinate to the repository [vision](../vision/README.md), [principles](../principles/README.md), and [conventions](../conventions/README.md).
+
+## Focused Runs and Regression Gates
+
+For each local RED and GREEN item, run the named case or smallest relevant test selection that demonstrates the
+behaviour; do not rerun the whole suite for every item. Run named affected behaviours and shared boundaries after each
+REFACTOR step, expanding the selection when the change affects more code.
+
+Record the exact command, test path, selected case identities, positive executed case count, exit status, and observed
+result for each step. An unmatched filter, zero executed cases, or cached output that executes nothing is not proof.
+
+Pass case selection through a declared, package-manager-prefixed Nx target; never invoke a raw runner outside Nx.
+When an aggregate enforces coverage over deliberately unexecuted code, use a declared focused Nx target or
+configuration that supports the selection without whole-project coverage evaluation. Preserve complete coverage
+targets, the 99% unit floor, exclusions, and required build, code generation, resource admission, isolated synthetic
+fixtures, and cleanup. A missing focused capability must be supplied through normal target and test-first standards
+before it can serve as evidence; never invent a target in a command or weaken the complete gate.
+
+At each phase end and before creating or updating the pull request, run the complete affected mandatory regression,
+coverage, and quick gates, plus applicable Integration and E2E gates. One recorded complete run may satisfy both
+boundaries when code, tests, configuration, and affected scope are unchanged; otherwise rerun affected gates. Focused
+runs replace no hook, CI, or delivery gate. Existing TDD scope exceptions remain unchanged.
+
+Followed evidence names relevant executed cases with positive counts and the complete boundary runs. A per-item whole
+suite, an omitted affected shared boundary, nonexecuting evidence, or a missing required complete gate violates this
+rule.
+
+**Enforcement: unenforced by decision.** Selecting the meaningful affected scope and proving its recorded evidence
+require judgement; static text checks do not establish semantic test execution.
