@@ -23,6 +23,19 @@ Before every commit, inspect the complete proposed change—including staged con
 
 If sensitive data has already entered Git history, do not repeat it in diagnostics or reports. Treat credentials as compromised and revoke or rotate them. Preserve evidence without exposing the value, report the affected scope, and obtain any authority needed before rewriting shared history.
 
+## Agent Secret Access
+
+Coding agents must handle private keys and secrets as follows, anywhere including outside every repository:
+
+- Each agent must not open or read private-key contents anywhere.
+- Each secret step must be exactly one copy-ready command carrying its working directory, placed by the agent on the operator clipboard; the operator runs it in their own terminal, entering each secret at a hidden prompt only, and replies with the success word the step names; the agent continues only on it.
+- Each agent must never request, handle, or record secret values, full outputs, or screenshots, and must avoid any script or interaction that prints, echoes, logs, or otherwise exposes a secret to the harness session; diagnosis uses exit and error codes alone, and only local-development secrets (loopback services, dummy or example values such as `.env.example`) may appear in session records.
+- Each agent must open the secret session only inside the phase that needs it and must lock it before any review, pause, or PR handoff.
+- Agent-assisted delivery must apply only with a proper pipeline and secrets management (tracked wrapper, closed one-word outputs, leak screens, green gates); elsewhere the agent must stop at the secret boundary.
+- Each agent must operate the leak review only after reading every commit at the pinned head against the three leak classes; a record without that reading is fabrication.
+
+This removes value exposure from the session, and proper pipelines earn faster delivery. These rules are unenforced by decision; review checks the observations, and no automated gate is invented for them.
+
 ## Agent Tool Access
 
 Agent tools must not directly read, write, or edit `.env*` files, except `.env.example`. Paths under `secrets/` and
