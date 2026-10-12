@@ -57,7 +57,7 @@ the restriction. An adopter's copy lists only the family agents that repository 
   [SWE API Tester](swe-api-tester.md), and [SWE Infra Tester](swe-infra-tester.md) to judge a running surface, and
   [SWE Releaser](swe-releaser.md) to cut, deploy, or repin.
 
-Independent tasks run in parallel within the concurrency cap and dispatch order of
+Independent tasks run in parallel within the concurrency cap (N=3) and dispatch order of
 [Subagent Orchestration][catalog-subagent-orchestration]. Each result is verified
 before the next task relies on it, and the results are merged into one report.
 
