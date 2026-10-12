@@ -46,6 +46,9 @@ A rule portable across a declared parity boundary records its sibling obligation
 none with why. A repository adopting from a shared catalog proposes a rule that holds beyond itself to that catalog,
 through the catalog's own delivery, published only after the catalog's outbound-safety screen passes.
 
+A fan-out across members, at minimum ose-projects, must land in the catalog first. Members must adopt only from its
+published head, never from a branch or worktree. A member adoption must name the catalog head it copies.
+
 ## Adopter Decision: How Entry Becomes Automatic
 
 - **Root instruction file:** a route before any rule edit; it needs no tooling but relies on being read.
