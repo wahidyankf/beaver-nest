@@ -286,13 +286,15 @@ The script returns `{ cycleCount, agentTriggered, envRerunCount, approachingLimi
 
 | Error                          | Action                                                                                                      |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| Git rebase conflict            | Report to user, exit                                                                                        |
+| Git rebase conflict            | Follow [task sync][authorized-task-sync]; report conflicts outside its contract and exit                    |
 | `nx-cloud apply-locally` fails | Reject fix via MCP (`action: "REJECT"`), then attempt manual patch (Reject + Fix From Scratch Flow) or exit |
 | MCP tool error                 | Retry once, if fails report to user                                                                         |
 | Subagent spawn failure         | Retry once, if fails exit with error                                                                        |
 | Decision script error          | Treat as `error` status, increment `no_progress_count`                                                      |
 | No new CI Attempt detected     | If `--auto-fix-workflow`, try lockfile update; otherwise report to user with guidance                       |
 | Lockfile auto-fix fails        | Report to user, exit with guidance to check CI logs                                                         |
+
+[authorized-task-sync]: ../../../repo-governance/conventions/no-destructive-git-operations/001-authorized-task-branch-sync.md
 
 ## User Instruction Examples
 
