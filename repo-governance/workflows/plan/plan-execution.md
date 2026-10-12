@@ -10,8 +10,9 @@ Use only after explicit direction to execute one formal plan. Keep its records t
    each gate run and the archival of a bug-fix plan.
 2. Enter the plan's declared `worktrees/<name>/` checkout before any file or Git mutation, initializing it if new, and
    pass the [integration path](../../conventions/integration-path.md) sync gate there. Executing from a stale branch or the
-   primary checkout is forbidden, save the release invocation that convention exempts; an unclean tree or a rebase
-   conflict stops the start and goes to the user.
+   primary checkout is forbidden, save the release invocation that convention exempts; an unclean tree stops the start
+   and goes to the user. Handle rebase conflicts under
+   [owned task sync](../../conventions/no-destructive-git-operations/001-authorized-task-branch-sync.md).
 3. If backlogged, move it with status and stage maps to `plans/in-progress/<slug>/`; never copy it.
 4. Read every plan document before the checklist. Mirror each unchecked executable delivery item into the task list
    with wording, label, order, and references. Keep conditional recovery dormant until triggered.

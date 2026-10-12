@@ -210,7 +210,7 @@
     {
       "id": "skill/monitor-ci",
       "path": ".agents/skills/monitor-ci/SKILL.md",
-      "digest": "f711ce3d2dfa88b22d0cc3b1287e72c75401bef5bd5f52e0fca3cde07230c925"
+      "digest": "1cc6e52d386bae4dac682a2edb84f59ee6b82d656905bcb13c37ef8ff8983a7d"
     },
     {
       "id": "skill/nx-generate",
