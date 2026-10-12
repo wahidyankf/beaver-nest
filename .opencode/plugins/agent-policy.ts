@@ -45,3 +45,4 @@ export const AgentPolicyPlugin = async ({
     invokePolicy(payload, "opencode", scope),
   );
 };
+export default { id: "agent-policy", setup: AgentPolicyPlugin };
