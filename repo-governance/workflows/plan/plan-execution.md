@@ -15,7 +15,9 @@ Use only after explicit direction to execute one formal plan. Keep its records t
    [owned task sync](../../conventions/no-destructive-git-operations/001-authorized-task-branch-sync.md).
 3. If backlogged, move it with status and stage maps to `plans/in-progress/<slug>/`; never copy it.
 4. Read every plan document before the checklist. Mirror each unchecked executable delivery item into the task list
-   with wording, label, order, and references. Keep conditional recovery dormant until triggered.
+   with wording, label, references, and dependency-graph order rather than list position, per
+   [Dependency Graph and Recovery](../../conventions/plans/011-dependency-graph-and-recovery.md). Keep conditional
+   recovery dormant until triggered.
 5. Detect affected active services. Apply [live-service continuity](../../development/live-service-continuity.md), baseline
    local and routed health and responsiveness against the plan's numeric budget, and activate continuity and rollback
    work before editing. For Bnest deployments follow the [Caddy workflow](../maintenance/development-caddy-deployment.md) end to end.
@@ -23,8 +25,10 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 
 ## Execute
 
-1. Work in order with one active item unless genuinely parallel. Stay authorized, stop at pending `[HUMAN]` input, and
-   pass every phase checkpoint.
+1. Dispatch every item whose dependencies are terminal, up to the concurrency cap, reusing the plan's one worktree
+   per repository; a failure blocks only its downstream. Stay authorized, stop at pending `[HUMAN]` input, and pass
+   every phase checkpoint. A more optimal order found mid-run revises `delivery.md` first, keeping acceptance criteria
+   and the end result; a material change re-passes the [quality gate](../quality/plan-quality-gate.md).
 2. Resolve each item atomically: tick the checkbox, record the result, and move on. Check an item only after outcome
    and proof pass; its dated note records what was produced, what changed, and what was surprising.
 3. Synchronize both lists and activate triggered conditionals. Add discoveries to both only for an existing outcome;
@@ -38,25 +42,12 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 7. Apply all applicable rules; plans and task lists expand no authority.
 8. A degraded endpoint, exceeded routed-responsiveness budget, or incomplete cutover stops the line. Restore and verify
    the usable local and routed journey and its numeric budget, update delivery and learnings, then resume.
+9. Land independent delivery units in any order, each refreshed with its gates re-run, per
+   [Delivery Seams and Ownership](../../development/planning-capabilities/005-delivery-seams-and-ownership.md).
 
 ## Complete and Archive
 
-1. Run the [execution check](plan-execution-check.md) once every substantive item is terminal and require its verdict to
-   permit archival. Never re-run the quality gate here. Reconcile all items, criteria, learnings, specifications, documentation, rules, and tests
-   with delivery.
-2. After any required drain, stop every unneeded non-production server, watcher, candidate, and temporary proxy; retain
-   only the active route and intentional rollback capacity. Record proof or stay in progress.
-3. Tear down what the plan created here under the [integration path](../../conventions/integration-path.md): remove its
-   worktree, delete its local branch, and delete that branch on `origin`. Wait until every delivery unit that used the
-   worktree has landed; a `partial` or failed run retains them and records why. Record proof of each removal.
-4. Give dormant conditionals a dated, evidenced `Not triggered`; never claim execution. Stay in progress while any
-   required outcome, activated conditional, gate, dependency, or human action remains.
-5. Run the archival transaction the
-   [plans convention](../../conventions/plans/008-knowledge-capture-and-archival.md) fixes, dated from the final-checkpoint
-   local date. Set README `Completed` and Done, record outcomes, proof, and deviations, and move the folder with its
-   stage maps in one step, then verify links and maps with the repository gate.
-6. When authorized, commit the move, metadata, maps, and archive record together. Commit and push need separate
-   authorization. Complete the environment list only after verification.
+Complete and archive per [Completion and Archival](plan-execution-completion-and-archival.md).
 
 ## Pause Safety
 

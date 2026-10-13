@@ -19,6 +19,7 @@ is what a validator checks against.
 8. [Knowledge Capture and Archival](plans/008-knowledge-capture-and-archival.md)
 9. [Portability](plans/009-portability.md)
 10. [Bug-Fix Plan](plans/010-bug-fix-plan.md)
+11. [Dependency Graph and Recovery](plans/011-dependency-graph-and-recovery.md)
 
 ## What This Convention Does Not Decide
 
