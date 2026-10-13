@@ -8,11 +8,12 @@ For each ref the push updates, the range runs from the remote's current tip of t
 
 ## Steps
 
-1. **List the range's commits.** Every commit in the range, oldest first, including merges.
+1. **List the range's commits.** The harness lists every commit in the range, oldest first, including merges.
 2. **Run the repository's screen on the range.** The `pre-push` hook runs it commit by commit per [enforcement](003-enforcement.md); a scan error blocks exactly as a finding does.
-3. **Read every commit.** Each commit's added lines, its file names, its message, and the ref name. A merge contributes what it resolved beyond the automatic merge.
-4. **Judge against the [leak classes](001-leak-classes.md).** No candidate is copied into notes, commands, or logs.
-5. **Decide.** No finding: push. Any finding: do not push; remediate, then start again from step 1.
+3. **Spawn a fresh-context reviewer.** One read-only subagent for this range alone: no part in authoring the commits, no memory of an earlier range, never pushing or posting. It receives only the range and the three leak classes. A failed spawn blocks the push exactly as a finding does; no self-judging fallback, and no human substitutes.
+4. **Read every commit.** The subagent reads each commit's added lines, its file names, its message, and the ref name. A merge contributes what it resolved beyond the automatic merge.
+5. **Judge against the [leak classes](001-leak-classes.md).** The subagent returns the count per class and each finding without its value. No candidate is copied into notes, commands, or logs.
+6. **Decide.** The harness acts on that verdict unchanged. No finding: push. Any finding: do not push; remediate, then start again from step 1 with a new subagent.
 
 ## Remediation
 

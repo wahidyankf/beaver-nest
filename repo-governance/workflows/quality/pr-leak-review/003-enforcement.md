@@ -15,6 +15,10 @@ The screen matches shapes; the review reads context. Neither replaces the other.
 
 The `main` ruleset must require both as status checks. A waiver of other gates never covers either.
 
+## Fresh-Context Judgement
+
+The record check proves who posted and which head the record names; no forge record can prove who judged. Freshness is therefore unenforced by decision, with this reason: the harness spawns the reviewer, and a spawn failure or an unreadable pin ends the run as `failed` before anything posts, so the mechanical layers still fail closed on every outcome a machine can observe. A self-judged verdict is a rule breach, not a passing record with a caveat.
+
 ## Repository Decisions
 
 - Record marker: `ose-pr-leak-review`, which never changes afterward.
