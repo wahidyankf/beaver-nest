@@ -27,6 +27,12 @@ it in full before acting.
 It depends on everything else. Written first, it becomes a checklist for a plan that does not exist yet, and the rest of
 the plan is then reverse-engineered to justify it.
 
+## Order the Checklist by Dependency
+
+Sequence in the file is not dependency. Express phases and items as the dependency graph
+[Dependency Graph and Recovery](../../../repo-governance/conventions/plans/011-dependency-graph-and-recovery.md)
+defines, with a Parallelization Model section, so independent nodes can run concurrently.
+
 ## Granularity Is the Hard Part
 
 An item should be small enough that failing it is informative. "Implement the validator" fails as a unit; the person

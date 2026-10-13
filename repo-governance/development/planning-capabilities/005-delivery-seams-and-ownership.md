@@ -17,6 +17,13 @@ other half is in review, which is exactly the state neither unit's rollback was 
 
 Conversely, a unit nobody can review is too large regardless of how coherent it is internally.
 
+## Bounded-Parallel Landing
+
+Independent units land in any order, up to the concurrency cap the plan declares, serializing under host or budget
+pressure. Before landing, each refreshes from `origin/main` and re-runs its gates; a unit built on an unlanded sibling
+is reviewed against a state that may never exist. The plan's
+[dependency graph](../../conventions/plans/011-dependency-graph-and-recovery.md) decides which units are independent.
+
 ## Foundation Before Content
 
 Where a unit establishes something later units depend on — a safety layer, a gate, a configuration contract — it lands
