@@ -20,6 +20,10 @@ Pure refactoring must begin from a green test baseline, preserve behaviour, and 
 
 TDD provides executable evidence for intended behaviour, catches regressions early, and encourages simpler designs. This standard is subordinate to the repository [vision](../vision/README.md), [principles](../principles/README.md), and [conventions](../conventions/README.md).
 
+## Modules
+
+1. [Batched Cycles in Planned Delivery](test-driven-development/001-batched-cycles-in-planned-delivery.md)
+
 ## Focused Runs and Regression Gates
 
 For each local RED and GREEN item, run the named case or smallest relevant test selection that demonstrates the
