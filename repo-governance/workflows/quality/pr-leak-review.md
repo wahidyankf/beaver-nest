@@ -13,7 +13,8 @@ Adopted from the rules catalog at `f452d6190911f29f5898ecb2e991c89412afa426`, su
 
 ## Prerequisites
 
-An open pull request with no `pass` record from the repository owner for its current head. `pull-request` (`string`, required): its number or address.
+An open pull request with no `pass` record from the repository owner for its current head. The delivery harness runs
+this review for that head before merge. `pull-request` (`string`, required): its number or address.
 
 ## Steps
 
