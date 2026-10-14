@@ -18,7 +18,7 @@ Every quality gate with its propagation, and every single-pass review. Each gate
 - [Harness quality gate](harness-quality-gate.md) judges the harness bindings for upstream drift.
 - [Plan propagation](plan-propagation.md) is the `plan` family's writer, inside one plan folder.
 - [Plan quality gate](plan-quality-gate.md) judges a complete plan draft for what structural validation cannot reach.
-- [PR leak review](pr-leak-review.md) reviews every outgoing commit privately before each push and posts one narrow, current-head review that every merge requires.
+- [PR leak review](pr-leak-review.md) has a fresh-context `leak-reviewer` judge every outgoing range before each push and every pull-request head before merge; the delivery harness refuses any result but `pass`.
 - [PR leak review modules](pr-leak-review/README.md) hold the leak classes, the push review, and the enforcement the entrypoint applies.
 - [PR review](pr-review.md) is one semantic review pass of a pinned pull-request head.
 - [PR review propagation](pr-review-propagation.md) is the `pr-review` family's writer: it answers every blocking finding.

@@ -26,7 +26,7 @@ Use clear, simple, natural English that non-native speakers can understand, incl
 
 ## Version Control
 
-- Only `main` persists. Use `{repository location}/worktrees/<task>`, never sibling `*-worktrees/` paths. [Integrate by PR](repo-governance/conventions/integration-path.md), never direct push. [Leak-review](repo-governance/workflows/quality/pr-leak-review.md) outgoing commits and exact merge head (`leak-review` status); delete worktree and branch afterward.
+- Only `main` persists. Use `{repository location}/worktrees/<task>`, never sibling `*-worktrees/` paths. [Integrate by PR](repo-governance/conventions/integration-path.md), never direct push. [Leak-review](repo-governance/workflows/quality/pr-leak-review.md) outgoing ranges and exact merge head (harness verdict); delete worktree and branch afterward.
 - Make [thematic commits](repo-governance/conventions/thematic-commits.md). Inspect for prohibited data before committing under [data safety](repo-governance/conventions/public-repository-data-safety.md), including secret-access rules.
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.

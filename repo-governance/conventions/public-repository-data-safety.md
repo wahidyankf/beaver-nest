@@ -32,7 +32,7 @@ Coding agents must handle private keys and secrets as follows, anywhere includin
 - Each agent must never request, handle, or record secret values, full outputs, or screenshots, and must avoid any script or interaction that prints, echoes, logs, or otherwise exposes a secret to the harness session; diagnosis uses exit and error codes alone, and only local-development secrets (loopback services, dummy or example values such as `.env.example`) may appear in session records.
 - Each agent must open the secret session only inside the phase that needs it and must lock it before any review, pause, or PR handoff.
 - Agent-assisted delivery must apply only with a proper pipeline and secrets management (tracked wrapper, closed one-word outputs, leak screens, green gates); elsewhere the agent must stop at the secret boundary.
-- Each agent must operate the leak review only after reading every commit at the pinned head against the three leak classes; a record without that reading is fabrication.
+- Each agent must operate the leak review only after reading every commit at the pinned head against the three leak classes; a verdict without that reading is fabrication.
 
 This removes value exposure from the session, and proper pipelines earn faster delivery. These rules are unenforced by decision; review checks the observations, and no automated gate is invented for them.
 

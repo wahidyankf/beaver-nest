@@ -1,27 +1,54 @@
 # Enforcement
 
-A precondition stated only in prose is a convention someone forgets. The leak review is enforced in three layers; each fails closed.
+A precondition stated only in prose is a convention someone forgets, so the leak review's refusal is made mechanical
+where a mechanism exists. Here the delivery harness is that mechanism, and nothing shared with the forge enforces it.
 
 ## The Screen
 
-The [public-safety screen](../../../../scripts/public-safety/README.md) runs at the `pre-push` hook, before anything else the hook does, and on every pull-request range. Its `public-safety-range` gate screens the range commit by commit: each commit's added lines at the line numbers they occupy, its file names, its message, and the ref IDs. A merge contributes what it resolved beyond the automatic merge. Content the range did not add is not screened again, so the screen binds from adoption onward. Its shapes include absolute home paths, private addresses, and internal hostnames, beside a credential scanner.
+The repository's outbound screen runs at the pre-push hook. It screens the outgoing range commit by commit: each
+commit's added lines at the line numbers they occupy, its file names, its message, and the ref names. A merge
+contributes what it resolved beyond the automatic merge. Content the range did not add is not screened again, so the
+screen binds from adoption onward. Its shapes include absolute home paths, private addresses, and internal hostnames,
+beside a credential scanner.
 
-The screen matches shapes; the review reads context. Neither replaces the other.
+The screen matches shapes; the review reads context. Neither replaces the other. A pull-request replay of the same
+screen can run in a repository's hosted pipeline for composition reasons; the harness's refusal does not depend on it.
 
-## Hosted Checks
+## Harness Refusal
 
-- **Range screen.** The `Quality gate` check from [`pr-quality-gate.yml`](../../../../.github/workflows/pr-quality-gate.yml) replays the range screen over the pull request's base-to-head range on every head, because a local hook can be skipped and a hosted check cannot.
-- **Record check.** [`leak-review.yml`](../../../../.github/workflows/leak-review.yml) runs the [record check](../../../../scripts/leak-review/README.md) and publishes the `leak-review` commit status on the live head: `success` only when the repository owner's latest undismissed review on that head carries a `pass` record naming this repository, this pull request, and that head. It runs when the pull request changes and when a review is submitted, so posting the record turns it green without a new commit.
+The delivery harness, not the forge, enforces the leak review:
 
-The `main` ruleset must require both as status checks. A waiver of other gates never covers either.
+- **Merge.** It merges a pull request only on a `pass` verdict for the head it is about to merge, after a live-head
+  check immediately before the merge.
+- **Push.** It pushes a range only on a `pass` verdict for that range, after confirming the local head has not moved.
+- **Refusal.** A `findings`, `failed`, or `stale` outcome refuses the merge or push.
+
+No required status check, branch-protection rule, or designated reviewer identity is part of this design, and the
+harness posts nothing that gates. The only public record is the optional audit comment in
+[Sequence](../pr-leak-review.md#sequence), which nothing reads as authority.
+
+## Enforcement Disposition
+
+The merge gate is enforced by the harness alone, and a server cannot force it: no forge rule can read a verdict this
+design never posts. The rule that refuses a merge or push without a `pass` verdict is therefore **unenforced by
+decision**, for that reason. The screen stays covered by a named check: the pre-push gate fails on any shape or
+credential it matches.
 
 ## Fresh-Context Judgement
 
-The record check proves who posted and which head the record names; no forge record can prove who judged. Freshness is therefore unenforced by decision, with this reason: the harness spawns the reviewer, and a spawn failure or an unreadable pin ends the run as `failed` before anything posts, so the mechanical layers still fail closed on every outcome a machine can observe. A self-judged verdict is a rule breach, not a passing record with a caveat.
+The harness spawns a new `leak-reviewer` for each head or range and never judges itself. A spawn failure ends the run as
+`failed` before any verdict exists, so the refusal holds on every outcome the harness can observe. No artifact the
+harness leaves can prove which context judged, so freshness is **unenforced by decision**, for that reason.
 
-## Repository Decisions
+The reviewer's read-only constraint and its duties never to post and never to copy a value are judgements its body
+states. The harness grants only the declared capabilities, and no check reads a verdict for values, so these too are
+**unenforced by decision**.
 
-- Record marker: `ose-pr-leak-review`, which never changes afterward.
-- Reviewer identity: the repository owner.
-- Required checks: `Quality gate` and `leak-review`.
-- Integration path: pull request, per the [integration path](../../../conventions/integration-path.md).
+## Adopter Decision: Integration Path
+
+Record once, in the adopting repository's own conventions, whether its integration path is a pull request or a direct
+push to the default branch. A direct-push repository has no pull request to gate, so its push review is its only review,
+and the harness's refusal on push is the whole gate.
+
+This repository integrates by pull request, per the [integration path](../../../conventions/integration-path.md), so the
+harness's refusal applies to both each push and each merge.

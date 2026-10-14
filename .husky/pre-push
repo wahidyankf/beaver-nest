@@ -32,7 +32,7 @@ validation_changes_for_range() {
 			':(icase,glob)**/*.md' \
 			':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
 			'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
-			':(glob)scripts/public-safety/**' ':(glob)scripts/leak-review/**' \
+			':(glob)scripts/public-safety/**' \
 			':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' ':(glob).commandcode/**' \
 			'.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
 	else
@@ -40,14 +40,14 @@ validation_changes_for_range() {
 			':(icase,glob)**/*.md' \
 			':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
 			'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
-			':(glob)scripts/public-safety/**' ':(glob)scripts/leak-review/**' \
+			':(glob)scripts/public-safety/**' \
 			':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' ':(glob).commandcode/**' \
 			'.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
 		git log --format= --name-only "$2..$1" -- \
 			':(icase,glob)**/*.md' \
 			':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
 			'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
-			':(glob)scripts/public-safety/**' ':(glob)scripts/leak-review/**' \
+			':(glob)scripts/public-safety/**' \
 			':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' ':(glob).commandcode/**' \
 			'.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc'
 	fi
