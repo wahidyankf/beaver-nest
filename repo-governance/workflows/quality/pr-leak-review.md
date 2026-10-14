@@ -9,12 +9,12 @@ Two entries share one judgement:
 - **Push.** Before every push to `origin`, review the outgoing range privately per [push review](pr-leak-review/002-push-review.md): nothing is posted, and a finding blocks the push.
 - **Merge.** Every pull request needs one posted review of its exact head before it merges, and again whenever the head moves: a [merge precondition](../../conventions/pull-request-merge.md), made mechanical by [enforcement](pr-leak-review/003-enforcement.md) through the required `leak-review` status.
 
-Adopted from the rules catalog at `f452d6190911f29f5898ecb2e991c89412afa426`, superseding the earlier local rule that whoever handled the merge performed the review. A fresh-context subagent judges; the harness posts its verdict as the repository owner, whose records alone count. Self-judged verdicts satisfy nothing, and no human is on the merge path. [Data safety](../../conventions/public-repository-data-safety.md) owns the classes, and the marker `ose-pr-leak-review` keeps earlier records valid.
+Adopted from the rules catalog at `f452d6190911f29f5898ecb2e991c89412afa426`, superseding the rule that the merger reviewed. A fresh-context subagent judges; the harness posts its verdict as the repository owner, whose records alone count. Self-judged verdicts satisfy nothing, and no human is on the merge path. [Data safety](../../conventions/public-repository-data-safety.md) owns the classes, and the marker `ose-pr-leak-review` keeps earlier records valid.
 
 ## Prerequisites
 
 An open pull request with no `pass` record from the repository owner for its current head. The delivery harness runs
-this review for that head before merge. `pull-request` (`string`, required): its number or address.
+it. `pull-request` (`string`, required): its number or address.
 
 ## Steps
 
