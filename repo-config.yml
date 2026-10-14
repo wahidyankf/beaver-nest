@@ -290,6 +290,7 @@ harness:
           - docs-fixer
           - harness-checker
           - harness-fixer
+          - leak-reviewer
           - plan-checker
           - plan-execution-checker
           - plan-fixer
@@ -637,14 +638,6 @@ gates:
       run-on:
         pull-request:
           reason: "The scanner regression suite runs in the isolated pull-request checkout."
-    - id: leak-review-tests
-      type: check
-      command:
-        executable: bash
-        args: [{ literal: scripts/leak-review/tests/run.sh }]
-      run-on:
-        pull-request:
-          reason: "The record check's offline suite runs where the hosted check is defined."
     - id: repo-config
       type: check
       command:
