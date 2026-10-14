@@ -4,10 +4,11 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 
 ## Start
 
-1. Select one backlog or in-progress plan. Require a current verdict from an explicitly user-directed
-   [quality-gate](../quality/plan-quality-gate.md) run; any of the four is advisory and lets execution start. Execution
-   authority does not authorize that gate; with no verdict, stop without starting it. Upstream Tool Defects directs
-   each gate run and the archival of a bug-fix plan.
+1. Select one backlog or in-progress plan. A verdict from a manually invoked
+   [quality-gate](../quality/plan-quality-gate.md) run, when recorded, is advisory history. Execution starts with or
+   without a verdict and never runs the gate itself; a missing verdict is recorded as
+   `plan-quality-gate: not run (manual-only)`. Upstream Tool Defects remains available direction for a bug-fix plan
+   when explicitly invoked.
 2. Enter the plan's declared `worktrees/<name>/` checkout before any file or Git mutation, initializing it if new, and
    pass the [integration path](../../conventions/integration-path.md) sync gate there. Executing from a stale branch or the
    primary checkout is forbidden, save the release invocation that convention exempts; an unclean tree stops the start
