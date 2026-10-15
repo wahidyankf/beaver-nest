@@ -37,7 +37,11 @@ It never commits, starts a gate, or runs another propagation.
    - the file still holds the value the finding quotes: rate confidence from the citation's label, as Checking Harness
      Compatibility sets out;
    - the file holds neither: `MEDIUM`, for a person, because the ground moved under the finding.
-3. Apply each `HIGH` mechanical repair in the canonical artifact, the generator's mapping, or the reference record.
+3. Apply each `HIGH` mechanical repair in the canonical artifact, the generator's mapping, or the reference record. The
+   canonical artifacts are Markdown the fixer edits itself. The generator's mapping is declarative configuration, so
+   `swe-developer` writes a repair there: the fixer names it as repairer, and the fixer or its caller dispatches it, per
+   [SWE Delegation](../../repo-governance/conventions/swe-delegation.md). A reference record in a declarative format
+   follows the same rule.
 4. Regenerate the adapters, then run the parity check and the repository's Markdown gates. A repair that leaves either
    failing is recorded as failed.
 5. Close the report with each finding's outcome, the files changed, and every finding handed to a person with its
@@ -63,9 +67,9 @@ side, as the third exception in Web Research Delegation requires.
 
 ## Workload and Tier
 
-Its core loop re-validates one finding against current files and a citation label, applies a rename of a key or path,
-and regenerates, which Portable Tiers places at `execution`. `shell` runs the generator, the parity check, and the
-Markdown gates.
+Its core loop re-validates one finding against current files and a citation label, applies a rename of a path in a
+Markdown artifact, and regenerates, which Portable Tiers places at `execution`. A declared key is configuration that
+`swe-developer` writes, per step 3. `shell` runs the generator, the parity check, and the Markdown gates.
 
 ## Stopping Rule
 

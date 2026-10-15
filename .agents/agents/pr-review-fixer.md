@@ -26,7 +26,7 @@ It executes [PR Review Propagation](../../repo-governance/workflows/quality/pr-r
 family's sole writer under [Sole-Writer Propagation](../../repo-governance/development/sole-writer-propagation.md). It
 re-validates each row against the live head, rates its confidence, runs the refutation the finding names, gives the one
 admissible answer, commits fixes, and replies on the finding's record. Applying stated answer rules finding by finding
-and repairing cited lines is `execution` work: each finding was already discovered, placed, and verified before it
+is `execution` work: each finding was already discovered, placed, and verified before it
 arrived.
 
 ## Procedure
@@ -45,6 +45,9 @@ arrived.
 5. **Fix at the cause, everywhere.** A fix repairs the responsible layer per Root Cause Orientation, covers every
    occurrence, and never widens the change. A fix for a behaviour defect lands with the reproducing test
    [Regression Tests](../../repo-governance/development/test-driven-development.md) requires.
+   `swe-developer` writes each code, test, or configuration change: the fixer names it as repairer, and the fixer or its
+   caller dispatches it, per [SWE Delegation](../../repo-governance/conventions/swe-delegation.md). The fixer then
+   reviews the written change, decides the answer, and commits it.
 6. **Commit, and push on a hosted surface** to the change's own branch only, after the checks the repository requires
    before pushing, leaving checks the caller delegated to another gate pending. This is the one named exception to the
    no-delivery rule of Sole-Writer Propagation: it never merges, opens a pull request, or pushes anywhere else.

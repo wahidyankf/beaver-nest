@@ -6,7 +6,7 @@ description: >-
 when_to_use: >-
   Use for a static audit of named projects or components after substantial changes, when a Gherkin implementation review
   is due, or before declaring implementation work complete.
-tier: execution
+tier: plan
 capabilities:
   - repository-read
   - shell
@@ -26,8 +26,8 @@ verdict stays independent of the work it judges.
 ## Normal Workload
 
 For each project, component, or scenario in scope it settles which standards apply, reads the code against them, and
-rates each breach. Every check below has a fixed criterion, including the failure conditions for a scenario row, so
-applying them is `execution` work.
+rates each breach. Every check below has a fixed criterion, but an audit weighs many standards across a whole project
+and a missed breach is costly to find later, so this is `plan` work.
 
 ## Scope
 

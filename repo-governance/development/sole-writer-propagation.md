@@ -61,7 +61,9 @@ it.
 ## Executor Naming
 
 The writer is always `<family>-propagation`, and its executor is always `<family>-fixer`, in every family. A maker
-authors; a fixer repairs only ledger rows. One agent never holds both roles in the same gate run.
+authors; a fixer repairs only ledger rows. One agent never holds both roles in the same gate run. Configuration or code
+a repair changes is written by the `swe-developer` the executor names, per
+[SWE Delegation](../conventions/swe-delegation.md), under rules 1 to 8.
 
 ## Existing Writers Keep Their Rules
 

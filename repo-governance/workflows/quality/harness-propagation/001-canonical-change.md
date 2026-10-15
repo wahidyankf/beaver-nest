@@ -11,6 +11,9 @@
 
 ## Procedure
 
+Step 1 edits Markdown the session writes. Steps 2 and 3 change configuration and code, so `swe-developer` makes those
+edits, per [SWE Delegation](../../../conventions/swe-delegation.md).
+
 ### 1. Classify the canonical change
 
 Choose every affected concern, then edit its canonical source before any adapter:
@@ -22,23 +25,11 @@ Choose every affected concern, then edit its canonical source before any adapter
 
 ### 2. Reconcile the adapters
 
-For a skill, Codex and OpenCode use `.agents/skills/` natively. Generate exactly one Claude route at `.claude/skills/<name>/SKILL.md`:
-
-```markdown
----
-description: <exact canonical description>
----
-
-Read .agents/skills/<name>/SKILL.md completely, resolve every relative resource from that skill directory, and follow it as authoritative before acting.
-```
+For a skill, Codex and OpenCode use `.agents/skills/` natively. Generate exactly one Claude route at `.claude/skills/<name>/SKILL.md`, with the exact canonical description and the skill route that `repo-config.yml` declares.
 
 Do not copy the skill body into the route. A description change regenerates the route; a rename or removal regenerates the family and leaves no stale adapter.
 
-For an agent, keep exactly one adapter in each of `.claude/agents/` and `.opencode/agents/`. Each adapter contains only native identity, mode, tool/permission metadata, and this route:
-
-```text
-Before acting, read the complete canonical agent definition at the repository-root path .agents/agents/<name>.md and follow it as authoritative. If it cannot be read, stop and report the missing path.
-```
+For an agent, keep exactly one adapter in each of `.claude/agents/` and `.opencode/agents/`. Each adapter contains only native identity, mode, tool/permission metadata, and the agent route that `repo-config.yml` declares.
 
 Use an existing adapter from the same harness as the schema example. Translate canonical capabilities and denies into that harness's strongest native controls; do not copy the canonical prompt, pin a provider model, append instructions, or omit a restriction. If a new semantic capability has no validated mapping, extend the convention and grouped `harness` declaration in `repo-config.yml` before claiming parity. A mapping Rhino cannot express is an upstream change.
 

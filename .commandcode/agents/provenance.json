@@ -10,7 +10,7 @@
     {
       "id": "agent/ci-fixer",
       "path": ".agents/agents/ci-fixer.md",
-      "digest": "a4ff1bfc4d15652b9a62038036af5d90f59f6f412dfd252c00cd841c011112c0"
+      "digest": "07b7e24f1a9921126d8da6745973b1aacf764519edd749f8b79002ac070253af"
     },
     {
       "id": "agent/ci-monitor-subagent",
@@ -35,7 +35,7 @@
     {
       "id": "agent/harness-fixer",
       "path": ".agents/agents/harness-fixer.md",
-      "digest": "806f985ca0f80ca662d597d2db1b1e272660ebc3d86fce6c23839aecafbe4255"
+      "digest": "c35890df3e81925ef9389007707831d18ee65cfc1a357afe04a2999fc80490d6"
     },
     {
       "id": "agent/leak-reviewer",
@@ -70,7 +70,7 @@
     {
       "id": "agent/pr-review-fixer",
       "path": ".agents/agents/pr-review-fixer.md",
-      "digest": "714329c9cee41fda72279f0a2775a78c294480b257e6eb30e2873efca581eb74"
+      "digest": "afd7b4ab8a98b629f2c895666d72113c44b05a6c3afe3c693240e8cf547f0ead"
     },
     {
       "id": "agent/rules-checker",
@@ -80,7 +80,7 @@
     {
       "id": "agent/rules-fixer",
       "path": ".agents/agents/rules-fixer.md",
-      "digest": "dceb3c934ac7b5950a39467f0963ec844dc0f11f9a7000aaacf04ebd35622985"
+      "digest": "3700dc9effb5389496a7058c10d71e354352e897fff9ca6a21ce534dcc360b17"
     },
     {
       "id": "agent/specs-checker",
@@ -90,12 +90,12 @@
     {
       "id": "agent/specs-fixer",
       "path": ".agents/agents/specs-fixer.md",
-      "digest": "472701b29e4d5d2443e401958700aca1c72b7bdb12f736af181c402c2e298c60"
+      "digest": "acc61cfbd183e6b9c53b73d0dd37fb03e886b976644a8dcbb6c83e77eb4e3ec9"
     },
     {
       "id": "agent/swe-api-tester",
       "path": ".agents/agents/swe-api-tester.md",
-      "digest": "ca58f523e16892c8235ccfca8212cc10c6dee4d5f7d40dbeff01f4d91c4d1857"
+      "digest": "f17a0ec338a4031928fc597d1055a8f5d69aed4fd0d29d3bf173ab2ac9064ed1"
     },
     {
       "id": "agent/swe-architect",
@@ -105,7 +105,7 @@
     {
       "id": "agent/swe-debugger",
       "path": ".agents/agents/swe-debugger.md",
-      "digest": "b36b6b4b6f6b49d9063b8a5b3067b78bb229808af0e89a8984c8b0d34ddec398"
+      "digest": "438b9687c11c85a80c2073536b423bfee704df8b0bf3833d75c737ab5544cfc1"
     },
     {
       "id": "agent/swe-developer",
@@ -115,7 +115,7 @@
     {
       "id": "agent/swe-infra-tester",
       "path": ".agents/agents/swe-infra-tester.md",
-      "digest": "2e8272972400ccb50f0163b6286b2340e50a2844cea3d97958d6742729082b39"
+      "digest": "af3da970df939d28b7271c0b92f35859ca9d3bd4270142ce0aa27cacdc1698e4"
     },
     {
       "id": "agent/swe-releaser",
@@ -125,17 +125,17 @@
     {
       "id": "agent/swe-reviewer",
       "path": ".agents/agents/swe-reviewer.md",
-      "digest": "a15ffe2a9c68275c2389ffbcb24638084245f273c928cd76acb0c1ea46ce70ab"
+      "digest": "8c184d12399de08c62b100a3fde68b10d5b7995b985d3d967f5b970582046d5f"
     },
     {
       "id": "agent/swe-usability-tester",
       "path": ".agents/agents/swe-usability-tester.md",
-      "digest": "9d4b79e77d37ac109b99c55eb25f56e92d633660647a899ab21cf9696cc7e348"
+      "digest": "83a7e9d86d85c6ce7bb8982fcf0f996c1dea800844a817e11eac30143da21443"
     },
     {
       "id": "agent/swe-web-tester",
       "path": ".agents/agents/swe-web-tester.md",
-      "digest": "21872ade2611f0209cbcb8a9b0e00ba5e2abf0a98b1363d7f40f2a505efb4e0a"
+      "digest": "902a3422b7a01f4b6c01eb11103361bd7b3be395c0c18ad40813e90a42ff3575"
     },
     {
       "id": "agent/web-researcher",
@@ -210,7 +210,7 @@
     {
       "id": "skill/monitor-ci",
       "path": ".agents/skills/monitor-ci/SKILL.md",
-      "digest": "1cc6e52d386bae4dac682a2edb84f59ee6b82d656905bcb13c37ef8ff8983a7d"
+      "digest": "10668a9b856f92937db4035e6b86ad3a3ffe2868f1a515304de98e2977bb5c1e"
     },
     {
       "id": "skill/nx-generate",
@@ -305,7 +305,7 @@
     {
       "id": "instruction",
       "path": "AGENTS.md",
-      "digest": "4d94ba42a345d61c5f90ff51a31f4d61d5273859a06c66060e9ab92214a13663"
+      "digest": "e1406ecdc4f8db1c795f4542e0b403883e6177e5fbd2dd4e999250bf6fb05050"
     }
   ]
 }
