@@ -56,7 +56,8 @@ Before starting the monitoring loop, verify the workspace is connected to Nx Clo
 
 ## Architecture Overview
 
-1. **This skill (orchestrator)**: spawns subagents, runs scripts, prints status, does local coding work
+1. **This skill (orchestrator)**: spawns subagents, runs scripts, prints status, and dispatches the fitting
+   `swe-*` agent for local coding work, per [SWE Delegation](../../../repo-governance/conventions/swe-delegation.md)
 2. **ci-monitor-subagent (haiku)**: calls one MCP tool (ci_information or update_self_healing_fix), returns structured result, exits
 3. **ci-poll-decide.mjs (deterministic script)**: takes ci_information result + state, returns action + status message
 4. **ci-state-update.mjs (deterministic script)**: manages budget gates, post-action state transitions, and cycle classification
@@ -291,7 +292,7 @@ The script returns `{ cycleCount, agentTriggered, envRerunCount, approachingLimi
 | MCP tool error                 | Retry once, if fails report to user                                                                         |
 | Subagent spawn failure         | Retry once, if fails exit with error                                                                        |
 | Decision script error          | Treat as `error` status, increment `no_progress_count`                                                      |
-| No new CI Attempt detected     | If `--auto-fix-workflow`, try lockfile update; otherwise report to user with guidance                       |
+| No new CI Attempt detected     | If `--auto-fix-workflow`, dispatch a lockfile update; otherwise report to user with guidance                |
 | Lockfile auto-fix fails        | Report to user, exit with guidance to check CI logs                                                         |
 
 [authorized-task-sync]: ../../../repo-governance/conventions/no-destructive-git-operations/001-authorized-task-branch-sync.md

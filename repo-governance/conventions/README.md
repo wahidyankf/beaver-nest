@@ -55,6 +55,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Runtime flat-file data](runtime-flat-file-data.md) defines the private `data/` layout and safe flat-file persistence boundaries.
 - [Structure](structure/README.md) holds the adopted stack-packs convention that places stack standards and skills.
 - [SWE agent procedures](swe-agent-procedures/README.md) hold procedure sections moved out of four `swe-*` agents.
-- [SWE delegation](swe-delegation.md) sends coding work to the fitting `swe-*` agent and names the three exceptions.
+- [SWE delegation](swe-delegation.md) sends code and declarative configuration to the fitting `swe-*` agent, with
+  exceptions.
 - [Task tracking](task-tracking.md) requires granular task lists whose status stays synchronized with the work, an outside-plan progress file, and the delegated-agent concurrency cap.
 - [Thematic commits](thematic-commits.md) keep each commit focused on one coherent purpose.

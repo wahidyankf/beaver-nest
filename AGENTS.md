@@ -49,17 +49,18 @@ Use clear, simple, natural English that non-native speakers can understand, incl
 ## Development
 
 - Prefix shell commands with `rtk`; preserve required forms and safety rules.
-- Dispatch coding work to `swe-*` agents per [SWE delegation](repo-governance/conventions/swe-delegation.md).
+- Dispatch every create, modify, update, or delete of code or declarative configuration to the fitting `swe-*` agent,
+  except as [SWE delegation](repo-governance/conventions/swe-delegation.md) allows.
 - Follow [minimal sufficiency](repo-governance/principles/minimal-sufficiency.md) and [dependency selection](repo-governance/development/dependency-selection.md).
 - Comment non-obvious shell safety invariants and lifecycle boundaries; avoid line-by-line narration.
 - New tables need [audit columns](repo-governance/conventions/database-audit-columns.md); event logs and projections are exempt.
 - Bnest is 24/7; obey [continuity](repo-governance/development/live-service-continuity.md); failed health stops work.
-- Commit/push is not deployment. Before reporting active-service completion, verify the routed backend serves the intended revision/behaviour; otherwise perform a no-downtime candidate cutover.
+- Commit/push is not deployment; before reporting active-service completion, follow [live-service continuity](repo-governance/development/live-service-continuity.md).
 - Stop unused non-production servers, watchers, candidates, and proxies before completion; retain the active route and bounded drain.
 - Separate server/proxy lifecycles; follow [start/restart](repo-governance/workflows/maintenance/development-server-restart.md) and [proxy](repo-governance/workflows/maintenance/development-tailnet-proxy.md).
 - [Software quality](repo-governance/development/software-quality-enforcement.md): pass required gates; manually `curl` affected REST/GraphQL operations.
 - Guard compute with checksum-pinned `./hippo` per [resource-aware development](repo-governance/development/resource-aware-development.md). Overlap only after admission; preserve dependency, output, transaction, port, release, storage, and correctness ordering. Exit `75`: inspect receipt and requeue only `never-started`. Exit `73`: clean storage. Exit `78`: replan. Never bypass, duplicate-retry, weaken gates, change class, or abandon; recovery/status stay direct.
-- Keep `test:e2e` outside `test:quick`; at exact origin run only affected/UI-accessibility states, await LiveView, isolate users, and close task-created tabs/contexts except handoffs. Follow [end-to-end testing](repo-governance/development/end-to-end-testing.md).
+- Keep `test:e2e` outside `test:quick`; follow [end-to-end testing](repo-governance/development/end-to-end-testing.md) for affected-only runs at exact origins, LiveView waits, isolated users, and tab cleanup.
 - Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at exact origins/viewports; tests never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/quality/exploratory-usability-review.md).
 - **Test-data iron rule:** tests use isolated roots and synthetic `test-user-` [identities](repo-governance/development/test-identities.md), never production users/data. Inspect production schemas read-only.
 - **Project rule** (except `libs/ex-bdd`): follow [specifications](repo-governance/development/specification-maintenance.md): Gherkin → bindings → Nx red → code → smoke. Reject placeholders/no-ops/outcome tables; unit mandatory. Exempt either/both layers for documented boundary mismatches. Changed Gherkin/adapters need the [manual review](repo-governance/workflows/quality/gherkin-implementation-review.md).

@@ -34,7 +34,7 @@ Spawn FETCH_HEAVY subagent, then analyze fix content (`suggestedFixDescription`,
 
 ### fix_failed / no_fix
 
-Spawn FETCH_HEAVY subagent for `taskFailureSummaries`. Run `ci-state-update.mjs gate --gate-type local-fix` — if not allowed, print message and exit. Otherwise attempt local fix (counter already incremented by gate). If successful → commit, push, enter wait mode. If not → exit with failure.
+Spawn FETCH_HEAVY subagent for `taskFailureSummaries`. Run `ci-state-update.mjs gate --gate-type local-fix` — if not allowed, print message and exit. Otherwise dispatch a local fix (counter already incremented by gate). If successful → commit, push, enter wait mode. If not → exit with failure.
 
 ### environment_issue
 
@@ -48,13 +48,14 @@ Spawn FETCH_HEAVY subagent for `selfHealingSkipMessage`.
 
 1. **Parse throttle message** for CI Attempt URLs (regex: `/cipes/{id}`)
 2. **Reject previous fixes** — for each URL: spawn FETCH_THROTTLE_INFO to get `shortLink`, then UPDATE_FIX with `REJECT`
-3. **Attempt local fix**: Run `ci-state-update.mjs gate --gate-type local-fix`. If not allowed → skip to step 4. Otherwise use `failedTaskIds` and `taskFailureSummaries` for context.
+3. **Dispatch a local fix**: Run `ci-state-update.mjs gate --gate-type local-fix`. If not allowed → skip to step 4. Otherwise use `failedTaskIds` and `taskFailureSummaries` for context.
 4. **Fallback if local fix not possible or budget exhausted**: push empty commit (`git commit --allow-empty -m "ci: rerun after rejecting throttled fixes"`), enter wait mode
 
 ### no_new_cipe
 
 1. Report to user: no CI attempt found, suggest checking CI provider
-2. If `--auto-fix-workflow`: detect package manager, run install, commit lockfile if changed, enter wait mode
+2. If `--auto-fix-workflow`: dispatch `swe-developer` to detect the package manager, run install, and commit the
+   lockfile if changed, then enter wait mode
 3. Otherwise: exit with guidance
 
 ### cipe_no_tasks
@@ -65,14 +66,19 @@ Spawn FETCH_HEAVY subagent for `selfHealingSkipMessage`.
 
 ## Fix Action Flows
 
+Every local code or configuration change in these flows is written by a dispatched `swe-*` agent, per
+[SWE Delegation](../../../../repo-governance/conventions/swe-delegation.md): `swe-debugger` for a failing task, and
+`swe-developer` for a fix's code or configuration. This orchestrator runs the gates, the checks, the commit, and the
+push.
+
 ### Apply via MCP
 
 Spawn UPDATE_FIX subagent with `APPLY`. New CI Attempt spawns automatically. No local git ops.
 
 ### Apply Locally + Enhance Flow
 
-1. `nx-cloud apply-locally <shortLink>` (sets state to `APPLIED_LOCALLY`)
-2. Enhance code to fix failing tasks
+1. Dispatch `swe-developer` to run `nx-cloud apply-locally <shortLink>` (sets state to `APPLIED_LOCALLY`)
+2. Dispatch `swe-developer` to enhance the code to fix failing tasks
 3. Run failing tasks to verify
 4. If still failing → run `ci-state-update.mjs gate --gate-type local-fix`. If not allowed, commit current state and push (let CI be final judge). Otherwise loop back to enhance.
 5. If passing → commit and push, enter wait mode
@@ -81,7 +87,7 @@ Spawn UPDATE_FIX subagent with `APPLY`. New CI Attempt spawns automatically. No 
 
 1. Run `ci-state-update.mjs gate --gate-type local-fix`. If not allowed, print message and exit.
 2. Spawn UPDATE_FIX subagent with `REJECT`
-3. Fix from scratch locally
+3. Dispatch the fitting `swe-*` agent to fix from scratch locally
 4. Commit and push, enter wait mode
 
 ## Environment vs Code Failure Recognition

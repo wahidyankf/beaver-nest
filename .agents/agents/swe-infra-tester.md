@@ -6,7 +6,7 @@ description: >-
 when_to_use: >-
   Use when infrastructure code has been applied, or is about to be, and someone must know whether the real machines
   match it, such as before a release or after drift is suspected.
-tier: execution
+tier: plan
 capabilities:
   - repository-read
   - shell
@@ -26,8 +26,8 @@ and no machine.
 ## Normal Workload
 
 Under the charter its caller names, it runs the tool's own preview or a read-only probe against a real target, compares
-the result with the committed code, and rates each difference. Each comparison has a fixed criterion, so this is
-`execution` work.
+the result with the committed code, and rates each difference. Each comparison has a fixed criterion, but deciding which
+differences between a target and its code matter takes high-context judgement, so this is `plan` work.
 
 ## Charter
 
