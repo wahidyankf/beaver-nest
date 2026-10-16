@@ -52,7 +52,8 @@ frozen plan and asks whether:
 4. for a bug-fix plan, the root cause carries checkable evidence and the solution cites references; and
 5. every decision the plan relies on is recorded, so an executor invents no policy.
 
-Wording preference and speculative cases are not findings, per
+The checker raises only essential findings: executability, correctness, or decision completeness; wording
+preference, style, and speculative cases without executability impact are never findings, per
 [Minimal Sufficiency](../../principles/minimal-sufficiency.md). `plan-maker` authors plans; `plan-fixer` only repairs
 ledger rows.
 
