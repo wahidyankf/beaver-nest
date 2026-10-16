@@ -20,6 +20,7 @@ is what a validator checks against.
 9. [Portability](plans/009-portability.md)
 10. [Bug-Fix Plan](plans/010-bug-fix-plan.md)
 11. [Dependency Graph and Recovery](plans/011-dependency-graph-and-recovery.md)
+12. [Plan-Order Graph](plans/012-plan-order-graph.md)
 
 ## What This Convention Does Not Decide
 

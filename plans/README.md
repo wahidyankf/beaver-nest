@@ -39,3 +39,24 @@ Move one plan through the lifecycle instead of copying it between stages. When i
 - [Done](done/README.md) indexes completed plans.
 - [Ideas](ideas/README.md) indexes rough two-pager briefs.
 - [In progress](in-progress/README.md) indexes active plans.
+
+## Plan Order
+
+Every plan in `backlog/` and `in-progress/` appears here. Plans with no arrow between them run in parallel. An arrow
+means the head starts only after the tail; a dotted arrow means the tail should land first without blocking. The graph
+is updated in the same change that moves, adds, or removes a plan, per
+[Plan-Order Graph](../repo-governance/conventions/plans/012-plan-order-graph.md).
+
+```mermaid
+flowchart LR
+  accTitle: Plan order
+  accDescr: Two independent live plans with no dependencies between them.
+  FAM["🔜 family-learning-engine"]:::backlog
+  BAK["🏗️ backup-integrity"]:::inprogress
+  classDef backlog fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+  classDef inprogress fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+  classDef default fill:#FFFFFF,stroke:#000000,color:#000000
+```
+
+Legend: 🔜 blue = backlog; 🏗️ teal = in progress. Hexagon credentialed-machine steps do not apply here. No arrows:
+both plans are independent and may run in parallel.
