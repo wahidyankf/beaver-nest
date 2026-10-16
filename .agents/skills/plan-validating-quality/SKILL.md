@@ -41,6 +41,12 @@ Read each document alone. If it only makes sense alongside another, one of them 
 Items should be small enough that failing one is informative. Two symptoms of items that are too large: the item cannot
 be verified without doing the next one, and finishing it would take longer than a session.
 
+## Dependencies and Declared Parallelism
+
+A `Depends-on` naming a plan that does not exist, or one already archived where a live plan was meant, is a finding
+naming the declaration. A node set the Parallelization Model declares parallel while sharing a write — an output file,
+a branch, or an ordering constraint — is `HIGH`: the declaration promises concurrency the resources forbid.
+
 ## What This Skill Deliberately Does Not Judge
 
 Whether the work is worth doing. That was settled by grooming and by the pre-write gate, and reopening it inside a

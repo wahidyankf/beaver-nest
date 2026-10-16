@@ -15,3 +15,4 @@ Read in order. Each module is a self-contained part of the rule the [Plans Conve
 - [009 Portability](009-portability.md)
 - [010 Bug-Fix Plan](010-bug-fix-plan.md)
 - [011 Dependency Graph and Recovery](011-dependency-graph-and-recovery.md)
+- [012 Plan-Order Graph](012-plan-order-graph.md)

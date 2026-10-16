@@ -31,7 +31,9 @@ the plan is then reverse-engineered to justify it.
 
 Sequence in the file is not dependency. Express phases and items as the dependency graph
 [Dependency Graph and Recovery](../../../repo-governance/conventions/plans/011-dependency-graph-and-recovery.md)
-defines, with a Parallelization Model section, so independent nodes can run concurrently.
+defines, with a Parallelization Model section, so independent nodes can run concurrently. Declare inter-plan
+dependencies as [Plan-Order Graph](../../../repo-governance/conventions/plans/012-plan-order-graph.md)
+defines, so the live-plan index can order this plan.
 
 ## Granularity Is the Hard Part
 

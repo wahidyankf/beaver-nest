@@ -8,7 +8,9 @@ Use only after explicit direction to execute one formal plan. Keep its records t
    [quality-gate](../quality/plan-quality-gate.md) run, when recorded, is advisory history. Execution starts with or
    without a verdict and never runs the gate itself; a missing verdict is recorded as
    `plan-quality-gate: not run (manual-only)`. Upstream Tool Defects remains available direction for a bug-fix plan
-   when explicitly invoked.
+   when explicitly invoked. Before starting, resolve every dependency the plan declares under
+   [Plan-Order Graph](../../conventions/plans/012-plan-order-graph.md): each must already be satisfied,
+   or the run stops and names the unmet one. A missing declaration reads as no dependencies.
 2. Enter the plan's declared `worktrees/<name>/` checkout before any file or Git mutation, initializing it if new, and
    pass the [integration path](../../conventions/integration-path.md) sync gate there. Executing from a stale branch or the
    primary checkout is forbidden, save the release invocation that convention exempts; an unclean tree stops the start
