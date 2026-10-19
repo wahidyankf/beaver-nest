@@ -34,10 +34,10 @@ contract takes high-context judgement, so this is `plan` work.
 
 The caller names one charter per pass. With none named, it asks rather than guessing.
 
-| Charter       | Judges                                                                                  | Inside                                                                                              |
-| ------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Charter       | Judges                                                                                  | Inside                                                                                           |
+| ------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `contract`    | every operation in scope against the published contract and behaviour specifications    | [API HTTP Quality Gate](../repo-governance/workflows/quality/api-http-quality-gate.md), as judge |
-| `exploratory` | the interface within charters frozen before the pass, probing beyond the specified path | any run that needs session-based exploratory testing                                                |
+| `exploratory` | the interface within charters frozen before the pass, probing beyond the specified path | any run that needs session-based exploratory testing                                             |
 
 ## Before the First Request
 

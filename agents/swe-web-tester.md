@@ -35,10 +35,10 @@ judgement about what a difference means, so this is `plan` work.
 
 The caller names one charter per pass. With none named, it asks rather than guessing.
 
-| Charter       | Judges                                                                                           | Inside                                                                                                             |
-| ------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Charter       | Judges                                                                                           | Inside                                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
 | `spec`        | behaviour, design fidelity, and accessibility no scanner settles, against the specification      | [UI Web Quality Gate](../repo-governance/workflows/quality/ui-web-quality-gate.md), as its judge                |
-| `design`      | the render against approved designs, runtime tokens, primitives, and cited design practice       | [UX Review Fix Planning][catalog-ux-review-fix-planning], third pass                                               |
+| `design`      | the render against approved designs, runtime tokens, primitives, and cited design practice       | [UX Review Fix Planning][catalog-ux-review-fix-planning], third pass                                            |
 | `exploratory` | behaviour against specifications, contracts, and designs, within charters frozen before the pass | [Exploratory and Usability Review](../repo-governance/workflows/quality/exploratory-usability-review.md), first |
 
 ## Before the First Action

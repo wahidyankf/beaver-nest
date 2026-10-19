@@ -260,7 +260,7 @@
     {
       "id": "agent/swe-api-tester",
       "path": "agents/swe-api-tester.md",
-      "digest": "8e7625daabfdee1ec1d512b92623fea351c9131a8f8c6ba21224fcc1df29d8ca"
+      "digest": "7b5684e80251ef0774e48b4bef948cf7e347f6beb1b3c477845705b4eee8f9a9"
     },
     {
       "id": "agent/swe-architect",
@@ -305,7 +305,7 @@
     {
       "id": "agent/swe-web-tester",
       "path": "agents/swe-web-tester.md",
-      "digest": "081ae0ad357c826f62a780f4c34ad513470dafb0fd3b7bf00fc9e0b970d54369"
+      "digest": "cd69188c46c24b3f746c10ad8411f28ea2fbecd9b7b17e838507357aecafa407"
     },
     {
       "id": "agent/web-researcher",
