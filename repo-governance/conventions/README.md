@@ -36,7 +36,8 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Git safety](no-destructive-git-operations.md) requires approval outside task sync.
 - [Task sync](no-destructive-git-operations/README.md) bounds owned delivery.
 - [Plan lifecycle](plan-lifecycle.md) carries what this repository adds to the plans convention: idea quadrants, active-service clauses, and local delivery rules.
-- [Plan migrations](plan-migrations.md) makes planned data transitions preserve sources, map compatibility, and prove recovery.
+- [Plan migrations](plan-migrations.md) preserves sources, maps compatibility, proves recovery.
+- [Plan migration numbers](plan-migrations/README.md).
 - [Plan specification changes](plan-specification-changes.md) makes behaviour, C4, test-binding, and file-impact work executable before implementation.
 - [Plan UI design](plan-ui-design.md) requires lo-fi comparison and selected-direction hi-fi assets for UI-affecting formal plans.
 - [Plan validator contract](plan-validator-contract.md) freezes what a plan-structure validator reads, the rule identifiers it emits, and the exits it returns.
