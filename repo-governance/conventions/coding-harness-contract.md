@@ -24,7 +24,7 @@ Follow the [harness propagation](../workflows/quality/harness-propagation.md) wo
 
 - `AGENTS.md` is the only project-rule body. Root `CLAUDE.md` must contain only `@AGENTS.md` apart from a UTF-8 BOM, line-ending differences, or surrounding blank lines.
 - `.agents/skills/<name>/SKILL.md` and every regular supporting file below that skill directory form one canonical skill bundle.
-- `.agents/agents/<name>.md` is the only full custom-agent prompt and semantic capability source.
+- `agents/<name>.md` is the only full custom-agent prompt and semantic capability source.
 - The required committed MCP capability is the credential-free `npx nx mcp` executable vector rooted at the workspace.
 
 Adapters must route to these sources without copying, extending, or weakening them. Claude command wrappers mirror each canonical skill description and contain only the fixed canonical route. Native agent coverage follows each declared profile and the

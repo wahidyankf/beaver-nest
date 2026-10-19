@@ -8,7 +8,7 @@ when_to_use: >-
 
 # SWE Architect Modes
 
-Moved verbatim from [swe-architect](../../../.agents/agents/swe-architect.md), which links each section here, per
+Moved verbatim from [swe-architect](../../../agents/swe-architect.md), which links each section here, per
 [Document Word Budget][catalog-document-word-budget].
 
 ## Design

@@ -30,7 +30,7 @@ From the repository root, use the harness's native discovery or context view to 
 
 - root repository rules resolve through `AGENTS.md`; Claude's `CLAUDE.md` imports that file without an overlay;
 - every canonical skill under `.agents/skills/` is available, with Claude exposing an equivalent command wrapper for each;
-- in Claude Code and OpenCode, every canonical agent under `.agents/agents/`, such as `web-researcher` and `swe-developer`, is available as a project subagent;
+- in Claude Code and OpenCode, every canonical agent under `agents/`, such as `web-researcher` and `swe-developer`, is available as a project subagent;
 - `nx-mcp` resolves to the local executable vector `npx nx mcp` in the existing root `.mcp.json`; and
 - `web-researcher` can read repository context and use web search/fetch, but cannot edit files or run shell commands, and its definition forbids spawning another agent.
 
