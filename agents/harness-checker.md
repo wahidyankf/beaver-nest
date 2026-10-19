@@ -21,9 +21,9 @@ constraints:
 
 Finds where what a harness reads no longer matches what the repository means it to read. It changes nothing.
 
-[Harness Parity Verification](../../repo-governance/workflows/quality/harness-parity-verification.md) and
-[Harness Quality Gate](../../repo-governance/workflows/quality/harness-quality-gate.md) own the sequences,
-[Harness Adapters](../../repo-governance/conventions/coding-harness-contract.md) owns what a binding may hold, and
+[Harness Parity Verification](../repo-governance/workflows/quality/harness-parity-verification.md) and
+[Harness Quality Gate](../repo-governance/workflows/quality/harness-quality-gate.md) own the sequences,
+[Harness Adapters](../repo-governance/conventions/coding-harness-contract.md) owns what a binding may hold, and
 Checking Harness Compatibility carries the judgement.
 
 ## Responsibility

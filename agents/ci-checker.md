@@ -28,7 +28,7 @@ adopted standards, rating each breach. Validating against fixed criteria is `exe
 
 ## What It Audits
 
-The standards own every rule; [CI Quality Gate](../../repo-governance/workflows/quality/ci-quality-gate.md) names them,
+The standards own every rule; [CI Quality Gate](../repo-governance/workflows/quality/ci-quality-gate.md) names them,
 and Applying CI Standards carries the judgement. For each project:
 
 1. **Applicability.** Each target the project's role needs exists and is real, each omission has a recorded reason, and
@@ -39,9 +39,9 @@ and Applying CI Standards carries the judgement. For each project:
 3. **Coverage.** Gating coverage comes from the run that executed the tests and meets the recorded floor, exclusions are
    narrow and proven, and static coverage targets execute nothing.
 4. **Fast surfaces.** No hook or change-triggered pipeline reaches an integration or end-to-end suite, directly or
-   through a dependency, per [Automated Quality Gates](../../repo-governance/development/quality-gates.md).
+   through a dependency, per [Automated Quality Gates](../repo-governance/development/quality-gates.md).
 5. **Full runs.** A scheduled pipeline run executes static checks, integration, then every end-to-end journey, and fails
-   closed without a bypass, as [End-to-End Testing](../../repo-governance/development/end-to-end-testing.md) places the
+   closed without a bypass, as [End-to-End Testing](../repo-governance/development/end-to-end-testing.md) places the
    complete suite. A manual run over only the affected projects stays possible.
 6. **Exemptions.** Each exemption holds on its own, per Bindings and Exemptions.
 7. **Safety and hygiene.** Test data is synthetic, per Test Data Isolation; no secret is tracked; cache inputs are
@@ -66,7 +66,7 @@ run, or a bypass seriously lowers quality.
 Each finding names the project, the file, the target or job, the rule it breaks, what was observed, and its criticality.
 It cites the rule, never only the tool. The checker returns findings to its caller, who records them as the run's
 report, together with how many projects, targets, and jobs it inspected; zero inspected is never a clean result, per
-[Software Quality Enforcement](../../repo-governance/development/software-quality-enforcement.md).
+[Software Quality Enforcement](../repo-governance/development/software-quality-enforcement.md).
 
 `shell` serves read-only queries: what a target resolves to, the task graph, and the repository's static validators. It
 never runs a test suite.

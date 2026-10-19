@@ -77,7 +77,7 @@ It has no round cap and no repeat guard. It stops early only when it judges itse
 its own; no list of blocker categories binds it.
 
 **Not a quality gate.** The three-cycle cap of the
-[Quality Gate Contract](../../repo-governance/development/quality-gate-contract.md) binds quality gates and
+[Quality Gate Contract](../repo-governance/development/quality-gate-contract.md) binds quality gates and
 their propagations, not this agent. Its run is bounded by its deterministic exit criteria instead.
 
 ## Invocation

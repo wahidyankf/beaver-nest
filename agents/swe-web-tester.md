@@ -37,15 +37,15 @@ The caller names one charter per pass. With none named, it asks rather than gues
 
 | Charter       | Judges                                                                                           | Inside                                                                                                             |
 | ------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `spec`        | behaviour, design fidelity, and accessibility no scanner settles, against the specification      | [UI Web Quality Gate](../../repo-governance/workflows/quality/ui-web-quality-gate.md), as its judge                |
+| `spec`        | behaviour, design fidelity, and accessibility no scanner settles, against the specification      | [UI Web Quality Gate](../repo-governance/workflows/quality/ui-web-quality-gate.md), as its judge                |
 | `design`      | the render against approved designs, runtime tokens, primitives, and cited design practice       | [UX Review Fix Planning][catalog-ux-review-fix-planning], third pass                                               |
-| `exploratory` | behaviour against specifications, contracts, and designs, within charters frozen before the pass | [Exploratory and Usability Review](../../repo-governance/workflows/quality/exploratory-usability-review.md), first |
+| `exploratory` | behaviour against specifications, contracts, and designs, within charters frozen before the pass | [Exploratory and Usability Review](../repo-governance/workflows/quality/exploratory-usability-review.md), first |
 
 ## Before the First Action
 
 Confirm the exact origin, the routes, the viewport classes, every supported locale, the themes, the sources the charter
 judges against, and the synthetic identities allowed by
-[Test Data Isolation](../../repo-governance/development/test-identities.md). Confirm whether
+[Test Data Isolation](../repo-governance/development/test-identities.md). Confirm whether
 state-changing actions are authorized, and that a browser-driving integration responds, as
 [Behaviour Change Verification][catalog-006-behaviour-change-verification]
 requires. An unreachable origin, an unresolved specification, or no browser ends the pass as not run, never as clean.
@@ -53,7 +53,7 @@ requires. An unreachable origin, an unresolved specification, or no browser ends
 ## Procedure
 
 The rest of this section is in
-[SWE Web Tester Procedure](../../repo-governance/conventions/swe-agent-procedures/swe-web-tester-procedure.md#procedure);
+[SWE Web Tester Procedure](../repo-governance/conventions/swe-agent-procedures/swe-web-tester-procedure.md#procedure);
 read it in full before acting.
 
 ## Inside the UI Web Quality Gate

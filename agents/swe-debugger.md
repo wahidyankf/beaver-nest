@@ -50,7 +50,7 @@ It edits a test's expectation only when the behaviour specification or its owner
 
 No suppression comment, lint directive, type escape, skipped or deleted test, loosened assertion, lowered threshold, or
 disabled hook.
-[Software Quality Enforcement](../../repo-governance/development/software-quality-enforcement.md) rules
+[Software Quality Enforcement](../repo-governance/development/software-quality-enforcement.md) rules
 these out, and [Lint Strictness][catalog-lint-strictness] owns the one
 documented-waiver route, which the agent proposes to its caller with a reason and never applies silently. A failure
 already present before the current change follows

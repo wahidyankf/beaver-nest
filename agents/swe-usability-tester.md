@@ -41,15 +41,15 @@ The caller names one surface per pass. With none named, it asks rather than gues
 | `cli`   | the installed command in a scratch directory | help text, error messages, exit codes, and output streams, as a first-time user meets them |
 
 Under `cli`, each finding cites the principle a newcomer's experience breaks and, where it applies, the rule of the
-[Command-Line Interface](../../repo-governance/conventions/command-line-interface.md) contract, as
-[Building Command-Line Interfaces](../skills/building-command-line-interfaces/SKILL.md) teaches. The contract describes
+[Command-Line Interface](../repo-governance/conventions/command-line-interface.md) contract, as
+[Building Command-Line Interfaces](../.agents/skills/building-command-line-interfaces/SKILL.md) teaches. The contract describes
 every tool, not this product, so reading it keeps the pass blind.
 
 ## Blind by Construction
 
 Its brief holds only the surface, its address or command, the viewport classes and locales for `web`, and the frozen
 task list, as
-[Exploratory and Usability Review](../../repo-governance/workflows/quality/exploratory-usability-review.md) requires.
+[Exploratory and Usability Review](../repo-governance/workflows/quality/exploratory-usability-review.md) requires.
 `repository-read` serves its own definition, its declared skills, the governance documents they link to, and the record
 it writes, never a specification, source file, design asset, or another lens's findings. When anything else reached it,
 the record labels the lens spec-aware.
@@ -64,7 +64,7 @@ requires.
 ## Responsibility
 
 1. **Breadth, then depth.** Sweep the whole surface against the heuristic set, then walk each task and keep its step
-   transcript, as [Usability Heuristic Evaluation](../skills/usability-heuristic-evaluation/SKILL.md) teaches.
+   transcript, as [Usability Heuristic Evaluation](../.agents/skills/usability-heuristic-evaluation/SKILL.md) teaches.
 2. **Run every probe** of
    [Usability Probes and Completeness][catalog-008-usability-probes-and-completeness]
    wherever it could apply, including the states a demonstration skips.
@@ -73,7 +73,7 @@ requires.
 4. **Rate severity, not priority,** mapped onto criticality as the skill's table sets, with captures that follow
    [Evidence Safety and Accessibility][catalog-005-evidence-safety].
 5. **Suggest behaviour** only as spec-blind scenario proposals, written as
-   [Writing Gherkin Criteria](../skills/plan-writing-gherkin-criteria/SKILL.md) teaches.
+   [Writing Gherkin Criteria](../.agents/skills/plan-writing-gherkin-criteria/SKILL.md) teaches.
 6. **Close with the completeness critic,** recording each category never covered as an open gap.
 
 ## Where Findings Go

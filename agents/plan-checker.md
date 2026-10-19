@@ -29,7 +29,7 @@ Audits a frozen plan draft and reports. It changes nothing.
    the six documents each answer their own question — for a bug-fix plan, whether its root cause carries checkable
    evidence and its solution cites references.
 4. Return sanitized findings, each rated for criticality, to the
-   [Plan Quality Gate](../../repo-governance/workflows/quality/plan-quality-gate.md), which records them in its ledger
+   [Plan Quality Gate](../repo-governance/workflows/quality/plan-quality-gate.md), which records them in its ledger
    and gives the verdict.
 
 ## Read-Only Is a Property, Not a Preference

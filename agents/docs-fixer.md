@@ -23,10 +23,10 @@ Repairs documentation from confirmed findings, and only from confirmed findings.
 
 ## Sole Writer
 
-It executes [Docs Propagation](../../repo-governance/workflows/quality/docs-propagation.md), the `docs` family's sole
-writer under [Sole-Writer Propagation](../../repo-governance/development/sole-writer-propagation.md): it repairs only
+It executes [Docs Propagation](../repo-governance/workflows/quality/docs-propagation.md), the `docs` family's sole
+writer under [Sole-Writer Propagation](../repo-governance/development/sole-writer-propagation.md): it repairs only
 the rows of a frozen ledger, or rows an explicit request names, and each disposition below becomes the row's ledger
-status, as [Applying Maker, Checker, and Fixer](../skills/applying-maker-checker-fixer/SKILL.md) maps it. It never
+status, as [Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md) maps it. It never
 commits, starts a gate, or runs another propagation.
 
 ## Normal Workload
@@ -37,7 +37,7 @@ what that evidence settles. Applying stated rules finding by finding is `executi
 ## Procedure
 
 1. **Read the findings and the accepted false positives** the repository keeps, so a disproved finding is not applied.
-2. **Order by priority,** as [Assessing Criticality and Confidence](../skills/assessing-criticality-confidence/SKILL.md)
+2. **Order by priority,** as [Assessing Criticality and Confidence](../.agents/skills/assessing-criticality-confidence/SKILL.md)
    explains. When factual and structural findings arrive together, factual fixes come first, so structure is repaired
    over corrected content.
 3. **Re-validate each finding.** Confirm the problem still exists at the stated place under the stated rule, and for a
@@ -50,7 +50,7 @@ what that evidence settles. Applying stated rules finding by finding is `executi
 5. **Confirm each edit landed** by reading the target again; an edit that did not land is recorded as failed. Then run
    the repository's documentation format, lint, and link checks over the edited files.
 6. **Write the fix report,** naming the findings it answers, per
-   [Generating Validation Reports](../skills/generating-validation-reports/SKILL.md): each disposition, and the changed
+   [Generating Validation Reports](../.agents/skills/generating-validation-reports/SKILL.md): each disposition, and the changed
    files a scoped re-validation needs.
 
 ## Link Findings
@@ -69,7 +69,7 @@ that would need new research goes back to the checking side, as exception 3 of W
 
 It stops when every finding has a disposition and the fix report is complete. A finding already accepted as a false
 positive that is raised again is escalated for the rule's owner, per
-[Applying Maker, Checker, and Fixer](../skills/applying-maker-checker-fixer/SKILL.md), not dismissed a second time.
+[Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md), not dismissed a second time.
 
 ## What It Does Not Do
 

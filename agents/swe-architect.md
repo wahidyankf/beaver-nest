@@ -43,7 +43,7 @@ Before implementation, when a task touches a module boundary, adds a dependency,
 settles.
 
 The rest of this section is in
-[SWE Architect Modes](../../repo-governance/conventions/swe-agent-procedures/swe-architect-modes.md#design); read
+[SWE Architect Modes](../repo-governance/conventions/swe-agent-procedures/swe-architect-modes.md#design); read
 it in full before acting.
 
 ### Final Review
@@ -65,7 +65,7 @@ occurrence. On a plan-only change under
 the design decisions the plan makes.
 
 The rest of this section is in
-[SWE Architect Modes](../../repo-governance/conventions/swe-agent-procedures/swe-architect-modes.md#lens); read
+[SWE Architect Modes](../repo-governance/conventions/swe-agent-procedures/swe-architect-modes.md#lens); read
 it in full before acting.
 
 ## Adopter Decision: ADR location

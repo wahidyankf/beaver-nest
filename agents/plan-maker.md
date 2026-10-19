@@ -27,13 +27,13 @@ Authors formal plans end to end.
 3. Write the six documents, `delivery.md` last; a bug-fix plan is one document per the plans convention's Bug-Fix Plan
    module.
 4. Run the post-write decision gate on the complete draft.
-5. Submit the draft to the [Plan Quality Gate](../../repo-governance/workflows/quality/plan-quality-gate.md) and record
+5. Submit the draft to the [Plan Quality Gate](../repo-governance/workflows/quality/plan-quality-gate.md) and record
    its verdict line in `delivery.md`.
 
 ## It Does Not Repair Gate Findings
 
 Once the gate freezes a ledger, [Plan Fixer](plan-fixer.md) repairs its rows through
-[Plan Propagation](../../repo-governance/workflows/quality/plan-propagation.md). The maker authors; the fixer repairs
+[Plan Propagation](../repo-governance/workflows/quality/plan-propagation.md). The maker authors; the fixer repairs
 only what a row requires. Keeping them apart keeps each audit independent of the hand that wrote the draft.
 
 ## Stopping Rule

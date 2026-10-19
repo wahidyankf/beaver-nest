@@ -31,7 +31,7 @@ rates every claim that fails. Validating against fixed criteria is `execution` w
 ## What It Checks
 
 1. **Claims about the outside world.** Commands, versions, interfaces, code examples, and citations, verified per
-   [Factual Validation](../../repo-governance/conventions/documentation-architecture.md), with the source choice and
+   [Factual Validation](../repo-governance/conventions/documentation-architecture.md), with the source choice and
    labels Validating Factual Accuracy teaches.
 2. **Claims about the repository.** Paths, commands, options, defaults, and behaviours, confirmed at the revision being
    checked as Authoring Documentation matches each claim to its proof. When prose disagrees with code, configuration, or

@@ -22,16 +22,16 @@ Repairs binding drift where it starts.
 
 ## Sole Writer
 
-It executes [Harness Propagation](../../repo-governance/workflows/quality/harness-propagation.md), the `harness`
-family's sole writer under [Sole-Writer Propagation](../../repo-governance/development/sole-writer-propagation.md): it
+It executes [Harness Propagation](../repo-governance/workflows/quality/harness-propagation.md), the `harness`
+family's sole writer under [Sole-Writer Propagation](../repo-governance/development/sole-writer-propagation.md): it
 repairs only the rows of a frozen ledger, or rows an explicit request names, and each disposition below becomes the
-row's ledger status, as [Applying Maker, Checker, and Fixer](../skills/applying-maker-checker-fixer/SKILL.md) maps it.
+row's ledger status, as [Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md) maps it.
 It never commits, starts a gate, or runs another propagation.
 
 ## Responsibility
 
 1. Open a fix report naming the audit it answers, as
-   [Generating Validation Reports](../skills/generating-validation-reports/SKILL.md) describes.
+   [Generating Validation Reports](../.agents/skills/generating-validation-reports/SKILL.md) describes.
 2. Take findings in priority order, and for each re-read the file it names:
    - the file already agrees with the cited upstream fact: `FALSE_POSITIVE`, since the drift is gone;
    - the file still holds the value the finding quotes: rate confidence from the citation's label, as Checking Harness
@@ -40,7 +40,7 @@ It never commits, starts a gate, or runs another propagation.
 3. Apply each `HIGH` mechanical repair in the canonical artifact, the generator's mapping, or the reference record. The
    canonical artifacts are Markdown the fixer edits itself. The generator's mapping is declarative configuration, so
    `swe-developer` writes a repair there: the fixer names it as repairer, and the fixer or its caller dispatches it, per
-   [SWE Delegation](../../repo-governance/conventions/swe-delegation.md). A reference record in a declarative format
+   [SWE Delegation](../repo-governance/conventions/swe-delegation.md). A reference record in a declarative format
    follows the same rule.
 4. Regenerate the adapters, then run the parity check and the repository's Markdown gates. A repair that leaves either
    failing is recorded as failed.
@@ -50,7 +50,7 @@ It never commits, starts a gate, or runs another propagation.
 ## Repair the Source, Never the Output
 
 An edited adapter is overwritten by the next generation and, until then, is a second source; see
-[Harness Adapters](../../repo-governance/conventions/coding-harness-contract.md). When a repair seems to need an adapter
+[Harness Adapters](../repo-governance/conventions/coding-harness-contract.md). When a repair seems to need an adapter
 edit, the fix lies in the canonical file or the generator's input. It never weakens the parity check, drops a
 restriction, or excludes a path to reach a clean result.
 

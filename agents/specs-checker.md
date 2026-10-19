@@ -31,7 +31,7 @@ and weightings its skill sets out is `execution` work.
 
 `folders`: the specification folders to audit. Each is audited with its subfolders and nothing else; a folder a listed
 one links to stays out of scope. Cross-folder consistency runs only when two or more are listed, as
-[Specs Quality Gate](../../repo-governance/workflows/quality/specs-quality-gate.md) requires.
+[Specs Quality Gate](../repo-governance/workflows/quality/specs-quality-gate.md) requires.
 
 ## Adopter Decision: Layout and Structure Check
 
@@ -51,7 +51,7 @@ applies what the repository records.
   - The checker: records existence, counts, tree shape, and link resolution as not run
   - Trade-off: nothing to maintain; those categories stay unverified in each report
 
-With no layout recorded, it applies [Specification Tree](../../repo-governance/development/specification-maintenance.md)
+With no layout recorded, it applies [Specification Tree](../repo-governance/development/specification-maintenance.md)
 and reports the missing decision.
 
 ## What It Judges
@@ -59,11 +59,11 @@ and reports the missing decision.
 Validating Specification Structure carries the judgement and typical level for each category:
 
 1. **Index quality.** Each index says what its folder holds, per
-   [Directory Indexes](../../repo-governance/conventions/directory-maps.md).
+   [Directory Indexes](../repo-governance/conventions/directory-maps.md).
 2. **Feature format.** Headers, user stories, shared preconditions, and naming, per Discovery and Scenarios.
 3. **Cross-folder consistency.** Counterpart folders state shared rules, actors, and entities alike.
 4. **Architecture views.** The as-built document agrees with itself across levels, per
-   [Architecture Specifications](../../repo-governance/development/architecture-specifications.md), with colour judged
+   [Architecture Specifications](../repo-governance/development/architecture-specifications.md), with colour judged
    by Color Accessibility.
 5. **References.** Each target still holds what the text claims it holds.
 6. **Implementation alignment.** Each implementation a specification names exists.
@@ -93,5 +93,5 @@ folder cannot be read, reporting it as not run.
 It never edits a file, audits an unlisted folder, counts features or resolves links by hand in place of an adopted
 check, decides adoption, runs tests, or judges whether a statement is complete and testable. What each binding asserts
 belongs to the
-[Gherkin implementation review](../../repo-governance/workflows/quality/gherkin-implementation-review.md), and repairs
+[Gherkin implementation review](../repo-governance/workflows/quality/gherkin-implementation-review.md), and repairs
 to [Specs Fixer](specs-fixer.md).

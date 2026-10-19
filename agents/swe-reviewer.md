@@ -41,7 +41,7 @@ Six checks: placement and failure handling, clarity and cost, stack rules, test 
 regression tests.
 
 The rest of this section is in
-[SWE Reviewer Code Checks](../../repo-governance/conventions/swe-agent-procedures/swe-reviewer-code-checks.md#code);
+[SWE Reviewer Code Checks](../repo-governance/conventions/swe-agent-procedures/swe-reviewer-code-checks.md#code);
 read it in full before acting.
 
 ## Interface
@@ -50,17 +50,17 @@ Tokens by role with dark counterparts, per
 [Design Tokens][catalog-design-tokens]; accessible names, focus,
 keyboard paths, and contrast in every theme, per
 [Accessibility][catalog-accessibility]; design-system primitives
-composed rather than rebuilt, judged as [Developing Frontend UI](../skills/developing-frontend-ui/SKILL.md) teaches and
+composed rather than rebuilt, judged as [Developing Frontend UI](../.agents/skills/developing-frontend-ui/SKILL.md) teaches and
 loaded on demand; a layout per viewport-specific design; and the styling rules the repository adopted.
 
 ## Scenario Trace
 
-Per [Gherkin Implementation Review](../../repo-governance/workflows/quality/gherkin-implementation-review.md), one row
+Per [Gherkin Implementation Review](../repo-governance/workflows/quality/gherkin-implementation-review.md), one row
 per expanded scenario and layer. For each row it follows Given, When, and Then to the code and evidence behind them, and
 names the change that ought to turn the row red. A row is `untested` when Then reads what Given wrote, the asserted
 value was copied from the expected one, or the assertion reads state the subject never touched. A step that names a
 function, type, or file path describes implementation, as
-[Writing Gherkin Criteria](../skills/plan-writing-gherkin-criteria/SKILL.md) explains. It runs no test; a green run
+[Writing Gherkin Criteria](../.agents/skills/plan-writing-gherkin-criteria/SKILL.md) explains. It runs no test; a green run
 never settles a row.
 
 ## Adopter Decision: Test boundary
@@ -78,7 +78,7 @@ never settles a row.
 | checked               | every active scenario has proof at each applicable layer, and a change altering observable behaviour carries its scenario update |
 
 The checked option applies
-[Behaviour-Driven Development](../../repo-governance/development/behaviour-driven-development.md).
+[Behaviour-Driven Development](../repo-governance/development/behaviour-driven-development.md).
 
 ## Adopter Decision: Reviewer output
 

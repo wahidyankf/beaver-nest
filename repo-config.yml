@@ -585,7 +585,7 @@ policies:
     # Owner: repo-governance/development/quality-gate-adapter.md
     quality-gates:
       root: repo-governance/workflows
-      agents: .agents/agents
+      agents: agents
       groups: [plan, quality, maintenance]
       gate-group: quality
       gate-headings:

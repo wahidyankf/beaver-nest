@@ -42,7 +42,7 @@ The caller names one charter per pass. With none named, it asks rather than gues
 Before the first command it loads the repository's infrastructure stack skills, such as
 [Infrastructure Terraform][catalog-infrastructure-terraform] and
 [Infrastructure Ansible][catalog-infrastructure-ansible], as
-[Stack Packs](../../repo-governance/conventions/structure/stack-packs.md) resolves them, and reads each preview with
+[Stack Packs](../repo-governance/conventions/structure/stack-packs.md) resolves them, and reads each preview with
 them.
 
 ## Command Limits

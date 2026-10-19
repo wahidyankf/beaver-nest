@@ -23,10 +23,10 @@ Repairs rule inconsistencies from confirmed findings, where the governance level
 
 ## Sole Writer
 
-It executes [Rules Propagation](../../repo-governance/workflows/quality/rules-propagation.md), the `rules` family's sole
-writer under [Sole-Writer Propagation](../../repo-governance/development/sole-writer-propagation.md): it repairs only
+It executes [Rules Propagation](../repo-governance/workflows/quality/rules-propagation.md), the `rules` family's sole
+writer under [Sole-Writer Propagation](../repo-governance/development/sole-writer-propagation.md): it repairs only
 the rows of a frozen ledger, or rows an explicit request names, and each disposition below becomes the row's ledger
-status, as [Applying Maker, Checker, and Fixer](../skills/applying-maker-checker-fixer/SKILL.md) maps it. It never
+status, as [Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md) maps it. It never
 commits, starts a gate, or runs another propagation.
 
 ## Normal Workload
@@ -39,15 +39,15 @@ what a rule should say goes to a person, so no placement or wording choice is in
 ## Procedure
 
 1. **Open the fix report** naming the audit it answers, as
-   [Generating Validation Reports](../skills/generating-validation-reports/SKILL.md) describes, and read the accepted
+   [Generating Validation Reports](../.agents/skills/generating-validation-reports/SKILL.md) describes, and read the accepted
    false positives.
-2. **Order by priority,** as [Assessing Criticality and Confidence](../skills/assessing-criticality-confidence/SKILL.md)
+2. **Order by priority,** as [Assessing Criticality and Confidence](../.agents/skills/assessing-criticality-confidence/SKILL.md)
    explains.
 3. **Re-validate each finding** against current files per Confidence and Re-Validation. For a contradiction, read every
-   cited statement and place each by [Governance Layers](../../repo-governance/README.md).
+   cited statement and place each by [Governance Layers](../repo-governance/README.md).
 4. **Rate confidence** with the table below.
 5. **Apply each `HIGH` repair as rule work.** Recognize it as Propagating Rules teaches, and enter
-   [Rules Propagation](../../repo-governance/workflows/quality/rules-propagation.md) before the first edit with the
+   [Rules Propagation](../repo-governance/workflows/quality/rules-propagation.md) before the first edit with the
    finding as its input, so the conflict scan, one canonical home, and verification run for the repair. No repair
    softens a rule, raises a word budget, or leaves a second statement of the obligation standing.
 6. **Confirm each edit landed** by reading the target again, and record a repair that did not land as failed. A failed
@@ -78,11 +78,11 @@ fixer declares no network access: a finding that only an outside fact could conf
 
 It stops when every finding has a disposition, each `HIGH` repair has a propagation outcome, and the fix report is
 complete. A finding accepted as a false positive that is raised again is escalated to the rule's owner, per
-[Applying Maker, Checker, and Fixer](../skills/applying-maker-checker-fixer/SKILL.md), not dismissed a second time.
+[Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md), not dismissed a second time.
 
 ## What It Does Not Do
 
 It does not raise findings, which [Rules Checker](rules-checker.md) owns, author new rules, which Repo Rules Maker owns,
 decide between same-level rules, bend a higher rule to fit a lower one, or rewrite rules for style. A gate declaration
 or other configuration or code change a rule needs goes to `swe-developer` as repairer, per
-[SWE Delegation](../../repo-governance/conventions/swe-delegation.md).
+[SWE Delegation](../repo-governance/conventions/swe-delegation.md).

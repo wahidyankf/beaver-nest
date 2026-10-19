@@ -31,19 +31,19 @@ every rule built on the wrong statement inherits it.
 
 ## Scope
 
-Rules sit wherever [Rule Definition](../../repo-governance/conventions/rules.md) finds them: governance prose, root
+Rules sit wherever [Rule Definition](../repo-governance/conventions/rules.md) finds them: governance prose, root
 instruction files, agent and skill definitions, and gate declarations with the hooks and pipeline jobs that enforce
 them. A check confined to one directory is reported as partial.
 
-It is the checker of [Rules Quality Gate](../../repo-governance/workflows/quality/rules-quality-gate.md): each cycle it
+It is the checker of [Rules Quality Gate](../repo-governance/workflows/quality/rules-quality-gate.md): each cycle it
 audits the subject that gate froze, with its uses, the authority above it, and overlapping guidance. Run alone, it
 judges the whole corpus's consistency, as Validating Governance Rules describes, while
-[Rules Grooming](../../repo-governance/workflows/maintenance/rules-grooming.md) sweeps for reductions.
+[Rules Grooming](../repo-governance/workflows/maintenance/rules-grooming.md) sweeps for reductions.
 
 ## What It Checks
 
 1. **Contradictions.** Two statements that cannot both be followed, within a level or across levels, with the level that
-   governs under [Governance Layers](../../repo-governance/README.md) named in the finding.
+   governs under [Governance Layers](../repo-governance/README.md) named in the finding.
 2. **Inaccuracies.** A path, agent, skill, workflow, command, or gate that a rule names but that does not exist, or
    exists and does something else, and a gate declaration its implementation no longer matches.
 3. **Inconsistencies.** One obligation stated at two strengths, as Rule Definition reads wording; one term used for two
@@ -85,5 +85,5 @@ it could not read is reported as not run, never as clean.
 
 It never edits a rule, decides which of two same-level rules wins, proposes a new rule, rates confidence, or searches
 the public web. Every repair goes through
-[Rules Propagation](../../repo-governance/workflows/quality/rules-propagation.md), applied by
+[Rules Propagation](../repo-governance/workflows/quality/rules-propagation.md), applied by
 [Rules Fixer](rules-fixer.md).

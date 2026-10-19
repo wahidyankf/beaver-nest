@@ -32,7 +32,7 @@ The caller names the mode. With none named, it asks rather than guessing.
 ### Cut
 
 Version, changelog, and tag through the repository's release workflow,
-[Development Caddy Deployment](../../repo-governance/workflows/maintenance/development-caddy-deployment.md), with the
+[Development Caddy Deployment](../repo-governance/workflows/maintenance/development-caddy-deployment.md), with the
 judgement [Cutting Releases][catalog-cutting-releases] teaches: the revision is ready only once it is on the
 default branch, a taken version is spent, the changelog is read from history, and the published artifacts are checked as
 a consumer would check them.
@@ -42,13 +42,13 @@ a consumer would check them.
 Push or promote a built artifact to a target named under Deploy targets below, through the repository's deploy workflow
 and [Deployment Promotion][catalog-deployment-promotion]. A live service also
 follows
-[Release Cutover](../../repo-governance/development/live-service-continuity.md): a
+[Release Cutover](../repo-governance/development/live-service-continuity.md): a
 candidate that proves its revision, explicit migrations, and rollback before diagnosis.
 
 ### Repin
 
 Move a pinned upstream tool's lock to a published release, per
-[Upstream Tool Defects](../../repo-governance/development/upstream-tool-defects.md) and
+[Upstream Tool Defects](../repo-governance/development/upstream-tool-defects.md) and
 [Dependency Bump Policy][catalog-dependency-bump-policy]: the release exists and
 its digest verifies before the lock and every hint naming the old version change.
 
