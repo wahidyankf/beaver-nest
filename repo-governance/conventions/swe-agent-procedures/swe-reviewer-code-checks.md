@@ -8,7 +8,7 @@ when_to_use: >-
 
 # SWE Reviewer Code Checks
 
-Moved verbatim from [swe-reviewer](../../../.agents/agents/swe-reviewer.md), which links each section here, per
+Moved verbatim from [swe-reviewer](../../../agents/swe-reviewer.md), which links each section here, per
 [Document Word Budget][catalog-document-word-budget].
 
 ## Code

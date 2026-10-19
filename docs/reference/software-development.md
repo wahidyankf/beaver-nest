@@ -38,6 +38,6 @@ in `bnest-app` is placed by the
 
 ## Agents
 
-The `swe-developer`, `swe-reviewer`, and `swe-debugger` agents under `.agents/agents/` build, audit, and debug code in
+The `swe-developer`, `swe-reviewer`, and `swe-debugger` agents under `agents/` build, audit, and debug code in
 these projects; [SWE delegation](../../repo-governance/conventions/swe-delegation.md) routes work to the whole `swe-*`
 family. Each reads a project's inventory entry and loads the standard and skill of every listed stack before it starts.

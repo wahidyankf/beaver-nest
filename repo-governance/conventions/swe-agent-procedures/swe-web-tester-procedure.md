@@ -8,7 +8,7 @@ when_to_use: >-
 
 # SWE Web Tester Procedure
 
-Moved verbatim from [swe-web-tester](../../../.agents/agents/swe-web-tester.md), which links each section here, per
+Moved verbatim from [swe-web-tester](../../../agents/swe-web-tester.md), which links each section here, per
 [Document Word Budget][catalog-document-word-budget].
 
 ## Procedure
