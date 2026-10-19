@@ -32,3 +32,19 @@ State the rollback reader/writer behaviour, mixed-version boundary, retry behavi
 ## Delivery
 
 Before migration, inventory actual sources without adding private values to Git or fixtures. Delivery checkpoints must prove every inventory entry is either retained unchanged, copied and verified, or reported safely for retry. A plan may not claim data preservation while an affected reader, writer, source shape, owner, or fallback remains unaccounted for.
+
+## Migration Numbers
+
+A migration takes its number when its file is created, not from a number a document recorded earlier. Four obligations
+bind every migration:
+
+1. A new migration takes the next free number on current `origin/main`.
+2. A number named in a plan, brief, or other document is a hint that reserves nothing and authorizes no migration to
+   take it.
+3. A migration whose documented number is taken on `origin/main`, or would sort before one there, takes the next free
+   number and updates stale references in the same change.
+4. An applied or merged migration is never renumbered or renamed.
+
+No plan can know which number is free when its work merges, and Ecto keys applied migrations by version, so a renumbered
+one runs again. Observations, the timestamp reading, enforcement, and adoption are in
+[Migration Numbers](plan-migrations/001-migration-numbers.md).
