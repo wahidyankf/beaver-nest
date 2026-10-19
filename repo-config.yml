@@ -1,5 +1,5 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/wahidyankf/rhino/v0.13.0/schemas/repo-config/v2.schema.json
-# Beaver-Nest consumer policy for the immutable Rhino v0.13.0 release.
+# yaml-language-server: $schema=https://raw.githubusercontent.com/wahidyankf/rhino/v0.15.0/schemas/repo-config/v2.schema.json
+# Beaver-Nest consumer policy for the immutable Rhino v0.15.0 release.
 
 schema: rhino/repo-config/v2
 
@@ -17,6 +17,7 @@ scan:
     - deps
 
 harness:
+  agents-root: agents
   canonical:
     agents:
       name: name
@@ -469,15 +470,51 @@ harness:
               - mcp__serena__edit_memory
               - mcp__serena__execute_shell_command
               - mcp__serena__remove_project
+    - id: muse
+      supports:
+        capabilities:
+          - repository-read
+          - repository-write
+          - shell
+          - network
+          - subagent
+        constraints:
+          - read-only
+          - inline-result-only
+          - single-mcp-operation
+        routes:
+          - canonical-import
+        identities:
+          - description
+      agent-adapter:
+        path: ".agents/agents/{name}/AGENT.md"
+        format: front-matter
+        route-field: body
+        route:
+          "Before acting, read the complete canonical agent definition at the repository-root path\n{path} and follow it
+          as authoritative.\nIf it cannot be read, stop and report the missing path."
+        identity:
+          name: name
+          description: description
+        tier-fields:
+          model: model
+          effort: effort
+      tiers:
+        ultra: { model: muse-wonder-1.0, effort: high }
+        plan: { model: muse-spark-1.3, effort: xhigh }
+        execution: { model: muse-spark-1.3, effort: high }
+        fast: { model: muse-spark-1.3, effort: medium }
 policies:
   markdown:
     metadata:
       surfaces:
         - glob: ".agents/skills/*/SKILL.md"
           schema: skill
-        - glob: ".agents/agents/*.md"
+        - glob: "agents/*.md"
           schema: agent
-        - glob: ".agents/agents/README.md"
+        - glob: ".agents/**/README.md"
+          schema: governance
+        - glob: "agents/**/README.md"
           schema: governance
     internal-link:
       exclude-sources: ["specs/fixtures/**", "plans/done/**"]
