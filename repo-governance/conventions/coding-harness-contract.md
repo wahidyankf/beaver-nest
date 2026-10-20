@@ -32,7 +32,12 @@ Adapters must route to these sources without copying, extending, or weakening th
 
 ## Codex
 
-Codex reads `AGENTS.md` and `.agents/skills/` natively, so rules and skills reach it without an adapter. Its agent adapter carries each agent's identity, canonical route, and tier-mapped model, but Codex has no per-agent tool permission or dispatch allowlist, so an agent's capabilities, constraints, and dispatch limits bind there only through its canonical text. `.codex/config.toml` enables multi-agent work; its `nx-mcp` entry stays but is not reconciled.
+Codex reads `AGENTS.md` and `.agents/skills/` natively. Its agent adapter carries each agent's identity, canonical route, and tier-mapped model, but Codex has no per-agent tool permission or dispatch allowlist, so capabilities, constraints, and dispatch limits bind only through canonical text. `.codex/config.toml` enables multi-agent work; its `nx-mcp` entry stays but is not reconciled.
+
+## Muse
+
+Muse discovers subagents only as `.agents/agents/<id>/AGENT.md`, never under `.muse/agents/`. Adapters carry
+tier-mapped model and effort and are read by no other harness.
 
 ## Instruction Boundary
 
@@ -44,7 +49,7 @@ The initial contract permits only root `AGENTS.md` and its exact Claude import. 
 
 Run `./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo --skipNxCache` to reconcile effective content. The declared roster of harnesses, adapter contracts, and capability mappings lives in `repo-config.yml`; this convention states the parity requirement, not the roster. The parity validator is read-only, network-free, process-free, path-contained, and deterministic. It normalizes only a UTF-8 BOM and CRLF/LF, sorts records ordinally, hashes canonical content with SHA-256, and fails on missing, extra, stale, malformed, content-divergent, or semantically weaker adapters.
 
-Runtime discovery smoke checks remain separate because a deterministic repository validator cannot prove vendor model compliance or locally available tools.
+Runtime discovery smoke checks remain separate.
 
 Use the [harness parity verification workflow](../workflows/quality/harness-parity-verification.md) to record an evidence-backed audit without changing the contract.
 
