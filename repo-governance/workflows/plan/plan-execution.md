@@ -4,49 +4,67 @@ Use only after explicit direction to execute one formal plan. Keep its records t
 
 ## Start
 
-1. Select one backlog or in-progress plan. A verdict from a manually invoked
-   [quality-gate](../quality/plan-quality-gate.md) run, when recorded, is advisory history. Execution starts with or
-   without a verdict and never runs the gate itself; a missing verdict is recorded as
-   `plan-quality-gate: not run (manual-only)`. Upstream Tool Defects remains available direction for a bug-fix plan
-   when explicitly invoked. Before starting, resolve every dependency the plan declares under
-   [Plan-Order Graph](../../conventions/plans/012-plan-order-graph.md): each must already be satisfied,
-   or the run stops and names the unmet one. A missing declaration reads as no dependencies.
-2. Enter the plan's declared `worktrees/<name>/` checkout before any file or Git mutation, initializing it if new, and
-   pass the [integration path](../../conventions/integration-path.md) sync gate there. Executing from a stale branch or the
-   primary checkout is forbidden, save the release invocation that convention exempts; an unclean tree stops the start
-   and goes to the user. Handle rebase conflicts under
-   [owned task sync](../../conventions/no-destructive-git-operations/001-authorized-task-branch-sync.md).
-3. If backlogged, move it with status and stage maps to `plans/in-progress/<slug>/`; never copy it.
-4. Read every plan document before the checklist. Mirror each unchecked executable delivery item into the task list
-   with wording, label, references, and dependency-graph order rather than list position, per
-   [Dependency Graph and Recovery](../../conventions/plans/011-dependency-graph-and-recovery.md). Keep conditional
-   recovery dormant until triggered.
-5. Detect affected active services. Apply [live-service continuity](../../development/live-service-continuity.md), baseline
-   local and routed health and responsiveness against the plan's numeric budget, and activate continuity and rollback
-   work before editing. For Bnest deployments follow the [Caddy workflow](../maintenance/development-caddy-deployment.md) end to end.
-   Never treat a browser refresh or a Tailscale repoint as a normal-release recovery path.
+1. Select one backlog or in-progress plan. A manually invoked
+   [quality-gate](../quality/plan-quality-gate.md) verdict is advisory history when recorded; execution never runs
+   the gate; a missing verdict records as `plan-quality-gate: not run (manual-only)`. Upstream Tool Defects stays
+   available on explicit bug-fix invocation. Resolve declared dependencies per
+   [Plan-Order Graph](../../conventions/plans/012-plan-order-graph.md): each satisfied, or stop, naming the unmet one;
+   a mid-run graph change in a reviewed merged PR is authoritative — adapt.
+2. Enter the plan's declared `worktrees/<name>/` checkout before any file or Git mutation, initializing if new,
+   passing the [integration path](../../conventions/integration-path.md) sync gate there — never a stale branch or the
+   primary checkout, save the exempted release invocation; an unclean tree stops it.
+   Handle rebase conflicts under
+   [owned task sync](../../conventions/no-destructive-git-operations/001-authorized-task-branch-sync.md). Sync from
+   latest `origin/main`, then prove access from the plan's scope — least privilege, infra secrets only
+   for infra scope, portable versus machine-bound per need; missing access stops it.
+3. Promote a backlogged plan by its own pull request moving only it to `plans/in-progress/<slug>/` with status,
+   stage maps, graph node, before Phase 0. Worktree from that trunk; the promotion branch dies at merge.
+4. Read the plan documents. Mirror each unchecked executable item into the task list — wording, label,
+   references, graph order — per
+   [Dependency Graph and Recovery](../../conventions/plans/011-dependency-graph-and-recovery.md); conditional recovery
+   stays dormant until triggered. Mirror the ledger from ignored `local-tmp/` into one per-run Issue as the claim;
+   prove sole ownership via lease, branches, open PRs; stale leases yield only to explicit caller override.
+   Inputs: `plan`; caps `max-worktrees-per-plan-repo`, `max-active-worktrees` (`1`, caller-raised only).
+5. Detect affected services. Apply [live-service continuity](../../development/live-service-continuity.md):
+   baseline local and routed health/responsiveness against the plan's numeric budget; continuity and
+   rollback activate before editing. For Bnest deployments, follow the
+   [Caddy workflow](../maintenance/development-caddy-deployment.md) throughout — never a browser refresh or Tailscale
+   repoint as the recovery path.
 
 ## Execute
 
-1. Dispatch every item whose dependencies are terminal, up to the concurrency cap, reusing the plan's one worktree
-   per repository; a failure blocks only its downstream. Stay authorized, stop at pending `[HUMAN]` input, and pass
-   every phase checkpoint. A more optimal order found mid-run revises `delivery.md` first, keeping acceptance criteria
-   and the end result; a material change re-passes the [quality gate](../quality/plan-quality-gate.md).
-2. Resolve each item atomically: tick the checkbox, record the result, and move on. Check an item only after outcome
-   and proof pass; its dated note records what was produced, what changed, and what was surprising.
-3. Synchronize both lists and activate triggered conditionals. Add discoveries to both only for an existing outcome;
-   label and explain them.
-4. Capture learnings. Search the owning repository's `plans/ideas/`; merge overlap or create one distinct mapped brief
-   and link it.
-5. Run required automation and manual AI journeys. For UI work, execute the planned exact-origin route, state, and
-   viewport matrix after implementation and record each pass or fail; inference cannot replace it. Record
-   safe evidence without secrets or sensitive runtime data.
-6. Fix what fails, including what was already failing; pre-existing is an explanation, not an exemption.
+1. Dispatch dependency-terminal items under the worktree lock: one `in_progress` per worktree, every compute node
+   through one guard per [Resource-Aware Development](../../development/resource-aware-development.md) — a deferred
+   guard queues: retry, never bypass or abandon. Failures block only downstream. Stay authorized, stop at
+   pending `[HUMAN]` input, pass every phase checkpoint. Reorder only by revising `delivery.md`; material
+   changes re-pass the quality gate.
+2. Resolve each item atomically — tick, record, move on with outcome, proof, never batched ticks. Dated notes
+   record product, change, surprise. Ship code in batched cycles — one RED plus one GREEN per batch, selection
+   frozen — per [Batched Cycles](../../development/test-driven-development/001-batched-cycles-in-planned-delivery.md).
+3. Synchronize both lists, activating conditionals; discoveries join both labelled, only for an existing outcome.
+4. Capture learnings: search the owning repository's `plans/ideas/`; merge overlap or link one distinct brief.
+5. Run required automation and manual AI journeys. For UI work, execute the exact-origin route, state, and
+   viewport matrix after implementation, recording each pass or fail — inference never replaces it. Record only
+   safe evidence.
+6. Fix every failure, pre-existing included; it explains, never exempts.
 7. Apply all applicable rules; plans and task lists expand no authority.
-8. A degraded endpoint, exceeded routed-responsiveness budget, or incomplete cutover stops the line. Restore and verify
-   the usable local and routed journey and its numeric budget, update delivery and learnings, then resume.
-9. Land independent delivery units in any order, each refreshed with its gates re-run, per
+8. A degraded endpoint, exceeded routed-responsiveness budget, or incomplete cutover stops the line. Restore and
+   verify the usable local and routed journey and numeric budget, update delivery and learnings, then resume.
+9. Land independent delivery units in any order, refreshed with gates re-run, per
    [Delivery Seams and Ownership](../../development/planning-capabilities/005-delivery-seams-and-ownership.md).
+
+## Status Cadence
+
+Heartbeat every **20 minutes**, five lines — progress, steps left, blockers, decisions, next `[HUMAN]` timing
+(`delivery.md` weights, else `1`) — plus phase boundaries and terminal states. A queued node is reported, never
+a stop. Each heartbeat clears owned subagents and processes of stuck work — `in_progress` with no progress since the
+last heartbeat, no guard or error reason: nudge once, escalate on repeat.
+
+## Goal and Termination
+
+`pass` is the only success: terminal items, permitted archival, landed delivery, `done`, worktree/branches
+gone, learnings routed. `handed-off`: `[AI]` ready, only `[HUMAN]` remains; resume to `pass`. `partial`: open
+findings or unexecuted work stays with blockers and unblockers. `fail`: technical error blocks; both stay.
 
 ## Complete and Archive
 
@@ -54,11 +72,10 @@ Complete and archive per [Completion and Archival](plan-execution-completion-and
 
 ## Pause Safety
 
-Execution stops at arbitrary moments. At any pause the plan carries enough state to resume: the current checkout, last
-terminal gate, next unresolved item, and any partly consumed bounded budget. Resuming continues a budget; it never
-resets one.
+At any pause the plan carries resume state: checkout, last terminal gate, next item, consumed budget.
+Resuming continues a budget; it never resets one.
 
 ## Recovery
 
-Leave interrupted work accurately in progress and resume it without a new gate run. If archival verification
-fails, restore folder, status, and maps. Never leave split copies or archive incomplete work.
+Leave interrupted work in progress; resume without a new gate run. If archival verification fails,
+restore folder, status, maps; never split copies or archive incomplete work.
