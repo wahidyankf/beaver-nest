@@ -1,6 +1,9 @@
 # Push-Hook Verification
 
 Do not pass `--no-verify` to `git push` unless the user explicitly authorizes bypassing hooks for that specific push.
+The one exception — a guard stop before any check started, on a human-authorized push of a task-owned branch whose
+hosted pull-request gate mirrors the hook — lives in
+[Capacity-Held Hook](push-hook-verification/001-capacity-held-hook.md).
 
 ## Requirements
 
