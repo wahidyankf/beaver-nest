@@ -1,19 +1,19 @@
 # Conventions
 
-Conventions define shared choices that keep the repository predictable. They cover areas including naming, directory layout, documentation, configuration, and version-control practices.
+Conventions define choices that keep the repository predictable. They cover naming, directory layout, documentation, configuration, and version-control practices.
 
 Conventions are subordinate to the repository [vision](../vision/README.md) and [principles](../principles/README.md), and take precedence over [development standards](../development/README.md) and [workflows](../workflows/README.md). A convention must change if it conflicts with either higher level; lower-level documents must change if they conflict with a convention.
 
-Development-specific requirements belong in development standards, while ordered procedures belong in workflows.
+Development requirements belong in development standards; ordered procedures belong in workflows.
 
 A convention should state:
 
 - the rule and its scope;
 - the reason for the choice;
-- a concise example when useful; and
+- a concise example when useful;
 - any explicit exception.
 
-Prefer one canonical convention over repeating the same rule in several documents.
+Prefer one canonical convention over repeating a rule.
 
 ## Directory Map
 
@@ -51,6 +51,7 @@ Prefer one canonical convention over repeating the same rule in several document
 - [Pull request boundaries](pull-request-boundaries.md) map one branch to one pull request to one independently shippable delivery unit, split at natural seams.
 - [Pull request merge](pull-request-merge.md) states the five preconditions and the draft lifecycle every merge into `main` must satisfy.
 - [Push-hook verification](push-hook-verification.md) requires root-cause repair and prevents unauthorized bypass of push-time safeguards.
+- [Push-hook verification modules](push-hook-verification/README.md) — capacity-held hook exception.
 - [Release authorization](release-authorization.md) defines when a production release may run and what one authorization for a revision covers.
 - [Rule definition](rules.md) establishes what counts as a repository rule and how its strength, scope, and authority are interpreted.
 - [Runtime flat-file data](runtime-flat-file-data.md) defines the private `data/` layout and safe flat-file persistence boundaries.

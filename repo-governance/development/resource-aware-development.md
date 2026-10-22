@@ -38,7 +38,9 @@ reasons under one status can need opposite responses, so read both.
 - Exit `124` is a limit stopping the work. `hippo.limit.storage-blocked` means safely free space
   first, since waiting frees no disk. `hippo.limit.capacity-deferred` is retryable only when a new
   schema-1 receipt proves `never-started`; a pressure shed or a `started-safety-stop` requires
-  payload-specific recovery.
+  payload-specific recovery. A pre-push hook stopped before any check started may take the one-push exception in
+  [Capacity-Held Hook](../conventions/push-hook-verification/001-capacity-held-hook.md); reaching it never bypasses
+  this guard, and the guard's admission stays exactly as declared.
 - Exit `125` means HIPPO started nothing. `hippo.coordination.protocol-mismatch` is a peer protocol
   mismatch: never retry it; inspect `./hippo status`, then drain or upgrade the incompatible client.
   `hippo.policy.replan-required` and the `hippo.config.*` reasons mean invalid configuration, an
