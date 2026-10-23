@@ -44,6 +44,9 @@ Both key files must exist, be non-empty, and be machine-local like the cookie an
 runtime raises immediately in `:prod` if either is missing or empty, or if the subject does not match
 `mailto:`/`https:`. Add their paths to the same machine-local `deploy-env.sh` file below.
 
+On Linux the slot unit is a systemd user unit, not a plist; read the same values from it, as the
+[Linux hosts](#linux-hosts-systemd-user-units) section shows.
+
 Derive them rather than recalling them. The unit's `EnvironmentVariables` supply the runtime root and the served host; its `ProgramArguments` release path supplies the deploy root:
 
 ```sh
@@ -138,6 +141,56 @@ git worktree list                              # no release worktree remains
 ```
 
 Both readiness probes must report the released revision. Sample the exact origin repeatedly against the [continuity budget](../../repo-governance/development/live-service-continuity.md), and confirm a connected LiveView at the exact served origin for a UI or LiveView change.
+
+## Linux hosts (systemd user units)
+
+On Linux the same transaction runs through systemd user units, and the macOS commands above stay for macOS hosts. The
+units are `bnest-caddy.service` for Caddy, and `bnest-app-blue.service` and `bnest-app-green.service` for the two slots.
+The tool writes each unit, and each `<slot>.env` file that holds the release cookie and secret key base, at mode `600`
+under `~/.config/systemd/user/` and `<deploy-root>/slots/`. Unit files hold no secret value; secrets arrive through the
+`EnvironmentFile`. Commands run over SSH need the user manager's socket first:
+
+```sh
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+```
+
+The Linux path runs on `x64` hosts only (`x86_64`), because it installs the pinned linux amd64 Caddy build. On any other
+architecture the tool stops with a named error before it downloads Caddy, so run this path on an amd64 host.
+
+Derive the configuration from the blue unit. These lines replace the `plist` and `PlistBuddy` reads in
+`bnest_load_deploy_env`; the rest of that function is unchanged:
+
+```sh
+unit="$HOME/.config/systemd/user/bnest-app-blue.service"
+BNEST_RUNTIME_ROOT=$(sed -n 's/^Environment="BNEST_RUNTIME_ROOT=\(.*\)"$/\1/p' "$unit")
+host=$(sed -n 's/^Environment="PHX_HOST=\(.*\)"$/\1/p' "$unit")
+release=$(sed -n 's|^ExecStart=\(.*\)/bin/bnest_app start$|\1|p' "$unit")
+# <deploy-root>/releases/<sha> -> <deploy-root>; the Linux release path has no bin/bnest_app
+BNEST_DEPLOY_ROOT=$(dirname "$(dirname "$release")")
+```
+
+Check the services with `systemctl`, and read the slot logs from files. Each unit appends its output to
+`<deploy-root>/logs/`, so `blue.log`, `blue.error.log`, `green.log`, `green.error.log`, `caddy.log`, and
+`caddy.error.log` are the record; the journal is not used for them:
+
+```sh
+systemctl --user is-active bnest-caddy.service bnest-app-blue.service bnest-app-green.service
+systemctl --user show bnest-app-blue.service -p ActiveState -p NRestarts
+tail -n 50 "$BNEST_DEPLOY_ROOT/logs/blue.error.log"
+```
+
+The slot and Caddy units restart on failure (`Restart=always`, after `RestartSec=5`), where launchd used `KeepAlive`.
+They set `StartLimitIntervalSec=0`, so systemd's default start limit cannot leave a unit `failed` after a crash loop.
+Each install runs `systemctl --user reset-failed` on its unit before it starts the unit, which clears a `failed` state
+left by an earlier unit file. To clear one by hand, run `systemctl --user reset-failed <unit>`. The slot units keep the
+same open-file limits as the macOS plists: 4096 soft and 8192 hard. The unit `PATH` begins with the directory of the
+node that runs the release tool, so a slot finds the same `node` as the release does.
+
+User units stop when the last login session of the user ends, unless lingering is enabled. Enable it once per host,
+as the owner: `loginctl enable-linger "$USER"`.
+
+A changed `PHX_HOST` for a revision that is already built needs no new gate run, because the served host is read when a
+slot starts, not when the artifact is built. Changing the served origin therefore does not repeat the release gates.
 
 ## Recovery
 

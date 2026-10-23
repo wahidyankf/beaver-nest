@@ -169,7 +169,8 @@ The test environment substitutes a deterministic model catalog and session, and 
 - `priv/sqlite_repo/migrations/` contains the versioned, committed SQLite DDL, including persistent schedule and run ledgers.
 - `assets/` contains browser JavaScript, CSS, and declaration boundaries used for strict checking.
 - `config/` contains compile-time and runtime environment configuration.
-- `tools/deployment.mjs` owns machine-local Caddy, release-slot, and rollback primitives.
+- `tools/deployment.mjs` is the release orchestrator: build, migration, convergence, slot preparation and promotion, and rollback. `tools/service-adapter.mjs` picks one service adapter by `process.platform` and fails closed on any platform other than `darwin` or `linux`.
+- `tools/launchd.mjs` is the macOS adapter (LaunchAgents through `launchctl`, Caddy through Homebrew). `tools/systemd.mjs` is the Linux adapter (user units through `systemctl --user`, the pinned Caddy tarball). `tools/deployment-support.mjs` holds the helpers both share.
 - `tools/caddy-config.mjs` builds the reverse-proxy configuration `deployment.mjs` writes into Caddy. It has no side effects, so tests generate the real configuration from it without running a deployment command.
 - `tools/release.mjs` owns the deterministic release transaction and immutable migration identity; its adjacent tests and continuity contract prove recovery, serialization, and future resumable multi-client state.
 - The pinned HIPPO adds routed-service evidence and writes a bounded schema-v5 release summary with hard routed-responsiveness budgets.

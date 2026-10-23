@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -6,29 +6,41 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs";
-import { homedir, tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { join, relative } from "node:path";
 
 import { caddyfile, slots } from "./caddy-config.mjs";
+import {
+  deploymentRoot,
+  fail,
+  output,
+  paths,
+  repositoryRoot,
+  requiredEnvironment,
+  run,
+  state,
+  writeAtomic,
+} from "./deployment-support.mjs";
 import { normalizeProductionOrigin } from "./production-origin.mjs";
+import { serviceAdapter } from "./service-adapter.mjs";
 
 const [command, ...arguments_] = process.argv.slice(2);
-const label = "com.bnest.caddy";
-const repositoryRoot = resolve(import.meta.dirname, "../../..");
-const deploymentRoot = requiredEnvironment("BNEST_DEPLOY_ROOT");
 
 if (inside(repositoryRoot, deploymentRoot)) {
   fail("BNEST_DEPLOY_ROOT must be outside the repository working tree.");
 }
 
-const paths = {
-  config: join(deploymentRoot, "caddy", "Caddyfile"),
-  state: join(deploymentRoot, "state.json"),
-  launchAgents: join(homedir(), "Library", "LaunchAgents"),
-  logs: join(deploymentRoot, "logs"),
-  releases: join(deploymentRoot, "releases"),
-  slots: join(deploymentRoot, "slots"),
-};
+// The platform picks one service adapter; an unsupported platform stops here,
+// before any command runs or any file is written (L-05).
+let service;
+try {
+  service = serviceAdapter(process.platform);
+} catch (error) {
+  fail(error.message);
+}
+
+// Shared code keeps calling `caddyBinary()`; the adapter supplies the path.
+const caddyBinary = () => service.caddyBinary();
 
 switch (command) {
   case "proxy:install":
@@ -56,16 +68,10 @@ switch (command) {
     rollback();
     break;
   case "deploy:retire":
-    retireSlot(requiredSlot());
+    service.retireSlot(requiredSlot());
     break;
   default:
     fail(`Unknown deployment command: ${command || "(missing)"}`);
-}
-
-function requiredEnvironment(name) {
-  const value = process.env[name];
-  if (!value) fail(`${name} must point to machine-local deployment state.`);
-  return resolve(value);
 }
 
 function requiredProductionOrigin() {
@@ -86,137 +92,11 @@ function requiredWebPushSubject() {
   return value;
 }
 
-function fail(message) {
-  process.stderr.write(`bnest deployment: ${message}\n`);
-  process.exitCode = 1;
-  throw new Error(message);
-}
-
 function requiredSlot() {
   const index = arguments_.indexOf("--slot");
   const slot = index >= 0 ? arguments_[index + 1] : undefined;
   if (!(slot in slots)) fail("--slot must be blue or green.");
   return slot;
-}
-
-function run(command_, args, options = {}) {
-  const result = spawnSync(command_, args, {
-    encoding: "utf8",
-    stdio: "inherit",
-    ...options,
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0) fail(`${command_} exited with ${result.status}.`);
-}
-
-function output(command_, args, options = {}) {
-  return execFileSync(command_, args, { encoding: "utf8", ...options }).trim();
-}
-
-function writeAtomic(path, contents) {
-  mkdirSync(dirname(path), { recursive: true });
-  const temporary = join(dirname(path), `.${Date.now()}-${process.pid}.tmp`);
-  writeFileSync(temporary, contents, { encoding: "utf8", mode: 0o600 });
-  renameSync(temporary, path);
-}
-
-function state() {
-  if (!existsSync(paths.state))
-    return {
-      activeSlot: "blue",
-      activeRevision: null,
-      previousSlot: null,
-      previousRevision: null,
-      healthChecked: false,
-    };
-
-  try {
-    const parsed = JSON.parse(readFileSync(paths.state, "utf8"));
-    if (!(parsed.activeSlot in slots)) throw new Error("invalid active slot");
-    return {
-      activeRevision: null,
-      healthChecked: false,
-      previousRevision: null,
-      previousSlot: null,
-      ...parsed,
-    };
-  } catch {
-    fail("Deployment state is unreadable; refuse to route traffic blindly.");
-  }
-}
-
-function caddyBinary() {
-  try {
-    return `${output("brew", ["--prefix", "caddy"])}/bin/caddy`;
-  } catch {
-    return "/opt/homebrew/bin/caddy";
-  }
-}
-
-function ensureCaddy() {
-  if (!existsSync(caddyBinary())) run("brew", ["install", "caddy"]);
-}
-
-function caddyLaunchAgent() {
-  const binary = caddyBinary();
-  const plistPath = join(paths.launchAgents, `${label}.plist`);
-
-  return {
-    path: plistPath,
-    contents: `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>Label</key><string>${label}</string>
-  <key>ProgramArguments</key><array>
-    <string>${binary}</string><string>run</string><string>--config</string><string>${paths.config}</string><string>--adapter</string><string>caddyfile</string>
-  </array>
-  <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>${join(paths.logs, "caddy.log")}</string>
-  <key>StandardErrorPath</key><string>${join(paths.logs, "caddy.error.log")}</string>
-</dict></plist>
-`,
-  };
-}
-
-function installProxy() {
-  ensureCaddy();
-  mkdirSync(paths.logs, { recursive: true });
-  const deploymentState = state();
-  writeAtomic(
-    paths.config,
-    caddyfile(deploymentState.activeSlot, deploymentState.healthChecked),
-  );
-  run(caddyBinary(), ["fmt", "--overwrite", paths.config]);
-  run(caddyBinary(), [
-    "validate",
-    "--config",
-    paths.config,
-    "--adapter",
-    "caddyfile",
-  ]);
-
-  const agent = caddyLaunchAgent();
-  writeAtomic(agent.path, agent.contents);
-  const domain = `gui/${process.getuid()}`;
-
-  const installed = spawnSync("launchctl", ["print", `${domain}/${label}`], {
-    stdio: "ignore",
-  });
-  if (installed.status !== 0) {
-    run("launchctl", ["bootstrap", domain, agent.path]);
-  } else {
-    run(caddyBinary(), [
-      "reload",
-      "--config",
-      paths.config,
-      "--adapter",
-      "caddyfile",
-    ]);
-  }
-
-  process.stdout.write(
-    `Caddy is managed at 127.0.0.1:4100 for ${deploymentState.activeSlot}.\n`,
-  );
 }
 
 function printStatus() {
@@ -260,6 +140,29 @@ function printStatus() {
   if (!caddyReady) process.exitCode = 1;
 }
 
+function installProxy() {
+  service.ensureCaddy();
+  mkdirSync(paths.logs, { recursive: true });
+  const deploymentState = state();
+  writeAtomic(
+    paths.config,
+    caddyfile(deploymentState.activeSlot, deploymentState.healthChecked),
+  );
+  run(caddyBinary(), ["fmt", "--overwrite", paths.config]);
+  run(caddyBinary(), [
+    "validate",
+    "--config",
+    paths.config,
+    "--adapter",
+    "caddyfile",
+  ]);
+  service.installCaddyService();
+
+  process.stdout.write(
+    `Caddy is managed at 127.0.0.1:4100 for ${deploymentState.activeSlot}.\n`,
+  );
+}
+
 function buildRelease() {
   const worktree = requiredEnvironment("BNEST_DEPLOY_WORKTREE");
   if (
@@ -297,13 +200,9 @@ function buildRelease() {
     cwd: source,
     env: { ...process.env, MIX_ENV: "prod", MIX_BUILD_PATH: buildPath },
   });
-  run("ditto", [release, destination]);
+  service.copyRelease(release, destination);
 
   process.stdout.write(`${revision}\n`);
-}
-
-function slotLabel(slot) {
-  return `com.bnest.app.${slot}`;
 }
 
 function prepareSlot(slot) {
@@ -330,36 +229,26 @@ function prepareSlot(slot) {
   const release = join(paths.releases, revision);
   if (!existsSync(release)) fail(`Release ${revision} does not exist.`);
 
-  const plistPath = join(paths.launchAgents, `${slotLabel(slot)}.plist`);
   const logPath = join(paths.logs, `${slot}.log`);
   const errorPath = join(paths.logs, `${slot}.error.log`);
   mkdirSync(paths.logs, { recursive: true });
 
-  writeAtomic(
-    plistPath,
-    launchAgent(
-      slot,
-      release,
-      runtimeRoot,
-      cookie,
-      secretKeyBase,
-      webPushPublicKey,
-      webPushPrivateKey,
-      webPushSubject,
-      productionOrigin.host,
-      revision,
-      logPath,
-      errorPath,
-      familyChatEnabled,
-      familyChatReplyEnabled,
-    ),
-  );
-
-  const domain = `gui/${process.getuid()}`;
-  spawnSync("launchctl", ["bootout", `${domain}/${slotLabel(slot)}`], {
-    stdio: "ignore",
+  // The adapter writes the slot's service definition and starts it.
+  service.installSlotService(slot, {
+    release,
+    runtimeRoot,
+    cookieFile: cookie,
+    secretKeyBaseFile: secretKeyBase,
+    webPushPublicKeyFile: webPushPublicKey,
+    webPushPrivateKeyFile: webPushPrivateKey,
+    webPushSubject,
+    productionHost: productionOrigin.host,
+    revision,
+    logPath,
+    errorPath,
+    familyChatEnabled,
+    familyChatReplyEnabled,
   });
-  run("launchctl", ["bootstrap", domain, plistPath]);
   awaitReady(slot, revision);
   writeAtomic(slotMetadataPath(slot), JSON.stringify({ revision }) + "\n");
 }
@@ -454,78 +343,6 @@ function preparedRevision(slot) {
   }
 }
 
-function launchAgent(
-  slot,
-  release,
-  runtimeRoot,
-  cookieFile,
-  secretKeyBaseFile,
-  webPushPublicKeyFile,
-  webPushPrivateKeyFile,
-  webPushSubject,
-  productionHost,
-  revision,
-  logPath,
-  errorPath,
-  familyChatEnabled = false,
-  familyChatReplyEnabled = false,
-) {
-  const variables = {
-    PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
-    PHX_SERVER: "true",
-    PORT: String(slots[slot]),
-    BNEST_STABLE: "true",
-    BNEST_RUNTIME_ROOT: runtimeRoot,
-    BNEST_REPOSITORY_ROOT: repositoryRoot,
-    BNEST_CODEX_WORKING_DIRECTORY: repositoryRoot,
-    BNEST_COOKIE_SECURE: "true",
-    BNEST_IDENTITY_CUTOVER: "true",
-    BNEST_RELEASE_REVISION: revision,
-    BNEST_DEPLOY_SLOT: slot,
-    PHX_HOST: productionHost,
-    RELEASE_DISTRIBUTION: "none",
-    RELEASE_COOKIE: readFileSync(cookieFile, "utf8").trim(),
-    SECRET_KEY_BASE: readFileSync(secretKeyBaseFile, "utf8").trim(),
-    // Tech-doc 007: deployment passes the existing runtime VAPID values to
-    // both slots unconditionally, not gated on `BNEST_FAMILY_CHAT_ENABLED` --
-    // `runtime.exs` fails closed on boot when these are absent, in every
-    // slot, on every revision, since `config/runtime.exs` runs regardless of
-    // which feature flags are set at runtime.
-    BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE: webPushPublicKeyFile,
-    BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE: webPushPrivateKeyFile,
-    BNEST_WEB_PUSH_SUBJECT: webPushSubject,
-    // Only the Experience Release Procedure's flag-on candidate passes
-    // `--family-chat-enabled`; every ordinary compatibility-release slot
-    // omits the key entirely, so `config/runtime.exs`'s default (`false`)
-    // governs unchanged.
-    ...(familyChatEnabled ? { BNEST_FAMILY_CHAT_ENABLED: "true" } : {}),
-    // The same rule, one flag further in: quoting is gated separately from
-    // the room, so a compatibility-release slot omits this key and serves
-    // `replyTo` to whoever asks without shipping a bundle that asks.
-    ...(familyChatReplyEnabled
-      ? { BNEST_FAMILY_CHAT_REPLY_ENABLED: "true" }
-      : {}),
-  };
-  const environment = Object.entries(variables)
-    .map(
-      ([key, value]) => `<key>${key}</key><string>${escapeXml(value)}</string>`,
-    )
-    .join("");
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>Label</key><string>${slotLabel(slot)}</string>
-  <key>ProgramArguments</key><array><string>${release}/bin/bnest_app</string><string>start</string></array>
-  <key>EnvironmentVariables</key><dict>${environment}</dict>
-  <key>SoftResourceLimits</key><dict><key>NumberOfFiles</key><integer>4096</integer></dict>
-  <key>HardResourceLimits</key><dict><key>NumberOfFiles</key><integer>8192</integer></dict>
-  <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>${logPath}</string><key>StandardErrorPath</key><string>${errorPath}</string>
-</dict></plist>
-`;
-}
-
 function promoteSlot(slot) {
   const revision = preparedRevision(slot);
   awaitReady(slot, revision);
@@ -576,15 +393,6 @@ function rollback() {
   promoteSlot(current.previousSlot);
 }
 
-function retireSlot(slot) {
-  if (state().activeSlot === slot) fail("Refuse to retire the active slot.");
-  spawnSync(
-    "launchctl",
-    ["bootout", `gui/${process.getuid()}/${slotLabel(slot)}`],
-    { stdio: "ignore" },
-  );
-}
-
 function awaitReady(slot, revision) {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
@@ -618,13 +426,6 @@ function awaitReady(slot, revision) {
 function argumentValue(name) {
   const index = arguments_.indexOf(name);
   return index >= 0 ? arguments_[index + 1] : undefined;
-}
-
-function escapeXml(value) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
 }
 
 function inside(parent, child) {
