@@ -165,10 +165,9 @@ function installProxy() {
 
 function buildRelease() {
   const worktree = requiredEnvironment("BNEST_DEPLOY_WORKTREE");
-  if (
-    relative(repositoryRoot, worktree) &&
-    !relative(repositoryRoot, worktree).startsWith("..")
-  ) {
+  // The checkout itself is inside itself, so equality is refused too: the build
+  // would otherwise write into the tree that release:run must keep clean.
+  if (inside(repositoryRoot, worktree)) {
     fail("BNEST_DEPLOY_WORKTREE must be an isolated Git worktree.");
   }
 

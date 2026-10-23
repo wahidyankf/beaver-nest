@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test, { after, beforeEach } from "node:test";
 
@@ -1506,4 +1506,45 @@ test("systemd caddy: a failed validation leaves the live Caddyfile and no tempor
   assert.deepEqual(readdirSync(promotion.caddyDirectory), ["Caddyfile"]);
   assert.deepEqual(readdirSync(promotion.temporary), []);
   assert.equal(existsSync(join(promotion.deployment, "state.json")), false);
+});
+
+// The release build must not run in the checkout the release tool runs from:
+// npm ci and the Mix build write into the tree, and a dirty source makes
+// release:run refuse. A stub npm records any build command that starts.
+test("release build: refuses the release checkout itself as its worktree before any build command", () => {
+  const home = join(systemdRoot, "build-guard-home");
+  const deployment = join(systemdRoot, "build-guard-deployment");
+  const bin = join(systemdRoot, "build-guard-bin");
+  const npmLog = join(systemdRoot, "build-guard-npm.log");
+  mkdirSync(home, { recursive: true });
+  mkdirSync(deployment, { recursive: true });
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(
+    join(bin, "npm"),
+    `#!/bin/sh\necho "$@" >> "${npmLog}"\nexit 1\n`,
+    { mode: 0o755 },
+  );
+  const checkout = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./deployment.mjs", import.meta.url)),
+      "release:build",
+    ],
+    {
+      encoding: "utf8",
+      env: systemdEnvironment({
+        BNEST_DEPLOY_ROOT: deployment,
+        BNEST_DEPLOY_WORKTREE: checkout,
+        HOME: home,
+        PATH: `${bin}:${process.env.PATH}`,
+      }),
+    },
+  );
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr,
+    /BNEST_DEPLOY_WORKTREE must be an isolated Git worktree/u,
+  );
+  assert.equal(existsSync(npmLog), false);
 });
