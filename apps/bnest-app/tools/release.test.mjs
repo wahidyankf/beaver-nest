@@ -14,7 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import test, { after } from "node:test";
+import test, { after, beforeEach } from "node:test";
 
 import {
   boundedReleaseEnvironment,
@@ -816,12 +816,23 @@ const systemdDeployment = join(systemdRoot, "deployment");
 const systemdHome = join(systemdRoot, "home");
 const systemdLog = join(systemdRoot, "systemctl.log");
 const systemdBin = join(systemdRoot, "bin");
+// Flag files that make the stub report a unit inactive, or reset-failed fail.
+const systemdInactive = join(systemdRoot, "units-inactive");
 after(() => rmSync(systemdRoot, { recursive: true, force: true }));
+// Every test starts with an empty call log, so no assertion can pass on a call
+// that an earlier test made.
+beforeEach(() => writeFileSync(systemdLog, ""));
 
 mkdirSync(systemdBin, { recursive: true });
 writeFileSync(
   join(systemdBin, "systemctl"),
-  `#!/bin/sh\necho "$@" >> "${systemdLog}"\nexit 0\n`,
+  `#!/bin/sh
+echo "$@" >> "${systemdLog}"
+case "$*" in
+  *is-active*) [ -e "${systemdInactive}" ] && exit 3 ;;
+esac
+exit 0
+`,
   { mode: 0o755 },
 );
 mkdirSync(join(systemdDeployment, "secrets"), { recursive: true, mode: 0o700 });
@@ -892,6 +903,19 @@ function unitFile(name) {
   return join(systemdHome, ".config", "systemd", "user", name);
 }
 
+function systemctlCalls() {
+  return readFileSync(systemdLog, "utf8").split("\n").filter(Boolean);
+}
+
+async function withStubFlag(flag, body) {
+  writeFileSync(flag, "");
+  try {
+    return await body();
+  } finally {
+    rmSync(flag, { force: true });
+  }
+}
+
 test("systemd unit: writes the slot unit with restart-always and the plist's open-file limits", async () => {
   await withEnvironment(systemdEnvironment(), async () => {
     const systemd = await import("./systemd.mjs");
@@ -902,7 +926,11 @@ test("systemd unit: writes the slot unit with restart-always and the plist's ope
     assert.doesNotMatch(unit, /KeepAlive/u);
     assert.match(unit, /^ExecStart=.*bin\/bnest_app"? start$/mu);
     assert.match(unit, /PHX_SERVER=true/u);
-    assert.match(readFileSync(systemdLog, "utf8"), /^--user /mu);
+    assert.deepEqual(systemctlCalls(), [
+      "--user daemon-reload",
+      "--user enable bnest-app-blue.service",
+      "--user restart bnest-app-blue.service",
+    ]);
   });
 });
 
@@ -987,11 +1015,27 @@ test("systemd unit: writes the Caddy unit at mode 600 and reloads it through sys
     const unit = readFileSync(unitPath, "utf8");
     assert.match(unit, /^ExecStart=.* run --config .* --adapter caddyfile$/mu);
     assert.match(unit, /^Restart=always$/mu);
-    const calls = readFileSync(systemdLog, "utf8");
-    assert.match(calls, /^--user daemon-reload$/mu);
     // The stub reports the unit active, so an existing Caddy is reloaded.
-    assert.match(calls, /^--user reload bnest-caddy\.service$/mu);
+    assert.deepEqual(systemctlCalls(), [
+      "--user daemon-reload",
+      "--user is-active --quiet bnest-caddy.service",
+      "--user reload bnest-caddy.service",
+    ]);
   });
+});
+
+test("systemd unit: starts a Caddy unit that is not active with enable --now", async () => {
+  await withEnvironment(systemdEnvironment(), () =>
+    withStubFlag(systemdInactive, async () => {
+      const systemd = await import("./systemd.mjs");
+      systemd.installCaddyService();
+      assert.deepEqual(systemctlCalls(), [
+        "--user daemon-reload",
+        "--user is-active --quiet bnest-caddy.service",
+        "--user enable --now bnest-caddy.service",
+      ]);
+    }),
+  );
 });
 
 test("systemd caddy: installs the pinned Caddy tarball after its sha512 check, never through brew", () => {
@@ -1087,10 +1131,9 @@ test("systemd unit: retires a slot through systemctl --user and refuses the acti
       process.exitCode = savedExitCode;
     }
     systemd.retireSlot("green");
-    assert.match(
-      readFileSync(systemdLog, "utf8"),
-      /^--user disable --now bnest-app-green\.service$/mu,
-    );
+    assert.deepEqual(systemctlCalls(), [
+      "--user disable --now bnest-app-green.service",
+    ]);
   });
 });
 
