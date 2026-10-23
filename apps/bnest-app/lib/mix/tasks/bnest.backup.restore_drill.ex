@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Bnest.Backup.RestoreDrill do
     {:ok, _apps} = Application.ensure_all_started(:exqlite)
 
     result = execute(arguments)
-    Enum.each(result.lines, &Mix.shell().info/1)
+    Enum.each(result.lines, fn line -> Mix.shell().info(line) end)
     if result.exit_status != 0, do: exit({:shutdown, result.exit_status})
   end
 
