@@ -87,20 +87,30 @@ export function installCaddyService() {
   const unit = unitNames.caddy;
   writeAtomic(unitPath(unit), caddyUnit());
   systemctl("daemon-reload");
-  if (serviceActive(unit)) systemctl("reload", unit);
-  else systemctl("enable", "--now", unit);
+  if (serviceActive(unit)) {
+    systemctl("reload", unit);
+  } else {
+    resetFailed(unit);
+    systemctl("enable", "--now", unit);
+  }
 }
 
+// Both the Caddy and slot units use this restart policy, which matches launchd's
+// KeepAlive: a crash restarts after five seconds, and the start limit is off, so
+// no run of crashes ends the restarts. systemd's default limit (five starts in
+// ten seconds) would leave the unit failed.
 function caddyUnit() {
   return [
     "[Unit]",
     "Description=Bnest Caddy reverse proxy",
+    "StartLimitIntervalSec=0",
     "",
     "[Service]",
     "Type=simple",
     `ExecStart=${caddyBinary()} run --config ${paths.config} --adapter caddyfile`,
     `ExecReload=${caddyBinary()} reload --config ${paths.config} --adapter caddyfile`,
     "Restart=always",
+    "RestartSec=5",
     `StandardOutput=append:${join(paths.logs, "caddy.log")}`,
     `StandardError=append:${join(paths.logs, "caddy.error.log")}`,
     "",
@@ -118,7 +128,15 @@ export function installSlotService(slot, options) {
   writeAtomic(unitPath(unit), slotUnit(slot, { ...options, environmentPath }));
   systemctl("daemon-reload");
   systemctl("enable", unit);
+  resetFailed(unit);
   systemctl("restart", unit);
+}
+
+// Clears a failed state, such as one a unit file with the default start limit
+// left behind. A unit systemd does not know cannot be failed, so a failure here
+// is not an error.
+function resetFailed(unit) {
+  spawnSync("systemctl", ["--user", "reset-failed", unit], { stdio: "ignore" });
 }
 
 // Stopping a slot that is not routed. Like the launchd adapter, a unit that is
@@ -164,6 +182,7 @@ function slotUnit(slot, options) {
   return [
     "[Unit]",
     `Description=Bnest app slot ${slot}`,
+    "StartLimitIntervalSec=0",
     "",
     "[Service]",
     "Type=simple",
@@ -173,6 +192,7 @@ function slotUnit(slot, options) {
       ([key, value]) => `Environment=${systemdQuote(`${key}=${value}`)}`,
     ),
     "Restart=always",
+    "RestartSec=5",
     "LimitNOFILE=4096:8192",
     `StandardOutput=append:${options.logPath}`,
     `StandardError=append:${options.errorPath}`,

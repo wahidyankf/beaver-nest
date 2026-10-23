@@ -816,8 +816,10 @@ const systemdDeployment = join(systemdRoot, "deployment");
 const systemdHome = join(systemdRoot, "home");
 const systemdLog = join(systemdRoot, "systemctl.log");
 const systemdBin = join(systemdRoot, "bin");
-// Flag files that make the stub report a unit inactive, or reset-failed fail.
+// Flag files that make the stub report a unit inactive, or reset-failed fail
+// as it does for a unit it does not know.
 const systemdInactive = join(systemdRoot, "units-inactive");
+const systemdUnknown = join(systemdRoot, "units-unknown");
 after(() => rmSync(systemdRoot, { recursive: true, force: true }));
 // Every test starts with an empty call log, so no assertion can pass on a call
 // that an earlier test made.
@@ -830,6 +832,7 @@ writeFileSync(
 echo "$@" >> "${systemdLog}"
 case "$*" in
   *is-active*) [ -e "${systemdInactive}" ] && exit 3 ;;
+  *reset-failed*) [ -e "${systemdUnknown}" ] && exit 5 ;;
 esac
 exit 0
 `,
@@ -911,6 +914,14 @@ function systemctlCalls() {
   return readFileSync(systemdLog, "utf8").split("\n").filter(Boolean);
 }
 
+// The lines of one section of a unit file, without its header.
+function unitSection(unit, name) {
+  const section = unit
+    .split(/^\[/mu)
+    .find((part) => part.startsWith(`${name}]`));
+  return section ? section.split("\n") : [];
+}
+
 async function withStubFlag(flag, body) {
   writeFileSync(flag, "");
   try {
@@ -926,6 +937,8 @@ test("systemd unit: writes the slot unit with restart-always and the plist's ope
     systemd.installSlotService("blue", slotOptions());
     const unit = readFileSync(unitFile(systemd.unitNames.blue), "utf8");
     assert.match(unit, /^Restart=always$/mu);
+    assert.ok(unitSection(unit, "Service").includes("RestartSec=5"));
+    assert.ok(unitSection(unit, "Unit").includes("StartLimitIntervalSec=0"));
     assert.match(unit, /^LimitNOFILE=4096:8192$/mu);
     assert.doesNotMatch(unit, /KeepAlive/u);
     assert.match(unit, /^ExecStart=.*bin\/bnest_app"? start$/mu);
@@ -933,9 +946,25 @@ test("systemd unit: writes the slot unit with restart-always and the plist's ope
     assert.deepEqual(systemctlCalls(), [
       "--user daemon-reload",
       "--user enable bnest-app-blue.service",
+      "--user reset-failed bnest-app-blue.service",
       "--user restart bnest-app-blue.service",
     ]);
   });
+});
+
+test("systemd unit: still restarts a slot when reset-failed reports the unit unknown", async () => {
+  await withEnvironment(systemdEnvironment(), () =>
+    withStubFlag(systemdUnknown, async () => {
+      const systemd = await import("./systemd.mjs");
+      systemd.installSlotService("blue", slotOptions());
+      assert.deepEqual(systemctlCalls(), [
+        "--user daemon-reload",
+        "--user enable bnest-app-blue.service",
+        "--user reset-failed bnest-app-blue.service",
+        "--user restart bnest-app-blue.service",
+      ]);
+    }),
+  );
 });
 
 test("systemd unit: holds no secret value and reads the secrets from a mode 600 EnvironmentFile", async () => {
@@ -1086,6 +1115,8 @@ test("systemd unit: writes the Caddy unit at mode 600 and reloads it through sys
     const unit = readFileSync(unitPath, "utf8");
     assert.match(unit, /^ExecStart=.* run --config .* --adapter caddyfile$/mu);
     assert.match(unit, /^Restart=always$/mu);
+    assert.ok(unitSection(unit, "Service").includes("RestartSec=5"));
+    assert.ok(unitSection(unit, "Unit").includes("StartLimitIntervalSec=0"));
     // The stub reports the unit active, so an existing Caddy is reloaded.
     assert.deepEqual(systemctlCalls(), [
       "--user daemon-reload",
@@ -1103,6 +1134,7 @@ test("systemd unit: starts a Caddy unit that is not active with enable --now", a
       assert.deepEqual(systemctlCalls(), [
         "--user daemon-reload",
         "--user is-active --quiet bnest-caddy.service",
+        "--user reset-failed bnest-caddy.service",
         "--user enable --now bnest-caddy.service",
       ]);
     }),

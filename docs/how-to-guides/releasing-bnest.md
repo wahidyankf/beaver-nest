@@ -176,9 +176,12 @@ systemctl --user show bnest-app-blue.service -p ActiveState -p NRestarts
 tail -n 50 "$BNEST_DEPLOY_ROOT/logs/blue.error.log"
 ```
 
-The slot units restart on failure (`Restart=always`), where launchd used `KeepAlive`. They keep the same open-file
-limits as the macOS plists: 4096 soft and 8192 hard. The unit `PATH` begins with the directory of the node that runs
-the release tool, so a slot finds the same `node` as the release does.
+The slot and Caddy units restart on failure (`Restart=always`, after `RestartSec=5`), where launchd used `KeepAlive`.
+They set `StartLimitIntervalSec=0`, so systemd's default start limit cannot leave a unit `failed` after a crash loop.
+Each install runs `systemctl --user reset-failed` on its unit before it starts the unit, which clears a `failed` state
+left by an earlier unit file. To clear one by hand, run `systemctl --user reset-failed <unit>`. The slot units keep the
+same open-file limits as the macOS plists: 4096 soft and 8192 hard. The unit `PATH` begins with the directory of the
+node that runs the release tool, so a slot finds the same `node` as the release does.
 
 User units stop when the last login session of the user ends, unless lingering is enabled. Enable it once per host,
 as the owner: `loginctl enable-linger "$USER"`.
