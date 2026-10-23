@@ -19,6 +19,7 @@ import { dirname, join } from "node:path";
 
 import { slots } from "./caddy-config.mjs";
 import {
+  deploymentRoot,
   fail,
   paths,
   repositoryRoot,
@@ -104,6 +105,10 @@ export function installCaddyService() {
 // KeepAlive: a crash restarts after five seconds, and the start limit is off, so
 // no run of crashes ends the restarts. systemd's default limit (five starts in
 // ten seconds) would leave the unit failed.
+//
+// Both units start in the deployment root, which exists before either starts
+// and is never retired, unlike a release directory. Without it, a crash dump
+// lands in the user's home directory.
 function caddyUnit() {
   return [
     "[Unit]",
@@ -112,6 +117,7 @@ function caddyUnit() {
     "",
     "[Service]",
     "Type=simple",
+    `WorkingDirectory=${deploymentRoot}`,
     `ExecStart=${caddyBinary()} run --config ${paths.config} --adapter caddyfile`,
     `ExecReload=${caddyBinary()} reload --config ${paths.config} --adapter caddyfile`,
     "Restart=always",
@@ -193,6 +199,7 @@ function slotUnit(slot, options) {
     "",
     "[Service]",
     "Type=simple",
+    `WorkingDirectory=${deploymentRoot}`,
     `ExecStart=${options.release}/bin/bnest_app start`,
     `EnvironmentFile=${options.environmentPath}`,
     ...Object.entries(variables).map(

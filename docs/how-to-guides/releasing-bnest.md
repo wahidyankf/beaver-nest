@@ -186,6 +186,11 @@ left by an earlier unit file. To clear one by hand, run `systemctl --user reset-
 same open-file limits as the macOS plists: 4096 soft and 8192 hard. The unit `PATH` begins with the directory of the
 node that runs the release tool, so a slot finds the same `node` as the release does.
 
+Both units set `WorkingDirectory` to `<deploy-root>`. That directory exists before either unit starts and is never
+retired. Erlang writes `erl_crash.dump` to the working directory, so a crash dump lands under `<deploy-root>` and not in
+the home directory. A release directory is not used for this: retirement removes old release directories, and systemd
+cannot start a unit whose working directory is missing.
+
 User units stop when the last login session of the user ends, unless lingering is enabled. Enable it once per host,
 as the owner: `loginctl enable-linger "$USER"`.
 

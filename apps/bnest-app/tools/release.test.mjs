@@ -1301,6 +1301,25 @@ test("systemd unit: retires a slot through systemctl --user and refuses the acti
   });
 });
 
+test("systemd unit: starts the slot and Caddy units in the deployment root, not the home directory", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    systemd.installSlotService("blue", slotOptions());
+    systemd.installCaddyService();
+    // Erlang writes erl_crash.dump to the working directory. A unit with none
+    // inherits the user's home directory, so the root must be named.
+    for (const unit of [systemd.unitNames.blue, systemd.unitNames.caddy]) {
+      const text = readFileSync(unitFile(unit), "utf8");
+      assert.ok(
+        unitSection(text, "Service").includes(
+          `WorkingDirectory=${systemdDeployment}`,
+        ),
+        `${unit} sets its working directory to the deployment root`,
+      );
+    }
+  });
+});
+
 test("systemd unit: copies a release tree with its file modes intact", async () => {
   await withEnvironment(systemdEnvironment(), async () => {
     const systemd = await import("./systemd.mjs");
