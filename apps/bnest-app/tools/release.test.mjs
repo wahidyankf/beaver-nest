@@ -1369,3 +1369,122 @@ test("fail-closed: an unsupported platform stops the tool before any file is wri
   assert.deepEqual(readdirSync(home, { recursive: true }), []);
   assert.deepEqual(readdirSync(deployment, { recursive: true }), []);
 });
+
+// Linux promotion. The new Caddyfile is written beside the live one, so the
+// rename that installs it stays on one filesystem; /tmp is often another one.
+// The child runs the real deploy:promote under a Linux platform preload, with a
+// stub caddy that records each configuration path it is given, a stub curl
+// that reports the candidate revision as ready, and a private TMPDIR, so any
+// temporary file left behind is visible.
+const promotionBin = join(systemdRoot, "promotion-bin");
+const promotionCaddyLog = join(systemdRoot, "promotion-caddy.log");
+const promotionInvalid = join(systemdRoot, "promotion-caddy-invalid");
+const promotionPreload = join(systemdRoot, "report-linux.cjs");
+mkdirSync(promotionBin, { recursive: true });
+writeFileSync(
+  join(promotionBin, "curl"),
+  `#!/bin/sh
+case " $* " in
+  *" -w "*) printf '200' ;;
+  *) printf 'HTTP/1.1 200 OK\\r\\nx-bnest-revision: ${revision}\\r\\n' ;;
+esac
+`,
+  { mode: 0o755 },
+);
+writeFileSync(
+  promotionPreload,
+  'Object.defineProperty(process, "platform", { value: "linux" });\n',
+);
+
+function preparePromotion(name) {
+  const home = join(systemdRoot, `${name}-home`);
+  const deployment = join(systemdRoot, `${name}-deployment`);
+  const temporary = join(systemdRoot, `${name}-tmp`);
+  const caddyDirectory = join(deployment, "caddy");
+  mkdirSync(join(deployment, "slots"), { recursive: true });
+  mkdirSync(caddyDirectory, { recursive: true });
+  mkdirSync(temporary, { recursive: true });
+  writeFileSync(
+    join(deployment, "slots", "green.json"),
+    `${JSON.stringify({ revision })}\n`,
+  );
+  const caddy = join(home, ".local", "bin");
+  mkdirSync(caddy, { recursive: true });
+  writeFileSync(
+    join(caddy, "caddy"),
+    `#!/bin/sh
+echo "$@" >> "${promotionCaddyLog}"
+if [ "$1" = "validate" ] && [ -e "${promotionInvalid}" ]; then exit 1; fi
+exit 0
+`,
+    { mode: 0o755 },
+  );
+  writeFileSync(promotionCaddyLog, "");
+  return { caddyDirectory, deployment, home, temporary };
+}
+
+function promoteGreen({ deployment, home, temporary }) {
+  return spawnSync(
+    process.execPath,
+    [
+      "--require",
+      promotionPreload,
+      fileURLToPath(new URL("./deployment.mjs", import.meta.url)),
+      "deploy:promote",
+      "--slot",
+      "green",
+    ],
+    {
+      encoding: "utf8",
+      env: systemdEnvironment({
+        BNEST_DEPLOY_ROOT: deployment,
+        HOME: home,
+        PATH: `${promotionBin}:${process.env.PATH}`,
+        TMPDIR: temporary,
+      }),
+    },
+  );
+}
+
+test("systemd caddy: validates and renames a Caddyfile written beside the live one", () => {
+  const promotion = preparePromotion("promote");
+  const result = promoteGreen(promotion);
+  assert.equal(result.status, 0, result.stderr);
+
+  const calls = readFileSync(promotionCaddyLog, "utf8")
+    .split("\n")
+    .filter(Boolean);
+  const configPaths = calls.map((call) => call.match(/--config (\S+)/u)?.[1]);
+  for (const [index, call] of calls.entries()) {
+    if (!/^(validate|reload) /u.test(call)) continue;
+    assert.equal(
+      dirname(configPaths[index]),
+      promotion.caddyDirectory,
+      `${call.split(" ")[0]} reads the candidate beside the live Caddyfile`,
+    );
+  }
+  assert.match(
+    readFileSync(join(promotion.caddyDirectory, "Caddyfile"), "utf8"),
+    /reverse_proxy 127\.0\.0\.1:4001/u,
+  );
+  assert.deepEqual(readdirSync(promotion.caddyDirectory), ["Caddyfile"]);
+  assert.deepEqual(readdirSync(promotion.temporary), []);
+});
+
+test("systemd caddy: a failed validation leaves the live Caddyfile and no temporary file", () => {
+  const promotion = preparePromotion("promote-invalid");
+  const live = join(promotion.caddyDirectory, "Caddyfile");
+  writeFileSync(live, "previous configuration\n");
+  writeFileSync(promotionInvalid, "");
+  let result;
+  try {
+    result = promoteGreen(promotion);
+  } finally {
+    rmSync(promotionInvalid, { force: true });
+  }
+  assert.notEqual(result.status, 0);
+  assert.equal(readFileSync(live, "utf8"), "previous configuration\n");
+  assert.deepEqual(readdirSync(promotion.caddyDirectory), ["Caddyfile"]);
+  assert.deepEqual(readdirSync(promotion.temporary), []);
+  assert.equal(existsSync(join(promotion.deployment, "state.json")), false);
+});

@@ -4,10 +4,10 @@ import {
   mkdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 import { caddyfile, slots } from "./caddy-config.mjs";
 import {
@@ -349,30 +349,38 @@ function promoteSlot(slot) {
   const current = state();
   if (current.activeSlot === slot) fail(`${slot} is already active.`);
 
+  // The candidate sits beside the live Caddyfile, so the final rename stays on
+  // one filesystem. The OS temp directory can be another filesystem, where
+  // rename fails with EXDEV. The finally block removes a candidate that was not
+  // installed.
   const temporary = join(
-    tmpdir(),
-    `bnest-caddy-${slot}-${process.pid}.caddyfile`,
+    dirname(paths.config),
+    `.Caddyfile.${slot}.${process.pid}.tmp`,
   );
-  writeFileSync(temporary, caddyfile(slot, true), {
-    encoding: "utf8",
-    mode: 0o600,
-  });
-  run(caddyBinary(), ["fmt", "--overwrite", temporary]);
-  run(caddyBinary(), [
-    "validate",
-    "--config",
-    temporary,
-    "--adapter",
-    "caddyfile",
-  ]);
-  run(caddyBinary(), [
-    "reload",
-    "--config",
-    temporary,
-    "--adapter",
-    "caddyfile",
-  ]);
-  renameSync(temporary, paths.config);
+  try {
+    writeFileSync(temporary, caddyfile(slot, true), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    run(caddyBinary(), ["fmt", "--overwrite", temporary]);
+    run(caddyBinary(), [
+      "validate",
+      "--config",
+      temporary,
+      "--adapter",
+      "caddyfile",
+    ]);
+    run(caddyBinary(), [
+      "reload",
+      "--config",
+      temporary,
+      "--adapter",
+      "caddyfile",
+    ]);
+    renameSync(temporary, paths.config);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
   writeAtomic(
     paths.state,
     JSON.stringify({
