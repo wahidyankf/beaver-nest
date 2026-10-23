@@ -835,6 +835,10 @@ exit 0
 `,
   { mode: 0o755 },
 );
+// The macOS adapter runs in one test, so its launchctl calls need a stub too.
+writeFileSync(join(systemdBin, "launchctl"), "#!/bin/sh\nexit 0\n", {
+  mode: 0o755,
+});
 mkdirSync(join(systemdDeployment, "secrets"), { recursive: true, mode: 0o700 });
 mkdirSync(join(systemdDeployment, "logs"), { recursive: true });
 mkdirSync(systemdHome, { recursive: true });
@@ -983,6 +987,73 @@ test("systemd unit: carries the family-chat flags only when they are given", asy
     systemd.installSlotService("green", slotOptions());
     const plain = readFileSync(unitFile(systemd.unitNames.green), "utf8");
     assert.doesNotMatch(plain, /BNEST_FAMILY_CHAT/u);
+  });
+});
+
+function unescapeXml(text) {
+  return text
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
+}
+
+// The EnvironmentVariables dictionary of a launchd plist.
+function launchdVariables(plist) {
+  const dictionary = plist.match(
+    /<key>EnvironmentVariables<\/key><dict>(.*?)<\/dict>/su,
+  )[1];
+  return Object.fromEntries(
+    [
+      ...dictionary.matchAll(/<key>([^<]+)<\/key><string>([^<]*)<\/string>/gu),
+    ].map(([, key, value]) => [key, unescapeXml(value)]),
+  );
+}
+
+// The Environment lines of a systemd unit, with systemdQuote undone.
+function unitVariables(unit) {
+  return Object.fromEntries(
+    [...unit.matchAll(/^Environment="(.*)"$/gmu)].map(([, quoted]) => {
+      const text = quoted.replace(/%%/gu, "%").replace(/\\(.)/gu, "$1");
+      const separator = text.indexOf("=");
+      return [text.slice(0, separator), text.slice(separator + 1)];
+    }),
+  );
+}
+
+test("systemd unit: carries every launchd slot variable with the same value, except the secrets", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    const launchd = await import("./launchd.mjs");
+    const { paths } = await import("./deployment-support.mjs");
+    const options = slotOptions({
+      familyChatEnabled: true,
+      familyChatReplyEnabled: true,
+    });
+    // The macOS adapter writes its real plist here, so the comparison reads the
+    // allowlist the launchd path ships rather than a copy of it.
+    launchd.installSlotService("green", options);
+    systemd.installSlotService("green", options);
+    const expected = launchdVariables(
+      readFileSync(
+        join(paths.launchAgents, "com.bnest.app.green.plist"),
+        "utf8",
+      ),
+    );
+    const actual = unitVariables(
+      readFileSync(unitFile(systemd.unitNames.green), "utf8"),
+    );
+    const secrets = ["RELEASE_COOKIE", "SECRET_KEY_BASE"];
+    for (const secret of secrets) {
+      assert.ok(secret in expected, `launchd carries ${secret}`);
+      assert.equal(secret in actual, false, `the unit omits ${secret}`);
+    }
+    for (const [key, value] of Object.entries(expected)) {
+      if (secrets.includes(key)) continue;
+      assert.ok(key in actual, `the systemd unit carries ${key}`);
+      // Each adapter builds its own PATH; the PATH test above checks this one.
+      if (key !== "PATH")
+        assert.equal(actual[key], value, `${key} has the launchd value`);
+    }
   });
 });
 
