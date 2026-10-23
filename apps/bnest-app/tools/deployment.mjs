@@ -22,12 +22,21 @@ import {
   writeAtomic,
 } from "./deployment-support.mjs";
 import { normalizeProductionOrigin } from "./production-origin.mjs";
-import * as service from "./launchd.mjs";
+import { serviceAdapter } from "./service-adapter.mjs";
 
 const [command, ...arguments_] = process.argv.slice(2);
 
 if (inside(repositoryRoot, deploymentRoot)) {
   fail("BNEST_DEPLOY_ROOT must be outside the repository working tree.");
+}
+
+// The platform picks one service adapter; an unsupported platform stops here,
+// before any command runs or any file is written (L-05).
+let service;
+try {
+  service = serviceAdapter(process.platform);
+} catch (error) {
+  fail(error.message);
 }
 
 // Shared code keeps calling `caddyBinary()`; the adapter supplies the path.

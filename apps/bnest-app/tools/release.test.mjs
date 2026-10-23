@@ -1,7 +1,20 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import test from "node:test";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import test, { after } from "node:test";
 
 import {
   boundedReleaseEnvironment,
@@ -792,4 +805,339 @@ test("accepts only a bare HTTPS production origin", () => {
     "not-an-origin",
   ])
     assert.throws(() => normalizeProductionOrigin(value), /HTTPS origin/u);
+});
+
+// Linux deployment support (D-11, L-01 to L-11). One isolated fixture serves
+// every case: the adapters read their roots from the environment when they
+// load, so each case sets the same values. `systemctl` is a stub that records
+// its calls; no case reaches a real service manager.
+const systemdRoot = mkdtempSync(join(tmpdir(), "bnest-systemd-test-"));
+const systemdDeployment = join(systemdRoot, "deployment");
+const systemdHome = join(systemdRoot, "home");
+const systemdLog = join(systemdRoot, "systemctl.log");
+const systemdBin = join(systemdRoot, "bin");
+after(() => rmSync(systemdRoot, { recursive: true, force: true }));
+
+mkdirSync(systemdBin, { recursive: true });
+writeFileSync(
+  join(systemdBin, "systemctl"),
+  `#!/bin/sh\necho "$@" >> "${systemdLog}"\nexit 0\n`,
+  { mode: 0o755 },
+);
+mkdirSync(join(systemdDeployment, "secrets"), { recursive: true, mode: 0o700 });
+mkdirSync(join(systemdDeployment, "logs"), { recursive: true });
+mkdirSync(systemdHome, { recursive: true });
+
+function writeSecret(name, value) {
+  const path = join(systemdDeployment, "secrets", name);
+  writeFileSync(path, `${value}\n`, { mode: 0o600 });
+  return path;
+}
+
+const syntheticSecrets = {
+  cookie: "synthetic-cookie-value",
+  secretKeyBase: "synthetic-secret-key-base-value",
+};
+const secretFiles = {
+  cookie: writeSecret("release.cookie", syntheticSecrets.cookie),
+  secretKeyBase: writeSecret("secret_key_base", syntheticSecrets.secretKeyBase),
+  webPushPublic: writeSecret("web_push_public_key", "synthetic-public-key"),
+  webPushPrivate: writeSecret("web_push_private_key", "synthetic-private-key"),
+};
+
+function systemdEnvironment(overrides = {}) {
+  return {
+    BNEST_DEPLOY_ROOT: systemdDeployment,
+    HOME: systemdHome,
+    PATH: `${systemdBin}:${process.env.PATH}`,
+    ...overrides,
+  };
+}
+
+async function withEnvironment(variables, body) {
+  const saved = Object.fromEntries(
+    Object.keys(variables).map((key) => [key, process.env[key]]),
+  );
+  Object.assign(process.env, variables);
+  try {
+    return await body();
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+function slotOptions(overrides = {}) {
+  return {
+    release: join(systemdDeployment, "releases", revision),
+    runtimeRoot: join(systemdDeployment, "runtime"),
+    cookieFile: secretFiles.cookie,
+    secretKeyBaseFile: secretFiles.secretKeyBase,
+    webPushPublicKeyFile: secretFiles.webPushPublic,
+    webPushPrivateKeyFile: secretFiles.webPushPrivate,
+    webPushSubject: "mailto:synthetic@example.test",
+    productionHost: "service.example",
+    revision,
+    logPath: join(systemdDeployment, "logs", "blue.log"),
+    errorPath: join(systemdDeployment, "logs", "blue.error.log"),
+    familyChatEnabled: false,
+    familyChatReplyEnabled: false,
+    ...overrides,
+  };
+}
+
+function unitFile(name) {
+  return join(systemdHome, ".config", "systemd", "user", name);
+}
+
+test("systemd unit: writes the slot unit with restart-always and the plist's open-file limits", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    systemd.installSlotService("blue", slotOptions());
+    const unit = readFileSync(unitFile(systemd.unitNames.blue), "utf8");
+    assert.match(unit, /^Restart=always$/mu);
+    assert.match(unit, /^LimitNOFILE=4096:8192$/mu);
+    assert.doesNotMatch(unit, /KeepAlive/u);
+    assert.match(unit, /^ExecStart=.*bin\/bnest_app"? start$/mu);
+    assert.match(unit, /PHX_SERVER=true/u);
+    assert.match(readFileSync(systemdLog, "utf8"), /^--user /mu);
+  });
+});
+
+test("systemd unit: holds no secret value and reads the secrets from a mode 600 EnvironmentFile", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    systemd.installSlotService("blue", slotOptions());
+    const unit = readFileSync(unitFile(systemd.unitNames.blue), "utf8");
+    for (const value of Object.values(syntheticSecrets))
+      assert.equal(unit.includes(value), false);
+    assert.match(unit, /^EnvironmentFile=/mu);
+    const environmentFile = unit
+      .match(/^EnvironmentFile=(.+)$/mu)[1]
+      .replace(/^"(.*)"$/u, "$1");
+    const contents = readFileSync(environmentFile, "utf8");
+    assert.match(contents, /RELEASE_COOKIE=/u);
+    assert.ok(contents.includes(syntheticSecrets.cookie));
+    assert.equal(statSync(environmentFile).mode & 0o777, 0o600);
+  });
+});
+
+test("systemd unit: puts a PATH that names node's directory in the unit", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    systemd.installSlotService("blue", slotOptions());
+    const unit = readFileSync(unitFile(systemd.unitNames.blue), "utf8");
+    const pathLine = unit.match(/^Environment="PATH=(.*)"$/mu);
+    assert.ok(pathLine, "the unit carries an Environment PATH line");
+    assert.ok(
+      pathLine[1].split(":").includes(dirname(process.execPath)),
+      "the PATH names the directory of the node that runs the tool",
+    );
+  });
+});
+
+test("systemd unit: carries the family-chat flags only when they are given", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    systemd.installSlotService(
+      "green",
+      slotOptions({
+        familyChatEnabled: true,
+        familyChatReplyEnabled: true,
+      }),
+    );
+    const flagged = readFileSync(unitFile(systemd.unitNames.green), "utf8");
+    assert.match(flagged, /BNEST_FAMILY_CHAT_ENABLED=true/u);
+    assert.match(flagged, /BNEST_FAMILY_CHAT_REPLY_ENABLED=true/u);
+
+    systemd.installSlotService("green", slotOptions());
+    const plain = readFileSync(unitFile(systemd.unitNames.green), "utf8");
+    assert.doesNotMatch(plain, /BNEST_FAMILY_CHAT/u);
+  });
+});
+
+test("systemd unit: writes each production unit file at mode 600", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    systemd.installSlotService("blue", slotOptions());
+    const unitPath = unitFile(systemd.unitNames.blue);
+    assert.equal(statSync(unitPath).mode & 0o777, 0o600);
+  });
+});
+
+test("systemd unit: names the Caddy, blue, and green units for drop-ins", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const { unitNames } = await import("./systemd.mjs");
+    assert.deepEqual(unitNames, {
+      caddy: "bnest-caddy.service",
+      blue: "bnest-app-blue.service",
+      green: "bnest-app-green.service",
+    });
+  });
+});
+
+test("systemd unit: writes the Caddy unit at mode 600 and reloads it through systemctl --user", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    systemd.installCaddyService();
+    const unitPath = unitFile(systemd.unitNames.caddy);
+    assert.equal(statSync(unitPath).mode & 0o777, 0o600);
+    const unit = readFileSync(unitPath, "utf8");
+    assert.match(unit, /^ExecStart=.* run --config .* --adapter caddyfile$/mu);
+    assert.match(unit, /^Restart=always$/mu);
+    const calls = readFileSync(systemdLog, "utf8");
+    assert.match(calls, /^--user daemon-reload$/mu);
+    // The stub reports the unit active, so an existing Caddy is reloaded.
+    assert.match(calls, /^--user reload bnest-caddy\.service$/mu);
+  });
+});
+
+test("systemd caddy: installs the pinned Caddy tarball after its sha512 check, never through brew", () => {
+  // The pin is read from beaver-nest's CI workflow, which is the one place it
+  // is kept; the adapter must carry the same version and digest, and check the
+  // digest before anything is extracted or installed.
+  const adapter = new URL("./systemd.mjs", import.meta.url);
+  const source = existsSync(adapter) ? readFileSync(adapter, "utf8") : "";
+  const workflow = readFileSync(
+    new URL(
+      "../../../.github/workflows/scheduled-quality-gates.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const digest = workflow.match(
+    /CADDY_LINUX_AMD64_SHA512: "([0-9a-f]{128})"/u,
+  )?.[1];
+  const version = workflow.match(/CADDY_VERSION: "([0-9.]+)"/u)?.[1];
+  assert.ok(digest, "the workflow pins a Caddy sha512");
+  assert.ok(version, "the workflow pins a Caddy version");
+  assert.ok(source.includes(digest), "the adapter pins the workflow's sha512");
+  assert.ok(
+    source.includes(version),
+    "the adapter pins the workflow's version",
+  );
+
+  const check = source.search(/createHash\("sha512"\)/u);
+  const extract = source.indexOf('"tar"');
+  assert.ok(check >= 0, "the adapter computes a sha512 digest");
+  assert.ok(extract > check, "the digest is checked before extraction");
+  assert.doesNotMatch(source, /"brew"/u);
+});
+
+test("platform: darwin selects the launchd adapter", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const { serviceAdapter } = await import("./service-adapter.mjs");
+    assert.equal(serviceAdapter("darwin"), await import("./launchd.mjs"));
+  });
+});
+
+test("platform: linux selects the systemd adapter", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const { serviceAdapter } = await import("./service-adapter.mjs");
+    assert.equal(serviceAdapter("linux"), await import("./systemd.mjs"));
+  });
+});
+
+test("platform: an unsupported value is refused with a named error", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const { serviceAdapter } = await import("./service-adapter.mjs");
+    assert.throws(
+      () => serviceAdapter("freebsd"),
+      /unsupported platform "freebsd"/u,
+    );
+  });
+});
+
+test("platform: both adapters provide the one interface the orchestrator calls", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const required = [
+      "caddyBinary",
+      "ensureCaddy",
+      "installCaddyService",
+      "installSlotService",
+      "retireSlot",
+      "copyRelease",
+    ];
+    for (const adapter of ["./launchd.mjs", "./systemd.mjs"]) {
+      const module = await import(adapter);
+      for (const name of required)
+        assert.equal(
+          typeof module[name],
+          "function",
+          `${adapter} exports ${name}`,
+        );
+    }
+  });
+});
+
+test("systemd unit: retires a slot through systemctl --user and refuses the active slot", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    // The refusal reports through the shared failure path, which sets the exit
+    // status; restore it so that this expected refusal does not fail the run.
+    const savedExitCode = process.exitCode;
+    try {
+      assert.throws(
+        () => systemd.retireSlot("blue"),
+        /Refuse to retire the active slot/u,
+      );
+    } finally {
+      process.exitCode = savedExitCode;
+    }
+    systemd.retireSlot("green");
+    assert.match(
+      readFileSync(systemdLog, "utf8"),
+      /^--user disable --now bnest-app-green\.service$/mu,
+    );
+  });
+});
+
+test("systemd unit: copies a release tree with its file modes intact", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    const source = join(systemdRoot, "copy-source");
+    const destination = join(systemdRoot, "copy-destination");
+    mkdirSync(join(source, "bin"), { recursive: true });
+    writeFileSync(join(source, "bin", "bnest_app"), "#!/bin/sh\n", {
+      mode: 0o755,
+    });
+    systemd.copyRelease(source, destination);
+    const copied = join(destination, "bin", "bnest_app");
+    assert.equal(readFileSync(copied, "utf8"), "#!/bin/sh\n");
+    assert.equal(statSync(copied).mode & 0o777, 0o755);
+  });
+});
+
+test("fail-closed: an unsupported platform stops the tool before any file is written", () => {
+  // A child process reports `freebsd` as its platform, so the real startup
+  // path runs. The command is deliberately not a real one: it touches no
+  // network and no service, and the home and deployment roots must stay empty.
+  const home = join(systemdRoot, "fail-closed-home");
+  const deployment = join(systemdRoot, "fail-closed-deployment");
+  mkdirSync(home, { recursive: true });
+  mkdirSync(deployment, { recursive: true });
+  const preload = join(systemdRoot, "report-freebsd.cjs");
+  writeFileSync(
+    preload,
+    'Object.defineProperty(process, "platform", { value: "freebsd" });\n',
+  );
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--require",
+      preload,
+      fileURLToPath(new URL("./deployment.mjs", import.meta.url)),
+      "fail-closed-probe",
+    ],
+    {
+      encoding: "utf8",
+      env: systemdEnvironment({ HOME: home, BNEST_DEPLOY_ROOT: deployment }),
+    },
+  );
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /unsupported platform "freebsd"/u);
+  assert.deepEqual(readdirSync(home, { recursive: true }), []);
+  assert.deepEqual(readdirSync(deployment, { recursive: true }), []);
 });
