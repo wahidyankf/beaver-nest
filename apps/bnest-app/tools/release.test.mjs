@@ -838,6 +838,23 @@ exit 0
 `,
   { mode: 0o755 },
 );
+// A curl stub for the Caddy download. It writes the archive named by --output
+// with bytes that are not the pinned tarball, and logs that it ran.
+const caddyBin = join(systemdRoot, "caddy-bin");
+const curlLog = join(systemdRoot, "curl.log");
+mkdirSync(caddyBin, { recursive: true });
+writeFileSync(
+  join(caddyBin, "curl"),
+  `#!/bin/sh
+echo "$@" >> "${curlLog}"
+while [ $# -gt 0 ]; do
+  if [ "$1" = "--output" ]; then output="$2"; fi
+  shift
+done
+printf 'not the pinned archive' > "$output"
+`,
+  { mode: 0o755 },
+);
 // The macOS adapter runs in one test, so its launchctl calls need a stub too.
 writeFileSync(join(systemdBin, "launchctl"), "#!/bin/sh\nexit 0\n", {
   mode: 0o755,
@@ -1171,6 +1188,27 @@ test("systemd caddy: installs the pinned Caddy tarball after its sha512 check, n
   assert.ok(check >= 0, "the adapter computes a sha512 digest");
   assert.ok(extract > check, "the digest is checked before extraction");
   assert.doesNotMatch(source, /"brew"/u);
+});
+
+test("systemd caddy: refuses a download that does not match the pinned digest and installs nothing", async () => {
+  const home = join(systemdRoot, "caddy-home");
+  mkdirSync(home, { recursive: true });
+  rmSync(curlLog, { force: true });
+  await withEnvironment(
+    systemdEnvironment({
+      HOME: home,
+      PATH: `${caddyBin}:${systemdBin}:${process.env.PATH}`,
+    }),
+    async () => {
+      const systemd = await import("./systemd.mjs");
+      assert.throws(
+        () => systemd.ensureCaddy(),
+        /does not match its pinned sha512/u,
+      );
+      assert.match(readFileSync(curlLog, "utf8"), /--output/u);
+      assert.equal(existsSync(systemd.caddyBinary()), false);
+    },
+  );
 });
 
 test("platform: darwin selects the launchd adapter", async () => {
