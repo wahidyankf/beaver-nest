@@ -169,6 +169,21 @@ release=$(sed -n 's|^ExecStart=\(.*\)/bin/bnest_app start$|\1|p' "$unit")
 BNEST_DEPLOY_ROOT=$(dirname "$(dirname "$release")")
 ```
 
+Check these before the first `release:run` on a Linux host:
+
+- `BNEST_RUNTIME_ROOT` must name an existing directory whose path ends in `/data/prod`. Any other root stops the app
+  with `invalid runtime root: unsupported_root`. The value above comes from the blue unit, so check it there.
+- `BNEST_DEPLOY_COOKIE_FILE` names the release cookie file, and the tool reads that file. Do not export `RELEASE_COOKIE`
+  as a substitute: the tool does not read it, and the release gates remove it from their environment.
+- Leave `BNEST_DEPLOY_WORKTREE` unset for `release:run`. The tool creates its own temporary worktree and sets this
+  variable itself, so an exported value is overridden. A manual `release:build` needs it, and it must name a separate
+  worktree, never the checkout the release tool runs from. Keep that checkout clean: `release:run` refuses any source
+  that is not clean `origin/main`.
+- Tailscale Serve must already route `BNEST_PRODUCTION_ORIGIN` to Caddy on port `4100` before `release:run`. Run
+  `npm exec -- nx run -p bnest-app -t tailnet:up` once, and confirm it with `tailnet:status`. The routed proof opens a
+  browser against `BNEST_PRODUCTION_ORIGIN` after promotion. Without the route, that proof fails, and the release rolls
+  the route back.
+
 Check the services with `systemctl`, and read the slot logs from files. Each unit appends its output to
 `<deploy-root>/logs/`, so `blue.log`, `blue.error.log`, `green.log`, `green.error.log`, `caddy.log`, and
 `caddy.error.log` are the record; the journal is not used for them:
