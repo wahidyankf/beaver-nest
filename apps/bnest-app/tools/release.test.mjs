@@ -1317,6 +1317,27 @@ test("systemd unit: copies a release tree with its file modes intact", async () 
   });
 });
 
+test("systemd unit: creates a missing releases parent before copying a release", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    // A fresh deploy root has no releases/ folder yet. macOS ditto creates it;
+    // cp -a does not, so the adapter must.
+    const source = join(systemdRoot, "fresh-source");
+    const freshRoot = join(systemdRoot, "fresh-deploy-root");
+    const destination = join(freshRoot, "releases", revision);
+    mkdirSync(join(source, "bin"), { recursive: true });
+    writeFileSync(join(source, "bin", "bnest_app"), "#!/bin/sh\n", {
+      mode: 0o755,
+    });
+    systemd.copyRelease(source, destination);
+    assert.equal(
+      readFileSync(join(destination, "bin", "bnest_app"), "utf8"),
+      "#!/bin/sh\n",
+    );
+    assert.equal(statSync(join(freshRoot, "releases")).mode & 0o777, 0o700);
+  });
+});
+
 test("fail-closed: an unsupported platform stops the tool before any file is written", () => {
   // A child process reports `freebsd` as its platform, so the real startup
   // path runs. The command is deliberately not a real one: it touches no

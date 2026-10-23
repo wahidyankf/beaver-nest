@@ -154,8 +154,10 @@ export function retireSlot(slot) {
 }
 
 // cp -a keeps the release's file modes, which the copy must carry; ditto does
-// the same job on macOS (L-09).
+// the same job on macOS. Unlike ditto, cp -a does not create the parent of the
+// destination, so the releases folder is created here on a fresh host.
 export function copyRelease(source, destination) {
+  mkdirSync(dirname(destination), { recursive: true, mode: 0o700 });
   run("cp", ["-a", source, destination]);
 }
 
