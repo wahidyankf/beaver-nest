@@ -16,6 +16,14 @@ import { normalizeProductionOrigin } from "./production-origin.mjs";
 
 const revision = "0123456789abcdef0123456789abcdef01234567";
 
+// The launchd slot and Caddy code moved to launchd.mjs (D-11); the orchestrator
+// assertions that follow the code read both files together.
+function toolSource(...names) {
+  return names
+    .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), "utf8"))
+    .join("\n");
+}
+
 test("installs both lock-bound dependency sets before compiling an artifact", () => {
   const source = readFileSync(
     new URL("./deployment.mjs", import.meta.url),
@@ -136,10 +144,7 @@ test("passes explicit health inputs to the release monitor", () => {
 });
 
 test("enables account identity cutover in every managed slot", () => {
-  const source = readFileSync(
-    new URL("./deployment.mjs", import.meta.url),
-    "utf8",
-  );
+  const source = toolSource("deployment.mjs", "launchd.mjs");
   assert.match(source, /BNEST_IDENTITY_CUTOVER: "true"/u);
 });
 
@@ -152,10 +157,7 @@ test("passes the existing runtime VAPID values to every managed slot", () => {
   // `variables` object is a hard-coded allowlist (unlike a plain
   // `...process.env` spread), so a key missing from it here is a key the
   // launchd-managed process never receives.
-  const source = readFileSync(
-    new URL("./deployment.mjs", import.meta.url),
-    "utf8",
-  );
+  const source = toolSource("deployment.mjs", "launchd.mjs");
   assert.match(
     source,
     /requiredEnvironment\(\s*"BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE"/u,
@@ -242,10 +244,7 @@ test("launches every deployment slot through one shared RELEASE_DISTRIBUTION=non
   // structurally covers both slots at once -- there is no second,
   // independently-written launch path that could omit it and silently
   // reintroduce a cross-slot PubSub/Distributed-Erlang assumption.
-  const source = readFileSync(
-    new URL("./deployment.mjs", import.meta.url),
-    "utf8",
-  );
+  const source = toolSource("deployment.mjs", "launchd.mjs");
   const definitions = source.match(/function launchAgent\(/gu) ?? [];
   const allOccurrences = source.match(/launchAgent\(/gu) ?? [];
   assert.equal(
@@ -285,10 +284,7 @@ test("threads --family-chat-enabled from deploy:prepare into the launchd plist o
   // started with `BNEST_FAMILY_CHAT_ENABLED=true`; every ordinary
   // compatibility-release slot must keep omitting the key entirely so
   // `config/runtime.exs`'s default (`false`) governs unchanged.
-  const source = readFileSync(
-    new URL("./deployment.mjs", import.meta.url),
-    "utf8",
-  );
+  const source = toolSource("deployment.mjs", "launchd.mjs");
   assert.match(
     source,
     /arguments_\.includes\(\s*"--family-chat-enabled"\s*\)/u,
@@ -308,10 +304,7 @@ test("threads --family-chat-reply-enabled the same way, and only for the experie
   // experience candidate asks for it, and it asks through `release.mjs` --
   // asserted here too, because a plist built correctly from an argument
   // nobody passes is still a flag nobody turns on.
-  const deployment = readFileSync(
-    new URL("./deployment.mjs", import.meta.url),
-    "utf8",
-  );
+  const deployment = toolSource("deployment.mjs", "launchd.mjs");
   assert.match(
     deployment,
     /arguments_\.includes\(\s*"--family-chat-reply-enabled",?\s*\)/u,
@@ -775,10 +768,7 @@ test("accepts only checksum-verified approved migration sets", () => {
 });
 
 test("runs the persistent schedules adapter from the immutable release", () => {
-  const source = readFileSync(
-    new URL("./deployment.mjs", import.meta.url),
-    "utf8",
-  );
+  const source = toolSource("deployment.mjs", "launchd.mjs");
 
   assert.match(source, /case "release:migrate"/u);
   assert.match(
