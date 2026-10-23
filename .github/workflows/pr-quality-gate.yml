@@ -79,8 +79,8 @@ jobs:
       - name: Set up Erlang and Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "27.3.3"
-          elixir-version: "1.18.3"
+          otp-version: "29.1.2"
+          elixir-version: "1.20.4"
           version-type: strict
 
       - name: Install npm dependencies
@@ -147,8 +147,8 @@ jobs:
       - name: Set up Erlang and Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "27.3.3"
-          elixir-version: "1.18.3"
+          otp-version: "29.1.2"
+          elixir-version: "1.20.4"
           version-type: strict
 
       - name: Install npm dependencies
@@ -168,9 +168,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: apps/bnest-app/_build/test/*.plt*
-          key: plt-bnest-app-otp27.3.3-ex1.18.3-${{ hashFiles('apps/bnest-app/mix.lock') }}
+          key: plt-bnest-app-otp29.1.2-ex1.20.4-${{ hashFiles('apps/bnest-app/mix.lock') }}
           restore-keys: |
-            plt-bnest-app-otp27.3.3-ex1.18.3-
+            plt-bnest-app-otp29.1.2-ex1.20.4-
 
       - name: Run the affected quick graph
         env:

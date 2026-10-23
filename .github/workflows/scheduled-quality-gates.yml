@@ -31,8 +31,8 @@ jobs:
       - name: Set up Erlang and Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "27.3.3"
-          elixir-version: "1.18.3"
+          otp-version: "29.1.2"
+          elixir-version: "1.20.4"
           version-type: strict
 
       - name: Install npm dependencies
@@ -61,8 +61,8 @@ jobs:
       - name: Set up Erlang and Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "27.3.3"
-          elixir-version: "1.18.3"
+          otp-version: "29.1.2"
+          elixir-version: "1.20.4"
           version-type: strict
 
       - name: Install npm dependencies

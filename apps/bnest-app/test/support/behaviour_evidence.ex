@@ -8,8 +8,6 @@ defmodule BnestApp.Test.BehaviourEvidence do
 
   use Boundary, top_level?: true, check: [in: false, out: false]
 
-  require Logger
-
   alias BnestApp.Identity
   alias BnestApp.Identity.{Bootstrap, Login}
   alias BnestApp.Preferences

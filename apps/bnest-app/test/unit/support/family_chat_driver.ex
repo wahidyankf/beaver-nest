@@ -2769,8 +2769,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     end
   end
 
-  defp percentile_95([]), do: 0
-
   defp percentile_95(samples) do
     sorted = Enum.sort(samples)
     Enum.at(sorted, max(0, ceil(0.95 * length(sorted)) - 1))

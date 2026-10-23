@@ -1,9 +1,9 @@
 defmodule BnestApp.Test.InMemory.StoragePorts do
   @moduledoc """
   In-memory doubles for the Storage ports other than the record backend. They share one
-  agent, started by `install/1` and linked to the test, which holds their state and the
-  calls they receive in order. The configuration they replace is application-wide, so
-  only one non-async test may install them at a time.
+  agent, started by `install/1` under the test's supervisor, so it stops before the next test
+  starts. It holds their state and the calls they receive in order. The configuration they
+  replace is application-wide, so only one non-async test may install them at a time.
   """
 
   alias BnestApp.Test.InMemory.StoragePorts.{
@@ -23,8 +23,11 @@ defmodule BnestApp.Test.InMemory.StoragePorts do
   def install(state \\ []) do
     previous = Application.fetch_env!(:bnest_app, BnestApp.Storage)
 
-    {:ok, _agent} =
-      Agent.start_link(fn -> %{calls: [], values: Map.new(state)} end, name: __MODULE__)
+    ExUnit.Callbacks.start_supervised!(%{
+      id: __MODULE__,
+      start:
+        {Agent, :start_link, [fn -> %{calls: [], values: Map.new(state)} end, [name: __MODULE__]]}
+    })
 
     Application.put_env(
       :bnest_app,

@@ -81,7 +81,7 @@ defmodule Mix.Tasks.Bnest.Backup.Reconcile do
   end
 
   defp print(result) do
-    Enum.each(result.lines, &Mix.shell().info/1)
+    Enum.each(result.lines, fn line -> Mix.shell().info(line) end)
     explain(result[:reason])
     if result.exit_status != 0, do: exit({:shutdown, result.exit_status})
   end
