@@ -15,25 +15,25 @@ defmodule BnestApp.CodexChat.Ports.TranscriptStore do
   """
 
   @type handle :: %{required(:adapter) => module(), optional(atom()) => term()}
-  @type record :: map()
+  @type stored_record :: map()
 
   @doc "A handle over the records the running application serves."
   @callback new() :: handle()
 
-  @callback read(handle(), owner_id :: String.t()) :: {:ok, record()} | {:error, atom()}
+  @callback read(handle(), owner_id :: String.t()) :: {:ok, stored_record()} | {:error, atom()}
 
   @callback write(
               handle(),
               owner_id :: String.t(),
               expected_revision :: non_neg_integer() | nil,
-              record()
-            ) :: {:ok, record()} | {:error, atom()}
+              stored_record()
+            ) :: {:ok, stored_record()} | {:error, atom()}
 
-  @spec read(handle(), String.t()) :: {:ok, record()} | {:error, atom()}
+  @spec read(handle(), String.t()) :: {:ok, stored_record()} | {:error, atom()}
   def read(store, owner_id), do: store.adapter.read(store, owner_id)
 
-  @spec write(handle(), String.t(), non_neg_integer() | nil, record()) ::
-          {:ok, record()} | {:error, atom()}
+  @spec write(handle(), String.t(), non_neg_integer() | nil, stored_record()) ::
+          {:ok, stored_record()} | {:error, atom()}
   def write(store, owner_id, expected_revision, record),
     do: store.adapter.write(store, owner_id, expected_revision, record)
 end

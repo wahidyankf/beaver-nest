@@ -25,8 +25,8 @@ defmodule BnestApp.Identity.Ports.IdentityStore do
   """
 
   @type handle :: %{required(:adapter) => module(), optional(atom()) => term()}
-  @type record :: map()
-  @type result :: {:ok, record()} | {:error, atom()}
+  @type stored_record :: map()
+  @type result :: {:ok, stored_record()} | {:error, atom()}
 
   @doc "A handle over `record_store`, the record store Storage reports as active."
   @callback new(record_store :: term()) :: handle()
@@ -36,18 +36,18 @@ defmodule BnestApp.Identity.Ports.IdentityStore do
   @callback read_session(handle(), String.t()) :: result()
   @callback read_bootstrap(handle()) :: result()
 
-  @callback put_account(handle(), record()) :: result()
-  @callback put_username(handle(), record()) :: result()
-  @callback put_session(handle(), record()) :: result()
-  @callback put_bootstrap(handle(), record()) :: result()
+  @callback put_account(handle(), stored_record()) :: result()
+  @callback put_username(handle(), stored_record()) :: result()
+  @callback put_session(handle(), stored_record()) :: result()
+  @callback put_bootstrap(handle(), stored_record()) :: result()
 
-  @callback replace_account(handle(), record()) :: result()
-  @callback replace_session(handle(), record()) :: result()
-  @callback replace_bootstrap(handle(), record()) :: result()
+  @callback replace_account(handle(), stored_record()) :: result()
+  @callback replace_session(handle(), stored_record()) :: result()
+  @callback replace_bootstrap(handle(), stored_record()) :: result()
 
-  @callback remove_account(handle(), record()) :: :ok | {:error, atom()}
-  @callback remove_username(handle(), record()) :: :ok | {:error, atom()}
-  @callback remove_bootstrap(handle(), record()) :: :ok | {:error, atom()}
+  @callback remove_account(handle(), stored_record()) :: :ok | {:error, atom()}
+  @callback remove_username(handle(), stored_record()) :: :ok | {:error, atom()}
+  @callback remove_bootstrap(handle(), stored_record()) :: :ok | {:error, atom()}
 
   @callback empty?(handle()) :: boolean()
   @callback lock_key(handle()) :: term()
@@ -64,34 +64,34 @@ defmodule BnestApp.Identity.Ports.IdentityStore do
   @spec read_bootstrap(handle()) :: result()
   def read_bootstrap(store), do: store.adapter.read_bootstrap(store)
 
-  @spec put_account(handle(), record()) :: result()
+  @spec put_account(handle(), stored_record()) :: result()
   def put_account(store, account), do: store.adapter.put_account(store, account)
 
-  @spec put_username(handle(), record()) :: result()
+  @spec put_username(handle(), stored_record()) :: result()
   def put_username(store, index), do: store.adapter.put_username(store, index)
 
-  @spec put_session(handle(), record()) :: result()
+  @spec put_session(handle(), stored_record()) :: result()
   def put_session(store, session), do: store.adapter.put_session(store, session)
 
-  @spec put_bootstrap(handle(), record()) :: result()
+  @spec put_bootstrap(handle(), stored_record()) :: result()
   def put_bootstrap(store, journal), do: store.adapter.put_bootstrap(store, journal)
 
-  @spec replace_account(handle(), record()) :: result()
+  @spec replace_account(handle(), stored_record()) :: result()
   def replace_account(store, account), do: store.adapter.replace_account(store, account)
 
-  @spec replace_session(handle(), record()) :: result()
+  @spec replace_session(handle(), stored_record()) :: result()
   def replace_session(store, session), do: store.adapter.replace_session(store, session)
 
-  @spec replace_bootstrap(handle(), record()) :: result()
+  @spec replace_bootstrap(handle(), stored_record()) :: result()
   def replace_bootstrap(store, journal), do: store.adapter.replace_bootstrap(store, journal)
 
-  @spec remove_account(handle(), record()) :: :ok | {:error, atom()}
+  @spec remove_account(handle(), stored_record()) :: :ok | {:error, atom()}
   def remove_account(store, account), do: store.adapter.remove_account(store, account)
 
-  @spec remove_username(handle(), record()) :: :ok | {:error, atom()}
+  @spec remove_username(handle(), stored_record()) :: :ok | {:error, atom()}
   def remove_username(store, index), do: store.adapter.remove_username(store, index)
 
-  @spec remove_bootstrap(handle(), record()) :: :ok | {:error, atom()}
+  @spec remove_bootstrap(handle(), stored_record()) :: :ok | {:error, atom()}
   def remove_bootstrap(store, journal), do: store.adapter.remove_bootstrap(store, journal)
 
   @spec empty?(handle()) :: boolean()
