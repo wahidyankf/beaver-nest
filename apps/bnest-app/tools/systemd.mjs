@@ -19,6 +19,7 @@ import { dirname, join } from "node:path";
 
 import { slots } from "./caddy-config.mjs";
 import {
+  deploymentRoot,
   fail,
   paths,
   repositoryRoot,
@@ -104,6 +105,10 @@ export function installCaddyService() {
 // KeepAlive: a crash restarts after five seconds, and the start limit is off, so
 // no run of crashes ends the restarts. systemd's default limit (five starts in
 // ten seconds) would leave the unit failed.
+//
+// Both units start in the deployment root, which exists before either starts
+// and is never retired, unlike a release directory. Without it, a crash dump
+// lands in the user's home directory.
 function caddyUnit() {
   return [
     "[Unit]",
@@ -112,6 +117,7 @@ function caddyUnit() {
     "",
     "[Service]",
     "Type=simple",
+    `WorkingDirectory=${deploymentRoot}`,
     `ExecStart=${caddyBinary()} run --config ${paths.config} --adapter caddyfile`,
     `ExecReload=${caddyBinary()} reload --config ${paths.config} --adapter caddyfile`,
     "Restart=always",
@@ -154,8 +160,10 @@ export function retireSlot(slot) {
 }
 
 // cp -a keeps the release's file modes, which the copy must carry; ditto does
-// the same job on macOS (L-09).
+// the same job on macOS. Unlike ditto, cp -a does not create the parent of the
+// destination, so the releases folder is created here on a fresh host.
 export function copyRelease(source, destination) {
+  mkdirSync(dirname(destination), { recursive: true, mode: 0o700 });
   run("cp", ["-a", source, destination]);
 }
 
@@ -191,6 +199,7 @@ function slotUnit(slot, options) {
     "",
     "[Service]",
     "Type=simple",
+    `WorkingDirectory=${deploymentRoot}`,
     `ExecStart=${options.release}/bin/bnest_app start`,
     `EnvironmentFile=${options.environmentPath}`,
     ...Object.entries(variables).map(

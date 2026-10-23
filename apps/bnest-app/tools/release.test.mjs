@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test, { after, beforeEach } from "node:test";
 
@@ -1301,6 +1301,25 @@ test("systemd unit: retires a slot through systemctl --user and refuses the acti
   });
 });
 
+test("systemd unit: starts the slot and Caddy units in the deployment root, not the home directory", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    systemd.installSlotService("blue", slotOptions());
+    systemd.installCaddyService();
+    // Erlang writes erl_crash.dump to the working directory. A unit with none
+    // inherits the user's home directory, so the root must be named.
+    for (const unit of [systemd.unitNames.blue, systemd.unitNames.caddy]) {
+      const text = readFileSync(unitFile(unit), "utf8");
+      assert.ok(
+        unitSection(text, "Service").includes(
+          `WorkingDirectory=${systemdDeployment}`,
+        ),
+        `${unit} sets its working directory to the deployment root`,
+      );
+    }
+  });
+});
+
 test("systemd unit: copies a release tree with its file modes intact", async () => {
   await withEnvironment(systemdEnvironment(), async () => {
     const systemd = await import("./systemd.mjs");
@@ -1314,6 +1333,27 @@ test("systemd unit: copies a release tree with its file modes intact", async () 
     const copied = join(destination, "bin", "bnest_app");
     assert.equal(readFileSync(copied, "utf8"), "#!/bin/sh\n");
     assert.equal(statSync(copied).mode & 0o777, 0o755);
+  });
+});
+
+test("systemd unit: creates a missing releases parent before copying a release", async () => {
+  await withEnvironment(systemdEnvironment(), async () => {
+    const systemd = await import("./systemd.mjs");
+    // A fresh deploy root has no releases/ folder yet. macOS ditto creates it;
+    // cp -a does not, so the adapter must.
+    const source = join(systemdRoot, "fresh-source");
+    const freshRoot = join(systemdRoot, "fresh-deploy-root");
+    const destination = join(freshRoot, "releases", revision);
+    mkdirSync(join(source, "bin"), { recursive: true });
+    writeFileSync(join(source, "bin", "bnest_app"), "#!/bin/sh\n", {
+      mode: 0o755,
+    });
+    systemd.copyRelease(source, destination);
+    assert.equal(
+      readFileSync(join(destination, "bin", "bnest_app"), "utf8"),
+      "#!/bin/sh\n",
+    );
+    assert.equal(statSync(join(freshRoot, "releases")).mode & 0o777, 0o700);
   });
 });
 
@@ -1347,4 +1387,164 @@ test("fail-closed: an unsupported platform stops the tool before any file is wri
   assert.match(result.stderr, /unsupported platform "freebsd"/u);
   assert.deepEqual(readdirSync(home, { recursive: true }), []);
   assert.deepEqual(readdirSync(deployment, { recursive: true }), []);
+});
+
+// Linux promotion. The new Caddyfile is written beside the live one, so the
+// rename that installs it stays on one filesystem; /tmp is often another one.
+// The child runs the real deploy:promote under a Linux platform preload, with a
+// stub caddy that records each configuration path it is given, a stub curl
+// that reports the candidate revision as ready, and a private TMPDIR, so any
+// temporary file left behind is visible.
+const promotionBin = join(systemdRoot, "promotion-bin");
+const promotionCaddyLog = join(systemdRoot, "promotion-caddy.log");
+const promotionInvalid = join(systemdRoot, "promotion-caddy-invalid");
+const promotionPreload = join(systemdRoot, "report-linux.cjs");
+mkdirSync(promotionBin, { recursive: true });
+writeFileSync(
+  join(promotionBin, "curl"),
+  `#!/bin/sh
+case " $* " in
+  *" -w "*) printf '200' ;;
+  *) printf 'HTTP/1.1 200 OK\\r\\nx-bnest-revision: ${revision}\\r\\n' ;;
+esac
+`,
+  { mode: 0o755 },
+);
+writeFileSync(
+  promotionPreload,
+  'Object.defineProperty(process, "platform", { value: "linux" });\n',
+);
+
+function preparePromotion(name) {
+  const home = join(systemdRoot, `${name}-home`);
+  const deployment = join(systemdRoot, `${name}-deployment`);
+  const temporary = join(systemdRoot, `${name}-tmp`);
+  const caddyDirectory = join(deployment, "caddy");
+  mkdirSync(join(deployment, "slots"), { recursive: true });
+  mkdirSync(caddyDirectory, { recursive: true });
+  mkdirSync(temporary, { recursive: true });
+  writeFileSync(
+    join(deployment, "slots", "green.json"),
+    `${JSON.stringify({ revision })}\n`,
+  );
+  const caddy = join(home, ".local", "bin");
+  mkdirSync(caddy, { recursive: true });
+  writeFileSync(
+    join(caddy, "caddy"),
+    `#!/bin/sh
+echo "$@" >> "${promotionCaddyLog}"
+if [ "$1" = "validate" ] && [ -e "${promotionInvalid}" ]; then exit 1; fi
+exit 0
+`,
+    { mode: 0o755 },
+  );
+  writeFileSync(promotionCaddyLog, "");
+  return { caddyDirectory, deployment, home, temporary };
+}
+
+function promoteGreen({ deployment, home, temporary }) {
+  return spawnSync(
+    process.execPath,
+    [
+      "--require",
+      promotionPreload,
+      fileURLToPath(new URL("./deployment.mjs", import.meta.url)),
+      "deploy:promote",
+      "--slot",
+      "green",
+    ],
+    {
+      encoding: "utf8",
+      env: systemdEnvironment({
+        BNEST_DEPLOY_ROOT: deployment,
+        HOME: home,
+        PATH: `${promotionBin}:${process.env.PATH}`,
+        TMPDIR: temporary,
+      }),
+    },
+  );
+}
+
+test("systemd caddy: validates and renames a Caddyfile written beside the live one", () => {
+  const promotion = preparePromotion("promote");
+  const result = promoteGreen(promotion);
+  assert.equal(result.status, 0, result.stderr);
+
+  const calls = readFileSync(promotionCaddyLog, "utf8")
+    .split("\n")
+    .filter(Boolean);
+  const configPaths = calls.map((call) => call.match(/--config (\S+)/u)?.[1]);
+  for (const [index, call] of calls.entries()) {
+    if (!/^(validate|reload) /u.test(call)) continue;
+    assert.equal(
+      dirname(configPaths[index]),
+      promotion.caddyDirectory,
+      `${call.split(" ")[0]} reads the candidate beside the live Caddyfile`,
+    );
+  }
+  assert.match(
+    readFileSync(join(promotion.caddyDirectory, "Caddyfile"), "utf8"),
+    /reverse_proxy 127\.0\.0\.1:4001/u,
+  );
+  assert.deepEqual(readdirSync(promotion.caddyDirectory), ["Caddyfile"]);
+  assert.deepEqual(readdirSync(promotion.temporary), []);
+});
+
+test("systemd caddy: a failed validation leaves the live Caddyfile and no temporary file", () => {
+  const promotion = preparePromotion("promote-invalid");
+  const live = join(promotion.caddyDirectory, "Caddyfile");
+  writeFileSync(live, "previous configuration\n");
+  writeFileSync(promotionInvalid, "");
+  let result;
+  try {
+    result = promoteGreen(promotion);
+  } finally {
+    rmSync(promotionInvalid, { force: true });
+  }
+  assert.notEqual(result.status, 0);
+  assert.equal(readFileSync(live, "utf8"), "previous configuration\n");
+  assert.deepEqual(readdirSync(promotion.caddyDirectory), ["Caddyfile"]);
+  assert.deepEqual(readdirSync(promotion.temporary), []);
+  assert.equal(existsSync(join(promotion.deployment, "state.json")), false);
+});
+
+// The release build must not run in the checkout the release tool runs from:
+// npm ci and the Mix build write into the tree, and a dirty source makes
+// release:run refuse. A stub npm records any build command that starts.
+test("release build: refuses the release checkout itself as its worktree before any build command", () => {
+  const home = join(systemdRoot, "build-guard-home");
+  const deployment = join(systemdRoot, "build-guard-deployment");
+  const bin = join(systemdRoot, "build-guard-bin");
+  const npmLog = join(systemdRoot, "build-guard-npm.log");
+  mkdirSync(home, { recursive: true });
+  mkdirSync(deployment, { recursive: true });
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(
+    join(bin, "npm"),
+    `#!/bin/sh\necho "$@" >> "${npmLog}"\nexit 1\n`,
+    { mode: 0o755 },
+  );
+  const checkout = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./deployment.mjs", import.meta.url)),
+      "release:build",
+    ],
+    {
+      encoding: "utf8",
+      env: systemdEnvironment({
+        BNEST_DEPLOY_ROOT: deployment,
+        BNEST_DEPLOY_WORKTREE: checkout,
+        HOME: home,
+        PATH: `${bin}:${process.env.PATH}`,
+      }),
+    },
+  );
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr,
+    /BNEST_DEPLOY_WORKTREE must be an isolated Git worktree/u,
+  );
+  assert.equal(existsSync(npmLog), false);
 });
