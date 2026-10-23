@@ -1202,10 +1202,33 @@ test("systemd caddy: refuses a download that does not match the pinned digest an
     async () => {
       const systemd = await import("./systemd.mjs");
       assert.throws(
-        () => systemd.ensureCaddy(),
+        () => systemd.ensureCaddy("x64"),
         /does not match its pinned sha512/u,
       );
       assert.match(readFileSync(curlLog, "utf8"), /--output/u);
+      assert.equal(existsSync(systemd.caddyBinary()), false);
+    },
+  );
+});
+
+test("systemd caddy: names the host architecture and downloads nothing outside linux x64", async () => {
+  const home = join(systemdRoot, "caddy-architecture-home");
+  mkdirSync(home, { recursive: true });
+  rmSync(curlLog, { force: true });
+  await withEnvironment(
+    systemdEnvironment({
+      HOME: home,
+      PATH: `${caddyBin}:${systemdBin}:${process.env.PATH}`,
+    }),
+    async () => {
+      const systemd = await import("./systemd.mjs");
+      // The pinned archive is the linux amd64 build; any other host would fail
+      // later, with an exec format error, so it is refused before any download.
+      assert.throws(
+        () => systemd.ensureCaddy("arm64"),
+        /pinned for linux x64 only; this host is arm64/u,
+      );
+      assert.equal(existsSync(curlLog), false);
       assert.equal(existsSync(systemd.caddyBinary()), false);
     },
   );

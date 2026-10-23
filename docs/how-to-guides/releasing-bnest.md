@@ -154,6 +154,9 @@ under `~/.config/systemd/user/` and `<deploy-root>/slots/`. Unit files hold no s
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 ```
 
+The Linux path runs on `x64` hosts only (`x86_64`), because it installs the pinned linux amd64 Caddy build. On any other
+architecture the tool stops with a named error before it downloads Caddy, so run this path on an amd64 host.
+
 Derive the configuration from the blue unit. These lines replace the `plist` and `PlistBuddy` reads in
 `bnest_load_deploy_env`; the rest of that function is unchanged:
 

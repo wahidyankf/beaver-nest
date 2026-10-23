@@ -44,11 +44,16 @@ export function caddyBinary() {
   return join(homedir(), ".local", "bin", "caddy");
 }
 
-// Installs the pinned Caddy when it is missing. The archive's digest is
-// checked before anything is extracted or copied into place.
-export function ensureCaddy() {
+// Installs the pinned Caddy when it is missing. The architecture is checked
+// before the download, and the archive's digest before anything is extracted
+// or copied into place. The pin is the linux amd64 build only.
+export function ensureCaddy(architecture = process.arch) {
   const binary = caddyBinary();
   if (existsSync(binary)) return;
+  if (architecture !== "x64")
+    throw new Error(
+      `Caddy ${caddyVersion} is pinned for linux x64 only; this host is ${architecture}.`,
+    );
   const directory = mkdtempSync(join(tmpdir(), "bnest-caddy-"));
   try {
     const archive = join(directory, "caddy.tar.gz");
