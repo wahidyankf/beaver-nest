@@ -83,3 +83,52 @@ test("restoring still returns every other runtime file to its captured state", (
     false,
   );
 });
+
+test("restoring does not bring back a lease held beside a custom storage pointer", () => {
+  const pointerPath = path.join(runtimeRoot, "custom-pointer", "storage.json");
+  const pointerLockRoot = `${pointerPath}.lock`;
+  const recordPath = path.join(runtimeRoot, "general", "record.json");
+  mkdirSync(path.join(pointerLockRoot, "shared", "in-flight-lease"), {
+    recursive: true,
+  });
+  mkdirSync(path.dirname(recordPath), { recursive: true });
+  writeFileSync(recordPath, "captured");
+
+  process.env["BNEST_STORAGE_CONFIG"] = pointerPath;
+  try {
+    captureStorageAuthority();
+    rmSync(path.join(pointerLockRoot, "shared", "in-flight-lease"), {
+      recursive: true,
+    });
+    writeFileSync(recordPath, "changed by the scenario");
+    restoreStorageAuthority();
+  } finally {
+    delete process.env["BNEST_STORAGE_CONFIG"];
+  }
+
+  assert.deepEqual(entries(path.join(pointerLockRoot, "shared")), []);
+  assert.equal(readFileSync(recordPath, "utf8"), "captured");
+});
+
+test("a capture that cannot resolve the storage config leaves no snapshot directory behind", () => {
+  const probeDirectory = path.join(workDirectory, "temp-probe");
+  const originalTemporaryDirectory = process.env["TMPDIR"];
+  mkdirSync(probeDirectory);
+
+  process.env["TMPDIR"] = probeDirectory;
+  process.env["BNEST_STORAGE_CONFIG"] = path.join(
+    workDirectory,
+    "outside.json",
+  );
+  try {
+    assert.throws(() => captureStorageAuthority(), /must stay inside/u);
+    assert.deepEqual(readdirSync(probeDirectory), []);
+  } finally {
+    delete process.env["BNEST_STORAGE_CONFIG"];
+    if (originalTemporaryDirectory === undefined) {
+      delete process.env["TMPDIR"];
+    } else {
+      process.env["TMPDIR"] = originalTemporaryDirectory;
+    }
+  }
+});
