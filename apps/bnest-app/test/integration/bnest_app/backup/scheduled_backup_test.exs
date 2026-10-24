@@ -267,6 +267,86 @@ defmodule BnestApp.ScheduledBackupTest do
     refute room["slug"] == "ruang-arsip"
   end
 
+  # A copy cut short by 100 bytes, less than one page, still opens and still reads its room,
+  # messages and deliveries, so only the integrity proof tells it from an intact copy. The
+  # restore must refuse it and remove the root it created.
+  test "refuses a real snapshot cut short of its last bytes and leaves no restore root",
+       context do
+    FamilyChat.ensure_ready!()
+    {:ok, location} = Backup.save_destination(context.backup_directory)
+    {:ok, artifact} = Backup.run(deadline: @now, destination_directory: location.directory)
+    assert {:ok, _restored} = Backup.restore(artifact)
+
+    intact = File.read!(artifact.path)
+    cut = binary_part(intact, 0, byte_size(intact) - 100)
+    %{rows: [[page_size]]} = SqliteRepo.query!("PRAGMA page_size")
+
+    # The cut is a sub-page one: the snapshot is whole pages and the copy is not.
+    assert rem(byte_size(intact), page_size) == 0
+    assert rem(byte_size(cut), page_size) != 0
+    assert byte_size(intact) - byte_size(cut) < page_size
+
+    truncated = %{artifact | path: Path.join(context.runtime.path, "cut-" <> artifact.basename)}
+    File.write!(truncated.path, cut)
+    roots = Backup.restore_roots()
+
+    assert Backup.restore(truncated) == {:error, :restore_failed}
+    assert Backup.restore_roots() == roots
+  end
+
+  # A copy whose last page is free, cut short by 100 bytes. SQLite zero-fills the missing tail of
+  # the page, which nothing reads, so `PRAGMA quick_check` still returns ok and the copy reads
+  # whole. Only its size, which is not its page count times its page size, tells it apart.
+  test "refuses a cut copy that passes quick_check because its last page is free", context do
+    FamilyChat.ensure_ready!()
+    {:ok, location} = Backup.save_destination(context.backup_directory)
+    {:ok, artifact} = Backup.run(deadline: @now, destination_directory: location.directory)
+    assert {:ok, _restored} = Backup.restore(artifact)
+
+    # Written past the snapshot's last page, then dropped, so the freed pages end the file.
+    copy = Path.join(context.runtime.path, "free-tail-" <> artifact.basename)
+    File.cp!(artifact.path, copy)
+    {:ok, connection} = Exqlite.Sqlite3.open(copy)
+
+    for sql <- [
+          "CREATE TABLE scratch_pages (id INTEGER PRIMARY KEY, body TEXT)",
+          "WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM c WHERE i < 60) " <>
+            "INSERT INTO scratch_pages SELECT i, printf('%0*d', 3500, i) FROM c",
+          "DROP TABLE scratch_pages"
+        ] do
+      :ok = Exqlite.Sqlite3.execute(connection, sql)
+    end
+
+    :ok = Exqlite.Sqlite3.close(connection)
+    intact_size = File.stat!(copy).size
+    File.write!(copy, binary_part(File.read!(copy), 0, intact_size - 100))
+
+    # The cut is the case the size check exists for: the copy passes quick_check, yet its size
+    # is not its page count times its page size.
+    assert sqlite_rows(copy, "PRAGMA quick_check") == [["ok"]]
+    assert [[page_count]] = sqlite_rows(copy, "PRAGMA page_count")
+    assert [[page_size]] = sqlite_rows(copy, "PRAGMA page_size")
+    assert File.stat!(copy).size == intact_size - 100
+    refute File.stat!(copy).size == page_count * page_size
+
+    roots = Backup.restore_roots()
+
+    assert Backup.restore(%{path: copy}) == {:error, :restore_failed}
+    assert Backup.restore_roots() == roots
+  end
+
+  defp sqlite_rows(path, sql) do
+    {:ok, connection} = Exqlite.Sqlite3.open(path, mode: :readonly)
+
+    try do
+      {:ok, statement} = Exqlite.Sqlite3.prepare(connection, sql)
+      {:ok, rows} = Exqlite.Sqlite3.fetch_all(connection, statement)
+      rows
+    after
+      :ok = Exqlite.Sqlite3.close(connection)
+    end
+  end
+
   @doc false
   def forward_integrity(_event, measurements, metadata, pid),
     do: send(pid, {:integrity, measurements, metadata})

@@ -28,6 +28,12 @@ mix bnest.backup.restore_drill --artifact <artifact-file-name>
 
 The task restores through `Backup.restore/1` into a temporary root it creates, reads the restored database, then removes the root.
 
+Before it reads any row, the restore refuses a copy unless `PRAGMA quick_check` returns `ok` and the file's size is
+a whole number of pages matching its header. That size check is also how a copy cut short of its last bytes fails,
+even when `quick_check` passes. Passing the drill shows that the copy passes those two checks and reads back as
+described below. It does not compare the copy with the checksum in the backup's receipt; `mix bnest.backup.reconcile`
+makes that comparison.
+
 ## 3. Read the evidence
 
 A successful drill exits `0` and prints these lines, with counts from your artifact:

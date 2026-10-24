@@ -298,6 +298,20 @@ Feature: Bnest scheduled backups
       And the destination listing and every file's bytes are unchanged
       And the live database is not opened
 
+  Rule: The restore drill refuses an artifact that fails its integrity proof
+
+    # Exemption(e2e): the restore drill is a Mix task whose refusal of a damaged copy is observed on its result, its temporary root and the live database below every public application boundary; alternative-proof: bnest-app:test:integration / The drill refuses an artifact cut short of its last bytes
+    @e2e-exempt
+    Scenario: The drill refuses an artifact cut short of its last bytes
+      Given an isolated destination holding a synthetic artifact cut short of its last bytes
+      When the restore drill task is run against that artifact
+      Then it exits non-zero
+      And it prints only the line "Restore drill: the artifact could not be restored."
+      And it tried one restore of the artifact, and the root it created no longer exists
+      And its output carries no message body, push credential, filesystem path or artifact name
+      And the destination listing and every file's bytes are unchanged
+      And the live database is not opened
+
   Rule: The restore drill restores only a regular file inside the configured destination
 
     # Exemption(e2e): the restore drill is a Mix task whose target classification is observed on its result below every public application boundary; alternative-proof: bnest-app:test:integration / A regular file inside the destination restores beside the entries it refuses

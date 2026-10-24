@@ -222,6 +222,10 @@ defmodule BnestApp.Backup do
   never a message body or push credential) proving the room, ordered
   messages, subscription structure, and delivery states are all readable
   back out of the restored copy.
+
+  A copy that fails `PRAGMA quick_check`, or whose size is not a whole number of pages
+  matching its header, is refused with `{:error, :restore_failed}` before any of its rows
+  is read.
   """
   @spec restore(map()) :: {:ok, map()} | {:error, atom()}
   def restore(%{path: artifact_path}) when is_binary(artifact_path) do

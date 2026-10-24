@@ -65,7 +65,7 @@ defmodule BnestApp.Test.RestoreDrill do
     "CREATE TABLE family_chat_push_deliveries (id INTEGER PRIMARY KEY AUTOINCREMENT, message_id INTEGER NOT NULL, subscription_id INTEGER NOT NULL, state TEXT NOT NULL)"
   ]
 
-  @destination_prepares [:drill_artifact]
+  @destination_prepares [:drill_artifact, :drill_artifact_cut_short]
   @prepares [:drill_outside_file, :drill_directory, :drill_symlink]
   @performs [:restore_drill]
   @outcomes [
@@ -119,6 +119,14 @@ defmodule BnestApp.Test.RestoreDrill do
       artifact_path: path,
       scratch: scratch_temp_directory(context.backup_directory)
     })
+  end
+
+  # The same artifact, cut short by its last 100 bytes: a copy that still opens, which the restore
+  # must refuse on its integrity proof.
+  def prepare(context, :drill_artifact_cut_short, []) do
+    context = prepare(context, :drill_artifact, [])
+    cut_short!(context.drill.artifact_path)
+    context
   end
 
   # A restorable file next to the destination, not in it.
@@ -287,6 +295,20 @@ defmodule BnestApp.Test.RestoreDrill do
       InMemoryArtifactStore.put_file(InMemoryArtifactStore.new(), path, %{database: database})
     else
       write_sqlite!(path, spec)
+    end
+  end
+
+  # In memory the stored artifact carries a mark, which the in-memory snapshot refuses as a stand-in
+  # for the integrity proof. The integration layer cuts the real file's last 100 bytes, and the
+  # real restore is what refuses it there.
+  defp cut_short!(path) do
+    if in_memory?() do
+      store = InMemoryArtifactStore.new()
+      %{content: content} = InMemoryArtifactStore.file(store, path)
+      InMemoryArtifactStore.put_file(store, path, Map.put(content, :cut_short?, true))
+    else
+      bytes = File.read!(path)
+      File.write!(path, binary_part(bytes, 0, byte_size(bytes) - 100))
     end
   end
 

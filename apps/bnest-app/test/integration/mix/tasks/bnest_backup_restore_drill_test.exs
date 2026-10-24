@@ -165,6 +165,22 @@ defmodule BnestApp.BackupRestoreDrillTaskTest do
       assert restore_roots(context) == []
       assert tree_state(context.backup_directory) == destination
     end
+
+    test "exits non-zero with a fixed line for an artifact cut short of its last bytes",
+         context do
+      path = context.drill.artifact_path
+      intact = File.read!(path)
+      File.write!(path, binary_part(intact, 0, byte_size(intact) - 100))
+      destination = tree_state(context.backup_directory)
+
+      result = run_task(context, ["--artifact", context.artifact])
+
+      assert result.status == 1, result.output
+      assert result.lines == [@not_restored]
+      assert_private_free(result.output, context)
+      assert restore_roots(context) == []
+      assert tree_state(context.backup_directory) == destination
+    end
   end
 
   describe "as the task's check in this VM" do

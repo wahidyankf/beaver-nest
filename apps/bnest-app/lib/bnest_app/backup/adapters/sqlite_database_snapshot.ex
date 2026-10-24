@@ -75,29 +75,27 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
     {:ok, connection} = Exqlite.Sqlite3.open(path, mode: :readonly)
 
     try do
-      case query_rows(connection, "PRAGMA quick_check") do
-        [["ok"]] ->
-          schema_versions =
-            connection
-            |> query_rows("SELECT version FROM schema_migrations ORDER BY version")
-            |> Enum.map(&hd/1)
+      if quick_check_ok?(connection) do
+        schema_versions =
+          connection
+          |> query_rows("SELECT version FROM schema_migrations ORDER BY version")
+          |> Enum.map(&hd/1)
 
-          logical_rows =
-            query_rows(
-              connection,
-              "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
-            )
+        logical_rows =
+          query_rows(
+            connection,
+            "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
+          )
 
-          logical_sha256 =
-            %{schema_versions: schema_versions, schema: logical_rows}
-            |> Jason.encode!()
-            |> then(&:crypto.hash(:sha256, &1))
-            |> Base.encode16(case: :lower)
+        logical_sha256 =
+          %{schema_versions: schema_versions, schema: logical_rows}
+          |> Jason.encode!()
+          |> then(&:crypto.hash(:sha256, &1))
+          |> Base.encode16(case: :lower)
 
-          {:ok, %{schema_versions: schema_versions, logical_sha256: logical_sha256}}
-
-        _not_ok ->
-          {:error, :corrupt}
+        {:ok, %{schema_versions: schema_versions, logical_sha256: logical_sha256}}
+      else
+        {:error, :corrupt}
       end
     after
       :ok = Exqlite.Sqlite3.close(connection)
@@ -105,7 +103,8 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
   end
 
   # The root is created before anything that may fail, and removed whatever happens; any
-  # failure after it exists is reported as a failed restore.
+  # failure after it exists is reported as a failed restore. A copy that is not whole is refused
+  # before any of its facts are read.
   @impl true
   def restore(_snapshot, artifact_path) do
     root = isolated_restore_root!()
@@ -116,7 +115,11 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
       {:ok, connection} = Exqlite.Sqlite3.open(restored_path, mode: :readonly)
 
       try do
-        {:ok, restored_facts(connection)}
+        if whole_copy?(connection, restored_path) do
+          {:ok, restored_facts(connection)}
+        else
+          {:error, :restore_failed}
+        end
       after
         :ok = Exqlite.Sqlite3.close(connection)
       end
@@ -136,6 +139,20 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
   end
 
   defp escape_sql_literal(value), do: String.replace(value, "'", "''")
+
+  # The integrity proof the backup and its restore share: `PRAGMA quick_check` returns exactly
+  # one row, holding `ok`. A damaged page yields other rows and fails it.
+  defp quick_check_ok?(connection), do: query_rows(connection, "PRAGMA quick_check") == [["ok"]]
+
+  # A copy is whole when `quick_check` passes and its size is exactly its page count times its
+  # page size. quick_check alone misses a cut that only zero-fills a page nothing reads, such as a
+  # free page at the end of the file, so the size is checked as well.
+  defp whole_copy?(connection, path) do
+    quick_check_ok?(connection) and
+      File.stat!(path).size == pragma(connection, "page_count") * pragma(connection, "page_size")
+  end
+
+  defp pragma(connection, name), do: connection |> query_rows("PRAGMA #{name}") |> hd() |> hd()
 
   defp query_rows(connection, sql) do
     {:ok, statement} = Exqlite.Sqlite3.prepare(connection, sql)
