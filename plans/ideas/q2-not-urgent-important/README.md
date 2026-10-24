@@ -25,6 +25,8 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
   hexagonal plan, plus the word-budget gap for the standard.
 - [Off-Dropbox backup second copy](off-dropbox-backup-second-copy.md) keeps a second copy of the nightly backup
   outside the Dropbox-synced folder, uncommitted, after the lost-night cause stayed unproven.
+- [Restore root and backend e2e snapshot hardening](restore-root-and-be-e2e-snapshot-hardening.md) keeps the restore
+  root that a fault can leave behind and the backend snapshot helper that still copies a live lock lease.
 
 ## Directory Map
 
@@ -50,3 +52,5 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
   not take and the owner approval one of them needs.
 - [Off-Dropbox backup second copy](off-dropbox-backup-second-copy.md) records why one Dropbox-synced destination is the
   exposure the unproven verdict leaves, a sketch, the open questions, and the promotion signal.
+- [Restore root and backend e2e snapshot hardening](restore-root-and-be-e2e-snapshot-hardening.md) records the two
+  gaps, the browser helper fix that is the model, and the two promotion signals.
