@@ -27,6 +27,8 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
   outside the Dropbox-synced folder, uncommitted, after the lost-night cause stayed unproven.
 - [Restore root and backend e2e snapshot hardening](restore-root-and-be-e2e-snapshot-hardening.md) keeps the restore
   root that a fault can leave behind and the backend snapshot helper that still copies a live lock lease.
+- [Linux service adapter follow-ups](linux-service-adapter-follow-ups.md) keeps six hardening and coverage gaps in the
+  release tool's Linux and launchd paths.
 
 ## Directory Map
 
@@ -54,3 +56,5 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
   exposure the unproven verdict leaves, a sketch, the open questions, and the promotion signal.
 - [Restore root and backend e2e snapshot hardening](restore-root-and-be-e2e-snapshot-hardening.md) records the two
   gaps, the browser helper fix that is the model, and the two promotion signals.
+- [Linux service adapter follow-ups](linux-service-adapter-follow-ups.md) records the six gaps, from unit quoting to
+  missing launchd tests, and the three changes that would promote them to a plan.
