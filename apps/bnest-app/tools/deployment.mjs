@@ -31,7 +31,7 @@ if (inside(repositoryRoot, deploymentRoot)) {
 }
 
 // The platform picks one service adapter; an unsupported platform stops here,
-// before any command runs or any file is written (L-05).
+// before any command runs or any file is written.
 let service;
 try {
   service = serviceAdapter(process.platform);

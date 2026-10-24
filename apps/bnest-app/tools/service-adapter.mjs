@@ -1,6 +1,6 @@
-// Picks the service-manager adapter for the platform the release tool runs on
-// (D-11). Any platform other than darwin or linux fails closed with a named
-// error (L-05); it writes nothing, because the caller stops before any work.
+// Picks the service-manager adapter for the platform the release tool runs on.
+// Any platform other than darwin or linux fails closed with a named
+// error; it writes nothing, because the caller stops before any work.
 
 import * as launchd from "./launchd.mjs";
 import * as systemd from "./systemd.mjs";

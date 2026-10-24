@@ -13,7 +13,7 @@ import {
   fail,
 } from "./deployment-support.mjs";
 
-// macOS service adapter (D-11): the Caddy and slot LaunchAgents, driven by
+// macOS service adapter: the Caddy and slot LaunchAgents, driven by
 // launchctl. The functions below were moved from deployment.mjs unchanged.
 const label = "com.bnest.caddy";
 
@@ -192,7 +192,7 @@ export function installSlotService(slot, options) {
   run("launchctl", ["bootstrap", domain, plistPath]);
 }
 
-// ditto exists only on macOS; the Linux adapter uses cp (L-09).
+// ditto exists only on macOS; the Linux adapter uses cp.
 export function copyRelease(source, destination) {
   run("ditto", [source, destination]);
 }

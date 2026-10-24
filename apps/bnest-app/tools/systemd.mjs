@@ -1,4 +1,4 @@
-// Linux service adapter for the deployment tool (D-11). It writes the systemd
+// Linux service adapter for the deployment tool. It writes the systemd
 // user units for the two slots and for Caddy, and drives them through
 // `systemctl --user`. The orchestrator in deployment.mjs picks this adapter
 // when process.platform is "linux".
@@ -28,7 +28,7 @@ import {
   writeAtomic,
 } from "./deployment-support.mjs";
 
-// Unit names are fixed here so that drop-ins can target them (L-02).
+// Unit names are fixed here so that drop-ins can target them.
 export const unitNames = {
   caddy: "bnest-caddy.service",
   blue: "bnest-app-blue.service",
@@ -36,7 +36,7 @@ export const unitNames = {
 };
 
 // The pin is the one in beaver-nest's scheduled quality gates; a test holds
-// this copy equal to that workflow (L-01).
+// this copy equal to that workflow.
 const caddyVersion = "2.11.4";
 const caddySha512 =
   "8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9";
@@ -134,7 +134,7 @@ function caddyUnit() {
 export function installSlotService(slot, options) {
   const unit = unitNames[slot];
   const environmentPath = join(paths.slots, `${slot}.env`);
-  // Secrets live only in this mode 600 file, never in the unit (L-03).
+  // Secrets live only in this mode 600 file, never in the unit.
   writeAtomic(environmentPath, secretEnvironment(options));
   writeAtomic(unitPath(unit), slotUnit(slot, { ...options, environmentPath }));
   systemctl("daemon-reload");
@@ -228,7 +228,7 @@ function secretEnvironment(options) {
 }
 
 // The node that runs this tool comes first, so a unit always finds the same
-// node as the release (L-04). Only absolute entries are kept: a relative entry
+// node as the release. Only absolute entries are kept: a relative entry
 // would resolve against the service's working directory.
 function servicePath() {
   const directories = [
