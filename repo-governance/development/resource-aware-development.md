@@ -17,8 +17,10 @@ Targets owning a service or port lease own the guard; callers never wrap them ag
 Use `ephemeral` for repeatable work, `service` for development servers, and `transactional` for indivisible mutations.
 Every class consumes fixed capacity; never change class for priority.
 
-Choose tiers independently: `light` for narrow static checks, `standard` for ordinary work, and `heavy` for full builds,
-suites, and gates. Schema 3 keeps one FIFO waiter, grants the largest safe vector, and launches at most once.
+Choose a tier by what the work really needs, never to be admitted faster: a wrong tier harms the host or queue. See
+[Tier Selection](resource-aware-development/002-tier-selection.md).
+
+Schema 3 keeps one FIFO waiter, grants the largest safe vector, and launches at most once.
 
 Independent DAG nodes may overlap through HIPPO. Preserve dependencies, shared-output edges, ordered stages,
 migrations, build state, ports, transactions, locks, and proven serialization.
