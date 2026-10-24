@@ -152,8 +152,10 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
 
   @impl true
   def restore(snapshot, artifact_path) do
-    with %{content: %{database: database}} <-
+    # A copy cut short fails the integrity proof the real restore runs, so it is refused here too.
+    with %{content: %{database: database} = content} <-
            ArtifactStore.file(ArtifactStore.new(), artifact_path),
+         false <- Map.get(content, :cut_short?, false),
          [{room, false}] <- Enum.filter(Map.values(database.rooms), &match?({_room, false}, &1)) do
       messages = for message <- database.messages, message.room_id == room.id, do: message
 
