@@ -103,8 +103,8 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
   end
 
   # The root is created before anything that may fail, and removed whatever happens; any
-  # failure after it exists is reported as a failed restore. A copy that fails the integrity
-  # proof is refused before any of its facts are read.
+  # failure after it exists is reported as a failed restore. A copy that is not whole is refused
+  # before any of its facts are read.
   @impl true
   def restore(_snapshot, artifact_path) do
     root = isolated_restore_root!()
@@ -115,7 +115,7 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
       {:ok, connection} = Exqlite.Sqlite3.open(restored_path, mode: :readonly)
 
       try do
-        if quick_check_ok?(connection) do
+        if whole_copy?(connection, restored_path) do
           {:ok, restored_facts(connection)}
         else
           {:error, :restore_failed}
@@ -143,6 +143,16 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
   # The integrity proof the backup and its restore share: `PRAGMA quick_check` returns exactly
   # one row, holding `ok`. A damaged page yields other rows and fails it.
   defp quick_check_ok?(connection), do: query_rows(connection, "PRAGMA quick_check") == [["ok"]]
+
+  # A copy is whole when `quick_check` passes and its size is exactly its page count times its
+  # page size. quick_check alone misses a cut that only zero-fills a page nothing reads, such as a
+  # free page at the end of the file, so the size is checked as well.
+  defp whole_copy?(connection, path) do
+    quick_check_ok?(connection) and
+      File.stat!(path).size == pragma(connection, "page_count") * pragma(connection, "page_size")
+  end
+
+  defp pragma(connection, name), do: connection |> query_rows("PRAGMA #{name}") |> hd() |> hd()
 
   defp query_rows(connection, sql) do
     {:ok, statement} = Exqlite.Sqlite3.prepare(connection, sql)
