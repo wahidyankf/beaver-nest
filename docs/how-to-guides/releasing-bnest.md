@@ -173,6 +173,8 @@ Check these before the first `release:run` on a Linux host:
 
 - `lsof` must be installed, from the `lsof` package. The release tool reads the listening ports with it during
   preflight. Without it, preflight stops with `The active production port has no listener`, before any gate or cutover.
+  On a host that lacks both tools, the run stops on `flock` first, because the capacity check, which calls the HIPPO
+  wrapper, runs before the port check.
 - `flock` must be installed, from the `util-linux` package. Every `./hippo run` takes HIPPO's install guard with
   `flock` on Linux, so without it each run stops with exit `125` before it starts anything. Check with
   `command -v flock`.
@@ -180,11 +182,12 @@ Check these before the first `release:run` on a Linux host:
   download that browser, so install the pinned Chromium once per host, from the repository root:
 
   ```sh
-  npm exec -- playwright install --with-deps chromium
+  ./hippo run --class transactional --resource-tier standard --disk-path . -- \
+    npm exec -- playwright install --with-deps chromium
   ```
 
-  This is the command CI uses. `--with-deps` also installs the browser's system libraries through the distribution's
-  package manager, which needs root.
+  This is the command CI runs, under the same HIPPO wrapper. `--with-deps` also installs the browser's system libraries
+  through the distribution's package manager, which needs root.
 
 - `BNEST_RUNTIME_ROOT` must name an existing directory whose path ends in `/data/prod`. Any other root stops the app
   with `invalid runtime root: unsupported_root`. The value above comes from the blue unit, so check it there.
