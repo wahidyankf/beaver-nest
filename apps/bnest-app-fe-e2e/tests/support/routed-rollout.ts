@@ -16,7 +16,7 @@ import {
 import {
   captureStorageAuthority,
   restoreStorageAuthority,
-} from "./storage-authority";
+} from "./storage-authority.mts";
 
 let routedPort = primaryPort;
 let storageActivated = false;

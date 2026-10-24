@@ -19,7 +19,16 @@ export function captureStorageAuthority(): void {
   if (captured) return;
   assertRuntimeRoot();
   snapshotRoot = mkdtempSync(path.join(os.tmpdir(), "bnest-e2e-authority-"));
-  cpSync(runtimeRoot, path.join(snapshotRoot, "runtime"), { recursive: true });
+  // The storage lock lives beside the storage pointer, so it is inside the
+  // runtime root. A lease is live state of a running server, not part of the
+  // authority: a copy taken while an operation holds one would put that lease
+  // back on restore with no holder left to release it, and every later
+  // exclusive acquisition would wait out its whole drain timeout.
+  const lockRoot = `${routedStorageConfigPath()}.lock`;
+  cpSync(runtimeRoot, path.join(snapshotRoot, "runtime"), {
+    recursive: true,
+    filter: (source) => path.resolve(source) !== lockRoot,
+  });
   captured = true;
 }
 

@@ -42,6 +42,10 @@
             "forwardAllArgs": false
           },
           {
+            "command": "node --test apps/bnest-app-fe-e2e/tools/storage-authority.test.mts",
+            "forwardAllArgs": false
+          },
+          {
             "command": "node apps/bnest-app-fe-e2e/tools/check-behaviour-compliance.mts",
             "forwardAllArgs": false
           }
