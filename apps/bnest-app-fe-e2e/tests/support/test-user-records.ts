@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { appDirectory, routedEnvironment } from "./routed-rollout-env";
-import { assertRuntimeRoot } from "./storage-authority";
+import { assertRuntimeRoot } from "./storage-authority.mts";
 import { userDataRelativePath } from "./test-identity";
 
 // A synthetic user's server-side record is set up by saving it through a

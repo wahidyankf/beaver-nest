@@ -63,6 +63,10 @@ The `test:e2e` target owns the single HIPPO boundary because it also owns the E2
 - `tests/support/sifat-allah-progress.ts` owns saving a synthetic learner's Sifat Allah progress on the server.
 - `tests/support/codex-chat-transcript.ts` owns saving a synthetic user's chat on the Codex thread whose fixture runner
   has exited.
+- `tests/support/storage-authority.mts` owns capturing and restoring the routed storage authority around a scenario. It
+  leaves the storage lock out of the snapshot, because a lease copied while a server holds it would come back on
+  restore with no holder and block the next activation until its drain timeout. `tools/storage-authority.test.mts`
+  proves this, and `test:coverage:behaviour` runs it.
 - `tests/support/test-runtime.mts` owns paired marked runtime-root creation and exact cleanup.
 - `tools/run-e2e.mts` owns the guarded runtime lifecycle around the canonical Playwright target.
 - `.features-gen/` contains ignored, disposable generated Playwright tests.

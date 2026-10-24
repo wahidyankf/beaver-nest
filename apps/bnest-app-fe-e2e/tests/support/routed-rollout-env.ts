@@ -1,5 +1,5 @@
 import path from "node:path";
-import { routedStorageConfigPath } from "./storage-authority";
+import { routedStorageConfigPath } from "./storage-authority.mts";
 
 // Shared config/env constants for the routed-rollout candidate infrastructure
 // -- split out of `routed-rollout.ts` purely to stay under this project's
