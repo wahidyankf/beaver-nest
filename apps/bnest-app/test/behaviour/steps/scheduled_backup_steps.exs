@@ -387,6 +387,12 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: prepare(context, :drill_artifact)
   )
 
+  step(
+    "an isolated destination holding a synthetic artifact cut short of its last bytes",
+    context,
+    do: prepare(context, :drill_artifact_cut_short)
+  )
+
   step("a restorable regular file sits outside the destination", context,
     do: prepare(context, :drill_outside_file)
   )
@@ -446,6 +452,10 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
   )
 
   step("it restored the artifact once into a fresh root that no longer exists", context,
+    do: outcome(context, :drill_restored_once_root_gone)
+  )
+
+  step("it tried one restore of the artifact, and the root it created no longer exists", context,
     do: outcome(context, :drill_restored_once_root_gone)
   )
 
