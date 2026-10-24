@@ -267,6 +267,33 @@ defmodule BnestApp.ScheduledBackupTest do
     refute room["slug"] == "ruang-arsip"
   end
 
+  # A copy cut short by 100 bytes, less than one page, still opens and still reads its room,
+  # messages and deliveries, so only the integrity proof tells it from an intact copy. The
+  # restore must refuse it and remove the root it created.
+  test "refuses a real snapshot cut short of its last bytes and leaves no restore root",
+       context do
+    FamilyChat.ensure_ready!()
+    {:ok, location} = Backup.save_destination(context.backup_directory)
+    {:ok, artifact} = Backup.run(deadline: @now, destination_directory: location.directory)
+    assert {:ok, _restored} = Backup.restore(artifact)
+
+    intact = File.read!(artifact.path)
+    cut = binary_part(intact, 0, byte_size(intact) - 100)
+    %{rows: [[page_size]]} = SqliteRepo.query!("PRAGMA page_size")
+
+    # The cut is a sub-page one: the snapshot is whole pages and the copy is not.
+    assert rem(byte_size(intact), page_size) == 0
+    assert rem(byte_size(cut), page_size) != 0
+    assert byte_size(intact) - byte_size(cut) < page_size
+
+    truncated = %{artifact | path: Path.join(context.runtime.path, "cut-" <> artifact.basename)}
+    File.write!(truncated.path, cut)
+    roots = Backup.restore_roots()
+
+    assert Backup.restore(truncated) == {:error, :restore_failed}
+    assert Backup.restore_roots() == roots
+  end
+
   @doc false
   def forward_integrity(_event, measurements, metadata, pid),
     do: send(pid, {:integrity, measurements, metadata})
