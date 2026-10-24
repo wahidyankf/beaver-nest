@@ -9,9 +9,9 @@ routine release.
 
 - **A restore can leave its isolated root behind.** `isolated_restore_root!/0` in
   `apps/bnest-app/lib/bnest_app/backup/adapters/sqlite_database_snapshot.ex` creates the root before the `try` that
-  removes it. A failure between the directory creation and the `try` leaves a folder under the runtime root. The review
-  of the restore-validation change noted it; the code path has no fault-injection seam, so a test cannot reach it
-  today.
+  removes it. A failure between the directory creation and the `try` leaves a `bnest-restore-` folder under the
+  system temporary directory. The review of the restore-validation change noted it; the code path has no
+  fault-injection seam, so a test cannot reach it today.
 - **The backend e2e snapshot helper copies a live lock lease.** `captureStorageAuthority` in
   `apps/bnest-app-be-e2e/tests/support/storage-authority.ts` copies the whole runtime root, including the storage
   lock folder. `restoreStorageAuthority` later puts that copy back, so a lease that was live at capture time returns
@@ -27,8 +27,10 @@ so the next change to the order of the e2e steps can expose it.
 
 - The browser helper fix (pull request 197) skips the lock folder and carries five tests. It is the model for the
   backend helper.
-- [Browser suite timing reliability](browser-suite-timing-reliability.md) covers timing flakes, not state restored from
-  a snapshot; the two do not overlap.
+- [Browser suite timing reliability](browser-suite-timing-reliability.md) records the same "storage drain lock timed
+  out" failure among its causes and suspects a lease that outlives its test. Pull request 197 fixed that mechanism for
+  the browser helper; this brief carries the fix to the backend helper and adds the restore root. Fold the two if that
+  brief is promoted first.
 
 ## Proposed Direction (Sketch)
 
@@ -51,4 +53,5 @@ any change to the lock protocol itself.
 ## What Success Looks Like + Promotion Signal
 
 Success: both gaps are closed by tests that fail before the change. The first backend e2e failure that mentions a drain
-lock, or any new leftover restore folder in a production runtime root, promotes the matching item to a plan.
+lock, or any `bnest-restore-` folder left in the system temporary directory of a production host, promotes the
+matching item to a plan.
