@@ -171,6 +171,21 @@ BNEST_DEPLOY_ROOT=$(dirname "$(dirname "$release")")
 
 Check these before the first `release:run` on a Linux host:
 
+- `lsof` must be installed, from the `lsof` package. The release tool reads the listening ports with it during
+  preflight. Without it, preflight stops with `The active production port has no listener`, before any gate or cutover.
+- `flock` must be installed, from the `util-linux` package. Every `./hippo run` takes HIPPO's install guard with
+  `flock` on Linux, so without it each run stops with exit `125` before it starts anything. Check with
+  `command -v flock`.
+- The release's end-to-end gates and its routed proof launch Chromium through `@playwright/test`. `npm ci` does not
+  download that browser, so install the pinned Chromium once per host, from the repository root:
+
+  ```sh
+  npm exec -- playwright install --with-deps chromium
+  ```
+
+  This is the command CI uses. `--with-deps` also installs the browser's system libraries through the distribution's
+  package manager, which needs root.
+
 - `BNEST_RUNTIME_ROOT` must name an existing directory whose path ends in `/data/prod`. Any other root stops the app
   with `invalid runtime root: unsupported_root`. The value above comes from the blue unit, so check it there.
 - `BNEST_DEPLOY_COOKIE_FILE` names the release cookie file, and the tool reads that file. Do not export `RELEASE_COOKIE`
