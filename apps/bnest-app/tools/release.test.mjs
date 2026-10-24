@@ -29,7 +29,7 @@ import { normalizeProductionOrigin } from "./production-origin.mjs";
 
 const revision = "0123456789abcdef0123456789abcdef01234567";
 
-// The launchd slot and Caddy code moved to launchd.mjs (D-11); the orchestrator
+// The launchd slot and Caddy code moved to launchd.mjs; the orchestrator
 // assertions that follow the code read both files together.
 function toolSource(...names) {
   return names
@@ -807,7 +807,7 @@ test("accepts only a bare HTTPS production origin", () => {
     assert.throws(() => normalizeProductionOrigin(value), /HTTPS origin/u);
 });
 
-// Linux deployment support (D-11, L-01 to L-11). One isolated fixture serves
+// Linux deployment support. One isolated fixture serves
 // every case: the adapters read their roots from the environment when they
 // load, so each case sets the same values. `systemctl` is a stub that records
 // its calls; no case reaches a real service manager.
