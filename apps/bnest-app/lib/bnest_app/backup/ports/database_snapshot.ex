@@ -19,7 +19,9 @@ defmodule BnestApp.Backup.Ports.DatabaseSnapshot do
       a digest of its logical schema, or `{:error, :corrupt}`.
     * `restore/2` restores a copy into a fresh, ownership-marked root of its own, never the
       caller's choice of path, reads back what it holds, then removes that root. It returns
-      `{:error, :restore_failed}` when the copy cannot be restored or read.
+      `{:error, :restore_failed}` when the copy cannot be restored or read. It also refuses
+      a copy that fails `PRAGMA quick_check`, or whose size is not a whole number of pages
+      matching its header, with the same error, before it reads any of its rows.
     * `restore_roots/1` names, in order, the restore roots the operating system's temporary
       directory holds now, so a caller can tell that a restore removed its own. It names only
       what the directory lists, never a path, and raises when the directory cannot be listed.
