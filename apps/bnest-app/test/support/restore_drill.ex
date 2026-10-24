@@ -298,9 +298,9 @@ defmodule BnestApp.Test.RestoreDrill do
     end
   end
 
-  # In memory the stored artifact carries the cut, which the in-memory snapshot refuses as the
-  # integrity proof refuses the real copy. In the integration layer the file loses its last 100
-  # bytes.
+  # In memory the stored artifact carries a mark, which the in-memory snapshot refuses as a stand-in
+  # for the integrity proof. The integration layer cuts the real file's last 100 bytes, and the
+  # real restore is what refuses it there.
   defp cut_short!(path) do
     if in_memory?() do
       store = InMemoryArtifactStore.new()

@@ -387,6 +387,10 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: prepare(context, :drill_artifact)
   )
 
+  # In the unit layer this Given marks the stored artifact as cut short, and the in-memory snapshot
+  # refuses the mark as a stand-in for the integrity proof. The unit layer therefore proves only
+  # the drill's handling of a refusal. The integration layer runs this scenario against a real
+  # file, and proves the real refusal.
   step(
     "an isolated destination holding a synthetic artifact cut short of its last bytes",
     context,

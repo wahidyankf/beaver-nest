@@ -152,7 +152,10 @@ defmodule BnestApp.Test.InMemory.DatabaseSnapshot do
 
   @impl true
   def restore(snapshot, artifact_path) do
-    # A copy cut short fails the integrity proof the real restore runs, so it is refused here too.
+    # A stand-in for the integrity proof, not the proof itself. A copy marked as cut short is refused
+    # here because the real restore refuses such a copy. The mark is set by the test's Given, so
+    # this proves only that the drill handles a refusal. The integration layer proves the real
+    # refusal on a real file.
     with %{content: %{database: database} = content} <-
            ArtifactStore.file(ArtifactStore.new(), artifact_path),
          false <- Map.get(content, :cut_short?, false),
