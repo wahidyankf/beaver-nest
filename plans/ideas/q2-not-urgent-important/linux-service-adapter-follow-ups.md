@@ -2,33 +2,34 @@
 
 Six small hardening and coverage gaps left in the release tool after it learned to run production on Linux through
 systemd user units.
-Provenance: recorded 2026-10-24 from the read-only review of the merged Linux deployment change and from its
-commit-time notes.
+Provenance: recorded 2026-10-24 from the read-only review of the merged Linux deployment change (pull requests 192 and
+194).
 
 ## Problem / Context
 
 - **`ExecStart` is neither quoted nor percent-escaped.** The generated unit breaks on a release path that contains a
-  space or a percent sign. Today's paths contain neither.
-- **Slot and unit directories take default modes.** They sit under the owner-only deploy root, so nothing is exposed,
-  but the modes are not stated in code.
+  space, a percent sign, or another character that systemd treats specially.
+- **Slot and unit directories take default modes.** The user unit directory lives under the home directory, and no code
+  or document sets a mode for it or for the slot directories. Only the releases folder states mode 0700.
 - **`ensureCaddy` skips an existing binary without checking its version.** A stale binary stays in use after the pinned
   version changes.
-- **The Linux runbook section reads unit files with `sed` and no guard for a missing unit.** The command fails with an
-  unhelpful message on a host that has not been prepared.
+- **The Linux runbook section reads unit files with `sed` and no guard for a missing unit.** The read prints a plain
+  error, and the snippet carries on without `set -e`, so the deploy root then resolves to the current directory. The
+  macOS block above it guards each read.
 - **The launchd side has thin behavioural coverage.** The Caddy plist, `installCaddyService`, `retireSlot` and
   `copyRelease` have no behavioural test. The code is unchanged from before the Linux work and had the same coverage
   then.
 - **The Linux change shipped without Gherkin scenarios, bindings or a smoke run.** The repository rules ask for them
-  for project behaviour; the change was covered by unit tests of the release tool only.
+  for project behaviour; pull request 192 was covered by unit tests of the release tool only. A real run on a fresh
+  host followed and produced pull request 194.
 
 ## Why Now
 
-Not urgent. Production runs on Linux and works. These gaps matter only when a path changes, the Caddy pin moves, or the
-launchd path is touched again.
+Not urgent. These gaps matter only when a path changes, the Caddy pin moves, or the launchd path is touched again.
 
 ## Prior Art / Precedents
 
-- The Linux deployment change itself, and its review notes, are the source of each item.
+- The Linux deployment change, pull requests 192 and 194, is the source of each item.
 - [Restore root and backend e2e snapshot hardening](restore-root-and-be-e2e-snapshot-hardening.md) is a sibling brief
   for the test and cleanup gaps; it does not cover the release tool.
 
