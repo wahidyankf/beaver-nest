@@ -12,4 +12,5 @@ Read the [resource rule](../resource-aware-development.md), then each companion 
 ## Directory Map
 
 - [External Nx Cache Eviction](001-external-nx-cache-eviction.md) — approval, consequences, and retained state.
-- [Tier Selection](002-tier-selection.md) — the light, standard, and heavy tiers and the honest tier choice.
+- [Tier Selection](002-tier-selection.md) — the light, standard, and heavy tiers, the optional very-heavy tier and
+  swap setting, and the honest tier choice.
