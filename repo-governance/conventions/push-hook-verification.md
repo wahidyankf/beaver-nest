@@ -24,4 +24,15 @@ hosted pull-request gate mirrors the hook — lives in
 - A bypass never covers the public-safety screen, which `--no-verify` would otherwise skip, nor the [push leak review](../workflows/quality/pr-leak-review/002-push-review.md). Before an authorized bypass push, screen what is about to leave the machine with `RHINO_GATE_SURFACE=pre-push scripts/public-safety/check.sh </dev/null`, then commit by commit with `PUBLIC_SAFETY_BASE` and `PUBLIC_SAFETY_HEAD` set to the commit IDs of the remote tip (or `origin/main` for a new branch) and the pushed commit, and push only when both exit `0`.
 - Even when bypass is explicitly authorized, disclose which safeguards will be skipped and any unresolved failure before pushing.
 
+## HIPPO-Congestion Exception
+
+The maintainer pre-authorizes `--no-verify` on `git commit` and `git push` for a task-owned branch that lands through a pull request, with no per-instance prompt, when every condition below holds. This is the only standing exception to the requirements above.
+
+- The hook cannot run because HIPPO admission deferred or failed it (exit `124` never-started, exit `125`, or abnormal latency), not because a gate found a violation.
+- The manual screens pass: the tree screen and the per-commit range screen from the bypass paragraph above both exit `0`, with no push-leak-review finding. The `commit-msg` hook stays enabled.
+- Formatting is done by hand or editor; the pull-request gate verifies it.
+- The bypass cites the HIPPO receipt and screen evidence in the push and PR notes, and never carries into a later operation.
+
+Direct pushes to `main` stay outside this exception: explicit per-instance authorization still applies, strongly discouraged except for manual override.
+
 This convention keeps repository safeguards effective through root-cause correction rather than bypasses or cosmetic fixes, while preserving the user's authority to approve a deliberate exception. It supplements the [commit-authorization convention](commit-authorization.md); neither permission implies the other.
