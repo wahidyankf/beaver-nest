@@ -9,3 +9,4 @@ See the [Diátaxis how-to guidance](https://diataxis.fr/how-to-guides/) for the 
 - [Coding harnesses](coding-harnesses.md) configures Codex, Claude Code, OpenCode, Command Code, or Muse against the shared repository contract.
 - [Releasing Bnest](releasing-bnest.md) runs the managed no-downtime release on a provisioned host.
 - [Restoring a Bnest backup](restoring-a-bnest-backup.md) proves one nightly backup restores into an isolated root and reads the redacted evidence.
+- [Run work under the HIPPO guard](run-work-under-the-hippo-guard.md) runs local compute under HIPPO admission, reads exits 124 and 125, and names the v0.13.0 opt-in keys.
