@@ -79,4 +79,3 @@ It checks presence, not class judgment, and matches compute verbs only in comman
 
 - [Nx cache eviction](resource-aware-development/001-external-nx-cache-eviction.md)
 - [Remote dispatch](resource-aware-development/003-remote-dispatch.md) — when a dispatch may leave this machine, and the lifecycle it follows.
-- [Configuration and evidence](resource-aware-development/004-configuration-evidence.md) — local wrapper configuration, the evidence boundary, and wrapper verification.
