@@ -2,7 +2,7 @@
 
 [HIPPO](https://github.com/wahidyankf/hippo) guards local Nx compute without guaranteeing survival. Its source,
 specifications, protocol, and releases stay upstream. BeaverNest owns its pin, bootstrap, local policy, mappings, and
-invocations.
+invocations. A dispatched payload's one guard sits on the target host, never locally.
 
 ## Execution Contract
 
@@ -75,20 +75,8 @@ the same boundary hook.
 
 It checks presence, not class judgment, and matches compute verbs only in command position.
 
-## Configuration, Evidence, and Verification
-
-Copy [`hippo.local.json.example`](../../hippo.local.json.example) to ignored `hippo.local.json`. `--config` overrides
-`HIPPO_CONFIG`, then the bootstrap default. A worktree without a local copy inherits the primary checkout's policy.
-
-`hippo.identity.json` labels shared queue and history from nested paths and contained `worktrees/<task>` checkouts. Add
-privacy-safe `--tag checkout=worktree --tag plan=<slug>` values. Use `./hippo status`,
-`./hippo watch --source beaver-nest`, and `./hippo history --since 30d --source beaver-nest` directly.
-Use one platform root; set `HIPPO_ROOT` only for isolated tests. Evidence excludes arguments, origins, paths,
-credentials, contents, and user data. Raw evidence rolls for seven days;
-compacted daily summaries roll for 30 days under byte caps.
-
-Verify wrapper changes with its bootstrap suite, guarded Nx checks, and repository gate. Test pressure synthetically.
-
 ## Modules
 
 - [Nx cache eviction](resource-aware-development/001-external-nx-cache-eviction.md)
+- [Remote dispatch](resource-aware-development/003-remote-dispatch.md) — when a dispatch may leave this machine, and the lifecycle it follows.
+- [Configuration and evidence](resource-aware-development/004-configuration-evidence.md) — local wrapper configuration, the evidence boundary, and wrapper verification.
