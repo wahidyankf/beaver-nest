@@ -9,7 +9,7 @@ Use this workflow after adding or materially changing a canonical feature, behav
 - the [BDD standard](../../development/behaviour-driven-development.md), [test boundaries](../../development/quality-gates.md#test-boundaries), [test-data iron rule](../../development/test-identities.md#iron-rule), and applicable Nx targets; and
 - the changed scope, or the complete corpus when a full audit is requested.
 
-`libs/ex-bdd` owns runner fixtures rather than application behaviour and remains outside this workflow. Its intentionally empty, malformed, undefined, and ambiguous feature fixtures are valid only when a runner test asserts their rejection.
+ExBdd, maintained outside this repository, owns runner fixtures rather than application behaviour and remains outside this workflow. Its intentionally empty, malformed, undefined, and ambiguous feature fixtures are valid only when a runner test asserts their rejection.
 
 ## Review Procedure
 

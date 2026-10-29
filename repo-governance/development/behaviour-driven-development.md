@@ -1,12 +1,12 @@
 # Behaviour-Driven Development
 
-Applications, libraries, executable tools, and repository wrappers express observable behaviour in canonical Gherkin `.feature` files. E2E harnesses implement their owning application's corpus, or one declared root of it, never a corpus of their own. Only `libs/ex-bdd` is exempt.
+Applications, libraries, executable tools, and repository wrappers express observable behaviour in canonical Gherkin `.feature` files. E2E harnesses implement their owning application's corpus, or one declared root of it, never a corpus of their own.
 
 ## Iron Rule
 
 Read relevant features, steps, and tests before production. For observable changes: update Gherkin → bind every adapter → confirm Nx red → implement. Never reorder this. Finish without placeholders; establish a new project's corpus and adapters before its behaviour.
 
-For refactors or implementation-only changes, preserve Gherkin, establish a green baseline or characterization coverage, and keep it green. `libs/ex-bdd` starts from tests under the [TDD standard](test-driven-development.md).
+For refactors or implementation-only changes, preserve Gherkin, establish a green baseline or characterization coverage, and keep it green. ExBdd, maintained outside this repository, starts from tests under the [TDD standard](test-driven-development.md).
 
 ## Required Layers
 
@@ -17,7 +17,6 @@ For refactors or implementation-only changes, preserve Gherkin, establish a gree
 | Executable tool               | Unit; add local integration for owned local resources and E2E for a public process boundary.                                                                                                                         |
 | Repository executable wrapper | When no truthful Nx owner exists, one hermetic process adapter invokes the real wrapper and binds its exact corpus through the scheduled repository contract.                                                        |
 | Dedicated E2E app             | E2E for exactly one owned canonical corpus root of its owning application; never an independent owner, nor a second owner of another root.                                                                           |
-| `libs/ex-bdd`                 | Exempt.                                                                                                                                                                                                              |
 
 A library without integration owns no local resource boundary. Public-boundary proof belongs to its consumer's E2E corpus. Its README states corpus, adapters, targets, and inapplicable layers.
 
