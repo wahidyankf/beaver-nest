@@ -4,7 +4,6 @@ apps/bnest-app/assets/vendor/
 # Gherkin Markdown and Cucumber conformance fixtures are parser inputs whose
 # whitespace and payload bytes are test data, not prose formatting targets.
 **/*.feature.md
-libs/ex-bdd/test/fixtures/cck/
 
 # Verified against the catalog digest, never edited. See specs/fixtures/README.md.
 specs/fixtures/

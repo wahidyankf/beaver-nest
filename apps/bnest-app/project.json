@@ -3,7 +3,6 @@
   "name": "bnest-app",
   "projectType": "application",
   "root": "apps/bnest-app",
-  "implicitDependencies": ["ex-bdd"],
   "targets": {
     "assets:build": {
       "command": "MIX_ENV=test mix assets.build",

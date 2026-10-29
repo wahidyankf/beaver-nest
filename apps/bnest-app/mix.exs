@@ -66,7 +66,7 @@ defmodule BnestApp.MixProject do
       {:phoenix_live_view, "~> 1.2.0"},
       {:argon2_elixir, "~> 4.1.3"},
       {:boundary, "~> 0.11", runtime: false},
-      {:ex_bdd, path: "../../libs/ex-bdd", only: :test},
+      {:ex_bdd, github: "wahidyankf/ex-bdd", tag: "v0.1.0", only: :test},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
