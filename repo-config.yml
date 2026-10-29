@@ -750,10 +750,6 @@ extensions:
         path: apps/bnest-app
         kind: app
         stacks: [elixir, phoenix-liveview, javascript, typescript]
-      ex-bdd:
-        path: libs/ex-bdd
-        kind: library
-        stacks: [elixir]
       bnest-app-be-e2e:
         path: apps/bnest-app-be-e2e
         kind: app

@@ -91,10 +91,9 @@ npm test
 ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour
 npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
 ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:bootstrap
-./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p ex-bdd -t test:coverage
 ```
 
-`npm test` runs the Phoenix unit suite through Nx. Executable unit and integration tests live in separate layer directories; public-boundary E2E tests live in dedicated Nx apps. Bnest's unit, integration, and browser adapters consume the same recursively discovered feature corpus; each project's `test:coverage:behaviour` statically proves that the adapters it owns implement that corpus completely. Run only affected end-to-end cases during development. At 06:00 and 18:00 WIB, scheduled GitHub Actions runs complete ExBdd coverage and each application's integration suite before its complete E2E suite.
+`npm test` runs the Phoenix unit suite through Nx. Executable unit and integration tests live in separate layer directories; public-boundary E2E tests live in dedicated Nx apps. Bnest's unit, integration, and browser adapters consume the same recursively discovered feature corpus; each project's `test:coverage:behaviour` statically proves that the adapters it owns implement that corpus completely. Run only affected end-to-end cases during development. At 06:00 and 18:00 WIB, scheduled GitHub Actions runs each application's integration suite before its complete E2E suite; ExBdd's own engine coverage runs in its own repository.
 
 ## Repository layout
 
@@ -103,7 +102,6 @@ apps/bnest-app/  Phoenix LiveView application
 apps/bnest-app-be-e2e/  Playwright E2E proving backend boundary behaviour (no reverse proxy)
 apps/bnest-app-fe-e2e/  Playwright E2E proving frontend/PWA behaviour (full Caddy rollout)
 apps/rhino-consumer/  Nx targets composing the pinned RHINO documentation gate
-libs/ex-bdd/  Independently maintained Elixir Gherkin/ExUnit engine
 specs/apps/  Canonical application architecture and behaviour specifications
 data/        Ignored legacy production sources and isolated flat-file test fixtures
 docs/        Diátaxis-organized, non-rule documentation

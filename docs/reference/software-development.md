@@ -11,7 +11,6 @@ decision and deviation. Commands and test layers stay in each project's README.
 | Project                                                   | Kind    | Stacks                                           |
 | --------------------------------------------------------- | ------- | ------------------------------------------------ |
 | [bnest-app](../../apps/bnest-app/README.md)               | app     | Elixir, Phoenix LiveView, JavaScript, TypeScript |
-| [ex-bdd](../../libs/ex-bdd/README.md)                     | library | Elixir                                           |
 | [bnest-app-be-e2e](../../apps/bnest-app-be-e2e/README.md) | app     | TypeScript                                       |
 | [bnest-app-fe-e2e](../../apps/bnest-app-fe-e2e/README.md) | app     | TypeScript                                       |
 | [rhino-consumer](../../apps/rhino-consumer/README.md)     | tooling | Nx                                               |

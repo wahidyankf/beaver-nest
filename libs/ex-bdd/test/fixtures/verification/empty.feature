@@ -1,1 +1,0 @@
-Feature: Empty verification fixture

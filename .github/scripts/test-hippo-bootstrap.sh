@@ -23,7 +23,9 @@ grep -Fqi 'never retry it' "$resource_rule"
 grep -Fq 'protocol-mismatch' "$resource_rule"
 grep -Fq 'read the Hippo repository at the commit' "$resource_rule"
 grep -Fq '`hippo.lock`, then align' "$resource_rule"
-grep -Fq '30 days' "$resource_rule"
+remote_dispatch_rule="$repository_root/repo-governance/development/resource-aware-development/003-remote-dispatch.md"
+grep -Fq '003-remote-dispatch' "$resource_rule"
+grep -Fq '429a891' "$remote_dispatch_rule"
 # Keep every tracked active example compatible with schema 3 and prevent the
 # self-contention caused by wrapping an already-guarded package script.
 tier_findings=$(git -C "$repository_root" grep -n -E \

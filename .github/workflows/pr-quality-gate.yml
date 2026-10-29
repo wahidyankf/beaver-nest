@@ -157,9 +157,6 @@ jobs:
       - name: Install Phoenix dependencies
         run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
-      - name: Install ExBdd dependencies
-        run: ./hippo run --class transactional --resource-tier standard --cwd libs/ex-bdd --disk-path libs/ex-bdd -- mix deps.get
-
       # `test:quick` runs `mix dialyzer`, which rebuilds its PLT from the whole
       # OTP and dependency set on a cold runner. Without this cache every pull
       # request pays that cost again; the key tracks the exact toolchain and

@@ -15,8 +15,8 @@ defmodule BnestApp.Behaviour.FeVitestUnitScope do
   of their own (confirmed by reading `ExBdd.Discovery.discover/1`, whose
   `:features` option is a file glob, and `ExBdd.Verifier.verify!/1`, which
   requires every discovered pickle to bind); they only offer file-granularity
-  scoping. Rather than fork the shared `libs/ex-bdd` engine (out of this
-  plan's scope) or split the canonical `family_chat.feature` file (deviating
+  scoping. Rather than fork the ExBdd engine (maintained outside this
+  repository, out of this plan's scope) or split the canonical `family_chat.feature` file (deviating
   from the File Impact list), this module prunes `@fe-vitest-unit`-tagged
   scenarios from every discovered feature's `scenarios` and `rules[].
   scenarios` lists before the `DiscoveryResult` reaches `ExBdd.Verifier.
