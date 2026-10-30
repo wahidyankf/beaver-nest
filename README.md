@@ -129,6 +129,10 @@ feat(app): add household dashboard
 
 Before a push, Husky runs one HIPPO-guarded affected `test:quick` graph. Independent projects consume the admitted `NX_PARALLEL` allocation, while Nx dependency edges and ordered target stages remain serialized. It also guards governance, recursive directory-map checks for documentation, specifications, and plans, plus Mermaid accessibility when pushed commits change Markdown anywhere or relevant mapped content. The end-to-end harness keeps browser tests out of `test:quick`; developers run affected browser cases, while GitHub Actions runs the full suite twice daily.
 
+## Contributing
+
+External contributions are currently closed while the product stabilizes. Forks remain welcome under the MIT license.
+
 ## License
 
 Copyright © 2026 wahidyankf. Beaver Nest is available under the [MIT License](LICENSE).
