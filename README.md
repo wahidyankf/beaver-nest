@@ -8,7 +8,7 @@ Beaver Nest is a private, always-available family application and a focused cons
 
 ## Part of the `ose-projects` repositories
 
-Beaver Nest is one of the seven repositories Open Sharia Enterprise is built and maintained in:
+Beaver Nest is one of the eight repositories Open Sharia Enterprise is built and maintained in:
 
 | Repository                                                     | Visibility, license | What it does                                                | Relationship to Beaver Nest                                          |
 | -------------------------------------------------------------- | ------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------- |
@@ -19,8 +19,9 @@ Beaver Nest is one of the seven repositories Open Sharia Enterprise is built and
 | **[`beaver-nest`](https://github.com/wahidyankf/beaver-nest)** | Public, MIT         | This repository                                             | —                                                                    |
 | [`ose-rules`](https://github.com/wahidyankf/ose-rules)         | Public, MIT         | Portable governance, agent, and skill catalog               | Knowledge sharing: selected artifacts adopted by explicit copy       |
 | [`py-typekit`](https://github.com/wahidyankf/py-typekit)       | Public, MIT         | Typed functional primitives for Python                      | None beyond navigation                                               |
+| [`ex-bdd`](https://github.com/wahidyankf/ex-bdd)               | Public, MIT         | Behaviour-driven development testing for Elixir             | Upstream consumption: `ex_bdd` Hex dependency in test only           |
 
-That name is navigation, not coupling: it is not an organization, a parent repository, a parity group, or a shared release. The seven are developed, versioned, and released independently — no shared version number, no shared release cadence, and no monorepo. Beaver Nest consumes HIPPO, RHINO, and FERRET as checksum-pinned tools through the tracked `./hippo`, `./rhino`, and `./ferret` bootstraps, and copies selected ose-rules artifacts only on explicit request; beyond that, nothing propagates in either direction. Start in the repository that owns the work. See the [vision](repo-governance/vision/README.md#ose-public-relationship) for what membership does and does not oblige.
+That name is navigation, not coupling: it is not an organization, a parent repository, a parity group, or a shared release. The eight are developed, versioned, and released independently — no shared version number, no shared release cadence, and no monorepo. Beaver Nest consumes HIPPO, RHINO, and FERRET as checksum-pinned tools through the tracked `./hippo`, `./rhino`, and `./ferret` bootstraps, and copies selected ose-rules artifacts only on explicit request; beyond that, nothing propagates in either direction. Start in the repository that owns the work. See the [vision](repo-governance/vision/README.md#ose-public-relationship) for what membership does and does not oblige.
 
 ## Status
 
