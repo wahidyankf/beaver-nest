@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/wahidyankf/rhino/v0.16.3/schemas/repo-config/v2.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/wahidyankf/rhino/v0.16.4/schemas/repo-config/v2.schema.json
 # Beaver-Nest consumer policy for the immutable Rhino v0.16.3 release.
 
 schema: rhino/repo-config/v2
