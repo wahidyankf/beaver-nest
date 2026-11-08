@@ -12,10 +12,10 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { deflateSync } from "node:zlib";
+import { deflateSync, inflateSync } from "node:zlib";
 import test, { after, beforeEach } from "node:test";
 
 import { caddyfile, slots } from "./caddy-config.mjs";
@@ -511,14 +511,49 @@ test("reports an unreadable release as an audit violation, not a crash", async (
   }
 });
 
-// A compiled test-build beam copied from `_build/test`. Its build-host source prefix is replaced by an
-// equal-length synthetic prefix, so the fixture holds no local path and every chunk keeps its size.
+// A compiled stub module named like a test-only module. It was built from a synthetic source name and
+// stripped of debug info, docs, and compile info. The audit reads only its name and BEAM header.
 const realTestBeam = fileURLToPath(
   new URL(
     "./fixtures/release-artifact-audit/Elixir.BnestApp.Test.Contracts.beam",
     import.meta.url,
   ),
 );
+
+// The raw file plus every zlib stream found inside a chunk, so a path hidden in a
+// compressed chunk (Dbgi or Docs in OTP builds) is checked as well.
+function beamScanBuffers(bytes) {
+  const buffers = [bytes];
+  let offset = 12;
+  while (offset + 8 <= bytes.length) {
+    const size = bytes.readUInt32BE(offset + 4);
+    const data = bytes.subarray(offset + 8, offset + 8 + size);
+    buffers.push(data);
+    for (let index = 0; index < data.length; index += 1) {
+      if (data[index] !== 0x78) continue;
+      try {
+        buffers.push(inflateSync(data.subarray(index)));
+      } catch {
+        // Not a zlib stream at this offset.
+      }
+    }
+    offset += 8 + size + ((4 - (size % 4)) % 4);
+  }
+  return buffers;
+}
+
+test("the test-build beam fixture holds no local path in any chunk, compressed or not", () => {
+  const needles = [
+    ["a home directory prefix", "/home/"],
+    ["a macOS home prefix", "/Users/"],
+    ["the local home directory", homedir()],
+  ].filter(([, value]) => value.length > 1);
+  for (const buffer of beamScanBuffers(readFileSync(realTestBeam))) {
+    const text = buffer.toString("latin1");
+    for (const [label, value] of needles)
+      assert.equal(text.includes(value), false, `fixture holds ${label}`);
+  }
+});
 
 test("refuses a real compiled test-build beam by its module name", async () => {
   const { auditReleaseArtifact } = await loadArtifactAudit();
