@@ -115,10 +115,13 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
   File.write!(Path.join(runtime_root, ".bnest-test-run.json"), encoded_marker)
   File.write!(Path.join(sqlite_root, ".bnest-test-run.json"), encoded_marker)
 
+  # The storage pointer and the backup configuration live in the SQLite run base, beside the
+  # instance databases, so the flat base stays data-free (see BnestApp.TestInstance.Paths).
   config :bnest_app,
     runtime_root: runtime_root,
     test_sqlite_root: sqlite_root,
-    storage_config_path: Path.join(runtime_root, "storage-config/storage.json"),
+    storage_config_path: Path.join(sqlite_root, "storage-config/storage.json"),
+    backup_config_path: Path.join(sqlite_root, "storage-config/backup.json"),
     test_runtime_owned: true
 
   config :bnest_app, storage_profile: {:test, run_id}
@@ -221,9 +224,11 @@ config :bnest_app,
 # real `~/.config/bnest/backup.json`: its destination is the production backup directory,
 # where an artifact would be written and retention would prune. Every test run gets its own
 # unconfigured backup configuration path instead.
-config :bnest_app,
-  backup_config_path:
-    Path.expand("~/bnest/data/test/backup-config/#{family_chat_run_id}/backup.json")
+unless System.get_env("BNEST_TEST_LAYER") == "integration" do
+  config :bnest_app,
+    backup_config_path:
+      Path.expand("~/bnest/data/test/backup-config/#{family_chat_run_id}/backup.json")
+end
 
 # The unconfigured default destination is `<repository root>/data/backup`, and the compiled
 # checkout's (or an inherited `BNEST_REPOSITORY_ROOT`'s) is the production backup directory

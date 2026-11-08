@@ -42,6 +42,20 @@ defmodule BnestApp.TestInstance.Paths do
     end
   end
 
+  # The storage pointer a spawn writes. It starts as flat-primary, the state every release starts
+  # in; the migration step then activates SQLite exactly as `mix bnest.storage.migrate --activate`.
+  @spec storage_pointer(t()) :: map()
+  def storage_pointer(paths) do
+    %{
+      "schemaVersion" => 1,
+      "databaseDirectory" => paths.db_directory,
+      "databaseFilename" => @database_file,
+      "phase" => "flat_primary",
+      "migrationId" => "flat-files-v1-to-sqlite-v1",
+      "databaseGeneration" => paths.generation
+    }
+  end
+
   defp check_run_id(run_id) when is_binary(run_id) do
     if Regex.match?(@run_id_pattern, run_id), do: :ok, else: {:error, :invalid_run_id}
   end
