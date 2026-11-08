@@ -17,12 +17,15 @@ defmodule BnestApp.TestInstance.SeedTest do
   alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.FamilyChat
   alias BnestApp.Identity
+  alias BnestApp.Identity.Ports.IdentityStore
   alias BnestApp.Preferences
   alias BnestApp.PushNotifications
   alias BnestApp.SifatAllah
   alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.SqliteRepo
+  alias BnestApp.Storage
   alias BnestApp.Storage.Adapters.FileConfigStore
+  alias BnestApp.Storage.Domain.Manifest
   alias BnestApp.Storage.Records
   alias BnestApp.TestInstance
   alias BnestApp.TestInstance.Error
@@ -195,6 +198,22 @@ defmodule BnestApp.TestInstance.SeedTest do
 
       assert :ok = TestInstance.drop!(instance)
     end
+
+    test "a seeded account has the key set and record type of a bootstrapped one", %{run: run} do
+      # Drift between the two write paths shows here: the flat account comes from bootstrap, the
+      # SQLite account from the identity store port.
+      flat = TestInstance.spawn!(run, instance_id: @first_id, phase: :flat_primary)
+      flat_account = seeded_account(flat, admin_account(@first_id))
+      assert :ok = TestInstance.drop!(flat)
+
+      sqlite = TestInstance.spawn!(run, instance_id: @first_id)
+      sqlite_account = seeded_account(sqlite, admin_account(@first_id))
+      assert :ok = TestInstance.drop!(sqlite)
+
+      assert Enum.sort(Map.keys(sqlite_account)) == Enum.sort(Map.keys(flat_account))
+      assert flat_account["recordType"] == "account"
+      assert sqlite_account["recordType"] == "account"
+    end
   end
 
   describe "family chat" do
@@ -312,6 +331,92 @@ defmodule BnestApp.TestInstance.SeedTest do
       assert [%{role: :visitor, content: "Salam"} | _] = restored.messages
 
       assert Preferences.theme(user_id(admin)) == "dark"
+
+      assert :ok = TestInstance.drop!(instance)
+    end
+  end
+
+  describe "interrupted browser import" do
+    test "the production import of the same payload completes the retryable manifest, once", %{
+      run: run
+    } do
+      instance = TestInstance.spawn!(run, instance_id: @first_id, phase: :flat_primary)
+      {_admin, parent} = names(@first_id)
+      assert {:ok, %{applied: true}} = Seed.apply(instance, "accounts", account_seed(@first_id))
+      parent_id = user_id(parent)
+      source = chat_import_source()
+
+      {import_id, _checksum} =
+        Manifest.identity(parent_id, "sessionStorage", "bnest.chat.v1", source["payload"])
+
+      assert {:ok, %{applied: true}} =
+               Seed.apply(instance, "interrupted", interrupted_seed(parent, source))
+
+      # The seed leaves what an interruption after the envelope leaves: a retryable manifest, the
+      # preserved envelope, and no chat record.
+      assert {:ok,
+              %{"status" => "retryable", "failureCategory" => "read-back-failed", "attempt" => 1}} =
+               Records.read(:manifest, import_id)
+
+      assert {:ok, envelope} = Records.read(:browser_import, {parent_id, import_id})
+      assert {:error, :missing} = Records.read(:chat, parent_id)
+
+      # The browser's retry is the production import, through the same facade the upload uses.
+      assert {:ok, %{import_id: ^import_id, status: :accepted, record: record}} =
+               Storage.import_browser(parent_id, source)
+
+      assert {:ok, %{"status" => "accepted", "attempt" => 2}} = Records.read(:manifest, import_id)
+      assert {:ok, ^envelope} = Records.read(:browser_import, {parent_id, import_id})
+      assert {:ok, ^record} = Records.read(:chat, parent_id)
+      assert %{"recordType" => "chat", "revision" => 0, "sourceImportId" => ^import_id} = record
+
+      assert :ok = TestInstance.drop!(instance)
+    end
+
+    test "a second seed of the same interrupted import is refused as a facade conflict", %{
+      run: run
+    } do
+      instance = TestInstance.spawn!(run, instance_id: @first_id, phase: :flat_primary)
+      {_admin, parent} = names(@first_id)
+      assert {:ok, %{applied: true}} = Seed.apply(instance, "accounts", account_seed(@first_id))
+      source = chat_import_source()
+      seed = interrupted_seed(parent, source)
+
+      assert {:ok, %{applied: true}} = Seed.apply(instance, "first", seed)
+
+      assert {:error, {:facade, :browser_import, :exists}} = Seed.apply(instance, "second", seed)
+
+      assert :ok = TestInstance.drop!(instance)
+    end
+
+    test "the seed's source limits are the production import's limits", %{run: run} do
+      instance = TestInstance.spawn!(run, instance_id: @first_id, phase: :flat_primary)
+      owner = "user-parity-owner"
+
+      for {area, key, limit} <- [
+            {"sessionStorage", "bnest.chat.v1", 500_000},
+            {"localStorage", "bnest.sifat-allah.v1", 10_000},
+            {"localStorage", "phx:theme", 16}
+          ] do
+        # Not JSON, so the production import refuses it as malformed, not as oversized.
+        at_limit = %{
+          "storageArea" => area,
+          "storageKey" => key,
+          "payload" => String.duplicate("x", limit)
+        }
+
+        over = %{at_limit | "payload" => String.duplicate("x", limit + 1)}
+
+        assert {:error, :malformed, _manifest} = Storage.import_browser(owner, at_limit)
+        assert {:error, :oversized, _manifest} = Storage.import_browser(owner, over)
+      end
+
+      assert {:error, :unsupported_source, _manifest} =
+               Storage.import_browser(owner, %{
+                 "storageArea" => "localStorage",
+                 "storageKey" => "bnest.chat.v1",
+                 "payload" => "{}"
+               })
 
       assert :ok = TestInstance.drop!(instance)
     end
@@ -451,6 +556,39 @@ defmodule BnestApp.TestInstance.SeedTest do
   end
 
   # Helpers. Usernames carry the instance short id, so each helper takes the instance id.
+
+  defp chat_import_source do
+    %{
+      "storageArea" => "sessionStorage",
+      "storageKey" => "bnest.chat.v1",
+      "payload" =>
+        Jason.encode!(%{
+          "version" => 2,
+          "thread_id" => nil,
+          "model" => "fixture-model",
+          "reasoning_effort" => "medium",
+          "messages" => []
+        })
+    }
+  end
+
+  defp interrupted_seed(parent, source) do
+    %{
+      "records" => [
+        %{"owner" => parent, "kind" => "browserImportInterrupted", "value" => source}
+      ]
+    }
+  end
+
+  # The stored account of a seeded username, read through the active identity store.
+  defp seeded_account(instance, account) do
+    assert {:ok, %{accounts: [%{user_id: user_id}]}} =
+             Seed.apply(instance, "admins", %{"accounts" => [account]})
+
+    store = Identity.adapter(:identity_store).new(Storage.active_store())
+    assert {:ok, stored} = IdentityStore.read_account(store, user_id)
+    stored
+  end
 
   defp short_id(instance_id), do: String.slice(instance_id, 0, 8)
 

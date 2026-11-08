@@ -39,6 +39,17 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
     error
   end
 
+  # An interrupted import is a flat-primary kind: its store is the instance's own flat root.
+  @chat_payload ~s({"version":2,"messages":[]})
+
+  defp interrupted(value, owner \\ @parent),
+    do: record(owner, "browserImportInterrupted", value)
+
+  defp source(area, key, payload),
+    do: %{"storageArea" => area, "storageKey" => key, "payload" => payload}
+
+  defp flat_seeded, do: Map.merge(Map.put(@instance, :phase, :flat_primary), seeded([@parent]))
+
   describe "validate/2 accepts a valid seed" do
     test "returns every section in its normalized shape" do
       seed = %{
@@ -425,6 +436,91 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
 
       assert %{reason: :invalid_payload, path: "records[0].value"} =
                rejected(seed, seeded([@parent]))
+    end
+  end
+
+  describe "browserImportInterrupted" do
+    test "accepts an interrupted import of a recognized source and keeps its three fields" do
+      value = source("sessionStorage", "bnest.chat.v1", @chat_payload)
+
+      assert {:ok, %{"records" => [record]}} =
+               Seed.validate(%{"records" => [interrupted(value)]}, flat_seeded())
+
+      assert record == %{
+               "owner" => @parent,
+               "kind" => "browserImportInterrupted",
+               "value" => value
+             }
+    end
+
+    test "is refused on a sqlite_primary instance at its kind, because its store is the run base" do
+      value = source("sessionStorage", "bnest.chat.v1", @chat_payload)
+      sqlite = Map.put(seeded([@parent]), :phase, :sqlite_primary)
+
+      assert %{reason: :wrong_phase, path: "records[0].kind"} =
+               rejected(%{"records" => [interrupted(value)]}, sqlite)
+    end
+
+    test "refuses a source pair the production import does not recognize, at the key" do
+      for {area, key} <- [
+            {"localStorage", "bnest.chat.v1"},
+            {"sessionStorage", "phx:theme"},
+            {"sessionStorage", "bnest.sifat-allah.v1"},
+            {"sessionStorage", "unrelated"}
+          ] do
+        assert %{reason: :unsupported_source, path: "records[0].value.storageKey"} =
+                 rejected(%{"records" => [interrupted(source(area, key, "{}"))]}, flat_seeded())
+      end
+    end
+
+    test "accepts a payload of exactly the source's limit and refuses one byte more" do
+      for {key, area, limit} <- [
+            {"bnest.chat.v1", "sessionStorage", 500_000},
+            {"bnest.sifat-allah.v1", "localStorage", 10_000},
+            {"phx:theme", "localStorage", 16}
+          ] do
+        at_limit = source(area, key, String.duplicate("a", limit))
+        over = source(area, key, String.duplicate("a", limit + 1))
+
+        assert {:ok, _seed} =
+                 Seed.validate(%{"records" => [interrupted(at_limit)]}, flat_seeded())
+
+        assert %{reason: :oversized, path: "records[0].value.payload"} =
+                 rejected(%{"records" => [interrupted(over)]}, flat_seeded())
+      end
+    end
+
+    test "refuses a payload that is not a string at the payload" do
+      value = source("sessionStorage", "bnest.chat.v1", %{"version" => 2})
+
+      assert %{reason: :invalid_payload, path: "records[0].value.payload"} =
+               rejected(%{"records" => [interrupted(value)]}, flat_seeded())
+    end
+
+    test "refuses a value without its payload at the missing field" do
+      value = Map.delete(source("sessionStorage", "bnest.chat.v1", "{}"), "payload")
+
+      assert %{reason: :invalid_payload, path: "records[0].value.payload"} =
+               rejected(%{"records" => [interrupted(value)]}, flat_seeded())
+    end
+
+    test "refuses a value with a key outside its three fields at that key" do
+      value = Map.put(source("sessionStorage", "bnest.chat.v1", "{}"), "owner", "x")
+
+      assert %{reason: :invalid_payload, path: "records[0].value.owner"} =
+               rejected(%{"records" => [interrupted(value)]}, flat_seeded())
+    end
+
+    test "refuses a value that is not an object at the value" do
+      assert %{reason: :invalid_payload, path: "records[0].value"} =
+               rejected(%{"records" => [interrupted("{}")]}, flat_seeded())
+    end
+
+    test "refuses an owner that the instance does not hold" do
+      value = source("sessionStorage", "bnest.chat.v1", "{}")
+
+      assert %{reason: :unknown_owner, path: "records[0].owner"} =
+               rejected(%{"records" => [interrupted(value, @admin)]}, flat_seeded())
     end
   end
 
