@@ -30,11 +30,12 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     do: adapter(context).set_build_environment(context, :prod)
   )
 
-  step("seeding will fail after the first seeded account is created", context,
+  # The injected failure (`fail_after`) fires after the named step's work is done, so each Given names that point.
+  step("seeding will fail after its accounts are created", context,
     do: adapter(context).inject_failure(context, :seed)
   )
 
-  step("the migration will fail on its first migration", context,
+  step("the migration will fail after its migrations run", context,
     do: adapter(context).inject_failure(context, :migrate)
   )
 
@@ -87,7 +88,9 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     do: assert_no_leftovers(context)
   )
 
-  step("the run root holds no database file", context, do: assert_no_instance_database(context))
+  step("no database file for that instance remains", context,
+    do: assert_no_instance_database(context)
+  )
 
   step(
     "the response is the stock \"Not Found\" response that a missing route gets",
