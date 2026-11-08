@@ -88,17 +88,6 @@ defmodule BnestApp.Test.InMemory.TestInstancePort do
     end
   end
 
-  @doc "What the current instance's database holds: its records (accounts, sessions, user records) and chat messages."
-  @spec database_contents(t()) :: %{records: non_neg_integer(), chat_messages: non_neg_integer()}
-  def database_contents(%__MODULE__{current: nil}), do: %{records: 0, chat_messages: 0}
-
-  def database_contents(%__MODULE__{current: current}) do
-    %{
-      records: map_size(current.accounts) + length(current.sessions) + length(current.records),
-      chat_messages: length(current.messages)
-    }
-  end
-
   @doc "Whether the first-admin setup is open: a flat-primary instance with no admin account yet."
   @spec setup_open?(t()) :: boolean()
   def setup_open?(%__MODULE__{current: %{phase: :flat_primary, accounts: accounts}}),

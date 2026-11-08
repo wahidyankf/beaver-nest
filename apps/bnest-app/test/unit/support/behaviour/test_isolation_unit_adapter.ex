@@ -8,6 +8,12 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
   Every answer is a model answer. The unit layer cannot see SQLite, so the schema scenario is bound only
   as far as the pure digest allows (see `compare_release_schema/1`); the integration adapter proves the
   real database.
+
+  Scope of the lifecycle rows (spawn, failed spawn, rollback, teardown): they run the in-memory port, whose
+  spawn order and rollback follow `BnestApp.TestInstance`. The unit layer cannot run the switch, because
+  the switch writes the storage pointer and the run roots, which the unit boundary forbids. So these rows
+  prove the model's contract. The integration adapter runs the production switch and proves the same
+  steps on real files and a real repository.
   """
 
   alias BnestApp.Behaviour.TestIsolation.Fixtures
@@ -24,8 +30,27 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
   @builds [:prod, :dev]
   @loopback {127, 0, 0, 1}
   @outside_peer {203, 0, 113, 9}
-  @schema_rows [["table", "bnest_records", "bnest_records", "CREATE TABLE bnest_records (...)"]]
+  # Two rows, so that reversing the rows is a real reordering. The changed row differs from the first in its SQL.
+  @schema_rows [
+    ["table", "bnest_records", "bnest_records", "CREATE TABLE bnest_records (...)"],
+    [
+      "index",
+      "bnest_records_owner",
+      "bnest_records",
+      "CREATE INDEX bnest_records_owner ON bnest_records (...)"
+    ]
+  ]
+  @changed_rows [
+    ["table", "bnest_records", "bnest_records", "CREATE TABLE bnest_records (id)"],
+    [
+      "index",
+      "bnest_records_owner",
+      "bnest_records",
+      "CREATE INDEX bnest_records_owner ON bnest_records (...)"
+    ]
+  ]
   @schema_versions [20_260_829_000_000, 20_260_830_000_000]
+  @extra_version 20_260_831_000_000
 
   @doc "Installs the model and this adapter in the scenario context. The unit layer starts with no instance."
   def prepare(context) do
@@ -74,63 +99,6 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
     |> Map.put(:sent_usernames, Keyword.get(opts, :usernames, []))
   end
 
-  @doc "The previous test ends: its instance is dropped and the next test chooses its own id."
-  def end_test(context) do
-    port = context.isolation.port
-
-    dropped =
-      case Lifecycle.current(port) do
-        nil -> port
-        %{instance_id: id} -> port_after_drop(Lifecycle.drop(port, id))
-      end
-
-    context
-    |> Map.put(:previous_spawn, Map.get(context, :spawn))
-    |> put_port(dropped)
-    |> put_isolation(:instance_id, nil)
-  end
-
-  @doc """
-  The approved admin that `test_instances.feature` starts from: a fresh instance seeded with one admin
-  account, and that account logged in through the port. The credentials are kept so a later login can
-  present them. A login that the model refuses fails the Given, so the Then never starts from nothing.
-  """
-  def establish_admin(context) do
-    context = spawn_with_admin(context)
-    {:ok, %{accounts: [username]}} = context.spawn
-    password = Fixtures.password()
-
-    case Lifecycle.login(context.isolation.port, username, password) do
-      {:ok, port} ->
-        context
-        |> put_port(port)
-        |> Map.put(:previous_admin, %{username: username, password: password})
-
-      :error ->
-        raise "the approved admin cannot log in to its own instance"
-    end
-  end
-
-  @doc """
-  Replaces the current instance: the current one is dropped, then a fresh instance seeded with its own
-  admin is spawned. The dropped spawn is kept as `previous_spawn`, and the previous admin's credentials
-  stay in the context for the refusal check.
-  """
-  def replace_instance(context), do: context |> end_test() |> spawn_with_admin()
-
-  @doc """
-  Presents the previous admin's credentials to the current instance: `:ok` when the model opens a session,
-  `:error` when it refuses.
-  """
-  def login_as_previous_admin(context) do
-    %{username: username, password: password} = context.previous_admin
-
-    case Lifecycle.login(context.isolation.port, username, password) do
-      {:ok, _port} -> :ok
-      :error -> :error
-    end
-  end
-
   @doc "Deletes the current instance, then deletes it again. Answers the two statuses the endpoint gives."
   def delete_current(context) do
     id = context.isolation.instance_id
@@ -177,33 +145,50 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
   end
 
   @doc """
-  PARTIAL binding. The unit layer cannot read SQLite or the migration files, so it cannot observe the
-  release schema. It records only the production digest's discriminating properties on fixed rows: the
-  digest does not depend on row or version order, it changes when an object is added, and it changes when
-  a migration version is missing. Equality with the release schema is proven by the integration adapter.
+  PARTIAL binding, and the only schema answer the unit layer can give. It cannot read SQLite or the migration
+  files, so it cannot observe the release schema. It checks the comparison function itself on fixed rows: the
+  digest is the same for any order of the rows and the versions, and it changes for an added object, a changed
+  object, a missing version and an extra version. Equality of a real instance with the release build is proven
+  only by the integration adapter.
   """
   def compare_release_schema(context) do
+    base = Fingerprint.digest(@schema_rows, @schema_versions)
+
     Map.put(context, :comparison, %{
-      order_independent?:
-        Fingerprint.digest(@schema_rows, @schema_versions) ==
-          Fingerprint.digest(Enum.reverse(@schema_rows), Enum.reverse(@schema_versions)),
-      extra_object_detected?:
-        Fingerprint.digest([hd(@schema_rows) | @schema_rows], @schema_versions) !=
-          Fingerprint.digest(@schema_rows, @schema_versions),
-      missing_version_detected?:
-        Fingerprint.digest(@schema_rows, tl(@schema_versions)) !=
-          Fingerprint.digest(@schema_rows, @schema_versions)
+      rows_reordered_equal?:
+        base == Fingerprint.digest(Enum.reverse(@schema_rows), @schema_versions),
+      versions_reordered_equal?:
+        base == Fingerprint.digest(@schema_rows, Enum.reverse(@schema_versions)),
+      object_added_detected?:
+        base != Fingerprint.digest([hd(@schema_rows) | @schema_rows], @schema_versions),
+      object_changed_detected?: base != Fingerprint.digest(@changed_rows, @schema_versions),
+      version_missing_detected?: base != Fingerprint.digest(@schema_rows, tl(@schema_versions)),
+      version_extra_detected?:
+        base != Fingerprint.digest(@schema_rows, @schema_versions ++ [@extra_version])
     })
   end
 
-  @doc "PARTIAL: the digest is order-independent and sensitive to an extra object (not equality with release)."
+  @doc "PARTIAL: the digest is equal under reordering and changes under every object change (not equality with release)."
   def schema_identical?(context) do
-    %{order_independent?: order?, extra_object_detected?: extra?} = context.comparison
-    order? and extra?
+    %{
+      rows_reordered_equal?: rows?,
+      object_added_detected?: added?,
+      object_changed_detected?: changed?
+    } = context.comparison
+
+    rows? and added? and changed?
   end
 
-  @doc "PARTIAL: the digest is sensitive to a missing migration version (not an exact match to the files)."
-  def versions_exact?(context), do: context.comparison.missing_version_detected?
+  @doc "PARTIAL: the digest is equal under reordering and changes for a missing or an extra version (not an exact match to the files)."
+  def versions_exact?(context) do
+    %{
+      versions_reordered_equal?: versions?,
+      version_missing_detected?: missing?,
+      version_extra_detected?: extra?
+    } = context.comparison
+
+    versions? and missing? and extra?
+  end
 
   @doc "Whether the spawn finished its migration and its seed: the state the spawn returned with."
   def spawn_completion(context) do
@@ -233,24 +218,12 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
   # because the drop does so; it is not a claim about SQLite on disk, which the integration adapter reads.
   def instance_database_files(context), do: Lifecycle.database_files(context.isolation.port)
 
-  def database_contents(context), do: Lifecycle.database_contents(context.isolation.port)
-
   defp seed_option(opts) do
     case Keyword.get(opts, :seed) do
       nil -> []
       seed -> [seed: seed]
     end
   end
-
-  # A fresh instance id, seeded with one synthetic admin whose username carries that id's short form.
-  defp spawn_with_admin(context) do
-    context = choose_instance_id(context)
-    seed = Fixtures.accounts_seed(context.isolation.instance_id, ["admin"])
-    spawn_instance(context, seed: seed, usernames: Fixtures.seeded_usernames(seed))
-  end
-
-  defp port_after_drop({:ok, port}), do: port
-  defp port_after_drop({:error, port, :not_current}), do: port
 
   defp drop_answer(port, id) do
     case Lifecycle.drop(port, id) do

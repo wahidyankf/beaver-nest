@@ -16,7 +16,6 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
   alias BnestApp.Behaviour.TestIsolation.Fixtures
   alias BnestApp.Identity
   alias BnestApp.Identity.Ports.IdentityStore
-  alias BnestApp.SqliteRepo
   alias BnestApp.Storage
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.Test.MigrationFiles
@@ -104,18 +103,6 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
     |> Map.put(:sent_usernames, Keyword.get(opts, :usernames, []))
   end
 
-  @doc "The previous test ends: its instance is dropped and the next test chooses its own id."
-  def end_test(context) do
-    case TestInstance.state() do
-      nil -> :ok
-      instance -> :ok = TestInstance.drop!(instance)
-    end
-
-    context
-    |> Map.put(:previous_spawn, Map.get(context, :spawn))
-    |> put_isolation(:instance_id, nil)
-  end
-
   @doc "Deletes the current instance over the wire, then deletes it again. Answers the two statuses."
   def delete_current(context) do
     path = Wire.prefix() <> "/instances/" <> context.isolation.instance_id
@@ -196,40 +183,6 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
     login(username, Fixtures.password())
   end
 
-  @doc """
-  The approved admin that `test_instances.feature` starts from: a fresh instance seeded with one admin, and
-  that admin logged in through the production login route. A login the route refuses fails the Given.
-  """
-  def establish_admin(context) do
-    context = spawn_with_admin(context)
-    {:ok, %{accounts: [username]}} = context.spawn
-    password = Fixtures.password()
-
-    case login(username, password) do
-      :ok ->
-        Map.put(context, :previous_admin, %{username: username, password: password})
-
-      :error ->
-        raise "the approved admin cannot log in to its own instance"
-    end
-  end
-
-  @doc """
-  Replaces the current instance: the current one is dropped, then a fresh instance seeded with its own admin
-  is spawned. The dropped spawn is kept as `previous_spawn`, and the previous admin's credentials stay in the
-  context for the refusal check.
-  """
-  def replace_instance(context), do: context |> end_test() |> spawn_with_admin()
-
-  @doc """
-  Presents the previous admin's credentials to the production login route: `:ok` when it opens a session,
-  `:error` when it refuses (a refusal redirects back to the login page with no identity cookie).
-  """
-  def login_as_previous_admin(context) do
-    %{username: username, password: password} = context.previous_admin
-    login(username, password)
-  end
-
   @doc "The instance directories, the storage pointer and the backup configuration that still name the instance."
   def leftovers(context) do
     paths = instance_paths(context)
@@ -257,13 +210,6 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
     [paths.db_file | Path.wildcard(Path.join(paths.sqlite_instance_root, "**/*.sqlite3*"))]
     |> Enum.filter(&File.exists?/1)
     |> Enum.uniq()
-  end
-
-  @doc "The rows the current database holds in its record and Family Chat message tables."
-  def database_contents(_context) do
-    %{rows: [[records]]} = SqliteRepo.query!("SELECT count(*) FROM bnest_records")
-    %{rows: [[messages]]} = SqliteRepo.query!("SELECT count(*) FROM family_chat_messages")
-    %{records: records, chat_messages: messages}
   end
 
   # Helpers
@@ -299,13 +245,6 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
       nil -> []
       seed -> [seed: {"spawn", seed}]
     end
-  end
-
-  # A fresh instance id, seeded with one synthetic admin whose username carries that id's short form.
-  defp spawn_with_admin(context) do
-    context = choose_instance_id(context)
-    seed = Fixtures.accounts_seed(context.isolation.instance_id, ["admin"])
-    spawn_instance(context, seed: seed, usernames: Fixtures.seeded_usernames(seed))
   end
 
   # The production route answers a valid login with a redirect to "/" and the identity cookie, and a

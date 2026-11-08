@@ -14,9 +14,9 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
   #
   # Three kinds of scenario differ:
   #
-  #   * `test_isolation.feature` and `test_instances.feature` spawn, end and check their instances through their
-  #     adapter (`IntegrationAdapter.spawn_instance/2`, `establish_admin/1`). The generic hook spawns nothing, since a
-  #     second spawn is refused.
+  #   * `test_isolation.feature` spawns, ends and checks its instances through its adapter
+  #     (`IntegrationAdapter.spawn_instance/2`). The generic hook spawns nothing for it, since a second
+  #     spawn is refused.
   #   * a scenario tagged `@open-setup` needs an empty flat-primary instance with no seeded account, so `/setup` stays
   #     open. It spawns with no accounts and logs nobody in.
   #   * the `centralized_data.feature` scenarios import browser sources, which Bnest keeps as flat files in its
@@ -24,7 +24,7 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
   #   * four `sqlite_storage.feature` scenarios hide or remove the instance's storage pointer and then log an
   #     administrator in. With no pointer, accounts are written to the flat records store, so that store has to be the
   #     instance's own: a flat-primary instance. On a SQLite-primary instance they land in the shared run base.
-  @self_controlled_features ["test_isolation.feature", "test_instances.feature"]
+  @self_controlled_features ["test_isolation.feature"]
   @flat_primary_features ["centralized_data.feature"]
   @flat_primary_scenarios [
     "Administrator optionally selects a valid custom database folder",
