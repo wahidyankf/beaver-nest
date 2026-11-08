@@ -16,6 +16,10 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { normalizeProductionOrigin } from "./production-origin.mjs";
+import {
+  auditReleaseArtifact,
+  ReleaseArtifactAuditError,
+} from "./release-artifact-audit.mjs";
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const applicationRoot = resolve(import.meta.dirname, "..");
 const deploymentTool = join(import.meta.dirname, "deployment.mjs");
@@ -204,7 +208,9 @@ export async function executeRelease(host, options = {}) {
 
     fromState = "build";
     await host.build(releaseRevision, evidenceIds);
-    evidenceIds.push("artifact-manifest");
+    // `build` audits the artifact right after release:build and throws before
+    // it writes the manifest, so reaching this line means the audit passed.
+    evidenceIds.push("artifact-audit", "artifact-manifest");
 
     fromState = "migration-proof";
     migrationState = await host.proveMigration(releaseRevision);
@@ -810,6 +816,17 @@ export class MachineHost {
     const artifact = join(this.deploymentRoot, "releases", revision);
     if (!existsSync(artifact))
       throw new ReleaseError("artifact", "Release artifact is missing");
+
+    try {
+      auditReleaseArtifact(artifact);
+    } catch (error) {
+      if (!(error instanceof ReleaseArtifactAuditError)) throw error;
+      this.log(error.message.replaceAll("\n", " "));
+      throw new ReleaseError(
+        "artifact",
+        "Release artifact failed the testing-module audit",
+      );
+    }
 
     mkdirSync(this.manifestsPath, { recursive: true });
     const manifest = {
