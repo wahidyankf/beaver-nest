@@ -99,21 +99,25 @@ and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-databa
   when an earlier scenario left an instance current, then spawns a fresh instance with the standard accounts. A scenario
   tagged `@flat-primary`, or in `centralized_data.feature`, runs on a flat-primary instance. A scenario tagged
   `@open-setup` spawns an empty flat-primary instance, so `/setup` stays open. The after hook drops the current instance.
-  `test_isolation.feature` and `test_instances.feature` spawn, end and check their instances through their own adapter,
-  so the generic hook spawns nothing for them. Every other integration scenario spawns one instance; no scenario is
-  exempt by being pure. The unit layer never spawns.
+  `test_isolation.feature` spawns, ends and checks its instances through its own adapter, so the generic hook spawns
+  nothing for it. Every other integration scenario spawns one instance; no scenario is exempt by being pure. The unit
+  layer never spawns.
 - `test_isolation.feature` has two adapters. The unit adapter (`test/unit/support/behaviour/test_isolation_unit_adapter.ex`)
   drives the in-memory model `BnestApp.Test.InMemory.TestInstancePort`. The unit layer has no database, so its schema
-  steps are partial: they check the digest's properties, and equality with the release schema is proven by the
-  integration adapter (`test/integration/support/test_isolation_integration_adapter.ex`). That adapter drives the real
-  switch, the seed facades, the SQLite repo and the endpoint, and it reads the release side from
+  steps are PARTIAL: they check that the digest is the same under reordering and changes for every kind of object or
+  version change, on fixed rows. Its lifecycle rows (failed spawn, rollback, teardown) prove the model's contract, not
+  the production switch. Equality of a real instance with the release schema, and the production switch, are proven
+  only by the integration adapter (`test/integration/support/test_isolation_integration_adapter.ex`). That adapter
+  drives the real switch, the seed facades, the SQLite repo and the endpoint, and it reads the release side from
   `test/integration/support/release_schema.ex`. Shared fixtures are in `test/behaviour/test_isolation_fixtures.ex`.
-- `test_instances.feature` (app-fe) is bound here as well. Its Given is the shared admin step, which the drivers hand to
-  the isolation adapter; its own steps are in `test/behaviour/steps/test_instances_steps.exs`.
+- Seed and testing-control source never writes SQL or files directly. `test/unit/bnest_app/test_instance/seed_source_scan_test.exs`
+  fails on any SQL, DDL or file-write call in `test/support/test_instance_seed.ex` and `test/support/testing_control/`.
 - The integration run ends with a leak audit (`test/test_helper.exs`). `BnestApp.TestInstance.Audit.verdict/4` checks
-  for instance directories, a current instance and base data. A failure prints every reason, the run roots are removed,
-  and the VM exits with status 1. The verdict's rules are unit-tested, and a probe run that leaks an instance on purpose
-  fails. The run base must hold no data at all: no legacy exemption applies, so any base file fails the run.
+  for instance directories, a current instance, base data and run-secret leaks. The secret check reads every regular
+  file under the two run roots and fails if one holds a run secret generated during the run. It does not read console
+  or Logger output. A failure prints every reason, the run roots are removed, and the VM exits with status 1. The
+  verdict's rules are unit-tested, and a probe run that leaks an instance on purpose fails. The run base must hold no
+  data at all: no legacy exemption applies, so any base file fails the run.
 - The unit boundary policy (`test/behaviour/verify.exs`) refuses network URLs, loopback addresses, file and process
   access, and integration helpers in unit test source. The push-endpoint checks therefore live in
   `test/integration/bnest_app/test_instance/seed_push_validate_test.exs`.
