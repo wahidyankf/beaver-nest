@@ -18,8 +18,10 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
 
   step("no test instance is current", context, do: assert_none_current(context))
 
+  # The seeded account must read back in its own instance: a later absence in the next instance then
+  # means the account is gone, not that the read could never find it.
   step("a test spawned an instance and created an account in it", context,
-    do: context |> spawn_seeded(["admin"]) |> assert_spawned()
+    do: context |> spawn_seeded(["admin"]) |> assert_spawned() |> assert_seeded_accounts_present()
   )
 
   step("a test instance was spawned and migrated", context,
@@ -171,7 +173,7 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     do: assert_no_leftovers(context)
   )
 
-  step("the run root holds no database file", context, do: assert_no_instance_database(context))
+  step("the run root holds no database file", context, do: assert_no_run_base_database(context))
 
   step(
     "the response is the stock \"Not Found\" response that a missing route gets",
@@ -309,6 +311,19 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     context
   end
 
+  # Reads through the same `account_present?` reader the absence Then uses, so the control tests that reader.
+  defp assert_seeded_accounts_present(context) do
+    {:ok, spawned} = context.spawn
+
+    assert spawned.accounts != []
+
+    for username <- spawned.accounts do
+      assert adapter(context).account_present?(context, username)
+    end
+
+    context
+  end
+
   defp assert_spawn_completed(context) do
     completion = adapter(context).spawn_completion(context)
 
@@ -338,8 +353,8 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     context
   end
 
-  defp assert_no_instance_database(context) do
-    assert adapter(context).instance_database_files(context) == []
+  defp assert_no_run_base_database(context) do
+    assert adapter(context).run_base_database_files(context) == []
     context
   end
 

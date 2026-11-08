@@ -180,8 +180,7 @@ defmodule BnestApp.TestInstance do
     violations =
       non_empty_directory(Path.join(run.path, "users")) ++
         non_empty_directory(Path.join(run.path, "system/accounts")) ++
-        database_files(run.path) ++
-        database_files(run.sqlite_path)
+        base_database_files()
 
     case violations do
       [] -> :ok
@@ -483,6 +482,16 @@ defmodule BnestApp.TestInstance do
       {:ok, names} -> names |> Enum.sort() |> Enum.map(&Path.join(directory, &1))
       {:error, _reason} -> []
     end
+  end
+
+  @doc """
+  The SQLite database and sidecar files under either run base, outside every instance directory. An
+  instance's own files are not counted, so this is empty only when no instance wrote into the base.
+  """
+  @spec base_database_files() :: [String.t()]
+  def base_database_files do
+    run = application_run!()
+    database_files(run.path) ++ database_files(run.sqlite_path)
   end
 
   defp database_files(root) do

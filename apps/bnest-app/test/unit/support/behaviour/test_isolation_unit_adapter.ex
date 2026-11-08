@@ -271,9 +271,9 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
 
   def instance_directories(context), do: context.isolation.port.directories
 
-  # The model's database files for the instance. A drop clears them, so this is empty after teardown only
-  # because the drop does so; it is not a claim about SQLite on disk, which the integration adapter reads.
-  def instance_database_files(context), do: Lifecycle.database_files(context.isolation.port)
+  # PARTIAL. The model keeps no run base, so it cannot show the run root's files; it answers with the
+  # instance's model files, which a drop clears. The integration adapter reads the run base on disk.
+  def run_base_database_files(context), do: Lifecycle.database_files(context.isolation.port)
 
   @doc "The records and chat messages the current instance's database holds."
   def database_contents(context), do: Lifecycle.database_contents(context.isolation.port)
