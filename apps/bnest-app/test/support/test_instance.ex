@@ -10,7 +10,8 @@ defmodule BnestApp.TestInstance do
   # symlinks and unknown entries, before it deletes anything.
   #
   # `spawn!/2` and `drop!/1` run under one in-process lock. The current instance and the state it
-  # replaced live in `:persistent_term`, so any test process sees the same current instance.
+  # replaced live in the application environment, so any test process sees the same current
+  # instance. Unlike `:persistent_term`, a change there does not trigger a global garbage collection.
 
   use Boundary, top_level?: true, check: [in: false, out: false]
 
@@ -25,7 +26,7 @@ defmodule BnestApp.TestInstance do
   @phases [:sqlite_primary, :flat_primary]
   @empty_flat_name "flat-empty"
   @lock {__MODULE__, :lock}
-  @current {__MODULE__, :current}
+  @current_key :test_instance_current
 
   @type phase :: :sqlite_primary | :flat_primary
   @type instance :: %{
@@ -167,7 +168,7 @@ defmodule BnestApp.TestInstance do
     run_step!(instance, original, :migrate, opts, fn -> Switch.migrate!(instance) end)
     run_step!(instance, original, :seed, opts, fn -> run_seed(opts, instance) end)
 
-    :persistent_term.put(@current, %{instance: instance, original: original})
+    store_current(%{instance: instance, original: original})
     instance
   end
 
@@ -243,13 +244,12 @@ defmodule BnestApp.TestInstance do
     end
   end
 
-  defp rollback(instance, original) do
-    :ok = Switch.restore!(original)
+  # A failed create has switched nothing, so there is nothing to restore.
+  defp rollback(nil, _original), do: :ok
 
-    case instance do
-      nil -> :ok
-      instance -> rollback_directories(instance)
-    end
+  defp rollback(instance, original) do
+    :ok = Switch.restore!(original, instance.paths)
+    rollback_directories(instance)
   end
 
   defp rollback_directories(instance) do
@@ -267,12 +267,16 @@ defmodule BnestApp.TestInstance do
 
   # Drop
 
+  # A refusal (busy, or a failed directory check) happens before anything changes, so the instance
+  # stays current. Once the switch is restored, the instance is no longer current even if removing
+  # its directories then fails; that failure is reported with the retained path.
   defp do_drop(instance) do
     case current() do
       %{instance: ^instance, original: original} ->
+        if busy?(), do: refuse!(:instance_busy)
         check_before_removal!(instance)
-        :ok = Switch.restore!(original)
-        :persistent_term.erase(@current)
+        :ok = Switch.restore!(original, instance.paths)
+        clear_current()
         remove_directories!(instance)
 
       _other ->
@@ -321,7 +325,11 @@ defmodule BnestApp.TestInstance do
 
   defp refuse!(reason), do: raise(Error, reason: reason)
 
-  defp current, do: :persistent_term.get(@current, nil)
+  defp current, do: Application.get_env(:bnest_app, @current_key)
+
+  defp store_current(value), do: Application.put_env(:bnest_app, @current_key, value)
+
+  defp clear_current, do: Application.delete_env(:bnest_app, @current_key)
 
   # Scheduler tasks run under this supervisor; a switch would change the database under them.
   defp busy? do

@@ -7,6 +7,8 @@ defmodule BnestApp.TestInstance.SpawnTest do
 
   import Phoenix.ConnTest
 
+  alias BnestApp.Backup.Adapters.FileConfigStore, as: BackupConfigStore
+  alias BnestApp.FamilyChat.Adapters.SqliteRoomStore
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
   alias BnestApp.Storage.Adapters.FileConfigStore
@@ -24,11 +26,17 @@ defmodule BnestApp.TestInstance.SpawnTest do
     run = TestInstance.application_run!()
     assert TestInstance.state() == nil
 
+    # The backup configuration is one fixed file in the run base. A spawn and a drop both remove
+    # it, so every test starts and ends with it absent and the snapshots compare like with like.
+    File.rm(backup_config_path(run))
+
     on_exit(fn ->
       case TestInstance.state() do
         nil -> :ok
         instance -> TestInstance.drop!(instance)
       end
+
+      File.rm(backup_config_path(run))
     end)
 
     %{run: run}
@@ -133,6 +141,45 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert :ok = TestInstance.drop!(instance)
     end
 
+    test "a spawn that cannot take the switch lock is refused as active and changes nothing", %{
+      run: run
+    } do
+      before = snapshot()
+      parent = self()
+
+      # The switch lock is `:global` on `{BnestApp.TestInstance, :lock}`, held by the calling
+      # process. This holder stands for a concurrent spawn that already holds it.
+      holder =
+        Task.async(fn ->
+          :global.trans(
+            {{TestInstance, :lock}, self()},
+            fn ->
+              send(parent, :lock_held)
+
+              receive do
+                :release -> :ok
+              end
+            end,
+            [node()],
+            0
+          )
+        end)
+
+      assert_receive :lock_held
+
+      try do
+        error = assert_raise Error, fn -> TestInstance.spawn!(run) end
+
+        assert error.reason == :instance_active
+        assert TestInstance.state() == nil
+        assert snapshot() == before
+      after
+        send(holder.pid, :release)
+      end
+
+      assert Task.await(holder) == :ok
+    end
+
     test "refuses a spawn while a scheduler task runs, and creates nothing", %{run: run} do
       before = snapshot()
       {:ok, task} = start_blocking_scheduler_task()
@@ -171,6 +218,46 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert_received {:seeded, instance_id, versions}
       assert instance_id == instance.instance_id
       assert versions == MigrationFiles.versions()
+
+      assert :ok = TestInstance.drop!(instance)
+    end
+
+    test "a backup configuration that was there before the spawn is removed", %{run: run} do
+      File.mkdir_p!(Path.dirname(backup_config_path(run)))
+      File.write!(backup_config_path(run), ~s({"synthetic": true}))
+
+      instance = TestInstance.spawn!(run)
+
+      refute File.exists?(backup_config_path(run))
+      assert :ok = TestInstance.drop!(instance)
+    end
+
+    test "a create that fails before anything switches leaves the backup configuration alone", %{
+      run: run
+    } do
+      existing_id = "f0e1d2c3b4a59687"
+      assert {:ok, existing} = TestInstance.create_dirs(run, existing_id, :sqlite_primary)
+      File.mkdir_p!(Path.dirname(backup_config_path(run)))
+      File.write!(backup_config_path(run), ~s({"synthetic": true}))
+
+      try do
+        # The directory already exists, so `create` fails. Nothing has switched, so the rollback
+        # must not restore: a restore would remove the backup configuration written above.
+        error = assert_raise Error, fn -> TestInstance.spawn!(run, instance_id: existing_id) end
+
+        assert error.reason == :spawn_failed
+        assert error.step == :create
+        assert TestInstance.state() == nil
+        assert File.exists?(backup_config_path(run))
+      after
+        assert :ok = TestInstance.drop_dirs(existing)
+      end
+    end
+
+    test "other processes see the same current instance", %{run: run} do
+      instance = TestInstance.spawn!(run)
+
+      assert Task.async(fn -> TestInstance.state() end) |> Task.await() == instance
 
       assert :ok = TestInstance.drop!(instance)
     end
@@ -237,6 +324,74 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert :ok = TestInstance.drop!(instance)
     end
 
+    test "refuses a drop while a scheduler task runs, and keeps the instance current", %{run: run} do
+      instance = TestInstance.spawn!(run)
+      {:ok, task} = start_blocking_scheduler_task()
+
+      try do
+        error = assert_raise Error, fn -> TestInstance.drop!(instance) end
+
+        assert error.reason == :instance_busy
+        assert TestInstance.state() == instance
+        assert Storage.database_path() == instance.paths.db_file
+        assert File.dir?(instance.paths.sqlite_instance_root)
+      after
+        finish_blocking_scheduler_task(task)
+      end
+
+      assert :ok = TestInstance.drop!(instance)
+    end
+
+    test "a refused drop changes nothing and the instance stays current", %{run: run} do
+      instance = TestInstance.spawn!(run)
+      marker_path = instance.paths.sqlite_marker_path
+      marker = File.read!(marker_path)
+      File.rm!(marker_path)
+
+      try do
+        error = assert_raise Error, fn -> TestInstance.drop!(instance) end
+
+        assert error.reason == :refused
+        assert error.detail == :unmarked
+        assert TestInstance.state() == instance
+        assert Storage.database_path() == instance.paths.db_file
+        assert File.dir?(instance.paths.sqlite_instance_root)
+      after
+        File.write!(marker_path, marker)
+      end
+
+      assert :ok = TestInstance.drop!(instance)
+    end
+
+    test "a drop whose directory removal fails restores storage and reports the retained path", %{
+      run: run
+    } do
+      before = snapshot()
+      instance = TestInstance.spawn!(run)
+      root = instance.paths.sqlite_instance_root
+
+      # Removing the children needs write access to the root, so a read-only root fails the
+      # removal after the storage switch has been restored.
+      File.chmod!(root, 0o500)
+
+      try do
+        error = assert_raise Error, fn -> TestInstance.drop!(instance) end
+
+        assert error.reason == :cleanup_failed
+        assert error.path == root
+        assert TestInstance.state() == nil
+        assert Process.whereis(SqliteRepo) == nil
+        assert pointer_bytes() == before.pointer
+        assert Application.fetch_env(:bnest_app, :runtime_root) == before.runtime_root
+        assert File.dir?(root)
+      after
+        File.chmod!(root, 0o700)
+      end
+
+      assert :ok = TestInstance.drop_dirs(instance)
+      assert snapshot() == before
+    end
+
     test "restores the original runtime, backup and record store settings", %{run: run} do
       before = snapshot()
       instance = TestInstance.spawn!(run, phase: :flat_primary)
@@ -249,6 +404,38 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert :ok = TestInstance.drop!(instance)
 
       assert snapshot() == before
+    end
+
+    test "removes a backup configuration written during the instance", %{run: run} do
+      instance = TestInstance.spawn!(run)
+      store = BackupConfigStore.new()
+
+      # The backup store writes the run base's file, which is the one each drop must remove.
+      assert BackupConfigStore.config_path(store) == backup_config_path(run)
+      assert :ok = BackupConfigStore.write(store, %{"synthetic" => true})
+      assert File.exists?(backup_config_path(run))
+
+      assert :ok = TestInstance.drop!(instance)
+      refute File.exists?(backup_config_path(run))
+    end
+
+    test "Family Chat uses the instance database during the instance and its own path after drop",
+         %{run: run} do
+      original = Application.fetch_env!(:bnest_app, :family_chat_sqlite_path)
+      instance = TestInstance.spawn!(run)
+
+      # Without its own path, Family Chat resolves the instance database, as production does.
+      assert Application.fetch_env(:bnest_app, :family_chat_sqlite_path) == :error
+
+      assert Enum.any?(
+               SqliteRoomStore.list_active_rooms(SqliteRoomStore.new()),
+               &(&1.slug == "ruang-keluarga")
+             )
+
+      assert SqliteRepo.config()[:database] == instance.paths.db_file
+
+      assert :ok = TestInstance.drop!(instance)
+      assert Application.fetch_env(:bnest_app, :family_chat_sqlite_path) == {:ok, original}
     end
   end
 
@@ -278,6 +465,25 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert_raise ArgumentError, ~r/invalid runtime root/, fn ->
         FileRecordBackend.new!(instance.paths.flat_instance_root)
       end
+
+      assert :ok = TestInstance.drop!(instance)
+    end
+
+    test "the flat store a flat primary spawn installs has FileRecordBackend's keys and backend",
+         %{
+           run: run
+         } do
+      instance = TestInstance.spawn!(run, phase: :flat_primary)
+
+      # `new!/1` refuses an instance root, so the expected store is built from the run base and
+      # then compared with the installed one, whose root is the instance root.
+      expected = FileRecordBackend.new!(run.path)
+      store = :sys.get_state(Records).store
+
+      assert Enum.sort(Map.keys(store)) == Enum.sort(Map.keys(expected))
+      assert store.backend == expected.backend
+      assert store.replace == expected.replace
+      assert store.root == instance.paths.flat_instance_root
 
       assert :ok = TestInstance.drop!(instance)
     end
@@ -318,14 +524,21 @@ defmodule BnestApp.TestInstance.SpawnTest do
   end
 
   defp snapshot do
+    run = TestInstance.application_run!()
+
     %{
       audit: TestInstance.audit(),
       pointer: pointer_bytes(),
       runtime_root: Application.fetch_env(:bnest_app, :runtime_root),
       backup_repository_root: Application.fetch_env(:bnest_app, :backup_repository_root),
+      family_chat_sqlite_path: Application.fetch_env(:bnest_app, :family_chat_sqlite_path),
+      backup_config_present: File.exists?(backup_config_path(run)),
       records_store: :sys.get_state(Records).store
     }
   end
+
+  # The run base's backup configuration, the file `config/test.exs` points `:backup_config_path` at.
+  defp backup_config_path(run), do: Path.join([run.sqlite_path, "storage-config", "backup.json"])
 
   defp pointer_bytes do
     case File.read(FileConfigStore.pointer_path()) do

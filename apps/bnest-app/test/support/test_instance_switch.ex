@@ -78,15 +78,18 @@ defmodule BnestApp.TestInstance.Switch do
     Migrations.apply_and_verify!()
   end
 
-  # Puts back what `snapshot/0` read: the pointer bytes (or no pointer), the two settings, the
-  # Records store, and no repository running. Stopping first keeps a stale repo off a removed file.
-  @spec restore!(original()) :: :ok
-  def restore!(original) do
+  # Puts back what `snapshot/0` read: the pointer bytes (or no pointer), the settings, the Records
+  # store, and no repository running. Stopping first keeps a stale repo off a removed file. It also
+  # removes the instance's backup configuration, as `activate!/1` does, so a drop or a rollback
+  # leaves no backup configuration behind.
+  @spec restore!(original(), Paths.t()) :: :ok
+  def restore!(original, paths) do
     Storage.with_exclusive_lock(fn ->
       :ok = Storage.stop()
       restore_pointer(original.pointer)
       Enum.each(original.env, fn {key, value} -> restore_env(key, value) end)
       swap_records(original.records_store)
+      remove_file(paths.backup_config_path)
       :ok
     end)
   end
