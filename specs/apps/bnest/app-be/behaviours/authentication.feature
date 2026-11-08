@@ -1,5 +1,7 @@
 Feature: Bnest authentication
 
+  # Only a flat-primary instance with no seeded account keeps /setup open (ADR 001, section 2).
+  @flat-primary @open-setup
   Scenario: Initial setup creates policy-valid accounts exactly once
     Given Bnest has no bootstrap journal
     When the maintainer submits all initial accounts including an administrator
