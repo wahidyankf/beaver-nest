@@ -68,6 +68,21 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
     end
   end
 
+  # A secondary process of an instance (BNEST_TEST_INSTANCE_ID set) resolves Backup's default destination in the
+  # instance's own `backup-repository/`, as the running server does after its switch (BnestApp.TestInstance.Switch).
+  # The run base has no repository. The id is checked here, because only a flat instance root was checked above.
+  backup_repository_root =
+    case System.get_env("BNEST_TEST_INSTANCE_ID") do
+      nil ->
+        Path.join(sqlite_root, "backup-repository")
+
+      instance_id ->
+        unless Regex.match?(~r/\A[a-z0-9]{16}\z/, instance_id),
+          do: raise("the test instance id must be 16 lowercase letters or digits")
+
+        Path.join([sqlite_root, "instances", instance_id, "backup-repository"])
+    end
+
   # Test config runs before application modules are available. Enforce the same
   # exact-child invariant here before creating or writing either runtime root.
   Enum.each(
@@ -145,7 +160,7 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
     test_sqlite_root: sqlite_root,
     storage_config_path: Path.join(sqlite_root, "storage-config/storage.json"),
     backup_config_path: Path.join(sqlite_root, "storage-config/backup.json"),
-    backup_repository_root: Path.join(sqlite_root, "backup-repository"),
+    backup_repository_root: backup_repository_root,
     # The flat run base the ownership check reads. A flat-primary spawn re-points `:runtime_root` at its
     # instance root, so the check cannot read that key (see BnestAppWeb.TestingControl.Guard).
     test_flat_run_root: run_base_root,
