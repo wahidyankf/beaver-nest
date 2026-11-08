@@ -78,7 +78,8 @@ external-boundary doubles stay: `RecordingPushSender` (no real push provider) an
 1. Take the single in-process `TestInstance` lock and refuse with `:instance_active` if an instance is current.
 2. Refuse with `:instance_busy` if `Task.Supervisor.children(BnestApp.Scheduler.Tasks) != []`.
 3. Create the instance directories and markers (section 3).
-4. Inside `Storage.with_exclusive_lock/1` (drains every `Records` operation that holds a shared lease): `Storage.stop/0`;
+4. Inside `Storage.with_exclusive_lock/1` (drains every `Records` operation that holds a shared lease):
+   `Storage.stop/0`;
    write the storage pointer (`FileConfigStore.write!/1`, a normal `schemaVersion: 1` pointer whose
    `databaseDirectory` is the instance `db/` directory and whose `databaseGeneration` is `test-<instanceId>`); set
    `Application.put_env` for `:backup_repository_root`; for a flat-primary instance also `:runtime_root` and the
@@ -145,6 +146,10 @@ Which API is used:
 | `POST /instances/:id/seed` | 200 `{seedKey, applied}`                                                                                                                                         | more seed for the current instance, idempotent per `seedKey` |
 | `DELETE /instances/:id`    | 204                                                                                                                                                              | teardown of the current instance                             |
 
+`POST /instances/:id/seed` body: `{seedKey, seed}`, where `seed` has the shape of the `seed` object of
+`POST /instances`. Its response is `{seedKey, applied}`; `applied` is `false` when the same key comes again with the
+same body, and `:id` must be the current instance (another id is `not_current`).
+
 `POST /instances` body: `{runId, label, instanceId?, phase?, seed?}`. `label` is a slug of at most 60 characters.
 `instanceId` is the client's own random id matching `^[a-z0-9]{16}$`; when it is absent the server generates it. `seed`
 is `{accounts?, familyChat?, pushSubscriptions?, records?}`:
@@ -178,7 +183,7 @@ is `{accounts?, familyChat?, pushSubscriptions?, records?}`:
   "records": [
     {
       "owner": "<username>",
-      "kind": "sifatAllahProgress | codexChatTranscript | themePreference",
+      "kind": "sifatAllahProgress | codexChatTranscript | themePreference | browserImportInterrupted",
       "value": {}
     }
   ]
@@ -189,28 +194,38 @@ Limits: at most 40 accounts, 500 messages, 40 push subscriptions and 40 records.
 `^test-user-[a-z0-9-]{1,48}$` and carry the instance short id (the first 8 characters of `instanceId`) as one
 hyphen-separated segment, so identities stay unique per instance and traceable. The server generates an absent id only
 after it parses the body, so a spawn whose seed names accounts sends its own `instanceId`, which the usernames then
-carry. On a `flat_primary` instance, a seed with accounts that include an admin sends the first admin set through `Identity.bootstrap/1`, so setup closes exactly as in production. On a
+carry. On a `flat_primary` instance, a seed with accounts that include an admin sends the first admin set through
+`Identity.bootstrap/1`, so setup closes exactly as in production. On a
 `sqlite_primary` instance production refuses bootstrap, because its routed identity store never reads as empty, so
 the seed writes every account, admins included, through the identity-store port (`put_account`/`put_username`, with
 the configured credential hasher), and `/setup` stays unopened. A spawn with no accounts leaves `/setup` open only on
 a `flat_primary` instance, which is how "Initial setup creates accounts exactly once" gets a pristine database; that
 scenario must use phase `flat_primary`.
 
+`browserImportInterrupted` takes `value: {storageArea, storageKey, payload}`. The pair must be a source that
+`BnestApp.Storage.Import` recognizes: `sessionStorage` `bnest.chat.v1` (at most 500000 bytes), `localStorage`
+`bnest.sifat-allah.v1` (at most 10000 bytes) or `localStorage` `phx:theme` (at most 16 bytes). The seed writes what an
+import leaves when it stops after preserving its envelope: the envelope, and a manifest with status `retryable` and
+failure `read-back-failed`. Its import id is the production identity of the owner, source and payload, so a later
+browser import of the same payload resumes that manifest. The kind is accepted on a `flat_primary` instance only,
+because a SQLite instance's records store is the run base, which must stay data-free.
+
 **Error codes.** Every body is `{"error": {"code": "<code>", "detail": "<text>", "path": "<seed path or null>"}}` and
 never contains a secret, a password or a filesystem path outside the run.
 
-| Status | Code                          | When                                                                                                                                                                   |
-| ------ | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 404    | stock `ErrorJSON` "Not Found" | any failed guard below; identical to a missing route                                                                                                                   |
-| 400    | `invalid_request`             | malformed JSON, wrong content type, unknown top-level key, or an `instanceId` that is not 16 lowercase letters or digits                                               |
-| 409    | `run_mismatch`                | body `runId` differs from the server's run id                                                                                                                          |
-| 409    | `instance_active`             | spawn while an instance is current, or spawn with an `instanceId` whose directories already exist (its own detail)                                                     |
-| 409    | `not_current`                 | `:id` is not the current instance                                                                                                                                      |
-| 409    | `instance_busy`               | scheduler task running during spawn or delete                                                                                                                          |
-| 409    | `seed_conflict`               | same `seedKey` with a different body                                                                                                                                   |
-| 422    | `seed_invalid`                | `invalid_username`, `invalid_role`, `duplicate_username`, `unknown_sender`, `unknown_owner`, `unknown_seed_key`, `too_many`, `invalid_payload`; `path` names the field |
-| 500    | `spawn_failed`                | with `step` of `create`, `migrate`, `activate` or `seed`; the server already rolled back                                                                               |
-| 500    | `cleanup_failed`              | with the retained synthetic path (inside the run roots); fails the scenario                                                                                            |
+| Status | Code                          | When                                                                                                                                                                                                                     |
+| ------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 404    | stock `ErrorJSON` "Not Found" | any failed guard below; identical to a missing route                                                                                                                                                                     |
+| 400    | `invalid_request`             | malformed JSON, wrong content type, unknown top-level key, or an `instanceId` that is not 16 lowercase letters or digits                                                                                                 |
+| 409    | `run_mismatch`                | body `runId` differs from the server's run id                                                                                                                                                                            |
+| 409    | `instance_active`             | spawn while an instance is current, or spawn with an `instanceId` whose directories already exist (its own detail)                                                                                                       |
+| 409    | `not_current`                 | `:id` is not the current instance                                                                                                                                                                                        |
+| 409    | `instance_busy`               | scheduler task running during spawn or delete                                                                                                                                                                            |
+| 409    | `seed_conflict`               | same `seedKey` with a different body                                                                                                                                                                                     |
+| 422    | `seed_invalid`                | `invalid_username`, `invalid_role`, `duplicate_username`, `unknown_sender`, `unknown_owner`, `unknown_seed_key`, `too_many`, `invalid_payload`, `wrong_phase`, `unsupported_source`, `oversized`; `path` names the field |
+| 500    | `spawn_failed`                | with `step` of `create`, `migrate`, `activate` or `seed`; the server already rolled back                                                                                                                                 |
+| 500    | `seed_failed`                 | a production write refused a seed of `POST /instances/:id/seed`; the instance is kept, and the test deletes it                                                                                                           |
+| 500    | `cleanup_failed`              | with the retained synthetic path (inside the run roots); fails the scenario                                                                                                                                              |
 
 **Guards (all must pass, in this order, otherwise the stock 404 with no side effect):**
 
@@ -268,13 +283,16 @@ Who deletes what:
 | Crash or kill               | `cleanupStaleTestData()` at the start of every `run-e2e.mts` and on schedule                                                                                                                                                                                                   | removes whole run directories older than 24 h with a valid marker and a dead owner pid; instances go with their run. It also sweeps the legacy `~/bnest/data/test/{family-chat,backup-config,backup-repository}` directories (no marker, so only directories older than 24 h, only under those three exact parents) |
 | Failed teardown             | any of the above                                                                                                                                                                                                                                                               | `cleanup_failed` reports the exact retained synthetic path and fails the test; nothing outside the validated pair is deleted                                                                                                                                                                                        |
 
-A crash between spawn steps can leave an empty, unmarked instance root for a short moment: each root is created and its marker is written at once, and no database file exists before its marker. The empty root holds no data, and the run's removal (the stale sweep or the run's own teardown) deletes it with its run.
+A crash between spawn steps can leave an empty, unmarked instance root for a short moment: each root is created and its
+marker is written at once, and no database file exists before its marker. The empty root holds no data, and the run's
+removal (the stale sweep or the run's own teardown) deletes it with its run.
 `restore_rehearsal` writes a short-lived file in the system temp directory and removes it in the same call; it is not
 part of the instance.
 
 ### 4. Order, real migrations, cost and schema parity
 
-Order for every test: **spawn** (directories, markers, pointer, repo started on an empty file) -> **migrate** -> **seed**
+Order for every test: **spawn** (directories, markers, pointer, repo started on an empty file) -> **migrate** ->
+**seed**
 -> **test** -> **teardown**.
 
 **Migrate** uses only production entry points, in the order a release uses them:
@@ -297,7 +315,8 @@ applying 4 migrations, each compiled with `Code.compile_file` and committed in i
 fsync-bound commits); the release seed inserts (a handful of single-statement commits); `PRAGMA quick_check` and
 `VACUUM INTO` of a near-empty database for the activation; account seeding (Argon2 with `m_cost: 8, t_cost: 1` in test,
 about 1 ms each); and `git init` for the backup repository (one short process, only when the scenario needs backup).
-Estimate: 80 to 250 ms typical, up to 500 ms on a busy disk. With about 250 integration tests, and about 250 scenarios per
+Estimate: 80 to 250 ms typical, up to 500 ms on a busy disk. With about 250 integration tests, and about 250 scenarios
+per
 E2E project, that is roughly one minute added per run, against a suite that today pays per-scenario `mix run -e` BEAM
 boots (hundreds of ms of CPU each), which this change removes. A per-test spawn is acceptable on 2 vCPU because it is
 serial, mostly I/O bound, and replaces heavier work. The estimate is a hypothesis and becomes a gate: a timing test
@@ -308,7 +327,8 @@ skips `git init` and `quick_check` for scenarios that do not need them; it never
 fingerprint of a spawned instance: SHA-256 over the sorted rows of `SELECT type, name, tbl_name, sql FROM sqlite_master
 WHERE name NOT LIKE 'sqlite_%'` plus the sorted `schema_migrations` versions. It must equal the fingerprint of a second
 empty database built independently by calling the release entry points as `tools/deployment.mjs` does
-(`PersistentSchedules.apply_and_verify!(DateTime.utc_now())`, then `FamilyChat.apply_and_verify!()`), and the version set
+(`PersistentSchedules.apply_and_verify!(DateTime.utc_now())`, then `FamilyChat.apply_and_verify!()`), and the version
+set
 must equal the version prefixes of the files in `priv/sqlite_repo/migrations`. A test-only migration, a skipped
 migration or extra DDL fails it. The same test asserts that the rows the release seeds (the backup schedule, the Family
 Chat room and the retention schedule) are present and that no other schedule exists.
@@ -347,24 +367,30 @@ Governance and specification propagation: `test-identities.md`, `runtime-flat-fi
    forwarded header and from a non-loopback peer; the endpoints are absent from a production build; seeded accounts are
    `test-user-` only; a failed spawn rolls back. Tag each for the layers that can prove it, per the BDD standard.
 2. **Bindings** for those scenarios (Elixir ExBdd steps; Playwright steps in `bnest-app-be-e2e`), red.
-3. **Unit tests (mandatory), red**: `TestingRoutes.mounted?/2` is false for `:prod` and `:dev` with any flag and true only
+3. **Unit tests (mandatory), red**: `TestingRoutes.mounted?/2` is false for `:prod` and `:dev` with any flag and true
+   only
    for `:test` plus flag; `Paths` derivation and rejection of bad ids; seed validation (every `seed_invalid` code);
    secret comparison fails closed for an unset or short secret; the TypeScript path mirror equals `Paths` output.
-4. **Router and plug regression tests, red**: in the test build the routes exist, and each guard failure returns the stock
-   404 with the database untouched. **Prod-compiled absence:** `tools/release-artifact-audit.mjs` (Node, no BEAM) runs on
+4. **Router and plug regression tests, red**: in the test build the routes exist, and each guard failure returns the
+   stock
+   404 with the database untouched. **Prod-compiled absence:** `tools/release-artifact-audit.mjs` (Node, no BEAM) runs
+   on
    the freshly built release and fails if `ebin` holds any `Elixir.BnestApp.TestInstance*`,
    `Elixir.BnestAppWeb.TestingControl*` or `Elixir.BnestApp.Test*` beam, or if `Elixir.BnestAppWeb.Router.beam` contains
    `__bnest_testing` or those module names. It runs in `release:run` right after `release:build` as evidence id
-   `artifact-audit`, and its unit test (`tools/release.test.mjs`) uses beam-like fixtures with and without those strings.
+   `artifact-audit`, and its unit test (`tools/release.test.mjs`) uses beam-like fixtures with and without those
+   strings.
    The release already compiles `MIX_ENV=prod`, so no extra production compile is added to the quick gates.
-5. **Integration tests, red then green**: spawn, migrate, seed and drop; two consecutive tests see disjoint databases; the
+5. **Integration tests, red then green**: spawn, migrate, seed and drop; two consecutive tests see disjoint databases;
+   the
    base stays data-free; the schema-parity test; the source-scan test; the leak audit fails on a deliberately leaked
    instance; spawn rollback on a forced seed failure; the 20-spawn timing gate.
 6. **E2E**: a smoke scenario per project that checks `storageGeneration` after spawn and that the previous scenario's
    account is gone; then the existing suites move onto the new hook.
 7. Each step follows the repository TDD rule (RED, GREEN, REFACTOR with evidence) and
    [specification maintenance](../../../repo-governance/development/specification-maintenance.md); changed Gherkin goes
-   through the [Gherkin implementation review](../../../repo-governance/workflows/quality/gherkin-implementation-review.md).
+   through the [Gherkin implementation
+   review](../../../repo-governance/workflows/quality/gherkin-implementation-review.md).
 
 ### 7. Production release impact and deployment
 
@@ -376,14 +402,16 @@ What changes in the production build:
   `config/runtime.exs` are not touched. `Storage`, `SqliteCoordinator`, `Records` and `FileConfigStore` are not touched.
 - **Tooling in the repository, not in the release:** the Caddyfile generator gains the deny block (the only
   runtime-visible change, and it denies a path that already returns 404), and the artifact audit gate.
-- **Migrations:** none. No file under `priv/sqlite_repo/migrations` changes, so the `release:migrate` step is a no-op for
+- **Migrations:** none. No file under `priv/sqlite_repo/migrations` changes, so the `release:migrate` step is a no-op
+  for
   this revision and both slots can run against the same database.
 - **Check that nothing else changed:** the artifact audit plus a diff review that `lib/` changes only `router.ex` and
   `testing_routes.ex`.
 
 Deployment. [AGENTS.md](../../../AGENTS.md) requires integration by pull request with leak review, so "commit and push
 to main" means merging the reviewed PR (no direct push), then deleting the worktree and branch. Then, from the primary
-checkout on a clean `origin/main`, baseline [live-service continuity](../../../repo-governance/development/live-service-continuity.md)
+checkout on a clean `origin/main`, baseline [live-service
+continuity](../../../repo-governance/development/live-service-continuity.md)
 first (12 exact-origin samples, p95 at most 500 ms, no sample above 2 s, a representative routed journey), and:
 
 1. `npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>` (default `--mode compatibility`). The existing
@@ -432,8 +460,10 @@ without a test run can overlap with them.
   Caddy deny, so several independent layers); a header guess (32 random bytes per run, constant-time compare, closed
   when unset, stock 404); path traversal or touching production (paths derived from validated ids only, marker checks,
   no input paths); deletion of the wrong directory (exact-child checks plus both markers before any removal; the sweeper
-  never deletes by prefix or age alone); secret leakage through traces or logs (Node `fetch`, no logging, a per-run secret
-  that dies with the run); a secondary BEAM writing to the wrong database (environment derived from the instance, and the
+  never deletes by prefix or age alone); secret leakage through traces or logs (Node `fetch`, no logging, a per-run
+  secret
+  that dies with the run); a secondary BEAM writing to the wrong database (environment derived from the instance, and
+  the
   base-must-stay-empty audit).
 
 ## Consequences
