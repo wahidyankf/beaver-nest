@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {
+import fs, {
   existsSync,
   mkdtempSync,
   mkdirSync,
@@ -8,9 +8,10 @@ import {
   utimesSync,
   writeFileSync,
 } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { mock } from "node:test";
 import { cleanupStaleTestData } from "./test-data-cleanup.mjs";
 
 // Every call passes `legacyParents: []` unless it tests the legacy sweep on
@@ -333,6 +334,46 @@ test("sweeps only stale direct children of the three exact legacy parents", () =
     assert.equal(existsSync(prefixSibling), true);
     assert.equal(existsSync(unlisted), true);
   } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("skips a legacy child that a concurrent removal takes after it was listed", () => {
+  const home = mkdtempSync(path.join(os.tmpdir(), "bnest-legacy-race-test-"));
+  const parent = path.join(home, "family-chat");
+  const vanished = path.join(parent, "run-removed-concurrently");
+  const stale = path.join(parent, "run-old");
+  const originalLstat = fs.lstatSync;
+
+  try {
+    mkdirSync(vanished, { recursive: true });
+    ageDirectory(vanished, "2026-01-01T00:00:00.000Z");
+    mkdirSync(stale);
+    ageDirectory(stale, "2026-01-01T00:00:00.000Z");
+
+    // The listing saw `vanished`, then another sweep removed it before inspection.
+    mock.method(fs, "lstatSync", (candidate, ...options) => {
+      if (candidate === vanished) {
+        throw Object.assign(new Error(`ENOENT: ${candidate}`), {
+          code: "ENOENT",
+        });
+      }
+      return originalLstat(candidate, ...options);
+    });
+    syncBuiltinESMExports();
+
+    const result = cleanupStaleTestData({
+      roots: [],
+      legacyParents: [parent],
+      olderThanHours: 24,
+      now,
+    });
+
+    assert.deepEqual(result, { removed: 1, retained: 0 });
+    assert.equal(existsSync(stale), false);
+  } finally {
+    mock.restoreAll();
+    syncBuiltinESMExports();
     rmSync(home, { recursive: true, force: true });
   }
 });
