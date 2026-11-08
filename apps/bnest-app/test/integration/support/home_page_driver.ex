@@ -936,7 +936,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def prepare_behaviour(context, state, _args)
       when state in [:approved_account, :approved_argon2_account] do
     identity = context.test_identity
-    store = RecordIdentityStore.new(Records.store())
+    store = BnestApp.Identity.adapter(:identity_store).new(Storage.active_store())
     {:ok, account} = IdentityStore.read_account(store, identity.user_id)
 
     Map.merge(context, %{
@@ -1225,12 +1225,25 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :migration_not_started?, true)
   end
 
+  # The scenario is a fresh installation with no storage choice yet (ADR 001, section 1). Activation writes a
+  # flat-primary pointer into the instance, and the storage choice is refused while a pointer exists, so the
+  # instance's own pointer is removed here. With no pointer the default database directory is the storage profile's,
+  # so the profile points at a runtime root of its own: the run base's database is never opened.
   def prepare_behaviour(context, :admin_opened_storage_settings, _args) do
-    context = prepare_behaviour(context, :no_storage_configuration, [])
+    remove_instance_pointer!()
+    runtime = TestRuntimeRoot.create!("sqlite-storage-choice")
+
+    ExUnit.Callbacks.on_exit(fn ->
+      SqliteCoordinator.stop()
+      TestRuntimeRoot.cleanup!(runtime)
+    end)
+
+    use_runtime_storage_profile!(runtime)
 
     context
     |> establish_identity(:admin)
     |> open("/storage")
+    |> Map.put(:pointer_bytes_before, pointer_bytes())
   end
 
   # A fresh installation without a pointer, whose storage profile defaults to the marked
@@ -2113,11 +2126,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :no_plaintext_password, _args) do
     password = context.identity_password
 
-    bytes =
-      context.identity_store.records.root
-      |> Path.join("**/*.json")
-      |> Path.wildcard()
-      |> Enum.map_join(&File.read!/1)
+    bytes = instance_stored_bytes()
 
     rendered = context.login_response.resp_body <> context.home_response.resp_body
 
@@ -2212,8 +2221,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       |> LazyHTML.text()
       |> String.contains?("Enter an absolute server-local folder")
 
-  def behaviour_outcome?(_context, :no_storage_created, _args),
-    do: FileConfigStore.read() == {:error, :absent}
+  # The pointer's bytes are the same as when the admin opened storage settings. An instance may already hold a
+  # pointer, so an absent pointer is not the test.
+  def behaviour_outcome?(context, :no_storage_created, _args),
+    do: pointer_bytes() == context.pointer_bytes_before
 
   # The declared migration set is the committed migration files: the run's checksum is their
   # digest, computed here, the applied versions are their versions, and the indexes are
@@ -2968,6 +2979,41 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     |> BnestAppWeb.LoginLive.render()
     |> rendered_to_string()
     |> LazyHTML.from_fragment()
+  end
+
+  # Every regular file the current instance stores, flat records and the SQLite database with its sidecars, read
+  # whole. Either primary keeps its accounts in one of the two roots.
+  defp instance_stored_bytes do
+    paths = BnestApp.TestInstance.state().paths
+
+    [paths.flat_instance_root, paths.sqlite_instance_root]
+    |> Enum.flat_map(&Path.wildcard(Path.join(&1, "**/*")))
+    |> Enum.filter(&File.regular?/1)
+    |> Enum.map_join(&File.read!/1)
+  end
+
+  defp pointer_bytes do
+    case File.read(FileConfigStore.pointer_path()) do
+      {:ok, bytes} -> bytes
+      {:error, :enoent} -> :absent
+    end
+  end
+
+  # Only the current instance's pointer is removed. The instance's drop restores the run base's pointer.
+  defp remove_instance_pointer! do
+    if BnestApp.TestInstance.state() == nil,
+      do: raise("no test instance is current; refusing to remove a storage pointer")
+
+    case File.rm(FileConfigStore.pointer_path()) do
+      :ok ->
+        :ok
+
+      {:error, :enoent} ->
+        :ok
+
+      {:error, reason} ->
+        raise "could not remove the instance storage pointer: #{inspect(reason)}"
+    end
   end
 
   defp sqlite_storage_pointer_path do
