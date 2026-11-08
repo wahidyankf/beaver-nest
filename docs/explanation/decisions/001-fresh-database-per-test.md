@@ -145,8 +145,9 @@ Which API is used:
 | `POST /instances/:id/seed` | 200 `{seedKey, applied}`                                                                                                                                         | more seed for the current instance, idempotent per `seedKey` |
 | `DELETE /instances/:id`    | 204                                                                                                                                                              | teardown of the current instance                             |
 
-`POST /instances` body: `{runId, label, phase?, seed?}`. `label` is a slug of at most 60 characters. `seed` is
-`{accounts?, familyChat?, pushSubscriptions?, records?}`:
+`POST /instances` body: `{runId, label, instanceId?, phase?, seed?}`. `label` is a slug of at most 60 characters.
+`instanceId` is the client's own random id matching `^[a-z0-9]{16}$`; when it is absent the server generates it. `seed`
+is `{accounts?, familyChat?, pushSubscriptions?, records?}`:
 
 ```json
 {
@@ -185,9 +186,10 @@ Which API is used:
 ```
 
 Limits: at most 40 accounts, 500 messages, 40 push subscriptions and 40 records. Usernames match
-`^test-user-[a-z0-9-]{1,48}$` and carry the instance short id (the first 8 hex characters of `instanceId`), so identities
-stay unique per instance and traceable. On a `flat_primary` instance, a seed with accounts that include an admin
-sends the first admin set through `Identity.bootstrap/1`, so setup closes exactly as in production. On a
+`^test-user-[a-z0-9-]{1,48}$` and carry the instance short id (the first 8 characters of `instanceId`) as one
+hyphen-separated segment, so identities stay unique per instance and traceable. The server generates an absent id only
+after it parses the body, so a spawn whose seed names accounts sends its own `instanceId`, which the usernames then
+carry. On a `flat_primary` instance, a seed with accounts that include an admin sends the first admin set through `Identity.bootstrap/1`, so setup closes exactly as in production. On a
 `sqlite_primary` instance production refuses bootstrap, because its routed identity store never reads as empty, so
 the seed writes every account, admins included, through the identity-store port (`put_account`/`put_username`, with
 the configured credential hasher), and `/setup` stays unopened. A spawn with no accounts leaves `/setup` open only on
@@ -200,9 +202,9 @@ never contains a secret, a password or a filesystem path outside the run.
 | Status | Code                          | When                                                                                                                                                                   |
 | ------ | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 404    | stock `ErrorJSON` "Not Found" | any failed guard below; identical to a missing route                                                                                                                   |
-| 400    | `invalid_request`             | malformed JSON, wrong content type, unknown top-level key                                                                                                              |
+| 400    | `invalid_request`             | malformed JSON, wrong content type, unknown top-level key, or an `instanceId` that is not 16 lowercase letters or digits                                               |
 | 409    | `run_mismatch`                | body `runId` differs from the server's run id                                                                                                                          |
-| 409    | `instance_active`             | spawn while an instance is current                                                                                                                                     |
+| 409    | `instance_active`             | spawn while an instance is current, or spawn with an `instanceId` whose directories already exist (its own detail)                                                     |
 | 409    | `not_current`                 | `:id` is not the current instance                                                                                                                                      |
 | 409    | `instance_busy`               | scheduler task running during spawn or delete                                                                                                                          |
 | 409    | `seed_conflict`               | same `seedKey` with a different body                                                                                                                                   |

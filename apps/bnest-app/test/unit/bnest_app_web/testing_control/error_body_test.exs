@@ -10,6 +10,7 @@ defmodule BnestAppWeb.TestingControl.ErrorBodyTest do
       {{:invalid_request, "the body has an unknown field"}, 400, "invalid_request"},
       {:run_mismatch, 409, "run_mismatch"},
       {:instance_active, 409, "instance_active"},
+      {:instance_exists, 409, "instance_active"},
       {:not_current, 409, "not_current"},
       {:instance_busy, 409, "instance_busy"},
       {:seed_conflict, 409, "seed_conflict"},
@@ -48,6 +49,16 @@ defmodule BnestAppWeb.TestingControl.ErrorBodyTest do
                "step" => to_string(step)
              }
     end
+  end
+
+  test "a client-chosen id whose directories exist is refused with a fixed detail and no path" do
+    assert {409, %{"error" => error}} = ErrorBody.render(:instance_exists)
+
+    assert error == %{
+             "code" => "instance_active",
+             "detail" => "an instance with that id already exists",
+             "path" => nil
+           }
   end
 
   test "a cleanup failure names the retained path it was given, and nothing else" do

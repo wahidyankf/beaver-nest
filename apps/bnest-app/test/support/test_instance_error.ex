@@ -2,8 +2,9 @@ defmodule BnestApp.TestInstance.Error do
   @moduledoc false
 
   # Raised by the test-instance switch. `reason` is the refusal or failure kind the endpoints map
-  # to a status code: `:instance_active`, `:instance_busy`, `:run_mismatch`, `:pointer_mismatch`,
-  # `:not_current`, `:refused` (a directory check failed), `:spawn_failed` (with the failed `step`)
+  # to a status code: `:instance_active`, `:instance_exists` (a chosen id whose directories exist),
+  # `:instance_busy`, `:run_mismatch`, `:pointer_mismatch`, `:not_current`, `:refused` (a directory
+  # check failed), `:spawn_failed` (with the failed `step`)
   # or `:cleanup_failed` (with the retained `path`). `detail` carries the underlying reason.
 
   use Boundary, top_level?: true, check: [in: false, out: false]

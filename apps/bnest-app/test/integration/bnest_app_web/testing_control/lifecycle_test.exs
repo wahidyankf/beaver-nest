@@ -115,6 +115,81 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       assert Wire.snapshot() == before
     end
 
+    test "a client-chosen instance id becomes the spawned instance's id and generation", %{
+      run: run
+    } do
+      id = random_id()
+
+      conn = spawn_instance(run, %{"instanceId" => id})
+
+      assert conn.status == 201
+      body = Wire.json(conn)
+      assert body["instanceId"] == id
+      assert body["generation"] == "test-" <> id
+      assert TestInstance.state().instance_id == id
+    end
+
+    test "seed accounts for a client-chosen id carry its short id, and the answer lists exactly them",
+         %{run: run} do
+      id = random_id()
+      short = String.slice(id, 0, 8)
+
+      conn = spawn_instance(run, %{"instanceId" => id, "seed" => Wire.account_seed(id)})
+
+      assert conn.status == 201
+      body = Wire.json(conn)
+      assert body["instanceId"] == id
+
+      {admin, parent} = Wire.usernames(id)
+      assert Enum.map(body["accounts"], & &1["username"]) == [admin, parent]
+
+      for account <- body["accounts"] do
+        assert String.starts_with?(account["username"], "test-user-")
+        assert short in String.split(account["username"], "-")
+      end
+    end
+
+    test "an instance id that is not 16 lowercase letters or digits answers 400 and changes nothing",
+         %{run: run} do
+      before = Wire.snapshot()
+
+      for id <- ["0123456789ABCDEF", "short", "0123456789abcdef0", 42] do
+        conn = spawn_instance(run, %{"instanceId" => id})
+
+        assert conn.status == 400
+
+        assert error(conn) == %{
+                 "code" => "invalid_request",
+                 "detail" => "the instance id must be 16 lowercase letters or digits",
+                 "path" => nil
+               }
+      end
+
+      assert Wire.snapshot() == before
+    end
+
+    test "an instance id whose directories already exist answers 409 instance_active and changes nothing",
+         %{run: run} do
+      id = random_id()
+      leftover = Path.join([run.sqlite_path, "instances", id])
+      File.mkdir_p!(leftover)
+      on_exit(fn -> File.rm_rf!(leftover) end)
+      before = Wire.snapshot()
+
+      conn = spawn_instance(run, %{"instanceId" => id})
+
+      assert conn.status == 409
+
+      assert error(conn) == %{
+               "code" => "instance_active",
+               "detail" => "an instance with that id already exists",
+               "path" => nil
+             }
+
+      assert File.dir?(leftover)
+      assert Wire.snapshot() == before
+    end
+
     test "a spawn seed of a system message is applied before the spawn answers", %{run: run} do
       seed = %{
         "familyChat" => %{
@@ -566,7 +641,7 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
     end
 
     test "an unknown top-level field answers 400 invalid_request", %{run: run} do
-      conn = spawn_instance(run, %{"instanceId" => "0123456789abcdef"})
+      conn = spawn_instance(run, %{"owner" => "test-user-0123abcd"})
 
       assert conn.status == 400
       assert error(conn)["code"] == "invalid_request"
@@ -685,6 +760,8 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
   end
 
   defp error(conn), do: Wire.json(conn)["error"]
+
+  defp random_id, do: Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
 
   # Every answer's text is one of the fixed shapes: no secret, no password, and each string that is
   # a path is inside the run's roots.

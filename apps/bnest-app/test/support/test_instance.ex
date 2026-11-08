@@ -253,6 +253,9 @@ defmodule BnestApp.TestInstance do
         if FileConfigStore.pointer_path() != paths.storage_pointer_path,
           do: refuse!(:pointer_mismatch)
 
+        # A client-chosen id whose directories exist is refused here, before anything changes.
+        if not absent_roots?(paths), do: refuse!(:instance_exists)
+
         :ok
 
       {:error, reason} ->
@@ -448,10 +451,11 @@ defmodule BnestApp.TestInstance do
   defp run_root_check({:error, reason}, _run_id), do: {:error, reason}
 
   defp ensure_absent(paths) do
-    if Enum.all?([paths.sqlite_instance_root, paths.flat_instance_root], &absent?/1),
-      do: :ok,
-      else: {:error, :instance_exists}
+    if absent_roots?(paths), do: :ok, else: {:error, :instance_exists}
   end
+
+  defp absent_roots?(paths),
+    do: Enum.all?([paths.sqlite_instance_root, paths.flat_instance_root], &absent?/1)
 
   # `lstat` never follows a link, so a dangling or foreign link at the path counts as present.
   defp absent?(path), do: match?({:error, :enoent}, File.lstat(path))
