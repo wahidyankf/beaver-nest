@@ -147,7 +147,10 @@ defmodule BnestApp.MixProject do
       BnestApp.TestInstance.Seed,
       BnestApp.TestInstance.Switch,
       BnestApp.TestRuntimeRoot,
-      BnestAppWeb.ConnCase
+      BnestAppWeb.ConnCase,
+      # The lifecycle answers run only through the endpoint against a spawned instance, which only
+      # `test:integration` runs. The guard, request and error modules are pure and unit-tested.
+      BnestAppWeb.TestingControl.InstanceController
     ]
 
     # Outbound adapters, inbound adapters and infrastructure entry points: `test:integration`
