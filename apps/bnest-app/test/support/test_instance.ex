@@ -267,9 +267,7 @@ defmodule BnestApp.TestInstance do
   end
 
   defp preflight!(run, instance_id, phase, storage) do
-    if storage == :unconfigured and phase != :flat_primary,
-      do:
-        raise(Error, reason: :invalid_instance, detail: :unconfigured_storage_needs_flat_primary)
+    check_storage_phase!(storage, phase)
 
     if state() != nil, do: refuse!(:instance_active)
     if busy?(), do: refuse!(:instance_busy)
@@ -290,6 +288,15 @@ defmodule BnestApp.TestInstance do
       {:error, reason} ->
         raise Error, reason: :invalid_instance, detail: reason
     end
+  end
+
+  # An unconfigured storage choice exists only for a flat-primary instance.
+  defp check_storage_phase!(storage, phase) do
+    if storage == :unconfigured and phase != :flat_primary,
+      do:
+        raise(Error, reason: :invalid_instance, detail: :unconfigured_storage_needs_flat_primary)
+
+    :ok
   end
 
   defp create!(run, instance_id, phase, original, opts) do
