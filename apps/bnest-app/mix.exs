@@ -143,6 +143,7 @@ defmodule BnestApp.MixProject do
       BnestApp.TestBackupDestination,
       BnestApp.TestIdentity,
       BnestApp.TestInstance,
+      BnestApp.TestInstance.Switch,
       BnestApp.TestRuntimeRoot,
       BnestAppWeb.ConnCase
     ]
