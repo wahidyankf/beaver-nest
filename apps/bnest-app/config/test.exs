@@ -2,6 +2,9 @@ import Config
 
 config :bnest_app, :identity_cutover_enabled, true
 config :bnest_app, :scheduler_automatic?, false
+# Mounts the test-only testing-control routes (see BnestAppWeb.TestingRoutes). Only this file
+# sets it, so dev and production builds never mount them.
+config :bnest_app, :testing_control, true
 # On by default in test so unit/integration drivers can exercise the room
 # route/navigation without per-test overrides; the specific "flag genuinely
 # off" checkpoint scenario overrides this locally via
