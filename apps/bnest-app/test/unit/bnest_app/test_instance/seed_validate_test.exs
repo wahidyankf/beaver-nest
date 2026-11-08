@@ -14,16 +14,15 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
   @parent "test-user-a1b2c3d4-parent"
   @password "Synthetic!Pass1"
   @key "3f2b8c1e-6d4a-4b7e-9a1f-0c2d3e4f5a6b"
-  @endpoint "https://push.allowed.example.com/sub-1"
+
+  # Push subscriptions carry endpoint URLs, which the unit boundary policy refuses. Their checks live in
+  # test/integration/bnest_app/test_instance/seed_push_validate_test.exs.
 
   defp account(name, roles \\ ["parents"]),
     do: %{"username" => name, "password" => @password, "roles" => roles}
 
   defp message(sender, key \\ @key, body \\ "Assalamu alaikum"),
     do: %{"sender" => sender, "body" => body, "idempotencyKey" => key}
-
-  defp subscription(owner, endpoint \\ @endpoint),
-    do: %{"owner" => owner, "endpoint" => endpoint, "p256dh" => "AAAA", "auth" => "AAAA"}
 
   defp record(owner, kind, value), do: %{"owner" => owner, "kind" => kind, "value" => value}
 
@@ -47,7 +46,6 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
         "familyChat" => %{
           "messages" => [message(@admin, @key, "  Salam  "), message("system", "slot-1")]
         },
-        "pushSubscriptions" => [subscription(@parent)],
         "records" => [record(@parent, "themePreference", %{"theme" => "dark"})]
       }
 
@@ -69,15 +67,6 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
                ]
              }
 
-      assert normalized["pushSubscriptions"] == [
-               %{
-                 "owner" => @parent,
-                 "endpoint" => @endpoint,
-                 "p256dh" => "AAAA",
-                 "auth" => "AAAA"
-               }
-             ]
-
       assert normalized["records"] == [
                %{"owner" => @parent, "kind" => "themePreference", "value" => %{"theme" => "dark"}}
              ]
@@ -94,14 +83,13 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
              }
     end
 
-    test "accepts a seeded sender, owner or account that an earlier seed created" do
+    test "accepts a seeded sender or owner that an earlier seed created" do
       instance = seeded([@admin])
 
       assert {:ok, _seed} =
                Seed.validate(
                  %{
                    "familyChat" => %{"messages" => [message(@admin)]},
-                   "pushSubscriptions" => [subscription(@admin)],
                    "records" => [record(@admin, "themePreference", %{"theme" => "light"})]
                  },
                  instance
@@ -190,11 +178,6 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
                )
     end
 
-    test "a push owner that is not seeded is unknown_owner" do
-      assert %{reason: :unknown_owner, path: "pushSubscriptions[0].owner"} =
-               rejected(%{"pushSubscriptions" => [subscription(@parent)]})
-    end
-
     test "a record owner that is not seeded is unknown_owner" do
       assert %{reason: :unknown_owner, path: "records[0].owner"} =
                rejected(%{
@@ -251,14 +234,6 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
                Seed.validate(%{"familyChat" => %{"messages" => messages}}, @instance)
 
       assert length(normalized) == 500
-    end
-
-    test "refuses 41 push subscriptions at pushSubscriptions" do
-      subscriptions =
-        for i <- 1..41, do: subscription(@parent, "https://push.allowed.example.com/sub-#{i}")
-
-      assert %{reason: :too_many, path: "pushSubscriptions"} =
-               rejected(%{"pushSubscriptions" => subscriptions}, seeded([@parent]))
     end
 
     test "refuses 41 records at records" do
@@ -358,37 +333,6 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
                rejected(seed)
     end
 
-    test "a push endpoint that is not https is refused at its endpoint" do
-      seed = %{
-        "pushSubscriptions" => [subscription(@parent, "http://push.allowed.example.com/x")]
-      }
-
-      assert %{reason: :invalid_payload, path: "pushSubscriptions[0].endpoint"} =
-               rejected(seed, seeded([@parent]))
-    end
-
-    test "a push endpoint whose host is not allowed is refused at its endpoint" do
-      seed = %{"pushSubscriptions" => [subscription(@parent, "https://evil.example.org/x")]}
-
-      assert %{reason: :invalid_payload, path: "pushSubscriptions[0].endpoint"} =
-               rejected(seed, seeded([@parent]))
-    end
-
-    test "a push endpoint on a production push service is accepted" do
-      seed = %{"pushSubscriptions" => [subscription(@parent, "https://web.push.apple.com/abc")]}
-
-      assert {:ok, _seed} = Seed.validate(seed, seeded([@parent]))
-    end
-
-    test "a push key that is not url-safe base64 is refused at that key" do
-      seed = %{
-        "pushSubscriptions" => [%{subscription(@parent) | "p256dh" => "not base64 !"}]
-      }
-
-      assert %{reason: :invalid_payload, path: "pushSubscriptions[0].p256dh"} =
-               rejected(seed, seeded([@parent]))
-    end
-
     test "a record kind outside the three known kinds is refused at its kind" do
       seed = %{"records" => [record(@parent, "sifatAllahLegacy", %{})]}
 
@@ -476,24 +420,6 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
       assert %{reason: :invalid_payload, path: "familyChat.messages[0].body"} = rejected(seed)
     end
 
-    test "a second subscription with the same endpoint is invalid_payload at its endpoint" do
-      seed = %{"pushSubscriptions" => [subscription(@parent), subscription(@parent)]}
-
-      assert %{reason: :invalid_payload, path: "pushSubscriptions[1].endpoint"} =
-               rejected(seed, seeded([@parent]))
-    end
-
-    test "a push auth that is not unpadded base64url is invalid_payload at auth" do
-      seed = %{
-        "pushSubscriptions" => [
-          Map.put(subscription(@parent), "auth", "not base64!")
-        ]
-      }
-
-      assert %{reason: :invalid_payload, path: "pushSubscriptions[0].auth"} =
-               rejected(seed, seeded([@parent]))
-    end
-
     test "a sifat progress value that is not an object is invalid_payload at the value" do
       seed = %{"records" => [record(@parent, "sifatAllahProgress", "not progress")]}
 
@@ -515,26 +441,6 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
       assert error.reason == :invalid_role
       refute inspect(error) =~ secret
     end
-
-    test "a refused push key or endpoint is not in the error" do
-      secret_key = "SECRETKEY probe"
-
-      seed = %{
-        "pushSubscriptions" => [
-          %{
-            "owner" => @parent,
-            "endpoint" => "https://evil.example.org/SECRETPATH",
-            "p256dh" => secret_key,
-            "auth" => "AAAA"
-          }
-        ]
-      }
-
-      error = rejected(seed, seeded([@parent]))
-
-      refute inspect(error) =~ "SECRETKEY"
-      refute inspect(error) =~ "SECRETPATH"
-    end
   end
 
   test "a seed that is not an object is refused by apply before any state is read" do
@@ -552,10 +458,6 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
 
     test "a valid body on an instance that is not current is :not_current and writes nothing" do
       assert {:error, :not_current} = Seed.apply(@instance, "bootstrap-a", %{})
-    end
-
-    test "the push session key is a fixed prefix on the endpoint" do
-      assert Seed.push_session_key(@endpoint) == "test-seed-push:" <> @endpoint
     end
   end
 end
