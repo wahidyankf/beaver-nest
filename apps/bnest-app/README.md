@@ -104,8 +104,10 @@ and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-databa
 - The integration run ends with a leak audit (`test/test_helper.exs`). `BnestApp.TestInstance.Audit.verdict/4` checks
   for instance directories, a current instance and base data. A failure prints every reason, the run roots are removed,
   and the VM exits with status 1. The verdict's rules are unit-tested, and a probe run that leaks an instance on purpose
-  fails. Until T9b, the flat `users/` and `system/accounts/` directories of the run base are legacy: the shared-base
-  scenarios still write accounts there, so the audit reports them as warnings. T9b removes that exemption.
+  fails. Until T9b, the flat `users/` and `system/accounts/` directories and the shared `bnest.sqlite3` database (with
+  its `-wal`, `-shm` and `-journal` sidecars) of the run base are legacy: the shared-base scenarios still write there,
+  so the audit reports them as warnings. Any other base data, and any instance leftover, still fails. T9b removes that
+  exemption.
 - The unit boundary policy (`test/behaviour/verify.exs`) refuses network URLs, loopback addresses, file and process
   access, and integration helpers in unit test source. The push-endpoint checks therefore live in
   `test/integration/bnest_app/test_instance/seed_push_validate_test.exs`.

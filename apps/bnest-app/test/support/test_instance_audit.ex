@@ -40,8 +40,9 @@ defmodule BnestApp.TestInstance.Audit do
   defp split_base(:ok, _legacy_roots), do: {[], []}
 
   defp split_base({:error, paths}, legacy_roots) do
+    # A root names a directory (its children match) or one exact file (the shared database and its sidecars).
     Enum.split_with(paths, fn path ->
-      Enum.any?(legacy_roots, &String.starts_with?(path, &1 <> "/"))
+      Enum.any?(legacy_roots, &(path == &1 or String.starts_with?(path, &1 <> "/")))
     end)
   end
 end

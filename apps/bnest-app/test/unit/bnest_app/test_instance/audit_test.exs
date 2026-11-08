@@ -52,4 +52,15 @@ defmodule BnestApp.TestInstance.AuditTest do
 
     assert {:error, [_reason]} = Audit.verdict([], nil, base, [@legacy_users])
   end
+
+  test "a legacy root can name one shared database file and its sidecars, exactly" do
+    db = "/synthetic/sqlite/test/runs/unit-run/bnest.sqlite3"
+    legacy = [db, db <> "-wal", db <> "-shm"]
+
+    assert {:ok, warnings} = Audit.verdict([], nil, {:error, [db, db <> "-wal"]}, legacy)
+    assert length(warnings) == 2
+
+    assert {:error, [reason]} = Audit.verdict([], nil, {:error, [db <> ".bak"]}, legacy)
+    assert reason =~ "bnest.sqlite3.bak"
+  end
 end
