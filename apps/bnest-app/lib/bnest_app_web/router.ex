@@ -140,6 +140,18 @@ defmodule BnestAppWeb.Router do
   @spec dev_routes_enabled?() :: boolean()
   def dev_routes_enabled?, do: @dev_routes_mounted?
 
+  # The testing-control decision `BnestAppWeb.TestingRoutes.mounted?/2` takes for this build,
+  # captured once at compile time from the build environment and the `:testing_control` value
+  # that only `config/test.exs` sets. Production builds never mount these routes.
+  @testing_routes_mounted? BnestAppWeb.TestingRoutes.mounted?(
+                             Mix.env(),
+                             Application.compile_env(:bnest_app, :testing_control, false)
+                           )
+
+  @doc false
+  @spec testing_routes_enabled?() :: boolean()
+  def testing_routes_enabled?, do: @testing_routes_mounted?
+
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if @dev_routes_mounted? do
     # If you want to use the LiveDashboard in production, you should put
@@ -168,6 +180,18 @@ defmodule BnestAppWeb.Router do
         json_codec: Jason,
         socket: BnestAppWeb.UserSocket,
         interface: :playground
+    end
+  end
+
+  # Test-only instance control. The routes exist only in the test build, see `testing_routes_enabled?/0`.
+  if @testing_routes_mounted? do
+    scope "/__bnest_testing/v1", BnestAppWeb.TestingControl do
+      pipe_through :api
+
+      get "/state", InstanceController, :state
+      post "/instances", InstanceController, :create
+      post "/instances/:id/seed", InstanceController, :seed
+      delete "/instances/:id", InstanceController, :delete
     end
   end
 end
