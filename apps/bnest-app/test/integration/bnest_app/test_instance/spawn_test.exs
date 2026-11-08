@@ -5,6 +5,7 @@ defmodule BnestApp.TestInstance.SpawnTest do
   # that test_helper compiles always run regardless of the path given.
   @moduletag :test_instance
 
+  import ExUnit.CaptureLog
   import Phoenix.ConnTest
 
   alias BnestApp.Backup.Adapters.FileConfigStore, as: BackupConfigStore
@@ -335,6 +336,20 @@ defmodule BnestApp.TestInstance.SpawnTest do
         assert error.step == unquote(step)
         assert_rolled_back(before)
       end
+    end
+
+    # The wire answer names the step and nothing else, so the server log is the only place the cause of an
+    # unexpected failure is kept.
+    test "a failed spawn logs its step and its cause", %{run: run} do
+      log =
+        capture_log([level: :warning], fn ->
+          assert_raise Error, fn ->
+            TestInstance.spawn!(run, seed: fn _instance -> {:error, :injected_cause} end)
+          end
+        end)
+
+      assert log =~ "test instance spawn failed at seed"
+      assert log =~ ":injected_cause"
     end
 
     test "a seed that returns an error fails the spawn at the seed step and rolls back", %{

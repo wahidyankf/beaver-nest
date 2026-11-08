@@ -261,6 +261,15 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       assert Wire.snapshot() == before
     end
 
+    test "a refused lifecycle request logs its cause", %{run: run} do
+      spawn_instance(run, %{})
+
+      log = capture_log([level: :warning], fn -> spawn_instance(run, %{}) end)
+
+      assert log =~ "testing control refused a lifecycle request"
+      assert log =~ "instance_active"
+    end
+
     test "a spawn that cannot take the switch lock answers 409 instance_active", %{run: run} do
       before = Wire.snapshot()
       parent = self()

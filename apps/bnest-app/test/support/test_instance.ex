@@ -15,6 +15,8 @@ defmodule BnestApp.TestInstance do
 
   use Boundary, top_level?: true, check: [in: false, out: false]
 
+  require Logger
+
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.TestInstance.Error
   alias BnestApp.TestInstance.Paths
@@ -349,6 +351,9 @@ defmodule BnestApp.TestInstance do
   # Rolls back, then raises. A rollback whose removal fails names the retained path instead, since
   # that leftover fails the run.
   defp fail!(instance, original, step, detail) do
+    # The wire answer names the step and nothing else, so this line is the only record of the cause.
+    Logger.warning("test instance spawn failed at #{step}: #{inspect(detail)}")
+
     case rollback(instance, original) do
       :ok ->
         raise Error, reason: :spawn_failed, step: step, detail: detail

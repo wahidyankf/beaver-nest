@@ -341,6 +341,11 @@ config :swoosh, :api_client, false
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+# Playwright shows the stderr of the web server it starts and drops its stdout, so a browser E2E server logs to stderr.
+# Without this, the cause of a refused or failed testing-control request is lost.
+if System.get_env("PHX_SERVER") == "true",
+  do: config(:logger, :default_handler, config: %{type: :standard_error})
+
 # Phoenix reads its parameter filter from the :phoenix application, not from an endpoint. The seed
 # bodies carry push keys (`p256dh`, `auth`), accounts carry passwords, and the testing control
 # carries the run secret in a header, so none of these words may reach a log line at debug level.
