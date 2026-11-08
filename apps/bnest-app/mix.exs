@@ -139,6 +139,11 @@ defmodule BnestApp.MixProject do
       ~r/\bBnestApp\.Test\./,
       BnestApp.Behaviour.UnitFamilyChatDriver,
       BnestApp.Behaviour.UnitHomePageDriver,
+      # Scenario adapters and shared fixtures for test_isolation.feature. They drive the test-side
+      # lifecycle and the wire, so the unit denominator leaves them out, as it does the drivers.
+      BnestApp.Behaviour.TestIsolation.Fixtures,
+      BnestApp.Behaviour.TestIsolation.IntegrationAdapter,
+      BnestApp.Behaviour.TestIsolation.UnitAdapter,
       BnestApp.SchemaSourceScan,
       BnestApp.TestBackupDestination,
       BnestApp.TestIdentity,

@@ -9,13 +9,11 @@ defmodule BnestApp.Storage.TestInstanceSchemaTest do
 
   @moduletag :test_instance
 
-  alias BnestApp.Release.Migrations.FamilyChat, as: ReleaseFamilyChat
-  alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.SqliteRepo
   alias BnestApp.Test.MigrationFiles
+  alias BnestApp.Test.ReleaseSchema
   alias BnestApp.TestInstance
   alias BnestApp.TestInstance.Fingerprint
-  alias BnestApp.TestInstance.Switch
 
   @release_schedule_keys ["family-chat-push-retention-daily", "prod-sqlite-backup-daily"]
   @release_room [["ruang-keluarga", "Ruang Keluarga"]]
@@ -89,52 +87,9 @@ defmodule BnestApp.Storage.TestInstanceSchemaTest do
     observed
   end
 
-  # Builds an empty database with the release entry points, in the order tools/deployment.mjs
-  # runs them, and calls `fun` while the release database is the current one.
-  #
-  # Only the storage pointer is switched, so the entry points open the new file through the same
-  # SqliteRepo the app uses. The file lives in a scratch instance directory under the run roots
-  # (markers, validation and removal as for any instance), and it is removed after `fun` returns.
-  defp with_release_build(run, fun) do
-    original = Switch.snapshot()
-    {:ok, scratch} = TestInstance.create_dirs(run, random_instance_id(), :sqlite_primary)
+  # The release side and its observation are shared with the test_isolation schema scenario
+  # (`BnestApp.Test.ReleaseSchema`), so both measure the same release database.
+  defp with_release_build(run, fun), do: ReleaseSchema.with_release_build(run, fun)
 
-    try do
-      :ok = Switch.activate!(scratch)
-      :ok = PersistentSchedules.apply_and_verify!(DateTime.utc_now())
-      :ok = ReleaseFamilyChat.apply_and_verify!()
-      fun.()
-    after
-      :ok = Switch.restore!(original, scratch.paths)
-      :ok = TestInstance.drop_dirs(scratch)
-    end
-  end
-
-  defp observe do
-    %{
-      fingerprint: Fingerprint.current(),
-      versions: applied_versions(),
-      schedule_keys: schedule_keys(),
-      rooms: rooms()
-    }
-  end
-
-  defp applied_versions do
-    %{rows: rows} = SqliteRepo.query!("SELECT version FROM schema_migrations ORDER BY version")
-    Enum.map(rows, fn [version] -> version end)
-  end
-
-  defp schedule_keys do
-    %{rows: rows} =
-      SqliteRepo.query!("SELECT schedule_key FROM bnest_schedules ORDER BY schedule_key")
-
-    Enum.map(rows, fn [key] -> key end)
-  end
-
-  defp rooms do
-    %{rows: rows} = SqliteRepo.query!("SELECT slug, name FROM family_chat_rooms ORDER BY slug")
-    rows
-  end
-
-  defp random_instance_id, do: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
+  defp observe, do: ReleaseSchema.observe()
 end

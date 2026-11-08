@@ -232,21 +232,19 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert :ok = TestInstance.drop!(instance)
     end
 
-    test "a create that fails before anything switches leaves the backup configuration alone", %{
-      run: run
-    } do
+    test "a spawn refused for an existing instance directory leaves the backup configuration alone",
+         %{run: run} do
       existing_id = "f0e1d2c3b4a59687"
       assert {:ok, existing} = TestInstance.create_dirs(run, existing_id, :sqlite_primary)
       File.mkdir_p!(Path.dirname(backup_config_path(run)))
       File.write!(backup_config_path(run), ~s({"synthetic": true}))
 
       try do
-        # The directory already exists, so `create` fails. Nothing has switched, so the rollback
-        # must not restore: a restore would remove the backup configuration written above.
+        # The preflight refuses an id whose directories exist (ADR 001, section 2: 409 instance_active),
+        # before anything switches, so nothing is rolled back and the backup configuration stays.
         error = assert_raise Error, fn -> TestInstance.spawn!(run, instance_id: existing_id) end
 
-        assert error.reason == :spawn_failed
-        assert error.step == :create
+        assert error.reason == :instance_exists
         assert TestInstance.state() == nil
         assert File.exists?(backup_config_path(run))
       after
