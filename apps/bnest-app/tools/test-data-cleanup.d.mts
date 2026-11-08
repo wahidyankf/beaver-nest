@@ -1,5 +1,6 @@
 export type CleanupOptions = {
   roots?: string[];
+  legacyParents?: string[];
   olderThanHours?: number;
   now?: number;
 };
