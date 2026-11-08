@@ -7,8 +7,8 @@
   "summary": {
     "featureCount": 5,
     "scenarioCount": 48,
-    "e2eExemptScenarioCount": 14,
-    "e2eCoveredScenarioCount": 34
+    "e2eExemptScenarioCount": 13,
+    "e2eCoveredScenarioCount": 35
   },
   "features": [
     {
@@ -184,7 +184,7 @@
           "e2eExempt": true
         },
         {
-          "name": "Spawn, migrate, seed, test, and teardown run in that order",
+          "name": "The spawn returns after its migrations and seed, and the instance stays current until deletion",
           "e2eExempt": false
         },
         {

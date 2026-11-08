@@ -25,9 +25,9 @@ Feature: Bnest test isolation
     Then the schema objects and the applied migration versions are identical
     And the applied migration versions match the committed migration files exactly
 
-  Rule: Each test runs spawn, migrate, seed, test, and teardown in order
+  Rule: Each test uses its instance only after its spawn has migrated and seeded it
 
-  Scenario: Spawn, migrate, seed, test, and teardown run in that order
+  Scenario: The spawn returns after its migrations and seed, and the instance stays current until deletion
     Given no test instance is current
     When a test spawns an instance with one seeded account
     Then the spawn returns only after its migrations and its seed have finished

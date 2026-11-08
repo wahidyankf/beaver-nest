@@ -176,7 +176,7 @@ Then(
   },
 );
 
-// --- Scenario: spawn, migrate, seed, test, and teardown run in that order ---
+// --- Scenario: the spawn returns after its migrations and seed, and the instance stays current until deletion ---
 
 When(
   "a test spawns an instance with one seeded account",
