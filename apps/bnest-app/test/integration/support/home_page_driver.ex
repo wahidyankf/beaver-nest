@@ -12,6 +12,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Backup.Adapters.ScheduledBackupTask
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.Behaviour.IntegrationFamilyChatDriver
+  alias BnestApp.Behaviour.TestIsolation.IntegrationAdapter
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.Identity.Adapters.{Argon2CredentialHasher, RecordIdentityStore}
@@ -895,6 +896,16 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def establish_identity(context, role) do
+    if role == :admin and String.ends_with?(context.feature_file, "test_instances.feature") do
+      # This feature's admin lives in a test instance that the isolation adapter spawns and logs in to.
+      IntegrationAdapter.establish_admin(context)
+    else
+      scenario_identity(context, role)
+    end
+  end
+
+  # A scenario's identity in the shared run database, logged in as a browser's login would.
+  defp scenario_identity(context, role) do
     scenario_key = "#{context.feature_file}:#{context.scenario_name}:#{role}"
 
     {conn, identity} =

@@ -75,6 +75,63 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
 
   def set_build_environment(context, env), do: put_isolation(context, :env, env)
 
+  @doc "The previous test ends: its instance is dropped and the next test chooses its own id."
+  def end_test(context) do
+    port = context.isolation.port
+
+    dropped =
+      case Lifecycle.current(port) do
+        nil -> port
+        %{instance_id: id} -> port_after_drop(Lifecycle.drop(port, id))
+      end
+
+    context
+    |> Map.put(:previous_spawn, Map.get(context, :spawn))
+    |> put_port(dropped)
+    |> put_isolation(:instance_id, nil)
+  end
+
+  @doc """
+  The approved admin that `test_instances.feature` starts from: a fresh instance seeded with one admin
+  account, and that account logged in through the port. The credentials are kept so a later login can
+  present them. A login that the model refuses fails the Given, so the Then never starts from nothing.
+  """
+  def establish_admin(context) do
+    context = spawn_with_admin(context)
+    {:ok, %{accounts: [username]}} = context.spawn
+    password = Fixtures.password()
+
+    case Lifecycle.login(context.isolation.port, username, password) do
+      {:ok, port} ->
+        context
+        |> put_port(port)
+        |> Map.put(:previous_admin, %{username: username, password: password})
+
+      :error ->
+        raise "the approved admin cannot log in to its own instance"
+    end
+  end
+
+  @doc """
+  Replaces the current instance: the current one is dropped, then a fresh instance seeded with its own
+  admin is spawned. The dropped spawn is kept as `previous_spawn`, and the previous admin's credentials
+  stay in the context for the refusal check.
+  """
+  def replace_instance(context), do: context |> end_test() |> spawn_with_admin()
+
+  @doc """
+  Presents the previous admin's credentials to the current instance: `:ok` when the model opens a session,
+  `:error` when it refuses.
+  """
+  def login_as_previous_admin(context) do
+    %{username: username, password: password} = context.previous_admin
+
+    case Lifecycle.login(context.isolation.port, username, password) do
+      {:ok, _port} -> :ok
+      :error -> :error
+    end
+  end
+
   @doc """
   Spawns through the port. `opts`: `:phase`, `:seed` (a seed map), and `:usernames` (the usernames the
   seed sends, kept for the comparison with what the spawn lists).
@@ -218,12 +275,25 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
   # because the drop does so; it is not a claim about SQLite on disk, which the integration adapter reads.
   def instance_database_files(context), do: Lifecycle.database_files(context.isolation.port)
 
+  @doc "The records and chat messages the current instance's database holds."
+  def database_contents(context), do: Lifecycle.database_contents(context.isolation.port)
+
   defp seed_option(opts) do
     case Keyword.get(opts, :seed) do
       nil -> []
       seed -> [seed: seed]
     end
   end
+
+  # A fresh instance id, seeded with one synthetic admin whose username carries that id's short form.
+  defp spawn_with_admin(context) do
+    context = choose_instance_id(context)
+    seed = Fixtures.accounts_seed(context.isolation.instance_id, ["admin"])
+    spawn_instance(context, seed: seed, usernames: Fixtures.seeded_usernames(seed))
+  end
+
+  defp port_after_drop({:ok, port}), do: port
+  defp port_after_drop({:error, port, :not_current}), do: port
 
   defp drop_answer(port, id) do
     case Lifecycle.drop(port, id) do

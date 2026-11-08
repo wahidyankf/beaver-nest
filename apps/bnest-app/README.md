@@ -97,11 +97,11 @@ and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-databa
   the scenario's hooks are the only owner of its instance.
 - ExBdd hooks in `test/behaviour/support/integration.exs` run around every integration scenario. The before hook fails
   when an earlier scenario left an instance current, then spawns a fresh instance with the standard accounts. A scenario
-  tagged `@flat-primary`, or in `centralized_data.feature`, runs on a flat-primary instance. A scenario tagged
+  tagged `@flat-primary` (on the scenario or its feature) runs on a flat-primary instance. A scenario tagged
   `@open-setup` spawns an empty flat-primary instance, so `/setup` stays open. The after hook drops the current instance.
-  `test_isolation.feature` spawns, ends and checks its instances through its own adapter, so the generic hook spawns
-  nothing for it. Every other integration scenario spawns one instance; no scenario is exempt by being pure. The unit
-  layer never spawns.
+  `test_isolation.feature` and `test_instances.feature` spawn, end and check their instances through their own adapter,
+  so the generic hook spawns nothing for them. Every other integration scenario spawns one instance; no scenario is
+  exempt by being pure. The unit layer never spawns.
 - `test_isolation.feature` has two adapters. The unit adapter (`test/unit/support/behaviour/test_isolation_unit_adapter.ex`)
   drives the in-memory model `BnestApp.Test.InMemory.TestInstancePort`. The unit layer has no database, so its schema
   steps are PARTIAL: they check that the digest is the same under reordering and changes for every kind of object or
@@ -112,6 +112,8 @@ and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-databa
   `test/integration/support/release_schema.ex`. Shared fixtures are in `test/behaviour/test_isolation_fixtures.ex`.
 - Seed and testing-control source never writes SQL or files directly. `test/unit/bnest_app/test_instance/seed_source_scan_test.exs`
   fails on any SQL, DDL or file-write call in `test/support/test_instance_seed.ex` and `test/support/testing_control/`.
+- `test_instances.feature` (app-fe) is bound here as well. Its Given is the shared admin step, which the drivers hand to
+  the isolation adapter; its own steps are in `test/behaviour/steps/test_instances_steps.exs`.
 - The integration run ends with a leak audit (`test/test_helper.exs`). `BnestApp.TestInstance.Audit.verdict/4` checks
   for instance directories, a current instance, base data and run-secret leaks. The secret check reads every regular
   file under the two run roots and fails if one holds a run secret generated during the run. It does not read console
