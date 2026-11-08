@@ -202,7 +202,8 @@ is `{accounts?, familyChat?, pushSubscriptions?, records?}`:
 ```
 
 Limits: at most 40 accounts, 500 messages, 40 push subscriptions and 40 records. Usernames match
-`^test-user-[a-z0-9-]{1,48}$` and carry the instance short id (the first 8 characters of `instanceId`) as one
+`^test-user-[a-z0-9-]{1,22}$` (at most 32 characters in all, which is the production username rule and the `maxlength` of
+the login form's username field) and carry the instance short id (the first 8 characters of `instanceId`) as one
 hyphen-separated segment, so identities stay unique per instance and traceable. The server generates an absent id only
 after it parses the body, so a spawn whose seed names accounts sends its own `instanceId`, which the usernames then
 carry. On a `flat_primary` instance, a seed with accounts that include an admin sends the first admin set through

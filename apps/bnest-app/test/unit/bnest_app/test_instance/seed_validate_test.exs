@@ -130,7 +130,9 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
           {"a short id that is only part of a segment", "test-user-a1b2c3d4e5"},
           {"an underscore", "test-user-a1b2c3d4_x"},
           {"more than 32 characters in all", "test-user-a1b2c3d4-" <> String.duplicate("x", 30)},
-          {"more than 48 characters after the prefix",
+          {"33 characters in all, one more than the login field allows",
+           "test-user-a1b2c3d4-" <> String.duplicate("x", 14)},
+          {"more than 22 characters after the prefix",
            "test-user-a1b2c3d4-" <> String.duplicate("a", 40)}
         ] do
       test "refuses a name with #{label} at accounts[0].username" do

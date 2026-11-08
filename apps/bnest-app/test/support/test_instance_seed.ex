@@ -106,7 +106,8 @@ defmodule BnestApp.TestInstance.Seed do
     {"localStorage", "phx:theme"} => 16
   }
   @seed_key_pattern ~r/\A[a-z0-9][a-z0-9-]{0,63}\z/
-  @username_pattern ~r/\Atest-user-([a-z0-9-]{1,48})\z/
+  # 22 characters after `test-user-` make the 32 the production username rule and the login field allow in all.
+  @username_pattern ~r/\Atest-user-([a-z0-9-]{1,22})\z/
   @system_sender "system"
   @max_system_key_bytes 128
   # Placeholder values used only to find which field a push policy refuses, and to check a record
