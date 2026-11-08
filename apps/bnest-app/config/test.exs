@@ -117,11 +117,14 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
 
   # The storage pointer and the backup configuration live in the SQLite run base, beside the
   # instance databases, so the flat base stays data-free (see BnestApp.TestInstance.Paths).
+  # The backup repository root lies under the paired run base, so nothing resolves a path under the shared
+  # `~/bnest/data/test/` tree. A test instance sets its own repository root (BnestApp.TestInstance.Switch).
   config :bnest_app,
     runtime_root: runtime_root,
     test_sqlite_root: sqlite_root,
     storage_config_path: Path.join(sqlite_root, "storage-config/storage.json"),
     backup_config_path: Path.join(sqlite_root, "storage-config/backup.json"),
+    backup_repository_root: Path.join(sqlite_root, "backup-repository"),
     test_runtime_owned: true
 
   config :bnest_app, storage_profile: {:test, run_id}
@@ -206,19 +209,21 @@ else
     release_environment: BnestApp.Test.InMemory.ReleaseEnvironment
 end
 
-# Family Chat's SQLite tables are additive to the shared database but must never
-# resolve through the real `~/.config/bnest/storage.json` pointer during tests (that
-# file is shared/production-adjacent). Every test run (unit or integration) gets its
-# own isolated SQLite path here; `FamilyChat.Adapters.SqliteRoomStore` self-heals the connection
-# onto this path before each operation, independent of the legacy flat/sqlite phase.
+# The unit layer keeps its own isolated SQLite path for Family Chat, which must never resolve through the real
+# `~/.config/bnest/storage.json` pointer during tests (that file is shared/production-adjacent). The integration
+# layer has no such setting: Family Chat resolves `Storage.database_path()` as production does, which is the test
+# instance's database (ADR 001, section 1). `FamilyChat.Adapters.SqliteRoomStore` self-heals the connection onto
+# that path before each operation.
 family_chat_run_id =
   System.get_env("BNEST_TEST_RUN_ID") ||
     "unit-" <>
       (:crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false) |> String.downcase())
 
-config :bnest_app,
-  family_chat_sqlite_path:
-    Path.expand("~/bnest/data/test/family-chat/#{family_chat_run_id}/bnest.sqlite3")
+unless System.get_env("BNEST_TEST_LAYER") == "integration" do
+  config :bnest_app,
+    family_chat_sqlite_path:
+      Path.expand("~/bnest/data/test/family-chat/#{family_chat_run_id}/bnest.sqlite3")
+end
 
 # A test that runs a backup without setting `BNEST_BACKUP_CONFIG` must never resolve the
 # real `~/.config/bnest/backup.json`: its destination is the production backup directory,
@@ -238,9 +243,13 @@ end
 # that needs a working default installs an isolated repository
 # (`BnestApp.TestBackupDestination.default_repository!/1`), and the end-to-end runtime
 # creates this path as one for its run. It lies outside the run's SQLite root, because
-# Backup refuses a destination inside the live database's directory.
-config :bnest_app,
-  backup_repository_root: Path.expand("~/bnest/data/test/backup-repository/#{family_chat_run_id}")
+# Backup refuses a destination inside the live database's directory. The integration layer
+# sets its own root above, under the paired run base.
+unless System.get_env("BNEST_TEST_LAYER") == "integration" do
+  config :bnest_app,
+    backup_repository_root:
+      Path.expand("~/bnest/data/test/backup-repository/#{family_chat_run_id}")
+end
 
 # Both layers talk to the fixture agent session and offer the fixture model catalog. Only a
 # `BNEST_CODEX_RUNNER` naming the bundled fixture runner, which the end-to-end servers set,
