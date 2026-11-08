@@ -20,6 +20,7 @@ defmodule BnestApp.Test.TestingControlWire do
   @endpoint BnestAppWeb.Endpoint
   @prefix "/__bnest_testing/v1"
   @secret_env "BNEST_TEST_CONTROL_SECRET"
+  @secrets_key :testing_control_secrets
   @password "Synthetic!Pass1"
 
   @doc "The route prefix every testing-control request starts with."
@@ -28,12 +29,19 @@ defmodule BnestApp.Test.TestingControlWire do
   @doc "The synthetic password every seeded account uses."
   def password, do: @password
 
-  @doc "Sets a fresh random secret in the environment, as the runner does, and returns it."
+  @doc """
+  Sets a fresh random secret in the environment, as the runner does, and returns it. Every secret the run
+  generates is kept in the application environment, so the end-of-run check can look for each of them on disk.
+  """
   def put_secret! do
     secret = Base.encode16(:crypto.strong_rand_bytes(32), case: :lower)
     System.put_env(@secret_env, secret)
+    Application.put_env(:bnest_app, @secrets_key, [secret | secrets()])
     secret
   end
+
+  @doc "Every run secret this run has generated, for the end-of-run check that no file holds one."
+  def secrets, do: Application.get_env(:bnest_app, @secrets_key, [])
 
   @doc "Unsets the secret, so the control is closed."
   def clear_secret!, do: System.delete_env(@secret_env)

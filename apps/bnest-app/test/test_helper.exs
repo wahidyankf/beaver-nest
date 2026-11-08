@@ -3,20 +3,36 @@ ExUnit.start()
 # The integration run's end-of-suite audit (ADR 001, section 3). ExUnit runs `after_suite` callbacks in
 # reverse registration order, so this one is registered before ExBdd compiles its features: ExBdd's own
 # callback (after_all hooks and the message flush) runs first, and this audit runs last. It counts the instance
-# directories and the current instance and checks that the run base holds no data at all (see
-# `BnestApp.TestInstance.Audit`), then removes the run roots. A failure prints every reason and halts the VM
-# with status 1, because a suite callback cannot change the status that Mix reports.
+# directories and the current instance, checks that the run base holds no data at all, and checks that no
+# regular file under the run roots holds a run secret generated in this run (see `BnestApp.TestInstance.Audit`),
+# then removes the run roots. A failure prints every reason and halts the VM with status 1, because a suite
+# callback cannot change the status that Mix reports.
 if System.get_env("BNEST_TEST_LAYER") == "integration" and
      Application.get_env(:bnest_app, :test_runtime_owned) do
   runtime_root = Application.fetch_env!(:bnest_app, :runtime_root)
   sqlite_root = Application.fetch_env!(:bnest_app, :test_sqlite_root)
 
+  # Every regular file under the roots, with its bytes, for the run-secret check. Hidden files count.
+  run_files = fn roots ->
+    for root <- roots,
+        path <- Path.wildcard(Path.join(root, "**/*"), match_dot: true),
+        File.regular?(path),
+        do: {path, File.read!(path)}
+  end
+
   ExUnit.after_suite(fn _result ->
+    leaks =
+      BnestApp.TestInstance.Audit.secret_leaks(
+        run_files.([runtime_root, sqlite_root]),
+        BnestApp.Test.TestingControlWire.secrets()
+      )
+
     verdict =
       BnestApp.TestInstance.Audit.verdict(
         BnestApp.TestInstance.audit().directories,
         BnestApp.TestInstance.state(),
-        BnestApp.TestInstance.base_audit()
+        BnestApp.TestInstance.base_audit(),
+        leaks
       )
 
     _stopped = Application.stop(:bnest_app)
