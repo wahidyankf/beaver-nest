@@ -8,7 +8,7 @@ import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { requireResponse, scenario } from "../support/family-chat-state";
 import { postGraphQlWithStatus } from "../support/graphql";
-import { openFamilyChatSocket } from "../support/subscriptions";
+import { openFamilyChatSocket } from "../support/subscriptions.mts";
 
 const { Then, When } = createBdd();
 

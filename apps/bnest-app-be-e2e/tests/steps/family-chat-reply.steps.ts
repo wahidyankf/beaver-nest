@@ -16,7 +16,7 @@ import {
   requireResponse,
   scenario,
 } from "../support/family-chat-state";
-import { isolatedTestIdentity } from "../support/test-identity";
+import { currentIdentities } from "../support/instance-identities";
 import { sendFromPage, sentMessage } from "../support/family-chat-messages";
 import {
   newestFamilyChatMessageId,
@@ -24,7 +24,7 @@ import {
   postGraphQl,
   sendFamilyChatMessage,
 } from "../support/graphql";
-import { familyChatSubscriptionEvents } from "../support/subscriptions";
+import { familyChatSubscriptionEvents } from "../support/subscriptions.mts";
 
 const { Given, Then, When } = createBdd();
 
@@ -110,8 +110,8 @@ Then(
 
 Given(
   "a family chat reply committed before the user's subscription started",
-  async ({ page, $testInfo }) => {
-    scenario.identity = isolatedTestIdentity($testInfo);
+  async ({ page }) => {
+    scenario.identity = currentIdentities();
     await page.context().clearCookies();
     await login(page, requireIdentity().admin);
 

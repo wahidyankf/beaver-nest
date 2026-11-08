@@ -69,9 +69,9 @@ Then(
 // in with; the user ID is a different, internal value.
 Then(
   "the response reports the sender's real display username, not their raw user ID",
-  ({ $testInfo }) => {
+  () => {
     const message = sentMessage();
-    const username = scenarioIdentity($testInfo).admin.username;
+    const username = scenarioIdentity().admin.username;
     expect(message?.senderDisplayName).toBe(username);
     expect(message?.senderId).not.toBe(username);
   },

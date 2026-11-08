@@ -1,71 +1,35 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import {
-  captureStorageAuthority,
-  routedStorageConfigPath,
-  storageAuthorityCaptured,
-} from "./storage-authority";
+import { currentInstanceEnvironment } from "./active-instance.mts";
+import { secondaryEnvironment } from "./secondary-environment.mts";
 
-// This project has no Caddy candidate/rollout apparatus (see project.json /
-// playwright.config.mts): it drives the shared webServer's live SQLite
-// authority directly. Trimmed from bnest-app-e2e's routed-rollout.ts, which
-// also owns Caddy blue/green candidate promotion that only bnest-app-fe-e2e
-// still exercises.
-const repositoryRoot = process.cwd();
-const appDirectory = path.join(repositoryRoot, "apps/bnest-app");
-const runtimeRoot = process.env["BNEST_E2E_RUNTIME_ROOT"] ?? "";
-const runId = process.env["BNEST_E2E_RUN_ID"] ?? "";
-let storageActivated = false;
+// Secondary `mix run -e` processes for the reads a test still makes through Elixir (ADR 001, section 2). Each one
+// takes its runtime and storage environment from the current instance, so it reads only that instance's database.
+// The primary server is never restarted or re-pointed from here; the spawn already re-pointed it.
 
-function liveEnvironment(): NodeJS.ProcessEnv {
-  return {
-    ...process.env,
-    BNEST_BACKUP_CONFIG: path.join(
-      runtimeRoot,
-      "storage-config",
-      "backup.json",
-    ),
-    BNEST_RUNTIME_ROOT: runtimeRoot,
-    BNEST_STORAGE_CONFIG: routedStorageConfigPath(),
-    BNEST_TEST_LAYER: "integration",
-    BNEST_TEST_RUN_ID: runId,
-    MIX_ENV: "test",
-  };
+const appDirectory = path.join(process.cwd(), "apps/bnest-app");
+
+// The SQLite run root, `~/bnest/data/test/runs/<run>`, which holds every instance and the storage pointer.
+export function sqliteRunRoot(): string {
+  const root = process.env["BNEST_E2E_SQLITE_RUNTIME_ROOT"];
+  if (!root) throw new Error("Missing marked E2E SQLite runtime root");
+  return root;
 }
 
-// The universal After hook restores the captured authority after every scenario, which
-// undoes the activation and empties the schedule tables, so a later scenario activates again.
-export function ensureLiveSqlite(): void {
-  if (storageActivated && storageAuthorityCaptured()) return;
-  if (runtimeRoot === "" || runId === "") {
-    throw new Error("live SQLite activation requires the marked E2E runtime");
-  }
-  captureStorageAuthority();
+// One backup configuration file for the run, which each spawn and each delete removes (ADR 001, section 3).
+export function backupConfigPath(): string {
+  return path.join(sqliteRunRoot(), "storage-config", "backup.json");
+}
 
-  const result = spawnSync(
-    "mix",
-    ["bnest.storage.migrate", "--root", runtimeRoot, "--activate"],
-    { cwd: appDirectory, env: liveEnvironment(), encoding: "utf8" },
-  );
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(`live SQLite activation failed: ${result.stderr}`);
-  }
-
-  const schedules = spawnSync(
-    "mix",
-    [
-      "run",
-      "-e",
-      "BnestApp.Release.Migrations.PersistentSchedules.apply_and_verify!(DateTime.utc_now())",
-    ],
-    { cwd: appDirectory, env: liveEnvironment(), encoding: "utf8" },
-  );
-  if (schedules.error) throw schedules.error;
-  if (schedules.status !== 0) {
-    throw new Error(`live schedule migration failed: ${schedules.stderr}`);
-  }
-  storageActivated = true;
+// The environment of a secondary process: the current instance's three variables, the fixed backup configuration,
+// and the test layer. The inherited control secret is removed, because no `mix run -e` read calls the control routes.
+export function liveEnvironment(): NodeJS.ProcessEnv {
+  const runId = process.env["BNEST_E2E_RUN_ID"] ?? "";
+  if (runId === "") throw new Error("BNEST_E2E_RUN_ID is not set");
+  return secondaryEnvironment(process.env, currentInstanceEnvironment(), {
+    backupConfig: backupConfigPath(),
+    runId,
+  });
 }
 
 export function runLiveMix(expression: string): {

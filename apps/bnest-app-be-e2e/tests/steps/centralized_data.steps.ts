@@ -1,42 +1,40 @@
-import { existsSync, readFileSync } from "node:fs";
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import { instanceLifecycle } from "../support/active-instance.mts";
 import { login } from "../support/authentication";
 import {
   chatPayload,
   confirmImports,
-  digestFile,
-  expectInterruptedImportCompleted,
-  importCount,
   learningPayload,
   readChatState,
-  seedInterruptedChatImport,
+  recordSnapshot,
   setSources,
-  userPath,
 } from "../support/centralized-data";
-import {
-  isolatedTestIdentity,
-  testIdentityForProject,
-  type TestIdentity,
-} from "../support/test-identity";
+import { currentIdentities, userIdFor } from "../support/instance-identities";
+import { importCount, instanceRecord } from "../support/instance-records";
 
-// Trimmed from bnest-app-e2e's centralized_data.steps.ts to this project's
-// owned scenarios (import/theme/rejection/idempotency/staleness, and the
-// server-persistence halves of the accepted-import and Codex-resume
-// scenarios); the browser-key-clearing and fresh-conversation-report halves
-// moved to bnest-app-fe-e2e.
+// Trimmed from bnest-app-e2e's centralized_data.steps.ts to this project's owned scenarios (import/theme/rejection/
+// idempotency/staleness, and the server-persistence halves of the accepted-import and Codex-resume scenarios); the
+// browser-key-clearing and fresh-conversation-report halves moved to bnest-app-fe-e2e. Every record is read from the
+// current test instance's database through production's record read, never from a file.
 
 const { Given, Then, When } = createBdd();
 
-let beforeRecordDigest = "";
-let beforeThemeDigest = "";
+let beforeRecordSnapshot = "";
+let beforeThemeSnapshot = "";
 let beforeImportCount = 0;
-let activeIdentity: TestIdentity = testIdentityForProject("chromium");
+
+function adminId(): string {
+  return userIdFor(currentIdentities().admin.username);
+}
+
+function childId(): string {
+  return userIdFor(currentIdentities().child.username);
+}
 
 Given(
   "the browser has recognized Bnest chat, Sifat Allah, and explicit theme sources",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
+  async ({ page }) => {
     await setSources(page, {
       chat: chatPayload,
       learning: learningPayload,
@@ -49,41 +47,21 @@ When("the user confirms the recognized imports", async ({ page }) => {
   await confirmImports(page);
 });
 
-Then("Bnest preserves an immutable envelope for each source", ({ page }) => {
-  void page;
-  expect(importCount(activeIdentity.admin.username)).toBeGreaterThanOrEqual(3);
+Then("Bnest preserves an immutable envelope for each source", () => {
+  expect(importCount(adminId())).toBeGreaterThanOrEqual(3);
 });
 
-Then(
-  "Bnest reads each normalized user-owned record successfully",
-  ({ page }) => {
-    void page;
-    expect(
-      existsSync(userPath("chat/current.json", activeIdentity.admin.username)),
-    ).toBe(true);
-    expect(
-      existsSync(
-        userPath("sifat-allah/progress.json", activeIdentity.admin.username),
-      ),
-    ).toBe(true);
-    expect(
-      existsSync(
-        userPath("preferences/theme.json", activeIdentity.admin.username),
-      ),
-    ).toBe(true);
-  },
-);
+Then("Bnest reads each normalized user-owned record successfully", () => {
+  const id = adminId();
+  for (const kind of ["chat", "sifat_allah", "theme"] as const) {
+    expect(instanceRecord(kind, id)).toEqual(expect.any(Object));
+  }
+});
 
-Given(
-  "the browser has no explicit theme source",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
-    await setSources(page, { chat: null, learning: null, theme: null });
-    beforeThemeDigest = digestFile(
-      userPath("preferences/theme.json", activeIdentity.admin.username),
-    );
-  },
-);
+Given("the browser has no explicit theme source", async ({ page }) => {
+  await setSources(page, { chat: null, learning: null, theme: null });
+  beforeThemeSnapshot = recordSnapshot("theme", adminId());
+});
 
 Then("Bnest records the absent system theme outcome", async ({ page }) => {
   await expect(
@@ -91,32 +69,19 @@ Then("Bnest records the absent system theme outcome", async ({ page }) => {
   ).toBeVisible();
 });
 
-Then("Bnest creates no explicit theme preference", ({ page }) => {
-  void page;
-  expect(
-    digestFile(
-      userPath("preferences/theme.json", activeIdentity.admin.username),
-    ),
-  ).toBe(beforeThemeDigest);
+Then("Bnest creates no explicit theme preference", () => {
+  expect(recordSnapshot("theme", adminId())).toBe(beforeThemeSnapshot);
 });
 
-Given(
-  "the browser has an invalid Bnest source",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
-    await setSources(page, { chat: chatPayload, learning: null, theme: null });
-    await confirmImports(page);
-    await setSources(page, { chat: "{malformed", learning: null, theme: null });
-    beforeRecordDigest = digestFile(
-      userPath("chat/current.json", activeIdentity.admin.username),
-    );
-  },
-);
+Given("the browser has an invalid Bnest source", async ({ page }) => {
+  await setSources(page, { chat: chatPayload, learning: null, theme: null });
+  await confirmImports(page);
+  await setSources(page, { chat: "{malformed", learning: null, theme: null });
+  beforeRecordSnapshot = recordSnapshot("chat", adminId());
+});
 
 Then("Bnest reports a safe rejected import", async ({ page }) => {
-  await expect(
-    page.getByText(/Chat conversation: rejected safely/u),
-  ).toBeVisible();
+  await expect(page.getByText(/Chat conversation: rejected safely/u)).toBeVisible();
 });
 
 Then(
@@ -125,67 +90,66 @@ Then(
     expect(
       await page.evaluate(() => sessionStorage.getItem("bnest.chat.v1")),
     ).toBe("{malformed");
-    expect(
-      digestFile(userPath("chat/current.json", activeIdentity.admin.username)),
-    ).toBe(beforeRecordDigest);
+    expect(recordSnapshot("chat", adminId())).toBe(beforeRecordSnapshot);
   },
 );
 
-Given(
-  "a recognized import was interrupted after source preservation",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
-    await setSources(page, { chat: chatPayload, learning: null, theme: null });
-    seedInterruptedChatImport(activeIdentity.admin.username);
-    beforeImportCount = importCount(activeIdentity.admin.username);
-  },
-);
+// The seed writes what an import leaves when it stops after preserving its envelope (ADR 001, section 2). The browser
+// then holds the same payload, so the retry resumes that import identity. The baseline is taken after the seed, and
+// it must be exactly the one envelope the seed wrote, so a seed that landed nowhere cannot pass the "no duplicate"
+// check. This scenario is `@flat-primary`, the only phase that takes this seed kind.
+Given("a recognized import was interrupted after source preservation", async ({ page }) => {
+  const seeded = await instanceLifecycle().seed("interrupted-import", {
+    records: [
+      {
+        owner: currentIdentities().admin.username,
+        kind: "browserImportInterrupted",
+        value: {
+          storageArea: "sessionStorage",
+          storageKey: "bnest.chat.v1",
+          payload: chatPayload,
+        },
+      },
+    ],
+  });
+  expect(seeded.applied).toBe(true);
+  await setSources(page, { chat: chatPayload, learning: null, theme: null });
+  beforeImportCount = importCount(adminId());
+  expect(beforeImportCount).toBe(1);
+});
 
 When("the user retries that import", async ({ page }) => {
   await confirmImports(page);
 });
 
-Then("Bnest reuses its idempotent import identity", ({ page }) => {
-  void page;
-  expect(importCount(activeIdentity.admin.username)).toBe(beforeImportCount);
+Then("Bnest reuses its idempotent import identity", () => {
+  expect(importCount(adminId())).toBe(beforeImportCount);
 });
 
-Then(
-  "Bnest does not duplicate or overwrite accepted data",
-  async ({ page }) => {
-    await expect(
-      page.getByText("Chat conversation: accepted and verified"),
-    ).toBeVisible();
-    expectInterruptedImportCompleted(activeIdentity.admin.username);
-  },
-);
+Then("Bnest does not duplicate or overwrite accepted data", async ({ page }) => {
+  await expect(
+    page.getByText("Chat conversation: accepted and verified"),
+  ).toBeVisible();
+  expect(importCount(adminId())).toBe(beforeImportCount);
+});
 
-Given(
-  "browser B has an older revision than browser A",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
-    await setSources(page, { chat: chatPayload, learning: null, theme: null });
-    await confirmImports(page);
-    beforeRecordDigest = digestFile(
-      userPath("chat/current.json", activeIdentity.admin.username),
-    );
-    const stale = JSON.stringify({
-      ...JSON.parse(chatPayload),
-      reasoning_effort: "high",
-    });
-    await setSources(page, { chat: stale, learning: null, theme: null });
-  },
-);
+Given("browser B has an older revision than browser A", async ({ page }) => {
+  await setSources(page, { chat: chatPayload, learning: null, theme: null });
+  await confirmImports(page);
+  beforeRecordSnapshot = recordSnapshot("chat", adminId());
+  const stale = JSON.stringify({
+    ...JSON.parse(chatPayload),
+    reasoning_effort: "high",
+  });
+  await setSources(page, { chat: stale, learning: null, theme: null });
+});
 
 When("browser B writes the stale record", async ({ page }) => {
   await confirmImports(page);
 });
 
-Then("Bnest keeps the newer centralized record", ({ page }) => {
-  void page;
-  expect(
-    digestFile(userPath("chat/current.json", activeIdentity.admin.username)),
-  ).toBe(beforeRecordDigest);
+Then("Bnest keeps the newer centralized record", () => {
+  expect(recordSnapshot("chat", adminId())).toBe(beforeRecordSnapshot);
 });
 
 Then("browser B is asked to refresh", async ({ page }) => {
@@ -194,8 +158,7 @@ Then("browser B is asked to refresh", async ({ page }) => {
 
 Given(
   "a recognized browser source and an unrelated browser key exist",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
+  async ({ page }) => {
     await setSources(page, { chat: chatPayload, learning: null, theme: null });
     await page.evaluate(() =>
       localStorage.setItem("unrelated.test-key", "keep-me"),
@@ -207,18 +170,20 @@ When("Bnest accepts and reads back the normalized record", async ({ page }) => {
   await confirmImports(page);
 });
 
+// Each write must reach the server's record, and the browser must keep none of it. A poll waits for the server's
+// write; each read is a fresh production record read, so the timeout covers a secondary process per attempt.
 Then("Bnest persists future changes only on the server", async ({ page }) => {
-  const username = activeIdentity.admin.username;
-  const chatPath = userPath("chat/current.json", username);
-  const learningPath = userPath("sifat-allah/progress.json", username);
-  const beforeChat = digestFile(chatPath);
-  const beforeLearning = digestFile(learningPath);
+  const id = adminId();
+  const beforeChat = recordSnapshot("chat", id);
+  const beforeLearning = recordSnapshot("sifat_allah", id);
 
   await page.goto("/chat");
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
   await page.getByLabel("Message").fill("Server-only follow-up");
   await page.getByRole("button", { name: "Send" }).click();
-  await expect.poll(() => digestFile(chatPath)).not.toBe(beforeChat);
+  await expect
+    .poll(() => recordSnapshot("chat", id), { timeout: 30_000 })
+    .not.toBe(beforeChat);
 
   expect(
     await page.evaluate(() => sessionStorage.getItem("bnest.chat.v1")),
@@ -232,7 +197,9 @@ Then("Bnest persists future changes only on the server", async ({ page }) => {
   expect(
     await page.evaluate(() => localStorage.getItem("bnest.sifat-allah.v1")),
   ).toBeNull();
-  expect(digestFile(learningPath)).not.toBe(beforeLearning);
+  await expect
+    .poll(() => recordSnapshot("sifat_allah", id), { timeout: 30_000 })
+    .not.toBe(beforeLearning);
 
   await page.getByRole("button", { name: "Use dark theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -240,18 +207,14 @@ Then("Bnest persists future changes only on the server", async ({ page }) => {
     await page.evaluate(() => localStorage.getItem("phx:theme")),
   ).toBeNull();
 
-  const theme = JSON.parse(
-    readFileSync(userPath("preferences/theme.json", username), "utf8"),
-  ) as { theme: string };
-  expect(theme.theme).toBe("dark");
+  expect(instanceRecord("theme", id)["theme"]).toBe("dark");
 });
 
 Given(
   "centralized chat contains a transcript and an unavailable Codex thread",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
+  async ({ page }) => {
     await page.context().clearCookies();
-    await login(page, activeIdentity.child);
+    await login(page, currentIdentities().child);
 
     const unavailable = JSON.stringify({
       ...JSON.parse(chatPayload),
@@ -294,7 +257,7 @@ Then("Bnest preserves the transcript", async ({ page }) => {
       expect(page.getByText(text)).toBeVisible(),
     ),
   );
-  const chat = readChatState(activeIdentity.child.username);
+  const chat = readChatState(childId());
   expect(chat.thread_id).not.toBe("unavailable-thread");
   expect(chat.messages.slice(0, 2).map((m) => m.content)).toEqual(original);
 });

@@ -9,9 +9,11 @@
 // `resetFamilyChatScenario` runs before every scenario, so a When that fails
 // to assign a value can never be masked by one an earlier scenario left.
 
-import type { TestInfo } from "@playwright/test";
 import type { GraphQlResponse, queryFamilyChatMessagesAfter } from "./graphql";
-import { isolatedTestIdentity, type TestIdentity } from "./test-identity";
+import {
+  currentIdentities,
+  type TestIdentity,
+} from "./instance-identities";
 
 export interface FamilyChatScenarioState {
   afterId: string;
@@ -81,12 +83,12 @@ export function requireIdentity(): TestIdentity {
 }
 
 /**
- * The scenario's own isolated identities, whose admin the Background "an
+ * The current test instance's own accounts, whose admin the Background "an
  * approved user is logged in" already logged this page in as. Computed once
- * per scenario: the accounts already exist, so this only names them.
+ * per scenario: the accounts already exist in the instance, so this only names them.
  */
-export function scenarioIdentity(testInfo: TestInfo): TestIdentity {
-  scenario.identity ??= isolatedTestIdentity(testInfo);
+export function scenarioIdentity(): TestIdentity {
+  scenario.identity ??= currentIdentities();
   return scenario.identity;
 }
 

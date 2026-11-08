@@ -4,7 +4,6 @@ import {
   expectVerifiedResultWithoutPrivatePath,
   prepareNoBackupOverride,
   resolveDefaultDestination,
-  restoreBackupConfiguration,
   type DefaultBackupWorld,
 } from "../support/default-backup-destination";
 import {
@@ -20,14 +19,12 @@ import {
 // and "Save a safe override"); the contextual-schedules, deny-access, and
 // typed-configuration scenarios moved to bnest-app-fe-e2e.
 
-const { After, Given, Then, When } = createBdd();
+const { Given, Then, When } = createBdd();
 const world: ScheduledBackupWorld = {};
 const defaultWorld: DefaultBackupWorld = {};
 
-After(() => restoreBackupConfiguration(defaultWorld));
-
-Given("no backup override exists", ({ page, $testInfo }) =>
-  prepareNoBackupOverride(page, defaultWorld, $testInfo),
+Given("no backup override exists", ({ page }) =>
+  prepareNoBackupOverride(page, defaultWorld),
 );
 
 When("the daily backup destination resolves", ({ page }) =>

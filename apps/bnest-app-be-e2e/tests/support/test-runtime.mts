@@ -1,15 +1,21 @@
-import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   existsSync,
   lstatSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
+  type Stats,
 } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import {
+  backendOrigin,
+  createTestingControlClient,
+  type TestingControlClient,
+} from "./testing-control.mts";
 
 export type TestRuntime = { path: string; sqlitePath: string; runId: string };
 
@@ -18,10 +24,6 @@ const runsRoot = path.join(repositoryRoot, "data/test/runs");
 const sqliteRunsRoot = path.join(
   process.env["HOME"] ?? "",
   "bnest/data/test/runs",
-);
-const backupRepositoriesRoot = path.join(
-  process.env["HOME"] ?? "",
-  "bnest/data/test/backup-repository",
 );
 
 export function createTestRuntime(suite: string): TestRuntime {
@@ -55,45 +57,13 @@ export function createTestRuntime(suite: string): TestRuntime {
     });
   }
 
-  createBackupRepository(runId);
   return { path: runtimePath, sqlitePath, runId };
 }
 
-// The server's test configuration resolves Backup's default repository root to
-// `~/bnest/data/test/backup-repository/<run id>`, never a checkout, whose `data/backup` is
-// the production backup directory in the permanent checkout. It sits outside the SQLite run
-// root because Backup refuses a destination inside the live database's directory. Making it
-// an isolated git repository that ignores its `data/` gives the admin schedules page a
-// working default destination; the run's cleanup removes it.
-function backupRepositoryPath(runId: string): string {
-  const repository = path.join(backupRepositoriesRoot, runId);
-
-  if (
-    path.dirname(repository) !== backupRepositoriesRoot ||
-    path.basename(repository) !== runId
-  ) {
-    throw new Error(
-      "Bnest E2E backup repository must be one run-id child of ~/bnest/data/test/backup-repository",
-    );
-  }
-
-  return repository;
-}
-
-function createBackupRepository(runId: string): void {
-  const repository = backupRepositoryPath(runId);
-  mkdirSync(repository, { recursive: true });
-  writeFileSync(path.join(repository, ".gitignore"), "/data/*\n", {
-    encoding: "utf8",
-    flag: "wx",
-  });
-  const result = spawnSync("git", ["init", "--quiet", repository], {
-    encoding: "utf8",
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(`backup repository init failed: ${result.stderr}`);
-  }
+// A fresh 32-byte secret per run, as 64 hex characters. The runner passes it only through the
+// environment of the webServer, Playwright and the secondary BEAMs. It is never logged or written.
+export function generateTestControlSecret(): string {
+  return randomBytes(32).toString("hex");
 }
 
 export function cleanupTestRuntime(runtime: TestRuntime): void {
@@ -117,20 +87,153 @@ export function cleanupTestRuntime(runtime: TestRuntime): void {
 
   rmSync(runtime.path, { recursive: true, force: false });
   rmSync(runtime.sqlitePath, { recursive: true, force: false });
-  rmSync(backupRepositoryPath(runtime.runId), { recursive: true, force: true });
 }
 
-export default function globalTeardown(): void {
+// Every test instance directory under either root. The runner calls this after Playwright and its
+// servers have exited, so any entry is a leak. Entries are listed, never followed.
+export function listTestInstanceLeaks(runtime: TestRuntime): string[] {
+  return [runtime.path, runtime.sqlitePath].flatMap((root) => {
+    const instances = path.join(root, "instances");
+    const info = lstatOrUndefined(instances);
+    if (info === undefined) return [];
+    if (!info.isDirectory()) return [instances];
+    return readdirSync(instances).map((name) => path.join(instances, name));
+  });
+}
+
+// The run base must stay data-free: no account files and no SQLite database or sidecar at any depth,
+// except inside an instance directory. This mirrors the Elixir base audit.
+export function runBaseLeaks(runtime: TestRuntime): string[] {
+  const leaks: string[] = [];
+
+  for (const directory of [
+    path.join(runtime.path, "users"),
+    path.join(runtime.path, "system", "accounts"),
+  ]) {
+    if (hasEntries(directory)) leaks.push(directory);
+  }
+
+  for (const root of [runtime.path, runtime.sqlitePath]) {
+    leaks.push(...databaseFiles(root));
+  }
+
+  return leaks;
+}
+
+// Every account, username, and user file under a flat root (ADR 001, section 1). A flat-primary instance keeps its
+// accounts and user records in files, so a row count of its SQLite database proves nothing about them. The root must
+// be a real directory, so an absent root cannot pass as empty. Entries are listed and never followed.
+export function flatAccountFiles(root: string): string[] {
+  const info = lstatOrUndefined(root);
+  if (info === undefined || !info.isDirectory()) {
+    throw new Error("the flat root is not a directory");
+  }
+  return [
+    path.join(root, "users"),
+    path.join(root, "system", "accounts"),
+    path.join(root, "system", "usernames"),
+  ].flatMap((directory) => entriesUnder(directory));
+}
+
+function entriesUnder(entry: string): string[] {
+  const info = lstatOrUndefined(entry);
+  if (info === undefined) return [];
+  if (!info.isDirectory()) return [entry];
+  return readdirSync(entry)
+    .toSorted()
+    .flatMap((name) => entriesUnder(path.join(entry, name)));
+}
+
+// Walks real directories only. A symbolic link is listed by name when it looks like a database, and it is
+// never followed, so a link cannot send the audit outside the run.
+function databaseFiles(root: string): string[] {
+  const found: string[] = [];
+
+  const walk = (directory: string): void => {
+    for (const name of readdirSync(directory).toSorted()) {
+      const entry = path.join(directory, name);
+      if (name.includes(".sqlite3")) found.push(entry);
+      const info = lstatOrUndefined(entry);
+      if (info?.isDirectory() && name !== "instances") walk(entry);
+    }
+  };
+
+  const info = lstatOrUndefined(root);
+  if (info?.isDirectory()) walk(root);
+  return found;
+}
+
+type TeardownInput = {
+  runtime: TestRuntime;
+  client: Pick<TestingControlClient, "state" | "deleteInstance">;
+};
+
+// Runs while the server is still up: deletes the current instance, then checks the base. It does not
+// remove the roots. The runner removes them after the servers have exited.
+export async function tearDownTestInstances({
+  runtime,
+  client,
+}: TeardownInput): Promise<void> {
+  const state = await client.state();
+  if (state.runId !== runtime.runId) {
+    throw new Error(
+      `testing control serves run ${state.runId}, not ${runtime.runId}`,
+    );
+  }
+
+  if (state.instance !== null) {
+    await client.deleteInstance(state.instance.instanceId);
+  }
+
+  const leaks = runBaseLeaks(runtime);
+  if (leaks.length > 0) {
+    throw new Error(`run base is not data-free: ${leaks.join(", ")}`);
+  }
+}
+
+export default async function globalTeardown(): Promise<void> {
   const runtimePath = process.env["BNEST_E2E_RUNTIME_ROOT"];
   const runId = process.env["BNEST_E2E_RUN_ID"];
 
-  if (runtimePath && runId && existsSync(runtimePath)) {
-    cleanupTestRuntime({
-      path: runtimePath,
-      sqlitePath: path.join(sqliteRunsRoot, runId),
-      runId,
-    });
+  if (!runtimePath || !runId || !existsSync(runtimePath)) return;
+
+  assertCandidate(runtimePath);
+  const runtime: TestRuntime = {
+    path: runtimePath,
+    sqlitePath: path.join(sqliteRunsRoot, runId),
+    runId,
+  };
+  assertSqliteCandidate(runtime.sqlitePath);
+
+  await tearDownTestInstances({
+    runtime,
+    client: createTestingControlClient({
+      origin: backendOrigin(process.env["BNEST_BE_E2E_PORT"] ?? "4030"),
+    }),
+  });
+}
+
+function lstatOrUndefined(candidate: string): Stats | undefined {
+  try {
+    return lstatSync(candidate);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return undefined;
+    }
+    throw error;
   }
+}
+
+function hasEntries(directory: string): boolean {
+  const info = lstatOrUndefined(directory);
+  if (info === undefined) return false;
+  // A file where a directory belongs is itself a leak.
+  if (!info.isDirectory()) return true;
+  return readdirSync(directory).length > 0;
 }
 
 function assertSqliteCandidate(runtimePath: string): void {

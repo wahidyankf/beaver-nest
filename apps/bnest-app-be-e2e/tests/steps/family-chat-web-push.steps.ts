@@ -176,8 +176,8 @@ Then("the response reports the subscription enabled", async ({ page }) => {
 // does another member's session.
 Then(
   "the stored subscription is bound to the current user and session only",
-  async ({ page, browser, $testInfo }) => {
-    const identity = scenarioIdentity($testInfo);
+  async ({ page, browser }) => {
+    const identity = scenarioIdentity();
     expect((await currentState(page)).enabled).toBe(true);
     expect(await otherSessionEnabled(browser, identity.admin)).toBe(false);
     expect(await otherSessionEnabled(browser, identity.child)).toBe(false);
