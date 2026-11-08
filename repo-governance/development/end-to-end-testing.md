@@ -2,7 +2,7 @@
 
 Use end-to-end tests sparingly because they are slower and more expensive than narrower tests. They verify behaviour across real integration boundaries, not behaviour a unit or integration test can prove.
 
-Authenticated journeys must follow the [test-identity standard](test-identities.md): `test-user-` usernames, isolated runtime roots and browser profiles, and exact validated cleanup after each run.
+Authenticated journeys must follow the [test-identity standard](test-identities.md): `test-user-` usernames, isolated runtime roots and browser profiles, one [test instance](test-identities/001-test-instances.md) per scenario, and exact validated cleanup after each run.
 
 Every automated or AI-operated Playwright run must close every page, tab, and browser context it created through guaranteed cleanup that also runs after failure. Before completion, inspect controlled tabs and close test or navigation tabs; retain only a tab explicitly requested as a handoff or deliverable. Never close unrelated user-owned tabs. Cleanup failure fails the run. Formal plans using Playwright must include a `delivery.md` task for this cleanup and its proof.
 
@@ -13,6 +13,7 @@ Every automated or AI-operated Playwright run must close every page, tab, and br
 - Configure the browser base URL with the exact application origin, including hostname and port. A loopback alias such as `127.0.0.1` is not interchangeable with `localhost` when the application validates WebSocket origins; fail on origin or LiveView connection errors instead of accepting HTTP-only success.
 - Before filling, clicking, or asserting a LiveView-owned element, wait for its root to reach the connected state. Initial HTTP visibility is not readiness: the first LiveView patch may replace pre-connection form input and make a test submit different data from what it filled.
 - Parallel projects or workers may share one marked run root only when each has distinct synthetic identities and user-owned paths. Assertions must observe records owned by the current test identity, never aggregate shared-run counts or paths that another worker can change.
+- Send the [testing-control](test-identities.md#testing-control) secret only through Node `fetch`, never a Playwright request context, so traces never capture it.
 - Expand the selection only when shared behaviour, broad impact, or unresolved uncertainty makes additional journeys relevant.
 - Do not run unrelated cases merely because they are available, and never include `test:e2e` in `test:quick`, pre-commit, or pre-push.
 
