@@ -143,6 +143,8 @@ defmodule BnestApp.MixProject do
       BnestApp.TestBackupDestination,
       BnestApp.TestIdentity,
       BnestApp.TestInstance,
+      # Its facade writes run only on a spawned instance, in test:integration, as TestInstance does.
+      BnestApp.TestInstance.Seed,
       BnestApp.TestInstance.Switch,
       BnestApp.TestRuntimeRoot,
       BnestAppWeb.ConnCase

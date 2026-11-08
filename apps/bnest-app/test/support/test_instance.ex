@@ -18,6 +18,7 @@ defmodule BnestApp.TestInstance do
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.TestInstance.Error
   alias BnestApp.TestInstance.Paths
+  alias BnestApp.TestInstance.Seed
   alias BnestApp.TestInstance.Switch
   alias BnestApp.TestRuntimeRoot
 
@@ -54,9 +55,10 @@ defmodule BnestApp.TestInstance do
 
   @doc """
   Spawns one test instance and points the running server at it. Options: `:phase` (default
-  `:sqlite_primary`), `:instance_id` (default random), `:seed` (a one-argument function run after
-  migration), and `:fail_after` (a step name: that step does its work and then fails, which tests
-  the rollback). Raises `BnestApp.TestInstance.Error`.
+  `:sqlite_primary`), `:instance_id` (default random), `:seed` (after migration: a one-argument
+  function run with the instance, or `{seed_key, seed_map}` applied through
+  `BnestApp.TestInstance.Seed`), and `:fail_after` (a step name: that step does its work and then
+  fails, which tests the rollback). Raises `BnestApp.TestInstance.Error`.
   """
   @spec spawn!(TestRuntimeRoot.t(), keyword()) :: instance()
   def spawn!(run, opts \\ []) do
@@ -69,6 +71,28 @@ defmodule BnestApp.TestInstance do
     case current() do
       nil -> nil
       %{instance: instance} -> instance
+    end
+  end
+
+  @doc """
+  The seed registry of `instance`: the seed keys applied to it and the accounts they created. It
+  lives in the instance state, so `drop!/1` clears it. `{:error, :not_current}` when `instance` is
+  not the current instance.
+  """
+  @spec seed_registry(instance()) :: {:ok, map()} | {:error, :not_current}
+  def seed_registry(instance) do
+    case current() do
+      %{instance: ^instance} = state -> {:ok, Map.get(state, :seeds, %{})}
+      _other -> {:error, :not_current}
+    end
+  end
+
+  @doc "Stores `registry` as the seed registry of `instance`, which must be the current instance."
+  @spec put_seed_registry(instance(), map()) :: :ok | {:error, :not_current}
+  def put_seed_registry(instance, registry) do
+    case current() do
+      %{instance: ^instance} = state -> store_current(Map.put(state, :seeds, registry))
+      _other -> {:error, :not_current}
     end
   end
 
@@ -166,9 +190,11 @@ defmodule BnestApp.TestInstance do
     instance = create!(run, instance_id, phase, original, opts)
     run_step!(instance, original, :activate, opts, fn -> Switch.activate!(instance) end)
     run_step!(instance, original, :migrate, opts, fn -> Switch.migrate!(instance) end)
-    run_step!(instance, original, :seed, opts, fn -> run_seed(opts, instance) end)
 
-    store_current(%{instance: instance, original: original})
+    # The instance is current before its seed runs, so the seed keeps its registry in the state.
+    # A seed that fails clears the state again in `rollback/2`.
+    store_current(%{instance: instance, original: original, seeds: %{}})
+    run_step!(instance, original, :seed, opts, fn -> run_seed(opts, instance) end)
     instance
   end
 
@@ -229,8 +255,12 @@ defmodule BnestApp.TestInstance do
     case Keyword.get(opts, :seed) do
       nil -> :ok
       seed when is_function(seed, 1) -> seed.(instance)
+      {seed_key, seed_map} -> seed_result(Seed.apply(instance, seed_key, seed_map))
     end
   end
+
+  defp seed_result({:ok, _result}), do: :ok
+  defp seed_result({:error, reason}), do: {:error, reason}
 
   # Rolls back, then raises. A rollback whose removal fails names the retained path instead, since
   # that leftover fails the run.
@@ -247,8 +277,10 @@ defmodule BnestApp.TestInstance do
   # A failed create has switched nothing, so there is nothing to restore.
   defp rollback(nil, _original), do: :ok
 
+  # A seed that failed may have been the current instance, so its state is cleared with the switch.
   defp rollback(instance, original) do
     :ok = Switch.restore!(original, instance.paths)
+    clear_current()
     rollback_directories(instance)
   end
 

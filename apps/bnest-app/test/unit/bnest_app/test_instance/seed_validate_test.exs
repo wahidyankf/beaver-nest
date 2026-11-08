@@ -201,6 +201,16 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
                  "records" => [record(@parent, "themePreference", %{"theme" => "dark"})]
                })
     end
+
+    test "a seed key that is not a slug is unknown_seed_key at seedKey" do
+      assert {:error, %{code: :seed_invalid, reason: :unknown_seed_key, path: "seedKey"}} =
+               Seed.apply(@instance, "Not A Key!", %{})
+    end
+
+    test "a seed key that is empty is unknown_seed_key" do
+      assert {:error, %{code: :seed_invalid, reason: :unknown_seed_key, path: "seedKey"}} =
+               Seed.apply(@instance, "", %{})
+    end
   end
 
   describe "too_many" do
@@ -524,6 +534,28 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
 
       refute inspect(error) =~ "SECRETKEY"
       refute inspect(error) =~ "SECRETPATH"
+    end
+  end
+
+  test "a seed that is not an object is refused by apply before any state is read" do
+    assert {:error, %{code: :seed_invalid, reason: :invalid_payload, path: "seed"}} =
+             Seed.apply(@instance, "bootstrap-a", [])
+  end
+
+  describe "apply/3 refusals that need no facade" do
+    test "a seed key that is not a slug is unknown_seed_key at seedKey" do
+      assert {:error, %{code: :seed_invalid, reason: :unknown_seed_key, path: "seedKey"}} =
+               Seed.apply(@instance, "Not A Slug", %{})
+
+      assert {:error, %{reason: :unknown_seed_key}} = Seed.apply(@instance, 7, %{})
+    end
+
+    test "a valid body on an instance that is not current is :not_current and writes nothing" do
+      assert {:error, :not_current} = Seed.apply(@instance, "bootstrap-a", %{})
+    end
+
+    test "the push session key is a fixed prefix on the endpoint" do
+      assert Seed.push_session_key(@endpoint) == "test-seed-push:" <> @endpoint
     end
   end
 end
