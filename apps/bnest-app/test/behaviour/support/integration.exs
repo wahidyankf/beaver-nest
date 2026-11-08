@@ -21,8 +21,17 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
   #     open. It spawns with no accounts and logs nobody in.
   #   * the `centralized_data.feature` scenarios import browser sources, which Bnest keeps as flat files in its
   #     records store, so they run on a flat-primary instance.
+  #   * four `sqlite_storage.feature` scenarios hide or remove the instance's storage pointer and then log an
+  #     administrator in. With no pointer, accounts are written to the flat records store, so that store has to be the
+  #     instance's own: a flat-primary instance. On a SQLite-primary instance they land in the shared run base.
   @self_controlled_features ["test_isolation.feature", "test_instances.feature"]
   @flat_primary_features ["centralized_data.feature"]
+  @flat_primary_scenarios [
+    "Administrator optionally selects a valid custom database folder",
+    "Private custom storage survives a sticky shared ancestor",
+    "Unsafe database folder is rejected without mutation",
+    "Invalid or changed source blocks cutover without data loss"
+  ]
 
   before_scenario _context, name: "start with no test instance current" do
     case TestInstance.state() do
@@ -91,7 +100,8 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
   end
 
   defp phase(context) do
-    if context[:"flat-primary"] == true or flat_feature?(context),
+    if context[:"flat-primary"] == true or flat_feature?(context) or
+         context.scenario_name in @flat_primary_scenarios,
       do: :flat_primary,
       else: :sqlite_primary
   end
