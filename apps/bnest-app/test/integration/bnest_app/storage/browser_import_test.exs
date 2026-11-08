@@ -1,6 +1,10 @@
 defmodule BnestApp.BrowserImportTest do
   use BnestAppWeb.ConnCase, async: false
 
+  # Browser import keeps its envelopes and manifests in the records store, which is a flat store (`Records.store/0`),
+  # so these tests run on a flat-primary instance whose flat root is its own.
+  @moduletag phase: :flat_primary
+
   alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage.Adapters.FileRecordBackend
   alias BnestApp.Storage.Import
@@ -161,8 +165,10 @@ defmodule BnestApp.BrowserImportTest do
   end
 
   defp owner_id(store) do
+    {username, _password} = test_credentials()
+
     {:ok, %{"userId" => owner_id}} =
-      FileRecordBackend.read(store, :username_index, "test-user-integration")
+      FileRecordBackend.read(store, :username_index, username)
 
     owner_id
   end

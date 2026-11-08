@@ -66,6 +66,15 @@ defmodule BnestApp.TestInstance do
     with_lock(fn -> do_spawn(run, opts) end)
   end
 
+  @doc """
+  Restores an application setting saved with `Application.fetch_env/2`: a value that was set is put back, and
+  one that was unset is deleted again. Tests use it for settings the integration layer leaves unset (ADR 001,
+  section 1).
+  """
+  @spec restore_app_env(atom(), {:ok, term()} | :error) :: :ok
+  def restore_app_env(key, {:ok, value}), do: Application.put_env(:bnest_app, key, value)
+  def restore_app_env(key, :error), do: Application.delete_env(:bnest_app, key)
+
   @doc "The current instance, or nil."
   @spec state() :: instance() | nil
   def state do

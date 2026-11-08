@@ -126,7 +126,9 @@ defmodule BnestApp.FamilyChatMigrationTest do
   end
 
   describe "additive reply column" do
-    setup do
+    # The describe's rows are read and written on a fresh instance, so the run base database stays untouched.
+    setup context do
+      _fresh = BnestApp.FreshDatabaseCase.fresh_database!(context)
       FamilyChat.ensure_ready!()
       :ok
     end
