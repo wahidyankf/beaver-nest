@@ -73,7 +73,9 @@ export function cleanupStaleTestData({
 
     for (const name of readdirSync(parent)) {
       const candidate = path.join(parent, name);
-      const candidateInfo = lstatSync(candidate);
+      // Another sweep may remove the entry after it was listed. It is then gone, not retained.
+      const candidateInfo = lstatOrUndefined(candidate);
+      if (candidateInfo === undefined) continue;
       if (!candidateInfo.isDirectory() || candidateInfo.mtimeMs > threshold) {
         retained += 1;
         continue;
