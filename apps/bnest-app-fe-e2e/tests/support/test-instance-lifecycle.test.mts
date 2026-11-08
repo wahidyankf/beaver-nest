@@ -105,7 +105,10 @@ test("the account plan names every role with a synthetic test username", () => {
 });
 
 test("the run's storage pointer and backup config sit under the SQLite run root, never the flat one", () => {
-  const paths = runConfigPaths({ runId: "fe-e2e-abc", home: "/synthetic/tester" });
+  const paths = runConfigPaths({
+    runId: "fe-e2e-abc",
+    home: "/synthetic/tester",
+  });
 
   assert.deepEqual(paths, {
     sqliteRunRoot: "/synthetic/tester/bnest/data/test/runs/fe-e2e-abc",
