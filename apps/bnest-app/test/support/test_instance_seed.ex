@@ -43,8 +43,10 @@ defmodule BnestApp.TestInstance.Seed do
 
   ## Facades per section
 
-    * accounts with an admin, while setup is open: `BnestApp.Identity.bootstrap/1`, the admin set
-      of the seed, so `/setup` closes as in production.
+    * accounts with an admin on a `flat_primary` instance, while setup is open:
+      `BnestApp.Identity.bootstrap/1`, the admin set of the seed, so `/setup` closes as in production.
+      Production refuses bootstrap on a `sqlite_primary` instance (the routed identity store is never
+      empty), so there every account goes through the identity store.
     * every other account: `BnestApp.Identity.adapter(:identity_store)` with
       `IdentityStore.put_account/2` and `put_username/2`, and the configured credential hasher.
     * family chat user messages: `BnestApp.FamilyChat.send_message/5`, which the GraphQL
@@ -503,7 +505,7 @@ defmodule BnestApp.TestInstance.Seed do
     view = Map.put(instance, :seeded, accounts_of(registry))
 
     with {:ok, normalized} <- validate(seed, view),
-         {:ok, created} <- write_accounts(normalized["accounts"], registry),
+         {:ok, created} <- write_accounts(normalized["accounts"], registry, instance.phase),
          users = Map.merge(accounts_of(registry), users_of(created)),
          :ok <- write_messages(normalized["familyChat"]["messages"], users),
          :ok <- write_subscriptions(normalized["pushSubscriptions"], users),
@@ -517,7 +519,9 @@ defmodule BnestApp.TestInstance.Seed do
     updated = %{
       keys: Map.put(keys(registry), seed_key, %{fingerprint: fingerprint, accounts: created}),
       accounts: Map.merge(accounts_of(registry), users_of(created)),
-      bootstrapped: bootstrapped?(registry) or Enum.any?(created, &("admin" in &1.roles))
+      bootstrapped:
+        bootstrapped?(registry) or
+          (instance.phase == :flat_primary and Enum.any?(created, &("admin" in &1.roles)))
     }
 
     TestInstance.put_seed_registry(instance, updated)
@@ -531,14 +535,16 @@ defmodule BnestApp.TestInstance.Seed do
     Map.new(accounts, &{&1.username, %{user_id: &1.user_id, roles: &1.roles}})
   end
 
-  # Accounts. The first admin set of an instance goes through `Identity.bootstrap/1`, which closes
-  # setup. Production refuses it when setup cannot open, and that refusal is returned, not hidden.
-  # Every other account is written through the identity store.
+  # Accounts. On a `flat_primary` instance the first admin set goes through `Identity.bootstrap/1`,
+  # which closes setup. Production refuses bootstrap on a `sqlite_primary` instance, because its
+  # routed identity store never reads as empty, so there no account is bootstrapped: every account
+  # goes through the identity store, and setup stays unopened. A refusal from bootstrap is returned,
+  # not hidden. Every account that is not bootstrapped goes through the identity store.
 
-  defp write_accounts([], _registry), do: {:ok, []}
+  defp write_accounts([], _registry, _phase), do: {:ok, []}
 
-  defp write_accounts(accounts, registry) do
-    with {:ok, bootstrapped} <- bootstrap(first_admin_set(accounts, registry)),
+  defp write_accounts(accounts, registry, phase) do
+    with {:ok, bootstrapped} <- bootstrap(first_admin_set(accounts, registry, phase)),
          {:ok, stored} <-
            store_accounts(Enum.reject(accounts, &Map.has_key?(bootstrapped, &1["username"]))) do
       ids = Map.merge(bootstrapped, stored)
@@ -554,11 +560,13 @@ defmodule BnestApp.TestInstance.Seed do
     end
   end
 
-  defp first_admin_set(accounts, registry) do
+  defp first_admin_set(accounts, registry, :flat_primary) do
     if bootstrapped?(registry),
       do: [],
       else: Enum.filter(accounts, &("admin" in &1["roles"]))
   end
+
+  defp first_admin_set(_accounts, _registry, :sqlite_primary), do: []
 
   defp bootstrap([]), do: {:ok, %{}}
 

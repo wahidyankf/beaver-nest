@@ -130,7 +130,8 @@ Which API is used:
   transcript), and bulk history. Seeding code calls the production facades in-process: `Identity.bootstrap/1` for the
   first admin set, then the identity store `put_account`/`put_username`; the Family Chat send entry point the GraphQL
   resolver uses; `PushNotifications` subscribe; `SifatAllah.save_progress`; the CodexChat transcript store. It never
-  writes SQL, files or fixtures directly.
+  writes SQL, files or fixtures directly. On a `sqlite_primary` instance the first admin set also goes through the
+  identity store, because bootstrap is refused there (see the accounts rule below).
 - No endpoint evaluates code, accepts SQL, or accepts a path. Reads that tests do today with `mix run -e`
   (`liveJson`, claim counts) stay on `mix run -e` in this change, now instance-aware; named, allow-listed read
   operations are a follow-up.
@@ -185,9 +186,13 @@ Which API is used:
 
 Limits: at most 40 accounts, 500 messages, 40 push subscriptions and 40 records. Usernames match
 `^test-user-[a-z0-9-]{1,48}$` and carry the instance short id (the first 8 hex characters of `instanceId`), so identities
-stay unique per instance and traceable. A seed with accounts that include an admin goes through `Identity.bootstrap/1`,
-so setup closes exactly as in production. A spawn with no accounts leaves `/setup` open, which is how "Initial setup
-creates accounts exactly once" gets a pristine database.
+stay unique per instance and traceable. On a `flat_primary` instance, a seed with accounts that include an admin
+sends the first admin set through `Identity.bootstrap/1`, so setup closes exactly as in production. On a
+`sqlite_primary` instance production refuses bootstrap, because its routed identity store never reads as empty, so
+the seed writes every account, admins included, through the identity-store port (`put_account`/`put_username`, with
+the configured credential hasher), and `/setup` stays unopened. A spawn with no accounts leaves `/setup` open only on
+a `flat_primary` instance, which is how "Initial setup creates accounts exactly once" gets a pristine database; that
+scenario must use phase `flat_primary`.
 
 **Error codes.** Every body is `{"error": {"code": "<code>", "detail": "<text>", "path": "<seed path or null>"}}` and
 never contains a secret, a password or a filesystem path outside the run.
