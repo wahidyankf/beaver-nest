@@ -20,6 +20,9 @@ data/test/runs/<run>/instances/<inst>/                             flat instance
 - The instance marker carries `schemaVersion: 1`, `recordType: "bnest-test-instance"`, `runId`, `instanceId`, `owner:
 "bnest-test-harness"`, and `createdAt`. Write it right after the instance root is created and before the database file
   exists. A crash in that short window can leave an empty, unmarked root; it holds no data and goes with its run.
+- A flat instance root also holds `.bnest-test-run.json`, a `bnest-test-run` marker whose `runId` is the instance id,
+  because the application start validates a test runtime root by that file and a secondary BEAM boots on this root.
+  The instance marker stays the only proof of ownership.
 - Create a flat instance root only for the `flat_primary` phase. A `sqlite_primary` instance has none, which keeps
   Dropbox, which syncs `data/`, from syncing many short-lived files.
 - The test backup config file in the run base's `storage-config/` is one fixed file. Each spawn and each delete removes

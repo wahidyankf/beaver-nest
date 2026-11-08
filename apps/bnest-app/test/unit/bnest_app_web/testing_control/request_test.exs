@@ -45,9 +45,34 @@ defmodule BnestAppWeb.TestingControl.RequestTest do
                   run_id: "run-1",
                   label: "fresh-db",
                   phase: :sqlite_primary,
+                  storage: :configured,
                   seed: :absent,
                   instance_id: nil
                 }}
+    end
+
+    test "accepts an unconfigured storage choice only for a flat-primary instance" do
+      assert {:ok, %{phase: :flat_primary, storage: :unconfigured}} =
+               Request.spawn_body(%{
+                 "runId" => "r",
+                 "label" => "l",
+                 "phase" => "flat_primary",
+                 "storage" => "unconfigured"
+               })
+
+      assert {:ok, %{storage: :configured}} =
+               Request.spawn_body(%{"runId" => "r", "label" => "l", "storage" => "configured"})
+
+      assert {:error,
+              {:invalid_request, "an unconfigured storage choice needs the flat_primary phase"}} =
+               Request.spawn_body(%{"runId" => "r", "label" => "l", "storage" => "unconfigured"})
+    end
+
+    test "refuses a storage choice that is neither configured nor unconfigured" do
+      for storage <- ["chosen", "UNCONFIGURED", nil, 1] do
+        assert {:error, {:invalid_request, "the storage must be configured or unconfigured"}} =
+                 Request.spawn_body(%{"runId" => "r", "label" => "l", "storage" => storage})
+      end
     end
 
     test "accepts a client-chosen instance id of exactly 16 lowercase letters or digits" do

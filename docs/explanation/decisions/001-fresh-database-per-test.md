@@ -113,6 +113,17 @@ flat files or migration. A `sqlite_primary` instance reaches that phase by the r
 exists. A `flat_primary` instance also gets a flat instance root; a `sqlite_primary` instance does not, which keeps
 Dropbox (it synchronizes `data/`) from syncing thousands of short-lived files.
 
+A `flat_primary` instance can also be spawned with `storage: "unconfigured"` (the default is `"configured"`). It is the
+state of a fresh installation before an administrator chooses the database location: the spawn writes no storage
+pointer, runs no migration, and leaves `db/` empty. The storage page offers the choice only while no pointer exists
+(`Storage.persist_directory/1` refuses a second one), and it opens the profile's default location when it reads storage
+with no pointer. The default location of the test profile is the run base, which must stay data-free, so the spawn
+re-points `:storage_profile` at the instance's own `db/` directory, and the drop restores it. The state is only for
+scenarios whose subject is that choice (the Gherkin tag `@storage-unconfigured`); `sqlite_primary` always has a pointer,
+so the server refuses the pair with `invalid_request`. Such an instance holds no SQLite database for Family Chat or
+push, so a seed that fills `familyChat` or `pushSubscriptions` is refused with `wrong_phase`. Accounts and flat records
+seed as on any `flat_primary` instance. The instance drop removes the pointer the choice wrote, as for any instance.
+
 **Secondary BEAMs.** `mix run -e` helpers and FE rollout candidates are other processes. The harness starts them per
 scenario after the instance exists and passes `BNEST_TEST_INSTANCE_ID`, `BNEST_RUNTIME_ROOT` (the flat instance root,
 or the run base for `sqlite_primary`) and the same `BNEST_STORAGE_CONFIG`. `config/test.exs` derives paths from
@@ -150,7 +161,7 @@ Which API is used:
 `POST /instances`. Its response is `{seedKey, applied}`; `applied` is `false` when the same key comes again with the
 same body, and `:id` must be the current instance (another id is `not_current`).
 
-`POST /instances` body: `{runId, label, instanceId?, phase?, seed?}`. `label` is a slug of at most 60 characters.
+`POST /instances` body: `{runId, label, instanceId?, phase?, storage?, seed?}`. `label` is a slug of at most 60 characters.
 `instanceId` is the client's own random id matching `^[a-z0-9]{16}$`; when it is absent the server generates it. `seed`
 is `{accounts?, familyChat?, pushSubscriptions?, records?}`:
 

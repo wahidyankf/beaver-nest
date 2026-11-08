@@ -22,6 +22,7 @@ defmodule BnestAppWeb.TestingControl.Request do
   @instance_id_pattern ~r/\A[a-z0-9]{16}\z/
   @instance_id_detail "the instance id must be 16 lowercase letters or digits"
   @phases %{"sqlite_primary" => :sqlite_primary, "flat_primary" => :flat_primary}
+  @storages %{"configured" => :configured, "unconfigured" => :unconfigured}
 
   @type invalid :: {:error, {:invalid_request, String.t()}}
 
@@ -32,8 +33,9 @@ defmodule BnestAppWeb.TestingControl.Request do
   end
 
   @doc """
-  The spawn body: `runId` and `label` are required; `instanceId`, `phase` and `seed` are optional,
-  and no other field is allowed. `seed` is `:absent` or `{:present, value}`, so an explicit `null` is
+  The spawn body: `runId` and `label` are required; `instanceId`, `phase`, `storage` and `seed` are
+  optional, and no other field is allowed. `storage` is `configured` (the default) or `unconfigured`,
+  a flat-primary instance with no storage pointer and no database, as a fresh installation is. `seed` is `:absent` or `{:present, value}`, so an explicit `null` is
   judged by the seed validator rather than dropped. `instanceId` is `nil` when absent: the server
   then generates the id. A present id is the client's own random 16-character id, so a client can
   name its usernames before the spawn (ADR 001, section 2).
@@ -45,21 +47,24 @@ defmodule BnestAppWeb.TestingControl.Request do
              label: String.t(),
              instance_id: String.t() | nil,
              phase: atom(),
+             storage: :configured | :unconfigured,
              seed: :absent | {:present, term()}
            }}
           | invalid()
   def spawn_body(body) when is_map(body) do
-    with :ok <- known_fields(body, ~w(runId label instanceId phase seed)),
+    with :ok <- known_fields(body, ~w(runId label instanceId phase storage seed)),
          {:ok, run_id} <- required_string(body, "runId", "the body must name the run id"),
          {:ok, label} <- label(body),
          {:ok, instance_id} <- instance_id(body),
-         {:ok, phase} <- phase(body) do
+         {:ok, phase} <- phase(body),
+         {:ok, storage} <- storage(body, phase) do
       {:ok,
        %{
          run_id: run_id,
          label: label,
          instance_id: instance_id,
          phase: phase,
+         storage: storage,
          seed: optional(body, "seed")
        }}
     end
@@ -149,6 +154,24 @@ defmodule BnestAppWeb.TestingControl.Request do
       {:ok, _other} -> invalid("the phase must be sqlite_primary or flat_primary")
     end
   end
+
+  defp storage(body, phase) do
+    case Map.fetch(body, "storage") do
+      :error ->
+        {:ok, :configured}
+
+      {:ok, value} when is_map_key(@storages, value) ->
+        unconfigured_needs_flat(Map.fetch!(@storages, value), phase)
+
+      {:ok, _other} ->
+        invalid("the storage must be configured or unconfigured")
+    end
+  end
+
+  defp unconfigured_needs_flat(:unconfigured, phase) when phase != :flat_primary,
+    do: invalid("an unconfigured storage choice needs the flat_primary phase")
+
+  defp unconfigured_needs_flat(storage, _phase), do: {:ok, storage}
 
   defp optional(body, key) do
     case Map.fetch(body, key) do

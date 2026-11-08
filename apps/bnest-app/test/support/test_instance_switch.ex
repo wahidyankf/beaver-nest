@@ -6,9 +6,9 @@ defmodule BnestApp.TestInstance.Switch do
   # outside that lease, because they take the lease themselves. `snapshot/0` and `restore!/1`
   # hold everything a switch changes, so a drop or a rollback returns to the state before a spawn.
   #
-  # Nothing here is production code: the Records store is replaced from test support, and the
-  # store is built as the `FileRecordBackend` struct, since `FileRecordBackend.new!/1` refuses
-  # an instance root (it wants a run marker there, not an instance marker).
+  # Nothing here is production code: the Records store is replaced from test support. The store comes from
+  # `FileRecordBackend.new!/1`, which accepts the flat instance root because spawn marks it with the run marker
+  # that function reads.
 
   use Boundary, top_level?: true, check: [in: false, out: false]
 
@@ -20,11 +20,14 @@ defmodule BnestApp.TestInstance.Switch do
   alias BnestApp.Storage.Records
   alias BnestApp.TestInstance
   alias BnestApp.TestInstance.Paths
+  alias BnestApp.TestRuntimeRoot
 
   # The application settings a switch changes. `:family_chat_sqlite_path` is removed for an
   # instance, because Family Chat would otherwise re-point the shared repo at its own file, and the
   # instance has one database, as production does.
-  @env_keys [:runtime_root, :backup_repository_root, :family_chat_sqlite_path]
+  #
+  # `:storage_profile` changes for an unconfigured instance only (see `write_pointer/1`).
+  @env_keys [:runtime_root, :backup_repository_root, :family_chat_sqlite_path, :storage_profile]
 
   @type original :: %{
           pointer: binary() | nil,
@@ -45,17 +48,17 @@ defmodule BnestApp.TestInstance.Switch do
   # Family Chat, Push and Scheduler SQL does not take the lease, so the caller refuses a busy
   # Scheduler before it gets here.
   @spec activate!(map()) :: :ok
-  def activate!(%{paths: paths, phase: phase}) do
+  def activate!(%{paths: paths, phase: phase} = instance) do
     Storage.with_exclusive_lock(fn ->
       :ok = Storage.stop()
-      :ok = FileConfigStore.write!(Paths.storage_pointer(paths))
+      write_pointer(instance)
       Application.put_env(:bnest_app, :backup_repository_root, paths.backup_repository_directory)
       Application.delete_env(:bnest_app, :family_chat_sqlite_path)
       remove_file(paths.backup_config_path)
 
       if phase == :flat_primary do
         Application.put_env(:bnest_app, :runtime_root, paths.flat_instance_root)
-        swap_records(flat_store(paths.flat_instance_root))
+        swap_records(FileRecordBackend.new!(paths.flat_instance_root))
       end
 
       :ok
@@ -71,6 +74,9 @@ defmodule BnestApp.TestInstance.Switch do
       {:error, reason, _report} -> {:error, reason}
     end
   end
+
+  # An unconfigured instance has no database to migrate: the administrator's choice of a location creates it.
+  def migrate!(%{storage: :unconfigured}), do: :ok
 
   def migrate!(%{phase: :flat_primary}) do
     :ok = Storage.ensure_started!()
@@ -94,13 +100,30 @@ defmodule BnestApp.TestInstance.Switch do
     end)
   end
 
+  # A fresh installation has chosen no location, so an unconfigured instance has no pointer. A pointer left in
+  # the run base by an earlier owner is removed, so the first one is written by the choice under test.
+  #
+  # Anything that reads storage with no pointer (the storage page does) opens the storage profile's default
+  # location, which is the run base. The profile is re-pointed at the instance's own `db/` directory, so that read
+  # creates its file inside the instance and the run base stays data-free. The profile's id is a path below the
+  # SQLite runs root, which `Location.test_data_directory/1` joins.
+  defp write_pointer(%{storage: :unconfigured, paths: paths}) do
+    remove_file(paths.storage_pointer_path)
+
+    Application.put_env(
+      :bnest_app,
+      :storage_profile,
+      {:test, Path.relative_to(paths.db_directory, TestRuntimeRoot.sqlite_runs_root())}
+    )
+  end
+
+  defp write_pointer(%{paths: paths}),
+    do: :ok = FileConfigStore.write!(Paths.storage_pointer(paths))
+
   defp swap_records(store) do
     :sys.replace_state(Records, fn state -> %{state | store: store} end)
     :ok
   end
-
-  # `FileRecordBackend.new!/1` validates a run marker, so the struct it would return is built here.
-  defp flat_store(root), do: %{backend: FileRecordBackend, root: root, replace: &File.rename/2}
 
   defp read_pointer do
     case File.read(FileConfigStore.pointer_path()) do

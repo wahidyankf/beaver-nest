@@ -88,6 +88,26 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
                Path.join([run.path, "instances", id])
     end
 
+    test "an unconfigured flat_primary spawn leaves no storage pointer for the setup page", %{
+      run: run
+    } do
+      body =
+        spawn_instance(run, %{"phase" => "flat_primary", "storage" => "unconfigured"})
+        |> Wire.json()
+
+      assert body["phase"] == "flat_primary"
+      refute File.exists?(FileConfigStore.pointer_path())
+      assert TestInstance.state().storage == :unconfigured
+    end
+
+    test "an unconfigured sqlite_primary spawn is a bad request and changes nothing", %{run: run} do
+      conn = spawn_instance(run, %{"storage" => "unconfigured"})
+
+      assert conn.status == 400
+      assert TestInstance.state() == nil
+      refute File.exists?(FileConfigStore.pointer_path())
+    end
+
     test "a spawn seed naming an account is refused: the username cannot carry an id the client lacks",
          %{run: run} do
       before = Wire.snapshot()
@@ -750,7 +770,9 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
   describe "a flat_primary instance" do
     test "keeps the routes answering after the spawn re-points the runtime root", %{run: run} do
       id =
-        spawn_instance(run, %{"phase" => "flat_primary"}) |> Wire.json() |> Map.fetch!("instanceId")
+        spawn_instance(run, %{"phase" => "flat_primary"})
+        |> Wire.json()
+        |> Map.fetch!("instanceId")
 
       state = Wire.send_request(:get, route("/state"))
       assert state.status == 200

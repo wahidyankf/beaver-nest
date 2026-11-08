@@ -439,6 +439,21 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
     end
   end
 
+  describe "an unconfigured storage" do
+    test "refuses Family Chat and push sections on an instance whose storage is unconfigured" do
+      unconfigured = Map.merge(flat_seeded(), %{storage: :unconfigured})
+
+      assert %{reason: :wrong_phase, path: "familyChat"} =
+               rejected(%{"familyChat" => %{"messages" => [message(@parent)]}}, unconfigured)
+
+      assert %{reason: :wrong_phase, path: "pushSubscriptions"} =
+               rejected(%{"pushSubscriptions" => [%{"owner" => @parent}]}, unconfigured)
+
+      assert {:ok, %{"familyChat" => %{"messages" => []}, "pushSubscriptions" => []}} =
+               Seed.validate(%{"familyChat" => %{}, "pushSubscriptions" => []}, unconfigured)
+    end
+  end
+
   describe "browserImportInterrupted" do
     test "accepts an interrupted import of a recognized source and keeps its three fields" do
       value = source("sessionStorage", "bnest.chat.v1", @chat_payload)
