@@ -1,5 +1,7 @@
 defmodule BnestApp.Backup.FileConfigStoreTest do
-  use ExUnit.Case, async: false
+  # Every test runs on its own test instance (ADR 001, section 1). Without one, the run base's backup root sits
+  # beside the live base database, and a destination inside the database's directory is refused as an overlap.
+  use BnestApp.FreshDatabaseCase, async: false
 
   alias BnestApp.Backup
   alias BnestApp.Backup.Adapters.FileConfigStore
@@ -48,7 +50,9 @@ defmodule BnestApp.Backup.FileConfigStoreTest do
 
     root = FileConfigStore.repository_root()
 
-    assert root =~ "/bnest/data/test/backup-repository/"
+    # The scenario's instance configures its own backup repository root, under its own SQLite root.
+    assert root == Application.get_env(:bnest_app, :backup_repository_root)
+    assert String.starts_with?(root, Application.fetch_env!(:bnest_app, :test_sqlite_root) <> "/")
     refute root == @checkout
     refute String.starts_with?(@checkout <> "/", root <> "/")
 
@@ -97,7 +101,12 @@ defmodule BnestApp.Backup.FileConfigStoreTest do
     default = Backup.default_directory()
 
     assert default == Path.join(root, "data/backup")
-    assert default =~ "/bnest/data/test/backup-repository/"
+
+    assert String.starts_with?(
+             default,
+             Application.fetch_env!(:bnest_app, :test_sqlite_root) <> "/"
+           )
+
     refute default == Path.join(@checkout, "data/backup")
     refute String.starts_with?(default, @checkout <> "/")
 

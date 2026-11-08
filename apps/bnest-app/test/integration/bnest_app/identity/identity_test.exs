@@ -1,6 +1,7 @@
 defmodule BnestApp.Identity.IdentityTest do
   use ExUnit.Case, async: false
 
+  alias BnestApp.FreshDatabaseCase
   alias BnestApp.Identity
   alias BnestApp.Identity.Adapters.Argon2CredentialHasher
   alias BnestApp.Identity.Adapters.RecordIdentityStore
@@ -12,6 +13,12 @@ defmodule BnestApp.Identity.IdentityTest do
   alias BnestApp.Identity.Sessions
   alias BnestApp.Storage.Adapters.FileRecordBackend
   alias BnestApp.TestRuntimeRoot
+
+  # The active store (the test instance's database) backs login and sessions, so every test here gets its own
+  # fresh instance with the standard accounts (ADR 001, section 1). The bootstrap tests use their own store.
+  setup do
+    FreshDatabaseCase.fresh_database!(%{}, FreshDatabaseCase.standard_accounts())
+  end
 
   setup do
     runtime = TestRuntimeRoot.create!("identity-unit")
