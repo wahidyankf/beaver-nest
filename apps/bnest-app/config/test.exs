@@ -292,6 +292,11 @@ config :swoosh, :api_client, false
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+# Phoenix reads its parameter filter from the :phoenix application, not from an endpoint. The seed
+# bodies carry push keys (`p256dh`, `auth`), accounts carry passwords, and the testing control
+# carries the run secret in a header, so none of these words may reach a log line at debug level.
+config :phoenix, :filter_parameters, ["password", "secret", "p256dh", "auth"]
+
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
 
