@@ -4,9 +4,9 @@ import {
   accountPlan,
   createInstanceLifecycle,
   instanceEnvironment,
-  settleAll,
   type LifecycleClient,
 } from "./test-instance-lifecycle.mts";
+import { settleAll } from "./settle-all.mts";
 import type { SpawnedInstance } from "./testing-control-records.mts";
 
 const instanceId = "a1b2c3d4e5f6g7h8";

@@ -17,8 +17,8 @@ import {
   accountPlan,
   phaseForTags,
   scenarioLabel,
-  settleAll,
 } from "../support/test-instance-lifecycle.mts";
+import { settleAll } from "../support/settle-all.mts";
 
 const { After, Before } = createBdd();
 

@@ -285,26 +285,6 @@ export function runConfigPaths(input: { runId: string; home: string }): {
   };
 }
 
-// Runs every cleanup step, even after one fails, so a failed page close cannot keep the instance from being
-// deleted. The steps run one after another, each once the previous one has settled. The failures are
-// rethrown afterwards.
-export async function settleAll(
-  steps: ReadonlyArray<() => Promise<void>>,
-): Promise<void> {
-  const failures: unknown[] = [];
-  await steps.reduce<Promise<void>>(
-    (previous, step) =>
-      previous.then(step).catch((error: unknown) => {
-        failures.push(error);
-      }),
-    Promise.resolve(),
-  );
-  if (failures.length === 1) throw failures[0];
-  if (failures.length > 1) {
-    throw new AggregateError(failures, "several cleanup steps failed");
-  }
-}
-
 // An empty account list sends no seed at all, so the server keeps its no-account defaults.
 function seedOf(accounts: readonly AccountPlan[]): { seed?: TestingSeed } {
   if (accounts.length === 0) return {};
