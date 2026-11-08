@@ -18,8 +18,8 @@ data/test/runs/<run>/instances/<inst>/                             flat instance
 - A backup repository lives beside `db/`, never inside it, because backup refuses a destination inside the live database
   directory.
 - The instance marker carries `schemaVersion: 1`, `recordType: "bnest-test-instance"`, `runId`, `instanceId`, `owner:
-"bnest-test-harness"`, and `createdAt`. Write it before the database file exists, so a crash cannot leave an unmarked
-  instance directory.
+"bnest-test-harness"`, and `createdAt`. Write it right after the instance root is created and before the database file
+  exists. A crash in that short window can leave an empty, unmarked root; it holds no data and goes with its run.
 - Create a flat instance root only for the `flat_primary` phase. A `sqlite_primary` instance has none, which keeps
   Dropbox, which syncs `data/`, from syncing many short-lived files.
 - The test backup config file in the run base's `storage-config/` is one fixed file. Each spawn and each delete removes
