@@ -266,6 +266,11 @@ data/test/runs/<run>/instances/<inst>/     flat instance root, flat_primary only
 ~/bnest/data/test/runs/<run>/instances/<inst>/{db/,backup-repository/}   (marker; db/bnest.sqlite3 is the database)
 ```
 
+A flat instance root also holds `.bnest-test-run.json`, a `bnest-test-run` marker whose `runId` is the instance id. The
+application start validates a test runtime root through `FileRecordBackend.new!/1`, which reads exactly that file name
+and requires `runId` to equal the root's basename, and a secondary BEAM boots on the flat instance root. Production
+validation is not loosened; the instance marker stays the proof of ownership and the only marker the teardown trusts.
+
 `backup-repository/` is an isolated git repository (as `createBackupRepository` builds today) beside, not inside, `db/`,
 because Backup refuses a destination inside the live database directory. `BNEST_BACKUP_CONFIG` stays one fixed file in
 the run base `storage-config/`; each spawn and each delete removes it. The instance marker is
