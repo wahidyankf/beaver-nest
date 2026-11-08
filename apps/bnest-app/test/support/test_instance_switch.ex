@@ -86,7 +86,7 @@ defmodule BnestApp.TestInstance.Switch do
   def restore!(original, paths) do
     Storage.with_exclusive_lock(fn ->
       :ok = Storage.stop()
-      restore_pointer(original.pointer)
+      restore_pointer(original.pointer, paths.storage_pointer_path)
       Enum.each(original.env, fn {key, value} -> restore_env(key, value) end)
       swap_records(original.records_store)
       remove_file(paths.backup_config_path)
@@ -109,10 +109,13 @@ defmodule BnestApp.TestInstance.Switch do
     end
   end
 
-  defp restore_pointer(nil), do: remove_file(FileConfigStore.pointer_path())
+  # The path is the one the spawn checked (the run base's pointer), not `FileConfigStore.pointer_path/0`: a scenario
+  # may shadow `BNEST_STORAGE_CONFIG` until its own teardown, and a restore through that shadow would leave the
+  # run base pointing at the dropped instance.
+  defp restore_pointer(nil, path), do: remove_file(path)
 
-  defp restore_pointer(bytes) do
-    File.write!(FileConfigStore.pointer_path(), bytes)
+  defp restore_pointer(bytes, path) do
+    File.write!(path, bytes)
     :ok
   end
 
