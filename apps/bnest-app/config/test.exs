@@ -47,10 +47,31 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
   flat_runs_root = Path.expand("../../../data/test/runs", __DIR__)
   sqlite_runs_root = Path.expand("~/bnest/data/test/runs")
 
+  # A flat-primary secondary process (BNEST_TEST_INSTANCE_ID set) runs on its own flat instance root,
+  # `<flat runs>/<run>/instances/<instance id>` (ADR 001, sections 1 and 3). Only the run base is validated, created
+  # and marked here; the instance root is checked for its place under that base and nothing is written into it.
+  instance_root =
+    if System.get_env("BNEST_TEST_INSTANCE_ID") != nil and
+         Path.basename(Path.dirname(Path.expand(runtime_root))) == "instances",
+       do: Path.expand(runtime_root)
+
+  run_base_root =
+    if instance_root, do: Path.dirname(Path.dirname(instance_root)), else: runtime_root
+
+  if instance_root do
+    instance_id = System.get_env("BNEST_TEST_INSTANCE_ID")
+
+    unless Regex.match?(~r/\A[a-z0-9]{16}\z/, instance_id) and
+             Path.basename(instance_root) == instance_id and
+             Path.dirname(instance_root) == Path.join(run_base_root, "instances") do
+      raise "test instance root must be the instance's own child of the run base"
+    end
+  end
+
   # Test config runs before application modules are available. Enforce the same
   # exact-child invariant here before creating or writing either runtime root.
   Enum.each(
-    [{runtime_root, flat_runs_root}, {sqlite_root, sqlite_runs_root}],
+    [{run_base_root, flat_runs_root}, {sqlite_root, sqlite_runs_root}],
     fn {candidate, parent} ->
       candidate = Path.expand(candidate)
 
@@ -89,13 +110,13 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
   marker = %{
     "schemaVersion" => 1,
     "recordType" => "bnest-test-run",
-    "runId" => Path.basename(runtime_root),
+    "runId" => Path.basename(run_base_root),
     "createdAt" => DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
     "owner" => "bnest-test-harness"
   }
 
   Enum.each(~w(general apps/beaver-nest system users), fn relative ->
-    File.mkdir_p!(Path.join(runtime_root, relative))
+    File.mkdir_p!(Path.join(run_base_root, relative))
   end)
 
   File.mkdir_p!(sqlite_root)
@@ -112,7 +133,7 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
     )
 
   encoded_marker = JSON.encode!(marker)
-  File.write!(Path.join(runtime_root, ".bnest-test-run.json"), encoded_marker)
+  File.write!(Path.join(run_base_root, ".bnest-test-run.json"), encoded_marker)
   File.write!(Path.join(sqlite_root, ".bnest-test-run.json"), encoded_marker)
 
   # The storage pointer and the backup configuration live in the SQLite run base, beside the
@@ -120,14 +141,14 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
   # The backup repository root lies under the paired run base, so nothing resolves a path under the shared
   # `~/bnest/data/test/` tree. A test instance sets its own repository root (BnestApp.TestInstance.Switch).
   config :bnest_app,
-    runtime_root: runtime_root,
+    runtime_root: instance_root || run_base_root,
     test_sqlite_root: sqlite_root,
     storage_config_path: Path.join(sqlite_root, "storage-config/storage.json"),
     backup_config_path: Path.join(sqlite_root, "storage-config/backup.json"),
     backup_repository_root: Path.join(sqlite_root, "backup-repository"),
     # The flat run base the ownership check reads. A flat-primary spawn re-points `:runtime_root` at its
     # instance root, so the check cannot read that key (see BnestAppWeb.TestingControl.Guard).
-    test_flat_run_root: runtime_root,
+    test_flat_run_root: run_base_root,
     test_runtime_owned: true
 
   config :bnest_app, storage_profile: {:test, run_id}
