@@ -16,6 +16,10 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { normalizeProductionOrigin } from "./production-origin.mjs";
+import {
+  auditReleaseArtifact,
+  ReleaseArtifactAuditError,
+} from "./release-artifact-audit.mjs";
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const applicationRoot = resolve(import.meta.dirname, "..");
 const deploymentTool = join(import.meta.dirname, "deployment.mjs");
@@ -162,6 +166,21 @@ export class ReleaseError extends Error {
   }
 }
 
+// Refuses a built artifact that carries test-only code (ADR 001 section 7). `build` calls it after
+// release:build and before it writes the manifest, so a dirty artifact never gets a manifest.
+export function auditBuiltArtifact(artifact, log = () => {}) {
+  try {
+    return auditReleaseArtifact(artifact);
+  } catch (error) {
+    if (!(error instanceof ReleaseArtifactAuditError)) throw error;
+    log(error.message.replaceAll("\n", " "));
+    throw new ReleaseError(
+      "artifact",
+      "Release artifact failed the testing-module audit",
+    );
+  }
+}
+
 export async function executeRelease(host, options = {}) {
   const startedAt = Date.now();
   const evidenceIds = [];
@@ -204,7 +223,9 @@ export async function executeRelease(host, options = {}) {
 
     fromState = "build";
     await host.build(releaseRevision, evidenceIds);
-    evidenceIds.push("artifact-manifest");
+    // `build` audits the artifact right after release:build and throws before
+    // it writes the manifest, so reaching this line means the audit passed.
+    evidenceIds.push("artifact-audit", "artifact-manifest");
 
     fromState = "migration-proof";
     migrationState = await host.proveMigration(releaseRevision);
@@ -810,6 +831,8 @@ export class MachineHost {
     const artifact = join(this.deploymentRoot, "releases", revision);
     if (!existsSync(artifact))
       throw new ReleaseError("artifact", "Release artifact is missing");
+
+    auditBuiltArtifact(artifact, (message) => this.log(message));
 
     mkdirSync(this.manifestsPath, { recursive: true });
     const manifest = {

@@ -2,7 +2,7 @@
 
 ## Iron Rule
 
-No automated or manual test may read, write, authenticate against, migrate, back up, lock, derive fixtures from, or otherwise touch a production user, production data, or a production user context. Every test must use synthetic identities and payloads inside validated per-run test roots. If isolation cannot be proven before the subject starts, fail closed. An exemption, debug session, local environment, or convenient fixture cannot relax this rule.
+No automated or manual test may read, write, authenticate against, migrate, back up, lock, derive fixtures from, or otherwise touch a production user, production data, or a production user context. Every test must use synthetic identities and payloads inside validated per-run test roots. If isolation cannot be proven before the subject starts, fail closed. No exemption, debug session, local environment, or convenient fixture relaxes this rule.
 
 ## Identity and Isolation
 
@@ -13,6 +13,18 @@ No automated or manual test may read, write, authenticate against, migrate, back
 - Test concurrent users with separate generated IDs and directories; never mutate an existing user's record to simulate another identity.
 - Give parallel projects or workers distinct synthetic identities and therefore distinct user-owned paths. A shared marked run root does not make shared account data safe; no test may assert a mutable aggregate that another worker can change.
 
+## Test Instances
+
+- Every test that touches a database gets its own **test instance**: one new, empty SQLite database, created, migrated, seeded, used by that one test, and then deleted. An integration test or an ExBdd scenario gets one instance. An E2E scenario gets one instance in each Playwright project that runs it.
+- Never share a database between tests, scenarios, or projects, copy a snapshot database, or reset rows with `DELETE FROM`. A test that touches no storage spawns no instance.
+- Run each test in this order: spawn, migrate, seed, test, teardown. Migrate with the production migration entry points. Seed through the test API or production facades, never by writing SQL or files.
+- Family Chat uses its instance's database, as production does. The separate `~/bnest/data/test/family-chat/` database is gone from integration and E2E tests; the unit layer's setting is unchanged.
+- Layout, marker, and teardown owners: [test instance layout](test-identities/001-test-instances.md).
+
+## Testing Control
+
+Test-only control endpoints exist only in test builds. Each must be compiled out of production builds, accept only loopback peers without forwarding headers, and require the run's `x-bnest-testing` secret, compared in constant time and refused when unset or shorter than 32 bytes. The runner generates the secret per run, never logs or writes it, and never gives it to a browser.
+
 ## Production Schema Inspection
 
 Development may read `data/prod/` only through a read-only structural audit that compares schema versions, record types, field names, and value types with synthetic test records. This is inspection, not a behaviour test: never authenticate as a real user, invoke a real session, copy a production record into test data, or read a payload to derive a fixture.
@@ -21,8 +33,8 @@ The audit must not write, lock for mutation, normalize, migrate, or repair produ
 
 ## Cleanup
 
-Create a marker containing the synthetic run ID, owner process, and host inside both run roots. Cleanup runs in the suite's `finally`/`on_exit` path and removes only that exact validated pair after browsers and servers stop.
+Create a marker containing the synthetic run ID, owner process, and host inside both run roots. Cleanup runs in the suite's `finally`/`on_exit` path and removes only that exact validated pair after browsers and servers stop. Each test instance is removed by its own teardown; run cleanup fails if one remains ([layout and owners](test-identities/001-test-instances.md)).
 
-A scheduled stale-run cleanup may remove abandoned roots only beneath repository `data/test/runs/` and local `~/bnest/data/test/runs/` after validating each marker, owner inactivity, and the 24-hour retention threshold. Never delete from production or a shared root by username prefix, glob, or age alone.
+A scheduled stale-run cleanup may remove abandoned roots only beneath repository `data/test/runs/` and local `~/bnest/data/test/runs/` after validating each marker, owner inactivity, and the 24-hour retention threshold. Never delete from production or a shared root by username prefix, glob, or age alone, except unmarked legacy `~/bnest/data/test/{family-chat,backup-config,backup-repository}` directories, whose direct children older than 24 hours go.
 
-If a failure needs retained evidence, preserve only safe logs, fixture names, and checksums outside the runtime root; never retain passwords, cookies, private payloads, or machine identifiers. Cleanup failure fails the test or quality gate and reports the exact retained synthetic path without deleting unrelated data.
+If a failure needs retained evidence, preserve only safe logs, fixture names, and checksums outside the runtime root; never retain passwords, cookies, private payloads, or machine identifiers. Cleanup failure fails the test or gate, reports the exact retained synthetic path, and deletes nothing unrelated.

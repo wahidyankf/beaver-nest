@@ -16,11 +16,11 @@ defmodule BnestApp.FamilyChat.SqliteRoomStoreTest do
   defp new_store(_context) do
     runtime = TestRuntimeRoot.create!("sqlite-room-store")
     database_path = Path.join(runtime.sqlite_path, "bnest.sqlite3")
-    previous_path = Application.fetch_env!(:bnest_app, :family_chat_sqlite_path)
+    previous_path = Application.fetch_env(:bnest_app, :family_chat_sqlite_path)
     Application.put_env(:bnest_app, :family_chat_sqlite_path, database_path)
 
     on_exit(fn ->
-      Application.put_env(:bnest_app, :family_chat_sqlite_path, previous_path)
+      BnestApp.TestInstance.restore_app_env(:family_chat_sqlite_path, previous_path)
       Storage.stop()
       TestRuntimeRoot.cleanup!(runtime)
     end)

@@ -139,11 +139,25 @@ defmodule BnestApp.MixProject do
       ~r/\bBnestApp\.Test\./,
       BnestApp.Behaviour.UnitFamilyChatDriver,
       BnestApp.Behaviour.UnitHomePageDriver,
+      # Scenario adapters and shared fixtures for test_isolation.feature. They drive the test-side
+      # lifecycle and the wire, so the unit denominator leaves them out, as it does the drivers.
+      BnestApp.Behaviour.TestIsolation.Fixtures,
+      BnestApp.Behaviour.TestIsolation.IntegrationAdapter,
+      BnestApp.Behaviour.TestIsolation.UnitAdapter,
       BnestApp.SchemaSourceScan,
+      # Spawns test instances, which only `test:integration` runs, so the unit denominator leaves it out.
+      BnestApp.FreshDatabaseCase,
       BnestApp.TestBackupDestination,
       BnestApp.TestIdentity,
+      BnestApp.TestInstance,
+      # Its facade writes run only on a spawned instance, in test:integration, as TestInstance does.
+      BnestApp.TestInstance.Seed,
+      BnestApp.TestInstance.Switch,
       BnestApp.TestRuntimeRoot,
-      BnestAppWeb.ConnCase
+      BnestAppWeb.ConnCase,
+      # The lifecycle answers run only through the endpoint against a spawned instance, which only
+      # `test:integration` runs. The guard, request and error modules are pure and unit-tested.
+      BnestAppWeb.TestingControl.InstanceController
     ]
 
     # Outbound adapters, inbound adapters and infrastructure entry points: `test:integration`

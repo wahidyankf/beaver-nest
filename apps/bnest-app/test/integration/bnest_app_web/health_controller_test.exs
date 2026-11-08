@@ -14,15 +14,18 @@ defmodule BnestAppWeb.HealthControllerTest do
     assert %{"status" => "live", "revision" => revision} = json_response(live, 200)
     assert get_resp_header(live, "x-bnest-revision") == [revision]
 
+    # The test's own instance is the one the server serves, so readiness reports its generation (ADR 001,
+    # section 1: `/health/ready` reports `storageGeneration` after a spawn).
+    generation = BnestApp.TestInstance.state().paths.generation
+
     ready = get(build_conn(), "/health/ready")
 
     assert %{
              "status" => "ready",
              "revision" => ^revision,
-             "sqliteReady" => false,
-             "storageGeneration" => nil
-           } =
-             json_response(ready, 200)
+             "sqliteReady" => true,
+             "storageGeneration" => ^generation
+           } = json_response(ready, 200)
   end
 
   test "reports the revision and slot the deployment names, on the body and the header" do

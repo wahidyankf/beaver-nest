@@ -1,5 +1,61 @@
 ExUnit.start()
 
+# The integration run's end-of-suite audit (ADR 001, section 3). ExUnit runs `after_suite` callbacks in
+# reverse registration order, so this one is registered before ExBdd compiles its features: ExBdd's own
+# callback (after_all hooks and the message flush) runs first, and this audit runs last. It counts the instance
+# directories and the current instance, checks that the run base holds no data at all, and checks that no
+# regular file under the run roots holds a run secret generated in this run (see `BnestApp.TestInstance.Audit`),
+# then removes the run roots. A failure prints every reason and halts the VM with status 1, because a suite
+# callback cannot change the status that Mix reports.
+if System.get_env("BNEST_TEST_LAYER") == "integration" and
+     Application.get_env(:bnest_app, :test_runtime_owned) do
+  runtime_root = Application.fetch_env!(:bnest_app, :runtime_root)
+  sqlite_root = Application.fetch_env!(:bnest_app, :test_sqlite_root)
+
+  # Every regular file under the roots, with its bytes, for the run-secret check. Hidden files count.
+  run_files = fn roots ->
+    for root <- roots,
+        path <- Path.wildcard(Path.join(root, "**/*"), match_dot: true),
+        File.regular?(path),
+        do: {path, File.read!(path)}
+  end
+
+  ExUnit.after_suite(fn _result ->
+    leaks =
+      BnestApp.TestInstance.Audit.secret_leaks(
+        run_files.([runtime_root, sqlite_root]),
+        BnestApp.Test.TestingControlWire.secrets()
+      )
+
+    verdict =
+      BnestApp.TestInstance.Audit.verdict(
+        BnestApp.TestInstance.audit().directories,
+        BnestApp.TestInstance.state(),
+        BnestApp.TestInstance.base_audit(),
+        leaks
+      )
+
+    _stopped = Application.stop(:bnest_app)
+    {:ok, runtime} = BnestApp.TestRuntimeRoot.validate(runtime_root)
+
+    :ok =
+      BnestApp.TestRuntimeRoot.cleanup!(%{
+        path: runtime_root,
+        sqlite_path: sqlite_root,
+        run_id: runtime.run_id
+      })
+
+    case verdict do
+      :ok ->
+        :ok
+
+      {:error, reasons} ->
+        IO.puts(:stderr, "Test leak audit failed:\n  * " <> Enum.join(reasons, "\n  * "))
+        System.halt(1)
+    end
+  end)
+end
+
 behaviour_roots = [
   Path.expand("../../../specs/apps/bnest/app-be/behaviours", __DIR__),
   Path.expand("../../../specs/apps/bnest/app-fe/behaviours", __DIR__)
@@ -14,7 +70,7 @@ behaviour_roots = [
        &BnestApp.Behaviour.FeVitestUnitScope.prune_unit_layer/1}
 
     "integration" ->
-      {BnestAppWeb.ConnCase, Path.join(__DIR__, "behaviour/support/integration.exs"), & &1}
+      {BnestAppWeb.ScenarioCase, Path.join(__DIR__, "behaviour/support/integration.exs"), & &1}
 
     layer ->
       raise "BNEST_TEST_LAYER must be unit or integration, got: #{inspect(layer)}"
@@ -34,21 +90,3 @@ behaviour_roots = [
 |> BnestApp.Behaviour.FeVitestUnitScope.prune()
 |> layer_scope.()
 |> ExBdd.Compiler.compile_discovery!(case_template: case_template)
-
-if System.get_env("BNEST_TEST_LAYER") == "integration" and
-     Application.get_env(:bnest_app, :test_runtime_owned) do
-  runtime_root = Application.fetch_env!(:bnest_app, :runtime_root)
-  sqlite_root = Application.fetch_env!(:bnest_app, :test_sqlite_root)
-
-  ExUnit.after_suite(fn _result ->
-    _stopped = Application.stop(:bnest_app)
-    {:ok, runtime} = BnestApp.TestRuntimeRoot.validate(runtime_root)
-
-    :ok =
-      BnestApp.TestRuntimeRoot.cleanup!(%{
-        path: runtime_root,
-        sqlite_path: sqlite_root,
-        run_id: runtime.run_id
-      })
-  end)
-end

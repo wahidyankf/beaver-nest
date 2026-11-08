@@ -2,6 +2,9 @@ import Config
 
 config :bnest_app, :identity_cutover_enabled, true
 config :bnest_app, :scheduler_automatic?, false
+# Mounts the test-only testing-control routes (see BnestAppWeb.TestingRoutes). Only this file
+# sets it, so dev and production builds never mount them.
+config :bnest_app, :testing_control, true
 # On by default in test so unit/integration drivers can exercise the room
 # route/navigation without per-test overrides; the specific "flag genuinely
 # off" checkpoint scenario overrides this locally via
@@ -44,10 +47,46 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
   flat_runs_root = Path.expand("../../../data/test/runs", __DIR__)
   sqlite_runs_root = Path.expand("~/bnest/data/test/runs")
 
+  # A flat-primary secondary process (BNEST_TEST_INSTANCE_ID set) runs on its own flat instance root,
+  # `<flat runs>/<run>/instances/<instance id>` (ADR 001, sections 1 and 3). Only the run base is validated, created
+  # and marked here; the instance root is checked for its place under that base and nothing is written into it.
+  instance_root =
+    if System.get_env("BNEST_TEST_INSTANCE_ID") != nil and
+         Path.basename(Path.dirname(Path.expand(runtime_root))) == "instances",
+       do: Path.expand(runtime_root)
+
+  run_base_root =
+    if instance_root, do: Path.dirname(Path.dirname(instance_root)), else: runtime_root
+
+  if instance_root do
+    instance_id = System.get_env("BNEST_TEST_INSTANCE_ID")
+
+    unless Regex.match?(~r/\A[a-z0-9]{16}\z/, instance_id) and
+             Path.basename(instance_root) == instance_id and
+             Path.dirname(instance_root) == Path.join(run_base_root, "instances") do
+      raise "test instance root must be the instance's own child of the run base"
+    end
+  end
+
+  # A secondary process of an instance (BNEST_TEST_INSTANCE_ID set) resolves Backup's default destination in the
+  # instance's own `backup-repository/`, as the running server does after its switch (BnestApp.TestInstance.Switch).
+  # The run base has no repository. The id is checked here, because only a flat instance root was checked above.
+  backup_repository_root =
+    case System.get_env("BNEST_TEST_INSTANCE_ID") do
+      nil ->
+        Path.join(sqlite_root, "backup-repository")
+
+      instance_id ->
+        unless Regex.match?(~r/\A[a-z0-9]{16}\z/, instance_id),
+          do: raise("the test instance id must be 16 lowercase letters or digits")
+
+        Path.join([sqlite_root, "instances", instance_id, "backup-repository"])
+    end
+
   # Test config runs before application modules are available. Enforce the same
   # exact-child invariant here before creating or writing either runtime root.
   Enum.each(
-    [{runtime_root, flat_runs_root}, {sqlite_root, sqlite_runs_root}],
+    [{run_base_root, flat_runs_root}, {sqlite_root, sqlite_runs_root}],
     fn {candidate, parent} ->
       candidate = Path.expand(candidate)
 
@@ -86,13 +125,13 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
   marker = %{
     "schemaVersion" => 1,
     "recordType" => "bnest-test-run",
-    "runId" => Path.basename(runtime_root),
+    "runId" => Path.basename(run_base_root),
     "createdAt" => DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
     "owner" => "bnest-test-harness"
   }
 
   Enum.each(~w(general apps/beaver-nest system users), fn relative ->
-    File.mkdir_p!(Path.join(runtime_root, relative))
+    File.mkdir_p!(Path.join(run_base_root, relative))
   end)
 
   File.mkdir_p!(sqlite_root)
@@ -109,13 +148,22 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
     )
 
   encoded_marker = JSON.encode!(marker)
-  File.write!(Path.join(runtime_root, ".bnest-test-run.json"), encoded_marker)
+  File.write!(Path.join(run_base_root, ".bnest-test-run.json"), encoded_marker)
   File.write!(Path.join(sqlite_root, ".bnest-test-run.json"), encoded_marker)
 
+  # The storage pointer and the backup configuration live in the SQLite run base, beside the
+  # instance databases, so the flat base stays data-free (see BnestApp.TestInstance.Paths).
+  # The backup repository root lies under the paired run base, so nothing resolves a path under the shared
+  # `~/bnest/data/test/` tree. A test instance sets its own repository root (BnestApp.TestInstance.Switch).
   config :bnest_app,
-    runtime_root: runtime_root,
+    runtime_root: instance_root || run_base_root,
     test_sqlite_root: sqlite_root,
-    storage_config_path: Path.join(runtime_root, "storage-config/storage.json"),
+    storage_config_path: Path.join(sqlite_root, "storage-config/storage.json"),
+    backup_config_path: Path.join(sqlite_root, "storage-config/backup.json"),
+    backup_repository_root: backup_repository_root,
+    # The flat run base the ownership check reads. A flat-primary spawn re-points `:runtime_root` at its
+    # instance root, so the check cannot read that key (see BnestAppWeb.TestingControl.Guard).
+    test_flat_run_root: run_base_root,
     test_runtime_owned: true
 
   config :bnest_app, storage_profile: {:test, run_id}
@@ -138,6 +186,7 @@ else
 
   config :bnest_app,
     runtime_root: nil,
+    test_flat_run_root: nil,
     test_sqlite_root: nil,
     storage_config_path:
       if(scratch_default_pointer?,
@@ -200,27 +249,31 @@ else
     release_environment: BnestApp.Test.InMemory.ReleaseEnvironment
 end
 
-# Family Chat's SQLite tables are additive to the shared database but must never
-# resolve through the real `~/.config/bnest/storage.json` pointer during tests (that
-# file is shared/production-adjacent). Every test run (unit or integration) gets its
-# own isolated SQLite path here; `FamilyChat.Adapters.SqliteRoomStore` self-heals the connection
-# onto this path before each operation, independent of the legacy flat/sqlite phase.
+# The unit layer keeps its own isolated SQLite path for Family Chat, which must never resolve through the real
+# `~/.config/bnest/storage.json` pointer during tests (that file is shared/production-adjacent). The integration
+# layer has no such setting: Family Chat resolves `Storage.database_path()` as production does, which is the test
+# instance's database (ADR 001, section 1). `FamilyChat.Adapters.SqliteRoomStore` self-heals the connection onto
+# that path before each operation.
 family_chat_run_id =
   System.get_env("BNEST_TEST_RUN_ID") ||
     "unit-" <>
       (:crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false) |> String.downcase())
 
-config :bnest_app,
-  family_chat_sqlite_path:
-    Path.expand("~/bnest/data/test/family-chat/#{family_chat_run_id}/bnest.sqlite3")
+unless System.get_env("BNEST_TEST_LAYER") == "integration" do
+  config :bnest_app,
+    family_chat_sqlite_path:
+      Path.expand("~/bnest/data/test/family-chat/#{family_chat_run_id}/bnest.sqlite3")
+end
 
 # A test that runs a backup without setting `BNEST_BACKUP_CONFIG` must never resolve the
 # real `~/.config/bnest/backup.json`: its destination is the production backup directory,
 # where an artifact would be written and retention would prune. Every test run gets its own
 # unconfigured backup configuration path instead.
-config :bnest_app,
-  backup_config_path:
-    Path.expand("~/bnest/data/test/backup-config/#{family_chat_run_id}/backup.json")
+unless System.get_env("BNEST_TEST_LAYER") == "integration" do
+  config :bnest_app,
+    backup_config_path:
+      Path.expand("~/bnest/data/test/backup-config/#{family_chat_run_id}/backup.json")
+end
 
 # The unconfigured default destination is `<repository root>/data/backup`, and the compiled
 # checkout's (or an inherited `BNEST_REPOSITORY_ROOT`'s) is the production backup directory
@@ -230,9 +283,13 @@ config :bnest_app,
 # that needs a working default installs an isolated repository
 # (`BnestApp.TestBackupDestination.default_repository!/1`), and the end-to-end runtime
 # creates this path as one for its run. It lies outside the run's SQLite root, because
-# Backup refuses a destination inside the live database's directory.
-config :bnest_app,
-  backup_repository_root: Path.expand("~/bnest/data/test/backup-repository/#{family_chat_run_id}")
+# Backup refuses a destination inside the live database's directory. The integration layer
+# sets its own root above, under the paired run base.
+unless System.get_env("BNEST_TEST_LAYER") == "integration" do
+  config :bnest_app,
+    backup_repository_root:
+      Path.expand("~/bnest/data/test/backup-repository/#{family_chat_run_id}")
+end
 
 # Both layers talk to the fixture agent session and offer the fixture model catalog. Only a
 # `BNEST_CODEX_RUNNER` naming the bundled fixture runner, which the end-to-end servers set,
@@ -283,6 +340,11 @@ config :swoosh, :api_client, false
 
 # Print only warnings and errors during test
 config :logger, level: :warning
+
+# Phoenix reads its parameter filter from the :phoenix application, not from an endpoint. The seed
+# bodies carry push keys (`p256dh`, `auth`), accounts carry passwords, and the testing control
+# carries the run secret in a header, so none of these words may reach a log line at debug level.
+config :phoenix, :filter_parameters, ["password", "secret", "p256dh", "auth"]
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime

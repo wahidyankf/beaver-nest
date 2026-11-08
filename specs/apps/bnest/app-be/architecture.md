@@ -250,6 +250,66 @@ and a restore root that is there afterwards and was not there before is reported
 One pure function, `Backup.Domain.RestoreDrillReport`, words the result, so a failure is always one fixed line that
 carries no error message. Neither task starts the Scheduler.
 
+## Test Build Component View
+
+Testing Control is a test-only component. Its routes, controller, plug and the TestInstance modules compile only for
+`MIX_ENV=test` with the `:testing_control` flag on, so a production build contains none of them. The diagram below
+shows the test build. It adds no node to the production system, container or component views above.
+
+```mermaid
+flowchart TB
+    accTitle: Test Build Component View
+    accDescr: Flowchart with 11 nodes and 9 connections. Nodes: External container Test runner holds the run secret, Component Testing Control test build only, Component TestInstance test support only, five existing context facades Identity, FamilyChat, PushNotifications, SifatAllah and CodexChat, existing Storage lifecycle facade, Data store Test instance SQLite, and Production build with no testing endpoint or module. Connections: Test runner to Testing Control (direct loopback HTTP), Testing Control to TestInstance (spawn, seed, delete), TestInstance to Storage (stop, pointer, migrate, activate), TestInstance to each of the five seeding facades (seed through facades), and Storage to the test instance database (empty file per test).
+    runner(["External container<br/><b>Test runner</b><br/>Holds the run secret"])
+    prod>"Production build<br/><b>No testing endpoint or module</b>"]
+
+    subgraph testbuild["Test build only: MIX_ENV=test"]
+        direction TB
+        controls["Component<br/><b>Testing Control</b><br/>Loopback, header-gated routes<br/>Stock 404 on any failed guard"]
+        instance["Component<br/><b>TestInstance</b><br/>Spawn, migrate, seed, drop<br/>Test support only"]
+    end
+
+    identity["Context facade<br/><b>Identity</b><br/>Bootstrap and accounts"]
+    familychat["Context facade<br/><b>FamilyChat</b><br/>Send entry point"]
+    push["Context facade<br/><b>PushNotifications</b><br/>Subscribe entry point"]
+    sifatallah["Context facade<br/><b>SifatAllah</b><br/>Save progress"]
+    codexchat["Context facade<br/><b>CodexChat</b><br/>Transcript store"]
+    storage["Context facade<br/><b>Storage</b><br/>Stop, pointer, migrate"]
+    db[("Data store<br/><b>Test instance SQLite</b><br/>Empty, migrated per test")]
+
+    runner -->|Direct loopback HTTP,<br/>run secret header| controls
+    controls -->|Spawn, seed, delete| instance
+    instance -->|Stop, pointer,<br/>migrate, activate| storage
+    instance -->|Seed through facades| identity
+    instance -->|Seed through facades| familychat
+    instance -->|Seed through facades| push
+    instance -->|Seed through facades| sifatallah
+    instance -->|Seed through facades| codexchat
+    storage -->|Empty file per test| db
+
+    classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
+    classDef component fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+    classDef store fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+    classDef absent fill:#FFFFFF,stroke:#000000,color:#000000,stroke-width:2px,stroke-dasharray:5 5
+    class runner external
+    class controls,instance component
+    class db store
+    class prod absent
+    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
+```
+
+The dashed node is the production build. No route, module or edge in this view reaches it. Testing Control has four
+loopback-only endpoints under `/__bnest_testing/v1`: instance state, spawn with migrate and seed, seed for the current
+instance, and delete. A request passes the router's compile-time gate, a loopback peer check with no forwarded header,
+the run-root check and the run-secret check, in that order. Any failure returns the stock 404 and changes nothing.
+The test runner reaches the loopback port directly, without the public proxy.
+
+TestInstance creates, migrates, seeds and drops one empty SQLite database per test. It calls the release migration entry
+points and the production context facades, and it never writes SQL, files or fixtures itself. Integration tests call
+TestInstance in-process and do not pass through Testing Control. Among the production contexts, it calls `Storage`
+directly for the lifecycle steps (stop the repository, write the storage pointer, migrate, activate SQLite). The
+other contexts are reached only through their facades, to seed accounts, messages, subscriptions and records.
+
 ## Architectural Constraints
 
 - Every protected route and data operation resolves an unrevoked opaque-cookie session and current user before
@@ -309,6 +369,9 @@ carries no error message. Neither task starts the Scheduler.
   resolved from the referenced row when the page is read. One batched lookup serves a whole page. This depends on
   `family_chat_messages` remaining append-only by trigger, which is what makes a reference safe where other products
   denormalize.
+- Testing Control and TestInstance exist only in the test build. A production build contains no testing route, plug,
+  controller or TestInstance module, and no production module refers to them. Only the router's compile-time gate may
+  mount the testing routes, and it is false for production.
 - The family chat feature (GraphQL schema, resolvers, push delivery, and the second Scheduler handler) is fully
   implemented and tested but gated end-to-end behind `BNEST_FAMILY_CHAT_ENABLED`, which still defaults to `false`
   (off) in this compatibility revision; only a later experience-release phase flips it on in production.
@@ -317,4 +380,5 @@ carries no error message. Neither task starts the Scheduler.
 
 Executable backend behaviour is specified in [`behaviours/`](behaviours/). `bnest-app`'s unit and local-only
 integration adapters, aggregated with [`app-fe`](../app-fe/architecture.md)'s root, must implement that exact
-recursive corpus; `bnest-app-be-e2e` implements this root's E2E adapter alone.
+recursive corpus; `bnest-app-be-e2e` implements this root's E2E adapter alone. The Test Build Component View is specified
+by [`test_isolation.feature`](behaviours/test_isolation.feature).

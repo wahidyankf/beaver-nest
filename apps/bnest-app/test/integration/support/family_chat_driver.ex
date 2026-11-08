@@ -289,17 +289,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
     sender_subscription_id = subscribe_through_facade!(context.user_id, "accepted").id
 
-    # Mirrors `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical fix (see
-    # its own comment): `ExUnit.Callbacks.on_exit/1` fires exactly once at
-    # the true end of the underlying ExUnit test (after every ExBdd-internal
-    # retry attempt, win or lose) and accumulates one callback per call, so
-    # each attempt's own rows get retired regardless of which attempt (if
-    # any) ultimately passes -- unlike relying on this scenario's own last
-    # `Then` step, which never fires when an earlier step's attempt fails
-    # first.
-    ExUnit.Callbacks.on_exit(fn ->
-      disable_subscriptions_for_users!([context.user_id | other_subscribers])
-    end)
+    # The scenario's instance is dropped after it, so these rows go with it (ADR 001, section 1).
 
     Map.merge(context, %{
       family_chat_room_slug: slug,
@@ -413,10 +403,6 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     other_subscription_id = subscribe_through_facade!(other_subscriber, "accepted").id
     sender_subscription_id = subscribe_through_facade!(sender_id, "accepted").id
 
-    ExUnit.Callbacks.on_exit(fn ->
-      disable_subscriptions_for_users!([sender_id, other_subscriber])
-    end)
-
     {:ok, target} =
       BnestApp.FamilyChat.send_message(
         other_subscriber,
@@ -473,11 +459,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Schedules.reset_schedule!(key, "19:00", true, @behaviour_now)
     Schedules.force_due!(key, @behaviour_now)
 
-    # After its run this shared row's next slot is still behind the wall clock, which the
-    # Scheduler coordinator's catch-up uses: a later boot tick or reconcile would run a real
-    # backup for it into whatever destination resolves then. A day past the wall clock it is
-    # never due again in this run.
-    ExUnit.Callbacks.on_exit(fn -> :ok = Schedules.force_not_due!(key, DateTime.utc_now()) end)
+    # The schedule row lives in the scenario's instance, which is dropped after it.
     Map.put(context, :family_chat_due_schedule_key, key)
   end
 
@@ -607,8 +589,6 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
     subscription =
       create_active_subscription!("test-user-family-chat-restore-" <> unique_uuid())
-
-    ExUnit.Callbacks.on_exit(fn -> disable_subscription_row!(subscription.id) end)
 
     room =
       RoomStore.get_active_room(SqliteRoomStore.new(), BnestApp.FamilyChat.canonical_room_slug())
@@ -772,14 +752,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       |> upsert_subscription(input)
       |> Map.put(:family_chat_push_endpoint, input["endpoint"])
 
-    # See `:three_members_with_subscriptions`'s own `on_exit` comment for the
-    # full mechanism: this scenario's Background logs in with a fixed
-    # sentinel user id, so a genuine active row this call stores would
-    # otherwise inflate any LATER scenario's fan-out count for the rest of
-    # the shared test database's run. Registering here, right after the row
-    # is created, fires exactly once at the true end of the underlying
-    # ExUnit test regardless of which ExBdd retry attempt (if any) passes.
-    ExUnit.Callbacks.on_exit(fn -> disable_subscriptions_for_users!([context.user_id]) end)
+    # The subscription lives in the scenario's instance, which is dropped after it.
     result
   end
 
@@ -794,9 +767,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       |> upsert_subscription(Map.put(valid_subscription_input(), "endpoint", endpoint))
       |> Map.put(:family_chat_push_endpoint, endpoint)
 
-    # Same fixed-sentinel-user pollution risk as `:upsert_valid_subscription`
-    # -- see its own `on_exit` comment.
-    ExUnit.Callbacks.on_exit(fn -> disable_subscriptions_for_users!([context.user_id]) end)
+    # The subscription lives in the scenario's instance, which is dropped after it.
     result
   end
 
@@ -2266,10 +2237,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       )
     end)
 
-    ExUnit.Callbacks.on_exit(fn ->
-      SqliteRepo.query!("DELETE FROM web_push_subscriptions WHERE user_id = ?", [tag])
-    end)
-
+    # No cleanup here: the scenario's own instance (dropped before on_exit callbacks run) holds these rows.
     :ok
   end
 
@@ -2749,12 +2717,13 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   defp isolated_family_chat_database!(suite) do
     runtime = TestRuntimeRoot.create!(suite)
     database_path = Path.join(runtime.sqlite_path, "bnest.sqlite3")
-    previous_path = Application.fetch_env!(:bnest_app, :family_chat_sqlite_path)
+    previous_path = Application.fetch_env(:bnest_app, :family_chat_sqlite_path)
     Application.put_env(:bnest_app, :family_chat_sqlite_path, database_path)
 
+    # Does not reopen the shared repository: its migration would write the run base database, which the
+    # scenario's test instance (or the run base) owns.
     ExUnit.Callbacks.on_exit(fn ->
-      Application.put_env(:bnest_app, :family_chat_sqlite_path, previous_path)
-      :ok = BnestApp.FamilyChat.ensure_ready!()
+      BnestApp.TestInstance.restore_app_env(:family_chat_sqlite_path, previous_path)
       TestRuntimeRoot.cleanup!(runtime)
     end)
 
@@ -3275,43 +3244,6 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       ])
 
     %{id: subscription_id, endpoint: endpoint, p256dh: p256dh, auth: auth}
-  end
-
-  # Retires a fixture-created subscription that was only ever a vehicle for
-  # producing some other row (a backup artifact's contents): left active, it
-  # would silently inflate a LATER scenario's "every active subscription"
-  # fan-out for the rest of this shared test database's run.
-  defp disable_subscription_row!(subscription_id) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
-
-    SqliteRepo.query!(
-      "UPDATE web_push_subscriptions SET deleted_at = ?, deleted_by = ? WHERE id = ?",
-      [
-        now,
-        "system:test-fixture",
-        subscription_id
-      ]
-    )
-
-    :ok
-  end
-
-  # Same purpose as `disable_subscription_row!/1`, keyed by user id instead
-  # of subscription row id -- for fixtures (like
-  # `:three_members_with_subscriptions`) that only ever recorded who they
-  # subscribed, not the row ids `create_active_subscription!/1` returned.
-  # Mirrors `BnestApp.Behaviour.UnitFamilyChatDriver`'s identical helper.
-  defp disable_subscriptions_for_users!(user_ids) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
-
-    Enum.each(user_ids, fn user_id ->
-      SqliteRepo.query!(
-        "UPDATE web_push_subscriptions SET deleted_at = ?, deleted_by = ? WHERE user_id = ? AND deleted_at IS NULL",
-        [now, "system:test-fixture", user_id]
-      )
-    end)
-
-    :ok
   end
 
   # Sends one mutation field over HTTP as the logged-in member, its arguments filled by

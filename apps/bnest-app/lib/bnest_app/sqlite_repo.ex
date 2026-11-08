@@ -14,9 +14,11 @@ defmodule BnestApp.SqliteRepo do
   # `BnestApp.FamilyChat.Adapters.SqliteRoomStore`'s `database_path/1`), and a
   # backup/capacity guard that reads the wrong file silently measures or
   # snapshots the wrong database.
+  # A connection that has used a temp schema lists `temp` as well, so the `main` row is selected by name.
   @spec main_database_path() :: String.t()
   def main_database_path do
-    %{rows: [[_seq, "main", path]]} = query!("PRAGMA database_list")
+    %{rows: rows} = query!("PRAGMA database_list")
+    [_seq, "main", path] = Enum.find(rows, &match?([_seq, "main", _file], &1))
     path
   end
 end

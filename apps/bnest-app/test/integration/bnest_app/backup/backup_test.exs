@@ -26,6 +26,8 @@ defmodule BnestApp.BackupTest do
              FileRecordExport.read(store, owner, import_id, String.duplicate("0", 64))
   end
 
+  # Recovery bytes are flat files in the records store, so this test runs on a flat-primary instance.
+  @tag phase: :flat_primary
   test "keeps user recovery bytes below their server-selected owner" do
     store = Records.store()
     bytes = "synthetic legacy user bytes"

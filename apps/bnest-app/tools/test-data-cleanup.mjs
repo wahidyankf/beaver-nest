@@ -15,10 +15,20 @@ const defaultRoots = [
   path.join(repositoryRoot, "data/test/runs"),
   path.join(os.homedir(), "bnest/data/test/runs"),
 ];
+// Directories from before marked runs. They carry no marker, so the only test
+// is age, and only the direct children of these three exact parents are swept.
+const defaultLegacyParents = [
+  path.join(os.homedir(), "bnest/data/test/family-chat"),
+  path.join(os.homedir(), "bnest/data/test/backup-config"),
+  path.join(os.homedir(), "bnest/data/test/backup-repository"),
+];
 const owner = "bnest-test-harness";
 
+// A stale run is removed with everything under it, including its test
+// instances, so the instance directories need no separate sweep.
 export function cleanupStaleTestData({
   roots = defaultRoots,
+  legacyParents = defaultLegacyParents,
   olderThanHours = 24,
   now = Date.now(),
 } = {}) {
@@ -56,7 +66,36 @@ export function cleanupStaleTestData({
     }
   }
 
+  for (const parent of legacyParents) {
+    // lstat does not follow links, so a symlinked parent is not a directory here.
+    const parentInfo = lstatOrUndefined(parent);
+    if (!parentInfo?.isDirectory()) continue;
+
+    for (const name of readdirSync(parent)) {
+      const candidate = path.join(parent, name);
+      // Another sweep may remove the entry after it was listed. It is then gone, not retained.
+      const candidateInfo = lstatOrUndefined(candidate);
+      if (candidateInfo === undefined) continue;
+      if (!candidateInfo.isDirectory() || candidateInfo.mtimeMs > threshold) {
+        retained += 1;
+        continue;
+      }
+
+      rmSync(candidate, { recursive: true, force: false });
+      removed += 1;
+    }
+  }
+
   return { removed, retained };
+}
+
+function lstatOrUndefined(candidate) {
+  try {
+    return lstatSync(candidate);
+  } catch (error) {
+    if (error?.code === "ENOENT" || error?.code === "ENOTDIR") return undefined;
+    throw error;
+  }
 }
 
 function readMarker(candidate) {
@@ -97,8 +136,9 @@ function ownerAlive(marker) {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    // EPERM means the process exists but belongs to another user: alive.
+    return error?.code === "EPERM";
   }
 }
 

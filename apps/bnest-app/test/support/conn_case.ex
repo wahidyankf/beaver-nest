@@ -1,29 +1,25 @@
 defmodule BnestAppWeb.ConnCase do
   @moduledoc """
-  This module defines the test case to be used by
-  tests that require setting up a connection.
+  This module defines the test case to be used by tests that require setting up a connection.
 
-  Such tests rely on `Phoenix.ConnTest` and also
-  import other functionality to make it easier
-  to build common data structures and query the data layer.
+  Such tests rely on `Phoenix.ConnTest` and also import other functionality to make it easier to build common data
+  structures and query the data layer.
 
-  Finally, if the test case interacts with the database,
-  we enable the SQL sandbox, so changes done to the database
-  are reverted at the end of every test. If you are using
-  PostgreSQL, you can even run database tests asynchronously
-  by setting `use BnestAppWeb.ConnCase, async: true`, although
-  this option is not recommended for other databases.
+  In the integration layer every test runs on its own fresh database (ADR 001, section 1): the setup spawns a test
+  instance through `BnestApp.FreshDatabaseCase`, seeds the standard accounts into it, and drops it when the test
+  ends. The helpers return the usernames the seed created, so no test hard-codes a username. A test that is not
+  integration (the unit layer) gets only a connection and touches no storage.
+
+  The case is serial (`async: false`), because one test instance is current at a time.
   """
 
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   use ExUnit.CaseTemplate
 
+  alias BnestApp.FreshDatabaseCase
   alias BnestApp.Identity
-  alias BnestApp.Identity.Adapters.Argon2CredentialHasher
-  alias BnestApp.Identity.Adapters.RecordIdentityStore
-  alias BnestApp.Identity.Ports.IdentityStore
-  alias BnestApp.Storage.Records
+  alias BnestApp.TestInstance
 
   using do
     quote do
@@ -44,109 +40,85 @@ defmodule BnestAppWeb.ConnCase do
 
     case {System.get_env("BNEST_TEST_LAYER"), tags[:unauthenticated]} do
       {"integration", true} ->
-        ensure_test_account!()
-        {:ok, conn: conn}
+        {:ok,
+         FreshDatabaseCase.fresh_database!(tags, FreshDatabaseCase.standard_accounts()) ++
+           [conn: conn]}
 
-      {"integration", _missing} ->
-        ensure_test_account!()
-        scenario_key = "#{inspect(tags[:module])}:#{tags[:test]}"
-        {conn, identity} = scenario_authenticated_conn(conn, scenario_key)
-        {:ok, conn: conn, test_identity: identity}
+      {"integration", _authenticated} ->
+        setup = FreshDatabaseCase.fresh_database!(tags, FreshDatabaseCase.standard_accounts())
+        {conn, identity} = scenario_authenticated_conn(conn, scenario_key(tags))
+        {:ok, setup ++ [conn: conn, test_identity: identity]}
 
       {_unit_or_other, _tag} ->
         {:ok, conn: conn}
     end
   end
 
-  @test_username "test-user-integration"
-  @test_password "Synthetic Integration Password 123!"
+  defp scenario_key(tags), do: "#{inspect(tags[:module])}:#{tags[:test]}"
 
+  @doc "A connection that carries the seeded admin's identity cookie, logged in through the production login."
   def authenticated_conn(conn) do
-    ensure_test_account!()
-    {:ok, token} = Identity.login(@test_username, @test_password)
+    {username, password} = test_credentials()
+    {:ok, token} = Identity.login(username, password)
     Plug.Test.put_req_cookie(conn, "_bnest_identity", token)
   end
 
+  @doc """
+  A connection that carries a scenario's own identity, seeded into the current instance under a key derived from
+  the scenario and its roles. The same key returns the same account. Returns the connection and the identity
+  (`username`, `password`, `user_id`).
+  """
   def scenario_authenticated_conn(conn, scenario_key, roles \\ ["admin"]) do
     identity = scenario_identity!(scenario_key, roles)
     {:ok, token} = Identity.login(identity.username, identity.password)
     {Plug.Test.put_req_cookie(conn, "_bnest_identity", token), identity}
   end
 
+  @doc "The seeded admin's username and its password, as the current instance seeded them."
   def test_credentials do
-    ensure_test_account!()
-    {@test_username, @test_password}
+    {seeded_username!("integration"), FreshDatabaseCase.account_password()}
   end
 
-  defp scenario_identity!(scenario_key, roles) do
-    suffix =
-      :crypto.hash(:sha256, "#{scenario_key}:#{Enum.join(roles, ",")}")
-      |> Base.encode16(case: :lower)
-      |> String.slice(0, 12)
-
-    identity = %{
-      username: "test-user-bdd-#{suffix}",
-      password: "Synthetic BDD Password #{suffix}!",
-      user_id: "user-test-bdd-#{suffix}"
-    }
-
-    store = RecordIdentityStore.new(Records.store())
-
-    case IdentityStore.read_account(store, identity.user_id) do
-      {:ok, _existing} ->
-        identity
-
-      {:error, :missing} ->
-        {:ok, verifier} = Argon2CredentialHasher.hash(identity.password)
-        timestamp = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
-
-        account = %{
-          "schemaVersion" => 1,
-          "recordType" => "account",
-          "userId" => identity.user_id,
-          "displayUsername" => identity.username,
-          "normalizedUsername" => identity.username,
-          "roles" => roles,
-          "passwordVerifier" => verifier,
-          "createdAt" => timestamp
-        }
-
-        index = %{
-          "schemaVersion" => 1,
-          "recordType" => "username-index",
-          "normalizedUsername" => identity.username,
-          "userId" => identity.user_id
-        }
-
-        {:ok, ^account} = IdentityStore.put_account(store, account)
-        {:ok, ^index} = IdentityStore.put_username(store, index)
-        identity
+  defp seeded_username!(name) do
+    case FreshDatabaseCase.default_account(name) do
+      %{username: username} -> username
+      nil -> raise "the current test instance has no seeded #{name} account"
     end
   end
 
-  def ensure_test_account! do
-    case Identity.setup_status() do
-      :open ->
-        accounts = [
-          %{
-            "username" => @test_username,
-            "password" => @test_password,
-            "roles" => ["admin", "parents"]
-          },
-          %{
-            "username" => "test-user-other",
-            "password" => @test_password,
-            "roles" => ["children"]
-          }
-        ]
+  # The scenario's account is seeded under its own key, so a later call with the same key finds it again. The
+  # username has the same shape as the default accounts: `test-user-` prefix, a `bdd` segment, the hash and the
+  # instance short id, which keeps it within the 32-character username limit.
+  defp scenario_identity!(scenario_key, roles) do
+    instance = TestInstance.state() || raise "a scenario identity needs the test's instance"
 
-        case Identity.bootstrap(accounts) do
-          {:ok, _users} -> :ok
-          {:error, :closed} -> :ok
-        end
+    suffix =
+      :crypto.hash(:sha256, "#{scenario_key}:#{Enum.join(roles, ",")}")
+      |> Base.encode16(case: :lower)
+      |> String.slice(0, 8)
 
-      :closed ->
-        :ok
+    short = String.slice(instance.instance_id, 0, 8)
+
+    seed = %{
+      "accounts" => [
+        %{
+          "username" => "test-user-bdd-#{suffix}-#{short}",
+          "password" => FreshDatabaseCase.account_password(),
+          "roles" => roles
+        }
+      ]
+    }
+
+    case TestInstance.seed_current(instance.instance_id, "bdd-" <> suffix, seed) do
+      {:ok, %{accounts: [account]}} ->
+        %{
+          username: account.username,
+          password: FreshDatabaseCase.account_password(),
+          user_id: account.user_id
+        }
+
+      other ->
+        raise "the scenario identity could not be seeded: #{inspect(other)}"
     end
   end
 end

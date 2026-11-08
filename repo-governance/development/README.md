@@ -36,5 +36,6 @@ A development standard should identify:
 - [Test-driven development](test-driven-development.md) requires app and library behaviour to be developed through red–green–refactor cycles.
 - [Test-driven development modules](test-driven-development/README.md) hold the ordered modules of that standard.
 - [Test identities](test-identities.md) isolates synthetic accounts and makes cleanup safe and deterministic.
+- [Test identity modules](test-identities/README.md) hold the test instance layout, marker, and teardown owners.
 - [Upstream tool defects](upstream-tool-defects.md) routes each HIPPO, RHINO, or FERRET defect to its owner as an idea brief, or, when it blocks with no workaround, as a bug-fix plan landed there first.
 - [Resource modules](resource-aware-development/README.md) — external Nx cache awareness.

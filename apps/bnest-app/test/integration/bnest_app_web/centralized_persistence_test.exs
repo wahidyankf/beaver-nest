@@ -1,5 +1,5 @@
 defmodule BnestAppWeb.CentralizedPersistenceTest do
-  use BnestAppWeb.ConnCase, async: true
+  use BnestAppWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 

@@ -951,9 +951,14 @@ defmodule BnestApp.Test.BackupIntegrity do
       directory == Path.join(root, "data/backup") and String.starts_with?(root, "/srv/test-user-")
     else
       root = Application.get_env(:bnest_app, :backup_repository_root)
+      run_root = Application.get_env(:bnest_app, :test_sqlite_root)
 
+      # The integration layer's root is a `backup-repository` directory under this run's own SQLite root (the run
+      # base's, or an instance's); the unit layer's is under the shared test root, which the unit configuration names.
       is_binary(root) and directory == Path.join(root, "data/backup") and
-        String.contains?(root, "/data/test/backup-repository/")
+        (String.contains?(root, "/data/test/backup-repository/") or
+           (is_binary(run_root) and String.starts_with?(root, run_root <> "/") and
+              String.ends_with?(root, "/backup-repository")))
     end
   end
 
