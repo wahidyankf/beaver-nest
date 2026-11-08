@@ -12,10 +12,15 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" and
   sqlite_root = Application.fetch_env!(:bnest_app, :test_sqlite_root)
 
   ExUnit.after_suite(fn _result ->
-    # The flat base directories the shared-base scenarios still write (ConnCase, until T9b). They warn; they
+    # The flat base directories and the shared SQLite database (with its sidecars) that the shared-base
+    # scenarios still write (ConnCase and the home page and Family Chat drivers, until T9b). They warn; they
     # never excuse an instance leftover or any other base data.
-    base_run = BnestApp.TestInstance.application_run!().path
-    legacy_roots = [Path.join(base_run, "users"), Path.join(base_run, "system/accounts")]
+    run = BnestApp.TestInstance.application_run!()
+    shared_database = Path.join(run.sqlite_path, "bnest.sqlite3")
+
+    legacy_roots =
+      [Path.join(run.path, "users"), Path.join(run.path, "system/accounts")] ++
+        Enum.map(["", "-wal", "-shm", "-journal"], &(shared_database <> &1))
 
     verdict =
       BnestApp.TestInstance.Audit.verdict(
