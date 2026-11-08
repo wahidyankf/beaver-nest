@@ -16,6 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test, { after, beforeEach } from "node:test";
 
+import { caddyfile, slots } from "./caddy-config.mjs";
 import {
   boundedReleaseEnvironment,
   executeExperienceRelease,
@@ -249,6 +250,27 @@ test("never configures a nonzero Caddy stream-close delay while keeping the shut
   assert.doesNotMatch(deploymentSource, /stream_close_delay/u);
   assert.doesNotMatch(source, /stream_close_delay/u);
   assert.match(source, /grace_period 5m/u);
+});
+
+test("denies the testing control path and strips its header in every generated Caddyfile", () => {
+  // ADR 001 section 2, second layer: the compile-time gate already answers 404,
+  // and Caddy also refuses `/__bnest_testing/*` with 404 and removes the
+  // `x-bnest-testing` header before the request reaches the upstream slot.
+  for (const slot of Object.keys(slots)) {
+    for (const healthChecked of [true, false]) {
+      const config = caddyfile(slot, healthChecked);
+      const proxy = config.indexOf("\treverse_proxy ");
+      assert.match(
+        config,
+        /^\t@bnest_testing path \/__bnest_testing\/\*$/mu,
+        `${slot} ${healthChecked}: matcher`,
+      );
+      const deny = config.indexOf("\trespond @bnest_testing 404\n");
+      assert.ok(deny >= 0 && deny < proxy, `${slot}: 404 before the proxy`);
+      const strip = config.indexOf("\t\theader_up -X-Bnest-Testing\n");
+      assert.ok(strip > proxy, `${slot}: header stripped inside the proxy`);
+    }
+  }
 });
 
 test("launches every deployment slot through one shared RELEASE_DISTRIBUTION=none path", () => {
