@@ -2,9 +2,20 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
   use ExBdd.Hooks
 
   alias BnestApp.Behaviour.TestIsolation.IntegrationAdapter
+  alias BnestApp.FreshDatabaseCase
+  alias BnestApp.TestInstance
 
-  # Existing scenarios still run on the shared base database (no spawn here until T9b). The
-  # isolation adapter only installs the run secret and the wire state; it spawns nothing itself.
+  # Fresh-database hooks (ADR 001, sections 1 and 3). They keep the boundary between scenarios clean and
+  # spawn nothing themselves. A scenario that needs a test instance spawns it in its own Given, through its
+  # adapter. Scenarios that still run on the shared base database (until T9b converts ConnCase) must keep it,
+  # so a blanket spawn here would break them.
+  before_scenario _context, name: "start with no test instance current" do
+    case TestInstance.state() do
+      nil -> :ok
+      _leftover -> {:error, "an earlier scenario left a test instance current"}
+    end
+  end
+
   before_scenario context do
     BnestAppWeb.ConnCase.ensure_test_account!()
     scenario_key = "#{context.feature_file}:#{context.scenario_name}"
@@ -24,7 +35,14 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
     |> IntegrationAdapter.prepare()
   end
 
-  # Drops whatever instance the scenario left current and clears the run secret.
+  # Drops whatever instance the scenario left current, so the storage pointer returns to the run base. A drop
+  # that cannot finish raises, which fails the scenario.
+  after_scenario _context, name: "drop the test instance" do
+    FreshDatabaseCase.drop_current()
+    :ok
+  end
+
+  # Clears the wire state and the run secret.
   after_scenario context do
     IntegrationAdapter.release(context)
     context

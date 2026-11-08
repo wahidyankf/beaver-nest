@@ -78,6 +78,40 @@ The development server defaults to [http://localhost:4020](http://localhost:4020
 
 The authenticated home page at `/` is the child-friendly entry point and links to `/chat`, `/apps/sifat-allah`, and the authenticated `/data-migration` compatibility flow. A logged-out request to `/` redirects to `/login`, so protected home actions never render without a session. One-time `/setup` creates every initial account and permanently closes; `/login` then protects family data. There is no public registration or password-recovery flow.
 
+## Test instances and fresh databases
+
+Every integration test that touches the database runs on a fresh SQLite database, called a test instance. The design
+and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-database-per-test.md).
+
+- `BnestApp.TestInstance` (`test/support`) spawns one instance at a time through the production migration and seed
+  entry points, points the running server at it, and drops it. `audit/0` and `base_audit/0` report leftovers.
+- `BnestApp.FreshDatabaseCase` (`test/support`) is the ExUnit case template for these tests. Its setup spawns an
+  instance and returns `instance` and `accounts`. Its teardown drops the instance and fails the test when the drop is
+  refused. Tags set the options: `phase` (default `:sqlite_primary`), `instance_id` (a fixed id, needed when a seed's
+  usernames carry it) and `seed` (`{seed_key, seed_map}`). A case must be `async: false`.
+- ExBdd hooks in `test/behaviour/support/integration.exs` run around every integration scenario. The before hook fails
+  when an earlier scenario left an instance current. The after hook drops the current instance. The hooks spawn
+  nothing: a scenario that needs an instance spawns it in its own Given, through its adapter, because scenarios still
+  on the shared base database (until ConnCase moves to `FreshDatabaseCase`) must keep it. The unit layer never spawns.
+- `test_isolation.feature` has two adapters. The unit adapter (`test/unit/support/behaviour/test_isolation_unit_adapter.ex`)
+  drives the in-memory model `BnestApp.Test.InMemory.TestInstancePort`. The unit layer has no database, so its schema
+  steps are partial: they check the digest's properties, and equality with the release schema is proven by the
+  integration adapter (`test/integration/support/test_isolation_integration_adapter.ex`). That adapter drives the real
+  switch, the seed facades, the SQLite repo and the endpoint, and it reads the release side from
+  `test/integration/support/release_schema.ex`. Shared fixtures are in `test/behaviour/test_isolation_fixtures.ex`.
+- `test_instances.feature` (app-fe) is bound here as well. Its Given is the shared admin step, which the drivers hand to
+  the isolation adapter; its own steps are in `test/behaviour/steps/test_instances_steps.exs`.
+- The integration run ends with a leak audit (`test/test_helper.exs`). `BnestApp.TestInstance.Audit.verdict/4` checks
+  for instance directories, a current instance and base data. A failure prints every reason, the run roots are removed,
+  and the VM exits with status 1. The verdict's rules are unit-tested, and a probe run that leaks an instance on purpose
+  fails. Until T9b, the flat `users/` and `system/accounts/` directories of the run base are legacy: the shared-base
+  scenarios still write accounts there, so the audit reports them as warnings. T9b removes that exemption.
+- The unit boundary policy (`test/behaviour/verify.exs`) refuses network URLs, loopback addresses, file and process
+  access, and integration helpers in unit test source. The push-endpoint checks therefore live in
+  `test/integration/bnest_app/test_instance/seed_push_validate_test.exs`.
+- Test-support source rules (`test/integration/bnest_app/test_instance/support_source_scan_test.exs`): `test/support`
+  never holds DDL, a migrator, a copy of a database file, a vacuum copy or a table-wide delete.
+
 ## Identity and Runtime Data
 
 Production SQLite data defaults to `~/bnest/data/prod/`; repository `data/prod/` is only a verified legacy migration source until retirement. Each test uses the same marked run identifier in a flat-file fixture root below `data/test/runs/` and a SQLite root below `~/bnest/data/test/runs/`; either root being absent, shared, or mismatched fails closed. Initial accounts have a normalized username, one or more `children`, `parents`, and `admin` roles, and an Argon2id password verifier. Passwords have no application character-count rule, but each must contain a letter, number, and punctuation mark such as `_`. Bootstrap, username, account, and session operations follow the active repository phase, so `sqlite_primary` never falls back to retired flat identity files. The browser receives only a persistent opaque session cookie; the server stores its SHA-256 digest, has no automatic session expiration, and lets one user remain logged in independently in multiple browsers. Logout revokes only that browser session. Cross-user data access is denied regardless of role.

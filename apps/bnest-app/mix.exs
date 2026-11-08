@@ -145,6 +145,8 @@ defmodule BnestApp.MixProject do
       BnestApp.Behaviour.TestIsolation.IntegrationAdapter,
       BnestApp.Behaviour.TestIsolation.UnitAdapter,
       BnestApp.SchemaSourceScan,
+      # Spawns test instances, which only `test:integration` runs, so the unit denominator leaves it out.
+      BnestApp.FreshDatabaseCase,
       BnestApp.TestBackupDestination,
       BnestApp.TestIdentity,
       BnestApp.TestInstance,

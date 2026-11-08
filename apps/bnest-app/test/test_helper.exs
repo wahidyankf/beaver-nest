@@ -1,5 +1,51 @@
 ExUnit.start()
 
+# The integration run's end-of-suite audit (ADR 001, section 3). ExUnit runs `after_suite` callbacks in
+# reverse registration order, so this one is registered before ExBdd compiles its features: ExBdd's own
+# callback (after_all hooks and the message flush) runs first, and this audit runs last. It counts the instance
+# directories and the current instance and checks that the run base holds no data outside the legacy roots
+# (see `BnestApp.TestInstance.Audit`), then removes the run roots. A failure prints every reason and halts the
+# VM with status 1, because a suite callback cannot change the status that Mix reports.
+if System.get_env("BNEST_TEST_LAYER") == "integration" and
+     Application.get_env(:bnest_app, :test_runtime_owned) do
+  runtime_root = Application.fetch_env!(:bnest_app, :runtime_root)
+  sqlite_root = Application.fetch_env!(:bnest_app, :test_sqlite_root)
+
+  ExUnit.after_suite(fn _result ->
+    # The flat base directories the shared-base scenarios still write (ConnCase, until T9b). They warn; they
+    # never excuse an instance leftover or any other base data.
+    base_run = BnestApp.TestInstance.application_run!().path
+    legacy_roots = [Path.join(base_run, "users"), Path.join(base_run, "system/accounts")]
+
+    verdict =
+      BnestApp.TestInstance.Audit.verdict(
+        BnestApp.TestInstance.audit().directories,
+        BnestApp.TestInstance.state(),
+        BnestApp.TestInstance.base_audit(),
+        legacy_roots
+      )
+
+    _stopped = Application.stop(:bnest_app)
+    {:ok, runtime} = BnestApp.TestRuntimeRoot.validate(runtime_root)
+
+    :ok =
+      BnestApp.TestRuntimeRoot.cleanup!(%{
+        path: runtime_root,
+        sqlite_path: sqlite_root,
+        run_id: runtime.run_id
+      })
+
+    case verdict do
+      {:ok, warnings} ->
+        Enum.each(warnings, &IO.puts(:stderr, "Test leak audit warning: " <> &1))
+
+      {:error, reasons} ->
+        IO.puts(:stderr, "Test leak audit failed:\n  * " <> Enum.join(reasons, "\n  * "))
+        System.halt(1)
+    end
+  end)
+end
+
 behaviour_roots = [
   Path.expand("../../../specs/apps/bnest/app-be/behaviours", __DIR__),
   Path.expand("../../../specs/apps/bnest/app-fe/behaviours", __DIR__)
@@ -34,21 +80,3 @@ behaviour_roots = [
 |> BnestApp.Behaviour.FeVitestUnitScope.prune()
 |> layer_scope.()
 |> ExBdd.Compiler.compile_discovery!(case_template: case_template)
-
-if System.get_env("BNEST_TEST_LAYER") == "integration" and
-     Application.get_env(:bnest_app, :test_runtime_owned) do
-  runtime_root = Application.fetch_env!(:bnest_app, :runtime_root)
-  sqlite_root = Application.fetch_env!(:bnest_app, :test_sqlite_root)
-
-  ExUnit.after_suite(fn _result ->
-    _stopped = Application.stop(:bnest_app)
-    {:ok, runtime} = BnestApp.TestRuntimeRoot.validate(runtime_root)
-
-    :ok =
-      BnestApp.TestRuntimeRoot.cleanup!(%{
-        path: runtime_root,
-        sqlite_path: sqlite_root,
-        run_id: runtime.run_id
-      })
-  end)
-end
