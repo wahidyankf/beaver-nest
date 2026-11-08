@@ -2,7 +2,7 @@
 
 ## Iron Rule
 
-No automated or manual test may read, write, authenticate against, migrate, back up, lock, derive fixtures from, or otherwise touch a production user, production data, or a production user context. Every test must use synthetic identities and payloads inside validated per-run test roots. If isolation cannot be proven before the subject starts, fail closed. An exemption, debug session, local environment, or convenient fixture cannot relax this rule.
+No automated or manual test may read, write, authenticate against, migrate, back up, lock, derive fixtures from, or otherwise touch a production user, production data, or a production user context. Every test must use synthetic identities and payloads inside validated per-run test roots. If isolation cannot be proven before the subject starts, fail closed. No exemption, debug session, local environment, or convenient fixture relaxes this rule.
 
 ## Identity and Isolation
 
@@ -19,7 +19,7 @@ No automated or manual test may read, write, authenticate against, migrate, back
 - Never share a database between tests, scenarios, or projects, copy a snapshot database, or reset rows with `DELETE FROM`. A test that touches no storage spawns no instance.
 - Run each test in this order: spawn, migrate, seed, test, teardown. Migrate with the production migration entry points. Seed through the test API or production facades, never by writing SQL or files.
 - Family Chat uses its instance's database, as production does. The separate `~/bnest/data/test/family-chat/` database is gone from integration and E2E tests; the unit layer's setting is unchanged.
-- The layout, marker, and teardown owners are in [test instance layout](test-identities/001-test-instances.md).
+- Layout, marker, and teardown owners: [test instance layout](test-identities/001-test-instances.md).
 
 ## Testing Control
 
@@ -35,6 +35,6 @@ The audit must not write, lock for mutation, normalize, migrate, or repair produ
 
 Create a marker containing the synthetic run ID, owner process, and host inside both run roots. Cleanup runs in the suite's `finally`/`on_exit` path and removes only that exact validated pair after browsers and servers stop. Each test instance is removed by its own teardown; run cleanup fails if one remains ([layout and owners](test-identities/001-test-instances.md)).
 
-A scheduled stale-run cleanup may remove abandoned roots only beneath repository `data/test/runs/` and local `~/bnest/data/test/runs/` after validating each marker, owner inactivity, and the 24-hour retention threshold. Never delete from production or a shared root by username prefix, glob, or age alone.
+A scheduled stale-run cleanup may remove abandoned roots only beneath repository `data/test/runs/` and local `~/bnest/data/test/runs/` after validating each marker, owner inactivity, and the 24-hour retention threshold. Never delete from production or a shared root by username prefix, glob, or age alone, except unmarked legacy `~/bnest/data/test/{family-chat,backup-config,backup-repository}` directories, whose direct children older than 24 hours go.
 
-If a failure needs retained evidence, preserve only safe logs, fixture names, and checksums outside the runtime root; never retain passwords, cookies, private payloads, or machine identifiers. Cleanup failure fails the test or quality gate and reports the exact retained synthetic path without deleting unrelated data.
+If a failure needs retained evidence, preserve only safe logs, fixture names, and checksums outside the runtime root; never retain passwords, cookies, private payloads, or machine identifiers. Cleanup failure fails the test or gate, reports the exact retained synthetic path, and deletes nothing unrelated.
