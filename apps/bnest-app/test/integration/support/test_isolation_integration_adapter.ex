@@ -248,8 +248,8 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
 
   @doc """
   The SQLite files this instance left behind: its database file and any `*.sqlite3*` under its SQLite root.
-  The run root's shared base database (`bnest.sqlite3`) is not counted, because the existing scenarios still
-  use it until the fresh-database migration (T9b). So this proves the instance's teardown, not an empty run root.
+  The run root's base database (`bnest.sqlite3`) is not counted here: the end-of-run audit checks it. So this proves
+  the instance's teardown, not an empty run root.
   """
   def instance_database_files(context) do
     paths = instance_paths(context)

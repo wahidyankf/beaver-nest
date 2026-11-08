@@ -952,8 +952,12 @@ defmodule BnestApp.Test.BackupIntegrity do
     else
       root = Application.get_env(:bnest_app, :backup_repository_root)
 
+      # The integration layer's root is the run's own `backup-repository` directory; the unit layer's is under the
+      # shared test root, which the unit configuration names.
       is_binary(root) and directory == Path.join(root, "data/backup") and
-        String.contains?(root, "/data/test/backup-repository/")
+        (String.contains?(root, "/data/test/backup-repository/") or
+           (String.contains?(root, "/bnest/data/test/runs/") and
+              String.ends_with?(root, "/backup-repository")))
     end
   end
 
