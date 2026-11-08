@@ -86,8 +86,13 @@ defmodule BnestAppWeb.TestingControl.InstanceController do
       phase: body.phase,
       label: body.label,
       fail_after: Application.get_env(:bnest_app, :testing_control_fail_after)
-    ] ++ seed_opts(body.seed)
+    ] ++ instance_id_opts(body.instance_id) ++ seed_opts(body.seed)
   end
+
+  # Absent, the server generates the id. Present, it is the client's id, already checked by the
+  # request shape rules.
+  defp instance_id_opts(nil), do: []
+  defp instance_id_opts(instance_id), do: [instance_id: instance_id]
 
   defp seed_opts(:absent), do: []
   defp seed_opts({:present, seed}), do: [seed: {@seed_key, seed}]
@@ -184,7 +189,13 @@ defmodule BnestAppWeb.TestingControl.InstanceController do
   defp lifecycle_reason(%Error{reason: :refused, path: path}), do: {:cleanup_failed, path}
 
   defp lifecycle_reason(%Error{reason: reason})
-       when reason in [:instance_active, :instance_busy, :not_current, :run_mismatch],
+       when reason in [
+              :instance_active,
+              :instance_busy,
+              :instance_exists,
+              :not_current,
+              :run_mismatch
+            ],
        do: reason
 
   # A preflight refusal that is not a wire state (an invalid instance or a storage pointer that is

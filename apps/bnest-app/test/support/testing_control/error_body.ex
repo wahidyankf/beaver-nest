@@ -23,6 +23,7 @@ defmodule BnestAppWeb.TestingControl.ErrorBody do
           {:invalid_request, String.t()}
           | :run_mismatch
           | :instance_active
+          | :instance_exists
           | :not_current
           | :instance_busy
           | :seed_conflict
@@ -40,6 +41,11 @@ defmodule BnestAppWeb.TestingControl.ErrorBody do
 
   def render(:instance_active),
     do: {409, error("instance_active", "an instance is already current", nil)}
+
+  # A client-chosen id whose directories already exist: no existing 409 code names it better, so it
+  # keeps `instance_active` (ADR 001, section 2) with its own fixed detail.
+  def render(:instance_exists),
+    do: {409, error("instance_active", "an instance with that id already exists", nil)}
 
   def render(:not_current),
     do: {409, error("not_current", "the instance is not the current instance", nil)}

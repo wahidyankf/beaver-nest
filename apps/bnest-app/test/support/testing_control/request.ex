@@ -16,6 +16,8 @@ defmodule BnestAppWeb.TestingControl.Request do
   @max_label_bytes 60
   @label_pattern ~r/\A[a-z0-9]+(-[a-z0-9]+)*\z/
   @digits_pattern ~r/\A[0-9]+\z/
+  @instance_id_pattern ~r/\A[a-z0-9]{16}\z/
+  @instance_id_detail "the instance id must be 16 lowercase letters or digits"
   @phases %{"sqlite_primary" => :sqlite_primary, "flat_primary" => :flat_primary}
 
   @type invalid :: {:error, {:invalid_request, String.t()}}
@@ -27,25 +29,36 @@ defmodule BnestAppWeb.TestingControl.Request do
   end
 
   @doc """
-  The spawn body: `runId` and `label` are required, `phase` and `seed` are optional, and no other
-  field is allowed. `seed` is `:absent` or `{:present, value}`, so an explicit `null` is judged by the
-  seed validator rather than dropped.
+  The spawn body: `runId` and `label` are required; `instanceId`, `phase` and `seed` are optional,
+  and no other field is allowed. `seed` is `:absent` or `{:present, value}`, so an explicit `null` is
+  judged by the seed validator rather than dropped. `instanceId` is `nil` when absent: the server
+  then generates the id. A present id is the client's own random 16-character id, so a client can
+  name its usernames before the spawn (ADR 001, section 2).
   """
   @spec spawn_body(map()) ::
           {:ok,
            %{
              run_id: String.t(),
              label: String.t(),
+             instance_id: String.t() | nil,
              phase: atom(),
              seed: :absent | {:present, term()}
            }}
           | invalid()
   def spawn_body(body) when is_map(body) do
-    with :ok <- known_fields(body, ~w(runId label phase seed)),
+    with :ok <- known_fields(body, ~w(runId label instanceId phase seed)),
          {:ok, run_id} <- required_string(body, "runId", "the body must name the run id"),
          {:ok, label} <- label(body),
+         {:ok, instance_id} <- instance_id(body),
          {:ok, phase} <- phase(body) do
-      {:ok, %{run_id: run_id, label: label, phase: phase, seed: optional(body, "seed")}}
+      {:ok,
+       %{
+         run_id: run_id,
+         label: label,
+         instance_id: instance_id,
+         phase: phase,
+         seed: optional(body, "seed")
+       }}
     end
   end
 
@@ -107,6 +120,21 @@ defmodule BnestAppWeb.TestingControl.Request do
 
       _other ->
         invalid("the label must be a slug of at most 60 characters")
+    end
+  end
+
+  defp instance_id(body) do
+    case Map.fetch(body, "instanceId") do
+      :error ->
+        {:ok, nil}
+
+      {:ok, value} when is_binary(value) ->
+        if Regex.match?(@instance_id_pattern, value),
+          do: {:ok, value},
+          else: invalid(@instance_id_detail)
+
+      {:ok, _other} ->
+        invalid(@instance_id_detail)
     end
   end
 

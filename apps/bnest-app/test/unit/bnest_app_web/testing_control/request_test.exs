@@ -38,9 +38,45 @@ defmodule BnestAppWeb.TestingControl.RequestTest do
   end
 
   describe "spawn body" do
-    test "accepts a run id and a label, with the default phase and no seed" do
+    test "accepts a run id and a label, with the default phase, no seed and no instance id" do
       assert Request.spawn_body(%{"runId" => "run-1", "label" => "fresh-db"}) ==
-               {:ok, %{run_id: "run-1", label: "fresh-db", phase: :sqlite_primary, seed: :absent}}
+               {:ok,
+                %{
+                  run_id: "run-1",
+                  label: "fresh-db",
+                  phase: :sqlite_primary,
+                  seed: :absent,
+                  instance_id: nil
+                }}
+    end
+
+    test "accepts a client-chosen instance id of exactly 16 lowercase letters or digits" do
+      for id <- ["0123456789abcdef", "abcdefghijklmnop", "a1b2c3d4e5f6g7h8"] do
+        assert {:ok, %{instance_id: ^id}} =
+                 Request.spawn_body(%{"runId" => "r", "label" => "l", "instanceId" => id})
+      end
+    end
+
+    test "refuses an instance id that is not 16 lowercase letters or digits, as invalid_request" do
+      detail = "the instance id must be 16 lowercase letters or digits"
+
+      bad = [
+        "",
+        "0123456789abcde",
+        "0123456789abcdef0",
+        "0123456789ABCDEF",
+        "0123456789abcde-",
+        " 0123456789abcdef",
+        "0123456789abcdef\n",
+        "0123456789abcdé",
+        nil,
+        7
+      ]
+
+      for id <- bad do
+        assert Request.spawn_body(%{"runId" => "r", "label" => "l", "instanceId" => id}) ==
+                 {:error, {:invalid_request, detail}}
+      end
     end
 
     test "accepts flat_primary, and passes a seed of any shape on to the seed validator" do
@@ -57,7 +93,7 @@ defmodule BnestAppWeb.TestingControl.RequestTest do
     end
 
     test "refuses an unknown top-level field" do
-      assert Request.spawn_body(%{"runId" => "r", "label" => "l", "instanceId" => "x"}) ==
+      assert Request.spawn_body(%{"runId" => "r", "label" => "l", "owner" => "x"}) ==
                {:error, {:invalid_request, "the body has an unknown field"}}
     end
 
