@@ -105,7 +105,7 @@ defmodule BnestApp.Storage.TestInstanceSchemaTest do
       :ok = ReleaseFamilyChat.apply_and_verify!()
       fun.()
     after
-      :ok = Switch.restore!(original)
+      :ok = Switch.restore!(original, scratch.paths)
       :ok = TestInstance.drop_dirs(scratch)
     end
   end

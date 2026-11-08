@@ -218,6 +218,71 @@ defmodule BnestApp.TestInstance.DirectoriesTest do
     end
   end
 
+  describe "drop_dirs/1 refusals on the flat primary root" do
+    test "refuses a flat primary instance whose flat marker is missing, and keeps both roots", %{
+      runtime: runtime
+    } do
+      instance = create_flat_instance!(runtime)
+      marker_path = instance.paths.flat_marker_path
+      marker = File.read!(marker_path)
+      File.rm!(marker_path)
+
+      try do
+        assert {:error, {:refused, :unmarked}} = TestInstance.drop_dirs(instance)
+        assert File.dir?(instance.paths.flat_instance_root)
+        assert File.dir?(instance.paths.sqlite_instance_root)
+      after
+        File.write!(marker_path, marker)
+      end
+
+      assert :ok = TestInstance.drop_dirs(instance)
+    end
+
+    test "refuses a flat primary instance whose flat root is a symlink, and removes neither side",
+         %{runtime: runtime} do
+      instance = create_flat_instance!(runtime)
+      flat = instance.paths.flat_instance_root
+      relocated = Path.join(runtime.path, "relocated-flat")
+      File.rename!(flat, relocated)
+      :ok = File.ln_s(relocated, flat)
+
+      assert {:error, {:refused, :symlink}} = TestInstance.drop_dirs(instance)
+      assert File.regular?(Path.join(relocated, @marker_name))
+      assert File.dir?(instance.paths.sqlite_instance_root)
+
+      File.rm!(flat)
+      File.rm_rf!(relocated)
+      File.rm_rf!(instance.paths.sqlite_instance_root)
+    end
+
+    test "refuses a flat primary instance that holds a symlink inside its flat root", %{
+      runtime: runtime
+    } do
+      instance = create_flat_instance!(runtime)
+      :ok = File.ln_s(runtime.path, Path.join(instance.paths.flat_instance_root, "escape"))
+
+      assert {:error, {:refused, :symlink}} = TestInstance.drop_dirs(instance)
+      assert File.dir?(instance.paths.flat_instance_root)
+      assert File.regular?(Path.join(runtime.path, @run_marker))
+
+      File.rm!(Path.join(instance.paths.flat_instance_root, "escape"))
+      assert :ok = TestInstance.drop_dirs(instance)
+    end
+
+    test "refuses a flat root that appears under a sqlite primary instance", %{runtime: runtime} do
+      assert {:ok, instance} = TestInstance.create_dirs(runtime, @instance_id, :sqlite_primary)
+      File.mkdir_p!(Path.dirname(instance.paths.flat_instance_root))
+      File.mkdir!(instance.paths.flat_instance_root)
+
+      assert {:error, {:refused, :unexpected_flat_root}} = TestInstance.drop_dirs(instance)
+      assert File.dir?(instance.paths.sqlite_instance_root)
+      assert File.dir?(instance.paths.flat_instance_root)
+
+      File.rmdir!(instance.paths.flat_instance_root)
+      assert :ok = TestInstance.drop_dirs(instance)
+    end
+  end
+
   describe "drop_dirs/1 removal failure" do
     test "reports cleanup_failed with the retained path inside the run roots", %{runtime: runtime} do
       instance = create_instance!(runtime)
@@ -241,6 +306,11 @@ defmodule BnestApp.TestInstance.DirectoriesTest do
 
   defp create_instance!(runtime) do
     assert {:ok, instance} = TestInstance.create_dirs(runtime, @instance_id, :sqlite_primary)
+    instance
+  end
+
+  defp create_flat_instance!(runtime) do
+    assert {:ok, instance} = TestInstance.create_dirs(runtime, @instance_id, :flat_primary)
     instance
   end
 
