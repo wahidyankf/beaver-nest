@@ -152,6 +152,9 @@ defmodule BnestApp.MixProject do
       BnestApp.TestInstance,
       # Its facade writes run only on a spawned instance, in test:integration, as TestInstance does.
       BnestApp.TestInstance.Seed,
+      # Its request processes and telemetry run in the integration layer, where its tests live; the
+      # unit boundary policy forbids process access.
+      BnestApp.TestInstance.Requests,
       BnestApp.TestInstance.Switch,
       BnestApp.TestRuntimeRoot,
       BnestAppWeb.ConnCase,

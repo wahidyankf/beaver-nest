@@ -76,7 +76,8 @@ external-boundary doubles stay: `RecordingPushSender` (no real push provider) an
 **Switch protocol.** `BnestApp.TestInstance.spawn!/2` (test build only), in this order:
 
 1. Take the single in-process `TestInstance` lock and refuse with `:instance_active` if an instance is current.
-2. Refuse with `:instance_busy` if `Task.Supervisor.children(BnestApp.Scheduler.Tasks) != []`.
+2. Refuse with `:instance_busy` if `Task.Supervisor.children(BnestApp.Scheduler.Tasks) != []`, or if a web request is
+   still running after a drain of five seconds (see the next section).
 3. Create the instance directories and markers (section 3).
 4. Inside `Storage.with_exclusive_lock/1` (drains every `Records` operation that holds a shared lease):
    `Storage.stop/0`;
@@ -95,8 +96,12 @@ raises with the failed step. A new instance is the only way to a different datab
 existing mechanisms. The exclusive lease drains `Records` users. Family Chat, Push and Scheduler SQL users do not hold
 the lease, so the switch also needs quiescence: the scenario's browser contexts are closed before `DELETE`, the
 scheduler is not automatic in the test layer (`scheduler_automatic?: false`), and the busy check above refuses a switch
-while a scheduler task runs. The switch code (`TestInstance`, the `Records` state replacement, `put_env`) lives in
-`test/support` and is compiled only for `MIX_ENV=test`; production code gains no re-pointing entry point. The run base
+while a scheduler task runs or a web request is running. A closed browser does not cancel the server's work on a request
+it already sent, and that work would find no instance after a drop and open the profile's default database in the run
+base. `BnestApp.TestInstance.Requests` counts the running requests from Phoenix's endpoint telemetry (the testing-control
+routes excluded), and the switch gives them five seconds to end. The switch code (`TestInstance`, the `Records` state
+replacement, `put_env`) lives in `test/support` and is compiled only for `MIX_ENV=test`; production code gains no
+re-pointing entry point. The run base
 (the run-level root pair) must stay data-free: its `users/` and `system/accounts` are empty and it holds no
 `*.sqlite3` file. The health endpoint reads storage only in the `sqlite_primary` phase, so an idle test server does not
 create a base database. `/health/ready` reports `storageGeneration == test-<instanceId>` after a spawn, which is the
@@ -235,7 +240,7 @@ never contains a secret, a password or a filesystem path outside the run.
 | 409    | `run_mismatch`                | body `runId` differs from the server's run id                                                                                                                                                                            |
 | 409    | `instance_active`             | spawn while an instance is current, or spawn with an `instanceId` whose directories already exist (its own detail)                                                                                                       |
 | 409    | `not_current`                 | `:id` is not the current instance                                                                                                                                                                                        |
-| 409    | `instance_busy`               | scheduler task running during spawn or delete                                                                                                                                                                            |
+| 409    | `instance_busy`               | scheduler task or web request running during spawn or delete                                                                                                                                                             |
 | 409    | `seed_conflict`               | same `seedKey` with a different body                                                                                                                                                                                     |
 | 422    | `seed_invalid`                | `invalid_username`, `invalid_role`, `duplicate_username`, `unknown_sender`, `unknown_owner`, `unknown_seed_key`, `too_many`, `invalid_payload`, `wrong_phase`, `unsupported_source`, `oversized`; `path` names the field |
 | 500    | `spawn_failed`                | with `step` of `create`, `migrate`, `activate` or `seed`; the server already rolled back                                                                                                                                 |

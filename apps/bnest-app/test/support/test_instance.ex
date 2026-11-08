@@ -18,6 +18,7 @@ defmodule BnestApp.TestInstance do
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.TestInstance.Error
   alias BnestApp.TestInstance.Paths
+  alias BnestApp.TestInstance.Requests
   alias BnestApp.TestInstance.Seed
   alias BnestApp.TestInstance.Switch
   alias BnestApp.TestRuntimeRoot
@@ -69,6 +70,7 @@ defmodule BnestApp.TestInstance do
   """
   @spec spawn!(TestRuntimeRoot.t(), keyword()) :: instance()
   def spawn!(run, opts \\ []) do
+    :ok = Requests.attach!()
     with_lock(fn -> do_spawn(run, opts) end)
   end
 
@@ -445,13 +447,22 @@ defmodule BnestApp.TestInstance do
 
   defp clear_current, do: Application.delete_env(:bnest_app, @current_key)
 
-  # Scheduler tasks run under this supervisor; a switch would change the database under them.
+  # A switch would change the database under a scheduler task, and under a web request still running: a browser
+  # that closed does not cancel the server's work on its request. Requests get a short time to end, because a
+  # request sent just before the browser closed is normally answered within moments.
   defp busy? do
+    scheduler_busy?() or Requests.await_idle(request_drain_ms()) != :ok
+  end
+
+  defp scheduler_busy? do
     case Process.whereis(BnestApp.Scheduler.Tasks) do
       nil -> false
       _supervisor -> Task.Supervisor.children(BnestApp.Scheduler.Tasks) != []
     end
   end
+
+  defp request_drain_ms,
+    do: Application.get_env(:bnest_app, :test_instance_request_drain_ms, 5_000)
 
   defp random_instance_id, do: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
 
