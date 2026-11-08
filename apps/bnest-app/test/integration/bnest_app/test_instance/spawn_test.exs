@@ -12,6 +12,7 @@ defmodule BnestApp.TestInstance.SpawnTest do
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.Storage.Adapters.FileRecordBackend
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.MigrationFiles
   alias BnestApp.TestInstance
   alias BnestApp.TestInstance.Error
 
@@ -41,7 +42,7 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert Storage.database_path() == instance.paths.db_file
       assert Storage.phase() == :sqlite_primary
 
-      assert applied_versions() == migration_file_versions()
+      assert applied_versions() == MigrationFiles.versions()
       assert File.ls!(TestInstance.empty_flat_root(instance.paths)) == []
 
       assert %{rows: schedule_rows} =
@@ -169,7 +170,7 @@ defmodule BnestApp.TestInstance.SpawnTest do
 
       assert_received {:seeded, instance_id, versions}
       assert instance_id == instance.instance_id
-      assert versions == migration_file_versions()
+      assert versions == MigrationFiles.versions()
 
       assert :ok = TestInstance.drop!(instance)
     end
@@ -336,14 +337,6 @@ defmodule BnestApp.TestInstance.SpawnTest do
   defp applied_versions do
     %{rows: rows} = SqliteRepo.query!("SELECT version FROM schema_migrations ORDER BY version")
     Enum.map(rows, fn [version] -> version end)
-  end
-
-  defp migration_file_versions do
-    Application.app_dir(:bnest_app, "priv/sqlite_repo/migrations/*.exs")
-    |> Path.wildcard()
-    |> Enum.map(fn path -> path |> Path.basename() |> String.split("_", parts: 2) |> hd() end)
-    |> Enum.map(&String.to_integer/1)
-    |> Enum.sort()
   end
 
   defp start_blocking_scheduler_task do
