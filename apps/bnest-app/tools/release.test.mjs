@@ -9,11 +9,13 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { deflateSync } from "node:zlib";
 import test, { after, beforeEach } from "node:test";
 
 import { caddyfile, slots } from "./caddy-config.mjs";
@@ -271,6 +273,294 @@ test("denies the testing control path and strips its header in every generated C
       assert.ok(strip > proxy, `${slot}: header stripped inside the proxy`);
     }
   }
+});
+
+// Synthetic BEAM files: the IFF form the audit reads (FOR1 and BEAM, an AtU8
+// atom table, and an optional zlib-compressed LitT literal table). They carry
+// no compiled code, so the audit tests need no Erlang or Elixir toolchain.
+function beamChunk(id, data) {
+  const header = Buffer.alloc(8);
+  header.write(id, 0, "latin1");
+  header.writeUInt32BE(data.length, 4);
+  return Buffer.concat([
+    header,
+    data,
+    Buffer.alloc((4 - (data.length % 4)) % 4),
+  ]);
+}
+
+// Older OTP releases zlib-compress the literal table behind a size word; newer
+// ones keep it plain, as the real test-build router shows.
+function literalChunkData(literals, compressed) {
+  if (!compressed) return Buffer.from(literals, "utf8");
+  const size = Buffer.alloc(4);
+  size.writeUInt32BE(Buffer.byteLength(literals));
+  return Buffer.concat([size, deflateSync(literals)]);
+}
+
+function syntheticBeam({ atoms = [], literals, compressed = true }) {
+  const names = atoms.map((atom) => Buffer.from(atom, "utf8"));
+  const count = Buffer.alloc(4);
+  count.writeUInt32BE(names.length);
+  const chunks = [
+    beamChunk(
+      "AtU8",
+      Buffer.concat([
+        count,
+        ...names.flatMap((name) => [Buffer.from([name.length]), name]),
+      ]),
+    ),
+  ];
+  if (literals !== undefined)
+    chunks.push(beamChunk("LitT", literalChunkData(literals, compressed)));
+  const body = Buffer.concat([Buffer.from("BEAM", "latin1"), ...chunks]);
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(body.length);
+  return Buffer.concat([Buffer.from("FOR1", "latin1"), length, body]);
+}
+
+const cleanRouter = syntheticBeam({
+  atoms: ["Elixir.BnestAppWeb.Router", "Elixir.BnestAppWeb.Endpoint"],
+  literals: "/health/ready",
+});
+
+function syntheticRelease(root, { router = cleanRouter, beams = {} } = {}) {
+  const ebin = join(root, "lib", "bnest_app-0.1.0", "ebin");
+  mkdirSync(ebin, { recursive: true });
+  const files = {
+    "Elixir.BnestApp.Storage.beam": syntheticBeam({
+      atoms: ["Elixir.BnestApp.Storage"],
+    }),
+    ...beams,
+  };
+  if (router !== null) files["Elixir.BnestAppWeb.Router.beam"] = router;
+  for (const [name, bytes] of Object.entries(files))
+    writeFileSync(join(ebin, name), bytes);
+  return root;
+}
+
+function withTempRelease(run, options) {
+  const parent = mkdtempSync(join(tmpdir(), "bnest-artifact-audit-"));
+  try {
+    return run(syntheticRelease(join(parent, "release"), options));
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+}
+
+async function loadArtifactAudit() {
+  return import("./release-artifact-audit.mjs");
+}
+
+test("audits a release whose beams carry no testing module or testing string", async () => {
+  const { auditReleaseArtifact } = await loadArtifactAudit();
+  assert.deepEqual(
+    withTempRelease((root) => auditReleaseArtifact(root)),
+    { ebins: 1, beams: 2 },
+  );
+});
+
+test("refuses a testing module beam in any ebin", async () => {
+  const { auditReleaseArtifact } = await loadArtifactAudit();
+  for (const name of [
+    "Elixir.BnestApp.TestInstance.beam",
+    "Elixir.BnestAppWeb.TestingControl.Plug.beam",
+    "Elixir.BnestApp.TestRuntimeRoot.beam",
+  ]) {
+    assert.throws(
+      () =>
+        withTempRelease((root) => auditReleaseArtifact(root), {
+          beams: { [name]: syntheticBeam({ atoms: ["Elixir.Test"] }) },
+        }),
+      (error) => error.violations.some((violation) => violation.includes(name)),
+      name,
+    );
+  }
+});
+
+test("refuses a router that names the testing path or a testing module", async () => {
+  const { auditReleaseArtifact } = await loadArtifactAudit();
+  const routers = {
+    "the testing path as a raw atom": syntheticBeam({
+      atoms: ["Elixir.BnestAppWeb.Router", "__bnest_testing"],
+    }),
+    "a testing control module name": syntheticBeam({
+      atoms: [
+        "Elixir.BnestAppWeb.Router",
+        "Elixir.BnestAppWeb.TestingControl.Plug",
+      ],
+    }),
+    "a test instance module name": syntheticBeam({
+      atoms: ["Elixir.BnestAppWeb.Router", "Elixir.BnestApp.TestInstance"],
+    }),
+  };
+  for (const [label, router] of Object.entries(routers)) {
+    assert.throws(
+      () => withTempRelease((root) => auditReleaseArtifact(root), { router }),
+      (error) =>
+        error.violations.some((violation) => violation.includes("Router.beam")),
+      label,
+    );
+  }
+});
+
+test("refuses a testing path that only sits in a compressed literal table", async () => {
+  const { auditReleaseArtifact } = await loadArtifactAudit();
+  const router = syntheticBeam({
+    atoms: ["Elixir.BnestAppWeb.Router"],
+    literals: "/__bnest_testing/v1/state",
+  });
+  // The fixture only proves the compressed case when the raw file lacks the bytes.
+  assert.equal(router.includes("__bnest_testing"), false);
+  assert.throws(
+    () => withTempRelease((root) => auditReleaseArtifact(root), { router }),
+    (error) =>
+      error.violations.some((violation) => violation.includes("Router.beam")),
+  );
+});
+
+test("fails closed when the router beam or the ebin directories are missing", async () => {
+  const { auditReleaseArtifact } = await loadArtifactAudit();
+  assert.throws(
+    () =>
+      withTempRelease((root) => auditReleaseArtifact(root), { router: null }),
+    (error) =>
+      error.violations.some((violation) =>
+        violation.includes("Elixir.BnestAppWeb.Router.beam is missing"),
+      ),
+  );
+  const empty = mkdtempSync(join(tmpdir(), "bnest-artifact-audit-empty-"));
+  try {
+    assert.throws(
+      () => auditReleaseArtifact(empty),
+      (error) =>
+        error.violations.some((violation) => violation.includes("no ebin")),
+    );
+  } finally {
+    rmSync(empty, { recursive: true, force: true });
+  }
+});
+
+test("reads a plain literal table, as newer OTP releases write it", async () => {
+  const { auditReleaseArtifact } = await loadArtifactAudit();
+  const clean = syntheticBeam({
+    atoms: ["Elixir.BnestAppWeb.Router"],
+    literals: "/health/ready",
+    compressed: false,
+  });
+  assert.deepEqual(
+    withTempRelease((root) => auditReleaseArtifact(root), { router: clean }),
+    { ebins: 1, beams: 2 },
+  );
+  const testing = syntheticBeam({
+    atoms: ["Elixir.BnestAppWeb.Router"],
+    literals: "/__bnest_testing/v1/state",
+    compressed: false,
+  });
+  assert.throws(
+    () =>
+      withTempRelease((root) => auditReleaseArtifact(root), {
+        router: testing,
+      }),
+    (error) =>
+      error.violations.some((violation) =>
+        violation.includes("names __bnest_testing"),
+      ),
+  );
+});
+
+test("refuses a symbolic link that could hide an ebin from the walk", async () => {
+  const { auditReleaseArtifact } = await loadArtifactAudit();
+  const hidden = mkdtempSync(join(tmpdir(), "bnest-artifact-audit-hidden-"));
+  try {
+    const ebin = join(hidden, "ebin");
+    mkdirSync(ebin);
+    writeFileSync(
+      join(ebin, "Elixir.BnestApp.TestInstance.beam"),
+      syntheticBeam({ atoms: ["Elixir.BnestApp.TestInstance"] }),
+    );
+    withTempRelease((root) => {
+      symlinkSync(hidden, join(root, "lib", "bnest_app-0.1.0", "linked"));
+      assert.throws(
+        () => auditReleaseArtifact(root),
+        (error) =>
+          error.violations.some((violation) =>
+            violation.includes("symbolic link"),
+          ),
+      );
+    });
+  } finally {
+    rmSync(hidden, { recursive: true, force: true });
+  }
+});
+
+test("reports an unreadable release as an audit violation, not a crash", async () => {
+  const { auditReleaseArtifact, ReleaseArtifactAuditError } =
+    await loadArtifactAudit();
+  const parent = mkdtempSync(join(tmpdir(), "bnest-artifact-audit-file-"));
+  try {
+    const file = join(parent, "not-a-directory");
+    writeFileSync(file, "synthetic");
+    assert.throws(
+      () => auditReleaseArtifact(file),
+      (error) => error instanceof ReleaseArtifactAuditError,
+    );
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("the audit command audits a release directory and exits nonzero on a violation", () => {
+  const cli = fileURLToPath(
+    new URL("./release-artifact-audit.mjs", import.meta.url),
+  );
+  const clean = mkdtempSync(join(tmpdir(), "bnest-artifact-audit-cli-"));
+  const dirty = mkdtempSync(join(tmpdir(), "bnest-artifact-audit-cli-"));
+  try {
+    syntheticRelease(clean);
+    syntheticRelease(dirty, {
+      beams: {
+        "Elixir.BnestApp.TestInstance.beam": syntheticBeam({ atoms: ["x"] }),
+      },
+    });
+    const passed = spawnSync(process.execPath, [cli, clean], {
+      encoding: "utf8",
+    });
+    assert.equal(passed.status, 0, passed.stderr);
+    const failed = spawnSync(process.execPath, [cli, dirty], {
+      encoding: "utf8",
+    });
+    assert.equal(failed.status, 1);
+    assert.match(failed.stderr, /Elixir\.BnestApp\.TestInstance\.beam/u);
+    const usage = spawnSync(process.execPath, [cli], { encoding: "utf8" });
+    assert.equal(usage.status, 2);
+  } finally {
+    rmSync(clean, { recursive: true, force: true });
+    rmSync(dirty, { recursive: true, force: true });
+  }
+});
+
+test("runs the artifact audit right after release:build and records artifact-audit before the manifest", async () => {
+  const source = readFileSync(
+    new URL("./release.mjs", import.meta.url),
+    "utf8",
+  );
+  const build = source.indexOf('this.deployment("release:build"');
+  const audit = source.indexOf("auditReleaseArtifact(");
+  const manifest = source.indexOf("writePrivateJson(join(this.manifestsPath");
+  assert.match(
+    source,
+    /import \{\s*auditReleaseArtifact,\s*ReleaseArtifactAuditError,?\s*\} from "\.\/release-artifact-audit\.mjs";/u,
+  );
+  assert.ok(build >= 0);
+  assert.ok(audit > build);
+  assert.ok(manifest > audit);
+
+  const host = fakeHost();
+  const result = await executeRelease(host, { drainMs: 0 });
+  const position = result.evidenceIds.indexOf("artifact-audit");
+  assert.ok(position >= 0);
+  assert.equal(result.evidenceIds[position + 1], "artifact-manifest");
 });
 
 test("launches every deployment slot through one shared RELEASE_DISTRIBUTION=none path", () => {
