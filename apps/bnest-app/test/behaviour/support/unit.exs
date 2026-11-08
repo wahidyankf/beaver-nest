@@ -1,6 +1,7 @@
 defmodule BnestApp.Behaviour.UnitSupport do
   use ExBdd.Hooks
 
+  alias BnestApp.Behaviour.TestIsolation.UnitAdapter
   alias BnestApp.Behaviour.UnitHomePageDriver
   alias BnestApp.Test.InMemory.ArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore
@@ -30,6 +31,9 @@ defmodule BnestApp.Behaviour.UnitSupport do
     ReleaseEnvironment.install()
     :ok = MessagePublisher.forget_published()
     :ok = PushSender.forget_sent()
-    Map.put(context, :behaviour_driver, UnitHomePageDriver)
+
+    context
+    |> Map.put(:behaviour_driver, UnitHomePageDriver)
+    |> UnitAdapter.prepare()
   end
 end
