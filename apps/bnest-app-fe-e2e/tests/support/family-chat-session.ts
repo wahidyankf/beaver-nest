@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { currentInstance } from "./active-instance";
 import { runLiveMix } from "./routed-rollout";
 
 // Server-side state the family chat scenarios stage or read back through the
@@ -13,9 +14,11 @@ const IDENTITY_COOKIE = "_bnest_identity";
 // never dials out, so a binding to it can never reach a real push service.
 const SYNTHETIC_PUSH_HOST = "push.allowed.example.com";
 
+// Server user ids are random, so the guard is membership: only an account of the current test instance.
 function requireTestUserId(userId: string): void {
-  if (!/^user-test-[a-z0-9-]+$/u.test(userId)) {
-    throw new Error("server state may be read only for a test user");
+  const accounts = currentInstance().accounts;
+  if (!accounts.some((account) => account.userId === userId)) {
+    throw new Error("server state may be read only for a test user of the current instance");
   }
 }
 

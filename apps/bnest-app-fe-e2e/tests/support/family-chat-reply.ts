@@ -3,7 +3,7 @@ import { login } from "./authentication";
 import { MESSAGE, messageById } from "./family-chat-gestures";
 import { ROOM_ROUTE } from "./family-chat";
 import { waitForRoomReady } from "./family-chat-resume";
-import type { TestIdentity } from "./test-identity";
+import type { InstanceIdentities } from "./instance-identities";
 
 // Support for family_chat.feature's reply rules -- the action menu, the
 // composer reply strip, the quote card, the bounded jump, and the history's
@@ -118,7 +118,7 @@ export function postMessage(
  */
 export async function asAnotherMember<T>(
   browser: Browser,
-  identity: TestIdentity,
+  identity: InstanceIdentities,
   work: (page: Page) => Promise<T>,
 ): Promise<T> {
   const context = await browser.newContext();

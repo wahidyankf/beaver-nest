@@ -20,11 +20,12 @@ npm exec -- playwright install chromium
 
 1. `typecheck` checks every `.ts` file with TypeScript strict mode, rejects implicit and explicit `any`, and emits no files.
 2. `lint` runs Oxlint's correctness, suspicious, pedantic, and performance rules and rejects explicit `any`.
-3. `test:coverage:behaviour` checks the browser adapter this project owns against the exact `app-fe` recursive corpus. It runs the compliance self-tests, generates Playwright tests, and rejects undefined, ambiguous, unused, or incorrectly shaped browser bindings and scenarios. `bnest-app` runs the matching check for its unit and integration adapters.
+3. `test:unit` runs the Node unit tests of the testing-control client, the instance path mirror, the runtime helpers, and the per-scenario test-instance lifecycle (its state machine and cleanup order). The client runs against a loopback stand-in server, and the path mirror is checked against the shared fixture `apps/bnest-app/test/fixtures/test_instance_paths.json`.
+4. `test:coverage:behaviour` checks the browser adapter this project owns against the exact `app-fe` recursive corpus. It runs the compliance self-tests, generates Playwright tests, and rejects undefined, ambiguous, unused, or incorrectly shaped browser bindings and scenarios. `bnest-app` runs the matching check for its unit and integration adapters.
 
 The managed Bnest release uses `test:release-quick` after the application quick gate. It runs this project's typecheck and lint without needlessly repeating the already-passed application quick and shared behaviour checks.
 
-There is no `test:unit` or numeric `test:coverage` target because this project owns only end-to-end tests. `test:coverage:behaviour` measures complete feature-to-binding coverage without collecting numeric TypeScript line coverage or launching a browser. `test:e2e` is intentionally excluded from `test:quick` because browser tests are slow by nature.
+There is no numeric `test:coverage` target because this project owns only end-to-end tests. `test:coverage:behaviour` measures complete feature-to-binding coverage without collecting numeric TypeScript line coverage or launching a browser. `test:e2e` is intentionally excluded from `test:quick` because browser tests are slow by nature.
 
 ## Authoring Behaviours
 
@@ -39,7 +40,15 @@ npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e -- --grep "An automatic LiveV
 npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e -- --project chromium --grep "Ten synthetic visitors preserve recoverable state"
 ```
 
-The `test:e2e` target owns the single HIPPO boundary because it also owns the E2E port lease; callers invoke the Nx target directly. It first enforces behaviour coverage and rebuilds browser assets from the current source, preventing stale generated CSS or JavaScript from masking a UI regression. It then cleans stale marked roots, creates paired flat-file and SQLite roots with the same run marker, leases `4010` by default from the exclusive `4010`–`4019` E2E pool (disjoint from `bnest-app-be-e2e`'s `4030`–`4039` pool), and uses [playwright.config.mts](playwright.config.mts) to start an isolated primary `bnest-app` behind Caddy at the exact `http://localhost:<port>` public origin with `BNEST_FAMILY_CHAT_REPLY_ENABLED=true`, because the browser surface this project owns exists only when that flag is on. Compatibility scenarios pin the flag per candidate instead, so a reply-aware and a reply-free backend can be routed against one another within the same run. Every scenario creates its own `test-user-` identity and user-owned paths within the marked run; desktop, tablet, mobile, and parallel workers never assert mutable aggregate counts. Reconnect scenarios start a revision-distinct candidate against the same isolated SQLite authority, reload the Caddy upstream, prove the routed revision and readiness, and await automatic LiveView reconnection without `page.reload()`. The harness never reuses a development server or production data, cleans only its validated paired roots, and records a trace on first retry.
+The `test:e2e` target owns the single HIPPO boundary because it also owns the E2E port lease; callers invoke the Nx target directly. It first enforces behaviour coverage and rebuilds browser assets from the current source, preventing stale generated CSS or JavaScript from masking a UI regression. It then cleans stale marked roots, creates paired flat-file and SQLite roots with the same run marker, leases `4010` by default from the exclusive `4010`–`4019` E2E pool (disjoint from `bnest-app-be-e2e`'s `4030`–`4039` pool), and uses [playwright.config.mts](playwright.config.mts) to start an isolated primary `bnest-app` behind Caddy at the exact `http://localhost:<port>` public origin with `BNEST_FAMILY_CHAT_REPLY_ENABLED=true`, because the browser surface this project owns exists only when that flag is on. Compatibility scenarios pin the flag per candidate instead, so a reply-aware and a reply-free backend can be routed against one another within the same run. Desktop, tablet, mobile, and parallel workers never assert mutable aggregate counts. Reconnect scenarios start a revision-distinct candidate against the same test instance, reload the Caddy upstream, prove the routed revision and readiness, and await automatic LiveView reconnection without `page.reload()`. The harness never reuses a development server or production data, cleans only its validated paired roots, and records a trace on first retry.
+
+## Test Instances
+
+Each scenario gets its own test instance, as [ADR 001](../../docs/explanation/decisions/001-fresh-database-per-test.md) requires. The `Before` hook in `tests/steps/lifecycle.steps.ts` spawns it through the testing-control routes, labelled with the scenario title. A scenario not tagged `@flat-primary` starts from `sqlite_primary`. A scenario tagged `@flat-primary` starts from a flat-primary instance, which is where Bnest keeps browser-import records as flat files. A scenario that is also tagged `@open-setup` seeds no account, so its own setup can create them. A scenario tagged `@backup-repository` has its instance's `backup-repository/` made a git repository that ignores `data/`, which Backup's default destination needs. Every scenario without `@open-setup`, flat-primary or not, gets four synthetic accounts named `test-user-<role>-<first eight characters of the instance id>`, seeded through the seed route. The `After` hook routes the browser back to the primary, waits for every page to answer the requests it already sent (`tests/support/pages-idle.mts`, because the server keeps working on a request after its page is gone), closes every browser context, stops the rollout candidates, and deletes the instance. Each step runs even when an earlier one fails, and a failed delete fails the scenario. A worker-scoped fixture in `tests/support/test-fixtures.ts` deletes an instance that a failed hook left behind.
+
+The spawn response reports `BNEST_TEST_INSTANCE_ID`, `BNEST_RUNTIME_ROOT`, and `BNEST_STORAGE_CONFIG`. Every secondary process (rollout candidates and `mix run -e` reads) takes these from the current instance, so none reads the flat run root for storage. The storage pointer and backup config live under the run's SQLite root, `storage-config/{storage,backup}.json`, which `tools/run-e2e.mts` derives with `runConfigPaths` and passes to the Playwright config as `BNEST_E2E_STORAGE_CONFIG` and `BNEST_E2E_BACKUP_CONFIG`.
+
+Scenarios never write SQL, never copy or restore storage authority, and never write account files. Steps read the database through production routes, except the `mix run -e` reads and writes listed below.
 
 ## Structure
 
@@ -47,6 +56,8 @@ The `test:e2e` target owns the single HIPPO boundary because it also owns the E2
 - `specs/apps/bnest/app-fe/behaviours/` contains the canonical executable frontend journeys.
 - `playwright.config.mts` defines BDD discovery, generated output, browser, base URL, and the dual app+Caddy server.
 - `tests/steps/` contains thin Playwright-BDD bindings.
+- `tests/steps/lifecycle.steps.ts` owns the per-scenario Before and After hooks for the test instance.
+- `tests/steps/test_instances.steps.ts` owns the replacement-instance scenario: a fresh instance serves its own storage, and the previous admin cannot log in.
 - `tests/steps/release-recovery.steps.ts` owns bounded multi-client reconnect mechanics.
 - `tests/steps/family-chat-resume.steps.ts` owns where a returning member lands in the family chat room.
 - `tests/steps/family-chat-reply.steps.ts`, `family-chat-reply-reading.steps.ts`, and
@@ -56,19 +67,31 @@ The `test:e2e` target owns the single HIPPO boundary because it also owns the E2
 - `tests/support/family-chat-resume.ts` owns stored-read-position reads/writes and settled scroll-placement assertions.
 - `tests/support/family-chat-composer.ts` owns composer focus-loss recording.
 - `tests/support/family-chat-seeding.ts` owns shared-room history top-up and away-member posting.
-- `tests/support/authentication.ts` owns connected-LiveView setup/login helpers and scenario-scoped synthetic identities.
-- `tests/support/routed-rollout.ts` owns Caddy blue/green candidate promotion and live-SQLite activation.
-- `tests/support/test-user-records.ts` owns saving a synthetic user's record on the server through a production
-  facade, after checking the marked runtime root and the `test-user-` owner.
+- `tests/support/test-instance-lifecycle.mts` owns the pure instance helpers (scenario labels, the `@flat-primary` phase, instance ids, the synthetic usernames and account plan, the run config paths, and the cleanup order) and the lifecycle state machine. The delete waits a bounded time while the server answers `instance_busy` (`tests/support/delete-when-idle.mts`), and the `@open-setup` and `@backup-repository` tags are read in `tests/support/scenario-tags.mts`. The lifecycle talks to the server only through an injected client, so `tests/support/test-instance-lifecycle.test.mts` and `tests/support/test-instance-lifecycle-state.test.mts` test it without a server.
+- `tests/support/active-instance.ts` holds the worker's one current instance, the secondary-process environment taken from it, the browser-context close, and the leftover reaper.
+- `tests/support/test-fixtures.ts` is the `test` object the generated specs import, and its worker-scoped fixture reaps a leftover instance.
+- `tests/support/instance-identities.ts` gives steps the current instance's synthetic accounts and seeds the extra accounts a load scenario needs.
+- `tests/support/instance-records.ts` reads one record of the current instance through a `mix run -e` process with that instance's environment. The read expression and its parser are in `tests/support/instance-record-read.mts`, which the BE project keeps byte-identical.
+- `tests/support/authentication.ts` owns connected-LiveView setup/login helpers and synthetic identities, and digests the current instance's database files.
+- `tests/support/routed-rollout.ts` owns Caddy blue/green candidate promotion, stopping rollout candidates, and restoring the primary route.
 - `tests/support/sifat-allah-progress.ts` owns saving a synthetic learner's Sifat Allah progress on the server.
 - `tests/support/codex-chat-transcript.ts` owns saving a synthetic user's chat on the Codex thread whose fixture runner
-  has exited.
-- `tests/support/storage-authority.mts` owns capturing and restoring the routed storage authority around a scenario. It
-  leaves the storage lock out of the snapshot, because a lease copied while a server holds it would come back on
-  restore with no holder and block the next activation until its drain timeout. `tools/storage-authority.test.mts`
-  proves this, and `test:coverage:behaviour` runs it.
-- `tests/support/test-runtime.mts` owns paired marked runtime-root creation and exact cleanup.
-- `tools/run-e2e.mts` owns the guarded runtime lifecycle around the canonical Playwright target.
+  has exited, through the seed route.
+- `tests/support/testing-control.mts` is the typed Node `fetch` client for the test-only `/__bnest_testing/v1` routes. It reads the per-run secret from the environment on each call and never logs it. `testing-control-records.mts` holds the record guards, `testing-control-error.mts` the typed errors, and `testing-control-stand-in.mts` the loopback server its unit tests use. The client talks to the backend loopback port, never through Caddy.
+- `tests/support/test-instance-paths.mts` mirrors `BnestApp.TestInstance.Paths.derive/4`. Its parity test reads `apps/bnest-app/test/fixtures/test_instance_paths.json`.
+- `tests/support/test-runtime.mts` owns the paired marked runtime roots, the leak audit that lists instances left under them, and the global teardown. The teardown deletes the current instance while the server is still up, then checks that the run base holds no account or SQLite file. It does not remove the roots.
+- `tools/run-e2e.mts` owns the guarded runtime lifecycle around the canonical Playwright target. It generates a 32-byte secret per run and passes it only through the environment of the Playwright process, which the primary server inherits through its webServer. It also passes the run's storage and backup config paths to Playwright.
+- Least privilege for the secret: only the Playwright process (the steps and the control client) and the primary `mix phx.server` carry `BNEST_TEST_CONTROL_SECRET`. Browsers and the Caddy process (`browserEnvironment` in `playwright.config.mts`) start without it. Rollout candidates and every `mix run -e` read start from `routedEnvironment()`, which uses `secondaryEnvironment` in `tests/support/secondary-environment.mts`, so none of them can call the control routes. After Playwright and its servers exit, it fails the run on any instance left under either root, then removes the validated pair.
 - `.features-gen/` contains ignored, disposable generated Playwright tests.
+
+### Remaining `mix run -e` Reads and Writes
+
+Steps still reach the application through `mix run -e` only where no testing-control route or production route exists yet. Each one runs with the current instance's environment:
+
+- `tests/support/instance-records.ts` reads the child's chat record after a Codex resume (no route reads a chat record).
+- `tests/support/scheduled-backups.ts` creates a test schedule and reads a backup schedule back (no route exists for either).
+- `tests/support/backup-integrity-label.ts` reads the integrity JSON that the backup label scenarios compare.
+- `tests/support/sifat-allah-progress.ts` writes the learner's "every pair remembered" progress, derived from the curriculum.
+- `tests/support/family-chat-session.ts` reads the push-enabled flag and posts a system message (no route exists for either).
 
 Keep tests focused on behaviour that requires a real browser or crosses application boundaries. Prefer the narrower `bnest-app` `test:unit` or `test:integration` target when Playwright is unnecessary.

@@ -5,10 +5,10 @@
   "aggregateAdapterOwner": "bnest-app",
   "generatedFrom": "plans/in-progress/family-chat-room/delivery.md Phase 1 Item 3",
   "summary": {
-    "featureCount": 6,
-    "scenarioCount": 71,
+    "featureCount": 7,
+    "scenarioCount": 72,
     "e2eExemptScenarioCount": 3,
-    "e2eCoveredScenarioCount": 68
+    "e2eCoveredScenarioCount": 69
   },
   "features": [
     {
@@ -327,6 +327,16 @@
         },
         {
           "name": "Routed client reconnects across compatible SQLite rollout",
+          "e2eExempt": false
+        }
+      ]
+    },
+    {
+      "file": "test_instances.feature",
+      "featureName": "Bnest test instance isolation",
+      "scenarios": [
+        {
+          "name": "A fresh test instance serves its own storage and forgets the previous account",
           "e2eExempt": false
         }
       ]

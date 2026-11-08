@@ -37,9 +37,8 @@ const OFFLINE_BANNER = '[data-role="family-chat-offline-banner"]';
 
 async function goOfflineWithCommittedTarget(
   page: Page,
-  testInfo: Parameters<typeof ensureRoomOpen>[1],
 ): Promise<void> {
-  await ensureRoomOpen(page, testInfo);
+  await ensureRoomOpen(page);
   scenario.targetBody = uniqueBody("Offline reply target");
   scenario.targetId = await postMessage(page, scenario.targetBody);
   await waitForMessage(page, scenario.targetId);
@@ -59,8 +58,8 @@ async function replyToTarget(page: Page): Promise<void> {
 
 Given(
   "the visitor is offline with the room open",
-  async ({ page, $testInfo }) => {
-    await goOfflineWithCommittedTarget(page, $testInfo);
+  async ({ page }) => {
+    await goOfflineWithCommittedTarget(page);
   },
 );
 
@@ -68,8 +67,8 @@ When("the visitor replies to a committed message", async ({ page }) => {
   await replyToTarget(page);
 });
 
-Given("an offline reply is queued", async ({ page, $testInfo }) => {
-  await goOfflineWithCommittedTarget(page, $testInfo);
+Given("an offline reply is queued", async ({ page }) => {
+  await goOfflineWithCommittedTarget(page);
   await replyToTarget(page);
   await expectRowStatus(page, delivery.body, "Waiting for connection");
   await expectStored(page, delivery.body);
@@ -133,8 +132,8 @@ Then("the committed message renders its quote", async ({ page }) => {
 
 Given(
   "the outbox holds a queued message stored with no reply target field",
-  async ({ page, $testInfo }) => {
-    await goOfflineWithCommittedTarget(page, $testInfo);
+  async ({ page }) => {
+    await goOfflineWithCommittedTarget(page);
     await sendThroughComposer(page, uniqueBody("Plain offline message"));
     // An ordinary message is stored without the key at all
     // (`persistence_indexeddb.js` `toRow`), byte for byte the row a bundle

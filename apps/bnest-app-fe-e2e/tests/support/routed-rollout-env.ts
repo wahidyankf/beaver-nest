@@ -1,5 +1,7 @@
 import path from "node:path";
-import { routedStorageConfigPath } from "./storage-authority.mts";
+import { currentInstanceEnvironment } from "./active-instance";
+import { secondaryEnvironment } from "./secondary-environment.mts";
+import { runConfigPaths } from "./test-instance-lifecycle.mts";
 
 // Shared config/env constants for the routed-rollout candidate infrastructure
 // -- split out of `routed-rollout.ts` purely to stay under this project's
@@ -8,7 +10,6 @@ import { routedStorageConfigPath } from "./storage-authority.mts";
 
 export const repositoryRoot = process.cwd();
 export const appDirectory = path.join(repositoryRoot, "apps/bnest-app");
-export const runtimeRoot = process.env["BNEST_E2E_RUNTIME_ROOT"] ?? "";
 export const runId = process.env["BNEST_E2E_RUN_ID"] ?? "";
 export const publicPort = optionalPort("BNEST_E2E_PORT", 4010);
 export const primaryPort = optionalPort(
@@ -34,20 +35,18 @@ export function requiredRevision(port: number): string {
   return revision;
 }
 
+// The environment of every secondary process (a rollout candidate or a `mix run -e` read). It is the
+// current scenario's instance environment from the spawn response, so a process cannot reach another
+// scenario's database. It throws when no instance is current. It never carries the test-control secret,
+// because a candidate and a read do not call the control routes.
 export function routedEnvironment(): NodeJS.ProcessEnv {
-  return {
-    ...process.env,
-    BNEST_BACKUP_CONFIG: path.join(
-      runtimeRoot,
-      "storage-config",
-      "backup.json",
-    ),
-    BNEST_RUNTIME_ROOT: runtimeRoot,
-    BNEST_STORAGE_CONFIG: routedStorageConfigPath(),
-    BNEST_TEST_LAYER: "integration",
-    BNEST_TEST_RUN_ID: runId,
-    MIX_ENV: "test",
-  };
+  return secondaryEnvironment(process.env, currentInstanceEnvironment(), {
+    backupConfig: runConfigPaths({
+      runId,
+      home: process.env["HOME"] ?? "",
+    }).backupConfig,
+    runId,
+  });
 }
 
 export function optionalPort(name: string, fallback: number): number {

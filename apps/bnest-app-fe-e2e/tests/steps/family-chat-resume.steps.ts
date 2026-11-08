@@ -1,4 +1,4 @@
-import { expect, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
   composerInput,
@@ -26,7 +26,7 @@ import {
   leaveRoom,
   postAsAnotherMember,
 } from "../support/family-chat-seeding";
-import type { TestIdentity } from "../support/test-identity";
+import type { InstanceIdentities } from "../support/instance-identities";
 
 // The browser half of family_chat.feature's "Resuming at the last read
 // position" and "Composer focus and keyboard" rules -- the frontend
@@ -36,7 +36,7 @@ import type { TestIdentity } from "../support/test-identity";
 
 const { Given, Then, When } = createBdd();
 
-let identity: TestIdentity | null = null;
+let identity: InstanceIdentities | null = null;
 let knownReadId = "";
 // "ruang-keluarga" is one shared fixture room across every project this suite
 // runs sequentially, so the body has to be unique per send or a later
@@ -44,21 +44,21 @@ let knownReadId = "";
 let sentBody = "";
 const SHIFT_ENTER_CONTINUATION = "and more";
 
-function requireIdentity(): TestIdentity {
+function requireIdentity(): InstanceIdentities {
   if (!identity) throw new Error("no family chat visitor has opened the room");
   return identity;
 }
 
-async function ensureRoomOpen(page: Page, testInfo: TestInfo): Promise<void> {
+async function ensureRoomOpen(page: Page): Promise<void> {
   if (page.url().includes(ROOM_ROUTE)) {
     await waitForRoomReady(page);
     return;
   }
-  identity = await openFamilyChatRoom(page, testInfo);
+  identity = await openFamilyChatRoom(page);
 }
 
-async function readUpToNewest(page: Page, testInfo: TestInfo): Promise<void> {
-  await ensureRoomOpen(page, testInfo);
+async function readUpToNewest(page: Page): Promise<void> {
+  await ensureRoomOpen(page);
   await ensureAtLeast(page, 3);
   knownReadId = await newestRenderedMessageId(page);
   await rememberReadPosition(page, knownReadId);
@@ -67,16 +67,16 @@ async function readUpToNewest(page: Page, testInfo: TestInfo): Promise<void> {
 
 Given(
   "the family chat holds more earlier messages than one context page",
-  async ({ page, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }) => {
+    await ensureRoomOpen(page);
     await ensureAtLeast(page, RESUME_CONTEXT_PAGE_SIZE + 5);
   },
 );
 
 Given(
   "the visitor has read the family chat up to a known message",
-  async ({ page, $testInfo }) => {
-    await readUpToNewest(page, $testInfo);
+  async ({ page }) => {
+    await readUpToNewest(page);
   },
 );
 
@@ -89,8 +89,8 @@ Given(
 
 Given(
   "the visitor has read every message in the family chat",
-  async ({ page, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }) => {
+    await ensureRoomOpen(page);
     await ensureAtLeast(page, 3);
     await readDownToNewest(page);
     await leaveRoom(page);
@@ -99,8 +99,8 @@ Given(
 
 Given(
   "the visitor has never opened the family chat on this device",
-  async ({ page, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }) => {
+    await ensureRoomOpen(page);
     await ensureAtLeast(page, 3);
     await forgetReadPosition(page);
     await leaveRoom(page);
@@ -109,8 +109,8 @@ Given(
 
 Given(
   "the visitor left more unread messages behind than one page holds",
-  async ({ page, browser, $testInfo }) => {
-    await readUpToNewest(page, $testInfo);
+  async ({ page, browser }) => {
+    await readUpToNewest(page);
     await postAsAnotherMember(
       browser,
       requireIdentity(),

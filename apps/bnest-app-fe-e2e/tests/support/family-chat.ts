@@ -3,11 +3,13 @@ import {
   type Browser,
   type Locator,
   type Page,
-  type TestInfo,
 } from "@playwright/test";
 import { login } from "./authentication";
 import { promoteCompatibleCandidate } from "./routed-rollout";
-import { isolatedTestIdentity, type TestIdentity } from "./test-identity";
+import {
+  instanceIdentities,
+  type InstanceIdentities,
+} from "./instance-identities";
 
 // Support for family_chat.feature's browser-only scenarios (everything the
 // frontend Vitest+Gherkin harness cannot prove without a real browser layout
@@ -33,9 +35,8 @@ export function composerInput(page: Page): Locator {
 
 export async function openFamilyChatRoom(
   page: Page,
-  testInfo: TestInfo,
-): Promise<TestIdentity> {
-  const identity = isolatedTestIdentity(testInfo);
+): Promise<InstanceIdentities> {
+  const identity = instanceIdentities();
   await page.context().clearCookies();
   await login(page, identity.admin);
   await page.goto(ROOM_ROUTE);
@@ -54,7 +55,7 @@ export async function openFamilyChatRoom(
 
 export async function sendAsAnotherMember(
   browser: Browser,
-  identity: TestIdentity,
+  identity: InstanceIdentities,
   body: string,
 ): Promise<void> {
   const context = await browser.newContext();
@@ -118,7 +119,7 @@ async function expectPriorSlotWarmAndUnrouted(
 export async function promoteWithConcurrentTraffic(
   page: Page,
   browser: Browser,
-  identity: TestIdentity,
+  identity: InstanceIdentities,
   settled?: () => Promise<void>,
 ): Promise<{ catchUpProbeBody: string; draftBody: string }> {
   const runTag = crypto.randomUUID().slice(0, 8);

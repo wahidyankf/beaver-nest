@@ -3,9 +3,9 @@ import { composerInput } from "../support/family-chat";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
 import {
-  isolatedTestIdentity,
-  type TestIdentity,
-} from "../support/test-identity";
+  instanceIdentities,
+  type InstanceIdentities,
+} from "../support/instance-identities";
 import {
   promoteCandidateWithFlag,
   restorePrimaryRoute,
@@ -26,7 +26,7 @@ import {
 const { Given, Then, When } = createBdd();
 
 const DRAFT_MESSAGE = "Queued before the experience release promotion";
-let identity: TestIdentity;
+let identity: InstanceIdentities;
 let memberAPage: Page;
 let memberBContext: BrowserContext;
 let memberBPage: Page;
@@ -34,14 +34,11 @@ let interceptSend = false;
 
 Given(
   "Caddy has promoted the flag-enabled experience candidate",
-  async ({ page, $testInfo }) => {
+  async ({ page }) => {
     interceptSend = false;
     memberAPage = page;
-    // Identity seeding writes into the authoritative (not-yet-activated)
-    // storage; it must complete before `promoteCandidateWithFlag`'s
-    // `ensureLiveSqlite()` activates the routed-rollout storage authority,
-    // mirroring every other routed-rollout scenario's ordering.
-    identity = isolatedTestIdentity($testInfo);
+    // The member accounts were seeded into this scenario's instance by the Before hook.
+    identity = instanceIdentities();
     const rollout = await promoteCandidateWithFlag(page, true);
     expect(rollout.revision).not.toBe(rollout.previousRevision);
 

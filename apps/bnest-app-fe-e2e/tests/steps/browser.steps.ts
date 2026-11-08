@@ -3,15 +3,11 @@ import { createBdd } from "playwright-bdd";
 import { saveChatOnExitedCodexThread } from "../support/codex-chat-transcript";
 import {
   promoteCompatibleCandidate,
-  restorePrimaryRoute,
 } from "../support/routed-rollout";
-import { isolatedTestIdentity } from "../support/test-identity";
+import { instanceIdentities } from "../support/instance-identities";
 
-const { After, Then, When } = createBdd();
-
-After(async ({ page }) => {
-  await restorePrimaryRoute(page);
-});
+// The primary route and the browser contexts are restored in lifecycle.steps.ts's After hook.
+const { Then, When } = createBdd();
 
 When("a visitor opens {string}", async ({ page }, route: string) => {
   await page.goto(route);
@@ -232,8 +228,8 @@ Then(
 // opens over it, and the runner's exit is shown before the visitor sends.
 When(
   "Codex rejects the visitor message {string}",
-  async ({ page, $testInfo }, message: string) => {
-    saveChatOnExitedCodexThread(isolatedTestIdentity($testInfo).admin.username);
+  async ({ page }, message: string) => {
+    await saveChatOnExitedCodexThread(instanceIdentities().admin.username);
     await page.reload();
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
     await expect(page.getByRole("alert")).toHaveText(

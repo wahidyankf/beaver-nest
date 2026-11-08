@@ -36,8 +36,8 @@ let expiredBodies: string[] = [];
 
 Given(
   "the visitor has a queued message created more than seven days ago",
-  async ({ page, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }) => {
+    await ensureRoomOpen(page);
     // The device's own clock is set eight days back while the messages are
     // queued, then forward to today -- the member closed the app and came
     // back a week and a day later.

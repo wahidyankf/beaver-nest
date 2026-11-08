@@ -134,12 +134,12 @@ Then("each owner validates and saves only its allowlisted fields", ({ page }) =>
 );
 
 for (const [text, kind] of integrityStates)
-  Given(text, ({ page, $testInfo }) =>
-    prepareIntegrity(page, integrity, kind, $testInfo),
+  Given(text, ({ page }) =>
+    prepareIntegrity(page, integrity, kind),
   );
 Given(
   "an administrator who opened Schedules & backups while the label stated that all retained backups are present",
-  ({ page, $testInfo }) => openedWhileAllPresent(page, integrity, $testInfo),
+  ({ page }) => openedWhileAllPresent(page, integrity),
 );
 Given(
   "an expected artifact is then removed from the isolated destination",

@@ -18,6 +18,7 @@ import {
 } from "../support/family-chat-reply";
 import {
   ensureRoomOpen,
+  focusControlBeforeHistory,
   seedOtherMemberMessage,
 } from "../support/family-chat-reply-room";
 
@@ -64,8 +65,8 @@ async function pressUntil(
 
 Given(
   "a visitor opens {string} using only a keyboard",
-  async ({ page, $testInfo }, _route: string) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }, _route: string) => {
+    await ensureRoomOpen(page);
     await ensureAtLeast(page, 3);
     scenario.targetBody = uniqueBody("Keyboard target");
     scenario.targetId = await postMessage(page, scenario.targetBody);
@@ -134,8 +135,8 @@ Then(
 
 Given(
   "the history holds {int} messages",
-  async ({ page, $testInfo }, count: number) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }, count: number) => {
+    await ensureRoomOpen(page);
     await ensureAtLeast(page, count);
     await expect
       .poll(() => page.locator(MESSAGE).count(), { timeout: 20_000 })
@@ -146,7 +147,7 @@ Given(
 When(
   "the visitor presses Tab from the control before the history",
   async ({ page }) => {
-    await page.locator('[data-role="family-chat-load-older"]').focus();
+    await focusControlBeforeHistory(page);
     await page.keyboard.press("Tab");
   },
 );
@@ -180,8 +181,8 @@ Then("the arrow keys move between messages", async ({ page }) => {
 
 Given(
   "a reply quoting a message from {string} is rendered",
-  async ({ page, browser, $testInfo }, _sender: string) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page, browser }, _sender: string) => {
+    await ensureRoomOpen(page);
     scenario.targetBody = uniqueBody("Named original");
     scenario.targetId = await seedOtherMemberMessage(
       page,

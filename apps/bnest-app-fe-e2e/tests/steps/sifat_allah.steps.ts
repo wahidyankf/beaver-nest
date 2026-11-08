@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { saveEveryPairRemembered } from "../support/sifat-allah-progress";
-import { isolatedTestIdentity } from "../support/test-identity";
+import { instanceIdentities } from "../support/instance-identities";
 
 const { Given, Then, When } = createBdd();
 
@@ -30,8 +30,8 @@ When("the visitor starts learning", async ({ page }) => {
 // opened again over it; the Given fails unless the page shows that progress.
 Given(
   "the visitor has remembered every Sifat Allah pair",
-  async ({ page, $testInfo }) => {
-    saveEveryPairRemembered(isolatedTestIdentity($testInfo).child.username);
+  async ({ page }) => {
+    saveEveryPairRemembered(instanceIdentities().child.username);
     await page.reload();
     await waitForLiveView(page);
     await expect(

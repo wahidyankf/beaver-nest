@@ -2,7 +2,8 @@ import { type Browser, type Page } from "@playwright/test";
 import { login } from "./authentication";
 import { ROOM_ROUTE } from "./family-chat";
 import { waitForRoomReady } from "./family-chat-resume";
-import type { TestIdentity } from "./test-identity";
+import { waitForRoomSubscribed } from "./family-chat-socket";
+import type { InstanceIdentities } from "./instance-identities";
 
 // Seeding for family_chat.feature's resume scenarios: the shared fixture
 // room has to hold enough history, and enough of it has to arrive while the
@@ -72,6 +73,7 @@ export async function ensureAtLeast(
   await postMessages(page, minimum - rendered, "Earlier message");
   await page.reload();
   await waitForRoomReady(page);
+  await waitForRoomSubscribed(page);
 }
 
 /** Genuinely away: nothing arriving can move a closed room's read position. */
@@ -81,7 +83,7 @@ export async function leaveRoom(page: Page): Promise<void> {
 
 export async function postAsAnotherMember(
   browser: Browser,
-  identity: TestIdentity,
+  identity: InstanceIdentities,
   count: number,
   bodyPrefix: string,
 ): Promise<void> {

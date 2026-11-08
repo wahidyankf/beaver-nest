@@ -37,8 +37,8 @@ const { Given, Then, When } = createBdd();
 
 Given(
   "another member has replied to one of the visitor's messages",
-  async ({ page, browser, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page, browser }) => {
+    await ensureRoomOpen(page);
     scenario.targetBody = uniqueBody("Quoted original");
     // The visitor posts the original, so the name the quote must carry is
     // this scenario's own identity -- known here, rather than read back off
@@ -164,8 +164,8 @@ Then("the quote shows the original message text", async ({ page }) => {
 
 Given(
   "a reply and the message it quotes are both loaded",
-  async ({ page, browser, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page, browser }) => {
+    await ensureRoomOpen(page);
     scenario.targetBody = uniqueBody("Jump original");
     scenario.targetId = await postMessage(page, scenario.targetBody);
     scenario.replyBody = uniqueBody("Jump reply");
@@ -183,8 +183,8 @@ Given(
 
 Given(
   "a reply quotes a message two older pages above the loaded window",
-  async ({ page, browser, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page, browser }) => {
+    await ensureRoomOpen(page);
     scenario.targetBody = uniqueBody("Distant original");
     scenario.targetId = await postMessage(page, scenario.targetBody);
     await asAnotherMember(browser, requireIdentity(), (other) =>
@@ -245,8 +245,8 @@ Given("the visitor's system requests reduced motion", async ({ page }) => {
 
 When(
   "the visitor jumps to a quoted message",
-  async ({ page, browser, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page, browser }) => {
+    await ensureRoomOpen(page);
     scenario.targetBody = uniqueBody("Reduced motion original");
     scenario.targetId = await postMessage(page, scenario.targetBody);
     scenario.replyBody = uniqueBody("Reduced motion reply");
