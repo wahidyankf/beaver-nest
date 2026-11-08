@@ -21,7 +21,7 @@ defmodule BnestAppWeb.TestingControl.LogFilterTest do
       "p256dh" => "BPublicKey",
       "auth" => "AuthSecret",
       "password" => "Synthetic!Pass1",
-      "endpoint" => "https://push.allowed.example.com/one",
+      "endpoint" => "push-endpoint-one",
       "seedKey" => "admins"
     }
 
@@ -30,7 +30,7 @@ defmodule BnestAppWeb.TestingControl.LogFilterTest do
     assert filtered["p256dh"] == "[FILTERED]"
     assert filtered["auth"] == "[FILTERED]"
     assert filtered["password"] == "[FILTERED]"
-    assert filtered["endpoint"] == "https://push.allowed.example.com/one"
+    assert filtered["endpoint"] == "push-endpoint-one"
     assert filtered["seedKey"] == "admins"
   end
 end

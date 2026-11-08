@@ -34,7 +34,7 @@ defmodule BnestAppWeb.TestingControl.GuardTest do
     assert Guard.decide(request(%{instance_id: nil})) == :ok
   end
 
-  test "refuses every peer that is not 127.0.0.1 or ::1" do
+  test "refuses every peer that is not the IPv4 or the IPv6 loopback address" do
     peers = [
       {10, 0, 0, 5},
       {192, 168, 1, 10},
