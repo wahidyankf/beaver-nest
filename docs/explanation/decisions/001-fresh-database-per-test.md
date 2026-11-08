@@ -417,13 +417,17 @@ What changes in the production build:
   `dev_routes_enabled?/0`), and `lib/bnest_app_web/testing_routes.ex` adds one pure function. No route, plug,
   controller, module or config key for testing exists in the production beams. `config/prod.exs` and
   `config/runtime.exs` are not touched. `Storage`, `SqliteCoordinator`, `Records` and `FileConfigStore` are not touched.
+  One more `lib/` file changes: `lib/bnest_app/sqlite_repo.ex`. `SqliteRepo.main_database_path/0` matched the whole
+  `PRAGMA database_list` answer against one `main` row. A pooled connection that has used a temp schema also lists a
+  `temp` row, so the match crashed. The function now selects the `main` row by name and returns the same path, so the
+  production result does not change.
 - **Tooling in the repository, not in the release:** the Caddyfile generator gains the deny block (the only
   runtime-visible change, and it denies a path that already returns 404), and the artifact audit gate.
 - **Migrations:** none. No file under `priv/sqlite_repo/migrations` changes, so the `release:migrate` step is a no-op
   for
   this revision and both slots can run against the same database.
-- **Check that nothing else changed:** the artifact audit plus a diff review that `lib/` changes only `router.ex` and
-  `testing_routes.ex`.
+- **Check that nothing else changed:** the artifact audit plus a diff review that `lib/` changes only `router.ex`,
+  `testing_routes.ex` and `sqlite_repo.ex`.
 
 Deployment. [AGENTS.md](../../../AGENTS.md) requires integration by pull request with leak review, so "commit and push
 to main" means merging the reviewed PR (no direct push), then deleting the worktree and branch. Then, from the primary
