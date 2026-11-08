@@ -125,6 +125,9 @@ if System.get_env("BNEST_TEST_LAYER") == "integration" do
     storage_config_path: Path.join(sqlite_root, "storage-config/storage.json"),
     backup_config_path: Path.join(sqlite_root, "storage-config/backup.json"),
     backup_repository_root: Path.join(sqlite_root, "backup-repository"),
+    # The flat run base the ownership check reads. A flat-primary spawn re-points `:runtime_root` at its
+    # instance root, so the check cannot read that key (see BnestAppWeb.TestingControl.Guard).
+    test_flat_run_root: runtime_root,
     test_runtime_owned: true
 
   config :bnest_app, storage_profile: {:test, run_id}
@@ -147,6 +150,7 @@ else
 
   config :bnest_app,
     runtime_root: nil,
+    test_flat_run_root: nil,
     test_sqlite_root: nil,
     storage_config_path:
       if(scratch_default_pointer?,
