@@ -1,3 +1,6 @@
+# These scenarios use Backup's default destination, so each instance's backup repository is a git repository (ADR 001,
+# section 3).
+@backup-repository
 Feature: Bnest scheduled backups
 
   Background:

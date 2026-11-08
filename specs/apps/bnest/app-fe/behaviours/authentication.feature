@@ -13,6 +13,7 @@ Feature: Bnest authentication
     And the login form replaces protected home actions
     And Bnest does not read or write user data
 
+  @flat-primary @open-setup
   Scenario: Initial setup warns about unavailable recovery and closes registration
     Given Bnest has no bootstrap journal
     When the maintainer submits all initial accounts including an administrator
