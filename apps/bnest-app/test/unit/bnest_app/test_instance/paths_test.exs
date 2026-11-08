@@ -87,6 +87,19 @@ defmodule BnestApp.TestInstance.PathsTest do
     assert Paths.derive(@flat, "/", @run, @instance) == {:error, :invalid_root}
   end
 
+  test "the storage pointer names the instance database and its generation" do
+    assert {:ok, paths} = Paths.derive(@flat, @sqlite, @run, @instance)
+
+    assert Paths.storage_pointer(paths) == %{
+             "schemaVersion" => 1,
+             "databaseDirectory" => "#{@sqlite}/instances/#{@instance}/db",
+             "databaseFilename" => "bnest.sqlite3",
+             "phase" => "flat_primary",
+             "migrationId" => "flat-files-v1-to-sqlite-v1",
+             "databaseGeneration" => "test-#{@instance}"
+           }
+  end
+
   test "an invalid run id is reported before any root or instance id" do
     assert Paths.derive("relative", "relative", "../bad", "short") == {:error, :invalid_run_id}
   end

@@ -18,7 +18,9 @@ defmodule BnestApp.Backup.FileConfigStoreTest do
     on_exit(fn -> if previous, do: System.put_env("BNEST_BACKUP_CONFIG", previous) end)
 
     assert FileConfigStore.config_path() == test_path
-    assert test_path =~ "/bnest/data/test/backup-config/"
+    # Under the SQLite run base beside the instances, where each spawn removes it.
+    assert test_path =~ "/bnest/data/test/runs/"
+    assert test_path =~ "/storage-config/backup.json"
     refute FileConfigStore.config_path() =~ "/.config/bnest/"
     assert FileConfigStore.config_path(FileConfigStore.new()) == test_path
   end
