@@ -40,7 +40,11 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
     end
   end
 
+  # ExBdd runs no after hook when a before hook or a Background step fails, so the release is also registered with
+  # ExUnit, before anything can spawn. It runs after the driver's own callbacks, and a drop that already happened
+  # makes it a no-op.
   before_scenario context, name: "spawn a fresh test instance for the scenario" do
+    ExUnit.Callbacks.on_exit(&release_instance!/0)
     {:ok, prepare(context)}
   end
 
@@ -55,6 +59,19 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
   after_scenario context do
     IntegrationAdapter.release(context)
     context
+  end
+
+  @doc """
+  Drops the instance the scenario left current, then proves the shared run base holds no account, user or database.
+  A scenario that wrote there fails by name, at the scenario that did it, whatever the order of the run.
+  """
+  def release_instance! do
+    FreshDatabaseCase.drop_current()
+
+    case TestInstance.base_audit() do
+      :ok -> :ok
+      {:error, paths} -> raise "the scenario left data in the shared run base: #{inspect(paths)}"
+    end
   end
 
   defp prepare(context) do
