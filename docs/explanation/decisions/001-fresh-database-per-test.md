@@ -142,8 +142,11 @@ Which API is used:
   transcript), and bulk history. Seeding code calls the production facades in-process: `Identity.bootstrap/1` for the
   first admin set, then the identity store `put_account`/`put_username`; the Family Chat send entry point the GraphQL
   resolver uses; `PushNotifications` subscribe; `SifatAllah.save_progress`; the CodexChat transcript store. It never
-  writes SQL, files or fixtures directly. On a `sqlite_primary` instance the first admin set also goes through the
-  identity store, because bootstrap is refused there (see the accounts rule below).
+  writes SQL, files or fixtures directly. A unit source scan (`test/unit/bnest_app/test_instance/seed_source_scan_test.exs`)
+  fails on any SQL, DDL or file-write call in `test/support/test_instance_seed.ex` and `test/support/testing_control/`.
+  The scan reads text, so it shows those calls are absent from the source, not what a seed does at run time. On a
+  `sqlite_primary` instance the first admin set also goes through the identity store, because bootstrap is refused there
+  (see the accounts rule below).
 - No endpoint evaluates code, accepts SQL, or accepts a path. Reads that tests do today with `mix run -e`
   (`liveJson`, claim counts) stay on `mix run -e` in this change, now instance-aware; named, allow-listed read
   operations are a follow-up.
@@ -257,7 +260,10 @@ Application.compile_env(:bnest_app, :testing_control, false))` is true at compil
    one shorter than 32 bytes, closes every request. The runner generates 32 random bytes (hex) per run and passes them
    only through the environment of the Phoenix `webServer`, the Playwright process and secondary BEAMs; it never logs or
    writes them. Support code calls the endpoints with Node `fetch`, not Playwright's request context, so traces do not
-   capture the header.
+   capture the header. What is checked: after the integration suite, `TestInstance.Audit.secret_leaks/2` fails the run if
+   any regular file under its two run roots holds a secret generated in that run. Console and Logger output are not
+   checked; the request-parameter filter test (`log_filter_test.exs`) covers the parameters Phoenix prints. The E2E
+   runner's own secret check is not part of stage 1.
 5. Every path an operation touches is derived from `(runId, instanceId)` by `TestInstance.Paths`, never from input.
    `instanceId` matches `^[a-z0-9]{16}$`. Spawn and delete re-validate both markers before acting.
 
