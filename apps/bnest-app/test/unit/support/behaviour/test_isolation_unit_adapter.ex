@@ -289,18 +289,15 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
   defp headers(:non_loopback),
     do: [{"accept", "application/json"}, {Secret.header(), Fixtures.secret()}]
 
-  # A refusal raises the exception a missing route raises, through `Guard.admit/2`. Dialyzer sees that
-  # a refused call never returns and reports the call, which is the behaviour under test, so the
-  # warning is suppressed for this function only.
-  @dialyzer {:nowarn_function, answer: 1}
-  defp answer({:error, _reason} = decision) do
+  # `Guard.admit/2` answers an admitted decision with the connection and a refusal by raising the
+  # exception a missing route raises. The rescue at this call site turns that raise into the answer the
+  # stock 404 gives, so the refusal is observed, not assumed.
+  defp answer(decision) do
     Guard.admit(Plug.Test.conn(:post, @route_prefix <> "/instances"), decision)
     :admitted
   rescue
     error in Phoenix.Router.NoRouteError -> {:raised, error.__struct__}
   end
-
-  defp answer(:ok), do: :admitted
 
   defp put_port(context, port), do: put_isolation(context, :port, port)
 
