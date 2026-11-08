@@ -12,11 +12,18 @@ defmodule BnestApp.SchemaSourceScan do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @app_lib_root Path.expand("../../lib", __DIR__)
+  @app_support_root __DIR__
 
   @doc "Wildcards `path_segments` joined onto this app's own `lib/` root."
   @spec wildcard([String.t()]) :: [String.t()]
   def wildcard(path_segments) when is_list(path_segments) do
     [@app_lib_root | path_segments] |> Path.join() |> Path.wildcard()
+  end
+
+  @doc "Wildcards `path_segments` joined onto this app's own `test/support/` root (the directory this module lives in)."
+  @spec support_wildcard([String.t()]) :: [String.t()]
+  def support_wildcard(path_segments) when is_list(path_segments) do
+    [@app_support_root | path_segments] |> Path.join() |> Path.wildcard()
   end
 
   @doc "Reads `path_segments` joined onto this app's own `lib/` root as text."
