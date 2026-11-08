@@ -14,7 +14,7 @@ export function caddyfile(slot, healthChecked) {
 
 :4100 {
 \tbind 127.0.0.1
-\t@bnest_testing path /__bnest_testing/*
+\t@bnest_testing path /__bnest_testing /__bnest_testing/*
 \trespond @bnest_testing 404
 \treverse_proxy 127.0.0.1:${slots[slot]} {
 \t\theader_up X-Forwarded-Proto https
