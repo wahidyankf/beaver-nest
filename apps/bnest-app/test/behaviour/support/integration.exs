@@ -12,26 +12,16 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
   # before hook spawns it with the standard accounts and logs the scenario's identity in; the after hook drops it. The
   # scenario module runs under `BnestAppWeb.ScenarioCase`, which has no setup, so this hook is the only owner.
   #
-  # Three kinds of scenario differ:
+  # Two kinds of scenario differ:
   #
-  #   * `test_isolation.feature` spawns, ends and checks its instances through its adapter
-  #     (`IntegrationAdapter.spawn_instance/2`). The generic hook spawns nothing for it, since a second
-  #     spawn is refused.
+  #   * `test_isolation.feature` and `test_instances.feature` spawn, end and check their instances through their
+  #     adapter (`IntegrationAdapter.spawn_instance/2`, `establish_admin/1`). The generic hook spawns nothing, since a
+  #     second spawn is refused.
   #   * a scenario tagged `@open-setup` needs an empty flat-primary instance with no seeded account, so `/setup` stays
   #     open. It spawns with no accounts and logs nobody in.
-  #   * the `centralized_data.feature` scenarios import browser sources, which Bnest keeps as flat files in its
-  #     records store, so they run on a flat-primary instance.
-  #   * four `sqlite_storage.feature` scenarios hide or remove the instance's storage pointer and then log an
-  #     administrator in. With no pointer, accounts are written to the flat records store, so that store has to be the
-  #     instance's own: a flat-primary instance. On a SQLite-primary instance they land in the shared run base.
-  @self_controlled_features ["test_isolation.feature"]
-  @flat_primary_features ["centralized_data.feature"]
-  @flat_primary_scenarios [
-    "Administrator optionally selects a valid custom database folder",
-    "Private custom storage survives a sticky shared ancestor",
-    "Unsafe database folder is rejected without mutation",
-    "Invalid or changed source blocks cutover without data loss"
-  ]
+  #
+  # A scenario that needs a flat-primary instance carries the `@flat-primary` tag, on the scenario or on its feature.
+  @self_controlled_features ["test_isolation.feature", "test_instances.feature"]
 
   before_scenario _context, name: "start with no test instance current" do
     case TestInstance.state() do
@@ -117,14 +107,12 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
   end
 
   defp phase(context) do
-    if context[:"flat-primary"] == true or flat_feature?(context) or
-         context.scenario_name in @flat_primary_scenarios,
-       do: :flat_primary,
-       else: :sqlite_primary
+    if context[:"flat-primary"] == true,
+      do: :flat_primary,
+      else: :sqlite_primary
   end
 
   defp self_controlled?(context), do: feature_in?(context, @self_controlled_features)
-  defp flat_feature?(context), do: feature_in?(context, @flat_primary_features)
   defp open_setup?(context), do: context[:"open-setup"] == true
 
   defp feature_in?(context, features),

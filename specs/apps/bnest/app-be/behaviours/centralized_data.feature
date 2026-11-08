@@ -1,3 +1,6 @@
+# Bnest keeps browser import sources as flat files in its records store, which a SQLite-primary instance leaves in the
+# data-free run base, so every scenario runs on a flat-primary test instance (ADR 001, sections 1 and 2).
+@flat-primary
 Feature: Centralized Bnest data
 
   Background:
@@ -21,6 +24,7 @@ Feature: Centralized Bnest data
     Then Bnest reports a safe rejected import
     And the browser source and accepted server record remain unchanged
 
+  # The interrupted-import seed is a flat-primary record kind (ADR 001, section 2).
   Scenario: Retrying an interrupted import does not duplicate accepted data
     Given a recognized import was interrupted after source preservation
     When the user retries that import

@@ -1,14 +1,12 @@
-import {
-  expect,
-  type Locator,
-  type Page,
-  type TestInfo,
-} from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { login } from "./authentication";
 import { focusDescriptor, traceFromNow } from "./backup-integrity-page";
-import { ensureLiveSqlite, runLiveMix } from "./routed-rollout";
+import { runLiveMix } from "./routed-rollout";
 import { connected } from "./scheduled-backups";
-import { isolatedTestIdentity, type TestIdentity } from "./test-identity";
+import {
+  instanceIdentities,
+  type InstanceIdentities,
+} from "./instance-identities";
 
 // Journeys for the `Backup files` label of the Schedules & backups page. The ledger and the
 // destination are seeded in the routed run's own isolated database and backup directory by
@@ -37,7 +35,7 @@ export type ServerWitness = {
 export type IntegrityWorld = {
   facts?: IntegrityFacts;
   focusOnSave?: string;
-  identity?: TestIdentity;
+  identity?: InstanceIdentities;
   labelHtml?: string;
   report?: string[];
   viewport?: { height: number; width: number };
@@ -69,14 +67,12 @@ export async function prepareIntegrity(
   page: Page,
   world: IntegrityWorld,
   kind: string,
-  testInfo: TestInfo,
 ): Promise<void> {
   for (const key of Object.keys(world))
     delete world[key as keyof IntegrityWorld];
-  world.identity = isolatedTestIdentity(testInfo);
+  world.identity = instanceIdentities();
   await page.context().clearCookies();
   await login(page, world.identity.admin);
-  ensureLiveSqlite();
   world.facts = liveJson<IntegrityFacts>(
     `BnestApp.Test.BackupIntegrity.seed_for_browser!("${kind}")`,
   );
@@ -85,9 +81,8 @@ export async function prepareIntegrity(
 export async function openedWhileAllPresent(
   page: Page,
   world: IntegrityWorld,
-  testInfo: TestInfo,
 ): Promise<void> {
-  await prepareIntegrity(page, world, "all_present", testInfo);
+  await prepareIntegrity(page, world, "all_present");
   await openSchedules(page, world);
   await expectSummary(page, required(world.facts));
 }

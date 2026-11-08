@@ -11,6 +11,8 @@ import {
 import os from "node:os";
 import path from "node:path";
 import type { TestInfo } from "@playwright/test";
+import { sqliteRunRoot } from "./live-sqlite";
+import { withoutControlSecret } from "./secondary-environment.mts";
 
 // Every scenario that drives `mix bnest.storage.migrate` headlessly gets its
 // own scratch flat root, pointer file, and HOME directory so it never shares
@@ -102,8 +104,9 @@ export function runStorageCommand(
   { useDefaultPointer = false }: { useDefaultPointer?: boolean } = {},
 ): MigrateResult {
   const realHome = os.homedir();
+  // A storage CLI process never calls the control routes, so it starts without the test-control secret.
   const env: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...withoutControlSecret(process.env),
     MIX_ENV: "test",
     HOME: scenario.homeDirectory,
     MIX_HOME: process.env["MIX_HOME"] ?? resolveMixHome(),
@@ -162,7 +165,11 @@ function resolveMixHome(): string {
   const result = spawnSync(
     "elixir",
     ["-e", "Mix.start(); IO.write(Mix.Utils.mix_home())"],
-    { cwd: os.tmpdir(), env: process.env, encoding: "utf8" },
+    {
+      cwd: os.tmpdir(),
+      env: withoutControlSecret(process.env),
+      encoding: "utf8",
+    },
   );
   const resolved = result.stdout?.trim() ?? "";
   if (result.error) throw result.error;
@@ -266,12 +273,11 @@ export function flatRootDigest(root: string): string {
   return hash.digest("hex");
 }
 
-// --- Live, shared webServer pointer (admin-UI and health scenarios only) ---
-// playwright.config.mts pins BNEST_STORAGE_CONFIG for the whole E2E run to
-// this path, scoped inside the marked E2E runtime root. Only scenarios that
-// interact with the running server through the browser or /health/ready use
-// this shared, single-lifetime pointer; every headless CLI scenario above
-// uses its own private scratch pointer instead.
+// --- Live webServer pointer (admin-UI and health scenarios only) ---
+// The running server reads one storage pointer per run, `storage-config/storage.json` under the SQLite run root
+// (playwright.config.mts sets BNEST_STORAGE_CONFIG to it). Each test instance spawn rewrites that same file to
+// point at the instance, so reading it here shows the database the current scenario is served from. Every headless
+// CLI scenario above uses its own private scratch pointer instead.
 export function liveRuntimeRoot(): string {
   const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
   if (!root) throw new Error("Missing marked E2E runtime root");
@@ -279,7 +285,7 @@ export function liveRuntimeRoot(): string {
 }
 
 export function liveStoragePointerPath(): string {
-  return path.join(liveRuntimeRoot(), "storage-config", "storage.json");
+  return path.join(sqliteRunRoot(), "storage-config", "storage.json");
 }
 
 export function readLivePointer(): Record<string, unknown> | undefined {

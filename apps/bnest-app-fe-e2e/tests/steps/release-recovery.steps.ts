@@ -7,7 +7,7 @@ import {
 } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
-import { isolatedLoadIdentities } from "../support/test-identity";
+import { seedLoadIdentities } from "../support/instance-identities";
 import { promoteCompatibleCandidate } from "../support/routed-rollout";
 
 type RecoveryClient = {
@@ -136,7 +136,7 @@ async function prepareRecoveryClients(
     );
   }
 
-  const identities = isolatedLoadIdentities(testInfo, clientCount);
+  const identities = await seedLoadIdentities(clientCount);
   const clients: RecoveryClient[] = [];
   try {
     for (const [index, identity] of identities.entries()) {

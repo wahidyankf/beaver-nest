@@ -12,6 +12,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Backup.Adapters.ScheduledBackupTask
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.Behaviour.IntegrationFamilyChatDriver
+  alias BnestApp.Behaviour.TestIsolation.IntegrationAdapter
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.Identity.Adapters.{Argon2CredentialHasher, RecordIdentityStore}
@@ -895,6 +896,16 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def establish_identity(context, role) do
+    if role == :admin and String.ends_with?(context.feature_file, "test_instances.feature") do
+      # This feature's admin lives in a test instance that the isolation adapter spawns and logs in to.
+      IntegrationAdapter.establish_admin(context)
+    else
+      scenario_identity(context, role)
+    end
+  end
+
+  # A scenario's identity in the shared run database, logged in as a browser's login would.
+  defp scenario_identity(context, role) do
     scenario_key = "#{context.feature_file}:#{context.scenario_name}:#{role}"
 
     {conn, identity} =
@@ -2534,15 +2545,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: match?({:ok, %{import_id: id}} when id == context.first_import_id, context.retry_result)
 
   # The retry completes the interrupted import once: no second envelope, and the chat record
-  # the interruption left absent now exists at its first revision.
-  def behaviour_outcome?(context, :accepted_data_preserved, _args),
-    do:
-      import_envelope_count(context.central_store, context.user_id) ==
-        context.envelopes_before_retry and
-        match?(
-          {:ok, %{"recordType" => "chat", "revision" => 0}},
-          FileRecordBackend.read(context.central_store, :chat, context.user_id)
-        )
+  # the interruption left absent now exists at its first revision, written from that import.
+  def behaviour_outcome?(context, :accepted_data_preserved, _args) do
+    chat = FileRecordBackend.read(context.central_store, :chat, context.user_id)
+
+    import_envelope_count(context.central_store, context.user_id) ==
+      context.envelopes_before_retry and
+      match?({:ok, %{"recordType" => "chat", "revision" => 0}}, chat) and
+      match?({:ok, %{"sourceImportId" => id}} when id == context.first_import_id, chat)
+  end
 
   def behaviour_outcome?(context, :newer_record_preserved, _args),
     do:
@@ -3424,7 +3435,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     repository = Path.join(context.backup_fixture_root, "repository")
     File.mkdir_p!(repository)
     File.write!(Path.join(repository, ".gitignore"), "/data/*\n")
-    {_output, 0} = System.cmd("git", ["init", "--quiet", repository])
+
+    {_output, 0} =
+      System.cmd("git", ["init", "--quiet", repository],
+        env: TestBackupDestination.git_child_env()
+      )
+
     :ok = TestBackupDestination.use_repository_root!(repository)
 
     Map.put(context, :default_backup_directory, Path.join(repository, "data/backup"))

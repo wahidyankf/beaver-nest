@@ -1,17 +1,20 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { login } from "./authentication";
-import { ensureLiveSqlite, runLiveMix } from "./routed-rollout";
-import { runtimeRoot } from "./routed-rollout-env";
-import { isolatedTestIdentity, type TestIdentity } from "./test-identity";
+import { runLiveMix } from "./routed-rollout";
+import { runId } from "./routed-rollout-env";
+import { runConfigPaths } from "./test-instance-lifecycle.mts";
+import {
+  instanceIdentities,
+  type InstanceIdentities,
+} from "./instance-identities";
 
 const backupScheduleKey = "prod-sqlite-backup-daily";
 
 export type ScheduledBackupWorld = {
   contextualScheduleKey?: string;
-  identity?: TestIdentity;
+  identity?: InstanceIdentities;
   responseBody?: string;
   responseStatus?: number;
 };
@@ -22,7 +25,7 @@ export async function prepareScheduledBackup(
   state: string,
   testInfo: TestInfo,
 ): Promise<void> {
-  world.identity = isolatedTestIdentity(testInfo);
+  world.identity = instanceIdentities();
 
   if (state === "denied_visitor") return;
 
@@ -33,7 +36,7 @@ export async function prepareScheduledBackup(
     return prepareContextualSchedules(world, testInfo);
 
   // The Backup owner's saves are exercised against the persisted backup schedule.
-  if (state === "typed_panels") return ensureLiveSqlite();
+  if (state === "typed_panels") return;
   throw new Error(`unknown scheduled backup preparation: ${state}`);
 }
 
@@ -41,7 +44,6 @@ function prepareContextualSchedules(
   world: ScheduledBackupWorld,
   testInfo: TestInfo,
 ): void {
-  ensureLiveSqlite();
   const key = `e2e-family-${createHash("sha256")
     .update(testInfo.title)
     .digest("hex")
@@ -222,7 +224,10 @@ async function saveScheduleWithForgedFields(page: Page): Promise<void> {
 // A relative folder is refused with the page's correction, and the backup configuration
 // file keeps its bytes (or stays absent).
 async function refuseRelativeBackupFolder(page: Page): Promise<void> {
-  const configPath = path.join(runtimeRoot, "storage-config", "backup.json");
+  const configPath = runConfigPaths({
+    runId,
+    home: process.env["HOME"] ?? "",
+  }).backupConfig;
   const before = fileBytes(configPath);
   await page
     .getByLabel("Private destination override")

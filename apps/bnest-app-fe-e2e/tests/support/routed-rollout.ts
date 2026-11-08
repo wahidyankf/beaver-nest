@@ -10,16 +10,11 @@ import {
   publicPort,
   requiredRevision,
   routedEnvironment,
-  runId,
-  runtimeRoot,
 } from "./routed-rollout-env";
-import {
-  captureStorageAuthority,
-  restoreStorageAuthority,
-} from "./storage-authority.mts";
 
+// The storage of a scenario is its test instance (`active-instance.ts`), spawned before the scenario and
+// deleted after it. Nothing here captures, restores or migrates storage.
 let routedPort = primaryPort;
-let storageActivated = false;
 
 /**
  * Same rollout mechanics as `promoteCompatibleCandidate`, but pins the
@@ -38,7 +33,6 @@ export async function promoteCandidateWithFlag(
   previousRevision: string;
   revision: string;
 }> {
-  ensureLiveSqlite();
   const targetPort =
     routedPort === candidatePort ? candidatePort + 1 : candidatePort;
   await ensureCandidate(targetPort, familyChatEnabled);
@@ -60,7 +54,6 @@ export async function promoteCandidateWithReplyFlag(
   page: Page,
   replyEnabled: boolean,
 ): Promise<{ previousRevision: string; revision: string }> {
-  ensureLiveSqlite();
   const targetPort =
     routedPort === candidatePort ? candidatePort + 1 : candidatePort;
   await ensureCandidate(targetPort, undefined, replyEnabled);
@@ -84,7 +77,6 @@ export async function promoteCompatibleCandidate(
   previousRevision: string;
   revision: string;
 }> {
-  ensureLiveSqlite();
   const targetPort =
     routedPort === candidatePort ? candidatePort + 1 : candidatePort;
   await ensureCandidate(targetPort);
@@ -96,17 +88,18 @@ export async function promoteCompatibleCandidate(
   return { previousPort, previousRevision, revision };
 }
 
+// Routes the browser back to the primary server. It uses the page, so it runs before the browser contexts
+// close. The candidates are stopped separately, after the contexts are gone.
 export async function restorePrimaryRoute(page: Page): Promise<void> {
   if (routedPort !== primaryPort) {
     await reloadRoute(page, primaryPort, false);
   }
-  if (storageActivated) {
-    // A candidate can still flush SQLite after SIGTERM. Do not restore the
-    // captured authority until every task-owned process has actually exited.
-    await stopAllCandidates();
-    storageActivated = false;
-  }
-  restoreStorageAuthority();
+}
+
+// A candidate can still flush SQLite after SIGTERM, so the scenario's After hook waits for every candidate
+// to exit before it deletes the instance that candidate was using.
+export async function stopRoutedCandidates(): Promise<void> {
+  await stopAllCandidates();
 }
 
 async function reloadRoute(
@@ -149,39 +142,6 @@ async function reloadRoute(
   if (verifyLiveView) {
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
   }
-}
-
-export function ensureLiveSqlite(): void {
-  if (storageActivated) return;
-  if (runtimeRoot === "" || runId === "") {
-    throw new Error("routed rollout requires the marked E2E runtime");
-  }
-  captureStorageAuthority();
-
-  const result = spawnSync(
-    "mix",
-    ["bnest.storage.migrate", "--root", runtimeRoot, "--activate"],
-    { cwd: appDirectory, env: routedEnvironment(), encoding: "utf8" },
-  );
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(`routed SQLite activation failed: ${result.stderr}`);
-  }
-
-  const schedules = spawnSync(
-    "mix",
-    [
-      "run",
-      "-e",
-      "BnestApp.Release.Migrations.PersistentSchedules.apply_and_verify!(DateTime.utc_now())",
-    ],
-    { cwd: appDirectory, env: routedEnvironment(), encoding: "utf8" },
-  );
-  if (schedules.error) throw schedules.error;
-  if (schedules.status !== 0) {
-    throw new Error(`routed schedule migration failed: ${schedules.stderr}`);
-  }
-  storageActivated = true;
 }
 
 export function runLiveMix(expression: string): {

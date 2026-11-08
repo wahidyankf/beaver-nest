@@ -32,9 +32,9 @@ function graphemeCount(text: string): number {
 
 Given(
   "a family chat message from another member is already committed in {string}",
-  async ({ browser, $testInfo }, roomSlug: string) => {
+  async ({ browser }, roomSlug: string) => {
     expect(roomSlug).toBe("ruang-keluarga");
-    const other = scenarioIdentity($testInfo).child;
+    const other = scenarioIdentity().child;
     const otherContext = await browser.newContext();
     try {
       const otherPage = await otherContext.newPage();

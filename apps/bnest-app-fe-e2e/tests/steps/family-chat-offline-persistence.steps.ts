@@ -28,7 +28,7 @@ const { Given, Then, When } = createBdd();
 
 Given("a fresh visitor opens {string}", async ({ page }, route: string) => {
   // Every E2E test worker already gets its own isolated `test-user-`
-  // identity per test (`isolatedTestIdentity`, via the Background's own "an
+  // identity per test (`instanceIdentities`, via the Background's own "an
   // approved user is logged in" binding) -- "fresh" only matters for
   // FE_UNIT's shared-process namespace (see that layer's own binding); here
   // it is the same real navigation as the plain opener.

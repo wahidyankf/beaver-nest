@@ -23,7 +23,7 @@ import {
   identityToken,
   serverPushEnabled,
 } from "../support/family-chat-session";
-import { isolatedTestIdentity } from "../support/test-identity";
+import { instanceIdentities } from "../support/instance-identities";
 
 // family_chat.feature's "Rule: Auth expiry pause and logout isolation" in a
 // real browser: one device, its one IndexedDB, and the sessions that come
@@ -79,25 +79,22 @@ Then("queue draining pauses for that namespace", async ({ page }) => {
   ).not.toHaveAttribute("data-delivery-state", "committed");
 });
 
-Then(
-  "no other user's session drains that queued message",
-  async ({ page, $testInfo }) => {
-    // Another member signs in on the same device and opens the same room.
-    await login(page, isolatedTestIdentity($testInfo).child);
-    await page.goto(ROOM_ROUTE);
-    await waitForRoomReady(page);
-    expect(await currentUserId(page)).not.toBe(visitorUserId);
-    await page.waitForTimeout(QUIET_WINDOW_MS);
-    expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
-    await expect(
-      page
-        .locator('[data-role="family-chat-message"]')
-        .filter({ hasText: delivery.body }),
-    ).toHaveCount(0);
-    const row = await storedRowFor(page, delivery.body);
-    expect(row?.namespace.startsWith(`${visitorUserId}:`)).toBe(true);
-  },
-);
+Then("no other user's session drains that queued message", async ({ page }) => {
+  // Another member signs in on the same device and opens the same room.
+  await login(page, instanceIdentities().child);
+  await page.goto(ROOM_ROUTE);
+  await waitForRoomReady(page);
+  expect(await currentUserId(page)).not.toBe(visitorUserId);
+  await page.waitForTimeout(QUIET_WINDOW_MS);
+  expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
+  await expect(
+    page
+      .locator('[data-role="family-chat-message"]')
+      .filter({ hasText: delivery.body }),
+  ).toHaveCount(0);
+  const row = await storedRowFor(page, delivery.body);
+  expect(row?.namespace.startsWith(`${visitorUserId}:`)).toBe(true);
+});
 
 // --- Logout ----------------------------------------------------------------
 

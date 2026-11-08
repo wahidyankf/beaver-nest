@@ -131,7 +131,13 @@ export function familyChatSubscriptionEvents(page: Page): Promise<unknown[]> {
   return page.evaluate(() => window.familyChatSocketState?.events ?? []);
 }
 
+// A closed page has no open socket: closing its browser context already dropped the WebSocket, and evaluate would
+// reject. The lifecycle After hook closes contexts before this hook can run, so the check keeps the close idempotent.
 export async function closeFamilyChatSubscription(page: Page): Promise<void> {
+  if (page.isClosed()) {
+    return;
+  }
+
   await page.evaluate(() => {
     window.familyChatSocketState?.socket.close();
     delete window.familyChatSocketState;

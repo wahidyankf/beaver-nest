@@ -85,7 +85,7 @@ defmodule BnestApp.TestBackupDestination do
     %{directory: root} = destination = create!("repository-" <> tag)
     ExUnit.Callbacks.on_exit(fn -> cleanup!(destination) end)
     File.write!(Path.join(root, ".gitignore"), "/data/*\n")
-    {_output, 0} = System.cmd("git", ["init", "--quiet", root])
+    {_output, 0} = System.cmd("git", ["init", "--quiet", root], env: git_child_env())
     :ok = use_repository_root!(root)
     Path.join(root, "data/backup")
   end
@@ -94,6 +94,16 @@ defmodule BnestApp.TestBackupDestination do
   def cleanup!(%{directory: directory}) do
     File.rm_rf(directory)
     :ok
+  end
+
+  # A pre-push hook exports git's repository variables, and a child git inherits them, so `git init <path>`
+  # would act on the hook's repository. A nil value unsets the name in the child.
+  @doc """
+  The environment a git child process runs with: the caller's, minus every `GIT_*` name, as `System.cmd/3`
+  takes it.
+  """
+  def git_child_env do
+    for {name, _value} <- System.get_env(), String.starts_with?(name, "GIT_"), do: {name, nil}
   end
 
   defp unique_id, do: Base.url_encode64(:crypto.strong_rand_bytes(8), padding: false)

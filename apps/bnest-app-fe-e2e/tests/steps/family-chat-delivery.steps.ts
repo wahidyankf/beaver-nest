@@ -136,8 +136,8 @@ Then(
 
 Given(
   "the visitor has a queued message left over from a closed session",
-  async ({ page, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }) => {
+    await ensureRoomOpen(page);
     await interfereWithSends(page, "abort");
     await sendThroughComposer(page, uniqueBody("Left over"));
     await expectStored(page, delivery.body);

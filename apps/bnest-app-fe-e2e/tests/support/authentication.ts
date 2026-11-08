@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import path from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { expect, type Page } from "@playwright/test";
+import { currentInstance } from "./active-instance";
+import { runConfigPaths } from "./test-instance-lifecycle.mts";
+import { deriveTestInstancePaths } from "./test-instance-paths.mts";
+import { runId } from "./routed-rollout-env";
 
 export type InitialAccount = {
   username: string;
@@ -30,24 +33,30 @@ export async function login(
   ]);
 }
 
-export function runtimeDigest(relative: string): string {
-  const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
-  if (!root) throw new Error("Missing marked E2E runtime root");
-
-  const files = jsonFiles(path.join(root, relative)).toSorted();
-  const hash = createHash("sha256");
-  for (const file of files) hash.update(readFileSync(file));
-  return hash.digest("hex");
-}
-
-export function jsonFiles(directory: string): string[] {
-  if (!existsSync(directory)) return [];
-
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const candidate = path.join(directory, entry.name);
-    if (entry.isDirectory()) return jsonFiles(candidate);
-    return entry.isFile() && entry.name.endsWith(".json") ? [candidate] : [];
+// The digest of the current instance's database file and its WAL, so a scenario can show that Bnest read
+// and wrote no user data. The derived paths are the server's own (`BnestApp.TestInstance.Paths`), so the
+// digest covers exactly the database this scenario uses.
+export function instanceDatabaseDigest(): string {
+  const runtimeRoot = process.env["BNEST_E2E_RUNTIME_ROOT"] ?? "";
+  if (runtimeRoot === "") throw new Error("Missing marked E2E runtime root");
+  const derived = deriveTestInstancePaths({
+    flatRunRoot: runtimeRoot,
+    sqliteRunRoot: runConfigPaths({
+      runId,
+      home: process.env["HOME"] ?? "",
+    }).sqliteRunRoot,
+    runId,
+    instanceId: currentInstance().instanceId,
   });
+  if (!derived.ok) {
+    throw new Error(`the instance paths are invalid: ${derived.error}`);
+  }
+
+  const hash = createHash("sha256");
+  for (const file of [derived.paths.dbFile, `${derived.paths.dbFile}-wal`]) {
+    if (existsSync(file)) hash.update(file).update(readFileSync(file));
+  }
+  return hash.digest("hex");
 }
 
 export async function fillInitialAccounts(

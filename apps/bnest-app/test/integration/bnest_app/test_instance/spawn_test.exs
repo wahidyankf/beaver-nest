@@ -5,6 +5,7 @@ defmodule BnestApp.TestInstance.SpawnTest do
   # that test_helper compiles always run regardless of the path given.
   @moduletag :test_instance
 
+  import ExUnit.CaptureLog
   import Phoenix.ConnTest
 
   alias BnestApp.Backup.Adapters.FileConfigStore, as: BackupConfigStore
@@ -17,12 +18,48 @@ defmodule BnestApp.TestInstance.SpawnTest do
   alias BnestApp.Test.MigrationFiles
   alias BnestApp.TestInstance
   alias BnestApp.TestInstance.Error
+  alias BnestApp.TestInstance.Requests
 
   @endpoint BnestAppWeb.Endpoint
   @steps [:create, :activate, :migrate, :seed]
   @phases [:sqlite_primary, :flat_primary]
 
+  # A web request as Phoenix runs it: it reports its start and stays until it is told to end.
+  defp start_web_request do
+    parent = self()
+
+    pid =
+      spawn(fn ->
+        :telemetry.execute([:phoenix, :endpoint, :start], %{}, endpoint_metadata())
+
+        send(parent, {:request_started, self()})
+
+        receive do
+          :finish ->
+            :telemetry.execute([:phoenix, :endpoint, :stop], %{duration: 0}, endpoint_metadata())
+        end
+      end)
+
+    assert_receive {:request_started, ^pid}
+    pid
+  end
+
+  # Phoenix's own logger listens to these events too, and detaches itself from metadata it does not understand.
+  defp endpoint_metadata, do: %{conn: %Plug.Conn{request_path: "/chat"}, options: []}
+
+  defp finish_web_request(pid) do
+    ref = Process.monitor(pid)
+    send(pid, :finish)
+    assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
+  end
+
   setup do
+    # A short drain keeps the tests that leave a request running quick; the default is seconds.
+    saved_drain = Application.fetch_env(:bnest_app, :test_instance_request_drain_ms)
+    Application.put_env(:bnest_app, :test_instance_request_drain_ms, 50)
+    on_exit(fn -> TestInstance.restore_app_env(:test_instance_request_drain_ms, saved_drain) end)
+    Requests.attach!()
+
     run = TestInstance.application_run!()
     assert TestInstance.state() == nil
 
@@ -195,6 +232,32 @@ defmodule BnestApp.TestInstance.SpawnTest do
       end
     end
 
+    test "refuses a spawn while a web request runs, and creates nothing", %{run: run} do
+      before = snapshot()
+      request = start_web_request()
+
+      try do
+        error = assert_raise Error, fn -> TestInstance.spawn!(run) end
+
+        assert error.reason == :instance_busy
+        assert TestInstance.state() == nil
+        assert snapshot() == before
+      after
+        finish_web_request(request)
+      end
+    end
+
+    test "waits for a web request that ends within the drain before a spawn", %{run: run} do
+      Application.put_env(:bnest_app, :test_instance_request_drain_ms, 2_000)
+      request = start_web_request()
+      Process.send_after(request, :finish, 100)
+
+      instance = TestInstance.spawn!(run)
+
+      assert Process.alive?(request) == false
+      assert :ok = TestInstance.drop!(instance)
+    end
+
     test "refuses a run that is not the application's run, and changes nothing", %{run: run} do
       before = snapshot()
       other = %{run | run_id: run.run_id <> "-other"}
@@ -273,6 +336,20 @@ defmodule BnestApp.TestInstance.SpawnTest do
         assert error.step == unquote(step)
         assert_rolled_back(before)
       end
+    end
+
+    # The wire answer names the step and nothing else, so the server log is the only place the cause of an
+    # unexpected failure is kept.
+    test "a failed spawn logs its step and its cause", %{run: run} do
+      log =
+        capture_log([level: :warning], fn ->
+          assert_raise Error, fn ->
+            TestInstance.spawn!(run, seed: fn _instance -> {:error, :injected_cause} end)
+          end
+        end)
+
+      assert log =~ "test instance spawn failed at seed"
+      assert log =~ ":injected_cause"
     end
 
     test "a seed that returns an error fails the spawn at the seed step and rolls back", %{
@@ -396,6 +473,23 @@ defmodule BnestApp.TestInstance.SpawnTest do
         assert File.dir?(instance.paths.sqlite_instance_root)
       after
         finish_blocking_scheduler_task(task)
+      end
+
+      assert :ok = TestInstance.drop!(instance)
+    end
+
+    test "refuses a drop while a web request runs, and keeps the instance current", %{run: run} do
+      instance = TestInstance.spawn!(run)
+      request = start_web_request()
+
+      try do
+        error = assert_raise Error, fn -> TestInstance.drop!(instance) end
+
+        assert error.reason == :instance_busy
+        assert TestInstance.state() == instance
+        assert File.dir?(instance.paths.sqlite_instance_root)
+      after
+        finish_web_request(request)
       end
 
       assert :ok = TestInstance.drop!(instance)

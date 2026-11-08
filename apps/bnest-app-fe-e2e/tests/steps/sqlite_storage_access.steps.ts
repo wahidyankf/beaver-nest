@@ -3,9 +3,9 @@ import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
 import {
-  isolatedTestIdentity,
-  type TestIdentity,
-} from "../support/test-identity";
+  instanceIdentities,
+  type InstanceIdentities,
+} from "../support/instance-identities";
 import { promoteCompatibleCandidate } from "../support/routed-rollout";
 
 // Non-admin denial and post-rollout reconnect flows (feature scenarios 9,
@@ -16,15 +16,15 @@ const { Given, Then, When } = createBdd();
 
 const repositoryRoot = process.cwd();
 
-let activeIdentity: TestIdentity;
+let activeIdentity: InstanceIdentities;
 let deniedRouteStatus = 0;
 let deniedRouteBody = "";
 let rolloutRevisions: { previousRevision: string; revision: string };
 
 // --- Scenario 9: non-admin cannot configure storage --------------------------
 
-Given("a non-admin family member is logged in", async ({ page, $testInfo }) => {
-  activeIdentity = isolatedTestIdentity($testInfo);
+Given("a non-admin family member is logged in", async ({ page }) => {
+  activeIdentity = instanceIdentities();
   await page.context().clearCookies();
   await login(page, activeIdentity.child);
 });
@@ -59,8 +59,8 @@ const acknowledgedReply = "Fixture response complete.";
 // current route's revision; only then is the next message typed and left unsent.
 Given(
   "the current Caddy route is healthy and a connected user has acknowledged state",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
+  async ({ page }) => {
+    activeIdentity = instanceIdentities();
     await page.context().clearCookies();
     await login(page, activeIdentity.admin);
     expect((await page.request.get("/health/ready")).status()).toBe(200);

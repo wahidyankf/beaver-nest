@@ -32,8 +32,12 @@ const { After, Given, Then, When } = createBdd();
 const HOLD_THRESHOLD_MS = 500;
 
 // A scenario that takes the browser offline must not leave the next one
-// offline.
+// offline. The lifecycle After closes every browser context first, and a
+// closed context needs no reset: each test starts a fresh, online context.
 After(async ({ page }) => {
+  if (page.isClosed()) {
+    return;
+  }
   await page.context().setOffline(false);
 });
 
@@ -45,8 +49,8 @@ function menuItem(page: Parameters<typeof openMenuItems>[0], label: string) {
 
 Given(
   "the visitor's own message is in the {string} state",
-  async ({ page, $testInfo }, state: string) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }, state: string) => {
+    await ensureRoomOpen(page);
     // Each state is the network a member could be on when they look.
     if (state === "Waiting for connection") {
       await page.context().setOffline(true);
@@ -93,20 +97,17 @@ Then("{string} remains available", async ({ page }, label: string) => {
 
 // --- A system message -------------------------------------------------------
 
-Given(
-  "the room holds a committed system message",
-  async ({ page, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
-    scenario.targetBody = uniqueBody("System notice");
-    scenario.targetId = postSystemMessage(scenario.targetBody);
-    await page.reload();
-    await waitForRoomReady(page);
-    await waitForMessage(page, scenario.targetId);
-    await expect(messageById(page, scenario.targetId)).toContainText(
-      scenario.targetBody,
-    );
-  },
-);
+Given("the room holds a committed system message", async ({ page }) => {
+  await ensureRoomOpen(page);
+  scenario.targetBody = uniqueBody("System notice");
+  scenario.targetId = postSystemMessage(scenario.targetBody);
+  await page.reload();
+  await waitForRoomReady(page);
+  await waitForMessage(page, scenario.targetId);
+  await expect(messageById(page, scenario.targetId)).toContainText(
+    scenario.targetBody,
+  );
+});
 
 Then("{string} is available", async ({ page }, label: string) => {
   await expect(menuItem(page, label)).toBeVisible();
@@ -120,8 +121,8 @@ Then("{string} is available", async ({ page }, label: string) => {
 
 Given(
   "the visitor opens the action menu on a message whose body is {string}",
-  async ({ page, $testInfo }, body: string) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }, body: string) => {
+    await ensureRoomOpen(page);
     // A member who copies has granted the page the clipboard; reading it
     // back is how this scenario sees what was written.
     await page

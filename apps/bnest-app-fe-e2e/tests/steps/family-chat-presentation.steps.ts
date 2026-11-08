@@ -27,8 +27,8 @@ let cacheEntries: string[] = [];
 
 Given(
   "a visitor opens {string} and exchanges messages",
-  async ({ page, $testInfo }, route: string) => {
-    await openFamilyChatRoom(page, $testInfo);
+  async ({ page }, route: string) => {
+    await openFamilyChatRoom(page);
     expect(new URL(page.url()).pathname).toBe(route);
     const body = uniqueBody("Cache inspection probe");
     await sendThroughComposer(page, body);

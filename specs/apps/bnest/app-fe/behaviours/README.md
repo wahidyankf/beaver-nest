@@ -23,3 +23,5 @@ Binding counts are necessary but not sufficient; adapter changes require the
   inventory, and typed link behaviour.
 - [Sifat Allah](sifat_allah.feature) specifies the authenticated user-owned learning activity.
 - [SQLite storage](sqlite_storage.feature) specifies admin storage selection/access and routed reconnect UI.
+- [Test instance isolation](test_instances.feature) specifies that a replacement test instance serves its own storage
+  and that an account of the instance it replaced cannot log in.

@@ -2,9 +2,9 @@ import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { restorePrimaryRoute } from "../support/routed-rollout";
 import {
-  isolatedTestIdentity,
-  type TestIdentity,
-} from "../support/test-identity";
+  instanceIdentities,
+  type InstanceIdentities,
+} from "../support/instance-identities";
 import {
   composerInput,
   ensureFamilyChatHasOlderPage,
@@ -20,6 +20,7 @@ import {
 import {
   recordCatchUps,
   watchSockets,
+  watchSubscriptions,
   type CatchUp,
   type SocketLog,
 } from "../support/family-chat-socket";
@@ -33,7 +34,7 @@ import {
 
 const { Given, Then, When } = createBdd();
 
-let identity: TestIdentity;
+let identity: InstanceIdentities;
 let catchUpProbeBody = "";
 let draftBody = "";
 let sockets: SocketLog = { opened: [], closed: [] };
@@ -45,26 +46,40 @@ const ANCHOR_TOLERANCE_PX = 4;
 
 Given(
   "a visitor opens {string} with the socket connected to the current slot",
-  async ({ page, $testInfo, browser }, route: string) => {
+  async ({ page, browser }, route: string) => {
     // The room's catch-up asks for "everything after the newest message it
     // knows"; an empty room has none, so it would refetch the latest page
     // instead, and a run alone on a fresh server would not be proving the
     // gap-fill at all. One earlier message makes the room open with a baseline.
     await sendAsAnotherMember(
       browser,
-      isolatedTestIdentity($testInfo),
+      instanceIdentities(),
       `Catch-up baseline ${crypto.randomUUID().slice(0, 8)}`,
     );
     // Watching from before the room opens its socket, so the first socket
     // seen is the one connected to the current slot.
     sockets = watchSockets(page);
+    const subscriptions = watchSubscriptions(page);
     catchUps = recordCatchUps(page);
     sends = sendAttempts(page);
-    identity = await openFamilyChatRoom(page, $testInfo);
+    identity = await openFamilyChatRoom(page);
     expect(page.url()).toContain(route);
     // The room reports itself ready once its history is shown, and only
     // then opens the socket it subscribes on.
     await expect.poll(() => sockets.opened.length, { timeout: 15_000 }).toBe(1);
+    // An opened socket is not yet a subscribed room: the room attaches its visibility handler and its reconnect
+    // sequence only after the server acknowledges the subscription. A scenario that drops or backgrounds the
+    // connection before that point would test the first connect, so wait for the acknowledgement.
+    await expect
+      .poll(() => subscriptions.acknowledged, { timeout: 15_000 })
+      .toBeGreaterThan(0);
+    // The acknowledgement reaches the page as a task; one more task turn lets the room finish handling it.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, 0);
+        }),
+    );
     // Lives only as long as this window does: a reload would drop it.
     await page.evaluate(() => {
       Object.assign(window, { bnestNoReloadProbe: "held" });
@@ -206,8 +221,8 @@ function offsetOf(page: Page, id: string): Promise<number | null> {
 
 Given(
   "a visitor opens {string} scrolled to a known older message",
-  async ({ page, $testInfo }, _route: string) => {
-    identity = await openFamilyChatRoom(page, $testInfo);
+  async ({ page }, _route: string) => {
+    identity = await openFamilyChatRoom(page);
     // "Load older messages" only stays clickable while the server still
     // reports `hasOlder: true` -- guarantee that regardless of how many
     // messages this shared-room suite run has already accumulated.
@@ -246,8 +261,8 @@ Then(
 
 Given(
   "a visitor opens {string} with focus in the composer",
-  async ({ page, $testInfo }, _route: string) => {
-    identity = await openFamilyChatRoom(page, $testInfo);
+  async ({ page }, _route: string) => {
+    identity = await openFamilyChatRoom(page);
     // The following scenario needs the visitor to genuinely be scrolled away
     // from the bottom when the remote message arrives (see
     // `seedFamilyChatScrollOverflow`'s comment).

@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
@@ -6,12 +5,13 @@ import {
   chatPayload,
   confirmImports,
   setSources,
-  userPath,
 } from "../support/centralized-data";
 import {
-  isolatedTestIdentity,
-  type TestIdentity,
-} from "../support/test-identity";
+  instanceIdentities,
+  type InstanceIdentities,
+  userIdFor,
+} from "../support/instance-identities";
+import { instanceRecord } from "../support/instance-records";
 
 // Trimmed from bnest-app-e2e's centralized_data.steps.ts to this project's
 // owned scenarios (the browser-key-clearing half of accepted import, and the
@@ -20,12 +20,12 @@ import {
 
 const { Given, Then, When } = createBdd();
 
-let activeIdentity: TestIdentity;
+let activeIdentity: InstanceIdentities;
 
 Given(
   "a recognized browser source and an unrelated browser key exist",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
+  async ({ page }) => {
+    activeIdentity = instanceIdentities();
     await setSources(page, { chat: chatPayload, learning: null, theme: null });
     await page.evaluate(() =>
       localStorage.setItem("unrelated.test-key", "keep-me"),
@@ -48,8 +48,8 @@ Then("Bnest clears only the accepted source key", async ({ page }) => {
 
 Given(
   "centralized chat contains a transcript and an unavailable Codex thread",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
+  async ({ page }) => {
+    activeIdentity = instanceIdentities();
     await page.context().clearCookies();
     await login(page, activeIdentity.child);
 
@@ -83,11 +83,14 @@ When("the authenticated user continues the chat", async ({ page }) => {
   await page.getByRole("button", { name: "Send" }).click();
 });
 
+// The chat record is read from the test instance's database, as the server stores it. A failed resume would keep the
+// unavailable thread, so the record must name a different thread.
 Then("Bnest reports a fresh Codex conversation", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText(
     "transcript is preserved in a fresh conversation",
   );
-  expect(
-    existsSync(userPath("chat/current.json", activeIdentity.child.username)),
-  ).toBe(true);
+  const chat = instanceRecord("chat", userIdFor(activeIdentity.child.username))[
+    "state"
+  ] as { thread_id: string | null };
+  expect(chat.thread_id).not.toBe("unavailable-thread");
 });

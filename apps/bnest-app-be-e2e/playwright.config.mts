@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import os from "node:os";
 import path from "node:path";
 import { defineBddConfig } from "playwright-bdd";
+import { browserEnvironment } from "./tests/support/browser-environment.mts";
 
 const appDirectory = path.resolve(import.meta.dirname, "../bnest-app");
 const codexRunner = path.resolve(
@@ -32,6 +34,11 @@ const runtime = {
       import.meta.dirname,
       "../../data/test/runs/configuration-only",
     ),
+  // The SQLite run root (`~/bnest/data/test/runs/<run>`). Every instance and the storage pointer live under it, so
+  // the server and the spawn must agree on this path (ADR 001, section 3).
+  sqlitePath:
+    process.env["BNEST_E2E_SQLITE_RUNTIME_ROOT"] ??
+    path.join(os.homedir(), "bnest/data/test/runs/configuration-only"),
   runId: process.env["BNEST_E2E_RUN_ID"] ?? "configuration-only",
 };
 const featuresRoot = path.resolve(
@@ -41,14 +48,18 @@ const featuresRoot = path.resolve(
 const testDir = defineBddConfig({
   arityCheck: true,
   featuresRoot,
+  importTestFrom: path.resolve(
+    import.meta.dirname,
+    "tests/support/test-fixtures.ts",
+  ),
   missingSteps: "fail-on-gen",
   outputDir: ".features-gen",
   steps: "tests/steps/**/*.ts",
   tags: "not @e2e-exempt",
 });
-const setupScenario =
-  /Initial setup creates policy-valid accounts exactly once/u;
 
+// Every scenario gets its own test instance (ADR 001, section 1), so no scenario depends on another's database and
+// no ordering project is needed: the `@open-setup` scenario closes setup only in its own instance.
 export default defineConfig({
   testDir,
   fullyParallel: false,
@@ -56,10 +67,12 @@ export default defineConfig({
   workers: 1,
   globalTeardown: path.resolve(
     import.meta.dirname,
-    "tests/support/test-runtime.mts",
+    "tests/support/global-teardown.ts",
   ),
   use: {
     baseURL,
+    // Browsers get no test-control secret; the server and the test steps keep it.
+    launchOptions: { env: browserEnvironment(process.env) },
     trace: "on-first-retry",
   },
   webServer: {
@@ -71,14 +84,14 @@ export default defineConfig({
       BNEST_CODEX_RUNNER: codexRunner,
       BNEST_DEPLOY_SLOT: "blue",
       BNEST_BACKUP_CONFIG: path.join(
-        runtime.path,
+        runtime.sqlitePath,
         "storage-config",
         "backup.json",
       ),
       BNEST_RELEASE_REVISION: "be-e2e",
       BNEST_RUNTIME_ROOT: runtime.path,
       BNEST_STORAGE_CONFIG: path.join(
-        runtime.path,
+        runtime.sqlitePath,
         "storage-config",
         "storage.json",
       ),
@@ -94,14 +107,7 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "one-time-setup",
-      grep: setupScenario,
-      use: { ...devices["Desktop Chrome"] },
-    },
-    {
       name: "chromium",
-      dependencies: ["one-time-setup"],
-      grepInvert: setupScenario,
       use: { ...devices["Desktop Chrome"] },
     },
   ],

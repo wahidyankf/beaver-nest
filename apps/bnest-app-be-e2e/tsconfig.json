@@ -24,5 +24,10 @@
     "target": "ES2023",
     "types": ["node"]
   },
-  "include": ["playwright.config.mts", "tests/**/*.ts", "tools/**/*.mts"]
+  "include": [
+    "playwright.config.mts",
+    "tests/**/*.ts",
+    "tests/**/*.mts",
+    "tools/**/*.mts"
+  ]
 }

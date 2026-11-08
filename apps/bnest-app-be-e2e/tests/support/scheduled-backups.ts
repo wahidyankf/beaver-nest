@@ -11,8 +11,8 @@ import os from "node:os";
 import path from "node:path";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { login } from "./authentication";
-import { ensureLiveSqlite, runLiveMix } from "./live-sqlite";
-import { isolatedTestIdentity, type TestIdentity } from "./test-identity";
+import { backupConfigPath, runLiveMix } from "./live-sqlite";
+import { currentIdentities, type TestIdentity } from "./instance-identities";
 
 // Trimmed from bnest-app-e2e's scheduled-backups.ts to this project's
 // "Save a safe override" scenario; "Use the Dropbox-synced default" lives in
@@ -33,7 +33,7 @@ export async function prepareScheduledBackup(
   state: string,
   testInfo: TestInfo,
 ): Promise<void> {
-  world.identity = isolatedTestIdentity(testInfo);
+  world.identity = currentIdentities();
   await page.context().clearCookies();
   await login(page, world.identity.admin);
 
@@ -47,7 +47,6 @@ async function prepareBackupOverride(
   world: ScheduledBackupWorld,
   testInfo: TestInfo,
 ): Promise<void> {
-  ensureLiveSqlite();
   const digest = createHash("sha256")
     .update(`${testInfo.project.name}:${testInfo.title}`)
     .digest("hex")
@@ -62,11 +61,7 @@ async function prepareBackupOverride(
     rmSync(directory, { recursive: true, force: true }),
   );
   world.backupDirectory = directory;
-  world.backupConfigPath = path.join(
-    requiredRuntimeRoot(),
-    "storage-config",
-    "backup.json",
-  );
+  world.backupConfigPath = backupConfigPath();
   await page.goto("/admin/settings/schedules");
   await connected(page);
 }
@@ -138,11 +133,4 @@ function readJson(file: string): Record<string, unknown> {
 function required<T>(value: T | undefined, name: string): T {
   if (value === undefined) throw new Error(`missing ${name}`);
   return value;
-}
-
-function requiredRuntimeRoot(): string {
-  const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
-  if (root === undefined || root === "")
-    throw new Error("missing marked E2E runtime root");
-  return root;
 }

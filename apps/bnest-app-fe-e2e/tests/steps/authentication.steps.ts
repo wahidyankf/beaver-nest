@@ -1,18 +1,12 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
+  instanceDatabaseDigest,
   login,
-  runtimeDigest,
   submitInitialAccountsWithSafetyChecks,
   type InitialAccount,
 } from "../support/authentication";
-import {
-  initialTestIdentities,
-  isolatedTestIdentity,
-  testIdentityForProject,
-  userDataRelativePath,
-  type TestIdentity,
-} from "../support/test-identity";
+import { instanceIdentities } from "../support/instance-identities";
 
 // Trimmed from bnest-app-e2e's authentication.steps.ts to this project's
 // owned scenarios (unauthenticated redirect, logged-out home, the
@@ -23,46 +17,31 @@ import {
 const { Given, Then, When } = createBdd();
 
 let setupSafetyChecks = { sawIrreversibleWarning: false };
-let userDataBefore = "";
-let activeIdentity: TestIdentity = testIdentityForProject("chromium");
+let databaseBefore = "";
 
-Given("an approved user is logged in", async ({ page, $testInfo }) => {
-  activeIdentity = isolatedTestIdentity($testInfo);
-  await login(page, activeIdentity.admin);
+Given("an approved user is logged in", async ({ page }) => {
+  await login(page, instanceIdentities().admin);
 });
 
-Given("an approved admin is logged in", async ({ page, $testInfo }) => {
-  activeIdentity = isolatedTestIdentity($testInfo);
-  await login(page, activeIdentity.admin);
+Given("an approved admin is logged in", async ({ page }) => {
+  await login(page, instanceIdentities().admin);
 });
-Given("an approved parent is logged in", async ({ page, $testInfo }) => {
-  activeIdentity = isolatedTestIdentity($testInfo);
-  await login(page, activeIdentity.parent);
+Given("an approved parent is logged in", async ({ page }) => {
+  await login(page, instanceIdentities().parent);
 });
 
-Given("an approved child is logged in", async ({ page, $testInfo }) => {
-  activeIdentity = isolatedTestIdentity($testInfo);
-  await login(page, activeIdentity.child);
+Given("an approved child is logged in", async ({ page }) => {
+  await login(page, instanceIdentities().child);
 });
 
-Given(
-  "an approved child administrator is logged in",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
-    await login(page, activeIdentity.childAdmin);
-  },
-);
+Given("an approved child administrator is logged in", async ({ page }) => {
+  await login(page, instanceIdentities().childAdmin);
+});
 
-Given(
-  "a visitor has no authenticated Bnest session",
-  async ({ page, $testInfo }) => {
-    activeIdentity = isolatedTestIdentity($testInfo);
-    await page.context().clearCookies();
-    userDataBefore = runtimeDigest(
-      userDataRelativePath(activeIdentity.admin.username),
-    );
-  },
-);
+Given("a visitor has no authenticated Bnest session", async ({ page }) => {
+  await page.context().clearCookies();
+  databaseBefore = instanceDatabaseDigest();
+});
 
 When(
   "the visitor opens the protected route {string}",
@@ -86,9 +65,7 @@ Then("the login form replaces protected home actions", async ({ page }) => {
 
 Then("Bnest does not read or write user data", ({ page }) => {
   void page;
-  expect(
-    runtimeDigest(userDataRelativePath(activeIdentity.admin.username)),
-  ).toBe(userDataBefore);
+  expect(instanceDatabaseDigest()).toBe(databaseBefore);
 });
 
 Given("Bnest has no bootstrap journal", async ({ page }) => {
@@ -102,13 +79,12 @@ Given("Bnest has no bootstrap journal", async ({ page }) => {
 When(
   "the maintainer submits all initial accounts including an administrator",
   async ({ page }) => {
-    const accounts: InitialAccount[] = initialTestIdentities.flatMap(
-      (identity) => [
-        { ...identity.admin, role: "Parents", admin: true },
-        { ...identity.child, role: "Children", admin: false },
-        { ...identity.parent, role: "Parents", admin: false },
-      ],
-    );
+    const identities = instanceIdentities();
+    const accounts: InitialAccount[] = [
+      { ...identities.admin, role: "Parents", admin: true },
+      { ...identities.child, role: "Children", admin: false },
+      { ...identities.parent, role: "Parents", admin: false },
+    ];
     setupSafetyChecks = await submitInitialAccountsWithSafetyChecks(
       page,
       accounts,
@@ -132,16 +108,16 @@ Then(
   },
 );
 
-Given("an approved user account exists", async ({ page, $testInfo }) => {
-  activeIdentity = isolatedTestIdentity($testInfo);
+Given("an approved user account exists", async ({ page }) => {
   await page.context().clearCookies();
   await page.goto("/login");
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
 });
 
 When("the user logs in with valid credentials", async ({ page }) => {
-  await page.getByLabel("Username").fill(activeIdentity.admin.username);
-  await page.getByLabel("Password").fill(activeIdentity.admin.password);
+  const { admin } = instanceIdentities();
+  await page.getByLabel("Username").fill(admin.username);
+  await page.getByLabel("Password").fill(admin.password);
   await page.getByRole("button", { name: "Log in" }).click();
 });
 
@@ -150,7 +126,7 @@ Then("the protected home page is available", async ({ page }) => {
     page.getByRole("heading", { name: "Beaver Nest" }),
   ).toBeVisible();
   await expect(page.locator(".home-status")).toContainText(
-    activeIdentity.admin.username,
+    instanceIdentities().admin.username,
   );
 });
 

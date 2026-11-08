@@ -22,6 +22,8 @@ defmodule BnestAppWeb.TestingControl.InstanceController do
   use Boundary, top_level?: true, check: [in: false, out: false]
   use BnestAppWeb, :controller
 
+  require Logger
+
   alias BnestApp.TestInstance
   alias BnestApp.TestInstance.Error
   alias BnestAppWeb.TestingControl.ErrorBody
@@ -173,8 +175,17 @@ defmodule BnestAppWeb.TestingControl.InstanceController do
   defp guarded(conn, action) do
     action.()
   rescue
-    error in Error -> answer_error(conn, lifecycle_reason(error))
+    error in Error ->
+      log_refusal(error)
+      answer_error(conn, lifecycle_reason(error))
   end
+
+  # The wire answer is a code and a step, so the cause stays in the server log. A failed spawn is logged
+  # where it failed.
+  defp log_refusal(%Error{reason: :spawn_failed}), do: :ok
+
+  defp log_refusal(%Error{} = error),
+    do: Logger.warning("testing control refused a lifecycle request: #{Exception.message(error)}")
 
   defp lifecycle_reason(%Error{
          reason: :spawn_failed,

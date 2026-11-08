@@ -4,16 +4,14 @@ import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
-import { isolatedTestIdentity } from "../support/test-identity";
+import { currentIdentities } from "../support/instance-identities";
 import { liveRuntimeRoot, readLivePointer } from "../support/sqlite-storage";
-import {
-  captureStorageAuthority,
-  restoreStorageAuthority,
-} from "../support/storage-authority";
 
 // Admin storage LiveView folder-selection flows (feature scenarios 2 through 4).
 // Split out of sqlite_storage.steps.ts to stay under the repository's
-// 300-line step-file budget.
+// 300-line step-file budget. The scenario's test instance is its own database,
+// so no authority snapshot is captured or restored here: the lifecycle deletes
+// the instance, and the next scenario spawns a new one.
 
 const { After, Given, Then, When } = createBdd();
 
@@ -22,20 +20,12 @@ const repositoryRoot = process.cwd();
 let customFolder = "";
 let customFolderCleanupRoot = "";
 let livePointerBefore: Record<string, unknown> | undefined;
-let adminStorageAuthorityCaptured = false;
 
 After(() => {
-  try {
-    if (customFolderCleanupRoot !== "") {
-      rmSync(customFolderCleanupRoot, { recursive: true, force: true });
-    }
-  } finally {
-    customFolderCleanupRoot = "";
-    if (adminStorageAuthorityCaptured) {
-      adminStorageAuthorityCaptured = false;
-      restoreStorageAuthority();
-    }
+  if (customFolderCleanupRoot !== "") {
+    rmSync(customFolderCleanupRoot, { recursive: true, force: true });
   }
+  customFolderCleanupRoot = "";
 });
 
 async function persistCustomFolder(page: Page): Promise<void> {
@@ -56,12 +46,9 @@ async function persistCustomFolder(page: Page): Promise<void> {
 
 Given(
   "an authenticated user with the admin role opened storage settings",
-  async ({ page, $testInfo }) => {
-    captureStorageAuthority();
-    adminStorageAuthorityCaptured = true;
-    const identity = isolatedTestIdentity($testInfo);
+  async ({ page }) => {
     await page.context().clearCookies();
-    await login(page, identity.admin);
+    await login(page, currentIdentities().admin);
     livePointerBefore = readLivePointer();
     const response = await page.goto("/storage");
     expect(response?.status()).toBe(200);

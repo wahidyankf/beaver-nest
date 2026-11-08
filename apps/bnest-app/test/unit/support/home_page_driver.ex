@@ -7,6 +7,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   alias BnestApp.Backup
   alias BnestApp.Backup.Domain.Receipt
+  alias BnestApp.Behaviour.TestIsolation.UnitAdapter
   alias BnestApp.Behaviour.UnitFamilyChatDriver
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Domain.Transcript
@@ -1313,10 +1314,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def establish_identity(context, role) do
     context = Map.merge(context, %{identity_role: role, authenticated: true})
 
-    if role == :user and String.ends_with?(context.feature_file, "authentication.feature") do
-      authenticated_memory_context(context)
-    else
-      context
+    cond do
+      # This feature's admin lives in a test instance, so the isolation adapter spawns it and logs it in.
+      role == :admin and String.ends_with?(context.feature_file, "test_instances.feature") ->
+        UnitAdapter.establish_admin(context)
+
+      role == :user and String.ends_with?(context.feature_file, "authentication.feature") ->
+        authenticated_memory_context(context)
+
+      true ->
+        context
     end
   end
 
@@ -3207,7 +3214,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
     Map.get(after_retry, envelope_key) == Map.get(context.before_retry, envelope_key) and
       match?(
-        %{"recordType" => "chat", "revision" => 0},
+        %{"recordType" => "chat", "revision" => 0, "sourceImportId" => id}
+        when id == context.first_import_id,
         Map.get(after_retry, {:chat, context.central_owner})
       ) and
       Enum.count(Map.keys(after_retry), fn

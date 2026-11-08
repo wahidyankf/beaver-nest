@@ -12,7 +12,7 @@ import {
   type IntrospectionResult,
   type MutationField,
 } from "../support/public-schema";
-import { isolatedTestIdentity } from "../support/test-identity";
+import { currentIdentities } from "../support/instance-identities";
 
 // The one family_chat_operations.feature scenario a client reaches over HTTP: the public
 // GraphQL schema's mutation fields, read through introspection and each sent by a
@@ -74,8 +74,8 @@ function exercise(
     : postGraphQl(page, request, run.document, run.variables);
 }
 
-When("the public GraphQL schema is inspected", async ({ page, $testInfo }) => {
-  scenario.identity = isolatedTestIdentity($testInfo);
+When("the public GraphQL schema is inspected", async ({ page }) => {
+  scenario.identity = currentIdentities();
   await page.context().clearCookies();
   await login(page, requireIdentity().admin);
   const request = page.context().request;

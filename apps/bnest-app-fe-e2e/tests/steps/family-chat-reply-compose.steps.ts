@@ -55,8 +55,8 @@ async function chooseReplyOn(page: Page, messageId: string): Promise<void> {
 
 Given(
   "the selected message body is {int} graphemes long",
-  async ({ page, $testInfo }, length: number) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }, length: number) => {
+    await ensureRoomOpen(page);
     // Multi-code-point graphemes throughout, so a cut by code unit or code
     // point would not land where a cut by grapheme does.
     const head = graphemes(uniqueBody("Long"));
@@ -151,8 +151,8 @@ Then(
 
 // --- A reply to a reply -----------------------------------------------------
 
-Given("message A exists", async ({ page, $testInfo }) => {
-  await ensureRoomOpen(page, $testInfo);
+Given("message A exists", async ({ page }) => {
+  await ensureRoomOpen(page);
   scenario.targetBody = uniqueBody("Message A");
   scenario.targetId = await postMessage(page, scenario.targetBody);
 });
@@ -192,8 +192,8 @@ Then("that quote shows no quote of its own", async ({ page }) => {
 
 Given(
   "a reply quotes a message more than five older pages above the loaded window",
-  async ({ page, browser, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page, browser }) => {
+    await ensureRoomOpen(page);
     scenario.targetBody = uniqueBody("Beyond the bound");
     scenario.targetId = await postMessage(page, scenario.targetBody);
     // Six pages and more lie between the newest page and the original.

@@ -5,10 +5,10 @@
   "aggregateAdapterOwner": "bnest-app",
   "generatedFrom": "plans/in-progress/family-chat-room/delivery.md Phase 1 Item 3",
   "summary": {
-    "featureCount": 4,
-    "scenarioCount": 33,
-    "e2eExemptScenarioCount": 8,
-    "e2eCoveredScenarioCount": 25
+    "featureCount": 5,
+    "scenarioCount": 48,
+    "e2eExemptScenarioCount": 13,
+    "e2eCoveredScenarioCount": 35
   },
   "features": [
     {
@@ -164,6 +164,72 @@
         {
           "name": "Verified legacy flat-file storage is retired",
           "e2eExempt": false
+        }
+      ]
+    },
+    {
+      "file": "test_isolation.feature",
+      "featureName": "Bnest test isolation",
+      "scenarios": [
+        {
+          "name": "A test starts from an empty migrated database",
+          "e2eExempt": false
+        },
+        {
+          "name": "Consecutive tests never share a database",
+          "e2eExempt": false
+        },
+        {
+          "name": "The migrated test schema equals the release schema",
+          "e2eExempt": true
+        },
+        {
+          "name": "The spawn returns after its migrations and seed, and the instance stays current until deletion",
+          "e2eExempt": false
+        },
+        {
+          "name": "Teardown removes the instance from the running server",
+          "e2eExempt": false
+        },
+        {
+          "name": "Teardown removes every directory, pointer, and backup configuration the instance made",
+          "e2eExempt": false
+        },
+        {
+          "name": "A request without the testing header gets the stock not-found response",
+          "e2eExempt": false
+        },
+        {
+          "name": "A request with a wrong testing header gets the stock not-found response",
+          "e2eExempt": false
+        },
+        {
+          "name": "A request with a forwarded header gets the stock not-found response",
+          "e2eExempt": false
+        },
+        {
+          "name": "A request from a non-loopback peer gets the stock not-found response",
+          "e2eExempt": true
+        },
+        {
+          "name": "A production build mounts no testing endpoint",
+          "e2eExempt": true
+        },
+        {
+          "name": "Every seeded account uses the test-user prefix and the instance short ID",
+          "e2eExempt": false
+        },
+        {
+          "name": "A seeded username outside the test-user prefix is refused",
+          "e2eExempt": false
+        },
+        {
+          "name": "A failed seed step rolls the spawn back",
+          "e2eExempt": true
+        },
+        {
+          "name": "A failed migration rolls the spawn back",
+          "e2eExempt": true
         }
       ]
     }

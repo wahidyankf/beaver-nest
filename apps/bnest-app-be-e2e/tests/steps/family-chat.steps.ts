@@ -7,7 +7,7 @@ import {
   requireIdentity,
   scenario,
 } from "../support/family-chat-state";
-import { isolatedTestIdentity } from "../support/test-identity";
+import { currentIdentities } from "../support/instance-identities";
 import {
   pageNodes,
   postGraphQl,
@@ -18,7 +18,7 @@ import {
   closeFamilyChatSubscription,
   connectFamilyChatSubscription,
   familyChatSubscriptionEvents,
-} from "../support/subscriptions";
+} from "../support/subscriptions.mts";
 
 // The family_chat_graphql.feature scenarios a live Absinthe subscription push
 // requires -- the original pair here, and the reply plan's pair proving a
@@ -57,12 +57,8 @@ const SUBSCRIPTION_QUERY = `subscription($roomSlug: String!) {
 
 Given(
   "the user holds an authorized {string} subscription for {string}",
-  async (
-    { page, browser, $testInfo },
-    _subscriptionName: string,
-    roomSlug: string,
-  ) => {
-    scenario.identity = isolatedTestIdentity($testInfo);
+  async ({ page, browser }, _subscriptionName: string, roomSlug: string) => {
+    scenario.identity = currentIdentities();
     await page.context().clearCookies();
     await login(page, requireIdentity().admin);
     // Establishing the connection here, before the "another member" step
@@ -155,8 +151,8 @@ Then(
 
 Given(
   "a message committed before the user's subscription started",
-  async ({ page, browser, $testInfo }) => {
-    scenario.identity = isolatedTestIdentity($testInfo);
+  async ({ page, browser }) => {
+    scenario.identity = currentIdentities();
     await page.context().clearCookies();
     await login(page, requireIdentity().admin);
 

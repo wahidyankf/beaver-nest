@@ -128,8 +128,8 @@ async function reloadRoutedRoom(page: Page): Promise<void> {
 // hold to one built before replies existed -- and keeps it while the
 // compatibility revision (also flag off, a different build) is routed.
 
-Given("the compatibility revision is routed", async ({ page, $testInfo }) => {
-  await ensureRoomOpen(page, $testInfo);
+Given("the compatibility revision is routed", async ({ page }) => {
+  await ensureRoomOpen(page);
   ({ revision: heldRevision } = await promoteCandidateWithReplyFlag(
     page,
     false,
@@ -179,8 +179,8 @@ Then("the visitor can send a message normally", async ({ page }) => {
 
 Given(
   "a visitor holds the reply-aware bundle with a reply on screen",
-  async ({ page, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }) => {
+    await ensureRoomOpen(page);
 
     // Seeded before any promotion, against the slot already serving. The
     // server stores `replyToMessageId` whatever the flag says; only the

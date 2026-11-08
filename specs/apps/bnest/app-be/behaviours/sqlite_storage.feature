@@ -1,3 +1,7 @@
+# Every scenario starts from a flat-file source, so each runs on a flat-primary test instance (ADR 001, section 2).
+# A scenario tagged @storage-unconfigured starts before any database location is chosen, as a fresh installation
+# does: its instance has no storage pointer and no database yet (ADR 001, section 1, "Phase").
+@flat-primary
 Feature: Bnest SQLite storage
 
   Background:
@@ -11,6 +15,7 @@ Feature: Bnest SQLite storage
     And Bnest uses the environment-specific data directory for SQLite
     And migration does not require a browser confirmation
 
+  @storage-unconfigured
   Scenario: Administrator optionally selects a valid custom database folder
     Given an authenticated user with the admin role opened storage settings
     And migration has not started
@@ -18,6 +23,7 @@ Feature: Bnest SQLite storage
     Then Bnest normalizes the folder and appends the fixed database filename
     And Bnest stores only the validated absolute location in private machine state
 
+  @storage-unconfigured
   Scenario: Private custom storage survives a sticky shared ancestor
     Given an authenticated user with the admin role opened storage settings
     And migration has not started

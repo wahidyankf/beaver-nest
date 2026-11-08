@@ -1,3 +1,6 @@
+# Bnest keeps browser import sources as flat files in its records store, which a SQLite-primary instance leaves in the
+# data-free run base, so every scenario runs on a flat-primary test instance (ADR 001, sections 1 and 2).
+@flat-primary
 Feature: Centralized Bnest data
 
   Background:

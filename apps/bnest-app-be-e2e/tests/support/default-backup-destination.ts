@@ -1,25 +1,19 @@
 import { spawnSync } from "node:child_process";
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { expect, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+import { currentInstance } from "./active-instance.mts";
+import { initializeBackupRepository } from "./backup-repository.mts";
 import { login } from "./authentication";
-import { ensureLiveSqlite } from "./live-sqlite";
+import { currentIdentities } from "./instance-identities";
 import { readLivePointer } from "./sqlite-storage";
-import { isolatedTestIdentity } from "./test-identity";
+import { backupConfigPath, sqliteRunRoot } from "./live-sqlite";
 
-// The "Use the Dropbox-synced default" scenario over the live server: the backup
-// configuration file it found (null when absent) and restores afterwards, the run's own
-// default repository, the folder the page rendered, and the receipt and last result of the backup the save verified.
+// The "Use the Dropbox-synced default" scenario over the live server: the run's default backup repository for this
+// instance, the folder the page rendered, and the receipt and last result of the backup the save verified.
 export type DefaultBackupWorld = {
   configPath?: string;
-  configBefore?: string | null | undefined;
   repository?: string;
   renderedDirectory?: string;
   lastResult?: string | undefined;
@@ -29,46 +23,33 @@ export type DefaultBackupWorld = {
 
 const backupScheduleKey = "prod-sqlite-backup-daily";
 
-// The live server's backup configuration file is removed for the scenario, so Backup
-// resolves its default: `data/backup` in this run's isolated git repository under
-// `~/bnest/data/test/backup-repository/<run id>`, never a checkout. The file's prior bytes
-// are restored afterwards by `restoreBackupConfiguration`.
+// Each spawn and each delete removes the run's backup configuration file (ADR 001, section 3), so the scenario starts
+// with Backup's own default. This checks that precondition instead of removing a file.
+// The instance's backup repository lives beside its database, under the SQLite run root (ADR 001, section 3). A spawn
+// leaves it an empty directory, and Backup's default destination fails closed unless it is a git repository that
+// ignores `data/`, so this scenario, which saves that default, makes it one.
 export async function prepareNoBackupOverride(
   page: Page,
   world: DefaultBackupWorld,
-  testInfo: TestInfo,
 ): Promise<void> {
   await page.context().clearCookies();
-  await login(page, isolatedTestIdentity(testInfo).admin);
-  ensureLiveSqlite();
+  await login(page, currentIdentities().admin);
   expect(readLivePointer()?.["phase"]).toBe("sqlite_primary");
-  const configPath = path.join(runtimeRoot(), "storage-config", "backup.json");
+  const configPath = backupConfigPath();
   world.configPath = configPath;
-  world.configBefore = existsSync(configPath)
-    ? readFileSync(configPath, "utf8")
-    : null;
-  rmSync(configPath, { force: true });
   expect(existsSync(configPath)).toBe(false);
   world.repository = path.join(
-    os.homedir(),
-    "bnest/data/test/backup-repository",
-    runId(),
+    sqliteRunRoot(),
+    "instances",
+    currentInstance().instanceId,
+    "backup-repository",
   );
+  initializeBackupRepository(world.repository);
 }
 
-export function restoreBackupConfiguration(world: DefaultBackupWorld): void {
-  const before = world.configBefore;
-  world.configBefore = undefined;
-  if (before === undefined) return;
-  const configPath = required(world.configPath, "backup config path");
-  if (before === null) rmSync(configPath, { force: true });
-  else writeFileSync(configPath, before, { encoding: "utf8", mode: 0o600 });
-}
-
-// The schedules page resolves the destination as it mounts and renders it in the override
-// field. Saving that folder unchanged queues the first verified backup into it, which is
-// awaited as a new receipt in the rendered folder and the backup schedule's last result after
-// a reload. A rendered folder outside the marked test data root is never read.
+// The schedules page resolves the destination as it mounts and renders it in the override field. Saving that folder
+// unchanged queues the first verified backup into it, which is awaited as a new receipt in the rendered folder and
+// the backup schedule's last result after a reload. A rendered folder outside the marked test data root is never read.
 export async function resolveDefaultDestination(
   page: Page,
   world: DefaultBackupWorld,
@@ -111,8 +92,7 @@ export async function resolveDefaultDestination(
   )?.trim();
 }
 
-// The rendered folder is the run repository's `data/backup`, computed here from the run id,
-// and that repository's git ignore rule covers it.
+// The rendered folder is the instance repository's `data/backup`, and that repository's git ignore rule covers it.
 export function expectDefaultBackupFolder(world: DefaultBackupWorld): void {
   const repository = required(world.repository, "default repository");
   const expected = path.join(repository, "data", "backup");
@@ -126,9 +106,8 @@ export function expectDefaultBackupFolder(world: DefaultBackupWorld): void {
   expect(ignored.status, ignored.stderr).toBe(0);
 }
 
-// The run's receipt is the default destination's setup run, proved, and neither the
-// repository, the backup folder, the live database, the runtime root nor the home directory
-// appears in its bytes.
+// The run's receipt is the default destination's setup run, proved, and neither the repository, the backup folder,
+// the live database, the runtime root nor the home directory appears in its bytes.
 export function expectVerifiedResultWithoutPrivatePath(
   world: DefaultBackupWorld,
 ): void {
@@ -180,13 +159,6 @@ function connected(page: Page): Promise<void> {
 function required<T>(value: T | undefined, name: string): T {
   if (value === undefined) throw new Error(`missing ${name}`);
   return value;
-}
-
-function runId(): string {
-  const id = process.env["BNEST_E2E_RUN_ID"];
-  if (id === undefined || id === "")
-    throw new Error("missing marked E2E run id");
-  return id;
 }
 
 function runtimeRoot(): string {

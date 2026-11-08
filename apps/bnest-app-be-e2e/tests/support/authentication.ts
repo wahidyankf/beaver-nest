@@ -1,7 +1,4 @@
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import path from "node:path";
-import { expect, type Page } from "@playwright/test";
+import { expect, type Browser, type Page } from "@playwright/test";
 
 export type InitialAccount = {
   username: string;
@@ -30,37 +27,27 @@ export async function login(
   ]);
 }
 
-export function runtimeDigest(relative: string): string {
-  const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
-  if (!root) throw new Error("Missing marked E2E runtime root");
-
-  const files = jsonFiles(path.join(root, relative)).toSorted();
-  const hash = createHash("sha256");
-  for (const file of files) hash.update(readFileSync(file));
-  return hash.digest("hex");
-}
-
-// The account file the marked runtime holds for `username`, found through its username index.
-export function storedAccountFile(username: string): string {
-  const root = process.env["BNEST_E2E_RUNTIME_ROOT"];
-  if (!root) throw new Error("Missing marked E2E runtime root");
-  const index = JSON.parse(
-    readFileSync(
-      path.join(root, "system/usernames", `${username}.json`),
-      "utf8",
-    ),
-  ) as { userId: string };
-  return path.join(root, "system/accounts", `${index.userId}.json`);
-}
-
-export function jsonFiles(directory: string): string[] {
-  if (!existsSync(directory)) return [];
-
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const candidate = path.join(directory, entry.name);
-    if (entry.isDirectory()) return jsonFiles(candidate);
-    return entry.isFile() && entry.name.endsWith(".json") ? [candidate] : [];
-  });
+// A fresh browser context attempts a login and must be refused, so nothing it holds is shared with `page`.
+export async function loginRefused(
+  browser: Browser,
+  baseURL: string,
+  identity: { username: string; password: string },
+): Promise<void> {
+  const context = await browser.newContext({ baseURL });
+  try {
+    const page = await context.newPage();
+    await page.goto("/login");
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    await page.getByLabel("Username").fill(identity.username);
+    await page.getByLabel("Password").fill(identity.password);
+    await page.getByRole("button", { name: "Log in" }).click();
+    await expect(page.getByRole("alert")).toHaveText(
+      "Username or password is not valid.",
+    );
+    await expect(page).toHaveURL(/\/login/u);
+  } finally {
+    await context.close();
+  }
 }
 
 export async function fillInitialAccounts(
@@ -91,23 +78,16 @@ export async function fillInitialAccounts(
   await fillInitialAccounts(page, accounts, index + 1);
 }
 
-// A synthetic account only a character-count rule would refuse (3 characters). One extra
-// keeps the form at ten cards: setup orders card indexes as strings, so an eleventh card
-// would be redrawn out of order (the 131-character case is proven at unit/integration).
-const passwordLengthAccounts: InitialAccount[] = [
-  {
-    username: "test-user-e2e-short-password",
-    password: "a_1",
-    role: "Children",
-    admin: false,
-  },
-];
-
-// No length rule holds only if each password-length account then logs in from a new browser.
+// No length rule holds only if each password-length account then logs in from a new browser. The caller names that
+// account (a synthetic `test-user-` name carrying the instance's short id, with a 3-character password that only a
+// character-count rule would refuse). Setup orders card indexes as strings, so an eleventh card would be redrawn out of
+// order; a scenario's form stays at four cards (the 131-character case is proven at unit/integration).
 export async function submitInitialAccountsWithSafetyChecks(
   page: Page,
   requestedAccounts: InitialAccount[],
+  passwordLengthAccount: InitialAccount,
 ): Promise<SetupSafetyChecks> {
+  const passwordLengthAccounts = [passwordLengthAccount];
   const accounts = [...requestedAccounts, ...passwordLengthAccounts];
   const sawIrreversibleWarning = await page.getByRole("note").isVisible();
   const noLengthAttributes = await checkPasswordFormRules(page);

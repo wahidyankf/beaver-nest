@@ -61,6 +61,10 @@
       ],
       "cache": false
     },
+    "test:unit": {
+      "command": "node --test apps/bnest-app-be-e2e/tests/support/test-instance-paths.test.mts apps/bnest-app-be-e2e/tests/support/testing-control.test.mts apps/bnest-app-be-e2e/tests/support/testing-control-errors.test.mts apps/bnest-app-be-e2e/tests/support/test-runtime.test.mts apps/bnest-app-be-e2e/tests/support/browser-environment.test.mts apps/bnest-app-be-e2e/tests/support/run-base-leaks.test.mts apps/bnest-app-be-e2e/tests/support/shared-support-parity.test.mts apps/bnest-app-be-e2e/tests/support/test-instance-lifecycle.test.mts apps/bnest-app-be-e2e/tests/support/test-instance-lifecycle-state.test.mts apps/bnest-app-be-e2e/tests/support/instance-record-read.test.mts apps/bnest-app-be-e2e/tests/support/secondary-environment.test.mts apps/bnest-app-be-e2e/tests/support/flat-account-files.test.mts apps/bnest-app-be-e2e/tests/support/flat-import-count.test.mts apps/bnest-app-be-e2e/tests/support/subscriptions.test.mts apps/bnest-app-be-e2e/tests/support/backup-repository.test.mts apps/bnest-app-be-e2e/tests/support/delete-when-idle.test.mts apps/bnest-app-be-e2e/tests/support/instance-host-files.test.mts apps/bnest-app-be-e2e/tests/support/interrupted-import-check.test.mts",
+      "cache": false
+    },
     "test:quick": {
       "executor": "nx:run-commands",
       "options": {
@@ -71,6 +75,10 @@
           },
           {
             "command": "npm exec -- nx run -p bnest-app-be-e2e -t lint",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app-be-e2e -t test:unit",
             "forwardAllArgs": false
           },
           {

@@ -15,9 +15,12 @@ defmodule BnestApp.TestInstance do
 
   use Boundary, top_level?: true, check: [in: false, out: false]
 
+  require Logger
+
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.TestInstance.Error
   alias BnestApp.TestInstance.Paths
+  alias BnestApp.TestInstance.Requests
   alias BnestApp.TestInstance.Seed
   alias BnestApp.TestInstance.Switch
   alias BnestApp.TestRuntimeRoot
@@ -69,6 +72,7 @@ defmodule BnestApp.TestInstance do
   """
   @spec spawn!(TestRuntimeRoot.t(), keyword()) :: instance()
   def spawn!(run, opts \\ []) do
+    :ok = Requests.attach!()
     with_lock(fn -> do_spawn(run, opts) end)
   end
 
@@ -176,8 +180,7 @@ defmodule BnestApp.TestInstance do
     violations =
       non_empty_directory(Path.join(run.path, "users")) ++
         non_empty_directory(Path.join(run.path, "system/accounts")) ++
-        database_files(run.path) ++
-        database_files(run.sqlite_path)
+        base_database_files()
 
     case violations do
       [] -> :ok
@@ -347,6 +350,9 @@ defmodule BnestApp.TestInstance do
   # Rolls back, then raises. A rollback whose removal fails names the retained path instead, since
   # that leftover fails the run.
   defp fail!(instance, original, step, detail) do
+    # The wire answer names the step and nothing else, so this line is the only record of the cause.
+    Logger.warning("test instance spawn failed at #{step}: #{inspect(detail)}")
+
     case rollback(instance, original) do
       :ok ->
         raise Error, reason: :spawn_failed, step: step, detail: detail
@@ -445,13 +451,22 @@ defmodule BnestApp.TestInstance do
 
   defp clear_current, do: Application.delete_env(:bnest_app, @current_key)
 
-  # Scheduler tasks run under this supervisor; a switch would change the database under them.
+  # A switch would change the database under a scheduler task, and under a web request still running: a browser
+  # that closed does not cancel the server's work on its request. Requests get a short time to end, because a
+  # request sent just before the browser closed is normally answered within moments.
   defp busy? do
+    scheduler_busy?() or Requests.await_idle(request_drain_ms()) != :ok
+  end
+
+  defp scheduler_busy? do
     case Process.whereis(BnestApp.Scheduler.Tasks) do
       nil -> false
       _supervisor -> Task.Supervisor.children(BnestApp.Scheduler.Tasks) != []
     end
   end
+
+  defp request_drain_ms,
+    do: Application.get_env(:bnest_app, :test_instance_request_drain_ms, 5_000)
 
   defp random_instance_id, do: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
 
@@ -467,6 +482,16 @@ defmodule BnestApp.TestInstance do
       {:ok, names} -> names |> Enum.sort() |> Enum.map(&Path.join(directory, &1))
       {:error, _reason} -> []
     end
+  end
+
+  @doc """
+  The SQLite database and sidecar files under either run base, outside every instance directory. An
+  instance's own files are not counted, so this is empty only when no instance wrote into the base.
+  """
+  @spec base_database_files() :: [String.t()]
+  def base_database_files do
+    run = application_run!()
+    database_files(run.path) ++ database_files(run.sqlite_path)
   end
 
   defp database_files(root) do

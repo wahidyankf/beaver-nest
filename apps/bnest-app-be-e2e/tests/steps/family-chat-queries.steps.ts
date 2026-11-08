@@ -2,9 +2,9 @@
 // posted at the exact origin by the member the Background logged in (or, for
 // the visitor, by a page holding no identity at all).
 //
-// The run's room is shared by every scenario before this one, so each Then
-// reads the room as the server reports it now -- a second query, never a
-// count kept here.
+// The scenario's test instance holds its own room, seeded by the release
+// migration, so each Then reads the room as the server reports it now -- a
+// second query, never a count kept here.
 
 import { randomUUID } from "node:crypto";
 import { expect, type Page } from "@playwright/test";

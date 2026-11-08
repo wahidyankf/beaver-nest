@@ -92,6 +92,34 @@ export function watchSubscriptions(page: Page): SubscriptionLog {
   return log;
 }
 
+const trackedSubscriptions = new WeakMap<Page, SubscriptionLog>();
+
+/**
+ * Follows the room's subscription on this page across reloads, so `waitForRoomSubscribed` can tell whether the
+ * current page load has one. Must be installed before the page opens the room.
+ */
+export function trackRoomSubscription(page: Page): void {
+  if (trackedSubscriptions.has(page)) return;
+  const log = watchSubscriptions(page);
+  trackedSubscriptions.set(page, log);
+  page.on("framenavigated", (frame) => {
+    if (frame === page.mainFrame()) log.acknowledged = 0;
+  });
+}
+
+/**
+ * Waits until the server has acknowledged the current page load's room subscription. A message posted before
+ * that point is not pushed to the page, so a scenario that posts and then waits for the push must wait here
+ * first. Does nothing for a page whose subscription is not tracked.
+ */
+export async function waitForRoomSubscribed(page: Page): Promise<void> {
+  const log = trackedSubscriptions.get(page);
+  if (log === undefined) return;
+  await expect
+    .poll(() => log.acknowledged, { timeout: 15_000 })
+    .toBeGreaterThan(0);
+}
+
 export interface CatchUp {
   answeredAt: number;
   ids: string[];

@@ -39,8 +39,8 @@ const { Given, Then, When } = createBdd();
 
 Given(
   "a visitor opens {string} with at least one committed message",
-  async ({ page, $testInfo }, _route: string) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }, _route: string) => {
+    await ensureRoomOpen(page);
     await ensureAtLeast(page, 1);
     scenario.targetBody = uniqueBody("Menu target");
     scenario.targetId = await postMessage(page, scenario.targetBody);
@@ -114,8 +114,8 @@ Then("keyboard focus is inside the menu", async ({ page }) => {
 
 Given(
   "the message action menu is open for a committed message",
-  async ({ page, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }) => {
+    await ensureRoomOpen(page);
     scenario.targetBody = uniqueBody("Escape target");
     scenario.targetId = await postMessage(page, scenario.targetBody);
     await waitForMessage(page, scenario.targetId);
@@ -140,8 +140,8 @@ Then("keyboard focus is on that same message", async ({ page }) => {
 
 Given(
   "the message action menu is open for one committed message",
-  async ({ page, $testInfo }) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page }) => {
+    await ensureRoomOpen(page);
     scenario.targetId = await postMessage(page, uniqueBody("First menu"));
     scenario.secondTargetId = await postMessage(
       page,
@@ -186,8 +186,8 @@ Then("both actions are available", async ({ page }) => {
 
 Given(
   "the visitor opens the action menu on a message from {string} reading {string}",
-  async ({ page, browser, $testInfo }, _sender: string, body: string) => {
-    await ensureRoomOpen(page, $testInfo);
+  async ({ page, browser }, _sender: string, body: string) => {
+    await ensureRoomOpen(page);
     scenario.targetBody = body;
     // The feature names the sender "Ayah"; the suite seeds the message from
     // a synthetic identity instead, per the test-data Iron Rule. The name
@@ -238,8 +238,8 @@ Then(
 
 // --- The strip does not survive a reload ---------------------------------
 
-Given("the composer shows a reply strip", async ({ page, $testInfo }) => {
-  await ensureRoomOpen(page, $testInfo);
+Given("the composer shows a reply strip", async ({ page }) => {
+  await ensureRoomOpen(page);
   scenario.targetBody = uniqueBody("Strip target");
   scenario.targetId = await postMessage(page, scenario.targetBody);
   await waitForMessage(page, scenario.targetId);

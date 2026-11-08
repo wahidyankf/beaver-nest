@@ -1,5 +1,11 @@
 ExUnit.start()
 
+# A pre-push hook exports git's repository variables, and a child git inherits them, so the production
+# ignore check and the test helpers would act on the hook's repository. The test run starts with none of them.
+for {name, _value} <- System.get_env(),
+    String.starts_with?(name, "GIT_"),
+    do: System.delete_env(name)
+
 # The integration run's end-of-suite audit (ADR 001, section 3). ExUnit runs `after_suite` callbacks in
 # reverse registration order, so this one is registered before ExBdd compiles its features: ExBdd's own
 # callback (after_all hooks and the message flush) runs first, and this audit runs last. It counts the instance

@@ -4,6 +4,7 @@ import { existsSync, lstatSync, mkdirSync, renameSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { TestInfo } from "@playwright/test";
+import { withoutControlSecret } from "./secondary-environment.mts";
 import { chatPayload, learningPayload } from "./centralized-data";
 import { runStorageCommand, type StorageScenario } from "./sqlite-storage";
 import {
@@ -242,8 +243,9 @@ export function runStorageEval(
   const realHome = os.homedir();
   const result = spawnSync("mix", ["run", "-e", expression], {
     cwd: appDirectory,
+    // A storage CLI process never calls the control routes, so it starts without the test-control secret.
     env: {
-      ...process.env,
+      ...withoutControlSecret(process.env),
       MIX_ENV: "test",
       HOME: realHome,
       BNEST_IDENTITY_CUTOVER: "true",
