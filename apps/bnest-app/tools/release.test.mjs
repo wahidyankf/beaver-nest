@@ -511,6 +511,194 @@ test("reports an unreadable release as an audit violation, not a crash", async (
   }
 });
 
+// A compiled test-build beam copied from `_build/test`. Its build-host source prefix is replaced by an
+// equal-length synthetic prefix, so the fixture holds no local path and every chunk keeps its size.
+const realTestBeam = fileURLToPath(
+  new URL(
+    "./fixtures/release-artifact-audit/Elixir.BnestApp.Test.Contracts.beam",
+    import.meta.url,
+  ),
+);
+
+test("refuses a real compiled test-build beam by its module name", async () => {
+  const { auditReleaseArtifact } = await loadArtifactAudit();
+  const beam = readFileSync(realTestBeam);
+  assert.equal(beam.toString("latin1", 0, 4), "FOR1");
+  assert.equal(beam.toString("latin1", 8, 12), "BEAM");
+
+  assert.throws(
+    () =>
+      withTempRelease((root) => auditReleaseArtifact(root), {
+        beams: { "Elixir.BnestApp.Test.Contracts.beam": beam },
+      }),
+    (error) =>
+      error.violations.includes(
+        "lib/bnest_app-0.1.0/ebin/Elixir.BnestApp.Test.Contracts.beam: test-only module",
+      ),
+  );
+});
+
+test("reports a router beam that cannot be read as a violation that names the file", async () => {
+  const { auditReleaseArtifact, ReleaseArtifactAuditError } =
+    await loadArtifactAudit();
+  const routerLabel = "lib/bnest_app-0.1.0/ebin/Elixir.BnestAppWeb.Router.beam";
+  const cases = {
+    "no FOR1 or BEAM header": [
+      Buffer.from("synthetic text that is not a beam file"),
+      "missing FOR1/BEAM header",
+    ],
+    "a chunk longer than the file": [
+      syntheticBeam({ atoms: ["Elixir.BnestAppWeb.Router"] }).subarray(0, 40),
+      "truncated chunk",
+    ],
+  };
+
+  for (const [caseName, [router, reason]] of Object.entries(cases)) {
+    assert.throws(
+      () => withTempRelease((root) => auditReleaseArtifact(root), { router }),
+      (error) =>
+        error instanceof ReleaseArtifactAuditError &&
+        error.violations.includes(
+          `${routerLabel}: unreadable BEAM file (${reason})`,
+        ),
+      caseName,
+    );
+  }
+});
+
+test("auditBuiltArtifact refuses a dirty artifact as an artifact error and logs the violation", async () => {
+  const { auditBuiltArtifact, ReleaseError } = await loadRelease();
+  const parent = mkdtempSync(join(tmpdir(), "bnest-build-audit-"));
+  const logged = [];
+
+  try {
+    const dirty = syntheticRelease(join(parent, "dirty"), {
+      beams: {
+        "Elixir.BnestApp.TestInstance.beam": syntheticBeam({
+          atoms: ["Elixir.BnestApp.TestInstance"],
+        }),
+      },
+    });
+
+    assert.throws(
+      () => auditBuiltArtifact(dirty, (message) => logged.push(message)),
+      (error) =>
+        error instanceof ReleaseError &&
+        error.category === "artifact" &&
+        error.message === "Release artifact failed the testing-module audit",
+    );
+    assert.equal(logged.length, 1);
+    assert.match(
+      logged[0],
+      /Elixir\.BnestApp\.TestInstance\.beam: test-only module/u,
+    );
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("auditBuiltArtifact passes a clean artifact without logging", async () => {
+  const { auditBuiltArtifact } = await loadRelease();
+  const parent = mkdtempSync(join(tmpdir(), "bnest-build-clean-"));
+  const logged = [];
+
+  try {
+    const clean = syntheticRelease(join(parent, "clean"));
+    assert.deepEqual(
+      auditBuiltArtifact(clean, (message) => logged.push(message)),
+      { ebins: 1, beams: 2 },
+    );
+    assert.deepEqual(logged, []);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+async function loadRelease() {
+  return import("./release.mjs");
+}
+
+// Runs the real `build` method. Git, the deployment tool, the capacity check and the logs are replaced,
+// so only the artifact audit and the manifest write run for real.
+async function buildHostFor(deploymentRoot) {
+  const { MachineHost } = await loadRelease();
+  return new (class ArtifactBuildHost extends MachineHost {
+    constructor() {
+      super({
+        BNEST_DEPLOY_ROOT: deploymentRoot,
+        BNEST_PRODUCTION_ORIGIN: "https://service.example",
+        HIPPO_BIN: "unused-hippo",
+      });
+    }
+
+    assertReleaseSource(expectedRevision) {
+      return expectedRevision;
+    }
+
+    assertCapacity() {}
+
+    run(command, arguments_) {
+      if (
+        command === "git" &&
+        arguments_[0] === "worktree" &&
+        arguments_[1] === "remove"
+      ) {
+        rmSync(arguments_.at(-1), { recursive: true, force: true });
+      }
+      return { stdout: "", stderr: "", status: 0 };
+    }
+
+    deployment(command) {
+      assert.equal(command, "release:build");
+      return { stdout: `${revision}\n` };
+    }
+  })();
+}
+
+test("build rejects a dirty artifact before it writes the manifest", async () => {
+  const deploymentRoot = mkdtempSync(join(tmpdir(), "bnest-build-dirty-"));
+
+  try {
+    syntheticRelease(join(deploymentRoot, "releases", revision), {
+      beams: {
+        "Elixir.BnestApp.TestInstance.beam": syntheticBeam({
+          atoms: ["Elixir.BnestApp.TestInstance"],
+        }),
+      },
+    });
+    const { ReleaseError } = await loadRelease();
+    const host = await buildHostFor(deploymentRoot);
+
+    await assert.rejects(
+      () => host.build(revision, ["bnest-quick"]),
+      (error) => error instanceof ReleaseError && error.category === "artifact",
+    );
+    assert.equal(
+      existsSync(join(deploymentRoot, "manifests", `${revision}.json`)),
+      false,
+    );
+  } finally {
+    rmSync(deploymentRoot, { recursive: true, force: true });
+  }
+});
+
+test("build records the manifest for a clean artifact", async () => {
+  const deploymentRoot = mkdtempSync(join(tmpdir(), "bnest-build-clean-host-"));
+
+  try {
+    syntheticRelease(join(deploymentRoot, "releases", revision));
+    const host = await buildHostFor(deploymentRoot);
+
+    await host.build(revision, ["bnest-quick"]);
+    assert.equal(
+      existsSync(join(deploymentRoot, "manifests", `${revision}.json`)),
+      true,
+    );
+  } finally {
+    rmSync(deploymentRoot, { recursive: true, force: true });
+  }
+});
+
 test("the audit command audits a release directory and exits nonzero on a violation", () => {
   const cli = fileURLToPath(
     new URL("./release-artifact-audit.mjs", import.meta.url),
@@ -547,7 +735,10 @@ test("runs the artifact audit right after release:build and records artifact-aud
     "utf8",
   );
   const build = source.indexOf('this.deployment("release:build"');
-  const audit = source.indexOf("auditReleaseArtifact(");
+  // The call inside `build`, not the function definition above it.
+  const audit = source.indexOf(
+    "    auditBuiltArtifact(artifact, (message) => this.log(message));",
+  );
   const manifest = source.indexOf("writePrivateJson(join(this.manifestsPath");
   assert.match(
     source,

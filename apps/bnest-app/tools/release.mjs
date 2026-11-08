@@ -166,6 +166,21 @@ export class ReleaseError extends Error {
   }
 }
 
+// Refuses a built artifact that carries test-only code (ADR 001 section 7). `build` calls it after
+// release:build and before it writes the manifest, so a dirty artifact never gets a manifest.
+export function auditBuiltArtifact(artifact, log = () => {}) {
+  try {
+    return auditReleaseArtifact(artifact);
+  } catch (error) {
+    if (!(error instanceof ReleaseArtifactAuditError)) throw error;
+    log(error.message.replaceAll("\n", " "));
+    throw new ReleaseError(
+      "artifact",
+      "Release artifact failed the testing-module audit",
+    );
+  }
+}
+
 export async function executeRelease(host, options = {}) {
   const startedAt = Date.now();
   const evidenceIds = [];
@@ -817,16 +832,7 @@ export class MachineHost {
     if (!existsSync(artifact))
       throw new ReleaseError("artifact", "Release artifact is missing");
 
-    try {
-      auditReleaseArtifact(artifact);
-    } catch (error) {
-      if (!(error instanceof ReleaseArtifactAuditError)) throw error;
-      this.log(error.message.replaceAll("\n", " "));
-      throw new ReleaseError(
-        "artifact",
-        "Release artifact failed the testing-module audit",
-      );
-    }
+    auditBuiltArtifact(artifact, (message) => this.log(message));
 
     mkdirSync(this.manifestsPath, { recursive: true });
     const manifest = {
