@@ -289,7 +289,10 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
   defp headers(:non_loopback),
     do: [{"accept", "application/json"}, {Secret.header(), Fixtures.secret()}]
 
-  # A refusal raises the exception a missing route raises, through `Guard.admit/2`.
+  # A refusal raises the exception a missing route raises, through `Guard.admit/2`. Dialyzer sees that
+  # a refused call never returns and reports the call, which is the behaviour under test, so the
+  # warning is suppressed for this function only.
+  @dialyzer {:nowarn_function, answer: 1}
   defp answer({:error, _reason} = decision) do
     Guard.admit(Plug.Test.conn(:post, @route_prefix <> "/instances"), decision)
     :admitted
