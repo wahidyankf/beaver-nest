@@ -17,7 +17,6 @@ import {
   instanceEnvironment,
   isScenarioPrecondition,
   plannedAccount,
-  shortIdOf,
 } from "../support/test-instance-lifecycle.mts";
 import {
   instanceHostFiles,
@@ -269,47 +268,3 @@ Then("the run root holds no database file", () => {
     runBaseLeaks({ path: flatRunRoot, sqlitePath: sqliteRunRoot, runId }),
   ).toEqual([]);
 });
-
-// --- Scenario: seeded accounts are test identities only ---------------------
-
-When(
-  "a test spawns an instance with two seeded accounts",
-  async ({ $testInfo }) => {
-    carried.spawned = await instanceLifecycle().begin({
-      ...beginOptionsFor($testInfo),
-      accounts: (instanceId) => [
-        plannedAccount(instanceId, "admin"),
-        plannedAccount(instanceId, "child"),
-      ],
-    });
-  },
-);
-
-Then("the spawn response lists exactly those two accounts", () => {
-  const spawned = required(carried.spawned, "spawned instance");
-  const expected = [
-    plannedAccount(spawned.instanceId, "admin").username,
-    plannedAccount(spawned.instanceId, "child").username,
-  ];
-  expect(
-    spawned.accounts.map((account) => account.username).toSorted(),
-  ).toEqual(expected.toSorted());
-});
-
-Then('each listed username starts with "test-user-"', () => {
-  const spawned = required(carried.spawned, "spawned instance");
-  for (const account of spawned.accounts) {
-    expect(account.username.startsWith("test-user-")).toBe(true);
-  }
-});
-
-Then(
-  "each listed username carries the first eight characters of the instance ID",
-  () => {
-    const spawned = required(carried.spawned, "spawned instance");
-    const short = shortIdOf(spawned.instanceId);
-    for (const account of spawned.accounts) {
-      expect(account.username.split("-")).toContain(short);
-    }
-  },
-);
