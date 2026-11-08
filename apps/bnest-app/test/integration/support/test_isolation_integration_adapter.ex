@@ -42,15 +42,10 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
   end
 
   @doc """
-  Tears down what the scenario left: the current instance (dropped, so the storage pointer returns to the
-  run base), the wire state and the run secret. A scenario that never spawned has nothing to drop.
+  Clears the wire state and the run secret. The current instance is dropped by the fresh-database hook in
+  `test/behaviour/support/integration.exs`, which runs for every integration scenario.
   """
   def release(context) do
-    case TestInstance.state() do
-      nil -> :ok
-      instance -> :ok = TestInstance.drop!(instance)
-    end
-
     Wire.cleanup!()
     context
   end
