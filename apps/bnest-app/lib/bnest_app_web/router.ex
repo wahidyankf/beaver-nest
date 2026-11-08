@@ -185,8 +185,15 @@ defmodule BnestAppWeb.Router do
 
   # Test-only instance control. The routes exist only in the test build, see `testing_routes_enabled?/0`.
   if @testing_routes_mounted? do
+    # The guard is the first plug, before `accepts`: a refused request gets the missing-route answer
+    # whatever its `Accept` header asks for. See `BnestAppWeb.TestingControl.Guard`.
+    pipeline :testing_control do
+      plug BnestAppWeb.TestingControl.Guard
+      plug :accepts, ["json"]
+    end
+
     scope "/__bnest_testing/v1", BnestAppWeb.TestingControl do
-      pipe_through :api
+      pipe_through :testing_control
 
       get "/state", InstanceController, :state
       post "/instances", InstanceController, :create
