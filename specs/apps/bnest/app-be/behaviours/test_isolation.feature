@@ -104,7 +104,7 @@ Feature: Bnest test isolation
 
   Rule: A failed spawn leaves nothing behind
 
-  # Exemption(e2e): a fault cannot be placed in the middle of a spawn through the testing endpoints, so the browser and HTTP boundary cannot force it; alternative-proof: bnest-app:test:integration / A failed seed step rolls the spawn back
+  # Exemption(e2e): the testing endpoints cannot inject a write fault after the first seeded account is created, because seed validation runs before any write; the invalid-seed rollback is proved in the browser suite by the refused username scenario; alternative-proof: bnest-app:test:integration / A failed seed step rolls the spawn back
   @e2e-exempt
   Scenario: A failed seed step rolls the spawn back
     Given no test instance is current
