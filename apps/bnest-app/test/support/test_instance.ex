@@ -57,8 +57,9 @@ defmodule BnestApp.TestInstance do
   Spawns one test instance and points the running server at it. Options: `:phase` (default
   `:sqlite_primary`), `:instance_id` (default random), `:seed` (after migration: a one-argument
   function run with the instance, or `{seed_key, seed_map}` applied through
-  `BnestApp.TestInstance.Seed`), and `:fail_after` (a step name: that step does its work and then
-  fails, which tests the rollback). Raises `BnestApp.TestInstance.Error`.
+  `BnestApp.TestInstance.Seed`), `:fail_after` (a step name: that step does its work and then
+  fails, which tests the rollback), and `:label` (a diagnostic name the wire answers; default
+  `"unlabeled"`). Raises `BnestApp.TestInstance.Error`.
   """
   @spec spawn!(TestRuntimeRoot.t(), keyword()) :: instance()
   def spawn!(run, opts \\ []) do
@@ -72,6 +73,40 @@ defmodule BnestApp.TestInstance do
       nil -> nil
       %{instance: instance} -> instance
     end
+  end
+
+  @doc """
+  The current instance with the label and creation time its spawn recorded, or nil. The wire's
+  `GET /state` answers these.
+  """
+  @spec info() :: %{instance: instance(), label: String.t(), created_at: String.t()} | nil
+  def info do
+    case current() do
+      nil ->
+        nil
+
+      %{instance: instance, label: label, created_at: created_at} ->
+        %{instance: instance, label: label, created_at: created_at}
+    end
+  end
+
+  @doc """
+  Applies a seed to the current instance when `instance_id` is its id, under the switch lock, so a
+  concurrent spawn or delete cannot change the database under the write. Another id answers
+  `{:error, :not_current}`. A lock that another caller holds raises `BnestApp.TestInstance.Error`
+  with reason `:instance_active`.
+  """
+  @spec seed_current(String.t(), term(), term()) :: {:ok, map()} | {:error, term()}
+  def seed_current(instance_id, seed_key, seed) do
+    with_lock(fn ->
+      case current() do
+        %{instance: %{instance_id: ^instance_id} = instance} ->
+          Seed.apply(instance, seed_key, seed)
+
+        _other ->
+          {:error, :not_current}
+      end
+    end)
   end
 
   @doc """
@@ -192,8 +227,16 @@ defmodule BnestApp.TestInstance do
     run_step!(instance, original, :migrate, opts, fn -> Switch.migrate!(instance) end)
 
     # The instance is current before its seed runs, so the seed keeps its registry in the state.
-    # A seed that fails clears the state again in `rollback/2`.
-    store_current(%{instance: instance, original: original, seeds: %{}})
+    # A seed that fails clears the state again in `rollback/2`. The label and creation time are kept
+    # only for the wire's state answer; nothing on disk depends on them.
+    store_current(%{
+      instance: instance,
+      original: original,
+      seeds: %{},
+      label: Keyword.get(opts, :label, "unlabeled"),
+      created_at: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+    })
+
     run_step!(instance, original, :seed, opts, fn -> run_seed(opts, instance) end)
     instance
   end
