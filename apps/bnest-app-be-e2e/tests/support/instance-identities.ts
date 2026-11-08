@@ -34,7 +34,9 @@ function seededAccount(username: string): {
     (candidate) => candidate.username === username,
   );
   if (account === undefined) {
-    throw new Error("the account was not seeded into the current test instance");
+    throw new Error(
+      "the account was not seeded into the current test instance",
+    );
   }
   return account;
 }

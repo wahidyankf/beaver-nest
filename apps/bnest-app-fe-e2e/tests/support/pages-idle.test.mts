@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { waitForPagesIdle, type IdlePage } from "./pages-idle.mts";
 
-function fakePage(options: { closed?: boolean; fails?: boolean; timesOut?: boolean } = {}) {
+function fakePage(
+  options: { closed?: boolean; fails?: boolean; timesOut?: boolean } = {},
+) {
   const calls: Array<{ state: string; timeout: number }> = [];
   const page: IdlePage = {
     isClosed: () => options.closed === true,
@@ -13,7 +15,9 @@ function fakePage(options: { closed?: boolean; fails?: boolean; timesOut?: boole
         timeout.name = "TimeoutError";
         return Promise.reject(timeout);
       }
-      return options.fails === true ? Promise.reject(new Error("still busy")) : Promise.resolve();
+      return options.fails === true
+        ? Promise.reject(new Error("still busy"))
+        : Promise.resolve();
     },
   };
   return { page, calls };
@@ -50,7 +54,10 @@ test("rejects on any other failure, after every page was waited on", async () =>
   const busy = fakePage({ fails: true });
   const idle = fakePage();
 
-  await assert.rejects(waitForPagesIdle([busy.page, idle.page], 7000), /still busy/u);
+  await assert.rejects(
+    waitForPagesIdle([busy.page, idle.page], 7000),
+    /still busy/u,
+  );
 
   assert.equal(idle.calls.length, 1);
 });

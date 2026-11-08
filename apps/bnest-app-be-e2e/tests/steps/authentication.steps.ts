@@ -99,9 +99,7 @@ Given(
       "account",
       userIdFor(currentIdentities().admin.username),
     );
-    expect(String(account["passwordVerifier"])).toMatch(
-      /^\$argon2id\$v=19\$/u,
-    );
+    expect(String(account["passwordVerifier"])).toMatch(/^\$argon2id\$v=19\$/u);
     await page.context().clearCookies();
     await page.goto("/login");
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);

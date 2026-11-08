@@ -1,9 +1,15 @@
 // Shared fakes for the lifecycle unit tests. They stand in for the testing control client, so the state machine runs
 // without a server. Not a test file itself: the two `*.test.mts` files import it.
 
-import type { BeginOptions, LifecycleClient } from "./test-instance-lifecycle.mts";
+import type {
+  BeginOptions,
+  LifecycleClient,
+} from "./test-instance-lifecycle.mts";
 import type { AccountPlan } from "./test-instance-accounts.mts";
-import type { SpawnedInstance, SpawnRequest } from "./testing-control-records.mts";
+import type {
+  SpawnedInstance,
+  SpawnRequest,
+} from "./testing-control-records.mts";
 
 export const instanceId = "a1b2c3d4e5f6g7h8";
 export const otherId = "zz99yy88xx77ww66";
@@ -22,7 +28,8 @@ export function spawnedFor(id: string, request: SpawnRequest): SpawnedInstance {
     environment: {
       BNEST_TEST_INSTANCE_ID: id,
       BNEST_RUNTIME_ROOT: "/data/test/runs/run-1",
-      BNEST_STORAGE_CONFIG: "/synthetic/x/bnest/data/test/runs/run-1/storage-config/storage.json",
+      BNEST_STORAGE_CONFIG:
+        "/synthetic/x/bnest/data/test/runs/run-1/storage-config/storage.json",
     },
   };
 }
@@ -49,7 +56,8 @@ export function fakeClient(
       if (options.spawnFails === true) {
         return Promise.reject(new Error("spawn refused"));
       }
-      const id = options.returnId ?? request.instanceId ?? options.nextId ?? instanceId;
+      const id =
+        options.returnId ?? request.instanceId ?? options.nextId ?? instanceId;
       return Promise.resolve(spawnedFor(id, request));
     },
     seedInstance: (id, request) => {

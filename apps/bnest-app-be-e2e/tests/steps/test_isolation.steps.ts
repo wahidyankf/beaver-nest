@@ -109,7 +109,9 @@ Then(
     // A flat-primary instance keeps accounts and user records in its flat root, not in SQLite, so the row counts prove
     // nothing about them. The root must exist, and it must hold no account, username, or user file.
     expect(
-      flatAccountFiles(instanceEnvironment(currentInstance()).BNEST_RUNTIME_ROOT),
+      flatAccountFiles(
+        instanceEnvironment(currentInstance()).BNEST_RUNTIME_ROOT,
+      ),
     ).toEqual([]);
   },
 );
@@ -136,13 +138,16 @@ Given("a test spawned an instance and created an account in it", () => {
   carried.previousUserId = account.userId;
 });
 
-When("the next test spawns its own instance", async ({ browser, $testInfo }) => {
-  // The previous instance's browser contexts close before it is deleted, as the After hook requires.
-  await closeBrowserContexts(browser);
-  carried.spawned = await instanceLifecycle().replace(
-    beginOptionsFor($testInfo),
-  );
-});
+When(
+  "the next test spawns its own instance",
+  async ({ browser, $testInfo }) => {
+    // The previous instance's browser contexts close before it is deleted, as the After hook requires.
+    await closeBrowserContexts(browser);
+    carried.spawned = await instanceLifecycle().replace(
+      beginOptionsFor($testInfo),
+    );
+  },
+);
 
 Then("the next instance has a different instance ID and generation", () => {
   const previous = required(carried.previousInstance, "previous instance");
@@ -163,20 +168,26 @@ Then(
   },
 );
 
-Then("the readiness check reports the generation of the next instance", async () => {
-  expect(await readyStorageGeneration()).toBe(
-    required(carried.spawned, "next instance").generation,
-  );
-});
+Then(
+  "the readiness check reports the generation of the next instance",
+  async () => {
+    expect(await readyStorageGeneration()).toBe(
+      required(carried.spawned, "next instance").generation,
+    );
+  },
+);
 
 // --- Scenario: spawn, migrate, seed, test, and teardown run in that order ---
 
-When("a test spawns an instance with one seeded account", async ({ $testInfo }) => {
-  carried.spawned = await instanceLifecycle().begin({
-    ...beginOptionsFor($testInfo),
-    accounts: (instanceId) => [plannedAccount(instanceId, "admin")],
-  });
-});
+When(
+  "a test spawns an instance with one seeded account",
+  async ({ $testInfo }) => {
+    carried.spawned = await instanceLifecycle().begin({
+      ...beginOptionsFor($testInfo),
+      accounts: (instanceId) => [plannedAccount(instanceId, "admin")],
+    });
+  },
+);
 
 Then(
   "the spawn returns only after its migrations and its seed have finished",
@@ -189,10 +200,13 @@ Then(
   },
 );
 
-Then("the seeded account can log in as soon as the spawn returns", async ({ page }) => {
-  const spawned = required(carried.spawned, "spawned instance");
-  await login(page, plannedAccount(spawned.instanceId, "admin"));
-});
+Then(
+  "the seeded account can log in as soon as the spawn returns",
+  async ({ page }) => {
+    const spawned = required(carried.spawned, "spawned instance");
+    await login(page, plannedAccount(spawned.instanceId, "admin"));
+  },
+);
 
 Then("the instance stays current until the test deletes it", async () => {
   const spawned = required(carried.spawned, "spawned instance");
@@ -223,7 +237,9 @@ Then("the server reports no current instance", async () => {
 
 Then("a second delete of that instance is refused", async () => {
   const instanceId = required(carried.deletedInstanceId, "deleted instance");
-  await expect(testingControl().deleteInstance(instanceId)).rejects.toMatchObject({
+  await expect(
+    testingControl().deleteInstance(instanceId),
+  ).rejects.toMatchObject({
     code: "not_current",
   });
 });
@@ -249,20 +265,25 @@ Then(
 
 Then("the run root holds no database file", () => {
   const { flatRunRoot, sqliteRunRoot, runId } = runRoots();
-  expect(runBaseLeaks({ path: flatRunRoot, sqlitePath: sqliteRunRoot, runId })).toEqual([]);
+  expect(
+    runBaseLeaks({ path: flatRunRoot, sqlitePath: sqliteRunRoot, runId }),
+  ).toEqual([]);
 });
 
 // --- Scenario: seeded accounts are test identities only ---------------------
 
-When("a test spawns an instance with two seeded accounts", async ({ $testInfo }) => {
-  carried.spawned = await instanceLifecycle().begin({
-    ...beginOptionsFor($testInfo),
-    accounts: (instanceId) => [
-      plannedAccount(instanceId, "admin"),
-      plannedAccount(instanceId, "child"),
-    ],
-  });
-});
+When(
+  "a test spawns an instance with two seeded accounts",
+  async ({ $testInfo }) => {
+    carried.spawned = await instanceLifecycle().begin({
+      ...beginOptionsFor($testInfo),
+      accounts: (instanceId) => [
+        plannedAccount(instanceId, "admin"),
+        plannedAccount(instanceId, "child"),
+      ],
+    });
+  },
+);
 
 Then("the spawn response lists exactly those two accounts", () => {
   const spawned = required(carried.spawned, "spawned instance");
@@ -270,9 +291,9 @@ Then("the spawn response lists exactly those two accounts", () => {
     plannedAccount(spawned.instanceId, "admin").username,
     plannedAccount(spawned.instanceId, "child").username,
   ];
-  expect(spawned.accounts.map((account) => account.username).toSorted()).toEqual(
-    expected.toSorted(),
-  );
+  expect(
+    spawned.accounts.map((account) => account.username).toSorted(),
+  ).toEqual(expected.toSorted());
 });
 
 Then('each listed username starts with "test-user-"', () => {
@@ -282,10 +303,13 @@ Then('each listed username starts with "test-user-"', () => {
   }
 });
 
-Then("each listed username carries the first eight characters of the instance ID", () => {
-  const spawned = required(carried.spawned, "spawned instance");
-  const short = shortIdOf(spawned.instanceId);
-  for (const account of spawned.accounts) {
-    expect(account.username.split("-")).toContain(short);
-  }
-});
+Then(
+  "each listed username carries the first eight characters of the instance ID",
+  () => {
+    const spawned = required(carried.spawned, "spawned instance");
+    const short = shortIdOf(spawned.instanceId);
+    for (const account of spawned.accounts) {
+      expect(account.username.split("-")).toContain(short);
+    }
+  },
+);

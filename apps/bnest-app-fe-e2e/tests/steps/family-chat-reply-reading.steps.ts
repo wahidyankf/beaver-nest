@@ -243,24 +243,21 @@ Given("the visitor's system requests reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 });
 
-When(
-  "the visitor jumps to a quoted message",
-  async ({ page, browser }) => {
-    await ensureRoomOpen(page);
-    scenario.targetBody = uniqueBody("Reduced motion original");
-    scenario.targetId = await postMessage(page, scenario.targetBody);
-    scenario.replyBody = uniqueBody("Reduced motion reply");
-    scenario.replyId = await replyAsAnotherMember(
-      browser,
-      scenario.replyBody,
-      scenario.targetId,
-    );
-    await page.reload();
-    await waitForRoomReady(page);
-    await waitForMessage(page, scenario.replyId);
-    await messageById(page, scenario.replyId).locator(QUOTE).click();
-  },
-);
+When("the visitor jumps to a quoted message", async ({ page, browser }) => {
+  await ensureRoomOpen(page);
+  scenario.targetBody = uniqueBody("Reduced motion original");
+  scenario.targetId = await postMessage(page, scenario.targetBody);
+  scenario.replyBody = uniqueBody("Reduced motion reply");
+  scenario.replyId = await replyAsAnotherMember(
+    browser,
+    scenario.replyBody,
+    scenario.targetId,
+  );
+  await page.reload();
+  await waitForRoomReady(page);
+  await waitForMessage(page, scenario.replyId);
+  await messageById(page, scenario.replyId).locator(QUOTE).click();
+});
 
 Then("the message is marked without an animated pulse", async ({ page }) => {
   const target = messageById(page, scenario.targetId);

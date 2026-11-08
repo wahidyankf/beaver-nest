@@ -20,7 +20,10 @@ export function needsBackupRepository(tags: readonly string[]): boolean {
 
 // The instance's backup repository, beside its database under the SQLite run root. The run's storage pointer
 // is `<sqlite run root>/storage-config/storage.json`, so the run root is two levels above it.
-export function backupRepositoryOf(storageConfig: string, instanceId: string): string {
+export function backupRepositoryOf(
+  storageConfig: string,
+  instanceId: string,
+): string {
   if (!path.isAbsolute(storageConfig)) {
     throw new Error("the storage config path must be absolute");
   }

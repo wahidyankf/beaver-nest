@@ -46,9 +46,13 @@ export async function seedLoadIdentities(
   return accounts.map(({ username }) => ({ username, password }));
 }
 
-function identityFor(plan: readonly AccountPlan[], role: string): InstanceIdentity {
+function identityFor(
+  plan: readonly AccountPlan[],
+  role: string,
+): InstanceIdentity {
   const account = plan.find((candidate) => candidate.role === role);
-  if (account === undefined) throw new Error(`the account plan has no ${role} account`);
+  if (account === undefined)
+    throw new Error(`the account plan has no ${role} account`);
   return { username: account.username, password: account.password };
 }
 

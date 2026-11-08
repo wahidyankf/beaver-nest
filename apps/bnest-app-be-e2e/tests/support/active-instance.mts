@@ -43,7 +43,10 @@ export function testingControl(): TestingControlClient {
 
 // Created on first use, so a worker that never runs a scenario reads no environment.
 export function instanceLifecycle(): InstanceLifecycle {
-  lifecycle ??= createInstanceLifecycle({ client: testingControl(), runId: runId() });
+  lifecycle ??= createInstanceLifecycle({
+    client: testingControl(),
+    runId: runId(),
+  });
   return lifecycle;
 }
 

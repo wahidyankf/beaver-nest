@@ -133,16 +133,13 @@ Then(
 
 // --- The history's single tab stop ---------------------------------------
 
-Given(
-  "the history holds {int} messages",
-  async ({ page }, count: number) => {
-    await ensureRoomOpen(page);
-    await ensureAtLeast(page, count);
-    await expect
-      .poll(() => page.locator(MESSAGE).count(), { timeout: 20_000 })
-      .toBeGreaterThanOrEqual(count);
-  },
-);
+Given("the history holds {int} messages", async ({ page }, count: number) => {
+  await ensureRoomOpen(page);
+  await ensureAtLeast(page, count);
+  await expect
+    .poll(() => page.locator(MESSAGE).count(), { timeout: 20_000 })
+    .toBeGreaterThanOrEqual(count);
+});
 
 When(
   "the visitor presses Tab from the control before the history",

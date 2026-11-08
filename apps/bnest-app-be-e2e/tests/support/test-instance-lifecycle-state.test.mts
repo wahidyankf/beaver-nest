@@ -46,9 +46,17 @@ test("spawns one instance with the chosen id, phase, and the plan's accounts", a
 
 test("sends no seed for an empty account plan", async () => {
   const { client, calls } = fakeClient();
-  const lifecycle = createInstanceLifecycle({ client, runId: "run-1", newInstanceId: () => instanceId });
+  const lifecycle = createInstanceLifecycle({
+    client,
+    runId: "run-1",
+    newInstanceId: () => instanceId,
+  });
 
-  await lifecycle.begin({ label: "setup", phase: "flat_primary", accounts: () => [] });
+  await lifecycle.begin({
+    label: "setup",
+    phase: "flat_primary",
+    accounts: () => [],
+  });
 
   assert.equal(calls.spawns[0]?.seed, undefined);
   assert.equal(calls.spawns[0]?.phase, "flat_primary");
@@ -56,11 +64,24 @@ test("sends no seed for an empty account plan", async () => {
 
 test("sends the unconfigured storage choice to the server, and nothing when it is not chosen", async () => {
   const { client, calls } = fakeClient();
-  const lifecycle = createInstanceLifecycle({ client, runId: "run-1", newInstanceId: () => instanceId });
+  const lifecycle = createInstanceLifecycle({
+    client,
+    runId: "run-1",
+    newInstanceId: () => instanceId,
+  });
 
-  await lifecycle.begin({ label: "choose", phase: "flat_primary", storage: "unconfigured", accounts: accountPlan });
+  await lifecycle.begin({
+    label: "choose",
+    phase: "flat_primary",
+    storage: "unconfigured",
+    accounts: accountPlan,
+  });
   await lifecycle.end();
-  await lifecycle.begin({ label: "plain", phase: "flat_primary", accounts: accountPlan });
+  await lifecycle.begin({
+    label: "plain",
+    phase: "flat_primary",
+    accounts: accountPlan,
+  });
 
   assert.equal(calls.spawns[0]?.storage, "unconfigured");
   assert.equal(calls.spawns[1]?.storage, undefined);
@@ -68,7 +89,11 @@ test("sends the unconfigured storage choice to the server, and nothing when it i
 
 test("refuses a second begin while an instance is current, without a second spawn", async () => {
   const { client, calls } = fakeClient();
-  const lifecycle = createInstanceLifecycle({ client, runId: "run-1", newInstanceId: () => instanceId });
+  const lifecycle = createInstanceLifecycle({
+    client,
+    runId: "run-1",
+    newInstanceId: () => instanceId,
+  });
   await lifecycle.begin(beginWith(() => []));
 
   await assert.rejects(
@@ -80,7 +105,11 @@ test("refuses a second begin while an instance is current, without a second spaw
 
 test("keeps no instance current when the spawn is refused", async () => {
   const { client, calls } = fakeClient({ spawnFails: true });
-  const lifecycle = createInstanceLifecycle({ client, runId: "run-1", newInstanceId: () => instanceId });
+  const lifecycle = createInstanceLifecycle({
+    client,
+    runId: "run-1",
+    newInstanceId: () => instanceId,
+  });
 
   await assert.rejects(lifecycle.begin(beginWith(() => [])), /spawn refused/u);
   assert.equal(lifecycle.current(), undefined);
@@ -89,16 +118,27 @@ test("keeps no instance current when the spawn is refused", async () => {
 
 test("deletes a spawned instance that answers a different id, then fails", async () => {
   const { client, calls } = fakeClient({ returnId: otherId });
-  const lifecycle = createInstanceLifecycle({ client, runId: "run-1", newInstanceId: () => instanceId });
+  const lifecycle = createInstanceLifecycle({
+    client,
+    runId: "run-1",
+    newInstanceId: () => instanceId,
+  });
 
-  await assert.rejects(lifecycle.begin(beginWith(() => [])), /different instance/u);
+  await assert.rejects(
+    lifecycle.begin(beginWith(() => [])),
+    /different instance/u,
+  );
   assert.equal(lifecycle.current(), undefined);
   assert.deepEqual(calls.deletes, [otherId]);
 });
 
 test("ends the current instance once, and ending with none is a no-op", async () => {
   const { client, calls } = fakeClient();
-  const lifecycle = createInstanceLifecycle({ client, runId: "run-1", newInstanceId: () => instanceId });
+  const lifecycle = createInstanceLifecycle({
+    client,
+    runId: "run-1",
+    newInstanceId: () => instanceId,
+  });
   await lifecycle.begin(beginWith(() => []));
 
   await lifecycle.end();
@@ -110,7 +150,11 @@ test("ends the current instance once, and ending with none is a no-op", async ()
 
 test("keeps the instance current when its delete fails, so the reaper can retry it", async () => {
   const { client, calls } = fakeClient({ deleteFails: true });
-  const lifecycle = createInstanceLifecycle({ client, runId: "run-1", newInstanceId: () => instanceId });
+  const lifecycle = createInstanceLifecycle({
+    client,
+    runId: "run-1",
+    newInstanceId: () => instanceId,
+  });
   await lifecycle.begin(beginWith(() => []));
 
   await assert.rejects(lifecycle.end(), /delete refused/u);
@@ -121,7 +165,11 @@ test("keeps the instance current when its delete fails, so the reaper can retry 
 
 test("seeds the current instance under a seed key and refuses a seed with none current", async () => {
   const { client, calls } = fakeClient();
-  const lifecycle = createInstanceLifecycle({ client, runId: "run-1", newInstanceId: () => instanceId });
+  const lifecycle = createInstanceLifecycle({
+    client,
+    runId: "run-1",
+    newInstanceId: () => instanceId,
+  });
 
   await assert.rejects(
     lifecycle.seed("early", { accounts: [] }),
@@ -131,7 +179,9 @@ test("seeds the current instance under a seed key and refuses a seed with none c
   const result = await lifecycle.seed("load-accounts-1", { accounts: [] });
 
   assert.deepEqual(result, { seedKey: "load-accounts-1", applied: true });
-  assert.deepEqual(calls.seeds, [{ id: instanceId, seedKey: "load-accounts-1" }]);
+  assert.deepEqual(calls.seeds, [
+    { id: instanceId, seedKey: "load-accounts-1" },
+  ]);
 });
 
 test("replaces the current instance by ending it before the new spawn", async () => {
@@ -161,10 +211,17 @@ test("refuses an operation that starts while another one is still running", asyn
         gate.release = () => resolve(spawnedFor(instanceId, request));
       }),
   };
-  const lifecycle = createInstanceLifecycle({ client: slow, runId: "run-1", newInstanceId: () => instanceId });
+  const lifecycle = createInstanceLifecycle({
+    client: slow,
+    runId: "run-1",
+    newInstanceId: () => instanceId,
+  });
 
   const first = lifecycle.begin(beginWith(() => []));
-  await assert.rejects(lifecycle.end(), /another test instance operation is running/u);
+  await assert.rejects(
+    lifecycle.end(),
+    /another test instance operation is running/u,
+  );
   gate.release?.();
   await first;
   assert.equal(lifecycle.current()?.instanceId, instanceId);
@@ -175,7 +232,10 @@ test("runs the lifecycle through the real client against a stand-in server", asy
     (request) => {
       if (request.method === "POST" && request.url.endsWith("/instances")) {
         const body = JSON.parse(request.body) as SpawnRequest;
-        return { status: 201, body: spawnedFor(body.instanceId ?? instanceId, body) };
+        return {
+          status: 201,
+          body: spawnedFor(body.instanceId ?? instanceId, body),
+        };
       }
       return { status: 204 };
     },
@@ -209,7 +269,9 @@ test("reports a refused delete from the stand-in as its typed code", async () =>
   await withStandIn(
     () => ({
       status: 409,
-      body: { error: { code: "not_current", detail: "not current", path: null } },
+      body: {
+        error: { code: "not_current", detail: "not current", path: null },
+      },
     }),
     async (origin) => {
       const client = createTestingControlClient({

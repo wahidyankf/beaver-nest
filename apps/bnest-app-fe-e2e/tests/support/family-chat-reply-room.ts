@@ -1,7 +1,10 @@
 import type { Page } from "@playwright/test";
 import { openFamilyChatRoom, ROOM_ROUTE } from "./family-chat";
 import { waitForRoomReady } from "./family-chat-resume";
-import { trackRoomSubscription, waitForRoomSubscribed } from "./family-chat-socket";
+import {
+  trackRoomSubscription,
+  waitForRoomSubscribed,
+} from "./family-chat-socket";
 import {
   asAnotherMember,
   postMessage,
@@ -79,7 +82,10 @@ export async function focusControlBeforeHistory(page: Page): Promise<void> {
         !history.contains(control) &&
         control.tabIndex >= 0 &&
         control.getClientRects().length > 0 &&
-        Boolean(history.compareDocumentPosition(control) & Node.DOCUMENT_POSITION_PRECEDING),
+        Boolean(
+          history.compareDocumentPosition(control) &
+          Node.DOCUMENT_POSITION_PRECEDING,
+        ),
     );
     const before = operable.at(-1);
     before?.focus();

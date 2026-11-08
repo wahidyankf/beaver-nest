@@ -18,7 +18,9 @@ const SYNTHETIC_PUSH_HOST = "push.allowed.example.com";
 function requireTestUserId(userId: string): void {
   const accounts = currentInstance().accounts;
   if (!accounts.some((account) => account.userId === userId)) {
-    throw new Error("server state may be read only for a test user of the current instance");
+    throw new Error(
+      "server state may be read only for a test user of the current instance",
+    );
   }
 }
 

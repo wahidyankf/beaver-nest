@@ -14,10 +14,17 @@ import {
   storageForTags,
   testUsername,
 } from "./test-instance-lifecycle.mts";
-import { instanceId, otherId, spawnedFor } from "./test-instance-lifecycle-fakes.mts";
+import {
+  instanceId,
+  otherId,
+  spawnedFor,
+} from "./test-instance-lifecycle-fakes.mts";
 
 test("slugs a scenario title into a lowercase label of at most 60 characters", () => {
-  assert.equal(scenarioLabel("Login persists across reload!"), "login-persists-across-reload");
+  assert.equal(
+    scenarioLabel("Login persists across reload!"),
+    "login-persists-across-reload",
+  );
   assert.equal(scenarioLabel("  --Hello   World--  "), "hello-world");
   assert.equal(scenarioLabel("!!!"), "scenario");
   const long = scenarioLabel(`${"word ".repeat(30)}end`);
@@ -36,14 +43,23 @@ test("chooses the phase from the scenario tags and seeds accounts unless setup m
 });
 
 test("leaves the storage unconfigured only for a scenario tagged for it", () => {
-  assert.equal(storageForTags(["@flat-primary", "@storage-unconfigured"]), "unconfigured");
+  assert.equal(
+    storageForTags(["@flat-primary", "@storage-unconfigured"]),
+    "unconfigured",
+  );
   assert.equal(storageForTags(["@flat-primary"]), "configured");
   assert.equal(storageForTags([]), "configured");
 });
 
 test("builds a 16 character instance id from the lowercase letters and digits", () => {
-  assert.equal(newInstanceId(() => 0), "aaaaaaaaaaaaaaaa");
-  assert.equal(newInstanceId(() => 35), "9999999999999999");
+  assert.equal(
+    newInstanceId(() => 0),
+    "aaaaaaaaaaaaaaaa",
+  );
+  assert.equal(
+    newInstanceId(() => 35),
+    "9999999999999999",
+  );
   assert.match(newInstanceId(), /^[a-z0-9]{16}$/u);
 });
 
@@ -54,8 +70,14 @@ test("keeps the first eight characters of an instance id as its short id", () =>
 
 test("builds a test-user username that carries the instance short id", () => {
   assert.equal(testUsername("admin", instanceId), "test-user-admin-a1b2c3d4");
-  assert.equal(testUsername("child-admin", instanceId), "test-user-child-admin-a1b2c3d4");
-  assert.throws(() => testUsername("Admin", instanceId), /not a lowercase username segment/u);
+  assert.equal(
+    testUsername("child-admin", instanceId),
+    "test-user-child-admin-a1b2c3d4",
+  );
+  assert.throws(
+    () => testUsername("Admin", instanceId),
+    /not a lowercase username segment/u,
+  );
   assert.throws(
     () => testUsername(`${"a".repeat(40)}`, instanceId),
     /longer than 32 characters/u,
@@ -83,14 +105,26 @@ test("plans the four accounts of a scenario with their roles and synthetic passw
   assert.deepEqual(
     plan.map(({ role, username, roles }) => ({ role, username, roles })),
     [
-      { role: "admin", username: "test-user-admin-a1b2c3d4", roles: ["admin", "parents"] },
-      { role: "child", username: "test-user-child-a1b2c3d4", roles: ["children"] },
+      {
+        role: "admin",
+        username: "test-user-admin-a1b2c3d4",
+        roles: ["admin", "parents"],
+      },
+      {
+        role: "child",
+        username: "test-user-child-a1b2c3d4",
+        roles: ["children"],
+      },
       {
         role: "child-admin",
         username: "test-user-child-admin-a1b2c3d4",
         roles: ["children", "admin"],
       },
-      { role: "parent", username: "test-user-parent-a1b2c3d4", roles: ["parents"] },
+      {
+        role: "parent",
+        username: "test-user-parent-a1b2c3d4",
+        roles: ["parents"],
+      },
     ],
   );
   for (const account of plan) {
@@ -98,7 +132,10 @@ test("plans the four accounts of a scenario with their roles and synthetic passw
   }
   const identities = identitiesOf(plan);
   assert.equal(identities.admin.username, "test-user-admin-a1b2c3d4");
-  assert.equal(identities.childAdmin.username, "test-user-child-admin-a1b2c3d4");
+  assert.equal(
+    identities.childAdmin.username,
+    "test-user-child-admin-a1b2c3d4",
+  );
 });
 
 test("builds the environment a secondary process needs from the spawn response", () => {
@@ -106,7 +143,8 @@ test("builds the environment a secondary process needs from the spawn response",
   assert.deepEqual(instanceEnvironment(spawned), {
     BNEST_TEST_INSTANCE_ID: instanceId,
     BNEST_RUNTIME_ROOT: "/data/test/runs/run-1",
-    BNEST_STORAGE_CONFIG: "/synthetic/x/bnest/data/test/runs/run-1/storage-config/storage.json",
+    BNEST_STORAGE_CONFIG:
+      "/synthetic/x/bnest/data/test/runs/run-1/storage-config/storage.json",
   });
 });
 
@@ -120,7 +158,10 @@ test("refuses an environment that names another instance or a relative path", ()
     () =>
       instanceEnvironment({
         ...spawned,
-        environment: { ...spawned.environment, BNEST_RUNTIME_ROOT: "relative/root" },
+        environment: {
+          ...spawned.environment,
+          BNEST_RUNTIME_ROOT: "relative/root",
+        },
       }),
     /BNEST_RUNTIME_ROOT must be an absolute path/u,
   );

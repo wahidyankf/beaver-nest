@@ -29,7 +29,10 @@ test("lists every account, username, and user file under a flat root", () => {
     writeFileSync(username, "{}");
     writeFileSync(chat, "{}");
 
-    assert.deepEqual(flatAccountFiles(root).toSorted(), [account, username, chat].toSorted());
+    assert.deepEqual(
+      flatAccountFiles(root).toSorted(),
+      [account, username, chat].toSorted(),
+    );
   } finally {
     cleanup();
   }

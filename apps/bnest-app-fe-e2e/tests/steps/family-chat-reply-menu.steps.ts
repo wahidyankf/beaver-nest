@@ -97,20 +97,17 @@ Then("{string} remains available", async ({ page }, label: string) => {
 
 // --- A system message -------------------------------------------------------
 
-Given(
-  "the room holds a committed system message",
-  async ({ page }) => {
-    await ensureRoomOpen(page);
-    scenario.targetBody = uniqueBody("System notice");
-    scenario.targetId = postSystemMessage(scenario.targetBody);
-    await page.reload();
-    await waitForRoomReady(page);
-    await waitForMessage(page, scenario.targetId);
-    await expect(messageById(page, scenario.targetId)).toContainText(
-      scenario.targetBody,
-    );
-  },
-);
+Given("the room holds a committed system message", async ({ page }) => {
+  await ensureRoomOpen(page);
+  scenario.targetBody = uniqueBody("System notice");
+  scenario.targetId = postSystemMessage(scenario.targetBody);
+  await page.reload();
+  await waitForRoomReady(page);
+  await waitForMessage(page, scenario.targetId);
+  await expect(messageById(page, scenario.targetId)).toContainText(
+    scenario.targetBody,
+  );
+});
 
 Then("{string} is available", async ({ page }, label: string) => {
   await expect(menuItem(page, label)).toBeVisible();

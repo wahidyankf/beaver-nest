@@ -89,9 +89,8 @@ Then("Bnest reports a fresh Codex conversation", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText(
     "transcript is preserved in a fresh conversation",
   );
-  const chat = instanceRecord(
-    "chat",
-    userIdFor(activeIdentity.child.username),
-  )["state"] as { thread_id: string | null };
+  const chat = instanceRecord("chat", userIdFor(activeIdentity.child.username))[
+    "state"
+  ] as { thread_id: string | null };
   expect(chat.thread_id).not.toBe("unavailable-thread");
 });

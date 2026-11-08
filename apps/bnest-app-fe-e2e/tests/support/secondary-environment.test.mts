@@ -43,6 +43,9 @@ test("the secondary filter agrees with the browser filter, and does not change i
     UNSET: undefined,
   };
 
-  assert.deepEqual(withoutControlSecret(inherited), browserEnvironment(inherited));
+  assert.deepEqual(
+    withoutControlSecret(inherited),
+    browserEnvironment(inherited),
+  );
   assert.equal(inherited.BNEST_TEST_CONTROL_SECRET, secret);
 });

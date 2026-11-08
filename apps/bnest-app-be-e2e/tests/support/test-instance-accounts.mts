@@ -69,7 +69,10 @@ export function accountPlan(instanceId: string): AccountPlan[] {
 }
 
 // The planned account of one role. The same instance id always yields the same username and password.
-export function plannedAccount(instanceId: string, role: TestRole): AccountPlan {
+export function plannedAccount(
+  instanceId: string,
+  role: TestRole,
+): AccountPlan {
   const account = accountPlan(instanceId).find(
     (candidate) => candidate.role === role,
   );

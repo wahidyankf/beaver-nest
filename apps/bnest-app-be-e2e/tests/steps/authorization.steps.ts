@@ -2,7 +2,11 @@ import { expect, type BrowserContext, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { currentInstance } from "../support/active-instance.mts";
 import { login, loginRefused } from "../support/authentication";
-import { currentIdentities, rolesFor, userIdFor } from "../support/instance-identities";
+import {
+  currentIdentities,
+  rolesFor,
+  userIdFor,
+} from "../support/instance-identities";
 import { testUsername } from "../support/test-instance-lifecycle.mts";
 
 const { Given, Then, When } = createBdd();
@@ -66,22 +70,19 @@ Then("an out-of-scope administration operation is denied", async ({ page }) => {
 });
 
 // The child owns a dark theme saved through their own session; the administrator owns the light theme.
-Given(
-  "two approved users own separate Bnest data",
-  async ({ page }) => {
-    const identity = currentIdentities();
-    const browser = page.context().browser();
-    if (!browser) throw new Error("Browser fixture is unavailable");
-    await login(page, identity.admin);
-    secondUserContext = await browser.newContext({
-      baseURL: new URL(page.url()).origin,
-    });
-    secondUserPage = await secondUserContext.newPage();
-    await login(secondUserPage, identity.child);
-    await saveTheme(secondUserPage, "dark");
-    await saveTheme(page, "light");
-  },
-);
+Given("two approved users own separate Bnest data", async ({ page }) => {
+  const identity = currentIdentities();
+  const browser = page.context().browser();
+  if (!browser) throw new Error("Browser fixture is unavailable");
+  await login(page, identity.admin);
+  secondUserContext = await browser.newContext({
+    baseURL: new URL(page.url()).origin,
+  });
+  secondUserPage = await secondUserContext.newPage();
+  await login(secondUserPage, identity.child);
+  await saveTheme(secondUserPage, "dark");
+  await saveTheme(page, "light");
+});
 
 async function saveTheme(page: Page, theme: string): Promise<void> {
   await page.goto("/");
@@ -112,18 +113,21 @@ When(
 
 // The read showed the administrator's own theme, and the write landed on the administrator's record only: the
 // child's session still renders the child's dark theme.
-Then("Bnest denies the operation before repository access", async ({ page }) => {
-  void page;
-  if (!secondUserPage || !secondUserContext || !crossUserResponses)
-    throw new Error("The second user's session was not opened");
-  expect(crossUserResponses.read).toBe("light");
-  expect(crossUserResponses.writeStatus).toBe(204);
-  await secondUserPage.goto("/");
-  await expect(secondUserPage.locator("html")).toHaveAttribute(
-    "data-theme",
-    "dark",
-  );
-  await secondUserContext.close();
-  secondUserContext = undefined;
-  secondUserPage = undefined;
-});
+Then(
+  "Bnest denies the operation before repository access",
+  async ({ page }) => {
+    void page;
+    if (!secondUserPage || !secondUserContext || !crossUserResponses)
+      throw new Error("The second user's session was not opened");
+    expect(crossUserResponses.read).toBe("light");
+    expect(crossUserResponses.writeStatus).toBe(204);
+    await secondUserPage.goto("/");
+    await expect(secondUserPage.locator("html")).toHaveAttribute(
+      "data-theme",
+      "dark",
+    );
+    await secondUserContext.close();
+    secondUserContext = undefined;
+    secondUserPage = undefined;
+  },
+);

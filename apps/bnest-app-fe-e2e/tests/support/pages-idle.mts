@@ -7,7 +7,10 @@
 
 export type IdlePage = {
   isClosed(): boolean;
-  waitForLoadState(state: "networkidle", options: { timeout: number }): Promise<void>;
+  waitForLoadState(
+    state: "networkidle",
+    options: { timeout: number },
+  ): Promise<void>;
 };
 
 function isTimeout(error: unknown): boolean {
@@ -23,7 +26,9 @@ export async function waitForPagesIdle(
   const results = await Promise.allSettled(
     pages
       .filter((page) => !page.isClosed())
-      .map((page) => page.waitForLoadState("networkidle", { timeout: timeoutMs })),
+      .map((page) =>
+        page.waitForLoadState("networkidle", { timeout: timeoutMs }),
+      ),
   );
   const failed = results.find(
     (result): result is PromiseRejectedResult =>

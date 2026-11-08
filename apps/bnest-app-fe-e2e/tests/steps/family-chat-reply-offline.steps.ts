@@ -35,9 +35,7 @@ const { Given, Then, When } = createBdd();
 
 const OFFLINE_BANNER = '[data-role="family-chat-offline-banner"]';
 
-async function goOfflineWithCommittedTarget(
-  page: Page,
-): Promise<void> {
+async function goOfflineWithCommittedTarget(page: Page): Promise<void> {
   await ensureRoomOpen(page);
   scenario.targetBody = uniqueBody("Offline reply target");
   scenario.targetId = await postMessage(page, scenario.targetBody);
@@ -56,12 +54,9 @@ async function replyToTarget(page: Page): Promise<void> {
   await sendThroughComposer(page, uniqueBody("Offline reply"));
 }
 
-Given(
-  "the visitor is offline with the room open",
-  async ({ page }) => {
-    await goOfflineWithCommittedTarget(page);
-  },
-);
+Given("the visitor is offline with the room open", async ({ page }) => {
+  await goOfflineWithCommittedTarget(page);
+});
 
 When("the visitor replies to a committed message", async ({ page }) => {
   await replyToTarget(page);

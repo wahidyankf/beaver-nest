@@ -57,11 +57,7 @@ const SUBSCRIPTION_QUERY = `subscription($roomSlug: String!) {
 
 Given(
   "the user holds an authorized {string} subscription for {string}",
-  async (
-    { page, browser },
-    _subscriptionName: string,
-    roomSlug: string,
-  ) => {
+  async ({ page, browser }, _subscriptionName: string, roomSlug: string) => {
     scenario.identity = currentIdentities();
     await page.context().clearCookies();
     await login(page, requireIdentity().admin);

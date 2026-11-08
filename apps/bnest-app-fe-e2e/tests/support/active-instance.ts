@@ -11,7 +11,10 @@ import {
   type InstanceLifecycle,
 } from "./test-instance-lifecycle.mts";
 import { waitForPagesIdle } from "./pages-idle.mts";
-import { backendOrigin, createTestingControlClient } from "./testing-control.mts";
+import {
+  backendOrigin,
+  createTestingControlClient,
+} from "./testing-control.mts";
 
 let lifecycle: InstanceLifecycle | undefined;
 
@@ -21,7 +24,8 @@ export function instanceLifecycle(): InstanceLifecycle {
     const runId = process.env["BNEST_E2E_RUN_ID"] ?? "";
     const port = process.env["BNEST_E2E_BACKEND_PORT"];
     if (runId === "") throw new Error("BNEST_E2E_RUN_ID is not set");
-    if (port === undefined) throw new Error("BNEST_E2E_BACKEND_PORT is not set");
+    if (port === undefined)
+      throw new Error("BNEST_E2E_BACKEND_PORT is not set");
     lifecycle = createInstanceLifecycle({
       client: createTestingControlClient({ origin: backendOrigin(port) }),
       runId,

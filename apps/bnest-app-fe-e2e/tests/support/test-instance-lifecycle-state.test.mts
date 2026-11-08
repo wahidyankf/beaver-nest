@@ -11,7 +11,11 @@ import type { SpawnedInstance } from "./testing-control-records.mts";
 
 const instanceId = "a1b2c3d4e5f6g7h8";
 const otherInstanceId = "b1b2c3d4e5f6g7h8";
-const oneScenario = { label: "one", phase: "sqlite_primary" as const, accounts: () => [] };
+const oneScenario = {
+  label: "one",
+  phase: "sqlite_primary" as const,
+  accounts: () => [],
+};
 
 function spawnedFor(id: string): SpawnedInstance {
   return {
@@ -23,13 +27,21 @@ function spawnedFor(id: string): SpawnedInstance {
     environment: {
       BNEST_TEST_INSTANCE_ID: id,
       BNEST_RUNTIME_ROOT: "/synthetic/runs/run-1",
-      BNEST_STORAGE_CONFIG: "/synthetic/sqlite/runs/run-1/storage-config/storage.json",
+      BNEST_STORAGE_CONFIG:
+        "/synthetic/sqlite/runs/run-1/storage-config/storage.json",
     },
   };
 }
 
-function lifecycleFor(client: LifecycleClient, ids: () => string = () => instanceId) {
-  return createInstanceLifecycle({ client, runId: "run-1", newInstanceId: ids });
+function lifecycleFor(
+  client: LifecycleClient,
+  ids: () => string = () => instanceId,
+) {
+  return createInstanceLifecycle({
+    client,
+    runId: "run-1",
+    newInstanceId: ids,
+  });
 }
 
 type Call = { name: string; args: unknown[] };
@@ -46,11 +58,16 @@ function fakeClient(failures: Partial<Record<string, Error>> = {}) {
   const client: LifecycleClient = {
     spawnInstance(request) {
       calls.push({ name: "spawn", args: [request] });
-      return failOnce("spawn").then(() => spawnedFor(request.instanceId ?? instanceId));
+      return failOnce("spawn").then(() =>
+        spawnedFor(request.instanceId ?? instanceId),
+      );
     },
     seedInstance(id, request) {
       calls.push({ name: "seed", args: [id, request] });
-      return failOnce("seed").then(() => ({ seedKey: request.seedKey, applied: true }));
+      return failOnce("seed").then(() => ({
+        seedKey: request.seedKey,
+        applied: true,
+      }));
     },
     deleteInstance(id) {
       calls.push({ name: "delete", args: [id] });
@@ -64,7 +81,8 @@ test("the instance environment is the one the spawn response reports", () => {
   assert.deepEqual(instanceEnvironment(spawnedFor(instanceId)), {
     BNEST_TEST_INSTANCE_ID: instanceId,
     BNEST_RUNTIME_ROOT: "/synthetic/runs/run-1",
-    BNEST_STORAGE_CONFIG: "/synthetic/sqlite/runs/run-1/storage-config/storage.json",
+    BNEST_STORAGE_CONFIG:
+      "/synthetic/sqlite/runs/run-1/storage-config/storage.json",
   });
 });
 
@@ -157,7 +175,13 @@ test("a seed goes to the current instance under its seed key", async () => {
   await lifecycle.begin(oneScenario);
 
   const result = await lifecycle.seed("load-accounts-1", {
-    accounts: [{ username: "test-user-load-1-a1b2c3d4", password: "p", roles: ["children"] }],
+    accounts: [
+      {
+        username: "test-user-load-1-a1b2c3d4",
+        password: "p",
+        roles: ["children"],
+      },
+    ],
   });
 
   assert.deepEqual(result, { seedKey: "load-accounts-1", applied: true });
@@ -221,7 +245,11 @@ test("replace deletes the current instance before it spawns the next", async () 
 });
 
 // A cleanup step that records its name, then fails with `failure` when one is given.
-function recordingStep(ran: string[], name: string, failure?: Error): () => Promise<void> {
+function recordingStep(
+  ran: string[],
+  name: string,
+  failure?: Error,
+): () => Promise<void> {
   return () => {
     ran.push(name);
     return failure === undefined ? Promise.resolve() : Promise.reject(failure);
@@ -249,7 +277,8 @@ test("cleanup reports every failure when several steps fail", async () => {
       () => Promise.reject(new Error("first")),
       () => Promise.reject(new Error("second")),
     ]),
-    (error: unknown) => error instanceof AggregateError && error.errors.length === 2,
+    (error: unknown) =>
+      error instanceof AggregateError && error.errors.length === 2,
   );
 });
 

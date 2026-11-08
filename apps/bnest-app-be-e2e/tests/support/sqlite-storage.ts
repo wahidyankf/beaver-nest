@@ -165,7 +165,11 @@ function resolveMixHome(): string {
   const result = spawnSync(
     "elixir",
     ["-e", "Mix.start(); IO.write(Mix.Utils.mix_home())"],
-    { cwd: os.tmpdir(), env: withoutControlSecret(process.env), encoding: "utf8" },
+    {
+      cwd: os.tmpdir(),
+      env: withoutControlSecret(process.env),
+      encoding: "utf8",
+    },
   );
   const resolved = result.stdout?.trim() ?? "";
   if (result.error) throw result.error;

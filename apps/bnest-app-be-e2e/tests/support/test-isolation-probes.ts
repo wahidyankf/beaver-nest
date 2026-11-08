@@ -23,7 +23,8 @@ export function probeWithoutTestingHeader(): Promise<ProbeReply> {
 }
 
 export function probeWithWrongTestingHeader(): Promise<ProbeReply> {
-  if (runSecret() === wrongSecret) throw new Error("the run secret is the probe value");
+  if (runSecret() === wrongSecret)
+    throw new Error("the run secret is the probe value");
   return sendSpawnProbe({ [secretHeader]: wrongSecret });
 }
 
@@ -58,7 +59,11 @@ export async function readyStorageGeneration(): Promise<string> {
 
 // The run roots as the leak helper reads them: every instance directory under either root is a leak after teardown.
 export function runtimeRoots(): TestRuntime {
-  return { path: liveRuntimeRoot(), sqlitePath: sqliteRunRoot(), runId: runId() };
+  return {
+    path: liveRuntimeRoot(),
+    sqlitePath: sqliteRunRoot(),
+    runId: runId(),
+  };
 }
 
 function sendSpawnProbe(headers: Record<string, string>): Promise<ProbeReply> {
@@ -85,7 +90,11 @@ async function send(
       "content-type": "application/json",
       ...headers,
     },
-    body: JSON.stringify({ runId: runId(), label: "probe", phase: "sqlite_primary" }),
+    body: JSON.stringify({
+      runId: runId(),
+      label: "probe",
+      phase: "sqlite_primary",
+    }),
     redirect: "error",
     signal: AbortSignal.timeout(probeTimeoutMs),
   });

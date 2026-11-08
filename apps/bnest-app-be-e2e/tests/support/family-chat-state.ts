@@ -10,10 +10,7 @@
 // to assign a value can never be masked by one an earlier scenario left.
 
 import type { GraphQlResponse, queryFamilyChatMessagesAfter } from "./graphql";
-import {
-  currentIdentities,
-  type TestIdentity,
-} from "./instance-identities";
+import { currentIdentities, type TestIdentity } from "./instance-identities";
 
 export interface FamilyChatScenarioState {
   afterId: string;

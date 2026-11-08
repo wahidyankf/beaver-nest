@@ -12,7 +12,11 @@ function fakePage(closed: boolean): { page: Page; evaluateCalls: number } {
     evaluate: () => {
       state.evaluateCalls += 1;
       return closed
-        ? Promise.reject(new Error("page.evaluate: Target page, context or browser has been closed"))
+        ? Promise.reject(
+            new Error(
+              "page.evaluate: Target page, context or browser has been closed",
+            ),
+          )
         : Promise.resolve();
     },
   } as unknown as Page;

@@ -1,9 +1,7 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { saveChatOnExitedCodexThread } from "../support/codex-chat-transcript";
-import {
-  promoteCompatibleCandidate,
-} from "../support/routed-rollout";
+import { promoteCompatibleCandidate } from "../support/routed-rollout";
 import { instanceIdentities } from "../support/instance-identities";
 
 // The primary route and the browser contexts are restored in lifecycle.steps.ts's After hook.

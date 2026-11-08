@@ -52,7 +52,9 @@ Then(
     try {
       const page = await context.newPage();
       await page.goto("/login");
-      await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+      await expect(page.locator("[data-phx-main]")).toHaveClass(
+        /phx-connected/u,
+      );
       await page.getByLabel("Username").fill(previousAdmin.username);
       await page.getByLabel("Password").fill(previousAdmin.password);
       await page.getByRole("button", { name: "Log in" }).click();

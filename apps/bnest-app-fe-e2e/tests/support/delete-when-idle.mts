@@ -11,7 +11,9 @@ export type BusyWait = {
 
 export const defaultBusyWait: BusyWait = { attempts: 120, intervalMs: 250 };
 
-export type DeletingClient = { deleteInstance(instanceId: string): Promise<void> };
+export type DeletingClient = {
+  deleteInstance(instanceId: string): Promise<void>;
+};
 
 function pause(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -30,7 +32,8 @@ export async function deleteWhenIdle(
   try {
     await client.deleteInstance(instanceId);
   } catch (error) {
-    const busy = error instanceof TestingControlError && error.code === "instance_busy";
+    const busy =
+      error instanceof TestingControlError && error.code === "instance_busy";
     if (!busy || attempt >= wait.attempts) throw error;
     await (wait.sleep ?? pause)(wait.intervalMs);
     await deleteWhenIdle(client, instanceId, wait, attempt + 1);

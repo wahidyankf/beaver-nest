@@ -6,7 +6,12 @@ import { TestingControlError } from "./testing-control-error.mts";
 const instanceId = "a1b2c3d4e5f6g7h8";
 
 function busy(): Error {
-  return new TestingControlError("instance_busy", 409, "a scheduler task is running", null);
+  return new TestingControlError(
+    "instance_busy",
+    409,
+    "a scheduler task is running",
+    null,
+  );
 }
 
 // A client that refuses the first `refusals` deletes with the given error, then accepts.
@@ -53,16 +58,25 @@ test("a delete stops waiting after the bounded attempts and rethrows the last re
   const { client, deletes } = clientRefusing(100);
   const { wait } = recordingWait(3);
 
-  await assert.rejects(deleteWhenIdle(client, instanceId, wait), /instance_busy/u);
+  await assert.rejects(
+    deleteWhenIdle(client, instanceId, wait),
+    /instance_busy/u,
+  );
 
   assert.equal(deletes.length, 3);
 });
 
 test("a delete does not wait for a failure that is not a busy refusal", async () => {
-  const { client, deletes } = clientRefusing(1, () => new Error("delete failed"));
+  const { client, deletes } = clientRefusing(
+    1,
+    () => new Error("delete failed"),
+  );
   const { wait, waits } = recordingWait(5);
 
-  await assert.rejects(deleteWhenIdle(client, instanceId, wait), /delete failed/u);
+  await assert.rejects(
+    deleteWhenIdle(client, instanceId, wait),
+    /delete failed/u,
+  );
 
   assert.deepEqual(waits, []);
   assert.equal(deletes.length, 1);

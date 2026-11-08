@@ -10,7 +10,9 @@ const instanceDirectoryName = /^[a-z0-9]{16}$/u;
 
 export function initializeBackupRepository(repository: string): void {
   if (!isInstanceBackupRepository(repository)) {
-    throw new Error("the path is not an instance's backup-repository directory");
+    throw new Error(
+      "the path is not an instance's backup-repository directory",
+    );
   }
   let stat;
   try {

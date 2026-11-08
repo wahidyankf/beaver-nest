@@ -48,7 +48,10 @@ const featuresRoot = path.resolve(
 const testDir = defineBddConfig({
   arityCheck: true,
   featuresRoot,
-  importTestFrom: path.resolve(import.meta.dirname, "tests/support/test-fixtures.ts"),
+  importTestFrom: path.resolve(
+    import.meta.dirname,
+    "tests/support/test-fixtures.ts",
+  ),
   missingSteps: "fail-on-gen",
   outputDir: ".features-gen",
   steps: "tests/steps/**/*.ts",

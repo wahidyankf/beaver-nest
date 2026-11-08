@@ -28,11 +28,16 @@ test("scenario labels are lowercase slugs of at most 60 characters", () => {
     assert.match(label, labelPattern);
     assert.ok(label.length <= 60, `${label} is longer than 60 characters`);
   }
-  assert.equal(scenarioLabel("A visitor opens a fresh chat"), "a-visitor-opens-a-fresh-chat");
+  assert.equal(
+    scenarioLabel("A visitor opens a fresh chat"),
+    "a-visitor-opens-a-fresh-chat",
+  );
   assert.equal(scenarioLabel("!!!"), "scenario");
   // The slug is cut to 60 characters, so this 67-character slug keeps its first 60.
   assert.equal(
-    scenarioLabel("A press that turns into a scroll does not open the menu (Shift+Enter)!"),
+    scenarioLabel(
+      "A press that turns into a scroll does not open the menu (Shift+Enter)!",
+    ),
     "a-press-that-turns-into-a-scroll-does-not-open-the-menu-shif",
   );
 });
@@ -66,10 +71,16 @@ test("the username carries the first eight characters of the instance id", () =>
   assert.throws(() => testUsername("Admin", instanceId), /role/u);
   // The load identities of the recovery journey carry a number: `load-1` to `load-10`.
   assert.equal(testUsername("load-1", instanceId), "test-user-load-1-a1b2c3d4");
-  assert.equal(testUsername("load-10", instanceId), "test-user-load-10-a1b2c3d4");
+  assert.equal(
+    testUsername("load-10", instanceId),
+    "test-user-load-10-a1b2c3d4",
+  );
   assert.throws(() => testUsername("-load", instanceId), /role/u);
   assert.throws(() => testUsername("load-", instanceId), /role/u);
-  assert.throws(() => testUsername("a-role-name-that-is-far-too-long", instanceId), /32/u);
+  assert.throws(
+    () => testUsername("a-role-name-that-is-far-too-long", instanceId),
+    /32/u,
+  );
   assert.throws(() => testUsername("admin", "short"), /instance id/u);
 });
 

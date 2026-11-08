@@ -14,7 +14,11 @@ import type {
   TestingPhase,
   TestingSeed,
 } from "./testing-control-records.mts";
-import { defaultBusyWait, deleteWhenIdle, type BusyWait } from "./delete-when-idle.mts";
+import {
+  defaultBusyWait,
+  deleteWhenIdle,
+  type BusyWait,
+} from "./delete-when-idle.mts";
 import type { TestingControlClient } from "./testing-control.mts";
 
 export type TestRole = "admin" | "child" | "child-admin" | "parent";
@@ -92,7 +96,9 @@ export function newInstanceId(
     id += instanceIdAlphabet.charAt(randomIndex(instanceIdAlphabet.length));
   }
   if (!instanceIdPattern.test(id)) {
-    throw new Error("the generated instance id is not 16 lowercase letters or digits");
+    throw new Error(
+      "the generated instance id is not 16 lowercase letters or digits",
+    );
   }
   return id;
 }
@@ -111,7 +117,9 @@ export function testUsername(role: string, instanceId: string): string {
   }
   const username = `test-user-${role}-${shortIdOf(instanceId)}`;
   if (username.length > maxUsernameLength) {
-    throw new Error(`the username is longer than ${maxUsernameLength} characters`);
+    throw new Error(
+      `the username is longer than ${maxUsernameLength} characters`,
+    );
   }
   return username;
 }
@@ -132,7 +140,9 @@ export function instanceEnvironment(
 ): Record<string, string> {
   const { environment } = instance;
   if (environment.BNEST_TEST_INSTANCE_ID !== instance.instanceId) {
-    throw new Error("the spawn response names a different instance than it reports");
+    throw new Error(
+      "the spawn response names a different instance than it reports",
+    );
   }
   for (const name of ["BNEST_RUNTIME_ROOT", "BNEST_STORAGE_CONFIG"] as const) {
     if (!path.isAbsolute(environment[name])) {
@@ -157,7 +167,10 @@ type LifecycleContext = {
 };
 
 // Runs one operation at a time. A second one is refused at once rather than interleaving with the first.
-async function guarded<T>(state: LifecycleState, work: () => Promise<T>): Promise<T> {
+async function guarded<T>(
+  state: LifecycleState,
+  work: () => Promise<T>,
+): Promise<T> {
   if (state.busy) throw new Error("another test instance operation is running");
   state.busy = true;
   try {
@@ -173,7 +186,9 @@ async function spawnCurrent(
 ): Promise<SpawnedInstance> {
   const { client, runId, nextInstanceId, state } = context;
   if (state.current !== undefined) {
-    throw new Error("a test instance is already current; end it before beginning another");
+    throw new Error(
+      "a test instance is already current; end it before beginning another",
+    );
   }
   const instanceId = nextInstanceId();
   const request: SpawnRequest = {
@@ -187,7 +202,9 @@ async function spawnCurrent(
   if (spawned.instanceId !== instanceId) {
     // Remove what the server built, because this lifecycle cannot track it.
     await client.deleteInstance(spawned.instanceId);
-    throw new Error("the spawn answered a different instance than it was asked for");
+    throw new Error(
+      "the spawn answered a different instance than it was asked for",
+    );
   }
   state.current = spawned;
   return spawned;
@@ -236,7 +253,8 @@ export function createInstanceLifecycle(options: {
   return {
     current: () => state.current,
     begin,
-    seed: (seedKey, seed) => guarded(state, () => seedCurrent(context, seedKey, seed)),
+    seed: (seedKey, seed) =>
+      guarded(state, () => seedCurrent(context, seedKey, seed)),
     end,
     replace: async (beginOptions) => {
       await end();
@@ -249,11 +267,16 @@ export function createInstanceLifecycle(options: {
 // The run's storage pointer and backup config. The server writes them under the SQLite run root (see
 // `BnestApp.TestInstance.Paths`), so the primary server and every secondary process must read these paths,
 // never the flat run root.
-export function runConfigPaths(input: {
-  runId: string;
-  home: string;
-}): { sqliteRunRoot: string; storageConfig: string; backupConfig: string } {
-  const sqliteRunRoot = path.join(input.home, "bnest/data/test/runs", input.runId);
+export function runConfigPaths(input: { runId: string; home: string }): {
+  sqliteRunRoot: string;
+  storageConfig: string;
+  backupConfig: string;
+} {
+  const sqliteRunRoot = path.join(
+    input.home,
+    "bnest/data/test/runs",
+    input.runId,
+  );
   const storageConfigDirectory = path.join(sqliteRunRoot, "storage-config");
   return {
     sqliteRunRoot,

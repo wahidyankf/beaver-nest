@@ -5,9 +5,7 @@ import {
   instanceLifecycle,
   testingControl,
 } from "../support/active-instance.mts";
-import {
-  plannedAccount,
-} from "../support/test-instance-lifecycle.mts";
+import { plannedAccount } from "../support/test-instance-lifecycle.mts";
 import {
   probeWithForwardedHeader,
   probeWithoutTestingHeader,
@@ -44,12 +42,15 @@ function required<T>(value: T | undefined, what: string): T {
 
 // --- Testing-endpoint guards ------------------------------------------------
 
-When("a client creates a test instance without the testing header", async () => {
-  carried.probes = {
-    reply: await probeWithoutTestingHeader(),
-    missing: await stockNotFoundReply(),
-  };
-});
+When(
+  "a client creates a test instance without the testing header",
+  async () => {
+    carried.probes = {
+      reply: await probeWithoutTestingHeader(),
+      missing: await stockNotFoundReply(),
+    };
+  },
+);
 
 When(
   "a client creates a test instance with a testing header that is not the run secret",

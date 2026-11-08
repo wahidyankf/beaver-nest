@@ -52,10 +52,7 @@ test("keeps the server's reason when a record is absent", () => {
 });
 
 test("fails when the marked line is absent", () => {
-  assert.throws(
-    () => markedPayload("no marker here\n"),
-    /marker was absent/u,
-  );
+  assert.throws(() => markedPayload("no marker here\n"), /marker was absent/u);
 });
 
 test("fails when the state is not a record state", () => {
@@ -64,7 +61,8 @@ test("fails when the state is not a record state", () => {
     /did not report a record state/u,
   );
   assert.throws(
-    () => parseRecordState(`${instanceReadMarker}{"present":true,"record":[1]}`),
+    () =>
+      parseRecordState(`${instanceReadMarker}{"present":true,"record":[1]}`),
     /did not report a record state/u,
   );
 });

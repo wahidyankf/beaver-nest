@@ -134,9 +134,7 @@ Then("each owner validates and saves only its allowlisted fields", ({ page }) =>
 );
 
 for (const [text, kind] of integrityStates)
-  Given(text, ({ page }) =>
-    prepareIntegrity(page, integrity, kind),
-  );
+  Given(text, ({ page }) => prepareIntegrity(page, integrity, kind));
 Given(
   "an administrator who opened Schedules & backups while the label stated that all retained backups are present",
   ({ page }) => openedWhileAllPresent(page, integrity),

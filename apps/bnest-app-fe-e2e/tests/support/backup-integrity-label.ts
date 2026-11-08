@@ -1,8 +1,4 @@
-import {
-  expect,
-  type Locator,
-  type Page,
-} from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { login } from "./authentication";
 import { focusDescriptor, traceFromNow } from "./backup-integrity-page";
 import { runLiveMix } from "./routed-rollout";

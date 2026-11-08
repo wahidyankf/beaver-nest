@@ -19,7 +19,10 @@ import {
 export type { RecordKind, RecordState } from "./instance-record-read.mts";
 
 // The record the server holds for one user, or the reason it holds none.
-export function instanceRecordState(kind: RecordKind, userId: string): RecordState {
+export function instanceRecordState(
+  kind: RecordKind,
+  userId: string,
+): RecordState {
   const result = runLiveMix(recordReadExpression(kind, userId));
   if (result.status !== 0) {
     throw new Error(`instance record read failed: ${result.stderr}`);

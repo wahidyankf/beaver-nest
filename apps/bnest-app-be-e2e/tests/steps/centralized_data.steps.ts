@@ -81,7 +81,9 @@ Given("the browser has an invalid Bnest source", async ({ page }) => {
 });
 
 Then("Bnest reports a safe rejected import", async ({ page }) => {
-  await expect(page.getByText(/Chat conversation: rejected safely/u)).toBeVisible();
+  await expect(
+    page.getByText(/Chat conversation: rejected safely/u),
+  ).toBeVisible();
 });
 
 Then(
@@ -98,25 +100,28 @@ Then(
 // then holds the same payload, so the retry resumes that import identity. The baseline is taken after the seed, and
 // it must be exactly the one envelope the seed wrote, so a seed that landed nowhere cannot pass the "no duplicate"
 // check. This scenario is `@flat-primary`, the only phase that takes this seed kind.
-Given("a recognized import was interrupted after source preservation", async ({ page }) => {
-  const seeded = await instanceLifecycle().seed("interrupted-import", {
-    records: [
-      {
-        owner: currentIdentities().admin.username,
-        kind: "browserImportInterrupted",
-        value: {
-          storageArea: "sessionStorage",
-          storageKey: "bnest.chat.v1",
-          payload: chatPayload,
+Given(
+  "a recognized import was interrupted after source preservation",
+  async ({ page }) => {
+    const seeded = await instanceLifecycle().seed("interrupted-import", {
+      records: [
+        {
+          owner: currentIdentities().admin.username,
+          kind: "browserImportInterrupted",
+          value: {
+            storageArea: "sessionStorage",
+            storageKey: "bnest.chat.v1",
+            payload: chatPayload,
+          },
         },
-      },
-    ],
-  });
-  expect(seeded.applied).toBe(true);
-  await setSources(page, { chat: chatPayload, learning: null, theme: null });
-  beforeImportCount = importCount(adminId());
-  expect(beforeImportCount).toBe(1);
-});
+      ],
+    });
+    expect(seeded.applied).toBe(true);
+    await setSources(page, { chat: chatPayload, learning: null, theme: null });
+    beforeImportCount = importCount(adminId());
+    expect(beforeImportCount).toBe(1);
+  },
+);
 
 When("the user retries that import", async ({ page }) => {
   await confirmImports(page);
@@ -126,12 +131,15 @@ Then("Bnest reuses its idempotent import identity", () => {
   expect(importCount(adminId())).toBe(beforeImportCount);
 });
 
-Then("Bnest does not duplicate or overwrite accepted data", async ({ page }) => {
-  await expect(
-    page.getByText("Chat conversation: accepted and verified"),
-  ).toBeVisible();
-  expect(importCount(adminId())).toBe(beforeImportCount);
-});
+Then(
+  "Bnest does not duplicate or overwrite accepted data",
+  async ({ page }) => {
+    await expect(
+      page.getByText("Chat conversation: accepted and verified"),
+    ).toBeVisible();
+    expect(importCount(adminId())).toBe(beforeImportCount);
+  },
+);
 
 Given("browser B has an older revision than browser A", async ({ page }) => {
   await setSources(page, { chat: chatPayload, learning: null, theme: null });

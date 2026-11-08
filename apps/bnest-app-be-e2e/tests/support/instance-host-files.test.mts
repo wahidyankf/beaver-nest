@@ -3,10 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import {
-  instanceHostFiles,
-  presentHostFiles,
-} from "./instance-host-files.mts";
+import { instanceHostFiles, presentHostFiles } from "./instance-host-files.mts";
 
 const instanceId = "a1b2c3d4e5f6g7h8";
 
@@ -30,8 +27,16 @@ test("names the instance roots, the storage pointer, and the backup configuratio
         path.join(roots.flatRunRoot, "instances", instanceId),
         path.join(roots.sqliteRunRoot, "instances", instanceId),
       ],
-      storagePointer: path.join(roots.sqliteRunRoot, "storage-config", "storage.json"),
-      backupConfiguration: path.join(roots.sqliteRunRoot, "storage-config", "backup.json"),
+      storagePointer: path.join(
+        roots.sqliteRunRoot,
+        "storage-config",
+        "storage.json",
+      ),
+      backupConfiguration: path.join(
+        roots.sqliteRunRoot,
+        "storage-config",
+        "backup.json",
+      ),
     });
   } finally {
     rmSync(base, { recursive: true, force: true });

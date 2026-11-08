@@ -12,10 +12,7 @@ import path from "node:path";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { login } from "./authentication";
 import { backupConfigPath, runLiveMix } from "./live-sqlite";
-import {
-  currentIdentities,
-  type TestIdentity,
-} from "./instance-identities";
+import { currentIdentities, type TestIdentity } from "./instance-identities";
 
 // Trimmed from bnest-app-e2e's scheduled-backups.ts to this project's
 // "Save a safe override" scenario; "Use the Dropbox-synced default" lives in
