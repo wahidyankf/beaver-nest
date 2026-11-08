@@ -89,10 +89,16 @@ and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-databa
   instance and returns `instance` and `accounts`. Its teardown drops the instance and fails the test when the drop is
   refused. Tags set the options: `phase` (default `:sqlite_primary`), `instance_id` (a fixed id, needed when a seed's
   usernames carry it) and `seed` (`{seed_key, seed_map}`). A case must be `async: false`.
+- `BnestAppWeb.ConnCase` (`test/support`) gives each integration test a fresh instance through `FreshDatabaseCase`, and
+  its helpers return the seeded usernames. `BnestAppWeb.ScenarioCase` is the ExBdd case template: it has no setup, so
+  the scenario's hooks are the only owner of its instance.
 - ExBdd hooks in `test/behaviour/support/integration.exs` run around every integration scenario. The before hook fails
-  when an earlier scenario left an instance current. The after hook drops the current instance. The hooks spawn
-  nothing: a scenario that needs an instance spawns it in its own Given, through its adapter, because scenarios still
-  on the shared base database (until ConnCase moves to `FreshDatabaseCase`) must keep it. The unit layer never spawns.
+  when an earlier scenario left an instance current, then spawns a fresh instance with the standard accounts. A scenario
+  tagged `@flat-primary`, or in `centralized_data.feature`, runs on a flat-primary instance. A scenario tagged
+  `@open-setup` spawns an empty flat-primary instance, so `/setup` stays open. The after hook drops the current instance.
+  `test_isolation.feature` and `test_instances.feature` spawn, end and check their instances through their own adapter,
+  so the generic hook spawns nothing for them. Every other integration scenario spawns one instance; no scenario is
+  exempt by being pure. The unit layer never spawns.
 - `test_isolation.feature` has two adapters. The unit adapter (`test/unit/support/behaviour/test_isolation_unit_adapter.ex`)
   drives the in-memory model `BnestApp.Test.InMemory.TestInstancePort`. The unit layer has no database, so its schema
   steps are partial: they check the digest's properties, and equality with the release schema is proven by the
@@ -104,10 +110,7 @@ and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-databa
 - The integration run ends with a leak audit (`test/test_helper.exs`). `BnestApp.TestInstance.Audit.verdict/4` checks
   for instance directories, a current instance and base data. A failure prints every reason, the run roots are removed,
   and the VM exits with status 1. The verdict's rules are unit-tested, and a probe run that leaks an instance on purpose
-  fails. Until T9b, the flat `users/` and `system/accounts/` directories and the shared `bnest.sqlite3` database (with
-  its `-wal`, `-shm` and `-journal` sidecars) of the run base are legacy: the shared-base scenarios still write there,
-  so the audit reports them as warnings. Any other base data, and any instance leftover, still fails. T9b removes that
-  exemption.
+  fails. The run base must hold no data at all: no legacy exemption applies, so any base file fails the run.
 - The unit boundary policy (`test/behaviour/verify.exs`) refuses network URLs, loopback addresses, file and process
   access, and integration helpers in unit test source. The push-endpoint checks therefore live in
   `test/integration/bnest_app/test_instance/seed_push_validate_test.exs`.
