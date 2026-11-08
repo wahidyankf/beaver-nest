@@ -17,4 +17,17 @@ defmodule BnestApp.SqliteRepoTest do
       assert SqliteRepo.main_database_path() == TestInstance.state().paths.db_file
     end)
   end
+
+  # The integrity check is the statement that leaves the temp schema on the connection in production code, so it is
+  # the real trigger of the lookup failing.
+  test "reads the main database path after PRAGMA quick_check on the same connection" do
+    SqliteRepo.checkout(fn ->
+      assert %{rows: [["ok"]]} = SqliteRepo.query!("PRAGMA quick_check")
+
+      listed = SqliteRepo.query!("PRAGMA database_list").rows
+      assert Enum.any?(listed, &match?([_seq, "temp", _file], &1))
+
+      assert SqliteRepo.main_database_path() == TestInstance.state().paths.db_file
+    end)
+  end
 end
