@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -12,7 +13,10 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { initializeBackupRepository } from "./backup-repository.mts";
+import {
+  gitChildEnvironment,
+  initializeBackupRepository,
+} from "./backup-repository.mts";
 
 // Each test uses a temporary directory laid out like an instance, never data/test or ~/bnest.
 function temporaryInstance(): { repository: string; cleanup: () => void } {
@@ -42,15 +46,55 @@ test("makes the empty instance directory an isolated git repository that ignores
       "/data/*\n",
     );
     assert.equal(existsSync(path.join(repository, ".git")), true);
-    const ignored = spawnSync("git", [
-      "-C",
-      repository,
-      "check-ignore",
-      "-q",
-      "data/backup",
-    ]);
+    const ignored = spawnSync(
+      "git",
+      ["-C", repository, "check-ignore", "-q", "data/backup"],
+      { env: gitChildEnvironment() },
+    );
     assert.equal(ignored.status, 0);
   } finally {
+    cleanup();
+  }
+});
+
+// A pre-push hook runs with git's repository variables exported, so a child git inherits them and works on the
+// hook's repository, not on the new one. The helper must create its own repository whatever the caller exports.
+test("creates its own repository even when git's repository variables point at another one", () => {
+  const { repository, cleanup } = temporaryInstance();
+  const outer = mkdtempSync(
+    path.join(os.tmpdir(), "bnest-backup-repository-outer-"),
+  );
+  const names = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"] as const;
+  const saved = new Map(names.map((name) => [name, process.env[name]]));
+  try {
+    assert.equal(
+      spawnSync("git", ["init", "--quiet", outer], {
+        env: gitChildEnvironment(),
+      }).status,
+      0,
+    );
+    const gitDir = path.join(outer, ".git");
+    const entriesBefore = readdirSync(outer).toSorted();
+    const configBefore = readFileSync(path.join(gitDir, "config"), "utf8");
+    process.env["GIT_DIR"] = gitDir;
+    process.env["GIT_WORK_TREE"] = outer;
+    process.env["GIT_INDEX_FILE"] = path.join(gitDir, "index");
+
+    initializeBackupRepository(repository);
+
+    assert.equal(existsSync(path.join(repository, ".git")), true);
+    assert.deepEqual(readdirSync(outer).toSorted(), entriesBefore);
+    assert.equal(
+      readFileSync(path.join(gitDir, "config"), "utf8"),
+      configBefore,
+    );
+    assert.equal(existsSync(path.join(outer, ".gitignore")), false);
+  } finally {
+    for (const [name, value] of saved) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    rmSync(outer, { recursive: true, force: true });
     cleanup();
   }
 });

@@ -3435,7 +3435,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     repository = Path.join(context.backup_fixture_root, "repository")
     File.mkdir_p!(repository)
     File.write!(Path.join(repository, ".gitignore"), "/data/*\n")
-    {_output, 0} = System.cmd("git", ["init", "--quiet", repository])
+
+    {_output, 0} =
+      System.cmd("git", ["init", "--quiet", repository],
+        env: TestBackupDestination.git_child_env()
+      )
+
     :ok = TestBackupDestination.use_repository_root!(repository)
 
     Map.put(context, :default_backup_directory, Path.join(repository, "data/backup"))

@@ -32,11 +32,23 @@ export function initializeBackupRepository(repository: string): void {
   });
   const result = spawnSync("git", ["init", "--quiet", repository], {
     encoding: "utf8",
+    env: gitChildEnvironment(),
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`backup repository init failed: ${result.stderr}`);
   }
+}
+
+// A pre-push hook exports git's repository variables (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, and more), and a child
+// git inherits them, so `git init <path>` would act on the hook's repository instead of creating one at <path>. Every
+// GIT_* name is removed from the environment a git child receives, so each child works on the repository it names.
+export function gitChildEnvironment(): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = {};
+  for (const [name, value] of Object.entries(process.env)) {
+    if (!name.startsWith("GIT_")) environment[name] = value;
+  }
+  return environment;
 }
 
 function isInstanceBackupRepository(repository: string): boolean {
