@@ -1,21 +1,31 @@
 defmodule BnestApp.TestInstance do
   @moduledoc false
 
-  # Creates and removes one test instance's directories and markers. It never touches storage: the
-  # database file, the storage pointer and the Repo belong to the switch protocol.
+  # One test instance at a time: its directories and markers, and the switch that points the running
+  # server at its database. Creation and removal of directories never touch storage; the switch
+  # (`Switch`) owns the pointer, the Repo, the Records store and the settings.
   #
   # Creation writes each root's marker before any child directory exists. Removal validates both run
   # markers, the instance's derivation and every marker and entry under the instance, and refuses
   # symlinks and unknown entries, before it deletes anything.
+  #
+  # `spawn!/2` and `drop!/1` run under one in-process lock. The current instance and the state it
+  # replaced live in `:persistent_term`, so any test process sees the same current instance.
 
   use Boundary, top_level?: true, check: [in: false, out: false]
 
+  alias BnestApp.Storage.Adapters.FileConfigStore
+  alias BnestApp.TestInstance.Error
   alias BnestApp.TestInstance.Paths
+  alias BnestApp.TestInstance.Switch
   alias BnestApp.TestRuntimeRoot
 
   @marker_name ".bnest-test-instance.json"
   @owner "bnest-test-harness"
   @phases [:sqlite_primary, :flat_primary]
+  @empty_flat_name "flat-empty"
+  @lock {__MODULE__, :lock}
+  @current {__MODULE__, :current}
 
   @type phase :: :sqlite_primary | :flat_primary
   @type instance :: %{
@@ -24,6 +34,98 @@ defmodule BnestApp.TestInstance do
           phase: phase(),
           paths: Paths.t()
         }
+
+  @doc "The run base the application is configured with: its flat root and its SQLite root."
+  @spec application_run!() :: TestRuntimeRoot.t()
+  def application_run! do
+    sqlite_path =
+      Application.get_env(:bnest_app, :test_sqlite_root) ||
+        raise "the application was not started with an integration test run"
+
+    run_id = Path.basename(sqlite_path)
+
+    %{
+      path: Path.join(TestRuntimeRoot.runs_root(), run_id),
+      sqlite_path: sqlite_path,
+      run_id: run_id
+    }
+  end
+
+  @doc """
+  Spawns one test instance and points the running server at it. Options: `:phase` (default
+  `:sqlite_primary`), `:instance_id` (default random), `:seed` (a one-argument function run after
+  migration), and `:fail_after` (a step name: that step does its work and then fails, which tests
+  the rollback). Raises `BnestApp.TestInstance.Error`.
+  """
+  @spec spawn!(TestRuntimeRoot.t(), keyword()) :: instance()
+  def spawn!(run, opts \\ []) do
+    with_lock(fn -> do_spawn(run, opts) end)
+  end
+
+  @doc "The current instance, or nil."
+  @spec state() :: instance() | nil
+  def state do
+    case current() do
+      nil -> nil
+      %{instance: instance} -> instance
+    end
+  end
+
+  @doc """
+  Removes the current instance. It validates the markers first, then stops the repo, restores the
+  storage pointer, settings and Records store to their state before the spawn, and removes the
+  instance directories. Raises `BnestApp.TestInstance.Error`.
+  """
+  @spec drop!(instance()) :: :ok
+  def drop!(instance) do
+    with_lock(fn -> do_drop(instance) end)
+  end
+
+  @doc "The instance directories still present under both run roots of the application's run."
+  @spec audit() :: %{count: non_neg_integer(), directories: [String.t()]}
+  def audit do
+    run = application_run!()
+    directories = instance_directories(run.path) ++ instance_directories(run.sqlite_path)
+    %{count: length(directories), directories: directories}
+  end
+
+  @doc """
+  `:ok` when the base is data-free: no account or user files under the flat base, and no SQLite
+  database or sidecar file outside an instance directory under either base. Otherwise the
+  offending paths.
+  """
+  @spec base_audit() :: :ok | {:error, [String.t()]}
+  def base_audit do
+    run = application_run!()
+
+    violations =
+      non_empty_directory(Path.join(run.path, "users")) ++
+        non_empty_directory(Path.join(run.path, "system/accounts")) ++
+        database_files(run.path) ++
+        database_files(run.sqlite_path)
+
+    case violations do
+      [] -> :ok
+      paths -> {:error, paths}
+    end
+  end
+
+  @doc """
+  The flat root a SQLite instance migrates from. It is an empty child of the instance, so the
+  migration imports nothing from the shared run base, whatever earlier tests left there. It is not
+  part of `Paths`, whose output is the contract the TypeScript path mirrors check.
+  """
+  @spec empty_flat_root(Paths.t()) :: String.t()
+  def empty_flat_root(paths), do: Path.join(paths.sqlite_instance_root, @empty_flat_name)
+
+  @doc "Whether an instance's directories and markers validate, with no change on disk."
+  @spec validate_dirs(instance()) :: :ok | {:error, atom()}
+  def validate_dirs(%{run_id: run_id, instance_id: instance_id, phase: phase, paths: paths}) do
+    case check_instance(run_id, instance_id, phase, paths) do
+      {:ok, _roots} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   @spec create_dirs(TestRuntimeRoot.t(), String.t(), phase()) ::
           {:ok, instance()} | {:error, atom()}
@@ -52,6 +154,205 @@ defmodule BnestApp.TestInstance do
     end
   end
 
+  # Spawn. Every refusal happens before the first change, so a refused spawn leaves no trace.
+
+  defp do_spawn(run, opts) do
+    phase = Keyword.get(opts, :phase, :sqlite_primary)
+    instance_id = Keyword.get_lazy(opts, :instance_id, &random_instance_id/0)
+    preflight!(run, instance_id)
+    original = Switch.snapshot()
+
+    instance = create!(run, instance_id, phase, original, opts)
+    run_step!(instance, original, :activate, opts, fn -> Switch.activate!(instance) end)
+    run_step!(instance, original, :migrate, opts, fn -> Switch.migrate!(instance) end)
+    run_step!(instance, original, :seed, opts, fn -> run_seed(opts, instance) end)
+
+    :persistent_term.put(@current, %{instance: instance, original: original})
+    instance
+  end
+
+  defp preflight!(run, instance_id) do
+    if state() != nil, do: refuse!(:instance_active)
+    if busy?(), do: refuse!(:instance_busy)
+
+    if Map.take(run, [:path, :sqlite_path, :run_id]) != application_run!(),
+      do: refuse!(:run_mismatch)
+
+    case Paths.derive(run.path, run.sqlite_path, run.run_id, instance_id) do
+      {:ok, paths} ->
+        if FileConfigStore.pointer_path() != paths.storage_pointer_path,
+          do: refuse!(:pointer_mismatch)
+
+        :ok
+
+      {:error, reason} ->
+        raise Error, reason: :invalid_instance, detail: reason
+    end
+  end
+
+  defp create!(run, instance_id, phase, original, opts) do
+    case create_dirs(run, instance_id, phase) do
+      {:ok, instance} ->
+        if opts[:fail_after] == :create,
+          do: fail!(instance, original, :create, {:injected, :create}),
+          else: instance
+
+      {:error, reason} ->
+        fail!(nil, original, :create, reason)
+    end
+  end
+
+  # A step's work either returns `:ok`, or `{:error, reason}`, or raises. The `:fail_after` option
+  # turns a successful step into a failure, after its work is done, so the rollback has real work
+  # to undo.
+  defp run_step!(instance, original, step, opts, work) do
+    result =
+      try do
+        work.()
+      rescue
+        error -> {:error, Exception.message(error)}
+      catch
+        kind, reason -> {:error, {kind, reason}}
+      end
+
+    injected? = opts[:fail_after] == step
+
+    case result do
+      :ok when injected? -> fail!(instance, original, step, {:injected, step})
+      :ok -> :ok
+      {:error, reason} -> fail!(instance, original, step, reason)
+    end
+  end
+
+  defp run_seed(opts, instance) do
+    case Keyword.get(opts, :seed) do
+      nil -> :ok
+      seed when is_function(seed, 1) -> seed.(instance)
+    end
+  end
+
+  # Rolls back, then raises. A rollback whose removal fails names the retained path instead, since
+  # that leftover fails the run.
+  defp fail!(instance, original, step, detail) do
+    case rollback(instance, original) do
+      :ok ->
+        raise Error, reason: :spawn_failed, step: step, detail: detail
+
+      {:error, {:cleanup_failed, reason, path}} ->
+        raise Error, reason: :cleanup_failed, step: step, path: path, detail: reason
+    end
+  end
+
+  defp rollback(instance, original) do
+    :ok = Switch.restore!(original)
+
+    case instance do
+      nil -> :ok
+      instance -> rollback_directories(instance)
+    end
+  end
+
+  defp rollback_directories(instance) do
+    case drop_dirs(instance) do
+      :ok ->
+        :ok
+
+      {:error, {:refused, reason}} ->
+        {:error, {:cleanup_failed, reason, instance.paths.sqlite_instance_root}}
+
+      {:error, {:cleanup_failed, _reason, _path} = failed} ->
+        {:error, failed}
+    end
+  end
+
+  # Drop
+
+  defp do_drop(instance) do
+    case current() do
+      %{instance: ^instance, original: original} ->
+        check_before_removal!(instance)
+        :ok = Switch.restore!(original)
+        :persistent_term.erase(@current)
+        remove_directories!(instance)
+
+      _other ->
+        refuse!(:not_current)
+    end
+  end
+
+  defp check_before_removal!(instance) do
+    case validate_dirs(instance) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        raise Error,
+          reason: :refused,
+          path: instance.paths.sqlite_instance_root,
+          detail: reason
+    end
+  end
+
+  defp remove_directories!(instance) do
+    case drop_dirs(instance) do
+      :ok ->
+        :ok
+
+      {:error, {:cleanup_failed, reason, path}} ->
+        raise Error, reason: :cleanup_failed, path: path, detail: reason
+
+      {:error, {:refused, reason}} ->
+        raise Error,
+          reason: :refused,
+          path: instance.paths.sqlite_instance_root,
+          detail: reason
+    end
+  end
+
+  # The lock is a non-blocking `:global` lock held by the calling process for the whole call. A
+  # second caller that finds it taken is refused as `:instance_active`: another switch is already
+  # changing the current instance.
+  defp with_lock(fun) do
+    case :global.trans({@lock, self()}, fun, [node()], 0) do
+      :aborted -> refuse!(:instance_active)
+      result -> result
+    end
+  end
+
+  defp refuse!(reason), do: raise(Error, reason: reason)
+
+  defp current, do: :persistent_term.get(@current, nil)
+
+  # Scheduler tasks run under this supervisor; a switch would change the database under them.
+  defp busy? do
+    case Process.whereis(BnestApp.Scheduler.Tasks) do
+      nil -> false
+      _supervisor -> Task.Supervisor.children(BnestApp.Scheduler.Tasks) != []
+    end
+  end
+
+  defp random_instance_id, do: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
+
+  defp instance_directories(root) do
+    case File.ls(Path.join(root, "instances")) do
+      {:ok, names} -> names |> Enum.sort() |> Enum.map(&Path.join([root, "instances", &1]))
+      {:error, _reason} -> []
+    end
+  end
+
+  defp non_empty_directory(directory) do
+    case File.ls(directory) do
+      {:ok, names} -> names |> Enum.sort() |> Enum.map(&Path.join(directory, &1))
+      {:error, _reason} -> []
+    end
+  end
+
+  defp database_files(root) do
+    Path.wildcard(Path.join(root, "**/*.sqlite3*"))
+    |> Enum.reject(&String.contains?(&1, "/instances/"))
+    |> Enum.sort()
+  end
+
   defp validate_run_roots(flat, sqlite, run_id) do
     with :ok <- run_root_check(TestRuntimeRoot.validate(flat), run_id) do
       run_root_check(TestRuntimeRoot.validate_sqlite(sqlite), run_id)
@@ -76,7 +377,7 @@ defmodule BnestApp.TestInstance do
     with :ok <-
            make_root(
              paths.sqlite_instance_root,
-             ["db", "backup-repository"],
+             ["db", "backup-repository", @empty_flat_name],
              paths.sqlite_marker_path,
              marker
            ) do
@@ -246,22 +547,26 @@ defmodule BnestApp.TestInstance do
 
   # Walks the whole instance tree without following links. Only directories and regular files may
   # appear, so a link planted inside an instance can never redirect a removal.
+  #
+  # An entry that vanishes during the walk is already gone, not a refusal: SQLite deletes its
+  # write-ahead and shared-memory files when its last connection closes. `lstat` still reports a
+  # dangling link as a symlink, so a planted link is refused either way.
   defp check_entries(path) do
     case File.lstat(path) do
-      {:ok, %File.Stat{type: :regular}} ->
-        :ok
+      {:ok, %File.Stat{type: :regular}} -> :ok
+      {:ok, %File.Stat{type: :directory}} -> check_directory(path)
+      {:ok, %File.Stat{type: :symlink}} -> {:error, :symlink}
+      {:ok, _other} -> {:error, :unsupported_entry}
+      {:error, :enoent} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
-      {:ok, %File.Stat{type: :directory}} ->
-        with {:ok, names} <- File.ls(path), do: check_children(path, names)
-
-      {:ok, %File.Stat{type: :symlink}} ->
-        {:error, :symlink}
-
-      {:ok, _other} ->
-        {:error, :unsupported_entry}
-
-      {:error, reason} ->
-        {:error, reason}
+  defp check_directory(path) do
+    case File.ls(path) do
+      {:ok, names} -> check_children(path, names)
+      {:error, :enoent} -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 
