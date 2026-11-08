@@ -2545,15 +2545,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: match?({:ok, %{import_id: id}} when id == context.first_import_id, context.retry_result)
 
   # The retry completes the interrupted import once: no second envelope, and the chat record
-  # the interruption left absent now exists at its first revision.
-  def behaviour_outcome?(context, :accepted_data_preserved, _args),
-    do:
-      import_envelope_count(context.central_store, context.user_id) ==
-        context.envelopes_before_retry and
-        match?(
-          {:ok, %{"recordType" => "chat", "revision" => 0}},
-          FileRecordBackend.read(context.central_store, :chat, context.user_id)
-        )
+  # the interruption left absent now exists at its first revision, written from that import.
+  def behaviour_outcome?(context, :accepted_data_preserved, _args) do
+    chat = FileRecordBackend.read(context.central_store, :chat, context.user_id)
+
+    import_envelope_count(context.central_store, context.user_id) ==
+      context.envelopes_before_retry and
+      match?({:ok, %{"recordType" => "chat", "revision" => 0}}, chat) and
+      match?({:ok, %{"sourceImportId" => id}} when id == context.first_import_id, chat)
+  end
 
   def behaviour_outcome?(context, :newer_record_preserved, _args),
     do:

@@ -3214,7 +3214,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
     Map.get(after_retry, envelope_key) == Map.get(context.before_retry, envelope_key) and
       match?(
-        %{"recordType" => "chat", "revision" => 0},
+        %{"recordType" => "chat", "revision" => 0, "sourceImportId" => id}
+        when id == context.first_import_id,
         Map.get(after_retry, {:chat, context.central_owner})
       ) and
       Enum.count(Map.keys(after_retry), fn
