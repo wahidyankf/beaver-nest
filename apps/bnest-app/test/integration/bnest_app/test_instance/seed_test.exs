@@ -2,10 +2,11 @@ defmodule BnestApp.TestInstance.SeedTest do
   # Seeds a really spawned instance through the production facades (ADR 001, section 2). Every
   # identity, password, message and key below is synthetic; nothing is read from production data.
   #
-  # Setup and bootstrap run on a `flat_primary` instance. Production's identity emptiness check
-  # (`RecordIdentityStore.empty?/1`) never claims a routed SQLite repository is empty, so an
-  # `sqlite_primary` instance cannot open or bootstrap `/setup`. The `sqlite_primary` tests below
-  # pin that production behaviour; they are the evidence for the blocker in the T7 report.
+  # Accounts on a `flat_primary` instance: the first admin set goes through `Identity.bootstrap/1`,
+  # so `/setup` closes as in production. Production's identity emptiness check
+  # (`RecordIdentityStore.empty?/1`) never claims a routed SQLite repository is empty, so bootstrap
+  # is refused on a `sqlite_primary` instance. Every account of such an instance goes through the
+  # identity store port instead, and `/setup` stays unopened there (`{:error, :conflict}`).
   use ExUnit.Case, async: false
 
   @moduletag :test_instance
@@ -144,21 +145,40 @@ defmodule BnestApp.TestInstance.SeedTest do
       assert :ok = TestInstance.drop!(instance)
     end
 
-    test "an admin seed is refused by production bootstrap, and the spawn rolls back", %{run: run} do
-      before = snapshot()
+    test "an admin seed writes through the identity store, and its admin logs in", %{run: run} do
+      instance = TestInstance.spawn!(run, instance_id: @first_id)
+      {admin, parent} = names(@first_id)
 
-      error =
-        assert_raise Error, fn ->
-          TestInstance.spawn!(run,
-            instance_id: @first_id,
-            seed: {"spawn", account_seed(@first_id)}
-          )
-        end
+      assert {:ok, %{applied: true, accounts: accounts}} =
+               Seed.apply(instance, "admins", account_seed(@first_id))
 
-      assert error.reason == :spawn_failed
-      assert error.step == :seed
-      assert error.detail == {:facade, :identity, :conflict}
-      assert_rolled_back(before)
+      assert [
+               %{username: ^admin, user_id: admin_id, roles: ["admin", "parents"]},
+               %{username: ^parent, user_id: _parent_id, roles: ["parents"]}
+             ] = accounts
+
+      assert {:ok, _token} = Identity.login(admin, @password)
+
+      assert {:ok, %{"userId" => ^admin_id, "roles" => ["admin", "parents"]}} =
+               Identity.account(admin_id)
+
+      # Bootstrap stays refused here, so setup is not reopened or closed by the seed.
+      assert Identity.setup_status() == {:error, :conflict}
+      assert build_conn() |> get("/setup") |> response(404)
+
+      assert :ok = TestInstance.drop!(instance)
+    end
+
+    test "a spawn whose seed has an admin completes, and the admin logs in", %{run: run} do
+      instance =
+        TestInstance.spawn!(run,
+          instance_id: @first_id,
+          seed: {"spawn", account_seed(@first_id)}
+        )
+
+      {admin, _parent} = names(@first_id)
+      assert {:ok, _token} = Identity.login(admin, @password)
+      assert :ok = TestInstance.drop!(instance)
     end
 
     test "accounts seeded without an admin are created through the identity store and log in", %{
