@@ -58,6 +58,10 @@ defmodule BnestApp.TestInstance.Seed do
     * `sifatAllahProgress`: `BnestApp.SifatAllah.save_progress/3`.
     * `codexChatTranscript`: `BnestApp.CodexChat.save_transcript/3`.
     * `themePreference`: `BnestApp.Preferences.put_theme/3`, the call `PUT /preferences/theme` makes.
+    * `browserImportInterrupted`: the manifest and envelope an import leaves when it stops after
+      preserving the envelope, written through `Storage.Records` as `Storage.import_browser/2` reads.
+      Only a `flat_primary` instance takes it, because that is the only instance whose records store
+      is its own flat root.
   """
 
   use Boundary, top_level?: true, check: [in: false, out: false]
@@ -79,16 +83,28 @@ defmodule BnestApp.TestInstance.Seed do
   alias BnestApp.SifatAllah
   alias BnestApp.SifatAllah.Domain.ProgressRecord
   alias BnestApp.Storage
+  alias BnestApp.Storage.Domain.Manifest
+  alias BnestApp.Storage.Domain.Normalizer
   alias BnestApp.Storage.Domain.RecordSchema
+  alias BnestApp.Storage.Ports.RecordBackend
+  alias BnestApp.Storage.Records
   alias BnestApp.TestInstance
 
   @sections ~w(accounts familyChat pushSubscriptions records)
-  @record_kinds ~w(sifatAllahProgress codexChatTranscript themePreference)
+  @record_kinds ~w(sifatAllahProgress codexChatTranscript themePreference browserImportInterrupted)
   @roles ~w(children parents admin)
   @max_accounts 40
   @max_messages 500
   @max_subscriptions 40
   @max_records 40
+  # The browser sources an import recognizes, with the largest payload each may hold. A copy of the
+  # table `BnestApp.Storage.Import` keeps private; the integration test "the seed's source limits are
+  # the production import's limits" holds the two equal.
+  @browser_sources %{
+    {"sessionStorage", "bnest.chat.v1"} => 500_000,
+    {"localStorage", "bnest.sifat-allah.v1"} => 10_000,
+    {"localStorage", "phx:theme"} => 16
+  }
   @seed_key_pattern ~r/\A[a-z0-9][a-z0-9-]{0,63}\z/
   @username_pattern ~r/\Atest-user-([a-z0-9-]{1,48})\z/
   @system_sender "system"
@@ -118,7 +134,7 @@ defmodule BnestApp.TestInstance.Seed do
          known = known_usernames(seeded, accounts),
          {:ok, messages} <- messages(seed, known),
          {:ok, subscriptions} <- subscriptions(seed, known),
-         {:ok, records} <- records(seed, known) do
+         {:ok, records} <- records(seed, known, instance) do
       {:ok,
        %{
          "accounts" => accounts,
@@ -356,19 +372,21 @@ defmodule BnestApp.TestInstance.Seed do
       else: :ok
   end
 
-  defp records(seed, known) do
+  defp records(seed, known, instance) do
+    phase = Map.get(instance, :phase)
+
     with {:ok, inputs} <- items(Map.get(seed, "records", []), "records", @max_records) do
-      each(inputs, "records", &record(&1, &2, &3, known))
+      each(inputs, "records", &record(&1, &2, &3, known, phase))
     end
   end
 
-  defp record(input, path, done, known) do
+  defp record(input, path, done, known, phase) do
     with :ok <- shape(input, path, ~w(owner kind value)),
          {:ok, owner} <- string(input["owner"], path, "owner"),
          :ok <- known_owner(owner, known, path),
          {:ok, kind} <- record_kind(input["kind"], path),
          :ok <- unique_record(owner, kind, path, done),
-         {:ok, value} <- record_value(kind, input["value"], path) do
+         {:ok, value} <- record_value(kind, input["value"], path, phase) do
       {:ok, %{"owner" => owner, "kind" => kind, "value" => value}}
     end
   end
@@ -385,13 +403,13 @@ defmodule BnestApp.TestInstance.Seed do
   # A progress value is checked as the record the progress store would hold, by the production
   # record schema and its kind. A transcript is normalized to the snapshot the transcript store
   # would hold. A theme is one of the themes a user may choose.
-  defp record_value("sifatAllahProgress", value, path) when is_map(value) do
+  defp record_value("sifatAllahProgress", value, path, _phase) when is_map(value) do
     if stored_valid?(ProgressRecord.record(@probe_owner, value, nil, @probe_time)),
       do: {:ok, value},
       else: invalid(:invalid_payload, "#{path}.value")
   end
 
-  defp record_value("codexChatTranscript", value, path) do
+  defp record_value("codexChatTranscript", value, path, _phase) do
     with {:ok, transcript} <- Transcript.restore(value),
          {:ok, state} <- Transcript.snapshot(transcript),
          true <- stored_valid?(TranscriptRecord.record(@probe_owner, state, nil, @probe_time)) do
@@ -401,14 +419,49 @@ defmodule BnestApp.TestInstance.Seed do
     end
   end
 
-  defp record_value("themePreference", value, path) when is_map(value) do
+  defp record_value("themePreference", value, path, _phase) when is_map(value) do
     case Enum.find(Map.keys(value), &(&1 != "theme")) do
       nil -> theme_value(Map.get(value, "theme"), path)
       key -> invalid(:invalid_payload, field_path("#{path}.value", key))
     end
   end
 
-  defp record_value(_kind, _value, path), do: invalid(:invalid_payload, "#{path}.value")
+  # An interrupted import is preserved in the store the production import reads, which only a
+  # flat-primary instance keeps in its own root. On a SQLite instance that store is the run base,
+  # which must stay data-free, so the kind is refused there.
+  defp record_value("browserImportInterrupted", value, path, :flat_primary),
+    do: interrupted_import(value, path)
+
+  defp record_value("browserImportInterrupted", _value, path, _phase),
+    do: invalid(:wrong_phase, "#{path}.kind")
+
+  defp record_value(_kind, _value, path, _phase), do: invalid(:invalid_payload, "#{path}.value")
+
+  defp interrupted_import(value, path) do
+    value_path = "#{path}.value"
+
+    with :ok <- shape(value, value_path, ~w(storageArea storageKey payload)),
+         {:ok, limit} <- browser_source(value, value_path),
+         :ok <- browser_payload(value["payload"], limit, value_path) do
+      {:ok, Map.take(value, ~w(storageArea storageKey payload))}
+    end
+  end
+
+  defp browser_source(value, value_path) do
+    case Map.fetch(@browser_sources, {value["storageArea"], value["storageKey"]}) do
+      {:ok, limit} -> {:ok, limit}
+      :error -> invalid(:unsupported_source, "#{value_path}.storageKey")
+    end
+  end
+
+  defp browser_payload(payload, limit, value_path) when is_binary(payload) do
+    if byte_size(payload) <= limit,
+      do: :ok,
+      else: invalid(:oversized, "#{value_path}.payload")
+  end
+
+  defp browser_payload(_payload, _limit, value_path),
+    do: invalid(:invalid_payload, "#{value_path}.payload")
 
   defp theme_value(theme, path) do
     if theme in Preferences.themes(),
@@ -710,6 +763,57 @@ defmodule BnestApp.TestInstance.Seed do
       :ok -> :ok
       {:error, reason} -> facade_error(:preferences, reason)
     end
+  end
+
+  # The steps `BnestApp.Storage.Import` takes before its read back fails: the pending manifest, the
+  # envelope, then the manifest finished `retryable`. The import id and checksum come from
+  # `Manifest.identity/4`, the same identity the production import derives, so a later browser
+  # import of this payload resumes this manifest. Nothing reads the envelope back here.
+  defp write_record(
+         "browserImportInterrupted",
+         user_id,
+         %{"storageArea" => area, "storageKey" => key, "payload" => payload}
+       ) do
+    store = Records.store()
+    now = Storage.now()
+    pending = Manifest.new(user_id, area, key, payload, "pending", nil, now)
+    import_id = pending["importId"]
+    finished = Manifest.finished(pending, "retryable", :read_back_failed, now)
+
+    with {:ok, _manifest} <- RecordBackend.put_new(store, :manifest, import_id, pending),
+         {:ok, _envelope} <-
+           RecordBackend.put_new(
+             store,
+             :browser_import,
+             {user_id, import_id},
+             envelope(user_id, area, key, payload, import_id, now)
+           ),
+         {:ok, _manifest} <- RecordBackend.replace(store, :manifest, import_id, finished) do
+      :ok
+    else
+      {:error, reason} -> facade_error(:browser_import, reason)
+    end
+  end
+
+  # The envelope `BnestApp.Storage.Import` preserves for a source, built the same way.
+  defp envelope(user_id, area, key, payload, import_id, now) do
+    {_id, checksum} = Manifest.identity(user_id, area, key, payload)
+
+    %{
+      "schemaVersion" => 1,
+      "recordType" => "browser-import",
+      "importId" => import_id,
+      "ownerId" => user_id,
+      "source" => %{
+        "kind" => "browser-storage",
+        "storageArea" => area,
+        "storageKey" => key,
+        "sourceSchemaVersion" => Normalizer.source_version(key, payload)
+      },
+      "payloadEncoding" => "utf8-string",
+      "payload" => payload,
+      "integrity" => %{"sha256" => checksum, "capturedAt" => now}
+    }
   end
 
   defp previous_progress(user_id) do

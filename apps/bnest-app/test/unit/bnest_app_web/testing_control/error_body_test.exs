@@ -81,6 +81,19 @@ defmodule BnestAppWeb.TestingControl.ErrorBodyTest do
              ErrorBody.render({:seed_invalid, :unknown_seed_key, "seedKey"})
   end
 
+  test "the interrupted-import reasons are reported as their own reason, at their field" do
+    for {reason, path} <- [
+          {:wrong_phase, "records[0].kind"},
+          {:unsupported_source, "records[0].value.storageKey"},
+          {:oversized, "records[0].value.payload"}
+        ] do
+      assert {422, %{"error" => %{"detail" => detail, "path" => ^path}}} =
+               ErrorBody.render({:seed_invalid, reason, path})
+
+      assert detail == Atom.to_string(reason)
+    end
+  end
+
   test "a seed reason outside the seed's own vocabulary is reported as invalid_payload" do
     assert {422, %{"error" => %{"detail" => "invalid_payload"}}} =
              ErrorBody.render({:seed_invalid, :anything_else, "accounts"})

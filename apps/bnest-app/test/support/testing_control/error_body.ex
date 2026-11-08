@@ -14,9 +14,10 @@ defmodule BnestAppWeb.TestingControl.ErrorBody do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @seed_reasons ~w(invalid_payload invalid_username invalid_role duplicate_username unknown_sender
-                   unknown_owner unknown_seed_key too_many)a
+                   unknown_owner unknown_seed_key too_many wrong_phase unsupported_source oversized)a
   @seed_fields ~w(seed seedKey accounts username password roles familyChat messages sender body
-                  idempotencyKey pushSubscriptions owner endpoint p256dh auth records kind value theme)
+                  idempotencyKey pushSubscriptions owner endpoint p256dh auth records kind value theme
+                  storageArea storageKey payload)
   @steps ~w(create activate migrate seed)a
 
   @type reason ::
