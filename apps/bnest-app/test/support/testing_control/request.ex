@@ -12,6 +12,9 @@ defmodule BnestAppWeb.TestingControl.Request do
 
   use Boundary, top_level?: true, check: [in: false, out: false]
 
+  # The size limit is judged from the Content-Length header alone. The check does not measure the body
+  # it reads, and a request without the header passes it. The endpoint sets no `length:` for
+  # `Plug.Parsers`, so the parser's own default read limit still bounds the body.
   @max_body_bytes 262_144
   @max_label_bytes 60
   @label_pattern ~r/\A[a-z0-9]+(-[a-z0-9]+)*\z/
@@ -81,6 +84,7 @@ defmodule BnestAppWeb.TestingControl.Request do
 
   defp json_type(_types), do: invalid("the content type must be application/json")
 
+  # No Content-Length header: nothing is measured here (see @max_body_bytes).
   defp length_within_limit([]), do: :ok
 
   defp length_within_limit([value]) do
