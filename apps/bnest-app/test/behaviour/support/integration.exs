@@ -119,8 +119,8 @@ defmodule BnestApp.Behaviour.IntegrationSupport do
   defp phase(context) do
     if context[:"flat-primary"] == true or flat_feature?(context) or
          context.scenario_name in @flat_primary_scenarios,
-      do: :flat_primary,
-      else: :sqlite_primary
+       do: :flat_primary,
+       else: :sqlite_primary
   end
 
   defp self_controlled?(context), do: feature_in?(context, @self_controlled_features)
