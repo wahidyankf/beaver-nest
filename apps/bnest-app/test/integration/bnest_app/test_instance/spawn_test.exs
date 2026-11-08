@@ -419,7 +419,7 @@ defmodule BnestApp.TestInstance.SpawnTest do
 
     test "Family Chat uses the instance database during the instance and its own path after drop",
          %{run: run} do
-      original = Application.fetch_env!(:bnest_app, :family_chat_sqlite_path)
+      original = Application.fetch_env(:bnest_app, :family_chat_sqlite_path)
       instance = TestInstance.spawn!(run)
 
       # Without its own path, Family Chat resolves the instance database, as production does.
@@ -433,7 +433,7 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert SqliteRepo.config()[:database] == instance.paths.db_file
 
       assert :ok = TestInstance.drop!(instance)
-      assert Application.fetch_env(:bnest_app, :family_chat_sqlite_path) == {:ok, original}
+      assert Application.fetch_env(:bnest_app, :family_chat_sqlite_path) == original
     end
   end
 
@@ -512,6 +512,27 @@ defmodule BnestApp.TestInstance.SpawnTest do
       end
 
       assert TestInstance.base_audit() == base_before
+    end
+  end
+
+  describe "drop!/1 while a scenario shadows the pointer" do
+    # A scenario may set BNEST_STORAGE_CONFIG after the spawn, and a drop from any path (an adapter's end, the
+    # wire cleanup, an ExBdd hook) can run then. The drop restores the run base's pointer, the path the spawn
+    # checked, never the shadow; the shadow stays as the scenario set it.
+    test "restores the run base pointer, not the shadow", %{run: run} do
+      pointer = Application.fetch_env!(:bnest_app, :storage_config_path)
+      before = File.read(pointer)
+      instance = TestInstance.spawn!(run)
+
+      shadow = Path.join(run.sqlite_path, "shadow-storage/storage.json")
+      System.put_env("BNEST_STORAGE_CONFIG", shadow)
+      on_exit(fn -> System.delete_env("BNEST_STORAGE_CONFIG") end)
+
+      assert :ok = TestInstance.drop!(instance)
+
+      assert File.read(pointer) == before
+      assert System.get_env("BNEST_STORAGE_CONFIG") == shadow
+      refute File.exists?(shadow)
     end
   end
 
