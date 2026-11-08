@@ -23,6 +23,7 @@ defmodule BnestApp.TestInstance do
   alias BnestApp.TestRuntimeRoot
 
   @marker_name ".bnest-test-instance.json"
+  @boot_marker_name ".bnest-test-run.json"
   @owner "bnest-test-harness"
   @phases [:sqlite_primary, :flat_primary]
   @empty_flat_name "flat-empty"
@@ -474,8 +475,7 @@ defmodule BnestApp.TestInstance do
            make_root(
              paths.sqlite_instance_root,
              ["db", "backup-repository", @empty_flat_name],
-             paths.sqlite_marker_path,
-             marker
+             [{paths.sqlite_marker_path, marker}]
            ) do
       case create_flat_root(paths, marker, phase) do
         :ok ->
@@ -490,7 +490,10 @@ defmodule BnestApp.TestInstance do
 
   defp create_flat_root(paths, marker, :flat_primary) do
     with :ok <- ensure_directory(Path.dirname(paths.flat_instance_root)) do
-      make_root(paths.flat_instance_root, [], paths.flat_marker_path, marker)
+      make_root(paths.flat_instance_root, [], [
+        {paths.flat_marker_path, marker},
+        {Path.join(paths.flat_instance_root, @boot_marker_name), boot_marker(paths.instance_id)}
+      ])
     end
   end
 
@@ -498,9 +501,9 @@ defmodule BnestApp.TestInstance do
 
   # The root is created alone, then its marker, then its children. A later failure removes only
   # this root, which this call has just created, so nothing unmarked survives it.
-  defp make_root(root, children, marker_path, marker) do
+  defp make_root(root, children, markers) do
     with :ok <- File.mkdir(root) do
-      case populate(root, children, marker_path, marker) do
+      case populate(root, children, markers) do
         :ok ->
           :ok
 
@@ -511,10 +514,19 @@ defmodule BnestApp.TestInstance do
     end
   end
 
-  defp populate(root, children, marker_path, marker) do
-    with :ok <- File.write(marker_path, Jason.encode!(marker)) do
+  defp populate(root, children, markers) do
+    with :ok <- write_markers(markers) do
       Enum.reduce_while(children, :ok, &make_child(root, &1, &2))
     end
+  end
+
+  defp write_markers(markers) do
+    Enum.reduce_while(markers, :ok, fn {path, marker}, :ok ->
+      case File.write(path, Jason.encode!(marker)) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
   end
 
   defp make_child(root, child, :ok) do
@@ -532,6 +544,20 @@ defmodule BnestApp.TestInstance do
       {:error, :enoent} -> File.mkdir(path)
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  # The application start validates a test runtime root with `FileRecordBackend.new!/1`, which reads a
+  # `bnest-test-run` marker named `.bnest-test-run.json` whose `runId` is the root's own basename. A
+  # secondary BEAM boots on the flat instance root, so that root carries this boot marker beside its
+  # instance marker; lib validation stays as it is. The instance marker alone proves ownership.
+  defp boot_marker(instance_id) do
+    %{
+      "schemaVersion" => 1,
+      "recordType" => "bnest-test-run",
+      "runId" => instance_id,
+      "createdAt" => DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+      "owner" => @owner
+    }
   end
 
   defp marker(run_id, instance_id) do
