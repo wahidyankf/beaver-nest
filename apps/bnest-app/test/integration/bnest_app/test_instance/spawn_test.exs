@@ -292,6 +292,67 @@ defmodule BnestApp.TestInstance.SpawnTest do
     end
   end
 
+  # A fresh installation has chosen no database location yet. The storage setup page offers the choice only then, so
+  # a scenario about that choice needs an instance with no pointer and no database (ADR 001, section 1, "Phase").
+  describe "spawn!/2 with unconfigured storage" do
+    test "gives a flat-primary instance with no storage pointer and no database", %{run: run} do
+      before = snapshot()
+      instance = TestInstance.spawn!(run, phase: :flat_primary, storage: :unconfigured)
+
+      refute File.exists?(instance.paths.storage_pointer_path)
+      assert File.ls!(instance.paths.db_directory) == []
+      assert Storage.phase() == :flat_primary
+      assert Application.get_env(:bnest_app, :runtime_root) == instance.paths.flat_instance_root
+
+      # A page that reads storage with no pointer opens the default location (the storage page does). It is the
+      # instance's own `db/` directory, so that read can never create a database in the run base.
+      assert Storage.default_directory() == instance.paths.db_directory
+      assert Storage.database_path() == instance.paths.db_file
+
+      assert {:ok, _record} =
+               Records.put_new(
+                 :account,
+                 "user-test-unconfigured",
+                 account("user-test-unconfigured")
+               )
+
+      assert :ok = TestInstance.drop!(instance)
+      assert snapshot() == before
+      refute File.exists?(instance.paths.flat_instance_root)
+    end
+
+    test "leaves no pointer to remove for the page that chooses the location", %{run: run} do
+      instance = TestInstance.spawn!(run, phase: :flat_primary, storage: :unconfigured)
+
+      # What the admin page does on `Create database`: it writes the first pointer, for a folder of its own.
+      folder = Path.join(System.tmp_dir!(), "bnest-unconfigured-" <> instance.instance_id)
+      File.mkdir!(folder)
+      File.chmod!(folder, 0o700)
+      on_exit(fn -> File.rm_rf!(folder) end)
+
+      assert {:ok, %{"databaseDirectory" => ^folder}} = Storage.persist_directory(folder)
+      assert File.exists?(instance.paths.storage_pointer_path)
+
+      assert :ok = TestInstance.drop!(instance)
+      refute File.exists?(instance.paths.storage_pointer_path)
+    end
+
+    test "refuses an unconfigured storage for a sqlite-primary instance and changes nothing", %{
+      run: run
+    } do
+      before = snapshot()
+
+      error =
+        assert_raise Error, fn ->
+          TestInstance.spawn!(run, phase: :sqlite_primary, storage: :unconfigured)
+        end
+
+      assert error.reason == :invalid_instance
+      assert error.detail == :unconfigured_storage_needs_flat_primary
+      assert snapshot() == before
+    end
+  end
+
   describe "drop!/1" do
     test "leaves no instance directory and adds nothing to the base", %{run: run} do
       # Other integration tests may write accounts into the shared base, so the base is judged by
@@ -455,32 +516,15 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert :ok = TestInstance.drop!(second)
     end
 
-    test "FileRecordBackend.new!/1 refuses an instance root, so spawn builds the store itself", %{
-      run: run
-    } do
+    test "the flat store a flat primary spawn installs is what FileRecordBackend.new!/1 builds for the instance root",
+         %{run: run} do
       instance = TestInstance.spawn!(run, phase: :flat_primary)
 
-      assert_raise ArgumentError, ~r/invalid runtime root/, fn ->
-        FileRecordBackend.new!(instance.paths.flat_instance_root)
-      end
-
-      assert :ok = TestInstance.drop!(instance)
-    end
-
-    test "the flat store a flat primary spawn installs has FileRecordBackend's keys and backend",
-         %{
-           run: run
-         } do
-      instance = TestInstance.spawn!(run, phase: :flat_primary)
-
-      # `new!/1` refuses an instance root, so the expected store is built from the run base and
-      # then compared with the installed one, whose root is the instance root.
-      expected = FileRecordBackend.new!(run.path)
+      # The boot of a secondary BEAM builds its store the same way, from the same root.
+      expected = FileRecordBackend.new!(instance.paths.flat_instance_root)
       store = :sys.get_state(Records).store
 
-      assert Enum.sort(Map.keys(store)) == Enum.sort(Map.keys(expected))
-      assert store.backend == expected.backend
-      assert store.replace == expected.replace
+      assert store == expected
       assert store.root == instance.paths.flat_instance_root
 
       assert :ok = TestInstance.drop!(instance)
@@ -551,6 +595,7 @@ defmodule BnestApp.TestInstance.SpawnTest do
       runtime_root: Application.fetch_env(:bnest_app, :runtime_root),
       backup_repository_root: Application.fetch_env(:bnest_app, :backup_repository_root),
       family_chat_sqlite_path: Application.fetch_env(:bnest_app, :family_chat_sqlite_path),
+      storage_profile: Application.fetch_env(:bnest_app, :storage_profile),
       backup_config_present: File.exists?(backup_config_path(run)),
       records_store: :sys.get_state(Records).store
     }

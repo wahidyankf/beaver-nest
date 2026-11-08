@@ -130,6 +130,7 @@ defmodule BnestApp.TestInstance.Seed do
     short = short_id(instance.instance_id)
 
     with :ok <- known_sections(seed),
+         :ok <- database_sections(seed, instance),
          {:ok, accounts} <- accounts(seed, short, seeded),
          known = known_usernames(seeded, accounts),
          {:ok, messages} <- messages(seed, known),
@@ -146,6 +147,21 @@ defmodule BnestApp.TestInstance.Seed do
   end
 
   def validate(_seed, _instance), do: invalid(:invalid_payload, "seed")
+
+  # Family Chat and push live in the SQLite database. An instance whose storage is unconfigured has none, so a
+  # seed that fills either section is refused at that section instead of creating a database at a default place.
+  defp database_sections(seed, %{storage: :unconfigured}) do
+    case Enum.find(~w(familyChat pushSubscriptions), &filled?(Map.get(seed, &1))) do
+      nil -> :ok
+      section -> invalid(:wrong_phase, section)
+    end
+  end
+
+  defp database_sections(_seed, _instance), do: :ok
+
+  defp filled?(nil), do: false
+  defp filled?(value) when value in [%{}, []], do: false
+  defp filled?(_value), do: true
 
   @doc """
   Validates `seed_map` and writes it through the production facades, under `seed_key`. Idempotent

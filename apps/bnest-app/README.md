@@ -84,7 +84,10 @@ Every integration test that touches the database runs on a fresh SQLite database
 and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-database-per-test.md).
 
 - `BnestApp.TestInstance` (`test/support`) spawns one instance at a time through the production migration and seed
-  entry points, points the running server at it, and drops it. `audit/0` and `base_audit/0` report leftovers.
+  entry points, points the running server at it, and drops it. `audit/0` and `base_audit/0` report leftovers. The
+  option `storage: :unconfigured` (a `:flat_primary` instance only) spawns no storage pointer, no migration and no
+  database, as a fresh installation is before an administrator chooses the location; the testing-control wire takes it
+  as `storage: "unconfigured"`.
 - `BnestApp.FreshDatabaseCase` (`test/support`) is the ExUnit case template for these tests. Its setup spawns an
   instance and returns `instance` and `accounts`. Its teardown drops the instance and fails the test when the drop is
   refused. Tags set the options: `phase` (default `:sqlite_primary`), `instance_id` (a fixed id, needed when a seed's

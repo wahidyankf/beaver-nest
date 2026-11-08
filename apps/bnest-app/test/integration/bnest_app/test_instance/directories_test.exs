@@ -61,13 +61,19 @@ defmodule BnestApp.TestInstance.DirectoriesTest do
 
     # A secondary BEAM boots on the flat instance root, and the application start validates a test root
     # with FileRecordBackend.new!/1, which reads a run marker named after the root's own basename.
-    test "gives a flat instance root the run marker the application boot validates", %{runtime: runtime} do
+    test "gives a flat instance root the run marker the application boot validates", %{
+      runtime: runtime
+    } do
       assert {:ok, flat} = TestInstance.create_dirs(runtime, @instance_id, :flat_primary)
       root = flat.paths.flat_instance_root
 
       assert %{backend: FileRecordBackend, root: ^root} = FileRecordBackend.new!(root)
 
-      assert %{"recordType" => "bnest-test-run", "runId" => @instance_id, "owner" => "bnest-test-harness"} =
+      assert %{
+               "recordType" => "bnest-test-run",
+               "runId" => @instance_id,
+               "owner" => "bnest-test-harness"
+             } =
                read_marker(Path.join(root, @run_marker))
 
       assert :ok = TestInstance.drop_dirs(flat)

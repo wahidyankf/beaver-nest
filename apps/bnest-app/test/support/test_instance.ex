@@ -31,10 +31,14 @@ defmodule BnestApp.TestInstance do
   @current_key :test_instance_current
 
   @type phase :: :sqlite_primary | :flat_primary
+  # `:unconfigured` is a flat-primary instance with no storage pointer and no database: the state of a fresh
+  # installation, before an administrator chooses the database location (ADR 001, section 1, "Phase").
+  @type storage :: :configured | :unconfigured
   @type instance :: %{
           run_id: String.t(),
           instance_id: String.t(),
           phase: phase(),
+          storage: storage(),
           paths: Paths.t()
         }
 
@@ -56,7 +60,8 @@ defmodule BnestApp.TestInstance do
 
   @doc """
   Spawns one test instance and points the running server at it. Options: `:phase` (default
-  `:sqlite_primary`), `:instance_id` (default random), `:seed` (after migration: a one-argument
+  `:sqlite_primary`), `:storage` (default `:configured`; `:unconfigured` needs `:flat_primary` and spawns no
+  storage pointer, no database and no migration), `:instance_id` (default random), `:seed` (after migration: a one-argument
   function run with the instance, or `{seed_key, seed_map}` applied through
   `BnestApp.TestInstance.Seed`), `:fail_after` (a step name: that step does its work and then
   fails, which tests the rollback), and `:label` (a diagnostic name the wire answers; default
@@ -206,7 +211,14 @@ defmodule BnestApp.TestInstance do
          :ok <- ensure_absent(paths),
          :ok <- ensure_directory(Path.dirname(paths.sqlite_instance_root)),
          :ok <- create_roots(paths, marker(run_id, instance_id), phase) do
-      {:ok, %{run_id: run_id, instance_id: instance_id, phase: phase, paths: paths}}
+      {:ok,
+       %{
+         run_id: run_id,
+         instance_id: instance_id,
+         phase: phase,
+         storage: :configured,
+         paths: paths
+       }}
     end
   end
 
@@ -228,11 +240,14 @@ defmodule BnestApp.TestInstance do
 
   defp do_spawn(run, opts) do
     phase = Keyword.get(opts, :phase, :sqlite_primary)
+    storage = Keyword.get(opts, :storage, :configured)
     instance_id = Keyword.get_lazy(opts, :instance_id, &random_instance_id/0)
-    preflight!(run, instance_id)
+    preflight!(run, instance_id, phase, storage)
     original = Switch.snapshot()
 
-    instance = create!(run, instance_id, phase, original, opts)
+    instance =
+      run |> create!(instance_id, phase, original, opts) |> Map.put(:storage, storage)
+
     run_step!(instance, original, :activate, opts, fn -> Switch.activate!(instance) end)
     run_step!(instance, original, :migrate, opts, fn -> Switch.migrate!(instance) end)
 
@@ -251,7 +266,11 @@ defmodule BnestApp.TestInstance do
     instance
   end
 
-  defp preflight!(run, instance_id) do
+  defp preflight!(run, instance_id, phase, storage) do
+    if storage == :unconfigured and phase != :flat_primary,
+      do:
+        raise(Error, reason: :invalid_instance, detail: :unconfigured_storage_needs_flat_primary)
+
     if state() != nil, do: refuse!(:instance_active)
     if busy?(), do: refuse!(:instance_busy)
 

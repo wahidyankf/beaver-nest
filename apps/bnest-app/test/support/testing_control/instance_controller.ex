@@ -84,6 +84,7 @@ defmodule BnestAppWeb.TestingControl.InstanceController do
   defp spawn_opts(body) do
     [
       phase: body.phase,
+      storage: body.storage,
       label: body.label,
       fail_after: Application.get_env(:bnest_app, :testing_control_fail_after)
     ] ++ instance_id_opts(body.instance_id) ++ seed_opts(body.seed)
