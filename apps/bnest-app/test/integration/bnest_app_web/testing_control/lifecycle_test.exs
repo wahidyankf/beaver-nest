@@ -745,6 +745,23 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
 
   # Helpers
 
+  # A flat-primary spawn re-points `:runtime_root` at its own flat root. The guard's ownership check must still read
+  # the run base, or every later request, including the delete that would drop the instance, answers 404.
+  describe "a flat_primary instance" do
+    test "keeps the routes answering after the spawn re-points the runtime root", %{run: run} do
+      id =
+        spawn_instance(run, %{"phase" => "flat_primary"}) |> Wire.json() |> Map.fetch!("instanceId")
+
+      state = Wire.send_request(:get, route("/state"))
+      assert state.status == 200
+      assert Wire.json(state)["instance"]["instanceId"] == id
+
+      deleted = Wire.send_request(:delete, route("/instances/#{id}"))
+      assert deleted.status == 204
+      assert TestInstance.state() == nil
+    end
+  end
+
   defp route(path), do: Wire.prefix() <> path
 
   defp spawn_instance(run, extra) do

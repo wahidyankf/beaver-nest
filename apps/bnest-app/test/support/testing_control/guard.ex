@@ -91,11 +91,14 @@ defmodule BnestAppWeb.TestingControl.Guard do
   validate with markers naming the same run. A missing run, a run whose markers do not validate and
   an application that is not a test run all answer false. Reads only the marker files.
   """
+  # The flat root is read from `:test_flat_run_root`, the run base set once by the test configuration. Not from
+  # `:runtime_root`: a flat-primary spawn re-points that key at its instance root, and the delete that would restore
+  # it is itself a request this check admits. Reading it there refused every later request, the delete included.
   @spec runtime_owned?() :: boolean()
   def runtime_owned? do
     owned_by?(
       Application.get_env(:bnest_app, :test_runtime_owned),
-      Application.get_env(:bnest_app, :runtime_root),
+      Application.get_env(:bnest_app, :test_flat_run_root),
       Application.get_env(:bnest_app, :test_sqlite_root)
     )
   end
