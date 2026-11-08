@@ -25,3 +25,5 @@ Binding counts are necessary but not sufficient; adapter changes require the
   snapshot, claims/retries, retention, and registry behaviour.
 - [SQLite storage](sqlite_storage.feature) specifies migration, authority, safety, relocation, retirement, and the
   continuity contract.
+- [Test isolation](test_isolation.feature) specifies the migrated test schema, teardown of host state, the non-loopback
+  and production-build refusals of the testing endpoints, and the rollback of a failed seed or migration.
