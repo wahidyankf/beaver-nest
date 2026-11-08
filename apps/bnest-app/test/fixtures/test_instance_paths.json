@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "description": "Shared parity fixture for test instance path derivation. Each case gives the inputs of BnestApp.TestInstance.Paths.derive/4 and the exact result. The Elixir test and both E2E path mirrors read this file. Keep every case deterministic and synthetic.",
+  "function": "BnestApp.TestInstance.Paths.derive/4",
+  "source": "apps/bnest-app/test/support/test_instance_paths.ex",
+  "inputKeys": {
+    "flatRunRoot": "first argument (flat run root)",
+    "sqliteRunRoot": "second argument (SQLite run root)",
+    "runId": "third argument (run id)",
+    "instanceId": "fourth argument (instance id)"
+  },
+  "expectedKeys": "When ok is true, paths holds the Elixir map keys in camelCase (run_id becomes runId, and so on). When ok is false, error is one of invalid_run_id, invalid_instance_id or invalid_root. Checks run in this order: run id, instance id, flat root, SQLite root.",
+  "cases": [
+    {
+      "name": "valid ids and roots derive every instance path",
+      "input": {
+        "flatRunRoot": "/synthetic/data/test/runs/unit-run-1",
+        "sqliteRunRoot": "/synthetic/bnest/data/test/runs/unit-run-1",
+        "runId": "unit-run-1",
+        "instanceId": "a1b2c3d4e5f6g7h8"
+      },
+      "expect": {
+        "ok": true,
+        "paths": {
+          "runId": "unit-run-1",
+          "instanceId": "a1b2c3d4e5f6g7h8",
+          "shortId": "a1b2c3d4",
+          "generation": "test-a1b2c3d4e5f6g7h8",
+          "flatRunRoot": "/synthetic/data/test/runs/unit-run-1",
+          "sqliteRunRoot": "/synthetic/bnest/data/test/runs/unit-run-1",
+          "flatInstanceRoot": "/synthetic/data/test/runs/unit-run-1/instances/a1b2c3d4e5f6g7h8",
+          "sqliteInstanceRoot": "/synthetic/bnest/data/test/runs/unit-run-1/instances/a1b2c3d4e5f6g7h8",
+          "flatMarkerPath": "/synthetic/data/test/runs/unit-run-1/instances/a1b2c3d4e5f6g7h8/.bnest-test-instance.json",
+          "sqliteMarkerPath": "/synthetic/bnest/data/test/runs/unit-run-1/instances/a1b2c3d4e5f6g7h8/.bnest-test-instance.json",
+          "dbDirectory": "/synthetic/bnest/data/test/runs/unit-run-1/instances/a1b2c3d4e5f6g7h8/db",
+          "dbFile": "/synthetic/bnest/data/test/runs/unit-run-1/instances/a1b2c3d4e5f6g7h8/db/bnest.sqlite3",
+          "backupRepositoryDirectory": "/synthetic/bnest/data/test/runs/unit-run-1/instances/a1b2c3d4e5f6g7h8/backup-repository",
+          "storageConfigDirectory": "/synthetic/bnest/data/test/runs/unit-run-1/storage-config",
+          "storagePointerPath": "/synthetic/bnest/data/test/runs/unit-run-1/storage-config/storage.json",
+          "backupConfigPath": "/synthetic/bnest/data/test/runs/unit-run-1/storage-config/backup.json"
+        }
+      }
+    },
+    {
+      "name": "run id with hyphens and underscores and a digit-led instance id",
+      "input": {
+        "flatRunRoot": "/synthetic/data/test/runs/be-e2e_run-2",
+        "sqliteRunRoot": "/synthetic/bnest/data/test/runs/be-e2e_run-2",
+        "runId": "be-e2e_run-2",
+        "instanceId": "0123456789abcdef"
+      },
+      "expect": {
+        "ok": true,
+        "paths": {
+          "runId": "be-e2e_run-2",
+          "instanceId": "0123456789abcdef",
+          "shortId": "01234567",
+          "generation": "test-0123456789abcdef",
+          "flatRunRoot": "/synthetic/data/test/runs/be-e2e_run-2",
+          "sqliteRunRoot": "/synthetic/bnest/data/test/runs/be-e2e_run-2",
+          "flatInstanceRoot": "/synthetic/data/test/runs/be-e2e_run-2/instances/0123456789abcdef",
+          "sqliteInstanceRoot": "/synthetic/bnest/data/test/runs/be-e2e_run-2/instances/0123456789abcdef",
+          "flatMarkerPath": "/synthetic/data/test/runs/be-e2e_run-2/instances/0123456789abcdef/.bnest-test-instance.json",
+          "sqliteMarkerPath": "/synthetic/bnest/data/test/runs/be-e2e_run-2/instances/0123456789abcdef/.bnest-test-instance.json",
+          "dbDirectory": "/synthetic/bnest/data/test/runs/be-e2e_run-2/instances/0123456789abcdef/db",
+          "dbFile": "/synthetic/bnest/data/test/runs/be-e2e_run-2/instances/0123456789abcdef/db/bnest.sqlite3",
+          "backupRepositoryDirectory": "/synthetic/bnest/data/test/runs/be-e2e_run-2/instances/0123456789abcdef/backup-repository",
+          "storageConfigDirectory": "/synthetic/bnest/data/test/runs/be-e2e_run-2/storage-config",
+          "storagePointerPath": "/synthetic/bnest/data/test/runs/be-e2e_run-2/storage-config/storage.json",
+          "backupConfigPath": "/synthetic/bnest/data/test/runs/be-e2e_run-2/storage-config/backup.json"
+        }
+      }
+    },
+    {
+      "name": "bad instance id with uppercase letters",
+      "input": {
+        "flatRunRoot": "/synthetic/data/test/runs/unit-run-1",
+        "sqliteRunRoot": "/synthetic/bnest/data/test/runs/unit-run-1",
+        "runId": "unit-run-1",
+        "instanceId": "A1B2C3D4E5F6G7H8"
+      },
+      "expect": { "ok": false, "error": "invalid_instance_id" }
+    },
+    {
+      "name": "instance id with a traversal segment",
+      "input": {
+        "flatRunRoot": "/synthetic/data/test/runs/unit-run-1",
+        "sqliteRunRoot": "/synthetic/bnest/data/test/runs/unit-run-1",
+        "runId": "unit-run-1",
+        "instanceId": "../../etc/passwd"
+      },
+      "expect": { "ok": false, "error": "invalid_instance_id" }
+    },
+    {
+      "name": "run id with a traversal segment",
+      "input": {
+        "flatRunRoot": "/synthetic/data/test/runs/unit-run-1",
+        "sqliteRunRoot": "/synthetic/bnest/data/test/runs/unit-run-1",
+        "runId": "../unit-run-1",
+        "instanceId": "a1b2c3d4e5f6g7h8"
+      },
+      "expect": { "ok": false, "error": "invalid_run_id" }
+    },
+    {
+      "name": "relative flat root",
+      "input": {
+        "flatRunRoot": "relative/data/test/runs/unit-run-1",
+        "sqliteRunRoot": "/synthetic/bnest/data/test/runs/unit-run-1",
+        "runId": "unit-run-1",
+        "instanceId": "a1b2c3d4e5f6g7h8"
+      },
+      "expect": { "ok": false, "error": "invalid_root" }
+    },
+    {
+      "name": "root with a traversal segment that is not normalised",
+      "input": {
+        "flatRunRoot": "/synthetic/data/test/runs/x/../unit-run-1",
+        "sqliteRunRoot": "/synthetic/bnest/data/test/runs/unit-run-1",
+        "runId": "unit-run-1",
+        "instanceId": "a1b2c3d4e5f6g7h8"
+      },
+      "expect": { "ok": false, "error": "invalid_root" }
+    },
+    {
+      "name": "root with a trailing slash",
+      "input": {
+        "flatRunRoot": "/synthetic/data/test/runs/unit-run-1/",
+        "sqliteRunRoot": "/synthetic/bnest/data/test/runs/unit-run-1",
+        "runId": "unit-run-1",
+        "instanceId": "a1b2c3d4e5f6g7h8"
+      },
+      "expect": { "ok": false, "error": "invalid_root" }
+    },
+    {
+      "name": "SQLite root whose basename is another run",
+      "input": {
+        "flatRunRoot": "/synthetic/data/test/runs/unit-run-1",
+        "sqliteRunRoot": "/synthetic/bnest/data/test/runs/other-run",
+        "runId": "unit-run-1",
+        "instanceId": "a1b2c3d4e5f6g7h8"
+      },
+      "expect": { "ok": false, "error": "invalid_root" }
+    },
+    {
+      "name": "an invalid run id is reported before a bad instance id",
+      "input": {
+        "flatRunRoot": "relative",
+        "sqliteRunRoot": "relative",
+        "runId": "../bad",
+        "instanceId": "short"
+      },
+      "expect": { "ok": false, "error": "invalid_run_id" }
+    }
+  ]
+}
