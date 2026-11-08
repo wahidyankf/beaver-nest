@@ -16,7 +16,7 @@ defmodule BnestAppWeb.AuthenticationTest do
   test "one-time setup and registration routes are unavailable after closure", %{conn: conn} do
     # Seeded accounts on a SQLite instance leave no bootstrap journal, so the status is a conflict rather than
     # `:closed`. Either way setup is never open again, and the route answers 404.
-    refute Identity.setup_status() == :open
+    assert Identity.setup_status() == {:error, :conflict}
     assert get(conn, "/setup").status == 404
     assert post(recycle(conn), "/setup", %{}).status == 404
   end
