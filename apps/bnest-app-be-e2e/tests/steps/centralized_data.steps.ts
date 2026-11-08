@@ -1,6 +1,5 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
-import { instanceLifecycle } from "../support/active-instance.mts";
 import { login } from "../support/authentication";
 import {
   chatPayload,
@@ -16,13 +15,13 @@ import { importCount, instanceRecord } from "../support/instance-records";
 // Trimmed from bnest-app-e2e's centralized_data.steps.ts to this project's owned scenarios (import/theme/rejection/
 // idempotency/staleness, and the server-persistence halves of the accepted-import and Codex-resume scenarios); the
 // browser-key-clearing and fresh-conversation-report halves moved to bnest-app-fe-e2e. Every record is read from the
-// current test instance's database through production's record read, never from a file.
+// current test instance's database through production's record read, never from a file. The interrupted-import
+// scenario's bindings live in centralized_data_import.steps.ts.
 
 const { Given, Then, When } = createBdd();
 
 let beforeRecordSnapshot = "";
 let beforeThemeSnapshot = "";
-let beforeImportCount = 0;
 
 function adminId(): string {
   return userIdFor(currentIdentities().admin.username);
@@ -93,51 +92,6 @@ Then(
       await page.evaluate(() => sessionStorage.getItem("bnest.chat.v1")),
     ).toBe("{malformed");
     expect(recordSnapshot("chat", adminId())).toBe(beforeRecordSnapshot);
-  },
-);
-
-// The seed writes what an import leaves when it stops after preserving its envelope (ADR 001, section 2). The browser
-// then holds the same payload, so the retry resumes that import identity. The baseline is taken after the seed, and
-// it must be exactly the one envelope the seed wrote, so a seed that landed nowhere cannot pass the "no duplicate"
-// check. This scenario is `@flat-primary`, the only phase that takes this seed kind.
-Given(
-  "a recognized import was interrupted after source preservation",
-  async ({ page }) => {
-    const seeded = await instanceLifecycle().seed("interrupted-import", {
-      records: [
-        {
-          owner: currentIdentities().admin.username,
-          kind: "browserImportInterrupted",
-          value: {
-            storageArea: "sessionStorage",
-            storageKey: "bnest.chat.v1",
-            payload: chatPayload,
-          },
-        },
-      ],
-    });
-    expect(seeded.applied).toBe(true);
-    await setSources(page, { chat: chatPayload, learning: null, theme: null });
-    beforeImportCount = importCount(adminId());
-    expect(beforeImportCount).toBe(1);
-  },
-);
-
-When("the user retries that import", async ({ page }) => {
-  await confirmImports(page);
-});
-
-Then("Bnest reuses its idempotent import identity", () => {
-  expect(importCount(adminId())).toBe(beforeImportCount);
-});
-
-Then(
-  "Bnest does not duplicate or overwrite accepted data",
-  async ({ page }) => {
-    await expect(
-      page.getByText("Chat conversation: accepted and verified"),
-    ).toBeVisible();
-    expect(importCount(adminId())).toBe(beforeImportCount);
   },
 );
 
