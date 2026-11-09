@@ -34,12 +34,22 @@ defmodule BnestApp.Backup.Adapters.SqliteDatabaseSnapshot do
   # makes the deadline below a genuine abort rather than an unbounded wait.
   @impl true
   def vacuum_into(_snapshot, partial_path, timeout_ms) do
-    source = SqliteRepo.main_database_path()
+    sql = "VACUUM INTO '" <> escape_sql_literal(partial_path) <> "'"
+    execute_within_deadline(SqliteRepo.main_database_path(), sql, timeout_ms)
+  end
+
+  @doc false
+  # The deadline and cancellation `vacuum_into/3` applies to its statement, on a read-only
+  # connection to `source`. It is public so the integration layer can run it against a
+  # statement that cannot finish on its own (a real `VACUUM INTO` ends in milliseconds, so a
+  # timer can only race it); `vacuum_into/3` is its one production caller.
+  @spec execute_within_deadline(String.t(), String.t(), pos_integer()) ::
+          :ok | {:error, :io_failed | :timeout}
+  def execute_within_deadline(source, sql, timeout_ms) do
     {:ok, connection} = Exqlite.Sqlite3.open(source, mode: :readonly)
     :ok = Exqlite.Sqlite3.set_busy_timeout(connection, timeout_ms)
     :ok = Exqlite.Sqlite3.set_progress_handler_steps(connection, @progress_handler_steps)
 
-    sql = "VACUUM INTO '" <> escape_sql_literal(partial_path) <> "'"
     task = Task.async(fn -> Exqlite.Sqlite3.execute(connection, sql) end)
 
     outcome =
