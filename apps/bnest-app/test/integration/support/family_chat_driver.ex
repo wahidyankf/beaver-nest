@@ -39,6 +39,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.Test.PublicMutationProbe
   alias BnestApp.Test.SchedulerDispatch
   alias BnestApp.Test.Seeds.Schedules
+  alias BnestApp.Test.UnfinishableDatabaseSnapshot
   alias BnestApp.TestBackupDestination
   alias BnestApp.TestRuntimeRoot
 
@@ -63,13 +64,12 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # trigger-enforced append-only/undeletable -- see the migration -- so
   # padding there would permanently grow the shared test database on every
   # suite run) give `VACUUM INTO` enough real bytes to take measurable,
-  # non-instantaneous time, both so the load scenario's routed probes
-  # genuinely overlap it and so the cancellation scenario's forced
-  # `backup_timeout_ms` reliably exceeds the snapshot's real duration
-  # instead of racing a near-empty database. Cleaned up in `on_exit`.
+  # non-instantaneous time, so the load scenario's routed probes genuinely
+  # overlap it. Cleaned up in `on_exit`.
   @load_proof_padding_rows 1800
   @load_proof_probe_count 20
   @load_proof_room_slug "ruang-keluarga"
+  @forced_backup_timeout_ms 250
 
   # The last schema version the release before Family Chat shipped, and the tables Family
   # Chat's migrations added to that database.
@@ -553,21 +553,30 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(context, :family_chat_probes_running, true)
   end
 
-  # Test-only seam, mirroring `push_notifications_test.exs`'s identical
-  # `:web_push, :vapid` Application-env override technique: forces
-  # `BnestApp.Backup`'s own `timeout_ms/0` read down to a value no real
-  # `VACUUM INTO` over `@load_proof_padding_rows` of real bytes can finish
-  # inside, so the cooperative `Exqlite.Sqlite3.cancel/1` path (tech-doc
-  # 009's Timeout/Cancellation/Retry section) is exercised deterministically
-  # rather than left provable only by code inspection. `on_exit` always
-  # restores the previous value first, regardless of which value (or none)
-  # was present, so a later scenario in this same suite run never inherits a
-  # forced 1 ms timeout.
+  # The copy cannot be left to race the deadline: a real `VACUUM INTO` of this database ends in
+  # about ten milliseconds, so even a short timeout is beaten whenever the host delays the
+  # caller that long, and a timeout is then not what the backup returns. Backup therefore
+  # snapshots through `UnfinishableDatabaseSnapshot`, whose copy runs on past any deadline
+  # through the real adapter's own deadline and `Exqlite.Sqlite3.cancel/1` (tech-doc 009's
+  # Timeout/Cancellation/Retry section), so the cancel reaches a statement still running.
+  # The timeout is `@forced_backup_timeout_ms`, long enough that the cancelled statement has
+  # started, and `on_exit` restores both the adapters and the previous timeout (or none), so
+  # a later scenario in this same suite run never inherits either.
   def prepare_behaviour(context, :backup_timeout_forced, _args) do
     previous = Application.get_env(:bnest_app, :backup_timeout_ms)
-    Application.put_env(:bnest_app, :backup_timeout_ms, 1)
+    adapters = Application.fetch_env!(:bnest_app, BnestApp.Backup)
+
+    Application.put_env(:bnest_app, :backup_timeout_ms, @forced_backup_timeout_ms)
+
+    Application.put_env(
+      :bnest_app,
+      BnestApp.Backup,
+      Keyword.put(adapters, :database_snapshot, UnfinishableDatabaseSnapshot)
+    )
 
     ExUnit.Callbacks.on_exit(fn ->
+      Application.put_env(:bnest_app, BnestApp.Backup, adapters)
+
       if previous,
         do: Application.put_env(:bnest_app, :backup_timeout_ms, previous),
         else: Application.delete_env(:bnest_app, :backup_timeout_ms)
