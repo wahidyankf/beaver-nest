@@ -99,7 +99,11 @@ scheduler is not automatic in the test layer (`scheduler_automatic?: false`), an
 while a scheduler task runs or a web request is running. A closed browser does not cancel the server's work on a request
 it already sent, and that work would find no instance after a drop and open the profile's default database in the run
 base. `BnestApp.TestInstance.Requests` counts the running requests from Phoenix's endpoint telemetry (the testing-control
-routes excluded), and the switch gives them five seconds to end. The switch code (`TestInstance`, the `Records` state
+routes excluded), and the switch gives them five seconds to end. It also counts the live channels of the GraphQL
+subscription socket: a page that reconnects its socket just before its scenario ends sends its subscription document
+over the new socket, and that document runs in a channel process that no endpoint request reports. A channel ends when
+its browser closes the connection, so the count reaches zero once the scenario's contexts are closed, and a delete that
+finds a channel still alive is refused as `instance_busy` and retried by the harness. The switch code (`TestInstance`, the `Records` state
 replacement, `put_env`) lives in `test/support` and is compiled only for `MIX_ENV=test`; production code gains no
 re-pointing entry point. The run base
 (the run-level root pair) must stay data-free: its `users/` and `system/accounts` are empty and it holds no
