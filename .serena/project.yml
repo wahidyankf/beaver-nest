@@ -36,8 +36,8 @@ project_name: "beaver-nest"
 # The first language server is the default language and the respective language server will be used as a fallback.
 # Note that when using the JetBrains backend, language servers are not used and this list is correspondingly ignored.
 language_servers:
-- elixir
-- typescript
+  - elixir
+  - typescript
 
 # the encoding used by text files in the project
 # For a list of possible encodings, see https://docs.python.org/3.11/library/codecs.html#standard-encodings
@@ -57,10 +57,10 @@ ignore_all_files_in_gitignore: true
 #     - "**/obj/**"
 # Note: global ignored_paths from serena_config.yml are also applied additively.
 ignored_paths:
-- "**/.[eE][nN][vV]*"
-- "!**/.[eE][nN][vV].[eE][xX][aA][mM][pP][lL][eE]"
-- "**/[sS][eE][cC][rR][eE][tT][sS]/**"
-- "**/[cC][rR][eE][dD][eE][nN][tT][iI][aA][lL][sS]/**"
+  - "**/.[eE][nN][vV]*"
+  - "!**/.[eE][nN][vV].[eE][xX][aA][mM][pP][lL][eE]"
+  - "**/[sS][eE][cC][rR][eE][tT][sS]/**"
+  - "**/[cC][rR][eE][dD][eE][nN][tT][iI][aA][lL][sS]/**"
 
 # list of mode names that are to be activated by default, overriding the setting in the global configuration.
 # The full set of modes to be activated is base_modes (from global config) + default_modes + added_modes.
@@ -138,7 +138,7 @@ ls_specific_settings: {}
 #     - "./subproject1"
 #     - "./subproject2"
 ls_workspace_folders:
-- .
+  - .
 
 # list of additional workspace folder paths for cross-package reference support.
 # Paths can be absolute or relative to the project root.
@@ -158,7 +158,7 @@ read_only: false
 
 # initial prompt for the project. It will always be given to the LLM upon activating the project
 # (contrary to the memories, which are loaded on demand).
-initial_prompt: ''
+initial_prompt: ""
 
 # optional shell command to run before the language backend (LSP or JetBrains) is initialised.
 # the command runs in the project root directory and is only executed if the project is trusted
