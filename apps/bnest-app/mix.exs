@@ -20,7 +20,9 @@ defmodule BnestApp.MixProject do
       # Infrastructure applications behave as boundaries for every module, so only the
       # boundaries that list them in `deps` (adapters and `BnestApp.SqliteRepo`) may call them.
       boundary: [
-        default: [check: [apps: [:ecto, :ecto_sql, :exqlite, :req, :web_push, :argon2_elixir]]]
+        default: [
+          check: [apps: [:ecto, :ecto_sql, :exqlite, :req, :web_push, :argon2_elixir, :mdex]]
+        ]
       ],
       listeners: [Phoenix.CodeReloader]
     ]
@@ -101,6 +103,10 @@ defmodule BnestApp.MixProject do
       {:absinthe, "~> 1.12"},
       {:absinthe_plug, "~> 1.5.10"},
       {:absinthe_phoenix, "~> 2.0.5"},
+      # Safe GitHub-flavoured Markdown for Codex replies, with an AST gate and sanitizer
+      # (docs/explanation/decisions/002-codex-chat-markdown-and-images.md, Decision 1). Only
+      # `BnestAppWeb` may call it, through the boundary `deps` in `lib/bnest_app_web.ex`.
+      {:mdex, "~> 0.14.6"},
       # RFC 8291 payload encryption + RFC 8292 VAPID signing (tech-doc 004).
       # Re-verified at Phase 5 against Phase 0's dependency-selection review:
       # still hex.pm's only actively-maintained Web Push protocol library
@@ -174,6 +180,7 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.BootstrapController,
       BnestAppWeb.AdminScheduleSettingsLive,
       BnestAppWeb.AdminSettingsLive,
+      BnestAppWeb.ChatImageController,
       BnestAppWeb.ChatLive,
       BnestAppWeb.DataMigrationLive,
       BnestAppWeb.FamilyChatController,

@@ -149,7 +149,8 @@ config :bnest_app, BnestApp.SifatAllah,
 config :bnest_app, BnestApp.CodexChat,
   agent_session: BnestApp.CodexChat.Adapters.CodexPortSession,
   model_discovery: BnestApp.CodexChat.Adapters.CodexCliModelDiscovery,
-  transcript_store: BnestApp.CodexChat.Adapters.RecordTranscriptStore
+  transcript_store: BnestApp.CodexChat.Adapters.RecordTranscriptStore,
+  repository_images: BnestApp.CodexChat.Adapters.RepositoryImageFiles
 
 # One adapter per Family Chat port.
 config :bnest_app, BnestApp.FamilyChat,

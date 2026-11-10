@@ -1,0 +1,37 @@
+{
+  "Format a sample reply": {
+    "prefix": "## Formatted heading",
+    "text": "## Formatted heading\n\nSome **bold** and *italic* text with `inline code`. Read the [Beaver Nest docs](https://example.com/docs).\n\n- First item\n- Second item\n\n- [x] Done task\n- [ ] Open task\n\n- [x] Loose done\n\n- [ ] Loose open\n\n  A second paragraph of the open task.\n\n| Cell | Column two | Column three | Column four | Column five | Column six | Column seven | Column eight |\n| ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |\n| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |\n\n> A quoted note\n\n```elixir\nIO.puts(\"hi\")\n```\n\nOld text is ~~Old~~ struck through.\n\n![Beaver Nest logo](apps/bnest-app/priv/static/images/beaver-nest-logo.png)",
+    "holdMs": 50
+  },
+  "Stream unfinished Markdown": {
+    "prefix": "**bol",
+    "text": "**bold text** done.",
+    "holdMs": 10000
+  },
+  "Reply with raw HTML": {
+    "prefix": "Checking the text.",
+    "text": "**Safe bold** text with <script>alert(1)</script> and <img src=x onerror=alert(1)>",
+    "holdMs": 50
+  },
+  "Reply with unsafe links": {
+    "prefix": "Checking the links.",
+    "text": "[Unsafe link](javascript:alert(1)) and **Still bold**",
+    "holdMs": 50
+  },
+  "Reply with a safe link": {
+    "prefix": "Checking the link.",
+    "text": "Read the [Beaver Nest docs](https://example.com/docs) for more.",
+    "holdMs": 50
+  },
+  "Show the repository logo": {
+    "prefix": "Here is the logo",
+    "text": "Here is the logo: ![Beaver Nest logo](apps/bnest-app/priv/static/images/beaver-nest-logo.png)",
+    "holdMs": 50
+  },
+  "Show external and inline images": {
+    "prefix": "Checking the images.",
+    "text": "External: ![Remote logo](https://example.com/remote-logo.png)\n\nInline: ![Inline dot](data:image/png;base64,iVBORw0KGgo=)",
+    "holdMs": 50
+  }
+}

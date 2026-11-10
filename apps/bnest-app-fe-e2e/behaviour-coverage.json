@@ -6,9 +6,9 @@
   "generatedFrom": "plans/in-progress/family-chat-room/delivery.md Phase 1 Item 3",
   "summary": {
     "featureCount": 7,
-    "scenarioCount": 72,
-    "e2eExemptScenarioCount": 3,
-    "e2eCoveredScenarioCount": 69
+    "scenarioCount": 88,
+    "e2eExemptScenarioCount": 8,
+    "e2eCoveredScenarioCount": 80
   },
   "features": [
     {
@@ -146,6 +146,70 @@
         {
           "name": "A child administrator remains read-only",
           "e2eExempt": false
+        },
+        {
+          "name": "Codex replies are formatted as Markdown",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex reply stays readable while its Markdown is unfinished",
+          "e2eExempt": false
+        },
+        {
+          "name": "Raw HTML in a Codex reply is shown as text and never runs",
+          "e2eExempt": false
+        },
+        {
+          "name": "Unsafe links in a Codex reply are not clickable",
+          "e2eExempt": false
+        },
+        {
+          "name": "Links in a Codex reply open in a new tab without sharing the page",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor message is shown as typed and is not formatted",
+          "e2eExempt": false
+        },
+        {
+          "name": "Codex reply tables, task lists, links and images keep their layout",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex reply shows an image from the repository",
+          "e2eExempt": false
+        },
+        {
+          "name": "External and inline images in a Codex reply are not loaded",
+          "e2eExempt": false
+        },
+        {
+          "name": "A signed-in visitor can fetch a repository image",
+          "e2eExempt": false
+        },
+        {
+          "name": "A signed-out visitor cannot fetch a repository image",
+          "e2eExempt": false
+        },
+        {
+          "name": "A repository image path that leaves the repository is refused",
+          "e2eExempt": true
+        },
+        {
+          "name": "Hidden and runtime-data locations are refused",
+          "e2eExempt": true
+        },
+        {
+          "name": "A file that is not a raster image is refused",
+          "e2eExempt": true
+        },
+        {
+          "name": "A repository image behind a symbolic link is refused",
+          "e2eExempt": true
+        },
+        {
+          "name": "A repository image over the size limit is refused",
+          "e2eExempt": true
         }
       ]
     },

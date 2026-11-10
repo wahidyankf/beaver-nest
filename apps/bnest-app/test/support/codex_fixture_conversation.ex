@@ -25,6 +25,11 @@ defmodule BnestApp.Test.CodexFixtureConversation do
     "Fresh start" => {"gpt-5.6-luna", "high"}
   }
 
+  # The canned replies `codex_fixture_runner.mjs` sends, read from the same file so the two stay in step.
+  @replies_path Path.expand("codex_fixture_replies.json", __DIR__)
+  @external_resource @replies_path
+  @replies @replies_path |> File.read!() |> Jason.decode!()
+
   @doc """
   The events the fixture Codex sends for `prompt` on `session`, and the threads' answered
   prompts afterwards. A fresh session's thread is its `new_thread_id`.
@@ -36,15 +41,40 @@ defmodule BnestApp.Test.CodexFixtureConversation do
 
     case refusal(prompt, history, session) do
       nil ->
-        {[
-           {:thread_started, thread},
-           {:assistant_update, "fixture-answer", "Fixture response"},
-           {:assistant_update, "fixture-answer", "Fixture response complete."},
-           :turn_completed
-         ], Map.put(threads, thread, history ++ [prompt])}
+        {events(thread, prompt), Map.put(threads, thread, history ++ [prompt])}
 
       message ->
         {[{:error, message}], threads}
+    end
+  end
+
+  @doc """
+  Splits a reply's events after its first assistant update: the part a streaming client shows
+  first, and the rest of the reply. A stream the page holds half-written is the first part alone.
+  """
+  @spec split_first_part([term()]) :: {[term()], [term()]}
+  def split_first_part(events) do
+    index = Enum.find_index(events, &match?({:assistant_update, _item_id, _text}, &1))
+    Enum.split(events, index + 1)
+  end
+
+  defp events(thread, prompt) do
+    case Map.fetch(@replies, prompt) do
+      {:ok, %{"prefix" => prefix, "text" => text}} ->
+        [
+          {:thread_started, thread},
+          {:assistant_update, "fixture-reply", prefix},
+          {:assistant_update, "fixture-reply", text},
+          :turn_completed
+        ]
+
+      :error ->
+        [
+          {:thread_started, thread},
+          {:assistant_update, "fixture-answer", "Fixture response"},
+          {:assistant_update, "fixture-answer", "Fixture response complete."},
+          :turn_completed
+        ]
     end
   end
 

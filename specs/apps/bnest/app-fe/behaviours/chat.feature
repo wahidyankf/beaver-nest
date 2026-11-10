@@ -247,3 +247,158 @@ Feature: Beaver Nest chat
     When a visitor opens "/chat"
     Then repository access is shown as read-only
     And the repository write control is not shown
+
+  Rule: Formatted Codex replies
+
+    Background:
+      Given an approved admin is logged in
+
+  Scenario: Codex replies are formatted as Markdown
+    Given a visitor opens "/chat"
+    When the visitor sends "Format a sample reply"
+    Then a Codex response appears incrementally
+    And the latest Codex reply contains a "h2" element with the text "Formatted heading"
+    And the latest Codex reply contains a "strong" element with the text "bold"
+    And the latest Codex reply contains a "em" element with the text "italic"
+    And the latest Codex reply contains a "code" element with the text "inline code"
+    And the latest Codex reply contains a "li" element with the text "First item"
+    And the latest Codex reply shows two checked and two unchecked task checkboxes
+    And the latest Codex reply contains a "li" element with the text "Done task"
+    And the latest Codex reply contains a "table" element with the text "Cell"
+    And the latest Codex reply contains a "blockquote" element with the text "A quoted note"
+    And the latest Codex reply contains a "pre" element with the text "IO.puts"
+    And the latest Codex reply contains a "del" element with the text "Old"
+
+  Scenario: A Codex reply stays readable while its Markdown is unfinished
+    Given a visitor opens "/chat"
+    When the visitor sends "Stream unfinished Markdown"
+    And Codex streams the first part of the reply
+    Then the latest Codex reply is still streaming
+    And the latest Codex reply contains a "strong" element with the text "bol"
+    And the latest Codex reply does not contain the text "**"
+    When Codex streams the rest of the reply
+    Then the latest Codex reply is complete
+    And the latest Codex reply contains a "strong" element with the text "bold text"
+
+  Scenario: Raw HTML in a Codex reply is shown as text and never runs
+    Given a visitor opens "/chat"
+    When the visitor sends "Reply with raw HTML"
+    And a Codex response appears incrementally
+    Then the latest Codex reply contains a "strong" element with the text "Safe bold"
+    And the latest Codex reply shows the text "<script>alert(1)</script>"
+    And the latest Codex reply contains no "script" element
+    And the latest Codex reply contains no "img" element
+
+  Scenario: Unsafe links in a Codex reply are not clickable
+    Given a visitor opens "/chat"
+    When the visitor sends "Reply with unsafe links"
+    And a Codex response appears incrementally
+    Then the latest Codex reply contains a "strong" element with the text "Still bold"
+    And the latest Codex reply shows the text "Unsafe link" without a link
+    And the latest Codex reply has no link whose address starts with "javascript:"
+
+  Scenario: Links in a Codex reply open in a new tab without sharing the page
+    Given a visitor opens "/chat"
+    When the visitor sends "Reply with a safe link"
+    And a Codex response appears incrementally
+    Then the latest Codex reply links "Beaver Nest docs" to "https://example.com/docs"
+    And the link "Beaver Nest docs" in the latest Codex reply opens in a new tab without sharing the page
+
+  Scenario: A visitor message is shown as typed and is not formatted
+    Given a visitor opens "/chat"
+    When the visitor sends the two-line message "Keep **these** stars" and "and this line"
+    Then the conversation displays the two-line visitor message "Keep **these** stars" and "and this line"
+    And the visitor message "Keep **these** stars" shows no formatting
+    And the visitor message keeps its line break between "Keep **these** stars" and "and this line"
+
+  # Exemption(integration): rendered layout is not observable without a browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / Codex reply tables, task lists, links and images keep their layout
+  @integration-exempt
+  Scenario: Codex reply tables, task lists, links and images keep their layout
+    Given a visitor opens "/chat"
+    When the visitor sends "Format a sample reply"
+    Then a Codex response appears incrementally
+    And the latest Codex reply lays out its table, task list, link and image inside the bubble
+
+  Rule: Codex reply images
+
+  Scenario: A Codex reply shows an image from the repository
+    Given an approved admin is logged in
+    And a visitor opens "/chat"
+    When the visitor sends "Show the repository logo"
+    And a Codex response appears incrementally
+    Then the latest Codex reply shows the repository image "apps/bnest-app/priv/static/images/beaver-nest-logo.png"
+
+  Scenario: External and inline images in a Codex reply are not loaded
+    Given an approved admin is logged in
+    And a visitor opens "/chat"
+    When the visitor sends "Show external and inline images"
+    And a Codex response appears incrementally
+    Then the latest Codex reply contains no "img" element
+    And the latest Codex reply links "Remote logo (image not shown)" to "https://example.com/remote-logo.png"
+    And the latest Codex reply shows the text "[image not shown: Inline dot]"
+
+  Scenario: A signed-in visitor can fetch a repository image
+    Given an approved admin is logged in
+    When the visitor requests the repository image "apps/bnest-app/priv/static/images/beaver-nest-logo.png"
+    Then the image response has status 200
+    And the image response has content type "image/png"
+
+  Scenario: A signed-out visitor cannot fetch a repository image
+    Given a visitor has no authenticated Bnest session
+    When the visitor requests the repository image "apps/bnest-app/priv/static/images/beaver-nest-logo.png"
+    Then the image response redirects to "/login"
+
+  # Exemption(e2e): the browser suite serves the real checkout and must not place files beside it or outside it; alternative-proof: bnest-app:test:integration / A repository image path that leaves the repository is refused
+  @e2e-exempt
+  Scenario: A repository image path that leaves the repository is refused
+    Given an approved admin is logged in
+    And the repository holds an image at "../secret.png"
+    And the repository holds an image at "/etc/hosts.png"
+    And the repository holds an image at "apps/bnest-app/../../../secret.png"
+    When the visitor requests the repository image "../secret.png"
+    Then the image response is an empty not found response
+    When the visitor requests the repository image "/etc/hosts.png"
+    Then the image response is an empty not found response
+    When the visitor requests the repository image "apps/bnest-app/../../../secret.png"
+    Then the image response is an empty not found response
+
+  # Exemption(e2e): the browser suite serves the real checkout and must not place files in it; alternative-proof: bnest-app:test:integration / Hidden and runtime-data locations are refused
+  @e2e-exempt
+  Scenario: Hidden and runtime-data locations are refused
+    Given an approved admin is logged in
+    And the repository holds an image at ".env/beaver-nest-logo.png"
+    And the repository holds an image at ".git/config.png"
+    And the repository holds an image at "data/test-user-probe/beaver-nest-logo.png"
+    And the repository holds an image at "Data/prod/beaver-nest-logo.png"
+    When the visitor requests the repository image ".env/beaver-nest-logo.png"
+    Then the image response is an empty not found response
+    When the visitor requests the repository image ".git/config.png"
+    Then the image response is an empty not found response
+    When the visitor requests the repository image "data/test-user-probe/beaver-nest-logo.png"
+    Then the image response is an empty not found response
+    When the visitor requests the repository image "Data/prod/beaver-nest-logo.png"
+    Then the image response is an empty not found response
+
+  # Exemption(e2e): the browser suite serves the real checkout and must not place a non-image file in it; alternative-proof: bnest-app:test:integration / A file that is not a raster image is refused
+  @e2e-exempt
+  Scenario: A file that is not a raster image is refused
+    Given an approved admin is logged in
+    And the repository holds a file "docs/not-an-image.png" with the content "<html><script>alert(1)</script></html>"
+    When the visitor requests the repository image "docs/not-an-image.png"
+    Then the image response is an empty not found response
+
+  # Exemption(e2e): the browser suite serves the real checkout and must not place a symbolic link in it; alternative-proof: bnest-app:test:integration / A repository image behind a symbolic link is refused
+  @e2e-exempt
+  Scenario: A repository image behind a symbolic link is refused
+    Given an approved admin is logged in
+    And the repository holds a symbolic link "docs/linked-logo.png" to "apps/bnest-app/priv/static/images/beaver-nest-logo.png"
+    When the visitor requests the repository image "docs/linked-logo.png"
+    Then the image response is an empty not found response
+
+  # Exemption(e2e): the browser suite serves the real checkout and must not write a file larger than the limit into it; alternative-proof: bnest-app:test:integration / A repository image over the size limit is refused
+  @e2e-exempt
+  Scenario: A repository image over the size limit is refused
+    Given an approved admin is logged in
+    And the repository holds a file "docs/too-large.png" of 5242881 bytes
+    When the visitor requests the repository image "docs/too-large.png"
+    Then the image response is an empty not found response

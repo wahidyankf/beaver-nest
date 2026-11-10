@@ -1,4 +1,14 @@
+import { readFileSync } from "node:fs";
 import readline from "node:readline";
+
+// The canned replies, shared with `BnestApp.Test.CodexFixtureConversation`: a prefix the page shows
+// first, then the full text after `holdMs`.
+const replies = JSON.parse(
+  readFileSync(
+    new URL("./codex_fixture_replies.json", import.meta.url),
+    "utf8",
+  ),
+);
 
 process.stdout.on("error", (error) => {
   if (error.code === "EPIPE") process.exit(0);
@@ -142,6 +152,24 @@ for await (const line of lines) {
         type: "assistant_update",
         item_id: "fixture-sandbox-mode",
         text: `Fixture sandbox: ${sandboxMode}`,
+      });
+      output({ type: "turn_completed" });
+      continue;
+    }
+
+    // The prefix stays on screen for `holdMs`, so a test can observe a reply that is still streaming.
+    if (Object.hasOwn(replies, message.prompt)) {
+      const reply = replies[message.prompt];
+      output({
+        type: "assistant_update",
+        item_id: "fixture-reply",
+        text: reply.prefix,
+      });
+      await new Promise((resolve) => setTimeout(resolve, reply.holdMs));
+      output({
+        type: "assistant_update",
+        item_id: "fixture-reply",
+        text: reply.text,
       });
       output({ type: "turn_completed" });
       continue;

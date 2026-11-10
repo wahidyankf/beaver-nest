@@ -34,6 +34,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Test.BackupIntegrity
   alias BnestApp.Test.CodexFixtureConversation
   alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
+  alias BnestApp.Test.CodexReplyPage
   alias BnestApp.Test.InMemory.AgentSession, as: InMemoryAgentSession
   alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore, as: InMemoryBackupConfigStore
@@ -42,6 +43,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Test.InMemory.IgnoreCheck, as: InMemoryIgnoreCheck
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
   alias BnestApp.Test.InMemory.ReleaseEnvironment, as: InMemoryReleaseEnvironment
+  alias BnestApp.Test.InMemory.RepositoryImages, as: InMemoryRepositoryImages
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
   alias BnestApp.Test.InMemory.StoragePorts
   alias BnestApp.Test.InMemory.StoragePorts.{FlatSource, MigrationLedger}
@@ -652,6 +654,192 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     cleared
   end
 
+  # The fixture Codex's reply comes in two parts: the first is what a streaming page shows
+  # before the reply is finished. Each part reaches the LiveView as the runner's events do, so
+  # the page is rendered between them.
+  @impl true
+  def stream_first_codex_part(context) do
+    {events, context} = answer_next_prompt(context)
+    {first, rest} = CodexFixtureConversation.split_first_part(events)
+
+    context
+    |> Map.put(:pending_codex_events, rest)
+    |> deliver_codex_events(first)
+  end
+
+  @impl true
+  def stream_rest_of_codex_reply(context) do
+    rest = Map.fetch!(context, :pending_codex_events)
+
+    context
+    |> Map.delete(:pending_codex_events)
+    |> deliver_codex_events(rest)
+  end
+
+  @impl true
+  def latest_codex_reply_streaming?(context), do: CodexReplyPage.streaming?(latest_reply(context))
+
+  @impl true
+  def latest_codex_reply_complete?(context), do: CodexReplyPage.complete?(latest_reply(context))
+
+  @impl true
+  def latest_codex_reply_contains_element?(context, element),
+    do: CodexReplyPage.contains_element?(latest_reply(context), element)
+
+  @impl true
+  def latest_codex_reply_contains_element_with_text?(context, element, text),
+    do: CodexReplyPage.contains_element_with_text?(latest_reply(context), element, text)
+
+  @impl true
+  def latest_codex_reply_lacks_element?(context, element),
+    do: not latest_codex_reply_contains_element?(context, element)
+
+  @impl true
+  def latest_codex_reply_shows_text?(context, text),
+    do: CodexReplyPage.shows_text?(latest_reply(context), text)
+
+  @impl true
+  def latest_codex_reply_shows_text_without_link?(context, text),
+    do: CodexReplyPage.shows_text_without_link?(latest_reply(context), text)
+
+  @impl true
+  def latest_codex_reply_lacks_text?(context, text),
+    do: not latest_codex_reply_shows_text?(context, text)
+
+  @impl true
+  def latest_codex_reply_lacks_link_to_address?(context, prefix),
+    do: CodexReplyPage.lacks_link_to_address?(latest_reply(context), prefix)
+
+  @impl true
+  def latest_codex_reply_links_to?(context, label, address),
+    do: CodexReplyPage.links_to?(latest_reply(context), label, address)
+
+  @impl true
+  def link_opens_in_new_tab_privately?(context, label),
+    do: CodexReplyPage.opens_in_new_tab_privately?(latest_reply(context), label)
+
+  @impl true
+  def visitor_message_unformatted?(context, message),
+    do: CodexReplyPage.unformatted_visitor_message?(context.page, message)
+
+  @impl true
+  def visitor_message_shows_text?(context, text),
+    do: CodexReplyPage.shows_visitor_text?(context.page, text)
+
+  @impl true
+  def visitor_message_keeps_line_break?(context, first, second),
+    do: CodexReplyPage.keeps_visitor_line_break?(context.page, first, second)
+
+  @impl true
+  def latest_codex_reply_task_checkboxes?(context, checked, unchecked),
+    do: CodexReplyPage.task_checkboxes?(latest_reply(context), checked, unchecked)
+
+  # The unit layer proves the structure the layout depends on; the browser proves the layout.
+  @impl true
+  def latest_codex_reply_lays_out_inside_bubble?(context),
+    do: CodexReplyPage.lays_out_structure?(latest_reply(context))
+
+  @impl true
+  def latest_codex_reply_shows_repository_image?(context, path),
+    do: CodexReplyPage.shows_repository_image?(latest_reply(context), path)
+
+  # One browser request through the router, with the visitor's identity cookie when they are
+  # signed in. The image route answers it as the production pipeline does, reading the
+  # repository through the in-memory port the unit layer configures.
+  @impl true
+  def request_repository_image(context, path) do
+    context = context |> prepare_repository_images() |> image_request_context()
+    route = "/chat/images/" <> URI.encode(path, &URI.char_unreserved?/1)
+    response = route_controller_request(route, Map.get(context, :identity_token))
+
+    Map.put(context, :image_response, response)
+  end
+
+  # One browser GET through the router to the controller that answers `path`, with the identity
+  # cookie when a token is given. Unlike `route_request/2`, no bypass stops the request, so the
+  # controller runs and its own bytes or refusal are the response.
+  defp route_controller_request(path, token) do
+    :get
+    |> Plug.Test.conn(path)
+    |> put_identity_cookie(token)
+    |> Map.put(
+      :secret_key_base,
+      Application.get_env(:bnest_app, BnestAppWeb.Endpoint)[:secret_key_base]
+    )
+    |> Plug.Session.call(@session_options)
+    |> BnestAppWeb.Router.call(BnestAppWeb.Router.init([]))
+  end
+
+  # The router's browser pipeline reads the identity store, so the request path is started first
+  # unless the Given already started it. A signed-in visitor then logs in through the real login
+  # form, as the login step does, so the request carries the session cookie the browser sends.
+  defp image_request_context(context) do
+    context =
+      if Map.has_key?(context, :request_store),
+        do: context,
+        else: prepare_behaviour(context, :approved_account, [])
+
+    if Map.get(context, :authenticated, false) and is_nil(Map.get(context, :identity_token)),
+      do: perform_behaviour(context, :login, []),
+      else: context
+  end
+
+  @impl true
+  def image_response_status?(context, status), do: context.image_response.status == status
+
+  @impl true
+  def image_response_content_type?(context, type) do
+    context.image_response
+    |> Plug.Conn.get_resp_header("content-type")
+    |> Enum.map(&(&1 |> String.split(";") |> hd() |> String.trim()))
+    |> Kernel.==([type])
+  end
+
+  @impl true
+  def image_response_empty_not_found?(context) do
+    context.image_response.status == 404 and context.image_response.resp_body == ""
+  end
+
+  @impl true
+  def image_response_redirects_to?(context, prefix) do
+    context.image_response.status == 302 and
+      context.image_response
+      |> Plug.Conn.get_resp_header("location")
+      |> Enum.any?(&String.starts_with?(&1, prefix))
+  end
+
+  @impl true
+  def repository_holds_file(context, path, content) do
+    context = prepare_repository_images(context)
+    InMemoryRepositoryImages.put_file(path, content)
+    context
+  end
+
+  # A decoy the request must refuse: the file is in the synthetic repository, so a reference that
+  # the domain let through would be served.
+  @impl true
+  def repository_holds_image(context, path) do
+    context = prepare_repository_images(context)
+    InMemoryRepositoryImages.put_file(path, <<0x89, "PNG\r\n", 0x1A, "\n">> <> "synthetic")
+    context
+  end
+
+  # The link points at a real image of the synthetic repository, which the double checks, so the
+  # refusal is the port's refusal of a link and not the absence of a file.
+  @impl true
+  def repository_holds_symbolic_link(context, link, target) do
+    context = prepare_repository_images(context)
+    InMemoryRepositoryImages.put_symlink(link, target)
+    context
+  end
+
+  @impl true
+  def repository_holds_sized_file(context, path, bytes) do
+    context = prepare_repository_images(context)
+    InMemoryRepositoryImages.put_file(path, <<0x89, "PNG\r\n", 0x1A, "\n">> <> zeros(bytes - 8))
+    context
+  end
+
   @impl true
   def study_mode_available?(context) do
     enabled_button?(context.page, "button[phx-click=start-learning]", "Belajar 3 Pasangan")
@@ -1020,6 +1208,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   # prompts its conversation's thread answered before. The current session is the one the
   # LiveView opened last; a fresh one starts its own thread.
   defp stream_answer(context) do
+    {events, context} = answer_next_prompt(context)
+    deliver_codex_events(context, events)
+  end
+
+  # The events the fixture Codex sends for the prompt the current session received last.
+  defp answer_next_prompt(context) do
     {prompt, context} = unanswered_prompt!(context)
     session = context.chat_socket.assigns.codex_session
     {:agent_session, :open, {thread_id, model, effort, _mode}} = last_open(context)
@@ -1039,8 +1233,19 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         prompt
       )
 
-    context |> Map.put(:codex_threads, threads) |> deliver_codex_events(events)
+    {events, Map.put(context, :codex_threads, threads)}
   end
+
+  defp latest_reply(context), do: CodexReplyPage.latest_reply(context.page)
+
+  # The unit config selects the in-memory repository port (config/test.exs), so a scenario only
+  # starts the synthetic repository the port reads.
+  defp prepare_repository_images(context) do
+    InMemoryRepositoryImages.ensure_installed()
+    context
+  end
+
+  defp zeros(count), do: :binary.copy(<<0>>, count)
 
   defp unanswered_prompt!(context) do
     session = context.chat_socket.assigns.codex_session
