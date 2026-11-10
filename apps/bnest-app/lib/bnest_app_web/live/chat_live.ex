@@ -3,6 +3,7 @@ defmodule BnestAppWeb.ChatLive do
 
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Domain.{RepositoryAccess, Settings, Transcript}
+  alias BnestAppWeb.ChatMarkdown
 
   @max_snapshot_bytes 500_000
 
@@ -309,13 +310,14 @@ defmodule BnestAppWeb.ChatLive do
 
           <article :for={message <- @chat.messages} class={message_class(message)} data-role="message">
             <p class="message-label">{if message.role == :visitor, do: "You", else: "Codex"}</p>
+            <%!-- The text between the tags is the message itself: the formatter must not split it, because
+                 the pre-wrap element would show any whitespace the template adds around it. --%>
             <p
               :if={message.role == :visitor}
-              class="message-content"
+              class="message-content whitespace-pre-wrap"
               data-role="user-message"
-            >
-              {message.content}
-            </p>
+              phx-no-format
+            >{message.content}</p>
             <details
               :if={message.role == :assistant and message.progress != []}
               class="codex-progress"
@@ -334,15 +336,15 @@ defmodule BnestAppWeb.ChatLive do
                 </li>
               </ol>
             </details>
-            <p
+            <div
               :if={message.role == :assistant}
-              class="message-content whitespace-pre-wrap"
+              class="message-content markdown-body"
               data-role="assistant-message"
               data-streaming={to_string(message.streaming)}
               data-update-count={message.update_count}
             >
               {assistant_content(message)}
-            </p>
+            </div>
           </article>
         </div>
 
@@ -555,7 +557,9 @@ defmodule BnestAppWeb.ChatLive do
     do: Map.get(socket.assigns, :model_access, %{selectable?: true}).selectable?
 
   defp assistant_content(%{content: "", streaming: true}), do: "Thinking…"
-  defp assistant_content(message), do: message.content
+
+  defp assistant_content(message),
+    do: ChatMarkdown.to_html(message.content, message.streaming)
 
   defp progress_data_role(:reasoning), do: "codex-reasoning-summary"
   defp progress_data_role(_kind), do: "codex-progress-item"

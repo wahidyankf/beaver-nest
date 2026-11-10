@@ -16,7 +16,8 @@ Binding counts are necessary but not sufficient; adapter changes require the
 - [Authentication](authentication.feature) specifies redirect/login/setup/logout and visible home behaviour.
 - [Centralized data](centralized_data.feature) specifies browser-source discovery, confirmation, key cleanup, and
   visible resume outcome.
-- [Chat](chat.feature) specifies the local Codex conversation experience.
+- [Chat](chat.feature) specifies the local Codex conversation experience, including formatted Markdown replies, safe
+  links, and repository images shown in a reply and fetched through the authenticated image route.
 - [Family chat](family_chat.feature) specifies the room route, GraphQL-driven message list/composer, push permission
   UX, IndexedDB outbox, and reconnect/catch-up behaviour.
 - [Scheduled backups](scheduled_backups.feature) specifies admin settings discovery, form authorization, contextual

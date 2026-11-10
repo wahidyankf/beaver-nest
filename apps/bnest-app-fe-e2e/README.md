@@ -59,6 +59,8 @@ Scenarios never write SQL, never copy or restore storage authority, and never wr
 - `tests/steps/lifecycle.steps.ts` owns the per-scenario Before and After hooks for the test instance.
 - `tests/steps/test_instances.steps.ts` owns the replacement-instance scenario: a fresh instance serves its own storage, and the previous admin cannot log in.
 - `tests/steps/release-recovery.steps.ts` owns bounded multi-client reconnect mechanics.
+- `tests/steps/codex_markdown.steps.ts` owns the Markdown reply, unfinished-reply, raw-HTML, link, and repository-image checks in `/chat`.
+- `tests/steps/codex_layout.steps.ts` owns the phone-width layout checks of a Codex reply: a wide table scrolls inside the bubble, a task checkbox sits beside its text, a link is underlined, and an image stays inside the bubble.
 - `tests/steps/family-chat-resume.steps.ts` owns where a returning member lands in the family chat room.
 - `tests/steps/family-chat-reply.steps.ts`, `family-chat-reply-reading.steps.ts`, and
   `family-chat-reply-keyboard.steps.ts` own choosing a reply, reading one back, and reaching both by keyboard.

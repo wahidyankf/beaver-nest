@@ -8,3 +8,6 @@ accepted record changes.
 - [001. Fresh real SQLite database for every database-touching test](001-fresh-database-per-test.md) (Accepted) spawns,
   migrates, seeds and deletes one real database per integration test and per E2E scenario, behind a test-only,
   header-guarded control surface that is compiled out of production.
+- [002. Markdown Codex replies with safe repository images](002-codex-chat-markdown-and-images.md) (Proposed) renders
+  assistant replies as sanitized GitHub-flavoured Markdown with MDEx, shows only repository raster images through an
+  authenticated route, and asks Codex for that format with `developer_instructions`.

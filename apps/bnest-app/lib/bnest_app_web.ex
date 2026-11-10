@@ -28,7 +28,9 @@ defmodule BnestAppWeb do
       BnestApp.PushNotifications,
       BnestApp.Scheduler,
       BnestApp.SifatAllah,
-      BnestApp.Storage
+      BnestApp.Storage,
+      # Renders Codex replies as sanitized Markdown (`BnestAppWeb.ChatMarkdown`) and nothing else.
+      MDEx
     ],
     exports: [Endpoint, Telemetry]
 

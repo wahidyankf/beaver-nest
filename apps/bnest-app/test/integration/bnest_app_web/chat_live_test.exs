@@ -6,6 +6,7 @@ defmodule BnestAppWeb.ChatLiveTest do
 
   alias BnestApp.CodexChat.Adapters.CodexPortSession
   alias BnestApp.CodexChat.Domain.Transcript
+  alias BnestApp.Test.CodexReplyPage
 
   setup do
     previous = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
@@ -234,6 +235,12 @@ defmodule BnestAppWeb.ChatLiveTest do
     relocated_runner = Path.join(relocated_directory, "chat_runner.mjs")
     File.cp!(runner, relocated_runner)
 
+    # The runner imports its sibling instruction module, so a release-style copy carries both files.
+    File.cp!(
+      Path.join(Path.dirname(runner), "chat_instructions.mjs"),
+      Path.join(relocated_directory, "chat_instructions.mjs")
+    )
+
     on_exit(fn -> File.rm_rf(relocated_directory) end)
 
     probe =
@@ -262,6 +269,18 @@ defmodule BnestAppWeb.ChatLiveTest do
   test "the production runner is located in the packaged application" do
     assert CodexPortSession.bundled_runner() ==
              Application.app_dir(:bnest_app, "priv/codex/chat_runner.mjs")
+  end
+
+  test "a single-line visitor message holds exactly its text", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/chat")
+
+    view
+    |> element("#chat-composer-form")
+    |> render_submit(%{"chat" => %{"prompt" => "Single line message"}})
+
+    page = view |> render() |> LazyHTML.from_document()
+
+    assert CodexReplyPage.shows_visitor_text?(page, "Single line message")
   end
 
   defp use_fixture_runner do

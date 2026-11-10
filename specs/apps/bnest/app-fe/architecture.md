@@ -111,7 +111,7 @@ mirrors it.
 ```mermaid
 flowchart TB
     accTitle: Component View
-    accDescr: Flowchart with 10 nodes and 16 connections. Nodes: External container Browser / installed PWA, External container Service worker, External data store Allow-listed browser sources, External container Phoenix backend domain, Component Chat LiveView BnestAppWeb.ChatLive, Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive, Component Home/auth routes Login, setup, redirects, Component Admin settings UI Storage, schedules, Component Browser import UI data-migration route, Component Family chat route FamilyChatController, not a LiveView. Connections: Component Chat LiveView BnestAppWeb.ChatLive to External container Phoenix backend domain (Chat/learning events), Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive to External container Phoenix backend domain (Chat/learning events), Component Home/auth routes Login, setup, redirects to External container Phoenix backend domain (Auth events), Component Admin settings UI Storage, schedules to External container Phoenix backend domain (Admin events), Component Browser import UI data-migration route to External container Phoenix backend domain (Confirmed source values), Component Family chat route FamilyChatController, not a LiveView to External container Phoenix backend domain (Renders shell, then browser owns it), External container Browser / installed PWA to Component Chat LiveView BnestAppWeb.ChatLive (Chat events and renders), External container Browser / installed PWA to Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive (Learning events renders), External container Browser / installed PWA to Component Home/auth routes Login, setup, redirects (Protected events), External container Browser / installed PWA to Component Admin settings UI Storage, schedules (Admin-only events), External container Browser / installed PWA to Component Browser import UI data-migration route (Confirmed source values), External container Browser / installed PWA to External data store Allow-listed browser sources (Web Storage API until accepted import), and 4 more.
+    accDescr: Flowchart with 12 nodes and 19 connections. Nodes: External container Browser / installed PWA, External container Service worker, External data store Allow-listed browser sources, External container Phoenix backend domain, Component Chat LiveView BnestAppWeb.ChatLive, Component Chat Markdown renderer BnestAppWeb.ChatMarkdown, Component Chat image route BnestAppWeb.ChatImageController, Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive, Component Home/auth routes Login, setup, redirects, Component Admin settings UI Storage, schedules, Component Browser import UI data-migration route, Component Family chat route FamilyChatController, not a LiveView. Connections: Component Chat LiveView BnestAppWeb.ChatLive to External container Phoenix backend domain (Chat/learning events), Component Chat LiveView BnestAppWeb.ChatLive to Component Chat Markdown renderer BnestAppWeb.ChatMarkdown (Renders replies as Markdown), Component Chat image route BnestAppWeb.ChatImageController to External container Phoenix backend domain (Repository image lookup), External container Browser / installed PWA to Component Chat image route BnestAppWeb.ChatImageController (Image requests GET /chat/images/*), Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive to External container Phoenix backend domain (Chat/learning events), Component Home/auth routes Login, setup, redirects to External container Phoenix backend domain (Auth events), Component Admin settings UI Storage, schedules to External container Phoenix backend domain (Admin events), Component Browser import UI data-migration route to External container Phoenix backend domain (Confirmed source values), Component Family chat route FamilyChatController, not a LiveView to External container Phoenix backend domain (Renders shell, then browser owns it), External container Browser / installed PWA to Component Chat LiveView BnestAppWeb.ChatLive (Chat events and renders), External container Browser / installed PWA to Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive (Learning events renders), External container Browser / installed PWA to Component Home/auth routes Login, setup, redirects (Protected events), External container Browser / installed PWA to Component Admin settings UI Storage, schedules (Admin-only events), External container Browser / installed PWA to Component Browser import UI data-migration route (Confirmed source values), External container Browser / installed PWA to External data store Allow-listed browser sources (Web Storage API until accepted import), and 4 more.
     browser(["External container<br/><b>Browser / installed PWA</b>"])
     worker(["External container<br/><b>Service worker</b>"])
     legacy[("External data store<br/><b>Allow-listed browser sources</b>")]
@@ -125,6 +125,8 @@ flowchart TB
         admin_ui["Component<br/><b>Admin settings UI</b><br/>Storage, schedules"]
         importer["Component<br/><b>Browser import UI</b><br/>data-migration route"]
         family_chat["Component<br/><b>Family chat route</b><br/>FamilyChatController,<br/>not a LiveView"]
+        chat_markdown["Component<br/><b>Chat Markdown renderer</b><br/>BnestAppWeb.ChatMarkdown"]
+        chat_image["Component<br/><b>Chat image route</b><br/>BnestAppWeb.ChatImageController"]
 
         chat_live -->|Chat/learning events| backend
         sifat_live -->|Chat/learning events| backend
@@ -132,6 +134,8 @@ flowchart TB
         admin_ui -->|Admin events| backend
         importer -->|Confirmed source values| backend
         family_chat -->|Renders shell,<br/>then browser owns it| backend
+        chat_live -->|Renders replies<br/>as Markdown| chat_markdown
+        chat_image -->|Repository image lookup| backend
     end
 
     browser -->|Chat events and renders| chat_live
@@ -141,6 +145,7 @@ flowchart TB
     browser -->|Confirmed source values| importer
     browser -->|Web Storage API<br/>until accepted import| legacy
     browser -->|Initial page load| family_chat
+    browser -->|Image requests<br/>GET /chat/images/*| chat_image
     browser -->|GraphQL ops<br/>over UserSocket| backend
     browser <-->|Outbox, cache,<br/>push permission| worker
     worker -->|Displays notification| browser
@@ -149,7 +154,7 @@ flowchart TB
     classDef component fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
     classDef data fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
     class browser,worker external
-    class chat_live,sifat_live,home,admin_ui,importer,family_chat component
+    class chat_live,sifat_live,home,admin_ui,importer,family_chat,chat_markdown,chat_image component
     class legacy data
     class backend external
     classDef default fill:#FFFFFF,stroke:#000000,color:#000000
@@ -166,6 +171,12 @@ the menu, and the composer strip together. The service worker is drawn as a seco
 `routes` component) because it runs independently of any open route: it can display a push notification, extend the
 offline app-shell cache, or retry a queued outbox entry while no family chat tab is open.
 
+The chat reply renderer (`BnestAppWeb.ChatMarkdown`) runs inside the Chat LiveView, and the image route
+(`BnestAppWeb.ChatImageController`) is a plain controller in the same Phoenix process. Neither holds state. The renderer
+turns each assistant reply into sanitized HTML, and the image route serves only repository raster files to a signed-in
+visitor, answering every refusal with the same empty `404`. The rules for both are under
+[Architectural Constraints](#architectural-constraints).
+
 The Admin settings UI component includes the Schedules page's integrity label, drawn inside it rather than as a
 component of its own. On the connected mount, and again after every successful schedule or backup-folder save, the
 LiveView starts one check that runs off the render path: it asks the backend for the ledger's verified runs and reconciles
@@ -181,9 +192,24 @@ word or date of its own.
   only server-derived `read-only` or `workspace-write`. Only an account containing `admin` without `children` can
   explicitly enable writes; any `children` role wins, parent-only accounts remain read-only, and reconnect or clear
   resets read-only.
-- The chat runner forwards only public reasoning summaries and generic activity status with stable item IDs; raw
-  private reasoning and tool input remain outside the transcript. Chat retains these progress entries beside the
-  final assistant answer across reconnects.
+- The chat runner forwards only assistant message text, public reasoning summaries, and generic activity status with
+  stable item IDs; raw private reasoning and tool input remain outside the transcript. Assistant text is stored as the
+  model's Markdown source and is rendered only by the server-side renderer named below. Chat retains these progress
+  entries beside the final assistant answer across reconnects.
+- Every chat turn carries the developer instruction in `priv/codex/chat_instructions.mjs`, passed as
+  `new Codex({ config: { developer_instructions } })`, so each `codex exec` process, including one that resumes a
+  thread, receives it. The text is constant: no visitor value is interpolated. It asks for GitHub-flavored Markdown
+  without raw HTML and for images as repository-relative paths to raster files. A contract test proves the installed
+  CLI delivers it verbatim.
+- Assistant replies render as sanitized GitHub-flavored Markdown on the server through `BnestAppWeb.ChatMarkdown`.
+  Raw HTML is escaped and shown as text. Link and image destinations pass a scheme gate and a sanitizer allowlist, and
+  links open in a new tab with `rel="noopener noreferrer nofollow"`. A reply that fails to parse or runs past its time
+  budget shows as escaped text. Visitor messages stay plain escaped text.
+- A chat image is shown only when its destination is a repository-relative path to a `png`, `jpg`, `jpeg`, `gif` or
+  `webp` file that is not hidden, sits under a runtime-data or dependency directory, or is reached through a symbolic
+  link. `GET /chat/images/*path` serves it to any signed-in visitor with a content type sniffed from the file's bytes,
+  `nosniff`, and a `sandbox` content security policy; every refusal is the same empty `404`. SVG, `data:`, absolute and
+  external image references are never loaded.
 - Committed transcript, learning progress, and theme are never authoritative in browser storage; they are rendered
   from the backend's SQLite records after accepted import.
 - Browser keys are immutable compatibility sources until envelope, normalization, and normal read-back pass; only

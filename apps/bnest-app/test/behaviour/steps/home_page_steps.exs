@@ -395,4 +395,152 @@ defmodule BnestApp.Behaviour.ChatSteps do
     assert context.behaviour_driver.revision_list_contains?(context, name)
     context
   end
+
+  step "Codex streams the first part of the reply", context do
+    context.behaviour_driver.stream_first_codex_part(context)
+  end
+
+  step "Codex streams the rest of the reply", context do
+    context.behaviour_driver.stream_rest_of_codex_reply(context)
+  end
+
+  step "the latest Codex reply is still streaming", context do
+    assert context.behaviour_driver.latest_codex_reply_streaming?(context)
+    context
+  end
+
+  step "the latest Codex reply is complete", context do
+    assert context.behaviour_driver.latest_codex_reply_complete?(context)
+    context
+  end
+
+  step "the latest Codex reply contains a {string} element with the text {string}",
+       %{args: [element, text]} = context do
+    assert context.behaviour_driver.latest_codex_reply_contains_element_with_text?(
+             context,
+             element,
+             text
+           )
+
+    context
+  end
+
+  step "the latest Codex reply contains no {string} element", %{args: [element]} = context do
+    assert context.behaviour_driver.latest_codex_reply_lacks_element?(context, element)
+    context
+  end
+
+  step "the latest Codex reply shows the text {string}", %{args: [text]} = context do
+    assert context.behaviour_driver.latest_codex_reply_shows_text?(context, text)
+    context
+  end
+
+  step "the latest Codex reply shows the text {string} without a link",
+       %{args: [text]} = context do
+    assert context.behaviour_driver.latest_codex_reply_shows_text_without_link?(context, text)
+    context
+  end
+
+  step "the latest Codex reply does not contain the text {string}", %{args: [text]} = context do
+    assert context.behaviour_driver.latest_codex_reply_lacks_text?(context, text)
+    context
+  end
+
+  step "the latest Codex reply has no link whose address starts with {string}",
+       %{args: [prefix]} = context do
+    assert context.behaviour_driver.latest_codex_reply_lacks_link_to_address?(context, prefix)
+    context
+  end
+
+  step "the latest Codex reply links {string} to {string}", %{args: [label, address]} = context do
+    assert context.behaviour_driver.latest_codex_reply_links_to?(context, label, address)
+    context
+  end
+
+  step "the link {string} in the latest Codex reply opens in a new tab without sharing the page",
+       %{args: [label]} = context do
+    assert context.behaviour_driver.link_opens_in_new_tab_privately?(context, label)
+    context
+  end
+
+  step "the visitor message {string} shows no formatting", %{args: [message]} = context do
+    assert context.behaviour_driver.visitor_message_unformatted?(context, message)
+    context
+  end
+
+  step "the visitor sends the two-line message {string} and {string}",
+       %{args: [first, second]} = context do
+    context.behaviour_driver.send_message(context, first <> "\n" <> second)
+  end
+
+  step "the conversation displays the two-line visitor message {string} and {string}",
+       %{args: [first, second]} = context do
+    assert context.behaviour_driver.visitor_message_shows_text?(context, first <> "\n" <> second)
+    context
+  end
+
+  step "the visitor message keeps its line break between {string} and {string}",
+       %{args: [first, second]} = context do
+    assert context.behaviour_driver.visitor_message_keeps_line_break?(context, first, second)
+    context
+  end
+
+  step "the latest Codex reply shows two checked and two unchecked task checkboxes",
+       context do
+    assert context.behaviour_driver.latest_codex_reply_task_checkboxes?(context, 2, 2)
+    context
+  end
+
+  step "the latest Codex reply lays out its table, task list, link and image inside the bubble",
+       context do
+    assert context.behaviour_driver.latest_codex_reply_lays_out_inside_bubble?(context)
+    context
+  end
+
+  step "the latest Codex reply shows the repository image {string}", %{args: [path]} = context do
+    assert context.behaviour_driver.latest_codex_reply_shows_repository_image?(context, path)
+    context
+  end
+
+  step "the visitor requests the repository image {string}", %{args: [path]} = context do
+    context.behaviour_driver.request_repository_image(context, path)
+  end
+
+  step "the image response has status {int}", %{args: [status]} = context do
+    assert context.behaviour_driver.image_response_status?(context, status)
+    context
+  end
+
+  step "the image response has content type {string}", %{args: [type]} = context do
+    assert context.behaviour_driver.image_response_content_type?(context, type)
+    context
+  end
+
+  step "the image response is an empty not found response", context do
+    assert context.behaviour_driver.image_response_empty_not_found?(context)
+    context
+  end
+
+  step "the image response redirects to {string}", %{args: [location]} = context do
+    assert context.behaviour_driver.image_response_redirects_to?(context, location)
+    context
+  end
+
+  step "the repository holds a file {string} with the content {string}",
+       %{args: [path, content]} = context do
+    context.behaviour_driver.repository_holds_file(context, path, content)
+  end
+
+  step "the repository holds an image at {string}", %{args: [path]} = context do
+    context.behaviour_driver.repository_holds_image(context, path)
+  end
+
+  step "the repository holds a symbolic link {string} to {string}",
+       %{args: [link, target]} = context do
+    context.behaviour_driver.repository_holds_symbolic_link(context, link, target)
+  end
+
+  step "the repository holds a file {string} of {int} bytes", %{args: [path, bytes]} = context do
+    context.behaviour_driver.repository_holds_sized_file(context, path, bytes)
+  end
 end

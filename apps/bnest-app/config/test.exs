@@ -208,6 +208,13 @@ else
   # Codex chat's transcript store stays record-backed too: the in-memory store serves no
   # application records, the unit drivers and the SQLite-migration journey reach `:chat`
   # through the record repository, and the CodexChat unit tests pass their own store.
+
+  # Codex chat's repository images are the in-memory double in this unit branch, which reads no file
+  # and whose drivers install a synthetic repository per scenario. Integration keeps the real
+  # adapter that config/config.exs sets.
+  config :bnest_app, BnestApp.CodexChat,
+    repository_images: BnestApp.Test.InMemory.RepositoryImages
+
   config :bnest_app, BnestApp.Identity,
     credential_hasher: BnestApp.Test.InMemory.CredentialHasher,
     session_notifier: BnestApp.Test.InMemory.SessionNotifier,

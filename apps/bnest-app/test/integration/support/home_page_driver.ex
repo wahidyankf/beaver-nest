@@ -44,6 +44,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Test.BackupIntegrity
   alias BnestApp.Test.CodexFixtureConversation
   alias BnestApp.Test.CodexFixtureModels, as: FixtureModels
+  alias BnestApp.Test.CodexReplyPage
   alias BnestApp.Test.IntegrityLabel
   alias BnestApp.Test.InterruptedChatWriteBackend
   alias BnestApp.Test.InterruptedMigrationLedger
@@ -56,6 +57,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias Mix.Tasks.Bnest.Backup.Reconcile
 
   @behaviour_now ~U[2026-08-30 20:00:00Z]
+  # The repository checkout, the Codex working directory the production configuration names.
+  @repository_checkout Path.expand("../../../../..", __DIR__)
+  @synthetic_image <<0x89, "PNG\r\n", 0x1A, "\n">> <> "synthetic"
   @schedules_route "/admin/settings/schedules"
   @record_operations [:read, :write, :put_new, :replace, :remove_exact]
   @quiz_auto_advance_ms 5_000
@@ -604,6 +608,219 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
     %{} = await_push_event(context.view, "clear-chat-storage")
     Map.delete(context, :persisted_chat)
+  end
+
+  # The fixture Codex's reply comes in two parts, as the unit layer delivers it: the page is read
+  # after the first part, then after the rest. Each part is persisted before the page is read.
+  @impl true
+  def stream_first_codex_part(context) do
+    {prompt, session, context} = unanswered_prompt!(context)
+
+    {events, threads} =
+      CodexFixtureConversation.answer(Map.get(context, :codex_threads, %{}), session, prompt)
+
+    {first, rest} = CodexFixtureConversation.split_first_part(events)
+
+    context
+    |> Map.put(:codex_threads, threads)
+    |> Map.put(:pending_codex_events, rest)
+    |> deliver_codex_events(first)
+    |> persist_chat()
+  end
+
+  @impl true
+  def stream_rest_of_codex_reply(context) do
+    rest = Map.fetch!(context, :pending_codex_events)
+
+    context
+    |> Map.delete(:pending_codex_events)
+    |> deliver_codex_events(rest)
+    |> persist_chat()
+  end
+
+  defp persist_chat(context) do
+    snapshot = await_push_event(context.view, "persist-chat")
+    Map.put(context, :persisted_chat, Jason.encode!(snapshot))
+  end
+
+  defp chat_page(context), do: context.view |> render() |> LazyHTML.from_fragment()
+
+  defp latest_reply(context), do: context |> chat_page() |> CodexReplyPage.latest_reply()
+
+  @impl true
+  def latest_codex_reply_streaming?(context),
+    do: CodexReplyPage.streaming?(latest_reply(context))
+
+  @impl true
+  def latest_codex_reply_complete?(context), do: CodexReplyPage.complete?(latest_reply(context))
+
+  @impl true
+  def latest_codex_reply_contains_element?(context, element),
+    do: CodexReplyPage.contains_element?(latest_reply(context), element)
+
+  @impl true
+  def latest_codex_reply_contains_element_with_text?(context, element, text),
+    do: CodexReplyPage.contains_element_with_text?(latest_reply(context), element, text)
+
+  @impl true
+  def latest_codex_reply_lacks_element?(context, element),
+    do: not latest_codex_reply_contains_element?(context, element)
+
+  @impl true
+  def latest_codex_reply_shows_text?(context, text),
+    do: CodexReplyPage.shows_text?(latest_reply(context), text)
+
+  @impl true
+  def latest_codex_reply_shows_text_without_link?(context, text),
+    do: CodexReplyPage.shows_text_without_link?(latest_reply(context), text)
+
+  @impl true
+  def latest_codex_reply_lacks_text?(context, text),
+    do: not latest_codex_reply_shows_text?(context, text)
+
+  @impl true
+  def latest_codex_reply_lacks_link_to_address?(context, prefix),
+    do: CodexReplyPage.lacks_link_to_address?(latest_reply(context), prefix)
+
+  @impl true
+  def latest_codex_reply_links_to?(context, label, address),
+    do: CodexReplyPage.links_to?(latest_reply(context), label, address)
+
+  @impl true
+  def link_opens_in_new_tab_privately?(context, label),
+    do: CodexReplyPage.opens_in_new_tab_privately?(latest_reply(context), label)
+
+  @impl true
+  def visitor_message_unformatted?(context, message),
+    do: CodexReplyPage.unformatted_visitor_message?(chat_page(context), message)
+
+  @impl true
+  def visitor_message_shows_text?(context, text),
+    do: CodexReplyPage.shows_visitor_text?(chat_page(context), text)
+
+  @impl true
+  def visitor_message_keeps_line_break?(context, first, second),
+    do: CodexReplyPage.keeps_visitor_line_break?(chat_page(context), first, second)
+
+  @impl true
+  def latest_codex_reply_task_checkboxes?(context, checked, unchecked),
+    do: CodexReplyPage.task_checkboxes?(latest_reply(context), checked, unchecked)
+
+  @impl true
+  def latest_codex_reply_lays_out_inside_bubble?(_context),
+    do:
+      raise(
+        exempt_message(
+          "rendered layout",
+          "Codex reply tables, task lists, links and images keep their layout"
+        )
+      )
+
+  @impl true
+  def latest_codex_reply_shows_repository_image?(context, path),
+    do: CodexReplyPage.shows_repository_image?(latest_reply(context), path)
+
+  # One HTTP request through the endpoint, as the visitor's browser makes it: the signed-in
+  # visitor's connection carries the session, the signed-out visitor's carries none.
+  @impl true
+  def request_repository_image(context, path) do
+    route = "/chat/images/" <> URI.encode(path, &URI.char_unreserved?/1)
+    Map.put(context, :image_response, get(context.conn, route))
+  end
+
+  @impl true
+  def image_response_status?(context, status), do: context.image_response.status == status
+
+  @impl true
+  def image_response_content_type?(context, type) do
+    context.image_response
+    |> Plug.Conn.get_resp_header("content-type")
+    |> Enum.map(&(&1 |> String.split(";") |> hd() |> String.trim()))
+    |> Kernel.==([type])
+  end
+
+  @impl true
+  def image_response_empty_not_found?(context) do
+    context.image_response.status == 404 and context.image_response.resp_body == ""
+  end
+
+  @impl true
+  def image_response_redirects_to?(context, prefix) do
+    context.image_response.status == 302 and
+      context.image_response
+      |> Plug.Conn.get_resp_header("location")
+      |> Enum.any?(&String.starts_with?(&1, prefix))
+  end
+
+  # The scenario's repository is a runtime root of its own, which the adapter reads as the Codex
+  # working directory (the configured `:codex` working directory is restored afterwards). A
+  # scenario that puts no file in it reads the checkout, which is the production configuration.
+  @impl true
+  def repository_holds_file(context, path, content) do
+    {root, context} = ensure_repository_root(context)
+    full = Path.join(root.path, path)
+    File.mkdir_p!(Path.dirname(full))
+    File.write!(full, content)
+    context
+  end
+
+  @impl true
+  def repository_holds_symbolic_link(context, link, target) do
+    {root, context} = ensure_repository_root(context)
+    full = Path.join(root.path, link)
+    File.mkdir_p!(Path.dirname(full))
+    File.ln_s!(Path.join(@repository_checkout, target), full)
+    context
+  end
+
+  @impl true
+  def repository_holds_sized_file(context, path, bytes) do
+    {root, context} = ensure_repository_root(context)
+    full = Path.join(root.path, path)
+    File.mkdir_p!(Path.dirname(full))
+    File.write!(full, <<0x89, "PNG\r\n", 0x1A, "\n">> <> :binary.copy(<<0>>, bytes - 8))
+    context
+  end
+
+  # A decoy the request must refuse. The file lands where the path points, and only inside the
+  # scenario's run root: a path that climbs out of the repository still ends in the run root, and
+  # any path that would end outside it fails the scenario before anything is written.
+  @impl true
+  def repository_holds_image(context, path) do
+    {root, context} = ensure_repository_root(context)
+    full = Path.expand(Path.join(root.path, path))
+
+    unless String.starts_with?(full, root.run <> "/"),
+      do: raise("the scenario may not write #{inspect(path)} outside its run root")
+
+    File.mkdir_p!(Path.dirname(full))
+    File.write!(full, @synthetic_image)
+    context
+  end
+
+  # The repository is the `repo` folder of the scenario's own run root, which the adapter reads as
+  # the Codex working directory. Keeping it one level down leaves room for a path that climbs out
+  # of the repository and still lands in the run root, where the test owns every file.
+  defp ensure_repository_root(%{repository_root: root} = context), do: {root, context}
+
+  defp ensure_repository_root(context) do
+    runtime = TestRuntimeRoot.create!("codex-images")
+    ExUnit.Callbacks.on_exit(fn -> TestRuntimeRoot.cleanup!(runtime) end)
+
+    repository = %{path: Path.join(runtime.path, "repo"), run: runtime.path}
+    File.mkdir_p!(repository.path)
+
+    codex = Application.fetch_env!(:bnest_app, :codex)
+
+    Application.put_env(
+      :bnest_app,
+      :codex,
+      Keyword.put(codex, :working_directory, repository.path)
+    )
+
+    ExUnit.Callbacks.on_exit(fn -> Application.put_env(:bnest_app, :codex, codex) end)
+
+    {repository, Map.put(context, :repository_root, repository)}
   end
 
   @impl true

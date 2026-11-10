@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import readline from "node:readline";
 import { pathToFileURL } from "node:url";
+import { developerInstructions } from "./chat_instructions.mjs";
 
 process.stdout.on("error", (error) => {
   if (error.code === "EPIPE") process.exit(0);
@@ -29,7 +30,10 @@ const { Codex } = await import(
     resolve(workingDirectory, "node_modules/@openai/codex-sdk/dist/index.js"),
   ).href
 );
-const codex = new Codex();
+// Every turn of every thread, including resumed ones, starts a `codex exec` process with this developer instruction.
+const codex = new Codex({
+  config: { developer_instructions: developerInstructions },
+});
 const threadOptions = {
   model,
   modelReasoningEffort,

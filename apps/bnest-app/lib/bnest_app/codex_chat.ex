@@ -21,7 +21,14 @@ defmodule BnestApp.CodexChat do
     deps: [Logger],
     exports: [{Domain, []}, {Ports, []}]
 
-  alias BnestApp.CodexChat.Domain.{ModelAccess, RepositoryAccess, Settings, Transcript}
+  alias BnestApp.CodexChat.Domain.{
+    ModelAccess,
+    RepositoryAccess,
+    RepositoryImage,
+    Settings,
+    Transcript
+  }
+
   alias BnestApp.CodexChat.Domain.TranscriptRecord
   alias BnestApp.CodexChat.ModelCatalog
   alias BnestApp.CodexChat.Ports.TranscriptStore
@@ -42,6 +49,31 @@ defmodule BnestApp.CodexChat do
   """
   @spec adapter(atom()) :: module()
   def adapter(port), do: :bnest_app |> Application.fetch_env!(__MODULE__) |> Keyword.fetch!(port)
+
+  @doc """
+  The repository image a Codex reply may show, as `{:ok, content_type, bytes}`, or `:error` for
+  every refusal (ADR 002, Decision 2). `path` is the repository-relative path as decoded from the
+  request. The path is checked before the port is asked for anything; the port's bytes are
+  checked for size and signature before they are returned. A `repository_images:` option
+  replaces the configured `:repository_images` adapter.
+  """
+  @spec repository_image(String.t(), [{:repository_images, module()}]) ::
+          {:ok, String.t(), binary()} | :error
+  def repository_image(path, options \\ []) do
+    repository_images =
+      Keyword.get_lazy(options, :repository_images, fn -> adapter(:repository_images) end)
+
+    max_bytes = RepositoryImage.max_bytes()
+
+    with {:ok, reference} <- RepositoryImage.reference(path),
+         {:ok, bytes} when byte_size(bytes) <= max_bytes <-
+           repository_images.read(reference, max_bytes),
+         {:ok, content_type} <- RepositoryImage.signature(bytes) do
+      {:ok, content_type, bytes}
+    else
+      _refused -> :error
+    end
+  end
 
   @doc "The context's processes, for the application supervisor to start."
   @spec child_specs() :: [Supervisor.child_spec() | module()]
