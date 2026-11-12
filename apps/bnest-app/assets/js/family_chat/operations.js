@@ -19,6 +19,7 @@ export const MESSAGE_FIELDS_BASE = `
   senderId
   senderDisplayName
   body
+  bodyHtml
   committedAt
 `;
 

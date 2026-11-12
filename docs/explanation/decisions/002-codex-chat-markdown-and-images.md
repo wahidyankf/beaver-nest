@@ -2,7 +2,11 @@
 
 Date: 2026-11-10
 
-Status: Proposed
+Status: Accepted (2026-11-11). The owner asked for Markdown replies with inline images, one shared renderer for both chat
+rooms, Mermaid diagrams, and a polished responsive UI, and confirmed the third-party image privacy tradeoff (see
+[003](003-inline-chat-images-and-shared-markdown.md) and [004](004-mermaid-diagrams-in-both-chat-rooms.md)). The `https`
+and `data:` image rules of Decision 2, Decision 5 and differences 1 and 7 are superseded by 003; the instruction text of
+Decision 3 is now the text in `priv/codex/chat_instructions.mjs`, quoted below.
 
 ## Context
 
@@ -25,8 +29,12 @@ Facts checked in the code and the installed tools:
   launchd tools set that variable to the repository root of the running checkout.
 - Routes: `/chat` is a LiveView in the `[:browser, :authenticated_browser]` scope. `:browser` runs
   `fetch_current_user` and `put_secure_browser_headers`. Any signed-in role, including a child, can open `/chat`.
-- There is no Content-Security-Policy anywhere: not in `router.ex`, `endpoint.ex`, `ReleaseHeaders`, the root layout or
-  `tools/caddy-config.mjs`.
+- The app sets only the Phoenix default policy from `put_secure_browser_headers` (router `:browser` pipeline):
+  `content-security-policy: base-uri 'self'; frame-ancestors 'self';`. It has no `default-src` or `img-src`, so the
+  browser restricts no image source on any page. The image route sets its own `default-src 'none'; sandbox` for its
+  own response. `endpoint.ex`, `ReleaseHeaders`, the root layout and `tools/caddy-config.mjs` add no policy. (The first
+  version of this record said "no Content-Security-Policy anywhere". That was incomplete; see
+  [003](003-inline-chat-images-and-shared-markdown.md).)
 - `mix.exs` makes infrastructure apps boundaries: `boundary: [default: [check: [apps: [...]]]]`. Only a boundary that
   lists such an app in `deps` may call it. Contexts keep outside I/O behind `Ports` and `Adapters`.
 - All unit-test coverage is gated at 99%. `.Adapters.`, LiveViews and controllers are left out of that denominator and
@@ -106,6 +114,10 @@ end)
 MDEx.to_html(doc, opts)                              # sanitize: ammonia options from the table above
 ```
 
+Superseded in part by [003](003-inline-chat-images-and-shared-markdown.md), Decision 1: the shipped `classify_image/1`
+has five rows, and an `https` image or a small raster `data:` image stays an inline `<img>` instead of becoming a link.
+The shape above is kept as first written.
+
 On `{:error, _}` (the parse budget) and on input that is not valid UTF-8 (checked before MDEx is called, because MDEx
 raises on it), the renderer returns the escaped text in a `whitespace-pre-wrap` paragraph, so a reply never disappears
 and never becomes unsafe. The fallback itself is valid UTF-8: bytes that are not UTF-8 are replaced with U+FFFD
@@ -119,6 +131,11 @@ corpus test. If MDEx is abandoned, the renderer is one module with one public fu
 
 ## Decision 2. Images: repository paths through an authenticated route; no external or inline images
 
+> Superseded in part by [003](003-inline-chat-images-and-shared-markdown.md), Decision 1. The `https://` and `data:`
+> rows of the table below, the "Images" policy bullet, the sentence about a future external-image clause, and the two
+> threat and corpus lines about external images no longer hold: an `https` image and a small raster `data:` image are
+> now shown inline. Repository images, SVG, the route and its rules 1 to 5 are unchanged.
+
 ### Sources compared
 
 | Source                                       | Decision                       | Why                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -131,6 +148,9 @@ corpus test. If MDEx is abandoned, the renderer is one module with one public fu
 If the owner later wants external images, the change is one clause in `classify_image/1` plus
 `img-src https:` in a future CSP, and the `referrerpolicy="no-referrer"` and `loading="lazy"` attributes are already in
 place. It is not part of this change.
+
+Superseded by [003](003-inline-chat-images-and-shared-markdown.md), Decision 1: the owner later asked for external
+images, and 003 added the clause. No `img-src` policy was added; 003, Decision 3 defers it.
 
 ### Route
 
@@ -173,8 +193,10 @@ These are the rules the renderer and the facade apply on top of the table above.
 - **Links.** Only `http`, `https` and `mailto` destinations stay links, and they open in a new tab. The scheme check
   ignores spaces and control characters and compares without case. A relative link (`docs/a.md`), a protocol-relative
   link (`//evil.example`) and any other scheme (`javascript:`, `data:`, `vbscript:`) becomes its plain text.
-- **Images.** The destination is decoded once (see strict decoding). A repository image (rule 1 passes) becomes
-  `/chat/images/<segments>`, one encoded segment at a time. An `http` or `https` image is never loaded. It becomes a
+- **Images.** (Superseded in part by [003](003-inline-chat-images-and-shared-markdown.md): only `http` images are now
+  still never loaded; `https` and small raster `data:` images are shown inline.) The destination is decoded once (see
+  strict decoding). A repository image (rule 1 passes) becomes `/chat/images/<segments>`, one encoded segment at a
+  time. An `http` or `https` image is never loaded. It becomes a
   link to its address whose text is its alt text, or the address when there is no alt text, followed by
   `(image not shown)`, so the reader knows the picture is withheld. Any other image (`data:`, `javascript:`, a relative
   path that fails rule 1, an SVG, an absolute path) becomes its alt text inside `[image not shown: alt]`, or
@@ -203,23 +225,23 @@ browser request to the image route; image route to the file system; rendered HTM
 **Entry points added:** the Markdown renderer (input: any model text); `GET /chat/images/*path`; the developer
 instruction passed to Codex.
 
-| Threat                                                            | Choice that closes it                                                                                                                                                                                                                                      | Test that fails without it                                                                                                                                     |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Script from raw HTML, `javascript:`, event attributes             | `escape: true`, AST scheme gate, ammonia allowlist (two independent layers)                                                                                                                                                                                | Unit XSS corpus (below) asserts no `<script`, no `on*=`, no unsafe `href`/`src`                                                                                |
-| `target=_blank` tab-nabbing; referrer leak                        | ammonia `link_rel` and `target`; `referrerpolicy="no-referrer"` on images                                                                                                                                                                                  | Unit: every `<a>` has the exact `rel` and `target`                                                                                                             |
-| Path traversal (`..`, `%2e%2e`, `%2F`, backslash, NUL)            | Syntax rule 1 on the joined path; `*path` segments joined then re-split; no percent decoding in the domain                                                                                                                                                 | Unit table of traversal strings; integration request with encoded variants                                                                                     |
-| Symlink escape                                                    | Rule 2: refuse any symlink below the root                                                                                                                                                                                                                  | Integration: symlink to a file outside the root returns 404                                                                                                    |
-| TOCTOU (swap after the check)                                     | Bytes read once and served from memory; signature check on the bytes served; writing under the root needs an admin in write mode or local access                                                                                                           | Accepted residual: an attacker able to write inside the checkout can only make the route serve another image-signature file; non-image files still fail rule 4 |
-| Content sniffing, type spoofing, SVG or HTML as image             | Extension allowlist plus signature sniff; fixed `Content-Type`; `nosniff`; response CSP `sandbox`                                                                                                                                                          | Integration: SVG, HTML and text named `.png` return 404; response headers asserted                                                                             |
-| Header injection or XSS through headers                           | No request value in any header; no `Content-Disposition` filename                                                                                                                                                                                          | Integration: header set is exactly the expected list                                                                                                           |
-| Secret exposure (`.env`, data dirs, backups with image extension) | Dot-segment ban and deny set, compared without case; extension allowlist; root is the checkout only                                                                                                                                                        | Unit: `.env/x.png`, `data/prod/x.png`, `Data/prod/x.png`, `.git/x.png`, `node_modules/x.png` refused; integration: the same paths answer 404 on a real root    |
-| Existence oracle                                                  | One identical 404 for every refusal                                                                                                                                                                                                                        | Integration: missing, denied and symlinked files give equal status, headers and body                                                                           |
-| Denial of service through size                                    | 5 MiB cap with bounded read; read per request only; `loading="lazy"` limits browser fan-out                                                                                                                                                                | Integration: 5 MiB + 1 byte file returns 404                                                                                                                   |
-| Denial of service through Markdown                                | `budget: [parse_time: 250]`; per-message 100 KB cap already in `Transcript`; fallback to escaped text                                                                                                                                                      | Unit: a time-limited parse returns the escaped fallback                                                                                                        |
-| Unauthenticated read                                              | Existing `:authenticated_browser` pipeline                                                                                                                                                                                                                 | Integration: no cookie redirects to `/login`; no image bytes in the body                                                                                       |
-| Cross-user read                                                   | Not applicable by design: the checkout is shared, not per user data. Children can already ask Codex about any file the sandbox reads, so the route adds a narrower window (four raster types) to the same data. Accepted by the product design of `/chat`. | n/a (accepted; recorded here)                                                                                                                                  |
-| Tracking or exfiltration through external images                  | External and `data:` images are never loaded (Decision 2 table)                                                                                                                                                                                            | Unit corpus: `![x](https://e.com/a.png)` yields no `<img>`; yields a link whose text says it is not loaded                                                     |
-| Injection through the developer instruction                       | Constant text in the repository; no user value is interpolated                                                                                                                                                                                             | Contract test on the text (Decision 3)                                                                                                                         |
+| Threat                                                                                                            | Choice that closes it                                                                                                                                                                                                                                      | Test that fails without it                                                                                                                                     |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Script from raw HTML, `javascript:`, event attributes                                                             | `escape: true`, AST scheme gate, ammonia allowlist (two independent layers)                                                                                                                                                                                | Unit XSS corpus (below) asserts no `<script`, no `on*=`, no unsafe `href`/`src`                                                                                |
+| `target=_blank` tab-nabbing; referrer leak                                                                        | ammonia `link_rel` and `target`; `referrerpolicy="no-referrer"` on images                                                                                                                                                                                  | Unit: every `<a>` has the exact `rel` and `target`                                                                                                             |
+| Path traversal (`..`, `%2e%2e`, `%2F`, backslash, NUL)                                                            | Syntax rule 1 on the joined path; `*path` segments joined then re-split; no percent decoding in the domain                                                                                                                                                 | Unit table of traversal strings; integration request with encoded variants                                                                                     |
+| Symlink escape                                                                                                    | Rule 2: refuse any symlink below the root                                                                                                                                                                                                                  | Integration: symlink to a file outside the root returns 404                                                                                                    |
+| TOCTOU (swap after the check)                                                                                     | Bytes read once and served from memory; signature check on the bytes served; writing under the root needs an admin in write mode or local access                                                                                                           | Accepted residual: an attacker able to write inside the checkout can only make the route serve another image-signature file; non-image files still fail rule 4 |
+| Content sniffing, type spoofing, SVG or HTML as image                                                             | Extension allowlist plus signature sniff; fixed `Content-Type`; `nosniff`; response CSP `sandbox`                                                                                                                                                          | Integration: SVG, HTML and text named `.png` return 404; response headers asserted                                                                             |
+| Header injection or XSS through headers                                                                           | No request value in any header; no `Content-Disposition` filename                                                                                                                                                                                          | Integration: header set is exactly the expected list                                                                                                           |
+| Secret exposure (`.env`, data dirs, backups with image extension)                                                 | Dot-segment ban and deny set, compared without case; extension allowlist; root is the checkout only                                                                                                                                                        | Unit: `.env/x.png`, `data/prod/x.png`, `Data/prod/x.png`, `.git/x.png`, `node_modules/x.png` refused; integration: the same paths answer 404 on a real root    |
+| Existence oracle                                                                                                  | One identical 404 for every refusal                                                                                                                                                                                                                        | Integration: missing, denied and symlinked files give equal status, headers and body                                                                           |
+| Denial of service through size                                                                                    | 5 MiB cap with bounded read; read per request only; `loading="lazy"` limits browser fan-out                                                                                                                                                                | Integration: 5 MiB + 1 byte file returns 404                                                                                                                   |
+| Denial of service through Markdown                                                                                | `budget: [parse_time: 250]`; per-message 100 KB cap already in `Transcript`; fallback to escaped text                                                                                                                                                      | Unit: a time-limited parse returns the escaped fallback                                                                                                        |
+| Unauthenticated read                                                                                              | Existing `:authenticated_browser` pipeline                                                                                                                                                                                                                 | Integration: no cookie redirects to `/login`; no image bytes in the body                                                                                       |
+| Cross-user read                                                                                                   | Not applicable by design: the checkout is shared, not per user data. Children can already ask Codex about any file the sandbox reads, so the route adds a narrower window (four raster types) to the same data. Accepted by the product design of `/chat`. | n/a (accepted; recorded here)                                                                                                                                  |
+| Tracking or exfiltration through external images (superseded by 003: accepted by the owner, see its threat table) | External and `data:` images are never loaded (Decision 2 table)                                                                                                                                                                                            | Unit corpus: `![x](https://e.com/a.png)` yields no `<img>`; yields a link whose text says it is not loaded                                                     |
+| Injection through the developer instruction                                                                       | Constant text in the repository; no user value is interpolated                                                                                                                                                                                             | Contract test on the text (Decision 3)                                                                                                                         |
 
 ### XSS corpus the unit test must include
 
@@ -232,7 +254,9 @@ instruction passed to Codex.
 reference-style links to `javascript:`, HTML comments, `<style>`, `<form>`, `<input>` in raw text, an `<input>` outside a
 task list, `style=` and `class=` attributes, and a 100 KB message of `*a ` and `[a](`. For every case the test asserts
 the output has no `<script`, `<iframe`, `<style`, `<form`, `on...=` attribute, `javascript:`, `data:` or `//`-prefixed
-URL, that every `<img src>` starts with `/chat/images/`, and that every `<a>` has the exact `rel` and `target`.
+URL, that every `<img src>` starts with `/chat/images/`, and that every `<a>` has the exact `rel` and `target`. (Under
+[003](003-inline-chat-images-and-shared-markdown.md) an `<img src>` may also be an accepted `https` or `data:` address,
+and the sanitizer allows the `data` scheme, which only images can use.)
 
 ## Decision 3. Codex instruction: `developer_instructions`
 
@@ -251,14 +275,26 @@ process per turn with the same arguments (also for `resumeThread`), so resumed t
 Put the text in `priv/codex/chat_instructions.mjs` (exports `developerInstructions`), imported by `chat_runner.mjs`, so a
 test can load it without running the runner's top-level code. Recommended text:
 
+> The text below is the current text of the first two paragraphs, copied from `priv/codex/chat_instructions.mjs`, which
+> is the source of truth. This record first proposed a stricter image paragraph (repository raster files only, SVG and
+> external addresses refused). [003](003-inline-chat-images-and-shared-markdown.md), Decision 4, replaced it (it allows
+> `https` images and a link around an image), and the owner approved the SVG wording on 2026-11-11.
+> [004](004-mermaid-diagrams-in-both-chat-rooms.md), Decision 7 adds a third paragraph about `mermaid` diagrams. The file,
+> the export and the delivery method stay as described.
+
 ```text
 Write every reply in GitHub-flavored Markdown: short paragraphs, lists, tables, and fenced code blocks that name their
 language. Never write raw HTML.
-To show an image, use Markdown image syntax with the path of an image file that exists in this repository, relative to
-the repository root, for example ![Beaver Nest logo](apps/bnest-app/priv/static/images/beaver-nest-logo.png). Only png,
-jpg, jpeg, gif and webp files are shown. Never use SVG, data: URIs, absolute paths or external image URLs; they are not
-displayed. Check that the file exists before you point to it.
+To show an image, use Markdown image syntax. Two kinds of image are displayed: a png, jpg, jpeg, gif or webp file that
+exists in this repository, written as a path relative to the repository root, for example
+![Beaver Nest logo](apps/bnest-app/priv/static/images/beaver-nest-logo.png); and a public image at an https:// address.
+Check that a repository file exists before you point to it. Prefer png, jpg, jpeg, gif or webp files. Never use a data:
+address for SVG. An SVG image at an https:// address is allowed, but some hosts may block it. Never use absolute paths
+or http:// addresses. Never put text from this repository, secrets, or the user's words into an image address. If a
+large image should open at full size, write it as a link around the image: [![alt](address)](address).
 ```
+
+(The block shows line breaks added for reading. In the file each paragraph is one line, and a blank line separates them.)
 
 Contract test (integration, no model call): load `developerInstructions`, run the installed CLI with
 `codex debug prompt-input -c developer_instructions=<JSON.stringify(text)>` under a temporary `CODEX_HOME`, and assert the
@@ -286,7 +322,7 @@ flowchart LR
 
 - `BnestAppWeb.ChatMarkdown` (`lib/bnest_app_web/chat_markdown.ex`). One public function
   `to_html(content :: String.t(), streaming? :: boolean(), options \\ []) :: Phoenix.HTML.safe()`; the only option is
-  `:parse_time_ms` (default 250), which a test lowers to force the budget fallback. Pure: no process, file or clock. It
+  `:parse_time_ms` (default 250), which a test lowers to force the budget fallback (003 adds `:hard_breaks`). Pure: no process, file or clock. It
   owns the MDEx options and the AST gate. In the `BnestAppWeb` boundary (no new boundary); `MDEx` is added to its `deps`.
   Covered by unit tests inside the 99% gate.
 - `BnestApp.CodexChat.Domain.RepositoryImage` (pure, exported with `Domain`): `reference/1` (rule 1, returns
@@ -301,7 +337,11 @@ flowchart LR
   `agent_session:` today.
 - `BnestAppWeb.ChatImageController.show/2` and the route. Listed in `mix.exs` coverage `adapters_and_entry_points`
   (integration-tested), like the other controllers.
-- `ChatLive`: the assistant `<p>` becomes
+- `ChatLive` (superseded by [003](003-inline-chat-images-and-shared-markdown.md), Decision 2, and
+  [004](004-mermaid-diagrams-in-both-chat-rooms.md), Decision 3: `ChatLive` now renders the reply through the shared
+  component `BnestAppWeb.ChatComponents.markdown_body/1`, gives each assistant body an `id` and `phx-update="ignore"`
+  once the reply is done, and puts `phx-hook="ChatDiagrams"` on the conversation; the `div` and the data attributes
+  below are unchanged): the assistant `<p>` becomes
   `<div class="message-content markdown-body" data-role="assistant-message" data-streaming=... data-update-count=...>`
   holding `{ChatMarkdown.to_html(message.content, message.streaming)}`. `data-role`, `data-streaming` and
   `data-update-count` stay, so every existing selector (`[data-role=assistant-message]`) keeps working. The empty
@@ -341,8 +381,10 @@ flowchart LR
 
 ## Decision 5. Content-Security-Policy: not in this change
 
-There is no CSP today. The new risk (an attacker-chosen image or script source) is already closed in the renderer by
-construction: only `/chat/images/...` image URLs are emitted, raw HTML is escaped, and the sanitizer enforces the same
+There is no site-wide CSP with image or script rules today; the app sends only the Phoenix default
+(`base-uri 'self'; frame-ancestors 'self'`, see Context). The new risk (an attacker-chosen image or script source) is already closed in the renderer by
+construction: only `/chat/images/...` image URLs are emitted (superseded by 003: accepted `https` and small `data:`
+images are emitted too), raw HTML is escaped, and the sanitizer enforces the same
 allowlist as a second layer. A site-wide CSP also needs inline-script and style review of the root layout, the theme
 script and the service worker, which is separate work with its own regression risk. Minimal sufficiency says leave it. The
 image route's own response carries a restrictive CSP (cheap, local to that response). A site-wide `img-src 'self'` is a
@@ -367,7 +409,9 @@ Rule: Formatted Codex replies
 Rule: Codex reply images
 
 - `A Codex reply shows an image from the repository`
-- `External and inline images in a Codex reply are not loaded`
+- `External and inline images in a Codex reply are not loaded` (renamed by 003 to
+  `External https and small inline images in a Codex reply are shown` in
+  `specs/apps/bnest/app-fe/behaviours/chat.feature`; the feature file is the source of truth)
 - `A signed-in visitor can fetch a repository image`
 - `A signed-out visitor cannot fetch a repository image`
 - `A repository image path that leaves the repository is refused`
@@ -403,10 +447,13 @@ the unit layer only; the integration layer keeps the real adapter that `config/c
 
 ## Differences from the original request, for the owner to confirm
 
-The request was formatted Markdown replies with images shown. The build is narrower on purpose, and the status stays
-Proposed until the owner accepts each point:
+The request was formatted Markdown replies with images shown. The first build was narrower on purpose. The record is
+accepted with the points below as built; items 1 and 7 are superseded by 003, and the owner has since asked for inline
+images, a shared renderer, Mermaid and a polished responsive UI:
 
-1. **External `https` images and `data:` images are not loaded.** An `http` or `https` image shows as a link followed by
+1. **External `https` images and `data:` images are not loaded.** (Superseded by
+   [003](003-inline-chat-images-and-shared-markdown.md): the owner chose to show them. `http` images stay links.) An
+   `http` or `https` image shows as a link followed by
    `(image not shown)`; a `data:` image, an SVG and any other image show as `[image not shown: alt]`. Only raster files
    inside the repository are shown (Decision 2). Confirm, or ask for external images as the follow-up named there.
 2. **Links keep only `http`, `https` and `mailto`.** A relative link, a protocol-relative link and every other scheme
@@ -420,6 +467,7 @@ Proposed until the owner accepts each point:
 6. **Any signed-in role, including a child, can fetch repository images** through `GET /chat/images/*path`, the same
    audience as `/chat`.
 7. **No site-wide Content-Security-Policy** is added (Decision 5), and the Codex instruction applies to every chat turn.
+   (003 keeps this and corrects the premise: the app already sends the Phoenix default policy, which has no `img-src`.)
 
 ## Consequences
 
@@ -445,6 +493,10 @@ A normal release: a new dependency and a new route, no storage or config change.
 Chat sessions already open keep working; the Markdown rendering applies to all transcripts after the LiveView reconnects,
 and the new developer instruction applies from the next Codex turn of every session (one `codex exec` process per turn).
 Rollback is the previous revision with no data change.
+
+Release plan (2026-11-11): this work does not ship alone. The owner decided on one release with everything (this record,
+003 and 004, no staged A, B and C releases); the rollout and rollback text is in 003, "Rollout and rollback", and 004,
+"Release". The deployer checklist below applies to that one release.
 
 For the deployer (see [live-service continuity](../../../repo-governance/development/live-service-continuity.md)):
 

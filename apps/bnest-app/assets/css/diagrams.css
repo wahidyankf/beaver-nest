@@ -1,0 +1,73 @@
+/*
+ * The drawn diagram and its fallback (ADR 004, Decision 5). Colours and the font come from the page tokens
+ * in app.css :root, so the figure reads the same in both chat rooms. The picture is an image with its natural
+ * size in --bnest-diagram-width. It shrinks with the bubble, but never below its readable width: 30 rem, or
+ * 0.75 of its natural width (a 16 px label stays at 12 px or more), whichever is larger, and never above its
+ * natural width. When the bubble is narrower than that, the canvas scrolls inside its own box, so the page never
+ * scrolls sideways.
+ *
+ * The image selector is more specific than `.markdown-body img` in app.css, which would otherwise set its width.
+ */
+
+.bnest-diagram {
+  box-sizing: border-box;
+  display: grid;
+  gap: 0.5rem;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  border: 2px solid var(--bnest-ink-soft);
+  border-radius: 0.6rem;
+  background: var(--bnest-paper);
+  color: var(--bnest-ink);
+}
+
+.bnest-diagram-canvas {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: 0.4rem;
+}
+
+.bnest-diagram .bnest-diagram-canvas img {
+  display: block;
+  box-sizing: border-box;
+  width: min(
+    var(--bnest-diagram-width),
+    max(100%, 30rem, calc(var(--bnest-diagram-width) * 0.75))
+  );
+  max-width: none;
+  max-height: min(36rem, 80svh);
+  height: auto;
+  margin: 0 auto;
+  object-fit: contain;
+  border-radius: 0;
+}
+
+.bnest-diagram-canvas:focus-visible {
+  outline: 3px solid var(--chat-focus-ring);
+  outline-offset: 2px;
+}
+
+.bnest-diagram-source summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.bnest-diagram-source summary:focus-visible {
+  outline: 3px solid var(--chat-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Touch screens: the diagram source's summary is a touch target of at least 44 CSS pixels. */
+@media (pointer: coarse) {
+  .bnest-diagram-source summary {
+    min-height: 2.75rem;
+  }
+}
+
+.bnest-diagram-note {
+  margin: 0;
+  font-weight: 600;
+}

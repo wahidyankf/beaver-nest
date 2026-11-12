@@ -50,6 +50,7 @@ const SUBSCRIPTION_QUERY = `subscription($roomSlug: String!) {
     senderId
     senderDisplayName
     body
+    bodyHtml
     committedAt
     replyTo { id senderKind senderDisplayName bodyPreview }
   }

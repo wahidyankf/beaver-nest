@@ -26,6 +26,7 @@ import {
   createResumeRenderMethods,
 } from "./real_store_render.js";
 import { createRovingFocus, withRovingRefresh } from "./roving_focus.js";
+import { removeKeepingFocus, replaceKeepingFocus } from "./row_focus.js";
 
 /** @typedef {import("./message_render.js").RenderableMessage} RenderableMessage */
 /** @typedef {import("./real_store_render.js").RealStoreState} RealStoreState */
@@ -113,7 +114,7 @@ function createReconcileMethod(elements, state, currentUserId) {
       // now-redundant pending row instead of creating a second copy of it.
       if (existingCommittedNode) {
         if (pendingNode && pendingNode !== existingCommittedNode)
-          pendingNode.remove();
+          removeKeepingFocus(pendingNode, existingCommittedNode);
         state.rendered.delete(clientMessageId);
         return;
       }
@@ -123,7 +124,7 @@ function createReconcileMethod(elements, state, currentUserId) {
         currentUserId,
       });
       if (pendingNode) {
-        pendingNode.replaceWith(node);
+        replaceKeepingFocus(pendingNode, node);
       } else {
         elements.list.append(node);
       }
@@ -257,6 +258,13 @@ export function createRealStore({ elements, currentUserId = null }) {
     ...createPendingRenderMethods(elements, state),
     ...createReconcileMethod(elements, state, currentUserId),
     ...createReceiveRemoteMessageMethod(elements, state, currentUserId),
+  };
+  // The visitor's own send moves the history's stop to the row it adds, so Tab reaches what they sent (ADR 003,
+  // Decision 6). On reconcile that row takes the server's id; the stop then falls back to the newest, which is that row.
+  const renderPendingRow = rendering.renderPending;
+  rendering.renderPending = (message) => {
+    renderPendingRow(message);
+    roving.moveTo(message.clientMessageId ?? "");
   };
   return {
     ...withRovingRefresh(rendering, roving),

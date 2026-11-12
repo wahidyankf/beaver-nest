@@ -300,6 +300,328 @@ Feature: Family chat room
     Then the quote exposes an accessible name naming "Ayah"
     And the quote is exposed as an activatable control
 
+  @fe-vitest-unit
+  # Exemption(integration): where a focused message sits in a scrolled history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The keys that move focus through the history bring the focused message into view
+  @integration-exempt
+  Scenario Outline: The keys that move focus through the history bring the focused message into view
+    Given the viewport is set to "desktop 1440x900"
+    And the history holds 50 messages
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the history is laid out on the screen
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "<key>" <presses> times
+    Then the focused message is inside the visible history
+    And the focused message is the message with the number <number>
+
+    Examples:
+      | key     | presses | number |
+      | ArrowUp | 30      | 19     |
+      | Home    | 1       | 0      |
+
+  @fe-vitest-unit
+  # Exemption(integration): where the action menu opens beside a message in a scrolled history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The action menu opened from the keyboard sits beside its message
+  @integration-exempt
+  Scenario: The action menu opened from the keyboard sits beside its message
+    Given the viewport is set to "desktop 1440x900"
+    And the history holds 50 messages
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the history is laid out on the screen
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "ArrowUp" 30 times
+    And the visitor presses "Enter"
+    Then the message action menu is beside the focused message inside the screen
+
+  @fe-vitest-unit
+  # Exemption(integration): where a focused message sits in a scrolled history after an arrow key moves focus down is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The arrow keys bring a message below the window into view
+  @integration-exempt
+  Scenario: The arrow keys bring a message below the window into view
+    Given the viewport is set to "desktop 1440x900"
+    And the history holds 50 messages
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the history is laid out on the screen
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "ArrowUp" 30 times
+    And the visitor presses "ArrowDown" 15 times
+    Then the focused message is inside the visible history
+    And the focused message is the message with the number 34
+
+  @fe-vitest-unit
+  # Exemption(integration): where the history scrolls to the newest message after the End key moves focus is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The End key brings the newest message into view
+  @integration-exempt
+  Scenario: The End key brings the newest message into view
+    Given the viewport is set to "desktop 1440x900"
+    And the history holds 50 messages
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the history is laid out on the screen
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "ArrowUp" 30 times
+    And the visitor presses "End" 1 times
+    Then the focused message is inside the visible history
+    And the focused message is the newest message
+
+  @fe-vitest-unit
+  # Exemption(integration): the top edge of a message taller than the scrolled history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message taller than the window shows its top when focus reaches it
+  @integration-exempt
+  Scenario: A message taller than the window shows its top when focus reaches it
+    Given the viewport is set to "landscape 844x390"
+    And the history holds 49 messages and a message taller than the window follows them
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the history is laid out on the screen
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "ArrowUp" 1 times
+    And the visitor presses "ArrowDown" 1 times
+    Then the focused message is the tall message
+    And the top of the focused message is inside the visible history
+
+  @fe-vitest-unit
+  # Exemption(integration): whether a message already in view stays where it is while the history is scrolled is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message already in view does not move the history
+  @integration-exempt
+  Scenario: A message already in view does not move the history
+    Given the viewport is set to "desktop 1440x900"
+    And the history holds 50 messages
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the history is laid out on the screen
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "ArrowUp" 30 times
+    And the history's position is noted
+    And the visitor presses "ArrowDown" 1 times
+    Then the focused message is inside the visible history
+    And the focused message is the message with the number 20
+    And the history has not moved since its position was noted
+
+  Rule: Keyboard reach of message content
+
+  @fe-vitest-unit
+  # Exemption(integration): which element Tab reaches inside a rendered message is browser focus order over the DOM that browser JavaScript builds from server HTML, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Tab moves from a message into its links and opens one
+  @integration-exempt
+  Scenario: Tab moves from a message into its links and opens one
+    Given Ayah has sent the family chat message "Dinner plan: [home](https://example.test/home) and [list](https://example.test/list)"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is on "home"
+    When the visitor presses "Tab"
+    Then keyboard focus is on "list"
+    When the visitor presses "Enter"
+    Then the link "list" opens its address in a new tab
+    And no action menu opens
+
+  @fe-vitest-unit
+  # Exemption(integration): the order in which Tab visits a message's links, scroll regions, and diagram source is browser focus order over the rendered DOM, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Tab and Shift+Tab pass through message content without a trap
+  @integration-exempt
+  Scenario: Tab and Shift+Tab pass through message content without a trap
+    Given Ayah has sent this family chat message:
+      """
+      Dinner plan: [home](https://example.test/home)
+
+      | Menu | Drink | Dessert | Notes | Seats |
+      | ---- | ----- | ------- | ----- | ----- |
+      | Nasigorengkampungspesialbuatkeluargakitasemua | Tehmanisdengansusuhangatbersamakeluarga | Kuehmangkokdaripasarpagihariinisegarsekali | Pedasnyasedanglebihenakdimakanbersama | Tigaorangdewasadanduaanakkecil |
+
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    And the "table" in the message is wider than its box
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows a diagram labelled "Flowchart"
+    When the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is on "home"
+    When the visitor presses "Tab"
+    Then keyboard focus is on "table"
+    When the visitor presses "Tab"
+    Then keyboard focus is on "Diagram source"
+    When the visitor presses "Tab"
+    Then keyboard focus is outside the history
+    When the visitor presses "Shift+Tab"
+    Then keyboard focus is on "Diagram source"
+    When the visitor presses "Shift+Tab"
+    Then keyboard focus is on "table"
+    When the visitor presses "Shift+Tab"
+    Then keyboard focus is on "home"
+    When the visitor presses "Shift+Tab"
+    Then keyboard focus is on the message "Dinner plan"
+
+  @fe-vitest-unit
+  # Exemption(integration): moving focus back to a message with Escape is a keydown handled on a DOM element built from server HTML, which Phoenix.LiveViewTest never dispatches; alternative-proof: bnest-app-fe-e2e:test:e2e / Escape returns focus from message content to the message
+  @integration-exempt
+  Scenario: Escape returns focus from message content to the message
+    Given Ayah has sent the family chat message "Earlier note"
+    And Ayah has sent the family chat message "Dinner plan: [home](https://example.test/home)"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is on "home"
+    When the visitor presses "Escape"
+    Then keyboard focus is on the message "Dinner plan"
+    When the visitor presses "ArrowUp"
+    Then keyboard focus is on the message "Earlier note"
+
+  @fe-vitest-unit
+  # Exemption(integration): what a key does on a link, a summary, or a scroll region is the browser's own default action on DOM that browser JavaScript builds, which Phoenix.LiveViewTest never dispatches; alternative-proof: bnest-app-fe-e2e:test:e2e / Keys inside message content keep their own meaning
+  @integration-exempt
+  Scenario Outline: Keys inside message content keep their own meaning
+    Given Ayah has sent this family chat message:
+      """
+      Dinner plan: [home](https://example.test/home)
+
+      | Menu | Drink | Dessert | Notes | Seats |
+      | ---- | ----- | ------- | ----- | ----- |
+      | Nasigorengkampungspesialbuatkeluargakitasemua | Tehmanisdengansusuhangatbersamakeluarga | Kuehmangkokdaripasarpagihariinisegarsekali | Pedasnyasedanglebihenakdimakanbersama | Tigaorangdewasadanduaanakkecil |
+
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    And the "table" in the message is wider than its box
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows a diagram labelled "Flowchart"
+    When the visitor presses Tab from the control before the history
+    And the visitor presses "Tab" until keyboard focus is on "<content>"
+    And the visitor presses "<key>"
+    Then <effect>
+    And the message "Dinner plan" is the keyboard stop
+    And no action menu opens
+
+    Examples:
+      | content        | key        | effect                                         |
+      | home           | Enter      | the link "home" opens its address in a new tab |
+      | Diagram source | Enter      | the diagram source is shown                    |
+      | Diagram source | Space      | the diagram source is shown                    |
+      | table          | ArrowRight | the "table" is scrolled to the right           |
+
+  @fe-vitest-unit
+  # Exemption(integration): a wide table or code block is a scroll region whose width and scroll position only a browser layout engine computes, which Phoenix.LiveViewTest never measures; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide table or code block can be scrolled from the keyboard
+  @integration-exempt
+  Scenario Outline: A wide table or code block can be scrolled from the keyboard
+    Given the viewport is set to "mobile 390x844"
+    And Ayah has sent a wide "<kind>" message
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is on "<kind>"
+    And the "<kind>" shows a visible focus ring
+    When the visitor presses "ArrowRight"
+    Then the "<kind>" is scrolled to the right
+    And keyboard focus is on "<kind>"
+
+    Examples:
+      | kind       |
+      | table      |
+      | code block |
+
+  @fe-vitest-unit
+  # Exemption(integration): whether a table or code block fits its box is a browser layout result that Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A table or code block that fits is not a tab stop
+  @integration-exempt
+  Scenario: A table or code block that fits is not a tab stop
+    Given Ayah has sent this family chat message:
+      """
+      Dinner plan:
+
+      | Menu | Seats |
+      | ---- | ----- |
+      | Rice | 4     |
+
+      ```text
+      rice for four
+      ```
+      """
+    And the "table" in the message fits its box
+    And the "code block" in the message fits its box
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is outside the history
+
+  @fe-vitest-unit
+  # Exemption(integration): which links of fifty rendered messages Tab reaches is browser focus order over the rendered history, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Only the focused message's links are reachable
+  @integration-exempt
+  Scenario: Only the focused message's links are reachable
+    Given the history holds 50 messages, each with a link
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is on "link 49"
+    And exactly one link in the history is a tab stop
+    When the visitor presses "Shift+Tab"
+    Then keyboard focus is on the message "Note 49"
+    When the visitor presses "ArrowUp"
+    Then keyboard focus is on the message "Note 48"
+    When the visitor presses "Tab"
+    Then keyboard focus is on "link 48"
+
+  @fe-vitest-unit
+  # Exemption(integration): a message that arrives while the visitor's focus is inside the history is pushed by the GraphQL subscription and placed by browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A new message keeps the focused message's content reachable
+  @integration-exempt
+  Scenario: A new message keeps the focused message's content reachable
+    Given Ayah has sent the family chat message "Dinner plan: [home](https://example.test/home)"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the visitor presses Tab from the control before the history
+    And Ayah sends the family chat message "Later note" while the visitor watches
+    And the visitor presses "Tab"
+    Then keyboard focus is on "home"
+    And the message "Dinner plan" is the keyboard stop
+
+  @fe-vitest-unit
+  # Exemption(integration): opening the diagram source is a native disclosure toggle on a figure built by browser JavaScript, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The diagram source opens from the keyboard
+  @integration-exempt
+  Scenario: The diagram source opens from the keyboard
+    Given Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows a diagram labelled "Flowchart"
+    When the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is on "Diagram source"
+    When the visitor presses "Enter"
+    Then the diagram source is shown
+    When the visitor presses "Tab"
+    Then keyboard focus is outside the history
+
+  @fe-vitest-unit
+  # Exemption(integration): the picture's width at a 320 px viewport is a browser layout result that Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A scrolled diagram can be scrolled from the keyboard
+  @integration-exempt
+  Scenario: A scrolled diagram can be scrolled from the keyboard
+    Given the viewport is set to "mobile 320x640"
+    And Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart LR
+        A[Pick up the children from the school gate] --> B[Cook dinner together at home] --> C[Eat together at the table]
+      ```
+      """
+    And the "diagram" in the message is wider than its box
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows a diagram labelled "Flowchart"
+    When the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is on "diagram"
+    And the "diagram" shows a visible focus ring
+    When the visitor presses "ArrowRight"
+    Then the "diagram" is scrolled to the right
+    And keyboard focus is on "diagram"
+
+  @fe-vitest-unit
+  # Exemption(integration): a reply's quote card is a button inside a bubble built by browser JavaScript, and Enter on it moves the stop in the rendered history, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / The quote card can be used from the keyboard
+  @integration-exempt
+  Scenario: The quote card can be used from the keyboard
+    Given Ayah has sent the family chat message "Dinner plan: at seven"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the visitor replies to the message with "Thanks, see you there"
+    And the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is on "quote card"
+    When the visitor presses "Enter"
+    Then the message "Dinner plan" is the keyboard stop
+
   Rule: Resume, online reaction, backoff, and seven-day expiry
 
   @fe-vitest-unit
@@ -651,3 +973,469 @@ Feature: Family chat room
       | tablet 768x1024      |
       | mobile 393x852       |
       | desktop 1280x800 200%|
+
+  @fe-vitest-unit
+  # Exemption(integration): the page's scroll height is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The room does not scroll the whole page vertically
+  @integration-exempt
+  Scenario Outline: The room does not scroll the whole page vertically
+    Given the viewport is set to "<viewport>"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then no vertical page scroll is present
+
+    Examples:
+      | viewport          |
+      | tablet 768x1024   |
+      | desktop 1280x800  |
+      | landscape 844x390 |
+
+  @fe-vitest-unit
+  # Exemption(integration): the header's height and the share of a short screen that the list keeps are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The conversation keeps room on a short screen
+  @integration-exempt
+  Scenario Outline: The conversation keeps room on a short screen
+    Given the viewport is set to "<viewport>"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the conversation list is at least half the viewport height
+    And the message composer is on screen
+
+    Examples:
+      | viewport          |
+      | landscape 844x390 |
+      | short 390x422     |
+
+  @fe-vitest-unit
+  # Exemption(integration): the width a message takes is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message uses most of a narrow phone's width
+  @integration-exempt
+  Scenario: A message uses most of a narrow phone's width
+    Given the viewport is set to "narrow 320x640"
+    And Ayah has sent the family chat message "Dinner is ready at home tonight, so please come to the big table by the window"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message takes at least 80 percent of the viewport width
+
+  @fe-vitest-unit
+  # Exemption(integration): the number of lines the composer shows is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The message composer grows with a long draft and then stops at six lines
+  @integration-exempt
+  Scenario: The message composer grows with a long draft and then stops at six lines
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor types a draft of 12 lines into the composer
+    Then the message composer is at least two lines tall
+    And the message composer is at most six lines tall
+    And the Send button is on screen
+
+  @fe-vitest-unit
+  # Exemption(integration): the height of the message box on a short screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The message composer leaves most of a short screen to the conversation
+  @integration-exempt
+  Scenario Outline: The message composer leaves most of a short screen to the conversation
+    Given the viewport is set to "<viewport>"
+    And a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor types a draft of 12 lines into the composer
+    Then the message composer is at most 22 percent of the screen height
+
+    Examples:
+      | viewport          |
+      | landscape 844x390 |
+      | short 390x422     |
+
+  @fe-vitest-unit
+  # Exemption(integration): the place of the newest message and the list's height after a draft grows are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The newest message stays above the composer when the draft grows
+  @integration-exempt
+  Scenario Outline: The newest message stays above the composer when the draft grows
+    Given the viewport is set to "<viewport>"
+    And a visitor is at the bottom of the family chat conversation
+    When the visitor types a draft of <lines> lines into the composer
+    Then the newest message is in view above the composer
+
+    Examples:
+      | viewport          | lines |
+      | mobile 390x844    | 3     |
+      | landscape 844x390 | 6     |
+
+  @fe-vitest-unit
+  # Exemption(integration): the width of the room and the place of the Send button with an unbroken draft are browser layout results Phoenix.LiveViewTest never computes; this row is a regression guard, not a proof of cause; alternative-proof: bnest-app-fe-e2e:test:e2e / A long unbroken draft leaves the Family room inside the screen (a regression guard)
+  @integration-exempt
+  Scenario Outline: A long unbroken draft leaves the Family room inside the screen (a regression guard)
+    Given the viewport is set to "<viewport>"
+    And a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor types an unbroken 240 character address into the composer
+    Then the Family room is inside the screen
+    And the Send button is on screen and is not covered by the composer
+    And no horizontal page scroll is present
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | mobile 390x844    |
+      | landscape 844x390 |
+      | tablet 768x1024   |
+      | laptop 1024x768   |
+      | desktop 1440x900  |
+
+  @fe-vitest-unit
+  # Exemption(integration): where a control sits and whether it overlaps the title are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The theme control stays inside the room header
+  @integration-exempt
+  Scenario Outline: The theme control stays inside the room header
+    Given the viewport is set to "<viewport>"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the theme control is inside the room header
+    And the theme control does not cover the room title
+    And the theme control is at least 44 pixels across on a touch screen
+    And each theme button is at least 44 pixels across on a touch screen
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | tablet 768x1024   |
+      | landscape 844x390 |
+
+  @fe-vitest-unit
+  # Exemption(integration): the colours a browser resolves from the stylesheet are part of the rendered page, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Send button text meets the contrast target
+  @integration-exempt
+  Scenario: The Send button text meets the contrast target
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the Send button text has a contrast ratio of at least 4.5 to 1
+
+  Rule: Formatted messages
+
+  @fe-vitest-unit
+  # Exemption(integration): the message body is inserted into the page by browser JavaScript from server-rendered HTML, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A committed message is shown as formatted Markdown
+  @integration-exempt
+  Scenario: A committed message is shown as formatted Markdown
+    Given Ayah has sent the family chat message "**Dinner** is at [home](https://example.test/home)"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows "Dinner" in bold
+    And the message links "home" to "https://example.test/home"
+
+  @fe-vitest-unit
+  # Exemption(integration): the escaped server HTML that must never run exists only as browser DOM after JavaScript inserts it, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Raw HTML in a message is shown as text and never runs
+  @integration-exempt
+  Scenario: Raw HTML in a message is shown as text and never runs
+    Given Ayah has sent the family chat message "<img src=x onerror=alert(1)> <script>alert(1)</script> done"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows the text "<script>alert(1)</script> done"
+    And the message contains no script or image element
+
+  @fe-vitest-unit
+  # Exemption(integration): a message that is still sending exists only in the browser outbox, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message that is still sending is shown as typed
+  @integration-exempt
+  Scenario: A message that is still sending is shown as typed
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And the server holds the visitor's next message unanswered
+    When the visitor sends the family chat message "**not yet** typed"
+    Then the message shows status "Sending"
+    And the message shows "**not yet** typed" as typed text with no formatting
+
+  @fe-vitest-unit
+  # Exemption(integration): the line breaks of a rendered message are browser DOM built from server HTML that Phoenix.LiveViewTest never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / Typed line breaks in a message are kept
+  @integration-exempt
+  Scenario: Typed line breaks in a message are kept
+    Given Ayah has sent a message typed on two lines
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message keeps its two lines on separate lines
+
+  @fe-vitest-unit
+  # Exemption(integration): an image that the browser displays from a third-party address is rendered by browser JavaScript from server HTML that Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / An https image in a message is shown inline
+  @integration-exempt
+  Scenario: An https image in a message is shown inline
+    Given Ayah has sent the family chat message "![Garden](https://images.example.test/garden.png)"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows the image "Garden" from "https://images.example.test/garden.png"
+
+  @fe-vitest-unit
+  # Exemption(integration): a repository image is displayed from a browser request to the image route inside a message that browser JavaScript renders, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A repository image in a message is shown inline
+  @integration-exempt
+  Scenario: A repository image in a message is shown inline
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor sends the family chat message "![Beaver Nest logo](apps/bnest-app/priv/static/images/beaver-nest-logo.png)"
+    Then the message shows the image "Beaver Nest logo" from "/chat/images/apps/bnest-app/priv/static/images/beaver-nest-logo.png"
+
+  @fe-vitest-unit
+  # Exemption(integration): the message is rendered by browser JavaScript from server HTML, and the text it leaves behind is browser DOM Phoenix.LiveViewTest never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / Images a message may not show stay as text
+  @integration-exempt
+  Scenario Outline: Images a message may not show stay as text
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor sends the family chat message "<message>"
+    Then the message shows no image
+    And the message shows the text "<text>"
+
+    Examples:
+      | message                                            | text                     |
+      | ![Chart](http://example.test/chart.png)            | Chart (image not shown)  |
+      | ![Icon](data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=) | [image not shown: Icon]  |
+      | ![Local](javascript:alert(1))                      | [image not shown: Local] |
+
+  @fe-vitest-unit
+  # Exemption(integration): a message that arrives live is rendered by browser JavaScript from the GraphQL subscription push, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A formatted message that arrives live is formatted
+  @integration-exempt
+  Scenario: A formatted message that arrives live is formatted
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    When Ayah sends the family chat message "**Live** update" while the visitor watches
+    Then the message shows "Live" in bold
+
+  @fe-vitest-unit
+  # Exemption(integration): link targets are properties of the browser DOM built from server HTML, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Links in a message open in a new tab
+  @integration-exempt
+  Scenario: Links in a message open in a new tab
+    Given Ayah has sent the family chat message "[home](https://example.test/home) and [list](https://example.test/list)"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the links in the message open in a new tab
+
+  @fe-vitest-unit
+  # Exemption(integration): the width of a rendered image and table is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide image or table fits a phone-width message
+  @integration-exempt
+  Scenario: A wide image or table fits a phone-width message
+    Given Ayah has sent a wide image and a wide table
+    And the viewport is set to "mobile 390x844"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message fits the phone width
+    And the image in the message loads
+
+  @fe-vitest-unit
+  # Exemption(integration): the clipboard holds the text of a message rendered by browser JavaScript, a browser API Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / Copying a formatted message copies what was typed
+  @integration-exempt
+  Scenario: Copying a formatted message copies what was typed
+    Given the visitor opens the action menu on a message whose body is "**Dinner** is at [home](https://example.test/home)"
+    When the visitor chooses "Copy text"
+    Then the clipboard holds exactly "**Dinner** is at [home](https://example.test/home)"
+
+  @fe-vitest-unit
+  # Exemption(integration): the reply strip and the quote card are composer and browser DOM rendered from the message text, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / Replying to a formatted message quotes plain text
+  @integration-exempt
+  Scenario: Replying to a formatted message quotes plain text
+    Given Ayah has sent the family chat message "**Dinner** is at [home](https://example.test/home)"
+    And a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor replies to the message with "Thanks"
+    Then the reply quotes "**Dinner** is at [home](https://example.test/home)" as plain text
+    And the quote contains no link
+
+  @fe-vitest-unit
+  # Exemption(integration): the colours a browser resolves for inline elements inside a dark own bubble are part of the rendered page, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Inline text in my own message stays readable
+  @integration-exempt
+  Scenario: Inline text in my own message stays readable
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor sends this family chat message:
+      """
+      ~~struck~~ text with a [link](https://example.test/home) and `inline code`
+
+      > a quoted line
+
+      | Item | Cost |
+      | --- | --- |
+      | Bread | 2 |
+      """
+    Then the struck text, the link, the inline code, the quote and the table cell each have a contrast ratio of at least 4.5 to 1 on my own bubble
+
+  Rule: Diagrams in messages
+
+  @fe-vitest-unit
+  # Exemption(integration): the diagram is drawn by browser JavaScript from server HTML with a layout only a real browser computes, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A committed message with a mermaid flowchart shows a diagram
+  @integration-exempt
+  Scenario: A committed message with a mermaid flowchart shows a diagram
+    Given Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows a diagram labelled "Flowchart"
+    And the message keeps its diagram source as text
+
+  @fe-vitest-unit
+  # Exemption(integration): the drawing attempt and its fallback note are produced by browser JavaScript after the server sends the source, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram with a syntax error stays visible as source with a note
+  @integration-exempt
+  Scenario: A diagram with a syntax error stays visible as source with a note
+    Given Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A -->
+      ```
+      """
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows the note "Diagram not drawn: it has a syntax error."
+    And the message keeps its diagram source as text
+
+  @fe-vitest-unit
+  # Exemption(integration): a label that tries to run script is drawn or refused in the browser's own engine, where Phoenix.LiveViewTest never looks; alternative-proof: bnest-app-fe-e2e:test:e2e / Hostile diagram text in a message is inert
+  @integration-exempt
+  Scenario: Hostile diagram text in a message is inert
+    Given Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A["<img src=x onerror=window.bnestDiagramCanary=true>"] --> B
+      ```
+
+      ```mermaid
+      flowchart TD
+        A --> B
+        click A "https://example.test/steal"
+      ```
+      """
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows a diagram labelled "Flowchart"
+    And the message shows the note "Diagram not drawn: it uses settings that are not allowed."
+    And no script from the message runs
+
+  @fe-vitest-unit
+  # Exemption(integration): the refusal of an oversized, unsupported or surplus diagram is a browser render of server HTML that Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / An oversized, unsupported or surplus diagram in a message stays as source
+  @integration-exempt
+  Scenario Outline: An oversized, unsupported or surplus diagram in a message stays as source
+    Given Ayah has sent the diagram message "<message>"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows <drawn> drawn diagrams
+    And the message shows the note "<note>"
+    And the message keeps its diagram source as text
+
+    Examples:
+      | message              | drawn | note                                                                    |
+      | oversized flowchart  | 0     | Diagram not drawn: it is too large.                                     |
+      | unsupported diagram  | 0     | Diagram not drawn: this diagram type is not supported.                  |
+      | five flowcharts      | 4     | Diagram not drawn: only the first 4 diagrams in a message are drawn.    |
+
+  @fe-vitest-unit
+  # Exemption(integration): a message that arrives while the page is open is pushed by the GraphQL subscription and drawn by browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram that arrives live is drawn
+  @integration-exempt
+  Scenario: A diagram that arrives live is drawn
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    When Ayah sends this family chat message while the visitor watches:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    Then the message shows a diagram labelled "Flowchart"
+
+  @fe-vitest-unit
+  # Exemption(integration): the typed text of a message still in the browser outbox exists only in browser DOM, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message that is still sending shows its diagram source as typed
+  @integration-exempt
+  Scenario: A message that is still sending shows its diagram source as typed
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And the server holds the visitor's next message unanswered
+    When the visitor sends this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    Then the message shows status "Sending"
+    And the message shows the diagram source as typed text with no drawing
+
+  @fe-vitest-unit
+  # Exemption(integration): the drawing engine is requested and fails in the browser, a boundary Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram stays as source when the diagram engine cannot load
+  @integration-exempt
+  Scenario: A diagram stays as source when the diagram engine cannot load
+    Given the diagram engine cannot be loaded
+    And Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows the note "Diagram not drawn: the diagram tool did not load."
+    And the message keeps its diagram source as text
+
+  @fe-vitest-unit
+  # Exemption(integration): tab order across a rendered picture is browser focus state built from the drawing, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram in another message adds no tab stop to the history
+  @integration-exempt
+  Scenario: A diagram in another message adds no tab stop to the history
+    Given Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    And Ayah has sent the family chat message "Dinner is ready"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the diagram message shows a diagram labelled "Flowchart"
+    And the diagram message adds no tab stop
+
+  @fe-vitest-unit
+  # Exemption(integration): the clipboard and the reply quote hold the text of a message rendered by browser JavaScript, which Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / Copying or replying to a message with a diagram uses the typed Markdown
+  @integration-exempt
+  Scenario: Copying or replying to a message with a diagram uses the typed Markdown
+    Given Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    And a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor opens the action menu on that message
+    And the visitor chooses "Copy text"
+    Then the clipboard holds the message as typed
+    When the visitor replies to the message with "Thanks"
+    Then the reply quotes the typed message as plain text
+
+  @fe-vitest-unit
+  # Exemption(integration): the picture's width and its surface colour are computed by the browser's layout and stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A narrow diagram is readable on the own message bubble and fits a 320 px message
+  @integration-exempt
+  Scenario: A narrow diagram is readable on the own message bubble and fits a 320 px message
+    Given the viewport is set to "mobile 320x640"
+    And a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor sends this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    Then the message shows a diagram labelled "Flowchart"
+    And the drawn diagram sits on its own paper surface in the own bubble
+    And the diagram fits the message bubble
+    And no horizontal page scroll is present
+
+  @fe-vitest-unit
+  # Exemption(integration): the picture's width against its box is computed by the browser's layout, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide diagram keeps a readable size and scrolls inside its own box at 320 px
+  @integration-exempt
+  Scenario: A wide diagram keeps a readable size and scrolls inside its own box at 320 px
+    Given the viewport is set to "mobile 320x640"
+    And a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor sends this family chat message:
+      """
+      ```mermaid
+      flowchart LR
+        A[Pick up the children from the school gate] --> B[Cook dinner together at home] --> C[Eat together at the table]
+      ```
+      """
+    Then the message shows a diagram labelled "Flowchart"
+    And the diagram keeps a readable size
+    And the diagram scrolls inside its own box
+    And no horizontal page scroll is present
+
+  @fe-vitest-unit
+  # Exemption(integration): the place a room scrolls to after a diagram is drawn is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The newest message stays in view when a diagram draws
+  @integration-exempt
+  Scenario: The newest message stays in view when a diagram draws
+    Given a visitor is at the bottom of the family chat conversation
+    And Ayah has sent a family chat message with a mermaid flowchart that is not yet drawn
+    When the diagram is drawn
+    Then the newest message is in view above the composer
+
+  @fe-vitest-unit
+  # Exemption(integration): the width of a bubble around a drawn diagram is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide diagram in a message uses most of a desktop column
+  @integration-exempt
+  Scenario Outline: A wide diagram in a message uses most of a desktop column
+    Given the viewport is set to "<viewport>"
+    And a visitor opens "/family-chat/ruang-keluarga"
+    When the visitor sends this family chat message:
+      """
+      ```mermaid
+      flowchart LR
+        A[Pick up the children from the school gate] --> B[Cook dinner together at home] --> C[Eat together at the table]
+      ```
+      """
+    Then the message shows a diagram labelled "Flowchart"
+    And the diagram bubble takes at least 80 percent of the message list width
+
+    Examples:
+      | viewport          |
+      | tablet 768x1024   |
+      | desktop 1024x768  |
+      | desktop 1440x900  |

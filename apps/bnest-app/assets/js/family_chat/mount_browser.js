@@ -24,6 +24,8 @@ import {
 import { wireMessageActions } from "./mount_browser_actions.js";
 import { wireReplyStrip } from "./mount_browser_reply_strip.js";
 import { wireQuoteJump } from "./mount_browser_jump.js";
+import { observeDiagrams } from "../diagrams/mermaid_diagrams.js";
+import { createBottomFollower } from "../scroll_follow.js";
 
 /**
  * Only the fields `mountBrowser` itself reads/writes. Every collaborator type
@@ -163,6 +165,31 @@ function wireComposerAndHistory(room, elements) {
 }
 
 /**
+ * Draws the marked diagrams in the history, for committed messages that arrive at any time (ADR 004, Decision 3).
+ * The history keeps its one tab stop, so the drawings add none (`focusable: false`). The watcher stops when the page
+ * goes away; a page restored from the back-forward cache keeps it, because its state is still live.
+ * @param {import("./elements.js").FamilyChatElements} elements
+ */
+function wireDiagrams(elements) {
+  const diagrams = observeDiagrams(elements.history, { focusable: false });
+  // A drawn diagram changes the height of its message: a reader at the bottom stays at the newest message (ADR 004).
+  // The room places its reader itself (the last read position), so the follower waits for their first scroll.
+  const follower = createBottomFollower(elements.history, {
+    startAtBottom: false,
+  });
+  window.addEventListener(
+    "pagehide",
+    (event) => {
+      if (!event.persisted) {
+        diagrams.disconnect();
+        follower.dispose();
+      }
+    },
+    { once: true },
+  );
+}
+
+/**
  * @param {MountableRoom} room
  * @param {import("./elements.js").FamilyChatElements} elements
  * @param {{subscriptionClient: SubscriptionClient}} context
@@ -175,6 +202,7 @@ export async function mountBrowser(room, elements, { subscriptionClient }) {
 
   wirePushControls(room, elements);
   wireComposerAndHistory(room, elements);
+  wireDiagrams(elements);
   wireOnlineOfflineBanner(room, elements);
   bindReconnectCallbacks(room, subscriptionClient);
 

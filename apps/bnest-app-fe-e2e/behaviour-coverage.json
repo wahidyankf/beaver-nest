@@ -3,12 +3,12 @@
   "project": "bnest-app-fe-e2e",
   "ownedCorpusRoot": "specs/apps/bnest/app-fe/behaviours",
   "aggregateAdapterOwner": "bnest-app",
-  "generatedFrom": "plans/in-progress/family-chat-room/delivery.md Phase 1 Item 3",
+  "generatedFrom": "plans/done/2026-09-20__family-chat-room/delivery.md Phase 1 Item 3",
   "summary": {
-    "featureCount": 7,
-    "scenarioCount": 88,
-    "e2eExemptScenarioCount": 8,
-    "e2eCoveredScenarioCount": 80
+    "featureCount": 8,
+    "scenarioCount": 246,
+    "e2eExemptScenarioCount": 11,
+    "e2eCoveredScenarioCount": 235
   },
   "features": [
     {
@@ -124,6 +124,14 @@
           "e2eExempt": false
         },
         {
+          "name": "An automatic LiveView reconnect shows the full answer of a resumed turn without a reload",
+          "e2eExempt": false
+        },
+        {
+          "name": "A diagram that arrives in a resumed Codex reply is drawn",
+          "e2eExempt": false
+        },
+        {
           "name": "Ten synthetic visitors preserve recoverable state across three groups",
           "e2eExempt": false
         },
@@ -176,11 +184,183 @@
           "e2eExempt": false
         },
         {
+          "name": "A streaming Codex reply shows the diagram source until the reply is complete",
+          "e2eExempt": false
+        },
+        {
+          "name": "An oversized, unsupported or surplus diagram stays as source with a note",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex flowchart is drawn as a picture",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex diagram with a syntax error stays visible as source with a note",
+          "e2eExempt": false
+        },
+        {
+          "name": "Hostile Codex diagram text is inert",
+          "e2eExempt": false
+        },
+        {
+          "name": "A drawn Codex diagram survives later updates to the conversation",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex diagram stays as source when the diagram engine cannot load",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex diagram draws after the diagram engine starts on a later try",
+          "e2eExempt": false
+        },
+        {
+          "name": "Clearing the Codex chat removes its diagrams and the next reply draws again",
+          "e2eExempt": false
+        },
+        {
+          "name": "A narrow Codex diagram fits a 320 pixel bubble",
+          "e2eExempt": false
+        },
+        {
+          "name": "A wide Codex diagram keeps a readable size and scrolls inside its own box",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex diagram draws again offline after it was drawn once",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex chat without a diagram does not load the diagram engine",
+          "e2eExempt": false
+        },
+        {
+          "name": "The largest allowed Codex flowchart is drawn within the time budget",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex header controls are at least 44 pixels tall on a touch screen",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex composer text is 16 pixels on a touch screen",
+          "e2eExempt": false
+        },
+        {
+          "name": "Codex tables and code blocks show that they scroll",
+          "e2eExempt": false
+        },
+        {
+          "name": "A long Codex code block scrolls inside a height limit and a picture fits a short screen",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex diagram source is at least 44 pixels tall on a touch screen",
+          "e2eExempt": false
+        },
+        {
+          "name": "Codex links, tables and code blocks show the room's coral focus ring",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex theme buttons show the coral focus ring",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex diagram source shows the room's coral focus ring",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex composer is on screen without scrolling the page on a phone",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex reply does not overflow the phone width",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex header keeps every control reachable on a landscape phone",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex header keeps every control reachable on a narrow phone",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex repository access state is visible without scrolling the header",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex header's scrolling row stays inside the screen and clears its edge fade",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex theme buttons are touch targets on a narrow phone",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex message box stops growing with the window",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex message box keeps its name when the window is short",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex conversation opens at its newest message",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex conversation follows a new reply",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex conversation keeps a reader who scrolled up in place",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex conversation keeps its newest reply in view when a diagram draws",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex composer and most of the conversation fit a small phone",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex panel fits the window on a tablet, a landscape phone and a desktop",
+          "e2eExempt": false
+        },
+        {
+          "name": "A wide Codex diagram uses the width of a desktop column",
+          "e2eExempt": false
+        },
+        {
+          "name": "Codex scrollable tables and code blocks are named as in Family Chat",
+          "e2eExempt": false
+        },
+        {
+          "name": "The repository write toggle text meets the contrast target",
+          "e2eExempt": false
+        },
+        {
+          "name": "A long unbroken draft keeps the Codex chat inside the screen",
+          "e2eExempt": false
+        },
+        {
           "name": "A Codex reply shows an image from the repository",
           "e2eExempt": false
         },
         {
-          "name": "External and inline images in a Codex reply are not loaded",
+          "name": "External https and small inline images in a Codex reply are shown",
+          "e2eExempt": false
+        },
+        {
+          "name": "A Codex reply keeps http, svg and oversized images as text",
+          "e2eExempt": false
+        },
+        {
+          "name": "A half-written image address in a streaming reply is not shown as an image",
           "e2eExempt": false
         },
         {
@@ -210,6 +390,464 @@
         {
           "name": "A repository image over the size limit is refused",
           "e2eExempt": true
+        }
+      ]
+    },
+    {
+      "file": "family_chat.feature",
+      "featureName": "Family chat room",
+      "scenarios": [
+        {
+          "name": "A visitor is redirected from the family chat root to Ruang Keluarga",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor opens Ruang Keluarga directly",
+          "e2eExempt": false
+        },
+        {
+          "name": "A member sends a message online and sees it reach Sent",
+          "e2eExempt": false
+        },
+        {
+          "name": "A network failure shows Retrying then automatic recovery",
+          "e2eExempt": false
+        },
+        {
+          "name": "A non-retryable rejection shows Couldn't send",
+          "e2eExempt": false
+        },
+        {
+          "name": "The 101st queued message for one room is rejected",
+          "e2eExempt": false
+        },
+        {
+          "name": "A member opens the message action menu",
+          "e2eExempt": false
+        },
+        {
+          "name": "Closing the menu returns focus to the message it came from",
+          "e2eExempt": false
+        },
+        {
+          "name": "A press that turns into a scroll does not open the menu",
+          "e2eExempt": false
+        },
+        {
+          "name": "Only one menu is open at a time",
+          "e2eExempt": false
+        },
+        {
+          "name": "A committed message offers both actions",
+          "e2eExempt": false
+        },
+        {
+          "name": "A message that is not yet committed cannot be replied to",
+          "e2eExempt": false
+        },
+        {
+          "name": "A system message can be replied to like any other",
+          "e2eExempt": false
+        },
+        {
+          "name": "Copying a message puts its text on the clipboard",
+          "e2eExempt": false
+        },
+        {
+          "name": "A refused clipboard is reported, not swallowed",
+          "e2eExempt": true
+        },
+        {
+          "name": "Choosing Reply puts the target above the message input",
+          "e2eExempt": false
+        },
+        {
+          "name": "A long quoted message is shortened in the strip",
+          "e2eExempt": false
+        },
+        {
+          "name": "The member abandons the reply",
+          "e2eExempt": false
+        },
+        {
+          "name": "The reply target does not survive a reload",
+          "e2eExempt": false
+        },
+        {
+          "name": "Sending clears the reply target",
+          "e2eExempt": false
+        },
+        {
+          "name": "A reply carries its quote through each arrival path",
+          "e2eExempt": false
+        },
+        {
+          "name": "A reply to a reply shows only one level of quote",
+          "e2eExempt": false
+        },
+        {
+          "name": "The original is already on screen",
+          "e2eExempt": false
+        },
+        {
+          "name": "The original is above the loaded window",
+          "e2eExempt": false
+        },
+        {
+          "name": "The original is beyond the jump bound",
+          "e2eExempt": false
+        },
+        {
+          "name": "Highlighting respects reduced motion",
+          "e2eExempt": false
+        },
+        {
+          "name": "The whole journey works from the keyboard alone",
+          "e2eExempt": false
+        },
+        {
+          "name": "Tab does not walk through every message in the room",
+          "e2eExempt": false
+        },
+        {
+          "name": "A quote exposes an accessible name naming its sender",
+          "e2eExempt": false
+        },
+        {
+          "name": "The keys that move focus through the history bring the focused message into view",
+          "e2eExempt": false
+        },
+        {
+          "name": "The action menu opened from the keyboard sits beside its message",
+          "e2eExempt": false
+        },
+        {
+          "name": "The arrow keys bring a message below the window into view",
+          "e2eExempt": false
+        },
+        {
+          "name": "The End key brings the newest message into view",
+          "e2eExempt": false
+        },
+        {
+          "name": "A message taller than the window shows its top when focus reaches it",
+          "e2eExempt": false
+        },
+        {
+          "name": "A message already in view does not move the history",
+          "e2eExempt": false
+        },
+        {
+          "name": "Tab moves from a message into its links and opens one",
+          "e2eExempt": false
+        },
+        {
+          "name": "Tab and Shift+Tab pass through message content without a trap",
+          "e2eExempt": false
+        },
+        {
+          "name": "Escape returns focus from message content to the message",
+          "e2eExempt": false
+        },
+        {
+          "name": "Keys inside message content keep their own meaning",
+          "e2eExempt": false
+        },
+        {
+          "name": "A wide table or code block can be scrolled from the keyboard",
+          "e2eExempt": false
+        },
+        {
+          "name": "A table or code block that fits is not a tab stop",
+          "e2eExempt": false
+        },
+        {
+          "name": "Only the focused message's links are reachable",
+          "e2eExempt": false
+        },
+        {
+          "name": "A new message keeps the focused message's content reachable",
+          "e2eExempt": false
+        },
+        {
+          "name": "The diagram source opens from the keyboard",
+          "e2eExempt": false
+        },
+        {
+          "name": "A scrolled diagram can be scrolled from the keyboard",
+          "e2eExempt": false
+        },
+        {
+          "name": "The quote card can be used from the keyboard",
+          "e2eExempt": false
+        },
+        {
+          "name": "Reopening the app resumes queued sends",
+          "e2eExempt": false
+        },
+        {
+          "name": "A queued message survives a real browser reload while offline",
+          "e2eExempt": false
+        },
+        {
+          "name": "An online event makes a retry immediately eligible",
+          "e2eExempt": false
+        },
+        {
+          "name": "Automatic retry waits follow the bounded jittered backoff sequence",
+          "e2eExempt": false
+        },
+        {
+          "name": "A message queued more than seven days becomes manual-only",
+          "e2eExempt": false
+        },
+        {
+          "name": "An offline reply queues with its target",
+          "e2eExempt": false
+        },
+        {
+          "name": "A queued reply survives closing the app",
+          "e2eExempt": false
+        },
+        {
+          "name": "A queued reply commits with its link on reconnect",
+          "e2eExempt": false
+        },
+        {
+          "name": "A queued record written before this feature still sends",
+          "e2eExempt": false
+        },
+        {
+          "name": "Authentication expiry pauses the queue without cross-user drain",
+          "e2eExempt": false
+        },
+        {
+          "name": "Logout clears the current user's queue",
+          "e2eExempt": false
+        },
+        {
+          "name": "A connected client reconnects to the promoted slot without a page refresh",
+          "e2eExempt": false
+        },
+        {
+          "name": "A browser holding the pre-reply bundle loads the room from the new revision",
+          "e2eExempt": false
+        },
+        {
+          "name": "The rollback floor can still answer the reply-aware bundle",
+          "e2eExempt": false
+        },
+        {
+          "name": "A tab backgrounded with a dead connection reconnects once it becomes visible again",
+          "e2eExempt": false
+        },
+        {
+          "name": "A reconnect never attempts to join the per-message subscription channel",
+          "e2eExempt": false
+        },
+        {
+          "name": "Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate",
+          "e2eExempt": false
+        },
+        {
+          "name": "A returning member lands on the first message they have not read",
+          "e2eExempt": false
+        },
+        {
+          "name": "A returning member with nothing unread lands on the newest message",
+          "e2eExempt": false
+        },
+        {
+          "name": "A member who has never opened this room lands on the newest message",
+          "e2eExempt": false
+        },
+        {
+          "name": "Reading down to the newest message moves the resume point",
+          "e2eExempt": false
+        },
+        {
+          "name": "More unread messages than one page still offer a way back to the newest",
+          "e2eExempt": false
+        },
+        {
+          "name": "The composer keeps focus after a message is sent",
+          "e2eExempt": false
+        },
+        {
+          "name": "Enter sends and Shift+Enter keeps writing",
+          "e2eExempt": false
+        },
+        {
+          "name": "Sending brings the visitor to their own message",
+          "e2eExempt": false
+        },
+        {
+          "name": "Loading older history preserves the visitor's scroll anchor",
+          "e2eExempt": false
+        },
+        {
+          "name": "A new message announces without moving focus from the composer",
+          "e2eExempt": false
+        },
+        {
+          "name": "The room shows the correct push permission state",
+          "e2eExempt": true
+        },
+        {
+          "name": "The room shows that notifications are blocked",
+          "e2eExempt": false
+        },
+        {
+          "name": "A member disables notifications from the room",
+          "e2eExempt": true
+        },
+        {
+          "name": "The service worker cache stores no authenticated content",
+          "e2eExempt": false
+        },
+        {
+          "name": "The room remains keyboard operable and free of horizontal scroll",
+          "e2eExempt": false
+        },
+        {
+          "name": "The room does not scroll the whole page vertically",
+          "e2eExempt": false
+        },
+        {
+          "name": "The conversation keeps room on a short screen",
+          "e2eExempt": false
+        },
+        {
+          "name": "A message uses most of a narrow phone's width",
+          "e2eExempt": false
+        },
+        {
+          "name": "The message composer grows with a long draft and then stops at six lines",
+          "e2eExempt": false
+        },
+        {
+          "name": "The message composer leaves most of a short screen to the conversation",
+          "e2eExempt": false
+        },
+        {
+          "name": "The newest message stays above the composer when the draft grows",
+          "e2eExempt": false
+        },
+        {
+          "name": "A long unbroken draft leaves the Family room inside the screen (a regression guard)",
+          "e2eExempt": false
+        },
+        {
+          "name": "The theme control stays inside the room header",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Send button text meets the contrast target",
+          "e2eExempt": false
+        },
+        {
+          "name": "A committed message is shown as formatted Markdown",
+          "e2eExempt": false
+        },
+        {
+          "name": "Raw HTML in a message is shown as text and never runs",
+          "e2eExempt": false
+        },
+        {
+          "name": "A message that is still sending is shown as typed",
+          "e2eExempt": false
+        },
+        {
+          "name": "Typed line breaks in a message are kept",
+          "e2eExempt": false
+        },
+        {
+          "name": "An https image in a message is shown inline",
+          "e2eExempt": false
+        },
+        {
+          "name": "A repository image in a message is shown inline",
+          "e2eExempt": false
+        },
+        {
+          "name": "Images a message may not show stay as text",
+          "e2eExempt": false
+        },
+        {
+          "name": "A formatted message that arrives live is formatted",
+          "e2eExempt": false
+        },
+        {
+          "name": "Links in a message open in a new tab",
+          "e2eExempt": false
+        },
+        {
+          "name": "A wide image or table fits a phone-width message",
+          "e2eExempt": false
+        },
+        {
+          "name": "Copying a formatted message copies what was typed",
+          "e2eExempt": false
+        },
+        {
+          "name": "Replying to a formatted message quotes plain text",
+          "e2eExempt": false
+        },
+        {
+          "name": "Inline text in my own message stays readable",
+          "e2eExempt": false
+        },
+        {
+          "name": "A committed message with a mermaid flowchart shows a diagram",
+          "e2eExempt": false
+        },
+        {
+          "name": "A diagram with a syntax error stays visible as source with a note",
+          "e2eExempt": false
+        },
+        {
+          "name": "Hostile diagram text in a message is inert",
+          "e2eExempt": false
+        },
+        {
+          "name": "An oversized, unsupported or surplus diagram in a message stays as source",
+          "e2eExempt": false
+        },
+        {
+          "name": "A diagram that arrives live is drawn",
+          "e2eExempt": false
+        },
+        {
+          "name": "A message that is still sending shows its diagram source as typed",
+          "e2eExempt": false
+        },
+        {
+          "name": "A diagram stays as source when the diagram engine cannot load",
+          "e2eExempt": false
+        },
+        {
+          "name": "A diagram in another message adds no tab stop to the history",
+          "e2eExempt": false
+        },
+        {
+          "name": "Copying or replying to a message with a diagram uses the typed Markdown",
+          "e2eExempt": false
+        },
+        {
+          "name": "A narrow diagram is readable on the own message bubble and fits a 320 px message",
+          "e2eExempt": false
+        },
+        {
+          "name": "A wide diagram keeps a readable size and scrolls inside its own box at 320 px",
+          "e2eExempt": false
+        },
+        {
+          "name": "The newest message stays in view when a diagram draws",
+          "e2eExempt": false
+        },
+        {
+          "name": "A wide diagram in a message uses most of a desktop column",
+          "e2eExempt": false
         }
       ]
     },

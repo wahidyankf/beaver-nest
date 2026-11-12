@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 //
 // Plain Vitest unit coverage for `js/family_chat/roving_focus.js`: the
-// history's single tab stop and the arrow-key movement that carries it.
-// Tech-doc 004's "Keyboard Navigation of the History" owns these rules.
+// history's one tab group (the stop message and its reachable content) and
+// the arrow-key movement that carries it. ADR 003, Decision 6 owns these rules.
 //
 // This file asks for a real DOM because the contract *is* a DOM contract:
 // "exactly one `tabindex="0"` among the message items" is not a statement
@@ -16,6 +16,7 @@ import {
   rovingInvariantHolds,
 } from "../../../js/family_chat/roving_focus.js";
 import { messageNode } from "../../../js/family_chat/message_render.js";
+import { drawnFigure } from "../../../js/diagrams/diagram_figure.js";
 
 function renderList(count: number): HTMLElement {
   const list = document.createElement("ol");
@@ -219,5 +220,248 @@ describe("createRovingFocus", () => {
     roving.move("ArrowUp");
 
     expect(roving.current()?.dataset["messageId"]).toBe("1048");
+  });
+});
+
+// The content half of the tab group (ADR 003, Decision 6). Each message carries the markup the server renders, so the
+// links, tables and code blocks are the real elements a browser would stop on.
+
+const BODY_OPEN =
+  '<div phx-r class="message-content markdown-body family-chat-message-body" data-role="family-chat-message-body">';
+
+function linkedList(count: number): HTMLElement {
+  const list = document.createElement("ol");
+  for (let index = 0; index < count; index += 1) {
+    list.append(
+      messageNode(
+        {
+          id: String(1000 + index),
+          body: `Note ${index}`,
+          bodyHtml: `${BODY_OPEN}<p>Note ${index} <a href="https://example.test/${index}">link ${index}</a></p></div>`,
+          senderDisplayName: "Ayah",
+          senderId: "u-ayah",
+        },
+        { pending: false, currentUserId: "u-me" },
+      ),
+    );
+  }
+  document.body.replaceChildren(list);
+  return list;
+}
+
+function messageById(list: HTMLElement, id: string): HTMLElement {
+  const item = list.querySelector<HTMLElement>(`[data-message-id="${id}"]`);
+  if (!item) throw new Error(`no message ${id}`);
+  return item;
+}
+
+function overflow(element: HTMLElement): void {
+  Object.defineProperty(element, "scrollWidth", {
+    configurable: true,
+    value: 1000,
+  });
+  Object.defineProperty(element, "clientWidth", {
+    configurable: true,
+    value: 300,
+  });
+}
+
+/** Lets the coalesced MutationObserver callback run. */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+describe("rovingInvariantHolds for message content", () => {
+  it("holds for the stop with a link, an overflowing table, and a drawn diagram", () => {
+    const list = linkedList(3);
+    const roving = createRovingFocus(list);
+    roving.refresh();
+    const stop = messageById(list, "1002");
+    const body = stop.querySelector('[data-role="family-chat-message-body"]')!;
+    body.insertAdjacentHTML(
+      "beforeend",
+      "<table><tr><td>Rice</td></tr></table>",
+    );
+    roving.refresh();
+    overflow(stop.querySelector<HTMLElement>("table")!);
+    roving.refresh();
+    body.append(
+      drawnFigure({
+        image: {
+          src: "data:image/svg+xml;charset=utf-8,%3Csvg%3E%3C%2Fsvg%3E",
+          width: 200,
+          height: 100,
+        },
+        kind: "Flowchart",
+        source: "flowchart TD",
+        focusable: false,
+      }),
+    );
+    roving.refresh();
+
+    expect(rovingInvariantHolds(list)).toBe(true);
+  });
+
+  it("fails when a link in a message that is not the stop is reachable by Tab", () => {
+    const list = linkedList(3);
+    createRovingFocus(list).refresh();
+    messageById(list, "1000").querySelector<HTMLElement>("a[href]")!.tabIndex =
+      0;
+
+    expect(rovingInvariantHolds(list)).toBe(false);
+  });
+
+  it("fails when a control that is not message content is reachable inside the stop", () => {
+    const list = linkedList(3);
+    createRovingFocus(list).refresh();
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    messageById(list, "1002")
+      .querySelector('[data-role="family-chat-message-body"]')!
+      .append(checkbox);
+
+    expect(rovingInvariantHolds(list)).toBe(false);
+  });
+});
+
+describe("createRovingFocus raises only the stop's content", () => {
+  it("leaves one link reachable among fifty messages that each carry one", () => {
+    const list = linkedList(50);
+    createRovingFocus(list).refresh();
+
+    const reachable = [...list.querySelectorAll<HTMLElement>("a[href]")].filter(
+      (link) => link.tabIndex >= 0,
+    );
+    expect(reachable).toHaveLength(1);
+    expect(
+      reachable[0]
+        ?.closest("[data-message-id]")
+        ?.getAttribute("data-message-id"),
+    ).toBe("1049");
+    expect(rovingInvariantHolds(list)).toBe(true);
+  });
+
+  it("moves the raised content with the stop on arrow keys", () => {
+    const list = linkedList(5);
+    const roving = createRovingFocus(list);
+    roving.refresh();
+
+    roving.move("ArrowUp");
+
+    expect(
+      messageById(list, "1004").querySelector<HTMLElement>("a[href]")!.tabIndex,
+    ).toBe(-1);
+    expect(
+      messageById(list, "1003").querySelector<HTMLElement>("a[href]")!.tabIndex,
+    ).toBe(0);
+    expect(rovingInvariantHolds(list)).toBe(true);
+  });
+
+  it("moves the raised content with moveTo, which a quote jump uses", () => {
+    const list = linkedList(5);
+    const roving = createRovingFocus(list);
+    roving.refresh();
+
+    roving.moveTo("1001");
+
+    expect(
+      messageById(list, "1001").querySelector<HTMLElement>("a[href]")!.tabIndex,
+    ).toBe(0);
+    expect(
+      messageById(list, "1004").querySelector<HTMLElement>("a[href]")!.tabIndex,
+    ).toBe(-1);
+  });
+
+  it("re-measures a wide table when focus lands in the list, so a resize is picked up", () => {
+    const list = linkedList(2);
+    const roving = createRovingFocus(list);
+    roving.refresh();
+    const stop = messageById(list, "1001");
+    stop
+      .querySelector('[data-role="family-chat-message-body"]')!
+      .insertAdjacentHTML("beforeend", "<table><tr><td>Rice</td></tr></table>");
+    const table = stop.querySelector<HTMLElement>("table")!;
+    roving.refresh();
+    expect(table.tabIndex).toBe(-1);
+
+    overflow(table);
+    table.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+
+    expect(table.tabIndex).toBe(0);
+  });
+
+  it("re-measures a code block when its diagram source opens, since an opened source can overflow", () => {
+    const list = linkedList(2);
+    const roving = createRovingFocus(list);
+    roving.refresh();
+    const stop = messageById(list, "1001");
+    stop
+      .querySelector('[data-role="family-chat-message-body"]')!
+      .insertAdjacentHTML(
+        "beforeend",
+        '<details class="bnest-diagram-source"><summary>Diagram source</summary><pre><code>flowchart</code></pre></details>',
+      );
+    roving.refresh();
+    const details = stop.querySelector<HTMLDetailsElement>("details")!;
+    const code = stop.querySelector<HTMLElement>("pre")!;
+    expect(code.tabIndex).toBe(-1);
+
+    overflow(code);
+    details.open = true;
+    details.dispatchEvent(new Event("toggle"));
+
+    expect(code.tabIndex).toBe(0);
+  });
+
+  it("picks up a diagram drawn into the stop after the list was rendered", async () => {
+    const list = linkedList(2);
+    const roving = createRovingFocus(list);
+    roving.refresh();
+    const stop = messageById(list, "1001");
+    const figure = drawnFigure({
+      image: {
+        src: "data:image/svg+xml;charset=utf-8,%3Csvg%3E%3C%2Fsvg%3E",
+        width: 500,
+        height: 200,
+      },
+      kind: "Flowchart",
+      source: "flowchart TD",
+      focusable: false,
+    });
+    const canvas = figure.querySelector<HTMLElement>(".bnest-diagram-canvas")!;
+    overflow(canvas);
+
+    stop
+      .querySelector('[data-role="family-chat-message-body"]')!
+      .append(figure);
+    await settle();
+
+    expect(canvas.tabIndex).toBe(0);
+  });
+
+  it("stops observing the list after disconnect, so a later drawing is not picked up", async () => {
+    const list = linkedList(2);
+    const roving = createRovingFocus(list);
+    roving.refresh();
+    roving.disconnect();
+    const stop = messageById(list, "1001");
+    const figure = drawnFigure({
+      image: {
+        src: "data:image/svg+xml;charset=utf-8,%3Csvg%3E%3C%2Fsvg%3E",
+        width: 500,
+        height: 200,
+      },
+      kind: "Flowchart",
+      source: "flowchart TD",
+      focusable: false,
+    });
+    const canvas = figure.querySelector<HTMLElement>(".bnest-diagram-canvas")!;
+    overflow(canvas);
+    stop
+      .querySelector('[data-role="family-chat-message-body"]')!
+      .append(figure);
+    await settle();
+
+    expect(canvas.tabIndex).toBe(-1);
   });
 });

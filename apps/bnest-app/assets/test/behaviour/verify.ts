@@ -46,8 +46,19 @@ import {
   type StepContext,
   type StepDefinition,
 } from "./family_chat.steps";
+import { familyChatMarkdownSteps } from "./family_chat_markdown.steps";
+import { familyChatDiagramSteps } from "./family_chat_diagrams.steps";
+import { familyChatKeyboardSteps } from "./family_chat_keyboard.steps";
+import { familyChatLayoutSteps } from "./family_chat_layout.steps";
 import { familyChatReplySteps, resetScenario } from "./family_chat_reply.steps";
 import { familyChatOperationsSteps } from "./family_chat_operations.steps";
+import { codexDiagramSteps, resetCodexDiagram } from "./codex_diagram.steps";
+import { codexLayoutSteps, resetCodexLayout } from "./codex_layout.steps";
+import { codexFollowSteps, resetCodexFollow } from "./codex_follow.steps";
+import {
+  familyChatFollowSteps,
+  resetFamilyChatFollow,
+} from "./family_chat_follow.steps";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const behaviours = path.resolve(here, "../../../../../specs/apps/bnest");
@@ -159,9 +170,15 @@ function verifyCorpus(corpus: Corpus): void {
                 `no binding for step ${JSON.stringify(pickleStep.text)}`,
               );
             }
-            const args = match.expression
+            // A step with a doc string gets it as its last argument, as playwright-bdd and ExBdd pass it.
+            const docString = pickleStep.argument?.docString?.content;
+            const expressionArgs = match.expression
               .match(pickleStep.text)!
               .map((argument) => String(argument.getValue(undefined)));
+            const args =
+              docString === undefined
+                ? expressionArgs
+                : [...expressionArgs, docString];
             try {
               context = await match.definition.handler(context, ...args);
             } catch (error) {
@@ -190,14 +207,26 @@ verifyCorpus({
   owner: "frontend-owned",
   // Two binding files, one corpus, one room (`support/browser_room.ts`):
   // `family_chat.steps.ts` binds the delivery, reading, and device rules,
-  // `family_chat_reply.steps.ts` the reply ones. They are merged here rather
-  // than cross-imported so the "binds exactly once" and "no unused bindings"
-  // checks still see the whole set.
-  steps: [...familyChatSteps(), ...familyChatReplySteps()],
+  // `family_chat_reply.steps.ts` the reply ones, and `family_chat_markdown.steps.ts`
+  // the formatted-message rule. They are merged here rather than cross-imported
+  // so the "binds exactly once" and "no unused bindings" checks still see the
+  // whole set.
+  steps: [
+    ...familyChatSteps(),
+    ...familyChatReplySteps(),
+    ...familyChatMarkdownSteps(),
+    ...familyChatDiagramSteps(),
+    ...familyChatKeyboardSteps(),
+    ...familyChatLayoutSteps(),
+    ...familyChatFollowSteps(),
+  ],
   // Every page a scenario opened installed its `window` and `document` on
   // `globalThis` and left timers on its clock; they come down whether the
   // scenario passed or not, so nothing reaches the next scenario.
-  afterScenario: resetScenario,
+  afterScenario: async () => {
+    await resetScenario();
+    resetFamilyChatFollow();
+  },
 });
 
 verifyCorpus({
@@ -210,4 +239,20 @@ verifyCorpus({
   owner: "deployment-tool",
   steps: familyChatOperationsSteps(),
   afterScenario: () => undefined,
+});
+
+verifyCorpus({
+  feature: "chat.feature",
+  featurePath: path.join(behaviours, "app-fe/behaviours/chat.feature"),
+  tag: "fe-vitest-unit",
+  owner: "frontend-owned",
+  // Only the Codex reply diagram and touch or short-screen layout scenarios carry this tag in chat.feature. The
+  // diagram ones are bound in `codex_diagram.steps.ts` and drive the shared diagram module with a fake engine; the
+  // layout ones are bound in `codex_layout.steps.ts` and check the shipped stylesheet's declared values.
+  steps: [...codexDiagramSteps(), ...codexLayoutSteps(), ...codexFollowSteps()],
+  afterScenario: () => {
+    resetCodexDiagram();
+    resetCodexLayout();
+    resetCodexFollow();
+  },
 });

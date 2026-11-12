@@ -167,6 +167,17 @@ Then(
   },
 );
 
+Then("no vertical page scroll is present", async ({ page }) => {
+  const [scrollHeight, clientHeight] = await page.evaluate(() => [
+    document.documentElement.scrollHeight,
+    document.documentElement.clientHeight,
+  ]);
+  expect(
+    scrollHeight,
+    "the page is taller than the screen",
+  ).toBeLessThanOrEqual(clientHeight);
+});
+
 Then("no horizontal page scroll is present", async ({ page }) => {
   const [scrollWidth, clientWidth] = await page.evaluate(() => [
     document.documentElement.scrollWidth,

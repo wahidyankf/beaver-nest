@@ -227,10 +227,16 @@ defmodule BnestApp.MixProject do
     [
       setup: ["deps.get", "assets.setup", "assets.build"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind bnest_app", "esbuild bnest_app"],
+      "assets.build": [
+        "compile",
+        "tailwind bnest_app",
+        "esbuild bnest_app",
+        "esbuild bnest_app_diagrams"
+      ],
       "assets.deploy": [
         "tailwind bnest_app --minify",
         "esbuild bnest_app --minify",
+        "esbuild bnest_app_diagrams --minify",
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]

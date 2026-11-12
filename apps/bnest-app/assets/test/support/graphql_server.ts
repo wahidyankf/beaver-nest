@@ -37,6 +37,11 @@ export interface ServerMessage {
   senderId: string;
   senderDisplayName: string;
   body: string;
+  /**
+   * The server's `bodyHtml` for this body. Absent (`null`) when the stub has no recorded production
+   * rendering for it, which the room must show as plain text (the fallback the field's absence exercises).
+   */
+  bodyHtml?: string | null;
   committedAt: string;
   replyTo: Quote | null;
 }
@@ -116,6 +121,7 @@ const OBJECT_FIELDS: Record<string, FieldSet> = {
     senderId: null,
     senderDisplayName: null,
     body: null,
+    bodyHtml: null,
     committedAt: null,
     replyTo: "FamilyChatMessageQuote",
   },
@@ -496,8 +502,14 @@ export interface GraphqlServer {
 export function createGraphqlServer(options: {
   now: () => number;
   roomSlug?: string;
+  /**
+   * The server's body-to-HTML rendering, as recorded from the production renderer. A body it does not know
+   * is answered without `bodyHtml`.
+   */
+  renderBodyHtml?: (body: string) => string | null;
 }): GraphqlServer {
   const roomSlug = options.roomSlug ?? "ruang-keluarga";
+  const renderBodyHtml = options.renderBodyHtml ?? (() => null);
   const messages: ServerMessage[] = [];
   const committedByClientId = new Map<string, ServerMessage>();
   const outcomes = new Map<string, SendOutcome>();
@@ -551,6 +563,7 @@ export function createGraphqlServer(options: {
       senderDisplayName:
         senderKind === "system" ? "System" : (sender?.displayName ?? ""),
       body,
+      bodyHtml: renderBodyHtml(body),
       committedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, nextId)).toISOString(),
       replyTo: quoted
         ? {

@@ -3,6 +3,8 @@
 
 @import "tailwindcss" source(none);
 @import "phoenix-colocated/bnest_app/colocated.css";
+@import "./chat_shared.css";
+@import "./diagrams.css";
 @source "../css";
 @source "../js";
 @source "../../lib/bnest_app_web";
@@ -270,7 +272,8 @@
 }
 
 body:has(.home-shell) .theme-dock,
-body:has(.chat-shell) .theme-dock {
+body:has(.chat-shell) .theme-dock,
+body:has(.family-chat-shell) .theme-dock {
   display: none;
 }
 
@@ -282,30 +285,13 @@ body:has(.chat-shell) .theme-dock {
 
 /* This file is for your main application CSS */
 
+/* Bnest's own tokens (colours, fonts, radii) live in chat_shared.css, which both chat rooms import. The Sifat
+   Allah colours stay with that page. */
 :root {
-  /* Bnest's canonical visual language: make places that feel like a playful workshop. */
-  --bnest-ink: #153f42;
-  --bnest-ink-soft: #205c5d;
-  --bnest-canvas: #d8f1ec;
-  --bnest-paper: #fff9ed;
-  --bnest-sun: #f7b84b;
-  --bnest-sun-light: #ffc966;
-  --bnest-coral: #e5633d;
-  --bnest-coral-ink: #a6472b;
-  --bnest-lagoon: #80c5b8;
-  --bnest-grid: #47857a;
-  --bnest-error: #822b25;
-  --bnest-error-surface: #f8dfdc;
   --sifat-wajib: #b9dfc1;
   --sifat-wajib-strong: #357a57;
   --sifat-mustahil: #ffc3a8;
   --sifat-mustahil-strong: #b95330;
-  --bnest-display:
-    ui-rounded, "Arial Rounded MT Bold", ui-sans-serif, sans-serif;
-  --bnest-body: ui-sans-serif, system-ui, sans-serif;
-  --bnest-card-radius: 1.5rem 1.5rem 1.5rem 0.4rem;
-  --bnest-action-radius: 1.2rem 1.2rem 0.4rem 1.2rem;
-  --bnest-shadow: #153f42;
 }
 
 body {
@@ -317,6 +303,12 @@ body {
     radial-gradient(circle at 20% 0%, rgb(21 63 66 / 14%), transparent 34rem),
     var(--bnest-canvas);
   font-family: var(--bnest-body);
+}
+
+/* The room's shell has a block margin. A flow root keeps that margin inside body; otherwise it collapses through body
+ * and adds to the document height, so the whole page scrolls by the margin. */
+body:has(.family-chat-shell) {
+  display: flow-root;
 }
 
 .home-shell {
@@ -539,17 +531,27 @@ body {
   margin: 0.2rem 0 0 0.5rem;
 }
 
+/* The panel fills the window less the shell's padding, so the page itself never scrolls and the conversation above the
+ * composer is the region that scrolls (the arrangement the Family Chat room uses). */
 .chat-shell {
   display: grid;
-  min-height: 100vh;
+  /* One column as wide as the window, never wider: an auto column would grow to fit a long unbroken draft in the
+   * message box and push the panel and Send off screen. */
+  grid-template-columns: minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+  box-sizing: border-box;
   place-items: center;
-  padding: 2rem 1rem;
+  padding: 1rem;
 }
 
 .chat-panel {
   display: flex;
   width: min(100%, 46rem);
-  min-height: min(46rem, calc(100vh - 4rem));
+  min-width: 0;
+  height: calc(100vh - 2rem);
+  height: calc(100dvh - 2rem);
+  min-height: 0;
   flex-direction: column;
   overflow: hidden;
   border: 2px solid var(--bnest-ink);
@@ -619,8 +621,12 @@ body {
   font-weight: 700;
 }
 
+/* The repository access state is one pill. With writes enabled it is the toggle that turns them off, and a
+ * read-only visitor sees the same pill without the control. Both states share one width, so the header does not
+ * shift when the state changes. */
 .repository-access-badge {
   flex: none;
+  min-width: 8.25rem;
   border: 2px solid var(--bnest-ink);
   border-radius: 999px;
   padding: 0.4rem 0.7rem;
@@ -628,6 +634,8 @@ body {
   background: var(--bnest-paper);
   font-size: 0.78rem;
   font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .repository-access-badge-write {
@@ -636,11 +644,7 @@ body {
 }
 
 .repository-write-toggle {
-  border: 2px solid var(--bnest-ink);
-  border-radius: 999px;
-  padding: 0.4rem 0.7rem;
-  color: var(--bnest-paper);
-  background: var(--bnest-coral);
+  font: inherit;
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
@@ -659,13 +663,34 @@ body {
   opacity: 0.55;
 }
 
+/* The controls row holds the access state, which never scrolls, and the scrolling row of the other controls. */
+.chat-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.chat-access {
+  display: inline-flex;
+  flex: none;
+}
+
 .chat-actions {
   display: flex;
-  width: 100%;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.55rem;
+  min-width: 0;
+}
+
+.chat-actions > * {
+  flex: none;
 }
 
 .chat-theme-control {
@@ -724,11 +749,36 @@ body {
   outline-offset: 2px;
 }
 
+/* The theme buttons take the same coral ring as their neighbours, not the browser default. */
+.chat-theme-control button:focus-visible {
+  outline: 3px solid var(--bnest-coral);
+  outline-offset: 2px;
+}
+
+/* Touch screens: the header controls are at least 44 CSS pixels tall, the WCAG target size. */
+@media (pointer: coarse) {
+  .model-picker select,
+  .repository-write-toggle,
+  .clear-chat-button,
+  .chat-theme-control button {
+    min-height: 2.75rem;
+  }
+
+  .chat-theme-control {
+    width: 8.25rem;
+  }
+
+  .chat-theme-control button {
+    min-width: 2.75rem;
+  }
+}
+
 .conversation {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 0.9rem;
+  min-height: 0;
   overflow-y: auto;
   padding: 1.5rem;
 }
@@ -777,216 +827,15 @@ body {
   background: var(--bnest-paper);
 }
 
+/* A shrink-to-fit bubble would collapse around a wide drawing; a diagram's bubble takes most of the column instead. */
+.message-assistant:has(.bnest-diagram-canvas) {
+  width: var(--chat-diagram-share);
+}
+
 .message-content {
   margin: 0.25rem 0 0;
   line-height: 1.55;
   overflow-wrap: anywhere;
-}
-
-/* A Codex reply is Markdown rendered by ChatMarkdown inside `.markdown-body`. Tailwind's
-   preflight resets headings, lists and tables, so each element gets its look here, from the
-   theme tokens only. The bubble may shrink, so a long code line or a wide table scrolls inside it
-   instead of widening the page. */
-.markdown-body > :first-child {
-  margin-top: 0;
-}
-
-.markdown-body > :last-child {
-  margin-bottom: 0;
-}
-
-.markdown-body p,
-.markdown-body ul,
-.markdown-body ol,
-.markdown-body blockquote,
-.markdown-body pre,
-.markdown-body table,
-.markdown-body hr {
-  margin: 0.6rem 0;
-}
-
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3,
-.markdown-body h4,
-.markdown-body h5,
-.markdown-body h6 {
-  margin: 0.9rem 0 0.4rem;
-  color: var(--bnest-ink);
-  font-family: var(--bnest-display);
-  font-weight: 750;
-  line-height: 1.25;
-}
-
-.markdown-body h1 {
-  font-size: 1.35rem;
-}
-
-.markdown-body h2 {
-  font-size: 1.2rem;
-}
-
-.markdown-body h3,
-.markdown-body h4,
-.markdown-body h5,
-.markdown-body h6 {
-  font-size: 1.05rem;
-}
-
-.markdown-body ul,
-.markdown-body ol {
-  padding-inline-start: 1.5rem;
-}
-
-.markdown-body ul {
-  list-style: disc;
-}
-
-.markdown-body ol {
-  list-style: decimal;
-}
-
-.markdown-body li + li {
-  margin-top: 0.25rem;
-}
-
-/* A task item shows its checkbox as the marker. A loose item wraps its text in a paragraph, which
-   stays on the checkbox's line. */
-.markdown-body li:has(> input[type="checkbox"]) {
-  list-style: none;
-}
-
-.markdown-body li:has(> input[type="checkbox"]) > p:first-of-type {
-  display: inline;
-  margin: 0;
-}
-
-/* The box is drawn here, not by the browser, so a disabled task stays legible in every theme:
-   an ink border on paper, and a filled box with a check mark when the task is done. */
-.markdown-body input[type="checkbox"] {
-  appearance: none;
-  display: inline-block;
-  width: 1.05em;
-  height: 1.05em;
-  margin: 0 0.45rem 0 0;
-  border: 2px solid var(--bnest-ink);
-  border-radius: 0.25em;
-  background: var(--bnest-paper);
-  opacity: 1;
-  vertical-align: -0.15em;
-}
-
-.markdown-body input[type="checkbox"]:checked {
-  background: var(--bnest-ink);
-}
-
-.markdown-body input[type="checkbox"]:checked::after {
-  content: "";
-  display: block;
-  width: 0.28em;
-  height: 0.5em;
-  margin: 0.06em 0 0 0.3em;
-  border: solid var(--bnest-paper);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-/* Tailwind's preflight drops the underline, so it is set here: a link must not rely on its colour. */
-.markdown-body a {
-  color: var(--bnest-ink-soft);
-  font-weight: 650;
-  text-decoration-line: underline;
-  text-decoration-thickness: 0.08em;
-  text-underline-offset: 0.15em;
-  overflow-wrap: anywhere;
-}
-
-.markdown-body a:hover {
-  color: var(--bnest-coral-ink);
-  text-decoration-thickness: 0.14em;
-}
-
-.markdown-body a:focus-visible {
-  border-radius: 0.2rem;
-  outline: 3px solid var(--bnest-coral);
-  outline-offset: 2px;
-}
-
-.markdown-body code {
-  border-radius: 0.3rem;
-  padding: 0.08em 0.3em;
-  background: color-mix(in srgb, var(--bnest-ink) 10%, transparent);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.9em;
-}
-
-/* A code block scrolls sideways; its lines never wrap, so the layout keeps their shape. */
-.markdown-body pre {
-  overflow-x: auto;
-  overflow-wrap: normal;
-  border-radius: 0.6rem;
-  padding: 0.7rem 0.85rem;
-  background: var(--bnest-canvas);
-  color: var(--bnest-ink);
-  line-height: 1.45;
-}
-
-.markdown-body pre code {
-  padding: 0;
-  background: none;
-  font-size: inherit;
-}
-
-.markdown-body blockquote {
-  margin-inline: 0;
-  padding: 0.1rem 0 0.1rem 0.8rem;
-  border-inline-start: 0.3rem solid var(--bnest-lagoon);
-  color: var(--bnest-ink-soft);
-}
-
-.markdown-body hr {
-  border: 0;
-  border-top: 2px dashed var(--bnest-ink-soft);
-}
-
-/* A table scrolls sideways inside the bubble. Its cells keep whole words, so the columns keep their
-   width and the table can be wider than the bubble. */
-.markdown-body table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-wrap: normal;
-  word-break: normal;
-  border-collapse: collapse;
-}
-
-.markdown-body th,
-.markdown-body td {
-  overflow-wrap: normal;
-  word-break: normal;
-  padding: 0.3rem 0.55rem;
-  border: 1px solid color-mix(in srgb, var(--bnest-ink) 35%, transparent);
-  text-align: start;
-  vertical-align: top;
-}
-
-.markdown-body th {
-  background: color-mix(in srgb, var(--bnest-lagoon) 35%, transparent);
-  font-weight: 700;
-}
-
-.markdown-body del {
-  color: var(--bnest-ink-soft);
-}
-
-.markdown-body img {
-  max-width: 100%;
-  width: auto;
-  height: auto;
-  max-height: 28rem;
-  object-fit: contain;
-  margin: 0.4rem 0;
-  border-radius: 0.6rem;
 }
 
 .codex-progress {
@@ -1052,7 +901,13 @@ body {
 
 .composer textarea {
   width: 100%;
+  /* field-sizing grows the box with its draft, but its inline size would otherwise follow the longest unbroken line
+   * and push the composer off screen. Containing the inline size keeps the cell's width. */
+  contain: inline-size;
   min-height: 5.25rem;
+  max-height: min(12rem, 22svh);
+  field-sizing: content;
+  font-size: 1rem;
   resize: vertical;
   border: 2px solid var(--bnest-ink);
   border-radius: 0.75rem;
@@ -1136,26 +991,132 @@ body {
     padding: 0;
   }
 
+  /* The panel is exactly the screen, so the page itself does not scroll and the composer stays on screen. The
+   * conversation above the composer is the region that scrolls. dvh follows the visible area when browser toolbars
+   * show or hide; vh is the fallback for browsers without it. */
   .chat-panel {
-    min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
     border: 0;
     border-radius: 0;
   }
 
+  /* A phone header is two short rows: the brand, then one row of controls. The row scrolls sideways when the controls
+   * are wider than the screen, so each control keeps its size and the conversation keeps at least 40 percent of the
+   * height. The row's right edge fades out: that fade is the cue that more controls follow. A control that takes
+   * keyboard focus is scrolled into view by the browser, with the padding below kept clear of the edge. */
+  .brand-logo {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
   .chat-header {
     align-items: flex-start;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
   }
 
+  .chat-controls {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+  }
+
+  /* The row's end padding is as wide as its edge fade, so the last control scrolled to the end clears the fade. */
   .chat-actions {
+    flex: 1 1 0;
+    flex-wrap: nowrap;
     justify-content: flex-start;
+    overflow-x: auto;
+    scroll-padding-inline: 0.75rem;
+    padding-block: 0.1rem;
+    padding-inline-end: 2.5rem;
+    mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - 2.5rem),
+      transparent
+    );
   }
 
+  /* The message box and Send stay side by side: the box grows with the message, and Send keeps a touch target. */
   .composer {
-    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem 0.75rem;
+  }
+
+  .composer textarea {
+    min-height: 2.75rem;
   }
 
   .send-button {
-    width: 100%;
+    min-width: 4.5rem;
+    min-height: 2.75rem;
+  }
+}
+
+/* A short window (a landscape phone is under 33 rem tall) keeps the phone's compact header and composer, so the
+ * conversation keeps most of the height. The kicker line is the part of the header that goes. */
+@media (max-height: 33rem) {
+  .chat-header {
+    align-items: center;
+    gap: 0.4rem 0.75rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .chat-header .chat-kicker {
+    display: none;
+  }
+
+  /* The placeholder names the message box on a short window, so the visible "Message" label leaves the layout. It
+   * stays in the accessible name, as the Family Chat composer's label does. */
+  .composer .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .brand-logo {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .chat-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .chat-controls {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+  }
+
+  /* The row's end padding is as wide as its edge fade, so the last control scrolled to the end clears the fade. */
+  .chat-actions {
+    flex: 1 1 0;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scroll-padding-inline: 0.75rem;
+    padding-block: 0.1rem;
+    padding-inline-end: 2.5rem;
+    mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - 2.5rem),
+      transparent
+    );
+  }
+
+  .composer {
+    padding: 0.4rem 0.75rem 0.5rem;
+  }
+
+  .composer textarea {
+    min-height: 2.75rem;
   }
 }
 
@@ -2049,6 +2010,7 @@ body {
   --hearth-gutter: clamp(1rem, 3vw, 2rem);
   box-sizing: border-box;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto 1fr auto;
   gap: 0.75rem;
   max-width: 48rem;
@@ -2064,6 +2026,11 @@ body {
   border-radius: var(--hearth-radius);
   background: var(--bnest-paper);
   box-shadow: 0 1.1rem 1.6rem rgb(21 63 66 / 18%);
+}
+
+/* Row 2 of the room's grid: the banner is hidden until the device goes offline. */
+.family-chat-offline-banner {
+  grid-row: 2;
 }
 
 .family-chat-shell * {
@@ -2140,6 +2107,33 @@ body {
   outline-offset: 0.15rem;
 }
 
+/* The theme control sits in the room's own header. The root layout's floating dock is hidden in this room: on a narrow
+ * screen it covers the room title, and on a tablet it hangs off the panel. The control keeps its own width, so the
+ * title gives way instead. */
+.family-chat-theme {
+  display: flex;
+  flex: none;
+  width: 7.5rem;
+  margin-inline-start: auto;
+}
+
+.family-chat-theme button:focus-visible {
+  outline: 0.2rem solid var(--bnest-sun);
+  outline-offset: 0.15rem;
+}
+
+/* Touch screens: each theme button is a 44 CSS pixel target (the WCAG target size). */
+@media (pointer: coarse) {
+  .family-chat-theme {
+    width: 8.25rem;
+  }
+
+  .family-chat-theme button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
 /* Push permission control (tech-doc 004's control-text table): a status/
  * action button whose own text names the current state, plus a second
  * "Turn off" action shown only while a subscription is active. */
@@ -2180,6 +2174,7 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
+  grid-row: 3;
   gap: 0.5rem;
   /* A grid item's automatic minimum size is its content, which would push
    * the bounded `1fr` track back open; zero lets the track clamp and this
@@ -2286,6 +2281,15 @@ body {
   max-width: 90%;
 }
 
+/* A message with a wide diagram takes the shared diagram share of the list on a desktop column, as a Codex reply does
+ * (chat_shared.css). A phone keeps the 78 percent message width. */
+@media (min-width: 48rem) {
+  .family-chat-message:has(.bnest-diagram-canvas) {
+    width: var(--chat-diagram-share);
+    max-width: var(--chat-diagram-share);
+  }
+}
+
 .family-chat-message-avatar {
   grid-row: 1;
   display: inline-flex;
@@ -2345,7 +2349,43 @@ body {
 .family-chat-message-body {
   margin: 0;
   overflow-wrap: break-word;
+}
+
+/* Only a typed body keeps its own line breaks and spaces. A formatted body is Markdown HTML, whose
+   whitespace between blocks must not show as extra lines. */
+.family-chat-message-body[data-body-format="text"] {
   white-space: pre-wrap;
+}
+
+/* The own bubble is filled with `--bnest-ink-soft`, so the Markdown body (chat_shared.css) reads the bubble's own
+ * values of its colour tokens: paper text, sun-light links (5.0:1 on that fill), canvas quotes and rules (6.4:1).
+ * The coral focus ring is about 2.3:1 against the dark own bubble, below the 3:1 a non-text indicator needs (WCAG
+ * 1.4.11), so the ring token is sun-light here. */
+/* A table or code block's scroll shadow fades into the bubble it sits in. */
+.family-chat-message-bubble {
+  --markdown-surface: #ffffff;
+}
+
+.family-chat-message--own .family-chat-message-bubble {
+  --markdown-surface: var(--bnest-ink-soft);
+  --chat-ink: var(--bnest-paper);
+  --chat-heading: var(--bnest-paper);
+  --chat-link: var(--bnest-sun-light);
+  --chat-link-hover: var(--bnest-paper);
+  --chat-quote: var(--bnest-canvas);
+  --chat-rule: var(--bnest-canvas);
+  --chat-focus-ring: var(--bnest-sun-light);
+}
+
+/* The header tint is 35 percent lagoon on a light bubble, which reads 4.3:1 with paper text on the dark own fill. At
+ * 22 percent it reads 5.2:1 (WCAG 1.4.3, 4.5:1 for body text). */
+.family-chat-message--own .family-chat-message-bubble .markdown-body th {
+  background: color-mix(in srgb, var(--bnest-lagoon) 22%, transparent);
+}
+
+/* The system bubble is the muted text colour, so a Markdown body inside it reads that colour too. */
+.family-chat-message--system .family-chat-message-bubble {
+  --chat-ink: var(--bnest-ink-soft);
 }
 
 .family-chat-message-status {
@@ -2470,7 +2510,8 @@ body {
 
 .family-chat-composer {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-row: 4;
   gap: 0.4rem 0.6rem;
   padding: 1rem var(--hearth-gutter);
   border-top: 0.09rem solid #c7ded9;
@@ -2501,13 +2542,19 @@ body {
   grid-column: 1;
   align-self: center;
   width: 100%;
+  min-width: 0;
+  /* The resting height is one 3rem line; composer_height.js grows it with the draft, up to the six-line cap. In a
+   * short window the cap is also a share of the window, so the conversation above keeps most of the height. */
   height: 3rem;
+  min-height: 3rem;
+  max-height: min(10.65rem, 22svh);
   padding: 0.7rem 0.9rem;
   border-radius: 1rem;
   border: 0.125rem solid var(--bnest-lagoon);
   background: var(--bnest-paper);
   resize: none;
   font: inherit;
+  line-height: 1.5;
 }
 
 .family-chat-send {
@@ -2518,7 +2565,7 @@ body {
   border: none;
   border-radius: var(--bnest-action-radius);
   padding: 0.5rem 1.2rem;
-  background: var(--bnest-coral);
+  background: var(--bnest-coral-ink);
   color: var(--bnest-paper);
 }
 
@@ -2588,12 +2635,64 @@ body {
 
 @media (max-width: 22.5rem) {
   .family-chat-composer {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .family-chat-send {
     grid-column: 1;
     justify-self: stretch;
+  }
+}
+
+/* Short screens (a landscape phone is under 33 rem tall) and narrow phones: the header stays on one line, so the
+ * conversation keeps at least half the screen. The brand's subline is the only part of the header that goes. */
+@media (max-height: 33rem), (max-width: 30rem) {
+  .family-chat-header {
+    flex-wrap: nowrap;
+    padding-block: 0.35rem;
+    padding-top: max(0.35rem, env(safe-area-inset-top));
+  }
+
+  .family-chat-brand > span:last-child {
+    display: none;
+  }
+
+  /* `width: 0` keeps the nowrap title's text out of the header's intrinsic width. Without it the header is as wide as
+   * the title text plus the theme control, which is wider than a 320 px screen, so the theme control runs off it. */
+  #family-chat-room-title {
+    flex: 1 1 auto;
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* A push control that cannot be used here (disabled, with no Turn off to show) takes no header space. */
+  .family-chat-push:has(.family-chat-push-control:disabled):not(
+      :has(.family-chat-push-disable:not([hidden]))
+    ) {
+    display: none;
+  }
+}
+
+/* A landscape phone or a short desktop window: a small margin and tighter rows keep the conversation at half
+ * the height. Phones in portrait keep their edge-to-edge room (the 37.5rem rule above). */
+@media (max-height: 33rem) and (min-width: 37.5rem) {
+  .family-chat-shell {
+    height: calc(100vh - 1rem);
+    margin-block: 0.5rem;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 30rem) {
+  .family-chat-history {
+    margin-inline: 0.5rem;
+  }
+
+  .family-chat-message {
+    max-width: 94%;
   }
 }
 

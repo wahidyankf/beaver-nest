@@ -47,6 +47,21 @@ Feature: Family chat GraphQL API
       | -1    |
       | 51    |
 
+  Rule: Bounded body rendering per page
+
+  Background:
+    Given an approved user is logged in
+    And the family chat room holds a known ordered history of messages
+
+  Scenario: A page asks for each message's body HTML once
+    When the user queries one page of family chat messages asking for bodyHtml once
+    Then the response returns at most 50 messages ascending by server ID
+    And every message in the response has body HTML containing "history"
+
+  Scenario: A page that asks for each message's body HTML under ten aliases is refused
+    When the user queries one page of family chat messages asking for bodyHtml under ten aliases
+    Then the response is a safe "VALIDATION_FAILED" error
+
   Rule: Idempotent message send
 
   Scenario: A member sends a durable message
@@ -203,6 +218,76 @@ Feature: Family chat GraphQL API
     And the user queries family chat messages after their last known committed message ID
     Then the response includes that reply
     And that reply carries a quote naming the message it answers
+
+  Rule: Message body as safe HTML
+
+  Scenario: A message carries its body as safe HTML
+    When the user sends the family chat message "**Dinner** is ready" with a fresh client message ID
+    Then the response returns the committed message with a server ID and commit time
+    And the response's bodyHtml is the family chat message body element
+    And the response's bodyHtml contains "<strong>Dinner</strong> is ready"
+
+  Scenario: Raw HTML in a message body is escaped in bodyHtml
+    When the user sends the family chat message "<script>alert(1)</script> and <b>bold</b>" with a fresh client message ID
+    Then the response's bodyHtml contains "&lt;script&gt;alert(1)&lt;/script&gt; and &lt;b&gt;bold&lt;/b&gt;"
+    And the response's bodyHtml lacks "<script"
+    And the response's bodyHtml lacks "<b>"
+
+  Scenario Outline: bodyHtml makes the same image decisions as the Codex chat
+    When the user sends the family chat message "<body>" with a fresh client message ID
+    Then the response's bodyHtml shows the image as "<decision>" at "<address>"
+
+    Examples:
+      | body                                                                        | decision   | address                                                |
+      | ![Chart](https://images.example.com/chart.png)                              | inline     | https://images.example.com/chart.png                   |
+      | ![Chart](http://images.example.com/chart.png)                               | link only  | http://images.example.com/chart.png                    |
+      | ![Icon](data:image/svg+xml;base64,PHN2ZyAvPg==)                             | withheld   | data:image/svg+xml;base64,PHN2ZyAvPg==                 |
+      | ![Script](javascript:alert)                                                 | withheld   | javascript:alert                                       |
+      | ![Beaver Nest logo](apps/bnest-app/priv/static/images/beaver-nest-logo.png) | repository | apps/bnest-app/priv/static/images/beaver-nest-logo.png |
+
+  Scenario: A subscription push carries bodyHtml
+    Given the user holds an authorized "familyChatMessageCommitted" subscription for "ruang-keluarga"
+    When another member sends the family chat message "**Dinner** is ready" with a fresh client message ID
+    Then the subscriber receives exactly one committed-message event matching that message whose bodyHtml contains "<strong>Dinner</strong> is ready"
+
+  Scenario: A quote carries a plain text preview and no HTML
+    Given a committed family chat message "**Dinner** <b>is</b> ready"
+    When the user sends a family chat reply naming that message as the reply target
+    Then the response's quote reports that target's sender display name and a preview of its body
+    And the family chat quote type declares no bodyHtml field
+
+  Scenario: bodyHtml marks a valid mermaid fence for drawing
+    When the user sends this family chat message with a fresh client message ID:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    Then the response's bodyHtml marks a diagram for drawing
+    And the response's bodyHtml contains "flowchart TD"
+
+  Scenario: bodyHtml keeps an unacceptable mermaid fence as a code block with a note
+    When the user sends this family chat message with a fresh client message ID:
+      """
+      ```mermaid
+      architecture-beta
+        group api(cloud)[API]
+      ```
+      """
+    Then the response's bodyHtml keeps the diagram as a code block with the note "this diagram type is not supported"
+
+  Scenario: bodyHtml escapes hostile text inside a mermaid fence
+    When the user sends this family chat message with a fresh client message ID:
+      """
+      ```mermaid
+      flowchart TD
+        A["<script>alert(1)</script>"] --> B
+      ```
+      """
+    Then the response's bodyHtml marks a diagram for drawing
+    And the response's bodyHtml contains "&lt;script&gt;alert(1)&lt;/script&gt;"
+    And the response's bodyHtml lacks "<script"
 
   Rule: Web Push configuration and subscription through GraphQL
 

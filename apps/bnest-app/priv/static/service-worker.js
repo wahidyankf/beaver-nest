@@ -36,25 +36,68 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Diagram chunks have content-hashed names, so every release adds new ones.
+// Each is cached as it is used; once more than DIAGRAM_CACHE_LIMIT sit under
+// the prefix, the oldest are deleted. Cache Storage lists entries in the order
+// they were written, so the first matching keys are the oldest.
+const DIAGRAM_PREFIX = "/assets/js/diagrams/";
+const DIAGRAM_CACHE_LIMIT = 120;
+
+// Best effort: a failed delete leaves extra entries for a later write to trim,
+// and must never change the response that was already sent.
+async function trimDiagramChunks(cache) {
+  try {
+    const keys = (await cache.keys()).filter((request) =>
+      new URL(request.url).pathname.startsWith(DIAGRAM_PREFIX),
+    );
+    const excess = keys.length - DIAGRAM_CACHE_LIMIT;
+    if (excess <= 0) return;
+    await Promise.all(
+      keys.slice(0, excess).map((request) => cache.delete(request)),
+    );
+  } catch {
+    // Left for the next diagram write to trim again.
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
-  // Only true static build assets are ever written to or read from Cache
-  // Storage (Family Chat plan requirement: authenticated GraphQL/page
-  // responses must never be cached). `assets/test/unit/service_worker.test.ts`
-  // runs this file to prove it.
-  const pathname = new URL(event.request.url).pathname;
+  // Only true static build assets of this origin are ever written to or read
+  // from Cache Storage (Family Chat plan requirement: authenticated GraphQL/page
+  // responses must never be cached). A third-party image with a static-looking
+  // path is never answered here either (ADR 003, Decision 3).
+  // `assets/test/unit/service_worker.test.ts` runs this file to prove it.
+  const url = new URL(event.request.url);
+  const sameOrigin = url.origin === self.location.origin;
   const cacheable =
-    pathname.startsWith("/assets/") || pathname.startsWith("/images/");
+    sameOrigin &&
+    (url.pathname.startsWith("/assets/") ||
+      url.pathname.startsWith("/images/"));
 
   if (cacheable) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
           if (response.ok) {
-            caches
-              .open(CACHE_NAME)
-              .then((cache) => cache.put(event.request, response.clone()));
+            const diagramChunk = url.pathname.startsWith(DIAGRAM_PREFIX);
+            const copy = response.clone();
+            // The write is handed to waitUntil. A write left unawaited can
+            // stay unfinished once the browser suspends the idle worker.
+            event.waitUntil(
+              caches
+                .open(CACHE_NAME)
+                .then((cache) =>
+                  cache
+                    .put(event.request, copy)
+                    .then(() =>
+                      diagramChunk ? trimDiagramChunks(cache) : undefined,
+                    ),
+                )
+                .catch(() => {
+                  // A failed write only means the next load fetches again.
+                }),
+            );
           }
 
           return response;
@@ -69,7 +112,7 @@ self.addEventListener("fetch", (event) => {
   // and never served from cache. A failed top-level navigation while
   // offline gets a page built here rather than a bare browser error; it
   // carries nothing about the visitor, and is never stored.
-  if (event.request.mode === "navigate") {
+  if (sameOrigin && event.request.mode === "navigate") {
     event.respondWith(fetch(event.request).catch(() => offlinePage()));
   }
 });

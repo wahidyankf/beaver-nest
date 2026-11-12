@@ -20,7 +20,11 @@ export default defineConfig({
     include: ["test/behaviour/verify.ts", "test/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      include: ["js/family_chat.js", "js/family_chat/**/*.js"],
+      include: [
+        "js/family_chat.js",
+        "js/family_chat/**/*.js",
+        "js/diagrams/**/*.js",
+      ],
       reporter: ["text", "json-summary"],
     },
   },

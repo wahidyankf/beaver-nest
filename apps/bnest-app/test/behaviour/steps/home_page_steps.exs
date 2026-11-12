@@ -253,6 +253,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.reconnect(context)
   end
 
+  # A dropped LiveView socket remounts the saved chat on the same server, as a reconnect after a deployment does.
+  step "the visitor's live connection drops and returns", context do
+    context.behaviour_driver.reconnect(context)
+  end
+
   step "{int} synthetic visitors across {int} recovery groups have distinct drafts on {string}",
        %{args: [client_count, group_count, route]} = context do
     context.behaviour_driver.prepare_recovery_group(
@@ -497,8 +502,51 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  step "the latest Codex reply holds a wide table and an image", context do
+    assert context.behaviour_driver.latest_codex_reply_holds_wide_content?(context)
+    context
+  end
+
+  step "the latest Codex reply shows an inline image with the alt text {string}",
+       %{args: [alt]} = context do
+    assert context.behaviour_driver.latest_codex_reply_shows_inline_image?(context, alt)
+    context
+  end
+
+  step "the latest Codex reply loads the inline image {string} from {string}",
+       %{args: [alt, address]} = context do
+    assert context.behaviour_driver.latest_codex_reply_loads_inline_image?(context, alt, address)
+    context
+  end
+
   step "the latest Codex reply shows the repository image {string}", %{args: [path]} = context do
     assert context.behaviour_driver.latest_codex_reply_shows_repository_image?(context, path)
+    context
+  end
+
+  step "the latest Codex reply keeps the diagram as a plain code block", context do
+    assert context.behaviour_driver.latest_codex_reply_keeps_plain_code_blocks?(context, 1)
+    context
+  end
+
+  step "the latest Codex reply keeps {int} diagrams as plain code blocks",
+       %{args: [count]} = context do
+    assert context.behaviour_driver.latest_codex_reply_keeps_plain_code_blocks?(context, count)
+    context
+  end
+
+  step "the latest Codex reply does not mark a diagram for drawing", context do
+    assert context.behaviour_driver.latest_codex_reply_marks_diagrams?(context, 0)
+    context
+  end
+
+  step "the latest Codex reply marks the diagram for drawing", context do
+    assert context.behaviour_driver.latest_codex_reply_marks_diagrams?(context, 1)
+    context
+  end
+
+  step "the latest Codex reply marks {int} diagrams for drawing", %{args: [count]} = context do
+    assert context.behaviour_driver.latest_codex_reply_marks_diagrams?(context, count)
     context
   end
 

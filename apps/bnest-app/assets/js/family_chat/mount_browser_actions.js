@@ -18,7 +18,7 @@ import {
   RETRY_LABEL,
   runCopyAction,
 } from "./message_actions.js";
-import { MANUAL_ACTIONS_SELECTOR } from "./message_manual_render.js";
+import { rawBodyOf } from "./message_body.js";
 import { anchorMenu, bindReanchor } from "./menu_anchor.js";
 import {
   discardFailedMessage,
@@ -26,24 +26,15 @@ import {
 } from "./mount_browser_composer.js";
 import { STATUS } from "./outbox.js";
 import { bodyPreview } from "./reply_target.js";
+import {
+  MESSAGE_SELECTOR,
+  messageElementFrom,
+  ownMessageOf,
+} from "./message_target.js";
 
 /** @typedef {import("./mount_browser.js").MountableRoom} MountableRoom */
 /** @typedef {import("./elements.js").FamilyChatElements} FamilyChatElements */
 /** @typedef {import("./message_actions.js").ActionableMessage} ActionableMessage */
-
-const MESSAGE_SELECTOR = '[data-role="family-chat-message"]';
-
-/**
- * @param {EventTarget | null} target
- * @returns {HTMLElement | null}
- */
-function messageElementFrom(target) {
-  if (!(target instanceof Element)) return null;
-  return (
-    /** @type {HTMLElement | null} */
-    (target.closest(MESSAGE_SELECTOR))
-  );
-}
 
 /**
  * Reads back what the renderer put in the DOM rather than consulting the
@@ -52,12 +43,15 @@ function messageElementFrom(target) {
  * @param {HTMLElement} element
  * @returns {ActionableMessage}
  */
-function messageFrom(element) {
+export function messageFrom(element) {
   const committed = element.dataset["deliveryState"] === "committed";
   const key = element.dataset["messageId"] ?? "";
+  // Copy and Reply take the typed source, which a formatted body does not show as text.
+  const bodyElement = element.querySelector(
+    '[data-role="family-chat-message-body"]',
+  );
   const body =
-    element.querySelector('[data-role="family-chat-message-body"]')
-      ?.textContent ?? "";
+    (bodyElement && rawBodyOf(bodyElement)) ?? bodyElement?.textContent ?? "";
   const senderDisplayName =
     element.querySelector('[data-role="family-chat-message-sender"]')
       ?.textContent ?? "";
@@ -203,13 +197,7 @@ function bindMenuTriggers(elements, menu, clock) {
 
   elements.list.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
-    // A key on the row's own Retry or Discard activates that button.
-    if (
-      event.target instanceof Element &&
-      event.target.closest(MANUAL_ACTIONS_SELECTOR)
-    )
-      return;
-    const element = messageElementFrom(event.target);
+    const element = ownMessageOf(event.target);
     if (!element) return;
     event.preventDefault();
     menu.open(messageFrom(element));
@@ -217,9 +205,8 @@ function bindMenuTriggers(elements, menu, clock) {
 }
 
 /**
- * `ArrowUp`/`ArrowDown` move between messages, `Home`/`End` jump to the
- * oldest loaded and the newest. Tab is left alone: it enters the history
- * once and leaves it once, which is the whole reason the stop roves.
+ * `ArrowUp`/`ArrowDown`/`Home`/`End` move the stop, only from the message itself, so an arrow on a table scrolls it.
+ * Tab is left alone: it enters the history once and leaves it once.
  * @param {MountableRoom} room
  * @param {FamilyChatElements} elements
  */
@@ -227,11 +214,24 @@ function bindRovingKeys(room, elements) {
   const ROVING_KEYS = new Set(["ArrowUp", "ArrowDown", "Home", "End"]);
   elements.list.addEventListener("keydown", (event) => {
     if (!ROVING_KEYS.has(event.key)) return;
-    if (!messageElementFrom(event.target)) return;
+    if (!ownMessageOf(event.target)) return;
     // Otherwise Arrow/Home/End scroll the history out from under the reader
     // at the same time as moving the stop.
     event.preventDefault();
     room.store.rovingMove(event.key);
+  });
+}
+
+/**
+ * Escape on content inside a message returns focus to that message, so a reader can come back out of it.
+ * @param {FamilyChatElements} elements
+ */
+function bindContentEscape(elements) {
+  elements.list.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const element = messageElementFrom(event.target);
+    if (!element || element === event.target) return;
+    element.focus({ preventScroll: true });
   });
 }
 
@@ -278,4 +278,5 @@ export function wireMessageActions(room, elements, clock) {
   bindMenuDismissal(elements, menu);
   bindReanchor(elements.messageActions, elements.list);
   bindRovingKeys(room, elements);
+  bindContentEscape(elements);
 }

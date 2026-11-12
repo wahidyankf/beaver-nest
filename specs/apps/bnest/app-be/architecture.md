@@ -209,7 +209,14 @@ browser drives every read/write itself through one authenticated GraphQL schema 
 which accepts an optional `reply_to_message_id` naming an already-committed message in the same room; and
 `family_chat_message_committed` subscription. Every message the schema returns carries an optional `reply_to` quote
 (`id`, `sender_kind`, `sender_display_name`, and a server-bounded `body_preview`), which is a distinct object type
-rather than a recursive message, so a quote can never carry a quote of its own. All are served by the `familychat`
+rather than a recursive message, so a quote can never carry a quote of its own. Every message also carries `bodyHtml`,
+a non-null string that holds the body as sanitized HTML. The field has the same authorization as `body`, because it
+is a field of the same object, and it is rendered by `BnestAppWeb.ChatComponents.markdown_body_html/2`, the component
+the Codex chat uses, so both rooms share one renderer. It is computed on every resolution and never stored, and a quote
+has no such field. Because each resolution renders Markdown, every document is priced before it resolves
+(`BnestAppWeb.Schema.Complexity`): `bodyHtml` weighs 100 per message, and a `familyChatMessages` page weighs its size
+times the price of one message. A document priced above 7 500 is refused with the safe `VALIDATION_FAILED` error. One
+`bodyHtml` per message in a 50-message page is admitted; the same page with ten `bodyHtml` aliases is refused. The browser selects it in the query, the mutation answer and the subscription push. All are served by the `familychat`
 component, with subscription identity
 resolved only from the server-decoded session carried in `UserSocket`'s `connect_info` — never from client-supplied
 socket params. Push-subscription lifecycle (`web_push_configuration`, `current_web_push_subscription` queries;

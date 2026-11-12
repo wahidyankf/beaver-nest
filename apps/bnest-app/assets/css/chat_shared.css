@@ -1,0 +1,281 @@
+/*
+ * The shared chat tokens and Markdown body rules (ADR 003, Decision 6; ADR 004, Decision 6). Both chat rooms, the
+ * Codex chat and Family Chat, import this file through app.css. It holds the `--bnest-*` design tokens (colours,
+ * fonts, radii, shadow), and the `.markdown-body` rules every rendered reply and message uses. Each room keeps its
+ * own bubble chrome (radius, border and padding) in app.css. The diagram rules stay in diagrams.css.
+ */
+
+:root {
+  /* Bnest's canonical visual language: make places that feel like a playful workshop. */
+  --bnest-ink: #153f42;
+  --bnest-ink-soft: #205c5d;
+  --bnest-canvas: #d8f1ec;
+  --bnest-paper: #fff9ed;
+  --bnest-sun: #f7b84b;
+  --bnest-sun-light: #ffc966;
+  --bnest-coral: #e5633d;
+  --bnest-coral-ink: #a6472b;
+  --bnest-lagoon: #80c5b8;
+  --bnest-grid: #47857a;
+  --bnest-error: #822b25;
+  --bnest-error-surface: #f8dfdc;
+  --bnest-display:
+    ui-rounded, "Arial Rounded MT Bold", ui-sans-serif, sans-serif;
+  --bnest-body: ui-sans-serif, system-ui, sans-serif;
+  --bnest-card-radius: 1.5rem 1.5rem 1.5rem 0.4rem;
+  --bnest-action-radius: 1.2rem 1.2rem 0.4rem 1.2rem;
+  --bnest-shadow: #153f42;
+
+  /* The Markdown body's colours. These are the light bubble's values (the Codex chat and the other members' bubbles);
+     a bubble that is not light redefines them on its own element, and the body and its pictures read them. */
+  --chat-ink: var(--bnest-ink);
+  --chat-heading: var(--bnest-ink);
+  --chat-link: var(--bnest-ink-soft);
+  --chat-link-hover: var(--bnest-coral-ink);
+  --chat-quote: var(--bnest-ink-soft);
+  --chat-rule: var(--bnest-ink-soft);
+  --chat-code-bg: color-mix(in srgb, var(--bnest-ink) 10%, transparent);
+  --chat-focus-ring: var(--bnest-coral);
+
+  /* The share of the message list a bubble around a drawn diagram takes (ADR 004, Decision 8). A Family Chat message
+     also has an avatar beside its bubble, so the share is a little larger there than the bubble alone needs. */
+  --chat-diagram-share: 88%;
+}
+
+/* A Codex reply is Markdown rendered by ChatMarkdown inside `.markdown-body`. Tailwind's
+   preflight resets headings, lists and tables, so each element gets its look here, from the
+   theme tokens only. The bubble may shrink, so a long code line or a wide table scrolls inside it
+   instead of widening the page. */
+/* The body's text colour is a token, so a bubble that is not light only redefines the token. */
+.markdown-body {
+  color: var(--chat-ink);
+}
+
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol,
+.markdown-body blockquote,
+.markdown-body pre,
+.markdown-body table,
+.markdown-body hr {
+  margin: 0.6rem 0;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 0.9rem 0 0.4rem;
+  color: var(--chat-heading);
+  font-family: var(--bnest-display);
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.markdown-body h1 {
+  font-size: 1.35rem;
+}
+
+.markdown-body h2 {
+  font-size: 1.2rem;
+}
+
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-size: 1.05rem;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-inline-start: 1.5rem;
+}
+
+.markdown-body ul {
+  list-style: disc;
+}
+
+.markdown-body ol {
+  list-style: decimal;
+}
+
+.markdown-body li + li {
+  margin-top: 0.25rem;
+}
+
+/* A task item shows its checkbox as the marker. A loose item wraps its text in a paragraph, which
+   stays on the checkbox's line. */
+.markdown-body li:has(> input[type="checkbox"]) {
+  list-style: none;
+}
+
+.markdown-body li:has(> input[type="checkbox"]) > p:first-of-type {
+  display: inline;
+  margin: 0;
+}
+
+/* The box is drawn here, not by the browser, so a disabled task stays legible in every theme:
+   an ink border on paper, and a filled box with a check mark when the task is done. */
+.markdown-body input[type="checkbox"] {
+  appearance: none;
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0 0.45rem 0 0;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 0.25em;
+  background: var(--bnest-paper);
+  opacity: 1;
+  vertical-align: -0.15em;
+}
+
+.markdown-body input[type="checkbox"]:checked {
+  background: var(--bnest-ink);
+}
+
+.markdown-body input[type="checkbox"]:checked::after {
+  content: "";
+  display: block;
+  width: 0.28em;
+  height: 0.5em;
+  margin: 0.06em 0 0 0.3em;
+  border: solid var(--bnest-paper);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Tailwind's preflight drops the underline, so it is set here: a link must not rely on its colour. */
+.markdown-body a {
+  color: var(--chat-link);
+  font-weight: 650;
+  text-decoration-line: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.15em;
+  overflow-wrap: anywhere;
+}
+
+.markdown-body a:hover {
+  color: var(--chat-link-hover);
+  text-decoration-thickness: 0.14em;
+}
+
+.markdown-body a:focus-visible {
+  border-radius: 0.2rem;
+  outline: 3px solid var(--chat-focus-ring);
+  outline-offset: 2px;
+}
+
+.markdown-body code {
+  border-radius: 0.3rem;
+  padding: 0.08em 0.3em;
+  background: var(--chat-code-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+/* A code block scrolls sideways; its lines never wrap, so the layout keeps their shape. */
+.markdown-body pre {
+  overflow: auto;
+  max-height: 24rem;
+  overflow-wrap: normal;
+  border-radius: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  --markdown-surface: var(--bnest-canvas);
+  color: var(--bnest-ink);
+  line-height: 1.45;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+
+.markdown-body blockquote {
+  margin-inline: 0;
+  padding: 0.1rem 0 0.1rem 0.8rem;
+  border-inline-start: 0.3rem solid var(--bnest-lagoon);
+  color: var(--chat-quote);
+}
+
+.markdown-body hr {
+  border: 0;
+  border-top: 2px dashed var(--chat-rule);
+}
+
+/* A table scrolls sideways inside the bubble. Its cells keep whole words, so the columns keep their
+   width and the table can be wider than the bubble. */
+.markdown-body table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-wrap: normal;
+  word-break: normal;
+  border-collapse: collapse;
+}
+
+/* A table or code block that overflows sideways shows a shadow on each edge that has more to scroll. The cover
+ * gradients are attached `local` so they move with the content; the shadows stay `scroll`-attached to the edge.
+ * Each room sets --markdown-surface to the colour of the bubble the Markdown sits in. */
+.markdown-body table,
+.markdown-body pre {
+  --markdown-cover: var(--markdown-surface, var(--bnest-paper));
+  background:
+    linear-gradient(to right, var(--markdown-cover) 30%, rgb(255 255 255 / 0%))
+      left center / 2.5rem 100% no-repeat local,
+    linear-gradient(to left, var(--markdown-cover) 30%, rgb(255 255 255 / 0%))
+      right center / 2.5rem 100% no-repeat local,
+    linear-gradient(to right, rgb(21 63 66 / 24%), rgb(21 63 66 / 0%)) left
+      center / 0.75rem 100% no-repeat scroll,
+    linear-gradient(to left, rgb(21 63 66 / 24%), rgb(21 63 66 / 0%)) right
+      center / 0.75rem 100% no-repeat scroll;
+  background-color: var(--markdown-cover);
+}
+
+.markdown-body table:focus-visible,
+.markdown-body pre:focus-visible {
+  outline: 3px solid var(--chat-focus-ring);
+  outline-offset: 2px;
+}
+
+.markdown-body th,
+.markdown-body td {
+  overflow-wrap: normal;
+  word-break: normal;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--bnest-ink) 35%, transparent);
+  text-align: start;
+  vertical-align: top;
+}
+
+.markdown-body th {
+  background: color-mix(in srgb, var(--bnest-lagoon) 35%, transparent);
+  font-weight: 700;
+}
+
+/* Struck text is muted through the body's quote token, so an own bubble, whose fill is the ink-soft colour itself,
+ * redefines it to a light value and the strike-through stays legible (family_chat own bubble inline contrast). */
+.markdown-body del {
+  color: var(--chat-quote);
+}
+
+.markdown-body img {
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  max-height: min(28rem, 70svh);
+  object-fit: contain;
+  margin: 0.4rem 0;
+  border-radius: 0.6rem;
+}

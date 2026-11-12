@@ -168,10 +168,13 @@ Then(
   },
 );
 
+// The page user commits the target, so its sender and body are known for the quote assertions.
 Given(
   "a committed family chat message {string}",
   async ({ page }, body: string) => {
     scenario.replyTargetId = await commitFromPage(page, body);
+    scenario.replyTargetBody = body;
+    scenario.replyTargetSender = scenarioIdentity().admin.username;
   },
 );
 

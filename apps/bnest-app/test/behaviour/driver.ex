@@ -105,6 +105,11 @@ defmodule BnestApp.Behaviour.Driver do
   @callback latest_codex_reply_task_checkboxes?(map(), non_neg_integer(), non_neg_integer()) ::
               boolean()
   @callback latest_codex_reply_lays_out_inside_bubble?(map()) :: boolean()
+  @callback latest_codex_reply_holds_wide_content?(map()) :: boolean()
+  @callback latest_codex_reply_shows_inline_image?(map(), String.t()) :: boolean()
+  @callback latest_codex_reply_loads_inline_image?(map(), String.t(), String.t()) :: boolean()
+  @callback latest_codex_reply_keeps_plain_code_blocks?(map(), non_neg_integer()) :: boolean()
+  @callback latest_codex_reply_marks_diagrams?(map(), non_neg_integer()) :: boolean()
   @callback latest_codex_reply_shows_repository_image?(map(), String.t()) :: boolean()
   @callback request_repository_image(map(), String.t()) :: map()
   @callback image_response_status?(map(), non_neg_integer()) :: boolean()

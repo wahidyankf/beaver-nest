@@ -35,6 +35,8 @@ export interface WorkerHarness {
   caches: Map<string, Map<string, Response>>;
   network: NetworkRequest[];
   online: boolean;
+  /** Set a flag to make the matching Cache Storage call reject, as a full disk would. */
+  faults: { cacheDelete: boolean };
   install: () => Promise<void>;
   activate: () => Promise<void>;
   /** The worker's answer, or `null` when it left the request to the browser. */
@@ -43,6 +45,8 @@ export interface WorkerHarness {
     init?: { method?: string; mode?: RequestMode },
   ) => Promise<Response | null>;
   cachedPathnames: () => string[];
+  /** How many `waitUntil` promises the last fetch event extended the worker's lifetime with. */
+  fetchLifetimeCount: () => number;
 }
 
 /** What a fetch event carries: the parts of a `Request` the worker reads. */
@@ -85,9 +89,20 @@ function serverResponse(pathname: string, credentials: RequestCredentials) {
   );
 }
 
+/**
+ * Cache Storage lists entries in the order they were written, and a write to
+ * an existing key replaces the entry and makes it the newest. A `Map` keeps
+ * the first position on `set`, so the old entry is removed first.
+ */
+function store(cache: Map<string, Response>, key: string, response: Response) {
+  cache.delete(key);
+  cache.set(key, response);
+}
+
 function createCacheStorage(
   stored: Map<string, Map<string, Response>>,
   network: (input: Input) => Promise<Response>,
+  faults: { cacheDelete: boolean },
 ) {
   function open(name: string) {
     let entries = stored.get(name);
@@ -98,12 +113,12 @@ function createCacheStorage(
     const cache = entries;
     return {
       async put(request: Input, response: Response) {
-        cache.set(pathnameOf(request), response);
+        store(cache, pathnameOf(request), response);
       },
       async addAll(requests: Input[]) {
         for (const request of requests) {
           const response = await network(request);
-          cache.set(pathnameOf(request), response);
+          store(cache, pathnameOf(request), response);
         }
       },
       async match(request: Input) {
@@ -111,6 +126,10 @@ function createCacheStorage(
       },
       async keys() {
         return [...cache.keys()].map((key) => new Request(`${ORIGIN}${key}`));
+      },
+      async delete(request: Input) {
+        if (faults.cacheDelete) throw new Error("injected delete failure");
+        return cache.delete(pathnameOf(request));
       },
     };
   }
@@ -147,10 +166,12 @@ export function loadServiceWorker(
     );
   }
 
+  const faults = { cacheDelete: false };
   const harness = {
     caches: stored,
     network: [] as NetworkRequest[],
     online: true,
+    faults,
   } as WorkerHarness;
 
   async function network(input: Input): Promise<Response> {
@@ -179,11 +200,13 @@ export function loadServiceWorker(
   // oxlint-disable-next-line no-new-func
   new Function("self", "caches", "fetch", "Request", "Response", source)(
     self,
-    createCacheStorage(stored, network),
+    createCacheStorage(stored, network, faults),
     network,
     Request,
     Response,
   );
+
+  let lastFetchLifetimes: Promise<unknown>[] = [];
 
   async function dispatchLifecycle(type: string): Promise<void> {
     const pending: Promise<unknown>[] = [];
@@ -200,23 +223,32 @@ export function loadServiceWorker(
   harness.fetch = async (pathname, init = {}) => {
     // A plain object rather than a `Request`: Node refuses the "navigate"
     // mode a browser reports for a page load.
+    // `pathname` may also be an absolute URL, which is how a cross-origin request is modelled.
     const eventRequest: EventRequest = {
-      url: `${ORIGIN}${pathname}`,
+      url: new URL(pathname, ORIGIN).href,
       method: init.method ?? "GET",
       mode: init.mode ?? "cors",
       credentials: "include",
     };
     let answer: Promise<Response> | null = null;
+    lastFetchLifetimes = [];
     for (const listener of listeners.get("fetch") ?? []) {
       listener({
         request: eventRequest,
         respondWith: (response: Promise<Response>) => {
           answer = response;
         },
+        waitUntil: (promise: Promise<unknown>) =>
+          lastFetchLifetimes.push(promise),
       });
     }
-    return answer === null ? null : await answer;
+    const response = answer === null ? null : await answer;
+    // A browser keeps the worker running until these settle. The harness waits for them too, so a test reads
+    // Cache Storage only after the worker's writes are done.
+    await Promise.allSettled(lastFetchLifetimes);
+    return response;
   };
+  harness.fetchLifetimeCount = () => lastFetchLifetimes.length;
   harness.cachedPathnames = () =>
     [...stored.values()].flatMap((entries) => [...entries.keys()]);
   return harness;

@@ -42,6 +42,7 @@
       "phoenix": ["../../../node_modules/@types/phoenix/index.d.ts"],
       "phoenix-colocated/*": ["./types/phoenix_colocated.d.ts"],
       "phoenix_html": ["./types/phoenix_html.d.ts"],
+      "mermaid": ["./types/mermaid.d.ts"],
       "phoenix_live_view": [
         "../deps/phoenix_live_view/assets/js/types/index.d.ts"
       ],

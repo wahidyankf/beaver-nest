@@ -10,6 +10,10 @@ defmodule BnestApp.FamilyChat.Domain.Cursor do
 
   @type t :: %{before_id: term(), after_id: term(), limit: pos_integer()}
 
+  @doc "The largest page the contract allows, which is also the page size a caller gets by naming no limit."
+  @spec max_limit() :: pos_integer()
+  def max_limit, do: @max_limit
+
   @doc "The cursor `options` name, or `:error` when they break the contract."
   @spec new(keyword()) :: {:ok, t()} | :error
   def new(options) do

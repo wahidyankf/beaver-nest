@@ -70,6 +70,10 @@ export function replyAsAnotherMember(
  * page disables it, so the control before the history is then the one ahead of it. Throws when none is found.
  */
 export async function focusControlBeforeHistory(page: Page): Promise<void> {
+  // The room's first render replaces the history's rows. A focus set before that render lands on a row that is then
+  // removed, and focus falls to the page body, so the room is waited for first.
+  await waitForRoomReady(page);
+  await waitForRoomSubscribed(page);
   const focused = await page.evaluate(() => {
     const history = document.querySelector('[data-role="family-chat-history"]');
     if (!history) return false;

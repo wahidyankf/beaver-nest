@@ -3,7 +3,7 @@ defmodule BnestAppWeb.ChatLive do
 
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Domain.{RepositoryAccess, Settings, Transcript}
-  alias BnestAppWeb.ChatMarkdown
+  alias BnestAppWeb.ChatComponents
 
   @max_snapshot_bytes 500_000
 
@@ -101,6 +101,9 @@ defmodule BnestAppWeb.ChatLive do
   def handle_event("recover_draft", %{"chat" => %{"prompt" => prompt}}, socket) do
     {:noreply, assign(socket, :form, prompt_form(prompt))}
   end
+
+  # On reconnect an empty composer sends no prompt, only its target. There is no draft to recover.
+  def handle_event("recover_draft", _params, socket), do: {:noreply, socket}
 
   @impl Phoenix.LiveView
   def handle_event("send", _params, %{assigns: %{model_access: %{available?: false}}} = socket),
@@ -209,100 +212,118 @@ defmodule BnestAppWeb.ChatLive do
               <h1 id="chat-title">Beaver Nest</h1>
             </div>
           </a>
-          <div class="chat-actions">
-            <form
-              :if={@model_access.selectable?}
-              id="model-picker"
-              phx-change="select_model"
-              phx-auto-recover="ignore_model_recovery"
-              class="model-picker"
-            >
-              <label for="model-selector">Model</label>
-              <select
-                id="model-selector"
-                name="model"
-                data-role="model-selector"
-                disabled={@chat.busy}
-              >
-                <option
-                  :for={model <- @models}
-                  value={model.id}
-                  selected={model.id == @chat.model}
-                >
-                  {model.display_name}
-                </option>
-              </select>
-            </form>
-            <form
-              :if={@model_access.selectable?}
-              id="effort-picker"
-              phx-change="select_effort"
-              phx-auto-recover="ignore_effort_recovery"
-              class="model-picker"
-            >
-              <label for="effort-selector">Reasoning effort</label>
-              <select
-                id="effort-selector"
-                name="reasoning_effort"
-                data-role="effort-selector"
-                disabled={@chat.busy}
-              >
-                <option
-                  :for={effort <- selected_model(@models, @chat.model).supported_reasoning_efforts}
-                  value={effort}
-                  selected={effort == @chat.reasoning_effort}
-                >
-                  {Settings.effort_label(effort)}
-                </option>
-              </select>
-            </form>
+          <div class="chat-controls">
+            <%!-- The access state and its toggle sit outside the scrolling row, so they are on screen at every width. --%>
             <span
-              class="model-badge"
-              data-model={@chat.model}
-              data-reasoning-effort={@chat.reasoning_effort}
-            >
-              {Settings.label(model_display_name(@models, @chat.model), @chat.reasoning_effort)}
-            </span>
-            <span
-              class={[
-                "repository-access-badge",
-                @repository_write_enabled? && "repository-access-badge-write"
-              ]}
+              class="chat-access"
               data-role="repository-access"
               data-mode={repository_mode_value(@repository_access_mode)}
               aria-live="polite"
             >
-              {if @repository_write_enabled?, do: "Repo write enabled", else: "Repo read-only"}
+              <button
+                :if={@repository_write_allowed?}
+                type="button"
+                class={[
+                  "repository-access-badge",
+                  "repository-write-toggle",
+                  @repository_write_enabled? && "repository-access-badge-write"
+                ]}
+                data-role="repository-write-toggle"
+                phx-click="set_repository_write"
+                phx-value-enabled={to_string(not @repository_write_enabled?)}
+                aria-label={repository_write_toggle_label(@repository_write_enabled?)}
+                disabled={@chat.busy}
+              >
+                {repository_access_text(@repository_write_enabled?)}
+              </button>
+              <span
+                :if={not @repository_write_allowed?}
+                class={[
+                  "repository-access-badge",
+                  @repository_write_enabled? && "repository-access-badge-write"
+                ]}
+              >
+                {repository_access_text(@repository_write_enabled?)}
+              </span>
             </span>
-            <button
-              :if={@repository_write_allowed?}
-              type="button"
-              class="repository-write-toggle"
-              data-role="repository-write-toggle"
-              phx-click="set_repository_write"
-              phx-value-enabled={to_string(not @repository_write_enabled?)}
-              aria-pressed={to_string(@repository_write_enabled?)}
-              disabled={@chat.busy}
-            >
-              {if @repository_write_enabled?,
-                do: "Disable repo writes",
-                else: "Enable repo writes"}
-            </button>
-            <nav class="chat-theme-control" aria-label="Color theme">
-              <Layouts.theme_toggle />
-            </nav>
-            <button
-              type="button"
-              class="clear-chat-button"
-              data-role="clear-chat"
-              phx-click="clear"
-            >
-              Clear chat
-            </button>
+            <div class="chat-actions">
+              <form
+                :if={@model_access.selectable?}
+                id="model-picker"
+                phx-change="select_model"
+                phx-auto-recover="ignore_model_recovery"
+                class="model-picker"
+              >
+                <label for="model-selector">Model</label>
+                <select
+                  id="model-selector"
+                  name="model"
+                  data-role="model-selector"
+                  disabled={@chat.busy}
+                >
+                  <option
+                    :for={model <- @models}
+                    value={model.id}
+                    selected={model.id == @chat.model}
+                  >
+                    {model.display_name}
+                  </option>
+                </select>
+              </form>
+              <form
+                :if={@model_access.selectable?}
+                id="effort-picker"
+                phx-change="select_effort"
+                phx-auto-recover="ignore_effort_recovery"
+                class="model-picker"
+              >
+                <label for="effort-selector">Reasoning effort</label>
+                <select
+                  id="effort-selector"
+                  name="reasoning_effort"
+                  data-role="effort-selector"
+                  disabled={@chat.busy}
+                >
+                  <option
+                    :for={effort <- selected_model(@models, @chat.model).supported_reasoning_efforts}
+                    value={effort}
+                    selected={effort == @chat.reasoning_effort}
+                  >
+                    {Settings.effort_label(effort)}
+                  </option>
+                </select>
+              </form>
+              <span
+                class="model-badge"
+                data-model={@chat.model}
+                data-reasoning-effort={@chat.reasoning_effort}
+              >
+                {Settings.label(model_display_name(@models, @chat.model), @chat.reasoning_effort)}
+              </span>
+              <nav class="chat-theme-control" aria-label="Color theme">
+                <Layouts.theme_toggle />
+              </nav>
+              <button
+                type="button"
+                class="clear-chat-button"
+                data-role="clear-chat"
+                phx-click="clear"
+              >
+                Clear chat
+              </button>
+            </div>
           </div>
         </header>
 
-        <div class="conversation" aria-live="polite" aria-label="Conversation">
+        <%!-- The hook draws the marked diagrams of every reply (ADR 004, Decision 3). One watcher serves the whole
+             conversation, so a reply that changes needs no hook update. --%>
+        <div
+          id="chat-conversation"
+          class="conversation"
+          aria-live="polite"
+          aria-label="Conversation"
+          phx-hook="ChatDiagrams"
+        >
           <div :if={@chat.messages == []} class="empty-state">
             <p>Ask Codex about this repository.</p>
             <span>This conversation is saved to your account until you clear it.</span>
@@ -336,15 +357,28 @@ defmodule BnestAppWeb.ChatLive do
                 </li>
               </ol>
             </details>
+            <%!-- A finished reply never changes again, so later patches ignore it: a drawn diagram and an opened
+                 source stay as they are. The patch that ends streaming is not ignored, so the diagram marker
+                 arrives with it. (ADR 004, Decision 3.) --%>
             <div
-              :if={message.role == :assistant}
+              :if={message.role == :assistant and placeholder?(message)}
+              id={"assistant-message-#{message.id}"}
               class="message-content markdown-body"
               data-role="assistant-message"
               data-streaming={to_string(message.streaming)}
               data-update-count={message.update_count}
-            >
-              {assistant_content(message)}
-            </div>
+              phx-no-format
+            >Thinking…</div>
+            <ChatComponents.markdown_body
+              :if={message.role == :assistant and not placeholder?(message)}
+              id={"assistant-message-#{message.id}"}
+              phx-update={if message.streaming, do: nil, else: "ignore"}
+              content={message.content}
+              streaming={message.streaming}
+              data-role="assistant-message"
+              data-streaming={to_string(message.streaming)}
+              data-update-count={message.update_count}
+            />
           </article>
         </div>
 
@@ -363,7 +397,7 @@ defmodule BnestAppWeb.ChatLive do
             type="textarea"
             label="Message"
             placeholder="Ask Codex…"
-            rows="3"
+            rows="1"
             data-role="chat-composer"
             disabled={@chat.busy or not @model_access.available?}
             required
@@ -556,13 +590,19 @@ defmodule BnestAppWeb.ChatLive do
   defp model_selection_allowed?(socket),
     do: Map.get(socket.assigns, :model_access, %{selectable?: true}).selectable?
 
-  defp assistant_content(%{content: "", streaming: true}), do: "Thinking…"
-
-  defp assistant_content(message),
-    do: ChatMarkdown.to_html(message.content, message.streaming)
+  # A reply that has no text yet shows the placeholder, as plain text and never as Markdown.
+  defp placeholder?(%{content: "", streaming: true}), do: true
+  defp placeholder?(_message), do: false
 
   defp progress_data_role(:reasoning), do: "codex-reasoning-summary"
   defp progress_data_role(_kind), do: "codex-progress-item"
+
+  defp repository_access_text(true), do: "Repo write enabled"
+  defp repository_access_text(false), do: "Repo read-only"
+
+  # The toggle's name carries its state and its action, so a screen reader hears both.
+  defp repository_write_toggle_label(true), do: "Repo write enabled. Disable repo writes"
+  defp repository_write_toggle_label(false), do: "Repo read-only. Enable repo writes"
 
   defp progress_label(:reasoning), do: "Reasoning"
   defp progress_label(:activity), do: "Working"
