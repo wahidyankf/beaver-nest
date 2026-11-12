@@ -77,3 +77,18 @@ describe("operation documents", () => {
     );
   });
 });
+
+describe("the rendered body", () => {
+  // ADR 003, browser rule 1: one edit to the base field list covers query, mutation, and subscription.
+  it("sits in the base field list, so no flag can drop it", () => {
+    expect(MESSAGE_FIELDS_BASE).toMatch(/\bbodyHtml\b/u);
+  });
+
+  it("is requested by all three documents, with and without replies", () => {
+    for (const replies of [true, false]) {
+      for (const document of documentsFor(replies)) {
+        expect(document).toMatch(/\bbodyHtml\b/u);
+      }
+    }
+  });
+});

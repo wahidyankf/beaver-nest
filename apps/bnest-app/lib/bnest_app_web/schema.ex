@@ -13,6 +13,7 @@ defmodule BnestAppWeb.Schema do
 
   alias BnestAppWeb.Resolvers.FamilyChatResolver
   alias BnestAppWeb.Resolvers.WebPushResolver
+  alias BnestAppWeb.Schema.Complexity
 
   query do
     field :family_chat_rooms, non_null(list_of(non_null(:family_chat_room))) do
@@ -29,6 +30,7 @@ defmodule BnestAppWeb.Schema do
       arg(:before_id, :id)
       arg(:after_id, :id)
       arg(:limit, :integer)
+      complexity(fn args, child -> Complexity.page(args, child) end)
       resolve(&FamilyChatResolver.family_chat_messages/2)
     end
 

@@ -1,12 +1,27 @@
 import { expect, type APIResponse, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import { makePng } from "../support/family-chat-markdown";
 
 // Codex replies are rendered as Markdown inside `data-role=assistant-message`; the newest one is the
 // reply a scenario is about. The canned replies come from `codex_fixture_replies.json`, which the
 // fixture runner sends, so the expectations below name the text the runner really sends.
-const { Then, When } = createBdd();
+const { Before, Then, When } = createBdd();
 
 const IMAGE_ROUTE = "/chat/images/";
+
+// A scenario tagged @remote-image loads a third-party image. The browser is never allowed to reach the internet for
+// it: the context answers the request with this 1200x60 PNG. It is wider than a phone, so a layout scenario has a
+// picture that could overflow; the scenarios that only need a loaded picture still see one (naturalWidth > 0).
+const REMOTE_IMAGE_PATTERN = "https://images.example.test/**";
+const WIDE_PNG = makePng(1200, 60);
+
+// The route belongs to the browser context, so it covers every page the scenario opens. It is registered before the
+// first page loads, so no request for the host leaves the browser.
+Before("@remote-image", async ({ context }) => {
+  await context.route(REMOTE_IMAGE_PATTERN, (route) =>
+    route.fulfill({ status: 200, contentType: "image/png", body: WIDE_PNG }),
+  );
+});
 
 // The last image response a scenario requested. A scenario runs one step after another in its worker.
 let imageResponse: APIResponse | undefined;
@@ -24,11 +39,14 @@ function requestedImageResponse(): APIResponse {
 }
 
 When("Codex streams the first part of the reply", async ({ page }) => {
-  // The fixture runner holds this partial reply for `holdMs` after the prefix (10 s for this
-  // reply, see codex_fixture_replies.json). The Then steps that read the streaming state must finish
-  // inside that hold, so the hold is long enough for a loaded host; a shorter one made them race it.
+  // The fixture runner holds this partial reply for `holdMs` after the prefix (10 s for the streaming replies,
+  // see codex_fixture_replies.json). The Then steps that read the streaming state must finish inside that hold, so
+  // the hold is long enough for a loaded host; a shorter one made them race it. The first update counts the prefix.
   await expect(latestReply(page)).toHaveAttribute("data-streaming", "true");
-  await expect(latestReply(page)).toContainText("bol");
+  await expect(latestReply(page)).toHaveAttribute(
+    "data-update-count",
+    /^[1-9][0-9]*$/u,
+  );
 });
 
 When("Codex streams the rest of the reply", async ({ page }) => {
@@ -190,6 +208,42 @@ Then(
     expect(decodeURIComponent(src.slice(IMAGE_ROUTE.length))).toBe(path);
 
     // The browser decoded the image, not only the markup that names it.
+    await expect
+      .poll(() =>
+        image.evaluate((element) => (element as HTMLImageElement).naturalWidth),
+      )
+      .toBeGreaterThan(0);
+  },
+);
+
+// An inline image is a real `img` with its alt text, outside any link, and the browser decoded it: a decoded image
+// has a width. An image in a link would be a link, not an inline image.
+Then(
+  "the latest Codex reply shows an inline image with the alt text {string}",
+  async ({ page }, alt: string) => {
+    const image = latestReply(page).getByAltText(alt, { exact: true });
+
+    await expect(image).toHaveCount(1);
+    await expect(
+      latestReply(page).locator("a").getByAltText(alt, { exact: true }),
+    ).toHaveCount(0);
+    await expect
+      .poll(() =>
+        image.evaluate((element) => (element as HTMLImageElement).naturalWidth),
+      )
+      .toBeGreaterThan(0);
+  },
+);
+
+Then(
+  "the latest Codex reply loads the inline image {string} from {string}",
+  async ({ page }, alt: string, address: string) => {
+    const image = latestReply(page).getByAltText(alt, { exact: true });
+
+    await expect(image).toHaveAttribute("src", address);
+    await expect(
+      latestReply(page).locator("a").getByAltText(alt, { exact: true }),
+    ).toHaveCount(0);
     await expect
       .poll(() =>
         image.evaluate((element) => (element as HTMLImageElement).naturalWidth),

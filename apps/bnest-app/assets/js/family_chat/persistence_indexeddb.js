@@ -37,7 +37,7 @@ function rowKey(namespace, clientMessageId) {
  * @param {string} namespace
  * @param {import("./outbox_namespace.js").QueuedMessage} message
  */
-function toRow(namespace, message) {
+export function toRow(namespace, message) {
   return {
     key: rowKey(namespace, message.clientMessageId),
     namespace,

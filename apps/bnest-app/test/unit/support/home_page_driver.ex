@@ -343,9 +343,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def chat_controls_arranged?(context) do
     page = context.page
 
-    LazyHTML.query(page, ".chat-actions > *") |> Enum.count() == 4 and
+    LazyHTML.query(page, ".chat-actions > *") |> Enum.count() == 3 and
       not Enum.empty?(LazyHTML.query(page, ".chat-actions > .model-badge")) and
-      not Enum.empty?(LazyHTML.query(page, ".chat-actions > .repository-access-badge")) and
+      not Enum.empty?(
+        LazyHTML.query(page, ".chat-controls > .chat-access[data-role=repository-access]")
+      ) and
       not Enum.empty?(LazyHTML.query(page, ".chat-actions > .chat-theme-control")) and
       not Enum.empty?(
         LazyHTML.query(
@@ -551,11 +553,19 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       |> LazyHTML.query("form#chat-composer-form textarea")
       |> LazyHTML.text()
 
+    # A turn held mid-stream when the drop came stays held: the resumed turn streams its first part, and the rest
+    # waits for the scenario's "Codex streams the rest" step, as it would while the reply is still being written.
+    held = Map.fetch(context, :pending_codex_events)
     remounted = remount_chat(context)
 
     remounted =
+      if held == :error,
+        do: remounted,
+        else: Map.put(remounted, :pending_codex_events, elem(held, 1))
+
+    remounted =
       if Enum.any?(new_calls(remounted, context), &match?({:agent_session, :prompt, _, _}, &1)),
-        do: stream_answer(remounted),
+        do: resume_answer(remounted, held),
         else: remounted
 
     case {draft, form_recovery_event(remounted.page, "form#chat-composer-form")} do
@@ -738,6 +748,27 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @impl true
   def latest_codex_reply_lays_out_inside_bubble?(context),
     do: CodexReplyPage.lays_out_structure?(latest_reply(context))
+
+  # The unit layer proves that the wide content is in the reply; the browser measures the width.
+  @impl true
+  def latest_codex_reply_holds_wide_content?(context),
+    do: CodexReplyPage.holds_wide_content?(latest_reply(context))
+
+  @impl true
+  def latest_codex_reply_shows_inline_image?(context, alt),
+    do: CodexReplyPage.shows_inline_image?(latest_reply(context), alt)
+
+  @impl true
+  def latest_codex_reply_loads_inline_image?(context, alt, address),
+    do: CodexReplyPage.loads_inline_image?(latest_reply(context), alt, address)
+
+  @impl true
+  def latest_codex_reply_keeps_plain_code_blocks?(context, count),
+    do: CodexReplyPage.plain_diagram_count(latest_reply(context)) == count
+
+  @impl true
+  def latest_codex_reply_marks_diagrams?(context, count),
+    do: CodexReplyPage.marked_diagram_count(latest_reply(context)) == count
 
   @impl true
   def latest_codex_reply_shows_repository_image?(context, path),
@@ -1210,6 +1241,17 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   defp stream_answer(context) do
     {events, context} = answer_next_prompt(context)
     deliver_codex_events(context, events)
+  end
+
+  defp resume_answer(context, :error), do: stream_answer(context)
+
+  defp resume_answer(context, {:ok, _held}) do
+    {events, context} = answer_next_prompt(context)
+    {first, rest} = CodexFixtureConversation.split_first_part(events)
+
+    context
+    |> Map.put(:pending_codex_events, rest)
+    |> deliver_codex_events(first)
   end
 
   # The events the fixture Codex sends for the prompt the current session received last.

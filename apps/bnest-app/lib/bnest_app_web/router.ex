@@ -2,6 +2,8 @@ defmodule BnestAppWeb.Router do
   use BnestAppWeb, :router
   import BnestAppWeb.UserAuth
 
+  alias BnestAppWeb.Schema.Complexity
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -66,7 +68,14 @@ defmodule BnestAppWeb.Router do
   scope "/api" do
     pipe_through :graphql
 
-    forward "/graphql", Absinthe.Plug, schema: BnestAppWeb.Schema, json_codec: Jason
+    # Every document is priced before resolution; one over the budget is refused with a safe VALIDATION_FAILED error
+    # (BnestAppWeb.Schema.Complexity). GraphiQL below is a dev/test explorer and does not carry the budget.
+    forward "/graphql", Absinthe.Plug,
+      schema: BnestAppWeb.Schema,
+      json_codec: Jason,
+      analyze_complexity: true,
+      max_complexity: Complexity.max_complexity(),
+      pipeline: {Complexity, :pipeline}
   end
 
   scope "/health", BnestAppWeb do

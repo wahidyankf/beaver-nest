@@ -82,7 +82,7 @@ describe("messageNode quote rendering", () => {
     expect(quote.type).toBe("button");
   });
 
-  it("is not a tab stop, so Tab still enters the history exactly once", () => {
+  it("starts out outside the tab order: the history raises it only when its reply is the stop", () => {
     const quote = render(reply()).querySelector<HTMLElement>(QUOTE);
 
     expect(quote?.tabIndex).toBe(-1);

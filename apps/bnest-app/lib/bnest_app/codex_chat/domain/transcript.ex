@@ -125,6 +125,8 @@ defmodule BnestApp.CodexChat.Domain.Transcript do
          true <- reasoning_effort in @reasoning_efforts,
          {:ok, restored_messages} <- restore_messages(messages),
          {:ok, restored_pending_turn} <- restore_pending_turn(pending_turn, restored_messages) do
+      restored_messages = mark_pending_streaming(restored_messages, restored_pending_turn)
+
       {:ok,
        %{
          messages: restored_messages,
@@ -351,6 +353,17 @@ defmodule BnestApp.CodexChat.Domain.Transcript do
     else
       :error
     end
+  end
+
+  # The reply of an in-flight turn is still being written, as it is when the turn is submitted, so it streams
+  # again after a restore. Only the streaming flag changes: a finished reply is restored as final.
+  defp mark_pending_streaming(messages, nil), do: messages
+
+  defp mark_pending_streaming(messages, %{assistant_message_id: assistant_message_id}) do
+    Enum.map(messages, fn
+      %{id: ^assistant_message_id} = message -> %{message | streaming: true}
+      message -> message
+    end)
   end
 
   defp next_id([]), do: 1

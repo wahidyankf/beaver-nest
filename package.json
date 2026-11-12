@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "@openai/codex-sdk": "0.149.1",
+    "mermaid": "12.3.0",
     "phoenix": "~1.8.14"
   }
 }

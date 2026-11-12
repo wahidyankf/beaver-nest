@@ -86,6 +86,8 @@ export interface FamilyChatMessage {
   senderId: string;
   senderDisplayName: string;
   body: string;
+  /** The server-rendered Markdown of `body` (ADR 003, Decision 2). Selected by the send and the subscription. */
+  bodyHtml?: string;
   committedAt: string;
   replyTo: FamilyChatMessageQuote | null;
 }
@@ -117,6 +119,7 @@ export function sendFamilyChatMessage(
         senderId
         senderDisplayName
         body
+        bodyHtml
         committedAt
         replyTo { id senderKind senderDisplayName bodyPreview }
       }

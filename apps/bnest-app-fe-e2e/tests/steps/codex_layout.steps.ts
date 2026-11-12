@@ -119,3 +119,53 @@ Then(
     await expectImageInsideBubble(reply, bubble.width);
   },
 );
+
+Then(
+  "the latest Codex reply holds a wide table and an image",
+  async ({ page }) => {
+    await expect
+      .poll(() => latestReply(page).locator("table th").count(), {
+        timeout: 15_000,
+      })
+      .toBeGreaterThanOrEqual(8);
+    await expect(latestReply(page).locator("img").first()).toBeAttached();
+  },
+);
+
+// At a phone width neither the page nor the reply bubble scrolls sideways: a wide table scrolls inside its own
+// element, and an image shrinks to the bubble (ADR 003, threat table: "Wide image or table breaks the phone layout").
+Then(
+  "the page does not overflow horizontally at 390 pixels",
+  async ({ page }) => {
+    await page.setViewportSize(PHONE_VIEWPORT);
+    // A picture has no width to overflow with until it has decoded, so each one must have loaded before the measure.
+    await expect
+      .poll(
+        () =>
+          latestReply(page)
+            .locator("img")
+            .evaluateAll(
+              (images) =>
+                images.length > 0 &&
+                images.every(
+                  (image) => (image as HTMLImageElement).naturalWidth > 0,
+                ),
+            ),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+
+    const pageWidth = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }));
+    const bubble = latestReply(page).locator("xpath=ancestor::article[1]");
+    const bubbleWidth = await bubble.evaluate((element) => ({
+      scroll: element.scrollWidth,
+      client: element.clientWidth,
+    }));
+
+    expect(pageWidth.scroll).toBeLessThanOrEqual(pageWidth.client);
+    expect(bubbleWidth.scroll).toBeLessThanOrEqual(bubbleWidth.client);
+  },
+);

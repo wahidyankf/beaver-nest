@@ -338,9 +338,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     actions =
       context.view |> render() |> LazyHTML.from_fragment() |> LazyHTML.query(".chat-actions > *")
 
-    Enum.count(actions) == 4 and
+    Enum.count(actions) == 3 and
       has_element?(context.view, ".chat-actions > .model-badge") and
-      has_element?(context.view, ".chat-actions > .repository-access-badge") and
+      has_element?(context.view, ".chat-controls > .chat-access[data-role=repository-access]") and
       has_element?(context.view, ".chat-actions > .chat-theme-control") and
       has_element?(
         context.view,
@@ -715,6 +715,26 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
           "Codex reply tables, task lists, links and images keep their layout"
         )
       )
+
+  @impl true
+  def latest_codex_reply_holds_wide_content?(context),
+    do: CodexReplyPage.holds_wide_content?(latest_reply(context))
+
+  @impl true
+  def latest_codex_reply_shows_inline_image?(context, alt),
+    do: CodexReplyPage.shows_inline_image?(latest_reply(context), alt)
+
+  @impl true
+  def latest_codex_reply_loads_inline_image?(context, alt, address),
+    do: CodexReplyPage.loads_inline_image?(latest_reply(context), alt, address)
+
+  @impl true
+  def latest_codex_reply_keeps_plain_code_blocks?(context, count),
+    do: CodexReplyPage.plain_diagram_count(latest_reply(context)) == count
+
+  @impl true
+  def latest_codex_reply_marks_diagrams?(context, count),
+    do: CodexReplyPage.marked_diagram_count(latest_reply(context)) == count
 
   @impl true
   def latest_codex_reply_shows_repository_image?(context, path),

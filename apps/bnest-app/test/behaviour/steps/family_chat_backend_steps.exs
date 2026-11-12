@@ -70,6 +70,18 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
   )
 
   step(
+    "the user queries one page of family chat messages asking for bodyHtml once",
+    context,
+    do: perform(context, :query_messages_body_html_once)
+  )
+
+  step(
+    "the user queries one page of family chat messages asking for bodyHtml under ten aliases",
+    context,
+    do: perform(context, :query_messages_body_html_ten_aliases)
+  )
+
+  step(
     "the user sends the family chat message {string} with a fresh client message ID",
     %{args: [body]} = context,
     do: perform(context, :send_message_fresh_id, [body])
@@ -804,6 +816,59 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
 
   step("that reply carries a quote naming the message it answers", context,
     do: outcome(context, :reply_carries_quote)
+  )
+
+  # --- family_chat_graphql.feature: message body as safe HTML ---
+
+  step("the response's bodyHtml is the family chat message body element", context,
+    do: outcome(context, :body_html_is_message_body_element)
+  )
+
+  step("the response's bodyHtml contains {string}", %{args: [fragment]} = context,
+    do: outcome(context, :body_html_contains, [fragment])
+  )
+
+  step("the response's bodyHtml lacks {string}", %{args: [fragment]} = context,
+    do: outcome(context, :body_html_lacks, [fragment])
+  )
+
+  step(
+    "every message in the response has body HTML containing {string}",
+    %{args: [fragment]} = context,
+    do: outcome(context, :every_message_body_html_contains, [fragment])
+  )
+
+  step(
+    "the response's bodyHtml shows the image as {string} at {string}",
+    %{args: [decision, address]} = context,
+    do: outcome(context, :body_html_shows_image, [decision, address])
+  )
+
+  step(
+    "the subscriber receives exactly one committed-message event matching that message whose bodyHtml contains {string}",
+    %{args: [fragment]} = context,
+    do: outcome(context, :subscriber_event_body_html_contains, [fragment])
+  )
+
+  # The docstring is the message as typed, so its Markdown fence reaches the server unchanged.
+  step(
+    "the user sends this family chat message with a fresh client message ID:",
+    %{docstring: body} = context,
+    do: perform(context, :send_message_fresh_id, [body])
+  )
+
+  step("the response's bodyHtml marks a diagram for drawing", context,
+    do: outcome(context, :body_html_marks_diagram)
+  )
+
+  step(
+    "the response's bodyHtml keeps the diagram as a code block with the note {string}",
+    %{args: [note]} = context,
+    do: outcome(context, :body_html_keeps_diagram_note, [note])
+  )
+
+  step("the family chat quote type declares no bodyHtml field", context,
+    do: outcome(context, :quote_declares_no_body_html)
   )
 
   # --- family_chat_operations.feature: the additive reply column ---

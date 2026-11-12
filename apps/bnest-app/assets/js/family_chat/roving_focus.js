@@ -1,16 +1,28 @@
-// The message history's single tab stop (tech-doc 004, "Keyboard Navigation
-// of the History").
+// The message history's one tab group (tech-doc 004, "Keyboard Navigation
+// of the History"; ADR 003, Decision 6).
 //
 // The history is a `role="log"` list of 50 or more items. Making each one
 // tabbable would put fifty stops between the header and the composer, so
 // exactly one message carries `tabindex="0"` and every other carries `-1`;
 // the arrow keys move that stop rather than Tab walking through it.
 //
+// The stop message's own content is part of the same tab group: its links,
+// quote card, and diagram source, and a table, code block, or picture only
+// while it overflows. `message_content_stops.js` applies that, and this module
+// re-applies it whenever the stop moves, the list changes, a region gains
+// focus, or a diagram source opens.
+//
 // The stop is held here, as a message key, and never recomputed from the
 // DOM on a key press. That is not an optimisation: the rendered list is
 // replaced continuously (pending rows reconciled, older pages prepended,
 // catch-up merged), and a stop derived from "whichever node currently has
 // tabindex 0" would be lost on every one of those paths.
+
+import {
+  CONTENT_SELECTORS,
+  syncContentStops,
+} from "./message_content_stops.js";
+import { revealInHistory } from "./focus_reveal.js";
 
 const MESSAGE_SELECTOR = '[data-role="family-chat-message"]';
 
@@ -47,8 +59,9 @@ function tabbableInside(item) {
 /**
  * The contract the renderer must keep, stated once so the check and the
  * implementation cannot drift: exactly one reachable message, or none at all
- * when there are no messages to reach -- and nothing reachable *inside* a
- * message, because "Tab enters the history once and leaves it once" is
+ * when there are no messages to reach. Inside that message, only content a
+ * reader can act on may be reachable; no other message may hold anything
+ * reachable, because "Tab enters the history once and leaves it once" is
  * broken just as thoroughly by fifty quote cards as by fifty list items.
  * @param {HTMLElement} list
  * @returns {boolean}
@@ -60,7 +73,12 @@ export function rovingInvariantHolds(list) {
   if (stops.length !== 1 || items.some((item) => item.tabIndex > 0)) {
     return false;
   }
-  return items.every((item) => tabbableInside(item).length === 0);
+  const [stop] = stops;
+  return items.every((item) =>
+    tabbableInside(item).every(
+      (candidate) => item === stop && candidate.matches(CONTENT_SELECTORS),
+    ),
+  );
 }
 
 /**
@@ -92,12 +110,87 @@ function targetIndexFor(key, current, length) {
 }
 
 /**
+ * Where a key moves the stop from its current message (the newest when the
+ * stop's message is not rendered).
+ * @param {HTMLElement[]} items
+ * @param {string | null} stopKey
+ * @param {string} key
+ * @returns {number | null}
+ */
+function moveTargetFor(items, stopKey, key) {
+  const from = indexOfKey(items, stopKey);
+  const current = from === -1 ? items.length - 1 : from;
+  return targetIndexFor(key, current, items.length);
+}
+
+/**
+ * Re-measures the stop's content without moving the stop.
+ * @param {HTMLElement} list
+ * @param {string | null} stopKey
+ */
+function remeasureStop(list, stopKey) {
+  const items = itemsOf(list);
+  const index = indexOfKey(items, stopKey);
+  syncContentStops(items, items[index] ?? null);
+}
+
+/**
+ * Watches the list for changes that do not re-render it, and calls `remeasure`
+ * for each burst of them: a table or code block that gains focus, a diagram
+ * source that opens (`toggle` does not bubble, so it is listened for in the
+ * capture phase), or a drawing that lands in the list.
+ * @param {HTMLElement} list
+ * @param {() => void} remeasure
+ * @returns {() => void} stops watching.
+ */
+function watchContent(list, remeasure) {
+  // A burst of list mutations (one render can add many nodes) is measured
+  // once, after the mutations have been applied.
+  let scheduled = false;
+  const observer = new MutationObserver(() => {
+    if (scheduled) return;
+    scheduled = true;
+    queueMicrotask(() => {
+      scheduled = false;
+      remeasure();
+    });
+  });
+  observer.observe(list, { childList: true, subtree: true });
+  list.addEventListener("focusin", remeasure);
+  list.addEventListener("toggle", remeasure, true);
+  return () => {
+    observer.disconnect();
+    list.removeEventListener("focusin", remeasure);
+    list.removeEventListener("toggle", remeasure, true);
+  };
+}
+
+/**
  * @typedef {object} RovingFocus
  * @property {() => void} refresh re-applies the stop after the list changed.
  * @property {(key: string) => void} move arrow/Home/End movement.
  * @property {(messageKey: string) => void} moveTo place the stop on one message.
  * @property {() => HTMLElement | null} current the message the stop is on.
+ * @property {() => void} disconnect stops observing the list and its events.
  */
+
+/**
+ * Puts the one tab stop on the message `stopKey` names. When that message is
+ * not rendered, or there is no stop yet, the newest message gets it: that is
+ * where a reader entering the history expects to arrive.
+ * @param {HTMLElement[]} items
+ * @param {string | null} stopKey
+ * @returns {string | null} the key the stop now holds.
+ */
+function applyStop(items, stopKey) {
+  for (const item of items) item.tabIndex = -1;
+  const index = indexOfKey(items, stopKey);
+  const stop = items[index === -1 ? items.length - 1 : index];
+  if (!stop) return stopKey;
+  stop.tabIndex = 0;
+  syncContentStops(items, stop);
+  return stop.dataset["messageId"] ?? null;
+}
 
 /**
  * @param {HTMLElement} list
@@ -107,45 +200,40 @@ export function createRovingFocus(list) {
   /** @type {string | null} */
   let stopKey = null;
 
-  /** @param {HTMLElement[]} items */
-  function apply(items) {
-    for (const item of items) item.tabIndex = -1;
-    const index = indexOfKey(items, stopKey);
-    // No stop yet, or the message it named is no longer rendered: fall back
-    // to the newest, which is where a reader entering the history expects to
-    // arrive.
-    const stop = items[index === -1 ? items.length - 1 : index];
-    if (!stop) return;
-    stop.tabIndex = 0;
-    stopKey = stop.dataset["messageId"] ?? null;
-  }
+  const stopWatching = watchContent(list, () => remeasureStop(list, stopKey));
 
   return {
     refresh() {
-      apply(itemsOf(list));
+      stopKey = applyStop(itemsOf(list), stopKey);
     },
 
     move(key) {
       const items = itemsOf(list);
-      if (items.length === 0) return;
-      const from = indexOfKey(items, stopKey);
-      const current = from === -1 ? items.length - 1 : from;
-      const target = targetIndexFor(key, current, items.length);
+      const target =
+        items.length === 0 ? null : moveTargetFor(items, stopKey, key);
       if (target === null) return;
-      stopKey = items[target]?.dataset["messageId"] ?? stopKey;
-      apply(items);
-      items[target]?.focus({ preventScroll: true });
+      stopKey = applyStop(
+        items,
+        items[target]?.dataset["messageId"] ?? stopKey,
+      );
+      const focused = items[target];
+      focused?.focus({ preventScroll: true });
+      // The history wraps the list and is the element that scrolls it.
+      if (focused && list.parentElement) {
+        revealInHistory(focused, list.parentElement);
+      }
     },
 
     moveTo(messageKey) {
-      stopKey = messageKey;
-      apply(itemsOf(list));
+      stopKey = applyStop(itemsOf(list), messageKey);
     },
 
     current() {
       const items = itemsOf(list);
       return items[indexOfKey(items, stopKey)] ?? null;
     },
+
+    disconnect: stopWatching,
   };
 }
 

@@ -111,7 +111,10 @@ Then("the chat controls do not overlap", async ({ page }) => {
     page.getByRole("button", { name: "Use dark theme" }),
   ).toBeVisible();
 
-  const controls = page.locator(".chat-actions > *");
+  // The access state and the scrolling row's controls: together they are the header's four controls.
+  const controls = page.locator(
+    ".chat-controls > .chat-access, .chat-actions > *",
+  );
   const rectangles = await controls.evaluateAll((elements) =>
     elements.map((element) => {
       const { bottom, height, left, right, top, width } =

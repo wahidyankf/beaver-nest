@@ -272,6 +272,32 @@ defmodule BnestApp.CodexChat.TranscriptTest do
            }) == :error
   end
 
+  # A restored in-flight turn is still being written, so its reply must keep streaming: the page keeps
+  # patching a streaming reply, and a finished one is ignored by the browser's morph.
+  test "a restored in-flight turn keeps its reply streaming until it completes" do
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
+    chat = Transcript.update_assistant(chat, "answer", "Partial")
+    {:ok, snapshot} = Transcript.snapshot(chat)
+
+    assert {:ok, restored} = Transcript.restore(snapshot)
+    assert restored.busy == true
+    assert [%{role: :visitor, streaming: false}, assistant] = restored.messages
+    assert assistant.streaming == true
+
+    completed =
+      Transcript.complete(Transcript.update_assistant(restored, "answer", "Full answer"))
+
+    assert [_visitor, %{content: "Full answer", streaming: false}] = completed.messages
+  end
+
+  test "a restored finished turn has no streaming reply" do
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
+    {:ok, snapshot} = Transcript.snapshot(Transcript.complete(chat))
+
+    assert {:ok, restored} = Transcript.restore(snapshot)
+    assert Enum.all?(restored.messages, &(&1.streaming == false))
+  end
+
   test "rejects an interrupted snapshot whose assistant checkpoint is stale" do
     {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
     {:ok, snapshot} = Transcript.snapshot(chat)

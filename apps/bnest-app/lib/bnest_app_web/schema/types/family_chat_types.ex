@@ -5,6 +5,8 @@ defmodule BnestAppWeb.Schema.Types.FamilyChatTypes do
 
   alias BnestApp.FamilyChat.Domain.Message
   alias BnestApp.Identity
+  alias BnestAppWeb.ChatComponents
+  alias BnestAppWeb.Schema.Complexity
 
   object :family_chat_room do
     field(:id, non_null(:id))
@@ -45,6 +47,22 @@ defmodule BnestAppWeb.Schema.Types.FamilyChatTypes do
     end
 
     field(:body, non_null(:string))
+
+    # The body as safe HTML, from the same renderer and markup the Codex chat uses (ADR 003, Decision 2). The
+    # one shared renderer keeps the two rooms from drifting. Only this type carries it: a quote stays plain text.
+    # Priced by the complexity budget: each request renders the body once per message, so an alias repeats that cost.
+    field :body_html, non_null(:string) do
+      complexity(fn _args, child -> Complexity.body_html(child) end)
+
+      resolve(fn message, _args, _resolution ->
+        {:ok,
+         ChatComponents.markdown_body_html(message.body,
+           hard_breaks: true,
+           attrs: %{"data-role": "family-chat-message-body", class: "family-chat-message-body"}
+         )}
+      end)
+    end
+
     field(:committed_at, non_null(:datetime))
     field(:reply_to, :family_chat_message_quote)
   end

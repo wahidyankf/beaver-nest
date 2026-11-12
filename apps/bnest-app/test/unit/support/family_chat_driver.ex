@@ -21,6 +21,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   `/srv/test-user-backup` paths no disk holds.
   """
 
+  alias Absinthe.Subscription.Local, as: SubscriptionLocal
   alias BnestApp.Backup
   alias BnestApp.FamilyChat
   alias BnestApp.FamilyChat.Ports.RoomStore
@@ -31,6 +32,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   alias BnestApp.PushNotifications.Domain.Policy, as: PushPolicy
   alias BnestApp.Scheduler
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.FamilyChatBodyHtml
   alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
   alias BnestApp.Test.InMemory.CapacityProbe, as: InMemoryCapacityProbe
   alias BnestApp.Test.InMemory.DatabaseSnapshot, as: InMemoryDatabaseSnapshot
@@ -44,6 +46,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   alias BnestApp.Test.PublicMutationProbe
   alias BnestApp.Test.SchedulerDispatch
   alias BnestAppWeb.Plugs.GraphQLPipeline
+  alias BnestAppWeb.Schema.Complexity
 
   # This driver's whole purpose during RED is to call domain functions that do
   # not exist yet (tech-doc 007's File Impact `[N]` entries), so the actual
@@ -629,6 +632,16 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     query_messages(context, [], limit: limit)
   end
 
+  # One page of 50 messages through the real schema, asking for each message's body HTML once or under ten
+  # aliases: the second is the request the complexity budget refuses (family_chat_graphql.feature).
+  def perform_behaviour(context, :query_messages_body_html_once, _args) do
+    run_page_query(context, 1)
+  end
+
+  def perform_behaviour(context, :query_messages_body_html_ten_aliases, _args) do
+    run_page_query(context, 10)
+  end
+
   # A member's send is the GraphQL mutation their browser posts, so it runs through the
   # real schema and resolver with the member's session: the resolver chooses the sender
   # name it commits, and the message type answers the name a reader sees. A user without
@@ -1133,8 +1146,11 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   def behaviour_outcome?(%{family_chat_capability: false} = context, :safe_error, [code]),
     do: refused_without_capability?(context, code)
 
-  def behaviour_outcome?(context, :safe_error, [code]),
-    do: match?({:error, %{code: ^code}}, context.family_chat_result)
+  # A GraphQL refusal answers the Absinthe envelope: `{:ok, %{errors: [%{extensions: %{code: code}}]}}`.
+  def behaviour_outcome?(context, :safe_error, [code]) do
+    match?({:error, %{code: ^code}}, context.family_chat_result) or
+      match?({:ok, %{errors: [%{extensions: %{code: ^code}} | _]}}, context.family_chat_result)
+  end
 
   def behaviour_outcome?(context, :transport_safe_error, [code]) do
     context[:family_chat_http_status] == 403 and
@@ -1150,6 +1166,56 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
         {:ok, %{id: id, committed_at: %DateTime{}}} when is_integer(id),
         context.family_chat_result
       )
+
+  # --- message body as safe HTML (family_chat_graphql.feature). The HTML is read from the GraphQL
+  # answer; the event's HTML comes from the production subscription pipeline (see pushed_body_html/1).
+
+  def behaviour_outcome?(context, :body_html_is_message_body_element, _args),
+    do: FamilyChatBodyHtml.message_body_element?(response_body_html(context))
+
+  def behaviour_outcome?(context, :body_html_contains, [fragment]),
+    do: FamilyChatBodyHtml.contains?(response_body_html(context), fragment)
+
+  def behaviour_outcome?(context, :body_html_lacks, [fragment]),
+    do: FamilyChatBodyHtml.lacks?(response_body_html(context), fragment)
+
+  def behaviour_outcome?(context, :every_message_body_html_contains, [fragment]) do
+    nodes = page_nodes(context)
+    nodes != [] and Enum.all?(nodes, &FamilyChatBodyHtml.contains?(&1["bodyHtml"], fragment))
+  end
+
+  def behaviour_outcome?(context, :body_html_shows_image, [decision, address]),
+    do: FamilyChatBodyHtml.image_shown?(response_body_html(context), decision, address)
+
+  def behaviour_outcome?(context, :body_html_marks_diagram, _args),
+    do: FamilyChatBodyHtml.marks_diagram?(response_body_html(context))
+
+  def behaviour_outcome?(context, :body_html_keeps_diagram_note, [note]),
+    do: FamilyChatBodyHtml.keeps_diagram_note?(response_body_html(context), note)
+
+  def behaviour_outcome?(context, :subscriber_event_body_html_contains, [fragment]) do
+    events = pushed_events(context)
+
+    # Names what arrived, so a wrong count or shape is visible in the failure, not a bare `false`.
+    ExUnit.Assertions.assert(
+      match?([%{"bodyHtml" => _html}], events),
+      "expected exactly one pushed event with bodyHtml, got: #{inspect(events)}"
+    )
+
+    [%{"bodyHtml" => html}] = events
+    FamilyChatBodyHtml.contains?(html, fragment)
+  end
+
+  # The positive control proves the lookup reads the quote type: `bodyPreview` is there, `bodyHtml` is not.
+  def behaviour_outcome?(_context, :quote_declares_no_body_html, _args) do
+    quote_fields =
+      BnestAppWeb.Schema
+      |> Absinthe.Schema.lookup_type(:family_chat_message_quote)
+      |> Map.fetch!(:fields)
+      |> Map.keys()
+
+    :body_preview in quote_fields and :body_html not in quote_fields
+  end
 
   def behaviour_outcome?(context, :room_has_one_message_for_client_id, _args) do
     count_messages_for(context, context.family_chat_client_message_id) == 1
@@ -1998,7 +2064,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       Absinthe.run(
         """
         subscription($roomSlug: String!) {
-          familyChatMessageCommitted(roomSlug: $roomSlug) { id body }
+          familyChatMessageCommitted(roomSlug: $roomSlug) { id body bodyHtml }
         }
         """,
         BnestAppWeb.Schema,
@@ -2114,6 +2180,47 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     Map.put(context, :family_chat_result, result)
   end
 
+  # A page of 50 messages as the GraphQL surface answers it: `bodyHtml` asked `count` times per message, under the
+  # complexity options the Plug pipeline runs with (`BnestAppWeb.Schema.Complexity`). The response is the Absinthe
+  # result the page's Thens read, the same shape `run_without_capability/3` returns.
+  defp run_page_query(context, count) do
+    slug = context[:family_chat_subscribed_slug] || "ruang-keluarga"
+    user_id = current_user(context)
+
+    session_user = %{
+      "userId" => user_id,
+      "roles" => ["parents"],
+      "displayUsername" => synthetic_display_name(user_id)
+    }
+
+    result =
+      Absinthe.run(
+        page_document(count),
+        BnestAppWeb.Schema,
+        [variables: %{"roomSlug" => slug}, context: %{current_user: session_user}] ++
+          Complexity.run_options()
+      )
+
+    Map.put(context, :family_chat_result, result)
+  end
+
+  defp page_document(count) do
+    body_html =
+      if count == 1,
+        do: "bodyHtml",
+        else: Enum.map_join(1..count, " ", &"html#{&1}: bodyHtml")
+
+    """
+    query($roomSlug: String!) {
+      familyChatMessages(roomSlug: $roomSlug, limit: 50) {
+        nodes { id #{body_html} }
+        hasOlder
+        hasNewer
+      }
+    }
+    """
+  end
+
   defp send_family_chat_message(context, client_message_id, body, opts \\ []) do
     slug =
       context[:family_chat_room_slug] || context[:family_chat_subscribed_slug] || "ruang-keluarga"
@@ -2165,7 +2272,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
         """
         mutation($roomSlug: String!, $clientMessageId: ID!, $body: String!) {
           sendFamilyChatMessage(roomSlug: $roomSlug, clientMessageId: $clientMessageId, body: $body) {
-            id senderId senderDisplayName body committedAt
+            id senderId senderDisplayName body bodyHtml committedAt
             replyTo { id senderKind senderDisplayName bodyPreview }
           }
         }
@@ -2201,6 +2308,40 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     :ok
   end
 
+  # The `bodyHtml` the last response carried, or nil when it carried none.
+  # The message nodes of the page query's Absinthe result; empty when the query was refused.
+  defp page_nodes(context) do
+    case context.family_chat_result do
+      {:ok, %{data: %{"familyChatMessages" => %{"nodes" => nodes}}}} -> nodes
+      _other -> []
+    end
+  end
+
+  defp response_body_html(context) do
+    case context.family_chat_result do
+      {:ok, %{body_html: html}} -> html
+      _other -> nil
+    end
+  end
+
+  # The events the held subscription pushes for the committed message. Each document the subscription
+  # registered under this field and topic is run through the subscription pipeline Absinthe uses to
+  # publish (Absinthe.Subscription.Local.pipeline/2), with the committed message as its root value.
+  # That is the field resolution a subscriber's push carries, without the socket transport; the
+  # integration layer proves the transport itself over a real socket.
+  defp pushed_events(context) do
+    {:ok, message} = context.family_chat_result
+    topic = context.family_chat_subscription_topic
+
+    for {_doc_id, doc} <-
+          Absinthe.Subscription.get(BnestAppWeb.Endpoint, {:family_chat_message_committed, topic}) do
+      {:ok, %{result: %{data: %{"familyChatMessageCommitted" => event}}}, _phases} =
+        Absinthe.Pipeline.run(doc.source, SubscriptionLocal.pipeline(doc, message))
+
+      event
+    end
+  end
+
   defp response_message(%{data: %{"sendFamilyChatMessage" => %{} = sent}}) do
     {:ok, committed_at, 0} = DateTime.from_iso8601(sent["committedAt"])
 
@@ -2210,6 +2351,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
        sender_id: sent["senderId"],
        sender_display_name: sent["senderDisplayName"],
        body: sent["body"],
+       body_html: sent["bodyHtml"],
        committed_at: committed_at,
        reply_to: sent["replyTo"]
      }}
@@ -2602,6 +2744,12 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     after
       0 -> []
     end
+  end
+
+  defp page_ids(%{
+         family_chat_result: {:ok, %{data: %{"familyChatMessages" => %{"nodes" => nodes}}}}
+       }) do
+    Enum.map(nodes, &String.to_integer(&1["id"]))
   end
 
   defp page_ids(context) do

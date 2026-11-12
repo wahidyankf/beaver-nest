@@ -118,6 +118,50 @@ defmodule BnestApp.Test.CodexReplyPage do
       contains_element?(reply, "a") and contains_element?(reply, "img")
   end
 
+  # An image the reply shows inline: an `img` with this alt text and a source, and no link around it.
+  # The browser decodes it; that a decoded image has a width is proved by the browser layer.
+  def shows_inline_image?(reply, alt) do
+    linked_alts = reply |> LazyHTML.query("a img") |> Enum.map(&image_alt/1)
+
+    reply
+    |> LazyHTML.query("img")
+    |> Enum.any?(fn image ->
+      image_alt(image) == alt and LazyHTML.attribute(image, "src") != [] and
+        alt not in linked_alts
+    end)
+  end
+
+  # The inline image with this alt text has exactly this source address.
+  def loads_inline_image?(reply, alt, address) do
+    shows_inline_image?(reply, alt) and
+      reply
+      |> LazyHTML.query("img")
+      |> Enum.any?(&(image_alt(&1) == alt and LazyHTML.attribute(&1, "src") == [address]))
+  end
+
+  # The content a phone width must fit: a table of at least eight columns and an image. The unit
+  # layer proves that this content is in the reply; the browser layer measures the overflow.
+  def holds_wide_content?(reply) do
+    Enum.count(LazyHTML.query(reply, "table th")) >= 8 and contains_element?(reply, "img")
+  end
+
+  # A diagram the reply keeps as ordinary text: a code block tagged mermaid inside a `pre` that has no
+  # drawing marker. The server keeps a diagram this way while the reply streams and when it refuses one.
+  def plain_diagram_count(reply) do
+    reply
+    |> LazyHTML.query("pre:not([data-bnest-diagram]) > code.language-mermaid")
+    |> Enum.count()
+  end
+
+  # A diagram the server marks for drawing: a `pre` carrying the one marker value the browser acts on.
+  def marked_diagram_count(reply) do
+    reply
+    |> LazyHTML.query(~s(pre[data-bnest-diagram="mermaid"]))
+    |> Enum.count()
+  end
+
+  defp image_alt(image), do: image |> LazyHTML.attribute("alt") |> List.first()
+
   defp visitor_messages_with(page, text) do
     page
     |> LazyHTML.query("[data-role=user-message]")

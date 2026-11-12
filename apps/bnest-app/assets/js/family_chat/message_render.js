@@ -5,6 +5,7 @@
 // other file's `import("./real_store.js").RenderableMessage` reference stays
 // unchanged.
 
+import { committedBodyNode, textBodyNode } from "./message_body.js";
 import { syncManualActions } from "./message_manual_render.js";
 import { quoteNode } from "./message_quote_render.js";
 
@@ -19,6 +20,8 @@ const BOTTOM_THRESHOLD_PX = 80;
  * @property {string} [id]
  * @property {string} [clientMessageId]
  * @property {string} body
+ * @property {string | null} [bodyHtml] the server's rendered body (ADR 003, Decision 2). Absent on a pending row,
+ *   which is always shown as typed text.
  * @property {string} [status]
  * @property {string} [senderKind]
  * @property {string} [senderId]
@@ -65,8 +68,9 @@ function avatarNode(senderLabel) {
 /**
  * @param {RenderableMessage} message
  * @param {string} senderLabel
+ * @param {boolean} pending a pending or failed row is always shown as typed text (ADR 003, Decision 2)
  */
-function bubbleNode(message, senderLabel) {
+function bubbleNode(message, senderLabel, pending) {
   const bubble = document.createElement("div");
   bubble.className = "family-chat-message-bubble";
 
@@ -83,10 +87,9 @@ function bubbleNode(message, senderLabel) {
     `<strong data-role="family-chat-message-sender">${escapeHtml(senderLabel)}</strong> ` +
     time;
 
-  const body = document.createElement("p");
-  body.className = "family-chat-message-body";
-  body.dataset["role"] = "family-chat-message-body";
-  body.textContent = message.body;
+  const body = pending
+    ? textBodyNode(message.body)
+    : committedBodyNode(message);
 
   bubble.append(meta);
   // Above the body, inside the bubble: the quote is context for what follows,
@@ -150,7 +153,7 @@ export function messageNode(message, { pending, currentUserId }) {
   const senderLabel = (isSystem ? "System" : message.senderDisplayName) ?? "";
 
   if (!isSystem) li.append(avatarNode(senderLabel));
-  li.append(bubbleNode(message, senderLabel));
+  li.append(bubbleNode(message, senderLabel, pending));
   li.append(moreControlNode(senderLabel));
 
   if (pending) {

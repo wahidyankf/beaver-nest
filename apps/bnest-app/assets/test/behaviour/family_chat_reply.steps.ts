@@ -145,7 +145,7 @@ function menuButtons(host: HTMLElement = menuHost()): HTMLButtonElement[] {
   ];
 }
 
-async function openMenuOn(element: HTMLElement): Promise<void> {
+export async function openMenuOn(element: HTMLElement): Promise<void> {
   const more = element.querySelector<HTMLElement>(
     '[data-role="family-chat-message-more"]',
   );
@@ -153,7 +153,7 @@ async function openMenuOn(element: HTMLElement): Promise<void> {
   await clickOn(more);
 }
 
-async function chooseMenuItem(label: string): Promise<void> {
+export async function chooseMenuItem(label: string): Promise<void> {
   const button = menuButtons().find((item) => item.textContent === label);
   if (!button) throw new Error(`the menu offers no ${JSON.stringify(label)}`);
   await clickOn(button);
@@ -174,7 +174,7 @@ function graphemeCount(text: string): number {
 }
 
 /** Replies to the named message the way a member does: menu, Reply, type, Send. */
-async function replyThroughMenu(
+export async function replyThroughMenu(
   target: HTMLElement,
   body: string,
 ): Promise<string | null> {

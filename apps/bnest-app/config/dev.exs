@@ -21,6 +21,8 @@ config :bnest_app, BnestAppWeb.Endpoint,
       do: [],
       else: [
         esbuild: {Esbuild, :install_and_run, [:bnest_app, ~w(--sourcemap=inline --watch)]},
+        esbuild_diagrams:
+          {Esbuild, :install_and_run, [:bnest_app_diagrams, ~w(--sourcemap=inline --watch)]},
         tailwind: {Tailwind, :install_and_run, [:bnest_app, ~w(--watch)]}
       ]
     )

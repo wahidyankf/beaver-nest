@@ -51,6 +51,30 @@ async function queryPage(
   );
 }
 
+// One page of 50 messages asking for each message's body HTML `count` times: the
+// second alias onward is what the server's complexity budget refuses.
+async function queryBodyHtmlPage(page: Page, count: number): Promise<void> {
+  const bodyHtml =
+    count === 1
+      ? "bodyHtml"
+      : Array.from(
+          { length: count },
+          (_, index) => `html${index + 1}: bodyHtml`,
+        ).join(" ");
+  scenario.response = await postGraphQl<FamilyChatMessagesResult>(
+    page,
+    page.context().request,
+    `query($roomSlug: String!) {
+      familyChatMessages(roomSlug: $roomSlug, limit: 50) {
+        nodes { id ${bodyHtml} }
+        hasOlder
+        hasNewer
+      }
+    }`,
+    { roomSlug: "ruang-keluarga" },
+  );
+}
+
 function responsePage(): GraphQlResponse<FamilyChatMessagesResult> {
   return requireResponse() as GraphQlResponse<FamilyChatMessagesResult>;
 }
@@ -158,6 +182,17 @@ Then("the response returns at most 50 messages ascending by server ID", () => {
 });
 
 Then(
+  "every message in the response has body HTML containing {string}",
+  ({ request: _request }, fragment: string) => {
+    const nodes = pageNodes(responsePage());
+    expect(nodes.length, "the page holds messages").toBeGreaterThan(0);
+    for (const node of nodes) {
+      expect(node.bodyHtml ?? "", `message ${node.id}`).toContain(fragment);
+    }
+  },
+);
+
+Then(
   '"hasOlder" reflects whether an older message exists',
   async ({ page }) => {
     const oldest = pageNodes(responsePage())[0]?.id;
@@ -224,6 +259,16 @@ When(
 When(
   "the user queries family chat messages with limit {int}",
   ({ page }, limit: number) => queryPage(page, { limit }),
+);
+
+When(
+  "the user queries one page of family chat messages asking for bodyHtml once",
+  ({ page }) => queryBodyHtmlPage(page, 1),
+);
+
+When(
+  "the user queries one page of family chat messages asking for bodyHtml under ten aliases",
+  ({ page }) => queryBodyHtmlPage(page, 10),
 );
 
 // The Background logged a member in; the visitor is a browser with no

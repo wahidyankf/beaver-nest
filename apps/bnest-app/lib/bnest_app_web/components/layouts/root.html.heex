@@ -20,6 +20,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="csrf-token" content={get_csrf_token()} />
+    <meta name="bnest-diagram-engine" content={~p"/assets/js/diagrams/engine.js"} />
     <.live_title default="Beaver Nest" phx-no-format>{assigns[:page_title]}</.live_title>
     <link rel="manifest" href={pwa.manifest_path} />
     <link rel="icon" type="image/png" href={List.last(pwa.icon_paths)} />

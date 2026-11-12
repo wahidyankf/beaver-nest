@@ -4,6 +4,7 @@
 // file purely to stay under this project's max-lines lint budget;
 // `mount_browser.js` is the only importer.
 
+import { fitComposerInput } from "./composer_height.js";
 import { DISCARD_ROLE, RETRY_ROLE } from "./message_manual_render.js";
 import { STATUS } from "./outbox.js";
 
@@ -115,9 +116,11 @@ async function submitComposer(room, elements) {
   // draft if it refuses, so the input is usable again in the same frame the
   // member pressed send rather than one network round trip later.
   elements.input.value = "";
+  fitComposerInput(elements.input);
 
   const result = await room.composer.submit();
   elements.input.value = room.composer.draft();
+  fitComposerInput(elements.input);
   // The send control never takes focus (see `wireComposerFocus`); this only
   // restores it for a browser that moved it anyway, and is a no-op otherwise.
   elements.input.focus({ preventScroll: true });
@@ -204,6 +207,9 @@ export function wireComposer(room, elements) {
     event.preventDefault();
     void submitComposer(room, elements);
   });
+  elements.input.addEventListener("input", () =>
+    fitComposerInput(elements.input),
+  );
   wireComposerFocus(room, elements);
   wireManualActions(room, elements);
 }

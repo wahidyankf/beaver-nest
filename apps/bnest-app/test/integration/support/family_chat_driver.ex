@@ -33,6 +33,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.FamilyChatBodyHtml
   alias BnestApp.Test.IndependentSlot
   alias BnestApp.Test.InMemory.CapacityProbe, as: InMemoryCapacityProbe
   alias BnestApp.Test.InMemory.PushSender, as: InMemoryPushSender
@@ -82,9 +83,12 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   # --- prepare ---
 
-  # Commits five messages through the facade into the run's shared room, which may already
-  # hold other scenarios' messages; the known IDs are the middle three, so a page before the
-  # first and a page after the last both have a message of this history to return.
+  # Commits five messages through the facade into the scenario's room. Each integration
+  # scenario runs on its own fresh database (test/behaviour/support/integration.exs spawns one
+  # per scenario, ADR 001), so the room holds only these five messages, and the "every message
+  # in the response has body HTML containing" row relies on that. The known IDs are the middle
+  # three, so a page before the first and a page after the last both have a message of this
+  # history to return.
   def prepare_behaviour(context, :room_has_known_history, _args) do
     ids =
       for n <- 1..5 do
@@ -706,6 +710,14 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   def perform_behaviour(context, :query_messages_with_limit, [limit]),
     do: query_messages(context, %{"limit" => limit})
+
+  # One page of 50 messages over the real `/api/graphql` route, asking for each message's body HTML once or under ten
+  # aliases: the route's complexity budget refuses the second (family_chat_graphql.feature).
+  def perform_behaviour(context, :query_messages_body_html_once, _args),
+    do: body_html_page(context, 1)
+
+  def perform_behaviour(context, :query_messages_body_html_ten_aliases, _args),
+    do: body_html_page(context, 10)
 
   def perform_behaviour(context, :send_message_fresh_id, [body]),
     do: send_family_chat_message(context, unique_uuid(), body)
@@ -1501,6 +1513,59 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   def behaviour_outcome?(context, :room_gains_no_message, _args),
     do: count_messages_for(context, context.family_chat_client_message_id) == 0
+
+  # --- message body as safe HTML (family_chat_graphql.feature). The HTML is read from the GraphQL answer
+  # the request got back, over the real /api/graphql boundary.
+
+  def behaviour_outcome?(context, :body_html_is_message_body_element, _args),
+    do: FamilyChatBodyHtml.message_body_element?(sent_message(context)["bodyHtml"])
+
+  def behaviour_outcome?(context, :body_html_contains, [fragment]),
+    do: FamilyChatBodyHtml.contains?(sent_message(context)["bodyHtml"], fragment)
+
+  def behaviour_outcome?(context, :body_html_lacks, [fragment]),
+    do: FamilyChatBodyHtml.lacks?(sent_message(context)["bodyHtml"], fragment)
+
+  def behaviour_outcome?(context, :every_message_body_html_contains, [fragment]) do
+    nodes = get_in(context.family_chat_result, ["data", "familyChatMessages", "nodes"]) || []
+    nodes != [] and Enum.all?(nodes, &FamilyChatBodyHtml.contains?(&1["bodyHtml"], fragment))
+  end
+
+  def behaviour_outcome?(context, :body_html_shows_image, [decision, address]),
+    do: FamilyChatBodyHtml.image_shown?(sent_message(context)["bodyHtml"], decision, address)
+
+  def behaviour_outcome?(context, :body_html_marks_diagram, _args),
+    do: FamilyChatBodyHtml.marks_diagram?(sent_message(context)["bodyHtml"])
+
+  def behaviour_outcome?(context, :body_html_keeps_diagram_note, [note]),
+    do: FamilyChatBodyHtml.keeps_diagram_note?(sent_message(context)["bodyHtml"], note)
+
+  # Exactly one push reached the socket, it is for the committed message, and its HTML holds the fragment.
+  def behaviour_outcome?(context, :subscriber_event_body_html_contains, [fragment]) do
+    committed_id = sent_message(context)["id"]
+
+    case subscription_pushes(context, 1_000) do
+      [%{"id" => ^committed_id, "bodyHtml" => html}] ->
+        FamilyChatBodyHtml.contains?(html, fragment)
+
+      _other ->
+        false
+    end
+  end
+
+  # The positive control reads `bodyPreview` from the same type, so an empty introspection answer fails.
+  def behaviour_outcome?(context, :quote_declares_no_body_html, _args) do
+    result =
+      graphql(context, ~S|{ __type(name: "FamilyChatMessageQuote") { fields { name } } }|, %{})
+
+    names =
+      result.family_chat_result
+      |> get_in(["data", "__type", "fields"])
+      |> List.wrap()
+      |> Enum.map(& &1["name"])
+
+    "bodyPreview" in names and "bodyHtml" not in names
+  end
 
   # Every push the socket received for the subscription is the one message the other
   # member committed.
@@ -2413,6 +2478,32 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     )
   end
 
+  defp body_html_page(context, count) do
+    slug =
+      context[:family_chat_subscribed_slug] || context[:family_chat_room_slug] || "ruang-keluarga"
+
+    graphql(context, page_document(count), %{"roomSlug" => slug})
+  end
+
+  # `bodyHtml` asked `count` times per message, each under its own alias after the first (the shape the unit driver
+  # builds too): the page's cost grows with `count`, and the budget is what the route enforces.
+  defp page_document(count) do
+    body_html =
+      if count == 1,
+        do: "bodyHtml",
+        else: Enum.map_join(1..count, " ", &"html#{&1}: bodyHtml")
+
+    """
+    query($roomSlug: String!) {
+      familyChatMessages(roomSlug: $roomSlug, limit: 50) {
+        nodes { id #{body_html} }
+        hasOlder
+        hasNewer
+      }
+    }
+    """
+  end
+
   defp send_family_chat_message(context, client_message_id, body, opts \\ []) do
     slug =
       context[:family_chat_room_slug] || context[:family_chat_subscribed_slug] || "ruang-keluarga"
@@ -2423,7 +2514,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
         """
         mutation($roomSlug: String!, $clientMessageId: ID!, $body: String!, $replyToMessageId: ID) {
           sendFamilyChatMessage(roomSlug: $roomSlug, clientMessageId: $clientMessageId, body: $body, replyToMessageId: $replyToMessageId) {
-            id roomSlug senderKind senderId senderDisplayName body committedAt
+            id roomSlug senderKind senderId senderDisplayName body bodyHtml committedAt
             replyTo { id senderKind senderDisplayName bodyPreview }
           }
         }
@@ -2484,7 +2575,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       push(socket, "doc", %{
         "query" => """
         subscription($roomSlug: String!) {
-          familyChatMessageCommitted(roomSlug: $roomSlug) { id body replyTo { id } }
+          familyChatMessageCommitted(roomSlug: $roomSlug) { id body bodyHtml replyTo { id } }
         }
         """,
         "variables" => %{"roomSlug" => slug}

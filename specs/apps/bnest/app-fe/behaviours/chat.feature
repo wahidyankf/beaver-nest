@@ -178,6 +178,33 @@ Feature: Beaver Nest chat
     And the in-progress turn resumes once or fails safely without duplication
     Then the message composer is available
 
+  # Exemption(integration): the page's morph decides whether a resumed reply takes its later text, which only a real browser patch shows; alternative-proof: bnest-app-fe-e2e:test:e2e / An automatic LiveView reconnect shows the full answer of a resumed turn without a reload
+  @integration-exempt @live-socket-drop
+  Scenario: An automatic LiveView reconnect shows the full answer of a resumed turn without a reload
+    Given a visitor opens "/chat"
+    When the visitor sends "Resume after reconnect"
+    And Codex streams the first part of the reply
+    And the visitor's live connection drops and returns
+    Then the current route is "/chat"
+    And the latest Codex reply is still streaming
+    When Codex streams the rest of the reply
+    Then the latest Codex reply shows the text "Fixture response complete."
+    And the latest Codex reply is complete
+    And the message composer is available
+
+  # Exemption(integration): the page's morph decides whether a resumed reply takes its later diagram marker, which only a real browser patch shows; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram that arrives in a resumed Codex reply is drawn
+  @integration-exempt @live-socket-drop
+  Scenario: A diagram that arrives in a resumed Codex reply is drawn
+    Given a visitor opens "/chat"
+    When the visitor sends "Resume a diagram after reconnect"
+    And Codex streams the first part of the reply
+    And the visitor's live connection drops and returns
+    Then the current route is "/chat"
+    And the latest Codex reply is still streaming
+    When Codex streams the rest of the reply
+    Then the latest Codex reply is complete
+    And the latest Codex reply marks the diagram for drawing
+
   # Exemption(integration): concurrent browser isolation and recovery require real browser contexts; alternative-proof: bnest-app-fe-e2e:test:e2e / Ten synthetic visitors preserve recoverable state across three groups
   @integration-exempt
   Scenario: Ten synthetic visitors preserve recoverable state across three groups
@@ -312,12 +339,486 @@ Feature: Beaver Nest chat
     And the visitor message keeps its line break between "Keep **these** stars" and "and this line"
 
   # Exemption(integration): rendered layout is not observable without a browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / Codex reply tables, task lists, links and images keep their layout
-  @integration-exempt
+  @integration-exempt @remote-image
   Scenario: Codex reply tables, task lists, links and images keep their layout
     Given a visitor opens "/chat"
-    When the visitor sends "Format a sample reply"
+    When the visitor sends "Lay out a sample reply with a remote image"
     Then a Codex response appears incrementally
     And the latest Codex reply lays out its table, task list, link and image inside the bubble
+    And the latest Codex reply loads the inline image "Remote logo" from "https://images.example.test/remote-logo.png"
+    And the latest Codex reply holds a wide table and an image
+
+  Rule: Codex reply diagrams
+
+  # Exemption(integration): Phoenix.LiveViewTest keeps the old children of a node whose new render says phx-update="ignore", so the completion patch never delivers the marker that the browser's morph delivers; alternative-proof: bnest-app-fe-e2e:test:e2e / A streaming Codex reply shows the diagram source until the reply is complete
+  @integration-exempt
+  Scenario: A streaming Codex reply shows the diagram source until the reply is complete
+    Given an approved admin is logged in
+    And a visitor opens "/chat"
+    When the visitor sends "Stream a diagram"
+    And Codex streams the first part of the reply
+    Then the latest Codex reply is still streaming
+    And the latest Codex reply keeps the diagram as a plain code block
+    And the latest Codex reply does not mark a diagram for drawing
+    When Codex streams the rest of the reply
+    Then the latest Codex reply is complete
+    And the latest Codex reply marks the diagram for drawing
+
+  # Exemption(integration): Phoenix.LiveViewTest keeps the old children of a node whose new render says phx-update="ignore", so the completion patch never delivers the note and marker that the browser's morph delivers; alternative-proof: bnest-app-fe-e2e:test:e2e / An oversized, unsupported or surplus diagram stays as source with a note
+  @integration-exempt
+  Scenario: An oversized, unsupported or surplus diagram stays as source with a note
+    Given an approved admin is logged in
+    And a visitor opens "/chat"
+    When the visitor sends "Show oversized, unsupported and surplus diagrams"
+    And a Codex response appears incrementally
+    Then the latest Codex reply shows the text "Diagram not drawn: it is too large."
+    And the latest Codex reply shows the text "Diagram not drawn: this diagram type is not supported."
+    And the latest Codex reply shows the text "Diagram not drawn: only the first 4 diagrams in a message are drawn."
+    And the latest Codex reply keeps 3 diagrams as plain code blocks
+    And the latest Codex reply marks 4 diagrams for drawing
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): the picture is drawn by the browser's diagram engine, which the Elixir layers never run; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex flowchart is drawn as a picture
+  @integration-exempt
+  Scenario: A Codex flowchart is drawn as a picture
+    Given a completed Codex reply marks a flowchart for drawing
+    When the browser draws the marked diagrams
+    Then the picture is labelled "Flowchart"
+    And the diagram source "A --> B" is kept as text
+    And the picture loads nothing from another origin
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): the syntax check runs in the browser's diagram engine, which the Elixir layers never run; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex diagram with a syntax error stays visible as source with a note
+  @integration-exempt
+  Scenario: A Codex diagram with a syntax error stays visible as source with a note
+    Given a completed Codex reply marks a flowchart with a syntax error for drawing
+    When the browser draws the marked diagrams
+    Then the diagram shows the note "Diagram not drawn: it has a syntax error."
+    And the diagram source "A -->" is kept as text
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): a script, an event handler and a network request can only be observed in a real page that runs scripts and records requests; alternative-proof: bnest-app-fe-e2e:test:e2e / Hostile Codex diagram text is inert
+  @integration-exempt
+  Scenario: Hostile Codex diagram text is inert
+    Given a completed Codex reply holds hostile diagram text
+    When the browser draws the marked diagrams
+    Then no script or event handler from the diagram text runs
+    And the picture loads nothing from another origin
+    And the diagram text shows as text only
+    And the diagram with shape data is not drawn and shows the note that settings are not allowed
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): a patch to the conversation is applied by the browser's LiveView client, which Phoenix.LiveViewTest does not execute; alternative-proof: bnest-app-fe-e2e:test:e2e / A drawn Codex diagram survives later updates to the conversation
+  @integration-exempt
+  Scenario: A drawn Codex diagram survives later updates to the conversation
+    Given a completed Codex reply shows a drawn flowchart with its source open
+    When a later reply changes the conversation
+    Then the picture is the same node as before
+    And the diagram source is still open
+    And the conversation holds 1 flowchart picture
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): the engine is a separate browser module request that Phoenix.LiveViewTest never makes; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex diagram stays as source when the diagram engine cannot load
+  @integration-exempt
+  Scenario: A Codex diagram stays as source when the diagram engine cannot load
+    Given the diagram engine cannot be loaded
+    And a completed Codex reply marks a flowchart for drawing
+    When the browser draws the marked diagrams
+    Then the diagram shows the note "Diagram not drawn: the diagram tool did not load."
+    And the diagram source "A --> B" is kept as text
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): the engine starts in a hidden browser frame, and the browser keeps a failed module load, which Phoenix.LiveViewTest never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex diagram draws after the diagram engine starts on a later try
+  @integration-exempt
+  Scenario: A Codex diagram draws after the diagram engine starts on a later try
+    Given the first start of the diagram engine fails
+    And a completed Codex reply marks a flowchart for drawing
+    When the browser draws the marked diagrams
+    Then the diagram shows the note "Diagram not drawn: the diagram tool did not load."
+    When the diagram engine retry window has passed
+    And a later reply marks a flowchart for drawing
+    And the browser draws the marked diagrams
+    Then the picture is labelled "Flowchart"
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): the removal and the redraw happen in the browser after the server clears the conversation; alternative-proof: bnest-app-fe-e2e:test:e2e / Clearing the Codex chat removes its diagrams and the next reply draws again
+  @integration-exempt
+  Scenario: Clearing the Codex chat removes its diagrams and the next reply draws again
+    Given a completed Codex reply shows a drawn flowchart
+    When the visitor clears the chat in the browser
+    Then no diagram picture remains
+    When a later reply marks a flowchart for drawing
+    And the browser draws the marked diagrams
+    Then the picture is labelled "Flowchart"
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): the 320 pixel layout is measured by a browser layout engine, which Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / A narrow Codex diagram fits a 320 pixel bubble
+  @integration-exempt
+  Scenario: A narrow Codex diagram fits a 320 pixel bubble
+    Given a completed Codex reply marks a flowchart for drawing
+    When the browser draws the marked diagrams
+    Then the picture is labelled "Flowchart"
+    And the picture fits its own box at 320 pixels
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): the 320 pixel layout is measured by a browser layout engine, which Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide Codex diagram keeps a readable size and scrolls inside its own box
+  @integration-exempt
+  Scenario: A wide Codex diagram keeps a readable size and scrolls inside its own box
+    Given a completed Codex reply marks a wide flowchart for drawing
+    When the browser draws the marked diagrams
+    Then the picture is labelled "Flowchart"
+    And the picture keeps a readable size at 320 pixels
+    And the picture scrolls inside its own box at 320 pixels
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): the offline cache belongs to the browser's service worker, which Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex diagram draws again offline after it was drawn once
+  @integration-exempt
+  Scenario: A Codex diagram draws again offline after it was drawn once
+    Given a completed Codex reply marks a flowchart for drawing
+    When the browser draws the marked diagrams
+    And the network is cut
+    And the browser draws the same flowchart again
+    Then the diagram engine stays available
+    And the picture is labelled "Flowchart"
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): whether the browser asks the server for the engine file is a network fact the Elixir layers cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex chat without a diagram does not load the diagram engine
+  @integration-exempt
+  Scenario: A Codex chat without a diagram does not load the diagram engine
+    Given a completed Codex reply has no diagram
+    When the chat page loads
+    Then the diagram engine was not requested
+
+  @fe-vitest-unit @codex-diagram
+  # Exemption(integration): the render time of the largest allowed diagram depends on the browser's layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / The largest allowed Codex flowchart is drawn within the time budget
+  @integration-exempt
+  Scenario: The largest allowed Codex flowchart is drawn within the time budget
+    Given a completed Codex reply marks the largest allowed flowchart for drawing
+    When the browser draws the marked diagrams
+    Then the picture is labelled "Flowchart"
+    And the largest allowed flowchart is drawn within the draw time limit
+
+  Rule: Codex chat on touch and short screens
+
+  @fe-vitest-unit
+  # Exemption(integration): the size of a control on a touch screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header controls are at least 44 pixels tall on a touch screen
+  @integration-exempt
+  Scenario: The Codex header controls are at least 44 pixels tall on a touch screen
+    Given the Codex chat page is open at "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    When the page is laid out
+    Then the header controls are at least 44 pixels tall
+
+  @fe-vitest-unit
+  # Exemption(integration): the text size of the composer is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex composer text is 16 pixels on a touch screen
+  @integration-exempt
+  Scenario: The Codex composer text is 16 pixels on a touch screen
+    Given the Codex chat page is open at "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    When the page is laid out
+    Then the message composer text is 16 pixels
+
+  @fe-vitest-unit
+  # Exemption(integration): the scroll boxes of a table and a code block are laid out by the browser, which Phoenix.LiveViewTest never does; alternative-proof: bnest-app-fe-e2e:test:e2e / Codex tables and code blocks show that they scroll
+  @integration-exempt
+  Scenario: Codex tables and code blocks show that they scroll
+    Given the Codex chat page is open at "mobile 390x844"
+    And a Codex reply answers "Show a wide table, a long code block and the logo"
+    When the page is laid out
+    Then the wide table and the code block show a scroll cue
+
+  @fe-vitest-unit
+  # Exemption(integration): the heights of a code block and a picture are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A long Codex code block scrolls inside a height limit and a picture fits a short screen
+  @integration-exempt
+  Scenario: A long Codex code block scrolls inside a height limit and a picture fits a short screen
+    Given the Codex chat page is open at "landscape 844x390"
+    And a Codex reply answers "Show a wide table, a long code block and the logo"
+    When the page is laid out
+    Then the code block is no taller than 384 pixels and scrolls
+    And the logo is no taller than 70 percent of the screen height
+
+  @fe-vitest-unit
+  # Exemption(integration): the size of the diagram source disclosure on a touch screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex diagram source is at least 44 pixels tall on a touch screen
+  @integration-exempt
+  Scenario: The Codex diagram source is at least 44 pixels tall on a touch screen
+    Given the visitor's pointer is a touch pointer
+    And a completed Codex reply shows a drawn flowchart
+    When the page is laid out
+    Then the diagram source summary is at least 44 pixels tall
+
+  @fe-vitest-unit
+  # Exemption(integration): the focus ring is painted by the browser from the stylesheet, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Codex links, tables and code blocks show the room's coral focus ring
+  @integration-exempt
+  Scenario: Codex links, tables and code blocks show the room's coral focus ring
+    Given the Codex chat page is open at "mobile 390x844"
+    And a Codex reply answers "Show a wide table, a long code block and the logo"
+    When the page is laid out
+    Then a focused link shows the coral focus ring
+    And a focused table and a focused code block show the coral focus ring
+
+  @fe-vitest-unit
+  # Exemption(integration): the focus ring is painted by the browser from the stylesheet, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex theme buttons show the coral focus ring
+  @integration-exempt
+  Scenario: The Codex theme buttons show the coral focus ring
+    Given the Codex chat page is open at "desktop 1440x900"
+    When the page is laid out
+    And the visitor tabs to a Codex theme button
+    Then the focused Codex theme button shows the coral focus ring
+
+  @fe-vitest-unit
+  # Exemption(integration): the focus ring of a diagram's source is painted by the browser from the stylesheet, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex diagram source shows the room's coral focus ring
+  @integration-exempt
+  Scenario: A Codex diagram source shows the room's coral focus ring
+    Given the Codex chat page is open at "mobile 390x844"
+    And a completed Codex reply shows a drawn flowchart
+    When the page is laid out
+    Then a focused diagram source shows the coral focus ring
+
+  @fe-vitest-unit
+  # Exemption(integration): the place of the composer and the height of the header are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex composer is on screen without scrolling the page on a phone
+  @integration-exempt
+  Scenario: The Codex composer is on screen without scrolling the page on a phone
+    Given the Codex chat page is open at "mobile 390x844"
+    And a Codex reply answers "Show a wide table, a long code block and the logo"
+    When the page is laid out
+    Then the message composer is on screen without scrolling the page
+    And the Codex header is at most 30 percent of the screen height
+
+  @fe-vitest-unit @remote-image
+  # Exemption(integration): the overflow of a laid-out page is measured by a browser; the declared rules are read in vitest; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex reply does not overflow the phone width
+  @integration-exempt
+  Scenario: A Codex reply does not overflow the phone width
+    Given the Codex chat page is open at "mobile 390x844"
+    And a Codex reply answers "Lay out a sample reply with a remote image"
+    When the page is laid out
+    Then the page does not overflow horizontally at 390 pixels
+
+  @fe-vitest-unit
+  # Exemption(integration): the place of each header control in its row is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header keeps every control reachable on a landscape phone
+  @integration-exempt
+  Scenario: The Codex header keeps every control reachable on a landscape phone
+    Given the Codex chat page is open at "landscape 844x390"
+    When the page is laid out
+    Then the header controls start inside the header
+    And the header row fades at its edge to show more controls
+    And the repository write toggle is one line tall
+
+  @fe-vitest-unit
+  # Exemption(integration): the place of each header control in its row is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header keeps every control reachable on a narrow phone
+  @integration-exempt
+  Scenario Outline: The Codex header keeps every control reachable on a narrow phone
+    Given the Codex chat page is open at "<viewport>"
+    When the page is laid out
+    Then every header control is reachable by scrolling the header
+    And the header row fades at its edge to show more controls
+    And the conversation is at least 40 percent of the screen height
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | phone 360x640     |
+      | mobile 390x844    |
+
+  @fe-vitest-unit
+  # Exemption(integration): the place and size of the repository access state in the header are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex repository access state is visible without scrolling the header
+  @integration-exempt
+  Scenario Outline: The Codex repository access state is visible without scrolling the header
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    And repository writes are "<writes>"
+    When the page is laid out
+    Then the repository access state is visible without scrolling the header
+    And the repository write toggle is at least 44 pixels tall
+
+    Examples:
+      | viewport          | writes    |
+      | narrow 320x568    | read-only |
+      | narrow 320x568    | enabled   |
+      | phone 360x640     | read-only |
+      | phone 360x640     | enabled   |
+      | mobile 390x844    | read-only |
+      | mobile 390x844    | enabled   |
+      | landscape 844x390 | read-only |
+      | landscape 844x390 | enabled   |
+
+  @fe-vitest-unit
+  # Exemption(integration): the place of the header's scrolling row and its last control under the edge fade are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header's scrolling row stays inside the screen and clears its edge fade
+  @integration-exempt
+  Scenario Outline: The Codex header's scrolling row stays inside the screen and clears its edge fade
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the page is laid out
+    Then the header's scrolling row ends inside the screen
+    And the last header control clears the edge fade when the row is scrolled to its end
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | phone 360x640     |
+      | mobile 390x844    |
+      | landscape 844x390 |
+
+  @fe-vitest-unit
+  # Exemption(integration): the theme buttons' widths on a touch pointer are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex theme buttons are touch targets on a narrow phone
+  @integration-exempt
+  Scenario Outline: The Codex theme buttons are touch targets on a narrow phone
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the page is laid out
+    Then each theme button is at least 44 pixels across
+    And every header control is reachable by scrolling the header
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | phone 360x640     |
+
+  @fe-vitest-unit
+  # Exemption(integration): the heights of the composer and the header are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message box stops growing with the window
+  @integration-exempt
+  Scenario Outline: The Codex message box stops growing with the window
+    Given the Codex chat page is open at "<viewport>"
+    When the visitor types a draft of 6 lines into the Codex message box
+    And the page is laid out
+    Then the Codex Send button is on screen
+    And the Codex header is on screen
+    And the conversation is at least 25 percent of the screen height
+    And the message box stops at its height cap and scrolls the rest of the draft
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | landscape 844x390 |
+
+  @fe-vitest-unit
+  # Exemption(integration): the visible label's size and the hidden label's clip are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message box keeps its name when the window is short
+  @integration-exempt
+  Scenario: The Codex message box keeps its name when the window is short
+    Given the Codex chat page is open at "landscape 844x390"
+    When the page is laid out
+    Then the message box is named "Message"
+    And the visible Message label takes no space in the composer
+
+  Rule: Codex chat follows the newest message and fits every screen
+
+  @fe-vitest-unit
+  # Exemption(integration): where a conversation is scrolled is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex conversation opens at its newest message
+  @integration-exempt
+  Scenario: The Codex conversation opens at its newest message
+    Given the visitor has a Codex conversation with older replies
+    When the visitor opens the Codex chat page
+    Then the newest reply is at the bottom of the conversation
+
+  @fe-vitest-unit
+  # Exemption(integration): the scroll position while a reply streams is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex conversation follows a new reply
+  @integration-exempt
+  Scenario: The Codex conversation follows a new reply
+    Given the visitor is at the bottom of the Codex conversation
+    When the visitor sends a message and Codex streams the reply
+    Then the newest part of the reply is in view
+
+  @fe-vitest-unit
+  # Exemption(integration): the scroll position of a reader who scrolled up is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex conversation keeps a reader who scrolled up in place
+  @integration-exempt
+  Scenario: The Codex conversation keeps a reader who scrolled up in place
+    Given the visitor has sent a message and Codex is still streaming its reply
+    And the visitor has scrolled up in the Codex conversation
+    When Codex streams more of the reply
+    Then the visitor's position in the conversation does not change
+
+  @fe-vitest-unit
+  # Exemption(integration): a diagram's drawn height and the scroll position after it are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex conversation keeps its newest reply in view when a diagram draws
+  @integration-exempt
+  Scenario: The Codex conversation keeps its newest reply in view when a diagram draws
+    Given the visitor is at the bottom of the Codex conversation
+    And a Codex reply holds a diagram that is not yet drawn
+    When the diagram is drawn
+    Then the newest reply is in view above the composer
+
+  @fe-vitest-unit
+  # Exemption(integration): the heights of the header, the conversation and the composer are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex composer and most of the conversation fit a small phone
+  @integration-exempt
+  Scenario Outline: The Codex composer and most of the conversation fit a small phone
+    Given the Codex chat page is open at "<viewport>"
+    And a Codex reply answers "Show a wide table, a long code block and the logo"
+    When the page is laid out
+    Then the message composer is on screen without scrolling the page
+    And the conversation is at least 40 percent of the screen height
+    And the Send button is beside the message box
+    And the Codex header is at most 160 pixels tall
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | phone 375x667     |
+
+  @fe-vitest-unit
+  # Exemption(integration): the height of the panel and the scrolling of the conversation are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex panel fits the window on a tablet, a landscape phone and a desktop
+  @integration-exempt
+  Scenario Outline: The Codex panel fits the window on a tablet, a landscape phone and a desktop
+    Given the Codex chat page is open at "<viewport>"
+    And the conversation holds three long Codex replies
+    When the page is laid out
+    Then the Codex panel is no taller than the window
+    And the conversation scrolls inside the panel
+
+    Examples:
+      | viewport          |
+      | tablet 768x1024   |
+      | landscape 844x390 |
+      | desktop 1440x900  |
+
+  @fe-vitest-unit
+  # Exemption(integration): the width of a bubble around a drawn diagram is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide Codex diagram uses the width of a desktop column
+  @integration-exempt
+  Scenario Outline: A wide Codex diagram uses the width of a desktop column
+    Given the Codex chat page is open at "<viewport>"
+    And a completed Codex reply shows a drawn flowchart
+    When the page is laid out
+    Then the reply bubble takes at least 80 percent of the conversation width
+
+    Examples:
+      | viewport          |
+      | desktop 1024x768  |
+      | desktop 1440x900  |
+
+  @fe-vitest-unit
+  # Exemption(integration): the accessible names of scroll regions are read from the rendered page, which Phoenix.LiveViewTest never builds; alternative-proof: bnest-app-fe-e2e:test:e2e / Codex scrollable tables and code blocks are named as in Family Chat
+  @integration-exempt
+  Scenario: Codex scrollable tables and code blocks are named as in Family Chat
+    Given the Codex chat page is open at "mobile 390x844"
+    And a Codex reply answers "Show a wide table, a long code block and the logo"
+    When the page is laid out
+    Then the wide table is named "Table, scrollable"
+    And the wide code block is named "Code, scrollable"
+
+  @fe-vitest-unit
+  # Exemption(integration): the colours a browser paints for a button are part of the rendered page, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The repository write toggle text meets the contrast target
+  @integration-exempt
+  Scenario: The repository write toggle text meets the contrast target
+    Given the Codex chat page is open at "desktop 1440x900"
+    When the page is laid out
+    Then the repository write toggle text has a contrast ratio of at least 4.5 to 1
+
+  @fe-vitest-unit
+  # Exemption(integration): the width of the chat panel and the place of the Send button with an unbroken draft are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A long unbroken draft keeps the Codex chat inside the screen
+  @integration-exempt
+  Scenario Outline: A long unbroken draft keeps the Codex chat inside the screen
+    Given the Codex chat page is open at "<viewport>"
+    When the visitor types an unbroken 240 character address into the Codex message box
+    And the page is laid out
+    Then the Codex chat panel is inside the screen
+    And the Send button is on screen and is not covered by the message box
+    And the Codex page does not scroll sideways
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | phone 390x844     |
+      | landscape 844x390 |
+      | tablet 768x1024   |
+      | laptop 1024x768   |
+      | desktop 1440x900  |
 
   Rule: Codex reply images
 
@@ -328,14 +829,37 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     Then the latest Codex reply shows the repository image "apps/bnest-app/priv/static/images/beaver-nest-logo.png"
 
-  Scenario: External and inline images in a Codex reply are not loaded
+  @remote-image
+  Scenario: External https and small inline images in a Codex reply are shown
     Given an approved admin is logged in
     And a visitor opens "/chat"
     When the visitor sends "Show external and inline images"
     And a Codex response appears incrementally
+    Then the latest Codex reply loads the inline image "Remote logo" from "https://images.example.test/remote-logo.png"
+    And the latest Codex reply shows an inline image with the alt text "Inline dot"
+
+  Scenario: A Codex reply keeps http, svg and oversized images as text
+    Given an approved admin is logged in
+    And a visitor opens "/chat"
+    When the visitor sends "Show http, svg and oversized images"
+    And a Codex response appears incrementally
     Then the latest Codex reply contains no "img" element
-    And the latest Codex reply links "Remote logo (image not shown)" to "https://example.com/remote-logo.png"
-    And the latest Codex reply shows the text "[image not shown: Inline dot]"
+    And the latest Codex reply links "Plain logo (image not shown)" to "http://images.example.test/plain-logo.png"
+    And the latest Codex reply shows the text "[image not shown: Vector logo]"
+    And the latest Codex reply shows the text "[image not shown: Long logo]"
+
+  @remote-image
+  Scenario: A half-written image address in a streaming reply is not shown as an image
+    Given an approved admin is logged in
+    And a visitor opens "/chat"
+    When the visitor sends "Stream a half-written image"
+    And Codex streams the first part of the reply
+    Then the latest Codex reply is still streaming
+    And the latest Codex reply contains no "img" element
+    And the latest Codex reply shows the text "Remote logo"
+    When Codex streams the rest of the reply
+    Then the latest Codex reply is complete
+    And the latest Codex reply loads the inline image "Remote logo" from "https://images.example.test/remote-logo.png"
 
   Scenario: A signed-in visitor can fetch a repository image
     Given an approved admin is logged in

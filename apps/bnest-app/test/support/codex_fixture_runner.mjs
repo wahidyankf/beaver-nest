@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import readline from "node:readline";
+import { holdMsFor } from "./codex_fixture_hold.mjs";
 
 // The canned replies, shared with `BnestApp.Test.CodexFixtureConversation`: a prefix the page shows
 // first, then the full text after `holdMs`.
@@ -17,6 +18,10 @@ process.stdout.on("error", (error) => {
 
 const output = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
 const lines = readline.createInterface({ input: process.stdin });
+// Held only on the primary slot of the deployment scenario. A reconnect resend of any other prompt is answered there.
+const deploymentHeldPrompts = new Set(["Resume after deployment"]);
+// After a live socket drop the server resends the turn as this continuation. Its reply is held on the primary, so a
+// test can observe the resumed reply while it still streams (`holdMsFor`, codex_fixture_hold.mjs).
 const prompts = [];
 const model = process.argv[3];
 const reasoningEffort = process.argv[4];
@@ -107,10 +112,10 @@ for await (const line of lines) {
       thread_id: resumedThreadId || newThreadId,
     });
 
-    // The primary slot never finishes this turn, so only the turn a deployed candidate
-    // resends can answer it.
+    // The primary slot never finishes these turns, so only the turn a deployed candidate
+    // resends can answer them.
     if (
-      message.prompt === "Resume after deployment" &&
+      deploymentHeldPrompts.has(message.prompt) &&
       process.env.BNEST_DEPLOY_SLOT === "blue"
     ) {
       continue;
@@ -160,12 +165,17 @@ for await (const line of lines) {
     // The prefix stays on screen for `holdMs`, so a test can observe a reply that is still streaming.
     if (Object.hasOwn(replies, message.prompt)) {
       const reply = replies[message.prompt];
+      const holdMs = holdMsFor(
+        message.prompt,
+        reply,
+        process.env.BNEST_DEPLOY_SLOT,
+      );
       output({
         type: "assistant_update",
         item_id: "fixture-reply",
         text: reply.prefix,
       });
-      await new Promise((resolve) => setTimeout(resolve, reply.holdMs));
+      await new Promise((resolve) => setTimeout(resolve, holdMs));
       output({
         type: "assistant_update",
         item_id: "fixture-reply",

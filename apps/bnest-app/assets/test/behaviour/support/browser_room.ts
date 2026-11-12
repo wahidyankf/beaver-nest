@@ -61,6 +61,18 @@ const HOME_TEMPLATE = path.resolve(
   "../lib/bnest_app_web/controllers/page_html/home.html.heex",
 );
 const APP_CSS = path.resolve(ASSETS, "css/app.css");
+// The Bnest tokens and the shared Markdown rules are imported by app.css, so the page carries them too.
+const CHAT_SHARED_CSS = path.resolve(ASSETS, "css/chat_shared.css");
+// The address the root layout gives the diagram engine (`bnest-diagram-engine`). A test page loads a stand-in for
+// the bundled engine; a scenario where the engine cannot load points the page at a module that does not exist.
+const FAKE_DIAGRAM_ENGINE = path.resolve(
+  here,
+  "../../support/fake_diagram_engine.ts",
+);
+const MISSING_DIAGRAM_ENGINE = path.resolve(
+  here,
+  "../../support/missing_diagram_engine.ts",
+);
 const ROOM_MODULE = new URL("../../../js/family_chat.js", import.meta.url).href;
 const LOGOUT_MODULE = new URL("../../../js/logout.js", import.meta.url).href;
 
@@ -73,8 +85,9 @@ export const ROOM_NAME = "Ruang Keluarga";
 // --- Layout model ----------------------------------------------------------
 //
 // happy-dom has no layout engine, so the history's geometry is modelled:
-// every list item is one fixed-height row, stacked under the "Load older"
-// control, inside a history viewport of fixed height. `scrollTop` clamps the
+// every list item is one row, stacked under the "Load older" control, inside
+// a history viewport of fixed height. A row is `ROW_HEIGHT_PX` tall unless a
+// scenario declares it taller with `declareTallRow`. `scrollTop` clamps the
 // way a browser's does, and `getBoundingClientRect` reports where a row is
 // for the scroll position the room set -- so "the message is in view" and
 // "the anchor stayed put" are measured from the positions production code
@@ -84,6 +97,22 @@ export const HISTORY_TOP_PX = 100;
 export const HISTORY_HEIGHT_PX = 400;
 export const ROW_HEIGHT_PX = 40;
 const LOAD_OLDER_HEIGHT_PX = 40;
+
+// A message whose text contains a declared marker is drawn this tall. Cleared with the scenario's other declarations.
+const declaredRowHeights = new Map<string, number>();
+
+/** Makes the message whose text contains `marker` `heightPx` tall (taller than the window, for a tall message). */
+export function declareTallRow(marker: string, heightPx: number): void {
+  declaredRowHeights.set(marker, heightPx);
+}
+
+function heightOfRow(row: Element): number {
+  const text = row.textContent ?? "";
+  for (const [marker, height] of declaredRowHeights) {
+    if (text.includes(marker)) return height;
+  }
+  return ROW_HEIGHT_PX;
+}
 
 interface Layout {
   page: Page;
@@ -104,13 +133,23 @@ function rowOf(layout: Layout, element: Element): Element | null {
 }
 
 function scrollHeightOf(layout: Layout): number {
-  return LOAD_OLDER_HEIGHT_PX + layout.list.children.length * ROW_HEIGHT_PX;
+  return (
+    LOAD_OLDER_HEIGHT_PX +
+    Array.from(layout.list.children).reduce(
+      (sum, row) => sum + heightOfRow(row),
+      0,
+    )
+  );
 }
 
 /** A row's top edge inside the scrollable content, before scrolling. */
 function rowOffset(layout: Layout, row: Element): number {
-  const index = Array.prototype.indexOf.call(layout.list.children, row);
-  return LOAD_OLDER_HEIGHT_PX + index * ROW_HEIGHT_PX;
+  let offset = LOAD_OLDER_HEIGHT_PX;
+  for (const child of Array.from(layout.list.children)) {
+    if (child === row) break;
+    offset += heightOfRow(child);
+  }
+  return offset;
 }
 
 function rect(top: number, height: number, width: number) {
@@ -136,7 +175,7 @@ function layoutRect(layout: Layout, element: Element) {
   if (!row) return null;
   return rect(
     HISTORY_TOP_PX + rowOffset(layout, row) - layout.scrollTop,
-    ROW_HEIGHT_PX,
+    heightOfRow(row),
     width,
   );
 }
@@ -187,15 +226,89 @@ function patchLayoutPrototype(win: Window): void {
       (row as HTMLElement).dataset["messageId"] ?? "",
     );
     const offset = rowOffset(layout, row);
+    const height = heightOfRow(row);
     const block = options?.block ?? "start";
     const target =
       block === "center"
-        ? offset - (HISTORY_HEIGHT_PX - ROW_HEIGHT_PX) / 2
+        ? offset + height / 2 - HISTORY_HEIGHT_PX / 2
         : block === "end"
-          ? offset - HISTORY_HEIGHT_PX + ROW_HEIGHT_PX
+          ? offset + height - HISTORY_HEIGHT_PX
           : offset;
     setScrollTop(layout, target);
   };
+}
+
+/**
+ * Scroll regions a scenario declares (happy-dom has no layout). A `wide` region measures wider than its box, so a
+ * browser would make it a tab stop; a `fits` region measures exactly its box. A selector no scenario declares measures
+ * nothing, as before. Set before the page opens, because the room's first render reads the measurements.
+ */
+export type ScrollRegionState = "wide" | "fits";
+const declaredScrollRegions = new Map<string, ScrollRegionState>();
+const patchedScrollPrototypes = new WeakSet<object>();
+const SCROLL_BOX_PX = 300;
+const SCROLL_CONTENT_PX = 1000;
+
+export function declareScrollRegion(
+  selector: string,
+  state: ScrollRegionState,
+): void {
+  declaredScrollRegions.set(selector, state);
+}
+
+function declaredSizeOf(element: Element, measure: string): number | undefined {
+  for (const [selector, state] of declaredScrollRegions) {
+    if (!element.matches(selector)) continue;
+    if (state === "fits") return SCROLL_BOX_PX;
+    return measure.startsWith("scroll") ? SCROLL_CONTENT_PX : SCROLL_BOX_PX;
+  }
+  return undefined;
+}
+
+/**
+ * The getter a measure resolves to from this prototype, walking up the chain. happy-dom defines these measures on
+ * HTMLElement as well as Element, so a patch on Element alone is shadowed for every HTML element (a table, a code block).
+ */
+function inheritedGetter(
+  prototype: object,
+  measure: string,
+): ((this: Element) => number) | undefined {
+  for (
+    let node: object | null = prototype;
+    node;
+    node = Object.getPrototypeOf(node)
+  ) {
+    const descriptor = Object.getOwnPropertyDescriptor(node, measure);
+    if (descriptor?.get) return descriptor.get as (this: Element) => number;
+  }
+  return undefined;
+}
+
+function patchScrollPrototype(win: Window): void {
+  const { Element, HTMLElement } = win as unknown as {
+    Element: { prototype: object };
+    HTMLElement: { prototype: object };
+  };
+  for (const prototype of [Element.prototype, HTMLElement.prototype]) {
+    if (patchedScrollPrototypes.has(prototype)) continue;
+    patchedScrollPrototypes.add(prototype);
+    for (const measure of [
+      "scrollWidth",
+      "scrollHeight",
+      "clientWidth",
+      "clientHeight",
+    ]) {
+      const original = inheritedGetter(prototype, measure);
+      Object.defineProperty(prototype, measure, {
+        configurable: true,
+        get(this: Element) {
+          const declared = declaredSizeOf(this, measure);
+          if (declared !== undefined) return declared;
+          return original?.call(this) ?? 0;
+        },
+      });
+    }
+  }
 }
 
 function installLayout(page: Page): void {
@@ -216,6 +329,7 @@ function installLayout(page: Page): void {
   };
   layouts.set(document, layout);
   patchLayoutPrototype(page.window);
+  patchScrollPrototype(page.window);
   Object.defineProperty(history, "scrollTop", {
     configurable: true,
     get: () => layout.scrollTop,
@@ -241,7 +355,10 @@ export function offsetInHistory(element: Element): number {
 /** Whether the whole row is inside the history viewport. */
 export function isInView(element: Element): boolean {
   const offset = offsetInHistory(element);
-  return offset >= 0 && offset + ROW_HEIGHT_PX <= HISTORY_HEIGHT_PX;
+  const layout = layouts.get(element.ownerDocument);
+  const row = layout ? rowOf(layout, element) : null;
+  const height = row ? heightOfRow(row) : ROW_HEIGHT_PX;
+  return offset >= 0 && offset + height <= HISTORY_HEIGHT_PX;
 }
 
 /** What a member scrolling the history with a finger or wheel does. */
@@ -288,6 +405,15 @@ function renderHeex(
   return html;
 }
 
+/** The markup `Layouts.theme_toggle` renders (layouts.ex): the room's header carries the same three theme buttons. */
+const THEME_TOGGLE_HTML = [
+  '<div class="card relative flex flex-row items-center">',
+  '<button type="button" aria-label="Use system theme" data-phx-theme="system"></button>',
+  '<button type="button" aria-label="Use light theme" data-phx-theme="light"></button>',
+  '<button type="button" aria-label="Use dark theme" data-phx-theme="dark"></button>',
+  "</div>",
+].join("");
+
 function renderRoom(member: Member, replies: boolean): string {
   return renderHeex(
     readFileSync(ROOM_TEMPLATE, "utf8"),
@@ -306,6 +432,8 @@ function renderRoom(member: Member, replies: boolean): string {
         `aria-label="Conversation in ${ROOM_NAME}"`,
       ],
       ["{@room.name}", ROOM_NAME],
+      // The theme control `Layouts.theme_toggle` renders: three buttons that set the theme (layouts.ex).
+      ["<Layouts.theme_toggle />", THEME_TOGGLE_HTML],
     ],
     "room.html.heex",
   );
@@ -329,7 +457,27 @@ function renderLogoutForm(member: Member): string {
   );
 }
 
-const APP_CSS_TEXT = readFileSync(APP_CSS, "utf8");
+const APP_CSS_TEXT = [CHAT_SHARED_CSS, APP_CSS]
+  .map((file) => readFileSync(file, "utf8"))
+  .join("\n");
+
+// The production renderer's `bodyHtml` for each Markdown body the formatted-message scenarios use, recorded by
+// the renderer itself (`apps/bnest-app/test/integration/bnest_app_web/family_chat_rendered_bodies_test.exs`
+// keeps this file equal to the current renderer). The stub answers a body it holds with this markup, as the
+// server does; a body it does not hold has no `bodyHtml`, and the room shows it as text.
+const RENDERED_BODIES = path.resolve(
+  ASSETS,
+  "test/support/family_chat_rendered_bodies.json",
+);
+const RENDERED_BODY_HTML: Record<string, string> = JSON.parse(
+  readFileSync(RENDERED_BODIES, "utf8"),
+);
+
+function renderedBodyHtml(body: string): string | null {
+  return Object.hasOwn(RENDERED_BODY_HTML, body)
+    ? (RENDERED_BODY_HTML[body] ?? null)
+    : null;
+}
 
 // --- Device ------------------------------------------------------------------
 
@@ -489,14 +637,27 @@ interface World {
 let world: World | null = null;
 let pageSequence = 0;
 let worldSequence = 0;
+let diagramEngineAvailable = true;
+
+/**
+ * Whether the pages a scenario opens can load the diagram engine. Set before the page opens: the engine address is
+ * part of the document the room boots from.
+ */
+export function setDiagramEngineAvailable(available: boolean): void {
+  diagramEngineAvailable = available;
+}
 
 export function startWorld(): World {
   if (world) throw new Error("a previous scenario's world is still open");
   worldSequence += 1;
+  diagramEngineAvailable = true;
+  declaredScrollRegions.clear();
+  declaredRowHeights.clear();
   const created: World = {
     server: createGraphqlServer({
       now: () => world?.active?.clock.now() ?? 0,
       roomSlug: ROOM_SLUG,
+      renderBodyHtml: renderedBodyHtml,
     }),
     // Synthetic, per scenario (test-identities.md): never a real account,
     // and never the same one twice, so no scenario inherits another's queue.
@@ -572,6 +733,7 @@ const WINDOW_GLOBALS = [
   "HTMLFormElement",
   "HTMLMetaElement",
   "HTMLLIElement",
+  "MutationObserver",
   "Event",
   "MouseEvent",
   "PointerEvent",
@@ -762,6 +924,14 @@ function newPage(
   const style = document.createElement("style");
   style.textContent = APP_CSS_TEXT;
   document.head.append(style);
+  // The root layout renders this address in every page (`root.html.heex`); the room's diagrams read it when they draw.
+  const engine = document.createElement("meta");
+  engine.setAttribute("name", "bnest-diagram-engine");
+  engine.setAttribute(
+    "content",
+    diagramEngineAvailable ? FAKE_DIAGRAM_ENGINE : MISSING_DIAGRAM_ENGINE,
+  );
+  document.head.append(engine);
   document.body.innerHTML = body;
   const page: Page = {
     id: pageSequence,
@@ -1114,8 +1284,9 @@ export function setVisibility(
 
 // --- Input ---------------------------------------------------------------------
 
+// `summary` is a tab stop in every browser (the "Diagram source" disclosure), so the simulated order includes it.
 const FOCUSABLE =
-  "a[href], button, input, select, textarea, [tabindex], [contenteditable]";
+  "a[href], button, input, select, textarea, summary, [tabindex], [contenteditable]";
 
 function isDisabled(element: Element): boolean {
   return (element as HTMLButtonElement).disabled === true;
@@ -1218,7 +1389,7 @@ function keyboardEvent(
 export async function pressKey(
   key: string,
   options: { shiftKey?: boolean } = {},
-): Promise<void> {
+): Promise<{ defaultPrevented: boolean }> {
   const page = activePage();
   const document = page.document;
   const target = (document.activeElement ?? document.body) as HTMLElement;
@@ -1226,12 +1397,23 @@ export async function pressKey(
   const down = keyboardEvent(page, "keydown", key, shiftKey);
   target.dispatchEvent(down as unknown as Event);
   if (!down.defaultPrevented) {
+    const disclosure = target.parentElement;
     if (key === "Tab") {
       moveFocusByTab(document, shiftKey);
     } else if (key === "Enter" && target.tagName === "TEXTAREA") {
       (target as HTMLTextAreaElement).value += "\n";
       target.dispatchEvent(
         new page.window.Event("input", { bubbles: true }) as unknown as Event,
+      );
+    } else if (
+      (key === "Enter" || key === " ") &&
+      target.tagName === "SUMMARY" &&
+      disclosure?.tagName === "DETAILS"
+    ) {
+      // A browser's native default for a disclosure summary: it flips the details and reports a `toggle`.
+      disclosure.toggleAttribute("open");
+      disclosure.dispatchEvent(
+        new page.window.Event("toggle") as unknown as Event,
       );
     } else if (
       (key === "Enter" || key === " ") &&
@@ -1245,6 +1427,7 @@ export async function pressKey(
     keyboardEvent(page, "keyup", key, shiftKey) as unknown as Event,
   );
   await new Promise((resolve) => setTimeout(resolve, 1));
+  return { defaultPrevented: down.defaultPrevented };
 }
 
 /** Typing into whatever holds focus. */

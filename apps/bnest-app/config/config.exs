@@ -74,6 +74,17 @@ config :esbuild,
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --external:node:fs --external:node:url --external:happy-dom --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+  ],
+  # ADR 004, Decision 4: the Mermaid engine is a second profile with code splitting, in ES module format,
+  # so the browser loads it with `import()` only when a message holds a diagram. `bnest_app` stays one
+  # classic IIFE, so app.js and the page script do not change. `--alias` is resolved from the working
+  # directory, which is `assets/` (the `cd` below). The alias stubs elkjs (EPL-2.0 or GPL-3.0), which this
+  # build never uses, so no elkjs code ships.
+  bnest_app_diagrams: [
+    args:
+      ~w(js/diagrams/engine.js --bundle --target=es2022 --splitting --format=esm --outdir=../priv/static/assets/js/diagrams --chunk-names=chunks/[name]-[hash] --alias:elkjs/lib/elk.bundled.js=./js/diagrams/elk_disabled.js),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
 # Configure tailwind (the version is required)
