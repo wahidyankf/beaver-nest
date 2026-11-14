@@ -7,21 +7,32 @@ defmodule BnestApp.CodexChat.ModelCatalogUnitTest do
   alias BnestApp.CodexChat.ModelCatalog
 
   @luna %{
-    "id" => "gpt-5.6-luna",
-    "display_name" => "GPT-5.6-Luna",
+    "id" => "gpt-6-luna",
+    "display_name" => "GPT-6-Luna",
     "default_reasoning_effort" => "medium",
     "supported_reasoning_efforts" => ["low", "medium", "high"],
     "is_default" => true
   }
 
-  @nova %{
+  @sol %{
     @luna
-    | "id" => "gpt-5.6-nova",
-      "display_name" => "GPT-5.6-Nova",
+    | "id" => "gpt-6.1-sol",
+      "display_name" => "GPT-6.1-Sol",
       "is_default" => false
   }
 
-  @fallback_id "gpt-5.6-terra"
+  @terra %{
+    @luna
+    | "id" => "gpt-6.1-terra",
+      "display_name" => "GPT-6.1 Terra",
+      "is_default" => false
+  }
+
+  # Models a user must never be offered: Astra and the older ids.
+  @astra %{@luna | "id" => "gpt-6-astra", "display_name" => "GPT-6-Astra", "is_default" => false}
+  @older_terra %{@terra | "id" => "gpt-5.6-terra", "display_name" => "GPT-5.6-Terra"}
+
+  @fallback_id "gpt-6.1-terra"
 
   defmodule StubDiscovery do
     @moduledoc false
@@ -40,17 +51,53 @@ defmodule BnestApp.CodexChat.ModelCatalogUnitTest do
   end
 
   test "normalizes supplied models and indexes them by id" do
-    server = catalog(models: [@luna, @nova])
+    server = catalog(models: [@luna, @terra])
 
-    assert [%{id: "gpt-5.6-luna"}, %{id: "gpt-5.6-nova"}] = ModelCatalog.all(server)
-    assert {:ok, %{display_name: "GPT-5.6-Luna"}} = ModelCatalog.fetch("gpt-5.6-luna", server)
+    assert [%{id: "gpt-6-luna"}, %{id: "gpt-6.1-terra"}] = ModelCatalog.all(server)
+    assert {:ok, %{display_name: "GPT-6-Luna"}} = ModelCatalog.fetch("gpt-6-luna", server)
     assert ModelCatalog.fetch("never-offered", server) == :error
+  end
+
+  test "offers only the latest Luna, Terra and Sol, dropping Astra and the older ids" do
+    server = catalog(models: [@astra, @older_terra, @sol, @luna, @terra])
+
+    assert [%{id: "gpt-6.1-sol"}, %{id: "gpt-6-luna"}, %{id: "gpt-6.1-terra"}] =
+             ModelCatalog.all(server)
+
+    assert ModelCatalog.fetch("gpt-6-astra", server) == :error
+    assert ModelCatalog.fetch("gpt-5.6-terra", server) == :error
+  end
+
+  test "a discovered catalog holding only retired models falls back to the Terra fallback" do
+    log =
+      capture_log(fn ->
+        assert [%{id: @fallback_id}] = ModelCatalog.all(catalog(models: [@astra, @older_terra]))
+      end)
+
+    assert log =~ "no valid picker models"
+  end
+
+  test "the Terra fallback is named and specified as Codex names it" do
+    log =
+      capture_log(fn ->
+        assert [fallback] = ModelCatalog.all(catalog(models: []))
+
+        assert fallback == %{
+                 id: "gpt-6.1-terra",
+                 display_name: "GPT-6.1 Terra",
+                 default_reasoning_effort: "low",
+                 supported_reasoning_efforts: ~w(low medium high xhigh max ultra),
+                 is_default: false
+               }
+      end)
+
+    assert log =~ "no valid picker models"
   end
 
   test "accepts atom-keyed models identically to string-keyed ones" do
     atom_keyed = %{
-      id: "gpt-5.6-luna",
-      display_name: "GPT-5.6-Luna",
+      id: "gpt-6-luna",
+      display_name: "GPT-6-Luna",
       default_reasoning_effort: "medium",
       supported_reasoning_efforts: ["low", "medium", "high"],
       is_default: true
@@ -61,24 +108,44 @@ defmodule BnestApp.CodexChat.ModelCatalogUnitTest do
   end
 
   test "keeps the first model when Codex repeats an id" do
-    assert [%{display_name: "GPT-5.6-Luna"}] =
+    assert [%{display_name: "GPT-6-Luna"}] =
              ModelCatalog.all(catalog(models: [@luna, %{@luna | "display_name" => "Duplicate"}]))
   end
 
-  test "default/1 prefers the model Codex flags as default" do
-    assert %{id: "gpt-5.6-luna"} = ModelCatalog.default(catalog(models: [@nova, @luna]))
+  test "an invalid entry for a model that is not offered does not empty the catalog" do
+    astra_with_new_effort = %{@astra | "default_reasoning_effort" => "turbo"}
+
+    assert [%{id: "gpt-6-luna"}, %{id: "gpt-6.1-terra"}] =
+             ModelCatalog.all(catalog(models: [astra_with_new_effort, @luna, @terra]))
+  end
+
+  test "a malformed offered entry falls back to the Terra fallback, keeping no other model" do
+    malformed_luna = %{@luna | "default_reasoning_effort" => "turbo"}
+
+    log =
+      capture_log(fn ->
+        assert [%{id: @fallback_id}] =
+                 ModelCatalog.all(catalog(models: [malformed_luna, @terra]))
+      end)
+
+    assert log =~ "no valid picker models"
+  end
+
+  test "default/1 prefers Terra when it is offered" do
+    assert %{id: "gpt-6.1-terra"} = ModelCatalog.default(catalog(models: [@luna, @terra]))
+  end
+
+  test "default/1 prefers the model Codex flags as default when Terra is absent" do
+    flagged_sol = %{@sol | "is_default" => true}
+    unflagged_luna = %{@luna | "is_default" => false}
+
+    assert %{id: "gpt-6.1-sol"} =
+             ModelCatalog.default(catalog(models: [unflagged_luna, flagged_sol]))
   end
 
   test "default/1 falls back to the first model when none is flagged" do
     unflagged = %{@luna | "is_default" => false}
-    assert %{id: "gpt-5.6-luna"} = ModelCatalog.default(catalog(models: [unflagged, @nova]))
-  end
-
-  test "reasoning_effort honours a supported request and rejects an unsupported one" do
-    [luna] = ModelCatalog.all(catalog(models: [@luna]))
-
-    assert ModelCatalog.reasoning_effort(luna, "high") == "high"
-    assert ModelCatalog.reasoning_effort(luna, "ultra") == "medium"
+    assert %{id: "gpt-6-luna"} = ModelCatalog.default(catalog(models: [unflagged, @sol]))
   end
 
   # Each clause of the validator gets its own rejection, so a loosened condition fails here
@@ -94,7 +161,7 @@ defmodule BnestApp.CodexChat.ModelCatalogUnitTest do
          %{"supported_reasoning_efforts" => ["low"], "default_reasoning_effort" => "high"}},
         {"a non-boolean default flag", %{"is_default" => "yes"}}
       ] do
-    test "falls back to Terra for a model with #{label}" do
+    test "falls back to the Terra fallback for a model with #{label}" do
       models = [Map.merge(@luna, unquote(Macro.escape(invalid)))]
 
       log =
@@ -106,7 +173,7 @@ defmodule BnestApp.CodexChat.ModelCatalogUnitTest do
     end
   end
 
-  test "falls back to Terra when Codex returns something that is not a list" do
+  test "falls back to the Terra fallback when Codex returns something that is not a list" do
     log =
       capture_log(fn ->
         assert [%{id: @fallback_id}] = ModelCatalog.all(catalog(models: %{"id" => "luna"}))
@@ -123,10 +190,10 @@ defmodule BnestApp.CodexChat.ModelCatalogUnitTest do
         discovery_result: {:ok, [@luna]}
       )
 
-    assert [%{id: "gpt-5.6-luna"}] = ModelCatalog.all(server)
+    assert [%{id: "gpt-6-luna"}] = ModelCatalog.all(server)
   end
 
-  test "falls back to Terra when the discovery adapter fails" do
+  test "falls back to the Terra fallback when the discovery adapter fails" do
     log =
       capture_log(fn ->
         server =
@@ -150,27 +217,10 @@ defmodule BnestApp.CodexChat.ModelCatalogUnitTest do
         )
       )
 
-    assert [%{id: "gpt-5.6-luna"}] = ModelCatalog.all(:sys.get_state(server) && server)
+    assert [%{id: "gpt-6-luna"}] = ModelCatalog.all(:sys.get_state(server) && server)
   end
 
-  test "reasoning_effort/1 falls back to the preferred effort" do
-    [luna] = ModelCatalog.all(catalog(models: [@luna]))
-    assert ModelCatalog.reasoning_effort(luna) in luna.supported_reasoning_efforts
-  end
-
-  test "reasoning_effort returns the model default when neither request nor preference fits" do
-    narrow = %{
-      @luna
-      | "supported_reasoning_efforts" => ["ultra"],
-        "default_reasoning_effort" => "ultra"
-    }
-
-    [model] = ModelCatalog.all(catalog(models: [narrow]))
-
-    assert ModelCatalog.reasoning_effort(model, "low") == "ultra"
-  end
-
-  test "falls back to Terra when an entry is not a map at all" do
+  test "falls back to the Terra fallback when an entry is not a map at all" do
     log =
       capture_log(fn ->
         assert [%{id: @fallback_id}] = ModelCatalog.all(catalog(models: ["not-a-model"]))

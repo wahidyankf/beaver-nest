@@ -1,8 +1,9 @@
 defmodule BnestApp.CodexChat.ModelCatalog do
   @moduledoc """
   The models the local Codex agent offers, discovered once at start through the configured
-  `BnestApp.CodexChat.Ports.ModelDiscovery` and validated here. An invalid or failed
-  discovery falls back to Terra.
+  `BnestApp.CodexChat.Ports.ModelDiscovery` and validated here. Only the latest Luna, Terra and Sol are kept
+  (`BnestApp.CodexChat.Domain.ModelAccess.offered?/1`, ADR 006). An invalid, failed, or empty discovery falls back
+  to Terra.
   """
 
   use GenServer
@@ -10,14 +11,15 @@ defmodule BnestApp.CodexChat.ModelCatalog do
   require Logger
 
   alias BnestApp.CodexChat
-  alias BnestApp.CodexChat.Domain.Settings
+  alias BnestApp.CodexChat.Domain.{ModelAccess, Settings}
 
   @efforts ~w(none minimal low medium high xhigh max ultra)
+  # Named and specified as the local Codex lists Terra, so a failed discovery never offers an older id.
   @fallback [
     %{
-      id: "gpt-5.6-terra",
-      display_name: "GPT-5.6-Terra",
-      default_reasoning_effort: "medium",
+      id: "gpt-6.1-terra",
+      display_name: "GPT-6.1 Terra",
+      default_reasoning_effort: "low",
       supported_reasoning_efforts: ~w(low medium high xhigh max ultra),
       is_default: false
     }
@@ -46,20 +48,6 @@ defmodule BnestApp.CodexChat.ModelCatalog do
 
   @spec default() :: model()
   def default(server \\ __MODULE__), do: GenServer.call(server, :default)
-
-  @spec reasoning_effort(model(), String.t()) :: String.t()
-  def reasoning_effort(model, requested \\ Settings.preferred_reasoning_effort()) do
-    cond do
-      requested in model.supported_reasoning_efforts ->
-        requested
-
-      Settings.preferred_reasoning_effort() in model.supported_reasoning_efforts ->
-        Settings.preferred_reasoning_effort()
-
-      true ->
-        model.default_reasoning_effort
-    end
-  end
 
   @impl GenServer
   def init(options) do
@@ -106,32 +94,38 @@ defmodule BnestApp.CodexChat.ModelCatalog do
   defp discovery(options),
     do: Keyword.get_lazy(options, :discovery, fn -> CodexChat.adapter(:model_discovery) end)
 
+  # The id is checked before the shape, so a malformed entry for a model the catalog does not offer is ignored
+  # rather than emptying the catalog. A malformed offered entry, or no offered entry, falls back to Terra.
   defp normalize_or_fallback(models) when is_list(models) do
-    normalized =
-      models
-      |> Enum.reduce_while({:ok, []}, fn model, {:ok, result} ->
-        case normalize(model) do
-          {:ok, normalized_model} -> {:cont, {:ok, [normalized_model | result]}}
-          :error -> {:halt, :error}
-        end
-      end)
-      |> case do
-        {:ok, result} -> Enum.reverse(result)
-        :error -> []
-      end
-      |> Enum.uniq_by(& &1.id)
+    case models |> Enum.filter(&offered_entry?/1) |> normalize_all() do
+      {:ok, [_ | _] = normalized} ->
+        Enum.uniq_by(normalized, & &1.id)
 
-    if normalized == [] do
-      Logger.warning("Codex returned no valid picker models; using the Terra fallback")
-      @fallback
-    else
-      normalized
+      _invalid_or_empty ->
+        Logger.warning("Codex returned no valid picker models; using the Terra fallback")
+        @fallback
     end
   end
 
   defp normalize_or_fallback(_models) do
     Logger.warning("Codex returned no valid picker models; using the Terra fallback")
     @fallback
+  end
+
+  defp offered_entry?(model), do: is_map(model) and ModelAccess.offered?(value(model, :id))
+
+  defp normalize_all(models) do
+    models
+    |> Enum.reduce_while({:ok, []}, fn model, {:ok, result} ->
+      case normalize(model) do
+        {:ok, normalized_model} -> {:cont, {:ok, [normalized_model | result]}}
+        :error -> {:halt, :error}
+      end
+    end)
+    |> case do
+      {:ok, result} -> {:ok, Enum.reverse(result)}
+      :error -> :error
+    end
   end
 
   defp normalize(model) when is_map(model) do

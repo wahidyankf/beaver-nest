@@ -62,7 +62,7 @@ defmodule BnestApp.CodexChat.TranscriptTest do
     version_3_snapshot = %{
       "version" => 3,
       "thread_id" => nil,
-      "model" => "gpt-5.6-terra",
+      "model" => "gpt-6.1-terra",
       "reasoning_effort" => "medium",
       "messages" => [
         %{"id" => 1, "role" => "visitor", "content" => "Hello", "update_count" => 0},
@@ -79,7 +79,7 @@ defmodule BnestApp.CodexChat.TranscriptTest do
     invalid_progress_snapshot = %{
       "version" => 4,
       "thread_id" => nil,
-      "model" => "gpt-5.6-terra",
+      "model" => "gpt-6.1-terra",
       "reasoning_effort" => "medium",
       "messages" => [
         %{
@@ -145,36 +145,36 @@ defmodule BnestApp.CodexChat.TranscriptTest do
 
   test "changes models only between turns" do
     chat = Transcript.new()
-    assert Transcript.new("gpt-5.6-luna").reasoning_effort == "medium"
+    assert Transcript.new("gpt-6-luna").reasoning_effort == "medium"
 
-    assert {:ok, selected} = Transcript.select_model(chat, "gpt-5.6-luna", "medium")
-    assert selected.model == "gpt-5.6-luna"
+    assert {:ok, selected} = Transcript.select_model(chat, "gpt-6-luna", "medium")
+    assert selected.model == "gpt-6-luna"
     assert selected.reasoning_effort == "medium"
 
     {:ok, busy} = Transcript.submit(selected, "Hello")
-    assert Transcript.select_model(busy, "gpt-5.6-sol", "low") == {:error, busy}
+    assert Transcript.select_model(busy, "gpt-6.1-sol", "low") == {:error, busy}
     assert Transcript.select_model(chat, "", "medium") == {:error, chat}
-    assert Transcript.select_model(chat, "gpt-5.6-luna", "impossible") == {:error, chat}
+    assert Transcript.select_model(chat, "gpt-6-luna", "impossible") == {:error, chat}
   end
 
   test "enforces a role-required model even while a restored turn is active" do
-    {:ok, busy} = Transcript.submit(Transcript.new("gpt-5.6-terra", "high"), "Continue")
+    {:ok, busy} = Transcript.submit(Transcript.new("gpt-6.1-terra", "high"), "Continue")
 
-    restricted = Transcript.enforce_model(busy, "gpt-5.6-luna", "medium")
+    restricted = Transcript.enforce_model(busy, "gpt-6-luna", "medium")
 
-    assert restricted.model == "gpt-5.6-luna"
+    assert restricted.model == "gpt-6-luna"
     assert restricted.reasoning_effort == "medium"
     assert restricted.busy
     assert restricted.pending_turn == busy.pending_turn
   end
 
   test "snapshots the selected model and effort" do
-    chat = Transcript.new("gpt-5.6-luna", "medium")
+    chat = Transcript.new("gpt-6-luna", "medium")
 
     assert {:ok,
             %{
               "version" => 4,
-              "model" => "gpt-5.6-luna",
+              "model" => "gpt-6-luna",
               "reasoning_effort" => "medium"
             }} = Transcript.snapshot(chat)
 
@@ -215,7 +215,7 @@ defmodule BnestApp.CodexChat.TranscriptTest do
     assert Transcript.restore(%{
              "version" => 2,
              "thread_id" => nil,
-             "model" => "gpt-5.6-luna",
+             "model" => "gpt-6-luna",
              "reasoning_effort" => "impossible",
              "messages" => []
            }) == :error
@@ -223,7 +223,7 @@ defmodule BnestApp.CodexChat.TranscriptTest do
     assert Transcript.restore(%{
              "version" => 3,
              "thread_id" => nil,
-             "model" => "gpt-5.6-luna",
+             "model" => "gpt-6-luna",
              "reasoning_effort" => "medium",
              "messages" => [
                %{"id" => 1, "role" => "visitor", "content" => "Hello", "streaming" => false},
@@ -239,7 +239,7 @@ defmodule BnestApp.CodexChat.TranscriptTest do
     assert Transcript.restore(%{
              "version" => 4,
              "thread_id" => nil,
-             "model" => "gpt-5.6-luna",
+             "model" => "gpt-6-luna",
              "reasoning_effort" => "medium",
              "messages" => [
                %{
@@ -265,7 +265,7 @@ defmodule BnestApp.CodexChat.TranscriptTest do
     assert Transcript.restore(%{
              "version" => 3,
              "thread_id" => nil,
-             "model" => "gpt-5.6-luna",
+             "model" => "gpt-6-luna",
              "reasoning_effort" => "medium",
              "messages" => [],
              "pending_turn" => %{"prompt" => "Hello"}

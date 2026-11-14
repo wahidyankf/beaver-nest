@@ -62,7 +62,7 @@ defmodule BnestApp.CodexChat.ChatInstructionsTest do
 
     probe = """
     process.stdin.push(null);
-    process.argv.splice(2, 0, #{inspect(workspace)}, "gpt-5.6-terra", "medium", "", "read-only");
+    process.argv.splice(2, 0, #{inspect(workspace)}, "gpt-6.1-terra", "medium", "", "read-only");
     await import(process.argv[1]);
     """
 

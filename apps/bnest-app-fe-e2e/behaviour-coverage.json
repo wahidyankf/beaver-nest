@@ -104,7 +104,7 @@
           "e2eExempt": false
         },
         {
-          "name": "A model change falls back from an unsupported reasoning effort",
+          "name": "A model change falls back to Max from an unsupported reasoning effort",
           "e2eExempt": false
         },
         {
@@ -144,7 +144,7 @@
           "e2eExempt": false
         },
         {
-          "name": "A parent is limited to Terra at medium effort",
+          "name": "A parent chooses Luna or Terra at medium effort",
           "e2eExempt": false
         },
         {

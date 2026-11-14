@@ -25,8 +25,8 @@ defmodule BnestApp.CodexChat.ModelCatalogConfiguredUnitTest do
            {:ok,
             [
               %{
-                "id" => "gpt-5.6-luna",
-                "display_name" => "GPT-5.6-Luna",
+                "id" => "gpt-6-luna",
+                "display_name" => "GPT-6-Luna",
                 "default_reasoning_effort" => "medium",
                 "supported_reasoning_efforts" => ["low", "medium", "high"],
                 "is_default" => true
@@ -34,6 +34,6 @@ defmodule BnestApp.CodexChat.ModelCatalogConfiguredUnitTest do
             ]}}
       )
 
-    assert [%{id: "gpt-5.6-luna"}] = ModelCatalog.all(server)
+    assert [%{id: "gpt-6-luna"}] = ModelCatalog.all(server)
   end
 end

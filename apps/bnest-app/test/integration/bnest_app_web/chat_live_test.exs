@@ -4,8 +4,10 @@ defmodule BnestAppWeb.ChatLiveTest do
   import Phoenix.ConnTest
   import Phoenix.LiveViewTest
 
+  alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Adapters.CodexPortSession
   alias BnestApp.CodexChat.Domain.Transcript
+  alias BnestApp.Test.CodexFixtureModels
   alias BnestApp.Test.CodexReplyPage
   alias BnestAppWeb.ChatComponents
 
@@ -80,7 +82,7 @@ defmodule BnestAppWeb.ChatLiveTest do
 
     assert has_element?(
              view,
-             "[data-role=model-selector] option[value='gpt-5.6-terra'][selected]"
+             "[data-role=model-selector] option[value='gpt-6.1-terra'][selected]"
            )
   end
 
@@ -109,7 +111,7 @@ defmodule BnestAppWeb.ChatLiveTest do
       Transcript.restore(%{
         "version" => 2,
         "thread_id" => "unavailable-thread",
-        "model" => "gpt-5.6-terra",
+        "model" => "gpt-6.1-terra",
         "reasoning_effort" => "medium",
         "messages" => [
           %{"id" => 1, "role" => "visitor", "content" => "Original", "update_count" => 0},
@@ -157,7 +159,7 @@ defmodule BnestAppWeb.ChatLiveTest do
              CodexPortSession.open(
                self(),
                "unavailable-thread",
-               "gpt-5.6-terra",
+               "gpt-6.1-terra",
                "medium",
                :read_only
              )
@@ -174,7 +176,7 @@ defmodule BnestAppWeb.ChatLiveTest do
     use_fixture_runner()
 
     assert {:ok, session} =
-             CodexPortSession.open(self(), nil, "gpt-5.6-terra", "medium", :read_only)
+             CodexPortSession.open(self(), nil, "gpt-6.1-terra", "medium", :read_only)
 
     assert :ok = CodexPortSession.send_prompt(session, "Show progress")
 
@@ -200,7 +202,7 @@ defmodule BnestAppWeb.ChatLiveTest do
     use_fixture_runner()
 
     assert {:ok, session} =
-             CodexPortSession.open(self(), "closed-thread", "gpt-5.6-terra", "medium", :read_only)
+             CodexPortSession.open(self(), "closed-thread", "gpt-6.1-terra", "medium", :read_only)
 
     monitor = Process.monitor(session)
 
@@ -219,7 +221,7 @@ defmodule BnestAppWeb.ChatLiveTest do
           {"fixture-resumed-thread", :workspace_write, "Fixture sandbox: workspace-write"}
         ] do
       assert {:ok, session} =
-               CodexPortSession.open(self(), thread_id, "gpt-5.6-terra", "medium", mode)
+               CodexPortSession.open(self(), thread_id, "gpt-6.1-terra", "medium", mode)
 
       assert :ok = CodexPortSession.send_prompt(session, "Report sandbox mode")
       assert_receive {:codex, ^session, {:thread_started, _thread_id}}, 2_000
@@ -232,7 +234,7 @@ defmodule BnestAppWeb.ChatLiveTest do
     end
 
     assert {:error, :invalid_repository_mode} =
-             CodexPortSession.open(self(), nil, "gpt-5.6-terra", "medium", :danger_full_access)
+             CodexPortSession.open(self(), nil, "gpt-6.1-terra", "medium", :danger_full_access)
   end
 
   test "the production runner loads its SDK after release-style relocation" do
@@ -262,7 +264,7 @@ defmodule BnestAppWeb.ChatLiveTest do
         2,
         0,
         #{inspect(working_directory)},
-        "gpt-5.6-terra",
+        "gpt-6.1-terra",
         "medium",
         "",
         "read-only",
@@ -497,6 +499,216 @@ defmodule BnestAppWeb.ChatLiveTest do
       |> String.trim()
 
     assert inner == "Thinking…"
+  end
+
+  # Role rules are enforced on the server: a forged event from a role that may not pick a model or an effort
+  # changes nothing (ADR 006). Each test signs in a scenario identity with the role, as a browser's login does.
+  describe "role-scoped model and effort" do
+    test "a parent's forged effort and out-of-role models are refused", %{conn: conn} do
+      {conn, _identity} =
+        scenario_authenticated_conn(conn, "chat-role-parent-forgery", ["parents"])
+
+      {:ok, view, _html} = live(conn, "/chat")
+      assert_badge(view, "gpt-6.1-terra", "medium")
+
+      render_hook(view, "select_effort", %{"reasoning_effort" => "high"})
+      render_hook(view, "select_model", %{"model" => "gpt-6.1-sol"})
+      render_hook(view, "select_model", %{"model" => "gpt-6-astra"})
+
+      assert_badge(view, "gpt-6.1-terra", "medium")
+      refute has_element?(view, "[data-role=effort-selector]")
+    end
+
+    test "a parent's Luna choice keeps medium effort, and a forged effort is still refused", %{
+      conn: conn
+    } do
+      {conn, _identity} =
+        scenario_authenticated_conn(conn, "chat-role-parent-luna", ["parents"])
+
+      {:ok, view, _html} = live(conn, "/chat")
+
+      render_change(view, "select_model", %{"model" => "gpt-6-luna"})
+      assert_badge(view, "gpt-6-luna", "medium")
+
+      render_hook(view, "select_effort", %{"reasoning_effort" => "max"})
+      assert_badge(view, "gpt-6-luna", "medium")
+    end
+
+    test "a child stays on Luna at medium effort whatever is forged", %{conn: conn} do
+      {conn, _identity} =
+        scenario_authenticated_conn(conn, "chat-role-child-forgery", ["children"])
+
+      {:ok, view, _html} = live(conn, "/chat")
+      assert_badge(view, "gpt-6-luna", "medium")
+
+      render_hook(view, "select_model", %{"model" => "gpt-6.1-terra"})
+      render_hook(view, "select_effort", %{"reasoning_effort" => "high"})
+
+      assert_badge(view, "gpt-6-luna", "medium")
+      refute has_element?(view, "[data-role=model-selector]")
+      refute has_element?(view, "[data-role=effort-selector]")
+    end
+
+    test "a parent's saved retired model and effort resolve to Terra at medium", %{conn: conn} do
+      {conn, identity} =
+        scenario_authenticated_conn(conn, "chat-role-parent-saved", ["parents"])
+
+      save_settings(identity, "gpt-5.6-terra", "high")
+
+      {:ok, view, _html} = live(conn, "/chat")
+      assert_badge(view, "gpt-6.1-terra", "medium")
+    end
+
+    test "a child's saved Terra model and effort resolve to Luna at medium", %{conn: conn} do
+      {conn, identity} =
+        scenario_authenticated_conn(conn, "chat-role-child-saved", ["children"])
+
+      save_settings(identity, "gpt-6.1-terra", "high")
+
+      {:ok, view, _html} = live(conn, "/chat")
+      assert_badge(view, "gpt-6-luna", "medium")
+    end
+
+    test "an admin's saved model keeps a supported effort and an unsupported one becomes max", %{
+      conn: conn
+    } do
+      {conn, identity} =
+        scenario_authenticated_conn(conn, "chat-role-admin-saved", ["admin"])
+
+      save_settings(identity, "gpt-6-luna", "ultra")
+
+      {:ok, view, _html} = live(conn, "/chat")
+      assert_badge(view, "gpt-6-luna", "max")
+    end
+
+    test "an admin may choose Sol, and a switch to Luna from an unsupported effort falls back to max",
+         %{conn: conn} do
+      {conn, _identity} =
+        scenario_authenticated_conn(conn, "chat-role-admin-switch", ["admin"])
+
+      {:ok, view, _html} = live(conn, "/chat")
+
+      render_change(view, "select_model", %{"model" => "gpt-6.1-sol"})
+      assert_badge(view, "gpt-6.1-sol", "medium")
+
+      render_change(view, "select_effort", %{"reasoning_effort" => "ultra"})
+      assert_badge(view, "gpt-6.1-sol", "ultra")
+
+      render_change(view, "select_model", %{"model" => "gpt-6-luna"})
+      assert_badge(view, "gpt-6-luna", "max")
+
+      render_hook(view, "select_effort", %{"reasoning_effort" => "ultra"})
+      assert_badge(view, "gpt-6-luna", "max")
+    end
+  end
+
+  describe "a role whose model is not available" do
+    test "a child without Luna shows the alert and refuses every forged change", %{conn: conn} do
+      with_catalog(Enum.reject(fixture_models(), &(&1.id == "gpt-6-luna")))
+
+      {conn, _identity} =
+        scenario_authenticated_conn(conn, "chat-unavailable-child", ["children"])
+
+      {:ok, view, _html} = live(conn, "/chat")
+
+      assert has_element?(
+               view,
+               ".chat-error[role=alert]",
+               "GPT-6-Luna is not available in local Codex."
+             )
+
+      assert has_element?(view, "[data-role=chat-composer][disabled]")
+      assert_badge(view, "gpt-6-luna", "medium")
+
+      render_hook(view, "send", %{"chat" => %{"prompt" => "Forged prompt"}})
+      render_hook(view, "select_model", %{"model" => "gpt-6.1-terra"})
+      render_hook(view, "select_effort", %{"reasoning_effort" => "high"})
+
+      refute render(view) =~ "Forged prompt"
+      assert_badge(view, "gpt-6-luna", "medium")
+    end
+
+    test "a parent without Terra shows the alert and refuses every forged change", %{conn: conn} do
+      with_catalog(Enum.reject(fixture_models(), &(&1.id == "gpt-6.1-terra")))
+
+      {conn, _identity} =
+        scenario_authenticated_conn(conn, "chat-unavailable-parent-missing", ["parents"])
+
+      {:ok, view, _html} = live(conn, "/chat")
+
+      assert has_element?(
+               view,
+               ".chat-error[role=alert]",
+               "GPT-6.1 Terra is not available in local Codex."
+             )
+
+      assert has_element?(view, "[data-role=chat-composer][disabled]")
+      assert_badge(view, "gpt-6.1-terra", "medium")
+
+      render_hook(view, "send", %{"chat" => %{"prompt" => "Forged prompt"}})
+      render_hook(view, "select_model", %{"model" => "gpt-6-luna"})
+
+      refute render(view) =~ "Forged prompt"
+      assert_badge(view, "gpt-6.1-terra", "medium")
+    end
+
+    test "a parent whose Terra lacks medium effort shows the alert and refuses Luna", %{
+      conn: conn
+    } do
+      terra_without_medium = fn model ->
+        if model.id == "gpt-6.1-terra",
+          do: %{model | supported_reasoning_efforts: ["high"], default_reasoning_effort: "high"},
+          else: model
+      end
+
+      with_catalog(Enum.map(fixture_models(), terra_without_medium))
+
+      {conn, _identity} =
+        scenario_authenticated_conn(conn, "chat-unavailable-parent-medium", ["parents"])
+
+      {:ok, view, _html} = live(conn, "/chat")
+
+      assert has_element?(
+               view,
+               ".chat-error[role=alert]",
+               "GPT-6.1 Terra is not available in local Codex."
+             )
+
+      assert has_element?(view, "[data-role=chat-composer][disabled]")
+      refute has_element?(view, "[data-role=model-selector]")
+
+      render_hook(view, "select_model", %{"model" => "gpt-6-luna"})
+      render_hook(view, "send", %{"chat" => %{"prompt" => "Forged prompt"}})
+
+      refute render(view) =~ "Forged prompt"
+      assert_badge(view, "gpt-6.1-terra", "medium")
+    end
+  end
+
+  defp fixture_models, do: CodexFixtureModels.all()
+
+  # Replaces the application's named catalog with one built from `models`, for this test only. The
+  # test runs alone (async: false) and the application's catalog returns when the test ends.
+  defp with_catalog(models) do
+    :ok = Supervisor.terminate_child(BnestApp.Supervisor, CodexChat.ModelCatalog)
+    start_supervised!({CodexChat.ModelCatalog, models: models})
+
+    on_exit(fn ->
+      {:ok, _pid} = Supervisor.restart_child(BnestApp.Supervisor, CodexChat.ModelCatalog)
+    end)
+  end
+
+  defp assert_badge(view, model_id, effort) do
+    assert has_element?(
+             view,
+             ".model-badge[data-model='#{model_id}'][data-reasoning-effort='#{effort}']"
+           )
+  end
+
+  # Saves a conversation's settings as the identity's own chat, the record a reload restores.
+  defp save_settings(identity, model, effort) do
+    assert {:ok, _record} =
+             CodexChat.save_transcript(identity.user_id, Transcript.new(model, effort), nil)
   end
 
   # Opens the page on a saved chat whose reply is still being written, as a reconnect does. The fixture

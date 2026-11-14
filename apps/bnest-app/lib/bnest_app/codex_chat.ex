@@ -25,7 +25,6 @@ defmodule BnestApp.CodexChat do
     ModelAccess,
     RepositoryAccess,
     RepositoryImage,
-    Settings,
     Transcript
   }
 
@@ -83,17 +82,9 @@ defmodule BnestApp.CodexChat do
   @spec models() :: [ModelCatalog.model()]
   def models, do: ModelCatalog.all()
 
-  @doc "Which of the offered models `user` may use, and whether they may pick among them."
+  @doc "Which of the offered models `user` may use, and which of them and which efforts they may pick."
   @spec model_access(map()) :: ModelAccess.access()
   def model_access(user), do: ModelAccess.resolve(user, models())
-
-  @doc """
-  The reasoning effort to use with `model`: `requested` when the model supports it, else the
-  preferred effort, else the model's default.
-  """
-  @spec reasoning_effort(ModelCatalog.model(), String.t()) :: String.t()
-  def reasoning_effort(model, requested \\ Settings.preferred_reasoning_effort()),
-    do: ModelCatalog.reasoning_effort(model, requested)
 
   @doc """
   The transcript `owner_id` saved last, with its stored record. The store's error is

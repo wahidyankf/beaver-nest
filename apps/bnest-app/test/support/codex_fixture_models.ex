@@ -4,10 +4,41 @@ defmodule BnestApp.Test.CodexFixtureModels do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   # The test configuration's model discovery: it offers this fixed catalog without running
-  # the Codex CLI.
+  # the Codex CLI. It is the local Codex model list (`codex app-server model/list`) as read on the
+  # development machine, so the picker's filtering runs on the real ids, display names and efforts.
   @behaviour BnestApp.CodexChat.Ports.ModelDiscovery
 
   @models [
+    %{
+      id: "gpt-6.1-sol",
+      display_name: "GPT-6.1-Sol",
+      default_reasoning_effort: "low",
+      supported_reasoning_efforts: ~w(low medium high xhigh max ultra)
+    },
+    %{
+      id: "gpt-6-astra",
+      display_name: "GPT-6-Astra",
+      default_reasoning_effort: "low",
+      supported_reasoning_efforts: ~w(low medium high xhigh max ultra)
+    },
+    %{
+      id: "gpt-6.1-terra",
+      display_name: "GPT-6.1 Terra",
+      default_reasoning_effort: "low",
+      supported_reasoning_efforts: ~w(low medium high xhigh max ultra)
+    },
+    %{
+      id: "gpt-6-sol",
+      display_name: "GPT-6-Sol",
+      default_reasoning_effort: "medium",
+      supported_reasoning_efforts: ~w(low medium high xhigh max ultra)
+    },
+    %{
+      id: "gpt-6-luna",
+      display_name: "GPT-6-Luna",
+      default_reasoning_effort: "medium",
+      supported_reasoning_efforts: ~w(low medium high xhigh max)
+    },
     %{
       id: "gpt-5.6-sol",
       display_name: "GPT-5.6-Sol",
@@ -25,44 +56,18 @@ defmodule BnestApp.Test.CodexFixtureModels do
       display_name: "GPT-5.6-Luna",
       default_reasoning_effort: "medium",
       supported_reasoning_efforts: ~w(low medium high xhigh max)
-    },
-    %{
-      id: "gpt-5.5",
-      display_name: "GPT-5.5",
-      default_reasoning_effort: "medium",
-      supported_reasoning_efforts: ~w(low medium high xhigh)
-    },
-    %{
-      id: "gpt-5.4",
-      display_name: "GPT-5.4",
-      default_reasoning_effort: "medium",
-      supported_reasoning_efforts: ~w(low medium high xhigh)
-    },
-    %{
-      id: "gpt-5.4-mini",
-      display_name: "GPT-5.4-Mini",
-      default_reasoning_effort: "medium",
-      supported_reasoning_efforts: ~w(low medium high xhigh)
-    },
-    %{
-      id: "gpt-5.3-codex-spark",
-      display_name: "GPT-5.3-Codex-Spark",
-      default_reasoning_effort: "high",
-      supported_reasoning_efforts: ~w(low medium high xhigh)
     }
   ]
 
   def all do
     Enum.map(@models, fn model ->
       model
-      |> Map.put(:is_default, model.id == "gpt-5.6-sol")
+      |> Map.put(:is_default, model.id == "gpt-6.1-sol")
     end)
   end
 
   @impl true
   def discover(_options), do: {:ok, all()}
-
-  def display_names, do: Enum.map(@models, & &1.display_name)
 
   def fetch_by_display_name!(display_name) do
     Enum.find(@models, &(&1.display_name == display_name)) ||

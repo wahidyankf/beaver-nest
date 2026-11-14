@@ -64,7 +64,7 @@ function timeResumedTurn(slot: string): Promise<number> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      [RUNNER, "fixture", "gpt-5.6-terra", "medium", "", "read-only"],
+      [RUNNER, "fixture", "gpt-6.1-terra", "medium", "", "read-only"],
       {
         env: { ...process.env, BNEST_DEPLOY_SLOT: slot },
         stdio: ["pipe", "pipe", "inherit"],

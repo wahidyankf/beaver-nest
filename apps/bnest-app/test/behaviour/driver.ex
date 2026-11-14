@@ -10,7 +10,7 @@ defmodule BnestApp.Behaviour.Driver do
   @callback home_controls_arranged?(map()) :: boolean()
   @callback follow_brand_home_link(map()) :: map()
   @callback data_migration_entry_absent?(map()) :: boolean()
-  @callback model_selector_lists_all?(map()) :: boolean()
+  @callback model_selector_lists_only?(map(), [String.t()]) :: boolean()
   @callback selected_model?(map(), String.t()) :: boolean()
   @callback effort_selector_lists_supported?(map()) :: boolean()
   @callback selected_effort?(map(), String.t()) :: boolean()

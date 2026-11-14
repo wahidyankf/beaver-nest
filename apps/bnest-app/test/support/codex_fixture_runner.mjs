@@ -29,10 +29,10 @@ const resumedThreadId = process.argv[5];
 const sandboxMode = process.argv[6];
 const newThreadId = `fixture-${process.pid}`;
 const expectedSettings = new Map([
-  ["After model switch", ["gpt-5.6-luna", "high"]],
-  ["After effort switch", ["gpt-5.6-terra", "high"]],
-  ["After reload", ["gpt-5.6-luna", "high"]],
-  ["Fresh start", ["gpt-5.6-luna", "high"]],
+  ["After model switch", ["gpt-6-luna", "high"]],
+  ["After effort switch", ["gpt-6.1-terra", "high"]],
+  ["After reload", ["gpt-6-luna", "high"]],
+  ["Fresh start", ["gpt-6-luna", "high"]],
 ]);
 
 if (!["read-only", "workspace-write"].includes(sandboxMode)) {
