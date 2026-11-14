@@ -203,19 +203,41 @@ step("the message composer is at least two lines tall", () => {
   );
 });
 
-step("the message composer is at most six lines tall", () => {
+step("the message composer is at most five lines tall", () => {
   const geometry = composerGeometry();
-  const sixLines = 6 * geometry.line + geometry.padding + geometry.border;
+  const fiveLines = 5 * geometry.line + geometry.padding + geometry.border;
   expect(geometry.cap, "the stylesheet's composer cap").toBeLessThanOrEqual(
-    sixLines + 0.5,
+    fiveLines + 0.5,
   );
   expect(composerHeight(), "the composer height").toBeLessThanOrEqual(
     geometry.cap + 0.5,
   );
 });
 
+// The cap is exactly five lines: a cap of four lines' height would also pass "at most five lines", so this step adds the
+// lower bound, and the scroll the page sets once the draft passes the cap.
+step(
+  "the message composer stops at its five-line cap and scrolls the rest of the draft",
+  () => {
+    const geometry = composerGeometry();
+    const fiveLines = 5 * geometry.line + geometry.padding + geometry.border;
+    expect(
+      Math.abs(geometry.cap - fiveLines),
+      "the stylesheet's composer cap is five lines",
+    ).toBeLessThanOrEqual(0.5);
+    expect(
+      composerHeight(),
+      "the composer grows to its cap",
+    ).toBeGreaterThanOrEqual(fiveLines - 0.5);
+    expect(
+      activePage().elements.input.style.overflowY,
+      "the draft scrolls past the cap",
+    ).toBe("auto");
+  },
+);
+
 step("the message composer is at most 22 percent of the screen height", () => {
-  // A short window keeps most of its height for the conversation: the box's cap is the smaller of its six-line cap and
+  // A short window keeps most of its height for the conversation: the box's cap is the smaller of its five-line cap and
   // 22 percent of the window, and the box never grows past that cap.
   const share = 0.22 * environment().height;
   expect(

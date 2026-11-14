@@ -319,8 +319,9 @@ word or date of its own.
   of them.
 - The Codex chat header keeps the repository access state outside its scrolling row, so on a phone the state, and for an
   administrator the write toggle, stays on screen. The other header controls scroll sideways behind an edge fade. The
-  message box is capped at the smaller of 12 rem and 22 percent of the window, and the conversation is the region that
-  scrolls. Family Chat's composer uses the same share of a short window (ADR 004, Decision 8).
+  message box is capped at the smaller of 9.25 rem (five lines plus its padding and border) and 22 percent of the window,
+  and the conversation is the region that scrolls. Family Chat's composer is capped at the smaller of 9.15 rem (five lines
+  plus its padding and border) and the same 22 percent share of a short window (ADR 004, Decision 8; ADR 005, Decision 5).
 - The Schedules page integrity label is read-only and stores nothing: it writes no file, table, flat file or cache, adds
   no route and no authorization path (the existing admin-only guard runs before the check starts), and shows no
   filesystem path, digest, destination identifier or run ID. It never delays the page, announces the change from

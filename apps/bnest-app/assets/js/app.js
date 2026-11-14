@@ -35,6 +35,7 @@ import { SifatSwipe } from "./sifat_swipe.js";
 import { installComposerKeys, keepFocusOnSendPress } from "./chat_keys.js";
 import { ChatComposer } from "./codex_composer_hook.js";
 import { installChatControls, keepOptionsState } from "./chat_controls.js";
+import { installVisualViewportHeight } from "./viewport_height.js";
 
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -50,6 +51,8 @@ const browserPersistenceEnabled =
   document.documentElement.dataset["browserPersistence"] === "true";
 
 initializeIdentitySetup();
+// Soft keyboard: the room heights follow the visible area through `--vvh` (ADR 005, decision 5).
+installVisualViewportHeight();
 // Family chat (tech-doc 005/007): runs only when its feature-flag-gated route's DOM shell is present.
 void initRoomFromDocument();
 wireLogoutQueueClearing();

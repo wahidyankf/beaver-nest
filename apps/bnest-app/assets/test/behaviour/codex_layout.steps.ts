@@ -691,7 +691,9 @@ step(
 );
 
 function messageBoxCapPx(env: Environment): number {
-  return Math.min(12 * 16, 0.22 * env.height);
+  // Five lines of the 16 px body text at a 1.5 line height (7.5rem), plus the box's own padding and border (1.75rem),
+  // or 22 percent of the window, whichever is less.
+  return Math.min(9.25 * 16, 0.22 * env.height);
 }
 
 // --- Budget rows (chat.feature, the Rules "Codex chat conversation has most of a phone screen" and "Codex chat on touch
@@ -811,7 +813,9 @@ step("the message composer is on screen without scrolling the page", () => {
   expect(
     panel["height"],
     ".chat-panel is not fixed to the window's height",
-  ).toMatch(/^(?:calc\(100d?vh - 2rem\)|100d?vh)$/u);
+  ).toMatch(
+    /^(?:calc\(100d?vh - 2rem\)|calc\(var\(--vvh, 100d?vh\) - 2rem\)|100d?vh|var\(--vvh, 100d?vh\))$/u,
+  );
   expect(panel["overflow"], ".chat-panel lets the page scroll").toBe("hidden");
   expect(panel["min-height"], ".chat-panel can be taller than the window").toBe(
     "0",

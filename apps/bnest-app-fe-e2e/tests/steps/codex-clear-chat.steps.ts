@@ -144,6 +144,21 @@ Then("the confirmation is no wider than the screen", async ({ page }) => {
   expect(box.width).toBeLessThanOrEqual(viewportOf(page).width);
 });
 
+// The card clips what overflows it, so a popover that runs past the card's edge is cut off even inside the viewport.
+// boundingBox reports the unclipped rectangle, which is what a reader would lose.
+Then("the confirmation stays inside the Codex card", async ({ page }) => {
+  const card = await boxOf(page.locator(".chat-panel"), "the Codex card");
+  const box = await boxOf(page.locator(CONFIRM), "the confirmation");
+  expect(
+    box.y >= card.y - 0.5 && box.y + box.height <= card.y + card.height + 0.5,
+    `the confirmation spans ${box.y}..${box.y + box.height} px, the card ${card.y}..${card.y + card.height} px`,
+  ).toBe(true);
+  expect(
+    box.x >= card.x - 0.5 && box.x + box.width <= card.x + card.width + 0.5,
+    "the confirmation is inside the card across",
+  ).toBe(true);
+});
+
 // --- Own messages (chat.feature, Rule "Own messages in the Codex chat") -----------------------
 
 let typedMessage = "";

@@ -37,6 +37,7 @@ import { Window } from "happy-dom";
 import { vi } from "vitest";
 import { findElements } from "../../../js/family_chat/elements.js";
 import { createFakeClock, type FakeClock } from "../../support/fake_clock";
+import { releaseDiagramEngine } from "../../support/fake_diagram_engine";
 import { recallOr } from "./scenario_memory";
 import {
   createGraphqlServer,
@@ -645,6 +646,8 @@ export function startWorld(): World {
   if (world) throw new Error("a previous scenario's world is still open");
   worldSequence += 1;
   diagramEngineAvailable = true;
+  // A hold an earlier scenario left open would keep this scenario's engine waiting: the new world starts with it released.
+  releaseDiagramEngine();
   declaredScrollRegions.clear();
   declaredRowHeights.clear();
   const created: World = {

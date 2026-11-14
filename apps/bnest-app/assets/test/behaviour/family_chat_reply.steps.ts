@@ -60,7 +60,12 @@ import {
   waitFor,
   watchPendingRows,
 } from "./support/browser_room";
-import { forgetScenario, recall, remember } from "./support/scenario_memory";
+import {
+  forgetScenario,
+  recall,
+  recallOr,
+  remember,
+} from "./support/scenario_memory";
 
 const registry: StepDefinition[] = [];
 
@@ -103,7 +108,7 @@ async function open(
   seed: Seed[] = [],
   options: { replies?: boolean } = {},
 ): Promise<Page> {
-  routeRevision(options.replies ?? true);
+  routeRevision(options.replies ?? recallOr("roomReplies", true));
   for (const { from, ...message } of seed) {
     post({
       ...message,
@@ -205,6 +210,37 @@ step(
   },
 );
 
+// The reply flag the room is served with. `open` reads it when the scenario does not name one.
+step("the room is served with replies turned off", () => {
+  remember("roomReplies", false);
+});
+
+step("the room is served with replies turned on", () => {
+  remember("roomReplies", true);
+});
+
+step("no message in the history has an actions control", () => {
+  const rows = messageRows();
+  expect(rows.length > 0, "the history has messages");
+  for (const row of rows) {
+    expect(
+      row.querySelector('[data-role="family-chat-message-more"]') === null,
+      `${row.dataset["messageId"]} has no actions control`,
+    );
+  }
+});
+
+step("every message in the history has an actions control", () => {
+  const rows = messageRows();
+  expect(rows.length > 0, "the history has messages");
+  for (const row of rows) {
+    expect(
+      row.querySelector('[data-role="family-chat-message-more"]') !== null,
+      `${row.dataset["messageId"]} has an actions control`,
+    );
+  }
+});
+
 step(
   "the visitor presses and holds for {int} milliseconds on that message",
   async (duration) => {
@@ -227,12 +263,44 @@ step("the visitor opens the browser context menu on that message", async () => {
   await settle();
 });
 
+step("the visitor activates the actions control on that message", async () => {
+  await openMenuOn(requireTarget());
+});
+
+// The browser selects the message's text while the press is held, as a long press does. The hold's clearing is what the
+// Then step after it judges.
 step(
-  "the visitor activates the actions control revealed on hover on that message",
-  async () => {
-    await openMenuOn(requireTarget());
+  "the visitor presses and holds for {int} milliseconds on that message while the browser selects its text",
+  async (duration) => {
+    const page = activePage();
+    const element = requireTarget();
+    pointerDown(element);
+    const body = element.querySelector(
+      '[data-role="family-chat-message-body"]',
+    );
+    if (!body) throw new Error("the rendered message has no body");
+    const range = page.document.createRange();
+    range.selectNodeContents(body);
+    const selection = page.window.getSelection();
+    selection?.removeAllRanges();
+    // The happy-dom selection takes its own Range class, which the DOM library's Range type does not match.
+    selection?.addRange(
+      range as unknown as Parameters<
+        NonNullable<typeof selection>["addRange"]
+      >[0],
+    );
+    page.clock.advance(Number(duration));
+    await settle();
   },
 );
+
+step("no text is selected in the room", () => {
+  const selection = activePage().window.getSelection();
+  expect(
+    (selection?.toString() ?? "") === "",
+    `the room has selected ${JSON.stringify(selection?.toString() ?? "")}`,
+  );
+});
 
 step(
   "the visitor moves focus to the message and presses Enter on that message",
@@ -582,6 +650,37 @@ step("the message input still holds {string}", (draft) => {
     `the input holds ${JSON.stringify(input.value)}`,
   );
 });
+
+step(
+  "the visitor chooses {string} and types {string} at once",
+  async (label, text) => {
+    await chooseMenuItem(label);
+    // The keys go to whatever holds focus at that instant, with no wait for focus to settle: that is the case under test.
+    typeText(text);
+  },
+);
+
+step("the message input holds {string}", (text) => {
+  const { input } = activePage().elements;
+  expect(
+    input.value === text,
+    `the input holds ${JSON.stringify(input.value)}`,
+  );
+});
+
+step(
+  "a moment later keyboard focus is still in the message input",
+  async () => {
+    // The fake clock advances the page's own timers; a real wait would make the scenario depend on host speed.
+    const page = activePage();
+    page.clock.advance(1_000);
+    await settle();
+    expect(
+      page.document.activeElement === page.elements.input,
+      "keyboard focus left the message input",
+    );
+  },
+);
 
 step("no reply strip is shown", async () => {
   await settle();

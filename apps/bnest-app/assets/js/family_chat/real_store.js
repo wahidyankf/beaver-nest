@@ -31,9 +31,13 @@ import { removeKeepingFocus, replaceKeepingFocus } from "./row_focus.js";
 /** @typedef {import("./message_render.js").RenderableMessage} RenderableMessage */
 /** @typedef {import("./real_store_render.js").RealStoreState} RealStoreState */
 
-/** @returns {RealStoreState} */
-function createRealStoreState() {
+/**
+ * @param {boolean} replies whether the room is served with replies (the actions control is drawn only then)
+ * @returns {RealStoreState}
+ */
+function createRealStoreState(replies) {
   return {
+    replies,
     rendered: new Map(),
     oldestKnownId: null,
     newestKnownId: null,
@@ -50,7 +54,10 @@ function createPendingRenderMethods(elements, state) {
   return {
     /** @param {RenderableMessage} message */
     renderPending(message) {
-      const node = messageNode(message, { pending: true });
+      const node = messageNode(message, {
+        pending: true,
+        replies: state.replies,
+      });
       elements.list.append(node);
       state.rendered.set(message.clientMessageId ?? "", node);
       // Always, not only when already near the bottom: this row is the
@@ -122,6 +129,7 @@ function createReconcileMethod(elements, state, currentUserId) {
       const node = messageNode(committedMessage, {
         pending: false,
         currentUserId,
+        replies: state.replies,
       });
       if (pendingNode) {
         replaceKeepingFocus(pendingNode, node);
@@ -180,7 +188,11 @@ function createReceiveRemoteMessageMethod(elements, state, currentUserId) {
       }
 
       const wasNearBottom = isNearBottom(elements);
-      const node = messageNode(message, { pending: false, currentUserId });
+      const node = messageNode(message, {
+        pending: false,
+        currentUserId,
+        replies: state.replies,
+      });
       elements.list.append(node);
       state.rendered.set(key, node);
       state.newestKnownId = key;
@@ -245,10 +257,15 @@ function createCursorReaderMethods(state) {
  *   roomSlug: string,
  *   elements: import("./elements.js").FamilyChatElements,
  *   currentUserId?: string | null,
+ *   replies?: boolean,
  * }} options
  */
-export function createRealStore({ elements, currentUserId = null }) {
-  const state = createRealStoreState();
+export function createRealStore({
+  elements,
+  currentUserId = null,
+  replies = false,
+}) {
+  const state = createRealStoreState(replies);
   const roving = createRovingFocus(elements.list);
   const rendering = {
     ...createInitialRenderMethods(elements, state, currentUserId),

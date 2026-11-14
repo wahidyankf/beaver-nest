@@ -1,5 +1,5 @@
-// The Family Chat composer grows with its draft and stops at six lines, then scrolls (FC-04). The stylesheet
-// (`.family-chat-message-input` in app.css) declares the same six-line cap, so this module only
+// The Family Chat composer grows with its draft and stops at five lines, then scrolls (FC-04). The stylesheet
+// (`.family-chat-message-input` in app.css) declares the same five-line cap, so this module only
 // writes the height the content needs, up to that cap. Without a cap the textarea grows with every line.
 
 /**

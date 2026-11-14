@@ -155,8 +155,8 @@ export function imageSizingRules(
   return found;
 }
 
-/** The value a `--bnest-*` (or any) custom property holds on `:root`, with its own `var()` references resolved. */
-function tokenValue(name: string): string {
+/** The value a custom property holds on `:root`, or undefined when no `:root` rule declares it. */
+function rootValue(name: string): string | undefined {
   let value: string | undefined;
   for (const rule of allRules()) {
     if (
@@ -167,15 +167,30 @@ function tokenValue(name: string): string {
       value = rule.declarations[name];
     }
   }
+  return value;
+}
+
+/** The value a `--bnest-*` (or any) custom property holds on `:root`, with its own `var()` references resolved. */
+function tokenValue(name: string): string {
+  const value = rootValue(name);
   if (value === undefined)
     throw new Error(`the shipped stylesheet declares no ${name}`);
   return resolveVars(value);
 }
 
-/** Replaces every `var(--token)` in a value with the token's own value. */
+/**
+ * Replaces every `var(--token)` in a value with the token's own value, and every `var(--token, fallback)` with the
+ * fallback when no `:root` rule declares the token (what a browser does). The page writes `--vvh` at run time, so the
+ * shipped stylesheet declares none, and the `100dvh` fallback is the value these checks read.
+ */
 export function resolveVars(value: string): string {
-  return value.replace(/var\((--[\w-]+)\)/gu, (_match, name: string) =>
-    tokenValue(name),
+  return value.replace(
+    /var\((--[\w-]+)(?:,\s*([^()]+?))?\)/gu,
+    (_match, name: string, fallback: string | undefined) => {
+      if (fallback !== undefined && rootValue(name) === undefined)
+        return fallback;
+      return tokenValue(name);
+    },
   );
 }
 

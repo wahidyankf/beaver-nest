@@ -280,6 +280,22 @@ step("keyboard focus is outside the history", () => {
   );
 });
 
+// Presses the key until the named message is the one keyboard stop. The room's count of messages is not fixed (a shared
+// room holds earlier messages), so the press count is not part of the claim.
+step(
+  "the visitor presses {string} until the message {string} is the keyboard stop",
+  async (combo, text) => {
+    for (let press = 0; press < 40; press += 1) {
+      const stops = stopsIn(activePage());
+      if (stops.length === 1 && (stops[0]?.textContent ?? "").includes(text))
+        return;
+      // eslint-disable-next-line no-await-in-loop -- each press moves focus before the next one is judged.
+      await pressAndRemember(combo);
+    }
+    throw new Error(`the keyboard stop never reached ${JSON.stringify(text)}`);
+  },
+);
+
 step("the message {string} is the keyboard stop", (text) => {
   const page = activePage();
   const row = rowWithBody(page, text);

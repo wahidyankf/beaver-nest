@@ -77,6 +77,12 @@ export function syncContentStops(items, stop) {
       if (control instanceof HTMLElement) control.tabIndex = 0;
     }
     for (const region of regions) {
+      // A closed diagram source is not shown, so its box is no stop even where it measures as overflowing. Opening the
+      // source fires `toggle`, which re-measures it; until then Tab must not land in text the reader cannot see.
+      if (region.closest("details:not([open])")) {
+        unnameScrollRegion(region);
+        continue;
+      }
       if (overflows(region)) {
         region.tabIndex = 0;
         nameScrollRegion(region);

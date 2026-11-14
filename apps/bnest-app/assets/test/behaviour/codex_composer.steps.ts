@@ -604,6 +604,21 @@ step("the confirmation is no wider than the screen", () => {
   );
 });
 
+// The declared rules anchor the confirmation to its Clear chat button, which sits inside the Codex card. The box is measured
+// in Chromium (bnest-app-fe-e2e, Clear chat steps).
+step("the confirmation stays inside the Codex card", () => {
+  const env = laidOut();
+  check(
+    declarationsFor(".clear-chat", env)["position"] === "relative",
+    "the Clear chat button is not the anchor of the confirmation",
+  );
+  const confirm = declarationsFor(".clear-chat-confirm", env);
+  check(
+    confirm["position"] === "absolute" && confirm["inset-inline-end"] === "0",
+    "the confirmation is not anchored to the Clear chat button's end edge",
+  );
+});
+
 // --- Own messages --------------------------------------------------------------------------
 
 // The markup the production component writes for a visitor's message (`ChatComponents.own_message`), and the text the

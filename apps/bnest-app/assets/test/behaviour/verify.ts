@@ -58,6 +58,7 @@ import { familyChatReplySteps, resetScenario } from "./family_chat_reply.steps";
 import { familyChatOperationsSteps } from "./family_chat_operations.steps";
 import { codexDiagramSteps, resetCodexDiagram } from "./codex_diagram.steps";
 import { codexLayoutSteps, resetCodexLayout } from "./codex_layout.steps";
+import { codexStickySteps, familyStickySteps } from "./codex_sticky.steps";
 import { codexComposerSteps, resetCodexComposer } from "./codex_composer.steps";
 import { codexFollowSteps, resetCodexFollow } from "./codex_follow.steps";
 import {
@@ -223,6 +224,7 @@ verifyCorpus({
     ...familyChatDiagramSteps(),
     ...familyChatKeyboardSteps(),
     ...familyChatLayoutSteps(),
+    ...familyStickySteps(),
     ...familyChatFollowSteps(),
     ...familyChatPhoneSteps(),
   ],
@@ -259,6 +261,7 @@ verifyCorpus({
   steps: [
     ...codexDiagramSteps(),
     ...codexLayoutSteps(),
+    ...codexStickySteps(),
     ...codexFollowSteps(),
     ...codexComposerSteps(),
   ],

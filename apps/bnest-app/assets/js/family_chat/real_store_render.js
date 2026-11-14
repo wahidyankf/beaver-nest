@@ -28,6 +28,7 @@ import {
  *   newestKnownId: string | null,
  *   hasNewer: boolean,
  *   atBottom: boolean,
+ *   replies: boolean,
  * }} RealStoreState
  */
 
@@ -45,7 +46,11 @@ export function keyOf(message) {
 export function appendMessages(elements, state, currentUserId, messages) {
   const fragment = document.createDocumentFragment();
   for (const message of messages) {
-    const node = messageNode(message, { pending: false, currentUserId });
+    const node = messageNode(message, {
+      pending: false,
+      currentUserId,
+      replies: state.replies,
+    });
     fragment.append(node);
     state.rendered.set(keyOf(message), node);
   }
@@ -148,7 +153,11 @@ export function createPrependOlderMethods(elements, state, currentUserId) {
 
       const fragment = document.createDocumentFragment();
       for (const message of messages) {
-        const node = messageNode(message, { pending: false, currentUserId });
+        const node = messageNode(message, {
+          pending: false,
+          currentUserId,
+          replies: state.replies,
+        });
         fragment.append(node);
         state.rendered.set(keyOf(message), node);
       }

@@ -71,7 +71,7 @@ Feature: Family chat room
       | entry point                                   |
       | presses and holds for 500 milliseconds        |
       | opens the browser context menu                |
-      | activates the actions control revealed on hover |
+      | activates the actions control                  |
       | moves focus to the message and presses Enter  |
 
   @fe-vitest-unit
@@ -107,6 +107,37 @@ Feature: Family chat room
     When the visitor opens the action menu on that message
     Then the menu offers exactly "Reply" and "Copy text"
     And both actions are available
+
+  @fe-vitest-unit
+  # Exemption(integration): the actions control's size, its place beside its bubble, and whether it is visible without a hover are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The actions control is visible and large enough to press
+  @integration-exempt
+  Scenario Outline: The actions control is visible and large enough to press
+    Given the viewport is set to "<viewport>"
+    And a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
+    When the page is laid out
+    Then the actions control of that message is visible without a hover
+    And the actions control of that message is at least 44 by 44 CSS pixels
+    And the actions control of that message does not overlap its bubble
+    And the actions control of that message is inside the history
+    And the actions control of that message has an accessible name
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | phone 360x640     |
+      | mobile 390x844    |
+      | landscape 844x390 |
+      | tablet 768x1024   |
+      | desktop 1280x800  |
+
+  @fe-vitest-unit
+  # Exemption(integration): clearing the browser's own text selection when a press opens the menu is a browser selection state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Holding a message to open its menu clears the text the browser selects during the press
+  @integration-exempt
+  Scenario: Holding a message to open its menu clears the text the browser selects during the press
+    Given a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
+    When the visitor presses and holds for 900 milliseconds on that message while the browser selects its text
+    Then the message action menu opens for that message
+    And no text is selected in the room
 
   @fe-vitest-unit
   # Exemption(integration): a message that is not yet committed exists only in the browser outbox and its rendered menu, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message that is not yet committed cannot be replied to
@@ -164,6 +195,22 @@ Feature: Family chat room
     Then keyboard focus is in the message input
     And the family room sends 1 messages
 
+  @fe-vitest-unit
+  # Exemption(integration): the actions control is drawn by the browser from the room's reply flag, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The message actions control is not drawn when replies are off
+  @integration-exempt
+  Scenario: The message actions control is not drawn when replies are off
+    Given the room is served with replies turned off
+    When a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
+    Then no message in the history has an actions control
+
+  @fe-vitest-unit
+  # Exemption(integration): the actions control is drawn by the browser from the room's reply flag, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Every message has an actions control when replies are on
+  @integration-exempt
+  Scenario: Every message has an actions control when replies are on
+    Given the room is served with replies turned on
+    When a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
+    Then every message in the history has an actions control
+
   Rule: Composing a reply
 
   @fe-vitest-unit
@@ -176,6 +223,26 @@ Feature: Family chat room
     And the strip shows the text of that message
     And keyboard focus is in the message input
     And the room announces that the visitor is replying to "Ayah"
+
+  @fe-vitest-unit
+  # Exemption(integration): where keyboard focus lands after Reply, and whether the first keys reach the message input, is browser focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Typing right after choosing Reply reaches the message input
+  @integration-exempt
+  Scenario Outline: Typing right after choosing Reply reaches the message input
+    Given the viewport is set to "<viewport>"
+    And a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
+    When the visitor <entry point> on that message
+    And the visitor chooses "Reply" and types "Oke, jam lima" at once
+    And a moment later keyboard focus is still in the message input
+    Then the message input holds "Oke, jam lima"
+
+    Examples:
+      | viewport         | entry point                                     |
+      | narrow 320x568   | presses and holds for 900 milliseconds          |
+      | narrow 320x568   | activates the actions control                   |
+      | narrow 320x568   | moves focus to the message and presses Enter    |
+      | desktop 1280x800 | presses and holds for 900 milliseconds          |
+      | desktop 1280x800 | activates the actions control                   |
+      | desktop 1280x800 | moves focus to the message and presses Enter    |
 
   @fe-vitest-unit
   # Exemption(integration): the composer's reply strip is rendered by browser JavaScript the server never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / A long quoted message is shortened in the strip
@@ -727,6 +794,72 @@ Feature: Family chat room
     And keyboard focus is on "diagram"
 
   @fe-vitest-unit
+  # Exemption(integration): which picture Tab reaches once the keyboard stop moves up to an older message is browser focus order over DOM that browser JavaScript builds, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram in an older message can be reached from the keyboard on a phone
+  @integration-exempt
+  Scenario Outline: A diagram in an older message can be reached from the keyboard on a phone
+    Given the viewport is set to "<viewport>"
+    And a visitor opens "/family-chat/ruang-keluarga"
+    And Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart LR
+        A[Pick up the children from the school gate] --> B[Cook dinner together at home] --> C[Eat together at the table]
+      ```
+      """
+    And the "diagram" in the message is wider than its box
+    When the visitor sends this family chat message:
+      """
+      Later note
+      """
+    And the visitor presses Tab from the control before the history
+    Then the message "Later note" is the keyboard stop
+    When the visitor presses "ArrowUp"
+    Then the message "Pick up the children" is the keyboard stop
+    When the visitor presses "Tab"
+    Then keyboard focus is on "diagram"
+    When the visitor presses "ArrowRight"
+    Then the "diagram" is scrolled to the right
+    When the visitor presses "Tab"
+    Then keyboard focus is on "Diagram source"
+    When the visitor presses "Enter"
+    Then the diagram source is shown
+
+    Examples:
+      | viewport        |
+      | narrow 320x568  |
+      | mobile 390x844  |
+
+  @fe-vitest-unit
+  # Exemption(integration): whether keyboard focus survives the moment a marked diagram's picture replaces its source is browser focus state over DOM that browser JavaScript draws, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Keyboard focus stays in a diagram's message when its picture replaces the source
+  @integration-exempt
+  Scenario Outline: Keyboard focus stays in a diagram's message when its picture replaces the source
+    Given the viewport is set to "<viewport>"
+    And the diagram engine is held until the visitor releases it
+    And Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart LR
+        A[Pick up the children from the school gate] --> B[Cook dinner together at home] --> C[Eat together at the table]
+      ```
+      """
+    And Ayah has sent 12 family chat messages after that
+    And a visitor opens "/family-chat/ruang-keluarga"
+    And the "code block" in the message is wider than its box
+    When the visitor presses Tab from the control before the history
+    And the visitor presses "ArrowUp" until the message "Pick up the children" is the keyboard stop
+    Then the message "Pick up the children" is the keyboard stop
+    When the visitor presses "Tab"
+    Then keyboard focus is on "code block"
+    When the visitor releases the diagram engine
+    Then the message shows a diagram labelled "Flowchart"
+    And keyboard focus is inside the keyboard stop message
+
+    Examples:
+      | viewport        |
+      | narrow 320x568  |
+      | mobile 390x844  |
+
+  @fe-vitest-unit
   # Exemption(integration): a reply's quote card is a button inside a bubble built by browser JavaScript, and Enter on it moves the stop in the rendered history, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / The quote card can be used from the keyboard
   @integration-exempt
   Scenario: The quote card can be used from the keyboard
@@ -1200,13 +1333,13 @@ Feature: Family chat room
     Then the message takes at least 80 percent of the viewport width
 
   @fe-vitest-unit
-  # Exemption(integration): the number of lines the composer shows is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The message composer grows with a long draft and then stops at six lines
+  # Exemption(integration): the number of lines the composer shows is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The message composer grows with a long draft and then stops at five lines
   @integration-exempt
-  Scenario: The message composer grows with a long draft and then stops at six lines
+  Scenario: The message composer grows with a long draft and then stops at five lines
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor types a draft of 12 lines into the composer
     Then the message composer is at least two lines tall
-    And the message composer is at most six lines tall
+    And the message composer is at most five lines tall
     And the Send button is on screen
 
   @fe-vitest-unit
@@ -1263,6 +1396,131 @@ Feature: Family chat room
   Scenario: The Send button text meets the contrast target
     When a visitor opens "/family-chat/ruang-keluarga"
     Then the Send button text has a contrast ratio of at least 4.5 to 1
+
+  Rule: Family Chat header and composer stay in place while the messages scroll
+
+  @fe-vitest-unit
+  # Exemption(integration): where the header sits while a long conversation scrolls is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat header stays at the top while the messages scroll
+  @integration-exempt
+  Scenario Outline: The Family Chat header stays at the top while the messages scroll
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And the history holds 30 messages
+    And the viewport is set to "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the visitor scrolls the family conversation to the middle
+    Then the Family Chat header is at the top of the screen
+    And the page does not scroll
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | mobile 360x740    |
+      | mobile 390x844    |
+      | landscape 844x390 |
+      | tablet 768x1024   |
+
+  @fe-vitest-unit
+  # Exemption(integration): where the composer sits while a long conversation scrolls is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat composer stays at the bottom while the messages scroll
+  @integration-exempt
+  Scenario Outline: The Family Chat composer stays at the bottom while the messages scroll
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And the history holds 30 messages
+    And the viewport is set to "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the visitor scrolls the family conversation to the middle
+    Then the Family Chat composer is at the bottom of the screen
+    And the page does not scroll
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | mobile 360x740    |
+      | mobile 390x844    |
+      | landscape 844x390 |
+      | tablet 768x1024   |
+
+  @fe-vitest-unit
+  # Exemption(integration): whether the newest message clears the composer is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The last Family Chat message is not hidden behind the composer
+  @integration-exempt
+  Scenario Outline: The last Family Chat message is not hidden behind the composer
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And the history holds 30 messages
+    And the viewport is set to "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the page is laid out
+    Then the newest Family Chat message ends above the composer
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | mobile 390x844    |
+      | landscape 844x390 |
+
+  @fe-vitest-unit
+  # Exemption(integration): whether the history keeps its overscroll to itself is a browser scroll behaviour Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat message list keeps its overscroll inside itself
+  @integration-exempt
+  Scenario: The Family Chat message list keeps its overscroll inside itself
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And the history holds 30 messages
+    And the viewport is set to "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    When the visitor scrolls the family conversation to the middle
+    Then the Family Chat message list keeps its overscroll inside itself
+    And the page does not scroll
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): where the header and composer sit on a desktop screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat header and composer stay in place with a fine pointer
+  @integration-exempt
+  Scenario Outline: The Family Chat header and composer stay in place with a fine pointer
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And the history holds 30 messages
+    And the viewport is set to "<viewport>"
+    And the visitor's pointer is a fine pointer
+    And the newest Family Chat message ends above the composer
+    When the visitor scrolls the family conversation to the middle
+    Then the Family Chat header is at the top of the screen
+    And the Family Chat composer is at the bottom of the screen
+    And the page does not scroll
+
+    Examples:
+      | viewport         |
+      | desktop 1280x800 |
+      | desktop 1440x900 |
+
+  @fe-vitest-unit
+  # Exemption(integration): how far the message box grows and where Send sits are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A long Family Chat draft grows the message box to its cap and keeps Send and the header on screen
+  @integration-exempt
+  Scenario: A long Family Chat draft grows the message box to its cap and keeps Send and the header on screen
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And the history holds 30 messages
+    And the viewport is set to "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    When the visitor types a draft of 14 lines into the composer
+    Then the message composer is at least two lines tall
+    And the message composer is at most five lines tall
+    And the message composer stops at its five-line cap and scrolls the rest of the draft
+    And the Family Chat Send button and header are on screen
+    And the newest Family Chat message ends above the composer
+
+  @fe-vitest-unit
+  # Exemption(integration): where the composer and the newest message sit after the soft keyboard shrinks the screen are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A smaller screen from the soft keyboard keeps the Family Chat composer on screen
+  @integration-exempt
+  Scenario Outline: A smaller screen from the soft keyboard keeps the Family Chat composer on screen
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And the history holds 30 messages
+    And the viewport is set to "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the soft keyboard shrinks the screen to "<shrunk>"
+    Then the Family Chat composer is at the bottom of the screen
+    And the newest Family Chat message ends above the composer
+    And the Family Chat header is at the top of the screen
+    And the room follows the visible area through the --vvh height
+
+    Examples:
+      | viewport          | shrunk  |
+      | mobile 390x844    | 390x430 |
+      | landscape 844x390 | 844x240 |
 
   Rule: Formatted messages
 

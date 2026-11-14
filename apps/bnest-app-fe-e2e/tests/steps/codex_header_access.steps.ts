@@ -105,8 +105,9 @@ Then(
 Then(
   "the message box stops at its height cap and scrolls the rest of the draft",
   async ({ page }) => {
-    // The cap is 12 rem or 22 percent of the window's height, whichever is smaller. A six-line draft is taller than
-    // that cap, so the box stops at the cap and scrolls. Without the cap the box would grow to the draft's height.
+    // The cap is 9.25 rem (five lines plus the box's padding and border) or 22 percent of the window's height, whichever
+    // is smaller. A six-line draft is taller than that cap, so the box stops at the cap and scrolls. Without the cap the
+    // box would grow to the draft's height.
     const viewport = page.viewportSize();
     if (viewport === null) throw new Error("the viewport is not set");
     const box = page.locator(COMPOSER_BOX);
@@ -115,7 +116,9 @@ Then(
       overflowY: getComputedStyle(node).overflowY,
       scrolls: node.scrollHeight > node.clientHeight,
     }));
-    const capPx = Math.min(12 * 16, 0.22 * viewport.height);
+    // Five lines of the 16 px body text at a 1.5 line height (7.5rem), plus the box's padding and border (1.75rem), or
+    // 22 percent of the window, whichever is less.
+    const capPx = Math.min(9.25 * 16, 0.22 * viewport.height);
     expect(measure.height, "the message box height").toBeLessThanOrEqual(
       capPx + 1,
     );

@@ -81,13 +81,14 @@ export async function createRoomPushAndOutbox(
 /**
  * @param {string} roomSlug
  * @param {import("./elements.js").FamilyChatElements} elements
- * @param {{user?: {id: string}, connectSocket?: import("./graphql.js").ConnectSocket}} options
+ * @param {{user?: {id: string}, connectSocket?: import("./graphql.js").ConnectSocket, replies?: boolean}} options
  */
 export function createRoomStoreAndReconnect(roomSlug, elements, options) {
   const store = createRealStore({
     roomSlug,
     elements,
     currentUserId: options.user?.id ?? null,
+    replies: options.replies ?? false,
   });
 
   const subscriptionClient = createSubscriptionClient(
