@@ -38,6 +38,46 @@ defmodule BnestAppWeb.ChatComponents do
   end
 
   @doc """
+  A visitor's own message: the Markdown view, the typed text, and the toggle between them (ADR 005, decision 4).
+
+  The raw text is a second element. `chat_controls.js` switches between the two on the client, so LiveView patches
+  leave the view the visitor chose. The raw text sits between its tags, so the formatter must not split it.
+  """
+  attr :id, :any, required: true, doc: "the message id"
+  attr :content, :string, required: true, doc: "the message as the visitor typed it"
+
+  def own_message(assigns) do
+    ~H"""
+    <div class="own-message" data-role="own-message" data-view="rendered">
+      <.markdown_body
+        id={"visitor-message-#{@id}"}
+        content={@content}
+        streaming={false}
+        hard_breaks={true}
+        class="own-rendered"
+        data-role="user-message"
+      />
+      <%!-- No `hidden` attribute here: Tailwind's preflight makes [hidden] display:none !important, which would keep
+           the raw text hidden in raw view. The CSS hides it until data-view is "raw". --%>
+      <p
+        class="message-content whitespace-pre-wrap own-raw"
+        data-role="user-message-raw"
+        phx-no-format
+      >{@content}</p>
+      <button
+        type="button"
+        class="own-raw-toggle"
+        data-role="raw-toggle"
+        aria-controls={"visitor-message-#{@id}"}
+      >
+        <span class="own-raw-show">Show raw</span>
+        <span class="own-raw-hide">Show rendered</span>
+      </button>
+    </div>
+    """
+  end
+
+  @doc """
   Renders `markdown_body/1` with `content` to a binary, with the same bytes the component writes.
 
   `attrs` is a keyword list:

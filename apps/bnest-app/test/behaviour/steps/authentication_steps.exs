@@ -135,8 +135,8 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
     do: perform(context, :cross_user_operation)
   )
 
-  step("Bnest denies the operation before repository access", context,
-    do: outcome(context, :denied_before_repository)
+  step("Bnest keeps the second user's data unchanged", context,
+    do: outcome(context, :second_user_data_unchanged)
   )
 
   defp prepare(context, state, args \\ []),

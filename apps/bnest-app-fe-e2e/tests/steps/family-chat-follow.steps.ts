@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { sendThroughComposer } from "../support/family-chat-delivery";
 import {
@@ -8,14 +8,13 @@ import {
 } from "../support/family-chat-reply";
 import { openFamilyChatRoom } from "../support/family-chat";
 import { instanceIdentities } from "../support/instance-identities";
-import { emulateTouchPointer } from "../support/touch-pointer";
 import {
   holdDiagramEngine,
   MARKED_DIAGRAM,
   DRAWN_FIGURE,
 } from "../support/codex-diagrams";
 
-// family_chat.feature's diagram re-stick scenario and the theme control's place in the room header, in Chromium at the
+// family_chat.feature's diagram re-stick scenario and the room header's place, in Chromium at the
 // served origin. The Vitest bindings (family_chat_follow.steps.ts, family_chat_layout.steps.ts) prove the follow contract
 // and the declared CSS; these read the rendered boxes.
 
@@ -24,9 +23,6 @@ const { Given, Then } = createBdd();
 const HISTORY = '[data-role="family-chat-history"]';
 const MESSAGE = '[data-role="family-chat-message"]';
 const COMPOSER = ".family-chat-composer";
-const HEADER = "header.family-chat-header";
-const TITLE = "#family-chat-room-title";
-const THEME = `${HEADER} .family-chat-theme`;
 const FLOWCHART = "```mermaid\nflowchart TD\n  A --> B\n```";
 const ROUNDS_TO_OVERFLOW = 14;
 // The engine is held this long, so the marked diagram is still undrawn when the room is measured.
@@ -34,24 +30,6 @@ const NOT_YET_DRAWN_MS = 8000;
 // The history's size just before the diagram draws, per page: the draw must make it taller. It is keyed by page and
 // held in a WeakMap, not in module state, so a failed scenario leaves no baseline for the next one.
 const beforeDrawByPage = new WeakMap<Page, { scrollHeight: number }>();
-
-async function boxOf(locator: Locator, label: string) {
-  const box = await locator.boundingBox();
-  if (box === null) throw new Error(`${label} has no box`);
-  return box;
-}
-
-function overlaps(
-  first: { x: number; y: number; width: number; height: number },
-  second: { x: number; y: number; width: number; height: number },
-): boolean {
-  return (
-    first.x < second.x + second.width &&
-    second.x < first.x + first.width &&
-    first.y < second.y + second.height &&
-    second.y < first.y + first.height
-  );
-}
 
 /** The history's full height, and the distance the reader is above its newest content. */
 function sizeOf(page: Page) {
@@ -156,73 +134,3 @@ Then("the newest message is in view above the composer", async ({ page }) => {
   }
   await expectNewestAboveComposer(page);
 });
-
-Then("the theme control is inside the room header", async ({ page }) => {
-  await expect(page.locator(THEME)).toHaveCount(1);
-  await expect(page.locator(".theme-dock")).toBeHidden();
-  const [header, control] = await Promise.all([
-    boxOf(page.locator(HEADER), "The room header"),
-    boxOf(page.locator(THEME), "The theme control"),
-  ]);
-  expect(control.x).toBeGreaterThanOrEqual(header.x);
-  expect(control.x + control.width).toBeLessThanOrEqual(
-    header.x + header.width + 0.5,
-  );
-  expect(control.y).toBeGreaterThanOrEqual(header.y);
-  expect(control.y + control.height).toBeLessThanOrEqual(
-    header.y + header.height + 0.5,
-  );
-});
-
-Then("the theme control does not cover the room title", async ({ page }) => {
-  const [title, control] = await Promise.all([
-    boxOf(page.locator(TITLE), "The room title"),
-    boxOf(page.locator(THEME), "The theme control"),
-  ]);
-  expect(
-    overlaps(title, control),
-    "the theme control covers the room title",
-  ).toBe(false);
-  const viewport = page.viewportSize();
-  expect(control.x + control.width).toBeLessThanOrEqual(
-    (viewport?.width ?? 0) + 0.5,
-  );
-});
-
-Then(
-  "the theme control is at least 44 pixels across on a touch screen",
-  async ({ page }) => {
-    await emulateTouchPointer(page);
-    const control = await boxOf(page.locator(THEME), "The theme control");
-    expect(control.width).toBeGreaterThanOrEqual(44);
-    const buttons = page.locator(`${THEME} button`);
-    await expect(buttons).toHaveCount(3);
-    const heights = await Promise.all(
-      [0, 1, 2].map(
-        async (index) =>
-          (await boxOf(buttons.nth(index), `Theme button ${index}`)).height,
-      ),
-    );
-    for (const height of heights) expect(height).toBeGreaterThanOrEqual(44);
-  },
-);
-
-Then(
-  "each theme button is at least 44 pixels across on a touch screen",
-  async ({ page }) => {
-    // Each of the three theme buttons is a touch target of its own; the control's width is checked by the step above.
-    await emulateTouchPointer(page);
-    const buttons = page.locator(`${THEME} button`);
-    await expect(buttons).toHaveCount(3);
-    const boxes = await Promise.all(
-      [0, 1, 2].map((index) =>
-        boxOf(buttons.nth(index), `Theme button ${index}`),
-      ),
-    );
-    for (const [index, box] of boxes.entries()) {
-      expect(box.width, `Theme button ${index} width`).toBeGreaterThanOrEqual(
-        44,
-      );
-    }
-  },
-);

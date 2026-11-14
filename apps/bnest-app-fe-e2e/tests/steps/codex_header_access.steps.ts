@@ -16,7 +16,6 @@ async function boxOf(locator: Locator, label: string): Promise<Box> {
   return box;
 }
 
-const HEADER_ROW = ".chat-actions";
 const TOUCH_TARGET_PX = 44;
 
 // --- Repository access state, the row's end fade, the message box cap and the hidden label (round 3) -------------
@@ -103,48 +102,6 @@ Then(
   },
 );
 
-Then("the header's scrolling row ends inside the screen", async ({ page }) => {
-  const viewport = page.viewportSize();
-  if (viewport === null) throw new Error("the viewport is not set");
-  const row = await boxOf(
-    page.locator(HEADER_ROW),
-    "the header's scrolling row",
-  );
-  expect(
-    row.x + row.width,
-    "the scrolling row runs past the right edge of the screen",
-  ).toBeLessThanOrEqual(viewport.width + 0.5);
-});
-
-Then(
-  "the last header control clears the edge fade when the row is scrolled to its end",
-  async ({ page }) => {
-    // The fade is the stretch the row's mask covers at its end; the last control must sit clear of that stretch.
-    const row = page.locator(HEADER_ROW);
-    const fadePx = await row.evaluate((node) => {
-      // Chromium reports the resolved stop, in pixels or in rem as written.
-      const match = /calc\(100% - ([\d.]+)(px|rem)\)/u.exec(
-        getComputedStyle(node).maskImage,
-      );
-      if (match === null) return Number.NaN;
-      return match[2] === "rem" ? Number(match[1]) * 16 : Number(match[1]);
-    });
-    expect(fadePx, "the row's edge fade width").toBeGreaterThan(0);
-    await row.evaluate((element) => {
-      element.scrollLeft = element.scrollWidth;
-    });
-    const rowBox = await boxOf(row, "the header's scrolling row");
-    const last = await boxOf(
-      page.locator(`${HEADER_ROW} > *`).last(),
-      "the last header control",
-    );
-    expect(
-      last.x + last.width,
-      `the last control ends under the ${fadePx} px fade`,
-    ).toBeLessThanOrEqual(rowBox.x + rowBox.width - fadePx + 0.5);
-  },
-);
-
 Then(
   "the message box stops at its height cap and scrolls the rest of the draft",
   async ({ page }) => {
@@ -171,12 +128,15 @@ Then(
   },
 );
 
-Then("the Codex header is at most 160 pixels tall", async ({ page }) => {
-  const box = await boxOf(page.locator(".chat-header"), "the Codex header");
-  expect(box.height, "the Codex header's height").toBeLessThanOrEqual(
-    HEADER_MAX_PX,
-  );
-});
+Then(
+  "the Codex header keeps its controls on a small phone",
+  async ({ page }) => {
+    const box = await boxOf(page.locator(".chat-header"), "the Codex header");
+    expect(box.height, "the Codex header's height").toBeLessThanOrEqual(
+      HEADER_MAX_PX,
+    );
+  },
+);
 
 Then("the message box is named {string}", async ({ page }, name: string) => {
   // The accessible name is what a screen reader announces for the box, even though the label is out of sight.

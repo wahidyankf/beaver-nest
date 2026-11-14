@@ -58,9 +58,9 @@ defmodule BnestAppWeb.AuthenticationTest do
 
     assert Preferences.theme(owner_id) == "dark"
 
+    # The stored preference is still written; the page no longer shows a theme or a theme control (ADR 005).
     home = conn |> recycle() |> get("/") |> html_response(200)
-    assert home =~ ~s(data-theme="dark")
-    assert home =~ ~s(data-theme-storage="server")
+    refute home =~ ~s(data-theme=)
     assert home =~ ~s(data-browser-persistence="false")
 
     assert conn |> recycle() |> put("/preferences/theme", %{"theme" => "system"}) |> response(204)

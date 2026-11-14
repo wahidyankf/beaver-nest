@@ -42,7 +42,6 @@ let knownReadId = "";
 // runs sequentially, so the body has to be unique per send or a later
 // project's assertion would match an earlier project's message.
 let sentBody = "";
-const SHIFT_ENTER_CONTINUATION = "and more";
 
 function requireIdentity(): InstanceIdentities {
   if (!identity) throw new Error("no family chat visitor has opened the room");
@@ -235,38 +234,6 @@ Then("the visitor's own message is in view", async ({ page }) => {
   ).toBeInViewport();
 });
 
-When(
-  "the visitor submits {string} with the Enter key",
-  async ({ page }, body: string) => {
-    await recordComposerBlurs(page);
-    const input = composerInput(page);
-    // Unique per send for the reason `sentBody` is: the three browser
-    // projects share one room, so the raw Gherkin literal would already be on
-    // screen from an earlier project and this poll would pass without the
-    // Enter key having sent anything.
-    sentBody = `${body} ${crypto.randomUUID().slice(0, 8)}`;
-    await input.fill(sentBody);
-    await input.press("Enter");
-    await expect
-      .poll(() =>
-        page
-          .locator('[data-role="family-chat-message"]', { hasText: sentBody })
-          .count(),
-      )
-      .toBeGreaterThan(0);
-  },
-);
-
-When(
-  "the visitor presses Shift and Enter while writing {string}",
-  async ({ page }, body: string) => {
-    const input = composerInput(page);
-    await input.fill(body);
-    await input.press("Shift+Enter");
-    await input.pressSequentially(SHIFT_ENTER_CONTINUATION);
-  },
-);
-
 Then("the composer still holds keyboard focus", async ({ page }) => {
   await expect(composerInput(page)).toBeFocused();
 });
@@ -286,14 +253,3 @@ Then(
     await expect(input).toBeEnabled();
   },
 );
-
-Then("the composer holds an unsent multi-line draft", async ({ page }) => {
-  const draft = await composerInput(page).inputValue();
-  expect(draft).toContain("\n");
-  expect(draft).toContain(SHIFT_ENTER_CONTINUATION);
-  await expect(
-    page.locator('[data-role="family-chat-message"]', {
-      hasText: SHIFT_ENTER_CONTINUATION,
-    }),
-  ).toHaveCount(0);
-});

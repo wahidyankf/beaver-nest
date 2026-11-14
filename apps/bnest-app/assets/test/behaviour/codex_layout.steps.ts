@@ -18,6 +18,7 @@ import {
   hexOf,
   imageSizingRules,
   lengthPx,
+  cornerRadii,
   resolveVars,
   type Environment,
 } from "../support/shipped_css";
@@ -28,6 +29,7 @@ import {
   recall,
 } from "./support/scenario_memory";
 import type { StepDefinition, StepHandler } from "./family_chat.steps";
+import { CODEX_TEMPLATE } from "./support/send_hint";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PATH = path.resolve(
@@ -96,9 +98,13 @@ function pixels(
   return parsed;
 }
 
-/** The overflow a box declares on one axis: `overflow-x`, `overflow-y`, or the `overflow` shorthand. */
+/** The overflow a box has on one axis: its longhand, then the shorthand, else the initial value `visible`. */
+function overflowOn(declared: Record<string, string>, axis: "x" | "y"): string {
+  return declared[`overflow-${axis}`] ?? declared["overflow"] ?? "visible";
+}
+
 function scrolls(declared: Record<string, string>, axis: "x" | "y"): boolean {
-  const value = declared[`overflow-${axis}`] ?? declared["overflow"] ?? "";
+  const value = overflowOn(declared, axis);
   return value === "auto" || value === "scroll";
 }
 
@@ -118,6 +124,29 @@ step("the Codex chat page is open at {string}", (spec) => {
     width: Number(match[1]),
     height: Number(match[2]),
   });
+});
+
+step("the home page is open at {string}", (spec) => {
+  const match = /^\w+ (\d+)x(\d+)$/u.exec(spec);
+  if (!match) throw new Error(`unreadable viewport ${JSON.stringify(spec)}`);
+  remember("homeViewport", {
+    width: Number(match[1]),
+    height: Number(match[2]),
+  });
+});
+
+step("the header keeps a gap above the hero card", () => {
+  // The header declares the space below it, so the hero card never touches the account row on any width.
+  const viewport = recallOr("homeViewport", DEFAULT_VIEWPORT);
+  const env: Environment = { ...viewport, coarse: false };
+  const gap = lengthPx(
+    resolveVars(declarationsFor(".home-header", env)["margin-block-end"] ?? ""),
+    env,
+  );
+  expect(
+    gap,
+    `the header keeps ${gap} px above the hero card`,
+  ).toBeGreaterThanOrEqual(15.5);
 });
 
 step("the visitor's pointer is a touch pointer", () => {
@@ -155,7 +184,6 @@ const HEADER_CONTROLS = [
   ".model-picker select",
   ".repository-write-toggle",
   ".clear-chat-button",
-  ".chat-theme-control button",
 ];
 
 step("the header controls are at least 44 pixels tall", () => {
@@ -293,54 +321,6 @@ function paddingBlockPx(
   ];
 }
 
-/** The most padding a phone header keeps above and below its title, so the header stays compact. */
-const COMPACT_HEADER_PADDING_PX = 12;
-
-step("the message composer is on screen without scrolling the page", () => {
-  // The panel fills the screen and the conversation above the composer is the region that scrolls, so the page itself
-  // does not scroll. The composer's measured place is the Playwright adapter's.
-  const env = laidOut();
-  const [shellTop, shellBottom] = paddingBlockPx(
-    declarationsFor(".chat-shell", env),
-    env,
-    "the chat shell",
-  );
-  expect(
-    shellTop + shellBottom,
-    "the shell adds padding around the panel",
-  ).toBe(0);
-  const panel = declarationsFor(".chat-panel", env);
-  const panelHeight = pixels(panel["height"], "the panel height", env);
-  expect(
-    panelHeight,
-    `the panel is ${panelHeight} px tall on a ${env.height} px screen`,
-  ).toBeLessThanOrEqual(env.height);
-  expect(
-    pixels(panel["min-height"] ?? "0", "the panel min-height", env),
-    "the panel min-height",
-  ).toBe(0);
-  expect(
-    scrolls(declarationsFor(".conversation", env), "y"),
-    "the conversation does not scroll",
-  ).toBe(true);
-});
-
-step("the Codex header is at most 30 percent of the screen height", () => {
-  // The header's measured height is the Playwright adapter's. Here its declared padding must be the compact phone one.
-  const env = laidOut();
-  const [top, bottom] = paddingBlockPx(
-    declarationsFor(".chat-header", env),
-    env,
-    "the Codex header",
-  );
-  expect(top, "the header top padding").toBeLessThanOrEqual(
-    COMPACT_HEADER_PADDING_PX,
-  );
-  expect(bottom, "the header bottom padding").toBeLessThanOrEqual(
-    COMPACT_HEADER_PADDING_PX,
-  );
-});
-
 // --- Then: focus rings ------------------------------------------------------------------
 
 function ringOf(selector: string): string {
@@ -351,23 +331,6 @@ step("a focused link shows the coral focus ring", () => {
   expect(ringOf(".markdown-body a:focus-visible"), "the link focus ring").toBe(
     CORAL_RING,
   );
-});
-
-step("the visitor tabs to a Codex theme button", () => {
-  // The Playwright adapter presses Tab until focus is on a theme button; this binding keeps that the scenario's focus target.
-  remember("codexFocusTarget", "theme");
-});
-
-step("the focused Codex theme button shows the coral focus ring", () => {
-  // The theme buttons carry the same 3 px coral ring as the other Codex header controls.
-  expect(
-    recallOr("codexFocusTarget", ""),
-    "the scenario did not tab to a theme button",
-  ).toBe("theme");
-  expect(
-    ringOf(".chat-theme-control button:focus-visible"),
-    "the theme button focus ring",
-  ).toBe(CORAL_RING);
 });
 
 step(
@@ -393,59 +356,11 @@ step("a focused diagram source shows the coral focus ring", () => {
 
 /** The touch target every header control keeps (the touch rules above), counted as one row of the header. */
 const CONTROL_ROW_PX = 44;
-/** The share of a short screen the header, the composer and the controls may use, leaving the rest to the conversation. */
-const CHROME_SHARE = 0.6;
-
 /** A percentage in a declared value, as a number (`86%` is 86); NaN when the value is not a percentage. */
 function percentOf(value: string | undefined): number {
   const match = /^(\d+(?:\.\d+)?)%$/u.exec(resolveVars(value ?? "").trim());
   return match ? Number(match[1]) : Number.NaN;
 }
-
-step("the conversation is at least 40 percent of the screen height", () => {
-  // The conversation is what the header, the controls row and the composer leave. The budget is the declared sizes of
-  // those, with the one row of controls counted as a touch target tall. The measured share is the Playwright adapter's.
-  const env = laidOut();
-  const [top, bottom] = paddingBlockPx(
-    declarationsFor(".chat-header", env),
-    env,
-    "the Codex header",
-  );
-  const logo = pixels(
-    declarationsFor(".brand-logo", env)["height"],
-    "the logo height",
-    env,
-  );
-  const [composerTop, composerBottom] = paddingBlockPx(
-    declarationsFor(".composer", env),
-    env,
-    "the composer",
-  );
-  const field = pixels(
-    declarationsFor(".composer textarea", env)["min-height"],
-    "the message box min-height",
-    env,
-  );
-  const used =
-    top + bottom + logo + CONTROL_ROW_PX + composerTop + composerBottom + field;
-  expect(
-    used,
-    `the header, controls and composer use ${used} px of a ${env.height} px screen`,
-  ).toBeLessThanOrEqual(CHROME_SHARE * env.height);
-});
-
-step("the Send button is beside the message box", () => {
-  // The composer is one row of two tracks: the box, then Send. A single track would put Send below the box.
-  const env = laidOut();
-  const columns = (
-    declarationsFor(".composer", env)["grid-template-columns"] ?? ""
-  ).trim();
-  expect(columns, "the composer is a single column").not.toBe("1fr");
-  expect(
-    columns.endsWith(" auto"),
-    `the composer columns are ${JSON.stringify(columns)}`,
-  ).toBe(true);
-});
 
 step("the Codex panel is no taller than the window", () => {
   const env = laidOut();
@@ -517,7 +432,6 @@ step(
 
 // --- Then: the header row on a landscape phone and a narrow phone, and the composer's cap ------------------------
 
-const TOUCH_THEME_BUTTON_PX = 44;
 /** One line of Chrome's default text in a header control, with its padding and border, as the e2e's one-line bound. */
 const LINE_OF_TEXT_PX = 24;
 const COMPOSER_LABEL_PX = 20;
@@ -527,79 +441,6 @@ const CONVERSATION_SHARE_CAPPED = 0.25;
 function draftLines(): number {
   return recall<number>("codexDraftLines");
 }
-
-step("the header controls start inside the header", () => {
-  // A row aligned to its end pushes the first controls past the header's left edge, where a sideways scroll cannot
-  // reach them. The row starts at the left edge instead, and each control keeps its own width (the rule for every
-  // control, on any screen). The measured boxes are the Playwright adapter's.
-  const env = laidOut();
-  expect(
-    declarationsFor(".chat-actions", env)["justify-content"],
-    "the header row alignment",
-  ).toBe("flex-start");
-  expect(
-    declarationsFor(".chat-actions > *", env)["flex"],
-    "a header control can shrink",
-  ).toBe("none");
-});
-
-step("the repository write toggle is one line tall", () => {
-  // Its label stays on one line, so the pill does not grow to three lines in a short row.
-  const declared = declarationsFor(".repository-access-badge", laidOut());
-  expect(declared["white-space"], "the write toggle wraps its label").toBe(
-    "nowrap",
-  );
-});
-
-step("every header control is reachable by scrolling the header", () => {
-  // The controls keep their own widths on one row, which scrolls sideways, so each one can be brought into view. The
-  // Playwright adapter scrolls to each control and measures it.
-  const env = laidOut();
-  const row = declarationsFor(".chat-actions", env);
-  expect(row["flex-wrap"], "the header controls wrap").toBe("nowrap");
-  expect(scrolls(row, "x"), "the header row does not scroll sideways").toBe(
-    true,
-  );
-  expect(
-    declarationsFor(".chat-actions > *", env)["flex"],
-    "a header control can shrink",
-  ).toBe("none");
-});
-
-step("the header row fades at its edge to show more controls", () => {
-  // A right-edge fade over the row is the visible cue that more controls follow the ones in view.
-  const fade = declarationsFor(".chat-actions", laidOut())["mask-image"] ?? "";
-  expect(
-    fade.includes("linear-gradient") && fade.includes("transparent"),
-    `the header row mask is ${JSON.stringify(fade)}`,
-  ).toBe(true);
-});
-
-step("each theme button is at least 44 pixels across", () => {
-  // The theme control holds three buttons, each a touch target of its own (on a touch pointer only).
-  const env = laidOut();
-  expect(env.coarse, "the theme buttons are checked on a touch pointer").toBe(
-    true,
-  );
-  const control = pixels(
-    declarationsFor(".chat-theme-control", env)["width"],
-    "the theme control width",
-    env,
-  );
-  expect(
-    control,
-    "the theme control is too narrow for three touch targets",
-  ).toBeGreaterThanOrEqual(3 * TOUCH_THEME_BUTTON_PX);
-  const minWidth = pixels(
-    declarationsFor(".chat-theme-control button", env)["min-width"],
-    "the theme button min-width",
-    env,
-  );
-  expect(
-    minWidth,
-    "the theme button width on a touch screen",
-  ).toBeGreaterThanOrEqual(TOUCH_THEME_BUTTON_PX);
-});
 
 step(
   "the visitor types a draft of {int} lines into the Codex message box",
@@ -702,22 +543,41 @@ step("repository writes are {string}", (state) => {
 step(
   "the repository access state is visible without scrolling the header",
   () => {
-    // The access state sits in the controls row beside the scrolling row, outside it, and it never shrinks. Its place in
-    // the screen is the Playwright adapter's; this step proves the declared rules that keep it out of the scroll box.
+    // The access state is a flex item that never shrinks. It is written before the options panel opens, so the panel
+    // cannot hold it. Its on-screen place is measured by the Playwright adapter; this step proves the declared rules.
     const env = laidOut();
     const access = declarationsFor(".chat-access", env);
     expect(access["flex"], "the access state can shrink").toBe("none");
     expect(scrolls(access, "x"), "the access state scrolls sideways").toBe(
       false,
     );
+    expect(scrolls(access, "y"), "the access state scrolls vertically").toBe(
+      false,
+    );
+    // The options panel is `.chat-actions` on a phone or a short window. It is not a scroll box, so nothing in it is
+    // clipped or faded at its edge.
+    const panel = declarationsFor(".chat-actions", env);
+    expect(overflowOn(panel, "x"), "the options panel clips sideways").toBe(
+      "visible",
+    );
+    expect(overflowOn(panel, "y"), "the options panel clips vertically").toBe(
+      "visible",
+    );
+    const controlsAt = CODEX_ROOM_TEMPLATE.indexOf('class="chat-controls"');
+    const accessAt = CODEX_ROOM_TEMPLATE.indexOf(
+      'data-role="repository-access"',
+    );
+    const panelAt = CODEX_ROOM_TEMPLATE.indexOf('id="chat-options"');
+    expect(controlsAt, "the controls row is missing").toBeGreaterThan(-1);
     expect(
-      scrolls(declarationsFor(".chat-actions", env), "x"),
-      "the scrolling row does not scroll",
+      accessAt > controlsAt && accessAt < panelAt,
+      "the access state is not written in the controls row before the options panel",
     ).toBe(true);
+    // On a phone the controls row is `display: contents`, so its items take their place in the header's own rows.
     expect(
-      declarationsFor(".chat-controls", env)["display"],
-      "the controls row is not a flex row",
-    ).toBe("flex");
+      ["flex", "contents"],
+      "the controls row is neither a flex row nor laid into the header",
+    ).toContain(declarationsFor(".chat-controls", env)["display"]);
   },
 );
 
@@ -733,83 +593,6 @@ step("the repository write toggle is at least 44 pixels tall", () => {
     `the repository write toggle is ${height} px tall on a touch pointer`,
   ).toBeGreaterThanOrEqual(TOUCH_TARGET_PX);
 });
-
-step("the header's scrolling row ends inside the screen", () => {
-  // A flex child may shrink only with min-width 0; without it the row is as wide as its controls, past the screen.
-  const env = laidOut();
-  expect(
-    pixels(
-      declarationsFor(".chat-actions", env)["min-width"],
-      "the scrolling row min-width",
-      env,
-    ),
-    "the scrolling row cannot shrink to the screen",
-  ).toBe(0);
-});
-
-step(
-  "the last header control clears the edge fade when the row is scrolled to its end",
-  () => {
-    // The fade covers the row's last stretch, and the row's end padding is at least as wide as that stretch, so a
-    // control scrolled to the end sits clear of the fade.
-    const env = laidOut();
-    const declared = declarationsFor(".chat-actions", env);
-    const fade = /calc\(100% - ([\d.]+(?:rem|px))\)/u.exec(
-      declared["mask-image"] ?? "",
-    );
-    expect(fade, "the row's edge fade").not.toBeNull();
-    const fadePx = pixels(fade?.[1], "the fade width", env);
-    const endPadding = pixels(
-      declared["padding-inline-end"],
-      "the row's end padding",
-      env,
-    );
-    expect(
-      endPadding,
-      `the end padding ${endPadding} px is under the ${fadePx} px fade`,
-    ).toBeGreaterThanOrEqual(fadePx);
-  },
-);
-
-/** The message box cap at a window height: the smaller of 12 rem and 22 percent of the window's height. */
-function messageBoxCapPx(env: Environment): number {
-  return Math.min(12 * 16, 0.22 * env.height);
-}
-
-step(
-  "the message box stops at its height cap and scrolls the rest of the draft",
-  () => {
-    // The cap is the value the stylesheet gives the box at this window's height. The draft that overflows it is
-    // measured in Chromium by the Playwright adapter; removing the cap makes this step fail, because no value is left.
-    const env = laidOut();
-    const cap = pixels(
-      declarationsFor(".composer textarea", env)["max-height"],
-      "the message box cap",
-      env,
-    );
-    expect(cap, "the message box cap").toBeCloseTo(messageBoxCapPx(env), 3);
-  },
-);
-
-step("the Codex header is at most 160 pixels tall", () => {
-  // Its paddings, its logo and the controls row (the picker stack, a label above a select, counted at its tallest).
-  const env = laidOut();
-  const [top, bottom] = paddingBlockPx(
-    declarationsFor(".chat-header", env),
-    env,
-    "the Codex header",
-  );
-  const logo = pixels(
-    declarationsFor(".brand-logo", env)["height"],
-    "the logo height",
-    env,
-  );
-  const header = top + bottom + logo + CONTROL_STACK_PX;
-  expect(header, `the header is ${header} px tall`).toBeLessThanOrEqual(160);
-});
-
-/** The controls row's height at its tallest: a picker's label above its select, both on a touch pointer. */
-const CONTROL_STACK_PX = 64;
 
 step("the message box is named {string}", (name) => {
   // The name is the label's text, which the template sets. Here the stylesheet must keep the label out of sight
@@ -890,4 +673,325 @@ step("the Codex page does not scroll sideways", () => {
     declarationsFor(".chat-shell", env)["grid-template-columns"],
     "the shell's column can grow past the window",
   ).toBe("minmax(0, 1fr)");
+});
+
+step(
+  "the message box stops at its height cap and scrolls the rest of the draft",
+  () => {
+    // The cap is the value the stylesheet gives the box at this window's height. The draft that overflows it is
+    // measured in Chromium by the Playwright adapter; removing the cap makes this step fail, because no value is left.
+    const env = laidOut();
+    const cap = pixels(
+      declarationsFor(".composer textarea", env)["max-height"],
+      "the message box cap",
+      env,
+    );
+    expect(cap, "the message box cap").toBeCloseTo(messageBoxCapPx(env), 3);
+  },
+);
+
+function messageBoxCapPx(env: Environment): number {
+  return Math.min(12 * 16, 0.22 * env.height);
+}
+
+// --- Budget rows (chat.feature, the Rules "Codex chat conversation has most of a phone screen" and "Codex chat on touch
+// and short screens"). The numeric budgets are measured in Chromium by `bnest-app-fe-e2e`: codex-phone-layout.steps.ts,
+// codex_follow_layout.steps.ts and codex_header_access.steps.ts own the same step texts and hold the floors and limits
+// in their own code. The Thens here prove what the declared rules and the production template give the layout: the
+// conversation takes the room the header and the composer leave, neither of those grows, the panel is fixed to the
+// window, and the composer follows the conversation. No height in pixels is asserted here.
+
+const CODEX_ROOM_TEMPLATE = readFileSync(CODEX_TEMPLATE, "utf8");
+
+/** Whether a declared flex value lets a box grow: the `flex-grow` of `flex`, or the `flex-grow` when it is declared. */
+function growsIn(declared: Record<string, string>): boolean {
+  const grow =
+    declared["flex-grow"] ?? declared["flex"]?.split(/\s+/u)[0] ?? "0";
+  return Number(grow) > 0;
+}
+
+/** The place of a template fragment in chat_live.ex, failing when the fragment is missing. */
+function codexTemplateIndex(fragment: string): number {
+  const index = CODEX_ROOM_TEMPLATE.indexOf(fragment);
+  expect(index, `chat_live.ex has no ${fragment}`).toBeGreaterThanOrEqual(0);
+  return index;
+}
+
+/** The header comes first, the conversation second and the composer last, in the template and in the page. */
+function headerConversationComposerInOrder(): void {
+  const header = codexTemplateIndex('class="chat-header"');
+  const conversation = codexTemplateIndex('id="chat-conversation"');
+  const composer = codexTemplateIndex('class="composer"');
+  expect(
+    header < conversation && conversation < composer,
+    "the header, the conversation and the composer are not in that order",
+  ).toBe(true);
+}
+
+/** The conversation takes the room left over and scrolls its own messages; the header and the composer do not grow. */
+function conversationTakesTheRoomLeft(env: Environment): void {
+  const conversation = declarationsFor(".conversation", env);
+  expect(
+    growsIn(conversation),
+    ".conversation does not take the room the header and the composer leave",
+  ).toBe(true);
+  expect(
+    conversation["min-height"],
+    ".conversation can be taller than its track",
+  ).toBe("0");
+  expect(
+    scrolls(conversation, "y"),
+    ".conversation does not scroll its messages",
+  ).toBe(true);
+  for (const selector of [".chat-header", ".composer"]) {
+    expect(
+      growsIn(declarationsFor(selector, env)),
+      `${selector} grows into the room the conversation needs`,
+    ).toBe(false);
+  }
+}
+
+/** The header keeps its controls on rows that wrap, so a narrow phone adds a row instead of shrinking a control. */
+function headerKeepsControlsOnRows(env: Environment): void {
+  const header = declarationsFor(".chat-header", env);
+  expect(
+    header["flex-wrap"],
+    "the header does not wrap its controls onto rows",
+  ).toBe("wrap");
+  expect(header["height"], "the header has a fixed height").toBe("auto");
+}
+
+// The {int} percentages in the two steps below are not read at this layer: it proves the row order and the flex rules.
+// The measured share at each viewport is checked in Chromium (bnest-app-fe-e2e, Codex layout steps).
+step(
+  "the conversation takes at least {int} percent of the screen with an empty draft",
+  () => {
+    const env = laidOut();
+    conversationTakesTheRoomLeft(env);
+    headerConversationComposerInOrder();
+  },
+);
+
+step(
+  "the conversation takes at least {int} percent of the screen on a small phone",
+  () => {
+    const env = laidOut();
+    conversationTakesTheRoomLeft(env);
+    headerConversationComposerInOrder();
+  },
+);
+
+step(
+  "the header and the composer take at most {int} pixels outside the conversation",
+  () => {
+    const env = laidOut();
+    headerConversationComposerInOrder();
+    for (const selector of [".chat-header", ".composer"]) {
+      expect(
+        growsIn(declarationsFor(selector, env)),
+        `${selector} takes space the conversation needs`,
+      ).toBe(false);
+    }
+  },
+);
+
+// The unit layer proves the order of the header, conversation and composer and that the composer is not taken out of
+// the flow. That the newest message sits fully above the composer on screen is measured in Chromium.
+step("the newest message is fully above the composer", () => {
+  const env = laidOut();
+  headerConversationComposerInOrder();
+  expect(
+    declarationsFor(".composer", env)["position"] ?? "",
+    "the composer is taken out of the flow, so it can cover the newest message",
+  ).not.toBe("absolute");
+});
+
+step("the message composer is on screen without scrolling the page", () => {
+  const panel = declarationsFor(".chat-panel", laidOut());
+  expect(
+    panel["height"],
+    ".chat-panel is not fixed to the window's height",
+  ).toMatch(/^(?:calc\(100d?vh - 2rem\)|100d?vh)$/u);
+  expect(panel["overflow"], ".chat-panel lets the page scroll").toBe("hidden");
+  expect(panel["min-height"], ".chat-panel can be taller than the window").toBe(
+    "0",
+  );
+  codexTemplateIndex('class="chat-panel"');
+});
+
+step("the Codex header keeps its controls on wrapping rows", () => {
+  headerKeepsControlsOnRows(laidOut());
+});
+
+// The 110 pixel limit is measured in Chromium (codex-header-height.steps.ts). Here the shipped rules that make it true:
+// the header's height follows its rows, and its rows wrap on a phone, so no fixed height can hold a third row. The
+// number 110 is not read here: the unit layer cannot bound a height in pixels, so it checks the rule, not the limit.
+step("the Codex header is at most 110 pixels tall", () => {
+  const env = laidOut();
+  const header = declarationsFor(".chat-header", env);
+  if (env.width <= 767) {
+    // A phone: the rows wrap, so the height follows them and no fixed height can hold a third row.
+    expect(header["height"], "the header has a fixed height on a phone").toBe(
+      "auto",
+    );
+    expect(header["flex-wrap"], "the header rows do not wrap on a phone").toBe(
+      "wrap",
+    );
+  } else {
+    // A short landscape window keeps one row, whose fixed height must stay within the limit.
+    const height = lengthPx(resolveVars(header["height"] ?? ""), env);
+    expect(
+      height,
+      "the one-row header is taller than 110 px",
+    ).toBeLessThanOrEqual(110);
+  }
+});
+
+step("the Codex header keeps its controls on a small phone", () => {
+  headerKeepsControlsOnRows(laidOut());
+});
+
+step("the Send button is beside the message box", () => {
+  const composer = declarationsFor(".composer", laidOut());
+  expect(composer["display"], ".composer is not a grid").toBe("grid");
+  expect(
+    composer["grid-template-columns"],
+    "the Send button does not share the composer's row",
+  ).toBe("minmax(0, 1fr) auto");
+  const composerAt = codexTemplateIndex('class="composer"');
+  const box = codexTemplateIndex('data-role="chat-composer"');
+  const send = codexTemplateIndex('class="send-button"');
+  expect(
+    composerAt < box && box < send,
+    "the Send button is not in the composer after the message box",
+  ).toBe(true);
+});
+
+step("a Codex conversation holds three short messages", () => {
+  // The three messages are sent in the browser (codex-phone-layout.steps.ts). Here the precondition the layout rules
+  // need: the conversation is rendered above the composer, so its messages are the room the rules measure.
+  const conversation = codexTemplateIndex('id="chat-conversation"');
+  const composer = codexTemplateIndex('id="chat-composer-form"');
+  expect(
+    conversation >= 0 && conversation < composer,
+    "the conversation is not rendered above the composer in chat_live.ex",
+  ).toBe(true);
+});
+
+// --- Then: the Send button, the box's resize handle and placeholder, and the Send colour (ADR 005) ---------
+
+// The rendered edges are measured by the Playwright adapter. Here the shipped rules must put Send on the box's last
+// edge: the field wrapper has no bottom margin, its label and the box are blocks, and the row aligns its items to the end.
+step(
+  "the Send button's top and bottom edges are within 1 pixel of the message box's",
+  () => {
+    const env = laidOut();
+    expect(
+      pixels(
+        declarationsFor(".composer .fieldset", env)["margin-bottom"],
+        "the field wrapper's bottom margin",
+        env,
+      ),
+    ).toBe(0);
+    expect(declarationsFor(".composer .fieldset > label", env)["display"]).toBe(
+      "block",
+    );
+    expect(
+      pixels(
+        declarationsFor(".composer .fieldset", env)["padding-bottom"],
+        "the field wrapper's bottom padding",
+        env,
+      ),
+    ).toBe(0);
+    expect(declarationsFor(".composer textarea", env)["display"]).toBe("block");
+    expect(declarationsFor(".composer", env)["align-items"]).toBe("end");
+    // At rest the box and Send share one height, so their top edges match as well as their bottom edges.
+    const boxHeight = pixels(
+      declarationsFor(".composer textarea", env)["min-height"],
+      "the message box's resting height",
+      env,
+    );
+    expect(
+      pixels(
+        declarationsFor(".send-button", env)["min-height"],
+        "the Send button's resting height",
+        env,
+      ),
+    ).toBe(boxHeight);
+  },
+);
+
+step("the Codex message box has no resize handle", () => {
+  expect(declarationsFor(".composer textarea", laidOut())["resize"]).toBe(
+    "none",
+  );
+});
+
+step(
+  "the Codex message box placeholder has at least 4.5 to 1 contrast with the box",
+  () => {
+    const env = laidOut();
+    const ink = resolveVars(
+      declarationsFor(".composer textarea::placeholder", env)["color"] ?? "",
+    );
+    const background = resolveVars(
+      declarationsFor(".composer textarea", env)["background"] ?? "",
+    );
+    expect(
+      contrastRatio(ink, background),
+      `${ink} on ${background}`,
+    ).toBeGreaterThanOrEqual(4.5);
+  },
+);
+
+step(
+  "the Codex Send button has the same background as the Family Chat Send button",
+  () => {
+    const env = laidOut();
+    const codex = resolveVars(
+      declarationsFor(".send-button", env)["background"] ?? "",
+    );
+    const family = resolveVars(
+      declarationsFor(".family-chat-send", env)["background"] ?? "",
+    );
+    expect(codex, "the Codex Send button background").not.toBe("");
+    expect(codex).toBe(family);
+  },
+);
+
+step("the Codex Send button has four equal corner radii", () => {
+  const radius = resolveVars(
+    declarationsFor(".send-button", laidOut())["border-radius"] ?? "",
+  );
+  expect(radius, "the Codex Send button border-radius").not.toBe("");
+  const [topLeft, topRight, bottomRight, bottomLeft] = cornerRadii(radius);
+  expect([topRight, bottomRight, bottomLeft]).toEqual([
+    topLeft,
+    topLeft,
+    topLeft,
+  ]);
+});
+
+step(
+  "the Codex Send button has the same corner radius as the Family Chat Send button",
+  () => {
+    const env = laidOut();
+    const codex = resolveVars(
+      declarationsFor(".send-button", env)["border-radius"] ?? "",
+    );
+    const family = resolveVars(
+      declarationsFor(".family-chat-send", env)["border-radius"] ?? "",
+    );
+    expect(codex, "the Codex Send button border-radius").not.toBe("");
+    expect(codex).toBe(family);
+  },
+);
+
+step("the Codex Send button text meets the contrast target", () => {
+  const declared = declarationsFor(".send-button", laidOut());
+  const ratio = contrastRatio(
+    resolveVars(declared["background"] ?? ""),
+    resolveVars(declared["color"] ?? ""),
+  );
+  expect(ratio).toBeGreaterThanOrEqual(4.5);
 });

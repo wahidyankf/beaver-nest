@@ -21,8 +21,8 @@ async function boxOf(locator: Locator, label: string) {
 // --- Layout -------------------------------------------------------------------------
 
 Then(
-  "the conversation is at least 40 percent of the screen height",
-  async ({ page }) => {
+  "the conversation takes at least {int} percent of the screen on a small phone",
+  async ({ page }, percent: number) => {
     const viewport = page.viewportSize();
     const conversation = await boxOf(
       page.locator(CONVERSATION),
@@ -30,7 +30,7 @@ Then(
     );
     expect(viewport).not.toBeNull();
     expect(conversation.height).toBeGreaterThanOrEqual(
-      0.4 * (viewport?.height ?? 0),
+      (percent / 100) * (viewport?.height ?? 0),
     );
   },
 );

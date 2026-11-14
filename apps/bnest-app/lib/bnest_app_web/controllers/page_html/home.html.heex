@@ -21,9 +21,6 @@
         <span aria-hidden="true">●</span> {@current_user["displayUsername"]}
       </p>
       <div class="home-account-actions">
-        <nav class="home-theme-control" aria-label="Color theme">
-          <Layouts.theme_toggle />
-        </nav>
         <%= unless @current_user["migrationMode"] do %>
           <form
             action="/logout"

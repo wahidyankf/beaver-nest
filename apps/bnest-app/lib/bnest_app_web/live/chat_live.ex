@@ -213,6 +213,16 @@ defmodule BnestAppWeb.ChatLive do
             </div>
           </a>
           <div class="chat-controls">
+            <%!-- The Options button comes first in source order, so keyboard focus follows the phone layout. --%>
+            <button
+              type="button"
+              class="chat-options-toggle"
+              data-role="chat-options-toggle"
+              aria-expanded="false"
+              aria-controls="chat-options"
+            >
+              Options
+            </button>
             <%!-- The access state and its toggle sit outside the scrolling row, so they are on screen at every width. --%>
             <span
               class="chat-access"
@@ -246,7 +256,15 @@ defmodule BnestAppWeb.ChatLive do
                 {repository_access_text(@repository_write_enabled?)}
               </span>
             </span>
-            <div class="chat-actions">
+            <%!-- The model badge stays outside the options panel: a phone shows it without opening Options (ADR 005). --%>
+            <span
+              class="model-badge"
+              data-model={@chat.model}
+              data-reasoning-effort={@chat.reasoning_effort}
+            >
+              {Settings.label(model_display_name(@models, @chat.model), @chat.reasoning_effort)}
+            </span>
+            <div id="chat-options" class="chat-actions" data-role="chat-options">
               <form
                 :if={@model_access.selectable?}
                 id="model-picker"
@@ -293,24 +311,48 @@ defmodule BnestAppWeb.ChatLive do
                   </option>
                 </select>
               </form>
-              <span
-                class="model-badge"
-                data-model={@chat.model}
-                data-reasoning-effort={@chat.reasoning_effort}
+              <%!-- The first click only opens this confirmation (chat_controls.js). Only "Yes, delete" sends the clear. --%>
+              <%!-- ignore: LiveView keeps this group's buttons (and the focus on Clear chat) through the clear patch. --%>
+              <div
+                id="clear-chat-group"
+                class="clear-chat"
+                data-role="clear-chat-group"
+                phx-update="ignore"
               >
-                {Settings.label(model_display_name(@models, @chat.model), @chat.reasoning_effort)}
-              </span>
-              <nav class="chat-theme-control" aria-label="Color theme">
-                <Layouts.theme_toggle />
-              </nav>
-              <button
-                type="button"
-                class="clear-chat-button"
-                data-role="clear-chat"
-                phx-click="clear"
-              >
-                Clear chat
-              </button>
+                <button
+                  type="button"
+                  class="clear-chat-button"
+                  data-role="clear-chat"
+                  aria-expanded="false"
+                  aria-controls="clear-chat-confirm"
+                >
+                  Clear chat
+                </button>
+                <div
+                  id="clear-chat-confirm"
+                  class="clear-chat-confirm"
+                  role="alertdialog"
+                  aria-label="Confirm clearing the chat"
+                  aria-describedby="clear-chat-question"
+                  data-role="clear-chat-confirm"
+                  hidden
+                >
+                  <p id="clear-chat-question" class="clear-chat-question">Delete all messages?</p>
+                  <div class="clear-chat-actions">
+                    <button type="button" class="clear-chat-cancel" data-role="clear-chat-cancel">
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      class="clear-chat-yes"
+                      data-role="clear-chat-yes"
+                      phx-click="clear"
+                    >
+                      Yes, delete
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </header>
@@ -329,16 +371,24 @@ defmodule BnestAppWeb.ChatLive do
             <span>This conversation is saved to your account until you clear it.</span>
           </div>
 
-          <article :for={message <- @chat.messages} class={message_class(message)} data-role="message">
+          <article
+            :for={message <- @chat.messages}
+            id={if message.role == :visitor, do: "message-#{message.id}"}
+            class={message_class(message)}
+            phx-update={if message.role == :visitor, do: "ignore"}
+            data-role="message"
+          >
             <p class="message-label">{if message.role == :visitor, do: "You", else: "Codex"}</p>
             <%!-- The text between the tags is the message itself: the formatter must not split it, because
                  the pre-wrap element would show any whitespace the template adds around it. --%>
-            <p
+            <%!-- A visitor's message is Markdown like a reply (the same component and sanitizer). Its raw text is a
+                 second element; chat_controls.js switches between them on the client, so the article is ignored by
+                 LiveView patches and keeps the view the visitor chose. --%>
+            <ChatComponents.own_message
               :if={message.role == :visitor}
-              class="message-content whitespace-pre-wrap"
-              data-role="user-message"
-              phx-no-format
-            >{message.content}</p>
+              id={message.id}
+              content={message.content}
+            />
             <details
               :if={message.role == :assistant and message.progress != []}
               class="codex-progress"
@@ -399,7 +449,10 @@ defmodule BnestAppWeb.ChatLive do
             placeholder="Ask Codex…"
             rows="1"
             data-role="chat-composer"
-            disabled={@chat.busy or not @model_access.available?}
+            phx-hook="ChatComposer"
+            aria-describedby="chat-composer-hint"
+            disabled={not @model_access.available?}
+            readonly={@chat.busy}
             required
           />
           <button
@@ -410,6 +463,10 @@ defmodule BnestAppWeb.ChatLive do
             <span :if={!@chat.busy}>Send</span>
             <span :if={@chat.busy}>Working…</span>
           </button>
+          <p id="chat-composer-hint" class="composer-hint" data-role="composer-hint">
+            <span class="hint-keyboard">Enter to send, Shift+Enter for a new line</span>
+            <span class="hint-touch">Shift+Enter to send</span>
+          </p>
         </.form>
       </section>
     </main>

@@ -7,21 +7,14 @@ import {
   rolesFor,
   userIdFor,
 } from "../support/instance-identities";
+import { instanceRecord } from "../support/instance-records";
+import { csrfToken, putTheme } from "../support/theme-preference";
 import { testUsername } from "../support/test-instance-lifecycle.mts";
 
 const { Given, Then, When } = createBdd();
 
 let secondUserContext: BrowserContext | undefined;
-let secondUserPage: Page | undefined;
-let crossUserResponses: { read: string; writeStatus: number } | undefined;
-
-async function csrfToken(page: Page): Promise<string> {
-  const token = await page
-    .locator("meta[name='csrf-token']")
-    .getAttribute("content");
-  if (!token) throw new Error("The page carries no CSRF token");
-  return token;
-}
+let crossUserResponses: { writeStatus: number } | undefined;
 
 // The seeded admin whose stored roles are exactly the two the scenario names.
 Given(
@@ -69,7 +62,10 @@ Then("an out-of-scope administration operation is denied", async ({ page }) => {
   await loginRefused(browser, new URL(page.url()).origin, forged);
 });
 
-// The child owns a dark theme saved through their own session; the administrator owns the light theme.
+// The child stores a dark theme through their own session; the administrator stores a dark one too, so the write below
+// (light) changes each record it could reach. No page shows the
+// theme any more (ADR 005), so each write is answered 204 by PUT /preferences/theme and read back from the test
+// instance's record.
 Given("two approved users own separate Bnest data", async ({ page }) => {
   const identity = currentIdentities();
   const browser = page.context().browser();
@@ -78,56 +74,54 @@ Given("two approved users own separate Bnest data", async ({ page }) => {
   secondUserContext = await browser.newContext({
     baseURL: new URL(page.url()).origin,
   });
-  secondUserPage = await secondUserContext.newPage();
+  const secondUserPage = await secondUserContext.newPage();
   await login(secondUserPage, identity.child);
-  await saveTheme(secondUserPage, "dark");
-  await saveTheme(page, "light");
+  await saveTheme(secondUserPage, "dark", childId());
+  await saveTheme(page, "dark", adminId());
 });
 
-async function saveTheme(page: Page, theme: string): Promise<void> {
-  await page.goto("/");
-  const response = await page.request.put("/preferences/theme", {
-    form: { theme },
-    headers: { "x-csrf-token": await csrfToken(page) },
-  });
-  expect(response.status()).toBe(204);
-  await page.goto("/");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+function adminId(): string {
+  return userIdFor(currentIdentities().admin.username);
 }
 
-// The administrator names the child as the owner of a read and of a write.
+function childId(): string {
+  return userIdFor(currentIdentities().child.username);
+}
+
+async function saveTheme(
+  page: Page,
+  theme: string,
+  owner: string,
+): Promise<void> {
+  await page.goto("/");
+  expect(await putTheme(page, theme)).toBe(204);
+  expect(instanceRecord("theme", owner)["theme"]).toBe(theme);
+}
+
+// The administrator names the child as the owner of a write. The write is a theme PUT that carries the child's id as an
+// owner field.
 When(
   "the first user attempts the second user's data operation",
   async ({ page }) => {
-    const owner = userIdFor(currentIdentities().child.username);
-    await page.goto(`/?owner=${encodeURIComponent(owner)}`);
-    const read = (await page.locator("html").getAttribute("data-theme")) ?? "";
+    const owner = childId();
     await page.goto("/");
-    const write = await page.request.put("/preferences/theme", {
-      form: { owner, theme: "light", user_id: owner },
-      headers: { "x-csrf-token": await csrfToken(page) },
+    const writeStatus = await putTheme(page, "light", {
+      owner,
+      user_id: owner,
     });
-    crossUserResponses = { read, writeStatus: write.status() };
+    crossUserResponses = { writeStatus };
   },
 );
 
-// The read showed the administrator's own theme, and the write landed on the administrator's record only: the
-// child's session still renders the child's dark theme.
-Then(
-  "Bnest denies the operation before repository access",
-  async ({ page }) => {
-    void page;
-    if (!secondUserPage || !secondUserContext || !crossUserResponses)
-      throw new Error("The second user's session was not opened");
-    expect(crossUserResponses.read).toBe("light");
-    expect(crossUserResponses.writeStatus).toBe(204);
-    await secondUserPage.goto("/");
-    await expect(secondUserPage.locator("html")).toHaveAttribute(
-      "data-theme",
-      "dark",
-    );
-    await secondUserContext.close();
-    secondUserContext = undefined;
-    secondUserPage = undefined;
-  },
-);
+// The server takes the owner from the session, never from the request. The write answers 204 and changes only the
+// administrator's own record: it becomes light, and the child's stored theme stays dark.
+Then("Bnest keeps the second user's data unchanged", async () => {
+  if (!secondUserContext || !crossUserResponses)
+    throw new Error("The second user's session was not opened");
+  expect(crossUserResponses.writeStatus).toBe(204);
+  expect(instanceRecord("theme", childId())["theme"]).toBe("dark");
+  expect(instanceRecord("theme", adminId())["theme"]).toBe("light");
+  await secondUserContext.close();
+  secondUserContext = undefined;
+  crossUserResponses = undefined;
+});

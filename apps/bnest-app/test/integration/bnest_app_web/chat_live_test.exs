@@ -292,7 +292,40 @@ defmodule BnestAppWeb.ChatLiveTest do
 
     page = view |> render() |> LazyHTML.from_document()
 
-    assert CodexReplyPage.shows_visitor_text?(page, "Single line message")
+    # The rendered Markdown sits beside a raw paragraph that holds exactly the typed text (the raw view, ADR 005).
+    raw = page |> LazyHTML.query("[data-role=user-message-raw]") |> LazyHTML.text()
+    assert raw == "Single line message"
+  end
+
+  test "the model badge sits outside the Options panel so a phone shows it without opening Options",
+       %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/chat")
+
+    page = view |> render() |> LazyHTML.from_document()
+
+    # The panel is collapsed on a phone, so the badge must not depend on it (ADR 005, access state is always visible).
+    assert [_badge] = page |> LazyHTML.query(".model-badge") |> LazyHTML.attribute("class")
+
+    assert [] =
+             page
+             |> LazyHTML.query("[data-role=chat-options] .model-badge")
+             |> LazyHTML.attribute("class")
+  end
+
+  test "a visitor's Markdown renders as Markdown and its raw view keeps the typed text", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, "/chat")
+
+    view
+    |> element("#chat-composer-form")
+    |> render_submit(%{"chat" => %{"prompt" => "Keep **these** stars"}})
+
+    page = view |> render() |> LazyHTML.from_document()
+
+    assert page |> LazyHTML.query("[data-role=user-message] strong") |> Enum.count() == 1
+    raw = page |> LazyHTML.query("[data-role=user-message-raw]") |> LazyHTML.text()
+    assert raw == "Keep **these** stars"
   end
 
   # The page renders a Codex reply through the shared `markdown_body/1` markup (ADR 003, Decision 2), so the
@@ -389,7 +422,7 @@ defmodule BnestAppWeb.ChatLiveTest do
       |> LazyHTML.attribute("id")
       |> hd()
 
-    view |> element("[data-role=clear-chat]") |> render_click()
+    view |> element("[data-role=clear-chat-yes]") |> render_click()
     submit_visitor_message(view, "Second question")
 
     send(

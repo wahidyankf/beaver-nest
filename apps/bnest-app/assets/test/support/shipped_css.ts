@@ -209,6 +209,9 @@ function featureMatches(feature: string, env: Environment): boolean {
   if (name === "min-height") return env.height >= px(value);
   if (name === "pointer")
     return value === "coarse" ? env.coarse : value === "fine" && !env.coarse;
+  // A touch pointer cannot hover; a fine pointer can.
+  if (name === "hover")
+    return value === "hover" ? !env.coarse : value === "none" && env.coarse;
   if (name === "prefers-reduced-motion") return value === "no-preference";
   return false;
 }
@@ -225,7 +228,11 @@ export function mediaMatches(query: string, env: Environment): boolean {
   );
 }
 
-/** The declarations a browser applies to `selector` in this environment; a later rule overrides an earlier one. */
+/**
+ * The declarations a browser applies to `selector` in this environment; a later rule overrides an earlier one.
+ * An `overflow` shorthand also sets `overflow-x` and `overflow-y`, so a later shorthand overrides a longhand that an
+ * earlier rule set on one axis, as the browser does.
+ */
 export function declarationsFor(
   selector: string,
   env: Environment,
@@ -234,7 +241,16 @@ export function declarationsFor(
   for (const rule of allRules()) {
     if (!rule.selectors.includes(selector)) continue;
     if (rule.media !== null && !mediaMatches(rule.media, env)) continue;
-    Object.assign(declared, rule.declarations);
+    for (const [property, value] of Object.entries(rule.declarations)) {
+      if (property !== "overflow") {
+        declared[property] = value;
+        continue;
+      }
+      const [x = "visible", y = x] = value.split(/\s+/u);
+      declared["overflow"] = value;
+      declared["overflow-x"] = x;
+      declared["overflow-y"] = y;
+    }
   }
   return declared;
 }
@@ -246,6 +262,8 @@ export function declarationsFor(
  */
 export function lengthPx(value: string, env: Environment): number {
   const trimmed = value.trim();
+  // A safe-area inset is the value a device without that inset reports: 0. The rendered page is measured in e2e.
+  if (/^env\(/u.test(trimmed)) return 0;
   const fn = /^(min|max)\((.*)\)$/u.exec(trimmed);
   if (fn) {
     const parts = (fn[2] ?? "").split(",").map((part) => lengthPx(part, env));
@@ -299,6 +317,20 @@ export function contrastRatio(first: string, second: string): number {
 }
 
 /** A declared colour value, after its tokens are resolved, as `#rrggbb`. */
+/**
+ * The four corner radii of a resolved `border-radius` value, in top-left, top-right, bottom-right, bottom-left order.
+ * It follows the box shorthand rules: one value for all corners, two for the diagonal pairs, three for top-left,
+ * top-right and bottom-right (bottom-left copies top-right), and four for each corner in turn.
+ */
+export function cornerRadii(
+  shorthand: string,
+): [string, string, string, string] {
+  const [top = "", right = top, bottom = top, left = right] = shorthand
+    .trim()
+    .split(/\s+/u);
+  return [top, right, bottom, left];
+}
+
 export function hexOf(value: string): string {
   return resolveVars(value).trim();
 }

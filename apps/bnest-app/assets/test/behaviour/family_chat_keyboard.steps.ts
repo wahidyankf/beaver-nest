@@ -16,6 +16,8 @@ import {
   activePage,
   declareScrollRegion,
   declareTallRow,
+  HISTORY_HEIGHT_PX,
+  heightOfText,
   isRendered,
   messageRows,
   otherMember,
@@ -192,7 +194,17 @@ step(
       post({ body: `Note ${index}`, sender: otherMember("Ayah") });
     }
     declareTallRow(TALL_MARKER, TALL_ROW_PX);
-    post({ body: `Tall note ${TALL_MARKER}`, sender: otherMember("Ayah") });
+    const tall = post({
+      body: `Tall note ${TALL_MARKER}`,
+      sender: otherMember("Ayah"),
+    });
+    // The layout's own lookup must give this message's stored text a height taller than the window. If the marker
+    // is missing from the text, the lookup falls back to the ordinary row and this fails.
+    const height = heightOfText(tall.body);
+    expect(
+      height > HISTORY_HEIGHT_PX,
+      `the tall message is ${height} px, not taller than the ${HISTORY_HEIGHT_PX} px window`,
+    );
   },
 );
 
@@ -452,6 +464,21 @@ step("the focused message is the newest message", () => {
   expect(
     newest !== undefined && focusedElement(page) === newest,
     `keyboard focus is not on the newest of ${rows.length} messages`,
+  );
+});
+
+step("the focused message is not the newest message", () => {
+  // Proves the arrow presses moved focus away from the newest message, so a later End press is what brings it back.
+  const page = activePage();
+  const rows = messageRows(page);
+  const newest = rows[rows.length - 1];
+  const focused = focusedElement(page);
+  expect(
+    newest !== undefined &&
+      rows.length > 1 &&
+      focused !== newest &&
+      rows.includes(focused as HTMLElement),
+    `keyboard focus is on the newest of ${rows.length} messages, or on no message`,
   );
 });
 

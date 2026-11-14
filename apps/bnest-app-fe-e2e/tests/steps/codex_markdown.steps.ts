@@ -135,45 +135,6 @@ Then(
   },
 );
 
-When(
-  "the visitor sends the two-line message {string} and {string}",
-  async ({ page }, first: string, second: string) => {
-    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-    await page.getByLabel("Message").fill(`${first}\n${second}`);
-    await page.getByRole("button", { name: "Send" }).click();
-  },
-);
-
-Then(
-  "the conversation displays the two-line visitor message {string} and {string}",
-  async ({ page }, first: string, second: string) => {
-    const message = page.locator("[data-role=user-message]", {
-      hasText: first,
-    });
-
-    await expect(message).toBeVisible();
-    await expect
-      .poll(() => message.evaluate((element) => element.textContent ?? ""))
-      .toBe(`${first}\n${second}`);
-  },
-);
-
-Then(
-  "the visitor message keeps its line break between {string} and {string}",
-  async ({ page }, first: string, second: string) => {
-    const message = page.locator("[data-role=user-message]", {
-      hasText: first,
-    });
-
-    // The element's text is the typed message and nothing the template adds, and the browser keeps the typed
-    // line break, so the visitor reads the message as typed.
-    await expect(message).toHaveCSS("white-space", "pre-wrap");
-    await expect
-      .poll(() => message.evaluate((element) => element.textContent ?? ""))
-      .toBe(`${first}\n${second}`);
-  },
-);
-
 Then(
   "the latest Codex reply shows two checked and two unchecked task checkboxes",
   async ({ page }) => {
@@ -183,17 +144,6 @@ Then(
     await expect(
       latestReply(page).locator("input[type=checkbox]:not(:checked)"),
     ).toHaveCount(2);
-  },
-);
-
-Then(
-  "the visitor message {string} shows no formatting",
-  async ({ page }, message: string) => {
-    await expect(
-      page
-        .locator("[data-role=user-message]", { hasText: message })
-        .locator("*"),
-    ).toHaveCount(0);
   },
 );
 

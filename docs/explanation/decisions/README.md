@@ -25,3 +25,7 @@ accepted record changes.
   `diagrams.css`. Of the Decision 6 style tasks, 1 and 2 are built; 3 (shared sizing tokens) and 4 (container-based
   width) are recorded as not built follow-ups, and 7 (reduced motion) is not needed. Extends 003. Ships with 002 and 003
   as one release.
+- [005. Chat input keys, Clear chat confirmation, one light theme, and own-message Markdown](005-chat-input-keys-clear-confirmation-and-one-light-theme.md)
+  (Accepted) makes the visitor's pointer decide the keys in both chat rooms (a fine pointer: Enter sends; a touch pointer: Enter starts a new line), asks before Clear chat deletes, removes
+  the dark theme and its controls (the stored preference stays as inert storage), renders the visitor's own Codex messages
+  as Markdown with a raw view, and sets the phone layout budgets. Partly supersedes Decision 8 items 5 to 7 of 004.

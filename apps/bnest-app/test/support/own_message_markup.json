@@ -1,0 +1,14 @@
+{
+  "hostile": {
+    "input": "Hi <script>alert(\"x\")</script>\n\n[click](javascript:alert(1)) and [ok](mailto:test-user-visitor@example.invalid)",
+    "markup": "<div phx-r class=\"own-message\" data-role=\"own-message\" data-view=\"rendered\">\n  <div phx-r class=\"message-content markdown-body own-rendered\" id=\"visitor-message-fixture\" data-role=\"user-message\"><p>Hi &lt;script&gt;alert(\"x\")&lt;/script&gt;</p>\n<p>click and <a href=\"mailto:test-user-visitor@example.invalid\" rel=\"noopener noreferrer nofollow\" target=\"_blank\">ok</a></p></div>\n  \n  <p class=\"message-content whitespace-pre-wrap own-raw\" data-role=\"user-message-raw\">Hi &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;\n\n[click](javascript:alert(1)) and [ok](mailto:test-user-visitor@example.invalid)</p>\n  <button type=\"button\" class=\"own-raw-toggle\" data-role=\"raw-toggle\" aria-controls=\"visitor-message-fixture\">\n    <span class=\"own-raw-show\">Show raw</span>\n    <span class=\"own-raw-hide\">Show rendered</span>\n  </button>\n</div>"
+  },
+  "plain": {
+    "input": "**Bold** and `code`",
+    "markup": "<div phx-r class=\"own-message\" data-role=\"own-message\" data-view=\"rendered\">\n  <div phx-r class=\"message-content markdown-body own-rendered\" id=\"visitor-message-fixture\" data-role=\"user-message\"><p><strong>Bold</strong> and <code>code</code></p></div>\n  \n  <p class=\"message-content whitespace-pre-wrap own-raw\" data-role=\"user-message-raw\">**Bold** and `code`</p>\n  <button type=\"button\" class=\"own-raw-toggle\" data-role=\"raw-toggle\" aria-controls=\"visitor-message-fixture\">\n    <span class=\"own-raw-show\">Show raw</span>\n    <span class=\"own-raw-hide\">Show rendered</span>\n  </button>\n</div>"
+  },
+  "whitespace": {
+    "input": "first  line\n\n  indented **line**",
+    "markup": "<div phx-r class=\"own-message\" data-role=\"own-message\" data-view=\"rendered\">\n  <div phx-r class=\"message-content markdown-body own-rendered\" id=\"visitor-message-fixture\" data-role=\"user-message\"><p>first  line</p>\n<p>indented <strong>line</strong></p></div>\n  \n  <p class=\"message-content whitespace-pre-wrap own-raw\" data-role=\"user-message-raw\">first  line\n\n  indented **line**</p>\n  <button type=\"button\" class=\"own-raw-toggle\" data-role=\"raw-toggle\" aria-controls=\"visitor-message-fixture\">\n    <span class=\"own-raw-show\">Show raw</span>\n    <span class=\"own-raw-hide\">Show rendered</span>\n  </button>\n</div>"
+  }
+}

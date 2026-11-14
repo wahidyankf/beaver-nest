@@ -15,6 +15,12 @@ import {
 } from "../../js/family_chat/page_source.js";
 import { STATUS } from "../../js/family_chat/outbox.js";
 import {
+  assertHintTakesNoRow,
+  FAMILY_TEMPLATE,
+  hintAsSeen,
+  hintEnvironment,
+} from "./support/send_hint";
+import {
   AUTHENTICATED_MARKER,
   loadServiceWorker,
 } from "../support/service_worker";
@@ -66,7 +72,7 @@ import {
   watchPendingRows,
   type Member,
 } from "./support/browser_room";
-import { recall, remember } from "./support/scenario_memory";
+import { recall, recallOr, remember } from "./support/scenario_memory";
 
 export type StepContext = Record<string, unknown>;
 
@@ -1117,36 +1123,137 @@ step("the composer is empty and ready for the next message", () => {
   expect(!input.disabled && !send.disabled, "the composer is disabled");
 });
 
-step("the visitor submits {string} with the Enter key", async (body) => {
-  const queued = watchPendingRows();
-  typeText(body);
-  await pressKey("Enter");
-  await waitFor(() => queued.length > 0, "Enter to queue the message");
-  remember("clientMessageId", queued[0]);
+// The Enter rule follows the visitor's pointer (ADR 005, decision 1, revised 2026-11-13): on a touch pointer Enter makes
+// a new line and Shift+Enter sends; on a fine pointer Enter sends and Shift+Enter makes a new line.
+function keyOf(name: string): { key: string; shiftKey: boolean } {
+  const shiftKey = name.startsWith("Shift+");
+  return { key: shiftKey ? name.slice("Shift+".length) : name, shiftKey };
+}
+
+step(
+  "the visitor types {string} and presses {string} in the family composer",
+  async (body, name) => {
+    const queued = watchPendingRows();
+    remember("familyQueued", queued);
+    remember("familyDraft", body);
+    typeText(body);
+    const { key, shiftKey } = keyOf(name);
+    await pressKey(key, { shiftKey });
+    await settle();
+  },
+);
+
+step("the family room sends {int} messages", (count) => {
+  const queued = recall<string[]>("familyQueued");
+  expect(
+    queued.length === Number(count),
+    `the room queued ${queued.length} messages, not ${count}`,
+  );
+});
+
+step("nothing is sent yet", async () => {
+  await settle();
+  // The watcher started before the press saw every row a send would add. A send shows at once as a row that is not
+  // committed yet, so an empty watch means nothing was sent.
+  const queued = recall<string[]>("familyQueued");
+  expect(queued.length === 0, `${queued.length} messages were sent`);
+  const attempts = server().sendAttempts.length;
+  expect(
+    attempts === recallOr("familySendAttemptsBefore", 0),
+    `${attempts} send attempts reached the server`,
+  );
+});
+
+step("the family composer shows {string}", (shown) => {
+  const value = activePage().elements.input.value;
+  if (shown === "an empty box") {
+    expect(value === "", `the box holds ${JSON.stringify(value)}`);
+    return;
+  }
+  if (shown === "a new line after its draft") {
+    // The expected text is the draft the visitor typed in this scenario, not a fixed word.
+    const draft = recall<string>("familyDraft");
+    expect(value === `${draft}\n`, `the box holds ${JSON.stringify(value)}`);
+    return;
+  }
+  throw new Error(`unknown box state ${shown}`);
+});
+
+step("the send shortcut hint reads {string}", (text) => {
+  // The wording the visitor sees: the production room template's spans, shown or hidden by the shipped stylesheet.
+  const shown = hintAsSeen(
+    FAMILY_TEMPLATE,
+    hintEnvironment(
+      recallOr<{ viewport: { width: number; height: number } } | null>(
+        "familyLaidOut",
+        null,
+      ),
+      recallOr("familyCoarse", false),
+    ),
+  );
+  expect(
+    shown.length === 1 && shown[0] === text,
+    `the hint a visitor sees is ${JSON.stringify(shown)}, not ${JSON.stringify([text])}`,
+  );
+});
+
+step("the send shortcut hint takes no row", () => {
+  assertHintTakesNoRow(
+    ".family-chat-composer-hint",
+    hintEnvironment(
+      recallOr<{ viewport: { width: number; height: number } } | null>(
+        "familyLaidOut",
+        null,
+      ),
+      recallOr("familyCoarse", false),
+    ),
+  );
+});
+
+step("the visitor presses Shift+Enter with an empty draft", async () => {
+  expect(activePage().elements.input.value === "", "the draft is not empty");
+  // Watch from before the press, so "nothing is sent yet" checks the presses of this scenario and not an earlier moment.
+  remember("familyQueued", watchPendingRows());
+  remember("familySendAttemptsBefore", server().sendAttempts.length);
+  await pressKey("Enter", { shiftKey: true });
   await settle();
 });
 
 step(
-  "the visitor presses Shift and Enter while writing {string}",
-  async (text) => {
-    typeText(text);
-    await pressKey("Enter", { shiftKey: true });
+  "the visitor confirms a composition with Enter in the family composer",
+  async () => {
+    // An IME confirms its text with Enter during a composition; the browser inserts no newline for that key.
+    remember("familyQueued", watchPendingRows());
+    remember("familySendAttemptsBefore", server().sendAttempts.length);
+    await pressKey("Enter", { isComposing: true });
     await settle();
-    remember("draftText", text);
   },
 );
 
-step("the composer holds an unsent multi-line draft", () => {
-  const text = recall<string>("draftText");
-  const value = activePage().elements.input.value;
+step(
+  "the visitor confirms a composition with keyCode 229 in the family composer",
+  async () => {
+    // Safari reports the same composition Enter with keyCode 229 and isComposing false; the room must not send on it.
+    remember("familyQueued", watchPendingRows());
+    remember("familySendAttemptsBefore", server().sendAttempts.length);
+    await pressKey("Enter", { keyCode: 229 });
+    await settle();
+  },
+);
+
+step("the visitor holds Enter in the family composer", async () => {
+  // A held key sends on its first keydown and repeats after it. Each repeat stops the newline and sends nothing more.
+  remember("familyQueued", watchPendingRows());
+  await pressKey("Enter");
+  await pressKey("Enter", { repeat: true });
+  await settle();
+});
+
+step("the composer holds the draft {string}", (text) => {
   expect(
-    value.startsWith(text) && value.split("\n").length >= 2,
-    `the input holds ${JSON.stringify(value)}`,
+    activePage().elements.input.value === text,
+    `the draft is ${JSON.stringify(activePage().elements.input.value)}`,
   );
-  const sent = server().sendAttempts.some((attempt) =>
-    attempt.body.includes(text),
-  );
-  expect(!sent, "Shift+Enter sent the draft");
 });
 
 step(

@@ -24,6 +24,8 @@ export default defineConfig({
         "js/family_chat.js",
         "js/family_chat/**/*.js",
         "js/diagrams/**/*.js",
+        "js/chat_keys.js",
+        "js/chat_controls.js",
       ],
       reporter: ["text", "json-summary"],
     },

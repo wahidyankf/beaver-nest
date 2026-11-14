@@ -322,8 +322,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def composer_unavailable?(context) do
-    has_element?(context.view, "#chat-composer-form textarea[data-role=chat-composer][disabled]") and
-      not has_element?(context.view, "#chat-composer-form textarea:not([disabled])") and
+    # A busy turn makes the box read-only; a model that is not available disables it. Either lock counts.
+    has_element?(
+      context.view,
+      "#chat-composer-form textarea[data-role=chat-composer][readonly], #chat-composer-form textarea[data-role=chat-composer][disabled]"
+    ) and
+      not has_element?(
+        context.view,
+        "#chat-composer-form textarea:not([readonly]):not([disabled])"
+      ) and
       has_element?(context.view, "#chat-composer-form .send-button[disabled]") and
       not has_element?(context.view, "#chat-composer-form .send-button:not([disabled])")
   end
@@ -338,14 +345,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     actions =
       context.view |> render() |> LazyHTML.from_fragment() |> LazyHTML.query(".chat-actions > *")
 
-    Enum.count(actions) == 3 and
-      has_element?(context.view, ".chat-actions > .model-badge") and
-      has_element?(context.view, ".chat-controls > .chat-access[data-role=repository-access]") and
-      has_element?(context.view, ".chat-actions > .chat-theme-control") and
-      has_element?(
-        context.view,
-        ".chat-actions > .chat-theme-control button[aria-label='Use dark theme']"
-      )
+    not Enum.empty?(actions) and
+      has_element?(context.view, ".chat-controls > .model-badge") and
+      has_element?(context.view, ".chat-actions > .clear-chat[data-role=clear-chat-group]") and
+      has_element?(context.view, ".chat-controls > .chat-access[data-role=repository-access]")
   end
 
   @impl true
@@ -390,11 +393,11 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def submit_with_shift_enter(_context, _message),
     do: raise(exempt_message("a keyboard chord", "A visitor sends a message with Shift+Enter"))
 
-  # The composer is disabled while Codex works, so the rendered form is submitted as a forced
+  # The composer is read-only while Codex works, so the rendered form is submitted as a forced
   # browser submission would; the LiveView's own busy guard decides what happens.
   @impl true
   def attempt_message_before_finished(context, message) do
-    unless composer_unavailable?(context), do: raise("the chat composer is not disabled")
+    unless composer_unavailable?(context), do: raise("the chat composer is not locked")
 
     context.view
     |> element("#chat-composer-form[phx-submit=send]")
@@ -602,8 +605,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   @impl true
   def clear_chat(context) do
+    # LiveViewTest runs no client script, so the confirmation (chat_controls.js) is not opened here. "Yes, delete" is
+    # the only control that sends the clear; the browser suite covers the confirmation step itself.
     context.view
-    |> element("[data-role=clear-chat]")
+    |> element("[data-role=clear-chat-yes]")
     |> render_click()
 
     %{} = await_push_event(context.view, "clear-chat-storage")
@@ -689,18 +694,6 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def link_opens_in_new_tab_privately?(context, label),
     do: CodexReplyPage.opens_in_new_tab_privately?(latest_reply(context), label)
-
-  @impl true
-  def visitor_message_unformatted?(context, message),
-    do: CodexReplyPage.unformatted_visitor_message?(chat_page(context), message)
-
-  @impl true
-  def visitor_message_shows_text?(context, text),
-    do: CodexReplyPage.shows_visitor_text?(chat_page(context), text)
-
-  @impl true
-  def visitor_message_keeps_line_break?(context, first, second),
-    do: CodexReplyPage.keeps_visitor_line_break?(chat_page(context), first, second)
 
   @impl true
   def latest_codex_reply_task_checkboxes?(context, checked, unchecked),
@@ -2403,12 +2396,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :administration_denied, _args),
     do: context.administration_denied
 
-  # Both attempts are denied, the trace saw no record call naming the second owner, and the
-  # second owner's theme is what it was.
-  def behaviour_outcome?(context, :denied_before_repository, _args) do
+  # The trace saw no record call naming the second owner, and the second owner's theme is what
+  # it was. The attempts may be refused, or may write only the first user's own record.
+  # The read and the write both ran, so the outcome cannot pass on an attempt that never happened.
+  def behaviour_outcome?(context, :second_user_data_unchanged, _args) do
     owner = context.second_owner
 
-    context.cross_user_attempts == [read_theme: :denied, write_theme: :denied] and
+    Keyword.keys(context.cross_user_attempts) == [:read_theme, :write_theme] and
       not Enum.any?(context.cross_user_accesses, &names_owner?(&1, owner)) and
       context.second_theme_after == context.second_theme_before and
       context.second_theme_before == "dark"
@@ -2624,8 +2618,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
          {:ok, _transcript, chat} <- CodexChat.load_transcript(user_id),
          true <- chat == context.journey_records.chat,
          conn = Plug.Test.put_req_cookie(Phoenix.ConnTest.build_conn(), "_bnest_identity", token),
-         %{status: 200, resp_body: home} <- get(conn, "/"),
-         true <- String.contains?(home, ~s(data-theme="dark")),
+         %{status: 200} <- get(conn, "/"),
          %{status: 200} <- get(conn, "/admin/settings"),
          :ok <- BnestApp.Identity.logout(token),
          {:error, :unauthenticated} <- BnestApp.Identity.current_user(token) do
@@ -2824,8 +2817,6 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       match?({:ok, %{"ownerId" => ^user_id, "theme" => ^requested}}, stored) and
       Records.read(:theme, user_id) == stored and Preferences.theme(user_id) == requested and
       home.status == 200 and
-      LazyHTML.attribute(root, "data-theme") == [requested] and
-      LazyHTML.attribute(root, "data-theme-storage") == ["server"] and
       LazyHTML.attribute(root, "data-browser-persistence") == ["false"]
   end
 

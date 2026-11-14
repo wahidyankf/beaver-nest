@@ -75,6 +75,7 @@ Feature: Beaver Nest chat
   @integration-exempt
   Scenario: A visitor sends a message with Shift+Enter
     Given a visitor opens "/chat"
+    And the visitor's pointer is a touch pointer
     When the visitor submits "Keyboard message" with Shift+Enter
     Then the conversation displays the visitor message "Keyboard message"
     And the message composer is unavailable
@@ -331,13 +332,6 @@ Feature: Beaver Nest chat
     Then the latest Codex reply links "Beaver Nest docs" to "https://example.com/docs"
     And the link "Beaver Nest docs" in the latest Codex reply opens in a new tab without sharing the page
 
-  Scenario: A visitor message is shown as typed and is not formatted
-    Given a visitor opens "/chat"
-    When the visitor sends the two-line message "Keep **these** stars" and "and this line"
-    Then the conversation displays the two-line visitor message "Keep **these** stars" and "and this line"
-    And the visitor message "Keep **these** stars" shows no formatting
-    And the visitor message keeps its line break between "Keep **these** stars" and "and this line"
-
   # Exemption(integration): rendered layout is not observable without a browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / Codex reply tables, task lists, links and images keep their layout
   @integration-exempt @remote-image
   Scenario: Codex reply tables, task lists, links and images keep their layout
@@ -498,6 +492,475 @@ Feature: Beaver Nest chat
     Then the picture is labelled "Flowchart"
     And the largest allowed flowchart is drawn within the draw time limit
 
+  Rule: Codex message box keys follow the visitor's pointer, never the screen size
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): Enter and Shift+Enter are physical key chords the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter and Shift+Enter follow a fine pointer, not the screen size
+  @integration-exempt
+  Scenario Outline: Enter and Shift+Enter follow a fine pointer, not the screen size
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a fine pointer
+    And the Codex message box holds "Keyboard send"
+    When the visitor presses "<key>" in the Codex message box
+    Then Codex receives <sends> message sends
+    And the message box shows "<box>"
+
+    Examples:
+      | viewport         | key         | sends | box                        |
+      | desktop 1440x900 | Enter       | 1     | an empty box               |
+      | desktop 1440x900 | Shift+Enter | 0     | a new line after its draft |
+      | narrow 320x568   | Enter       | 1     | an empty box               |
+      | narrow 320x568   | Shift+Enter | 0     | a new line after its draft |
+
+  @fe-vitest-unit
+  # Exemption(integration): Enter and Shift+Enter are physical key chords the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter and Shift+Enter follow a touch pointer, not the screen size
+  @integration-exempt
+  Scenario Outline: Enter and Shift+Enter follow a touch pointer, not the screen size
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    And the Codex message box holds "Keyboard send"
+    When the visitor presses "<key>" in the Codex message box
+    Then Codex receives <sends> message sends
+    And the message box shows "<box>"
+
+    Examples:
+      | viewport        | key         | sends | box                        |
+      | mobile 390x844  | Enter       | 0     | a new line after its draft |
+      | mobile 390x844  | Shift+Enter | 1     | an empty box               |
+      | tablet 1024x768 | Enter       | 0     | a new line after its draft |
+      | tablet 1024x768 | Shift+Enter | 1     | an empty box               |
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): Enter and Shift+Enter are physical key chords the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / A filled Codex draft with a fine pointer is sent once, and a blank or busy draft is never sent
+  @integration-exempt
+  Scenario Outline: A filled Codex draft with a fine pointer is sent once, and a blank or busy draft is never sent
+    Given the Codex message box has keyboard focus
+    And the visitor's pointer is a fine pointer
+    And the Codex message box holds "<draft>"
+    And Codex is "<state>"
+    When the visitor presses "Enter" in the Codex message box
+    Then Codex receives <sends> message sends
+
+    Examples:
+      | draft         | state    | sends |
+      | Keyboard send | idle     | 1     |
+      |               | idle     | 0     |
+      | Keyboard send | replying | 0     |
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): where keyboard focus sits while Codex replies and after the reply lands is browser focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Keyboard focus stays in the Codex message box after a reply
+  @integration-exempt
+  Scenario: Keyboard focus stays in the Codex message box after a reply
+    Given the Codex message box has keyboard focus
+    And the visitor's pointer is a fine pointer
+    And the Codex message box holds "Keyboard send"
+    When the visitor presses "Enter" in the Codex message box
+    Then Codex receives 1 message sends
+    And Codex finishes the reply
+    And keyboard focus is in the Codex message box
+
+  @fe-vitest-unit
+  # Exemption(integration): where keyboard focus sits after a pointer press on the Send button is browser focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Pressing Send keeps keyboard focus in the Codex message box
+  @integration-exempt
+  Scenario: Pressing Send with a touch pointer keeps keyboard focus in the Codex message box
+    Given the Codex message box has keyboard focus
+    And the visitor's pointer is a touch pointer
+    And the Codex message box holds "Keyboard send"
+    When the visitor presses Send with a pointer
+    Then Codex receives 1 message sends
+    And Codex finishes the reply
+    And keyboard focus is in the Codex message box
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): where keyboard focus sits after a pointer press on the Send button is browser focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Pressing Send keeps keyboard focus in the Codex message box
+  @integration-exempt
+  Scenario: Pressing Send with a fine pointer keeps keyboard focus in the Codex message box
+    Given the Codex message box has keyboard focus
+    And the visitor's pointer is a fine pointer
+    And the Codex message box holds "Keyboard send"
+    When the visitor presses Send with a pointer
+    Then Codex receives 1 message sends
+    And Codex finishes the reply
+    And keyboard focus is in the Codex message box
+
+  @fe-vitest-unit
+  # Exemption(e2e): the box is read-only before a browser test can type into it, so the moments between Send and the read-only state cannot be held open deterministically; alternative-proof: bnest-app:test:unit:fe / Text typed straight after Send stays in the Codex message box
+  @e2e-exempt
+  # Exemption(integration): the text a visitor types while a send is still on its way is browser input state the server never renders; alternative-proof: bnest-app:test:unit:fe / Text typed straight after Send stays in the Codex message box
+  @integration-exempt
+  Scenario: Text typed straight after Send stays in the Codex message box
+    Given the Codex message box has keyboard focus
+    And the visitor's pointer is a touch pointer
+    And the Codex message box holds "Keyboard send"
+    When the visitor presses Send with a pointer
+    And the visitor types " and more" in the Codex message box before the reply lands
+    And Codex finishes the reply
+    Then the Codex message box keeps " and more"
+
+  @fe-vitest-unit
+  # Exemption(integration): Enter and Shift+Enter are physical key chords the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / A filled Codex draft with a touch pointer is sent once, and a blank or busy draft is never sent
+  @integration-exempt
+  Scenario Outline: A filled Codex draft with a touch pointer is sent once, and a blank or busy draft is never sent
+    Given the Codex message box has keyboard focus
+    And the visitor's pointer is a touch pointer
+    And the Codex message box holds "<draft>"
+    And Codex is "<state>"
+    When the visitor presses "Shift+Enter" in the Codex message box
+    Then Codex receives <sends> message sends
+
+    Examples:
+      | draft         | state    | sends |
+      | Keyboard send | idle     | 1     |
+      |               | idle     | 0     |
+      | Keyboard send | replying | 0     |
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): Enter is a physical key chord the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / A whitespace-only Codex draft is never sent
+  @integration-exempt
+  Scenario: A whitespace-only Codex draft is never sent
+    Given the Codex message box has keyboard focus
+    And the visitor's pointer is a fine pointer
+    And the Codex message box holds "   "
+    And Codex is "idle"
+    When the visitor presses "Enter" in the Codex message box
+    Then Codex receives 0 message sends
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): Enter and Shift+Enter are physical key chords the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / A confirmed composition with a fine pointer never sends in the Codex message box
+  @integration-exempt
+  Scenario Outline: A confirmed composition with a fine pointer never sends in the Codex message box
+    Given the Codex message box has keyboard focus
+    And the visitor's pointer is a fine pointer
+    And the Codex message box holds "Compose"
+    When the visitor confirms a composition with "<key>" in the Codex message box
+    Then nothing is sent to Codex
+
+    Examples:
+      | key         |
+      | Enter       |
+      | Shift+Enter |
+
+  @fe-vitest-unit
+  # Exemption(integration): Enter and Shift+Enter are physical key chords the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / A confirmed composition with a touch pointer never sends in the Codex message box
+  @integration-exempt
+  Scenario Outline: A confirmed composition with a touch pointer never sends in the Codex message box
+    Given the Codex message box has keyboard focus
+    And the visitor's pointer is a touch pointer
+    And the Codex message box holds "Compose"
+    When the visitor confirms a composition with "<key>" in the Codex message box
+    Then nothing is sent to Codex
+
+    Examples:
+      | key         |
+      | Enter       |
+      | Shift+Enter |
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): the hint's visibility is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex send shortcut hint follows a fine pointer
+  @integration-exempt
+  Scenario Outline: The Codex send shortcut hint follows a fine pointer
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a fine pointer
+    When the page is laid out
+    Then the send shortcut hint reads "Enter to send, Shift+Enter for a new line"
+    And the send shortcut hint has at least 4.5 to 1 contrast with the composer
+
+    Examples:
+      | viewport         |
+      | desktop 1440x900 |
+      | narrow 320x568   |
+
+  @fe-vitest-unit
+  # Exemption(integration): the hint's visibility is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex send shortcut hint follows a touch pointer
+  @integration-exempt
+  Scenario Outline: The Codex send shortcut hint follows a touch pointer
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the page is laid out
+    Then the send shortcut hint reads "Shift+Enter to send"
+    And the send shortcut hint takes no row
+
+    Examples:
+      | viewport        |
+      | mobile 390x844  |
+      | tablet 1024x768 |
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): a pointer change is a browser media state Phoenix.LiveViewTest never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message box follows a pointer change while the page is open
+  @integration-exempt
+  Scenario: The Codex message box follows a pointer change while the page is open
+    Given the Codex chat page is open at "tablet 1024x768"
+    And the visitor's pointer is a fine pointer
+    And the Codex message box holds "Keyboard send"
+    When the visitor connects a touch pointer
+    And the visitor presses "Shift+Enter" in the Codex message box
+    Then Codex receives 1 message sends
+    And the send shortcut hint reads "Shift+Enter to send"
+
+  Rule: Codex message box and Send button look and line up as one composer
+
+  @fe-vitest-unit
+  # Exemption(integration): the rendered edges of the box and the Send button are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Send button lines up with the message box
+  @integration-exempt
+  Scenario Outline: The Send button lines up with the message box
+    Given the Codex chat page is open at "<viewport>"
+    When the page is laid out
+    Then the Send button's top and bottom edges are within 1 pixel of the message box's
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | mobile 390x844    |
+      | landscape 844x390 |
+      | desktop 1440x900  |
+
+  @fe-vitest-unit
+  # Exemption(integration): the resize handle and the placeholder colour are painted by the browser from the stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message box has no resize handle
+  @integration-exempt
+  Scenario: The Codex message box has no resize handle
+    Given the Codex chat page is open at "mobile 390x844"
+    When the page is laid out
+    Then the Codex message box has no resize handle
+
+  @fe-vitest-unit
+  # Exemption(integration): the placeholder colour is painted by the browser from the stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message box placeholder meets the contrast target
+  @integration-exempt
+  Scenario: The Codex message box placeholder meets the contrast target
+    Given the Codex chat page is open at "mobile 390x844"
+    When the page is laid out
+    Then the Codex message box placeholder has at least 4.5 to 1 contrast with the box
+
+  @fe-vitest-unit
+  # Exemption(integration): the colours of the two Send buttons are painted by the browser from the stylesheets, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex Send button and the Family Chat Send button share one colour
+  @integration-exempt
+  Scenario: The Codex Send button and the Family Chat Send button share one colour
+    Given the Codex chat page is open at "mobile 390x844"
+    When the page is laid out
+    Then the Codex Send button has the same background as the Family Chat Send button
+    And the Codex Send button text meets the contrast target
+
+  @fe-vitest-unit
+  # Exemption(integration): the corner radii are painted by the browser from the stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex Send button has four equal round corners that match the Family Chat Send button
+  @integration-exempt
+  Scenario: The Codex Send button has four equal round corners that match the Family Chat Send button
+    Given the Codex chat page is open at "mobile 390x844"
+    When the page is laid out
+    Then the Codex Send button has four equal corner radii
+    And the Codex Send button has the same corner radius as the Family Chat Send button
+
+  Rule: Clear chat asks before it deletes
+
+  @fe-vitest-unit
+  # Exemption(integration): the confirmation's focus and visibility are browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / Clear chat asks for confirmation before it deletes the conversation
+  @integration-exempt
+  Scenario: Clear chat asks for confirmation before it deletes the conversation
+    Given the Codex conversation holds "First message"
+    When the visitor chooses Clear chat
+    Then the confirmation asks "Delete all messages?"
+    And the confirmation offers "Yes, delete" and "Cancel"
+    And the conversation still shows "First message"
+    And nothing is cleared yet
+
+  @fe-vitest-unit
+  # Exemption(integration): the confirmation's focus and visibility are browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / Cancel and Escape keep the conversation
+  @integration-exempt
+  Scenario Outline: Cancel and Escape keep the conversation
+    Given the Codex conversation holds "First message"
+    And the visitor has chosen Clear chat
+    When the visitor <action>
+    Then the confirmation is closed
+    And the conversation still shows "First message"
+    And nothing is cleared yet
+
+    Examples:
+      | action         |
+      | chooses Cancel |
+      | presses Escape |
+
+  @fe-vitest-unit
+  # Exemption(integration): the focus moved by the confirmation is browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / The confirmation takes focus and cancel returns focus to Clear chat
+  @integration-exempt
+  Scenario: The confirmation takes focus and cancel returns focus to Clear chat
+    Given the Codex conversation holds "First message"
+    When the visitor chooses Clear chat
+    Then keyboard focus is on the confirmation's Cancel button
+    When the visitor chooses Cancel
+    Then keyboard focus is on the Clear chat button
+
+  @fe-vitest-unit
+  # Exemption(integration): where keyboard focus moves is browser focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Tabbing out of the Clear chat confirmation closes it
+  @integration-exempt
+  Scenario: Tabbing out of the Clear chat confirmation closes it
+    Given the Codex conversation holds "First message"
+    And the visitor has chosen Clear chat
+    When the visitor tabs out of the confirmation
+    Then the confirmation is closed
+    And the conversation still shows "First message"
+    And nothing is cleared yet
+
+  @fe-vitest-unit
+  # Exemption(integration): the confirm control's effect is observed in the browser after the server accepts it; alternative-proof: bnest-app-fe-e2e:test:e2e / Confirming clears the conversation
+  @integration-exempt
+  Scenario: Confirming clears the conversation
+    Given the Codex conversation holds "First message"
+    When the visitor chooses Clear chat
+    And the visitor chooses Yes, delete
+    Then the clear request is sent to Codex
+    And keyboard focus is on the Clear chat button
+
+  @fe-vitest-unit
+  # Exemption(integration): the confirmation closes with the options panel, and a tap outside the panel is browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / A tap outside the options panel closes the Clear chat confirmation with it
+  @integration-exempt
+  Scenario: A tap outside the options panel closes the Clear chat confirmation with it
+    Given the Codex chat page is open at "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    And the Codex conversation holds "First message"
+    When the visitor opens the Codex options panel
+    And the visitor chooses Clear chat
+    And the visitor taps the message box
+    Then the Codex options panel is closed
+    And the confirmation is closed
+
+  @fe-vitest-unit
+  # Exemption(integration): where focus lands when the confirmation closes is browser focus state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / Escape with focus outside the confirmation closes it and leaves focus where it is
+  @integration-exempt
+  Scenario: Escape with focus outside the confirmation closes it and leaves focus where it is
+    Given the Codex conversation holds "First message"
+    And the visitor has chosen Clear chat
+    When the visitor moves focus to the message box
+    And the visitor presses Escape
+    Then the confirmation is closed
+    And keyboard focus is on the message box
+
+  @fe-vitest-unit
+  # Exemption(integration): the options panel's reopened state is browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / Reopening the options panel shows no stale Clear chat question
+  @integration-exempt
+  Scenario: Reopening the options panel shows no stale Clear chat question
+    Given the Codex chat page is open at "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    And the Codex conversation holds "First message"
+    When the visitor opens the Codex options panel
+    And the visitor chooses Clear chat
+    And the visitor taps the message box
+    And the visitor opens the Codex options panel
+    Then the confirmation is closed
+
+  @fe-vitest-unit
+  # Exemption(integration): the confirmation's size on a narrow screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Clear chat confirmation fits a narrow screen with 44 pixel targets
+  @integration-exempt
+  Scenario Outline: The Clear chat confirmation fits a narrow screen with 44 pixel targets
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    And the Codex conversation holds "First message"
+    When the visitor chooses Clear chat
+    And the page is laid out
+    Then the confirmation is on screen without scrolling the page
+    And each confirmation button is at least 44 pixels tall and across
+    And the confirmation is no wider than the screen
+
+    Examples:
+      | viewport       |
+      | narrow 320x568 |
+      | mobile 390x844 |
+
+  Rule: Own messages in the Codex chat
+
+  @fe-vitest-unit
+  # Exemption(integration): the Markdown of a visitor's message and its raw toggle are browser-rendered state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / A visitor's message renders Markdown and can show its raw text
+  @integration-exempt
+  Scenario: A visitor's message renders Markdown and can show its raw text
+    Given a visitor's message with Markdown is in the Codex conversation
+    When the page is laid out
+    Then the visitor's message shows its Markdown rendered
+    And the visitor's message has a "Show raw" control of at least 44 pixels
+    When the visitor chooses "Show raw" on the visitor's message
+    Then the visitor's message shows the exact typed text
+    And the control reads "Show rendered"
+    When the visitor chooses "Show rendered" on the visitor's message
+    Then the visitor's message shows its Markdown rendered
+
+  @fe-vitest-unit
+  # Exemption(integration): the colours the Show raw label and its focus ring take on the dark bubble are browser-computed; alternative-proof: bnest-app-fe-e2e:test:e2e / The Show raw control reads on the dark visitor bubble
+  @integration-exempt
+  Scenario: The Show raw control reads on the dark visitor bubble
+    Given a visitor's message with Markdown is in the Codex conversation
+    When the page is laid out
+    Then the Show raw label is at least 4.5 to 1 against the visitor's bubble
+    And the Show raw focus ring is at least 3 to 1 against the visitor's bubble
+
+  @fe-vitest-unit
+  # Exemption(integration): the raw text is shown as text in the browser, which Phoenix.LiveViewTest does not render; alternative-proof: bnest-app-fe-e2e:test:e2e / The raw view of a hostile visitor's message shows text, not HTML
+  @integration-exempt
+  Scenario: The raw view of a hostile visitor's message shows text, not HTML
+    Given a visitor's message with script and javascript link text is in the Codex conversation
+    When the page is laid out
+    And the visitor chooses "Show raw" on the visitor's message
+    Then the visitor's message shows the exact typed text
+    And the visitor's message contains no script element
+    And the visitor's message contains no javascript link
+
+  @fe-vitest-unit
+  # Exemption(integration): the typed whitespace is shown by the browser's text layout, which Phoenix.LiveViewTest does not compute; alternative-proof: bnest-app-fe-e2e:test:e2e / The raw view keeps the typed line breaks and spaces
+  @integration-exempt
+  Scenario: The raw view keeps the typed line breaks and spaces
+    Given a visitor's message with line breaks and indentation is in the Codex conversation
+    When the page is laid out
+    And the visitor chooses "Show raw" on the visitor's message
+    Then the visitor's message keeps the typed line breaks and spaces
+
+  Rule: Single light appearance
+
+  @fe-vitest-unit
+  # Exemption(integration): the colour a browser paints for a system dark preference is a rendered-page result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The home page and Codex chat keep one light appearance and have no theme control
+  @integration-exempt
+  Scenario Outline: The home page and Codex chat keep one light appearance and have no theme control
+    Given the visitor's system prefers a dark color scheme
+    When an approved admin opens "<path>"
+    Then the page has no color theme control
+    And the page background is light
+
+    Examples:
+      | path  |
+      | /     |
+      | /chat |
+
+  Rule: Codex chat conversation has most of a phone screen
+
+  @fe-vitest-unit
+  # Exemption(integration): the share of the screen a conversation takes is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex conversation has most of the screen with an empty draft
+  @integration-exempt
+  Scenario Outline: The Codex conversation has most of the screen with an empty draft
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the page is laid out
+    Then the conversation takes at least <share> percent of the screen with an empty draft
+
+    Examples:
+      | viewport          | share |
+      | narrow 320x568    | 60    |
+      | phone 360x640     | 64    |
+      | mobile 390x844    | 72    |
+      | landscape 844x390 | 52    |
+
+  @fe-vitest-unit
+  # Exemption(integration): the space above and below the conversation is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A typical Codex phone view shows the newest message above the composer
+  @integration-exempt
+  Scenario: A typical Codex phone view shows the newest message above the composer
+    Given the Codex chat page is open at "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    And a Codex conversation holds three short messages
+    When the page is laid out
+    Then the newest message is fully above the composer
+    And the header and the composer take at most 220 pixels outside the conversation
+
   Rule: Codex chat on touch and short screens
 
   @fe-vitest-unit
@@ -557,15 +1020,6 @@ Feature: Beaver Nest chat
     And a focused table and a focused code block show the coral focus ring
 
   @fe-vitest-unit
-  # Exemption(integration): the focus ring is painted by the browser from the stylesheet, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex theme buttons show the coral focus ring
-  @integration-exempt
-  Scenario: The Codex theme buttons show the coral focus ring
-    Given the Codex chat page is open at "desktop 1440x900"
-    When the page is laid out
-    And the visitor tabs to a Codex theme button
-    Then the focused Codex theme button shows the coral focus ring
-
-  @fe-vitest-unit
   # Exemption(integration): the focus ring of a diagram's source is painted by the browser from the stylesheet, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex diagram source shows the room's coral focus ring
   @integration-exempt
   Scenario: A Codex diagram source shows the room's coral focus ring
@@ -582,7 +1036,7 @@ Feature: Beaver Nest chat
     And a Codex reply answers "Show a wide table, a long code block and the logo"
     When the page is laid out
     Then the message composer is on screen without scrolling the page
-    And the Codex header is at most 30 percent of the screen height
+    And the Codex header keeps its controls on wrapping rows
 
   @fe-vitest-unit @remote-image
   # Exemption(integration): the overflow of a laid-out page is measured by a browser; the declared rules are read in vitest; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex reply does not overflow the phone width
@@ -594,30 +1048,109 @@ Feature: Beaver Nest chat
     Then the page does not overflow horizontally at 390 pixels
 
   @fe-vitest-unit
-  # Exemption(integration): the place of each header control in its row is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header keeps every control reachable on a landscape phone
+  # Exemption(integration): the rows, height and place of the header are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header is compact on a phone: at most two rows, at most 110 pixels, the brand link is not covered, access state and model badge are visible without Options
   @integration-exempt
-  Scenario: The Codex header keeps every control reachable on a landscape phone
-    Given the Codex chat page is open at "landscape 844x390"
-    When the page is laid out
-    Then the header controls start inside the header
-    And the header row fades at its edge to show more controls
-    And the repository write toggle is one line tall
-
-  @fe-vitest-unit
-  # Exemption(integration): the place of each header control in its row is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header keeps every control reachable on a narrow phone
-  @integration-exempt
-  Scenario Outline: The Codex header keeps every control reachable on a narrow phone
+  Scenario Outline: The Codex header is compact on a phone: at most two rows, at most 110 pixels, the brand link is not covered, access state and model badge are visible without Options
     Given the Codex chat page is open at "<viewport>"
     When the page is laid out
-    Then every header control is reachable by scrolling the header
-    And the header row fades at its edge to show more controls
-    And the conversation is at least 40 percent of the screen height
+    Then the Codex header has at most two rows
+    And the Codex header is at most 110 pixels tall
+    And the header holds the brand, the repository access state and the options button
+    And the header's tab order follows the screen: brand, Options, access state, model badge
+    And the brand link is not covered by any header control
+    And the repository access state and the model badge are visible without opening Options
+    And the options button is at least 44 pixels across and tall
 
     Examples:
       | viewport          |
       | narrow 320x568    |
       | phone 360x640     |
       | mobile 390x844    |
+      | landscape 844x390 |
+
+  @fe-vitest-unit
+  # Exemption(integration): the hover fill is a browser cascade result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Clear chat button does not fill on hover for a touch pointer
+  @integration-exempt
+  Scenario: The Clear chat button does not fill on hover for a touch pointer
+    Given the Codex chat page is open at "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    When the page is laid out
+    Then the Clear chat button does not fill on hover
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): the hover fill is a browser cascade result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Clear chat button fills on hover for a fine pointer
+  @integration-exempt
+  Scenario: The Clear chat button fills on hover for a fine pointer
+    Given the Codex chat page is open at "mobile 390x844"
+    And the visitor's pointer is a fine pointer
+    When the page is laid out
+    Then the Clear chat button fills on hover
+
+  @fe-vitest-unit
+  # Exemption(integration): the place of the options panel over the conversation is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex options panel holds the model, the effort and Clear chat
+  @integration-exempt
+  Scenario Outline: The Codex options panel holds the model, the effort and Clear chat
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the visitor opens the Codex options panel
+    And the page is laid out
+    Then the model selector is on screen in the options panel
+    And the reasoning effort selector is on screen in the options panel
+    And the Clear chat control is on screen in the options panel
+    And the options panel is no wider than the screen
+    And every options panel control is at least 44 pixels tall
+    And the options panel has no fade over its controls
+    And the options panel does not cover the repository access state
+
+    Examples:
+      | viewport          |
+      | narrow 320x568    |
+      | mobile 390x844    |
+      | landscape 844x390 |
+
+  @fe-vitest-unit
+  # Exemption(integration): the place of the options panel on the screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex options panel keeps 12 pixels from the screen edge on a phone
+  @integration-exempt
+  Scenario Outline: The Codex options panel keeps 12 pixels from the screen edge on a phone
+    Given the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the visitor opens the Codex options panel
+    And the page is laid out
+    Then the options panel keeps 12 pixels from the right edge of the screen
+
+    Examples:
+      | viewport       |
+      | narrow 320x568 |
+      | mobile 390x844 |
+
+  @fe-vitest-unit
+  # Exemption(integration): the gap between the home header and the hero card is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The home page keeps a gap between the header and the hero card
+  @integration-exempt
+  Scenario Outline: The home page keeps a gap between the header and the hero card
+    When the home page is open at "<viewport>"
+    Then the header keeps a gap above the hero card
+
+    Examples:
+      | viewport       |
+      | narrow 320x568 |
+      | mobile 390x844 |
+
+  @fe-vitest-unit
+  # Exemption(integration): the options panel's focus and its close on Escape or on a tap outside it are browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex options panel closes on Escape and on a tap outside it
+  @integration-exempt
+  Scenario Outline: The Codex options panel closes on Escape and on a tap outside it
+    Given the Codex chat page is open at "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    When the visitor opens the Codex options panel
+    And the visitor <action>
+    Then the Codex options panel is closed
+    And the Options button reports it is closed
+
+    Examples:
+      | action               |
+      | presses Escape       |
+      | taps the message box |
 
   @fe-vitest-unit
   # Exemption(integration): the place and size of the repository access state in the header are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex repository access state is visible without scrolling the header
@@ -640,38 +1173,6 @@ Feature: Beaver Nest chat
       | mobile 390x844    | enabled   |
       | landscape 844x390 | read-only |
       | landscape 844x390 | enabled   |
-
-  @fe-vitest-unit
-  # Exemption(integration): the place of the header's scrolling row and its last control under the edge fade are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header's scrolling row stays inside the screen and clears its edge fade
-  @integration-exempt
-  Scenario Outline: The Codex header's scrolling row stays inside the screen and clears its edge fade
-    Given the Codex chat page is open at "<viewport>"
-    And the visitor's pointer is a touch pointer
-    When the page is laid out
-    Then the header's scrolling row ends inside the screen
-    And the last header control clears the edge fade when the row is scrolled to its end
-
-    Examples:
-      | viewport          |
-      | narrow 320x568    |
-      | phone 360x640     |
-      | mobile 390x844    |
-      | landscape 844x390 |
-
-  @fe-vitest-unit
-  # Exemption(integration): the theme buttons' widths on a touch pointer are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex theme buttons are touch targets on a narrow phone
-  @integration-exempt
-  Scenario Outline: The Codex theme buttons are touch targets on a narrow phone
-    Given the Codex chat page is open at "<viewport>"
-    And the visitor's pointer is a touch pointer
-    When the page is laid out
-    Then each theme button is at least 44 pixels across
-    And every header control is reachable by scrolling the header
-
-    Examples:
-      | viewport          |
-      | narrow 320x568    |
-      | phone 360x640     |
 
   @fe-vitest-unit
   # Exemption(integration): the heights of the composer and the header are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message box stops growing with the window
@@ -743,9 +1244,9 @@ Feature: Beaver Nest chat
     And a Codex reply answers "Show a wide table, a long code block and the logo"
     When the page is laid out
     Then the message composer is on screen without scrolling the page
-    And the conversation is at least 40 percent of the screen height
+    And the conversation takes at least 40 percent of the screen on a small phone
     And the Send button is beside the message box
-    And the Codex header is at most 160 pixels tall
+    And the Codex header keeps its controls on a small phone
 
     Examples:
       | viewport          |

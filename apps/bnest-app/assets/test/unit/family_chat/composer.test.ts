@@ -1,7 +1,9 @@
 // Plain Vitest unit coverage for `js/family_chat/composer.js`: draft
-// validation and the key chords. The Gherkin scenarios cover the happy
-// journeys; this file covers the refusals and the draft-restoring branch
-// they do not reach.
+// validation and the draft-restoring branch. The key rule (which key press
+// sends) is not here: the mount calls `sendOnKey` in `chat_keys.js`, and the
+// Family behaviour rows press keys through the real mount. The Gherkin
+// scenarios cover the happy journeys; this file covers the refusals and the
+// draft-restoring branch they do not reach.
 
 import { describe, expect, it } from "vitest";
 import {
@@ -98,16 +100,6 @@ describe("createComposer", () => {
     const result = await submitted;
 
     expect(result.remediation).toBe("Keep waiting messages under 100.");
-  });
-
-  it("reads Enter as send and Shift+Enter as a continued message", () => {
-    const { composer } = composerWith("client-id");
-
-    expect(composer.keyIntent({ key: "Enter" })).toBe("send");
-    expect(composer.keyIntent({ key: "Enter", shiftKey: true })).toBe(
-      "newline",
-    );
-    expect(composer.keyIntent({ key: "a" })).toBe("ignore");
   });
 
   it("continues a draft on a new line", () => {

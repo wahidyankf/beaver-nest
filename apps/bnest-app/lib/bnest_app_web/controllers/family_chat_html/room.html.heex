@@ -30,9 +30,6 @@
         Turn off
       </button>
     </div>
-    <nav class="family-chat-theme" aria-label="Color theme">
-      <Layouts.theme_toggle />
-    </nav>
   </header>
 
   <p
@@ -119,12 +116,21 @@
       rows="1"
       data-role="family-chat-message-input"
       placeholder="Write a message"
-      enterkeyhint="send"
+      enterkeyhint="enter"
+      aria-describedby="family-chat-composer-hint"
       disabled
     ></textarea>
     <button type="submit" class="family-chat-send" data-role="family-chat-send" disabled>
       Send
     </button>
+    <p
+      id="family-chat-composer-hint"
+      class="family-chat-composer-hint"
+      data-role="family-chat-composer-hint"
+    >
+      <span class="hint-keyboard">Enter to send, Shift+Enter for a new line</span>
+      <span class="hint-touch">Shift+Enter to send</span>
+    </p>
     <p
       class="family-chat-remediation"
       role="alert"

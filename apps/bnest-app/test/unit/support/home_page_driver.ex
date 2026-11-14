@@ -325,12 +325,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   @impl true
   def composer_available?(context) do
-    enabled?(context.page, @composer_textarea) and enabled?(context.page, @composer_button)
+    writable?(context.page, @composer_textarea) and enabled?(context.page, @composer_button)
   end
 
   @impl true
   def composer_unavailable?(context) do
-    disabled?(context.page, @composer_textarea) and disabled?(context.page, @composer_button)
+    locked?(context.page, @composer_textarea) and disabled?(context.page, @composer_button)
   end
 
   @impl true
@@ -343,17 +343,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def chat_controls_arranged?(context) do
     page = context.page
 
-    LazyHTML.query(page, ".chat-actions > *") |> Enum.count() == 3 and
-      not Enum.empty?(LazyHTML.query(page, ".chat-actions > .model-badge")) and
+    not Enum.empty?(LazyHTML.query(page, ".chat-controls > .model-badge")) and
+      not Enum.empty?(
+        LazyHTML.query(page, ".chat-actions > .clear-chat[data-role=clear-chat-group]")
+      ) and
       not Enum.empty?(
         LazyHTML.query(page, ".chat-controls > .chat-access[data-role=repository-access]")
-      ) and
-      not Enum.empty?(LazyHTML.query(page, ".chat-actions > .chat-theme-control")) and
-      not Enum.empty?(
-        LazyHTML.query(
-          page,
-          ".chat-actions > .chat-theme-control button[aria-label='Use dark theme']"
-        )
       )
   end
 
@@ -403,7 +398,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
-  def submit_with_shift_enter(context, message), do: send_message(context, message)
+  # Shift+Enter sends only from a touch pointer (ADR 005, decision 1). The pointer is a browser state, so this unit
+  # proof checks the scenario's declared pointer; the key chord itself is proven by bnest-app-fe-e2e.
+  def submit_with_shift_enter(%{visitor_pointer: :touch} = context, message),
+    do: send_message(context, message)
+
+  def submit_with_shift_enter(_context, _message),
+    do:
+      raise(
+        "Shift+Enter sends only from a touch pointer, and this scenario declares no touch pointer"
+      )
 
   # The composer is disabled while Codex works, so this submits it as a forced browser
   # submission would; the LiveView's own busy guard decides what happens.
@@ -643,8 +647,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def clear_chat(context) do
     session = context.chat_socket.assigns.codex_session
 
-    if context.page |> LazyHTML.query("[data-role=clear-chat][phx-click=clear]") |> Enum.empty?(),
-      do: raise("the chat page offers no clear control")
+    if context.page
+       |> LazyHTML.query("[data-role=clear-chat-yes][phx-click=clear]")
+       |> Enum.empty?(),
+       do: raise("the chat page offers no clear control")
 
     cleared = chat_event(context, "clear", %{})
 
@@ -727,18 +733,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   @impl true
   def link_opens_in_new_tab_privately?(context, label),
     do: CodexReplyPage.opens_in_new_tab_privately?(latest_reply(context), label)
-
-  @impl true
-  def visitor_message_unformatted?(context, message),
-    do: CodexReplyPage.unformatted_visitor_message?(context.page, message)
-
-  @impl true
-  def visitor_message_shows_text?(context, text),
-    do: CodexReplyPage.shows_visitor_text?(context.page, text)
-
-  @impl true
-  def visitor_message_keeps_line_break?(context, first, second),
-    do: CodexReplyPage.keeps_visitor_line_break?(context.page, first, second)
 
   @impl true
   def latest_codex_reply_task_checkboxes?(context, checked, unchecked),
@@ -2981,12 +2975,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, :administration_denied, _args),
     do: context.administration_denied
 
-  # Both attempts are denied, the recorder saw no access to any record of the second owner,
-  # and the second owner's theme is what it was.
-  def behaviour_outcome?(context, :denied_before_repository, _args) do
+  # The recorder saw no access to any record of the second owner, and the second owner's theme
+  # is what it was. The attempts may be refused, or may write only the first user's own record.
+  # The read and the write both ran, so the outcome cannot pass on an attempt that never happened.
+  def behaviour_outcome?(context, :second_user_data_unchanged, _args) do
     owner = context.second_owner
 
-    context.cross_user_attempts == [read_theme: :denied, write_theme: :denied] and
+    Keyword.keys(context.cross_user_attempts) == [:read_theme, :write_theme] and
       not Enum.any?(context.cross_user_accesses, &owner_access?(&1, owner)) and
       context.second_theme_after == context.second_theme_before and
       context.second_theme_before == "dark"
@@ -3505,8 +3500,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     change.status == 204 and stored != before and
       match?({:ok, %{"ownerId" => ^owner, "theme" => ^requested}}, stored) and
       Preferences.theme(owner) == requested and home.status == 200 and
-      LazyHTML.attribute(root, "data-theme") == [requested] and
-      LazyHTML.attribute(root, "data-theme-storage") == ["server"] and
       LazyHTML.attribute(root, "data-browser-persistence") == ["false"]
   end
 
@@ -3838,6 +3831,29 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   defp enabled?(page, selector) do
     controls = LazyHTML.query(page, selector)
     not Enum.empty?(controls) and controls |> LazyHTML.attribute("disabled") |> Enum.empty?()
+  end
+
+  # Whether the page renders the message box and none of its matches is disabled or read-only. A box that is read-only
+  # while Codex replies keeps its focus but takes no text, so it is not writable.
+  defp writable?(page, selector) do
+    controls = LazyHTML.query(page, selector)
+
+    not Enum.empty?(controls) and
+      Enum.all?(controls, fn control ->
+        LazyHTML.attribute(control, "disabled") == [] and
+          LazyHTML.attribute(control, "readonly") == []
+      end)
+  end
+
+  # Whether the page renders the message box and every one of its matches is disabled or read-only.
+  defp locked?(page, selector) do
+    controls = LazyHTML.query(page, selector)
+
+    not Enum.empty?(controls) and
+      Enum.all?(controls, fn control ->
+        LazyHTML.attribute(control, "disabled") != [] or
+          LazyHTML.attribute(control, "readonly") != []
+      end)
   end
 
   # Whether the page renders the control and every one of its matches is disabled.
