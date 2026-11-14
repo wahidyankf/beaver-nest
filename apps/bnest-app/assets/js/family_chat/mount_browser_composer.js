@@ -4,6 +4,7 @@
 // file purely to stay under this project's max-lines lint budget;
 // `mount_browser.js` is the only importer.
 
+import { isTouchPointer, sendOnKey } from "../chat_keys.js";
 import { fitComposerInput } from "./composer_height.js";
 import { DISCARD_ROLE, RETRY_ROLE } from "./message_manual_render.js";
 import { STATUS } from "./outbox.js";
@@ -158,10 +159,12 @@ function wireComposerFocus(room, elements) {
   elements.send.addEventListener("mousedown", keepFocus);
 
   elements.input.addEventListener("keydown", (event) => {
-    if (room.composer.keyIntent(event) !== "send") return;
-    // Otherwise the newline this key would insert lands in the next message.
-    event.preventDefault();
-    void submitComposer(room, elements);
+    // The pointer is read from the page's own window; `?? undefined` lets the default apply when there is no view.
+    const view = elements.input.ownerDocument.defaultView ?? undefined;
+    // The same rule as the Codex message box (ADR 005): the send key stops the newline, and a held key sends once.
+    sendOnKey(event, isTouchPointer(view), () => {
+      void submitComposer(room, elements);
+    });
   });
 }
 

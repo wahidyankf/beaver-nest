@@ -1,5 +1,6 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import { openOptionsIfCollapsed } from "../support/chat-ui-steps";
 
 const { Then, When } = createBdd();
 
@@ -124,6 +125,8 @@ When(
   "the visitor selects the model {string}",
   async ({ page }, model: string) => {
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    // On a phone the model and effort selects sit in the collapsed Options panel (ADR 005).
+    await openOptionsIfCollapsed(page);
     const selector = page.getByLabel("Model");
     await selector.selectOption({ label: model });
     const modelId = await selector
@@ -140,6 +143,7 @@ When(
   "the visitor selects the reasoning effort {string}",
   async ({ page }, effort: string) => {
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    await openOptionsIfCollapsed(page);
     const selector = page.getByLabel("Reasoning effort");
     await selector.selectOption({ label: effort });
     const value = effort.toLowerCase();

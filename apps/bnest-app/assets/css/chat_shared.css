@@ -125,7 +125,7 @@
   margin: 0;
 }
 
-/* The box is drawn here, not by the browser, so a disabled task stays legible in every theme:
+/* The box is drawn here, not by the browser, so a disabled task stays legible on the one light page:
    an ink border on paper, and a filled box with a check mark when the task is done. */
 .markdown-body input[type="checkbox"] {
   appearance: none;

@@ -17,6 +17,7 @@ import {
   sendAndWaitForReply,
   ENGINE_CORE_CHUNK,
 } from "../support/codex-diagrams";
+import { clearCodexChat } from "../support/chat-ui-steps";
 
 // The browser-only Codex diagram scenarios of chat.feature (tag @codex-diagram). Each one runs in real Chromium:
 // the picture is decoded, the network is recorded, and the offline cache is used. Their unit proof is the
@@ -152,7 +153,7 @@ When("a later reply changes the conversation", async ({ page }) => {
 });
 
 When("the visitor clears the chat in the browser", async ({ page }) => {
-  await page.getByRole("button", { name: "Clear chat" }).click();
+  await clearCodexChat(page);
   await expect(page.locator("[data-role=assistant-message]")).toHaveCount(0);
 });
 

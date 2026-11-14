@@ -99,9 +99,6 @@ defmodule BnestApp.Behaviour.Driver do
   @callback latest_codex_reply_lacks_link_to_address?(map(), String.t()) :: boolean()
   @callback latest_codex_reply_links_to?(map(), String.t(), String.t()) :: boolean()
   @callback link_opens_in_new_tab_privately?(map(), String.t()) :: boolean()
-  @callback visitor_message_unformatted?(map(), String.t()) :: boolean()
-  @callback visitor_message_shows_text?(map(), String.t()) :: boolean()
-  @callback visitor_message_keeps_line_break?(map(), String.t(), String.t()) :: boolean()
   @callback latest_codex_reply_task_checkboxes?(map(), non_neg_integer(), non_neg_integer()) ::
               boolean()
   @callback latest_codex_reply_lays_out_inside_bubble?(map()) :: boolean()

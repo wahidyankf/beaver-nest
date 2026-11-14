@@ -4,7 +4,9 @@ Date: 2026-11-10
 
 Status: Accepted (2026-11-11). The owner asked for Mermaid diagrams in both chat rooms and a polished responsive UI,
 together with the inline images and the shared renderer of [003](003-inline-chat-images-and-shared-markdown.md), and
-confirmed the third-party image privacy tradeoff recorded there.
+confirmed the third-party image privacy tradeoff recorded there. Decision 8 items 5 to 7 (the header, the theme
+buttons and the touch sizes) are partly superseded by [005](005-chat-input-keys-clear-confirmation-and-one-light-theme.md)
+(2026-11-13).
 
 Extends [003](003-inline-chat-images-and-shared-markdown.md). 003 stays in force. This record adds one fenced-code
 language to the shared Markdown renderer, one new runtime dependency, and the CSS rule that keeps the two chat rooms

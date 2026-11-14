@@ -1,8 +1,9 @@
-// What the message composer does, independent of any DOM: validate a draft,
-// hand it to the outbox, and decide what a key press means.
+// What the message composer does, independent of any DOM: validate a draft
+// and hand it to the outbox. The key rule (which key press sends) is shared
+// with the Codex message box in `chat_keys.js`.
 // `mount_browser_composer.js` binds a real `<textarea>`, a real Send
-// button, and real key events to these decisions, and keeps keyboard focus
-// on the input across a send.
+// button, and real key events (through `sendOnKey` in `chat_keys.js`), and
+// keeps keyboard focus on the input across a send.
 //
 // Split into small method-group factories purely to stay under this
 // project's max-lines-per-function lint budget.
@@ -12,8 +13,6 @@ const MAX_BODY_LENGTH = 4_000;
 export const EMPTY_DRAFT_REMEDIATION = "Write a message first.";
 export const TOO_LONG_REMEDIATION = "Keep messages under 4,000 characters.";
 export const QUEUE_REFUSED_REMEDIATION = "Couldn't queue this message.";
-
-/** @typedef {"send" | "newline" | "ignore"} KeyIntent */
 
 /**
  * @typedef {object} SubmitResult
@@ -59,21 +58,6 @@ function createDraftMethods(draftState, state) {
     /** @param {string} [text] */
     appendLine(text = "") {
       draftState.body = `${draftState.body}\n${text}`;
-    },
-  };
-}
-
-function createKeyMethods() {
-  return {
-    /**
-     * `Enter` sends; `Shift`+`Enter` continues the same message. Anything
-     * else is the browser's own business.
-     * @param {{key: string, shiftKey?: boolean}} event
-     * @returns {KeyIntent}
-     */
-    keyIntent({ key, shiftKey = false }) {
-      if (key !== "Enter") return "ignore";
-      return shiftKey ? "newline" : "send";
     },
   };
 }
@@ -192,7 +176,6 @@ export function createComposer({
   const draftState = { body: "" };
   return {
     ...createDraftMethods(draftState, state),
-    ...createKeyMethods(),
     ...createSubmitMethod(draftState, state, outbox, onQueued, replyTarget),
   };
 }

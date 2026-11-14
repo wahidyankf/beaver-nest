@@ -3,6 +3,11 @@ import { createBdd } from "playwright-bdd";
 import { saveChatOnExitedCodexThread } from "../support/codex-chat-transcript";
 import { promoteCompatibleCandidate } from "../support/routed-rollout";
 import { instanceIdentities } from "../support/instance-identities";
+import {
+  clearCodexChat,
+  expectComposerLocked,
+  openOptionsIfCollapsed,
+} from "../support/chat-ui-steps";
 
 // The primary route and the browser contexts are restored in lifecycle.steps.ts's After hook.
 const { Then, When } = createBdd();
@@ -95,25 +100,24 @@ Then("the message composer is available", async ({ page }) => {
 });
 
 Then("the message composer is unavailable", async ({ page }) => {
-  await expect(page.getByLabel("Message")).toBeDisabled();
+  await expectComposerLocked(page.getByLabel("Message"));
   await expect(page.locator(".send-button")).toBeDisabled();
 });
 
 Then("the clear chat control is available", async ({ page }) => {
+  // On a phone Clear chat sits in the Options panel, which the visitor opens first. On a wide screen there is no toggle.
+  await openOptionsIfCollapsed(page);
   await expect(page.getByRole("button", { name: "Clear chat" })).toBeEnabled();
 });
 
 Then("the chat controls do not overlap", async ({ page }) => {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-  await expect(page.locator(".theme-dock")).toBeHidden();
-  await expect(page.locator(".chat-theme-control")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Use dark theme" }),
-  ).toBeVisible();
 
-  // The access state and the scrolling row's controls: together they are the header's four controls.
+  // Every control a visitor can see in the header and its options panel: the access state, the Options button where
+  // it is shown, and the panel's visible controls (the panel is inline on a wide screen, and a popover on a phone).
+  // The model and effort selectors are not rendered for a child, so the count is measured, not fixed.
   const controls = page.locator(
-    ".chat-controls > .chat-access, .chat-actions > *",
+    ".chat-controls > .chat-access:visible, .chat-controls > .chat-options-toggle:visible, .chat-actions button:visible, .chat-actions select:visible",
   );
   const rectangles = await controls.evaluateAll((elements) =>
     elements.map((element) => {
@@ -123,7 +127,7 @@ Then("the chat controls do not overlap", async ({ page }) => {
     }),
   );
 
-  expect(rectangles).toHaveLength(4);
+  expect(rectangles.length).toBeGreaterThanOrEqual(2);
 
   for (const rectangle of rectangles) {
     expect(rectangle.width).toBeGreaterThan(0);
@@ -178,7 +182,7 @@ When(
     const composer = page.getByLabel("Message");
     const sendButton = page.locator(".send-button");
 
-    await expect(composer).toBeDisabled();
+    await expectComposerLocked(composer);
     await expect(sendButton).toBeDisabled();
     await composer.fill(message, { force: true });
     await sendButton.click({ force: true });
@@ -280,5 +284,5 @@ When("the visitor reconnects after a deployment", async ({ page }) => {
 When("the visitor reloads the page", ({ page }) => page.reload());
 
 When("the visitor clears the chat", async ({ page }) => {
-  await page.getByRole("button", { name: "Clear chat" }).click();
+  await clearCodexChat(page);
 });

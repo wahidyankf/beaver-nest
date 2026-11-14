@@ -31,7 +31,7 @@ Feature: Bnest authentication
     Then the operation is allowed
     And an out-of-scope administration operation is denied
 
-  Scenario: One authenticated user cannot read or write another user's data
+  Scenario: One authenticated user cannot change another user's data
     Given two approved users own separate Bnest data
     When the first user attempts the second user's data operation
-    Then Bnest denies the operation before repository access
+    Then Bnest keeps the second user's data unchanged

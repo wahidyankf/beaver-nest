@@ -153,6 +153,17 @@ Feature: Family chat room
     Then the room states that the text could not be copied
     And the menu closes
 
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): where keyboard focus lands after a key send is browser focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A fine-pointer Enter send keeps keyboard focus in the Family composer
+  @integration-exempt
+  Scenario: A fine-pointer Enter send keeps keyboard focus in the Family composer
+    Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
+    And the visitor's pointer is a fine pointer
+    When the visitor types "Keyboard send" and presses "Enter" in the family composer
+    Then keyboard focus is in the message input
+    And the family room sends 1 messages
+
   Rule: Composing a reply
 
   @fe-vitest-unit
@@ -274,10 +285,12 @@ Feature: Family chat room
   Rule: Keyboard reach of the message history
 
   @fe-vitest-unit
+  @fine-pointer
   # Exemption(integration): a end-to-end keyboard journey needs a real focus engine, which no browserless harness provides; alternative-proof: bnest-app-fe-e2e:test:e2e / The whole journey works from the keyboard alone
   @integration-exempt
   Scenario: The whole journey works from the keyboard alone
     Given a visitor opens "/family-chat/ruang-keluarga" using only a keyboard
+    And the visitor's pointer is a fine pointer
     When the visitor moves focus into the history, selects a message, opens the menu, chooses "Reply", types, and sends
     Then the sent message renders a quote of the selected message
     And focus is never left on a control the visitor cannot operate
@@ -355,6 +368,7 @@ Feature: Family chat room
     And the history is laid out on the screen
     And the visitor presses Tab from the control before the history
     And the visitor presses "ArrowUp" 30 times
+    Then the focused message is not the newest message
     And the visitor presses "End" 1 times
     Then the focused message is inside the visible history
     And the focused message is the newest message
@@ -369,6 +383,7 @@ Feature: Family chat room
     And the history is laid out on the screen
     And the visitor presses Tab from the control before the history
     And the visitor presses "ArrowUp" 1 times
+    Then the focused message is not the newest message
     And the visitor presses "ArrowDown" 1 times
     Then the focused message is the tall message
     And the top of the focused message is inside the visible history
@@ -388,6 +403,108 @@ Feature: Family chat room
     Then the focused message is inside the visible history
     And the focused message is the message with the number 20
     And the history has not moved since its position was noted
+
+  Rule: Family Chat conversation has most of a phone screen
+
+  @fe-vitest-unit
+  # Exemption(integration): the share of the screen the history takes is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat history has most of the screen with an empty draft
+  @integration-exempt
+  Scenario Outline: The Family Chat history has most of the screen with an empty draft
+    Given the viewport is set to "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the page is laid out
+    Then the history takes at least <share> percent of the screen with an empty draft
+
+    Examples:
+      | viewport          | share |
+      | narrow 320x568    | 58    |
+      | phone 360x640     | 62    |
+      | mobile 390x844    | 75    |
+      | landscape 844x390 | 52    |
+
+  @fe-vitest-unit
+  # Exemption(integration): the space above and below the history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A typical Family Chat phone view shows the newest message above the composer
+  @integration-exempt
+  Scenario: A typical Family Chat phone view shows the newest message above the composer
+    Given the viewport is set to "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    And the history holds 3 messages
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the page is laid out
+    Then the newest message is fully above the composer
+    And the header and the composer take at most 180 pixels outside the history
+
+  Rule: Family Chat composer hint
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): the hint's visibility is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat send shortcut hint follows a fine pointer
+  @integration-exempt
+  Scenario Outline: The Family Chat send shortcut hint follows a fine pointer
+    Given the viewport is set to "<viewport>"
+    And the visitor's pointer is a fine pointer
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the page is laid out
+    Then the send shortcut hint reads "Enter to send, Shift+Enter for a new line"
+
+    Examples:
+      | viewport         |
+      | desktop 1440x900 |
+      | narrow 320x568   |
+
+  @fe-vitest-unit
+  # Exemption(integration): the hint's visibility is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat send shortcut hint follows a touch pointer
+  @integration-exempt
+  Scenario Outline: The Family Chat send shortcut hint follows a touch pointer
+    Given the viewport is set to "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the page is laid out
+    Then the send shortcut hint reads "Shift+Enter to send"
+    And the send shortcut hint takes no row
+
+    Examples:
+      | viewport        |
+      | mobile 390x844  |
+      | tablet 1024x768 |
+
+  Rule: Family Chat message box reads clearly
+
+  @fe-vitest-unit
+  # Exemption(integration): the accessible name is computed from the rendered label and its visibility, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat message box has an accessible name
+  @integration-exempt
+  Scenario: The Family Chat message box has an accessible name
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    When the page is laid out
+    Then the Family Chat message box is named "Message the family"
+
+  @fe-vitest-unit
+  # Exemption(integration): the placeholder colour is painted by the browser from the stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat message box placeholder meets the contrast target
+  @integration-exempt
+  Scenario: The Family Chat message box placeholder meets the contrast target
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    When the page is laid out
+    Then the message box placeholder has at least 4.5 to 1 contrast with the box
+
+  @fe-vitest-unit
+  # Exemption(integration): the corner radii are painted by the browser from the stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat Send button has four equal round corners
+  @integration-exempt
+  Scenario: The Family Chat Send button has four equal round corners
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    When the page is laid out
+    Then the Family Chat Send button has four equal corner radii
+
+  Rule: Single light appearance in Family Chat
+
+  @fe-vitest-unit
+  # Exemption(integration): the colour a browser paints for a system dark preference is a rendered-page result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Family Chat keeps one light appearance and has no theme control
+  @integration-exempt
+  Scenario: Family Chat keeps one light appearance and has no theme control
+    Given the visitor's system prefers a dark color scheme
+    When an approved admin opens "/family-chat/ruang-keluarga"
+    Then the page has no color theme control
+    And the page background is light
 
   Rule: Keyboard reach of message content
 
@@ -872,15 +989,86 @@ Feature: Family chat room
     And the composer is empty and ready for the next message
 
   @fe-vitest-unit
-  # Exemption(integration): physical keyboard chord handling belongs to the browser boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter sends and Shift+Enter keeps writing
+  @fine-pointer
+  # Exemption(integration): physical keyboard chord handling belongs to the browser boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter and Shift+Enter follow a fine pointer in Family Chat
   @integration-exempt
-  Scenario: Enter sends and Shift+Enter keeps writing
+  Scenario Outline: Enter and Shift+Enter follow a fine pointer in Family Chat
+    Given the viewport is set to "<viewport>"
+    And the visitor's pointer is a fine pointer
+    And a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
+    When the visitor types "Keyboard send" and presses "<key>" in the family composer
+    Then the family room sends <sends> messages
+    And the family composer shows "<box>"
+
+    Examples:
+      | viewport         | key         | sends | box                        |
+      | desktop 1440x900 | Enter       | 1     | an empty box               |
+      | desktop 1440x900 | Shift+Enter | 0     | a new line after its draft |
+      | narrow 320x568   | Enter       | 1     | an empty box               |
+      | narrow 320x568   | Shift+Enter | 0     | a new line after its draft |
+
+  @fe-vitest-unit
+  # Exemption(integration): physical keyboard chord handling belongs to the browser boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter and Shift+Enter follow a touch pointer in Family Chat
+  @integration-exempt
+  Scenario Outline: Enter and Shift+Enter follow a touch pointer in Family Chat
+    Given the viewport is set to "<viewport>"
+    And the visitor's pointer is a touch pointer
+    And a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
+    When the visitor types "Keyboard send" and presses "<key>" in the family composer
+    Then the family room sends <sends> messages
+    And the family composer shows "<box>"
+
+    Examples:
+      | viewport        | key         | sends | box                        |
+      | mobile 390x844  | Enter       | 0     | a new line after its draft |
+      | mobile 390x844  | Shift+Enter | 1     | an empty box               |
+      | tablet 1024x768 | Enter       | 0     | a new line after its draft |
+      | tablet 1024x768 | Shift+Enter | 1     | an empty box               |
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): an IME composition is a browser input state the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter confirming a composition does not send in Family Chat
+  @integration-exempt
+  Scenario: Enter confirming a composition does not send in Family Chat
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
-    When the visitor submits "Sent with Enter" with the Enter key
-    Then the composer still holds keyboard focus
+    And the visitor's pointer is a fine pointer
+    And the visitor has typed "Still composing" without sending
+    When the visitor confirms a composition with Enter in the family composer
+    Then nothing is sent yet
+    And the composer holds the draft "Still composing"
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): Safari reports its composition Enter with keyCode 229, a browser key-event detail the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter with keyCode 229 does not send in Family Chat
+  @integration-exempt
+  Scenario: Enter with keyCode 229 does not send in Family Chat
+    Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
+    And the visitor's pointer is a fine pointer
+    And the visitor has typed "Still composing" without sending
+    When the visitor confirms a composition with keyCode 229 in the family composer
+    Then nothing is sent yet
+    And the composer holds the draft "Still composing"
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): a held key's repeated keydown is a browser key-event detail the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / A held Enter sends one message in Family Chat
+  @integration-exempt
+  Scenario: A held Enter sends one message in Family Chat
+    Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
+    And the visitor's pointer is a fine pointer
+    And the visitor has typed "Held send" without sending
+    When the visitor holds Enter in the family composer
+    Then the family room sends 1 messages
+
+  @fe-vitest-unit
+  # Exemption(integration): a Shift+Enter key chord is a browser boundary the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Shift+Enter does not send an empty Family Chat draft
+  @integration-exempt
+  Scenario: Shift+Enter does not send an empty Family Chat draft
+    Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
+    And the visitor's pointer is a touch pointer
+    When the visitor presses Shift+Enter with an empty draft
+    Then nothing is sent yet
     And the composer is empty and ready for the next message
-    When the visitor presses Shift and Enter while writing "Second line"
-    Then the composer holds an unsent multi-line draft
 
   @fe-vitest-unit
   # Exemption(integration): whether a sent message ends up on screen is browser scroll position the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Sending brings the visitor to their own message
@@ -1068,23 +1256,6 @@ Feature: Family chat room
       | tablet 768x1024   |
       | laptop 1024x768   |
       | desktop 1440x900  |
-
-  @fe-vitest-unit
-  # Exemption(integration): where a control sits and whether it overlaps the title are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The theme control stays inside the room header
-  @integration-exempt
-  Scenario Outline: The theme control stays inside the room header
-    Given the viewport is set to "<viewport>"
-    When a visitor opens "/family-chat/ruang-keluarga"
-    Then the theme control is inside the room header
-    And the theme control does not cover the room title
-    And the theme control is at least 44 pixels across on a touch screen
-    And each theme button is at least 44 pixels across on a touch screen
-
-    Examples:
-      | viewport          |
-      | narrow 320x568    |
-      | tablet 768x1024   |
-      | landscape 844x390 |
 
   @fe-vitest-unit
   # Exemption(integration): the colours a browser resolves from the stylesheet are part of the rendered page, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Send button text meets the contrast target

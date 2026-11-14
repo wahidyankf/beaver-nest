@@ -11,6 +11,7 @@ import {
 } from "../support/centralized-data";
 import { currentIdentities, userIdFor } from "../support/instance-identities";
 import { importCount, instanceRecord } from "../support/instance-records";
+import { putTheme } from "../support/theme-preference";
 
 // Trimmed from bnest-app-e2e's centralized_data.steps.ts to this project's owned scenarios (import/theme/rejection/
 // idempotency/staleness, and the server-persistence halves of the accepted-import and Codex-resume scenarios); the
@@ -163,8 +164,9 @@ Then("Bnest persists future changes only on the server", async ({ page }) => {
     .poll(() => recordSnapshot("sifat_allah", id), { timeout: 30_000 })
     .not.toBe(beforeLearning);
 
-  await page.getByRole("button", { name: "Use dark theme" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  // The preference is written through PUT /preferences/theme, the same surface the removed control used (ADR 005).
+  expect(await putTheme(page, "dark")).toBe(204);
+  // The theme is not kept in the browser: no localStorage theme key is written, only the server record changes.
   expect(
     await page.evaluate(() => localStorage.getItem("phx:theme")),
   ).toBeNull();
@@ -214,11 +216,21 @@ Then("Bnest preserves the transcript", async ({ page }) => {
     "transcript is preserved in a fresh conversation",
   );
   const original = ["Original question", "Original answer"];
-  await Promise.all(
-    [...original, "Continue after resume"].map((text) =>
-      expect(page.getByText(text)).toBeVisible(),
-    ),
-  );
+  // Each text is matched inside its rendered bubble. A visitor message also keeps a hidden raw copy of its text, so a
+  // page-wide text match would find the same message twice.
+  await expect(
+    page.locator("[data-role=user-message]", { hasText: "Original question" }),
+  ).toBeVisible();
+  await expect(
+    page.locator("[data-role=assistant-message]", {
+      hasText: "Original answer",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.locator("[data-role=user-message]", {
+      hasText: "Continue after resume",
+    }),
+  ).toBeVisible();
   const chat = readChatState(childId());
   expect(chat.thread_id).not.toBe("unavailable-thread");
   expect(chat.messages.slice(0, 2).map((m) => m.content)).toEqual(original);

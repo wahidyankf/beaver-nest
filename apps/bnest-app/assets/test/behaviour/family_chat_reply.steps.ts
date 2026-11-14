@@ -921,8 +921,9 @@ function recordFocus(trail: HTMLElement[]): void {
 async function pressAndRecord(
   trail: HTMLElement[],
   key: string,
+  options: { shiftKey?: boolean } = {},
 ): Promise<void> {
-  await pressKey(key);
+  await pressKey(key, options);
   recordFocus(trail);
 }
 
@@ -969,6 +970,7 @@ step(
     await pressAndRecord(trail, "Enter");
     typeText("Oke, aku siap");
     const queued = watchPendingRows(page);
+    // A keyboard visitor has a fine pointer, so Enter sends and Shift+Enter starts a new line (ADR 005, decision 1).
     await pressAndRecord(trail, "Enter");
     await waitFor(() => queued.length > 0, "Enter to send the reply");
     remember("clientMessageId", queued[0]);

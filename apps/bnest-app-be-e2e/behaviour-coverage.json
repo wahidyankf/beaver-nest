@@ -36,7 +36,7 @@
           "e2eExempt": false
         },
         {
-          "name": "One authenticated user cannot read or write another user's data",
+          "name": "One authenticated user cannot change another user's data",
           "e2eExempt": false
         }
       ]

@@ -6,9 +6,9 @@
   "generatedFrom": "plans/done/2026-09-20__family-chat-room/delivery.md Phase 1 Item 3",
   "summary": {
     "featureCount": 8,
-    "scenarioCount": 246,
-    "e2eExemptScenarioCount": 11,
-    "e2eCoveredScenarioCount": 235
+    "scenarioCount": 295,
+    "e2eExemptScenarioCount": 12,
+    "e2eCoveredScenarioCount": 283
   },
   "features": [
     {
@@ -176,10 +176,6 @@
           "e2eExempt": false
         },
         {
-          "name": "A visitor message is shown as typed and is not formatted",
-          "e2eExempt": false
-        },
-        {
           "name": "Codex reply tables, task lists, links and images keep their layout",
           "e2eExempt": false
         },
@@ -240,6 +236,146 @@
           "e2eExempt": false
         },
         {
+          "name": "Enter and Shift+Enter follow a fine pointer, not the screen size",
+          "e2eExempt": false
+        },
+        {
+          "name": "Enter and Shift+Enter follow a touch pointer, not the screen size",
+          "e2eExempt": false
+        },
+        {
+          "name": "A filled Codex draft with a fine pointer is sent once, and a blank or busy draft is never sent",
+          "e2eExempt": false
+        },
+        {
+          "name": "Keyboard focus stays in the Codex message box after a reply",
+          "e2eExempt": false
+        },
+        {
+          "name": "Pressing Send with a touch pointer keeps keyboard focus in the Codex message box",
+          "e2eExempt": false
+        },
+        {
+          "name": "Pressing Send with a fine pointer keeps keyboard focus in the Codex message box",
+          "e2eExempt": false
+        },
+        {
+          "name": "Text typed straight after Send stays in the Codex message box",
+          "e2eExempt": true
+        },
+        {
+          "name": "A filled Codex draft with a touch pointer is sent once, and a blank or busy draft is never sent",
+          "e2eExempt": false
+        },
+        {
+          "name": "A whitespace-only Codex draft is never sent",
+          "e2eExempt": false
+        },
+        {
+          "name": "A confirmed composition with a fine pointer never sends in the Codex message box",
+          "e2eExempt": false
+        },
+        {
+          "name": "A confirmed composition with a touch pointer never sends in the Codex message box",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex send shortcut hint follows a fine pointer",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex send shortcut hint follows a touch pointer",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex message box follows a pointer change while the page is open",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Send button lines up with the message box",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex message box has no resize handle",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex message box placeholder meets the contrast target",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex Send button and the Family Chat Send button share one colour",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex Send button has four equal round corners that match the Family Chat Send button",
+          "e2eExempt": false
+        },
+        {
+          "name": "Clear chat asks for confirmation before it deletes the conversation",
+          "e2eExempt": false
+        },
+        {
+          "name": "Cancel and Escape keep the conversation",
+          "e2eExempt": false
+        },
+        {
+          "name": "The confirmation takes focus and cancel returns focus to Clear chat",
+          "e2eExempt": false
+        },
+        {
+          "name": "Tabbing out of the Clear chat confirmation closes it",
+          "e2eExempt": false
+        },
+        {
+          "name": "Confirming clears the conversation",
+          "e2eExempt": false
+        },
+        {
+          "name": "A tap outside the options panel closes the Clear chat confirmation with it",
+          "e2eExempt": false
+        },
+        {
+          "name": "Escape with focus outside the confirmation closes it and leaves focus where it is",
+          "e2eExempt": false
+        },
+        {
+          "name": "Reopening the options panel shows no stale Clear chat question",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Clear chat confirmation fits a narrow screen with 44 pixel targets",
+          "e2eExempt": false
+        },
+        {
+          "name": "A visitor's message renders Markdown and can show its raw text",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Show raw control reads on the dark visitor bubble",
+          "e2eExempt": false
+        },
+        {
+          "name": "The raw view of a hostile visitor's message shows text, not HTML",
+          "e2eExempt": false
+        },
+        {
+          "name": "The raw view keeps the typed line breaks and spaces",
+          "e2eExempt": false
+        },
+        {
+          "name": "The home page and Codex chat keep one light appearance and have no theme control",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex conversation has most of the screen with an empty draft",
+          "e2eExempt": false
+        },
+        {
+          "name": "A typical Codex phone view shows the newest message above the composer",
+          "e2eExempt": false
+        },
+        {
           "name": "The Codex header controls are at least 44 pixels tall on a touch screen",
           "e2eExempt": false
         },
@@ -264,10 +400,6 @@
           "e2eExempt": false
         },
         {
-          "name": "The Codex theme buttons show the coral focus ring",
-          "e2eExempt": false
-        },
-        {
           "name": "A Codex diagram source shows the room's coral focus ring",
           "e2eExempt": false
         },
@@ -280,23 +412,35 @@
           "e2eExempt": false
         },
         {
-          "name": "The Codex header keeps every control reachable on a landscape phone",
+          "name": "The Codex header is compact on a phone: at most two rows, at most 110 pixels, the brand link is not covered, access state and model badge are visible without Options",
           "e2eExempt": false
         },
         {
-          "name": "The Codex header keeps every control reachable on a narrow phone",
+          "name": "The Clear chat button does not fill on hover for a touch pointer",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Clear chat button fills on hover for a fine pointer",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex options panel holds the model, the effort and Clear chat",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex options panel keeps 12 pixels from the screen edge on a phone",
+          "e2eExempt": false
+        },
+        {
+          "name": "The home page keeps a gap between the header and the hero card",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex options panel closes on Escape and on a tap outside it",
           "e2eExempt": false
         },
         {
           "name": "The Codex repository access state is visible without scrolling the header",
-          "e2eExempt": false
-        },
-        {
-          "name": "The Codex header's scrolling row stays inside the screen and clears its edge fade",
-          "e2eExempt": false
-        },
-        {
-          "name": "The Codex theme buttons are touch targets on a narrow phone",
           "e2eExempt": false
         },
         {
@@ -458,6 +602,10 @@
           "e2eExempt": true
         },
         {
+          "name": "A fine-pointer Enter send keeps keyboard focus in the Family composer",
+          "e2eExempt": false
+        },
+        {
           "name": "Choosing Reply puts the target above the message input",
           "e2eExempt": false
         },
@@ -535,6 +683,38 @@
         },
         {
           "name": "A message already in view does not move the history",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Family Chat history has most of the screen with an empty draft",
+          "e2eExempt": false
+        },
+        {
+          "name": "A typical Family Chat phone view shows the newest message above the composer",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Family Chat send shortcut hint follows a fine pointer",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Family Chat send shortcut hint follows a touch pointer",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Family Chat message box has an accessible name",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Family Chat message box placeholder meets the contrast target",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Family Chat Send button has four equal round corners",
+          "e2eExempt": false
+        },
+        {
+          "name": "Family Chat keeps one light appearance and has no theme control",
           "e2eExempt": false
         },
         {
@@ -674,7 +854,27 @@
           "e2eExempt": false
         },
         {
-          "name": "Enter sends and Shift+Enter keeps writing",
+          "name": "Enter and Shift+Enter follow a fine pointer in Family Chat",
+          "e2eExempt": false
+        },
+        {
+          "name": "Enter and Shift+Enter follow a touch pointer in Family Chat",
+          "e2eExempt": false
+        },
+        {
+          "name": "Enter confirming a composition does not send in Family Chat",
+          "e2eExempt": false
+        },
+        {
+          "name": "Enter with keyCode 229 does not send in Family Chat",
+          "e2eExempt": false
+        },
+        {
+          "name": "A held Enter sends one message in Family Chat",
+          "e2eExempt": false
+        },
+        {
+          "name": "Shift+Enter does not send an empty Family Chat draft",
           "e2eExempt": false
         },
         {
@@ -735,10 +935,6 @@
         },
         {
           "name": "A long unbroken draft leaves the Family room inside the screen (a regression guard)",
-          "e2eExempt": false
-        },
-        {
-          "name": "The theme control stays inside the room header",
           "e2eExempt": false
         },
         {

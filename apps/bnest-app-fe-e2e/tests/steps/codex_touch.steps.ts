@@ -4,6 +4,10 @@ import {
   openChatAsAdmin,
   sendAndWaitForReply,
 } from "../support/codex-diagrams";
+import {
+  openOptionsIfCollapsed,
+  parseViewport,
+} from "../support/chat-ui-steps";
 import { emulateTouchPointer } from "../support/touch-pointer";
 
 // The touch and short-screen layout scenarios of chat.feature (the Rule "Codex chat on touch and short screens").
@@ -17,12 +21,6 @@ const TOUCH_TARGET_PX = 44;
 const CODE_BLOCK_MAX_PX = 384;
 const SCREEN_IMAGE_SHARE = 0.7;
 const CORAL_RGB = "rgb(229, 99, 61)";
-
-function parseViewport(spec: string): { width: number; height: number } {
-  const match = /^\w+ (\d+)x(\d+)$/u.exec(spec);
-  if (!match) throw new Error(`unreadable viewport ${JSON.stringify(spec)}`);
-  return { width: Number(match[1]), height: Number(match[2]) };
-}
 
 function latestReply(page: Page): Locator {
   return page.locator("[data-role=assistant-message]").last();
@@ -69,14 +67,16 @@ When("the page is laid out", async ({ page }) => {
 });
 
 Then("the header controls are at least 44 pixels tall", async ({ page }) => {
+  // On a phone the model, effort and Clear chat sit in the options panel, so the panel is opened first.
+  const toggle = page.locator("[data-role=chat-options-toggle]");
+  await openOptionsIfCollapsed(page);
   const controls = [
+    toggle,
+    page.locator("[data-role=repository-write-toggle]"),
     page.locator("[data-role=model-selector]"),
     page.locator("[data-role=effort-selector]"),
-    page.locator("[data-role=repository-write-toggle]"),
     page.locator("[data-role=clear-chat]"),
-    ...(await page.locator(".chat-theme-control button").all()),
   ];
-  expect(controls.length, "header controls rendered").toBeGreaterThanOrEqual(7);
   const heights = await Promise.all(
     controls.map(async (control) => {
       await expect(control).toBeVisible();
@@ -185,19 +185,6 @@ Then(
 );
 
 Then(
-  "the Codex header is at most 30 percent of the screen height",
-  async ({ page }) => {
-    const header = page.locator(".chat-header");
-    await expect(header).toHaveCount(1);
-    const height = await heightOf(header, "the Codex header");
-    const screenHeight = await page.evaluate(() => window.innerHeight);
-    expect(height, "the Codex header's height").toBeLessThanOrEqual(
-      0.3 * screenHeight,
-    );
-  },
-);
-
-Then(
   "the diagram source summary is at least 44 pixels tall",
   async ({ page }) => {
     const summary = page.locator(".bnest-diagram-source > summary").first();
@@ -291,5 +278,21 @@ Then(
       width: "3px",
       style: "solid",
     });
+  },
+);
+
+// The header's numeric budget on the composer scenario's phone: at most 30 percent of the window and at most 110 pixels.
+// The Vitest binding proves the header wraps its controls onto rows; these numbers are measured here.
+Then(
+  "the Codex header keeps its controls on wrapping rows",
+  async ({ page }) => {
+    const header = page.locator(".chat-header");
+    await expect(header).toHaveCount(1);
+    const height = await heightOf(header, "the Codex header");
+    const screenHeight = await page.evaluate(() => window.innerHeight);
+    expect(height, "the Codex header's height").toBeLessThanOrEqual(
+      0.3 * screenHeight,
+    );
+    expect(height, "the Codex header row's height").toBeLessThanOrEqual(110);
   },
 );

@@ -166,6 +166,14 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.send_message(context, message)
   end
 
+  # The pointer is a browser media state the server never receives. The step records the touch pointer so the scenario
+  # reads as the browser runs it. The chord itself is not proven here: the Vitest key rows (Codex and Family) and the
+  # browser rows of bnest-app-fe-e2e prove that Shift+Enter sends on a touch pointer. At this layer the scenario proves
+  # only that its send runs with the declared pointer.
+  step "the visitor's pointer is a touch pointer", context do
+    Map.put(context, :visitor_pointer, :touch)
+  end
+
   step "the visitor submits {string} with Shift+Enter", %{args: [message]} = context do
     context.behaviour_driver.submit_with_shift_enter(context, message)
   end
@@ -465,28 +473,6 @@ defmodule BnestApp.Behaviour.ChatSteps do
   step "the link {string} in the latest Codex reply opens in a new tab without sharing the page",
        %{args: [label]} = context do
     assert context.behaviour_driver.link_opens_in_new_tab_privately?(context, label)
-    context
-  end
-
-  step "the visitor message {string} shows no formatting", %{args: [message]} = context do
-    assert context.behaviour_driver.visitor_message_unformatted?(context, message)
-    context
-  end
-
-  step "the visitor sends the two-line message {string} and {string}",
-       %{args: [first, second]} = context do
-    context.behaviour_driver.send_message(context, first <> "\n" <> second)
-  end
-
-  step "the conversation displays the two-line visitor message {string} and {string}",
-       %{args: [first, second]} = context do
-    assert context.behaviour_driver.visitor_message_shows_text?(context, first <> "\n" <> second)
-    context
-  end
-
-  step "the visitor message keeps its line break between {string} and {string}",
-       %{args: [first, second]} = context do
-    assert context.behaviour_driver.visitor_message_keeps_line_break?(context, first, second)
     context
   end
 

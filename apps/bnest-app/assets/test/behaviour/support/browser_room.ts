@@ -37,6 +37,7 @@ import { Window } from "happy-dom";
 import { vi } from "vitest";
 import { findElements } from "../../../js/family_chat/elements.js";
 import { createFakeClock, type FakeClock } from "../../support/fake_clock";
+import { recallOr } from "./scenario_memory";
 import {
   createGraphqlServer,
   type FakeSocket,
@@ -106,12 +107,16 @@ export function declareTallRow(marker: string, heightPx: number): void {
   declaredRowHeights.set(marker, heightPx);
 }
 
-function heightOfRow(row: Element): number {
-  const text = row.textContent ?? "";
+/** The height the layout gives a message with this text: the declared height of its marker, else the ordinary row. */
+export function heightOfText(text: string): number {
   for (const [marker, height] of declaredRowHeights) {
     if (text.includes(marker)) return height;
   }
   return ROW_HEIGHT_PX;
+}
+
+function heightOfRow(row: Element): number {
+  return heightOfText(row.textContent ?? "");
 }
 
 interface Layout {
@@ -405,15 +410,6 @@ function renderHeex(
   return html;
 }
 
-/** The markup `Layouts.theme_toggle` renders (layouts.ex): the room's header carries the same three theme buttons. */
-const THEME_TOGGLE_HTML = [
-  '<div class="card relative flex flex-row items-center">',
-  '<button type="button" aria-label="Use system theme" data-phx-theme="system"></button>',
-  '<button type="button" aria-label="Use light theme" data-phx-theme="light"></button>',
-  '<button type="button" aria-label="Use dark theme" data-phx-theme="dark"></button>',
-  "</div>",
-].join("");
-
 function renderRoom(member: Member, replies: boolean): string {
   return renderHeex(
     readFileSync(ROOM_TEMPLATE, "utf8"),
@@ -432,8 +428,6 @@ function renderRoom(member: Member, replies: boolean): string {
         `aria-label="Conversation in ${ROOM_NAME}"`,
       ],
       ["{@room.name}", ROOM_NAME],
-      // The theme control `Layouts.theme_toggle` renders: three buttons that set the theme (layouts.ex).
-      ["<Layouts.theme_toggle />", THEME_TOGGLE_HTML],
     ],
     "room.html.heex",
   );
@@ -745,6 +739,9 @@ const WINDOW_GLOBALS = [
   "matchMedia",
   "requestAnimationFrame",
   "cancelAnimationFrame",
+  // A scenario that lays out the screen mirrors the room's size here; restoring them keeps it from leaking.
+  "innerWidth",
+  "innerHeight",
 ] as const;
 
 function pushGlobals(page: Page): Record<string, unknown> {
@@ -920,6 +917,27 @@ function newPage(
 ): Page {
   pageSequence += 1;
   const win = createWindow(device, pathname);
+  // The pointer the device reports is the one the family pointer steps set (ADR 005, decision 1): a touch pointer
+  // sends on Shift+Enter, a fine pointer on Enter. The room reads it at each key press, never the window size.
+  win.matchMedia = ((query: string) => {
+    // Only the pointer queries are evaluated; any other query throws rather than answering false (round 3).
+    if (query === "(display-mode: standalone)")
+      return {
+        matches: false,
+        media: query,
+        addEventListener() {},
+        removeEventListener() {},
+      } as unknown as MediaQueryList;
+    if (!/^\(pointer: (coarse|fine)\)$/u.test(query)) {
+      throw new Error(`the matchMedia double does not evaluate ${query}`);
+    }
+    return {
+      matches: query === "(pointer: coarse)" && recallOr("familyCoarse", false),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    };
+  }) as unknown as Window["matchMedia"];
   const document = win.document as unknown as Document;
   const style = document.createElement("style");
   style.textContent = APP_CSS_TEXT;
@@ -1373,34 +1391,65 @@ function keyboardEvent(
   type: string,
   key: string,
   shiftKey: boolean,
+  isComposing = false,
+  repeat = false,
+  keyCode?: number,
 ) {
-  return new page.window.KeyboardEvent(type, {
+  const event = new page.window.KeyboardEvent(type, {
     key,
     shiftKey,
+    isComposing,
+    repeat,
     bubbles: true,
     cancelable: true,
   });
+  // The key rule reads `repeat` and the legacy `keyCode` (229 is Safari's composition Enter). The page's event class
+  // may not read them from the init dictionary, so they are set on the event itself.
+  Object.defineProperty(event, "repeat", { value: repeat });
+  if (keyCode !== undefined)
+    Object.defineProperty(event, "keyCode", { value: keyCode });
+  return event;
 }
 
 /**
  * A key press on whatever holds focus, with the browser's default action
- * for it unless the page cancelled the keydown.
+ * for it unless the page cancelled the keydown. `repeat` marks a held key's
+ * repeated keydown; `keyCode` is the legacy code (229 for a Safari composition).
  */
 export async function pressKey(
   key: string,
-  options: { shiftKey?: boolean } = {},
+  options: {
+    shiftKey?: boolean;
+    isComposing?: boolean;
+    repeat?: boolean;
+    keyCode?: number;
+  } = {},
 ): Promise<{ defaultPrevented: boolean }> {
   const page = activePage();
   const document = page.document;
   const target = (document.activeElement ?? document.body) as HTMLElement;
   const shiftKey = options.shiftKey ?? false;
-  const down = keyboardEvent(page, "keydown", key, shiftKey);
+  const isComposing = options.isComposing ?? false;
+  const down = keyboardEvent(
+    page,
+    "keydown",
+    key,
+    shiftKey,
+    isComposing,
+    options.repeat ?? false,
+    options.keyCode,
+  );
   target.dispatchEvent(down as unknown as Event);
   if (!down.defaultPrevented) {
     const disclosure = target.parentElement;
     if (key === "Tab") {
       moveFocusByTab(document, shiftKey);
-    } else if (key === "Enter" && target.tagName === "TEXTAREA") {
+    } else if (
+      key === "Enter" &&
+      target.tagName === "TEXTAREA" &&
+      !isComposing &&
+      options.keyCode !== 229
+    ) {
       (target as HTMLTextAreaElement).value += "\n";
       target.dispatchEvent(
         new page.window.Event("input", { bubbles: true }) as unknown as Event,

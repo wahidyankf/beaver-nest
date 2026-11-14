@@ -50,10 +50,15 @@ import { familyChatMarkdownSteps } from "./family_chat_markdown.steps";
 import { familyChatDiagramSteps } from "./family_chat_diagrams.steps";
 import { familyChatKeyboardSteps } from "./family_chat_keyboard.steps";
 import { familyChatLayoutSteps } from "./family_chat_layout.steps";
+import {
+  familyChatPhoneSteps,
+  resetFamilyChatPhone,
+} from "./family_chat_phone.steps";
 import { familyChatReplySteps, resetScenario } from "./family_chat_reply.steps";
 import { familyChatOperationsSteps } from "./family_chat_operations.steps";
 import { codexDiagramSteps, resetCodexDiagram } from "./codex_diagram.steps";
 import { codexLayoutSteps, resetCodexLayout } from "./codex_layout.steps";
+import { codexComposerSteps, resetCodexComposer } from "./codex_composer.steps";
 import { codexFollowSteps, resetCodexFollow } from "./codex_follow.steps";
 import {
   familyChatFollowSteps,
@@ -219,6 +224,7 @@ verifyCorpus({
     ...familyChatKeyboardSteps(),
     ...familyChatLayoutSteps(),
     ...familyChatFollowSteps(),
+    ...familyChatPhoneSteps(),
   ],
   // Every page a scenario opened installed its `window` and `document` on
   // `globalThis` and left timers on its clock; they come down whether the
@@ -226,6 +232,7 @@ verifyCorpus({
   afterScenario: async () => {
     await resetScenario();
     resetFamilyChatFollow();
+    resetFamilyChatPhone();
   },
 });
 
@@ -249,10 +256,16 @@ verifyCorpus({
   // Only the Codex reply diagram and touch or short-screen layout scenarios carry this tag in chat.feature. The
   // diagram ones are bound in `codex_diagram.steps.ts` and drive the shared diagram module with a fake engine; the
   // layout ones are bound in `codex_layout.steps.ts` and check the shipped stylesheet's declared values.
-  steps: [...codexDiagramSteps(), ...codexLayoutSteps(), ...codexFollowSteps()],
+  steps: [
+    ...codexDiagramSteps(),
+    ...codexLayoutSteps(),
+    ...codexFollowSteps(),
+    ...codexComposerSteps(),
+  ],
   afterScenario: () => {
     resetCodexDiagram();
     resetCodexLayout();
     resetCodexFollow();
+    resetCodexComposer();
   },
 });

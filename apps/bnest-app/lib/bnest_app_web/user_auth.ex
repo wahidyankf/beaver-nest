@@ -5,7 +5,6 @@ defmodule BnestAppWeb.UserAuth do
   import Plug.Conn
 
   alias BnestApp.Identity
-  alias BnestApp.Preferences
 
   @identity_cookie "_bnest_identity"
   @legacy_transition_user %{
@@ -31,8 +30,7 @@ defmodule BnestAppWeb.UserAuth do
 
         conn
         |> assign(:current_user, user)
-        |> assign(:current_theme, current_theme(user))
-        |> assign(:theme_storage, :server)
+        |> assign(:browser_persistence, false)
         |> assign(:session_digest, session_digest)
         |> put_session(:current_user, user)
         |> put_session(:session_digest, session_digest)
@@ -43,8 +41,7 @@ defmodule BnestAppWeb.UserAuth do
             conn
             |> assign(:current_user, nil)
             |> assign(:session_digest, nil)
-            |> assign(:current_theme, "system")
-            |> assign(:theme_storage, :browser)
+            |> assign(:browser_persistence, true)
             |> delete_session(:current_user)
             |> delete_session(:session_digest)
 
@@ -52,8 +49,7 @@ defmodule BnestAppWeb.UserAuth do
             conn
             |> assign(:current_user, user)
             |> assign(:session_digest, nil)
-            |> assign(:current_theme, "system")
-            |> assign(:theme_storage, :browser)
+            |> assign(:browser_persistence, true)
             |> put_session(:current_user, user)
             |> delete_session(:session_digest)
         end
@@ -148,6 +144,4 @@ defmodule BnestAppWeb.UserAuth do
   end
 
   def safe_return_path(_path), do: "/"
-
-  defp current_theme(%{"userId" => user_id}), do: Preferences.theme(user_id)
 end

@@ -143,19 +143,42 @@ Then(
 Then(
   "the focused message is the message with the number {int}",
   async ({ page }, number: number) => {
-    const actual = await page.evaluate((body) => {
-      const active = document.activeElement;
-      if (!(active instanceof HTMLElement)) return null;
-      const text = active.querySelector(body)?.textContent ?? "";
-      const match = /(\d+)\s*$/u.exec(text.trim());
-      return match?.[1] === undefined ? null : Number(match[1]);
-    }, BODY);
+    const actual = await page.evaluate(
+      ({ body, message }) => {
+        const active = document.activeElement;
+        // The focused element must itself be a message: <body>, or a control inside a message, does not count.
+        if (!(active instanceof HTMLElement) || !active.matches(message))
+          return null;
+        const text = active.querySelector(body)?.textContent ?? "";
+        const match = /(\d+)\s*$/u.exec(text.trim());
+        return match?.[1] === undefined ? null : Number(match[1]);
+      },
+      { body: BODY, message: MESSAGE },
+    );
     expect(
       actual,
       `the focused message is number ${actual}, not ${number}`,
     ).toBe(number);
   },
 );
+
+Then("the focused message is not the newest message", async ({ page }) => {
+  // The arrow presses before this step must have moved focus off the newest message.
+  const result = await page.evaluate((message) => {
+    const rows = [...document.querySelectorAll(message)];
+    const active = document.activeElement;
+    return {
+      count: rows.length,
+      focusIsMessage: active !== null && rows.includes(active as HTMLElement),
+      focusedIsNewest:
+        active !== null && rows.length > 0 && active === rows.at(-1),
+    };
+  }, MESSAGE);
+  expect(
+    result.focusIsMessage && !result.focusedIsNewest && result.count > 1,
+    `keyboard focus is not on a message other than the newest of ${result.count} messages`,
+  ).toBe(true);
+});
 
 Then("the focused message is the newest message", async ({ page }) => {
   const result = await page.evaluate((message) => {

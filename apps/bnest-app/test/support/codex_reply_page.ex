@@ -80,26 +80,6 @@ defmodule BnestApp.Test.CodexReplyPage do
     end)
   end
 
-  # The visitor message that holds `message` has its text and nothing the browser would format.
-  def unformatted_visitor_message?(page, message) do
-    matching = visitor_messages_with(page, message)
-
-    matching != [] and Enum.all?(matching, &plain_content?/1)
-  end
-
-  # A visitor message element's text is exactly `text`, which may span line breaks. Nothing the template
-  # adds around the typed message counts: the element shows the message and no blank line or indentation.
-  def shows_visitor_text?(page, text), do: page |> visitor_messages_exactly(text) |> Enum.any?()
-
-  # The visitor message keeps the line break between `first` and `second`: its text is exactly those two
-  # lines joined by one `\n`, and its element preserves white space (`whitespace-pre-wrap`), so the browser
-  # draws the break the visitor typed.
-  def keeps_visitor_line_break?(page, first, second) do
-    page
-    |> visitor_messages_exactly(first <> "\n" <> second)
-    |> Enum.any?(&pre_wrapped?/1)
-  end
-
   # The reply's task checkboxes: `checked` of them are ticked and `unchecked` are not.
   def task_checkboxes?(reply, checked, unchecked) do
     boxes = LazyHTML.query(reply, "input[type=checkbox]")
@@ -161,37 +141,6 @@ defmodule BnestApp.Test.CodexReplyPage do
   end
 
   defp image_alt(image), do: image |> LazyHTML.attribute("alt") |> List.first()
-
-  defp visitor_messages_with(page, text) do
-    page
-    |> LazyHTML.query("[data-role=user-message]")
-    |> Enum.filter(&(&1 |> LazyHTML.text() |> String.contains?(text)))
-  end
-
-  defp visitor_messages_exactly(page, text) do
-    page
-    |> LazyHTML.query("[data-role=user-message]")
-    |> Enum.filter(&(LazyHTML.text(&1) == text))
-  end
-
-  # The element's content is text only: no tag sits inside its opening and closing tags.
-  defp plain_content?(element) do
-    inner =
-      element
-      |> LazyHTML.to_html()
-      |> String.replace(~r/\A<[^>]*>/, "")
-      |> String.replace(~r/<\/[^>]*>\z/, "")
-
-    not String.contains?(inner, "<")
-  end
-
-  defp pre_wrapped?(element) do
-    element
-    |> LazyHTML.attribute("class")
-    |> List.first("")
-    |> String.split()
-    |> Enum.member?("whitespace-pre-wrap")
-  end
 
   defp task_item?(item), do: not Enum.empty?(LazyHTML.query(item, "input[type=checkbox]"))
 

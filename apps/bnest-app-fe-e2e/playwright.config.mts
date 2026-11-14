@@ -67,6 +67,10 @@ const testDir = defineBddConfig({
 const setupScenario = /Initial setup warns about unavailable recovery/u;
 const desktopOnlyLoadScenario =
   /Ten synthetic visitors preserve recoverable state/u;
+// A fine primary pointer is a desktop input property: a Pixel-class touch context reports a coarse pointer, so the
+// `@fine-pointer` rows (Enter sends, Shift+Enter starts a new line, the hint shows) run on `chromium` only. The touch rows
+// run on `mobile-chromium` and on `chromium` with touch emulation (ADR 005, decision 1).
+const finePointerScenario = /@fine-pointer/u;
 // These scenarios persist real state into the shared candidate's SQLite
 // database (a schedule pointer, or a real chat message) rather than a
 // synthetic, per-run-unique value, and the routed-rollout candidate process
@@ -162,7 +166,7 @@ export default defineConfig({
       name: "mobile-chromium",
       dependencies: ["one-time-setup"],
       grepInvert: new RegExp(
-        `${setupScenario.source}|${desktopOnlyLoadScenario.source}|${sqliteStorageScenario.source}`,
+        `${setupScenario.source}|${desktopOnlyLoadScenario.source}|${sqliteStorageScenario.source}|${finePointerScenario.source}`,
         "u",
       ),
       use: { ...devices["Pixel 5"] },

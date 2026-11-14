@@ -7,20 +7,20 @@
 // boxes are measured in Chromium by `bnest-app-fe-e2e`, which owns the same step texts.
 
 import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
 import { activePage, device, isRendered } from "./support/browser_room";
 import {
   contrastRatio,
   declarationsFor,
   lengthPx,
+  cornerRadii,
   resolveVars,
   type Environment,
 } from "../support/shipped_css";
 import type { StepDefinition, StepHandler } from "./family_chat.steps";
 import { hasRegion, settle, shrinkRegion } from "./support/scroll_scene";
-import { remember } from "./support/scenario_memory";
+import { recallOr, remember } from "./support/scenario_memory";
+import { FAMILY_TEMPLATE } from "./support/send_hint";
 
 const ROOT_PX = 16;
 
@@ -44,7 +44,11 @@ export function familyChatLayoutSteps(): readonly StepDefinition[] {
 /** The viewport and pointer the page is laid out for: the scenario's own viewport, a fine pointer. */
 function environment(): Environment {
   const { viewport } = device();
-  return { width: viewport.width, height: viewport.height, coarse: false };
+  return {
+    width: viewport.width,
+    height: viewport.height,
+    coarse: recallOr("familyCoarse", false),
+  };
 }
 
 function numberOf(value: string | undefined, label: string): number {
@@ -238,95 +242,45 @@ step("the Send button text has a contrast ratio of at least 4.5 to 1", () => {
   expect(ratio, `${text} on ${background}`).toBeGreaterThanOrEqual(4.5);
 });
 
-// --- Then: the theme control in the room's own header --------------------------------------------------------------
+step("the Family Chat message box is named {string}", (name) => {
+  // The accessible name is the label the template ties to the box. The label is visually hidden, not removed.
+  const template = readFileSync(FAMILY_TEMPLATE, "utf8");
+  const label = /<label for="family-chat-message-input">([^<]*)<\/label>/u.exec(
+    template,
+  );
+  expect(label?.[1]?.trim()).toBe(name);
+});
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const FAMILY_ROOM_TEMPLATE = path.resolve(
-  here,
-  "../../../lib/bnest_app_web/controllers/family_chat_html/room.html.heex",
+step(
+  "the message box placeholder has at least 4.5 to 1 contrast with the box",
+  () => {
+    const env = environment();
+    const ink = resolveVars(
+      declarationsFor(".family-chat-message-input::placeholder", env)[
+        "color"
+      ] ?? "",
+    );
+    const background = resolveVars(
+      declarationsFor(".family-chat-message-input", env)["background"] ?? "",
+    );
+    expect(
+      contrastRatio(background, ink),
+      `${ink} on ${background}`,
+    ).toBeGreaterThanOrEqual(4.5);
+  },
 );
 
-step("the theme control is inside the room header", () => {
-  // The control sits in the room's header, and the root layout's floating dock is not drawn over the room. The
-  // header's place in the markup is read from the template the room renders.
-  const template = readFileSync(FAMILY_ROOM_TEMPLATE, "utf8");
-  const header =
-    /<header class="family-chat-header"[\s\S]*?<\/header>/u.exec(
-      template,
-    )?.[0] ?? "";
-  expect(
-    header.includes('class="family-chat-theme"'),
-    "the room header has no theme control",
-  ).toBe(true);
-  expect(
-    declarationsFor("body:has(.family-chat-shell) .theme-dock", environment())[
-      "display"
-    ],
-    "the floating theme dock is drawn over the room",
-  ).toBe("none");
-});
-
-step("the theme control does not cover the room title", () => {
-  // The control keeps its own width, and the title either has a row of its own or can shrink to make room.
-  const env = environment();
-  const theme = declarationsFor(".family-chat-theme", env);
-  expect(
-    ["none", "0 0 auto"].includes((theme["flex"] ?? "").trim()),
-    "the theme control can shrink",
-  ).toBe(true);
-  const title = declarationsFor("#family-chat-room-title", env);
-  const ownRow = (title["flex-basis"] ?? "").trim() === "100%";
-  const canShrink = (title["min-width"] ?? "").trim() === "0";
-  expect(
-    ownRow || canShrink,
-    "the room title can run under the theme control",
-  ).toBe(true);
-});
-
-step("the theme control is at least 44 pixels across on a touch screen", () => {
-  const { viewport } = device();
-  const touch = {
-    width: viewport.width,
-    height: viewport.height,
-    coarse: true,
-  };
-  const declared = declarationsFor(".family-chat-theme", touch);
-  const width = lengthPx(resolveVars(declared["width"] ?? ""), touch);
-  expect(
-    width,
-    "the theme control width on a touch screen",
-  ).toBeGreaterThanOrEqual(44);
-  // The buttons are the targets, so their own height is checked too (the coarse-pointer rule in app.css).
-  const button = declarationsFor(".family-chat-theme button", touch);
-  const height = lengthPx(resolveVars(button["min-height"] ?? ""), touch);
-  expect(
-    height,
-    "the theme button height on a touch screen",
-  ).toBeGreaterThanOrEqual(44);
-});
-
-step("each theme button is at least 44 pixels across on a touch screen", () => {
-  // Each of the three theme buttons is a touch target of its own, so the control holds three of them across.
-  const { viewport } = device();
-  const touch = {
-    width: viewport.width,
-    height: viewport.height,
-    coarse: true,
-  };
-  const button = declarationsFor(".family-chat-theme button", touch);
-  const width = lengthPx(resolveVars(button["min-width"] ?? ""), touch);
-  expect(
-    width,
-    "the theme button width on a touch screen",
-  ).toBeGreaterThanOrEqual(44);
-  const control = lengthPx(
-    resolveVars(declarationsFor(".family-chat-theme", touch)["width"] ?? ""),
-    touch,
+step("the Family Chat Send button has four equal corner radii", () => {
+  const radius = resolveVars(
+    declarationsFor(".family-chat-send", environment())["border-radius"] ?? "",
   );
-  expect(
-    control,
-    "the theme control is too narrow for three touch targets",
-  ).toBeGreaterThanOrEqual(3 * 44);
+  expect(radius, "the Family Chat Send border-radius").not.toBe("");
+  const [topLeft, topRight, bottomRight, bottomLeft] = cornerRadii(radius);
+  expect([topRight, bottomRight, bottomLeft]).toEqual([
+    topLeft,
+    topLeft,
+    topLeft,
+  ]);
 });
 
 // --- Then: a long unbroken draft keeps the room, the composer and Send inside the screen -----------------------

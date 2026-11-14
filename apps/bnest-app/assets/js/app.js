@@ -32,6 +32,9 @@ import { initRoomFromDocument } from "./family_chat.js";
 import { wireLogoutQueueClearing } from "./logout.js";
 import { ChatDiagrams } from "./diagrams/chat_diagrams_hook.js";
 import { SifatSwipe } from "./sifat_swipe.js";
+import { installComposerKeys, keepFocusOnSendPress } from "./chat_keys.js";
+import { ChatComposer } from "./codex_composer_hook.js";
+import { installChatControls, keepOptionsState } from "./chat_controls.js";
 
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -105,6 +108,8 @@ const persistSifatAllah = (snapshot) => {
 
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
+  // A patch rebuilds server-rendered attributes; keepOptionsState carries the open Options panel across it (ADR 005).
+  dom: { onBeforeElUpdated: keepOptionsState },
   params: () => ({
     _csrf_token: csrfToken,
     chat: storedChat(),
@@ -113,6 +118,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {
     ...colocatedHooks,
     BrowserImport,
+    ChatComposer,
     ChatDiagrams,
     SifatHistory,
     SifatSwipe,
@@ -133,22 +139,10 @@ window.addEventListener("phx:persist-sifat-allah", (event) => {
 
 window.addEventListener("phx:sifat-celebrate", celebrateSifatAnswer);
 
-window.addEventListener("keydown", (event) => {
-  const composer = event.target;
-
-  if (
-    event.key !== "Enter" ||
-    !event.shiftKey ||
-    event.isComposing ||
-    !(composer instanceof HTMLTextAreaElement) ||
-    composer.dataset["role"] !== "chat-composer"
-  ) {
-    return;
-  }
-
-  event.preventDefault();
-  composer.form?.requestSubmit();
-});
+// The Codex message box's Enter and Shift+Enter follow the visitor's primary pointer, never the screen width (chat_keys.js, ADR 005).
+installComposerKeys(window, window);
+keepFocusOnSendPress(window);
+installChatControls(document);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener(
