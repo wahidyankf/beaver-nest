@@ -4,32 +4,32 @@ import { openOptionsIfCollapsed } from "../support/chat-ui-steps";
 
 const { Then, When } = createBdd();
 
-const availableModels =
-  "GPT-5.6-Sol,GPT-5.6-Terra,GPT-5.6-Luna,GPT-5.5,GPT-5.4,GPT-5.4-Mini,GPT-5.3-Codex-Spark".split(
-    ",",
-  );
-
-const supportedEfforts: Record<string, string[]> = {
-  "gpt-5.6-sol": ["Low", "Medium", "High", "XHigh", "Max", "Ultra"],
-  "gpt-5.6-terra": ["Low", "Medium", "High", "XHigh", "Max", "Ultra"],
-  "gpt-5.6-luna": ["Low", "Medium", "High", "XHigh", "Max"],
-  "gpt-5.5": ["Low", "Medium", "High", "XHigh"],
-  "gpt-5.4": ["Low", "Medium", "High", "XHigh"],
-  "gpt-5.4-mini": ["Low", "Medium", "High", "XHigh"],
-  "gpt-5.3-codex-spark": ["Low", "Medium", "High", "XHigh"],
+const modelIdsByName: Record<string, string> = {
+  "GPT-6.1-Sol": "gpt-6.1-sol",
+  "GPT-6.1 Terra": "gpt-6.1-terra",
+  "GPT-6-Luna": "gpt-6-luna",
 };
 
+const supportedEfforts: Record<string, string[]> = {
+  "gpt-6.1-sol": ["Low", "Medium", "High", "XHigh", "Max", "Ultra"],
+  "gpt-6.1-terra": ["Low", "Medium", "High", "XHigh", "Max", "Ultra"],
+  "gpt-6-luna": ["Low", "Medium", "High", "XHigh", "Max"],
+};
+
+// The names are listed in the picker's order, separated by ", ". The admin's picker lists the latest Sol, Terra and
+// Luna highest tier first, whatever order Codex lists them in (ADR 006).
 Then(
-  "the model selector lists every available Codex model",
-  async ({ page }) => {
+  "the model selector lists only {string}",
+  async ({ page }, names: string) => {
     await expect(page.getByLabel("Model").locator("option")).toHaveText(
-      availableModels,
+      names.split(", "),
     );
   },
 );
 
 Then("the selected model is {string}", async ({ page }, model: string) => {
-  const modelId = model === "GPT-5.6-Luna" ? "gpt-5.6-luna" : "gpt-5.6-terra";
+  const modelId = modelIdsByName[model];
+  if (!modelId) throw new Error(`No fixture model id for ${model}`);
   const selector = page.getByLabel("Model");
   if (await selector.count()) await expect(selector).toHaveValue(modelId);
   await expect(

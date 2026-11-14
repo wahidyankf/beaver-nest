@@ -46,8 +46,13 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
-  step "the model selector lists every available Codex model", context do
-    assert context.behaviour_driver.model_selector_lists_all?(context)
+  # The names are listed in the picker's order, separated by ", ".
+  step "the model selector lists only {string}", %{args: [names]} = context do
+    assert context.behaviour_driver.model_selector_lists_only?(
+             context,
+             String.split(names, ", ")
+           )
+
     context
   end
 

@@ -237,11 +237,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
-  def model_selector_lists_all?(context) do
+  def model_selector_lists_only?(context, names) do
     context.page
     |> LazyHTML.query("[data-role=model-selector] option")
     |> Enum.map(&(LazyHTML.text(&1) |> String.trim()))
-    |> Kernel.==(FixtureModels.display_names())
+    |> Kernel.==(names)
   end
 
   # The selection is read from the rendered selector, or from the badge where no selector is
@@ -1712,7 +1712,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context = start_chat_runtime(context)
 
     {:ok, transcript} =
-      Transcript.new("gpt-5.6-terra", "medium") |> Transcript.submit("Remember this transcript")
+      Transcript.new("gpt-6.1-terra", "medium") |> Transcript.submit("Remember this transcript")
 
     transcript =
       transcript

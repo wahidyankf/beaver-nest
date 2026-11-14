@@ -19,10 +19,10 @@ defmodule BnestApp.Test.CodexFixtureConversation do
   @type threads :: %{optional(String.t()) => [String.t()]}
 
   @expected_settings %{
-    "After model switch" => {"gpt-5.6-luna", "high"},
-    "After effort switch" => {"gpt-5.6-terra", "high"},
-    "After reload" => {"gpt-5.6-luna", "high"},
-    "Fresh start" => {"gpt-5.6-luna", "high"}
+    "After model switch" => {"gpt-6-luna", "high"},
+    "After effort switch" => {"gpt-6.1-terra", "high"},
+    "After reload" => {"gpt-6-luna", "high"},
+    "Fresh start" => {"gpt-6-luna", "high"}
   }
 
   # The canned replies `codex_fixture_runner.mjs` sends, read from the same file so the two stay in step.

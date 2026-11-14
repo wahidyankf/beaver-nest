@@ -201,14 +201,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
-  def model_selector_lists_all?(context) do
-    Enum.all?(FixtureModels.all(), fn model ->
-      has_element?(
-        context.view,
-        "[data-role=model-selector] option[value='#{model.id}']",
-        model.display_name
-      )
-    end)
+  def model_selector_lists_only?(context, names) do
+    context.view
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("[data-role=model-selector] option")
+    |> Enum.map(&(LazyHTML.text(&1) |> String.trim()))
+    |> Kernel.==(names)
   end
 
   @impl true
@@ -1294,7 +1293,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   # run-root repository, on the thread the fixture agent session cannot resume.
   def prepare_behaviour(context, :unavailable_codex_thread, _args) do
     {:ok, transcript} =
-      Transcript.new("gpt-5.6-terra", "medium") |> Transcript.submit("Remember this transcript")
+      Transcript.new("gpt-6.1-terra", "medium") |> Transcript.submit("Remember this transcript")
 
     transcript =
       transcript

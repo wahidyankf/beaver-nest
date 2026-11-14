@@ -2,7 +2,7 @@ defmodule BnestAppWeb.ChatLive do
   use BnestAppWeb, :live_view
 
   alias BnestApp.CodexChat
-  alias BnestApp.CodexChat.Domain.{RepositoryAccess, Settings, Transcript}
+  alias BnestApp.CodexChat.Domain.{ModelAccess, RepositoryAccess, Settings, Transcript}
   alias BnestAppWeb.ChatComponents
 
   @max_snapshot_bytes 500_000
@@ -10,14 +10,7 @@ defmodule BnestAppWeb.ChatLive do
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     model_access = CodexChat.model_access(socket.assigns.current_user)
-    {chat, central_record} = restore_chat(socket, model_access.model, model_access.models)
-
-    chat =
-      if model_access.selectable? do
-        chat
-      else
-        Transcript.enforce_model(chat, model_access.model.id, model_access.reasoning_effort)
-      end
+    {chat, central_record} = restore_chat(socket, model_access)
 
     chat =
       if model_access.available?, do: chat, else: Transcript.fail(chat, model_access.error)
@@ -43,18 +36,19 @@ defmodule BnestAppWeb.ChatLive do
       else: {:ok, socket}
   end
 
+  # The role's rules decide what a switch may change, so a forged model or effort is refused here too.
   def handle_event("select_model", %{"model" => model_id}, socket) do
-    models = Map.get(socket.assigns, :models, CodexChat.models())
-
-    with true <- model_selection_allowed?(socket),
-         false <- socket.assigns.chat.busy,
-         %{} = model <- selected_model(models, model_id),
-         reasoning_effort =
-           CodexChat.reasoning_effort(model, socket.assigns.chat.reasoning_effort),
+    with false <- socket.assigns.chat.busy,
+         {:ok, model, reasoning_effort} <-
+           ModelAccess.select_model(
+             Map.get(socket.assigns, :model_access),
+             model_id,
+             socket.assigns.chat.reasoning_effort
+           ),
          {:ok, chat} <- Transcript.select_model(socket.assigns.chat, model.id, reasoning_effort) do
       {:noreply, replace_codex(socket, chat)}
     else
-      _busy_or_unknown -> {:noreply, socket}
+      _busy_or_refused -> {:noreply, socket}
     end
   end
 
@@ -63,19 +57,18 @@ defmodule BnestAppWeb.ChatLive do
   def handle_event("select_effort", %{"reasoning_effort" => reasoning_effort}, socket) do
     models = Map.get(socket.assigns, :models, CodexChat.models())
 
-    with true <- model_selection_allowed?(socket),
-         false <- socket.assigns.chat.busy,
+    with false <- socket.assigns.chat.busy,
          %{} = model <- selected_model(models, socket.assigns.chat.model),
-         true <- reasoning_effort in model.supported_reasoning_efforts,
-         {:ok, chat} <-
-           Transcript.select_model(
-             socket.assigns.chat,
-             socket.assigns.chat.model,
+         {:ok, effort} <-
+           ModelAccess.select_effort(
+             Map.get(socket.assigns, :model_access),
+             model,
              reasoning_effort
-           ) do
+           ),
+         {:ok, chat} <- Transcript.select_model(socket.assigns.chat, model.id, effort) do
       {:noreply, replace_codex(socket, chat)}
     else
-      _busy_or_unsupported -> {:noreply, socket}
+      _busy_or_refused -> {:noreply, socket}
     end
   end
 
@@ -266,7 +259,7 @@ defmodule BnestAppWeb.ChatLive do
             </span>
             <div id="chat-options" class="chat-actions" data-role="chat-options">
               <form
-                :if={@model_access.selectable?}
+                :if={@model_access.model_selectable?}
                 id="model-picker"
                 phx-change="select_model"
                 phx-auto-recover="ignore_model_recovery"
@@ -289,7 +282,7 @@ defmodule BnestAppWeb.ChatLive do
                 </select>
               </form>
               <form
-                :if={@model_access.selectable?}
+                :if={@model_access.effort_selectable?}
                 id="effort-picker"
                 phx-change="select_effort"
                 phx-auto-recover="ignore_effort_recovery"
@@ -486,45 +479,45 @@ defmodule BnestAppWeb.ChatLive do
     end
   end
 
-  defp restore_chat(socket, default_model, models) do
+  defp restore_chat(socket, access) do
     owner_id = socket.assigns.current_user["userId"]
 
     case CodexChat.load_transcript(owner_id) do
       {:ok, restored, record} ->
-        {normalize_model(restored, default_model, models), record}
+        {settle_chat(restored, access), record}
 
       {:error, :unrestorable} ->
-        {new_chat(default_model), nil}
+        {new_chat(access), nil}
 
       {:error, _missing_or_invalid} ->
         chat =
           if legacy_browser_user?(socket),
-            do: restore_browser_chat(socket, default_model),
-            else: new_chat(default_model)
+            do: restore_browser_chat(socket, access),
+            else: new_chat(access)
 
-        {normalize_model(chat, default_model, models), nil}
+        {settle_chat(chat, access), nil}
     end
   end
 
-  defp restore_browser_chat(socket, default_model) do
+  defp restore_browser_chat(socket, access) do
     if connected?(socket) do
-      decode_browser_chat(get_connect_params(socket), default_model)
+      decode_browser_chat(get_connect_params(socket), access)
     else
-      new_chat(default_model)
+      new_chat(access)
     end
   end
 
-  defp decode_browser_chat(%{"chat" => encoded}, default_model) when is_binary(encoded) do
+  defp decode_browser_chat(%{"chat" => encoded}, access) when is_binary(encoded) do
     with true <- byte_size(encoded) <= @max_snapshot_bytes,
          {:ok, snapshot} <- Jason.decode(encoded),
          {:ok, restored} <- Transcript.restore(snapshot) do
       restored
     else
-      _invalid_or_missing -> new_chat(default_model)
+      _invalid_or_missing -> new_chat(access)
     end
   end
 
-  defp decode_browser_chat(_params, default_model), do: new_chat(default_model)
+  defp decode_browser_chat(_params, access), do: new_chat(access)
 
   defp recover_pending_turn(socket) do
     case CodexChat.recover_pending_turn(socket.assigns.chat) do
@@ -628,14 +621,12 @@ defmodule BnestAppWeb.ChatLive do
 
   defp prompt_form(prompt \\ ""), do: to_form(%{"prompt" => prompt}, as: :chat)
 
-  defp new_chat(model), do: Transcript.new(model.id, CodexChat.reasoning_effort(model))
+  defp new_chat(access), do: settle_chat(Transcript.new(), access)
 
-  defp normalize_model(chat, default_model, models) do
-    selected_model =
-      selected_model(models, chat.model) || default_model
-
-    reasoning_effort = CodexChat.reasoning_effort(selected_model, chat.reasoning_effort)
-    Transcript.enforce_model(chat, selected_model.id, reasoning_effort)
+  # A saved model or effort the role may no longer use resolves to the role's own choice (ADR 006).
+  defp settle_chat(chat, access) do
+    {model, reasoning_effort} = ModelAccess.settle(access, chat.model, chat.reasoning_effort)
+    Transcript.enforce_model(chat, model.id, reasoning_effort)
   end
 
   defp model_display_name(models, model_id) do
@@ -643,9 +634,6 @@ defmodule BnestAppWeb.ChatLive do
   end
 
   defp selected_model(models, model_id), do: Enum.find(models, &(&1.id == model_id))
-
-  defp model_selection_allowed?(socket),
-    do: Map.get(socket.assigns, :model_access, %{selectable?: true}).selectable?
 
   # A reply that has no text yet shows the placeholder, as plain text and never as Markdown.
   defp placeholder?(%{content: "", streaming: true}), do: true

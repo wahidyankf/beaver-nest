@@ -41,8 +41,8 @@ Feature: Beaver Nest chat
     And the page displays the text "Terra · medium"
     And repository access is shown as read-only
     And the repository write control is available
-    And the model selector lists every available Codex model
-    And the selected model is "GPT-5.6-Terra"
+    And the model selector lists only "GPT-6.1-Sol, GPT-6.1 Terra, GPT-6-Luna"
+    And the selected model is "GPT-6.1 Terra"
     And the reasoning effort selector lists every effort supported by the selected model
     And the selected reasoning effort is "Medium"
     And the conversation is empty
@@ -104,8 +104,8 @@ Feature: Beaver Nest chat
     When the visitor sends "Before model switch"
     And a Codex response appears incrementally
     When the visitor selects the reasoning effort "High"
-    And the visitor selects the model "GPT-5.6-Luna"
-    Then the selected model is "GPT-5.6-Luna"
+    And the visitor selects the model "GPT-6-Luna"
+    Then the selected model is "GPT-6-Luna"
     And the reasoning effort selector lists every effort supported by the selected model
     And the selected reasoning effort is "High"
     And the conversation displays the visitor message "Before model switch"
@@ -126,13 +126,13 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     And the conversation displays a second Codex response
 
-  Scenario: A model change falls back from an unsupported reasoning effort
+  Scenario: A model change falls back to Max from an unsupported reasoning effort
     Given a visitor opens "/chat"
     When the visitor selects the reasoning effort "Ultra"
-    And the visitor selects the model "GPT-5.6-Luna"
-    Then the selected model is "GPT-5.6-Luna"
+    And the visitor selects the model "GPT-6-Luna"
+    Then the selected model is "GPT-6-Luna"
     And the reasoning effort selector lists every effort supported by the selected model
-    And the selected reasoning effort is "Medium"
+    And the selected reasoning effort is "Max"
 
   Scenario: The Codex session cannot accept a message
     Given a visitor opens "/chat"
@@ -151,7 +151,7 @@ Feature: Beaver Nest chat
   @integration-exempt
   Scenario: An automatic LiveView reconnect preserves a completed user-owned conversation and Codex session
     Given a visitor opens "/chat"
-    When the visitor selects the model "GPT-5.6-Luna"
+    When the visitor selects the model "GPT-6-Luna"
     And the visitor selects the reasoning effort "High"
     And the visitor sends "Temporary message"
     And a Codex response appears incrementally
@@ -159,7 +159,7 @@ Feature: Beaver Nest chat
     When the visitor reconnects after a deployment
     Then the current route is "/chat"
     And the message composer contains "Unsent draft"
-    Then the selected model is "GPT-5.6-Luna"
+    Then the selected model is "GPT-6-Luna"
     And the selected reasoning effort is "High"
     And the conversation displays the visitor message "Temporary message"
     And the conversation displays one completed Codex response
@@ -215,13 +215,13 @@ Feature: Beaver Nest chat
 
   Scenario: A user clears normalized chat and starts a new Codex session
     Given a visitor opens "/chat"
-    When the visitor selects the model "GPT-5.6-Luna"
+    When the visitor selects the model "GPT-6-Luna"
     And the visitor selects the reasoning effort "High"
     And the visitor sends "Old session marker"
     And a Codex response appears incrementally
     When the visitor clears the chat
     Then the conversation is empty
-    And the selected model is "GPT-5.6-Luna"
+    And the selected model is "GPT-6-Luna"
     And the selected reasoning effort is "High"
     And the message composer is available
     When the visitor sends "Fresh start"
@@ -237,21 +237,27 @@ Feature: Beaver Nest chat
     Then the page displays the text "Luna · medium"
     And repository access is shown as read-only
     And the repository write control is not shown
-    And the selected model is "GPT-5.6-Luna"
+    And the selected model is "GPT-6-Luna"
     And the selected reasoning effort is "Medium"
     And the model selector is not shown
     And the reasoning effort selector is not shown
     And the chat controls do not overlap
 
-  Scenario: A parent is limited to Terra at medium effort
+  Scenario: A parent chooses Luna or Terra at medium effort
     Given an approved parent is logged in
     When a visitor opens "/chat"
     Then the page displays the text "Terra · medium"
     And repository access is shown as read-only
     And the repository write control is not shown
-    And the selected model is "GPT-5.6-Terra"
+    And the selected model is "GPT-6.1 Terra"
     And the selected reasoning effort is "Medium"
-    And the model selector is not shown
+    And the model selector lists only "GPT-6.1 Terra, GPT-6-Luna"
+    And the model selector is available
+    And the reasoning effort selector is not shown
+    When the visitor selects the model "GPT-6-Luna"
+    Then the page displays the text "Luna · medium"
+    And the selected model is "GPT-6-Luna"
+    And the selected reasoning effort is "Medium"
     And the reasoning effort selector is not shown
 
   Scenario: An administrator explicitly enables repository writes

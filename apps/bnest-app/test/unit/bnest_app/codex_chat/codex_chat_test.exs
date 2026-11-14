@@ -40,12 +40,12 @@ defmodule BnestApp.CodexChat.CodexChatUnitTest do
 
   describe "open_conversation/3" do
     test "opens a new Codex thread in the requested repository mode" do
-      transcript = Transcript.new("gpt-5.6-terra", "high")
+      transcript = Transcript.new("gpt-6.1-terra", "high")
 
       assert {:ok, session, ^transcript} =
                CodexChat.open_conversation(transcript, :workspace_write, @agent)
 
-      assert_received {:agent_session, :open, {nil, "gpt-5.6-terra", "high", :workspace_write}}
+      assert_received {:agent_session, :open, {nil, "gpt-6.1-terra", "high", :workspace_write}}
       assert session.owner == self()
     end
 
@@ -354,16 +354,21 @@ defmodule BnestApp.CodexChat.CodexChatUnitTest do
       Enum.each(CodexChat.child_specs(), &start_supervised!/1)
       {:ok, discovered} = CodexChat.adapter(:model_discovery).discover([])
 
-      assert Enum.map(CodexChat.models(), & &1.id) == Enum.map(discovered, & &1.id)
+      # The local list holds eight models; the catalog offers only the three latest tiers.
+      assert length(discovered) == 8
+
+      assert Enum.map(CodexChat.models(), & &1.id) == [
+               "gpt-6.1-sol",
+               "gpt-6.1-terra",
+               "gpt-6-luna"
+             ]
 
       access = CodexChat.model_access(%{"roles" => ["children"]})
-      assert access.model.id == "gpt-5.6-luna"
-      refute access.selectable?
-
-      [luna] = access.models
-      assert CodexChat.reasoning_effort(luna) == "medium"
-      assert CodexChat.reasoning_effort(luna, "ultra") == "medium"
-      assert CodexChat.reasoning_effort(luna, "high") == "high"
+      assert access.model.id == "gpt-6-luna"
+      refute access.model_selectable?
+      refute access.effort_selectable?
+      assert access.reasoning_effort == "medium"
+      assert [%{id: "gpt-6-luna"}] = access.models
     end
   end
 

@@ -13,7 +13,7 @@ defmodule BnestAppWeb.CentralizedPersistenceTest do
       Jason.encode!(%{
         "version" => 2,
         "thread_id" => "unconfirmed-browser-thread",
-        "model" => "gpt-5.6-terra",
+        "model" => "gpt-6.1-terra",
         "reasoning_effort" => "medium",
         "messages" => [
           %{

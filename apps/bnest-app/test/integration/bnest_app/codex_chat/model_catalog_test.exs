@@ -5,6 +5,7 @@ defmodule BnestApp.CodexChat.ModelCatalogTest do
 
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Adapters.CodexCliModelDiscovery
+  alias BnestApp.CodexChat.Domain.ModelAccess
   alias BnestApp.CodexChat.ModelCatalog
 
   @workspace Path.expand("../../../../../..", __DIR__)
@@ -21,15 +22,22 @@ defmodule BnestApp.CodexChat.ModelCatalogTest do
          node: System.find_executable("node")}
       )
 
-    assert length(ModelCatalog.all(catalog)) == 7
+    # The local list holds eight models; only the latest Sol, Terra and Luna are offered.
+    assert Enum.map(ModelCatalog.all(catalog), & &1.id) == [
+             "gpt-6.1-sol",
+             "gpt-6.1-terra",
+             "gpt-6-luna"
+           ]
 
-    assert {:ok, %{display_name: "GPT-5.6-Luna"} = luna} =
-             ModelCatalog.fetch("gpt-5.6-luna", catalog)
+    assert {:ok, %{display_name: "GPT-6-Luna"} = luna} =
+             ModelCatalog.fetch("gpt-6-luna", catalog)
 
-    assert ModelCatalog.reasoning_effort(luna, "high") == "high"
-    assert ModelCatalog.reasoning_effort(luna, "ultra") == "medium"
+    assert ModelAccess.reasoning_effort(luna, "high") == "high"
+    assert ModelAccess.reasoning_effort(luna, "ultra") == "max"
 
     assert ModelCatalog.fetch("hidden-or-unknown", catalog) == :error
+    assert ModelCatalog.fetch("gpt-6-astra", catalog) == :error
+    assert ModelCatalog.fetch("gpt-5.6-terra", catalog) == :error
   end
 
   test "uses configured local discovery when no test catalog is supplied" do
@@ -54,7 +62,12 @@ defmodule BnestApp.CodexChat.ModelCatalogTest do
     end)
 
     catalog = start_supervised!({ModelCatalog, name: nil})
-    assert length(ModelCatalog.all(catalog)) == 7
+
+    assert Enum.map(ModelCatalog.all(catalog), & &1.id) == [
+             "gpt-6.1-sol",
+             "gpt-6.1-terra",
+             "gpt-6-luna"
+           ]
   end
 
   test "the production model runner is located in the packaged application" do
@@ -66,10 +79,10 @@ defmodule BnestApp.CodexChat.ModelCatalogTest do
     log =
       capture_log(fn ->
         catalog = start_supervised!({ModelCatalog, name: nil, models: nil})
-        assert ModelCatalog.default(catalog).id == "gpt-5.6-terra"
+        assert ModelCatalog.default(catalog).id == "gpt-6.1-terra"
 
         {:ok, second_catalog} = ModelCatalog.start_link(name: nil, models: [nil])
-        assert ModelCatalog.default(second_catalog).id == "gpt-5.6-terra"
+        assert ModelCatalog.default(second_catalog).id == "gpt-6.1-terra"
         GenServer.stop(second_catalog)
       end)
 
@@ -95,18 +108,18 @@ defmodule BnestApp.CodexChat.ModelCatalogTest do
     assert log =~ "model discovery failed"
   end
 
-  test "chooses the declared default and supported effort when Terra and medium are absent" do
+  test "chooses the declared default when Terra is absent" do
     models = [
       %{
-        id: "local-first",
-        display_name: "Local First",
-        default_reasoning_effort: "low",
-        supported_reasoning_efforts: ["low"],
+        id: "gpt-6-luna",
+        display_name: "GPT-6-Luna",
+        default_reasoning_effort: "medium",
+        supported_reasoning_efforts: ["medium"],
         is_default: false
       },
       %{
-        id: "local-default",
-        display_name: "Local Default",
+        id: "gpt-6.1-sol",
+        display_name: "GPT-6.1-Sol",
         default_reasoning_effort: "high",
         supported_reasoning_efforts: ["high"],
         is_default: true
@@ -116,16 +129,40 @@ defmodule BnestApp.CodexChat.ModelCatalogTest do
     catalog = start_supervised!({ModelCatalog, name: nil, models: models})
     selected = ModelCatalog.default(catalog)
 
-    assert selected.id == "local-default"
-    assert ModelCatalog.reasoning_effort(selected) == "high"
-    assert ModelCatalog.reasoning_effort(selected, "low") == "high"
+    assert selected.id == "gpt-6.1-sol"
+    assert ModelAccess.reasoning_effort(selected) == "high"
+    assert ModelAccess.reasoning_effort(selected, "low") == "high"
+  end
+
+  test "an invalid entry for a model Codex does not offer leaves Luna and Terra offered" do
+    retired_entry = %{
+      "id" => "gpt-6-astra",
+      "display_name" => "GPT-6-Astra",
+      "default_reasoning_effort" => "turbo",
+      "supported_reasoning_efforts" => ["low"],
+      "is_default" => false
+    }
+
+    luna = %{
+      "id" => "gpt-6-luna",
+      "display_name" => "GPT-6-Luna",
+      "default_reasoning_effort" => "medium",
+      "supported_reasoning_efforts" => ["medium"],
+      "is_default" => false
+    }
+
+    terra = %{luna | "id" => "gpt-6.1-terra", "display_name" => "GPT-6.1 Terra"}
+
+    catalog = start_supervised!({ModelCatalog, name: nil, models: [retired_entry, luna, terra]})
+
+    assert Enum.map(ModelCatalog.all(catalog), & &1.id) == ["gpt-6-luna", "gpt-6.1-terra"]
   end
 
   test "uses the first valid model when no preferred or declared default exists" do
     models = [
       %{
-        "id" => "local-first",
-        "display_name" => "Local First",
+        "id" => "gpt-6-luna",
+        "display_name" => "GPT-6-Luna",
         "default_reasoning_effort" => "medium",
         "supported_reasoning_efforts" => ["medium"],
         "is_default" => false
@@ -133,6 +170,6 @@ defmodule BnestApp.CodexChat.ModelCatalogTest do
     ]
 
     catalog = start_supervised!({ModelCatalog, name: nil, models: models})
-    assert ModelCatalog.default(catalog).id == "local-first"
+    assert ModelCatalog.default(catalog).id == "gpt-6-luna"
   end
 end
