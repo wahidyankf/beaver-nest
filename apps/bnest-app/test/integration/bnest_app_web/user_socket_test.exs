@@ -54,4 +54,15 @@ defmodule BnestAppWeb.UserSocketSessionTest do
 
     refute Map.has_key?(session_after_request(stale), "session_digest")
   end
+
+  # The socket ID names the session digest, so logout's broadcast on that same
+  # topic disconnects the live socket.
+  test "the socket id names the session digest", %{conn: conn} do
+    session = session_after_request(conn)
+
+    {:ok, socket} =
+      Phoenix.ChannelTest.connect(BnestAppWeb.UserSocket, %{}, connect_info: %{session: session})
+
+    assert BnestAppWeb.UserSocket.id(socket) == "identity:" <> session["session_digest"]
+  end
 end

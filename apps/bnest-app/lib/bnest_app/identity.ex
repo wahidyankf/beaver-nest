@@ -101,6 +101,37 @@ defmodule BnestApp.Identity do
   @spec session_digest(String.t()) :: String.t()
   def session_digest(token), do: Session.digest(token)
 
+  @doc """
+  Whether `digest` still names a live session: a stored, unrevoked session
+  record. Fail-closed: a revoked or unknown digest — or a store this caller
+  cannot read — answers false, so the socket and resolver re-checks built on
+  this never authorize a dead session.
+  """
+  @spec session_active?(term()) :: boolean()
+  def session_active?(digest) when is_binary(digest),
+    do: session_active?(digest, active_store())
+
+  def session_active?(_digest), do: false
+
+  @doc """
+  Explicit-store variant of `session_active?/1`, for callers that already
+  hold a store handle and must not depend on ambient configuration.
+  """
+
+  @spec session_active?(term(), IdentityStore.handle()) :: boolean()
+  def session_active?(digest, store) when is_binary(digest) do
+    case IdentityStore.read_session(store, digest) do
+      {:ok, %{"revokedAt" => nil}} -> true
+      _inactive -> false
+    end
+  rescue
+    _unreadable -> false
+  catch
+    :exit, _unavailable -> false
+  end
+
+  def session_active?(_digest, _store), do: false
+
   @doc "Times one hash with the configured credential hasher's work factor."
   @spec benchmark_hasher() :: {:ok, non_neg_integer()} | {:error, atom()}
   def benchmark_hasher, do: adapter(:credential_hasher).benchmark()

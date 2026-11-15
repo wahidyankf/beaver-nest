@@ -45,9 +45,14 @@ defmodule BnestApp.FamilyChat.Domain.Message do
 
   # tech-doc 002's "Send Transactions" contract: normalized text, at most 4,000
   # graphemes, at most 16 KiB, non-blank. Rejects before any commit is attempted.
+  # Invisible controls are removed before the budget checks: C0 controls (except
+  # tab and newline) and DEL, and the directional/zero-width format controls
+  # that enable spoofing, so neither the stored body nor the rendered HTML can
+  # carry them. The joiner combining-mark sequences of emoji survive (only
+  # format controls are removed), and a body of nothing but controls is blank.
   @spec normalize_body(term()) :: {:ok, String.t()} | {:error, :blank | :too_long | :too_large}
   def normalize_body(body) when is_binary(body) do
-    normalized = body |> String.trim() |> normalize_newlines()
+    normalized = body |> String.trim() |> fold_newlines() |> strip_invisible_controls()
 
     cond do
       normalized == "" -> {:error, :blank}
@@ -154,5 +159,14 @@ defmodule BnestApp.FamilyChat.Domain.Message do
     end
   end
 
-  defp normalize_newlines(text), do: String.replace(text, "\r\n", "\n")
+  defp fold_newlines(text) do
+    text |> String.replace("\r\n", "\n") |> String.replace("\r", "\n")
+  end
+
+  # C0 controls except tab/newline, DEL, and the bidi/zero-width format range
+  # (U+061C, U+200E/U+200F, U+2028-U+202E, U+2066-U+2069, U+FEFF). U+200D
+  # (zero-width joiner) and combining marks are deliberately kept: they are the
+  # visible emoji sequences, not spoofing controls.
+  @invisible_controls ~r/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\x{061C}\x{200E}\x{200F}\x{2028}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]/u
+  defp strip_invisible_controls(text), do: String.replace(text, @invisible_controls, "")
 end

@@ -26,6 +26,8 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   alias BnestApp.FamilyChat
   alias BnestApp.FamilyChat.Ports.RoomStore
   alias BnestApp.Identity
+  alias BnestApp.Identity.Domain.Session
+  alias BnestApp.Identity.Sessions
   alias BnestApp.Preferences
   alias BnestApp.PushNotifications
   alias BnestApp.PushNotifications.Dispatcher
@@ -773,13 +775,18 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     real_user_id = current_user(context)
     spoofed_user_id = "test-user-family-chat-spoofed-" <> unique_uuid()
 
+    # The socket re-checks the digest against the Identity store, so the
+    # session carries a live one minted over the scenario's in-memory records —
+    # a digest of a never-stored token would be refused like a replayed logout.
+    {:ok, digest} = live_session_digest(real_user_id)
+
     session = %{
       "current_user" => %{
         "userId" => real_user_id,
         "displayUsername" => synthetic_display_name(real_user_id),
         "roles" => ["parents"]
       },
-      "session_digest" => Identity.session_digest("test-user-unit-session-" <> unique_uuid())
+      "session_digest" => digest
     }
 
     spoofed_params = %{"userId" => spoofed_user_id, "role" => "admin", "roles" => ["admin"]}
@@ -3018,7 +3025,8 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
 
   # Runs one mutation field through the public schema as an authenticated member with the
   # use family chat capability, its arguments filled by name. A field that needs an
-  # argument no value names cannot run, and is reported so.
+  # argument no value names cannot run, and is reported so. The probe carries a live
+  # session digest: resolvers re-check revocation, so a fake one would be refused.
   defp run_public_mutation(field, user_id) do
     values = %{
       "roomSlug" => FamilyChat.canonical_room_slug(),
@@ -3036,15 +3044,28 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     }
 
     with {:ok, document, variables} <- PublicMutationProbe.invocation(field, values),
+         {:ok, digest} <- live_session_digest(user_id),
          {:ok, %{data: data} = result} when not is_map_key(result, :errors) <-
            Absinthe.run(document, BnestAppWeb.Schema,
              variables: variables,
-             context: %{current_user: current_user, session_digest: "test-session-" <> user_id}
+             context: %{current_user: current_user, session_digest: digest}
            ),
          %{} <- data[field.name] do
       {field.name, :ran}
     else
       other -> {field.name, {:failed, other}}
+    end
+  end
+
+  # A live session for the probe member, over the scenario's in-memory records:
+  # resolvers only authorize digests `Identity.session_active?/1` confirms.
+  defp live_session_digest(user_id) do
+    :ok = start_identity_records!()
+    store = Identity.adapter(:identity_store).new(BnestApp.Storage.active_store())
+
+    case Sessions.create(store, user_id) do
+      {:ok, token} -> {:ok, Session.digest(token)}
+      {:error, _reason} = error -> error
     end
   end
 

@@ -9,6 +9,30 @@ defmodule BnestApp.FamilyChat.Domain.MessageTest do
       assert {:error, :blank} = Message.normalize_body(nil)
       assert {:error, :blank} = Message.normalize_body(%{})
     end
+
+    test "removes bidi overrides and C0 controls before measuring" do
+      assert {:ok, "haloapakabar!"} = Message.normalize_body("halo\u202Aapa\u2028kabar\u001F!")
+    end
+
+    test "a body of nothing but controls is blank" do
+      assert {:error, :blank} = Message.normalize_body("\u202A\u202B\u001F")
+    end
+
+    test "keeps tabs, newlines, and emoji joiner sequences" do
+      assert {:ok, "a\tb\nc"} = Message.normalize_body("a\tb\nc")
+      assert {:ok, "hi\nthere"} = Message.normalize_body("hi\r\nthere")
+      assert {:ok, "hi\nthere"} = Message.normalize_body("hi\rthere")
+
+      family = "👨‍👩‍👧‍👦"
+      assert {:ok, ^family} = Message.normalize_body(family)
+    end
+
+    test "a body under budget only because controls are stripped is accepted" do
+      padded = String.duplicate("a", 3_999) <> "\u202A\u001F"
+
+      assert {:ok, accepted} = Message.normalize_body(padded)
+      assert String.length(accepted) == 3_999
+    end
   end
 
   describe "normalize_reply_to_message_id/1" do

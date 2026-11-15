@@ -42,6 +42,20 @@ defmodule BnestApp.FamilyChat.Domain.PolicyTest do
     assert Policy.validate_body(" \n ") == @validation_failed
   end
 
+  test "an over-long body names its 4,000-grapheme limit" do
+    assert {:error, %{code: "BODY_TOO_LONG", details: nil}} =
+             Policy.validate_body(String.duplicate("a", 4_001))
+  end
+
+  test "an over-large body names its 16 KiB limit" do
+    # One family emoji is a single grapheme of several bytes: 700 of them stay
+    # within 4_000 graphemes but exceed the 16 KiB byte budget.
+    over = String.duplicate("👨‍👩‍👧‍👦", 700)
+    assert String.length(over) <= 4_000
+    assert byte_size(over) > 16_384
+    assert {:error, %{code: "BODY_TOO_LARGE", details: nil}} = Policy.validate_body(over)
+  end
+
   test "a reply target is nil or a positive integer ID" do
     assert Policy.validate_reply_target(nil) == {:ok, nil}
     assert Policy.validate_reply_target("12") == {:ok, 12}

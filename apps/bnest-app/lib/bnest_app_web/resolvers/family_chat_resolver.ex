@@ -78,15 +78,33 @@ defmodule BnestAppWeb.Resolvers.FamilyChatResolver do
   # UNAUTHENTICATED for every subscription regardless of a genuinely valid
   # session. Ordinary query/mutation resolutions still match fine: a real
   # `%Absinthe.Resolution{}` is itself a map with a `:context` field.
-  defp authorize(%{context: %{current_user: %{"userId" => user_id} = user}}) do
-    if Identity.authorize(user, :use_family_chat, user_id) do
+  defp authorize(%{context: %{current_user: %{"userId" => user_id} = user} = context}) do
+    with :ok <- check_session(context),
+         true <- Identity.authorize(user, :use_family_chat, user_id) do
       {:ok, user_id}
     else
-      {:error, safe_error("FORBIDDEN")}
+      {:error, _safe_error} = error -> error
+      false -> {:error, safe_error("FORBIDDEN")}
     end
   end
 
   defp authorize(_no_authenticated_context), do: {:error, safe_error("UNAUTHENTICATED")}
+
+  # The digest the session carries must still name a live session: logout
+  # revokes the server-side record while the signed cookie (and any socket
+  # built from it) still exists. A context with no digest is the
+  # legacy/in-process caller, gated on capability alone.
+  defp check_session(context) do
+    case Map.get(context, :session_digest) do
+      nil ->
+        :ok
+
+      digest ->
+        if Identity.session_active?(digest),
+          do: :ok,
+          else: {:error, safe_error("UNAUTHENTICATED")}
+    end
+  end
 
   # Only reached from inside `send_family_chat_message/2`'s `with` block,
   # i.e. after `authorize/1` already matched this same resolution's
@@ -104,6 +122,8 @@ defmodule BnestAppWeb.Resolvers.FamilyChatResolver do
   defp safe_message("FORBIDDEN"), do: "Not authorized for this operation."
   defp safe_message("ROOM_NOT_FOUND"), do: "The requested room is unavailable."
   defp safe_message("VALIDATION_FAILED"), do: "The request is invalid."
+  defp safe_message("BODY_TOO_LONG"), do: "The message exceeds the 4,000-character limit."
+  defp safe_message("BODY_TOO_LARGE"), do: "The message exceeds the 16 KiB size limit."
   defp safe_message(_other), do: "The request could not be completed."
 
   defp parse_id(nil), do: nil

@@ -10,15 +10,26 @@ defmodule BnestAppWeb.Schema.Complexity.Envelope do
   @behaviour Absinthe.Phase
 
   alias Absinthe.Phase.Document.Complexity.Result
+  alias Absinthe.Phase.Document.Result, as: RawResult
 
   @refusal %{message: "The request is invalid.", extensions: %{code: "VALIDATION_FAILED"}}
 
   # Absinthe's pipeline options always set `jump_phases: true`, and this pipeline never overrides it, so a refused
   # document is always a `{:jump, _, result_phase}` and the `{:error, _}` return of the result phase never occurs.
+  # A document that already carries validation errors when it reaches the
+  # complexity gate failed earlier (parse or validation jumped here through
+  # `result_phase`): its errors are sanitized and sent to render, never
+  # re-priced. A clean document is priced as before.
   def run(input, options) do
-    case Result.run(input, options) do
-      {:ok, blueprint} -> {:ok, blueprint}
-      {:jump, blueprint, phase} -> {:jump, refuse(blueprint), phase}
+    case input.execution.validation_errors do
+      [] ->
+        case Result.run(input, options) do
+          {:ok, blueprint} -> {:ok, blueprint}
+          {:jump, blueprint, phase} -> {:jump, refuse(blueprint), phase}
+        end
+
+      _already_failed ->
+        {:jump, refuse(input), RawResult}
     end
   end
 
