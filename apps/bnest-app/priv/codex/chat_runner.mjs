@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+import { readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import readline from "node:readline";
 import { pathToFileURL } from "node:url";
@@ -50,6 +52,22 @@ let threadStarted = false;
 
 const output = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
 
+// The directory a Codex turn saves its generated images in (ADR 007, Decision 4): the Codex
+// home's `generated_images/<thread_id>`, the same home the CLI itself uses. A listing that
+// fails (no thread yet, no directory) is an empty set, never an error.
+const generatedDir = (threadId) => {
+  const home = process.env.CODEX_HOME || homedir();
+  return resolve(home, "generated_images", threadId);
+};
+
+const listGenerated = async (threadId) => {
+  try {
+    return new Set(await readdir(generatedDir(threadId)));
+  } catch {
+    return new Set();
+  }
+};
+
 const outputPublicItem = (type, item, text) => {
   if (
     typeof item.id === "string" &&
@@ -65,9 +83,19 @@ const runTurn = async (prompt) => {
   try {
     const { events } = await thread.runStreamed(prompt);
 
+    // The generated files the turn started with, per thread directory (ADR 007, Decision 4).
+    // A resumed thread lists its directory at once; a fresh thread lists nothing until its
+    // `thread.started` event names it.
+    let currentThreadId = resumedThreadId || null;
+    let baseline = currentThreadId
+      ? await listGenerated(currentThreadId)
+      : new Set();
+
     for await (const event of events) {
       if (event.type === "thread.started") {
         threadStarted = true;
+        currentThreadId = event.thread_id;
+        baseline = await listGenerated(currentThreadId);
         output({ type: "thread_started", thread_id: event.thread_id });
       } else if (
         (event.type === "item.started" ||
@@ -95,6 +123,22 @@ const runTurn = async (prompt) => {
             : "Finished searching the web.",
         );
       } else if (event.type === "turn.completed") {
+        // Every image the turn saved that the listings can see, in lexical order, before the
+        // completion itself: the transcript appends each file the reply did not reference.
+        if (currentThreadId) {
+          const after = await listGenerated(currentThreadId);
+
+          for (const file of [...after]
+            .filter((name) => !baseline.has(name))
+            .sort()) {
+            output({
+              type: "image_generated",
+              item_id: `generated-${file}`,
+              file,
+            });
+          }
+        }
+
         output({ type: "turn_completed" });
       } else if (event.type === "turn.failed") {
         output({ type: "error", message: event.error.message });

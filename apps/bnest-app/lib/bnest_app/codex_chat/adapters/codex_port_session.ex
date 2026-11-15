@@ -168,6 +168,15 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
        }),
        do: send(owner, {:codex, self(), {:activity_update, item_id, text}})
 
+  defp forward_runner_event(owner, %{
+         "type" => "image_generated",
+         "item_id" => item_id,
+         "file" => file
+       })
+       when is_binary(item_id) and is_binary(file) and file != "" do
+    send(owner, {:codex, self(), {:image_generated, file}})
+  end
+
   defp forward_runner_event(owner, %{"type" => "turn_completed"}),
     do: send(owner, {:codex, self(), :turn_completed})
 

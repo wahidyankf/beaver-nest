@@ -181,6 +181,7 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.AdminScheduleSettingsLive,
       BnestAppWeb.AdminSettingsLive,
       BnestAppWeb.ChatImageController,
+      BnestAppWeb.GeneratedImageController,
       BnestAppWeb.ChatLive,
       BnestAppWeb.DataMigrationLive,
       BnestAppWeb.FamilyChatController,

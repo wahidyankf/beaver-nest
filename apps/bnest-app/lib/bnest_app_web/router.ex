@@ -106,6 +106,7 @@ defmodule BnestAppWeb.Router do
     get "/", PageController, :home
     put "/preferences/theme", ThemeController, :update
     get "/chat/images/*path", ChatImageController, :show
+    get "/chat/generated-images/*path", GeneratedImageController, :show
 
     live_session :authenticated,
       on_mount: [{BnestAppWeb.UserAuth, :require_authenticated_user}] do

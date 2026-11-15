@@ -22,6 +22,7 @@ defmodule BnestApp.CodexChat do
     exports: [{Domain, []}, {Ports, []}]
 
   alias BnestApp.CodexChat.Domain.{
+    GeneratedImage,
     ModelAccess,
     RepositoryAccess,
     RepositoryImage,
@@ -67,6 +68,31 @@ defmodule BnestApp.CodexChat do
     with {:ok, reference} <- RepositoryImage.reference(path),
          {:ok, bytes} when byte_size(bytes) <= max_bytes <-
            repository_images.read(reference, max_bytes),
+         {:ok, content_type} <- RepositoryImage.signature(bytes) do
+      {:ok, content_type, bytes}
+    else
+      _refused -> :error
+    end
+  end
+
+  @doc """
+  The generated image a Codex reply may show, as `{:ok, content_type, bytes}`, or `:error`
+  for every refusal (ADR 007, Decision 2). `thread` and `file` are the last two segments of
+  the saved path, as decoded from the request. The names are checked before the port is asked
+  for anything; the port's bytes are checked for size and signature before they are returned.
+  A `generated_images:` option replaces the configured `:generated_images` adapter.
+  """
+  @spec generated_image(String.t(), String.t(), [{:generated_images, module()}]) ::
+          {:ok, String.t(), binary()} | :error
+  def generated_image(thread, file, options \\ []) do
+    generated_images =
+      Keyword.get_lazy(options, :generated_images, fn -> adapter(:generated_images) end)
+
+    max_bytes = GeneratedImage.max_bytes()
+
+    with {:ok, reference} <- GeneratedImage.reference(thread, file),
+         {:ok, bytes} when byte_size(bytes) <= max_bytes <-
+           generated_images.read(reference, max_bytes),
          {:ok, content_type} <- RepositoryImage.signature(bytes) do
       {:ok, content_type, bytes}
     else
@@ -231,6 +257,9 @@ defmodule BnestApp.CodexChat do
 
   def apply_event(transcript, {:activity_update, item_id, text}),
     do: {:checkpoint, Transcript.update_progress(transcript, item_id, :activity, text)}
+
+  def apply_event(transcript, {:image_generated, file}) when is_binary(file),
+    do: {:checkpoint, Transcript.append_generated_image(transcript, file)}
 
   def apply_event(transcript, :turn_completed), do: {:persist, Transcript.complete(transcript)}
 

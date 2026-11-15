@@ -918,6 +918,70 @@ defmodule BnestAppWeb.ChatMarkdownTest do
     end
   end
 
+  describe "a generated image reference (ADR 007)" do
+    @thread "01a1caeb-9f2c-4d3e-8a1b-2c3d4e5f6071"
+    @saved "exec-2b5e6589-1111-2222-3333-444455556666.png"
+
+    test "classify_image/1 stays :other, so every existing caller keeps the withheld text" do
+      assert :other = ChatMarkdown.classify_image("codex-image:#{@thread}/#{@saved}")
+    end
+
+    test "classify_image/2 with codex_images: true accepts the strict two-segment shape" do
+      assert {:codex_generated, @thread, @saved} =
+               ChatMarkdown.classify_image("codex-image:#{@thread}/#{@saved}",
+                 codex_images: true
+               )
+    end
+
+    test "classify_image/2 with codex_images: true refuses traversal, extra segments and SVG" do
+      for destination <- [
+            "codex-image:../outside.png",
+            "codex-image:#{@thread}/#{@saved}/extra.png",
+            "codex-image:#{@thread}/exec-abc.svg",
+            "codex-image:nothyphen/exec-abc.png",
+            "codex-image:#{@thread}/shot.png",
+            "codex-image:/etc/passwd"
+          ] do
+        assert :other = ChatMarkdown.classify_image(destination, codex_images: true),
+               "classified #{destination}"
+      end
+    end
+
+    test "to_html/3 without the option withholds a generated-image reference as text" do
+      html = render("![Generated image](codex-image:#{@thread}/#{@saved})")
+
+      assert tags(html, "img") == []
+      assert html =~ "[image not shown: Generated image]"
+    end
+
+    test "to_html/3 with codex_images: true renders an image on the generated-images route" do
+      html =
+        render("![Generated image](codex-image:#{@thread}/#{@saved})", false, codex_images: true)
+
+      [img] = tags(html, "img")
+      assert img =~ ~s(src="/chat/generated-images/#{@thread}/#{@saved}")
+    end
+
+    test "to_html/3 with codex_images: true still withholds a wrong generated-image name" do
+      html =
+        render("![Generated image](codex-image:../outside.png)", false, codex_images: true)
+
+      assert tags(html, "img") == []
+      assert html =~ "[image not shown: Generated image]"
+    end
+
+    test "a half-written generated-image reference stays text while streaming" do
+      html =
+        render(
+          "Here is the picture: ![Generated image](codex-image:#{@thread}/exec-abc",
+          true,
+          codex_images: true
+        )
+
+      assert tags(html, "img") == []
+    end
+  end
+
   defp fence(source), do: "```mermaid\n" <> source <> "\n```"
 
   # A flowchart whose source is exactly `size` bytes: the header line is 13 bytes, the rest is filler.

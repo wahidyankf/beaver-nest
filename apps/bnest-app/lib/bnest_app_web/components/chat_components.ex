@@ -19,6 +19,10 @@ defmodule BnestAppWeb.ChatComponents do
     default: false,
     doc: "true to keep a single newline as a line break"
 
+  attr :codex_images, :boolean,
+    default: false,
+    doc: "true to show a codex-image: reference to a Codex-generated image (ADR 007)"
+
   attr :class, :any, default: nil, doc: "classes added after `message-content markdown-body`"
   attr :rest, :global, doc: "other HTML attributes for the wrapper element"
 
@@ -29,7 +33,10 @@ defmodule BnestAppWeb.ChatComponents do
       assign(
         assigns,
         :html,
-        ChatMarkdown.to_html(assigns.content, assigns.streaming, hard_breaks: assigns.hard_breaks)
+        ChatMarkdown.to_html(assigns.content, assigns.streaming,
+          hard_breaks: assigns.hard_breaks,
+          codex_images: assigns.codex_images
+        )
       )
 
     ~H"""
@@ -82,7 +89,7 @@ defmodule BnestAppWeb.ChatComponents do
 
   `attrs` is a keyword list:
 
-    * `:hard_breaks` and `:streaming` (booleans, default `false`), as on the component.
+    * `:hard_breaks`, `:streaming` and `:codex_images` (booleans, default `false`), as on the component.
     * `:class`, classes added after the fixed ones.
     * `:attrs`, the other HTML attributes of the wrapper element, as a map or a keyword list. A
       `:class` key inside `:attrs` joins `:class`, so the wrapper never has two class attributes.
@@ -112,7 +119,8 @@ defmodule BnestAppWeb.ChatComponents do
       ChatMarkdown.to_html(
         content,
         Keyword.get(attrs, :streaming, false),
-        hard_breaks: Keyword.get(attrs, :hard_breaks, false)
+        hard_breaks: Keyword.get(attrs, :hard_breaks, false),
+        codex_images: Keyword.get(attrs, :codex_images, false)
       )
 
     IO.iodata_to_binary(["<div", wrapper, ">", Safe.to_iodata(html), "</div>"])

@@ -218,6 +218,19 @@ defmodule BnestApp.CodexChat.Domain.Transcript do
 
   def update_progress(chat, _item_id, _kind, _text), do: chat
 
+  @doc """
+  Appends a `codex-image:` reference for a generated image the runner saved during this turn
+  (ADR 007, Decision 4). A file the reply already names is left alone, so the model's own
+  in-place reference keeps its position and only an unreferenced file lands at the end.
+  """
+  @spec append_generated_image(t(), String.t()) :: t()
+  def append_generated_image(%{thread_id: thread_id} = chat, file)
+      when is_binary(thread_id) and is_binary(file) and file != "" do
+    update_last_assistant(chat, &append_reference(&1, thread_id, file))
+  end
+
+  def append_generated_image(chat, _file), do: chat
+
   @spec complete(t()) :: t()
   def complete(chat) do
     chat
@@ -464,6 +477,24 @@ defmodule BnestApp.CodexChat.Domain.Transcript do
 
   defp update_last_assistant(chat, update) do
     %{chat | messages: List.update_at(chat.messages, -1, update)}
+  end
+
+  defp append_reference(message, thread_id, file) do
+    reference = "codex-image:#{thread_id}/#{file}"
+
+    if String.contains?(message.content, reference) do
+      message
+    else
+      with_appended_reference(message, reference)
+    end
+  end
+
+  defp with_appended_reference(message, reference) do
+    appended = message.content <> "\n\n![Generated image](#{reference})"
+
+    if byte_size(appended) <= @max_content_bytes,
+      do: %{message | content: appended},
+      else: message
   end
 
   defp update_assistant_message(message, item_id, text) do
