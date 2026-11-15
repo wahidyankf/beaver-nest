@@ -154,6 +154,45 @@ defmodule BnestApp.CodexChat.ModelAccessTest do
     end
   end
 
+  describe "child administrator" do
+    test "is locked to Luna at medium effort with no picker, like a child" do
+      access = resolve(["children", "admin"])
+
+      refute access.model_selectable?
+      refute access.effort_selectable?
+      assert access.available?
+      assert ids(access.models) == [@luna]
+      assert access.model.id == @luna
+      assert access.reasoning_effort == "medium"
+    end
+
+    test "is locked whatever order the roles arrive in" do
+      access = resolve(["admin", "children", "parents"])
+
+      refute access.model_selectable?
+      refute access.effort_selectable?
+      assert ids(access.models) == [@luna]
+      assert access.model.id == @luna
+      assert access.reasoning_effort == "medium"
+    end
+
+    test "may not select any model or effort, not even Luna" do
+      access = resolve(["children", "admin"])
+
+      assert ModelAccess.select_model(access, @terra, "medium") == :error
+      assert ModelAccess.select_model(access, @luna, "medium") == :error
+      assert ModelAccess.select_effort(access, model(@luna), "medium") == :error
+      assert ModelAccess.select_effort(access, model(@luna), "high") == :error
+    end
+
+    test "saved settings resolve to Luna at medium effort" do
+      access = resolve(["children", "admin"])
+
+      assert {%{id: @luna}, "medium"} = ModelAccess.settle(access, @terra, "high")
+      assert {%{id: @luna}, "medium"} = ModelAccess.settle(access, @luna, "high")
+    end
+  end
+
   describe "children" do
     test "are locked to Luna at medium effort with no picker" do
       child = resolve(["children"])

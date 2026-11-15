@@ -44,9 +44,9 @@ stored default is not what a conversation runs with. A failed discovery never of
 | children      | Luna, fixed; no model picker           | always medium; no effort picker                            |
 | no known role | the admin's access                     | the admin's access                                         |
 
-Roles are checked in the order admin, parents, children. An account that holds several roles follows the first matching
-role in that order, so a child who also holds the admin role gets the admin's pickers. This is the existing behaviour,
-and the owner is asked to review it.
+Roles are checked in the order child administrator, admin, parents, children (Decision 6). An account that holds
+several roles follows the first matching role in that order. An admin who also holds the parents role keeps the admin's
+pickers; only the admin-plus-children combination is treated as a child.
 
 A parent's choices are Terra, then Luna, in that order whatever order Codex lists the models in. Only a choice that
 supports medium effort is offered, so a parent never picks a model without medium effort. The admin's picker lists Sol,
@@ -81,6 +81,23 @@ returns. Parents who cannot use Terra see the same message, and Luna is not offe
 An admin's default is Terra. When Terra is absent, the admin gets the model Codex flags as its default, or else the
 first offered model. This is the existing admin behaviour, and the admin keeps a picker.
 
+## Decision 6. A child administrator is treated as a child
+
+Status: Accepted (2026-11-15). The owner decided this exception to Decision 2. An account whose roles contain both
+`admin` and `children` is a child administrator. It is locked to Luna at medium effort, with no model picker and no
+effort picker, exactly like a child:
+
+| Role                | Model                        | Effort                          |
+| ------------------- | ---------------------------- | ------------------------------- |
+| child administrator | Luna, fixed; no model picker | always medium; no effort picker |
+
+`BnestApp.CodexChat.Domain.ModelAccess.resolve/2` checks this combination before the admin check, so the order of the
+roles in the account does not matter. Every other combination is unchanged: an admin with the parents role keeps the
+admin's pickers, and a user with no recognised role keeps the admin's access. A forged model or effort event from a
+child administrator is refused by the same server rules that refuse a child's (Decision 3), and a saved chat resolves
+to Luna at medium effort at read time (Decision 4). When Luna is missing or lacks medium effort, the chat shows
+"GPT-6-Luna is not available in local Codex." and the composer stays disabled (Decision 5).
+
 ## Consequences
 
 - Parents now see a model picker with two choices, and the effort picker stays hidden. Children see neither.
@@ -90,6 +107,8 @@ first offered model. This is the existing admin behaviour, and the admin keeps a
 - Behaviour that the previous rules fixed changes in these places: the admin's switch fallback, the discovery-failure
   fallback, and the parent's model. The Gherkin in `specs/apps/bnest/app-fe/behaviours/chat.feature` and the
   architecture in `specs/apps/bnest/app-be/architecture.md` follow these rules.
+- A child administrator sees the child's locked chat: Luna at medium effort, no pickers, and no repository writes.
+  The Gherkin and the architecture record this exception.
 - Tests use the real Codex ids, copied from the local list into a fixture, not synthetic ids. The unit and integration suites check that
   Astra and the older ids are never offered, and that the server refuses forged events from each role.
 - Not built: a migration of old saved chats. None is needed, because each read resolves them.

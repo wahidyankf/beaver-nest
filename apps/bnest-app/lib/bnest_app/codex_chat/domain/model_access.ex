@@ -3,8 +3,10 @@ defmodule BnestApp.CodexChat.Domain.ModelAccess do
   Which Codex models a user may use, and which reasoning efforts they may choose (ADR 006).
 
   Only the latest model of each tier is offered: Luna is `gpt-6-luna`, Terra is `gpt-6.1-terra` and Sol is
-  `gpt-6.1-sol`. Astra and every older id are never offered. Roles are checked in this order, admin first:
+  `gpt-6.1-sol`. Astra and every older id are never offered. Roles are checked in this order, child administrator
+  first:
 
+  - child administrator (roles with both admin and children): like children, Luna at medium effort, with no picker;
   - admin (and a user with no recognised role): any offered model, listed Sol, Terra, Luna whatever order Codex lists
     them in, default Terra; any effort the model supports, default medium;
   - parents: Luna or Terra, default Terra; the effort is always medium and is not chosen;
@@ -51,6 +53,7 @@ defmodule BnestApp.CodexChat.Domain.ModelAccess do
   @spec resolve(map(), [model()]) :: access()
   def resolve(%{"roles" => roles}, models) when is_list(roles) and is_list(models) do
     cond do
+      "admin" in roles and "children" in roles -> children(models)
       "admin" in roles -> choose(models)
       "parents" in roles -> parents(models)
       "children" in roles -> children(models)
