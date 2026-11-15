@@ -153,6 +153,16 @@ function renderMenu(room, elements, menu, message) {
 }
 
 /**
+ * A long press starts the browser's own text selection, which paints a highlight behind the message while the menu is
+ * open. Clearing the selection when the menu opens removes that highlight; the visitor can still select text afterwards
+ * by dragging, and Copy text does not use the selection at all.
+ */
+function clearNativeSelection() {
+  // The document's own selection, so the page that holds the message is the one cleared.
+  document.getSelection()?.removeAllRanges();
+}
+
+/**
  * The four triggers of tech-doc 004's "One menu, four triggers", all calling
  * the same `menu.open`.
  * @param {FamilyChatElements} elements
@@ -165,7 +175,9 @@ function bindMenuTriggers(elements, menu, clock) {
   const gesture = createHoldGesture({
     clock,
     onHold: () => {
-      if (pressed) menu.open(messageFrom(pressed));
+      if (!pressed) return;
+      clearNativeSelection();
+      menu.open(messageFrom(pressed));
     },
   });
 
@@ -185,6 +197,7 @@ function bindMenuTriggers(elements, menu, clock) {
     // Substituting our menu for the browser's own callout is the whole
     // point of handling this event at all.
     event.preventDefault();
+    clearNativeSelection();
     menu.open(messageFrom(element));
   });
 

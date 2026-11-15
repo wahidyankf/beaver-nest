@@ -26,6 +26,10 @@ import {
 import { recall, recallOr, remember } from "./support/scenario_memory";
 import type { StepDefinition, StepHandler } from "./family_chat.steps";
 import {
+  holdDiagramEngine,
+  releaseDiagramEngine,
+} from "../support/fake_diagram_engine";
+import {
   CANVAS_SELECTOR,
   declaredDiagramBlock,
   PICTURE_SELECTOR,
@@ -232,6 +236,33 @@ step("{word} has sent the diagram message {string}", (sender, kind) => {
 
 step("the diagram engine cannot be loaded", () => {
   setDiagramEngineAvailable(false);
+});
+
+step("the diagram engine is held until the visitor releases it", () => {
+  holdDiagramEngine();
+});
+
+step("the visitor releases the diagram engine", () => {
+  releaseDiagramEngine();
+});
+
+step(
+  "{word} has sent {int} family chat messages after that",
+  (sender, count) => {
+    for (let index = 0; index < Number(count); index += 1) {
+      post({ body: `Later note ${index}`, sender: otherMember(sender) });
+    }
+  },
+);
+
+step("keyboard focus is inside the keyboard stop message", () => {
+  const { document } = activePage();
+  const message = document.activeElement?.closest(
+    '[data-role="family-chat-message"]',
+  );
+  if (message?.getAttribute("tabindex") !== "0") {
+    throw new Error("keyboard focus is not inside the keyboard stop message");
+  }
 });
 
 step(

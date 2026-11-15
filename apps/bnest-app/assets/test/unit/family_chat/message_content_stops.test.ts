@@ -34,7 +34,8 @@ function messageWith(
       senderDisplayName: "Ayah",
       replyTo: replyTo ?? null,
     },
-    { pending: false, currentUserId: "u-me" },
+    // Replies on: the actions control is part of the row these tests check.
+    { pending: false, currentUserId: "u-me", replies: true },
   );
 }
 
@@ -290,5 +291,53 @@ describe("syncContentStops: moving the stop and changing what is measured", () =
       figure.querySelector<HTMLElement>(".bnest-diagram-source > summary")!
         .tabIndex,
     ).toBe(0);
+  });
+});
+
+describe("syncContentStops: a diagram source that is closed", () => {
+  // The source is laid out while it is closed, so a 1 px overflow there is measured. The closed source is not shown, so
+  // its code block must not be a tab stop, or Tab from the source's summary lands in text the reader cannot see.
+  function stopWithSource(): {
+    stop: HTMLElement;
+    list: HTMLElement;
+    pre: HTMLElement;
+  } {
+    const stop = messageWith("3", `${BODY_OPEN}<p>plain</p></div>`);
+    const list = listOf(stop);
+    const figure = drawnFigure({
+      image: {
+        src: "data:image/svg+xml;charset=utf-8,%3Csvg%3E%3C%2Fsvg%3E",
+        width: 500,
+        height: 200,
+      },
+      kind: "Flowchart",
+      source: "flowchart TD\n  A[Pick up] --> B[Dinner]",
+      focusable: false,
+    });
+    within(stop, '[data-role="family-chat-message-body"]').append(figure);
+    const pre = figure.querySelector<HTMLElement>(".bnest-diagram-source pre")!;
+    return { stop, list, pre };
+  }
+
+  it("keeps the closed source's code block out of the tab order, even when it overflows by a pixel", () => {
+    const { stop, list, pre } = stopWithSource();
+    overflow(pre);
+
+    syncContentStops(itemsOf(list), stop);
+
+    expect(pre.tabIndex).toBe(-1);
+    expect(pre.hasAttribute("aria-label")).toBe(false);
+  });
+
+  it("raises the source's code block once the source is open and the block overflows", () => {
+    const { stop, list, pre } = stopWithSource();
+    overflow(pre);
+    syncContentStops(itemsOf(list), stop);
+    pre.closest("details")!.open = true;
+
+    syncContentStops(itemsOf(list), stop);
+
+    expect(pre.tabIndex).toBe(0);
+    expect(pre.getAttribute("aria-label")).toBe("Code, scrollable");
   });
 });

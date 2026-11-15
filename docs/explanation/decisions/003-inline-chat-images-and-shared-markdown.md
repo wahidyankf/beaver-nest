@@ -331,7 +331,8 @@ changes the means. It replaces the old "extra tab stops break the keyboard model
    Not reachable, on purpose: task-list checkboxes (disabled, read-only), the `⋯` actions button, the Retry and Discard
    buttons, and images. Each of the buttons has a keyboard equivalent that already exists: Enter or Space on the message
    opens the menu, which offers Copy text, Reply, Retry and Discard. A scroll region that does not overflow has nothing
-   to scroll and is not a stop, so short code blocks add no stops.
+   to scroll and is not a stop, so short code blocks add no stops. A closed "Diagram source" is not a stop either, even
+   where its code block measures a pixel too wide: the reader cannot see that text, and opening the source re-measures it.
 
 3. **Tabindex values.** `message_render.js` still creates every message with `tabIndex = -1`.
 

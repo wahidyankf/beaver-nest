@@ -11,7 +11,7 @@ import {
   TOUCH_TARGET_PX,
   viewportOf,
   inScreenOrder,
-  measureCodexRoom,
+  measureCodexBudget,
 } from "../support/chat-ui-steps";
 import {
   openChatAsAdmin,
@@ -34,7 +34,7 @@ Given("a Codex conversation holds three short messages", async ({ page }) => {
 Then(
   "the conversation takes at least {int} percent of the screen with an empty draft",
   async ({ page }, percent: number) => {
-    const measure = await measureCodexRoom(page);
+    const measure = await measureCodexBudget(page);
     expect(
       measure.conversation,
       `the conversation is ${measure.conversation} px of ${measure.height} px`,
@@ -46,7 +46,7 @@ Then(
 Then(
   "the header and the composer take at most {int} pixels outside the conversation",
   async ({ page }, limit: number) => {
-    const { space } = await measureCodexRoom(page);
+    const { space } = await measureCodexBudget(page);
     expect(
       space,
       `the space that is not conversation is ${space} px`,

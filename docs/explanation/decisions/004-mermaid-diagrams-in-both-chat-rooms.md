@@ -640,7 +640,9 @@ visible. This decision fixes them in the shared chat code. It does not change th
 4. **Scrollable regions have names.** `apps/bnest-app/assets/js/scroll_region_names.js` names each table or code block
    that overflows its bubble: "Table, scrollable" or "Code, scrollable", in a group with the role `group`. The names are
    set after each render and again on resize. The scroll rules in `chat_shared.css` are as Decision 6 set them.
-5. **The Codex panel fits a phone and the window.** On a phone the message box and the Send button sit side by side.
+5. **The Codex panel fits a phone and the window.** _Superseded in part by ADR 005, Decision 5: the Codex message box now
+   stops at five lines with its padding and border, `min(9.25rem, 22svh)`._ On a phone the message box and the Send
+   button sit side by side.
    The message box stops at the smaller of 12 rem and 22 percent of the window's height
    (`max-height: min(12rem, 22svh)`), and it scrolls the rest of a long draft. The conversation keeps at least 40 percent
    of the screen height, and the header is at most 160 px tall at 320 by 568. A short window (`max-height: 33rem`) hides
@@ -661,8 +663,9 @@ visible. This decision fixes them in the shared chat code. It does not change th
    least 44 px tall, and each theme button is at least 44 px across. The theme control is 7.5 rem wide (8.25 rem on a
    touch screen). The enabled pill is `coral-ink` with paper text, a contrast ratio of 5.63 to 1. The earlier coral
    background gave 3.24 to 1, which fails the 4.5 to 1 target.
-8. **The Family Chat composer keeps room on a short screen.** The Family composer grows with its draft up to the smaller
-   of 10.65 rem (six lines) and 22 percent of the window's height (`max-height: min(10.65rem, 22svh)`). At 844 by 390
+8. **The Family Chat composer keeps room on a short screen.** _Superseded in part by ADR 005, Decision 5: the Family message
+   box now stops at five lines with its padding and border, `min(9.15rem, 22svh)`._ The Family composer grows with its
+   draft up to the smaller of 10.65 rem (six lines) and 22 percent of the window's height (`max-height: min(10.65rem, 22svh)`). At 844 by 390
    the conversation keeps most of the height, and the composer never takes more than 22 percent of it.
    A draft that is one unbroken line (an address, for example) does not widen the composer either: the Codex message
    box has `contain: inline-size`, so `field-sizing: content` cannot size it past its cell, and the Codex and Family

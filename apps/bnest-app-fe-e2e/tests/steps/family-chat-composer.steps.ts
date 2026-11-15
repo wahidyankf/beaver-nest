@@ -5,7 +5,7 @@ import { createBdd } from "playwright-bdd";
 // Vitest bindings prove the key handler and the declared CSS; these press real keys in Chromium and read the rendered
 // boxes. The shared hint, pointer and light-appearance steps live in chat-ui-consistency.steps.ts.
 
-import { measureFamilyRoom, settle } from "../support/chat-ui-steps";
+import { measureFamilyBudget, settle } from "../support/chat-ui-steps";
 
 const { Then, When } = createBdd();
 
@@ -115,7 +115,7 @@ When(
 Then(
   "the history takes at least {int} percent of the screen with an empty draft",
   async ({ page }, percent: number) => {
-    const measure = await measureFamilyRoom(page);
+    const measure = await measureFamilyBudget(page);
     expect(
       measure.conversation,
       `the history is ${measure.conversation} px of ${measure.height} px`,
@@ -127,7 +127,7 @@ Then(
 Then(
   "the header and the composer take at most {int} pixels outside the history",
   async ({ page }, limit: number) => {
-    const { space } = await measureFamilyRoom(page);
+    const { space } = await measureFamilyBudget(page);
     expect(
       space,
       `the space that is not history is ${space} px`,

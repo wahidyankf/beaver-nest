@@ -1,6 +1,40 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 // Shared by the Codex chat step files for the message box, Clear chat, own messages and the phone layout (ADR 005).
+
+// The budget measures are also written as JSON when BNEST_SCREENSHOT_DIR is set, for the ADR 005 measured table.
+// Nothing is written otherwise.
+function recordBudgetMeasure(
+  room: "codex" | "family",
+  measure: { width: number; height: number },
+): void {
+  const directory = process.env["BNEST_SCREENSHOT_DIR"];
+  if (!directory) return;
+  mkdirSync(directory, { recursive: true });
+  const name = `budget-${test.info().project.name}-${room}-${measure.width}x${measure.height}`;
+  writeFileSync(
+    path.join(directory, name + ".json"),
+    JSON.stringify(measure, null, 2),
+  );
+}
+
+export async function measureCodexBudget(
+  page: Page,
+): Promise<CodexRoomMeasure> {
+  const measure = await measureCodexRoom(page);
+  recordBudgetMeasure("codex", measure);
+  return measure;
+}
+
+export async function measureFamilyBudget(
+  page: Page,
+): Promise<FamilyRoomMeasure> {
+  const measure = await measureFamilyRoom(page);
+  recordBudgetMeasure("family", measure);
+  return measure;
+}
 
 export const TEXTAREA = "#chat-composer-form textarea";
 export const CONVERSATION = "#chat-conversation";

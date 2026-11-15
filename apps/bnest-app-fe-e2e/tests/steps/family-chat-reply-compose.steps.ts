@@ -124,6 +124,35 @@ Then(
   },
 );
 
+// Typing starts the instant the item is chosen. No wait for focus: the keys reach whatever holds focus at that moment,
+// which is the case under test.
+When(
+  "the visitor chooses {string} and types {string} at once",
+  async ({ page }, label: string, text: string) => {
+    await openMenuItems(page).filter({ hasText: label }).first().click();
+    await page.keyboard.type(text);
+  },
+);
+
+Then("the message input holds {string}", async ({ page }, text: string) => {
+  await expect(composerInput(page)).toHaveValue(text);
+});
+
+// A later focus move (a timer or a re-render after the menu closes) would show only after the keys were typed, so the
+// check waits a moment in the page and then reads focus again.
+Then(
+  "a moment later keyboard focus is still in the message input",
+  async ({ page }) => {
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, 1_000);
+        }),
+    );
+    await expect(composerInput(page)).toBeFocused();
+  },
+);
+
 // --- Sending clears the target ---------------------------------------------
 
 When("the visitor sends the message", async ({ page }) => {

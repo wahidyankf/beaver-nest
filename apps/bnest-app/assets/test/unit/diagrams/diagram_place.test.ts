@@ -111,6 +111,30 @@ describe("place a figure", () => {
     expect(cached.querySelector("details")?.open).toBe(false);
   });
 
+  it("hands focus from a source marker that held it to the picture that replaces it", () => {
+    const pre = document.createElement("pre");
+    pre.tabIndex = 0;
+    document.body.append(pre);
+    pre.focus();
+    const figure = figureOf(true);
+
+    place(CHAT, pre, figure);
+
+    expect(document.activeElement).toBe(canvasOf(figure));
+  });
+
+  it("leaves focus where it is when the source marker did not hold it", () => {
+    const other = document.createElement("button");
+    document.body.append(other);
+    other.focus();
+    const pre = document.createElement("pre");
+    document.body.append(pre);
+
+    place(CHAT, pre, figureOf(true));
+
+    expect(document.activeElement).toBe(other);
+  });
+
   it("measures a picture again when its box is resized after it was placed", () => {
     vi.stubGlobal("ResizeObserver", FakeResizeObserver);
     const figure = figureOf(true);

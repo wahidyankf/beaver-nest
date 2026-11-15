@@ -77,6 +77,17 @@ Scenarios never write SQL, never copy or restore storage authority, and never wr
 - `tests/steps/family-chat-resume.steps.ts` owns where a returning member lands in the family chat room.
 - `tests/steps/family-chat-reply.steps.ts`, `family-chat-reply-reading.steps.ts`, and
   `family-chat-reply-keyboard.steps.ts` own choosing a reply, reading one back, and reaching both by keyboard.
+- `tests/steps/codex-sticky-layout.steps.ts` owns the Codex sticky room checks: the header and composer boxes while the
+  messages scroll, the newest message above the composer, the page that does not scroll, the soft keyboard's smaller
+  screen, the message-box caps, the header's full height, and the overscroll that stays inside the message list.
+- `tests/steps/family-chat-sticky-layout.steps.ts` owns the same checks for the Family Chat room, and its overscroll.
+- `tests/support/sticky-room.ts` holds the measuring helpers both sticky step files share. With `BNEST_SCREENSHOT_DIR`
+  set to a directory, a scrolled room is saved there as a PNG and a JSON file of the measured boxes, one pair per
+  project, room and viewport. Nothing is written when the variable is unset.
+- `tests/steps/family-chat-actions-control.steps.ts` owns the Family Chat actions control checks: visible without a hover,
+  at least 44 by 44 CSS pixels, and beside its bubble, and the press that clears the native text selection.
+- `tests/steps/family-chat-keyboard-stop.steps.ts` owns the keyboard focus checks of the Family Chat diagram rule: focus
+  stays in a message while its diagram picture replaces the source, and the keyboard stop can move to an older message.
 - `tests/support/family-chat-reply.ts` and `tests/support/family-chat-reply-room.ts` own reply-scenario state,
   the shared locators for the menu, strip, and quote card, and rooms pinned to a chosen value of the reply flag.
 - `tests/support/family-chat-resume.ts` owns stored-read-position reads/writes and settled scroll-placement assertions.

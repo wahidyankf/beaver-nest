@@ -67,10 +67,29 @@ export function createQueue({ drawer, yieldTurn }) {
  */
 export function place(session, pre, figure) {
   const node = copyFor(figure);
+  // A removed element takes keyboard focus to the body. A source marker that held focus (a reader who reached it with
+  // the keys while its picture was still being drawn) hands focus to the picture that replaces it, so the reader keeps
+  // their place in the message.
+  const hadFocus = pre.contains(pre.ownerDocument.activeElement);
   pre.replaceWith(node);
   // Set once the figure is in the page, because a picture is a keyboard stop only while it overflows (setFocusable).
   setFocusable(node, session.focusable);
   if (session.focusable) measureOnResize(node);
+  if (hadFocus) focusReplacement(node);
+}
+
+/**
+ * Moves focus to the first part of a placed figure that a keyboard reader acts on: the picture, else its source
+ * summary, else a fallback's text. A picture that fits its box has tabindex -1 and still takes focus here; whether it
+ * stays a keyboard stop is decided by setFocusable, which place() calls before this.
+ * @param {HTMLElement} node
+ */
+function focusReplacement(node) {
+  const target =
+    node.querySelector(".bnest-diagram-canvas") ??
+    node.querySelector(".bnest-diagram-source > summary") ??
+    node.querySelector("pre");
+  if (target instanceof HTMLElement) target.focus({ preventScroll: true });
 }
 
 /**

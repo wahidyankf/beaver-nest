@@ -1,6 +1,8 @@
 # 005. Chat input keys, Clear chat confirmation, one light theme, and own-message Markdown
 
-Status: Accepted (2026-11-13). Decision 1 follows the visitor's pointer, never the screen width.
+Status: Accepted (2026-11-13). Decision 5 amended (2026-11-14): the soft keyboard rule, the composer caps, the overscroll
+rule, and the reversal of the coarse-pointer hide of the actions control. Decision 1 follows the visitor's pointer, never
+the screen width.
 The owner asked for consistent chat rooms: the same keys in both message boxes, a safe
 Clear chat, no dark mode, Markdown in the visitor's own Codex messages, and a phone layout that gives the conversation
 most of the screen. Decision 8 of [004](004-mermaid-diagrams-in-both-chat-rooms.md) is partly superseded by this record:
@@ -129,21 +131,43 @@ that is not conversation. The rules apply on a phone (`max-width: 767px`) and on
 - The space that is not conversation is at most 220 CSS px for Codex, in a typical view with three short messages. The
   newest message sits above the composer. For Family Chat the budget is 180 CSS px, and it is not met at 320 and 360
   wide; the accepted figure is stated under Accepted limits.
+- The room is sticky, in the WhatsApp style, on every Codex and Family Chat screen the layout scenarios cover (phone,
+  tablet, landscape and desktop). The page never scrolls. The header stays at the top, the message list is the only
+  scroller, and the composer stays at the bottom. The Send button and the header are ordinary boxes in the column; neither
+  is positioned out of the flow.
+- Soft keyboard: the viewport meta asks for `interactive-widget=resizes-content`. `js/viewport_height.js` writes the
+  visual viewport's height to `--vvh` and puts the page back at the top, and the room heights read `var(--vvh, 100dvh)`,
+  so a keyboard that shrinks the screen shrinks the room with it. Without `visualViewport` the `100dvh` fallback applies.
+  The header keeps its full height when the conversation takes the room that is left (`flex-shrink: 0`), and its
+  controls stay inside its box. The unit tests check the module. The Vitest layer checks the declared rules, and the
+  Chromium check resizes the emulated viewport. That exercises the `--vvh` write and the `100dvh` fallback; it does not
+  run a real soft keyboard. A real phone's keyboard is not yet checked (see Accepted limits).
+- The list does not pass its overscroll to the page: the Codex conversation and the Family history declare
+  `overscroll-behavior: contain`. No new buttons are added.
+- A growing draft stops at five lines in both rooms, measured with the box's own padding and border. The Codex message
+  box is capped at `min(9.25rem, 22svh)`: 7.5 rem of text (five lines of 1.5 rem) and 1.75 rem of padding and border. The
+  Family box is capped at `min(9.15rem, 22svh)`: 7.5 rem of text and 1.65 rem of padding and border. Past the cap the
+  draft scrolls inside the box, and the box never takes more of the screen than that cap.
 
-Measured in Chromium (touch pointer, empty draft, three short Codex messages):
+Measured in Chromium (touch pointer, empty draft, the layout budget scenarios of `chat.feature` and `family_chat.feature`
+run on the touch project, with the boxes read from the rendered page):
 
 | Screen (CSS px)        | Codex measured share | Family measured share |
 | ---------------------- | -------------------- | --------------------- |
-| 320 by 568             | 62.1 percent         | 62.4 percent          |
-| 360 by 640             | 66.4 percent         | 66.6 percent          |
-| 390 by 844             | 74.5 percent         | 81.3 percent          |
-| 844 by 390 (landscape) | 54.8 percent         | 59.7 percent          |
+| 320 by 568             | 64.2 percent         | 62.4 percent          |
+| 360 by 640             | 68.3 percent         | 66.6 percent          |
+| 390 by 844             | 75.9 percent         | 81.3 percent          |
+| 844 by 390 (landscape) | 57.8 percent         | 59.7 percent          |
 
-The Codex targets are met at every size with the two-row header: 62.1 against 60, 66.4 against 64, 74.5 against 72, and
-54.8 against 52. The Family targets are met everywhere. The Codex space that is not conversation is 215 CSS px at 320,
-360 and 390 wide, under its 220 CSS px limit, and 176 CSS px at 844 by 390. The Family space is about 214 CSS px at 320
-and 360 wide and 158 CSS px at 390 wide (the 180 CSS px budget is covered under Accepted limits). The Family targets are
-unchanged, so this record does not claim the Family space at those widths.
+The Codex targets are met at every size with the two-row header: 64.2 against 60, 68.3 against 64, 75.9 against 72, and
+57.8 against 52. The Family targets are met everywhere: 62.4 against 58, 66.6 against 62, 81.3 against 75, and 59.7
+against 52. The Codex space that is not conversation is 203.2 CSS px at 320, 360 and 390 wide (the 106 px header and the
+97.2 px composer), under its 220 CSS px limit, and 164.4 CSS px at 844 by 390. The Family space is 213.8 CSS px at 320
+and 360 wide and 157.8 CSS px at 390 wide (the 180 CSS px budget is covered under Accepted limits), and 157.0 CSS px at
+844 by 390. The figures were measured again on 2026-11-14. The stylesheet of HEAD (4c2ae09), run with the current templates, gives
+the same numbers as this change, so this change does not move the boxes of an empty draft. The earlier Codex figures
+(62.1, 66.4, 74.5 and 54.8 percent, with 215 and 176 CSS px of space) are not reproduced by either; this record does not
+trace that difference.
 
 Decision (2026-11-13): the header keeps two rows on phone widths. A one-row header at 320 CSS px cannot hold the brand,
 the repository access state, the model badge and Options without hiding the brand name or shortening a label. Safety
@@ -154,13 +178,68 @@ The header changes apply on phone widths only.
 
 On a landscape phone with a fine pointer (the desktop Chromium project), the composer keeps its keyboard hint row. The conversation measured 193.8 CSS px of 390 with a half-rem row gap, just under the half-screen floor of 195 CSS px. The landscape rule therefore sets a quarter-rem row gap instead of a half-rem gap. The number 195 is not changed.
 
+Reversal (2026-11-14): the `⋯` actions control of a Family Chat message is shown on every pointer. An earlier rule hid it
+on a coarse pointer, where holding the message was the only route to the menu. A touch visitor now sees the control
+without a long press, and holding the message still opens the same menu. The stylesheet has no coarse-pointer rule for
+the control, and `message_render.js` says so.
+
+Flag off (2026-11-15): the `⋯` control is drawn only in a room served with replies. With the reply flag off (the
+compatibility build) a message row has no actions control, so nothing can be focused or read there. The menu cannot open
+without replies, so the control is not drawn rather than hidden. With replies on, every message keeps the control above.
+
 Accepted limits:
 
 - In landscape on a phone, the Clear chat confirmation can cover part of the composer. It is transient: it shows only
   while the visitor answers the question, and it closes with the panel or on Cancel.
+- Soft keyboard on a real phone: the rule is verified by the declared layout and by an emulated viewport resize in
+  Chromium only. No manual check on a real phone has been made for this change. That check is still needed before the
+  soft keyboard rule is called done. Two platform differences are known and not handled here:
+  - iOS: the keyboard can pan the visual viewport through its `offsetTop`. `viewport_height.js` reads only the height,
+    so a panned page is put back at the top but the offset is not corrected. A manual phone check is needed.
+  - Android: a text selection made to open the message menu can stay highlighted after the menu closes. Clearing it
+    again on `selectionchange` while the menu is open is a possible future fix. It is not done here.
+- A diagram first drawn from the engine cache: a visitor saw the picture with no engine request on a first diagram
+  prompt. This is not reproduced in Chromium. With the engine held in a fresh browser context, the marked diagram stays
+  as source until the hold ends, and the scenarios "A Codex diagram draws after the diagram engine starts on a later
+  try" and "The Codex conversation keeps its newest reply in view when a diagram draws" pass. The reported case follows
+  an earlier visit that left the engine in the service worker cache, which draws at once by design; no scenario covers
+  that precondition.
+- A short landscape window with a keyboard open keeps the header whole and the composer on screen. The conversation
+  keeps its horizontal padding but only 0.5 rem of vertical padding in that window, because its own padding is the
+  floor of its box. Its box, and so its share of the screen, is set by the room's flex layout, not by that padding.
+- Small portrait list height (not changed here): the message list is 50 CSS px at 320 by 300, 81 CSS px at 360 by 340,
+  and 151 CSS px at 390 by 430. The header and composer take the rest. The two-row phone header is kept (see the
+  decision above), so these figures stand.
+- Deferred findings, recorded and not changed by this record: the actions control has `tabindex="-1"`, so the keyboard
+  route is the roving stop with Enter; glyph size, contrast and placement of the actions control; the menu's placement
+  in landscape; the Family Chat title truncates at 320 CSS px next to the notification button; desktop header heights
+  were not compared with HEAD in this round; and a manual check on a real device.
 - The accepted Family figure: the Family phone space is 214 CSS px at 320 and 360 wide, above the 180 CSS px budget of
   Decision 5. The Family share targets are met there, so the budget is accepted as a limit, not a passed rule. At 390
   wide the space is 158 CSS px, within the budget.
+- While the page is pinch-zoomed, `--vvh` keeps the height it had before the zoom. If the layout viewport then changes,
+  for example by a rotation while zoomed, a room can be taller than the screen and its composer can sit below the
+  visible area. The page is clipped, so it cannot be scrolled to. The height is written again at scale 1. No code change
+  is made for this.
+- In 4 of 12 first long-presses on the last message right after page load, the history scrolled up during the press,
+  and the menu still opened. This case is not reproduced, and no code change is made for it.
+
+Open usability findings (not fixed here). These were seen in use and are plain facts about the current screens:
+
+- The Codex "Repo read-only" chip changes to write access with one tap, and no confirmation is asked. This was already
+  so before this change.
+- "Show raw" appears only on the member's own messages.
+- Some words are not explained on screen: Codex, repository, Terra and effort.
+- The two rooms differ in the look of their header and composer.
+- A wide diagram is clipped, and nothing tells the visitor that it scrolls.
+- The placement of the Clear chat control needs a review.
+- Family Chat timestamps are absolute US-format dates with seconds.
+- "Notifications blocked" is shown with no action to fix it.
+- On a short landscape window (844 by 240 CSS px), the "Delete all messages?" confirmation of Clear chat was reported
+  to sit over the Send button and to be cut off by the card. In Chromium the confirmation stays inside the card and the
+  viewport at that size, and it covers the Send button by design (it is a popover over the composer). The reported
+  clipping is not reproduced here, so no change is made. The e2e outline "The Clear chat confirmation fits a narrow
+  screen with 44 pixel targets" now includes this size as a regression guard.
 
 ## Trade-offs
 
@@ -185,6 +264,10 @@ Accepted limits:
 - Governance (`repo-governance/development/behaviour-driven-development.md`, line 31) says Unit has no exemption. No
   Unit exemption is applied to any row, so the outlines keep their Vitest proof. This change does not amend governance.
 - Decision 8 items 5 to 7 of 004 no longer describe the shipped page. Read them with this record.
+- A review finding that text typed right after choosing Reply could be lost was not reproduced. The original report came
+  from instant automated typing with no delay. It was not reproduced at 320 or 1280 wide with the full text asserted.
+  The outline "Typing right after choosing Reply reaches the message input" stays as a regression guard. No product
+  change follows from it.
 
 ## Test layers
 
@@ -192,8 +275,13 @@ Accepted limits:
   theme code.
 - Unit (`apps/bnest-app/assets/test/unit`): `chat_keys.test.ts` for the key rule, and `composer.test.ts` for the Family
   draft rules. The Family mount reaches the key rule through `sendOnKey`, and the Family behaviour rows press keys
-  through that mount.
+  through that mount. `viewport_height.test.ts` covers the `--vvh` module, with and without `visualViewport`.
+  `fake_diagram_engine_hold.test.ts` covers the release of a diagram engine hold when the next scenario starts.
 - ExUnit (`apps/bnest-app/test/integration`): the confirmed clear, the page without a theme attribute, the Markdown
-  markup of a visitor's message.
+  markup of a visitor's message, and the viewport meta that lets a soft keyboard resize the content
+  (`root_layout_viewport_test.exs`).
 - e2e (`apps/bnest-app-fe-e2e/tests/steps`): the real keys, the confirmation, the raw toggle, the painted light page and
   the measured boxes at each viewport.
+- The sticky room is proven by `codex_sticky.steps.ts` (Vitest, the declared layout contract) and by
+  `codex-sticky-layout.steps.ts` (e2e, the measured header, composer, newest message and page scroll). With
+  `BNEST_SCREENSHOT_DIR` set, those steps and the budget steps also write the screenshots and boxes used for this record.

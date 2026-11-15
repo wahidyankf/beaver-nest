@@ -27,9 +27,43 @@ export async function renderDiagram(source: string): Promise<{ svg: string }> {
   };
 }
 
+// While held, the start waits, as the real module's start waits for its request to finish. A scenario holds it to press
+// keys while a marked diagram is still its source, then releases it. Open by default, so other scenarios are unchanged.
+// The hold lives on globalThis: the page imports this module through its own address, which Vitest evaluates as a
+// separate module instance, so a module-level variable would hold nothing the page's loadEngine can see.
+interface EngineHold {
+  start: Promise<void>;
+  open: () => void;
+}
+const HOLD_KEY = Symbol.for("bnest.test.diagramEngineHold");
+
+function engineHold(): { current: EngineHold | null } {
+  const host = globalThis as typeof globalThis & {
+    [HOLD_KEY]?: { current: EngineHold | null };
+  };
+  host[HOLD_KEY] ??= { current: null };
+  return host[HOLD_KEY];
+}
+
+export function holdDiagramEngine(): void {
+  let open: () => void = () => undefined;
+  const start = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  engineHold().current = { start, open };
+}
+
+export function releaseDiagramEngine(): void {
+  const hold = engineHold();
+  hold.current?.open();
+  hold.current = null;
+}
+
 /** The module's start, with engine.js's contract: the engine's API, once it has started. */
 export async function loadEngine(): Promise<{
   renderDiagram: typeof renderDiagram;
 }> {
+  const hold = engineHold().current;
+  if (hold) await hold.start;
   return { renderDiagram };
 }

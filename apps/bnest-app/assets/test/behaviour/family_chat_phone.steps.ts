@@ -5,14 +5,18 @@
 
 import { readFileSync } from "node:fs";
 import { expect } from "vitest";
-import { device } from "./support/browser_room";
+import { activePage, device } from "./support/browser_room";
 import {
   recall,
   recallOr,
   remember,
   forgetScenario,
 } from "./support/scenario_memory";
-import { declarationsFor, type Environment } from "../support/shipped_css";
+import {
+  declarationsFor,
+  lengthPx,
+  type Environment,
+} from "../support/shipped_css";
 import { FAMILY_TEMPLATE } from "./support/send_hint";
 import {
   assertNoDarkPreferenceRule,
@@ -197,4 +201,81 @@ step("the newest message is fully above the composer", () => {
     declarationsFor(".family-chat-composer", env)["position"] ?? "",
     "the composer is taken out of the flow, so it can cover the newest message",
   ).not.toBe("absolute");
+});
+
+// --- The actions control: visible, large enough to press, beside its bubble (family_chat.feature) ----------------------
+// The declared values of the shipped stylesheet are read for the scenario's viewport and pointer. The rendered boxes are
+// measured in Chromium by `bnest-app-fe-e2e`, which owns the same step texts.
+
+/** The actions control the renderer built for the room's committed message. */
+function actionsControl(): HTMLElement {
+  const control = activePage().document.querySelector<HTMLElement>(
+    '[data-role="family-chat-message-more"]',
+  );
+  if (!control) throw new Error("the room shows no actions control");
+  return control;
+}
+
+// The control is shown on a fine and on a coarse pointer: no coarse-pointer rule hides it (ADR 005, decision 5). Both
+// pointers are checked, so a rule that hides it only on touch fails here.
+step("the actions control of that message is visible without a hover", () => {
+  for (const coarse of [false, true]) {
+    const pointer = coarse ? "a touch" : "a fine";
+    const declared = declarationsFor(".family-chat-message-more", {
+      ...familyLaidOutEnv(),
+      coarse,
+    });
+    check(
+      (declared["opacity"] ?? "1") !== "0",
+      `the actions control is declared at opacity ${declared["opacity"]} on ${pointer} pointer`,
+    );
+    check(
+      declared["display"] !== "none",
+      `the actions control is declared hidden on ${pointer} pointer`,
+    );
+  }
+});
+
+step(
+  "the actions control of that message is at least 44 by 44 CSS pixels",
+  () => {
+    const env = familyLaidOutEnv();
+    const declared = declarationsFor(".family-chat-message-more", env);
+    check(
+      lengthPx(declared["min-width"] ?? "0", env) >= 44,
+      `the actions control's min-width is ${declared["min-width"]}`,
+    );
+    check(
+      lengthPx(declared["min-height"] ?? "0", env) >= 44,
+      `the actions control's min-height is ${declared["min-height"]}`,
+    );
+  },
+);
+
+step("the actions control of that message does not overlap its bubble", () => {
+  // The control is a grid item in the row under its bubble, so no declared absolute or fixed position can lay it over
+  // the bubble. The rendered boxes are measured in Chromium.
+  const declared = declarationsFor(
+    ".family-chat-message-more",
+    familyLaidOutEnv(),
+  );
+  check(
+    !["absolute", "fixed"].includes(declared["position"] ?? ""),
+    `the actions control is declared at position ${declared["position"]}`,
+  );
+});
+
+step("the actions control of that message is inside the history", () => {
+  check(
+    actionsControl().closest(".family-chat-history") !== null,
+    "the actions control is outside the history",
+  );
+});
+
+step("the actions control of that message has an accessible name", () => {
+  const label = actionsControl().getAttribute("aria-label") ?? "";
+  check(
+    /^Actions for .+'s message$/u.test(label),
+    `the actions control is named ${JSON.stringify(label)}`,
+  );
 });

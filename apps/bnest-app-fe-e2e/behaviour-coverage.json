@@ -6,9 +6,9 @@
   "generatedFrom": "plans/done/2026-09-20__family-chat-room/delivery.md Phase 1 Item 3",
   "summary": {
     "featureCount": 8,
-    "scenarioCount": 295,
+    "scenarioCount": 316,
     "e2eExemptScenarioCount": 12,
-    "e2eCoveredScenarioCount": 283
+    "e2eCoveredScenarioCount": 304
   },
   "features": [
     {
@@ -492,6 +492,34 @@
           "e2eExempt": false
         },
         {
+          "name": "The Codex header stays at the top while the messages scroll",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex composer stays at the bottom while the messages scroll",
+          "e2eExempt": false
+        },
+        {
+          "name": "The last Codex message is not hidden behind the composer",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex message list keeps its overscroll inside itself",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Codex header and composer stay in place with a fine pointer",
+          "e2eExempt": false
+        },
+        {
+          "name": "A long Codex draft grows the message box to its cap and keeps Send and the header on screen",
+          "e2eExempt": false
+        },
+        {
+          "name": "A smaller screen from the soft keyboard keeps the Codex composer on screen",
+          "e2eExempt": false
+        },
+        {
           "name": "A Codex reply shows an image from the repository",
           "e2eExempt": false
         },
@@ -586,6 +614,14 @@
           "e2eExempt": false
         },
         {
+          "name": "The actions control is visible and large enough to press",
+          "e2eExempt": false
+        },
+        {
+          "name": "Holding a message to open its menu clears the text the browser selects during the press",
+          "e2eExempt": false
+        },
+        {
           "name": "A message that is not yet committed cannot be replied to",
           "e2eExempt": false
         },
@@ -606,7 +642,19 @@
           "e2eExempt": false
         },
         {
+          "name": "The message actions control is not drawn when replies are off",
+          "e2eExempt": false
+        },
+        {
+          "name": "Every message has an actions control when replies are on",
+          "e2eExempt": false
+        },
+        {
           "name": "Choosing Reply puts the target above the message input",
+          "e2eExempt": false
+        },
+        {
+          "name": "Typing right after choosing Reply reaches the message input",
           "e2eExempt": false
         },
         {
@@ -755,6 +803,14 @@
         },
         {
           "name": "A scrolled diagram can be scrolled from the keyboard",
+          "e2eExempt": false
+        },
+        {
+          "name": "A diagram in an older message can be reached from the keyboard on a phone",
+          "e2eExempt": false
+        },
+        {
+          "name": "Keyboard focus stays in a diagram's message when its picture replaces the source",
           "e2eExempt": false
         },
         {
@@ -922,7 +978,7 @@
           "e2eExempt": false
         },
         {
-          "name": "The message composer grows with a long draft and then stops at six lines",
+          "name": "The message composer grows with a long draft and then stops at five lines",
           "e2eExempt": false
         },
         {
@@ -939,6 +995,34 @@
         },
         {
           "name": "The Send button text meets the contrast target",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Family Chat header stays at the top while the messages scroll",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Family Chat composer stays at the bottom while the messages scroll",
+          "e2eExempt": false
+        },
+        {
+          "name": "The last Family Chat message is not hidden behind the composer",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Family Chat message list keeps its overscroll inside itself",
+          "e2eExempt": false
+        },
+        {
+          "name": "The Family Chat header and composer stay in place with a fine pointer",
+          "e2eExempt": false
+        },
+        {
+          "name": "A long Family Chat draft grows the message box to its cap and keeps Send and the header on screen",
+          "e2eExempt": false
+        },
+        {
+          "name": "A smaller screen from the soft keyboard keeps the Family Chat composer on screen",
           "e2eExempt": false
         },
         {

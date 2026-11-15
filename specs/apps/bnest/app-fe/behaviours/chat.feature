@@ -871,11 +871,13 @@ Feature: Beaver Nest chat
     Then the confirmation is on screen without scrolling the page
     And each confirmation button is at least 44 pixels tall and across
     And the confirmation is no wider than the screen
+    And the confirmation stays inside the Codex card
 
     Examples:
-      | viewport       |
-      | narrow 320x568 |
-      | mobile 390x844 |
+      | viewport          |
+      | narrow 320x568    |
+      | mobile 390x844    |
+      | landscape 844x240 |
 
   Rule: Own messages in the Codex chat
 
@@ -1326,6 +1328,126 @@ Feature: Beaver Nest chat
       | tablet 768x1024   |
       | laptop 1024x768   |
       | desktop 1440x900  |
+
+  Rule: Codex header and composer stay in place while the messages scroll
+
+  @fe-vitest-unit
+  # Exemption(integration): where the header sits while a long conversation scrolls is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header stays at the top while the messages scroll
+  @integration-exempt
+  Scenario Outline: The Codex header stays at the top while the messages scroll
+    Given a Codex conversation holds 30 messages
+    And the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the visitor scrolls the Codex conversation to the middle
+    Then the Codex header is at the top of the screen
+    And the page does not scroll
+
+    Examples:
+      | viewport |
+      | narrow 320x568  |
+      | mobile 360x740  |
+      | mobile 390x844  |
+      | landscape 844x390  |
+      | tablet 768x1024 |
+
+  @fe-vitest-unit
+  # Exemption(integration): where the composer sits while a long conversation scrolls is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex composer stays at the bottom while the messages scroll
+  @integration-exempt
+  Scenario Outline: The Codex composer stays at the bottom while the messages scroll
+    Given a Codex conversation holds 30 messages
+    And the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the visitor scrolls the Codex conversation to the middle
+    Then the Codex composer is at the bottom of the screen
+    And the page does not scroll
+
+    Examples:
+      | viewport |
+      | narrow 320x568  |
+      | mobile 360x740  |
+      | mobile 390x844  |
+      | landscape 844x390  |
+      | tablet 768x1024 |
+
+  @fe-vitest-unit
+  # Exemption(integration): whether the newest message clears the composer is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The last Codex message is not hidden behind the composer
+  @integration-exempt
+  Scenario Outline: The last Codex message is not hidden behind the composer
+    Given a Codex conversation holds 30 messages
+    And the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the page is laid out
+    Then the newest Codex message ends above the composer
+
+    Examples:
+      | viewport |
+      | narrow 320x568  |
+      | mobile 390x844  |
+      | landscape 844x390  |
+
+  @fe-vitest-unit
+  # Exemption(integration): whether the message list keeps its overscroll to itself is a browser scroll behaviour Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message list keeps its overscroll inside itself
+  @integration-exempt
+  Scenario: The Codex message list keeps its overscroll inside itself
+    Given a Codex conversation holds 30 messages
+    And the Codex chat page is open at "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    When the visitor scrolls the Codex conversation to the middle
+    Then the Codex message list keeps its overscroll inside itself
+    And the page does not scroll
+
+  @fe-vitest-unit
+  @fine-pointer
+  # Exemption(integration): where the header and composer sit on a desktop screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header and composer stay in place with a fine pointer
+  @integration-exempt
+  Scenario Outline: The Codex header and composer stay in place with a fine pointer
+    Given a Codex conversation holds 30 messages
+    And the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a fine pointer
+    And the newest Codex message ends above the composer
+    When the visitor scrolls the Codex conversation to the middle
+    Then the Codex header is at the top of the screen
+    And the Codex composer is at the bottom of the screen
+    And the page does not scroll
+
+    Examples:
+      | viewport  |
+      | desktop 1280x800  |
+      | desktop 1440x900  |
+
+  @fe-vitest-unit
+  # Exemption(integration): how far a message box grows and where Send sits are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A long Codex draft grows the message box to its cap and keeps Send and the header on screen
+  @integration-exempt
+  Scenario: A long Codex draft grows the message box to its cap and keeps Send and the header on screen
+    Given a Codex conversation holds 30 messages
+    And the Codex chat page is open at "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    When the visitor types a draft of 14 lines into the Codex message box
+    And the page is laid out
+    Then the Codex message box is at least two lines tall
+    And the Codex message box is no taller than 5 lines
+    And the message box stops at its height cap and scrolls the rest of the draft
+    And the Send button and the Codex header are on screen
+    And the newest Codex message ends above the composer
+
+  @fe-vitest-unit
+  # Exemption(integration): where the composer and the newest message sit after the soft keyboard shrinks the screen are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A smaller screen from the soft keyboard keeps the Codex composer on screen
+  @integration-exempt
+  Scenario Outline: A smaller screen from the soft keyboard keeps the Codex composer on screen
+    Given a Codex conversation holds 30 messages
+    And the Codex chat page is open at "<viewport>"
+    And the visitor's pointer is a touch pointer
+    When the soft keyboard shrinks the screen to "<shrunk>"
+    Then the Codex composer is at the bottom of the screen
+    And the newest Codex message ends above the composer
+    And the Codex header is at the top of the screen
+    And the Codex header keeps its full height and its controls stay inside it
+    And the room follows the visible area through the --vvh height
+
+    Examples:
+      | viewport | shrunk  |
+      | mobile 390x844  | 390x430 |
+      | landscape 844x390  | 844x240 |
 
   Rule: Codex reply images
 

@@ -4,7 +4,7 @@ import { composerInput } from "../support/family-chat";
 
 // The layout scenarios of family_chat.feature's "Responsive and accessible presentation" rule that are tagged
 // `@fe-vitest-unit`: a short screen keeps its conversation, a narrow phone's message takes most of the width, the
-// composer grows with its draft and stops at six lines, and the Send button's text passes contrast. Each Then reads
+// composer grows with its draft and stops at five lines, and the Send button's text passes contrast. Each Then reads
 // a rendered box or a computed style in real Chromium. Their unit proof is the Vitest binding in
 // apps/bnest-app/assets/test/behaviour/family_chat_layout.steps.ts.
 
@@ -13,7 +13,7 @@ const { Then, When } = createBdd();
 // One composer line is 1.5 em of 16 pixels; the composer adds 0.7 rem of padding and 2 pixels of border on each side.
 const LINE_PX = 24;
 const COMPOSER_CHROME_PX = 2 * 11.2 + 2 * 2;
-const SIX_LINES_PX = 6 * LINE_PX + COMPOSER_CHROME_PX;
+const FIVE_LINES_PX = 5 * LINE_PX + COMPOSER_CHROME_PX;
 const CONVERSATION_SHARE = 0.5;
 const MESSAGE_SHARE = 0.8;
 const CONTRAST_TARGET = 4.5;
@@ -143,10 +143,10 @@ Then(
   },
 );
 
-Then("the message composer is at most six lines tall", async ({ page }) => {
+Then("the message composer is at most five lines tall", async ({ page }) => {
   const box = await boxOf(composerInput(page), "the message input");
   expect(box.height, "the composer height").toBeLessThanOrEqual(
-    SIX_LINES_PX + 1,
+    FIVE_LINES_PX + 1,
   );
   // Past the cap the draft scrolls inside the composer rather than pushing the Send button off screen.
   const overflow = await composerInput(page).evaluate(
@@ -154,6 +154,24 @@ Then("the message composer is at most six lines tall", async ({ page }) => {
   );
   expect(overflow, "the composer scrolls past its cap").toBe("auto");
 });
+
+// Exactly five lines: the lower bound that "at most five lines" does not give, and the draft scrolls past it.
+Then(
+  "the message composer stops at its five-line cap and scrolls the rest of the draft",
+  async ({ page }) => {
+    const box = await boxOf(composerInput(page), "the message input");
+    expect(
+      box.height,
+      "the composer grows to its five-line cap",
+    ).toBeGreaterThanOrEqual(FIVE_LINES_PX - 1);
+    const measure = await composerInput(page).evaluate((element) => ({
+      overflowY: getComputedStyle(element).overflowY,
+      scrolls: element.scrollHeight > element.clientHeight,
+    }));
+    expect(measure.overflowY, "the composer scrolls past its cap").toBe("auto");
+    expect(measure.scrolls, "the draft overflows the composer").toBe(true);
+  },
+);
 
 Then("the Send button is on screen", async ({ page }) => {
   await expectOnScreen(
