@@ -15,6 +15,7 @@ Keep procedural steps in [workflows](../workflows/README.md), repository-wide ch
 
 ## Directory Map
 
+- [Consumer correctness](consumer-correctness.md) chooses the surface that most helps the consumer be correct: descriptive errors, exact names, and no silent behaviour.
 - [Governance continuity](governance-continuity.md) preserves rule-governed repository behaviour across context compaction and handoffs.
 - [Minimal sufficiency](minimal-sufficiency.md) treats every line and mechanism as a liability and requires the smallest necessary solution.
 - [Progressive disclosure](progressive-disclosure.md) keeps entry points concise while making canonical detail easy to reach.
