@@ -418,6 +418,7 @@ defmodule BnestAppWeb.ChatLive do
               phx-update={if message.streaming, do: nil, else: "ignore"}
               content={message.content}
               streaming={message.streaming}
+              codex_images={true}
               data-role="assistant-message"
               data-streaming={to_string(message.streaming)}
               data-update-count={message.update_count}

@@ -4,8 +4,10 @@ defmodule BnestAppWeb.ChatMarkdown do
   Decision 1; ADR 003, Decisions 1 and 2).
 
   Four layers keep the output safe. Raw HTML is escaped, so it shows as text. An AST step gates
-  every destination. An image goes through `classify_image/1`, first match wins: a repository image
+  every destination. An image goes through `classify_image/2`, first match wins: a repository image
   becomes a route URL, using the rules the route applies (`BnestApp.CodexChat.Domain.RepositoryImage`);
+  a `codex-image:` reference becomes a generated-images route URL, but only when the `:codex_images`
+  option is `true`, which only the Codex room passes (ADR 007, Decision 1);
   an `https` image becomes an inline `<img>` when its address is at most 2,048 characters, has a host,
   and has no user info and no control or space character; a PNG, JPEG, GIF or WebP `data:` image
   becomes an inline `<img>` when its base64 payload is at most 32,768 characters, is valid base64, and
@@ -27,11 +29,12 @@ defmodule BnestAppWeb.ChatMarkdown do
   an ordinary code block with a note that says why. The browser draws only the marked fences.
   """
 
-  alias BnestApp.CodexChat.Domain.RepositoryImage
+  alias BnestApp.CodexChat.Domain.{GeneratedImage, RepositoryImage}
   alias MDEx.{CodeBlock, Image, Link, Raw, Text}
 
   @default_parse_time_ms 250
   @image_route "/chat/images/"
+  @generated_image_route "/chat/generated-images/"
   @link_schemes ~w(http https mailto)
   # `data` is allowed in the sanitizer only for image sources. Ammonia cannot scope a scheme to a tag,
   # so a link never reaches it: the link gate turns any link outside @link_schemes into text, and raw
@@ -90,38 +93,49 @@ defmodule BnestAppWeb.ChatMarkdown do
       escaped reply.
     * `:hard_breaks` (default `false`) makes a single newline a line break. Family Chat uses it,
       because people type a line break on purpose; the Codex chat keeps standard Markdown.
+    * `:codex_images` (default `false`) renders a `codex-image:` reference to a Codex-generated
+      image as an inline image (ADR 007, Decision 1). Only the Codex room's assistant replies pass
+      it; every other caller keeps the default, so the same reference there stays withheld text.
   """
   @spec to_html(String.t(), boolean(), keyword()) :: Phoenix.HTML.safe()
   def to_html(content, streaming?, options \\ [])
       when is_binary(content) and is_boolean(streaming?) do
     budget = Keyword.get(options, :parse_time_ms, @default_parse_time_ms)
     hard_breaks? = Keyword.get(options, :hard_breaks, false)
+    codex_images? = Keyword.get(options, :codex_images, false)
 
-    case render(content, streaming?, budget, hard_breaks?) do
+    case render(content, streaming?, budget, hard_breaks?, codex_images?) do
       {:ok, html} -> Phoenix.HTML.raw(sorted_attributes(html))
       {:error, _reason} -> escaped_reply(content)
     end
   end
 
   @doc """
-  Classifies an image destination. The first matching row wins (ADR 003, Decision 1):
+  Classifies an image destination. The first matching row wins (ADR 003, Decision 1;
+  ADR 007, Decision 1 adds the generated-image row):
 
     * `{:repository, path}`: a repository image that `RepositoryImage.reference/1` accepts; the
       route URL is built from `path`.
+    * `{:codex_generated, thread, file}`: a generated image that
+      `GeneratedImage.reference/2` accepts, rendered only when the `:codex_images` option is
+      `true`; the route URL is built from `thread` and `file`.
     * `{:external, url}`: an `https` address that may be shown inline, as written.
     * `{:inline, url}`: a PNG, JPEG, GIF or WebP `data:` image that may be shown inline, as written.
     * `:link_only`: an `http` address, shown as a link and never loaded.
     * `:other`: anything else, shown as text.
   """
-  @spec classify_image(String.t()) ::
+  @spec classify_image(String.t(), keyword()) ::
           {:repository, String.t()}
+          | {:codex_generated, String.t(), String.t()}
           | {:external, String.t()}
           | {:inline, String.t()}
           | :link_only
           | :other
-  def classify_image(url) do
+  def classify_image(url, options \\ []) do
     # The regular expressions below need valid UTF-8, so bytes that are not UTF-8 are refused first.
-    if String.valid?(url), do: classify_valid_image(url), else: :other
+    if String.valid?(url),
+      do: classify_valid_image(url, Keyword.get(options, :codex_images, false)),
+      else: :other
   end
 
   @doc """
@@ -180,11 +194,11 @@ defmodule BnestAppWeb.ChatMarkdown do
 
   # The native parser raises, instead of returning an error, on bytes that are not UTF-8, so
   # such a reply is refused here and shown escaped.
-  defp render(content, streaming?, budget, hard_breaks?) do
+  defp render(content, streaming?, budget, hard_breaks?, codex_images?) do
     if String.valid?(content) do
       with {:ok, document} <- MDEx.parse_document(content, parse_options(streaming?, budget)) do
         document
-        |> gate_destinations(streaming?)
+        |> gate_destinations(streaming?, codex_images?)
         |> MDEx.to_html(render_options(hard_breaks?))
       end
     else
@@ -206,15 +220,18 @@ defmodule BnestAppWeb.ChatMarkdown do
 
   # The traversal visits children before their parent, so a link's text is already gated when
   # the link itself is checked. Its accumulator counts the diagrams drawn so far in document order.
-  defp gate_destinations(document, streaming?) do
-    {document, _drawn} = MDEx.traverse_and_update(document, 0, &gate(&1, &2, streaming?))
+  defp gate_destinations(document, streaming?, codex_images?) do
+    {document, _drawn} =
+      MDEx.traverse_and_update(document, 0, &gate(&1, &2, streaming?, codex_images?))
+
     document
   end
 
-  defp gate(%Image{url: url, nodes: alt} = image, drawn, _streaming?) do
+  defp gate(%Image{url: url, nodes: alt} = image, drawn, _streaming?, codex_images?) do
     node =
-      case classify_image(url) do
+      case classify_image(url, codex_images: codex_images?) do
         {:repository, path} -> %{image | url: image_route(path)}
+        {:codex_generated, thread, file} -> %{image | url: generated_image_route(thread, file)}
         {:external, _url} -> image
         {:inline, _url} -> image
         :link_only -> link_only(url, alt)
@@ -224,17 +241,17 @@ defmodule BnestAppWeb.ChatMarkdown do
     {node, drawn}
   end
 
-  defp gate(%Link{url: url, nodes: nodes} = link, drawn, _streaming?) do
+  defp gate(%Link{url: url, nodes: nodes} = link, drawn, _streaming?, _codex_images?) do
     {if(scheme_of(url) in @link_schemes, do: link, else: text(nodes)), drawn}
   end
 
   # A reply still streaming keeps its diagrams as ordinary code blocks: the fence is not complete until
   # the reply is (ADR 004, Decision 2, rule 0).
-  defp gate(%CodeBlock{} = block, drawn, streaming?) do
+  defp gate(%CodeBlock{} = block, drawn, streaming?, _codex_images?) do
     if streaming?, do: {block, drawn}, else: gate_diagram(block, drawn)
   end
 
-  defp gate(node, drawn, _streaming?), do: {node, drawn}
+  defp gate(node, drawn, _streaming?, _codex_images?), do: {node, drawn}
 
   # A fence tagged `mermaid` is marked when every rule in `diagram_refusal/2` holds. The first failing
   # rule gives the note. Only an accepted diagram counts toward the message's limit.
@@ -357,15 +374,38 @@ defmodule BnestAppWeb.ChatMarkdown do
     escaped
   end
 
-  defp classify_valid_image(url) do
+  defp classify_valid_image(url, codex_images?) do
     case repository_path(url) do
       {:ok, path} -> {:repository, path}
-      :error -> classify_remote(url)
+      :error -> classify_codex(url, codex_images?)
     end
   end
 
   defp repository_path(url) do
     with {:ok, decoded} <- decode(url), do: RepositoryImage.reference(decoded)
+  end
+
+  # The generated-image row sits directly after the repository row and renders only for the
+  # Codex room, which passes `codex_images: true` (ADR 007, Decision 1). Every other caller
+  # falls through to the remote rows, so the same reference there stays `:other`.
+  defp classify_codex(url, true) do
+    case codex_generated_reference(url) do
+      {:ok, {thread, file}} -> {:codex_generated, thread, file}
+      :error -> classify_remote(url)
+    end
+  end
+
+  defp classify_codex(url, _codex_images?), do: classify_remote(url)
+
+  defp codex_generated_reference(url) do
+    with "codex-image" <- scheme_of(url),
+         [_scheme, remainder] <- String.split(url, ":", parts: 2),
+         [thread, file] <- String.split(remainder, "/"),
+         {:ok, _reference} <- GeneratedImage.reference(thread, file) do
+      {:ok, {thread, file}}
+    else
+      _refused -> :error
+    end
   end
 
   defp classify_remote(url) do
@@ -443,6 +483,10 @@ defmodule BnestAppWeb.ChatMarkdown do
   # Each segment is encoded on its own, so the slashes stay literal and the route splits them.
   defp image_route(path) do
     @image_route <> Enum.map_join(String.split(path, "/"), "/", &encode_segment/1)
+  end
+
+  defp generated_image_route(thread, file) do
+    @generated_image_route <> encode_segment(thread) <> "/" <> encode_segment(file)
   end
 
   defp encode_segment(segment), do: URI.encode(segment, &URI.char_unreserved?/1)

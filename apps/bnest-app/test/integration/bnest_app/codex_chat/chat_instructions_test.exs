@@ -99,6 +99,23 @@ defmodule BnestApp.CodexChat.ChatInstructionsTest do
     assert File.regular?(Path.join(@workspace, @logo))
   end
 
+  # ADR 007, Decision 3: the paragraph that tells the model to place a `codex-image:`
+  # reference where each generated image belongs.
+  test "the instruction tells the model to show each generated image with a codex-image: reference" do
+    {text, _override} = load_instruction()
+
+    assert text =~
+             "When you generate an image, show it where it belongs in the answer with ![alt](codex-image:<dir>/<file>)"
+
+    assert text =~ "using the last two segments of the saved path"
+
+    assert text =~
+             "codex-image:01a1caeb-9f2c-4d3e-8a1b-2c3d4e5f6071/exec-2b5e6589-1111-2222-3333-444455556666.png"
+
+    assert text =~ "Write one reference per image, in place, in the middle of the text"
+    assert text =~ "Never write absolute paths, ~/.codex paths, or file:// addresses"
+  end
+
   test "the instruction forbids putting repository text, secrets or the user's words in an image address" do
     {text, _override} = load_instruction()
 

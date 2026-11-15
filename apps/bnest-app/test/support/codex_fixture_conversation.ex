@@ -58,6 +58,15 @@ defmodule BnestApp.Test.CodexFixtureConversation do
     Enum.split(events, index + 1)
   end
 
+  defp events(thread, "Generate an image without a reference") do
+    [
+      {:thread_started, thread},
+      {:assistant_update, "fixture-image", "Here is your image."},
+      {:image_generated, "exec-fixture-image.png"},
+      :turn_completed
+    ]
+  end
+
   defp events(thread, prompt) do
     case Map.fetch(@replies, prompt) do
       {:ok, %{"prefix" => prefix, "text" => text}} ->

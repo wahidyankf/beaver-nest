@@ -23,7 +23,10 @@ config :bnest_app,
   ],
   argon2: [memory_kib: 32_768, time_cost: 2, parallelism: 1],
   codex: [
-    working_directory: Path.expand("../../..", __DIR__)
+    working_directory: Path.expand("../../..", __DIR__),
+    # The tilde is expanded by the adapter on every read, so the serving user's home wins,
+    # not the build user's home baked into the release.
+    codex_home: "~/.codex"
   ]
 
 # Configure the endpoint
@@ -161,7 +164,8 @@ config :bnest_app, BnestApp.CodexChat,
   agent_session: BnestApp.CodexChat.Adapters.CodexPortSession,
   model_discovery: BnestApp.CodexChat.Adapters.CodexCliModelDiscovery,
   transcript_store: BnestApp.CodexChat.Adapters.RecordTranscriptStore,
-  repository_images: BnestApp.CodexChat.Adapters.RepositoryImageFiles
+  repository_images: BnestApp.CodexChat.Adapters.RepositoryImageFiles,
+  generated_images: BnestApp.CodexChat.Adapters.GeneratedImageFiles
 
 # One adapter per Family Chat port.
 config :bnest_app, BnestApp.FamilyChat,

@@ -306,4 +306,49 @@ defmodule BnestApp.CodexChat.TranscriptTest do
 
     assert Transcript.restore(stale) == :error
   end
+
+  # ADR 007, Decision 4: the runner's fallback for an image the model did not reference.
+  test "appends a generated-image reference the reply does not name yet" do
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
+
+    chat =
+      Transcript.put_thread_id(chat, "thread-1")
+      |> Transcript.update_assistant("final", "Here is your image.")
+
+    appended = Transcript.append_generated_image(chat, "exec-abc.png")
+
+    assert List.last(appended.messages).content ==
+             "Here is your image.\n\n![Generated image](codex-image:thread-1/exec-abc.png)"
+  end
+
+  test "leaves a reply that already names the generated file alone" do
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
+
+    chat =
+      Transcript.put_thread_id(chat, "thread-1")
+      |> Transcript.update_assistant(
+        "final",
+        "Here it is: ![Generated image](codex-image:thread-1/exec-abc.png)"
+      )
+
+    assert Transcript.append_generated_image(chat, "exec-abc.png") == chat
+  end
+
+  test "appends nothing without a thread or a file name" do
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
+    threaded = Transcript.put_thread_id(chat, "thread-1")
+
+    assert Transcript.append_generated_image(chat, "exec-abc.png") == chat
+    assert Transcript.append_generated_image(threaded, "") == threaded
+  end
+
+  test "keeps a reply the reference would push past the content cap" do
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
+
+    chat =
+      Transcript.put_thread_id(chat, "thread-1")
+      |> Transcript.update_assistant("final", String.duplicate("x", 100_000))
+
+    assert Transcript.append_generated_image(chat, "exec-abc.png") == chat
+  end
 end

@@ -128,6 +128,23 @@ for await (const line of lines) {
       continue;
     }
 
+    // A turn that saves a generated image the reply never references (ADR 007, Decision 4):
+    // the runner's directory diff emits the fallback event the transcript appends.
+    if (message.prompt === "Generate an image without a reference") {
+      output({
+        type: "assistant_update",
+        item_id: "fixture-image",
+        text: "Here is your image.",
+      });
+      output({
+        type: "image_generated",
+        item_id: "generated-exec-fixture-image.png",
+        file: "exec-fixture-image.png",
+      });
+      output({ type: "turn_completed" });
+      continue;
+    }
+
     if (message.prompt === "Show progress") {
       output({
         type: "reasoning_update",

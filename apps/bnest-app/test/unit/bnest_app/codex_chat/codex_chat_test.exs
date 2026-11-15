@@ -188,6 +188,13 @@ defmodule BnestApp.CodexChat.CodexChatUnitTest do
                 Transcript.update_progress(transcript, "item-3", :activity, "Reading")}
     end
 
+    test "checkpoints a generated image the runner saved", %{transcript: transcript} do
+      chat = Transcript.put_thread_id(transcript, "thread-1")
+
+      assert CodexChat.apply_event(chat, {:image_generated, "exec-abc.png"}) ==
+               {:checkpoint, Transcript.append_generated_image(chat, "exec-abc.png")}
+    end
+
     test "ignores any other event", %{transcript: transcript} do
       assert CodexChat.apply_event(transcript, {:unknown, "event"}) == :ignore
     end

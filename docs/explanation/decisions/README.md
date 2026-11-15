@@ -35,3 +35,9 @@ accepted record changes.
   children are fixed to Luna at medium effort. The server refuses forged choices, a saved older setting resolves at
   read time with no migration, and a locked role that loses its model sees it unavailable, with no automatic fallback.
   Replaces the role rules of the Codex chat that README and the app architecture described.
+- [007. Codex generated images shown inline in the Codex chat](007-codex-generated-images-inline.md)
+  (Proposed) shows Codex-generated images inline in `/chat` through a `codex-image:<thread>/<file>`
+  reference and a same-scope `/chat/generated-images/` route with strict names, symlink refusal,
+  raster-only signatures, and identical empty 404s; the model places references inline and the
+  runner appends unreferenced files as fallback. Family Chat never renders the reference. Extends
+  002 Decision 2 and 003 Decision 4. No code changed yet.

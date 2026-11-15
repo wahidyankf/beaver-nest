@@ -69,6 +69,44 @@ defmodule BnestAppWeb.ChatComponentsTest do
       assert component == ChatComponents.markdown_body_html(content, [])
       assert component =~ ~s(<pre data-bnest-diagram="mermaid"><code>)
     end
+
+    # ADR 007, Decision 1: only the Codex room passes `codex_images: true`. Both paths carry
+    # the same reference the same way, and the default keeps the withheld text.
+    test "render the same bytes for a generated image, with and without the Codex-room option" do
+      content =
+        "Here it is: ![Generated image](codex-image:01a1caeb-9f2c-4d3e-8a1b-2c3d4e5f6071/exec-abc.png)"
+
+      assigns = %{content: content}
+
+      component =
+        rendered_to_string(~H"<.markdown_body content={@content} codex_images={true} />")
+
+      assert component ==
+               ChatComponents.markdown_body_html(content, codex_images: true)
+
+      assert component =~
+               ~s(src="/chat/generated-images/01a1caeb-9f2c-4d3e-8a1b-2c3d4e5f6071/exec-abc.png")
+
+      withheld = rendered_to_string(~H"<.markdown_body content={@content} />")
+
+      assert withheld == ChatComponents.markdown_body_html(content, [])
+      assert withheld =~ "[image not shown: Generated image]"
+      refute withheld =~ "<img"
+    end
+
+    test "a Family Chat body withholds a codex-image: reference, like every non-Codex caller" do
+      content =
+        "See this: ![Generated image](codex-image:01a1caeb-9f2c-4d3e-8a1b-2c3d4e5f6071/exec-abc.png)"
+
+      html =
+        ChatComponents.markdown_body_html(content,
+          hard_breaks: true,
+          attrs: %{"data-role": "family-chat-message-body", class: "family-chat-message-body"}
+        )
+
+      assert html =~ "[image not shown: Generated image]"
+      refute html =~ "<img"
+    end
   end
 
   describe "the wrapper" do
@@ -125,6 +163,7 @@ defmodule BnestAppWeb.ChatComponentsTest do
           content: "**x**",
           streaming: false,
           hard_breaks: false,
+          codex_images: false,
           class: nil,
           rest: %{}
         })
