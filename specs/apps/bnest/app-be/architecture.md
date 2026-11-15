@@ -326,7 +326,8 @@ other contexts are reached only through their facades, to seed accounts, message
 - Roles may contain `children`, `parents`, and `admin`; capabilities still default-deny cross-user access.
 - Codex model access is role-scoped server-side (ADR 006): the catalog offers only the latest Luna, Terra and Sol;
   admins choose any offered model and any effort it supports; parents choose Luna or Terra at medium effort; children
-  use Luna at medium effort. A missing required model disables that role's chat instead of substituting another model.
+  use Luna at medium effort. An account whose roles hold both admin and children is treated as a child. A missing
+  required model disables that role's chat instead of substituting another model.
 - Durable chat, Sifat Allah progress, and explicit theme state live in the authenticated user's SQLite records after
   accepted import.
 - Daily definitions, unique claims, retry state, leases, occurrence expiry, and safe results live in SQLite. One

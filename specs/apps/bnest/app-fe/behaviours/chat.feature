@@ -282,6 +282,16 @@ Feature: Beaver Nest chat
     Then repository access is shown as read-only
     And the repository write control is not shown
 
+  Scenario: A child administrator is locked to Luna at medium effort
+    Given an approved child administrator is logged in
+    When a visitor opens "/chat"
+    Then the page displays the text "Luna · medium"
+    And the selected model is "GPT-6-Luna"
+    And the selected reasoning effort is "Medium"
+    And the model selector is not shown
+    And the reasoning effort selector is not shown
+    And the message composer is available
+
   Rule: Formatted Codex replies
 
     Background:

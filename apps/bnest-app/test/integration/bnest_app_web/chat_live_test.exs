@@ -69,6 +69,11 @@ defmodule BnestAppWeb.ChatLiveTest do
   end
 
   test "falls back to Terra when a saved model is no longer available", %{conn: conn} do
+    # The legacy transition identity carries every role, so since the child-administrator
+    # rule (ADR 006, Decision 6) it resolves to the child's locked chat. Sign in as an
+    # admin to prove the admin's fallback.
+    {conn, _identity} = scenario_authenticated_conn(conn, "chat-admin-saved-fallback", ["admin"])
+
     snapshot = %{
       "version" => 2,
       "thread_id" => nil,
@@ -542,6 +547,24 @@ defmodule BnestAppWeb.ChatLiveTest do
       assert_badge(view, "gpt-6-luna", "medium")
 
       render_hook(view, "select_model", %{"model" => "gpt-6.1-terra"})
+      render_hook(view, "select_effort", %{"reasoning_effort" => "high"})
+
+      assert_badge(view, "gpt-6-luna", "medium")
+      refute has_element?(view, "[data-role=model-selector]")
+      refute has_element?(view, "[data-role=effort-selector]")
+    end
+
+    test "a child administrator stays on Luna at medium effort whatever is forged", %{conn: conn} do
+      {conn, identity} =
+        scenario_authenticated_conn(conn, "chat-role-child-admin-forgery", ["children", "admin"])
+
+      save_settings(identity, "gpt-6.1-terra", "high")
+
+      {:ok, view, _html} = live(conn, "/chat")
+      assert_badge(view, "gpt-6-luna", "medium")
+
+      render_hook(view, "select_model", %{"model" => "gpt-6.1-terra"})
+      render_hook(view, "select_model", %{"model" => "gpt-6.1-sol"})
       render_hook(view, "select_effort", %{"reasoning_effort" => "high"})
 
       assert_badge(view, "gpt-6-luna", "medium")
