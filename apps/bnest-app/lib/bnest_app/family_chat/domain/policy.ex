@@ -45,7 +45,9 @@ defmodule BnestApp.FamilyChat.Domain.Policy do
   def validate_body(body) do
     case Message.normalize_body(body) do
       {:ok, normalized} -> {:ok, normalized}
-      {:error, _reason} -> validation_failed()
+      {:error, :too_long} -> {:error, %{code: "BODY_TOO_LONG", details: nil}}
+      {:error, :too_large} -> {:error, %{code: "BODY_TOO_LARGE", details: nil}}
+      {:error, _blank} -> validation_failed()
     end
   end
 

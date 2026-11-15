@@ -182,8 +182,131 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
         )
 
       body = Jason.decode!(response.resp_body)
-      assert [%{"message" => message} | _rest] = body["errors"]
-      assert message =~ "replyTo"
+      # Safe envelope: a document error, never an empty field and never the
+      # validator's internals.
+      assert [
+               %{
+                 "message" => "The request is invalid.",
+                 "extensions" => %{"code" => "VALIDATION_FAILED"}
+               }
+             ] = body["errors"]
+    end
+  end
+
+  describe "the safe transport envelope" do
+    test "a malformed JSON body answers the safe JSON envelope", %{conn: conn} do
+      response =
+        conn
+        |> Plug.Conn.put_req_header("content-type", "application/json")
+        |> post(@path, "this is not json Mr. X{{{ Best regards")
+
+      assert response.status == 400
+      assert json_content_type?(response)
+
+      body = Jason.decode!(response.resp_body)
+
+      assert [
+               %{
+                 "message" => "The request is invalid.",
+                 "extensions" => %{"code" => "VALIDATION_FAILED"}
+               }
+             ] = body["errors"]
+    end
+
+    test "a non-string query answers only the safe envelope", %{conn: conn} do
+      response = post_raw_graphql(conn, Jason.encode!(%{"query" => 42}))
+
+      assert response.status == 200
+      assert json_content_type?(response)
+
+      body = Jason.decode!(response.resp_body)
+
+      assert [
+               %{
+                 "message" => "The request is invalid.",
+                 "extensions" => %{"code" => "VALIDATION_FAILED"}
+               }
+             ] = body["errors"]
+    end
+
+    test "an over-long body names its 4,000-character limit", %{conn: conn} do
+      response =
+        post_graphql(conn, @send_reply, %{
+          "roomSlug" => FamilyChat.canonical_room_slug(),
+          "clientMessageId" => Ecto.UUID.generate(),
+          "body" => String.duplicate("a", 4_001)
+        })
+
+      assert response.status == 200
+
+      body = Jason.decode!(response.resp_body)
+      assert %{"data" => %{"sendFamilyChatMessage" => nil}} = body
+
+      assert [
+               %{
+                 "message" => "The message exceeds the 4,000-character limit.",
+                 "extensions" => %{"code" => "BODY_TOO_LONG"}
+               }
+             ] = body["errors"]
+    end
+
+    test "an over-large body names its 16 KiB limit", %{conn: conn} do
+      response =
+        post_graphql(conn, @send_reply, %{
+          "roomSlug" => FamilyChat.canonical_room_slug(),
+          "clientMessageId" => Ecto.UUID.generate(),
+          "body" => String.duplicate("👨‍👩‍👧‍👦", 700)
+        })
+
+      assert response.status == 200
+
+      body = Jason.decode!(response.resp_body)
+      assert %{"data" => %{"sendFamilyChatMessage" => nil}} = body
+
+      assert [
+               %{
+                 "message" => "The message exceeds the 16 KiB size limit.",
+                 "extensions" => %{"code" => "BODY_TOO_LARGE"}
+               }
+             ] = body["errors"]
+    end
+
+    # Logout revokes the server-side session while the browser still holds its
+    # cookie: the stale cookie authorizes nothing and commits nothing.
+    test "a logged-out session authorizes nothing, even with its cookie", %{conn: conn} do
+      token = Plug.Conn.fetch_cookies(conn).cookies["_bnest_identity"]
+      assert :ok = BnestApp.Identity.logout(token)
+
+      client_message_id = Ecto.UUID.generate()
+
+      response =
+        post_graphql(conn, @send_reply, %{
+          "roomSlug" => FamilyChat.canonical_room_slug(),
+          "clientMessageId" => client_message_id,
+          "body" => "should never commit",
+          "replyToMessageId" => "1"
+        })
+
+      assert response.status == 200
+      assert json_content_type?(response)
+
+      body = Jason.decode!(response.resp_body)
+      assert %{"data" => %{"sendFamilyChatMessage" => nil}} = body
+
+      assert [
+               %{
+                 "message" => "Authentication required.",
+                 "extensions" => %{"code" => "UNAUTHENTICATED"}
+               }
+             ] = body["errors"]
+
+      assert RoomStore.find_message(
+               SqliteRoomStore.new(),
+               1,
+               "user",
+               test_user_id(),
+               client_message_id
+             ) == nil
     end
   end
 
@@ -206,9 +329,13 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
   # the real boundary requires genuine `application/json`, so this sends what a
   # real client sends rather than what ConnTest defaults to.
   defp post_graphql(conn, query, variables) do
+    post_raw_graphql(conn, Jason.encode!(%{"query" => query, "variables" => variables}))
+  end
+
+  defp post_raw_graphql(conn, body) do
     conn
     |> Plug.Conn.put_req_header("content-type", "application/json")
-    |> post(@path, Jason.encode!(%{"query" => query, "variables" => variables}))
+    |> post(@path, body)
   end
 
   defp json_content_type?(conn) do

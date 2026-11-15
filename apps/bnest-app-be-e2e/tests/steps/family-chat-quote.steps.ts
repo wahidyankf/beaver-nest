@@ -215,5 +215,11 @@ Then("that quote carries no quote of its own", async ({ page }) => {
     { roomSlug: "ruang-keluarga" },
   );
   expect(nested.data ?? null).toBeNull();
-  expect(nested.errors?.[0]?.message).toContain("replyTo");
+  // Safe envelope: a document error carries the generic message and only a
+  // code, never the validator's internals (no "replyTo" field details).
+  expect(nested.errors?.[0]?.message).toBe("The request is invalid.");
+  expect(nested.errors?.map((error) => error.extensions?.["code"])).toEqual([
+    "VALIDATION_FAILED",
+  ]);
+  expect(Object.keys(nested.errors?.[0]?.extensions ?? {})).toEqual(["code"]);
 });

@@ -62,9 +62,25 @@ defmodule BnestAppWeb.Schema.Complexity do
     ]
   end
 
-  # The envelope replaces the result phase rather than following it: a refused document jumps from the complexity
-  # result straight to the result phase, so a phase placed after the complexity result would never run for it.
+  # The envelope replaces the complexity result phase rather than following it:
+  # a refused document jumps from the complexity result straight to the result
+  # phase, so a phase placed after the complexity result would never run for
+  # it. Parse and validation failures jump the same way (their `result_phase`
+  # option), so every jumping phase is pointed at the envelope: whatever failed
+  # first answers the one safe envelope. The envelope itself keeps the default
+  # result phase, so its own complexity refusal still renders through the raw
+  # result phase at the end of the pipeline.
   defp with_envelope(pipeline) do
-    Absinthe.Pipeline.replace(pipeline, Result, Envelope)
+    pipeline
+    |> Absinthe.Pipeline.replace(Result, Envelope)
+    |> Enum.map(fn
+      {phase, opts} when is_list(opts) ->
+        if phase == Envelope,
+          do: {phase, opts},
+          else: {phase, Keyword.put(opts, :result_phase, Envelope)}
+
+      entry ->
+        entry
+    end)
   end
 end

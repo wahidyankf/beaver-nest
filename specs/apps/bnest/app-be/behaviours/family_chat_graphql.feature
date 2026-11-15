@@ -173,14 +173,14 @@ Feature: Family chat GraphQL API
 
   Scenario Outline: Invalid message text is rejected before commit
     When the user sends the family chat message "<body>" with a fresh client message ID
-    Then the response is a safe "VALIDATION_FAILED" error
+    Then the response is a safe "<code>" error
     And the family chat room gains no new message
 
     Examples:
-      | body                                 |
-      | whitespace-only-body                 |
-      | over-4000-graphemes-normalized-body  |
-      | over-16-kib-body                     |
+      | body                                 | code              |
+      | whitespace-only-body                 | VALIDATION_FAILED |
+      | over-4000-graphemes-normalized-body  | BODY_TOO_LONG     |
+      | over-16-kib-body                     | BODY_TOO_LARGE    |
 
   Scenario: A missing room is reported safely without enumerating hidden rooms
     When the user queries the family chat room "no-such-room"

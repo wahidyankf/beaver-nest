@@ -7,6 +7,7 @@ defmodule BnestApp.Identity.IdentityUnitTest do
   alias BnestApp.Identity.Bootstrap
   alias BnestApp.Identity.Domain.Authorization
   alias BnestApp.Identity.Domain.Session
+  alias BnestApp.Identity.IdentityUnitTest.UnreadableIdentityStore
   alias BnestApp.Identity.Login
   alias BnestApp.Identity.Ports.IdentityStore
   alias BnestApp.Identity.Sessions
@@ -384,6 +385,26 @@ defmodule BnestApp.Identity.IdentityUnitTest do
       assert Identity.display_name_for(user_id) == @username
       assert Identity.display_name_for("user-absent") == nil
     end
+
+    # The explicit store keeps these tests independent of ambient application
+    # configuration, which concurrent tests also mutate: the raised error
+    # and the down process both answer inactive.
+    test "session_active? is fail-closed when the store raises" do
+      store = UnreadableIdentityStore.new(%{mode: :raise, notify: self()})
+
+      refute Identity.session_active?("test-user-identity-any-digest", store)
+      assert_received :read_session_called
+    end
+
+    test "session_active? is fail-closed when the store process is down" do
+      # The marker assertion pins the path: read_session must run (marker)
+      # and the exit must not escape (false return). Without both, this
+      # test fails loudly instead of passing vacuously.
+      store = UnreadableIdentityStore.new(%{mode: :exit, notify: self()})
+
+      refute Identity.session_active?("test-user-identity-any-digest", store)
+      assert_received :read_session_called
+    end
   end
 
   test "authorize delegates to the authorization policy" do
@@ -399,5 +420,37 @@ defmodule BnestApp.Identity.IdentityUnitTest do
     assert Identity.adapter(:credential_hasher) == BnestApp.Test.InMemory.CredentialHasher
     assert Identity.benchmark_hasher() == {:ok, 0}
     assert_raise KeyError, fn -> Identity.adapter(:unknown) end
+  end
+
+  test "session_active? refuses non-binary digests without touching the store" do
+    refute Identity.session_active?(nil)
+    refute Identity.session_active?(:digest)
+    refute Identity.session_active?(123)
+
+    store = UnreadableIdentityStore.new(%{})
+    refute Identity.session_active?(nil, store)
+    refute Identity.session_active?(:digest, store)
+    refute Identity.session_active?(123, store)
+  end
+
+  # A store this caller cannot read must never authorize a session: the raised
+  # error and the down process both answer inactive. The `:notify` pid
+  # receives `:read_session_called` first, so a test proves the read path
+  # ran instead of passing vacuously.
+  defmodule UnreadableIdentityStore do
+    @moduledoc false
+
+    def new(overrides \\ %{}) do
+      Map.merge(%{adapter: __MODULE__, mode: :raise, notify: nil}, overrides)
+    end
+
+    def read_session(%{mode: mode, notify: notify}, _digest) do
+      if is_pid(notify), do: send(notify, :read_session_called)
+
+      case mode do
+        :raise -> raise "test store unreadable"
+        :exit -> exit(:test_store_down)
+      end
+    end
   end
 end

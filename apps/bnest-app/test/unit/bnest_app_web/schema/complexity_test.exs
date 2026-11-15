@@ -49,6 +49,32 @@ defmodule BnestAppWeb.Schema.ComplexityTest do
       assert envelope == analysis + 1
       refute Absinthe.Phase.Document.Complexity.Result in phases
     end
+
+    # Parse and validation failures jump straight to the result phase, bypassing
+    # every phase after them: every phase's `result_phase` option must point at
+    # the envelope, so those jumps land on the safe envelope instead of the raw
+    # result renderer (which would echo parser internals). The envelope itself
+    # keeps the raw result phase, so its own complexity refusal still renders.
+    test "every jumping phase lands on the envelope" do
+      config = %{schema_mod: BnestAppWeb.Schema, conn_private: %{http_method: "POST"}}
+
+      pipeline =
+        Complexity.pipeline(
+          config,
+          analyze_complexity: true,
+          max_complexity: Complexity.max_complexity()
+        )
+
+      for {phase, opts} <- pipeline, is_list(opts) do
+        expected =
+          if phase == BnestAppWeb.Schema.Complexity.Envelope,
+            do: Absinthe.Phase.Document.Result,
+            else: BnestAppWeb.Schema.Complexity.Envelope
+
+        assert Keyword.get(opts, :result_phase, Absinthe.Phase.Document.Result) == expected,
+               "#{inspect(phase)} does not jump to the safe envelope"
+      end
+    end
   end
 
   test "the budget admits a normal page and refuses a page that repeats bodyHtml" do
