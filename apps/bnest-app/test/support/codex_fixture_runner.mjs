@@ -55,6 +55,17 @@ for await (const line of lines) {
       continue;
     }
 
+    // A resume failure whose message carries transport noise: the session must strip the
+    // `rmcp::` line before the owner sees it, leaving only the genuine failure.
+    if (resumedThreadId === "noisy-thread") {
+      output({
+        type: "resume_failed",
+        message:
+          "ERROR rmcp::transport::worker: worker quit with fatal: AuthRequired(MCP server `foo` requires login)\nFixture Codex thread is unavailable.",
+      });
+      continue;
+    }
+
     if (
       message.prompt === "Remember me" &&
       !prompts.includes("Hello, Beaver Nest")
@@ -125,6 +136,18 @@ for await (const line of lines) {
 
     if (message.prompt === "Please fail this turn") {
       output({ type: "error", message: "Turn failed." });
+      continue;
+    }
+
+    // A host plugin MCP server that is not logged in prints transport noise to the runner's
+    // stderr, and the SDK embeds it in the turn error. The session must strip those lines
+    // before the owner sees them; only the genuine error lines survive.
+    if (message.prompt === "Please fail with transport noise") {
+      output({
+        type: "error",
+        message:
+          "ERROR rmcp::transport::worker: worker quit with fatal: AuthRequired(MCP server `foo` requires login)\nAuthRequired: sign-in required for the model provider\nTurn failed.",
+      });
       continue;
     }
 

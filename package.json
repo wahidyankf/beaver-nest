@@ -18,6 +18,7 @@
     "tailnet:status": "npm exec -- nx run -p bnest-app -t tailnet:status",
     "tailnet:down": "npm exec -- nx run -p bnest-app -t tailnet:down",
     "test": "./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:unit",
+    "test:live": "./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:live",
     "test:e2e:be": "./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app-be-e2e -t test:e2e",
     "test:e2e:fe": "./hippo run --class ephemeral --resource-tier heavy --disk-path . -- npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e",
     "test:e2e": "npm run test:e2e:be && npm run test:e2e:fe"
