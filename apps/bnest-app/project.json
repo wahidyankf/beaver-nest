@@ -268,7 +268,7 @@
     },
     "test:integration": {
       "dependsOn": ["test-data:cleanup"],
-      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --exclude integration-exempt --max-cases 1 test/integration",
+      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --exclude integration-exempt --exclude ci-exempt --max-cases 1 test/integration",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/apps/bnest/app-be/behaviours/**/*.feature",
@@ -277,6 +277,19 @@
       "options": {
         "cwd": "apps/bnest-app"
       }
+    },
+    "test:live": {
+      "dependsOn": ["test-data:cleanup"],
+      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --only ci-exempt --max-cases 1 test/integration/bnest_app/codex_chat/live_codex_test.exs",
+      "inputs": [
+        "default",
+        "{workspaceRoot}/specs/apps/bnest/app-be/behaviours/**/*.feature",
+        "{workspaceRoot}/specs/apps/bnest/app-fe/behaviours/**/*.feature"
+      ],
+      "options": {
+        "cwd": "apps/bnest-app"
+      },
+      "cache": false
     },
     "test:coverage:behaviour": {
       "executor": "nx:run-commands",

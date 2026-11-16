@@ -80,6 +80,46 @@ defmodule BnestApp.CodexChat.ChatInstructionsTest do
              record |> File.read!() |> Jason.decode!()
   end
 
+  # The runner must forward the system Codex binary path (argv index 7, after working
+  # directory, model, effort, thread and sandbox) to the SDK constructor as
+  # `codexPathOverride`, so a real turn runs against a CLI that knows the current models.
+  # Omitting it leaves the override unset and the SDK uses its bundled binary.
+  test "the runner forwards the system Codex path as codexPathOverride" do
+    workspace = temporary_directory("bnest-codex-runner-stub")
+    record = Path.join(workspace, "constructor.json")
+    sdk_directory = Path.join(workspace, "node_modules/@openai/codex-sdk")
+
+    File.mkdir_p!(Path.join(sdk_directory, "dist"))
+    File.write!(Path.join(sdk_directory, "package.json"), ~s({"type": "module"}))
+    File.write!(Path.join(sdk_directory, "dist/index.js"), stub_sdk())
+
+    run_runner = fn extra_argv ->
+      probe = """
+      process.stdin.push(null);
+      process.argv.splice(2, 0, #{inspect(workspace)}, "gpt-6.1-terra", "medium", "", "read-only"#{extra_argv});
+      await import(process.argv[1]);
+      """
+
+      {output, status} =
+        System.cmd(
+          node!(),
+          ["--input-type=module", "--eval", probe, CodexPortSession.bundled_runner()],
+          env: [{"BNEST_STUB_RECORD", record}],
+          stderr_to_stdout: true
+        )
+
+      assert status == 0, "the runner failed against the stub SDK: #{output}"
+      record |> File.read!() |> Jason.decode!()
+    end
+
+    assert %{"codexPathOverride" => "/usr/bin/codex"} =
+             run_runner.(~c', "/usr/bin/codex"')
+
+    decoded = run_runner.("")
+    assert %{"config" => _config} = decoded
+    refute Map.has_key?(decoded, "codexPathOverride")
+  end
+
   # ADR 003, Decision 4: repository raster images and https images are shown; an SVG at a data: address, absolute
   # paths and http addresses are not; no repository text, secret or visitor word goes into an image address; a large
   # image is a link.

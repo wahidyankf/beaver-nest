@@ -1,0 +1,23 @@
+# The chat runner prefers the host Codex CLI (which self-updates), but its bundled fallback
+# ships inside `@openai/codex-sdk`, so the pinned SDK would rot silently: nothing proposes a
+# bump on its own. These grouped updates are that proposal. They still merge only through the
+# normal PR quality gate, whose stub-SDK contract test and quick suite catch an incompatible
+# SDK bump before merge. No auto-merge: nothing here, and no workflow, merges without the gate.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      codex:
+        patterns:
+          - "@openai/codex-sdk"
+          - "@openai/codex"
+    allow:
+      - dependency-name: "@openai/codex-sdk"
+      - dependency-name: "@openai/codex"
+    commit-message:
+      prefix: chore
+      include: scope

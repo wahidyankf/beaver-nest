@@ -177,6 +177,26 @@ defmodule BnestAppWeb.ChatLiveTest do
     assert :ok = CodexPortSession.close(session)
   end
 
+  test "CodexPortSession strips transport noise from a fixture resume failure" do
+    use_fixture_runner()
+
+    assert {:ok, session} =
+             CodexPortSession.open(
+               self(),
+               "noisy-thread",
+               "gpt-6.1-terra",
+               "medium",
+               :read_only
+             )
+
+    assert :ok = CodexPortSession.send_prompt(session, "Continue")
+
+    assert_receive {:codex, ^session, {:resume_failed, "Fixture Codex thread is unavailable."}},
+                   2_000
+
+    assert :ok = CodexPortSession.close(session)
+  end
+
   test "CodexPortSession forwards public progress with stable runner item IDs" do
     use_fixture_runner()
 
@@ -200,6 +220,22 @@ defmodule BnestAppWeb.ChatLiveTest do
                    2_000
 
     assert_receive {:codex, ^session, :turn_completed}, 2_000
+    assert :ok = CodexPortSession.close(session)
+  end
+
+  test "CodexPortSession strips transport noise from runner errors" do
+    use_fixture_runner()
+
+    assert {:ok, session} =
+             CodexPortSession.open(self(), nil, "gpt-6.1-terra", "medium", :read_only)
+
+    assert :ok = CodexPortSession.send_prompt(session, "Please fail with transport noise")
+
+    assert_receive {:codex, ^session,
+                    {:error,
+                     "AuthRequired: sign-in required for the model provider\nTurn failed."}},
+                   2_000
+
     assert :ok = CodexPortSession.close(session)
   end
 

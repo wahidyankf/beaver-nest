@@ -1,7 +1,15 @@
 import { spawn } from "node:child_process";
 import readline from "node:readline";
 
-const child = spawn("codex", ["app-server"], {
+// The host Codex CLI, resolved past the npm shim by the Elixir caller. An empty string keeps
+// the previous behaviour of spawning `codex` from PATH, which every fixture runner relies on.
+const systemCodexPath = process.argv[2];
+const codexCommand =
+  typeof systemCodexPath === "string" && systemCodexPath !== ""
+    ? systemCodexPath
+    : "codex";
+
+const child = spawn(codexCommand, ["app-server"], {
   stdio: ["pipe", "pipe", "pipe"],
 });
 const lines = readline.createInterface({ input: child.stdout });

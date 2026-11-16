@@ -15,6 +15,9 @@ const model = process.argv[3];
 const modelReasoningEffort = process.argv[4];
 const resumedThreadId = process.argv[5];
 const sandboxMode = process.argv[6];
+// The host Codex CLI, when the Elixir port session found one on PATH. A missing binary arrives as an
+// empty string and leaves the override unset, so the SDK uses its bundled CLI as before.
+const systemCodexPath = process.argv[7];
 
 if (
   !workingDirectory ||
@@ -33,9 +36,15 @@ const { Codex } = await import(
   ).href
 );
 // Every turn of every thread, including resumed ones, starts a `codex exec` process with this developer instruction.
-const codex = new Codex({
+const codexOptions = {
   config: { developer_instructions: developerInstructions },
-});
+};
+
+if (typeof systemCodexPath === "string" && systemCodexPath !== "") {
+  codexOptions.codexPathOverride = systemCodexPath;
+}
+
+const codex = new Codex(codexOptions);
 const threadOptions = {
   model,
   modelReasoningEffort,

@@ -11,6 +11,8 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
   @behaviour BnestApp.CodexChat.Ports.AgentSession
   use GenServer
 
+  alias BnestApp.CodexChat.Adapters.SystemCodex
+
   @impl BnestApp.CodexChat.Ports.AgentSession
   def open(owner, thread_id, model, reasoning_effort, repository_mode)
       when repository_mode in [:read_only, :workspace_write] do
@@ -112,7 +114,11 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
              model,
              reasoning_effort,
              thread_id || "",
-             sandbox_mode(repository_mode)
+             sandbox_mode(repository_mode),
+             # The host Codex CLI for `codexPathOverride`, resolved past the npm shim; the
+             # fixture runner only reads argv[3..6], so the extra argument is safe when tests
+             # select the fixture.
+             SystemCodex.resolve(System.get_env("PATH", "")) || ""
            ],
            &String.to_charlist/1
          )},
@@ -181,11 +187,29 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
     do: send(owner, {:codex, self(), :turn_completed})
 
   defp forward_runner_event(owner, %{"type" => "error", "message" => message}),
-    do: send(owner, {:codex, self(), {:error, message}})
+    do: send(owner, {:codex, self(), {:error, sanitize_runner_error(message)}})
 
   defp forward_runner_event(owner, %{"type" => "resume_failed", "message" => message}),
-    do: send(owner, {:codex, self(), {:resume_failed, message}})
+    do: send(owner, {:codex, self(), {:resume_failed, sanitize_runner_error(message)}})
 
   defp forward_runner_event(owner, _event),
     do: send(owner, {:codex, self(), {:error, "Codex runner returned invalid data."}})
+
+  # Host Codex plugin MCP servers that are not logged in print transport noise to the runner's
+  # stderr, and the SDK embeds it in the turn error the runner forwards. Noise lines always
+  # carry `rmcp::`, so only those lines are removed; blank lines go too, and every other line
+  # passes through unchanged.
+  defp sanitize_runner_error(message) when is_binary(message) do
+    case message
+         |> String.split("\n")
+         |> Enum.reject(&(transport_noise?(&1) or String.trim(&1) == ""))
+         |> Enum.join("\n") do
+      "" -> "Codex reported an error."
+      cleaned -> cleaned
+    end
+  end
+
+  defp sanitize_runner_error(_message), do: "Codex runner returned invalid data."
+
+  defp transport_noise?(line), do: String.contains?(line, "rmcp::")
 end
