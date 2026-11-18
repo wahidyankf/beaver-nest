@@ -59,7 +59,7 @@
     "vitest": "^5.0.1"
   },
   "dependencies": {
-    "@openai/codex-sdk": "0.149.1",
+    "@openai/codex-sdk": "0.167.2",
     "mermaid": "12.3.0",
     "phoenix": "~1.8.14"
   }
