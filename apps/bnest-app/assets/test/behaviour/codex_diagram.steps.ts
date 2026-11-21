@@ -504,7 +504,7 @@ export function codexDiagramSteps(): StepDefinition[] {
       expect(code?.textContent).toContain("<script>");
       return context;
     }),
-    step("the picture is the same node as before", async (context) => {
+    step("the picture is still shown and not redrawn", async (context) => {
       const state = ensureScene();
       expect(state.figure).not.toBeNull();
       expect(state.root.querySelector("figure")).toBe(state.figure);

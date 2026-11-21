@@ -171,7 +171,7 @@ function vvhState(page: Page): Promise<VvhState> {
 // The page writes --vvh from the visual viewport, and the room shell fills that height. The Family shell may give up its
 // 2.5rem margin; the Codex shell takes the whole visible area. The declared rule is checked by the Vitest layer.
 Then(
-  "the room follows the visible area through the --vvh height",
+  "the Codex room fills the visible area above the keyboard",
   async ({ page }) => {
     await expect.poll(() => vvhState(page)).toMatchObject({ synced: true });
     const state = await vvhState(page);

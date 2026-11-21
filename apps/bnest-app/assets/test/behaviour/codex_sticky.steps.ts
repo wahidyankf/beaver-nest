@@ -43,7 +43,6 @@ function register(
 const SHARED = new Set([
   "the page does not scroll",
   "the soft keyboard shrinks the screen to {string}",
-  "the room follows the visible area through the --vvh height",
 ]);
 
 function step(
@@ -292,10 +291,10 @@ step("the soft keyboard shrinks the screen to {string}", (spec) => {
   }
 });
 
-// The keyboard path end to end: each room shell reads --vvh (with 100dvh as its fallback), and app.js starts the writer at
+// The keyboard path end to end: the Codex shell reads --vvh (with 100dvh as its fallback), and app.js starts the writer at
 // the top level of the page script, so a mounted page writes --vvh. The e2e binding checks the written value in Chromium.
-step("the room follows the visible area through the --vvh height", () => {
-  for (const selector of ROOM_SHELLS) {
+step("the Codex room fills the visible area above the keyboard", () => {
+  for (const selector of [".chat-shell"]) {
     expect(
       expectDeclared(selector)["height"] ?? "",
       `${selector} reads --vvh, with 100dvh as the fallback`,

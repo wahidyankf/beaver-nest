@@ -245,9 +245,15 @@ When(
   },
 );
 
-When("Codex reports the error {string}", async ({ page }, message: string) => {
-  await expect(page.getByRole("alert")).toHaveText(message);
-});
+When(
+  "Codex fails the visitor message {string} with the error {string}",
+  async ({ page }, message: string, error: string) => {
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    await page.getByLabel("Message").fill(message);
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByRole("alert")).toHaveText(error);
+  },
+);
 
 When(
   "the visitor types {string} without sending",

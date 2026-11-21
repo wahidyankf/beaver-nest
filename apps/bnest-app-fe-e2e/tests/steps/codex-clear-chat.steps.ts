@@ -101,7 +101,7 @@ When("the visitor chooses Yes, delete", async ({ page }) => {
   await page.locator(YES).click();
 });
 
-Then("the clear request is sent to Codex", async ({ page }) => {
+Then("the conversation shows no messages", async ({ page }) => {
   // The confirmed clear reaches the server, which empties the conversation the page shows.
   await expect(page.locator(USER_MESSAGE)).toHaveCount(0);
 });

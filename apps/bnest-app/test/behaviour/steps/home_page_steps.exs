@@ -239,8 +239,10 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.reject_message(context, message)
   end
 
-  step "Codex reports the error {string}", %{args: [message]} = context do
-    context.behaviour_driver.report_codex_error(context, message)
+  step "Codex fails the visitor message {string} with the error {string}",
+       %{args: [message, error]} = context do
+    context = context.behaviour_driver.send_message(context, message)
+    context.behaviour_driver.report_codex_error(context, error)
   end
 
   step "the page displays the alert {string}", %{args: [message]} = context do

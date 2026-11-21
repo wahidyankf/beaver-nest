@@ -546,8 +546,9 @@ step("keyboard focus is on the Clear chat button", () => {
   check(focusedRole() === "clear-chat", `focus is on ${focusedRole()}`);
 });
 
-step("the clear request is sent to Codex", () => {
-  // The browser counter proves the click; the template proves that only "Yes, delete" carries the LiveView clear event.
+step("the conversation shows no messages", () => {
+  // This layer proves the clear request: the browser counter proves the click, and the template proves that only "Yes, delete"
+  // carries the LiveView clear event. The server empties the conversation; the e2e binding checks that no message is left.
   checkClearOnlyOnYes();
   const source = readFileSync(CHAT_TEMPLATE, "utf8");
   const cancel =

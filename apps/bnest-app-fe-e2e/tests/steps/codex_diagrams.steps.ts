@@ -217,7 +217,7 @@ Then("the diagram shows the note {string}", async ({ page }, note: string) => {
   ).toHaveCount(1);
 });
 
-Then("the picture is the same node as before", async ({ page }) => {
+Then("the picture is still shown and not redrawn", async ({ page }) => {
   // The probe was set on the first picture before the later reply arrived; a replaced node has no probe.
   await expect(page.locator('[data-bnest-probe="same"]')).toHaveCount(1);
   await expect(drawnFigures(page)).toHaveCount(1);

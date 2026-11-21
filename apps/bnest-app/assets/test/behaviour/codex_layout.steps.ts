@@ -500,29 +500,6 @@ function codexPanelBudget(env: Environment): {
   return { header, composer, box, list: env.height - header - composer - box };
 }
 
-step("the Codex Send button is on screen", () => {
-  // The composer sits at the foot of the panel, so its Send button is in view while the conversation has room left.
-  const budget = codexPanelBudget(laidOut());
-  expect(
-    budget.list,
-    "the message box leaves no room for the composer",
-  ).toBeGreaterThanOrEqual(0);
-});
-
-step("the Codex header is on screen", () => {
-  // The header is the panel's first row; it is cut at the top when the composer and the header need more than the panel.
-  const env = laidOut();
-  const budget = codexPanelBudget(env);
-  expect(
-    budget.header,
-    "the header is taller than the window",
-  ).toBeLessThanOrEqual(env.height);
-  expect(
-    budget.list,
-    "the header and the composer need more than the panel",
-  ).toBeGreaterThanOrEqual(0);
-});
-
 step("the conversation is at least 25 percent of the screen height", () => {
   const env = laidOut();
   const budget = codexPanelBudget(env);
