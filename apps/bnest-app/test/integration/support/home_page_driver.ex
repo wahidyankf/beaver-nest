@@ -1711,7 +1711,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
         else: response
 
     login_form_only =
-      route == "/" and login_response.status == 200 and
+      login_response.status == 200 and
         String.contains?(login_response.resp_body, ~s(id="login-form")) and
         not String.contains?(login_response.resp_body, ~s(data-role="admin-settings-entry")) and
         not String.contains?(login_response.resp_body, ~s(data-role="chat-entry"))
