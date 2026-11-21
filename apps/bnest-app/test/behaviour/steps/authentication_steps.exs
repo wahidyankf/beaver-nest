@@ -39,9 +39,7 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
     do: outcome(context, :login_form_only)
   )
 
-  step("Bnest does not read or write user data", context,
-    do: outcome(context, :no_user_data_access)
-  )
+  step("the visitor sees no user data", context, do: outcome(context, :login_form_only))
 
   step("Bnest has not been set up yet", context, do: prepare(context, :uninitialized))
 

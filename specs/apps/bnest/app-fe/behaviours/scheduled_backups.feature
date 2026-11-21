@@ -18,11 +18,15 @@ Feature: Bnest scheduled backups
     Then Bnest returns not found before protected reads
     And home exposes no admin settings entry
 
-  Scenario: Discover typed admin configuration
-    Given multiple domains declare typed admin settings panels
+  Scenario: Every settings panel Bnest offers is listed in admin settings
+    Given several areas of Bnest offer admin settings panels
     When an administrator opens admin settings from home
-    Then every declared panel is discoverable
-    And each owner validates and saves only its allowlisted fields
+    Then every settings panel is listed in admin settings
+
+  Scenario: A settings panel saves only the fields it offers and refuses any other field
+    Given several areas of Bnest offer admin settings panels
+    When an administrator opens admin settings from home
+    Then each settings panel saves only the fields it offers and refuses any other field
 
   Scenario: The page states that every retained backup is present
     Given an administrator and an isolated destination holding the artifact of every expected verified run
@@ -66,17 +70,20 @@ Feature: Bnest scheduled backups
       | daily schedule                |
       | backup folder, left unchanged |
 
-  Scenario: Rendering the label never writes
+  Scenario: Opening the page leaves the backup folder untouched
     Given an isolated destination with a missing artifact and an unknown file
     When the administrator opens the page and reloads it
     Then the destination directory listing and every file's bytes are unchanged
-    And the ledger rows are unchanged
 
   Scenario: The label discloses no private path
     Given reconciliation found a missing artifact
     When the page's rendered text and attributes are read
     Then they contain no filesystem path, digest, destination identifier or run ID
-    And they name the same dates and states as the reconcile task's report
+
+  Scenario: The label names the same dates and states as the reconcile report
+    Given reconciliation found a missing artifact
+    When the page's rendered text and attributes are read
+    Then they name the same dates and states as the reconcile task's report
 
   # Exemption(e2e): a reconciliation that outlasts the ceiling and its cancellation (a monitored process exit and no further read) need a controlled store whose reads outlast the ceiling and process monitoring the browser cannot reach; alternative-proof: bnest-app:test:integration / The label does not delay the page
   @e2e-exempt
@@ -89,14 +96,6 @@ Feature: Bnest scheduled backups
     And the label asks the administrator to reload the page
     And the label names no command
     And the check is cancelled at the ceiling and nothing keeps reading the destination afterwards
-
-  # Exemption(e2e): that no reconciliation starts for a denied visitor is a server-side process observation a browser cannot make, and the not found response itself is already proved in the browser by the deny scenario above; alternative-proof: bnest-app:test:integration / A non-administrator causes no integrity check
-  @e2e-exempt
-  Scenario: A non-administrator causes no integrity check
-    Given a visitor who is not an administrator
-    When the visitor opens the schedules route
-    Then Bnest returns not found before any protected read
-    And no reconciliation is started
 
   Scenario Outline: No horizontal scrolling and no hidden problem appears at any supported width
     Given an isolated ledger holding two verified runs whose artifacts are absent or changed

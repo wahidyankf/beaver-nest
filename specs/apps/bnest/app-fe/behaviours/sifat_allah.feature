@@ -194,16 +194,6 @@ Feature: Revising the 20 attributes of Allah
     When the visitor continues focused review
     Then the page displays the text "Ulangi yang masih bikin bingung (0)"
 
-  Scenario: A child retests a pair that is already remembered
-    Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts learning
-    And the visitor marks the current pair as remembered
-    And the visitor returns to the mission
-    And the visitor starts learned review
-    Then the page displays the text "Apa arti Wujud?"
-    When the visitor answers "Lemah"
-    Then the revision list contains "Wujud"
-
   # Exemption(integration): combined browser gestures and history are not observable at the local process boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / A child moves through remembered individual questions
   @integration-exempt
   Scenario: A child moves through remembered individual questions
@@ -217,44 +207,30 @@ Feature: Revising the 20 attributes of Allah
     When the visitor swipes right on the quiz question
     Then the page displays the text "Apa arti Wujud?"
 
-  Scenario: Every answered question moves between the review queues immediately
+  Scenario: Every answered question moves between the review lists immediately
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz
     And the visitor answers "Ada"
     And the visitor returns to the mission
     Then the page displays the text "Ulangi yang sudah hafal (1)"
     And the page displays the text "Ulangi yang masih bikin bingung (0)"
+    And the progress shows "1 dari 120 soal sudah hafal"
+    And the progress shows "119 soal masih perlu diulang"
     When the visitor starts learned review
     Then the page displays the text "Apa arti Wujud?"
     When the visitor answers "Lemah"
     And the visitor returns to the mission
     Then the page displays the text "Ulangi yang sudah hafal (0)"
     And the page displays the text "Ulangi yang masih bikin bingung (1)"
+    And the progress shows "0 dari 120 soal sudah hafal"
+    And the progress shows "120 soal masih perlu diulang"
     When the visitor starts focused review
     And the visitor answers "Ada" in focused review
     And the visitor returns to the mission
     Then the page displays the text "Ulangi yang sudah hafal (1)"
     And the page displays the text "Ulangi yang masih bikin bingung (0)"
-
-  Scenario: A pair moves between remembered and difficult review
-    Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts learning
-    And the visitor marks the current pair as remembered
-    And the visitor returns to the mission
-    And the visitor starts learned review
-    And the visitor answers "Lemah"
-    And the visitor returns to the mission
-    Then the page displays the text "Ulangi yang sudah hafal (5)"
-    And the page displays the text "Ulangi yang masih bikin bingung (1)"
-    And the progress shows "5 dari 120 soal sudah hafal"
-    And the progress shows "115 soal masih perlu diulang"
-    When the visitor starts focused review
-    And the visitor answers "Ada" in focused review
-    Then the progress shows "6 dari 120 soal sudah hafal"
-    And the progress shows "114 soal masih perlu diulang"
-    And the visitor continues focused review
-    Then the page displays the text "Ulangi yang sudah hafal (6)"
-    And the page displays the text "Ulangi yang masih bikin bingung (0)"
+    And the progress shows "1 dari 120 soal sudah hafal"
+    And the progress shows "119 soal masih perlu diulang"
 
   Scenario: A child gets another difficult pair before repeating one
     Given a visitor opens "/apps/sifat-allah"

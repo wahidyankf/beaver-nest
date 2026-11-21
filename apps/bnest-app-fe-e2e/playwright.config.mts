@@ -64,7 +64,8 @@ const testDir = defineBddConfig({
   steps: "tests/steps/**/*.ts",
   tags: "not @e2e-exempt",
 });
-const setupScenario = /Initial setup warns about unavailable recovery/u;
+const setupScenario =
+  /First-time setup warns that accounts cannot be managed or recovered later/u;
 const desktopOnlyLoadScenario =
   /Ten synthetic visitors preserve recoverable state/u;
 // A fine primary pointer is a desktop input property: a Pixel-class touch context reports a coarse pointer, so the
@@ -82,7 +83,7 @@ const finePointerScenario = /@fine-pointer/u;
 // release candidate proof's `toHaveCount(1)` assertion saw 2 and then 3
 // matching messages on the second and third project runs.)
 const sqliteStorageScenario =
-  /Non-admin cannot configure storage|reconnects across compatible SQLite rollout|Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate/u;
+  /Non-admin cannot configure storage|A connected user keeps their state across a compatible release|Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate/u;
 
 export default defineConfig({
   testDir,

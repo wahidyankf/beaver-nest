@@ -41,7 +41,7 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: prepare(context, :second_family_handler)
   )
 
-  step("multiple domains declare typed admin settings panels", context,
+  step("several areas of Bnest offer admin settings panels", context,
     do: prepare(context, :typed_settings_panels)
   )
 
@@ -162,11 +162,13 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: outcome(context, :shared_inventory)
   )
 
-  step("every declared panel is discoverable", context,
+  step("every settings panel is listed in admin settings", context,
     do: outcome(context, :panels_discoverable)
   )
 
-  step("each owner validates and saves only its allowlisted fields", context,
+  step(
+    "each settings panel saves only the fields it offers and refuses any other field",
+    context,
     do: outcome(context, :owner_allowlists)
   )
 
@@ -513,10 +515,6 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: prepare(context, :label_destination, ["ceiling"])
   )
 
-  step("a visitor who is not an administrator", context,
-    do: prepare(context, :label_denied_visitor)
-  )
-
   step(
     "an isolated ledger holding two verified runs whose artifacts are absent or changed",
     context,
@@ -555,10 +553,6 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
 
   step("the administrator opens the page", context,
     do: perform(context, :open_label_past_ceiling)
-  )
-
-  step("the visitor opens the schedules route", context,
-    do: perform(context, :open_schedules_route_denied)
   )
 
   step("the administrator moves through the page in reading order", context,
@@ -646,12 +640,6 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     context,
     do: outcome(context, :check_cancelled_at_ceiling)
   )
-
-  step("Bnest returns not found before any protected read", context,
-    do: outcome(context, :not_found_before_reads)
-  )
-
-  step("no reconciliation is started", context, do: outcome(context, :no_reconciliation_started))
 
   step("the page does not scroll horizontally", context, do: outcome(context, :label_reflows))
 

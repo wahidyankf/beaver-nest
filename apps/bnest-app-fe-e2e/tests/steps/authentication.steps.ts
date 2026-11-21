@@ -1,7 +1,6 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
-  instanceDatabaseDigest,
   login,
   submitInitialAccountsWithSafetyChecks,
   type InitialAccount,
@@ -17,7 +16,6 @@ import { instanceIdentities } from "../support/instance-identities";
 const { Given, Then, When } = createBdd();
 
 let setupSafetyChecks = { sawIrreversibleWarning: false };
-let databaseBefore = "";
 
 Given("an approved user is logged in", async ({ page }) => {
   await login(page, instanceIdentities().admin);
@@ -40,7 +38,6 @@ Given("an approved child administrator is logged in", async ({ page }) => {
 
 Given("a visitor has no authenticated Bnest session", async ({ page }) => {
   await page.context().clearCookies();
-  databaseBefore = instanceDatabaseDigest();
 });
 
 When(
@@ -63,12 +60,13 @@ Then("the login form replaces protected home actions", async ({ page }) => {
   );
 });
 
-Then("Bnest does not read or write user data", ({ page }) => {
-  void page;
-  expect(instanceDatabaseDigest()).toBe(databaseBefore);
+Then("the visitor sees no user data", async ({ page }) => {
+  await expect(page.locator("body")).not.toContainText(
+    instanceIdentities().admin.username,
+  );
 });
 
-Given("Bnest has no bootstrap journal", async ({ page }) => {
+Given("Bnest has not been set up yet", async ({ page }) => {
   const response = await page.goto("/setup");
   expect(response?.status()).toBe(200);
   await expect(

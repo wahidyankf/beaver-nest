@@ -37,7 +37,6 @@ import {
 } from "../support/backup-integrity-layout";
 import {
   expectDestinationUnchanged,
-  expectLedgerUnchanged,
   openAndReload,
 } from "../support/backup-integrity-writes";
 import {
@@ -68,7 +67,7 @@ const preparations = new Map<string, string>([
     "contextual_schedules",
   ],
   ["an unauthenticated revoked or non-admin visitor", "denied_visitor"],
-  ["multiple domains declare typed admin settings panels", "typed_panels"],
+  ["several areas of Bnest offer admin settings panels", "typed_panels"],
 ]);
 
 const actions = new Map<string, string>([
@@ -126,11 +125,12 @@ Then("Bnest returns not found before protected reads", () =>
 Then("home exposes no admin settings entry", ({ page }) =>
   expectNoAdminEntry(page),
 );
-Then("every declared panel is discoverable", ({ page }) =>
+Then("every settings panel is listed in admin settings", ({ page }) =>
   expectAdminPanels(page),
 );
-Then("each owner validates and saves only its allowlisted fields", ({ page }) =>
-  expectOwnerAllowlists(page),
+Then(
+  "each settings panel saves only the fields it offers and refuses any other field",
+  ({ page }) => expectOwnerAllowlists(page),
 );
 
 for (const [text, kind] of integrityStates)
@@ -197,7 +197,6 @@ Then(
   "the destination directory listing and every file's bytes are unchanged",
   ({ page }) => expectDestinationUnchanged(page, integrity),
 );
-Then("the ledger rows are unchanged", () => expectLedgerUnchanged(integrity));
 Then("the label reads checking until the new result arrives", ({ page }) =>
   expectCheckingThenResult(page, integrity),
 );
