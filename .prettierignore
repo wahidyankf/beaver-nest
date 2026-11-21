@@ -1,6 +1,11 @@
 # Third-party Phoenix assets are kept verbatim from their upstream source.
 apps/bnest-app/assets/vendor/
 
+# Elixir dependencies and build output are generated on each machine, and Git
+# ignores both (apps/bnest-app/.gitignore). They are not this repository's to format.
+apps/bnest-app/deps/
+apps/bnest-app/_build/
+
 # Gherkin Markdown and Cucumber conformance fixtures are parser inputs whose
 # whitespace and payload bytes are test data, not prose formatting targets.
 **/*.feature.md
