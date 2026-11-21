@@ -140,7 +140,7 @@ Feature: Family chat room
     And no text is selected in the room
 
   @fe-vitest-unit
-  # Exemption(integration): a message that is not yet committed exists only in the browser outbox and its rendered menu, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message that is not yet committed cannot be replied to
+  # Exemption(integration): a pending message, one the server has not confirmed, exists only in the browser outbox and its rendered menu, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message that is not yet committed cannot be replied to
   @integration-exempt
   Scenario Outline: A message that is not yet committed cannot be replied to
     Given the visitor's own message is in the "<state>" state
