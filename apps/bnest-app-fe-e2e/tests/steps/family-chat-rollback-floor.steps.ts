@@ -213,20 +213,17 @@ Given(
   },
 );
 
-When(
-  "the app is rolled back to the previous version",
-  async ({ page }) => {
-    ({ revision: routedRevision } = await promoteCandidateWithReplyFlag(
-      page,
-      false,
-    ));
-    // The route moved under a live socket: the prior slot's connection dies
-    // and the browser has to re-subscribe against the floor before it can be
-    // asked anything. Without this the next step races the reconnect.
-    await waitForRoomReady(page);
-    await waitForRoutedReads(page, routedRevision);
-  },
-);
+When("the app is rolled back to the previous version", async ({ page }) => {
+  ({ revision: routedRevision } = await promoteCandidateWithReplyFlag(
+    page,
+    false,
+  ));
+  // The route moved under a live socket: the prior slot's connection dies
+  // and the browser has to re-subscribe against the floor before it can be
+  // asked anything. Without this the next step races the reconnect.
+  await waitForRoomReady(page);
+  await waitForRoutedReads(page, routedRevision);
+});
 
 When(
   "the visitor replies again with the bundle it still holds",

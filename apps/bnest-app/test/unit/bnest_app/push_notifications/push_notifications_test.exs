@@ -251,6 +251,7 @@ defmodule BnestApp.PushNotificationsTest do
 
       assert %{state: "retryable", failure_category: "retryable", next_attempt_at: ^stamped} =
                delivery(store, owed.delivery_id)
+
       assert Dispatcher.attempt() == {:error, :no_due_delivery}
     end
 
