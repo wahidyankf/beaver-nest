@@ -254,6 +254,22 @@ test("never configures a nonzero Caddy stream-close delay while keeping the shut
   assert.match(source, /grace_period 5m/u);
 });
 
+test("routes a replacement handshake only to the promoted slot's port, never the prior slot's", () => {
+  // The promoted slot's health-checked configuration names exactly one upstream: the promoted
+  // slot's own port. The prior slot stays warm but receives no routed handshake, so its port
+  // must not appear anywhere in the configuration.
+  for (const promoted of Object.keys(slots)) {
+    const prior = Object.keys(slots).find((slot) => slot !== promoted);
+    const config = caddyfile(promoted, true);
+    const upstreams = [...config.matchAll(/reverse_proxy\s+(\S+)/gu)].map(
+      (match) => match[1],
+    );
+
+    assert.deepEqual(upstreams, [`127.0.0.1:${slots[promoted]}`]);
+    assert.doesNotMatch(config, new RegExp(`:${slots[prior]}\\b`, "u"));
+  }
+});
+
 test("denies the testing control path and strips its header in every generated Caddyfile", () => {
   // ADR 001 section 2, second layer: the compile-time gate already answers 404,
   // and Caddy also refuses `/__bnest_testing` and `/__bnest_testing/*` with 404

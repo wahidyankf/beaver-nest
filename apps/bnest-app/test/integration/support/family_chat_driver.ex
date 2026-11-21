@@ -997,6 +997,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # Called through the domain, not GraphQL: delivery rows are an internal
   # mechanism with no GraphQL field at all (see `:member_sends_durable_message`
   # above for the same reasoning).
+  # A member lists the rooms, then posts a message to the room they can see.
+  def perform_behaviour(context, :member_lists_rooms_and_sends, _args) do
+    context = perform_behaviour(context, :query_room_list, [])
+
+    context
+    |> Map.put(:family_chat_room_list, context.family_chat_result)
+    |> perform_behaviour(:member_sends_durable_message, [])
+  end
+
   def perform_behaviour(context, :send_durable_reply, _args) do
     slug = context[:family_chat_room_slug] || "ruang-keluarga"
 
@@ -1066,6 +1075,14 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     # later, unrelated scenario's broad `claim_due/1` sweep to steal.
     :ok = Schedules.force_not_due!(key, @behaviour_now)
     Map.put(context, :family_chat_result, Scheduler.get_schedule(key))
+  end
+
+  # The release's one converge step: the activation for a seeded disabled schedule, otherwise
+  # the convergence of an existing backup time. Both scenarios share this step text.
+  def perform_behaviour(context, :release_converge_step, _args) do
+    if Map.has_key?(context, :family_chat_activation_key),
+      do: perform_behaviour(context, :call_activation_operation, []),
+      else: perform_behaviour(context, :call_convergence_operation, [])
   end
 
   def perform_behaviour(context, :bnest_starts_again, _args) do
@@ -1196,6 +1213,21 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     retried = Enum.find(Scheduler.claim_due(later), &(&1.run_id == claim.run_id))
 
     Map.put(context, :family_chat_retry_claim, retried)
+  end
+
+  # A scheduled backup that outlives its timeout: the run is cancelled and leaves no file,
+  # then the Scheduler records it retryable, so the claim six minutes on finds it again.
+  def perform_behaviour(context, :scheduled_backup_exceeds_timeout, _args) do
+    destination = TestBackupDestination.create!("timed-out-direct-" <> unique_uuid())
+    result = Backup.run(deadline: @behaviour_now, destination_directory: destination.directory)
+    ExUnit.Callbacks.on_exit(fn -> TestBackupDestination.cleanup!(destination) end)
+
+    context
+    |> Map.merge(%{
+      family_chat_result: result,
+      family_chat_backup_directory: destination.directory
+    })
+    |> perform_behaviour(:timed_out_backup_via_scheduler, [])
   end
 
   # Commits through the facade on this slot, whose configured publisher is the
@@ -1497,6 +1529,70 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   # The refusal carries no room: no data for the operation, and nothing anywhere in the
   # response names the room, its slug, or any room field.
+  # The room list holds exactly the named room, and the member's message was accepted.
+  def behaviour_outcome?(context, :room_listed_and_message_accepted, [name]) do
+    match?(
+      %{"data" => %{"familyChatRooms" => [%{"name" => ^name}]}},
+      context.family_chat_room_list
+    ) and match?({:ok, %{id: _id}}, context.family_chat_result)
+  end
+
+  # One push to each other subscription for the message, and none to the sender's own.
+  def behaviour_outcome?(context, :each_other_subscription_pushed_once, _args) do
+    {:ok, %{id: message_id}} = context.family_chat_result
+    :ok = PushNotifications.dispatch_all_due!()
+    sent = Enum.group_by(push_requests(), &elem(&1, 0), &elem(&1, 1))
+
+    pushes_for = fn subscription_id ->
+      endpoint = subscription_endpoint(subscription_id)
+      for %{"messageId" => ^message_id} <- Map.get(sent, endpoint, []), do: :sent
+    end
+
+    Enum.all?(context.family_chat_other_subscription_ids, &(length(pushes_for.(&1)) == 1)) and
+      pushes_for.(context.family_chat_sender_subscription_id) == []
+  end
+
+  # Exactly one push reaches the reply's recipient, and it is for the reply itself.
+  def behaviour_outcome?(context, :one_push_sent_to_reply_subscription, _args) do
+    {:ok, %{id: message_id}} = context.family_chat_result
+    :ok = PushNotifications.dispatch_all_due!()
+    endpoint = subscription_endpoint(context.family_chat_other_subscription_id)
+
+    pushes = for {^endpoint, %{"messageId" => ^message_id}} <- peek_push_requests(), do: :sent
+    length(pushes) == 1
+  end
+
+  # The first wait is 30 seconds; the policy's later waits are 120, 480 and 1920 seconds.
+  # No sixth attempt and no attempt past the hour follow.
+  def behaviour_outcome?(context, :retries_follow_fixed_waits, _args) do
+    waits =
+      for attempt <- 1..4,
+          do: PushPolicy.next_wait_seconds(attempt, @behaviour_now, @behaviour_now)
+
+    waits == [30, 120, 480, 1920] and
+      behaviour_outcome?(context, :delivery_retryable_with_wait, ["retryable"]) and
+      behaviour_outcome?(context, :no_attempt_past_ceiling, [])
+  end
+
+  # A device the push service reports gone is disabled, and no further attempt is scheduled.
+  def behaviour_outcome?(context, :subscription_reports_disabled_no_retry, _args) do
+    behaviour_outcome?(context, :delivery_terminal_subscription_disabled, ["terminal"]) and
+      behaviour_outcome?(context, :no_further_attempt_scheduled, [])
+  end
+
+  # The push retention schedule reads enabled, and a second activation changes nothing.
+  def behaviour_outcome?(context, :retention_enabled_second_run_changes_nothing, _args) do
+    behaviour_outcome?(context, :schedule_field_enabled, ["family-chat-push-retention-daily"]) and
+      behaviour_outcome?(context, :activation_call_idempotent, [])
+  end
+
+  # The run is refused as a timeout, leaves no file, and the Scheduler keeps it claimable.
+  def behaviour_outcome?(context, :timeout_failure_retried, [category]) do
+    behaviour_outcome?(context, :retryable_failure, [category]) and
+      behaviour_outcome?(context, :no_partial_or_final_artifact, []) and
+      behaviour_outcome?(context, :schedule_remains_claimable, [])
+  end
+
   def behaviour_outcome?(context, :no_hidden_room_state, _args) do
     rendered = Jason.encode!(context.family_chat_result)
 
@@ -3279,6 +3375,30 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   defp parse_time(value), do: value |> DateTime.from_iso8601() |> elem(1)
 
   defp iso8601(time), do: time |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+  # The recorded requests, read for a later check of the same scenario. They go back into the
+  # mailbox in their original order.
+  defp peek_push_requests do
+    requests = push_requests()
+
+    for {endpoint, payload} <- requests,
+        do: send(self(), {:push_notification_sent, endpoint, payload})
+
+    requests
+  end
+
+  # The endpoint of the stored subscription with `subscription_id`.
+  defp subscription_endpoint(subscription_id) do
+    :ok = BnestApp.FamilyChat.ensure_ready!()
+
+    %{rows: [[endpoint]]} =
+      SqliteRepo.query!(
+        "SELECT endpoint FROM web_push_subscriptions WHERE id = ?",
+        [subscription_id]
+      )
+
+    endpoint
+  end
 
   # Every request a test push sender recorded in this process so far, oldest first, as
   # `{endpoint, payload}`; draining them. The dispatcher, and the endpoint under

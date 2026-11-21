@@ -324,64 +324,16 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
 
   # --- family_chat_operations.feature ---
 
-  step("a freshly migrated database with no prior family chat data", context,
-    do: prepare(context, :fresh_migrated_database)
-  )
+  step("a fresh installation", context, do: prepare(context, :fresh_migrated_database))
 
-  step("the family chat migration runs", context,
-    do: perform(context, :run_family_chat_migration)
-  )
-
-  step(
-    "room ID 1 exists with slug {string}, name {string}, and posting enabled",
-    %{args: [slug, name]} = context,
-    do: outcome(context, :room_seed_correct, [slug, name])
-  )
-
-  step("repeating the migration changes nothing about that seeded room", context,
-    do: outcome(context, :migration_idempotent)
-  )
-
-  step("the additive family chat migration has applied", context,
-    do: prepare(context, :migration_applied)
-  )
-
-  step("code built before this migration opens the same database", context,
-    do: perform(context, :old_code_opens_database)
-  )
-
-  step("the prior release's existing behavior is unaffected", context,
-    do: outcome(context, :prior_release_unaffected)
-  )
-
-  step("no prior-release code path touches the new family chat tables", context,
-    do: outcome(context, :no_prior_release_table_access)
-  )
-
-  step("a trusted internal producer with a stable idempotency key", context,
-    do: prepare(context, :trusted_producer)
-  )
-
-  step("the producer posts a system message to {string}", %{args: [slug]} = context,
-    do: perform(context, :producer_posts_system_message, [slug])
+  step("a member lists the rooms and sends a message", context,
+    do: perform(context, :member_lists_rooms_and_sends)
   )
 
   step(
-    "the message is committed with sender kind {string} and the producer's stable sender ID",
-    %{args: [sender_kind]} = context,
-    do: outcome(context, :system_message_committed, [sender_kind])
-  )
-
-  step("the same producer retries with the same idempotency key", context,
-    do: perform(context, :producer_retries_same_key)
-  )
-
-  step("the original committed system message is returned unchanged", context,
-    do: outcome(context, :system_message_unchanged)
-  )
-
-  step("exactly one system message exists for that idempotency key", context,
-    do: outcome(context, :exactly_one_system_message)
+    "room {string} is listed and the message is accepted",
+    %{args: [name]} = context,
+    do: outcome(context, :room_listed_and_message_accepted, [name])
   )
 
   step("the public GraphQL schema is inspected", context,
@@ -403,13 +355,9 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
   )
 
   step(
-    "the message and one pending delivery row per other active subscription commit in one transaction",
+    "each of the three other subscriptions is sent one push for the message and the sender's own subscription is sent none",
     context,
-    do: outcome(context, :message_and_deliveries_committed_atomically)
-  )
-
-  step("the sender receives no delivery row for their own message", context,
-    do: outcome(context, :sender_excluded_from_delivery)
+    do: outcome(context, :each_other_subscription_pushed_once)
   )
 
   step("a delivery row whose provider request will fail with a retryable result", context,
@@ -421,13 +369,9 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
   )
 
   step(
-    "the delivery state becomes {string} with the next fixed push wait",
-    %{args: [state]} = context,
-    do: outcome(context, :delivery_retryable_with_wait, [state])
-  )
-
-  step("a sixth attempt or an attempt past the one-hour ceiling does not occur", context,
-    do: outcome(context, :no_attempt_past_ceiling)
+    "the push service is asked again after 30 seconds, then 120, 480 and 1920 seconds, with no sixth attempt and no attempt past one hour",
+    context,
+    do: outcome(context, :retries_follow_fixed_waits)
   )
 
   step("a delivery row targeting a subscription the provider reports as gone", context,
@@ -435,116 +379,56 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
   )
 
   step(
-    "the delivery state becomes {string} and the subscription is disabled",
-    %{args: [state]} = context,
-    do: outcome(context, :delivery_terminal_subscription_disabled, [state])
-  )
-
-  step("no further delivery attempt is scheduled", context,
-    do: outcome(context, :no_further_attempt_scheduled)
-  )
-
-  step("delivered and terminal delivery rows completed more than seven days ago", context,
-    do: prepare(context, :final_rows_older_than_7_days)
-  )
-
-  step("pending, claimed, and retryable delivery rows of the same age", context,
-    do: prepare(context, :nonfinal_rows_same_age)
-  )
-
-  step("the retention job runs", context, do: perform(context, :retention_job_runs))
-
-  step("the completed rows more than seven days old are soft-deleted", context,
-    do: outcome(context, :completed_rows_soft_deleted)
-  )
-
-  step("the pending, claimed, and retryable rows remain active regardless of age", context,
-    do: outcome(context, :nonfinal_rows_remain_active)
-  )
-
-  step("delivery rows soft-deleted more than seven days ago", context,
-    do: prepare(context, :soft_deleted_rows_older_than_7_days)
-  )
-
-  step("the retention job runs again", context, do: perform(context, :retention_job_runs_again))
-
-  step("those rows are purged from SQLite", context, do: outcome(context, :rows_purged))
-
-  step("the run is idempotent when repeated with no newly eligible rows", context,
-    do: outcome(context, :retention_run_idempotent)
-  )
-
-  step("the {string} schedule is due", %{args: [key]} = context,
-    do: prepare(context, :schedule_due, [key])
-  )
-
-  step("the {string} schedule is due and enabled", %{args: [key]} = context,
-    do: prepare(context, :schedule_due_and_enabled, [key])
-  )
-
-  step("the Scheduler claims and dispatches it", context,
-    do: perform(context, :scheduler_claims_and_dispatches)
-  )
-
-  step("only the registered {string} handler is invoked", %{args: [name]} = context,
-    do: outcome(context, :only_named_handler_invoked, [name])
-  )
-
-  step("only the registered retention handler is invoked", context,
-    do: outcome(context, :only_retention_handler_invoked)
-  )
-
-  step(
-    "the handler delegates to the public {string} service without direct SQL",
-    %{args: [service_name]} = context,
-    do: outcome(context, :handler_delegates_to_service, [service_name])
+    "the member's current Web Push subscription reports disabled and the push service is not asked again",
+    context,
+    do: outcome(context, :subscription_reports_disabled_no_retry)
   )
 
   step("the existing {string} schedule uses a different daily time", %{args: [key]} = context,
     do: prepare(context, :schedule_different_time, [key])
   )
 
-  step("the compatibility release calls the public Scheduler convergence operation", context,
-    do: perform(context, :call_convergence_operation)
+  step("the release's converge step has run", context,
+    do: perform(context, :release_converge_step)
   )
 
   step(
-    "{string} is updated to {string} {string}",
-    %{args: [key, field, value]} = context,
-    do: outcome(context, :schedule_field_updated, [key, field, value])
+    "the schedules page lists the daily backup at 18:00 UTC",
+    context,
+    do:
+      outcome(context, :schedule_field_updated, [
+        "prod-sqlite-backup-daily",
+        "daily_at_utc",
+        "18:00"
+      ])
   )
 
-  step("repeating the convergence call afterward changes nothing", context,
+  step("running the converge step again leaves it so", context,
     do: outcome(context, :convergence_call_idempotent)
   )
 
-  step("the {string} schedule ships as a disabled seed", %{args: [key]} = context,
-    do: prepare(context, :schedule_disabled_seed, [key])
+  step("a release whose retention schedule was listed disabled", context,
+    do: prepare(context, :schedule_disabled_seed, ["family-chat-push-retention-daily"])
   )
 
-  step("the compatibility release calls the public Scheduler activation operation", context,
-    do: perform(context, :call_activation_operation)
+  step(
+    "the schedules page lists it enabled, and a second run changes nothing",
+    context,
+    do: outcome(context, :retention_enabled_second_run_changes_nothing)
   )
 
-  step("{string} becomes enabled", %{args: [key]} = context,
-    do: outcome(context, :schedule_field_enabled, [key])
+  step(
+    "the administrator saved a different daily backup time on the schedules page",
+    context,
+    do:
+      context
+      |> prepare(:convergence_already_ran)
+      |> prepare(:operator_changed_schedule_time, ["prod-sqlite-backup-daily"])
   )
 
-  step("repeating the activation call afterward changes nothing", context,
-    do: outcome(context, :activation_call_idempotent)
-  )
+  step("Bnest restarts", context, do: perform(context, :bnest_starts_again))
 
-  step("the one-time convergence already ran", context,
-    do: prepare(context, :convergence_already_ran)
-  )
-
-  step("an operator later changed {string} to a different daily time", %{args: [key]} = context,
-    do: prepare(context, :operator_changed_schedule_time, [key])
-  )
-
-  step("Bnest starts again", context, do: perform(context, :bnest_starts_again))
-
-  step("the operator's chosen time remains unchanged", context,
+  step("the schedules page still shows that time", context,
     do: outcome(context, :operator_time_unchanged)
   )
 
@@ -554,12 +438,14 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: prepare(context, :insufficient_capacity)
   )
 
-  step("the service returns a retryable {string} failure", %{args: [category]} = context,
-    do: outcome(context, :retryable_failure, [category])
+  step("the scheduled backup runs", context, do: perform(context, :run_backup_handler))
+
+  step("no backup file or partial file appears", context,
+    do: outcome(context, :no_partial_or_final_artifact)
   )
 
-  step("no partial or final backup artifact is created", context,
-    do: outcome(context, :no_partial_or_final_artifact)
+  step("the run shows a retryable {string} failure", %{args: [category]} = context,
+    do: outcome(context, :retryable_failure, [category])
   )
 
   step("continuous authenticated family chat read and send probes are running", context,
@@ -576,7 +462,7 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :probes_within_budget)
   )
 
-  step("every sent message ID exists in the live database afterward", context,
+  step("every sent message ID exists in the room history afterward", context,
     do: outcome(context, :sent_ids_exist_live)
   )
 
@@ -588,20 +474,14 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: prepare(context, :backup_timeout_forced)
   )
 
-  step("the timed-out backup handler runs directly", context,
-    do: perform(context, :timed_out_backup_direct)
+  step("a scheduled backup exceeds its timeout", context,
+    do: perform(context, :scheduled_backup_exceeds_timeout)
   )
 
-  step("every probe completes with zero failures", context,
-    do: outcome(context, :probes_zero_failures)
-  )
-
-  step("the same timed-out backup is claimed and run through the Scheduler", context,
-    do: perform(context, :timed_out_backup_via_scheduler)
-  )
-
-  step("the schedule remains claimable for another attempt", context,
-    do: outcome(context, :schedule_remains_claimable)
+  step(
+    "no backup or partial file appears, the run shows a retryable {string} failure, and the next attempt runs",
+    %{args: [category]} = context,
+    do: outcome(context, :timeout_failure_retried, [category])
   )
 
   step(
@@ -622,50 +502,6 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
 
   step("no message body or secret value appears in the restore evidence", context,
     do: outcome(context, :no_secret_in_restore_evidence)
-  )
-
-  step("two application slots are started independently with no shared distribution", context,
-    do: prepare(context, :two_independent_slots)
-  )
-
-  step("a message commits on one slot", context,
-    do: perform(context, :message_commits_on_one_slot)
-  )
-
-  step("only sockets connected to that same slot receive the subscription event", context,
-    do: outcome(context, :only_same_slot_sockets_receive)
-  )
-
-  step("the other slot publishes no corresponding event", context,
-    do: outcome(context, :other_slot_no_event)
-  )
-
-  step("the deployment tool generates the reverse-proxy configuration for a release", context,
-    do: perform(context, :generate_reverse_proxy_config)
-  )
-
-  step(
-    "the generated configuration omits {string} and any other nonzero stream-close delay",
-    %{args: [setting]} = context,
-    do: outcome(context, :no_nonzero_stream_close_delay, [setting])
-  )
-
-  step("the existing global five-minute grace period remains present", context,
-    do: outcome(context, :grace_period_present)
-  )
-
-  step(
-    "the deployment tool generates the reverse-proxy configuration that promotes the replacement slot",
-    context,
-    do: perform(context, :generate_promotion_config)
-  )
-
-  step("every replacement handshake is routed only to the promoted slot", context,
-    do: outcome(context, :handshake_only_promoted_slot)
-  )
-
-  step("no routed handshake reaches the prior slot", context,
-    do: outcome(context, :prior_slot_unrouted)
   )
 
   # --- family_chat_graphql.feature: replying to a message ---
@@ -874,23 +710,7 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :quote_declares_no_body_html)
   )
 
-  # --- family_chat_operations.feature: the additive reply column ---
-
-  step("the additive family chat reply migration has applied", context,
-    do: prepare(context, :reply_migration_applied)
-  )
-
-  step("code built before that migration opens the same database", context,
-    do: perform(context, :pre_reply_release_opens_database)
-  )
-
-  step("it reads and writes every other family chat message column unchanged", context,
-    do: outcome(context, :pre_reply_columns_unchanged)
-  )
-
-  step("messages it commits carry no reply target", context,
-    do: outcome(context, :pre_reply_commits_have_no_target)
-  )
+  # --- family_chat_operations.feature: the reply notification ---
 
   step(
     "one other member holds an active Web Push subscription in {string}",
@@ -902,11 +722,11 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: perform(context, :send_durable_reply)
   )
 
-  step("exactly one pending delivery row exists for that subscription", context,
-    do: outcome(context, :one_pending_delivery_row)
+  step("exactly one push is sent to that subscription", context,
+    do: outcome(context, :one_push_sent_to_reply_subscription)
   )
 
-  step("the delivery payload carries no part of the quoted message", context,
+  step("the notification title and body carry no part of the quoted message", context,
     do: outcome(context, :delivery_payload_excludes_quote)
   )
 

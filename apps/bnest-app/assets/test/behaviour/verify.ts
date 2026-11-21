@@ -18,12 +18,6 @@
 // FeVitestUnitScope` prunes exactly this same tagged set from the Elixir
 // side so the two verifiers partition the corpus without overlap or gaps.
 //
-// A second corpus runs the same way: the `@vitest-unit` scenarios of
-// specs/apps/bnest/app-be/behaviours/family_chat_operations.feature, bound by
-// `family_chat_operations.steps.ts`. Only their unit layer lives here (see
-// that file's header); Elixir ExBdd still binds and runs their integration
-// layer, and `FeVitestUnitScope.prune_unit_layer/1` drops them from its unit
-// layer.
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -55,7 +49,6 @@ import {
   resetFamilyChatPhone,
 } from "./family_chat_phone.steps";
 import { familyChatReplySteps, resetScenario } from "./family_chat_reply.steps";
-import { familyChatOperationsSteps } from "./family_chat_operations.steps";
 import { codexDiagramSteps, resetCodexDiagram } from "./codex_diagram.steps";
 import { codexLayoutSteps, resetCodexLayout } from "./codex_layout.steps";
 import { codexStickySteps, familyStickySteps } from "./codex_sticky.steps";
@@ -236,18 +229,6 @@ verifyCorpus({
     resetFamilyChatFollow();
     resetFamilyChatPhone();
   },
-});
-
-verifyCorpus({
-  feature: "family_chat_operations.feature",
-  featurePath: path.join(
-    behaviours,
-    "app-be/behaviours/family_chat_operations.feature",
-  ),
-  tag: "vitest-unit",
-  owner: "deployment-tool",
-  steps: familyChatOperationsSteps(),
-  afterScenario: () => undefined,
 });
 
 verifyCorpus({

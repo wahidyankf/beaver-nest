@@ -225,6 +225,109 @@ defmodule BnestApp.FamilyChatMigrationTest do
 
       assert count == 1
     end
+
+    # A prior release's insert names only the columns it knows, so the new column must
+    # take its default: the row reads back unchanged, with no reply target.
+    test "a row written without the reply column reads back unchanged, with no reply target" do
+      room = FamilyChat.canonical_room()
+      key = Ecto.UUID.generate()
+      committed_at = "2026-09-22T00:00:00Z"
+
+      BnestApp.SqliteRepo.query!(
+        """
+        INSERT INTO family_chat_messages
+          (room_id, sender_kind, sender_id, sender_display_name, idempotency_key, body,
+           committed_at, created_by)
+        VALUES (?, 'user', ?, ?, ?, ?, ?, ?)
+        """,
+        [
+          room.id,
+          "test-user-old-release",
+          "Old Release Probe",
+          key,
+          "written without a reply column",
+          committed_at,
+          "test-user-old-release"
+        ]
+      )
+
+      %{rows: rows} =
+        BnestApp.SqliteRepo.query!(
+          """
+          SELECT room_id, sender_kind, sender_id, sender_display_name, idempotency_key, body,
+                 committed_at, created_by, reply_to_message_id
+          FROM family_chat_messages
+          WHERE idempotency_key = ?
+          """,
+          [key]
+        )
+
+      assert rows == [
+               [
+                 room.id,
+                 "user",
+                 "test-user-old-release",
+                 "Old Release Probe",
+                 key,
+                 "written without a reply column",
+                 committed_at,
+                 "test-user-old-release",
+                 nil
+               ]
+             ]
+    end
+  end
+
+  describe "additive family chat schema" do
+    setup context do
+      _fresh = BnestApp.FreshDatabaseCase.fresh_database!(context)
+      :ok
+    end
+
+    # A prior release knows only the tables it shipped with. After the family chat migration
+    # has applied, every family_chat_* table is renamed away, and the prior release's schedule
+    # and storage reads must still succeed without reaching any of them.
+    test "a prior release still reads its schedules and storage once every family chat table is absent" do
+      %{rows: tables} =
+        BnestApp.SqliteRepo.query!(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'family_chat_%'",
+          []
+        )
+
+      assert Enum.sort(tables) == [
+               ["family_chat_messages"],
+               ["family_chat_push_deliveries"],
+               ["family_chat_rooms"]
+             ]
+
+      for [name] <- tables do
+        BnestApp.SqliteRepo.query!("ALTER TABLE #{name} RENAME TO retired_#{name}", [])
+      end
+
+      %{rows: remaining} =
+        BnestApp.SqliteRepo.query!(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'family_chat_%'",
+          []
+        )
+
+      assert remaining == []
+
+      assert %{rows: schedules} =
+               BnestApp.SqliteRepo.query!(
+                 "SELECT schedule_key, daily_at_utc, enabled FROM bnest_schedules ORDER BY schedule_key",
+                 []
+               )
+
+      assert is_list(schedules)
+
+      assert %{rows: records} =
+               BnestApp.SqliteRepo.query!(
+                 "SELECT record_type, record_key, payload_sha256 FROM bnest_records",
+                 []
+               )
+
+      assert is_list(records)
+    end
   end
 
   defp message_table_sql do

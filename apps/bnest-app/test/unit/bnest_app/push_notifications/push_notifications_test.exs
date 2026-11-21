@@ -63,6 +63,35 @@ defmodule BnestApp.PushNotificationsTest do
     |> Enum.find(&(&1.id == id))
   end
 
+  # Every stored delivery, lowest ID first.
+  defp deliveries(store) do
+    store
+    |> InMemoryDeliveryStore.over()
+    |> InMemoryDeliveryStore.deliveries()
+  end
+
+  # Changes the stored columns of one delivery, standing in for time that has passed.
+  defp set_row!(store, id, changes),
+    do: :ok = InMemoryDeliveryStore.put(InMemoryDeliveryStore.over(store), id, changes)
+
+  defp days_before(time, days), do: DateTime.add(time, -days * 86_400, :second)
+
+  # One message from a fresh member in the canonical room: it owes one delivery to the
+  # single subscription a test has stored.
+  defp send_messages!(count, prefix) do
+    for number <- 1..count do
+      {:ok, _message} =
+        FamilyChat.send_message(
+          unique_user(),
+          FamilyChat.canonical_room_slug(),
+          Ecto.UUID.generate(),
+          "#{prefix} #{number}"
+        )
+    end
+
+    :ok
+  end
+
   describe "current_subscription/2" do
     test "reports disabled for a user with no stored row" do
       assert {:ok, %{enabled: false, expiration_time: nil}} =
@@ -202,6 +231,29 @@ defmodule BnestApp.PushNotificationsTest do
       refute_received {:push_notification_sent, _endpoint, _payload}
     end
 
+    test "a transient provider failure is retried after the first fixed wait and stays unfinished",
+         %{store: store} do
+      owed = owe_delivery!(store, "status-503")
+      before = DateTime.utc_now()
+
+      assert {:ok, %{state: "retryable", attempt: 1, next_attempt_at: %DateTime{} = next}} =
+               Dispatcher.attempt()
+
+      after_attempt = DateTime.utc_now()
+
+      # The dispatcher stamps its own clock, so the stored wait lies between the first read
+      # plus thirty seconds and the last read plus thirty seconds, at whole-second precision.
+      stamped = DateTime.truncate(next, :second)
+      earliest = DateTime.add(DateTime.truncate(before, :second), 30, :second)
+      latest = DateTime.add(DateTime.truncate(after_attempt, :second), 30, :second)
+      assert DateTime.compare(stamped, earliest) != :lt
+      assert DateTime.compare(stamped, latest) != :gt
+
+      assert %{state: "retryable", failure_category: "retryable", next_attempt_at: ^stamped} =
+               delivery(store, owed.delivery_id)
+      assert Dispatcher.attempt() == {:error, :no_due_delivery}
+    end
+
     test "retires a claimed delivery already past the one-hour ceiling, sending nothing",
          %{store: store} do
       owed = owe_delivery!(store, "accepted-late")
@@ -222,6 +274,82 @@ defmodule BnestApp.PushNotificationsTest do
   describe "retain_deliveries/1" do
     test "reports zero of everything over an empty store" do
       assert PushNotifications.retain_deliveries(~U[2026-09-18 00:00:00Z]) ==
+               {:ok, %{soft_deleted: 0, purged: 0, remaining_active: 0}}
+    end
+
+    test "soft-deletes only final deliveries older than seven days, keeping the rest",
+         %{store: store} do
+      now = ~U[2026-09-18 00:00:00Z]
+
+      assert {:ok, %{enabled: true}} =
+               PushNotifications.upsert_subscription(
+                 unique_user(),
+                 "session-retain",
+                 valid_input("retain-" <> Ecto.UUID.generate())
+               )
+
+      send_messages!(6, "retain")
+
+      [delivered_old, terminal_old, delivered_young, pending, claimed, retryable] =
+        deliveries(store)
+
+      set_row!(store, delivered_old.id, state: "delivered", updated_at: days_before(now, 8))
+
+      set_row!(store, terminal_old.id,
+        state: "terminal",
+        failure_category: "provider",
+        updated_at: days_before(now, 8)
+      )
+
+      set_row!(store, delivered_young.id, state: "delivered", updated_at: days_before(now, 6))
+      set_row!(store, pending.id, state: "pending", updated_at: days_before(now, 8))
+      set_row!(store, claimed.id, state: "claimed", updated_at: days_before(now, 8))
+
+      set_row!(store, retryable.id,
+        state: "retryable",
+        next_attempt_at: DateTime.add(now, 30, :second),
+        updated_at: days_before(now, 8)
+      )
+
+      assert PushNotifications.retain_deliveries(now) ==
+               {:ok, %{soft_deleted: 2, purged: 0, remaining_active: 3}}
+
+      soft_deleted =
+        for %{id: id, deleted_at: deleted_at, deleted_by: by} <- deliveries(store),
+            deleted_at != nil,
+            do: {id, by}
+
+      assert soft_deleted == [
+               {delivered_old.id, "system:push-retention"},
+               {terminal_old.id, "system:push-retention"}
+             ]
+    end
+
+    test "purges deliveries soft-deleted more than seven days ago, and a further run changes nothing",
+         %{store: store} do
+      now = ~U[2026-09-18 00:00:00Z]
+      later = DateTime.add(now, 8 * 86_400, :second)
+
+      assert {:ok, %{enabled: true}} =
+               PushNotifications.upsert_subscription(
+                 unique_user(),
+                 "session-purge",
+                 valid_input("purge-" <> Ecto.UUID.generate())
+               )
+
+      send_messages!(1, "purge")
+      [row] = deliveries(store)
+      set_row!(store, row.id, state: "delivered", updated_at: days_before(now, 8))
+
+      assert PushNotifications.retain_deliveries(now) ==
+               {:ok, %{soft_deleted: 1, purged: 0, remaining_active: 0}}
+
+      assert PushNotifications.retain_deliveries(later) ==
+               {:ok, %{soft_deleted: 0, purged: 1, remaining_active: 0}}
+
+      assert deliveries(store) == []
+
+      assert PushNotifications.retain_deliveries(later) ==
                {:ok, %{soft_deleted: 0, purged: 0, remaining_active: 0}}
     end
   end
