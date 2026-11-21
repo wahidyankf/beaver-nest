@@ -60,16 +60,16 @@ hippo_consumer_changes_for_range() {
 		git log --format= --name-only "$1" --not --remotes -- \
 			hippo hippo.lock hippo.identity.json hippo.local.json.example \
 			'.github/scripts/test-hippo-bootstrap.sh' \
-			':(glob)specs/tools/hippo-consumer/**'
+			':(glob)specs/apps/tools/hippo-consumer/**'
 	else
 		git diff --name-only "$2" "$1" -- \
 			hippo hippo.lock hippo.identity.json hippo.local.json.example \
 			'.github/scripts/test-hippo-bootstrap.sh' \
-			':(glob)specs/tools/hippo-consumer/**'
+			':(glob)specs/apps/tools/hippo-consumer/**'
 		git log --format= --name-only "$2..$1" -- \
 			hippo hippo.lock hippo.identity.json hippo.local.json.example \
 			'.github/scripts/test-hippo-bootstrap.sh' \
-			':(glob)specs/tools/hippo-consumer/**'
+			':(glob)specs/apps/tools/hippo-consumer/**'
 	fi
 }
 
@@ -78,16 +78,16 @@ rhino_consumer_changes_for_range() {
 		git log --format= --name-only "$1" --not --remotes -- \
 			rhino rhino.lock \
 			'.github/scripts/test-rhino-bootstrap.sh' \
-			':(glob)specs/tools/rhino-consumer/**'
+			':(glob)specs/apps/tools/rhino-consumer/**'
 	else
 		git diff --name-only "$2" "$1" -- \
 			rhino rhino.lock \
 			'.github/scripts/test-rhino-bootstrap.sh' \
-			':(glob)specs/tools/rhino-consumer/**'
+			':(glob)specs/apps/tools/rhino-consumer/**'
 		git log --format= --name-only "$2..$1" -- \
 			rhino rhino.lock \
 			'.github/scripts/test-rhino-bootstrap.sh' \
-			':(glob)specs/tools/rhino-consumer/**'
+			':(glob)specs/apps/tools/rhino-consumer/**'
 	fi
 }
 

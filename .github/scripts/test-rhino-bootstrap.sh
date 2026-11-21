@@ -1,5 +1,5 @@
 #!/bin/sh
-# The adapter for specs/tools/rhino-consumer/behaviours/rhino-bootstrap.feature.
+# The adapter for specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature.
 #
 # This is a documented fork of .github/scripts/test-hippo-bootstrap.sh. The two
 # consumers pin releases of different tools, but the hazard they defend against
@@ -291,7 +291,7 @@ rm -f -- "$counter_probe" "$temporary_root/probe-one.tar.gz" "$temporary_root/pr
 # This adapter binds the canonical tool corpus by exact scenario title. The
 # exact-list comparison makes a missing, duplicate, renamed, or unknown
 # scenario fail before any fixture runs.
-feature_file="$repository_root/specs/tools/rhino-consumer/behaviours/rhino-bootstrap.feature"
+feature_file="$repository_root/specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature"
 expected_scenarios='A cold cache installs once and a warm cache needs no transport
 The caller'"'"'s argument vector reaches the release unchanged
 Tampered warm-cache payload never executes

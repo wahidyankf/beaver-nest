@@ -238,13 +238,13 @@ jobs:
           hippo_consumer=$(changed_in \
             hippo hippo.lock hippo.identity.json hippo.local.json.example \
             '.github/scripts/test-hippo-bootstrap.sh' \
-            ':(glob)specs/tools/hippo-consumer/**' \
+            ':(glob)specs/apps/tools/hippo-consumer/**' \
             '.github/workflows/pr-quality-gate.yml')
 
           rhino_consumer=$(changed_in \
             rhino rhino.lock \
             '.github/scripts/test-rhino-bootstrap.sh' \
-            ':(glob)specs/tools/rhino-consumer/**' \
+            ':(glob)specs/apps/tools/rhino-consumer/**' \
             '.github/workflows/pr-quality-gate.yml')
 
           # Passed as an argument rather than resolved by name: each value is a

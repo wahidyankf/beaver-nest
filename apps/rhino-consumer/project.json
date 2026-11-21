@@ -42,7 +42,7 @@
         "{workspaceRoot}/rhino",
         "{workspaceRoot}/rhino.lock",
         "{workspaceRoot}/.github/scripts/test-rhino-bootstrap.sh",
-        "{workspaceRoot}/specs/tools/rhino-consumer/**/*"
+        "{workspaceRoot}/specs/apps/tools/rhino-consumer/**/*"
       ],
       "options": {
         "commands": [

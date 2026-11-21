@@ -1,5 +1,5 @@
 #!/bin/sh
-# The adapter for specs/tools/hippo-consumer/behaviours/hippo-bootstrap.feature.
+# The adapter for specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature.
 #
 # Contention is choreographed through gates rather than through timing. A
 # fixture that waits a while and then continues turns a race that never happened
@@ -326,7 +326,7 @@ rm -f -- "$counter_probe" "$temporary_root/probe-one.tar.gz" "$temporary_root/pr
 # This adapter binds the canonical tool corpus by exact scenario title. The
 # exact-list comparison makes a missing, duplicate, renamed, or unknown
 # scenario fail before any fixture runs.
-feature_file="$repository_root/specs/tools/hippo-consumer/behaviours/hippo-bootstrap.feature"
+feature_file="$repository_root/specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature"
 expected_scenarios='A cold cache installs once and a warm cache needs no transport
 Repository worker settings precede the caller'"'"'s run arguments
 Tampered warm-cache payload never executes

@@ -23,7 +23,7 @@ A library without integration owns no local resource boundary. Public-boundary p
 ## Shared Requirements
 
 - Keep executable application corpora in `specs/apps/`, library corpora in `specs/libs/`, and tool or
-  repository-wrapper corpora in `specs/tools/`; discover `.feature` files recursively without
+  repository-wrapper corpora in `specs/apps/tools/`; discover `.feature` files recursively without
   registration.
 - Every scenario needs `When` and `Then`; reject empty features and undefined or ambiguous steps. Repeated primary keywords may express one journey; do not split an existing journey merely for uniformity.
 - Keep bindings thin and reusable operations or state in support modules.

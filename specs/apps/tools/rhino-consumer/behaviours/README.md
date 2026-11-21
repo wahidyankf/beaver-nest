@@ -2,7 +2,7 @@
 
 The `.feature` files in this directory form the canonical executable behaviour corpus for the root
 RHINO consumer wrapper. The production-backed
-[shell adapter](../../../../.github/scripts/test-rhino-bootstrap.sh) must bind every scenario exactly
+[shell adapter](../../../../../.github/scripts/test-rhino-bootstrap.sh) must bind every scenario exactly
 once, reject missing or unknown scenarios, and invoke the real wrapper for each install-lock case.
 The pre-push hook runs it locally for the paths that touch the consumer boundary, which catches a
 corpus that no longer matches its implementation before the push rather than after it.

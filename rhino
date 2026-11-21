@@ -22,7 +22,7 @@
 #
 # Neither wrapper may reach the other's state: they resolve separate cache
 # roots, separate install guards, separate locks, and separate assets. That is
-# asserted by `specs/tools/rhino-consumer/behaviours/rhino-bootstrap.feature`
+# asserted by `specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature`
 # rather than left to review.
 set -eu
 

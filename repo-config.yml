@@ -569,6 +569,34 @@ policies:
       canvas-colors:
         - "#FFFFFF"
         - "#0D1117"
+  # Initial behaviour policy from phase-8-beaver-nest-behaviour.md. The whole-file list holds only
+  # the runners that execute whole feature files and fail on an undefined step (P13): the
+  # Playwright BDD steps and the two bootstrap scripts. ExBdd and the Vitest binder are not listed.
+  behaviour:
+    corpus:
+      - specs/apps/bnest/app-be/behaviours
+      - specs/apps/bnest/app-fe/behaviours
+      - specs/apps/tools/hippo-consumer/behaviours
+      - specs/apps/tools/rhino-consumer/behaviours
+    fixtures:
+      - specs/fixtures
+    levels:
+      unit:
+        - apps/bnest-app/test/unit/**/*.exs
+        - apps/bnest-app/assets/test/behaviour/**/*.ts
+        - apps/bnest-app/assets/test/unit/**/*.test.ts
+      integration:
+        - apps/bnest-app/test/integration/**/*.exs
+        - .github/scripts/test-hippo-bootstrap.sh
+        - .github/scripts/test-rhino-bootstrap.sh
+      e2e:
+        - apps/bnest-app-be-e2e/tests/steps/**/*.ts
+        - apps/bnest-app-fe-e2e/tests/steps/**/*.ts
+    whole-file:
+      - apps/bnest-app-be-e2e/tests/steps/**/*.ts
+      - apps/bnest-app-fe-e2e/tests/steps/**/*.ts
+      - .github/scripts/test-hippo-bootstrap.sh
+      - .github/scripts/test-rhino-bootstrap.sh
   governance:
     word-budget:
       count: letters-and-digits
@@ -580,7 +608,6 @@ policies:
         - { path: repo-governance }
         - { path: docs }
         - { path: specs/apps }
-        - { path: specs/tools }
         - { path: plans }
     # Owner: repo-governance/development/quality-gate-adapter.md
     quality-gates:

@@ -15,7 +15,7 @@ It does not own the executable, its command surface, its exit codes, or its conf
 those live upstream. It does not own the policy either: every value enforced here is declared in
 [`repo-config.yml`](../../repo-config.yml) at the repository root. And it does not own the
 bootstrap that installs the executable; that is [`./rhino`](../../rhino), specified by
-[the RHINO consumer specification](../../specs/tools/rhino-consumer/README.md).
+[the RHINO consumer specification](../../specs/apps/tools/rhino-consumer/README.md).
 
 The division matters when a check fails. A finding means this repository disagrees with
 `repo-config.yml`. A refusal means the invocation or the configuration was unusable. Neither is a
@@ -102,7 +102,7 @@ is also runnable on its own.
 | `rhino`                                   | the bootstrap                      |
 | `rhino.lock`                              | the pinned release and its digests |
 | `.github/scripts/test-rhino-bootstrap.sh` | the bootstrap suite                |
-| `specs/tools/rhino-consumer/`             | the bootstrap's specification      |
+| `specs/apps/tools/rhino-consumer/`             | the bootstrap's specification      |
 
 ## See also
 
