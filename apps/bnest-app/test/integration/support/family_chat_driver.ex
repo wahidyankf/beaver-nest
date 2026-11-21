@@ -1268,16 +1268,17 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     Map.put(context, :family_chat_promotions, promotions)
   end
 
-  # The router's own mounting decision (`BnestAppWeb.DevRoutes.mounted?/1`, which its
-  # compile-time branch calls) taken for the production configuration, beside the routes
-  # this build's router compiled from its own configuration.
-  def perform_behaviour(context, :inspect_router_routes, _args) do
-    Map.merge(context, %{
-      family_chat_production_mounts_dev_routes:
-        BnestAppWeb.DevRoutes.mounted?(context.family_chat_production_dev_routes),
-      family_chat_graphiql_routes:
-        Enum.filter(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
-    })
+  # A visitor's browser asks the endpoint for the GraphiQL page. An endpoint with no such route
+  # raises a missing-route error, which carries the 404 status the visitor gets.
+  def perform_behaviour(context, :request_graphiql, _args) do
+    status =
+      try do
+        context.conn |> get("/api/graphiql") |> Map.fetch!(:status)
+      rescue
+        error in Phoenix.Router.NoRouteError -> error.plug_status
+      end
+
+    Map.put(context, :graphiql_status, status)
   end
 
   # --- outcome (same evidence shape as the unit driver; independently checked from HTTP/GraphQL results) ---
@@ -1851,13 +1852,11 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
     context.family_chat_result == :error or match?({:error, _}, context.family_chat_result)
   end
 
-  # See the unit driver's identical clause: the production configuration, here read out
-  # of `config/prod.exs`, mounts nothing, and the router follows that same decision.
-  def behaviour_outcome?(context, :no_graphiql_route, _args) do
-    context.family_chat_production_mounts_dev_routes == false and
-      BnestAppWeb.Router.dev_routes_enabled?() ==
-        BnestAppWeb.DevRoutes.mounted?(Application.get_env(:bnest_app, :dev_routes)) and
-      context.family_chat_graphiql_routes != [] == BnestAppWeb.Router.dev_routes_enabled?()
+  # See the unit driver's identical clause: the production configuration, here read out of
+  # `config/prod.exs`, mounts nothing, and this build's endpoint answers not found for GraphiQL.
+  def behaviour_outcome?(context, :graphiql_not_found, _args) do
+    BnestAppWeb.DevRoutes.mounted?(context.family_chat_production_dev_routes) == false and
+      context.graphiql_status == 404
   end
 
   # The migration's room, and the room read back from SQLite, both open for posting.

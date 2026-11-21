@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import os from "node:os";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { login } from "./authentication";
 import { runLiveMix } from "./routed-rollout";
@@ -58,12 +59,8 @@ function prepareContextualSchedules(
 
 export async function performScheduledBackup(
   page: Page,
-  world: ScheduledBackupWorld,
   action: string,
 ): Promise<void> {
-  if (action === "open_admin_settings")
-    return openDeniedAdminSettings(page, world);
-
   if (action === "open_schedules_from_home") {
     await page.goto("/");
     await page.getByRole("link", { name: /Schedules & backups/u }).click();
@@ -77,16 +74,20 @@ export async function performScheduledBackup(
   await connected(page);
 }
 
-async function openDeniedAdminSettings(
+// The visitor is a family member with a real session who is no administrator. Home is read
+// first, so the admin entries are checked on the same session. The route is read with
+// page.request: the refusal leaves content-type unset, which a browser takes for a download.
+export async function openDeniedRoute(
   page: Page,
   world: ScheduledBackupWorld,
+  route: string,
 ): Promise<void> {
   const identity = required(world.identity, "isolated identity");
   await page.context().clearCookies();
   await login(page, identity.child);
   await page.goto("/");
   await expect(page.locator("[data-role=admin-settings-entry]")).toHaveCount(0);
-  const response = await page.request.get("/admin/settings");
+  const response = await page.request.get(route);
   world.responseStatus = response.status();
   world.responseBody = await response.text();
 }
@@ -129,6 +130,14 @@ export async function expectTypedBackupLink(page: Page): Promise<void> {
 export function expectDeniedSettings(world: ScheduledBackupWorld): void {
   expect(world.responseStatus).toBe(404);
   expect(world.responseBody).toBe("Not found");
+}
+
+// The refusal shows no host path, no storage setup text and no migration inventory.
+export function expectNoHostPathOrInventory(world: ScheduledBackupWorld): void {
+  const body = required(world.responseBody, "denied response");
+  expect(body).not.toContain("Storage setup");
+  expect(body).not.toContain(os.homedir());
+  expect(body).not.toContain(process.cwd());
 }
 
 export async function expectNoAdminEntry(page: Page): Promise<void> {

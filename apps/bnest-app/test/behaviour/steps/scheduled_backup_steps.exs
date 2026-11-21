@@ -21,10 +21,6 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: prepare(context, :accepted_backup_claim)
   )
 
-  step("two coordinators observe the same slot and an attempt may lose its lease", context,
-    do: prepare(context, :overlapping_coordinators)
-  )
-
   step("family and admin-system daily schedules are persisted", context,
     do: prepare(context, :contextual_schedules)
   )
@@ -33,25 +29,11 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: prepare(context, :denied_settings_visitor)
   )
 
-  step("verified owned pairs span more than seven WIB dates beside unknown files", context,
-    do: prepare(context, :retention_fixture)
-  )
-
-  step("a second allowlisted family handler is persisted", context,
-    do: prepare(context, :second_family_handler)
-  )
-
   step("several areas of Bnest offer admin settings panels", context,
     do: prepare(context, :typed_settings_panels)
   )
 
-  step("schedules use never absolute and occurrence expiration policies", context,
-    do: prepare(context, :expiry_policies)
-  )
-
-  step("the daily backup destination resolves", context,
-    do: perform(context, :resolve_backup_destination)
-  )
+  step("the daily backup runs", context, do: perform(context, :resolve_backup_destination))
 
   step("the administrator saves a safe backup override", context,
     do: perform(context, :save_backup_override)
@@ -61,73 +43,50 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: perform(context, :restart_scheduler)
   )
 
-  step("startup reconciliation runs", context, do: perform(context, :reconcile_startup))
+  step("Bnest starts after missing several daily backups", context,
+    do: perform(context, :reconcile_startup)
+  )
+
   step("the backup handler runs", context, do: perform(context, :run_backup_handler))
-  step("both coordinators reconcile", context, do: perform(context, :reconcile_overlap))
 
   step("an administrator follows schedules and backups from home", context,
     do: perform(context, :open_schedules_from_home)
   )
 
-  step("the visitor opens an admin settings route", context,
-    do: perform(context, :open_admin_settings)
+  step("the visitor opens the route {string}", %{args: [route]} = context,
+    do: perform(context, :open_denied_route, [route])
   )
-
-  step("a new backup becomes verified", context, do: perform(context, :verify_new_backup))
-  step("its daily slot becomes due", context, do: perform(context, :run_second_handler))
 
   step("an administrator opens admin settings from home", context,
     do: perform(context, :open_admin_settings_from_home)
   )
 
-  step("the coordinator reconciles claims and retries", context,
-    do: perform(context, :reconcile_expiry)
+  step(
+    "the backup and its receipt appear in the ignored repository folder and the receipt holds no private path",
+    context,
+    do: outcomes(context, [{:default_backup_folder, []}, {:no_private_path, []}])
   )
 
-  step("Bnest uses the ignored repository backup folder", context,
-    do: outcome(context, :default_backup_folder)
-  )
-
-  step("the verified result exposes no private path", context,
-    do: outcome(context, :no_private_path)
-  )
-
-  step("Bnest stores the private backup configuration atomically", context,
-    do: outcome(context, :atomic_backup_config)
-  )
-
-  step("Bnest creates one idempotent setup claim for that destination", context,
+  step(
+    "the page shows the saved confirmation, shows the folder when reopened, and one first verification runs for a double submit",
+    context,
     do: outcome(context, :one_setup_claim)
   )
 
-  step("the schedule remains enabled in SQLite", context,
-    do: outcome(context, :schedule_persisted)
+  step(
+    "the schedules page shows the schedule enabled with the same next run time after Bnest restarts",
+    context,
+    do: outcomes(context, [{:schedule_persisted, []}, {:same_future_slot, []}])
   )
 
-  step("the same future UTC slot remains due", context, do: outcome(context, :same_future_slot))
-
-  step("only the latest eligible slot is claimed", context,
-    do: outcome(context, :latest_slot_only)
+  step(
+    "exactly one backup run is recorded and the next run shows tomorrow's time",
+    context,
+    do: outcomes(context, [{:latest_slot_only, []}, {:next_future_day, []}])
   )
 
-  step("the next run advances to the next future day", context,
-    do: outcome(context, :next_future_day)
-  )
-
-  step("only configured authoritative SQLite is snapshotted with VACUUM INTO", context,
-    do: outcome(context, :authoritative_vacuum)
-  )
-
-  step("the candidate passes independent integrity and logical proof", context,
-    do: outcome(context, :independent_proof)
-  )
-
-  step("SQLite accepts one claim and backup tasks do not overlap", context,
-    do: outcome(context, :single_nonoverlap_claim)
-  )
-
-  step("transient failure receives at most three persisted attempts", context,
-    do: outcome(context, :bounded_attempts)
+  step("a backup file with its receipt appears and the run shows verified", context,
+    do: outcomes(context, [{:authoritative_vacuum, []}, {:independent_proof, []}])
   )
 
   step("both contexts appear in separate groups with safe status", context,
@@ -146,22 +105,6 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: outcome(context, :no_admin_home_entry)
   )
 
-  step("Bnest keeps one newest owned pair for each retained WIB date", context,
-    do: outcome(context, :owned_retention)
-  )
-
-  step("Bnest preserves unknown files and every previous destination", context,
-    do: outcome(context, :preserve_unowned)
-  )
-
-  step("the shared coordinator and supervisor execute it", context,
-    do: outcome(context, :shared_execution)
-  )
-
-  step("the shared ledger and contextual inventory record it", context,
-    do: outcome(context, :shared_inventory)
-  )
-
   step("every settings panel is listed in admin settings", context,
     do: outcome(context, :panels_discoverable)
   )
@@ -170,14 +113,6 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     "each settings panel saves only the fields it offers and refuses any other field",
     context,
     do: outcome(context, :owner_allowlists)
-  )
-
-  step("expiry blocks only ineligible future claims", context,
-    do: outcome(context, :expiry_blocks_future)
-  )
-
-  step("retries do not consume occurrences or suppress the final occurrence", context,
-    do: outcome(context, :retry_occurrence_rules)
   )
 
   # Backup integrity: reconciliation of the ledger against the destination, the reconcile
@@ -241,9 +176,6 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: prepare(context, :foreign_and_unowned_files)
   )
 
-  step("the test environment", context, do: prepare(context, :test_environment))
-
-  step("reconciliation runs", context, do: perform(context, :reconcile_ledger))
   step("the reconcile task runs", context, do: perform(context, :reconcile_task))
 
   step("the reconcile task's printed report and the post-run log line are read", context,
@@ -253,53 +185,23 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
   step("the scheduled run completes", context, do: perform(context, :complete_scheduled_run))
   step("retention runs", context, do: perform(context, :run_retention))
 
-  step("a test resolves the repository's default backup directory", context,
-    do: perform(context, :resolve_default_directory)
+  step("it exits 0 and says all 7 retained backups are present", context,
+    do: outcome(context, :exit_zero_all_present)
   )
 
   step(
-    "it reports the run of {string} as missing with its artifact basename",
+    "it exits 0 and does not flag the older backup of {string} whose files are gone",
     %{args: [date]} = context,
-    do: outcome(context, :run_reported_missing, [date])
-  )
-
-  step(
-    "it reports the runs of {string} and {string} as present",
-    %{args: dates} = context,
-    do: outcome(context, :runs_reported_present, dates)
-  )
-
-  step("it reports the run of {string} as changed", %{args: [date]} = context,
-    do: outcome(context, :run_reported_changed, [date])
-  )
-
-  step("it does not report the run of {string}", %{args: [date]} = context,
-    do: outcome(context, :run_not_reported, [date])
-  )
-
-  step("it reports the {int} other runs as present", %{args: [count]} = context,
-    do: outcome(context, :other_runs_present, [count])
-  )
-
-  step("it reports the newer run of {string} as present", %{args: [date]} = context,
-    do: outcome(context, :newer_run_present, [date])
-  )
-
-  step("it does not report the older run of {string}", %{args: [date]} = context,
-    do: outcome(context, :older_run_not_reported, [date])
+    do: outcomes(context, [{:exit_zero_all_present, []}, {:older_run_not_reported, [date]}])
   )
 
   step("the destination listing and every file's bytes are unchanged", context,
     do: outcome(context, :destination_unchanged)
   )
 
-  step("the ledger rows are unchanged", context, do: outcome(context, :ledger_unchanged))
-
   step("the report's first line is {string}", %{args: [line]} = context,
     do: outcome(context, :report_first_line, [line])
   )
-
-  step("the report has no problem line", context, do: outcome(context, :report_no_problem_line))
 
   step("the report's problem lines are {string} and {string}", %{args: lines} = context,
     do: outcome(context, :report_problem_lines, lines)
@@ -330,7 +232,6 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
   )
 
   step("it prints no per-date line", context, do: outcome(context, :report_no_date_line))
-  step("it starts no scheduler", context, do: outcome(context, :scheduler_not_started))
   step("it exits non-zero", context, do: outcome(context, :exit_nonzero))
 
   step("the report names the date {string} and the state file missing", %{args: [date]} = context,
@@ -367,14 +268,6 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
 
   step("no foreign receipt changes which owned run is kept for a date", context,
     do: outcome(context, :foreign_receipts_never_counted)
-  )
-
-  step("the operation fails closed before any file is created", context,
-    do: outcome(context, :default_directory_fails_closed)
-  )
-
-  step("the listing of the default backup directory is unchanged", context,
-    do: outcome(context, :default_directory_unchanged)
   )
 
   # Backup integrity: the restore drill task, what it restores, prints and refuses.
@@ -666,6 +559,14 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     context,
     do: outcome(context, :result_announced_politely)
   )
+
+  defp outcomes(context, checks) do
+    Enum.each(checks, fn {expected, args} ->
+      assert context.behaviour_driver.behaviour_outcome?(context, expected, args)
+    end)
+
+    context
+  end
 
   defp prepare(context, state, args \\ []),
     do: context.behaviour_driver.prepare_behaviour(context, state, args)

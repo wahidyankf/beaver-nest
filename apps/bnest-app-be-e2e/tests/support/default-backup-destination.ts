@@ -10,7 +10,7 @@ import { currentIdentities } from "./instance-identities";
 import { readLivePointer } from "./sqlite-storage";
 import { backupConfigPath, sqliteRunRoot } from "./live-sqlite";
 
-// The "Use the Dropbox-synced default" scenario over the live server: the run's default backup repository for this
+// The "A daily backup with no saved folder ..." scenario over the live server: the run's default backup repository for this
 // instance, the folder the page rendered, and the receipt and last result of the backup the save verified.
 export type DefaultBackupWorld = {
   configPath?: string;

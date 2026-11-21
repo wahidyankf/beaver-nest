@@ -318,6 +318,10 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.remember_every_sifat_pair(context)
   end
 
+  step "the visitor has remembered the first pair by {string}", %{args: [how]} = context do
+    remember_first_pair(context, how)
+  end
+
   step "the visitor swipes left on the study card", context do
     context.behaviour_driver.swipe_study_card_left(context)
   end
@@ -397,6 +401,12 @@ defmodule BnestApp.Behaviour.ChatSteps do
 
   step "the visitor continues to the next quiz question", context do
     context.behaviour_driver.next_quiz_question(context)
+  end
+
+  step "the visitor reaches quiz question number {int}", %{args: [number]} = context do
+    Enum.reduce(1..(number - 1)//1, context, fn _step, context ->
+      context.behaviour_driver.next_quiz_question(context)
+    end)
   end
 
   step "the visitor answers {string}", %{args: [answer]} = context do
@@ -583,5 +593,25 @@ defmodule BnestApp.Behaviour.ChatSteps do
 
   step "the repository holds a file {string} of {int} bytes", %{args: [path, bytes]} = context do
     context.behaviour_driver.repository_holds_sized_file(context, path, bytes)
+  end
+
+  # A pair is remembered by the study card's mark, or by a correct answer to the first quiz
+  # question, and the visitor is back on the mission afterwards.
+  defp remember_first_pair(context, "study mark") do
+    driver = context.behaviour_driver
+
+    context
+    |> driver.start_learning()
+    |> driver.mark_current_pair_remembered()
+    |> driver.return_to_mission()
+  end
+
+  defp remember_first_pair(context, "a correct answer") do
+    driver = context.behaviour_driver
+
+    context
+    |> driver.start_quiz()
+    |> driver.answer_quiz("Ada")
+    |> driver.return_to_mission()
   end
 end

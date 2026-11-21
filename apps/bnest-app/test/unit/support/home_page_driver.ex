@@ -1881,9 +1881,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
-  def prepare_behaviour(context, :non_admin_family_member, _args),
-    do: prepare_behaviour(context, :denied_settings_visitor, [])
-
   # A connected chat client over SQLite-primary storage, served by release revision A from
   # the blue slot: the production LiveView runs over the routed record repository with the
   # named Identity process beside it. The user's message was answered and saved, which is
@@ -2583,12 +2580,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
-  # The visitor's browser asks the router for the storage page with its own session cookie.
-  def perform_behaviour(context, :open_storage_settings_route, _args) do
-    {response, accesses} = route_request("/storage", context.visitor_token)
-    Map.merge(context, %{storage_response: response, storage_accesses: accesses})
-  end
-
   # Promotion swaps the routed release under the client: the candidate serves revision B
   # from the green slot, the LiveView terminates and the record repository restarts, and
   # the client mounts its route again and replays its draft through the form's recovery
@@ -2719,9 +2710,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :open_schedules_from_home, _args),
     do: Map.put(context, :page, follow_admin_entry("admin-schedules-entry"))
 
-  def perform_behaviour(context, :open_admin_settings, _args) do
-    {response, accesses} = route_request("/admin/settings", context.visitor_token)
-    Map.merge(context, %{settings_response: response, settings_accesses: accesses})
+  # The visitor's browser asks the router for an admin route with its own session cookie. The
+  # router's admin guard answers before the page, whichever admin route is asked.
+  def perform_behaviour(context, :open_denied_route, [path]) do
+    {response, accesses} = route_request(path, context.visitor_token)
+    Map.merge(context, %{denied_response: response, denied_accesses: accesses})
   end
 
   # Nine daily setup runs of the saved destination, oldest first, each through the
@@ -3289,15 +3282,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     end
   end
 
-  def behaviour_outcome?(context, :storage_access_denied, _args) do
-    response = context.storage_response
-    response.halted and response.status == 404 and response.resp_body == "Not found"
-  end
-
   # The refusal names no storage location or flat source, and the request read nothing but
   # the visitor's own session and account.
   def behaviour_outcome?(context, :no_host_path_or_inventory_revealed, _args) do
-    body = context.storage_response.resp_body
+    body = context.denied_response.resp_body
     own = [Identity.session_digest(context.visitor_token), context.visitor["userId"]]
 
     not String.contains?(body, [
@@ -3307,7 +3295,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       "users/",
       "system/"
     ]) and
-      Enum.all?(context.storage_accesses, fn {operation, _type, identity} ->
+      Enum.all?(context.denied_accesses, fn {operation, _type, identity} ->
         operation == :read and identity in own
       end)
   end
@@ -3700,7 +3688,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   # record the request touched is the visitor's own session, account or theme, which the
   # browser pipeline reads to resolve them. No other record was read or written.
   def behaviour_outcome?(context, :not_found_before_reads, _args) do
-    %{settings_response: response, settings_accesses: accesses} = context
+    %{denied_response: response, denied_accesses: accesses} = context
     own = [Identity.session_digest(context.visitor_token), context.visitor["userId"]]
 
     response.halted and response.status == 404 and response.resp_body == "Not found" and

@@ -37,6 +37,25 @@ Given("the visitor has remembered every Sifat Allah pair", async ({ page }) => {
   ).toBeVisible();
 });
 
+// A pair is remembered by the study card's mark, or by a correct answer to the first quiz
+// question. The visitor is back on the mission afterwards, as the feature expects.
+Given(
+  "the visitor has remembered the first pair by {string}",
+  async ({ page }, how: string) => {
+    await waitForLiveView(page);
+    if (how === "study mark") {
+      await page.getByRole("button", { name: "Belajar 3 Pasangan" }).click();
+      await page.getByRole("button", { name: "Aku sudah ingat" }).click();
+    } else if (how === "a correct answer") {
+      await page.getByRole("button", { name: "Latihan Ujian" }).click();
+      await page.getByRole("button", { name: "Ada", exact: true }).click();
+    } else {
+      throw new Error(`unknown way to remember a pair: ${how}`);
+    }
+    await page.getByRole("button", { name: "← Kembali ke misi" }).click();
+  },
+);
+
 async function swipe(
   page: Page,
   selector: string,
@@ -216,13 +235,30 @@ When("the visitor starts focused review", async ({ page }) => {
     .click();
 });
 
-When("the visitor continues to the next quiz question", async ({ page }) => {
-  await waitForLiveView(page);
+// Moves to the next quiz question and waits until the question text has changed.
+async function continueQuizQuestion(page: Page) {
   const question = page.locator("[data-role=quiz-question] h2");
   const previousQuestion = await question.innerText();
   await page.getByRole("button", { name: "Soal berikutnya →" }).click();
   await expect.poll(() => question.innerText()).not.toBe(previousQuestion);
+}
+
+When("the visitor continues to the next quiz question", async ({ page }) => {
+  await waitForLiveView(page);
+  await continueQuizQuestion(page);
 });
+
+// Question 1 is the one the quiz opens on, so question N is N - 1 continues.
+When(
+  "the visitor reaches quiz question number {int}",
+  async ({ page }, number: number) => {
+    await waitForLiveView(page);
+    for (let reached = 1; reached < number; reached += 1) {
+      // eslint-disable-next-line no-await-in-loop -- each continue reads the question the one before it showed.
+      await continueQuizQuestion(page);
+    }
+  },
+);
 
 When("the visitor answers {string}", async ({ page }, answer: string) => {
   await waitForLiveView(page);

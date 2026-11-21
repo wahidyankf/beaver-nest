@@ -47,16 +47,16 @@ Feature: Revising the 20 attributes of Allah
     And the visitor starts learning
     Then the study card shows "Qidam" and "Dahulu"
 
-  Scenario: A quiz prioritizes individual questions that are not remembered yet
+  Scenario Outline: A quiz skips individual questions that are already remembered
     Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts learning
-    And the visitor marks the current pair as remembered
-    And the visitor returns to the mission
-    And the visitor starts learning
-    And the visitor marks the current pair as remembered
-    And the visitor returns to the mission
-    And the visitor starts a quiz
-    Then the page displays the text "Apa arti Fana’?"
+    And the visitor has remembered the first pair by "<how>"
+    When the visitor starts a quiz
+    Then the page displays the text "Apa lawan dari Qidam?"
+
+    Examples:
+      | how              |
+      | study mark       |
+      | a correct answer |
 
   Scenario: A quiz continues as reinforcement after every pair is remembered
     Given a visitor opens "/apps/sifat-allah"
@@ -101,14 +101,6 @@ Feature: Revising the 20 attributes of Allah
     And the progress shows "1 dari 120 soal sudah hafal"
     And the progress shows "119 soal masih perlu diulang"
 
-  Scenario: A quiz skips an individual question that is already learned
-    Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts a quiz
-    And the visitor answers "Ada"
-    And the visitor returns to the mission
-    And the visitor starts a quiz
-    Then the page displays the text "Apa lawan dari Qidam?"
-
   Scenario: A quiz locks one answer and moves on automatically
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz
@@ -140,36 +132,20 @@ Feature: Revising the 20 attributes of Allah
     When the visitor swipes right on the quiz question
     Then the page displays the text "Apa arti Wujud?"
 
-  Scenario: A child practises the opposite attribute too
+  Scenario Outline: A child practises every question form of a pair
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz
-    And the visitor continues to the next quiz question
-    Then the page displays the text "Apa lawan dari Qidam?"
-    When the visitor answers "Hudus"
+    And the visitor reaches quiz question number <question number>
+    Then the page displays the text "<expected question>"
+    When the visitor answers "<correct answer>"
     Then the page displays the text "Betul!"
 
-  Scenario: A child practises the meaning of an opposite attribute too
-    Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts a quiz
-    And the visitor continues to the next quiz question
-    And the visitor continues to the next quiz question
-    Then the page displays the text "Apa arti Fana’?"
-    When the visitor answers "Binasa"
-    Then the page displays the text "Betul!"
-
-  Scenario: A child practises every relationship from the reverse direction too
-    Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts a quiz
-    And the visitor continues to the next quiz question
-    And the visitor continues to the next quiz question
-    And the visitor continues to the next quiz question
-    Then the page displays the text "Sifat wajib apa yang artinya Berbeda dengan makhluk?"
-    When the visitor answers "Mukhalafatuhu lil hawaditsi"
-    Then the page displays the text "Betul!"
-    When the visitor continues to the next quiz question
-    Then the page displays the text "Apa lawan dari Qiyamuhu bighairihi?"
-    When the visitor answers "Qiyamuhu binafsihi"
-    Then the page displays the text "Betul!"
+    Examples:
+      | question number | expected question                                    | correct answer              |
+      | 2               | Apa lawan dari Qidam?                                | Hudus                       |
+      | 3               | Apa arti Fana’?                                      | Binasa                      |
+      | 4               | Sifat wajib apa yang artinya Berbeda dengan makhluk? | Mukhalafatuhu lil hawaditsi |
+      | 5               | Apa lawan dari Qiyamuhu bighairihi?                  | Qiyamuhu binafsihi          |
 
   Scenario: A difficult pair is kept for another try
     Given a visitor opens "/apps/sifat-allah"

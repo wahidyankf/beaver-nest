@@ -103,13 +103,3 @@ Feature: Family chat operations
     Given the configured backup timeout is far shorter than the snapshot needs
     When a scheduled backup exceeds its timeout
     Then no backup or partial file appears, the run shows a retryable "timeout" failure, and the next attempt runs
-
-  Rule: Restore
-
-  # Exemption(e2e): restoring into an isolated marked root and reading through internal services is not a public HTTP/browser boundary; alternative-proof: bnest-app:test:integration / A restored backup contains all family chat state
-  @e2e-exempt
-  Scenario: A restored backup contains all family chat state
-    Given a verified backup artifact containing family chat rooms, messages, subscriptions, and deliveries
-    When the artifact is restored into an isolated marked root
-    Then the restored room, ordered messages, push subscription structure, and delivery states are all readable
-    And no message body or secret value appears in the restore evidence

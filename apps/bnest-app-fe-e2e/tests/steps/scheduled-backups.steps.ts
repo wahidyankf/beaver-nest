@@ -43,9 +43,11 @@ import {
   expectAdminPanels,
   expectDeniedSettings,
   expectNoAdminEntry,
+  expectNoHostPathOrInventory,
   expectOwnerAllowlists,
   expectScheduleGroups,
   expectTypedBackupLink,
+  openDeniedRoute,
   performScheduledBackup,
   prepareScheduledBackup,
   type ScheduledBackupWorld,
@@ -75,7 +77,6 @@ const actions = new Map<string, string>([
     "an administrator follows schedules and backups from home",
     "open_schedules_from_home",
   ],
-  ["the visitor opens an admin settings route", "open_admin_settings"],
   [
     "an administrator opens admin settings from home",
     "open_admin_settings_from_home",
@@ -111,7 +112,7 @@ for (const [text, state] of preparations)
   );
 
 for (const [text, action] of actions)
-  When(text, ({ page }) => performScheduledBackup(page, world, action));
+  When(text, ({ page }) => performScheduledBackup(page, action));
 
 Then("both contexts appear in separate groups with safe status", ({ page }) =>
   expectScheduleGroups(page, world),
@@ -119,8 +120,14 @@ Then("both contexts appear in separate groups with safe status", ({ page }) =>
 Then("the backup row links to its typed settings", ({ page }) =>
   expectTypedBackupLink(page),
 );
+When("the visitor opens the route {string}", ({ page }, route: string) =>
+  openDeniedRoute(page, world, route),
+);
 Then("Bnest returns not found before protected reads", () =>
   expectDeniedSettings(world),
+);
+Then("Bnest reveals no host path or migration inventory", () =>
+  expectNoHostPathOrInventory(world),
 );
 Then("home exposes no admin settings entry", ({ page }) =>
   expectNoAdminEntry(page),

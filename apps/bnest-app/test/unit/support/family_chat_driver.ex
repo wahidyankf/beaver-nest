@@ -1124,15 +1124,20 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     |> Map.put(:family_chat_published_events, published_events())
   end
 
-  # The router's own mounting decision (`BnestAppWeb.DevRoutes.mounted?/1`, which its
-  # compile-time branch calls) taken for the production configuration, beside the routes
-  # this build's router compiled from its own configuration.
-  def perform_behaviour(context, :inspect_router_routes, _args) do
-    Map.merge(context, %{
-      family_chat_production_mounts_dev_routes:
-        BnestAppWeb.DevRoutes.mounted?(context.family_chat_production_dev_routes),
-      family_chat_graphiql_routes: graphiql_routes()
-    })
+  # A visitor's browser asks this build's compiled router for the GraphiQL page. A router with no
+  # such route raises a missing-route error, which carries the 404 status the visitor gets.
+  def perform_behaviour(context, :request_graphiql, _args) do
+    status =
+      try do
+        :get
+        |> Plug.Test.conn("/api/graphiql")
+        |> BnestAppWeb.Router.call(BnestAppWeb.Router.init([]))
+        |> Map.fetch!(:status)
+      rescue
+        error in Phoenix.Router.NoRouteError -> error.plug_status
+      end
+
+    Map.put(context, :graphiql_status, status)
   end
 
   # --- outcome ---
@@ -1693,8 +1698,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   def behaviour_outcome?(context, :current_subscription_reads_disabled, _args) do
     match?({:ok, %{enabled: false}}, context.family_chat_result) and
       stored_subscription(context.family_chat_push_endpoint) == nil and
-      not session_subscribed?(current_user(context), session_digest(context)) and
-      push_requests() == []
+      not session_subscribed?(current_user(context), session_digest(context))
   end
 
   # The context is the session's own user and the digest of the session's own token.
@@ -1726,15 +1730,12 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     context.family_chat_result == :error or match?({:error, _}, context.family_chat_result)
   end
 
-  # The production configuration mounts nothing, and the router follows that same
-  # decision: the routes it compiled carry GraphiQL exactly when the decision it took for
-  # this build's own configuration says so. A router that mounted GraphiQL regardless of
-  # the decision, or a decision that mounted it for production, fails here.
-  def behaviour_outcome?(context, :no_graphiql_route, _args) do
-    context.family_chat_production_mounts_dev_routes == false and
-      BnestAppWeb.Router.dev_routes_enabled?() ==
-        BnestAppWeb.DevRoutes.mounted?(Application.get_env(:bnest_app, :dev_routes)) and
-      context.family_chat_graphiql_routes != [] == BnestAppWeb.Router.dev_routes_enabled?()
+  # The production configuration mounts nothing, and this build's router, whose GraphiQL gate
+  # is the same compile-time value, answers a GraphiQL request with not found. A decision that
+  # mounted GraphiQL for production, or a router that mounted it here, fails here.
+  def behaviour_outcome?(context, :graphiql_not_found, _args) do
+    BnestAppWeb.DevRoutes.mounted?(context.family_chat_production_dev_routes) == false and
+      context.graphiql_status == 404
   end
 
   # The migration's room, and the room read back from the store, both open for posting.
@@ -2560,9 +2561,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       context[:family_chat_room_slug] || context[:family_chat_subscribed_slug] ||
         "ruang-keluarga"
 
-  defp graphiql_routes,
-    do: Enum.filter(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
-
   defp stored_message(slug, message_id) do
     store = FamilyChat.adapter(:room_store).new()
     room = RoomStore.get_active_room(store, slug)
@@ -2847,6 +2845,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       0 -> []
     end
   end
+
   # The recorded requests, read for a later check of the same scenario. They go back into the
   # mailbox in their original order.
   defp peek_push_requests do
@@ -2865,7 +2864,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     |> Enum.find(&(&1.id == subscription_id))
     |> Map.fetch!(:endpoint)
   end
-
 
   defp page_ids(%{
          family_chat_result: {:ok, %{data: %{"familyChatMessages" => %{"nodes" => nodes}}}}

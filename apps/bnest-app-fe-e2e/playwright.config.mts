@@ -83,7 +83,7 @@ const finePointerScenario = /@fine-pointer/u;
 // release candidate proof's `toHaveCount(1)` assertion saw 2 and then 3
 // matching messages on the second and third project runs.)
 const sqliteStorageScenario =
-  /Non-admin cannot configure storage|A connected user keeps their state across a compatible release|Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate/u;
+  /A connected user keeps their state across a compatible release|Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate/u;
 
 export default defineConfig({
   testDir,

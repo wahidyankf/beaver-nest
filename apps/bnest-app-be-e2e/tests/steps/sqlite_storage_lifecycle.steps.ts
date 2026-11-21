@@ -38,33 +38,29 @@ Given(
   },
 );
 
-When("managed storage relocation runs", () => {
+When("the operator runs `mix bnest.storage.relocate`", () => {
   result = runStorageCommand(scenario, "bnest.storage.relocate", []);
 });
 
+// The relocation's own line, the pointer at the production data folder, and the legacy files kept
+// until the new database passes routed proof.
 Then(
-  "the storage pointer resolves the production data directory atomically",
+  'it exits 0 printing "relocation verified", the database is in the production data folder, and the legacy SQLite files are still present',
   () => {
     expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("relocation verified");
     const pointer = readPointer(scenario);
     expect(pointer?.["databaseDirectory"]).toBe(
       defaultDatabaseDirectory(scenario),
     );
     generation = String(pointer?.["databaseGeneration"] ?? "");
     expect(generation).not.toBe("");
-  },
-);
-
-Then(
-  "legacy SQLite files remain until the new database passes routed proof",
-  () => {
     expect(existsSync(legacyDatabase)).toBe(true);
     expect(
       existsSync(
         path.join(defaultDatabaseDirectory(scenario), "bnest.sqlite3"),
       ),
     ).toBe(true);
-    expect(result.stdout).toContain("relocation verified");
     cleanupStorageScenario(scenario);
   },
 );

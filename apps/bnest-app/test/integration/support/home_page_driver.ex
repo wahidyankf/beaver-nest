@@ -1600,9 +1600,6 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     })
   end
 
-  def prepare_behaviour(context, :non_admin_family_member, _args),
-    do: establish_identity(context, :child)
-
   def prepare_behaviour(context, :legacy_authoritative_sqlite, _args) do
     context = prepare_behaviour(context, :no_storage_configuration, [])
     runtime = TestRuntimeRoot.create!("sqlite-storage-lifecycle")
@@ -2011,10 +2008,6 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     })
   end
 
-  def perform_behaviour(context, :open_storage_settings_route, _args) do
-    Map.put(context, :response, get(context.conn, "/storage"))
-  end
-
   def perform_behaviour(context, :relocate_storage, _args),
     do:
       Map.put(
@@ -2032,11 +2025,17 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       )
 
   # The admin route is requested inside the record trace, which must see no record call but
-  # the visitor's own session, account and theme reads the browser pipeline makes.
-  def perform_behaviour(context, :open_admin_settings, _args) do
-    {response, accesses} = record_accesses_during(fn -> get(context.conn, "/admin/settings") end)
+  # the visitor's own session, account and theme reads the browser pipeline makes. The home
+  # page is then read as the same visitor.
+  def perform_behaviour(context, :open_denied_route, [path]) do
+    {response, accesses} = record_accesses_during(fn -> get(context.conn, path) end)
     home = get(context.conn, "/")
-    Map.merge(context, %{response: response, response_accesses: accesses, home_response: home})
+
+    Map.merge(context, %{
+      denied_response: response,
+      denied_accesses: accesses,
+      home_response: home
+    })
   end
 
   # The page shows the backup destination, so it is given an isolated working default: the
@@ -2674,11 +2673,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       ])
   end
 
-  def behaviour_outcome?(context, :storage_access_denied, _args),
-    do: context.response.status == 404
-
   def behaviour_outcome?(context, :no_host_path_or_inventory_revealed, _args),
-    do: context.response.resp_body == "Not found"
+    do: context.denied_response.resp_body == "Not found"
 
   def behaviour_outcome?(context, :pointer_relocated_atomically, _args),
     do:
@@ -2989,9 +2985,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def behaviour_outcome?(context, :not_found_before_reads, _args) do
     owner = context.user_id
 
-    context.response.status == 404 and context.response.resp_body == "Not found" and
-      context.response_accesses != [] and
-      Enum.all?(context.response_accesses, &visitor_own_read?(&1, owner, context.token))
+    context.denied_response.status == 404 and
+      context.denied_response.resp_body == "Not found" and
+      context.denied_accesses != [] and
+      Enum.all?(context.denied_accesses, &visitor_own_read?(&1, owner, context.token))
   end
 
   # Home is the visitor's authenticated page, and it offers no admin entry.

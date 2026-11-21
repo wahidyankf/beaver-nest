@@ -314,13 +314,9 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: prepare(context, :endpoint_configured_production)
   )
 
-  step("the router's compiled routes are inspected", context,
-    do: perform(context, :inspect_router_routes)
-  )
+  step("a visitor requests the GraphiQL page", context, do: perform(context, :request_graphiql))
 
-  step("no GraphiQL route is compiled or mounted", context,
-    do: outcome(context, :no_graphiql_route)
-  )
+  step("the response is not found \\(404\\)", context, do: outcome(context, :graphiql_not_found))
 
   # --- family_chat_operations.feature ---
 
@@ -482,26 +478,6 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     "no backup or partial file appears, the run shows a retryable {string} failure, and the next attempt runs",
     %{args: [category]} = context,
     do: outcome(context, :timeout_failure_retried, [category])
-  )
-
-  step(
-    "a verified backup artifact containing family chat rooms, messages, subscriptions, and deliveries",
-    context,
-    do: prepare(context, :verified_backup_artifact)
-  )
-
-  step("the artifact is restored into an isolated marked root", context,
-    do: perform(context, :restore_artifact_isolated_root)
-  )
-
-  step(
-    "the restored room, ordered messages, push subscription structure, and delivery states are all readable",
-    context,
-    do: outcome(context, :restored_state_readable)
-  )
-
-  step("no message body or secret value appears in the restore evidence", context,
-    do: outcome(context, :no_secret_in_restore_evidence)
   )
 
   # --- family_chat_graphql.feature: replying to a message ---

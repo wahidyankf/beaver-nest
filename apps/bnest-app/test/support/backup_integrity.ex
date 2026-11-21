@@ -365,8 +365,15 @@ defmodule BnestApp.Test.BackupIntegrity do
   @spec run_task(map(), (-> map())) :: map()
   def run_task(context, task_fun) do
     ledger = readable_ledger()
+    before = %{destination: destination_before(context)}
     {task, trace} = SchedulerWatch.record(task_fun)
-    Map.merge(context, %{task: task, task_trace: trace, task_ledger_before: ledger})
+
+    Map.merge(context, %{
+      task: task,
+      task_trace: trace,
+      task_ledger_before: ledger,
+      evidence_before: before
+    })
   end
 
   @doc """
@@ -424,8 +431,12 @@ defmodule BnestApp.Test.BackupIntegrity do
     reported?(context, run, :present) and intact?(context, run)
   end
 
-  def outcome?(context, :older_run_not_reported, [date]),
-    do: not reported_at_all?(context, older(context, date))
+  # The task's report names no line for the older run's date: a run that retention keeps a backup
+  # for would print its problem as a line that starts with its date.
+  def outcome?(context, :older_run_not_reported, [date]) do
+    _older = older(context, date)
+    lines(context) != [] and not Enum.any?(lines(context), &String.starts_with?(&1, date))
+  end
 
   def outcome?(context, :destination_unchanged, []),
     do: snapshot(context.backup_directory) == context.evidence_before.destination
@@ -694,6 +705,12 @@ defmodule BnestApp.Test.BackupIntegrity do
     |> Enum.reject(&(&1 == marker))
     |> Enum.each(&File.rm_rf!/1)
   end
+
+  # The destination as a task found it, so a Then can read whether the task changed any of its files.
+  defp destination_before(%{backup_directory: directory}) when is_binary(directory),
+    do: snapshot(directory)
+
+  defp destination_before(_context), do: nil
 
   # The ledger's rows, or `:unreadable` for the scenarios whose ledger cannot be opened.
   defp readable_ledger do

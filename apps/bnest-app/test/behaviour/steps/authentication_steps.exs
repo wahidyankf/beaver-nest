@@ -43,8 +43,6 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
 
   step("Bnest has not been set up yet", context, do: prepare(context, :uninitialized))
 
-  step("Bnest has no bootstrap journal", context, do: prepare(context, :uninitialized))
-
   step("the maintainer submits all initial accounts including an administrator", context,
     do: perform(context, :bootstrap_accounts)
   )

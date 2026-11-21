@@ -348,9 +348,9 @@ Feature: Family chat GraphQL API
 
   Rule: GraphiQL disabled in production
 
-  # Exemption(e2e): a production-compiled release is not started for exact-origin E2E; alternative-proof: bnest-app:test:integration / GraphiQL is absent from a production-configured endpoint
+  # Exemption(e2e): a production-compiled release is not started for exact-origin E2E; alternative-proof: bnest-app:test:integration / A production endpoint does not serve GraphiQL
   @e2e-exempt
-  Scenario: GraphiQL is absent from a production-configured endpoint
+  Scenario: A production endpoint does not serve GraphiQL
     Given the endpoint is configured for the production environment
-    When the router's compiled routes are inspected
-    Then no GraphiQL route is compiled or mounted
+    When a visitor requests the GraphiQL page
+    Then the response is not found (404)
