@@ -128,7 +128,7 @@ async function reloadRoutedRoom(page: Page): Promise<void> {
 // hold to one built before replies existed -- and keeps it while the
 // compatibility revision (also flag off, a different build) is routed.
 
-Given("the compatibility revision is routed", async ({ page }) => {
+Given("the newer app version is live", async ({ page }) => {
   await ensureRoomOpen(page);
   ({ revision: heldRevision } = await promoteCandidateWithReplyFlag(
     page,
@@ -144,7 +144,7 @@ Given("the compatibility revision is routed", async ({ page }) => {
 });
 
 When(
-  "a browser loaded from the previous revision opens {string}",
+  "a browser running the previous app version opens {string}",
   async ({ page }, route: string) => {
     // Already open, from before the promotion: the held page is the browser.
     expect(new URL(page.url()).pathname).toBe(route);
@@ -178,7 +178,7 @@ Then("the visitor can send a message normally", async ({ page }) => {
 // --- The rollback floor ----------------------------------------------------
 
 Given(
-  "a visitor holds the reply-aware bundle with a reply on screen",
+  "a visitor on the newer version has a reply on screen",
   async ({ page }) => {
     await ensureRoomOpen(page);
 
@@ -214,7 +214,7 @@ Given(
 );
 
 When(
-  "the routed slot is rolled back to the compatibility revision",
+  "the app is rolled back to the previous version",
   async ({ page }) => {
     ({ revision: routedRevision } = await promoteCandidateWithReplyFlag(
       page,

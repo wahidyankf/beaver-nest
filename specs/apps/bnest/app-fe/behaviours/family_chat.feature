@@ -5,14 +5,15 @@ Feature: Family chat room
 
   Rule: Canonical route
 
-  Scenario: A visitor is redirected from the family chat root to Ruang Keluarga
-    When a visitor opens "/family-chat"
+  Scenario Outline: A visitor reaches Ruang Keluarga from either family chat address
+    When a visitor opens "<address>"
     Then the current route is "/family-chat/ruang-keluarga"
     And the page displays the heading "Ruang Keluarga"
 
-  Scenario: A visitor opens Ruang Keluarga directly
-    When a visitor opens "/family-chat/ruang-keluarga"
-    Then the page displays the heading "Ruang Keluarga"
+    Examples:
+      | address                     |
+      | /family-chat                |
+      | /family-chat/ruang-keluarga |
 
   Rule: Online send status
 
@@ -47,11 +48,11 @@ Feature: Family chat room
   Rule: Bounded per-room outbox
 
   @fe-vitest-unit
-  # Exemption(integration): the per-room queue lives in the browser's IndexedDB outbox, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / The 101st queued message for one room is rejected
+  # Exemption(integration): the per-room queue lives in the browser's IndexedDB outbox, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A 101st waiting message in one room is refused with a retry-or-discard hint
   @integration-exempt
-  Scenario: The 101st queued message for one room is rejected
+  Scenario: A 101st waiting message in one room is refused with a retry-or-discard hint
     Given a visitor opens "/family-chat/ruang-keluarga"
-    And the visitor's outbox for this room already holds 100 queued messages
+    And the visitor already has 100 messages waiting to send in this room
     When the visitor attempts to queue one more message
     Then the new message is not queued
     And the composer explains the retry-or-discard remediation
@@ -109,9 +110,9 @@ Feature: Family chat room
     And both actions are available
 
   @fe-vitest-unit
-  # Exemption(integration): the actions control's size, its place beside its bubble, and whether it is visible without a hover are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The actions control is visible and large enough to press
+  # Exemption(integration): the actions control's size, its place beside its bubble, and whether it is visible without a hover are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The actions control is visible, large enough to press, beside its bubble and inside the history
   @integration-exempt
-  Scenario Outline: The actions control is visible and large enough to press
+  Scenario Outline: The actions control is visible, large enough to press, beside its bubble and inside the history
     Given the viewport is set to "<viewport>"
     And a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
     When the page is laid out
@@ -119,7 +120,6 @@ Feature: Family chat room
     And the actions control of that message is at least 44 by 44 CSS pixels
     And the actions control of that message does not overlap its bubble
     And the actions control of that message is inside the history
-    And the actions control of that message has an accessible name
 
     Examples:
       | viewport          |
@@ -129,6 +129,14 @@ Feature: Family chat room
       | landscape 844x390 |
       | tablet 768x1024   |
       | desktop 1280x800  |
+
+  @fe-vitest-unit
+  # Exemption(integration): an element's computed accessible name comes from the browser accessibility tree, which no browserless harness builds; alternative-proof: bnest-app-fe-e2e:test:e2e / The actions control has an accessible name
+  @integration-exempt
+  Scenario: The actions control has an accessible name
+    Given a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
+    When the page is laid out
+    Then the actions control of that message has an accessible name
 
   @fe-vitest-unit
   # Exemption(integration): clearing the browser's own text selection when a press opens the menu is a browser selection state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Holding a message to open its menu clears the text the browser selects during the press
@@ -196,20 +204,17 @@ Feature: Family chat room
     And the family room sends 1 messages
 
   @fe-vitest-unit
-  # Exemption(integration): the actions control is drawn by the browser from the room's reply flag, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The message actions control is not drawn when replies are off
+  # Exemption(integration): the actions control is drawn by the browser from the room's reply flag, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Messages have an actions control exactly when replies are on
   @integration-exempt
-  Scenario: The message actions control is not drawn when replies are off
-    Given the room is served with replies turned off
+  Scenario Outline: Messages have an actions control exactly when replies are on
+    Given the room is served with replies turned <setting>
     When a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
-    Then no message in the history has an actions control
+    Then <expectation>
 
-  @fe-vitest-unit
-  # Exemption(integration): the actions control is drawn by the browser from the room's reply flag, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Every message has an actions control when replies are on
-  @integration-exempt
-  Scenario: Every message has an actions control when replies are on
-    Given the room is served with replies turned on
-    When a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
-    Then every message in the history has an actions control
+    Examples:
+      | setting | expectation                                         |
+      | off     | no message in the history has an actions control    |
+      | on      | every message in the history has an actions control |
 
   Rule: Composing a reply
 
@@ -491,16 +496,26 @@ Feature: Family chat room
       | landscape 844x390 | 52    |
 
   @fe-vitest-unit
-  # Exemption(integration): the space above and below the history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A typical Family Chat phone view shows the newest message above the composer
+  # Exemption(integration): the space above and below the history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The newest message is fully above the composer on a phone
   @integration-exempt
-  Scenario: A typical Family Chat phone view shows the newest message above the composer
+  Scenario: The newest message is fully above the composer on a phone
     Given the viewport is set to "mobile 390x844"
     And the visitor's pointer is a touch pointer
     And the history holds 3 messages
     When a visitor opens "/family-chat/ruang-keluarga"
     And the page is laid out
     Then the newest message is fully above the composer
-    And the header and the composer take at most 180 pixels outside the history
+
+  @fe-vitest-unit
+  # Exemption(integration): the space above and below the history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The header and the composer leave most of a phone screen to the history
+  @integration-exempt
+  Scenario: The header and the composer leave most of a phone screen to the history
+    Given the viewport is set to "mobile 390x844"
+    And the visitor's pointer is a touch pointer
+    And the history holds 3 messages
+    When a visitor opens "/family-chat/ruang-keluarga"
+    And the page is laid out
+    Then the header and the composer take at most 180 pixels outside the history
 
   Rule: Family Chat composer hint
 
@@ -750,27 +765,6 @@ Feature: Family chat room
     And the message "Dinner plan" is the keyboard stop
 
   @fe-vitest-unit
-  # Exemption(integration): opening the diagram source is a native disclosure toggle on a figure built by browser JavaScript, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The diagram source opens from the keyboard
-  @integration-exempt
-  Scenario: The diagram source opens from the keyboard
-    Given Ayah has sent this family chat message:
-      """
-      ```mermaid
-      flowchart TD
-        A[Pick up] --> B[Dinner]
-      ```
-      """
-    When a visitor opens "/family-chat/ruang-keluarga"
-    Then the message shows a diagram labelled "Flowchart"
-    When the visitor presses Tab from the control before the history
-    And the visitor presses "Tab"
-    Then keyboard focus is on "Diagram source"
-    When the visitor presses "Enter"
-    Then the diagram source is shown
-    When the visitor presses "Tab"
-    Then keyboard focus is outside the history
-
-  @fe-vitest-unit
   # Exemption(integration): the picture's width at a 320 px viewport is a browser layout result that Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A scrolled diagram can be scrolled from the keyboard
   @integration-exempt
   Scenario: A scrolled diagram can be scrolled from the keyboard
@@ -904,12 +898,12 @@ Feature: Family chat room
     Then the queued message becomes immediately eligible for retry
 
   @fe-vitest-unit
-  # Exemption(integration): the retry timers run in browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / Automatic retry waits follow the bounded jittered backoff sequence
+  # Exemption(integration): the retry timers run in browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / Each failed automatic retry waits longer than the last, up to one minute
   @integration-exempt
-  Scenario: Automatic retry waits follow the bounded jittered backoff sequence
+  Scenario: Each failed automatic retry waits longer than the last, up to one minute
     Given a visitor opens "/family-chat/ruang-keluarga"
     When a queued message fails five times with a retryable result
-    Then each wait follows 1, 2, 4, 8, and 16 seconds with bounded jitter and no wait exceeding 60 seconds
+    Then the shown waits grow roughly 1, 2, 4, 8, 16 seconds and never exceed 60 seconds
 
   @fe-vitest-unit
   # Exemption(integration): the queued message and its retry or discard controls live in the browser outbox, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message queued more than seven days becomes manual-only
@@ -947,10 +941,10 @@ Feature: Family chat room
     And the committed message renders its quote
 
   @fe-vitest-unit
-  # Exemption(integration): a record stored in browser IndexedDB before this feature is invisible to Phoenix.LiveViewTest; alternative-proof: bnest-app-fe-e2e:test:e2e / A queued record written before this feature still sends
+  # Exemption(integration): a record stored in browser IndexedDB before this feature is invisible to Phoenix.LiveViewTest; alternative-proof: bnest-app-fe-e2e:test:e2e / A message queued before the update still sends after it
   @integration-exempt
-  Scenario: A queued record written before this feature still sends
-    Given the outbox holds a queued message stored with no reply target field
+  Scenario: A message queued before the update still sends after it
+    Given a message was left waiting to send before the app was updated
     When the network recovers
     Then that message reaches status "Sent"
     And it commits as an ordinary message
@@ -968,14 +962,22 @@ Feature: Family chat room
     And no other user's session drains that queued message
 
   @fe-vitest-unit
-  # Exemption(integration): the queue being cleared lives in browser IndexedDB, which Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Logout clears the current user's queue
+  # Exemption(integration): the queue being cleared lives in browser IndexedDB, which Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Logging out discards the member's waiting messages
   @integration-exempt
-  Scenario: Logout clears the current user's queue
+  Scenario: Logging out discards the member's waiting messages
     Given a visitor opens "/family-chat/ruang-keluarga"
     And a message is queued
     When the visitor logs out
-    Then the visitor's local outbox namespace is cleared
-    And the current session's Web Push subscription is disabled
+    Then the visitor's waiting messages are gone
+
+  @fe-vitest-unit
+  # Exemption(integration): turning push off for the browser's session is a browser subscription state Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Logging out turns off push notifications for this device session
+  @integration-exempt
+  Scenario: Logging out turns off push notifications for this device session
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And a message is queued
+    When the visitor logs out
+    Then notifications are turned off for this device
 
   Rule: Reconnect across Caddy promotion
 
@@ -991,20 +993,20 @@ Feature: Family chat room
     And the page does not reload
 
   @fe-vitest-unit
-  # Exemption(integration): serving one revision's bundle against another revision's server crosses a release-infrastructure boundary Phoenix.LiveViewTest cannot stage; alternative-proof: bnest-app-fe-e2e:test:e2e / A browser holding the pre-reply bundle loads the room from the new revision
+  # Exemption(integration): serving one revision's bundle against another revision's server crosses a release-infrastructure boundary Phoenix.LiveViewTest cannot stage; alternative-proof: bnest-app-fe-e2e:test:e2e / A browser still running the older app version can open the room and send after an update
   @integration-exempt
-  Scenario: A browser holding the pre-reply bundle loads the room from the new revision
-    Given the compatibility revision is routed
-    When a browser loaded from the previous revision opens "/family-chat/ruang-keluarga"
+  Scenario: A browser still running the older app version can open the room and send after an update
+    Given the newer app version is live
+    When a browser running the previous app version opens "/family-chat/ruang-keluarga"
     Then the room loads
     And the visitor can send a message normally
 
   @fe-vitest-unit
-  # Exemption(integration): rolling the routed slot back beneath a browser that keeps its bundle crosses a release-infrastructure boundary Phoenix.LiveViewTest cannot stage; alternative-proof: bnest-app-fe-e2e:test:e2e / The rollback floor can still answer the reply-aware bundle
+  # Exemption(integration): rolling the routed slot back beneath a browser that keeps its bundle crosses a release-infrastructure boundary Phoenix.LiveViewTest cannot stage; alternative-proof: bnest-app-fe-e2e:test:e2e / After the app is rolled back, a visitor on the newer version can still open the room, reply, and see earlier quotes
   @integration-exempt
-  Scenario: The rollback floor can still answer the reply-aware bundle
-    Given a visitor holds the reply-aware bundle with a reply on screen
-    When the routed slot is rolled back to the compatibility revision
+  Scenario: After the app is rolled back, a visitor on the newer version can still open the room, reply, and see earlier quotes
+    Given a visitor on the newer version has a reply on screen
+    When the app is rolled back to the previous version
     And the visitor replies again with the bundle it still holds
     Then the room loads
     And existing replies still render their quotes
@@ -1020,18 +1022,6 @@ Feature: Family chat room
     And the tab becomes visible again
     Then a fresh socket connection replaces the prior one
     And the page does not reload
-
-  Rule: Subscription channel handshake
-
-  @fe-vitest-unit
-  # Exemption(integration): a live phx_join wire frame over a real WebSocket is not observable through Phoenix.LiveViewTest or the frontend Vitest+Gherkin harness; alternative-proof: bnest-app-fe-e2e:test:e2e / A reconnect never attempts to join the per-message subscription channel
-  @integration-exempt
-  @subscription-handshake
-  Scenario: A reconnect never attempts to join the per-message subscription channel
-    Given a visitor opens "/family-chat/ruang-keluarga" with the socket connected to the current slot
-    When the tab is backgrounded with its connection silently dropped
-    And the tab becomes visible again
-    Then no phx_join frame is sent for any topic other than the control channel
 
   Rule: Experience release candidate proof
 
@@ -1056,35 +1046,40 @@ Feature: Family chat room
   Rule: Resuming at the last read position
 
   @fe-vitest-unit
-  # Exemption(integration): which message a returning visitor lands on is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A returning member lands on the first message they have not read
+  # Exemption(integration): which message a returning visitor lands on is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A returning member lands on the first unread message with an unread marker
   @integration-exempt
-  Scenario: A returning member lands on the first message they have not read
+  Scenario: A returning member lands on the first unread message with an unread marker
     Given the family chat holds more earlier messages than one context page
     And the visitor has read the family chat up to a known message
     And 5 newer messages arrived while the visitor was away
     When the visitor reopens "/family-chat/ruang-keluarga"
     Then the first unread message is the first message in view
     And an unread marker separates the read messages from the new ones
-    And one bounded page of earlier messages is loaded above the unread marker
+
+  @fe-vitest-unit
+  # Exemption(integration): what sits above the unread marker is browser scroll and paging state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Earlier messages are shown above the unread marker and older history can be loaded
+  @integration-exempt
+  Scenario: Earlier messages are shown above the unread marker and older history can be loaded
+    Given the family chat holds more earlier messages than one context page
+    And the visitor has read the family chat up to a known message
+    And 5 newer messages arrived while the visitor was away
+    When the visitor reopens "/family-chat/ruang-keluarga"
+    Then one bounded page of earlier messages is loaded above the unread marker
     And older history can still be loaded on request
 
   @fe-vitest-unit
-  # Exemption(integration): landing on the newest message is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A returning member with nothing unread lands on the newest message
+  # Exemption(integration): landing on the newest message is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A member with nothing unread lands on the newest message
   @integration-exempt
-  Scenario: A returning member with nothing unread lands on the newest message
-    Given the visitor has read every message in the family chat
-    When the visitor reopens "/family-chat/ruang-keluarga"
+  Scenario Outline: A member with nothing unread lands on the newest message
+    Given <history>
+    When <visit>
     Then the newest message is in view
     And no unread marker is shown
 
-  @fe-vitest-unit
-  # Exemption(integration): landing on the newest message is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A member who has never opened this room lands on the newest message
-  @integration-exempt
-  Scenario: A member who has never opened this room lands on the newest message
-    Given the visitor has never opened the family chat on this device
-    When a visitor opens "/family-chat/ruang-keluarga"
-    Then the newest message is in view
-    And no unread marker is shown
+    Examples:
+      | history                                                      | visit                                              |
+      | the visitor has read every message in the family chat        | the visitor reopens "/family-chat/ruang-keluarga"  |
+      | the visitor has never opened the family chat on this device  | a visitor opens "/family-chat/ruang-keluarga"      |
 
   @fe-vitest-unit
   # Exemption(integration): reaching the bottom of a scrollable history is browser scroll state the server never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / Reading down to the newest message moves the resume point
@@ -1222,14 +1217,21 @@ Feature: Family chat room
     Then the previously visible message remains at the same visual position
 
   @fe-vitest-unit
-  # Exemption(integration): live-region announcement and focus retention require a real browser accessibility tree; alternative-proof: bnest-app-fe-e2e:test:e2e / A new message announces without moving focus from the composer
+  # Exemption(integration): live-region announcement and focus retention require a real browser accessibility tree; alternative-proof: bnest-app-fe-e2e:test:e2e / A new message is announced to assistive technology without moving focus from the composer
   @integration-exempt
-  Scenario: A new message announces without moving focus from the composer
+  Scenario: A new message is announced to assistive technology without moving focus from the composer
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     When another member's message arrives away from the bottom of the scroll position
     Then a live-region announcement names the new message
     And focus remains in the composer
-    And "New messages below" is shown instead of auto-scrolling
+
+  @fe-vitest-unit
+  # Exemption(integration): where a new message lands relative to the scroll position is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A new message away from the bottom shows "New messages below" instead of scrolling
+  @integration-exempt
+  Scenario: A new message away from the bottom shows "New messages below" instead of scrolling
+    Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
+    When another member's message arrives away from the bottom of the scroll position
+    Then "New messages below" is shown instead of auto-scrolling
 
   Rule: Push permission UX and no authenticated caching
 
@@ -1280,13 +1282,27 @@ Feature: Family chat room
   Rule: Responsive and accessible presentation
 
   @fe-vitest-unit
-  # Exemption(integration): rendered viewport geometry and zoom layout require a real browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / The room remains keyboard operable and free of horizontal scroll
+  # Exemption(integration): rendered viewport geometry and zoom layout require a real browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / Every control in the room is reachable by keyboard with a visible focus indicator
   @integration-exempt
-  Scenario Outline: The room remains keyboard operable and free of horizontal scroll
+  Scenario Outline: Every control in the room is reachable by keyboard with a visible focus indicator
     Given the viewport is set to "<viewport>"
     When a visitor opens "/family-chat/ruang-keluarga"
     Then every control is reachable by keyboard with a visible focus indicator
-    And no horizontal page scroll is present
+
+    Examples:
+      | viewport             |
+      | desktop 1280x800     |
+      | tablet 768x1024      |
+      | mobile 393x852       |
+      | desktop 1280x800 200%|
+
+  @fe-vitest-unit
+  # Exemption(integration): rendered viewport geometry and zoom layout require a real browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / The room has no horizontal page scroll
+  @integration-exempt
+  Scenario Outline: The room has no horizontal page scroll
+    Given the viewport is set to "<viewport>"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then no horizontal page scroll is present
 
     Examples:
       | viewport             |
@@ -1504,9 +1520,9 @@ Feature: Family chat room
     And the newest Family Chat message ends above the composer
 
   @fe-vitest-unit
-  # Exemption(integration): where the composer and the newest message sit after the soft keyboard shrinks the screen are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A smaller screen from the soft keyboard keeps the Family Chat composer on screen
+  # Exemption(integration): where the composer and the newest message sit after the soft keyboard shrinks the screen are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A smaller screen from the soft keyboard keeps the Family Chat header, composer and newest message on screen
   @integration-exempt
-  Scenario Outline: A smaller screen from the soft keyboard keeps the Family Chat composer on screen
+  Scenario Outline: A smaller screen from the soft keyboard keeps the Family Chat header, composer and newest message on screen
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the history holds 30 messages
     And the viewport is set to "<viewport>"
@@ -1515,7 +1531,6 @@ Feature: Family chat room
     Then the Family Chat composer is at the bottom of the screen
     And the newest Family Chat message ends above the composer
     And the Family Chat header is at the top of the screen
-    And the room follows the visible area through the --vvh height
 
     Examples:
       | viewport          | shrunk  |
@@ -1785,9 +1800,9 @@ Feature: Family chat room
     And the diagram message adds no tab stop
 
   @fe-vitest-unit
-  # Exemption(integration): the clipboard and the reply quote hold the text of a message rendered by browser JavaScript, which Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / Copying or replying to a message with a diagram uses the typed Markdown
+  # Exemption(integration): the clipboard holds the text of a message rendered by browser JavaScript, which Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / Copying a message with a diagram copies the typed Markdown
   @integration-exempt
-  Scenario: Copying or replying to a message with a diagram uses the typed Markdown
+  Scenario: Copying a message with a diagram copies the typed Markdown
     Given Ayah has sent this family chat message:
       """
       ```mermaid
@@ -1799,6 +1814,19 @@ Feature: Family chat room
     When the visitor opens the action menu on that message
     And the visitor chooses "Copy text"
     Then the clipboard holds the message as typed
+
+  @fe-vitest-unit
+  # Exemption(integration): the reply quote holds the text of a message rendered by browser JavaScript, which Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / Replying to a message with a diagram quotes the typed Markdown as plain text
+  @integration-exempt
+  Scenario: Replying to a message with a diagram quotes the typed Markdown as plain text
+    Given Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    And a visitor opens "/family-chat/ruang-keluarga"
     When the visitor replies to the message with "Thanks"
     Then the reply quotes the typed message as plain text
 

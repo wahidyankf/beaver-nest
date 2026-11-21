@@ -211,12 +211,8 @@ step(
 );
 
 // The reply flag the room is served with. `open` reads it when the scenario does not name one.
-step("the room is served with replies turned off", () => {
-  remember("roomReplies", false);
-});
-
-step("the room is served with replies turned on", () => {
-  remember("roomReplies", true);
+step("the room is served with replies turned {word}", (setting) => {
+  remember("roomReplies", setting === "on");
 });
 
 step("no message in the history has an actions control", () => {
@@ -1334,7 +1330,7 @@ step("the committed message renders its quote", async () => {
 });
 
 step(
-  "the outbox holds a queued message stored with no reply target field",
+  "a message was left waiting to send before the app was updated",
   async () => {
     routeRevision(true);
     post({ body: ORIGINAL, sender: AYAH() });
@@ -1383,13 +1379,13 @@ step("it commits as an ordinary message", () => {
 
 // --- Compatibility revision and rollback floor ----------------------------
 
-step("the compatibility revision is routed", () => {
+step("the newer app version is live", () => {
   // The compatibility revision serves the room with the reply flag off.
   routeRevision(false);
 });
 
 step(
-  "a browser loaded from the previous revision opens {string}",
+  "a browser running the previous app version opens {string}",
   async (pathname) => {
     // The pre-reply bundle is this bundle's flag-off documents: every
     // request it makes is checked against the revision's schema.
@@ -1424,7 +1420,7 @@ step("the visitor can send a message normally", async () => {
 });
 
 step(
-  "a visitor holds the reply-aware bundle with a reply on screen",
+  "a visitor on the newer version has a reply on screen",
   async () => {
     await open([{ body: "Jam berapa?" }], { replies: true });
     const id = await replyThroughMenu(requireTarget(), "Jam lima");
@@ -1439,7 +1435,7 @@ step(
 );
 
 step(
-  "the routed slot is rolled back to the compatibility revision",
+  "the app is rolled back to the previous version",
   async () => {
     routeRevision(false);
     // The route change ends the connections to the rolled-back slot; the

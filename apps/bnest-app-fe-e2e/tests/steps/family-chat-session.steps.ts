@@ -119,14 +119,14 @@ When("the visitor logs out", async ({ page }) => {
   ]);
 });
 
-Then("the visitor's local outbox namespace is cleared", async ({ page }) => {
+Then("the visitor's waiting messages are gone", async ({ page }) => {
   const rows = await storedOutboxRows(page);
   expect(
     rows.filter((row) => row.namespace.startsWith(`${visitorUserId}:`)),
   ).toEqual([]);
 });
 
-Then("the current session's Web Push subscription is disabled", () => {
+Then("notifications are turned off for this device", () => {
   expect(serverPushEnabled(visitorUserId, visitorToken)).toBe(false);
 });
 

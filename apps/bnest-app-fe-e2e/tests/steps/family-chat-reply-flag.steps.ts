@@ -14,14 +14,17 @@ const { Given, Then } = createBdd();
 
 const MORE = '[data-role="family-chat-message-more"]';
 
-Given("the room is served with replies turned off", async ({ page }) => {
-  await ensureRoomOpen(page);
-  await promoteCandidateWithReplyFlag(page, false);
-});
-
-Given("the room is served with replies turned on", async ({ page }) => {
-  await restorePrimaryRoute(page);
-});
+Given(
+  "the room is served with replies turned {word}",
+  async ({ page }, setting: string) => {
+    if (setting === "off") {
+      await ensureRoomOpen(page);
+      await promoteCandidateWithReplyFlag(page, false);
+      return;
+    }
+    await restorePrimaryRoute(page);
+  },
+);
 
 Then("no message in the history has an actions control", async ({ page }) => {
   await expect

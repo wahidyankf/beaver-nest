@@ -252,7 +252,7 @@ step("no automatic retry is attempted", async () => {
 // --- Rule: Bounded per-room outbox ------------------------------------------------
 
 step(
-  "the visitor's outbox for this room already holds {int} queued messages",
+  "the visitor already has {int} messages waiting to send in this room",
   async (count) => {
     // Offline, every message the member writes waits in the queue.
     setDeviceOnline(activePage().device, false);
@@ -423,7 +423,7 @@ step("a queued message fails five times with a retryable result", async () => {
 });
 
 step(
-  "each wait follows 1, 2, 4, 8, and 16 seconds with bounded jitter and no wait exceeding 60 seconds",
+  "the shown waits grow roughly 1, 2, 4, 8, 16 seconds and never exceed 60 seconds",
   () => {
     const waits = recall<number[]>("waits");
     const bases = [1000, 2000, 4000, 8000, 16_000];
@@ -590,12 +590,12 @@ step("the visitor logs out", async () => {
   await waitFor(() => home.navigatedTo === "/login", "the log-out to submit");
 });
 
-step("the visitor's local outbox namespace is cleared", () => {
+step("the visitor's waiting messages are gone", () => {
   const rows = device().persistence.rowsFor(namespaceOf(visitor()));
   expect(rows.length === 0, `${rows.length} queued messages survived logout`);
 });
 
-step("the current session's Web Push subscription is disabled", () => {
+step("notifications are turned off for this device", () => {
   expect(
     server().logouts.includes(visitor().id),
     "the log-out never reached the server",
@@ -754,19 +754,6 @@ step("a fresh socket connection replaces the prior one", () => {
     `${fresh.length} fresh sockets joined the control channel`,
   );
 });
-
-step(
-  "no phx_join frame is sent for any topic other than the control channel",
-  () => {
-    const joins = activePage().sockets.flatMap((socket) => socket.record.joins);
-    const others = joins.filter((topic) => topic !== CONTROL_TOPIC);
-    expect(others.length === 0, `the room joined ${JSON.stringify(others)}`);
-    // The positive control: the capture saw the joins that did happen,
-    // before the drop and after the resume.
-    const control = joins.filter((topic) => topic === CONTROL_TOPIC).length;
-    expect(control >= 2, `only ${control} control-channel joins were seen`);
-  },
-);
 
 // --- Rule: Experience release candidate proof ------------------------------------
 

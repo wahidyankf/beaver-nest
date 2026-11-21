@@ -126,7 +126,7 @@ Then("the committed message renders its quote", async ({ page }) => {
 });
 
 Given(
-  "the outbox holds a queued message stored with no reply target field",
+  "a message was left waiting to send before the app was updated",
   async ({ page }) => {
     await goOfflineWithCommittedTarget(page);
     await sendThroughComposer(page, uniqueBody("Plain offline message"));

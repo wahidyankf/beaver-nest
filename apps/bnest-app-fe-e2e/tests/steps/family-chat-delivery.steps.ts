@@ -85,7 +85,7 @@ Then("no automatic retry is attempted", async ({ page }) => {
 // --- Bounded per-room outbox ----------------------------------------------
 
 Given(
-  "the visitor's outbox for this room already holds {int} queued messages",
+  "the visitor already has {int} messages waiting to send in this room",
   async ({ page }, count: number) => {
     await waitForRoomReady(page);
     await interfereWithSends(page, "abort");
@@ -204,7 +204,7 @@ When(
 );
 
 Then(
-  "each wait follows 1, 2, 4, 8, and 16 seconds with bounded jitter and no wait exceeding 60 seconds",
+  "the shown waits grow roughly 1, 2, 4, 8, 16 seconds and never exceed 60 seconds",
   ({ page }) => {
     const times = attemptsFor(page, delivery.body).map((attempt) => attempt.at);
     const waits = BACKOFF_BASES_MS.map(
