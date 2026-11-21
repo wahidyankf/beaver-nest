@@ -655,7 +655,38 @@ policies:
 gates:
   composition:
     pull-request: { relation: at-least }
+  # C6 placement. Each local surface holds only the entries its allowed list
+  # names (W07). Every other check, test, and document gate runs at pull-request.
+  wiring:
+    hooks:
+      directory: .husky
+    ci:
+      directory: .github/workflows
+    local-surfaces:
+      pre-commit: [format-staged]
+      commit-msg: [commit-message]
+      pre-push: [public-safety-range]
   entries:
+    # Local surfaces. A local entry also replays at pull-request, so the hosted
+    # gate is never weaker than the hook that ran first.
+    - id: format-staged
+      type: mutation
+      inputs:
+        staged: { kind: regular-files }
+      mutation: { local: apply-index, ci: verify-clean }
+      command:
+        executable: prettier
+        args:
+          - { literal: --write }
+          - { literal: --ignore-unknown }
+          - { input: staged.paths, expand: repeat }
+      run-on:
+        pre-commit:
+          bind:
+            staged: { source: git-index }
+        pull-request:
+          bind:
+            staged: { source: explicit-range, range: explicit }
     - id: commit-message
       type: check
       inputs:
@@ -671,19 +702,14 @@ gates:
         pull-request:
           bind:
             message: { source: explicit-range, range: explicit }
-    - id: public-safety-tree
-      type: check
-      command:
-        executable: bash
-        args: [{ literal: scripts/public-safety/check.sh }]
-      run-on: { pre-commit: {}, pre-push: {}, pull-request: {} }
     - id: public-safety-range
       type: check
       inputs:
         range: { kind: commit-range }
       command:
         executable: bash
-        args: [{ literal: scripts/public-safety/check.sh }]
+        args:
+          - { literal: scripts/public-safety/check.sh }
         environment:
           PUBLIC_SAFETY_BASE: { input: range.base }
           PUBLIC_SAFETY_HEAD: { input: range.head }
@@ -694,59 +720,77 @@ gates:
         pull-request:
           bind:
             range: { source: explicit-range, range: explicit }
-    - id: remote-dispatch-refusal
+    # Pull-request entries. Each one is an extra, so each states its reason.
+    - id: public-safety-tree
       type: check
       command:
         executable: bash
-        args: [{ literal: scripts/check-remote-dispatch-refusal.sh }]
-      run-on: { pre-commit: {}, pre-push: {}, pull-request: {} }
+        args:
+          - { literal: scripts/public-safety/check.sh }
+      run-on:
+        pull-request:
+          reason: "C11: the tree scan runs at pull-request; pre-push screens the pushed range alone."
     - id: public-safety-tests
       type: check
       command:
         executable: bash
-        args: [{ literal: scripts/public-safety/tests/run.sh }]
+        args:
+          - { literal: scripts/public-safety/tests/run.sh }
       run-on:
         pull-request:
           reason: "The scanner regression suite runs in the isolated pull-request checkout."
+    - id: remote-dispatch-refusal
+      type: check
+      command:
+        executable: bash
+        args:
+          - { literal: scripts/check-remote-dispatch-refusal.sh }
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
     - id: repo-config
       type: check
       command:
         executable: ./rhino
-        args: [{ literal: repo-config }, { literal: validate }]
-      run-on: { pre-push: {}, pull-request: {} }
+        args:
+          - { literal: repo-config }
+          - { literal: validate }
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
     - id: word-budget
       type: check
       command:
         executable: ./rhino
         args:
-          [
-            { literal: governance },
-            { literal: word-budget },
-            { literal: validate },
-          ]
-      run-on: { pre-push: {}, pull-request: {} }
+          - { literal: governance }
+          - { literal: word-budget }
+          - { literal: validate }
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
     - id: directory-map
       type: check
       command:
         executable: ./rhino
         args:
-          [
-            { literal: governance },
-            { literal: directory-map },
-            { literal: validate },
-          ]
-      run-on: { pre-push: {}, pull-request: {} }
+          - { literal: governance }
+          - { literal: directory-map }
+          - { literal: validate }
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
     - id: quality-gates
       type: check
       command:
         executable: ./rhino
         args:
-          [
-            { literal: governance },
-            { literal: quality-gates },
-            { literal: validate },
-          ]
-      run-on: { pre-push: {}, pull-request: {} }
+          - { literal: governance }
+          - { literal: quality-gates }
+          - { literal: validate }
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
     - id: harness-adapters
       type: check
       command:
@@ -754,20 +798,253 @@ gates:
         args:
           - literal: -c
           - literal: "./rhino harness adapters validate && bash .commandcode/hooks/policy-hooks.test.sh && exec bash .muse/hooks/run-policy-hook.test.sh"
-      run-on: { pre-push: {}, pull-request: {} }
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
     - id: internal-links
       type: check
       command:
         executable: ./rhino
         args:
-          [{ literal: md }, { literal: internal-link }, { literal: validate }]
-      run-on: { pre-push: {}, pull-request: {} }
+          - { literal: md }
+          - { literal: internal-link }
+          - { literal: validate }
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
     - id: mermaid
       type: check
       command:
         executable: ./rhino
-        args: [{ literal: md }, { literal: mermaid }, { literal: validate }]
-      run-on: { pre-push: {}, pull-request: {} }
+        args:
+          - { literal: md }
+          - { literal: mermaid }
+          - { literal: validate }
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
+    - id: markdownlint
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: markdownlint-cli2 }
+          - { literal: "**/*.md" }
+          - { literal: "!**/node_modules/**" }
+          - { literal: "!worktrees/**" }
+      run-on:
+        pull-request:
+          reason: "C6: the document checks run at pull-request only, never before a push."
+    - id: prettier-check
+      type: check
+      inputs:
+        files: { kind: files }
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: prettier }
+          - { literal: --check }
+          - { literal: --ignore-unknown }
+          - { input: files.paths, expand: repeat }
+      run-on:
+        pull-request:
+          reason: "C6: the format gate reads every visible path, so it runs at pull-request only."
+          bind:
+            files: { source: checkout }
+    - id: format-elixir
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: nx }
+          - { literal: run }
+          - { literal: -p }
+          - { literal: bnest-app }
+          - { literal: -t }
+          - { literal: format }
+      run-on:
+        pull-request:
+          reason: "C6: the Elixir format check reads the whole project, so it runs at pull-request only."
+    - id: commit-history
+      type: check
+      inputs:
+        range: { kind: commit-range }
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: commitlint }
+          - { literal: --from }
+          - { input: range.base, expand: single }
+          - { literal: --to }
+          - { input: range.head, expand: single }
+          - { literal: --verbose }
+      run-on:
+        pull-request:
+          reason: "C10: each commit in the pull-request range is linted on its own, not as one stream."
+          bind:
+            range: { source: explicit-range, range: explicit }
+    - id: behaviour-coverage
+      type: check
+      command:
+        executable: ./rhino
+        args:
+          - { literal: behaviour }
+          - { literal: coverage }
+          - { literal: validate }
+      run-on:
+        pull-request:
+          reason: "C7: a binding and its scenario can sit in any project, so the check is global."
+    - id: hippo-bootstrap-test
+      type: check
+      command:
+        executable: ./.github/scripts/test-hippo-bootstrap.sh
+      run-on:
+        pull-request:
+          reason: "C6: the pinned HIPPO bootstrap test runs at pull-request, where its consumer is wired."
+    - id: rhino-bootstrap-lint
+      type: check
+      command:
+        executable: shellcheck
+        args:
+          - { literal: rhino }
+          - { literal: .github/scripts/test-rhino-bootstrap.sh }
+      run-on:
+        pull-request:
+          reason: "C6: the RHINO bootstrap is linted at pull-request, where its shell is wired."
+    - id: rhino-consumer-repo
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: nx }
+          - { literal: run }
+          - { literal: -p }
+          - { literal: rhino-consumer }
+          - { literal: -t }
+          - { literal: test:repo }
+      run-on:
+        pull-request:
+          reason: "C6: the repository contract that pre-push used to run now runs at pull-request."
+    # Per-project and per-level test entries. The pull-request workflow runs each
+    # one in its own parallel job, selected with `--entry`.
+    - id: test-quick-bnest-app
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: nx }
+          - { literal: run }
+          - { literal: -p }
+          - { literal: bnest-app }
+          - { literal: -t }
+          - { literal: test:quick }
+      run-on:
+        pull-request:
+          reason: "C8: each project's quick suite runs in its own parallel pull-request job."
+    - id: test-quick-bnest-app-be-e2e
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: nx }
+          - { literal: run }
+          - { literal: -p }
+          - { literal: bnest-app-be-e2e }
+          - { literal: -t }
+          - { literal: test:quick }
+      run-on:
+        pull-request:
+          reason: "C8: each project's quick suite runs in its own parallel pull-request job."
+    - id: test-quick-bnest-app-fe-e2e
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: nx }
+          - { literal: run }
+          - { literal: -p }
+          - { literal: bnest-app-fe-e2e }
+          - { literal: -t }
+          - { literal: test:quick }
+      run-on:
+        pull-request:
+          reason: "C8: each project's quick suite runs in its own parallel pull-request job."
+    - id: test-integration
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: nx }
+          - { literal: run-many }
+          - { literal: -t }
+          - { literal: test:integration }
+      run-on:
+        pull-request:
+          reason: "C17: the integration suite runs on every pull request, not only on a schedule."
+    # Scheduled entries. The scheduled workflow runs them; no pull request waits for them.
+    - id: test-e2e-be
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: nx }
+          - { literal: run }
+          - { literal: -p }
+          - { literal: bnest-app-be-e2e }
+          - { literal: -t }
+          - { literal: test:e2e }
+          - { literal: -- }
+          - { literal: --workers=1 }
+      run-on:
+        scheduled: {}
+    - id: test-e2e-fe
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: nx }
+          - { literal: run }
+          - { literal: -p }
+          - { literal: bnest-app-fe-e2e }
+          - { literal: -t }
+          - { literal: test:e2e }
+          - { literal: -- }
+          - { literal: --workers=1 }
+      run-on:
+        scheduled: {}
 
 extensions:
   # Owner: repo-governance/development/quality/stacks/repository-adapter.md

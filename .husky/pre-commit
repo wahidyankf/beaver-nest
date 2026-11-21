@@ -1,10 +1,16 @@
 set -e
 
-# One dispatch, one registry. The surface declares the order, and the order is
-# the point: the safety gate runs before the formatter, so a staged leak is
-# refused rather than tidied.
+# The formatter must find the repository's own tools. Husky adds only a relative
+# node_modules/.bin to PATH, and a formatter run against the index snapshot needs
+# the absolute path, so it is set here.
+root=$(git rev-parse --show-toplevel)
+export PATH="$root/node_modules/.bin:$PATH"
+
+# One dispatch, one registry. This surface holds staged-file formatting and
+# nothing else (C6): the formatter rewrites the staged files and restages them.
+# Every check, test, and scan runs at the pull-request surface. HIPPO bounds the
+# RHINO call, so the formatter never runs outside a guarded boundary (BN-2).
 #
 # Git's own arguments are deliberately not forwarded. Arguments after `--` reach
-# every gate on the surface, not only the one that wants them, and nothing
-# declared on this surface takes one.
-exec ./rhino gate run --surface pre-commit
+# every gate on the surface, and nothing declared on this surface takes one.
+exec ./hippo run --class ephemeral --resource-tier light --disk-path . -- ./rhino gate run --surface pre-commit
