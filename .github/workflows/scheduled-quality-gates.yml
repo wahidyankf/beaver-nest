@@ -1,5 +1,8 @@
 name: Scheduled quality gates
 
+# The end-to-end suites are entries on the registry's `scheduled` surface (C17),
+# so no pull request waits for them. Each suite runs through its entry under one
+# HIPPO boundary. Integration runs on every pull request, not here.
 on:
   schedule:
     - cron: "0 6,18 * * *"
@@ -20,16 +23,16 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24"
+          node-version: "24.22.3"
           cache: npm
 
       - name: Set up Erlang and Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           otp-version: "29.1.2"
           elixir-version: "1.20.4"
@@ -40,9 +43,6 @@ jobs:
 
       - name: Install Phoenix dependencies
         run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
-
-      - name: Run local integration suite
-        run: ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:integration
 
       - name: Install Chromium and system dependencies
         run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm exec -- playwright install --with-deps chromium
@@ -62,7 +62,13 @@ jobs:
           printf '%s\n' "BNEST_E2E_CADDY_BIN=${RUNNER_TEMP}/caddy-bin" >> "${GITHUB_ENV}"
 
       - name: Run backend end-to-end suite
-        run: npm exec -- nx run -p bnest-app-be-e2e -t test:e2e -- --workers=1
+        run: |
+          set -eu
+          ./hippo run --class ephemeral --resource-tier heavy --disk-path . -- \
+            ./rhino gate run --surface scheduled --entry test-e2e-be
 
       - name: Run frontend end-to-end suite
-        run: npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e -- --workers=1
+        run: |
+          set -eu
+          ./hippo run --class ephemeral --resource-tier heavy --disk-path . -- \
+            ./rhino gate run --surface scheduled --entry test-e2e-fe
