@@ -39,6 +39,11 @@ A declared gate that never ran is not a passing gate. Check for the evidence rec
 
 A gate that returned findings and was then repaired is fine, and is a different thing from a gate nobody invoked.
 
+Past proof that can no longer be produced, such as a red run never captured or a baseline from a removed worktree, is
+not rebuilt. Accept a recorded observation of current behaviour with one substitution line, and re-run anything that can
+still run today, per
+[Current Behaviour Over Past Proof](../../../repo-governance/conventions/plans/007-evidence-and-quality.md#current-behaviour-over-past-proof).
+
 ## Cleanup Is Proven, Not Assumed
 
 Re-list the paths the plan said would be removed. "Cleanup ran" is a claim of the same kind as a ticked box.
