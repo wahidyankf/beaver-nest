@@ -85,7 +85,7 @@ Given("a test instance is current", async () => {
   );
 });
 
-// --- Scenario: a test starts from an empty migrated database ----------------
+// --- Scenario: a spawned instance with no seeded accounts starts empty ---------
 
 When(
   "a test spawns an instance with no seeded accounts",
@@ -98,8 +98,8 @@ When(
 );
 
 Then(
-  "the instance database holds no account, browser session, chat message, or user record",
-  () => {
+  "no account can log in, the chat has no messages, and the initial setup page is open",
+  async ({ page }) => {
     expect(instanceRowCounts()).toEqual({
       bnest_records: 0,
       family_chat_messages: 0,
@@ -112,16 +112,13 @@ Then(
         instanceEnvironment(currentInstance()).BNEST_RUNTIME_ROOT,
       ),
     ).toEqual([]);
+    const response = await page.goto("/setup");
+    expect(response?.status()).toBe(200);
+    await expect(
+      page.getByRole("heading", { name: "Create the first family accounts" }),
+    ).toBeVisible();
   },
 );
-
-Then("the initial setup stays open for that instance", async ({ page }) => {
-  const response = await page.goto("/setup");
-  expect(response?.status()).toBe(200);
-  await expect(
-    page.getByRole("heading", { name: "Create the first family accounts" }),
-  ).toBeVisible();
-});
 
 // --- Scenario: consecutive tests never share a database ---------------------
 

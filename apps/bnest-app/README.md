@@ -117,13 +117,14 @@ and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-databa
   so the generic hook spawns nothing for them. Every other integration scenario spawns one instance; no scenario is
   exempt by being pure. The unit layer never spawns.
 - `test_isolation.feature` has two adapters. The unit adapter (`test/unit/support/behaviour/test_isolation_unit_adapter.ex`)
-  drives the in-memory model `BnestApp.Test.InMemory.TestInstancePort`. The unit layer has no database, so its schema
-  steps are PARTIAL: they check that the digest is the same under reordering and changes for every kind of object or
-  version change, on fixed rows. Its lifecycle rows (failed spawn, rollback, teardown) prove the model's contract, not
-  the production switch. Equality of a real instance with the release schema, and the production switch, are proven
-  only by the integration adapter (`test/integration/support/test_isolation_integration_adapter.ex`). That adapter
-  drives the real switch, the seed facades, the SQLite repo and the endpoint, and it reads the release side from
-  `test/integration/support/release_schema.ex`. Shared fixtures are in `test/behaviour/test_isolation_fixtures.ex`.
+  drives the in-memory model `BnestApp.Test.InMemory.TestInstancePort`. Its lifecycle rows (failed spawn, rollback,
+  teardown) prove the model's contract, not the production switch. The production switch is proven only by the
+  integration adapter (`test/integration/support/test_isolation_integration_adapter.ex`), which drives the real switch,
+  the seed facades, the SQLite repo and the endpoint. Equality of a spawned instance with the release schema is proven
+  by `test/integration/bnest_app/storage/test_instance_schema_test.exs`, which reads the release side from
+  `test/integration/support/release_schema.ex`, and by `test/unit/bnest_app/test_instance/fingerprint_test.exs`. That a
+  production build mounts no testing route is proven by `test/unit/bnest_app_web/testing_routes_test.exs`. Shared
+  fixtures are in `test/behaviour/test_isolation_fixtures.ex`.
 - Seed and testing-control source never writes SQL or files directly. `test/unit/bnest_app/test_instance/seed_source_scan_test.exs`
   fails on any SQL, DDL or file-write call in `test/support/test_instance_seed.ex` and `test/support/testing_control/`.
 - `test_instances.feature` (app-fe) is bound here as well. Its Given is the shared admin step, which the drivers hand to

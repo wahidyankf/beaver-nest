@@ -5,8 +5,7 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
   real endpoint through `BnestApp.Test.TestingControlWire`. "A test" acts in process (`TestInstance`); "a
   client" acts over the wire, as the TypeScript client does.
 
-  Only the scenarios that the integration layer runs call these functions. The production-build scenario is
-  `@integration-exempt`, so no function here exists for it, and an accidental call fails.
+  Only the scenarios that the integration layer runs call these functions.
   """
 
   use Boundary, top_level?: true, check: [in: false, out: false]
@@ -153,33 +152,6 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
 
   def readiness_generation(_context) do
     json_response(get(build_conn(), "/health/ready"), 200)["storageGeneration"]
-  end
-
-  @doc """
-  The schema of the current instance, observed and then dropped, then the release database built and
-  measured, so only one database is ever current. The comparison names both fingerprints and the migration
-  files the versions must equal.
-  """
-  def compare_release_schema(context) do
-    run = TestInstance.application_run!()
-    instance = ReleaseSchema.observe()
-    :ok = TestInstance.drop!(TestInstance.state())
-
-    Map.put(context, :comparison, %{
-      instance: instance,
-      release: ReleaseSchema.with_release_build(run, &ReleaseSchema.observe/0),
-      files: MigrationFiles.versions()
-    })
-  end
-
-  @doc "The instance's schema fingerprint equals the release build's fingerprint."
-  def schema_identical?(%{comparison: comparison}),
-    do: comparison.instance.fingerprint == comparison.release.fingerprint
-
-  @doc "Both databases hold exactly the committed migration files' versions, in order."
-  def versions_exact?(%{comparison: comparison}) do
-    comparison.instance.versions == comparison.files and
-      comparison.release.versions == comparison.files
   end
 
   @doc "Whether the spawn finished its migrations and its seed: the state it returned with."
