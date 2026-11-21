@@ -87,7 +87,7 @@ that runs from the wrong directory and reports a clean result for a tree nobody 
 
 ### `test:integration`
 
-Runs [the consumer bootstrap suite](../../.github/scripts/test-rhino-bootstrap.sh) — twenty-one
+Runs [the consumer bootstrap suite](../../.github/scripts/test-rhino-bootstrap.sh) — fifteen
 scenarios over cache integrity, argument passthrough, install serialization, stale-owner
 reclamation, retention, and the disjointness of this wrapper's state from HIPPO's, against a
 synthetic release, so it touches neither GitHub nor the real cache. The

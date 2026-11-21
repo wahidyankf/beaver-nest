@@ -295,26 +295,19 @@ feature_file="$repository_root/specs/apps/tools/rhino-consumer/behaviours/rhino-
 expected_scenarios='A cold cache installs once and a warm cache needs no transport
 The caller'"'"'s argument vector reaches the release unchanged
 Tampered warm-cache payload never executes
-A downloaded archive whose digest misses the pin never executes
+A downloaded release that fails verification is refused
 Non-exact stable release version is rejected
-Exact candidate tag uses stable release identity
-Release identity envelope must match exactly
+A pinned release candidate installs and runs
 Unsupported platform is refused before any transport
-Matching live install-lock owner remains protected
-Malformed identity for a live install-lock owner fails closed
-Reused live PID with a different valid identity is reclaimed
-Dead install-lock owner is reclaimed
-Crash before install-lock metadata publication is recoverable
-Concurrent cold callers install from exactly one verified download
-Concurrent stale reclaimers preserve a replacement live owner
-A consumer never removes an install lock it did not publish
-Install guard storage stays bounded across release versions
+A caller waits while another caller is installing
+A caller takes over an install whose owner is gone
+Two callers starting together download once and both run the release
 Retention never deletes a release another consumer is using
 Retention never evicts a release another repository still uses
-Release ranking reads real timestamps on every supported platform
 Retention reclaims releases left idle beyond its window
-The two consumer bootstraps never reach each other'"'"'s state'
-actual_scenarios=$(awk '/^[[:space:]]*Scenario: / { sub(/^[[:space:]]*Scenario: /, ""); print }' "$feature_file")
+Installing both tools on one machine keeps their caches apart
+Each tool honours only its own cache-root setting'
+actual_scenarios=$(awk '/^[[:space:]]*Scenario( Outline)?: / { sub(/^[[:space:]]*Scenario( Outline)?: /, ""); print }' "$feature_file")
 # Said out loud rather than left to `set -e`. This assertion runs before the
 # first scenario name is printed, so a bare test exits with no output at all --
 # and the one change that trips it, editing the corpus, is also the one where a
@@ -510,6 +503,13 @@ run_exact_candidate_tag_uses_stable_product_identity() {
 	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
 	[ -x "$cache_root/$candidate_version/$host_platform/rhino" ]
 	[ -f "$cache_root/$candidate_version/$host_platform/rhino.sha256" ]
+
+	# The second run is served from the cache: transport is broken, so a second
+	# download would fail the run rather than pass it.
+	result=$(PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_CURL_FAIL=1 \
+		RHINO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$stable_product_version\",\"commit\":\"$test_commit\"}" "$subject" probe)
+	[ "$result" = probe-ok ]
+	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
 }
@@ -1055,7 +1055,7 @@ run_release_ranking_reads_real_timestamps() {
 # directory, and asset URL before that failure, so what each one actually
 # touched can be compared. Nothing here reaches the network, and neither
 # wrapper's real cache is involved.
-run_bootstraps_never_share_state() {
+prepare_shared_machine() {
 	rhino_wrapper="$repository_root/rhino"
 	hippo_wrapper="$repository_root/hippo"
 	[ -x "$rhino_wrapper" ]
@@ -1099,7 +1099,13 @@ OBSERVEEOF
 		find "$shared/home" "$shared/cache" "$shared/tmp" -mindepth 1 |
 			sed "s|^$shared/||" | LC_ALL=C sort >"$temporary_root/footprint-$observed_tool"
 	}
+}
 
+# Installing both tools on one machine keeps their caches apart: the two wrappers
+# touch no common path, neither cache root lies inside the other, and each asks
+# transport only for the release its own lock pins.
+run_bootstraps_keep_caches_apart() {
+	prepare_shared_machine
 	observe_bootstrap rhino
 	rhino_guard=$(find "$shared" -name '.install-guard.lock' -print -quit)
 	rhino_root=$(dirname -- "$(find "$shared" -type d -name 'v[0-9]*.[0-9]*.[0-9]*' -print -quit)")
@@ -1164,6 +1170,12 @@ OBSERVEEOF
 		;;
 	esac
 
+}
+
+# Each tool honours only its own cache-root setting, and is blind to the other's.
+run_each_tool_honours_its_own_cache_root() {
+	prepare_shared_machine
+
 	# Each wrapper honours its own cache-root override and is blind to the
 	# other's. Both directions are asked, because they fail differently: a
 	# wrapper that stopped reading its own variable would silently keep using
@@ -1213,35 +1225,54 @@ OBSERVEEOF
 
 while IFS= read -r scenario; do
 	# Name each scenario as it starts: a failure under `set -e` is otherwise
-	# silent, and a corpus that shrank would still end in a pass line.
+	# silent, and a corpus that shrank would still end in a pass line. A Scenario
+	# Outline runs each function it names, and each function covers every row of
+	# the outline's Examples table.
 	echo "  $scenario"
 	case "$scenario" in
 	'A cold cache installs once and a warm cache needs no transport') run_cold_then_warm_cache ;;
 	"The caller's argument vector reaches the release unchanged") run_argument_vector_passthrough ;;
 	'Tampered warm-cache payload never executes') run_tampered_warm_cache ;;
-	'A downloaded archive whose digest misses the pin never executes') run_download_digest_mismatch ;;
+	'A downloaded release that fails verification is refused')
+		run_download_digest_mismatch
+		run_non_exact_identity_envelope
+		;;
 	'Non-exact stable release version is rejected') run_non_exact_stable_version ;;
-	'Exact candidate tag uses stable release identity') run_exact_candidate_tag_uses_stable_product_identity ;;
-	'Release identity envelope must match exactly') run_non_exact_identity_envelope ;;
+	'A pinned release candidate installs and runs') run_exact_candidate_tag_uses_stable_product_identity ;;
 	'Unsupported platform is refused before any transport') run_unsupported_platform_refused ;;
-	'Matching live install-lock owner remains protected') run_matching_live_owner ;;
-	'Malformed identity for a live install-lock owner fails closed') run_malformed_live_owner ;;
-	'Reused live PID with a different valid identity is reclaimed') run_reused_live_pid ;;
-	'Dead install-lock owner is reclaimed') run_dead_owner ;;
-	'Crash before install-lock metadata publication is recoverable') run_crash_before_publication ;;
-	'Concurrent cold callers install from exactly one verified download') run_concurrent_cold_callers ;;
-	'Concurrent stale reclaimers preserve a replacement live owner') run_concurrent_stale_reclaimers ;;
-	'A consumer never removes an install lock it did not publish') run_never_removes_a_foreign_install_lock ;;
-	'Install guard storage stays bounded across release versions') run_bounded_install_guard_storage ;;
+	'A caller waits while another caller is installing')
+		run_matching_live_owner
+		run_malformed_live_owner
+		;;
+	'A caller takes over an install whose owner is gone')
+		run_dead_owner
+		run_reused_live_pid
+		run_crash_before_publication
+		;;
+	'Two callers starting together download once and both run the release')
+		run_concurrent_cold_callers
+		run_concurrent_stale_reclaimers
+		;;
 	'Retention never deletes a release another consumer is using') run_retention_protects_installing_release ;;
 	'Retention never evicts a release another repository still uses') run_retention_keeps_releases_other_repositories_use ;;
-	'Release ranking reads real timestamps on every supported platform') run_release_ranking_reads_real_timestamps ;;
-	'Retention reclaims releases left idle beyond its window') run_retention_reclaims_idle_releases ;;
-	"The two consumer bootstraps never reach each other's state") run_bootstraps_never_share_state ;;
+	'Retention reclaims releases left idle beyond its window')
+		run_retention_reclaims_idle_releases
+		run_release_ranking_reads_real_timestamps
+		;;
+	'Installing both tools on one machine keeps their caches apart') run_bootstraps_keep_caches_apart ;;
+	'Each tool honours only its own cache-root setting') run_each_tool_honours_its_own_cache_root ;;
 	*) exit 1 ;;
 	esac
 done <<EOF
 $actual_scenarios
 EOF
+
+# Plain shell tests: each checks one behaviour of this wrapper. Their scenarios
+# were removed by the spec review as internal, so they run here directly, every
+# time, under their own names.
+echo "  plain: A consumer never removes an install lock it did not publish"
+run_never_removes_a_foreign_install_lock
+echo "  plain: Install guard storage stays bounded across release versions"
+run_bounded_install_guard_storage
 
 echo "rhino bootstrap tests passed"

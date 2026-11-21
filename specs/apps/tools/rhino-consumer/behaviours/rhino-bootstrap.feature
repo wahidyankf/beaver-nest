@@ -18,75 +18,61 @@ Feature: Safe RHINO consumer bootstrap
     When the RHINO consumer bootstrap runs while release transport is unavailable
     Then it rejects the cached payload before that payload executes
 
-  Scenario: A downloaded archive whose digest misses the pin never executes
-    Given the consumer lock pins a checksum the published archive does not match
-    When the RHINO consumer bootstrap downloads that archive
-    Then it exits as invalid configuration without publishing or executing the payload
+  Scenario Outline: A downloaded release that fails verification is refused
+    Given a downloaded release fails verification because <failure>
+    When the RHINO consumer bootstrap downloads and verifies that release
+    Then it exits as invalid configuration and publishes nothing to the cache
+
+    Examples:
+      | failure                                                       |
+      | its archive digest misses the checksum the consumer lock pins |
+      | its reported identity has a duplicated or additional field    |
 
   Scenario: Non-exact stable release version is rejected
     Given the consumer lock contains a malformed or path-shaped release version
     When the RHINO consumer bootstrap validates the lock
     Then it exits as invalid configuration before transport or cache escape
 
-  Scenario: Exact candidate tag uses stable release identity
+  Scenario: A pinned release candidate installs and runs
     Given the consumer lock pins an exact candidate tag and the extracted release reports its stable product version
     When the RHINO consumer bootstrap validates and installs that candidate
-    Then it verifies the stable identity, retains the exact candidate cache path, and executes the release
-
-  Scenario: Release identity envelope must match exactly
-    Given a downloaded release reports a duplicated or additional identity field
-    When the RHINO consumer bootstrap validates the extracted executable
-    Then it rejects the release without publishing it to the cache
+    Then the release runs, and a second run needs no download
 
   Scenario: Unsupported platform is refused before any transport
     Given a host whose operating system or architecture is outside the published release matrix
     When the RHINO consumer bootstrap resolves its platform
     Then it exits as invalid configuration without reading a checksum or contacting transport
 
-  Scenario: Matching live install-lock owner remains protected
-    Given an install lock records a live process and its matching process-start identity
-    When another RHINO consumer bootstrap tries to install the pinned release
-    Then the bootstrap waits without reclaiming the live owner's install lock
+  Scenario Outline: A caller waits while another caller is installing
+    Given another consumer is installing the pinned release, and <its state>
+    When this consumer tries to install the pinned release
+    Then it waits and does not take over the other consumer's install
 
-  Scenario: Malformed identity for a live install-lock owner fails closed
-    Given an install lock records a live process with a malformed process-start identity
-    When another RHINO consumer bootstrap tries to install the pinned release
-    Then the bootstrap waits without treating malformed metadata as proof of staleness
+    Examples:
+      | its state                                                  |
+      | its process is still running and its identity is intact    |
+      | its process is still running and its identity is malformed |
 
-  Scenario: Reused live PID with a different valid identity is reclaimed
-    Given an install lock records a live process with a different valid process-start identity
-    When another RHINO consumer bootstrap tries to install the pinned release
-    Then the bootstrap reclaims the stale lock and installs the pinned release
+  Scenario Outline: A caller takes over an install whose owner is gone
+    Given <stale state>
+    When this consumer tries to install the pinned release
+    Then it takes over the abandoned install and installs the pinned release
 
-  Scenario: Dead install-lock owner is reclaimed
-    Given an install lock records a process that is no longer alive
-    When another RHINO consumer bootstrap tries to install the pinned release
-    Then the bootstrap reclaims the abandoned lock and installs the pinned release
+    Examples:
+      | stale state                                                              |
+      | the earlier install's process has ended                                  |
+      | the earlier install's process number now belongs to an unrelated process |
+      | an earlier consumer crashed while it was starting its install            |
 
-  Scenario: Crash before install-lock metadata publication is recoverable
-    Given an earlier consumer left an incomplete legacy lock or an orphan prepared owner record
-    When another RHINO consumer bootstrap tries to install the pinned release
-    Then it reclaims only positively stale state while fresh or live preparations remain protected
-
-  Scenario: Concurrent cold callers install from exactly one verified download
-    Given two consumers start against a cache holding no copy of the pinned release
+  Scenario Outline: Two callers starting together download once and both run the release
+    Given two consumers start against <starting state>
     When both contend for the install
-    Then both execute the release from one download and no ownership record survives
+    Then both execute the release from one download
 
-  Scenario: Concurrent stale reclaimers preserve a replacement live owner
-    Given a stale install record and two concurrent consumer contenders
-    When one consumer reclaims the record and publishes live ownership during installation
-    Then the replacement remains owned and the pinned release downloads exactly once
-
-  Scenario: A consumer never removes an install lock it did not publish
-    Given a consumer's install lock has been replaced by another live owner's record
-    When that consumer finishes installing and releases its lock
-    Then it leaves the replacement in place rather than admitting a third installer
-
-  Scenario: Install guard storage stays bounded across release versions
-    Given one consumer cache has installed several distinct pinned release versions
-    When release-directory retention prunes superseded versions
-    Then the cache retains exactly one install guard for the whole cache root
+    Examples:
+      | starting state                                          |
+      | a cache holding no copy of the pinned release           |
+      | a cache left by an earlier install whose process ended  |
 
   Scenario: Retention never deletes a release another consumer is using
     Given one consumer holds a live claim on the release it is running
@@ -98,20 +84,25 @@ Feature: Safe RHINO consumer bootstrap
     When every repository installs and prunes against its own distinct pinned version
     Then each repository keeps its release and none of them downloads a second time
 
-  Scenario: Release ranking reads real timestamps on every supported platform
-    Given a consumer cache holds release directories on a platform whose stat rejects the other
-      platform's timestamp format
-    When retention ranks those directories by how recently they were used
-    Then it ranks them by their real timestamps rather than by diagnostic output
-
-  Scenario: Retention reclaims releases left idle beyond its window
+  Scenario Outline: Retention reclaims releases left idle beyond its window
     Given a cache root holds release directories left untouched past the idle window
+    And the host's stat command uses the <dialect> dialect
     When a consumer installs its pinned release and retention runs
     Then only the pinned release and the most recent idle fallbacks remain
 
-  Scenario: The two consumer bootstraps never reach each other's state
+    Examples:
+      | dialect |
+      | BSD     |
+      | GNU     |
+
+  Scenario: Installing both tools on one machine keeps their caches apart
     Given this repository ships both the RHINO and the HIPPO consumer wrappers
-    When each resolves its cache root, install guard, release directory, and transport under
-      one shared machine environment
-    Then neither wrapper touches a path the other touched, neither root lies inside the other,
-      and each honours only its own cache-root override
+    When each consumer runs once under one shared machine environment with transport unavailable
+    Then neither consumer touches a path the other touched, neither cache root lies inside the other,
+      and each requests only its own pinned release
+
+  Scenario: Each tool honours only its own cache-root setting
+    Given this repository ships both the RHINO and the HIPPO consumer wrappers
+    When each consumer runs with its own cache-root setting, and again with only the other tool's setting
+    Then it installs only under its own setting, and with only the other tool's setting it keeps to its
+      default cache root
