@@ -12,4 +12,15 @@ defmodule BnestAppWeb.UserAuthTest do
 
     assert UserAuth.transition_user(true) == nil
   end
+
+  test "the admin gate halts a non-admin connection with not found before any LiveView mounts" do
+    conn =
+      Plug.Test.conn(:get, "/admin/settings/schedules")
+      |> Plug.Conn.assign(:current_user, %{"userId" => "child", "roles" => ["children"]})
+      |> UserAuth.require_admin_role([])
+
+    assert conn.halted
+    assert conn.status == 404
+    assert conn.resp_body == "Not found"
+  end
 end
