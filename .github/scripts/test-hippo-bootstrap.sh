@@ -26,6 +26,29 @@ grep -Fq '`hippo.lock`, then align' "$resource_rule"
 remote_dispatch_rule="$repository_root/repo-governance/development/resource-aware-development/003-remote-dispatch.md"
 grep -Fq '003-remote-dispatch' "$resource_rule"
 grep -Fq '429a891' "$remote_dispatch_rule"
+# Lint of the workflow and of the governance text, not behaviour. v1 owns queueing
+# inside one invocation, so the shared-root proof must not retry a reserved exit
+# code (a client-side loop can duplicate a child or misclassify a child-owned code),
+# and it must submit exactly two one-attempt owners. A protocol mismatch is exit
+# 125: HIPPO started nothing, the attempt is never retried, and the operator checks
+# status, then drains or upgrades.
+workflow="$repository_root/.github/workflows/hippo-consumer-smoke.yml"
+if grep -qE '(-ne|-eq) (75|76) \]|deferrals=' "$workflow"; then
+	echo "the shared-root proof must not retry a reserved exit code" >&2
+	exit 1
+fi
+if [ "$(grep -cE '^[[:space:]]*\./hippo run .*&$' "$workflow")" -ne 0 ]; then
+	echo "a guarded owner bypasses the one-attempt launcher" >&2
+	exit 1
+fi
+if [ "$(grep -cE '^[[:space:]]*launch_owner [a-z]+ &$' "$workflow")" -ne 2 ]; then
+	echo "the proof must submit exactly two one-attempt owners" >&2
+	exit 1
+fi
+grep -Fq 'Exit `125`' "$resource_rule"
+grep -Fqi 'never retry it' "$resource_rule"
+grep -Fq './hippo status' "$resource_rule"
+grep -Fq 'drain or' "$resource_rule"
 # Keep every tracked active example compatible with schema 3 and prevent the
 # self-contention caused by wrapping an already-guarded package script.
 tier_findings=$(git -C "$repository_root" grep -n -E \
@@ -330,26 +353,16 @@ feature_file="$repository_root/specs/apps/tools/hippo-consumer/behaviours/hippo-
 expected_scenarios='A cold cache installs once and a warm cache needs no transport
 Repository worker settings precede the caller'"'"'s run arguments
 Tampered warm-cache payload never executes
-A downloaded archive whose digest misses the pin never executes
+A downloaded release that fails verification is refused
 Non-exact stable release version is rejected
-Release identity envelope must match exactly
 Unsupported platform is refused before any transport
-Matching live install-lock owner remains protected
-Malformed identity for a live install-lock owner fails closed
-Reused live PID with a different valid identity is reclaimed
-Dead install-lock owner is reclaimed
-Crash before install-lock metadata publication is recoverable
-Concurrent cold callers install from exactly one verified download
-Concurrent stale reclaimers preserve a replacement live owner
-A consumer never removes an install lock it did not publish
-Install guard storage stays bounded across release versions
+A caller waits while another caller is installing
+A caller takes over an install whose owner is gone
+Two callers starting together download once and both run the release
 Retention never deletes a release another consumer is using
 Retention never evicts a release another repository still uses
-Release ranking reads real timestamps on every supported platform
-Retention reclaims releases left idle beyond its window
-Concurrent owners survive queued admission without client retry
-A protocol mismatch is never retried as capacity'
-actual_scenarios=$(awk '/^[[:space:]]*Scenario: / { sub(/^[[:space:]]*Scenario: /, ""); print }' "$feature_file")
+Retention reclaims releases left idle beyond its window'
+actual_scenarios=$(awk '/^[[:space:]]*Scenario( Outline)?: / { sub(/^[[:space:]]*Scenario( Outline)?: /, ""); print }' "$feature_file")
 [ "$actual_scenarios" = "$expected_scenarios" ]
 
 prepare_legacy_install_lock() {
@@ -1004,32 +1017,6 @@ run_bounded_install_guard_storage() {
 	rm -rf -- "$cache_root"
 }
 
-run_concurrent_owners_survive_queued_admission() {
-	workflow="$repository_root/.github/workflows/hippo-consumer-smoke.yml"
-	# v1 owns queueing inside one invocation. A client-side exit-code loop can
-	# duplicate a child or misclassify a child-owned reserved code.
-	if grep -qE '(-ne|-eq) (75|76) \]|deferrals=' "$workflow"; then
-		echo "the shared-root proof must not retry a reserved exit code" >&2
-		return 1
-	fi
-	if [ "$(grep -cE '^[[:space:]]*\./hippo run .*&$' "$workflow")" -ne 0 ]; then
-		echo "a guarded owner bypasses the one-attempt launcher" >&2
-		return 1
-	fi
-	if [ "$(grep -cE '^[[:space:]]*launch_owner [a-z]+ &$' "$workflow")" -ne 2 ]; then
-		echo "the proof must submit exactly two one-attempt owners" >&2
-		return 1
-	fi
-}
-
-run_protocol_mismatch_is_never_retried() {
-	resource_rule="$repository_root/repo-governance/development/resource-aware-development.md"
-	grep -Fq 'Exit `125`' "$resource_rule"
-	grep -Fqi 'never retry it' "$resource_rule"
-	grep -Fq './hippo status' "$resource_rule"
-	grep -Fq 'drain or' "$resource_rule"
-}
-
 # The BSD form `stat -f` means "filesystem status" to GNU coreutils, which writes
 # a block of filesystem detail to stdout before failing on the format operand, so
 # a `stat -f ... || stat -c ...` fallback chain captures that detail alongside the
@@ -1085,35 +1072,51 @@ run_release_ranking_reads_real_timestamps() {
 
 while IFS= read -r scenario; do
 	# Name each scenario as it starts: a failure under `set -e` is otherwise
-	# silent, and a corpus that shrank would still end in a pass line.
+	# silent, and a corpus that shrank would still end in a pass line. A Scenario
+	# Outline runs each function it names, and each function covers every row of
+	# the outline's Examples table.
 	echo "  $scenario"
 	case "$scenario" in
 	'A cold cache installs once and a warm cache needs no transport') run_cold_then_warm_cache ;;
 	"Repository worker settings precede the caller's run arguments") run_worker_settings_precede_run_arguments ;;
 	'Tampered warm-cache payload never executes') run_tampered_warm_cache ;;
-	'A downloaded archive whose digest misses the pin never executes') run_download_digest_mismatch ;;
+	'A downloaded release that fails verification is refused')
+		run_download_digest_mismatch
+		run_non_exact_identity_envelope
+		;;
 	'Non-exact stable release version is rejected') run_non_exact_stable_version ;;
-	'Release identity envelope must match exactly') run_non_exact_identity_envelope ;;
 	'Unsupported platform is refused before any transport') run_unsupported_platform_refused ;;
-	'Matching live install-lock owner remains protected') run_matching_live_owner ;;
-	'Malformed identity for a live install-lock owner fails closed') run_malformed_live_owner ;;
-	'Reused live PID with a different valid identity is reclaimed') run_reused_live_pid ;;
-	'Dead install-lock owner is reclaimed') run_dead_owner ;;
-	'Crash before install-lock metadata publication is recoverable') run_crash_before_publication ;;
-	'Concurrent cold callers install from exactly one verified download') run_concurrent_cold_callers ;;
-	'Concurrent stale reclaimers preserve a replacement live owner') run_concurrent_stale_reclaimers ;;
-	'A consumer never removes an install lock it did not publish') run_never_removes_a_foreign_install_lock ;;
-	'Install guard storage stays bounded across release versions') run_bounded_install_guard_storage ;;
+	'A caller waits while another caller is installing')
+		run_matching_live_owner
+		run_malformed_live_owner
+		;;
+	'A caller takes over an install whose owner is gone')
+		run_dead_owner
+		run_reused_live_pid
+		run_crash_before_publication
+		;;
+	'Two callers starting together download once and both run the release')
+		run_concurrent_cold_callers
+		run_concurrent_stale_reclaimers
+		;;
 	'Retention never deletes a release another consumer is using') run_retention_protects_installing_release ;;
 	'Retention never evicts a release another repository still uses') run_retention_keeps_releases_other_repositories_use ;;
-	'Release ranking reads real timestamps on every supported platform') run_release_ranking_reads_real_timestamps ;;
-	'Retention reclaims releases left idle beyond its window') run_retention_reclaims_idle_releases ;;
-	'Concurrent owners survive queued admission without client retry') run_concurrent_owners_survive_queued_admission ;;
-	'A protocol mismatch is never retried as capacity') run_protocol_mismatch_is_never_retried ;;
+	'Retention reclaims releases left idle beyond its window')
+		run_retention_reclaims_idle_releases
+		run_release_ranking_reads_real_timestamps
+		;;
 	*) exit 1 ;;
 	esac
 done <<EOF
 $actual_scenarios
 EOF
+
+# Plain shell tests: each checks one behaviour of this wrapper. Their scenarios
+# were removed by the spec review as internal, so they run here directly, every
+# time, under their own names.
+echo "  plain: A consumer never removes an install lock it did not publish"
+run_never_removes_a_foreign_install_lock
+echo "  plain: Install guard storage stays bounded across release versions"
+run_bounded_install_guard_storage
 
 echo "hippo bootstrap tests passed"
