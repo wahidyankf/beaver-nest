@@ -76,11 +76,11 @@ Each unit ends with a commit item that records the authorization or `No commit a
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BE_UNIT`         | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:unit:be`                |
 | `INTEGRATION`     | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:integration`            |
-| `BEHAVIOUR`       | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour`     |
+| `BEHAVIOUR`       | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:behaviour:coverage`     |
 | `APP_QUICK`       | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:quick`                  |
 | `RELEASE_TEST`    | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t release:test`                |
 | `REPO`            | `rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo`              |
-| `FE_E2E_COVERAGE` | `rtk ./hippo run --class ephemeral --resource-tier light --disk-path . -- npm exec -- nx run -p bnest-app-fe-e2e -t test:coverage:behaviour` |
+| `FE_E2E_COVERAGE` | `rtk ./hippo run --class ephemeral --resource-tier light --disk-path . -- npm exec -- nx run -p bnest-app-fe-e2e -t test:behaviour:coverage` |
 | `FE_E2E_CASE`     | `rtk npm run test:e2e:fe -- -- --grep "<scenario title>"`                                                                                    |
 
 `test:quick` never runs integration or E2E. Before relying on a row, confirm the target still exists with

@@ -35,7 +35,7 @@
         "parallel": false
       }
     },
-    "test:bootstrap": {
+    "test:integration": {
       "executor": "nx:run-commands",
       "inputs": [
         "default",
@@ -48,6 +48,27 @@
         "commands": [
           {
             "command": "./.github/scripts/test-rhino-bootstrap.sh",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
+    "test:behaviour:coverage": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/repo-config.yml",
+        "{workspaceRoot}/rhino",
+        "{workspaceRoot}/rhino.lock",
+        "{workspaceRoot}/specs/**/*"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "./rhino behaviour coverage validate",
             "forwardAllArgs": false
           }
         ],

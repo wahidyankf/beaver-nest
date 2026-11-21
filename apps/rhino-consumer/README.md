@@ -34,7 +34,8 @@ Run from the repository root:
 
 ```console
 $ npm exec -- nx run rhino-consumer:test:repo
-$ npm exec -- nx run rhino-consumer:test:bootstrap
+$ npm exec -- nx run rhino-consumer:test:integration
+$ npm exec -- nx run rhino-consumer:test:behaviour:coverage
 ```
 
 Heavy or repeated local runs go through the [HIPPO guard](../../repo-governance/development/resource-aware-development.md):
@@ -84,14 +85,21 @@ the script rather than outliving its reason.
 Everything still resolves from the repository root. That is deliberate: the alternative is a gate
 that runs from the wrong directory and reports a clean result for a tree nobody asked about.
 
-### `test:bootstrap`
+### `test:integration`
 
 Runs [the consumer bootstrap suite](../../.github/scripts/test-rhino-bootstrap.sh) — twenty-one
 scenarios over cache integrity, argument passthrough, install serialization, stale-owner
 reclamation, retention, and the disjointness of this wrapper's state from HIPPO's, against a
 synthetic release, so it touches neither GitHub nor the real cache. The
 pre-push hook runs it when a pushed range touches the consumer boundary; this target exists so it
-is also runnable on its own.
+is also runnable on its own. It is this project's integration level: the project has no unit
+level, so it has no `test:quick`.
+
+### `test:behaviour:coverage`
+
+Runs `./rhino behaviour coverage validate`, RHINO's static check of every corpus that
+`repo-config.yml` declares. It runs no test. The corpus is repository-wide, so every project's
+target of this name reports the same result.
 
 ## Paths
 

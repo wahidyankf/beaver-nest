@@ -25,7 +25,7 @@
     "lint": {
       "command": "npm exec -- oxlint --deny correctness --deny suspicious --deny pedantic --deny perf --deny typescript/no-explicit-any --deny-warnings --report-unused-disable-directives apps/bnest-app-fe-e2e"
     },
-    "test:coverage:behaviour": {
+    "test:behaviour:verify": {
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": [
@@ -50,10 +50,31 @@
         "parallel": false
       }
     },
+    "test:behaviour:coverage": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/repo-config.yml",
+        "{workspaceRoot}/rhino",
+        "{workspaceRoot}/rhino.lock",
+        "{workspaceRoot}/specs/**/*"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "./rhino behaviour coverage validate",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
     "test:e2e": {
       "command": "BNEST_E2E_PORT=${BNEST_E2E_PORT:-4010} ./hippo run --class ephemeral --resource-tier standard --disk-path . --lease-port ${BNEST_E2E_PORT:-4010} --lease-owner fe-e2e --lease-min 4010 --lease-max 4019 -- node apps/bnest-app-fe-e2e/tools/run-e2e.mts",
       "dependsOn": [
-        "test:coverage:behaviour",
+        "test:behaviour:verify",
         {
           "projects": ["bnest-app"],
           "target": "assets:build"
@@ -82,7 +103,11 @@
             "forwardAllArgs": false
           },
           {
-            "command": "npm exec -- nx run -p bnest-app-fe-e2e -t test:coverage:behaviour",
+            "command": "npm exec -- nx run -p bnest-app-fe-e2e -t test:behaviour:verify",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app-fe-e2e -t test:behaviour:coverage",
             "forwardAllArgs": false
           }
         ],

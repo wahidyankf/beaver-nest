@@ -89,12 +89,13 @@ The chat starts with `gpt-6.1-terra` at medium reasoning effort in a read-only s
 ```sh
 npm test
 ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:integration
-./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:coverage:behaviour
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:behaviour:verify
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:behaviour:coverage
 npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e -- --grep "An automatic LiveView reconnect preserves"
-./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:bootstrap
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:integration
 ```
 
-`npm test` runs the Phoenix unit suite through Nx. Executable unit and integration tests live in separate layer directories; public-boundary E2E tests live in dedicated Nx apps. Bnest's unit, integration, and browser adapters consume the same recursively discovered feature corpus; each project's `test:coverage:behaviour` statically proves that the adapters it owns implement that corpus completely. Run only affected end-to-end cases during development. At 06:00 and 18:00 WIB, scheduled GitHub Actions runs each application's integration suite before its complete E2E suite; ExBdd's own engine coverage runs in its own repository.
+`npm test` runs the Phoenix unit suite through Nx. Executable unit and integration tests live in separate layer directories; public-boundary E2E tests live in dedicated Nx apps. Bnest's unit, integration, and browser adapters consume the same recursively discovered feature corpus; each project's `test:behaviour:verify` proves that the adapters it owns bind that corpus completely, and `test:behaviour:coverage` statically checks the declared corpus with RHINO. Run only affected end-to-end cases during development. At 06:00 and 18:00 WIB, scheduled GitHub Actions runs each application's integration suite before its complete E2E suite; ExBdd's own engine coverage runs in its own repository.
 
 ## Repository layout
 

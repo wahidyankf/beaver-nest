@@ -42,7 +42,7 @@ New canonical corpus for the engine.
 
 - → Bindings: `apps/bnest-app/test/behaviour/steps/learning_steps.exs`, `apps/bnest-app-e2e/tests/steps/learning.steps.ts`, `apps/bnest-app-e2e/tests/steps/learning_api.steps.ts`, and support in `apps/bnest-app-e2e/tests/support/learning.ts`.
 - = Preserve: no existing scenario in another feature changes meaning.
-- ✓ Proof: `bnest-app:test:coverage:behaviour` reports the enlarged corpus with no undefined, ambiguous, or unused binding; `bnest-app-e2e:test:e2e` runs the learner and parent journeys and the `api` project runs the endpoint scenarios.
+- ✓ Proof: `bnest-app:test:behaviour:coverage` reports the enlarged corpus with no undefined, ambiguous, or unused binding; `bnest-app-e2e:test:e2e` runs the learner and parent journeys and the `api` project runs the endpoint scenarios.
 
 <details>
 <summary>Adapter capability per scenario group</summary>

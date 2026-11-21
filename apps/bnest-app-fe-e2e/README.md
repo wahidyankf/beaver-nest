@@ -21,17 +21,18 @@ npm exec -- playwright install chromium
 1. `typecheck` checks every `.ts` file with TypeScript strict mode, rejects implicit and explicit `any`, and emits no files.
 2. `lint` runs Oxlint's correctness, suspicious, pedantic, and performance rules and rejects explicit `any`.
 3. `test:unit` runs the Node unit tests of the testing-control client, the instance path mirror, the runtime helpers, and the per-scenario test-instance lifecycle (its state machine and cleanup order). The client runs against a loopback stand-in server, and the path mirror is checked against the shared fixture `apps/bnest-app/test/fixtures/test_instance_paths.json`.
-4. `test:coverage:behaviour` checks the browser adapter this project owns against the exact `app-fe` recursive corpus. It runs the compliance self-tests, generates Playwright tests, and rejects undefined, ambiguous, unused, or incorrectly shaped browser bindings and scenarios. `bnest-app` runs the matching check for its unit and integration adapters.
+4. `test:behaviour:verify` checks the browser adapter this project owns against the exact `app-fe` recursive corpus. It runs the compliance self-tests, generates Playwright tests, and rejects undefined, ambiguous, unused, or incorrectly shaped browser bindings and scenarios. `bnest-app` runs the matching verify target for its unit and integration adapters.
+5. `test:behaviour:coverage` runs RHINO's static check of the repository's declared corpus. It runs no test.
 
 The managed Bnest release uses `test:release-quick` after the application quick gate. It runs this project's typecheck and lint without needlessly repeating the already-passed application quick and shared behaviour checks.
 
-There is no numeric `test:coverage` target because this project owns only end-to-end tests. `test:coverage:behaviour` measures complete feature-to-binding coverage without collecting numeric TypeScript line coverage or launching a browser. `test:e2e` is intentionally excluded from `test:quick` because browser tests are slow by nature.
+There is no numeric `test:coverage` target because this project owns only end-to-end tests. `test:behaviour:verify` measures complete feature-to-binding coverage without collecting numeric TypeScript line coverage or launching a browser. `test:e2e` is intentionally excluded from `test:quick` because browser tests are slow by nature.
 
 ## Authoring Behaviours
 
 Every browser journey must originate in an English `.feature` file below [`specs/apps/bnest/app-fe/behaviours/`](../../specs/apps/bnest/app-fe/behaviours/). Features are discovered recursively, so adding or nesting one requires no registration. Put routes, user actions, expected content, and examples in Gherkin. Keep Playwright mechanics in thin `tests/steps/*.ts` bindings, and do not add direct `tests/**/*.spec.ts` journey files.
 
-Every feature must contain a scenario, and every scenario must contain an explicit `When` and `Then`. `test:coverage:behaviour` fails for malformed features, missing or ambiguous bindings, incorrect binding arity, direct journey specs, invalid exemption tags, and bindings unused by every feature. Runtime excludes only a scenario carrying a documented `@e2e-exempt`; unit has no exemption, and `@integration-exempt` affects only the integration adapter. A green static check never substitutes for the [manual one-by-one implementation review](../../repo-governance/workflows/quality/gherkin-implementation-review.md).
+Every feature must contain a scenario, and every scenario must contain an explicit `When` and `Then`. `test:behaviour:verify` fails for malformed features, missing or ambiguous bindings, incorrect binding arity, direct journey specs, invalid exemption tags, and bindings unused by every feature. Runtime excludes only a scenario carrying a documented `@e2e-exempt`; unit has no exemption, and `@integration-exempt` affects only the integration adapter. A green static check never substitutes for the [manual one-by-one implementation review](../../repo-governance/workflows/quality/gherkin-implementation-review.md).
 
 During development, follow the [end-to-end testing standard](../../repo-governance/development/end-to-end-testing.md) and run only cases plausibly affected by the change. Pass a scenario-title or tag `--grep` filter through the Nx target:
 
