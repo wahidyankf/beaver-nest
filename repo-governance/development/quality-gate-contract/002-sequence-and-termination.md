@@ -5,34 +5,27 @@
 One cycle is one full audit followed by one repair. Every arrow back to an earlier step is bounded by the cycle counter
 `k`.
 
-```text
-freeze subject (commit + scope)
-        |
-        v
-entry tooling run ---- red ----> root-cause pre-step (<= 3 attempts, outside the cycle budget)
-        |                              |                     |
-      green                          green               still red --> BLOCKED (tooling)
-        |<-----------------------------+
-        v
-k = 1
-        |
-        v
-full audit by <family>-checker  ----- no blocking row ----> PASS or PASS_WITH_FINDINGS
-        |
-   blocking rows
-        v
-freeze ledger L_k ---> <family>-propagation (run by <family>-fixer)
-        |                   repairs only L_k rows, verifies each row
-        v
-blocking count did not fall since the previous audit? ---- yes ---> FAIL (no progress)
-        |
-        no
-        v
-k = max-cycles? --- no ---> k = k + 1, back to the full audit
-        |
-       yes
-        v
-exit tooling run + per-row verification ---> PASS / PASS_WITH_FINDINGS (all rows closed) or FAIL
+```mermaid
+flowchart TD
+    accTitle: Quality gate sequence
+    accDescr: Entry check, a root-cause pre-step when red, a bounded audit and repair loop, then one verdict.
+    classDef default fill:#CA9161,stroke:#000000,color:#000000,stroke-width:2px
+    Freeze["Freeze subject<br/>commit plus scope"] --> Entry["Entry tooling run"]
+    Entry -- red --> Root["Root-cause pre-step<br/>at most 3 attempts,<br/>outside the cycle budget"]
+    Entry -- green --> K1["k equals 1"]
+    Root -- green --> K1
+    Root -- still red --> Blocked["BLOCKED<br/>tooling"]
+    K1 --> Audit["Full audit<br/>by the checker"]
+    Audit -- no blocking row --> Early["PASS or<br/>PASS_WITH_FINDINGS"]
+    Audit -- blocking rows --> Ledger["Freeze the open<br/>blocking rows"]
+    Ledger --> Prop["Family propagation<br/>run by the fixer<br/>repairs only ledger rows"]
+    Prop --> Progress{"Blocking count did not fall<br/>since the previous audit?"}
+    Progress -- yes --> NoProgress["FAIL<br/>no progress"]
+    Progress -- no --> Ceiling{"k equals max-cycles?"}
+    Ceiling -- no --> Next["Increase k by one"]
+    Next --> Audit
+    Ceiling -- yes --> Exit["Exit tooling run<br/>and per-row verification"]
+    Exit --> Final["PASS, PASS_WITH_FINDINGS,<br/>or FAIL"]
 ```
 
 1. **Freeze the subject.** Record the commit and the exact scope. A subject changed during the run by anything other
