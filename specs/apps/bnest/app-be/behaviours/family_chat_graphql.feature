@@ -33,19 +33,16 @@ Feature: Family chat GraphQL API
     Then the response returns newer messages ascending by server ID
     And "hasNewer" reflects whether another page remains
 
-  Scenario: Supplying both cursors is rejected
-    When the user queries family chat messages with both a beforeId and an afterId
-    Then the response is a safe "VALIDATION_FAILED" error
-
-  Scenario Outline: A limit outside the accepted range is rejected
-    When the user queries family chat messages with limit <limit>
+  Scenario Outline: A message page request with invalid arguments is rejected
+    When the user queries family chat messages with <arguments>
     Then the response is a safe "VALIDATION_FAILED" error
 
     Examples:
-      | limit |
-      | 0     |
-      | -1    |
-      | 51    |
+      | arguments                      |
+      | both a beforeId and an afterId |
+      | limit 0                        |
+      | limit -1                       |
+      | limit 51                       |
 
   Rule: Bounded body rendering per page
 
@@ -64,24 +61,26 @@ Feature: Family chat GraphQL API
 
   Rule: Idempotent message send
 
-  Scenario: A member sends a durable message
+  Scenario: A member sends a message and gets the committed message back
     When the user sends the family chat message "Dinner is ready" with a fresh client message ID
     Then the response returns the committed message with a server ID and commit time
     And the family chat room holds exactly one message with that client message ID
-    And the response reports the sender's real display username, not their raw user ID
 
-  Scenario: Retrying the same client message ID returns the original commit
-    Given the user already sent the family chat message "Dinner is ready" with a known client message ID
-    When the user resends a different body with the same client message ID
-    Then the response returns the original committed message unchanged
-    And the family chat room still holds exactly one message for that client message ID
+  Scenario: A sent message names its sender by display username, not raw user ID
+    When the user sends the family chat message "Dinner is ready" with a fresh client message ID
+    Then the response reports the sender's real display username, not their raw user ID
 
-  Scenario: Retrying a client message ID with a different reply target returns the first commit
+  Scenario Outline: Retrying a client message ID returns the first commit
     Given the user already sent a family chat reply to a known message with a known client message ID
-    When the user resends the same client message ID naming a different reply target
+    When <retry>
     Then the response returns the original committed message unchanged
     And that message's quote still names the reply target committed first
     And the family chat room still holds exactly one message for that client message ID
+
+    Examples:
+      | retry                                                                      |
+      | the user resends a different body with the same client message ID          |
+      | the user resends the same client message ID naming a different reply target |
 
   Rule: Replying to a message
 
@@ -300,24 +299,27 @@ Feature: Family chat GraphQL API
     When the user queries their current Web Push subscription
     Then the response reports enabled state and expiration only
 
-  Scenario: A member enables Web Push on this device
+  Scenario: A member enables Web Push for this device only
     When the user upserts a valid Web Push subscription for this session
     Then the response reports the subscription enabled
-    And the stored subscription is bound to the current user and session only
+    And no other session of that user and no other user reads that subscription as enabled
 
   Scenario: A member disables Web Push on this device
     Given the user has an enabled Web Push subscription for this session
     When the user disables their current Web Push subscription
     Then the response reports the subscription disabled
+
+  Scenario: Disabling Web Push again still reports disabled
+    Given the user has disabled their Web Push subscription for this session
     When the user disables their current Web Push subscription again
     Then the response still reports the subscription disabled
 
-  # Exemption(e2e): a push request the refusal must prevent would leave from inside the server process, which the exact origin cannot observe; alternative-proof: bnest-app:test:integration / An unsafe subscription endpoint is rejected before storage
+  # Exemption(e2e): a push request the refusal must prevent would leave from inside the server process, which the exact origin cannot observe; alternative-proof: bnest-app:test:integration / An unsafe Web Push subscription endpoint is rejected
   @e2e-exempt
-  Scenario Outline: An unsafe subscription endpoint is rejected before storage
+  Scenario Outline: An unsafe Web Push subscription endpoint is rejected
     When the user upserts a Web Push subscription with endpoint "<endpoint>"
     Then the response is a safe "VALIDATION_FAILED" error
-    And no subscription row is stored or requested over the network
+    And the member's current Web Push subscription still reads disabled
 
     Examples:
       | endpoint                                   |
@@ -332,11 +334,11 @@ Feature: Family chat GraphQL API
     When the user sends a family chat message mutation with a missing CSRF token
     Then the response is a 403 envelope with a safe "CSRF_REJECTED" error
 
-  # Exemption(e2e): the socket's resolved Absinthe context, the roles it carries included, has no read-back at the exact origin; alternative-proof: bnest-app:test:integration / The subscription socket resolves identity only from the server session
+  # Exemption(e2e): the socket's resolved Absinthe context, the roles it carries included, has no read-back at the exact origin; alternative-proof: bnest-app:test:integration / A socket connection acts as the signed-in member whatever identity its parameters claim
   @e2e-exempt
-  Scenario: The subscription socket resolves identity only from the server session
+  Scenario: A socket connection acts as the signed-in member whatever identity its parameters claim
     When the user's browser opens the family chat GraphQL socket with the authenticated session
-    Then the socket context carries the server-resolved current user and session digest
+    Then a subscription opened on the socket is authorised as the signed-in member
     And socket parameters claiming another identity or role are ignored
 
   Scenario: The socket rejects a connection with no valid session

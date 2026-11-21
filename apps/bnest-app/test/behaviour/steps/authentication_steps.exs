@@ -43,6 +43,8 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
     do: outcome(context, :no_user_data_access)
   )
 
+  step("Bnest has not been set up yet", context, do: prepare(context, :uninitialized))
+
   step("Bnest has no bootstrap journal", context, do: prepare(context, :uninitialized))
 
   step("the maintainer submits all initial accounts including an administrator", context,
@@ -70,10 +72,6 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
   )
 
   step("an approved user account exists", context, do: prepare(context, :approved_account))
-
-  step("an approved user account exists with an Argon2id verifier", context,
-    do: prepare(context, :approved_argon2_account)
-  )
 
   step("the user logs in with valid credentials", context, do: perform(context, :login))
 

@@ -175,7 +175,7 @@ Then("the response reports the subscription enabled", async ({ page }) => {
 // This session holds it; a second session of the same member does not, nor
 // does another member's session.
 Then(
-  "the stored subscription is bound to the current user and session only",
+  "no other session of that user and no other user reads that subscription as enabled",
   async ({ page, browser }) => {
     const identity = scenarioIdentity();
     expect((await currentState(page)).enabled).toBe(true);
@@ -189,6 +189,15 @@ Given(
   async ({ page }) => {
     await upsert(page);
     expect(mutationState("upsertWebPushSubscription")?.enabled).toBe(true);
+  },
+);
+
+Given(
+  "the user has disabled their Web Push subscription for this session",
+  async ({ page }) => {
+    await upsert(page);
+    expect(mutationState("upsertWebPushSubscription")?.enabled).toBe(true);
+    await disable(page);
   },
 );
 

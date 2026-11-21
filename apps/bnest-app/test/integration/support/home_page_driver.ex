@@ -1871,6 +1871,15 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.put(context, :cleared_storage_keys, cleared)
   end
 
+  # The user changes the theme after the accepted import, through the routed theme endpoint the
+  # root layout's script uses. The change and the home it leaves are read by
+  # `:server_only_persistence`.
+  def perform_behaviour(context, :change_theme, _args) do
+    before = FileRecordBackend.read(context.central_store, :theme, context.user_id)
+    change = context.conn |> recycle() |> put("/preferences/theme", %{"theme" => "dark"})
+    Map.merge(context, %{theme_before: before, theme_change_status: change.status})
+  end
+
   # The user opens the saved chat, whose Codex thread the mount tries to resume, and sends the
   # next message. The page the mount rendered is kept, since the send clears its alert.
   def perform_behaviour(context, :continue_chat, _args) do
@@ -2805,14 +2814,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   # script to keep no copy of its own.
   def behaviour_outcome?(context, :server_only_persistence, _args) do
     user_id = context.user_id
-    before = FileRecordBackend.read(context.central_store, :theme, user_id)
     requested = "dark"
-    change = context.conn |> recycle() |> put("/preferences/theme", %{"theme" => requested})
     stored = FileRecordBackend.read(context.central_store, :theme, user_id)
     home = context.conn |> recycle() |> get("/")
     root = home.resp_body |> LazyHTML.from_document() |> LazyHTML.query("html")
 
-    change.status == 204 and stored != before and
+    context.theme_change_status == 204 and stored != context.theme_before and
       match?({:ok, %{"ownerId" => ^user_id, "theme" => ^requested}}, stored) and
       Records.read(:theme, user_id) == stored and Preferences.theme(user_id) == requested and
       home.status == 200 and

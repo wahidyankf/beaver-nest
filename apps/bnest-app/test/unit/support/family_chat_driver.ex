@@ -1593,10 +1593,10 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   def behaviour_outcome?(context, :subscription_still_disabled, _args),
     do: subscription_disabled?(context)
 
-  # Rejected before storage: no subscription holds the endpoint, the session has none, and
-  # the push client was asked for nothing.
-  def behaviour_outcome?(context, :no_subscription_stored_or_network, _args) do
-    match?({:error, %{code: "VALIDATION_FAILED"}}, context.family_chat_result) and
+  # Rejected before storage: the refused endpoint is stored nowhere, and the member's
+  # current subscription, as a fresh query reports it, reads disabled.
+  def behaviour_outcome?(context, :current_subscription_reads_disabled, _args) do
+    match?({:ok, %{enabled: false}}, context.family_chat_result) and
       stored_subscription(context.family_chat_push_endpoint) == nil and
       not session_subscribed?(current_user(context), session_digest(context)) and
       push_requests() == []

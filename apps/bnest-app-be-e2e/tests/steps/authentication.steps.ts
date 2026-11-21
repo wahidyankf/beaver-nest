@@ -33,7 +33,7 @@ Given("an approved user is logged in", async ({ page }) => {
   await login(page, currentIdentities().admin);
 });
 
-Given("Bnest has no bootstrap journal", async ({ page }) => {
+Given("Bnest has not been set up yet", async ({ page }) => {
   const response = await page.goto("/setup");
   expect(response?.status()).toBe(200);
   await expect(
@@ -76,6 +76,21 @@ Then("Bnest creates the accounts exactly once", async ({ page }) => {
 });
 
 Then(
+  "setup and public registration are unavailable afterward",
+  async ({ page }) => {
+    await page.goto("/setup");
+    await expect(page.locator("#setup-closed-title")).toHaveText(
+      "Setup is permanently closed",
+    );
+    await expect(
+      page.getByText(
+        "Public registration and password recovery are unavailable.",
+      ),
+    ).toBeVisible();
+  },
+);
+
+Then(
   "Bnest accepts the passwords without a character-count rule",
   ({ page }) => {
     void page;
@@ -92,19 +107,16 @@ Then(
 );
 
 // The seeded admin account, read through production's record read, holds an Argon2id verifier.
-Given(
-  "an approved user account exists with an Argon2id verifier",
-  async ({ page }) => {
-    const account = instanceRecord(
-      "account",
-      userIdFor(currentIdentities().admin.username),
-    );
-    expect(String(account["passwordVerifier"])).toMatch(/^\$argon2id\$v=19\$/u);
-    await page.context().clearCookies();
-    await page.goto("/login");
-    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-  },
-);
+Given("an approved user account exists", async ({ page }) => {
+  const account = instanceRecord(
+    "account",
+    userIdFor(currentIdentities().admin.username),
+  );
+  expect(String(account["passwordVerifier"])).toMatch(/^\$argon2id\$v=19\$/u);
+  await page.context().clearCookies();
+  await page.goto("/login");
+  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+});
 
 When("the user logs in with valid credentials", async ({ page }) => {
   const identity = currentIdentities().admin;

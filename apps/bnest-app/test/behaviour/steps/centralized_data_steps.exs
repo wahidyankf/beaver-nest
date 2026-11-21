@@ -11,11 +11,11 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: perform(context, :confirm_imports)
   )
 
-  step("Bnest preserves an immutable envelope for each source", context,
+  step("Bnest reports each source as accepted and verified", context,
     do: outcome(context, :immutable_envelopes)
   )
 
-  step("Bnest reads each normalized user-owned record successfully", context,
+  step("the user's chat, Sifat Allah progress, and theme are read back from Bnest", context,
     do: outcome(context, :normalized_records_read)
   )
 
@@ -23,7 +23,9 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: prepare(context, :absent_theme_source)
   )
 
-  step("Bnest records the absent system theme outcome", context,
+  step(
+    "Bnest reports the theme import as accepted with nothing for the browser to clear",
+    context,
     do: outcome(context, :absent_theme_recorded)
   )
 
@@ -43,15 +45,11 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: outcome(context, :source_and_record_unchanged)
   )
 
-  step("a recognized import was interrupted after source preservation", context,
+  step("a recognized import was interrupted before its data was saved", context,
     do: prepare(context, :interrupted_import)
   )
 
   step("the user retries that import", context, do: perform(context, :retry_import))
-
-  step("Bnest reuses its idempotent import identity", context,
-    do: outcome(context, :idempotent_import_identity)
-  )
 
   step("Bnest does not duplicate or overwrite accepted data", context,
     do: outcome(context, :accepted_data_preserved)
@@ -81,7 +79,11 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: outcome(context, :only_accepted_key_cleared)
   )
 
-  step("Bnest persists future changes only on the server", context,
+  step("the user confirms the recognized imports and then changes the theme", context,
+    do: context |> perform(:accept_and_read_back) |> perform(:change_theme)
+  )
+
+  step("the change is saved on the server and the browser is told to keep no copy", context,
     do: outcome(context, :server_only_persistence)
   )
 

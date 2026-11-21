@@ -47,27 +47,33 @@ When("the user confirms the recognized imports", async ({ page }) => {
   await confirmImports(page);
 });
 
-Then("Bnest preserves an immutable envelope for each source", () => {
+Then("Bnest reports each source as accepted and verified", () => {
   expect(importCount(adminId())).toBeGreaterThanOrEqual(3);
 });
 
-Then("Bnest reads each normalized user-owned record successfully", () => {
-  const id = adminId();
-  for (const kind of ["chat", "sifat_allah", "theme"] as const) {
-    expect(instanceRecord(kind, id)).toEqual(expect.any(Object));
-  }
-});
+Then(
+  "the user's chat, Sifat Allah progress, and theme are read back from Bnest",
+  () => {
+    const id = adminId();
+    for (const kind of ["chat", "sifat_allah", "theme"] as const) {
+      expect(instanceRecord(kind, id)).toEqual(expect.any(Object));
+    }
+  },
+);
 
 Given("the browser has no explicit theme source", async ({ page }) => {
   await setSources(page, { chat: null, learning: null, theme: null });
   beforeThemeSnapshot = recordSnapshot("theme", adminId());
 });
 
-Then("Bnest records the absent system theme outcome", async ({ page }) => {
-  await expect(
-    page.getByText("Theme preference: accepted and verified"),
-  ).toBeVisible();
-});
+Then(
+  "Bnest reports the theme import as accepted with nothing for the browser to clear",
+  async ({ page }) => {
+    await expect(
+      page.getByText("Theme preference: accepted and verified"),
+    ).toBeVisible();
+  },
+);
 
 Then("Bnest creates no explicit theme preference", () => {
   expect(recordSnapshot("theme", adminId())).toBe(beforeThemeSnapshot);
@@ -129,50 +135,56 @@ Given(
   },
 );
 
-When("Bnest accepts and reads back the normalized record", async ({ page }) => {
-  await confirmImports(page);
-});
+When(
+  "the user confirms the recognized imports and then changes the theme",
+  async ({ page }) => {
+    await confirmImports(page);
+    // The preference is written through PUT /preferences/theme, the same surface the removed control used (ADR 005).
+    expect(await putTheme(page, "dark")).toBe(204);
+  },
+);
 
 // Each write must reach the server's record, and the browser must keep none of it. A poll waits for the server's
 // write; each read is a fresh production record read, so the timeout covers a secondary process per attempt.
-Then("Bnest persists future changes only on the server", async ({ page }) => {
-  const id = adminId();
-  const beforeChat = recordSnapshot("chat", id);
-  const beforeLearning = recordSnapshot("sifat_allah", id);
+Then(
+  "the change is saved on the server and the browser is told to keep no copy",
+  async ({ page }) => {
+    const id = adminId();
+    const beforeChat = recordSnapshot("chat", id);
+    const beforeLearning = recordSnapshot("sifat_allah", id);
 
-  await page.goto("/chat");
-  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-  await page.getByLabel("Message").fill("Server-only follow-up");
-  await page.getByRole("button", { name: "Send" }).click();
-  await expect
-    .poll(() => recordSnapshot("chat", id), { timeout: 30_000 })
-    .not.toBe(beforeChat);
+    await page.goto("/chat");
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    await page.getByLabel("Message").fill("Server-only follow-up");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect
+      .poll(() => recordSnapshot("chat", id), { timeout: 30_000 })
+      .not.toBe(beforeChat);
 
-  expect(
-    await page.evaluate(() => sessionStorage.getItem("bnest.chat.v1")),
-  ).toBeNull();
+    expect(
+      await page.evaluate(() => sessionStorage.getItem("bnest.chat.v1")),
+    ).toBeNull();
 
-  await page.goto("/apps/sifat-allah");
-  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-  await page.getByRole("button", { name: "Belajar 3 Pasangan" }).click();
-  await page.getByRole("button", { name: "Aku sudah ingat" }).click();
+    await page.goto("/apps/sifat-allah");
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    await page.getByRole("button", { name: "Belajar 3 Pasangan" }).click();
+    await page.getByRole("button", { name: "Aku sudah ingat" }).click();
 
-  expect(
-    await page.evaluate(() => localStorage.getItem("bnest.sifat-allah.v1")),
-  ).toBeNull();
-  await expect
-    .poll(() => recordSnapshot("sifat_allah", id), { timeout: 30_000 })
-    .not.toBe(beforeLearning);
+    expect(
+      await page.evaluate(() => localStorage.getItem("bnest.sifat-allah.v1")),
+    ).toBeNull();
+    await expect
+      .poll(() => recordSnapshot("sifat_allah", id), { timeout: 30_000 })
+      .not.toBe(beforeLearning);
 
-  // The preference is written through PUT /preferences/theme, the same surface the removed control used (ADR 005).
-  expect(await putTheme(page, "dark")).toBe(204);
-  // The theme is not kept in the browser: no localStorage theme key is written, only the server record changes.
-  expect(
-    await page.evaluate(() => localStorage.getItem("phx:theme")),
-  ).toBeNull();
+    // The theme is not kept in the browser: no localStorage theme key is written, only the server record changes.
+    expect(
+      await page.evaluate(() => localStorage.getItem("phx:theme")),
+    ).toBeNull();
 
-  expect(instanceRecord("theme", id)["theme"]).toBe("dark");
-});
+    expect(instanceRecord("theme", id)["theme"]).toBe("dark");
+  },
+);
 
 Given(
   "centralized chat contains a transcript and an unavailable Codex thread",

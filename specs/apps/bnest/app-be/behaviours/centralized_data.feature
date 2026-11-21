@@ -6,16 +6,16 @@ Feature: Centralized Bnest data
   Background:
     Given an approved user is logged in
 
-  Scenario: Authenticated user imports each recognized browser source
+  Scenario: Confirming the recognized browser imports reports each source accepted and serves the imported data back to the user
     Given the browser has recognized Bnest chat, Sifat Allah, and explicit theme sources
     When the user confirms the recognized imports
-    Then Bnest preserves an immutable envelope for each source
-    And Bnest reads each normalized user-owned record successfully
+    Then Bnest reports each source as accepted and verified
+    And the user's chat, Sifat Allah progress, and theme are read back from Bnest
 
-  Scenario: Absent system theme is recorded without creating a preference
+  Scenario: Importing with no explicit browser theme leaves the theme at the system default
     Given the browser has no explicit theme source
     When the user confirms the recognized imports
-    Then Bnest records the absent system theme outcome
+    Then Bnest reports the theme import as accepted with nothing for the browser to clear
     And Bnest creates no explicit theme preference
 
   Scenario: Unknown, malformed, or oversized browser input is rejected without source deletion
@@ -25,11 +25,10 @@ Feature: Centralized Bnest data
     And the browser source and accepted server record remain unchanged
 
   # The interrupted-import seed is a flat-primary record kind (ADR 001, section 2).
-  Scenario: Retrying an interrupted import does not duplicate accepted data
-    Given a recognized import was interrupted after source preservation
+  Scenario: Retrying an interrupted import completes it without duplicating data
+    Given a recognized import was interrupted before its data was saved
     When the user retries that import
-    Then Bnest reuses its idempotent import identity
-    And Bnest does not duplicate or overwrite accepted data
+    Then Bnest does not duplicate or overwrite accepted data
 
   Scenario: A stale browser cannot overwrite a newer centralized record
     Given browser B has an older revision than browser A
@@ -37,10 +36,10 @@ Feature: Centralized Bnest data
     Then Bnest keeps the newer centralized record
     And browser B is asked to refresh
 
-  Scenario: Accepted browser import persists future changes only on the server
+  Scenario: After an accepted import, later changes are kept on the server and the browser keeps no copy
     Given a recognized browser source and an unrelated browser key exist
-    When Bnest accepts and reads back the normalized record
-    Then Bnest persists future changes only on the server
+    When the user confirms the recognized imports and then changes the theme
+    Then the change is saved on the server and the browser is told to keep no copy
 
   Scenario: Failed Codex-thread resume preserves the transcript
     Given centralized chat contains a transcript and an unavailable Codex thread

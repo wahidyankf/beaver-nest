@@ -77,18 +77,6 @@ Then(
   },
 );
 
-Given(
-  "the user already sent the family chat message {string} with a known client message ID",
-  async ({ page }, body: string) => {
-    scenario.baselineId = await newestFamilyChatMessageId(page);
-    scenario.clientMessageId = randomUUID();
-    scenario.knownBody = body;
-    const first = await sendFromPage(page, body, scenario.clientMessageId);
-    scenario.originalId = first?.id ?? "";
-    expect(scenario.originalId, "the first send committed").not.toBe("");
-  },
-);
-
 When(
   "the user resends a different body with the same client message ID",
   async ({ page }) => {

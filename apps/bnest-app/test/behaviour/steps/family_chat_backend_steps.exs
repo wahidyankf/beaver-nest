@@ -102,12 +102,6 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
   )
 
   step(
-    "the user already sent the family chat message {string} with a known client message ID",
-    %{args: [body]} = context,
-    do: prepare(context, :sent_message_with_known_id, [body])
-  )
-
-  step(
     "the user sent the family chat message {string} and it was committed",
     %{args: [body]} = context,
     do: prepare(context, :sent_and_committed_message, [body])
@@ -241,12 +235,18 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :subscription_enabled)
   )
 
-  step("the stored subscription is bound to the current user and session only", context,
+  step(
+    "no other session of that user and no other user reads that subscription as enabled",
+    context,
     do: outcome(context, :subscription_bound_to_session)
   )
 
   step("the user has an enabled Web Push subscription for this session", context,
     do: prepare(context, :has_enabled_subscription)
+  )
+
+  step("the user has disabled their Web Push subscription for this session", context,
+    do: context |> prepare(:has_enabled_subscription) |> perform(:disable_subscription)
   )
 
   step("the user disables their current Web Push subscription", context,
@@ -271,8 +271,11 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: perform(context, :upsert_subscription_with_endpoint, [endpoint])
   )
 
-  step("no subscription row is stored or requested over the network", context,
-    do: outcome(context, :no_subscription_stored_or_network)
+  step("the member's current Web Push subscription still reads disabled", context,
+    do:
+      context
+      |> perform(:query_current_subscription)
+      |> outcome(:current_subscription_reads_disabled)
   )
 
   step("the user sends a family chat message mutation with a missing CSRF token", context,
@@ -290,7 +293,7 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
   )
 
   step(
-    "the socket context carries the server-resolved current user and session digest",
+    "a subscription opened on the socket is authorised as the signed-in member",
     context,
     do: outcome(context, :socket_context_server_resolved)
   )

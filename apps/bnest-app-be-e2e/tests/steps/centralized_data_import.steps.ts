@@ -36,7 +36,7 @@ function adminId(): string {
 // it must be exactly the one envelope the seed wrote, so a seed that landed nowhere cannot pass the "no duplicate"
 // check. This scenario is `@flat-primary`, the only phase that takes this seed kind.
 Given(
-  "a recognized import was interrupted after source preservation",
+  "a recognized import was interrupted before its data was saved",
   async ({ page }) => {
     const seeded = await instanceLifecycle().seed("interrupted-import", {
       records: [
@@ -72,10 +72,6 @@ Given(
 
 When("the user retries that import", async ({ page }) => {
   await confirmImports(page);
-});
-
-Then("Bnest reuses its idempotent import identity", () => {
-  expect(importCount(adminId())).toBe(beforeImportCount);
 });
 
 Then(
