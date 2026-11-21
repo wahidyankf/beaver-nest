@@ -59,8 +59,9 @@ applicable**, because the condition it depends on never arose; and **accepted as
 For the plan that is substantively finished and whose only gap is evidence that no longer exists to be taken: a
 slot promoted and retired cannot be sampled again. Available only when all of these hold:
 
-1. the evidence is unobtainable rather than unobtained, and the disposition says why — running out of time is an
-   unfinished plan, not this;
+1. the evidence is unobtainable rather than unobtained, current behaviour cannot
+   [establish it](007-evidence-and-quality.md#current-behaviour-over-past-proof), and the disposition says why — running
+   out of time is an unfinished plan, not this;
 2. the plan's authority accepts it, as a dated decision naming what was put to them and what they chose; an
    executor never accepts away its own missing evidence, and asserting that the authority agreed is not a
    record of it;
