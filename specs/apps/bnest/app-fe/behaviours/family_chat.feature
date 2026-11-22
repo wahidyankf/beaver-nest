@@ -472,8 +472,6 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): the hint's visibility is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat send shortcut hint follows the pointer
-  @integration-exempt
   Scenario Outline: The Family Chat send shortcut hint follows the pointer
     Given the viewport is set to "<viewport>"
     And the visitor's pointer is a <pointer> pointer
@@ -868,8 +866,6 @@ Feature: Family chat room
   Rule: Auth expiry pause and logout isolation
 
   @fe-vitest-unit
-  # Exemption(integration): pausing the drain is browser outbox state, and a second user's queue on the same device is browser storage Phoenix.LiveViewTest never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / A waiting message stays waiting after sign-in expires and is never sent by another member
-  @integration-exempt
   Scenario: A waiting message stays waiting after sign-in expires and is never sent by another member
     Given a visitor opens "/family-chat/ruang-keluarga"
     And a message is queued
@@ -878,8 +874,6 @@ Feature: Family chat room
     And another member signed in on the same device does not send it
 
   @fe-vitest-unit
-  # Exemption(integration): the queue being cleared lives in browser IndexedDB, which Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Logging out discards the member's waiting messages
-  @integration-exempt
   Scenario: Logging out discards the member's waiting messages
     Given a visitor opens "/family-chat/ruang-keluarga"
     And a message is queued
@@ -887,8 +881,6 @@ Feature: Family chat room
     Then the visitor's waiting messages are gone
 
   @fe-vitest-unit
-  # Exemption(integration): turning push off for the browser's session is a browser subscription state Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Logging out turns off push notifications for this device session
-  @integration-exempt
   Scenario: Logging out turns off push notifications for this device session
     Given a visitor opens "/family-chat/ruang-keluarga"
     And a message is queued
@@ -1023,8 +1015,6 @@ Feature: Family chat room
   Rule: Composer focus and keyboard
 
   @fe-vitest-unit
-  # Exemption(integration): keeping DOM focus across a send is browser accessibility-tree state Phoenix.LiveViewTest never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / The composer keeps focus after a message is sent
-  @integration-exempt
   Scenario: The composer keeps focus after a message is sent
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     When the visitor sends "Still typing" through the composer
@@ -1034,8 +1024,6 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): physical keyboard chord handling belongs to the browser boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter and Shift+Enter follow the pointer in Family Chat
-  @integration-exempt
   Scenario Outline: Enter and Shift+Enter follow the pointer in Family Chat
     Given the viewport is set to "<viewport>"
     And the visitor's pointer is a <pointer>
@@ -1057,8 +1045,6 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): an IME composition is a browser input state the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter that confirms a composition does not send in Family Chat
-  @integration-exempt
   Scenario Outline: Enter that confirms a composition does not send in Family Chat
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     And the visitor's pointer is a fine pointer
@@ -1074,8 +1060,6 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): a held key's repeated keydown is a browser key-event detail the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / A held Enter sends one message in Family Chat
-  @integration-exempt
   Scenario: A held Enter sends one message in Family Chat
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     And the visitor's pointer is a fine pointer
@@ -1084,8 +1068,6 @@ Feature: Family chat room
     Then the family room sends 1 messages
 
   @fe-vitest-unit
-  # Exemption(integration): a Shift+Enter key chord is a browser boundary the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Shift+Enter does not send an empty Family Chat draft
-  @integration-exempt
   Scenario: Shift+Enter does not send an empty Family Chat draft
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     And the visitor's pointer is a touch pointer
@@ -1094,8 +1076,6 @@ Feature: Family chat room
     And the composer is empty and ready for the next message
 
   @fe-vitest-unit
-  # Exemption(integration): whether a sent message ends up on screen is browser scroll position the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Sending brings the visitor to their own message
-  @integration-exempt
   Scenario: Sending brings the visitor to their own message
     Given a visitor opens "/family-chat/ruang-keluarga" scrolled to a known older message
     When the visitor sends "Down here with everyone" through the composer

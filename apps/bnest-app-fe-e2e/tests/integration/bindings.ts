@@ -15,5 +15,15 @@
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The actions control is visible, large enough to press, beside its bubble and inside the history
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The actions control has an accessible name
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Holding a message to open its menu clears the text the browser selects during the press
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A waiting message stays waiting after sign-in expires and is never sent by another member
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Logging out discards the member's waiting messages
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Logging out turns off push notifications for this device session
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The composer keeps focus after a message is sent
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter and Shift+Enter follow the pointer in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter that confirms a composition does not send in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A held Enter sends one message in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Shift+Enter does not send an empty Family Chat draft
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Sending brings the visitor to their own message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat send shortcut hint follows the pointer
 
 export const bindingLevel = "integration";
