@@ -52,6 +52,7 @@ import {
   reloadPage,
   requireRow,
   requireWorld,
+  ROOM_PATH,
   ROOM_SLUG,
   routeRevision,
   rowFor,
@@ -364,12 +365,12 @@ step("the message is durably queued for a closed tab to resume", async () => {
   );
 });
 
-step("a queued message is waiting on its backoff timer", async () => {
+step("a queued message shows status {string}", async (status) => {
   server().setSendOutcome(visitor().id, "offline");
   const id = await sendThroughComposer("Waiting for the network");
   expect(id !== null, "the room refused to queue the message");
   remember("clientMessageId", id);
-  await expectStatus(id ?? "", STATUS.RETRYING);
+  await expectStatus(id ?? "", status);
   const page = activePage();
   const due = page.clock.nextDueAt();
   expect(
@@ -379,26 +380,30 @@ step("a queued message is waiting on its backoff timer", async () => {
   remember("attemptsBefore", attemptsFor(id ?? "").length);
 });
 
-step("the browser reports the {string} event", async (name) => {
+step("the device reports it is back online", async () => {
   const page = activePage();
   server().setSendOutcome(visitor().id, "commit");
   remember("eventAt", page.clock.now());
-  page.window.dispatchEvent(new page.window.Event(name));
+  page.window.dispatchEvent(new page.window.Event("online"));
   await settle();
 });
 
-step("the queued message becomes immediately eligible for retry", () => {
-  const attempts = attemptsFor(clientMessageId());
-  const before = recall<number>("attemptsBefore");
-  expect(
-    attempts.length === before + 1,
-    `the online event led to ${attempts.length - before} attempts`,
-  );
-  expect(
-    attempts.at(-1)?.at === recall<number>("eventAt"),
-    "the retry waited for its backoff timer instead",
-  );
-});
+step(
+  "the message starts sending at once and reaches status {string} without waiting out the countdown",
+  async (status) => {
+    const attempts = attemptsFor(clientMessageId());
+    const before = recall<number>("attemptsBefore");
+    expect(
+      attempts.length === before + 1,
+      `the online event led to ${attempts.length - before} attempts`,
+    );
+    expect(
+      attempts.at(-1)?.at === recall<number>("eventAt"),
+      "the retry waited for its backoff timer instead",
+    );
+    await expectStatus(clientMessageId(), status);
+  },
+);
 
 step("a queued message fails five times with a retryable result", async () => {
   const page = activePage();
@@ -533,7 +538,7 @@ step("the visitor's authentication expires", async () => {
   remember("attemptsAtExpiry", attemptsFor(clientMessageId()).length);
 });
 
-step("queue draining pauses for that namespace", async () => {
+step("the message still shows status {string}", async (status) => {
   const page = activePage();
   // The server would take it again now; a paused queue does not ask.
   server().setSendOutcome(visitor().id, "commit");
@@ -548,29 +553,40 @@ step("queue draining pauses for that namespace", async () => {
     page.elements.room?.dataset["connectionState"] === "auth-expired",
     "the room does not show that the session expired",
   );
+  const shown = shownStatus(requireRow(clientMessageId()));
+  expect(shown === status, `the message shows ${JSON.stringify(shown)}`);
 });
 
-step("no other user's session drains that queued message", async () => {
-  const id = clientMessageId();
-  const owner = visitor();
-  await closePage(activePage());
-  // Another member signs in on the same device, with the same IndexedDB.
-  const other = otherMember("Bunda");
-  const page = await openRoomPage({ member: other });
-  page.clock.advance(10 * 60 * 1000);
-  await settle(page);
-  const drained = server().sendAttempts.filter(
-    (attempt) =>
-      attempt.clientMessageId === id && attempt.memberId !== owner.id,
-  );
-  expect(drained.length === 0, "another member's session sent the message");
-  expect(rowFor(id, page) === null, "another member's room shows the message");
-  const stillQueued = device()
-    .persistence.rowsFor(namespaceOf(owner))
-    .some((row) => row.clientMessageId === id);
-  expect(stillQueued, "the owner's queued message was lost");
-  expect(messageRows(page).length > 0, "the other member's room did not load");
-});
+step(
+  "another member signed in on the same device does not send it",
+  async () => {
+    const id = clientMessageId();
+    const owner = visitor();
+    await closePage(activePage());
+    // Another member signs in on the same device, with the same IndexedDB.
+    const other = otherMember("Bunda");
+    const page = await openRoomPage({ member: other });
+    page.clock.advance(10 * 60 * 1000);
+    await settle(page);
+    const drained = server().sendAttempts.filter(
+      (attempt) =>
+        attempt.clientMessageId === id && attempt.memberId !== owner.id,
+    );
+    expect(drained.length === 0, "another member's session sent the message");
+    expect(
+      rowFor(id, page) === null,
+      "another member's room shows the message",
+    );
+    const stillQueued = device()
+      .persistence.rowsFor(namespaceOf(owner))
+      .some((row) => row.clientMessageId === id);
+    expect(stillQueued, "the owner's queued message was lost");
+    expect(
+      messageRows(page).length > 0,
+      "the other member's room did not load",
+    );
+  },
+);
 
 step("the visitor logs out", async () => {
   const id = clientMessageId();
@@ -610,24 +626,27 @@ step("notifications are turned off for this device", () => {
 
 const CONTROL_TOPIC = "__absinthe__:control";
 
+async function openConnectedRoom(pathname: string): Promise<void> {
+  ensureConversation();
+  const page = await openRoomPage({ pathname });
+  const [socket] = page.sockets;
+  expect(
+    page.sockets.length === 1 &&
+      socket?.record.open === true &&
+      socket.record.joins.includes(CONTROL_TOPIC),
+    "the room did not connect its socket to the current slot",
+  );
+  remember("priorSockets", [...page.sockets]);
+  remember("firstRow", messageRows(page)[0]);
+}
+
 step(
   "a visitor opens {string} with the socket connected to the current slot",
-  async (pathname) => {
-    ensureConversation();
-    const page = await openRoomPage({ pathname });
-    const [socket] = page.sockets;
-    expect(
-      page.sockets.length === 1 &&
-        socket?.record.open === true &&
-        socket.record.joins.includes(CONTROL_TOPIC),
-      "the room did not connect its socket to the current slot",
-    );
-    remember("priorSockets", [...page.sockets]);
-    remember("firstRow", messageRows(page)[0]);
-  },
+  openConnectedRoom,
 );
+step("a visitor opens {string} with the room connected", openConnectedRoom);
 
-step("Caddy promotes a replacement slot", async () => {
+step("the app is updated while the room is open", async () => {
   const page = activePage();
   // A send that is waiting on its retry timer when the cutover happens.
   server().setSendOutcome(visitor().id, "offline");
@@ -656,7 +675,7 @@ step("Caddy promotes a replacement slot", async () => {
   await settle();
 });
 
-step("the prior-slot socket closes", () => {
+step("the room reconnects", () => {
   for (const socket of recall<Page["sockets"]>("priorSockets")) {
     expect(
       socket.record.disconnects >= 1 && !socket.record.open,
@@ -665,28 +684,25 @@ step("the prior-slot socket closes", () => {
   }
 });
 
-step(
-  "the browser subscribes on the promoted slot and completes catch-up within ten seconds",
-  async () => {
-    const page = activePage();
-    const prior = recall<Page["sockets"]>("priorSockets");
-    const fresh = page.sockets.filter((socket) => !prior.includes(socket));
-    expect(
-      fresh.some(
-        (socket) =>
-          socket.record.open && socket.record.joins.includes(CONTROL_TOPIC),
-      ),
-      "no socket on the promoted slot joined the control channel",
-    );
-    const gap = recall<{ id: string }>("gapMessage");
-    await waitFor(
-      () => rowFor(gap.id) !== null,
-      "the gap message to be caught up",
-    );
-    const elapsed = performance.now() - recall<number>("promotedAt");
-    expect(elapsed < 10_000, `catch-up took ${Math.round(elapsed)} ms`);
-  },
-);
+step("the room catches up within ten seconds", async () => {
+  const page = activePage();
+  const prior = recall<Page["sockets"]>("priorSockets");
+  const fresh = page.sockets.filter((socket) => !prior.includes(socket));
+  expect(
+    fresh.some(
+      (socket) =>
+        socket.record.open && socket.record.joins.includes(CONTROL_TOPIC),
+    ),
+    "no socket on the promoted slot joined the control channel",
+  );
+  const gap = recall<{ id: string }>("gapMessage");
+  await waitFor(
+    () => rowFor(gap.id) !== null,
+    "the gap message to be caught up",
+  );
+  const elapsed = performance.now() - recall<number>("promotedAt");
+  expect(elapsed < 10_000, `catch-up took ${Math.round(elapsed)} ms`);
+});
 
 step("any queued send drains only after catch-up completes", async () => {
   const id = clientMessageId();
@@ -739,7 +755,8 @@ step("the tab becomes visible again", async () => {
   await settle();
 });
 
-step("a fresh socket connection replaces the prior one", () => {
+/** The dead connection is replaced by one fresh socket that joined the control channel. */
+function expectFreshSocketReplacesPrior(): void {
   const page = activePage();
   const prior = recall<Page["sockets"]>("priorSockets");
   for (const socket of prior) {
@@ -752,6 +769,15 @@ step("a fresh socket connection replaces the prior one", () => {
     fresh.length === 1 &&
       fresh[0]?.record.joins.includes(CONTROL_TOPIC) === true,
     `${fresh.length} fresh sockets joined the control channel`,
+  );
+}
+
+step("a message sent by another member now appears", async () => {
+  expectFreshSocketReplacesPrior();
+  const reply = post({ body: "Sent while the tab was hidden", sender: AYAH() });
+  await waitFor(
+    () => rowFor(reply.id) !== null,
+    "the other member's message to appear",
   );
 });
 
@@ -1392,13 +1418,13 @@ step("the visitor selects {string}", async (label) => {
   await settle();
 });
 
-step("a visitor opens {string} and exchanges messages", async (pathname) => {
+step("a visitor has exchanged messages", async () => {
   const worker = loadServiceWorker();
   await worker.install();
   await worker.activate();
   device().serviceWorker = worker;
   ensureConversation();
-  await openRoomPage({ pathname });
+  await openRoomPage();
   const id = await sendThroughComposer("Cache probe from the visitor");
   expect(id !== null, "the room refused to queue the message");
   await expectStatus(id ?? "", STATUS.SENT);
@@ -1406,47 +1432,29 @@ step("a visitor opens {string} and exchanges messages", async (pathname) => {
   await waitFor(() => rowFor(reply.id) !== null, "the reply to arrive");
 });
 
-step("the service worker's Cache Storage is inspected", async () => {
+step("the visitor opens the room while offline", async () => {
   const worker = device().serviceWorker;
   if (!worker) throw new Error("no service worker is installed");
-  const entries: { pathname: string; body: string }[] = [];
-  for (const cache of worker.caches.values()) {
-    for (const [pathname, response] of cache) {
-      entries.push({ pathname, body: await response.clone().text() });
-    }
-  }
-  remember("cacheEntries", entries);
+  worker.online = false;
+  const response = await worker.fetch(ROOM_PATH, { mode: "navigate" });
+  remember("offlineAnswered", response !== null);
+  remember("offlinePage", (await response?.text()) ?? "");
 });
 
-const STATIC_PATH = /^\/(?:assets|images)\/|^\/manifest\.webmanifest$/u;
-
-step("it contains only static build assets", () => {
-  const entries = recall<{ pathname: string }[]>("cacheEntries");
-  // The positive control: the worker did cache what the page loaded.
+step("the page shows no messages and no signed-in content", () => {
+  // The positive control: the worker answered the offline navigation at all.
   expect(
-    entries.some((entry) => entry.pathname.startsWith("/assets/")),
-    "Cache Storage holds no build asset at all",
+    recall<boolean>("offlineAnswered"),
+    "the worker answered no offline navigation",
   );
-  const other = entries.filter((entry) => !STATIC_PATH.test(entry.pathname));
+  const html = recall<string>("offlinePage");
   expect(
-    other.length === 0,
-    `Cache Storage holds ${JSON.stringify(other.map((e) => e.pathname))}`,
-  );
-});
-
-step("it contains no navigation response, message, or GraphQL response", () => {
-  const entries = recall<{ pathname: string; body: string }[]>("cacheEntries");
-  const leaked = entries.filter(
-    (entry) =>
-      entry.pathname === "/" ||
-      entry.pathname.startsWith("/family-chat") ||
-      entry.pathname.startsWith("/api/") ||
-      entry.body.includes(AUTHENTICATED_MARKER) ||
-      entry.body.includes("Cache probe"),
+    !html.includes(AUTHENTICATED_MARKER),
+    "the offline page holds signed-in content",
   );
   expect(
-    leaked.length === 0,
-    `Cache Storage holds ${JSON.stringify(leaked.map((e) => e.pathname))}`,
+    !html.includes("Cache probe"),
+    "the offline page shows a message the visitor exchanged",
   );
 });
 

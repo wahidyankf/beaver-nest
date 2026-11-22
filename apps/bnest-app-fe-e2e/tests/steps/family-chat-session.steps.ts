@@ -66,35 +66,42 @@ When("the visitor's authentication expires", async ({ page }) => {
   attemptsAtExpiry = attemptsFor(page, delivery.body).length;
 });
 
-Then("queue draining pauses for that namespace", async ({ page }) => {
-  // Longer than the next two retry waits could be: a queue that only
-  // backed off would have tried again inside it.
-  await page.waitForTimeout(QUIET_WINDOW_MS);
-  expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
-  expect(await storedRowFor(page, delivery.body)).toBeDefined();
-  await expect(
-    page
-      .locator('[data-role="family-chat-message"]')
-      .filter({ hasText: delivery.body }),
-  ).not.toHaveAttribute("data-delivery-state", "committed");
-});
+Then(
+  "the message still shows status {string}",
+  async ({ page }, status: string) => {
+    // Longer than the next two retry waits could be: a queue that only
+    // backed off would have tried again inside it.
+    await page.waitForTimeout(QUIET_WINDOW_MS);
+    expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
+    expect(await storedRowFor(page, delivery.body)).toBeDefined();
+    await expect(
+      page
+        .locator('[data-role="family-chat-message"]')
+        .filter({ hasText: delivery.body }),
+    ).not.toHaveAttribute("data-delivery-state", "committed");
+    await expectRowStatus(page, delivery.body, status);
+  },
+);
 
-Then("no other user's session drains that queued message", async ({ page }) => {
-  // Another member signs in on the same device and opens the same room.
-  await login(page, instanceIdentities().child);
-  await page.goto(ROOM_ROUTE);
-  await waitForRoomReady(page);
-  expect(await currentUserId(page)).not.toBe(visitorUserId);
-  await page.waitForTimeout(QUIET_WINDOW_MS);
-  expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
-  await expect(
-    page
-      .locator('[data-role="family-chat-message"]')
-      .filter({ hasText: delivery.body }),
-  ).toHaveCount(0);
-  const row = await storedRowFor(page, delivery.body);
-  expect(row?.namespace.startsWith(`${visitorUserId}:`)).toBe(true);
-});
+Then(
+  "another member signed in on the same device does not send it",
+  async ({ page }) => {
+    // Another member signs in on the same device and opens the same room.
+    await login(page, instanceIdentities().child);
+    await page.goto(ROOM_ROUTE);
+    await waitForRoomReady(page);
+    expect(await currentUserId(page)).not.toBe(visitorUserId);
+    await page.waitForTimeout(QUIET_WINDOW_MS);
+    expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
+    await expect(
+      page
+        .locator('[data-role="family-chat-message"]')
+        .filter({ hasText: delivery.body }),
+    ).toHaveCount(0);
+    const row = await storedRowFor(page, delivery.body);
+    expect(row?.namespace.startsWith(`${visitorUserId}:`)).toBe(true);
+  },
+);
 
 // --- Logout ----------------------------------------------------------------
 

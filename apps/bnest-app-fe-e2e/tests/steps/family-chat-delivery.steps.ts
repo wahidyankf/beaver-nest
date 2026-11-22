@@ -155,32 +155,33 @@ Then(
   },
 );
 
-Given("a queued message is waiting on its backoff timer", async ({ page }) => {
-  await waitForRoomReady(page);
-  await interfereWithSends(page, "abort");
-  await sendThroughComposer(page, uniqueBody("Backing off"));
-  // Four failures: the next automatic try is 8 s (at least 6.4 s) away.
-  await awaitAttempts(page, delivery.body, 4, 20_000);
-  await stopInterfering(page);
-});
-
-When(
-  "the browser reports the {string} event",
-  async ({ page }, event: string) => {
-    // The browser's own connectivity flips, so the event the room hears is
-    // the one Chromium fires, not one dispatched by the test. Coming back
-    // online is the only event this can produce.
-    expect(event).toBe("online");
-    attemptsBeforeOnline = attemptsFor(page, delivery.body).length;
-    await page.context().setOffline(true);
-    await page.context().setOffline(false);
-    onlineAt = Date.now();
+Given(
+  "a queued message shows status {string}",
+  async ({ page }, status: string) => {
+    await waitForRoomReady(page);
+    await interfereWithSends(page, "abort");
+    await sendThroughComposer(page, uniqueBody("Backing off"));
+    // Four failures: the next automatic try is 8 s (at least 6.4 s) away.
+    await awaitAttempts(page, delivery.body, 4, 20_000);
+    await stopInterfering(page);
+    await expectRowStatus(page, delivery.body, status);
   },
 );
 
+When("the device reports it is back online", async ({ page }) => {
+  // The browser's own connectivity flips, so the event the room hears is
+  // the one Chromium fires, not one dispatched by the test. Coming back
+  // online is the only event this can produce.
+  attemptsBeforeOnline = attemptsFor(page, delivery.body).length;
+  await page.context().setOffline(true);
+  await page.context().setOffline(false);
+  onlineAt = Date.now();
+});
+
 Then(
-  "the queued message becomes immediately eligible for retry",
-  async ({ page }) => {
+  "the message starts sending at once and reaches status {string} without waiting out the countdown",
+  async ({ page }, status: string) => {
+    expect(status).toBe("Sent");
     const before = attemptsBeforeOnline;
     await awaitAttempts(page, delivery.body, before + 1, 2_000);
     const retry = attemptsFor(page, delivery.body)[before];

@@ -1,5 +1,8 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
+import { sendAsAnotherMember } from "../support/family-chat";
+import { uniqueBody } from "../support/family-chat-reply";
+import { instanceIdentities } from "../support/instance-identities";
 
 // family_chat.feature's "Rule: Reconnect on visibility resume" -- split out
 // of family-chat.steps.ts purely to stay under this project's max-lines lint
@@ -47,11 +50,22 @@ When("the tab becomes visible again", async ({ page }) => {
   });
 });
 
-Then("a fresh socket connection replaces the prior one", async () => {
-  await expect
-    .poll(() => socketReopenedOnResume, { timeout: 10_000 })
-    .toBe(true);
-});
+Then(
+  "a message sent by another member now appears",
+  async ({ page, browser }) => {
+    // The dead connection was replaced by a fresh socket...
+    await expect
+      .poll(() => socketReopenedOnResume, { timeout: 10_000 })
+      .toBe(true);
+    // ...and that socket carries live updates again: a message another member
+    // sends after the tab resumes reaches this page without a reload.
+    const body = uniqueBody("Sent while the tab was hidden");
+    await sendAsAnotherMember(browser, instanceIdentities(), body);
+    await expect(
+      page.locator('[data-role="family-chat-message"]', { hasText: body }),
+    ).toHaveCount(1, { timeout: 10_000 });
+  },
+);
 
 // Reuses family-chat.steps.ts's own generic opener ("a visitor opens
 // {string} with the socket connected to the current slot") and "the page

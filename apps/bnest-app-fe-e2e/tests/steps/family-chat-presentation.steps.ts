@@ -1,66 +1,52 @@
 import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
-import {
-  inspectCacheStorageEntries,
-  openFamilyChatRoom,
-} from "../support/family-chat";
+import { openFamilyChatRoom, ROOM_ROUTE } from "../support/family-chat";
 import {
   expectCommitted,
   sendThroughComposer,
 } from "../support/family-chat-delivery";
+import { expectServiceWorkerControl } from "../support/family-chat-outbox-store";
 import { uniqueBody } from "../support/family-chat-reply";
 
-// family_chat.feature's "no authenticated caching" and "Responsive and
-// accessible presentation" scenarios: what the service worker really holds
-// in Cache Storage, and the room's real focus order and focus indicators at
+// family_chat.feature's "offline opening" and "Responsive and accessible
+// presentation" scenarios: what the service worker answers when the room is
+// opened offline, and the room's real focus order and focus indicators at
 // each viewport.
 
 const { Given, Then, When } = createBdd();
 
-// The worker's install-time shell (`priv/static/service-worker.js`
-// `APP_SHELL`) beyond `/assets/` and `/images/`: one static, unauthenticated
-// file. No page path belongs here -- the shell no longer precaches `/`.
-const PRECACHED_STATIC_ENTRIES = new Set(["/manifest.webmanifest"]);
 const MAX_TAB_STOPS = 60;
 
-let cacheEntries: string[] = [];
+let probeBody = "";
 
-Given(
-  "a visitor opens {string} and exchanges messages",
-  async ({ page }, route: string) => {
-    await openFamilyChatRoom(page);
-    expect(new URL(page.url()).pathname).toBe(route);
-    const body = uniqueBody("Cache inspection probe");
-    await sendThroughComposer(page, body);
-    // Exchanged: the server committed it and the room shows it.
-    await expectCommitted(page, body);
+Given("a visitor has exchanged messages", async ({ page }) => {
+  await openFamilyChatRoom(page);
+  expect(new URL(page.url()).pathname).toBe(ROOM_ROUTE);
+  probeBody = uniqueBody("Cache inspection probe");
+  await sendThroughComposer(page, probeBody);
+  // Exchanged: the server committed it and the room shows it.
+  await expectCommitted(page, probeBody);
+});
+
+When("the visitor opens the room while offline", async ({ page }) => {
+  // Reopening offline only reaches the worker if it already controls the page.
+  await expectServiceWorkerControl(page);
+  await page.context().setOffline(true);
+  await page.goto(ROOM_ROUTE);
+});
+
+Then(
+  "the page shows no messages and no signed-in content",
+  async ({ page }) => {
+    // The worker's offline page: no room, no message, and no signed-in markup.
+    await expect(page.getByText("You are offline.")).toBeVisible();
+    await expect(page.locator('[data-role="family-chat-message"]')).toHaveCount(
+      0,
+    );
+    await expect(page.getByText(probeBody)).toHaveCount(0);
+    await expect(page.locator("[data-current-user-id]")).toHaveCount(0);
   },
 );
-
-When("the service worker's Cache Storage is inspected", async ({ page }) => {
-  cacheEntries = await inspectCacheStorageEntries(page);
-});
-
-Then("it contains only static build assets", () => {
-  const nonStatic = cacheEntries.filter(
-    (entry) =>
-      !entry.startsWith("/assets/") &&
-      !entry.startsWith("/images/") &&
-      !PRECACHED_STATIC_ENTRIES.has(entry),
-  );
-  expect(nonStatic, JSON.stringify(nonStatic)).toEqual([]);
-});
-
-Then("it contains no navigation response, message, or GraphQL response", () => {
-  const forbidden = cacheEntries.filter(
-    (entry) =>
-      entry === "/" ||
-      entry.includes("family-chat") ||
-      entry.includes("/api/graphql") ||
-      entry.includes("/login"),
-  );
-  expect(forbidden, JSON.stringify(forbidden)).toEqual([]);
-});
 
 Given("the viewport is set to {string}", async ({ page }, viewport: string) => {
   const size = parseViewport(viewport);

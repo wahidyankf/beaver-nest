@@ -77,10 +77,13 @@ Then(
   },
 );
 
-Then("the queued record carries the reply target", async ({ page }) => {
-  const row = await expectStored(page, delivery.body);
-  expect(row.replyToMessageId).toBe(scenario.targetId);
-});
+Then(
+  "the waiting message will send as a reply to the message it answers",
+  async ({ page }) => {
+    const row = await expectStored(page, delivery.body);
+    expect(row.replyToMessageId).toBe(scenario.targetId);
+  },
+);
 
 When(
   "the visitor reopens {string} while still offline",

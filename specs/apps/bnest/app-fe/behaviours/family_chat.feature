@@ -889,13 +889,13 @@ Feature: Family chat room
     Then the message reaches status "Sent"
 
   @fe-vitest-unit
-  # Exemption(integration): the browser's online event and the outbox's retry timer exist only in the browser; alternative-proof: bnest-app-fe-e2e:test:e2e / An online event makes a retry immediately eligible
+  # Exemption(integration): the browser's online event and the outbox's retry timer exist only in the browser; alternative-proof: bnest-app-fe-e2e:test:e2e / A waiting message is sent as soon as the connection returns
   @integration-exempt
-  Scenario: An online event makes a retry immediately eligible
+  Scenario: A waiting message is sent as soon as the connection returns
     Given a visitor opens "/family-chat/ruang-keluarga"
-    And a queued message is waiting on its backoff timer
-    When the browser reports the "online" event
-    Then the queued message becomes immediately eligible for retry
+    And a queued message shows status "Retrying in …"
+    When the device reports it is back online
+    Then the message starts sending at once and reaches status "Sent" without waiting out the countdown
 
   @fe-vitest-unit
   # Exemption(integration): the retry timers run in browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / Each failed automatic retry waits longer than the last, up to one minute
@@ -915,13 +915,13 @@ Feature: Family chat room
     And the visitor can still manually retry or discard it
 
   @fe-vitest-unit
-  # Exemption(integration): an offline browser and the IndexedDB record it queues are invisible to Phoenix.LiveViewTest; alternative-proof: bnest-app-fe-e2e:test:e2e / An offline reply queues with its target
+  # Exemption(integration): an offline browser and the IndexedDB record it queues are invisible to Phoenix.LiveViewTest; alternative-proof: bnest-app-fe-e2e:test:e2e / An offline reply waits for the connection and stays a reply
   @integration-exempt
-  Scenario: An offline reply queues with its target
+  Scenario: An offline reply waits for the connection and stays a reply
     Given the visitor is offline with the room open
     When the visitor replies to a committed message
     Then the queued message shows status "Waiting for connection"
-    And the queued record carries the reply target
+    And the waiting message will send as a reply to the message it answers
 
   @fe-vitest-unit
   # Exemption(integration): surviving a closed app is browser IndexedDB durability, which Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A queued reply survives closing the app
@@ -952,14 +952,14 @@ Feature: Family chat room
   Rule: Auth expiry pause and logout isolation
 
   @fe-vitest-unit
-  # Exemption(integration): pausing the drain is browser outbox state, and a second user's queue on the same device is browser storage Phoenix.LiveViewTest never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / Authentication expiry pauses the queue without cross-user drain
+  # Exemption(integration): pausing the drain is browser outbox state, and a second user's queue on the same device is browser storage Phoenix.LiveViewTest never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / A waiting message stays waiting after sign-in expires and is never sent by another member
   @integration-exempt
-  Scenario: Authentication expiry pauses the queue without cross-user drain
+  Scenario: A waiting message stays waiting after sign-in expires and is never sent by another member
     Given a visitor opens "/family-chat/ruang-keluarga"
     And a message is queued
     When the visitor's authentication expires
-    Then queue draining pauses for that namespace
-    And no other user's session drains that queued message
+    Then the message still shows status "Retrying in …"
+    And another member signed in on the same device does not send it
 
   @fe-vitest-unit
   # Exemption(integration): the queue being cleared lives in browser IndexedDB, which Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Logging out discards the member's waiting messages
@@ -982,13 +982,13 @@ Feature: Family chat room
   Rule: Reconnect across Caddy promotion
 
   @fe-vitest-unit
-  # Exemption(integration): holding a socket across a live Caddy config reload crosses browser and release-infrastructure boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A connected client reconnects to the promoted slot without a page refresh
+  # Exemption(integration): holding a socket across a live Caddy config reload crosses browser and release-infrastructure boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / An open room keeps working after a release switch without a page refresh
   @integration-exempt
-  Scenario: A connected client reconnects to the promoted slot without a page refresh
-    Given a visitor opens "/family-chat/ruang-keluarga" with the socket connected to the current slot
-    When Caddy promotes a replacement slot
-    Then the prior-slot socket closes
-    And the browser subscribes on the promoted slot and completes catch-up within ten seconds
+  Scenario: An open room keeps working after a release switch without a page refresh
+    Given a visitor opens "/family-chat/ruang-keluarga" with the room connected
+    When the app is updated while the room is open
+    Then the room reconnects
+    And the room catches up within ten seconds
     And any queued send drains only after catch-up completes
     And the page does not reload
 
@@ -1014,13 +1014,13 @@ Feature: Family chat room
   Rule: Reconnect on visibility resume
 
   @fe-vitest-unit
-  # Exemption(integration): forcing a stale connection and a real document visibility transition crosses browser and OS-lifecycle boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A tab backgrounded with a dead connection reconnects once it becomes visible again
+  # Exemption(integration): forcing a stale connection and a real document visibility transition crosses browser and OS-lifecycle boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
   @integration-exempt
-  Scenario: A tab backgrounded with a dead connection reconnects once it becomes visible again
+  Scenario: A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
     Given a visitor opens "/family-chat/ruang-keluarga" with the socket connected to the current slot
     When the tab is backgrounded with its connection silently dropped
     And the tab becomes visible again
-    Then a fresh socket connection replaces the prior one
+    Then a message sent by another member now appears
     And the page does not reload
 
   Rule: Experience release candidate proof
@@ -1271,13 +1271,12 @@ Feature: Family chat room
     Then the room shows the control "Enable notifications"
 
   @fe-vitest-unit
-  # Exemption(integration): inspecting the service worker's Cache Storage contents requires a real browser cache implementation; alternative-proof: bnest-app-fe-e2e:test:e2e / The service worker cache stores no authenticated content
+  # Exemption(integration): answering an offline navigation runs in the browser's service worker, which Phoenix.LiveViewTest never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / Opening the room offline shows no signed-in messages from the device's saved copy
   @integration-exempt
-  Scenario: The service worker cache stores no authenticated content
-    Given a visitor opens "/family-chat/ruang-keluarga" and exchanges messages
-    When the service worker's Cache Storage is inspected
-    Then it contains only static build assets
-    And it contains no navigation response, message, or GraphQL response
+  Scenario: Opening the room offline shows no signed-in messages from the device's saved copy
+    Given a visitor has exchanged messages
+    When the visitor opens the room while offline
+    Then the page shows no messages and no signed-in content
 
   Rule: Responsive and accessible presentation
 

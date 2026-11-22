@@ -1260,13 +1260,16 @@ step("the queued message shows status {string}", async (expected) => {
   );
 });
 
-step("the queued record carries the reply target", () => {
-  const row = storedRow(recall<string>("clientMessageId"));
-  expect(
-    row?.["replyToMessageId"] === targetId(),
-    `the queued record carries ${JSON.stringify(row?.["replyToMessageId"])}`,
-  );
-});
+step(
+  "the waiting message will send as a reply to the message it answers",
+  () => {
+    const row = storedRow(recall<string>("clientMessageId"));
+    expect(
+      row?.["replyToMessageId"] === targetId(),
+      `the waiting message would send with target ${JSON.stringify(row?.["replyToMessageId"])}`,
+    );
+  },
+);
 
 step("an offline reply is queued", async () => {
   await open([{ body: ORIGINAL }]);
@@ -1419,33 +1422,27 @@ step("the visitor can send a message normally", async () => {
   );
 });
 
-step(
-  "a visitor on the newer version has a reply on screen",
-  async () => {
-    await open([{ body: "Jam berapa?" }], { replies: true });
-    const id = await replyThroughMenu(requireTarget(), "Jam lima");
-    await waitFor(
-      () => committedFor(id ?? "") !== undefined,
-      "the reply to commit",
-    );
-    await settle();
-    remember("firstReplyId", committedFor(id ?? "")?.id);
-    quoteIn(messageElement(recall<string>("firstReplyId")));
-  },
-);
+step("a visitor on the newer version has a reply on screen", async () => {
+  await open([{ body: "Jam berapa?" }], { replies: true });
+  const id = await replyThroughMenu(requireTarget(), "Jam lima");
+  await waitFor(
+    () => committedFor(id ?? "") !== undefined,
+    "the reply to commit",
+  );
+  await settle();
+  remember("firstReplyId", committedFor(id ?? "")?.id);
+  quoteIn(messageElement(recall<string>("firstReplyId")));
+});
 
-step(
-  "the app is rolled back to the previous version",
-  async () => {
-    routeRevision(false);
-    // The route change ends the connections to the rolled-back slot; the
-    // page itself, and the bundle it loaded, stay.
-    const page = activePage();
-    dropSockets(page);
-    reconnectSockets(page);
-    await settle();
-  },
-);
+step("the app is rolled back to the previous version", async () => {
+  routeRevision(false);
+  // The route change ends the connections to the rolled-back slot; the
+  // page itself, and the bundle it loaded, stay.
+  const page = activePage();
+  dropSockets(page);
+  reconnectSockets(page);
+  await settle();
+});
 
 step("the visitor replies again with the bundle it still holds", async () => {
   expect(hasActivePage(), "the held page was closed");

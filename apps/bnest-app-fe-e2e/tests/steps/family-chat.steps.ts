@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Browser, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { restorePrimaryRoute } from "../support/routed-rollout";
 import {
@@ -44,50 +44,56 @@ let anchor = { id: "", offset: 0 };
 
 const ANCHOR_TOLERANCE_PX = 4;
 
+async function openConnectedRoom(
+  { page, browser }: { page: Page; browser: Browser },
+  route: string,
+): Promise<void> {
+  // The room's catch-up asks for "everything after the newest message it
+  // knows"; an empty room has none, so it would refetch the latest page
+  // instead, and a run alone on a fresh server would not be proving the
+  // gap-fill at all. One earlier message makes the room open with a baseline.
+  await sendAsAnotherMember(
+    browser,
+    instanceIdentities(),
+    `Catch-up baseline ${crypto.randomUUID().slice(0, 8)}`,
+  );
+  // Watching from before the room opens its socket, so the first socket
+  // seen is the one connected to the current slot.
+  sockets = watchSockets(page);
+  const subscriptions = watchSubscriptions(page);
+  catchUps = recordCatchUps(page);
+  sends = sendAttempts(page);
+  identity = await openFamilyChatRoom(page);
+  expect(page.url()).toContain(route);
+  // The room reports itself ready once its history is shown, and only
+  // then opens the socket it subscribes on.
+  await expect.poll(() => sockets.opened.length, { timeout: 15_000 }).toBe(1);
+  // An opened socket is not yet a subscribed room: the room attaches its visibility handler and its reconnect
+  // sequence only after the server acknowledges the subscription. A scenario that drops or backgrounds the
+  // connection before that point would test the first connect, so wait for the acknowledgement.
+  await expect
+    .poll(() => subscriptions.acknowledged, { timeout: 15_000 })
+    .toBeGreaterThan(0);
+  // The acknowledgement reaches the page as a task; one more task turn lets the room finish handling it.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      }),
+  );
+  // Lives only as long as this window does: a reload would drop it.
+  await page.evaluate(() => {
+    Object.assign(window, { bnestNoReloadProbe: "held" });
+  });
+}
+
 Given(
   "a visitor opens {string} with the socket connected to the current slot",
-  async ({ page, browser }, route: string) => {
-    // The room's catch-up asks for "everything after the newest message it
-    // knows"; an empty room has none, so it would refetch the latest page
-    // instead, and a run alone on a fresh server would not be proving the
-    // gap-fill at all. One earlier message makes the room open with a baseline.
-    await sendAsAnotherMember(
-      browser,
-      instanceIdentities(),
-      `Catch-up baseline ${crypto.randomUUID().slice(0, 8)}`,
-    );
-    // Watching from before the room opens its socket, so the first socket
-    // seen is the one connected to the current slot.
-    sockets = watchSockets(page);
-    const subscriptions = watchSubscriptions(page);
-    catchUps = recordCatchUps(page);
-    sends = sendAttempts(page);
-    identity = await openFamilyChatRoom(page);
-    expect(page.url()).toContain(route);
-    // The room reports itself ready once its history is shown, and only
-    // then opens the socket it subscribes on.
-    await expect.poll(() => sockets.opened.length, { timeout: 15_000 }).toBe(1);
-    // An opened socket is not yet a subscribed room: the room attaches its visibility handler and its reconnect
-    // sequence only after the server acknowledges the subscription. A scenario that drops or backgrounds the
-    // connection before that point would test the first connect, so wait for the acknowledgement.
-    await expect
-      .poll(() => subscriptions.acknowledged, { timeout: 15_000 })
-      .toBeGreaterThan(0);
-    // The acknowledgement reaches the page as a task; one more task turn lets the room finish handling it.
-    await page.evaluate(
-      () =>
-        new Promise<void>((resolve) => {
-          setTimeout(resolve, 0);
-        }),
-    );
-    // Lives only as long as this window does: a reload would drop it.
-    await page.evaluate(() => {
-      Object.assign(window, { bnestNoReloadProbe: "held" });
-    });
-  },
+  openConnectedRoom,
 );
+Given("a visitor opens {string} with the room connected", openConnectedRoom);
 
-When("Caddy promotes a replacement slot", async ({ page, browser }) => {
+When("the app is updated while the room is open", async ({ page, browser }) => {
   // The room is a plain controller, not a LiveView. A real
   // exact-once-catch-up proof needs a message this client never sent itself
   // and a message it tried to send but couldn't, both genuinely in flight
@@ -113,7 +119,7 @@ When("Caddy promotes a replacement slot", async ({ page, browser }) => {
   ));
 });
 
-Then("the prior-slot socket closes", async ({ page }) => {
+Then("the room reconnects", async ({ page }) => {
   // The socket connected to the prior slot emitted `close`, and a new one
   // was opened after it -- the room's own reconnect, not a page load.
   await expect.poll(() => sockets.closed.length).toBeGreaterThanOrEqual(1);
@@ -126,20 +132,17 @@ Then("the prior-slot socket closes", async ({ page }) => {
   );
 });
 
-Then(
-  "the browser subscribes on the promoted slot and completes catch-up within ten seconds",
-  async ({ page }) => {
-    // A message this client never sent itself, posted by another member
-    // concurrently with the promotion, must arrive exactly once -- not zero
-    // (lost across the cutover) and not more than once (duplicated by the
-    // reconnect module's merge-by-server-ID step).
-    await expect(
-      page.locator('[data-role="family-chat-message"]', {
-        hasText: catchUpProbeBody,
-      }),
-    ).toHaveCount(1, { timeout: 10_000 });
-  },
-);
+Then("the room catches up within ten seconds", async ({ page }) => {
+  // A message this client never sent itself, posted by another member
+  // concurrently with the promotion, must arrive exactly once -- not zero
+  // (lost across the cutover) and not more than once (duplicated by the
+  // reconnect module's merge-by-server-ID step).
+  await expect(
+    page.locator('[data-role="family-chat-message"]', {
+      hasText: catchUpProbeBody,
+    }),
+  ).toHaveCount(1, { timeout: 10_000 });
+});
 
 Then(
   "any queued send drains only after catch-up completes",
