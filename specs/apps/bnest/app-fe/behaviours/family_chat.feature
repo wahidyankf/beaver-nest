@@ -195,8 +195,6 @@ Feature: Family chat room
   Rule: Composing a reply
 
   @fe-vitest-unit
-  # Exemption(integration): the composer strip and where focus lands afterwards are browser DOM and focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Choosing Reply puts the target above the message input
-  @integration-exempt
   Scenario: Choosing Reply puts the target above the message input
     Given the visitor opens the action menu on a message from "Ayah" reading "Nanti aku jemput jam 5"
     When the visitor chooses "Reply"
@@ -206,8 +204,6 @@ Feature: Family chat room
     And the room announces that the visitor is replying to "Ayah"
 
   @fe-vitest-unit
-  # Exemption(integration): where keyboard focus lands after Reply, and whether the first keys reach the message input, is browser focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Typing right after choosing Reply reaches the message input
-  @integration-exempt
   Scenario Outline: Typing right after choosing Reply reaches the message input
     Given the viewport is set to "<viewport>"
     And a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
@@ -226,8 +222,6 @@ Feature: Family chat room
       | desktop 1280x800 | moves focus to the message and presses Enter    |
 
   @fe-vitest-unit
-  # Exemption(integration): the composer's reply strip is rendered by browser JavaScript the server never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / A long quoted message is shortened in the strip
-  @integration-exempt
   Scenario: A long quoted message is shortened in the strip
     Given the selected message body is 400 graphemes long
     When the reply strip renders it
@@ -235,8 +229,6 @@ Feature: Family chat room
     And the shown text ends with an ellipsis
 
   @fe-vitest-unit
-  # Exemption(integration): the reply strip and the draft it leaves behind are browser composer state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The member abandons the reply
-  @integration-exempt
   Scenario Outline: The member abandons the reply
     Given the composer shows a reply strip
     And the visitor has typed "Oke" without sending
@@ -250,16 +242,12 @@ Feature: Family chat room
       | presses Escape in the message input       |
 
   @fe-vitest-unit
-  # Exemption(integration): a real page reload discarding unpersisted draft state requires an actual browser navigation; alternative-proof: bnest-app-fe-e2e:test:e2e / The reply target does not survive a reload
-  @integration-exempt
   Scenario: The reply target does not survive a reload
     Given the composer shows a reply strip
     When the visitor reloads the page
     Then no reply strip is shown
 
   @fe-vitest-unit
-  # Exemption(integration): the reply target is browser composer state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Sending clears the reply target
-  @integration-exempt
   Scenario: Sending clears the reply target
     Given the composer shows a reply strip
     When the visitor sends the message
@@ -430,8 +418,6 @@ Feature: Family chat room
   Rule: Family Chat conversation has most of a phone screen
 
   @fe-vitest-unit
-  # Exemption(integration): the share of the screen the history takes is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat history has most of the screen with an empty draft
-  @integration-exempt
   Scenario Outline: The Family Chat history has most of the screen with an empty draft
     Given the viewport is set to "<viewport>"
     And the visitor's pointer is a touch pointer
@@ -447,8 +433,6 @@ Feature: Family chat room
       | landscape 844x390 | 52    |
 
   @fe-vitest-unit
-  # Exemption(integration): the space above and below the history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The newest message is fully above the composer on a phone
-  @integration-exempt
   Scenario: The newest message is fully above the composer on a phone
     Given the viewport is set to "mobile 390x844"
     And the visitor's pointer is a touch pointer
@@ -458,8 +442,6 @@ Feature: Family chat room
     Then the newest message is fully above the composer
 
   @fe-vitest-unit
-  # Exemption(integration): the space above and below the history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The header and the composer leave most of a phone screen to the history
-  @integration-exempt
   Scenario: The header and the composer leave most of a phone screen to the history
     Given the viewport is set to "mobile 390x844"
     And the visitor's pointer is a touch pointer
@@ -1290,8 +1272,6 @@ Feature: Family chat room
   Rule: Family Chat header and composer stay in place while the messages scroll
 
   @fe-vitest-unit
-  # Exemption(integration): where the header sits while a long conversation scrolls is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat header and composer stay in place while the messages scroll
-  @integration-exempt
   Scenario Outline: The Family Chat header and composer stay in place while the messages scroll
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the history holds 30 messages
@@ -1311,8 +1291,6 @@ Feature: Family chat room
       | tablet 768x1024   |
 
   @fe-vitest-unit
-  # Exemption(integration): whether the newest message clears the composer is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The last Family Chat message is not hidden behind the composer
-  @integration-exempt
   Scenario Outline: The last Family Chat message is not hidden behind the composer
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the history holds 30 messages
@@ -1328,8 +1306,6 @@ Feature: Family chat room
       | landscape 844x390 |
 
   @fe-vitest-unit
-  # Exemption(integration): whether the history keeps its overscroll to itself is a browser scroll behaviour Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat message list keeps its overscroll inside itself
-  @integration-exempt
   Scenario: The Family Chat message list keeps its overscroll inside itself
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the history holds 30 messages
@@ -1341,8 +1317,6 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): where the header and composer sit on a desktop screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat header and composer stay in place with a fine pointer
-  @integration-exempt
   Scenario Outline: The Family Chat header and composer stay in place with a fine pointer
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the history holds 30 messages
@@ -1360,8 +1334,6 @@ Feature: Family chat room
       | desktop 1440x900 |
 
   @fe-vitest-unit
-  # Exemption(integration): how far the message box grows and where Send sits are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A long Family Chat draft grows the message box to its cap and keeps Send and the header on screen
-  @integration-exempt
   Scenario: A long Family Chat draft grows the message box to its cap and keeps Send and the header on screen
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the history holds 30 messages
@@ -1375,8 +1347,6 @@ Feature: Family chat room
     And the newest Family Chat message ends above the composer
 
   @fe-vitest-unit
-  # Exemption(integration): where the composer and the newest message sit after the soft keyboard shrinks the screen are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A smaller screen from the soft keyboard keeps the Family Chat header, composer and newest message on screen
-  @integration-exempt
   Scenario Outline: A smaller screen from the soft keyboard keeps the Family Chat header, composer and newest message on screen
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the history holds 30 messages
