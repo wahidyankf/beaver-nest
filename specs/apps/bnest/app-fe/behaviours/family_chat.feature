@@ -124,8 +124,6 @@ Feature: Family chat room
     And no text is selected in the room
 
   @fe-vitest-unit
-  # Exemption(integration): a pending message, one the server has not confirmed, exists only in the browser outbox and its rendered menu, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message that is not yet committed cannot be replied to
-  @integration-exempt
   Scenario Outline: A message that is not yet committed cannot be replied to
     Given the visitor's own message is in the "<state>" state
     When the visitor opens the action menu on it
@@ -141,16 +139,12 @@ Feature: Family chat room
       | Couldn't send          |
 
   @fe-vitest-unit
-  # Exemption(integration): the action menu is rendered and enabled by browser JavaScript the server never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / A system message can be replied to like any other
-  @integration-exempt
   Scenario: A system message can be replied to like any other
     Given the room holds a committed system message
     When the visitor opens the action menu on it
     Then "Reply" is available
 
   @fe-vitest-unit
-  # Exemption(integration): writing to the system clipboard is a browser API the server never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / Copying a message puts its text on the clipboard
-  @integration-exempt
   Scenario: Copying a message puts its text on the clipboard
     Given the visitor opens the action menu on a message whose body is "Dinner is ready"
     When the visitor chooses "Copy text"
@@ -170,8 +164,6 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): where keyboard focus lands after a key send is browser focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A fine-pointer Enter send keeps keyboard focus in the Family composer
-  @integration-exempt
   Scenario: A fine-pointer Enter send keeps keyboard focus in the Family composer
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     And the visitor's pointer is a fine pointer
@@ -472,24 +464,18 @@ Feature: Family chat room
   Rule: Family Chat message box reads clearly
 
   @fe-vitest-unit
-  # Exemption(integration): the accessible name is computed from the rendered label and its visibility, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat message box has an accessible name
-  @integration-exempt
   Scenario: The Family Chat message box has an accessible name
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the page is laid out
     Then the Family Chat message box is named "Message the family"
 
   @fe-vitest-unit
-  # Exemption(integration): the placeholder colour is painted by the browser from the stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat message box placeholder meets the contrast target
-  @integration-exempt
   Scenario: The Family Chat message box placeholder meets the contrast target
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the page is laid out
     Then the message box placeholder has at least 4.5 to 1 contrast with the box
 
   @fe-vitest-unit
-  # Exemption(integration): the corner radii are painted by the browser from the stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat Send button has four equal round corners
-  @integration-exempt
   Scenario: The Family Chat Send button has four equal round corners
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the page is laid out
@@ -498,8 +484,6 @@ Feature: Family chat room
   Rule: Single light appearance in Family Chat
 
   @fe-vitest-unit
-  # Exemption(integration): the colour a browser paints for a system dark preference is a rendered-page result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Family Chat keeps one light appearance and has no theme control
-  @integration-exempt
   Scenario: Family Chat keeps one light appearance and has no theme control
     Given the visitor's system prefers a dark color scheme
     When an approved admin opens "/family-chat/ruang-keluarga"
