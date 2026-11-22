@@ -398,6 +398,12 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   # One other subscriber (not three): this scenario counts delivery rows for a
   # reply, so a single expected row makes "exactly one" an exact assertion.
+  # The signed-in member's session with no session digest. The login writes the digest into the session
+  # the router reads, so the scenario marks the session, and the perform step runs the resolution the
+  # router would build for it.
+  def prepare_behaviour(context, :session_without_digest, _args),
+    do: Map.put(context, :web_push_session_without_digest, true)
+
   # The sender also gets a subscription so their own exclusion stays genuine.
   # In a Family Chat database of the scenario's own, so dispatching sends only its rows.
   def prepare_behaviour(context, :one_other_active_subscription, [slug]) do
@@ -718,6 +724,66 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   def perform_behaviour(context, :query_messages_body_html_ten_aliases, _args),
     do: body_html_page(context, 10)
+
+  # The caller's Web Push operations. A visitor's requests go through the endpoint with no session. The
+  # no-digest session cannot come from a login, so the real schema runs with the resolution the router
+  # would build for that session, the same way the forbidden-capability probe does.
+  @web_push_operations [
+    current: "query { currentWebPushSubscription { enabled expirationTime } }",
+    upsert:
+      "mutation($endpoint: String!, $p256dh: String!, $auth: String!) " <>
+        "{ upsertWebPushSubscription(endpoint: $endpoint, p256dh: $p256dh, auth: $auth) { enabled expirationTime } }",
+    disable: "mutation { disableCurrentWebPushSubscription { enabled expirationTime } }",
+    configuration: "query { webPushConfiguration { available publicKey } }"
+  ]
+
+  def perform_behaviour(context, :run_web_push_operations, _args) do
+    answers =
+      Map.new(@web_push_operations, fn {name, query} ->
+        variables = if name == :upsert, do: web_push_input(), else: %{}
+        {name, web_push_answer(context, query, variables)}
+      end)
+
+    Map.put(context, :web_push_answers, answers)
+  end
+
+  # A GET, a text body, an oversized body and malformed JSON, each sent through the endpoint, so the
+  # parsers, the pipeline and the router see each one.
+  def perform_behaviour(context, :send_graphql_get, _args),
+    do: record_graphql_refusal(context, get(context.conn, @graphql_path))
+
+  def perform_behaviour(context, :send_graphql_text_plain, _args) do
+    context.conn
+    |> Plug.Conn.put_req_header("content-type", "text/plain")
+    |> post(@graphql_path, ~s({"query": "{ __typename }"}))
+    |> then(&record_graphql_refusal(context, &1))
+  end
+
+  def perform_behaviour(context, :send_graphql_oversized, _args) do
+    body =
+      Jason.encode!(%{"query" => "{ __typename }", "padding" => String.duplicate("x", 64 * 1024)})
+
+    context.conn
+    |> Plug.Conn.put_req_header("content-type", "application/json")
+    |> Plug.Conn.put_req_header("content-length", Integer.to_string(byte_size(body)))
+    |> post(@graphql_path, body)
+    |> then(&record_graphql_refusal(context, &1))
+  end
+
+  def perform_behaviour(context, :send_graphql_malformed_json, _args) do
+    context.conn
+    |> Plug.Conn.put_req_header("content-type", "application/json")
+    |> post(@graphql_path, "{not json")
+    |> then(&record_graphql_refusal(context, &1))
+  end
+
+  # Two messages, a 300 character one and a 120 character one, committed through the GraphQL send, then
+  # dispatched. The payloads kept are the ones the recording push sender received for each message.
+  def perform_behaviour(context, :send_long_spaced_message, _args),
+    do: send_push_probe(context, :long, String.duplicate("alpha    beta\n\n", 20))
+
+  def perform_behaviour(context, :send_exact_120_message, _args),
+    do: send_push_probe(context, :exact, String.duplicate("b", 120))
 
   def perform_behaviour(context, :send_message_fresh_id, [body]),
     do: send_family_chat_message(context, unique_uuid(), body)
@@ -1334,6 +1400,58 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   def behaviour_outcome?(context, :transport_safe_error, [code]) do
     context[:family_chat_http_status] == 403 and error_code?(context, code)
+  end
+
+  # Each subscription operation a visitor or a no-digest session runs is refused with the safe code and
+  # its fixed message; the configuration query still answers; nothing is stored in the database.
+  def behaviour_outcome?(context, :web_push_operations_refused, [code, message]) do
+    Enum.all?(
+      [:current, :upsert, :disable],
+      &(context.web_push_answers[&1] == {:refused, code, message})
+    )
+  end
+
+  def behaviour_outcome?(context, :web_push_configuration_answers, _args),
+    do:
+      match?(
+        {:answered, %{"webPushConfiguration" => %{}}},
+        context.web_push_answers.configuration
+      )
+
+  def behaviour_outcome?(_context, :no_web_push_subscription_stored, _args) do
+    :ok = BnestApp.FamilyChat.ensure_ready!()
+
+    %{rows: [[count]]} = SqliteRepo.query!("SELECT COUNT(*) FROM web_push_subscriptions", [])
+    count == 0
+  end
+
+  def behaviour_outcome?(context, :refused_with_status_and_code, [status, code]) do
+    context[:family_chat_http_status] == status and
+      match?(
+        %{"errors" => [%{"extensions" => %{"code" => ^code}} | _]},
+        context.family_chat_result
+      )
+  end
+
+  def behaviour_outcome?(context, :carries_no_graphql_data, _args),
+    do:
+      is_map(context.family_chat_result) and not Map.has_key?(context.family_chat_result, "data")
+
+  # The payloads the recording push sender received for each message, after dispatch.
+  def behaviour_outcome?(context, :long_payload_body_truncated, _args) do
+    collapsed = context.push_probes.long.body |> String.split() |> Enum.join(" ")
+    expected = String.slice(collapsed, 0, 119) <> "…"
+
+    payloads_all?(context, :long, &(&1["body"] == expected and String.length(expected) == 120))
+  end
+
+  def behaviour_outcome?(context, :exact_payload_body_unchanged, _args),
+    do: payloads_all?(context, :exact, &(&1["body"] == context.push_probes.exact.body))
+
+  def behaviour_outcome?(context, :payload_titles_sender_name, _args) do
+    Enum.all?([:long, :exact], fn key ->
+      payloads_all?(context, key, &(&1["title"] == context.push_probes[key].sender))
+    end)
   end
 
   def behaviour_outcome?(context, :message_committed_with_id_and_time, _args) do
@@ -2599,6 +2717,78 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
       }
     }
     """
+  end
+
+  defp web_push_input do
+    %{
+      "endpoint" => "https:" <> "//push.allowed.example.com/" <> unique_uuid(),
+      "p256dh" => Base.url_encode64(:crypto.strong_rand_bytes(65), padding: false),
+      "auth" => Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
+    }
+  end
+
+  defp web_push_answer(context, query, variables) do
+    result =
+      if context[:web_push_session_without_digest] do
+        via_schema_without_digest(context, query, variables)
+      else
+        context |> graphql(query, variables) |> Map.fetch!(:family_chat_result)
+      end
+
+    normalize_web_push(result)
+  end
+
+  defp via_schema_without_digest(context, query, variables) do
+    resolution = %{
+      current_user: %{"userId" => context.user_id, "roles" => ["parents"]},
+      session_digest: nil
+    }
+
+    {:ok, result} =
+      Absinthe.run(query, BnestAppWeb.Schema, variables: variables, context: resolution)
+
+    result |> Jason.encode!() |> Jason.decode!()
+  end
+
+  defp normalize_web_push(%{
+         "errors" => [%{"message" => message, "extensions" => %{"code" => code}} | _]
+       }),
+       do: {:refused, code, message}
+
+  defp normalize_web_push(%{"data" => data}), do: {:answered, data}
+
+  defp record_graphql_refusal(context, conn) do
+    Map.merge(context, %{family_chat_result: decode(conn), family_chat_http_status: conn.status})
+  end
+
+  # Commits the message through the GraphQL send, dispatches, and keeps the payloads the recording push
+  # sender received for that message, with the sender's display name as the commit answered it.
+  defp send_push_probe(context, key, body) do
+    context = send_family_chat_message(context, unique_uuid(), body)
+
+    %{"data" => %{"sendFamilyChatMessage" => %{"id" => id, "senderDisplayName" => sender}}} =
+      context.family_chat_result
+
+    :ok = PushNotifications.dispatch_all_due!()
+
+    # The GraphQL ID is a string; the payload carries the message's integer ID.
+    payloads =
+      for {_endpoint, %{"messageId" => message_id} = payload} <- push_requests(),
+          to_string(message_id) == id,
+          do: payload
+
+    probes = Map.get(context, :push_probes, %{})
+
+    Map.put(
+      context,
+      :push_probes,
+      Map.put(probes, key, %{body: body, sender: sender, payloads: payloads})
+    )
+  end
+
+  defp payloads_all?(context, key, check) do
+    payloads = context.push_probes[key].payloads
+    payloads != [] and Enum.all?(payloads, check)
   end
 
   defp send_family_chat_message(context, client_message_id, body, opts \\ []) do

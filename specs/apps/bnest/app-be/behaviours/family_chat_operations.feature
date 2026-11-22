@@ -48,6 +48,16 @@ Feature: Family chat operations
     When the dispatcher attempts the delivery
     Then the member's current Web Push subscription reports disabled and the push service is not asked again
 
+  # Exemption(e2e): the push payload is built and sent inside the server process, and the e2e server pushes through the recording sender, so the exact origin has no view of the payload; alternative-proof: bnest-app:test:integration / A push notification body is collapsed and capped at 120 characters
+  @e2e-exempt
+  Scenario: A push notification body is collapsed and capped at 120 characters
+    Given one other member holds an active Web Push subscription in "ruang-keluarga"
+    When a member sends a family chat message of 300 characters with runs of spaces and line breaks
+    And a member sends a family chat message of exactly 120 characters
+    Then the push payload of the 300 character message has a body of single spaces, 119 characters and one ellipsis
+    And the push payload of the 120 character message has its body unchanged
+    And every push payload's title is the sender's display name at commit
+
   Rule: One-time backup schedule convergence
 
   # Exemption(e2e): the release's converge step runs inside the release tooling, which the browser suite never runs; alternative-proof: bnest-app:test:integration / After an upgrade the administrator sees the daily backup at 18:00 UTC

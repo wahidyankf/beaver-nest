@@ -124,6 +124,113 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
     Map.put(context, :delete, %{first: first.status, again: {again.status, error_code(again)}})
   end
 
+  # Seeding after a spawn, and the testing-control answers over the wire. Each answer is the status and the
+  # body the route gave, with the values the request sent.
+
+  @seed_key "test-seed-once"
+
+  @doc "Given a seeded current instance: spawns one when none is current, then seeds it under the test key."
+  def prepare_seeded(context) do
+    context =
+      if TestInstance.state() do
+        context
+      else
+        context |> choose_instance_id() |> spawn_instance(phase: :flat_primary)
+      end
+
+    seed_request(context, :new_key)
+  end
+
+  @doc """
+  A running scheduler task, so the switch sees the scheduler busy. The task is released when the test process
+  exits, through `on_exit`, so no later scenario inherits it.
+  """
+  def hold_scheduler_task(context) do
+    {:ok, task} =
+      Task.Supervisor.start_child(BnestApp.Scheduler.Tasks, fn ->
+        receive do
+          :release -> :ok
+        end
+      end)
+
+    ExUnit.Callbacks.on_exit(fn -> finish_held_task(task) end)
+    context
+  end
+
+  @doc """
+  A seed request under the test key over the wire. `:new_key` and `:same_body` send the first seed, `:other_body`
+  another seed, and `:not_current` the first seed to an instance that is not current.
+  """
+  def seed_request(context, mode) do
+    target =
+      cond do
+        mode == :not_current -> Fixtures.new_instance_id()
+        instance = TestInstance.state() -> instance.instance_id
+        true -> Fixtures.new_instance_id()
+      end
+
+    seed =
+      if mode == :other_body,
+        do: Fixtures.accounts_seed(target, ["admin"]),
+        else: Fixtures.accounts_seed(target, ["parent"])
+
+    conn =
+      Wire.send_request(
+        :post,
+        Wire.prefix() <> "/instances/" <> target <> "/seed",
+        %{"seedKey" => @seed_key, "seed" => seed}
+      )
+
+    context
+    |> Map.put(:isolation_answer, %{
+      status: conn.status,
+      body: Wire.json(conn),
+      sent: [@seed_key, target]
+    })
+    |> Map.put(:seed_usernames, Fixtures.seeded_usernames(seed))
+  end
+
+  @doc """
+  A spawn request over the wire. `:other_run` presents another run id, which the route refuses before anything
+  else. `:plain` presents the run's own id, and is refused while a scheduler task runs or an instance is current.
+  """
+  def spawn_request(context, variant) do
+    run = TestInstance.application_run!()
+
+    run_id =
+      case variant do
+        :other_run -> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+        :plain -> run.run_id
+      end
+
+    conn =
+      Wire.send_request(:post, Wire.prefix() <> "/instances", %{
+        "runId" => run_id,
+        "label" => "isolation"
+      })
+
+    sent = if variant == :other_run, do: [run_id], else: []
+    Map.put(context, :isolation_answer, %{status: conn.status, body: Wire.json(conn), sent: sent})
+  end
+
+  @doc "Whether the first account of the last seed logs in with the synthetic password."
+  def seed_account_login(context), do: login(hd(context.seed_usernames), Fixtures.password())
+
+  @doc "How many accounts of the last seed the current instance holds."
+  def seed_account_count(context),
+    do: Enum.count(context.seed_usernames, &account_present?(context, &1))
+
+  defp finish_held_task(task) do
+    ref = Process.monitor(task)
+    send(task, :release)
+
+    receive do
+      {:DOWN, ^ref, :process, ^task, _reason} -> :ok
+    after
+      1_000 -> :ok
+    end
+  end
+
   @doc """
   A client's create request under one variant: `:no_header`, `:wrong_header`, `:forwarded` or
   `:non_loopback`. It is sent over the wire, and the same request to a missing route is recorded for

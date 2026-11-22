@@ -25,6 +25,13 @@ Feature: Bnest test isolation
     And the seeded account can log in as soon as the spawn returns
     And the instance stays current until the test deletes it
 
+  Scenario: A seed is applied once per key
+    Given a test instance is current
+    When a test seeds the current instance under a new seed key
+    Then the seed answers applied true and the seeded account can log in
+    When the test repeats that seed key with the same body
+    Then the repeat answers applied false and writes no new account
+
   Rule: Teardown leaves nothing behind
 
   Scenario: Teardown removes the instance from the running server
@@ -92,3 +99,26 @@ Feature: Bnest test isolation
       | fault                                                       | step    |
       | seeding will fail after the first seeded account is created | seed    |
       | the migration will fail on its first migration              | migrate |
+
+  Rule: A conflicting testing-control request answers 409 with its code
+
+  Scenario Outline: A conflicting testing-control request answers 409 with its code
+    Given <setup>
+    When <conflict>
+    Then the response is a 409 answer with the code "<code>"
+    And the answer echoes none of the request's input
+
+    Examples:
+      | setup                                                  | conflict                                                       | code            |
+      | no test instance is current                            | a test asks the server to spawn an instance under another run id | run_mismatch    |
+      | a test instance is current                             | a test asks the server to spawn an instance                    | instance_active |
+      | no test instance is current                            | a test seeds an instance that is not current                   | not_current     |
+      | a test seeded a current instance under a seed key      | a test seeds the current instance with another body under it  | seed_conflict   |
+
+  # Exemption(e2e): a scheduler task cannot be held running from the exact origin, because the e2e server runs with the automatic scheduler off and exposes no way to start one; alternative-proof: bnest-app:test:integration / A spawn while a scheduler task runs answers 409 instance_busy
+  @e2e-exempt
+  Scenario: A spawn while a scheduler task runs answers 409 instance_busy
+    Given no test instance is current
+    And a scheduler task is running
+    When a test asks the server to spawn an instance
+    Then the response is a 409 answer with the code "instance_busy"

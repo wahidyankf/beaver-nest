@@ -17,6 +17,7 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
 
   alias BnestApp.Behaviour.TestIsolation.Fixtures
   alias BnestApp.Test.InMemory.TestInstancePort, as: Lifecycle
+  alias BnestAppWeb.TestingControl.ErrorBody
   alias BnestAppWeb.TestingControl.Guard
   alias BnestAppWeb.TestingControl.Secret
 
@@ -195,6 +196,113 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
 
   @doc "The records and chat messages the current instance's database holds."
   def database_contents(context), do: Lifecycle.database_contents(context.isolation.port)
+
+  # Seeding after a spawn, and the testing-control answers. The route's own renderer makes each refusal's
+  # status and body, so the unit layer checks the answer a client would read.
+
+  @seed_key "test-seed-once"
+  @other_run_id "other-run-id"
+
+  @doc "Given a seeded current instance: spawns one when none is current, then seeds it under the test key."
+  def prepare_seeded(context) do
+    context =
+      if Lifecycle.current(context.isolation.port) do
+        context
+      else
+        context |> choose_instance_id() |> spawn_instance(phase: :flat_primary)
+      end
+
+    seed_request(context, :new_key)
+  end
+
+  @doc "A scheduler task is running, so a spawn is refused while it runs."
+  def hold_scheduler_task(context), do: put_isolation(context, :scheduler_busy, true)
+
+  @doc """
+  A seed request under the test key. `:new_key` and `:same_body` send the first seed, `:other_body` another
+  seed, and `:not_current` the first seed to an instance that is not current. The answer is the status and
+  the body the route gives: a seed that applies or is unchanged answers 200 with `applied`.
+  """
+  def seed_request(context, mode) do
+    port = context.isolation.port
+
+    target =
+      if mode == :not_current,
+        do: "not-current-instance",
+        else: current_id(port) || "no-such-instance"
+
+    seed =
+      if mode == :other_body,
+        do: Fixtures.accounts_seed(target, ["admin"]),
+        else: Fixtures.accounts_seed(target, ["parent"])
+
+    case Lifecycle.seed_current(port, target, @seed_key, seed) do
+      {:ok, port, outcome} ->
+        context
+        |> put_port(port)
+        |> put_answer(%{
+          status: 200,
+          body: %{"seedKey" => @seed_key, "applied" => outcome == :applied},
+          sent: [@seed_key, target]
+        })
+        |> Map.put(:seed_usernames, Fixtures.seeded_usernames(seed))
+
+      {:error, port, reason} ->
+        context |> put_port(port) |> put_answer(refusal(reason, [@seed_key, target]))
+    end
+  end
+
+  @doc """
+  A spawn request. `:other_run` presents another run id, which is refused before anything else. `:plain`
+  presents the run's own id: a running scheduler task refuses it `instance_busy`, a current instance
+  `instance_active`, and otherwise the spawn runs.
+  """
+  def spawn_request(context, :other_run),
+    do: put_answer(context, refusal(:run_mismatch, [@other_run_id]))
+
+  def spawn_request(context, :plain) do
+    cond do
+      context.isolation[:scheduler_busy] ->
+        put_answer(context, refusal(:instance_busy, []))
+
+      Lifecycle.current(context.isolation.port) ->
+        put_answer(context, refusal(:instance_active, []))
+
+      true ->
+        context
+        |> choose_instance_id()
+        |> spawn_instance(phase: :flat_primary)
+        |> put_answer(%{status: 201, body: %{}, sent: []})
+    end
+  end
+
+  @doc "Whether the first account of the last seed logs in with the synthetic password."
+  def seed_account_login(context) do
+    [username | _rest] = context.seed_usernames
+
+    case Lifecycle.login(context.isolation.port, username, Fixtures.password()) do
+      {:ok, _port} -> :ok
+      :error -> :error
+    end
+  end
+
+  @doc "How many accounts of the last seed the current instance holds."
+  def seed_account_count(context),
+    do: Enum.count(context.seed_usernames, &Lifecycle.account?(context.isolation.port, &1))
+
+  defp current_id(port) do
+    case Lifecycle.current(port) do
+      nil -> nil
+      %{instance_id: id} -> id
+    end
+  end
+
+  defp refusal(reason, sent) do
+    {status, body} = ErrorBody.render(reason)
+    %{status: status, body: body, sent: sent}
+  end
+
+  defp put_answer(context, answer), do: Map.put(context, :isolation_answer, answer)
 
   defp seed_option(opts) do
     case Keyword.get(opts, :seed) do

@@ -328,7 +328,35 @@ Feature: Family chat GraphQL API
       | https://push.allowed.example.com:8443/nondefault-port |
       | https://user@push.allowed.example.com/userinfo-present |
 
+  Scenario: A visitor with no session is refused every Web Push subscription operation
+    Given a visitor has no authenticated Bnest session
+    When the caller runs each Web Push subscription operation
+    Then each Web Push subscription operation answers a safe "UNAUTHENTICATED" error reading "Authentication required."
+    And the Web Push configuration query still answers the caller
+    And no Web Push subscription is stored
+
+  # Exemption(e2e): a browser session always carries the session digest its login stored, so the exact origin cannot present a session without one; alternative-proof: bnest-app:test:integration / A signed-in session with no session digest is refused every Web Push subscription operation
+  @e2e-exempt
+  Scenario: A signed-in session with no session digest is refused every Web Push subscription operation
+    Given the signed-in session has no session digest
+    When the caller runs each Web Push subscription operation
+    Then each Web Push subscription operation answers a safe "UNAUTHENTICATED" error reading "Authentication required."
+    And the Web Push configuration query still answers the caller
+    And no Web Push subscription is stored
+
   Rule: Cookie/CSRF and session-derived identity
+
+  Scenario Outline: The GraphQL endpoint refuses a malformed request before executing it
+    When the user sends a GraphQL request that is <request>
+    Then the response has HTTP status <status> and a safe "<code>" error
+    And the response carries no GraphQL data
+
+    Examples:
+      | request                    | status | code                   |
+      | a GET                      | 405    | METHOD_NOT_ALLOWED     |
+      | a body typed as plain text | 415    | UNSUPPORTED_MEDIA_TYPE |
+      | a body over 64 KiB         | 413    | PAYLOAD_TOO_LARGE      |
+      | malformed JSON             | 400    | VALIDATION_FAILED      |
 
   Scenario: A mutation without a valid CSRF token is rejected
     When the user sends a family chat message mutation with a missing CSRF token

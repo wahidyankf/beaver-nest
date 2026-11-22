@@ -2125,7 +2125,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
              :replied_under_earlier_display_name,
              :reply_committed_before_subscription,
              :reply_migration_applied,
-             :one_other_active_subscription
+             :one_other_active_subscription,
+             :session_without_digest
            ] do
     UnitFamilyChatDriver.prepare_behaviour(context, state, args)
   end

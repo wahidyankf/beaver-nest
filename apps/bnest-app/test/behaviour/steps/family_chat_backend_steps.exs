@@ -706,6 +706,84 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :delivery_payload_excludes_quote)
   )
 
+  # --- family_chat_graphql.feature: Web Push refusals and malformed requests ---
+
+  step("the signed-in session has no session digest", context,
+    do: prepare(context, :session_without_digest)
+  )
+
+  step("the caller runs each Web Push subscription operation", context,
+    do: perform(context, :run_web_push_operations)
+  )
+
+  step(
+    "each Web Push subscription operation answers a safe {string} error reading {string}",
+    %{args: [code, message]} = context,
+    do: outcome(context, :web_push_operations_refused, [code, message])
+  )
+
+  step("the Web Push configuration query still answers the caller", context,
+    do: outcome(context, :web_push_configuration_answers)
+  )
+
+  step("no Web Push subscription is stored", context,
+    do: outcome(context, :no_web_push_subscription_stored)
+  )
+
+  step("the user sends a GraphQL request that is a GET", context,
+    do: perform(context, :send_graphql_get)
+  )
+
+  step("the user sends a GraphQL request that is a body typed as plain text", context,
+    do: perform(context, :send_graphql_text_plain)
+  )
+
+  step("the user sends a GraphQL request that is a body over 64 KiB", context,
+    do: perform(context, :send_graphql_oversized)
+  )
+
+  step("the user sends a GraphQL request that is malformed JSON", context,
+    do: perform(context, :send_graphql_malformed_json)
+  )
+
+  step(
+    "the response has HTTP status {int} and a safe {string} error",
+    %{args: [status, code]} = context,
+    do: outcome(context, :refused_with_status_and_code, [status, code])
+  )
+
+  step("the response carries no GraphQL data", context,
+    do: outcome(context, :carries_no_graphql_data)
+  )
+
+  # --- family_chat_operations.feature: the push payload ---
+
+  step(
+    "a member sends a family chat message of 300 characters with runs of spaces and line breaks",
+    context,
+    do: perform(context, :send_long_spaced_message)
+  )
+
+  step("a member sends a family chat message of exactly 120 characters", context,
+    do: perform(context, :send_exact_120_message)
+  )
+
+  step(
+    "the push payload of the 300 character message has a body of single spaces, 119 characters and one ellipsis",
+    context,
+    do: outcome(context, :long_payload_body_truncated)
+  )
+
+  step(
+    "the push payload of the 120 character message has its body unchanged",
+    context,
+    do: outcome(context, :exact_payload_body_unchanged)
+  )
+
+  step("every push payload's title is the sender's display name at commit", context,
+    do: outcome(context, :payload_titles_sender_name)
+  )
+
   defp prepare(context, state), do: context.behaviour_driver.prepare_behaviour(context, state, [])
 
   defp prepare(context, state, args),

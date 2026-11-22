@@ -25,7 +25,7 @@ export interface GraphQlResponse<T = Record<string, unknown>> {
   errors?: { message: string; extensions?: Record<string, unknown> }[];
 }
 
-async function readCsrfToken(page: Page): Promise<string> {
+export async function readCsrfToken(page: Page): Promise<string> {
   const token = await page.evaluate(
     () =>
       document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")
