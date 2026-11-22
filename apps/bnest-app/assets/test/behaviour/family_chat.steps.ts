@@ -24,6 +24,7 @@ import {
   AUTHENTICATED_MARKER,
   loadServiceWorker,
 } from "../support/service_worker";
+import { declarationsFor, type Environment } from "../support/shipped_css";
 import {
   activate,
   activePage,
@@ -1223,6 +1224,29 @@ step("the send shortcut hint takes no row", () => {
   );
 });
 
+// The hint keeps its row when the shipped stylesheet leaves it in the flow and shows it (a fine pointer's hint).
+function assertHintTakesARow(selector: string, env: Environment): void {
+  const declared = declarationsFor(selector, env);
+  expect(
+    declared["position"] !== "absolute",
+    `${selector} is taken out of the flow`,
+  );
+  expect(declared["display"] !== "none", `${selector} is hidden`);
+}
+
+step("the send shortcut hint takes a row", () => {
+  assertHintTakesARow(
+    ".family-chat-composer-hint",
+    hintEnvironment(
+      recallOr<{ viewport: { width: number; height: number } } | null>(
+        "familyLaidOut",
+        null,
+      ),
+      recallOr("familyCoarse", false),
+    ),
+  );
+});
+
 step("the visitor presses Shift+Enter with an empty draft", async () => {
   expect(activePage().elements.input.value === "", "the draft is not empty");
   // Watch from before the press, so "nothing is sent yet" checks the presses of this scenario and not an earlier moment.
@@ -1233,23 +1257,19 @@ step("the visitor presses Shift+Enter with an empty draft", async () => {
 });
 
 step(
-  "the visitor confirms a composition with Enter in the family composer",
-  async () => {
-    // An IME confirms its text with Enter during a composition; the browser inserts no newline for that key.
+  "the visitor confirms a {word} composition with Enter in the family composer",
+  async (composition) => {
     remember("familyQueued", watchPendingRows());
     remember("familySendAttemptsBefore", server().sendAttempts.length);
-    await pressKey("Enter", { isComposing: true });
-    await settle();
-  },
-);
-
-step(
-  "the visitor confirms a composition with keyCode 229 in the family composer",
-  async () => {
-    // Safari reports the same composition Enter with keyCode 229 and isComposing false; the room must not send on it.
-    remember("familyQueued", watchPendingRows());
-    remember("familySendAttemptsBefore", server().sendAttempts.length);
-    await pressKey("Enter", { keyCode: 229 });
+    if (composition === "standard") {
+      // An IME confirms its text with Enter during a composition; the browser inserts no newline for that key.
+      await pressKey("Enter", { isComposing: true });
+    } else if (composition === "Safari") {
+      // Safari reports the same composition Enter with keyCode 229 and isComposing false; the room must not send on it.
+      await pressKey("Enter", { keyCode: 229 });
+    } else {
+      throw new Error(`no composition browser is named ${composition}`);
+    }
     await settle();
   },
 );

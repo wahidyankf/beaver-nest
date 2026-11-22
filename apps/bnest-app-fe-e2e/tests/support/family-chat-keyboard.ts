@@ -21,9 +21,12 @@ export const WIDE_TABLE =
   "| Nasigorengkampungspesialbuatkeluargakitasemua | Tehmanisdengansusuhangatbersamakeluarga | Kuehmangkokdaripasarpagihariinisegarsekali | Pedasnyasedanglebihenakdimakanbersama | Tigaorangdewasadanduaanakkecil |";
 export const WIDE_CODE =
   "```text\nNasigorengkampungspesialbuatkeluargakitasemua Tehmanisdengansusuhangatbersamakeluarga Kuehmangkokdaripasarpagihariinisegarsekali\n```";
+export const WIDE_DIAGRAM =
+  "```mermaid\nflowchart LR\n  A[Pick up the children from the school gate] --> B[Cook dinner together at home] --> C[Eat together at the table]\n```";
 export const WIDE_BODIES: Readonly<Record<string, string>> = {
   table: WIDE_TABLE,
   "code block": WIDE_CODE,
+  diagram: WIDE_DIAGRAM,
 };
 
 /** The selector of each kind of content a step names, as the page renders it. */

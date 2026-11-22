@@ -180,22 +180,6 @@ Then("the focused message is not the newest message", async ({ page }) => {
   ).toBe(true);
 });
 
-Then("the focused message is the newest message", async ({ page }) => {
-  const result = await page.evaluate((message) => {
-    const rows = [...document.querySelectorAll(message)];
-    const active = document.activeElement;
-    return {
-      count: rows.length,
-      focusedIsNewest:
-        active !== null && rows.length > 0 && active === rows.at(-1),
-    };
-  }, MESSAGE);
-  expect(
-    result.focusedIsNewest,
-    `keyboard focus is not on the newest of ${result.count} messages`,
-  ).toBe(true);
-});
-
 Then("the focused message is the tall message", async ({ page }) => {
   const body = await page.evaluate(
     (selector) =>

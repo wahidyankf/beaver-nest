@@ -65,26 +65,24 @@ Then("nothing is sent yet", async ({ page }) => {
 });
 
 When(
-  "the visitor confirms a composition with Enter in the family composer",
-  async ({ page }) => {
+  "the visitor confirms a {word} composition with Enter in the family composer",
+  async ({ page }, composition: string) => {
     sentBefore = await page.locator(MESSAGE).count();
-    // A key press that confirms an IME composition carries isComposing, and the room must not send on it.
-    await page.locator(COMPOSER_INPUT).dispatchEvent("keydown", {
-      key: "Enter",
-      isComposing: true,
-    });
-  },
-);
-
-When(
-  "the visitor confirms a composition with keyCode 229 in the family composer",
-  async ({ page }) => {
-    sentBefore = await page.locator(MESSAGE).count();
-    // Safari's composition Enter: keyCode 229 with isComposing false. The keyboard API cannot set keyCode, so the event is
-    // dispatched with it; the room must not send on it.
-    await page
-      .locator(COMPOSER_INPUT)
-      .dispatchEvent("keydown", { key: "Enter", keyCode: 229 });
+    if (composition === "standard") {
+      // A key press that confirms an IME composition carries isComposing, and the room must not send on it.
+      await page.locator(COMPOSER_INPUT).dispatchEvent("keydown", {
+        key: "Enter",
+        isComposing: true,
+      });
+    } else if (composition === "Safari") {
+      // Safari's composition Enter: keyCode 229 with isComposing false. The keyboard API cannot set keyCode, so the event
+      // is dispatched with it; the room must not send on it.
+      await page
+        .locator(COMPOSER_INPUT)
+        .dispatchEvent("keydown", { key: "Enter", keyCode: 229 });
+    } else {
+      throw new Error(`no composition browser is named ${composition}`);
+    }
   },
 );
 

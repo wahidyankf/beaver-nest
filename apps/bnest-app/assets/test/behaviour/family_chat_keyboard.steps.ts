@@ -67,6 +67,12 @@ const WIDE_CODE = `${"pickup-the-children-from-the-school-gate-".repeat(8)}`;
 const WIDE_BODIES: Readonly<Record<string, string>> = {
   table: `Dinner plan:\n\n${WIDE_TABLE}`,
   "code block": `\`\`\`text\n${WIDE_CODE}\n\`\`\``,
+  diagram: [
+    "```mermaid",
+    "flowchart LR",
+    "  A[Pick up the children from the school gate] --> B[Cook dinner together at home] --> C[Eat together at the table]",
+    "```",
+  ].join("\n"),
 };
 
 const registry: StepDefinition[] = [];
@@ -470,16 +476,6 @@ step("the focused message is the message with the number {int}", (number) => {
   expect(
     actual === Number(number),
     `the focused message is number ${actual ?? "none"}, not ${number}`,
-  );
-});
-
-step("the focused message is the newest message", () => {
-  const page = activePage();
-  const rows = messageRows(page);
-  const newest = rows[rows.length - 1];
-  expect(
-    newest !== undefined && focusedElement(page) === newest,
-    `keyboard focus is not on the newest of ${rows.length} messages`,
   );
 });
 

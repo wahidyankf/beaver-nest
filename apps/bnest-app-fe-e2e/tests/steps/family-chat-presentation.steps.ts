@@ -19,6 +19,17 @@ const MAX_TAB_STOPS = 60;
 
 let probeBody = "";
 
+Then("the send shortcut hint takes a row", async ({ page }) => {
+  // A fine pointer's hint keeps its row: it is laid out in the flow with a visible box, not a one-pixel box.
+  const hint = page.locator(".family-chat-composer-hint").first();
+  await expect(hint).toBeVisible();
+  const box = await hint.boundingBox();
+  expect(
+    box !== null && box.height > 1,
+    `the hint is ${JSON.stringify(box)}`,
+  ).toBe(true);
+});
+
 Given("a visitor has exchanged messages", async ({ page }) => {
   await openFamilyChatRoom(page);
   expect(new URL(page.url()).pathname).toBe(ROOM_ROUTE);

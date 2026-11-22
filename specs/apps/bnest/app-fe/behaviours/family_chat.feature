@@ -394,14 +394,18 @@ Feature: Family chat room
     When a visitor opens "/family-chat/ruang-keluarga"
     And the history is laid out on the screen
     And the visitor presses Tab from the control before the history
-    And the visitor presses "<key>" <presses> times
+    And the visitor presses "ArrowUp" <lead presses> times
+    Then the focused message is the message with the number <start>
+    When the visitor presses "<key>" <presses> times
     Then the focused message is inside the visible history
     And the focused message is the message with the number <number>
 
     Examples:
-      | key     | presses | number |
-      | ArrowUp | 30      | 19     |
-      | Home    | 1       | 0      |
+      | lead presses | start | key       | presses | number |
+      | 0            | 49    | ArrowUp   | 30      | 19     |
+      | 0            | 49    | Home      | 1       | 0      |
+      | 30           | 19    | ArrowDown | 15      | 34     |
+      | 30           | 19    | End       | 1       | 49     |
 
   @fe-vitest-unit
   # Exemption(integration): where the action menu opens beside a message in a scrolled history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The action menu opened from the keyboard sits beside its message
@@ -415,35 +419,6 @@ Feature: Family chat room
     And the visitor presses "ArrowUp" 30 times
     And the visitor presses "Enter"
     Then the message action menu is beside the focused message inside the screen
-
-  @fe-vitest-unit
-  # Exemption(integration): where a focused message sits in a scrolled history after an arrow key moves focus down is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The arrow keys bring a message below the window into view
-  @integration-exempt
-  Scenario: The arrow keys bring a message below the window into view
-    Given the viewport is set to "desktop 1440x900"
-    And the history holds 50 messages
-    When a visitor opens "/family-chat/ruang-keluarga"
-    And the history is laid out on the screen
-    And the visitor presses Tab from the control before the history
-    And the visitor presses "ArrowUp" 30 times
-    And the visitor presses "ArrowDown" 15 times
-    Then the focused message is inside the visible history
-    And the focused message is the message with the number 34
-
-  @fe-vitest-unit
-  # Exemption(integration): where the history scrolls to the newest message after the End key moves focus is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The End key brings the newest message into view
-  @integration-exempt
-  Scenario: The End key brings the newest message into view
-    Given the viewport is set to "desktop 1440x900"
-    And the history holds 50 messages
-    When a visitor opens "/family-chat/ruang-keluarga"
-    And the history is laid out on the screen
-    And the visitor presses Tab from the control before the history
-    And the visitor presses "ArrowUp" 30 times
-    Then the focused message is not the newest message
-    And the visitor presses "End" 1 times
-    Then the focused message is inside the visible history
-    And the focused message is the newest message
 
   @fe-vitest-unit
   # Exemption(integration): the top edge of a message taller than the scrolled history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message taller than the window shows its top when focus reaches it
@@ -521,35 +496,22 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): the hint's visibility is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat send shortcut hint follows a fine pointer
+  # Exemption(integration): the hint's visibility is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat send shortcut hint follows the pointer
   @integration-exempt
-  Scenario Outline: The Family Chat send shortcut hint follows a fine pointer
+  Scenario Outline: The Family Chat send shortcut hint follows the pointer
     Given the viewport is set to "<viewport>"
-    And the visitor's pointer is a fine pointer
+    And the visitor's pointer is a <pointer> pointer
     When a visitor opens "/family-chat/ruang-keluarga"
     And the page is laid out
-    Then the send shortcut hint reads "Enter to send, Shift+Enter for a new line"
+    Then the send shortcut hint reads "<hint>"
+    And the send shortcut hint <row use>
 
     Examples:
-      | viewport         |
-      | desktop 1440x900 |
-      | narrow 320x568   |
-
-  @fe-vitest-unit
-  # Exemption(integration): the hint's visibility is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat send shortcut hint follows a touch pointer
-  @integration-exempt
-  Scenario Outline: The Family Chat send shortcut hint follows a touch pointer
-    Given the viewport is set to "<viewport>"
-    And the visitor's pointer is a touch pointer
-    When a visitor opens "/family-chat/ruang-keluarga"
-    And the page is laid out
-    Then the send shortcut hint reads "Shift+Enter to send"
-    And the send shortcut hint takes no row
-
-    Examples:
-      | viewport        |
-      | mobile 390x844  |
-      | tablet 1024x768 |
+      | pointer | viewport         | hint                                      | row use      |
+      | fine    | desktop 1440x900 | Enter to send, Shift+Enter for a new line | takes a row  |
+      | fine    | narrow 320x568   | Enter to send, Shift+Enter for a new line | takes a row  |
+      | touch   | mobile 390x844   | Shift+Enter to send                       | takes no row |
+      | touch   | tablet 1024x768  | Shift+Enter to send                       | takes no row |
 
   Rule: Family Chat message box reads clearly
 
@@ -693,10 +655,10 @@ Feature: Family chat room
       | table          | ArrowRight | the "table" is scrolled to the right           |
 
   @fe-vitest-unit
-  # Exemption(integration): a wide table or code block is a scroll region whose width and scroll position only a browser layout engine computes, which Phoenix.LiveViewTest never measures; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide table or code block can be scrolled from the keyboard
+  # Exemption(integration): a wide table, code block or diagram is a scroll region whose width and scroll position only a browser layout engine computes, which Phoenix.LiveViewTest never measures; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide table, code block or diagram can be scrolled from the keyboard
   @integration-exempt
-  Scenario Outline: A wide table or code block can be scrolled from the keyboard
-    Given the viewport is set to "mobile 390x844"
+  Scenario Outline: A wide table, code block or diagram can be scrolled from the keyboard
+    Given the viewport is set to "<viewport>"
     And Ayah has sent a wide "<kind>" message
     When a visitor opens "/family-chat/ruang-keluarga"
     And the visitor presses Tab from the control before the history
@@ -708,9 +670,10 @@ Feature: Family chat room
     And keyboard focus is on "<kind>"
 
     Examples:
-      | kind       |
-      | table      |
-      | code block |
+      | kind       | viewport       |
+      | table      | mobile 390x844 |
+      | code block | mobile 390x844 |
+      | diagram    | mobile 320x640 |
 
   @fe-vitest-unit
   # Exemption(integration): whether a table or code block fits its box is a browser layout result that Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A table or code block that fits is not a tab stop
@@ -763,29 +726,6 @@ Feature: Family chat room
     And the visitor presses "Tab"
     Then keyboard focus is on "home"
     And the message "Dinner plan" is the keyboard stop
-
-  @fe-vitest-unit
-  # Exemption(integration): the picture's width at a 320 px viewport is a browser layout result that Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A scrolled diagram can be scrolled from the keyboard
-  @integration-exempt
-  Scenario: A scrolled diagram can be scrolled from the keyboard
-    Given the viewport is set to "mobile 320x640"
-    And Ayah has sent this family chat message:
-      """
-      ```mermaid
-      flowchart LR
-        A[Pick up the children from the school gate] --> B[Cook dinner together at home] --> C[Eat together at the table]
-      ```
-      """
-    And the "diagram" in the message is wider than its box
-    When a visitor opens "/family-chat/ruang-keluarga"
-    Then the message shows a diagram labelled "Flowchart"
-    When the visitor presses Tab from the control before the history
-    And the visitor presses "Tab"
-    Then keyboard focus is on "diagram"
-    And the "diagram" shows a visible focus ring
-    When the visitor presses "ArrowRight"
-    Then the "diagram" is scrolled to the right
-    And keyboard focus is on "diagram"
 
   @fe-vitest-unit
   # Exemption(integration): which picture Tab reaches once the keyboard stop moves up to an older message is browser focus order over DOM that browser JavaScript builds, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram in an older message can be reached from the keyboard on a phone
@@ -1155,27 +1095,20 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): an IME composition is a browser input state the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter confirming a composition does not send in Family Chat
+  # Exemption(integration): an IME composition is a browser input state the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter that confirms a composition does not send in Family Chat
   @integration-exempt
-  Scenario: Enter confirming a composition does not send in Family Chat
+  Scenario Outline: Enter that confirms a composition does not send in Family Chat
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     And the visitor's pointer is a fine pointer
     And the visitor has typed "Still composing" without sending
-    When the visitor confirms a composition with Enter in the family composer
+    When the visitor confirms a <composition> composition with Enter in the family composer
     Then nothing is sent yet
     And the composer holds the draft "Still composing"
 
-  @fe-vitest-unit
-  @fine-pointer
-  # Exemption(integration): Safari reports its composition Enter with keyCode 229, a browser key-event detail the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter with keyCode 229 does not send in Family Chat
-  @integration-exempt
-  Scenario: Enter with keyCode 229 does not send in Family Chat
-    Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
-    And the visitor's pointer is a fine pointer
-    And the visitor has typed "Still composing" without sending
-    When the visitor confirms a composition with keyCode 229 in the family composer
-    Then nothing is sent yet
-    And the composer holds the draft "Still composing"
+    Examples:
+      | composition |
+      | standard    |
+      | Safari      |
 
   @fe-vitest-unit
   @fine-pointer

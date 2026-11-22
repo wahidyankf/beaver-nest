@@ -70,7 +70,7 @@ export async function promoteCompatibleCandidate(
   // LiveView-routed caller). The family chat room is a plain Phoenix
   // controller, never a LiveView (tech-doc 005), so its own caller passes
   // `false` and proves reconnect through its own real readiness signal
-  // instead (see `family-chat.steps.ts`'s "the prior-slot socket closes").
+  // instead (see `family-chat.steps.ts`'s "the room reconnects").
   options: { verifyLiveView?: boolean } = {},
 ): Promise<{
   previousPort: number;
