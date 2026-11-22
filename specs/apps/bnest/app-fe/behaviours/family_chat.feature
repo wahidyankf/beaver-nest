@@ -1058,40 +1058,26 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): physical keyboard chord handling belongs to the browser boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter and Shift+Enter follow a fine pointer in Family Chat
+  # Exemption(integration): physical keyboard chord handling belongs to the browser boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter and Shift+Enter follow the pointer in Family Chat
   @integration-exempt
-  Scenario Outline: Enter and Shift+Enter follow a fine pointer in Family Chat
+  Scenario Outline: Enter and Shift+Enter follow the pointer in Family Chat
     Given the viewport is set to "<viewport>"
-    And the visitor's pointer is a fine pointer
+    And the visitor's pointer is a <pointer>
     And a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     When the visitor types "Keyboard send" and presses "<key>" in the family composer
     Then the family room sends <sends> messages
     And the family composer shows "<box>"
 
     Examples:
-      | viewport         | key         | sends | box                        |
-      | desktop 1440x900 | Enter       | 1     | an empty box               |
-      | desktop 1440x900 | Shift+Enter | 0     | a new line after its draft |
-      | narrow 320x568   | Enter       | 1     | an empty box               |
-      | narrow 320x568   | Shift+Enter | 0     | a new line after its draft |
-
-  @fe-vitest-unit
-  # Exemption(integration): physical keyboard chord handling belongs to the browser boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter and Shift+Enter follow a touch pointer in Family Chat
-  @integration-exempt
-  Scenario Outline: Enter and Shift+Enter follow a touch pointer in Family Chat
-    Given the viewport is set to "<viewport>"
-    And the visitor's pointer is a touch pointer
-    And a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
-    When the visitor types "Keyboard send" and presses "<key>" in the family composer
-    Then the family room sends <sends> messages
-    And the family composer shows "<box>"
-
-    Examples:
-      | viewport        | key         | sends | box                        |
-      | mobile 390x844  | Enter       | 0     | a new line after its draft |
-      | mobile 390x844  | Shift+Enter | 1     | an empty box               |
-      | tablet 1024x768 | Enter       | 0     | a new line after its draft |
-      | tablet 1024x768 | Shift+Enter | 1     | an empty box               |
+      | viewport         | pointer       | key         | sends | box                        |
+      | desktop 1440x900 | fine pointer  | Enter       | 1     | an empty box               |
+      | desktop 1440x900 | fine pointer  | Shift+Enter | 0     | a new line after its draft |
+      | narrow 320x568   | fine pointer  | Enter       | 1     | an empty box               |
+      | narrow 320x568   | fine pointer  | Shift+Enter | 0     | a new line after its draft |
+      | mobile 390x844   | touch pointer | Enter       | 0     | a new line after its draft |
+      | mobile 390x844   | touch pointer | Shift+Enter | 1     | an empty box               |
+      | tablet 1024x768  | touch pointer | Enter       | 0     | a new line after its draft |
+      | tablet 1024x768  | touch pointer | Shift+Enter | 1     | an empty box               |
 
   @fe-vitest-unit
   @fine-pointer
@@ -1348,35 +1334,16 @@ Feature: Family chat room
   Rule: Family Chat header and composer stay in place while the messages scroll
 
   @fe-vitest-unit
-  # Exemption(integration): where the header sits while a long conversation scrolls is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat header stays at the top while the messages scroll
+  # Exemption(integration): where the header sits while a long conversation scrolls is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat header and composer stay in place while the messages scroll
   @integration-exempt
-  Scenario Outline: The Family Chat header stays at the top while the messages scroll
+  Scenario Outline: The Family Chat header and composer stay in place while the messages scroll
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the history holds 30 messages
     And the viewport is set to "<viewport>"
     And the visitor's pointer is a touch pointer
     When the visitor scrolls the family conversation to the middle
     Then the Family Chat header is at the top of the screen
-    And the page does not scroll
-
-    Examples:
-      | viewport          |
-      | narrow 320x568    |
-      | mobile 360x740    |
-      | mobile 390x844    |
-      | landscape 844x390 |
-      | tablet 768x1024   |
-
-  @fe-vitest-unit
-  # Exemption(integration): where the composer sits while a long conversation scrolls is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Family Chat composer stays at the bottom while the messages scroll
-  @integration-exempt
-  Scenario Outline: The Family Chat composer stays at the bottom while the messages scroll
-    Given a visitor opens "/family-chat/ruang-keluarga"
-    And the history holds 30 messages
-    And the viewport is set to "<viewport>"
-    And the visitor's pointer is a touch pointer
-    When the visitor scrolls the family conversation to the middle
-    Then the Family Chat composer is at the bottom of the screen
+    And the Family Chat composer is at the bottom of the screen
     And the page does not scroll
 
     Examples:
