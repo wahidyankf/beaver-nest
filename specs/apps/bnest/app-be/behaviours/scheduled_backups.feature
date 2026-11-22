@@ -66,26 +66,20 @@ Feature: Bnest scheduled backups
 
   Rule: The reconcile report states each result in one fixed wording
 
-    # Exemption(e2e): the browser and HTTP client cannot run the reconcile Mix task or read the lines it prints; alternative-proof: bnest-app:test:integration / The report counts several backups that need attention
+    # Exemption(e2e): the browser and HTTP client cannot run the reconcile Mix task or read the lines it prints; alternative-proof: bnest-app:test:integration / The report counts the backups that need attention
     @e2e-exempt
-    Scenario: The report counts several backups that need attention
+    Scenario Outline: The report counts the backups that need attention
       Given an isolated ledger of 7 verified runs on consecutive WIB dates from "2030-05-12"
       And the destination holds the artifact and receipt of every run
-      And the artifact and receipt of "2030-05-14" are absent
-      And the artifact of "2030-05-16" has a different digest from the ledger
+      And the damaged runs are "<damaged runs>"
       When the reconcile task runs
-      Then the report's first line is "Backup files: 2 of 7 retained backups need attention"
-      And the report's problem lines are "2030-05-14: file missing" and "2030-05-16: file changed"
+      Then the report's first line is "<first line>"
+      And the report's problem lines are "<problem lines>"
 
-    # Exemption(e2e): the browser and HTTP client cannot run the reconcile Mix task or read the lines it prints; alternative-proof: bnest-app:test:integration / The report counts one backup that needs attention
-    @e2e-exempt
-    Scenario: The report counts one backup that needs attention
-      Given an isolated ledger of 7 verified runs on consecutive WIB dates from "2030-05-12"
-      And the destination holds the artifact and receipt of every run
-      And the artifact and receipt of "2030-05-14" are absent
-      When the reconcile task runs
-      Then the report's first line is "Backup files: 1 of 7 retained backups needs attention"
-      And the report's only problem line is "2030-05-14: file missing"
+      Examples:
+        | damaged runs                                     | first line                                            | problem lines                                      |
+        | 2030-05-14 file missing; 2030-05-16 file changed | Backup files: 2 of 7 retained backups need attention  | 2030-05-14: file missing; 2030-05-16: file changed |
+        | 2030-05-14 file missing                          | Backup files: 1 of 7 retained backups needs attention | 2030-05-14: file missing                           |
 
   Rule: The report and the log line disclose no private value
 

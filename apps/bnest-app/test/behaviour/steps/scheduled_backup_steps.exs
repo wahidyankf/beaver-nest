@@ -138,6 +138,10 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: prepare(context, :artifact_digest_differs, [date])
   )
 
+  step("the damaged runs are {string}", %{args: [damaged]} = context,
+    do: damage_runs(context, damaged)
+  )
+
   step(
     "the artifact and receipt of {string} are absent because retention removed them",
     %{args: [date]} = context,
@@ -203,12 +207,8 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: outcome(context, :report_first_line, [line])
   )
 
-  step("the report's problem lines are {string} and {string}", %{args: lines} = context,
-    do: outcome(context, :report_problem_lines, lines)
-  )
-
-  step("the report's only problem line is {string}", %{args: [line]} = context,
-    do: outcome(context, :report_problem_lines, [line])
+  step("the report's problem lines are {string}", %{args: [lines]} = context,
+    do: outcome(context, :report_problem_lines, String.split(lines, "; "))
   )
 
   step(
@@ -559,6 +559,19 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     context,
     do: outcome(context, :result_announced_politely)
   )
+
+  # "2030-05-14 file missing; 2030-05-16 file changed" damages each listed run in turn, in the order written.
+  defp damage_runs(context, damaged) do
+    damaged
+    |> String.split("; ")
+    |> Enum.reduce(context, fn item, acc ->
+      [date, damage] = String.split(item, " ", parts: 2)
+      prepare(acc, damage_state(damage), [date])
+    end)
+  end
+
+  defp damage_state("file missing"), do: :pair_absent
+  defp damage_state("file changed"), do: :artifact_digest_differs
 
   defp outcomes(context, checks) do
     Enum.each(checks, fn {expected, args} ->
