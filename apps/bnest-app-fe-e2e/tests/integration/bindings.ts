@@ -1,0 +1,19 @@
+// Integration-level bindings of the app-fe behaviour corpus. Each `@scenario` line binds one scenario to the
+// integration level declared in `policies.behaviour.levels.integration` of repo-config.yml. tools/run-integration.mts
+// reads these lines and runs exactly the named scenarios through the existing browser steps in tests/steps, against a
+// primary server started locally on loopback.
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member sends a message online and sees it reach Sent
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A network failure shows Retrying then automatic recovery
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A non-retryable rejection shows Couldn't send
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A 101st waiting message in one room is refused with a retry-or-discard hint
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member opens the message action menu
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Closing the menu returns focus to the message it came from
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A press that turns into a scroll does not open the menu
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Only one menu is open at a time
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message offers both actions
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The actions control is visible, large enough to press, beside its bubble and inside the history
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The actions control has an accessible name
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Holding a message to open its menu clears the text the browser selects during the press
+
+export const bindingLevel = "integration";

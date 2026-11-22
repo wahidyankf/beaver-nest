@@ -587,6 +587,7 @@ policies:
         - apps/bnest-app/assets/test/unit/**/*.test.ts
       integration:
         - apps/bnest-app/test/integration/**/*.exs
+        - apps/bnest-app-fe-e2e/tests/integration/**/*.ts
         - .github/scripts/test-hippo-bootstrap.sh
         - .github/scripts/test-rhino-bootstrap.sh
       e2e:

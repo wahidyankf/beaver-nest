@@ -13,7 +13,10 @@ const codexModelsRunner = path.resolve(
   "test/support/codex_fixture_models.mjs",
 );
 const port = process.env["BNEST_E2E_PORT"] ?? "4010";
-const backendPort = String(Number(port) + 100);
+// The integration layer (tools/run-integration.mts) has no reverse proxy: the primary server serves the public port
+// itself, so its backend port is the public port. The E2E layer keeps the Caddy topology.
+const integrationLayer = process.env["BNEST_E2E_LAYER"] === "integration";
+const backendPort = integrationLayer ? port : String(Number(port) + 100);
 const caddyAdminPort = String(Number(port) + 200);
 const baseURL = `http://localhost:${port}`;
 process.env["BNEST_E2E_BACKEND_PORT"] = backendPort;
@@ -123,21 +126,25 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 120_000,
     },
-    {
-      command: "node apps/bnest-app-fe-e2e/tools/run-caddy.mts",
-      cwd: path.resolve(import.meta.dirname, "../.."),
-      // Caddy only routes requests and never calls the control routes, so it starts from the browser's copy, which
-      // has no control secret.
-      env: {
-        ...browserEnvironment(process.env),
-        BNEST_E2E_BACKEND_PORT: backendPort,
-        BNEST_E2E_CADDY_ADMIN_PORT: caddyAdminPort,
-        BNEST_E2E_PORT: port,
-      },
-      url: baseURL,
-      reuseExistingServer: false,
-      timeout: 30_000,
-    },
+    ...(integrationLayer
+      ? []
+      : [
+          {
+            command: "node apps/bnest-app-fe-e2e/tools/run-caddy.mts",
+            cwd: path.resolve(import.meta.dirname, "../.."),
+            // Caddy only routes requests and never calls the control routes, so it starts from the browser's copy, which
+            // has no control secret.
+            env: {
+              ...browserEnvironment(process.env),
+              BNEST_E2E_BACKEND_PORT: backendPort,
+              BNEST_E2E_CADDY_ADMIN_PORT: caddyAdminPort,
+              BNEST_E2E_PORT: port,
+            },
+            url: baseURL,
+            reuseExistingServer: false,
+            timeout: 30_000,
+          },
+        ]),
   ],
   projects: [
     {

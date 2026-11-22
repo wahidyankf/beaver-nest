@@ -18,8 +18,6 @@ Feature: Family chat room
   Rule: Online send status
 
   @fe-vitest-unit
-  # Exemption(integration): the outbox that queues the message and reports its delivery status runs only in browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A member sends a message online and sees it reach Sent
-  @integration-exempt
   Scenario: A member sends a message online and sees it reach Sent
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor sends the family chat message "On my way"
@@ -27,8 +25,6 @@ Feature: Family chat room
     And the message reaches status "Sent"
 
   @fe-vitest-unit
-  # Exemption(integration): a failed browser request and the outbox's own retry run only in browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A network failure shows Retrying then automatic recovery
-  @integration-exempt
   Scenario: A network failure shows Retrying then automatic recovery
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor sends a family chat message during a retryable network failure
@@ -37,8 +33,6 @@ Feature: Family chat room
     Then the message reaches status "Sent"
 
   @fe-vitest-unit
-  # Exemption(integration): classifying a GraphQL rejection into a delivery status is browser outbox logic Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A non-retryable rejection shows Couldn't send
-  @integration-exempt
   Scenario: A non-retryable rejection shows Couldn't send
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor sends a family chat message the server rejects as invalid
@@ -48,8 +42,6 @@ Feature: Family chat room
   Rule: Bounded per-room outbox
 
   @fe-vitest-unit
-  # Exemption(integration): the per-room queue lives in the browser's IndexedDB outbox, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A 101st waiting message in one room is refused with a retry-or-discard hint
-  @integration-exempt
   Scenario: A 101st waiting message in one room is refused with a retry-or-discard hint
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the visitor already has 100 messages waiting to send in this room
@@ -60,8 +52,6 @@ Feature: Family chat room
   Rule: Message actions
 
   @fe-vitest-unit
-  # Exemption(integration): each entry point is a real pointer, context-menu, or key event the server never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / A member opens the message action menu
-  @integration-exempt
   Scenario Outline: A member opens the message action menu
     Given a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
     When the visitor <entry point> on that message
@@ -76,8 +66,6 @@ Feature: Family chat room
       | moves focus to the message and presses Enter  |
 
   @fe-vitest-unit
-  # Exemption(integration): where DOM focus lands after a menu closes is browser accessibility-tree state Phoenix.LiveViewTest never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / Closing the menu returns focus to the message it came from
-  @integration-exempt
   Scenario: Closing the menu returns focus to the message it came from
     Given the message action menu is open for a committed message
     When the visitor presses Escape
@@ -85,24 +73,18 @@ Feature: Family chat room
     And keyboard focus is on that same message
 
   @fe-vitest-unit
-  # Exemption(integration): a pointer press and its movement are browser input events the server never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / A press that turns into a scroll does not open the menu
-  @integration-exempt
   Scenario: A press that turns into a scroll does not open the menu
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor presses a message and moves more than 10 pixels before releasing
     Then no action menu opens
 
   @fe-vitest-unit
-  # Exemption(integration): two simultaneously rendered menus are real DOM state Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Only one menu is open at a time
-  @integration-exempt
   Scenario: Only one menu is open at a time
     Given the message action menu is open for one committed message
     When the visitor opens the menu on a different message
     Then only the second message has an open menu
 
   @fe-vitest-unit
-  # Exemption(integration): the rendered menu and its enabled items are browser DOM state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A committed message offers both actions
-  @integration-exempt
   Scenario: A committed message offers both actions
     Given a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
     When the visitor opens the action menu on that message
@@ -110,8 +92,6 @@ Feature: Family chat room
     And both actions are available
 
   @fe-vitest-unit
-  # Exemption(integration): the actions control's size, its place beside its bubble, and whether it is visible without a hover are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The actions control is visible, large enough to press, beside its bubble and inside the history
-  @integration-exempt
   Scenario Outline: The actions control is visible, large enough to press, beside its bubble and inside the history
     Given the viewport is set to "<viewport>"
     And a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
@@ -131,16 +111,12 @@ Feature: Family chat room
       | desktop 1280x800  |
 
   @fe-vitest-unit
-  # Exemption(integration): an element's computed accessible name comes from the browser accessibility tree, which no browserless harness builds; alternative-proof: bnest-app-fe-e2e:test:e2e / The actions control has an accessible name
-  @integration-exempt
   Scenario: The actions control has an accessible name
     Given a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
     When the page is laid out
     Then the actions control of that message has an accessible name
 
   @fe-vitest-unit
-  # Exemption(integration): clearing the browser's own text selection when a press opens the menu is a browser selection state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Holding a message to open its menu clears the text the browser selects during the press
-  @integration-exempt
   Scenario: Holding a message to open its menu clears the text the browser selects during the press
     Given a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
     When the visitor presses and holds for 900 milliseconds on that message while the browser selects its text

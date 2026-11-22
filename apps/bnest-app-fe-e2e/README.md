@@ -28,6 +28,8 @@ The managed Bnest release uses `test:release-quick` after the application quick 
 
 There is no numeric `test:coverage` target because this project owns only end-to-end tests. `test:behaviour:verify` measures complete feature-to-binding coverage without collecting numeric TypeScript line coverage or launching a browser. `test:e2e` is intentionally excluded from `test:quick` because browser tests are slow by nature.
 
+`test:integration` is the integration level of this corpus. It runs the scenarios that `tests/integration/bindings.ts` names with `@scenario` lines, through the same steps as `test:e2e`, against the primary server alone on loopback (no Caddy), on the desktop Chromium project. It fails when no integration binding exists, and it is not part of `test:quick`.
+
 ## Authoring Behaviours
 
 Every browser journey must originate in an English `.feature` file below [`specs/apps/bnest/app-fe/behaviours/`](../../specs/apps/bnest/app-fe/behaviours/). Features are discovered recursively, so adding or nesting one requires no registration. Put routes, user actions, expected content, and examples in Gherkin. Keep Playwright mechanics in thin `tests/steps/*.ts` bindings, and do not add direct `tests/**/*.spec.ts` journey files.
