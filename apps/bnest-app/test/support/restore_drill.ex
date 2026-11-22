@@ -66,8 +66,8 @@ defmodule BnestApp.Test.RestoreDrill do
   ]
 
   @destination_prepares [:drill_artifact, :drill_artifact_cut_short]
-  @prepares [:drill_outside_file, :drill_directory, :drill_symlink]
-  @performs [:restore_drill]
+  @prepares [:drill_outside_file, :drill_directory, :drill_symlink, :destination_unreadable]
+  @performs [:restore_drill, :restore_drill_usage, :restore_drill_unreadable]
   @outcomes [
     :drill_exit_zero_first_line,
     :drill_prints_line,
@@ -77,8 +77,12 @@ defmodule BnestApp.Test.RestoreDrill do
     :drill_restored_once_root_gone,
     :drill_nothing_restored,
     :drill_no_root_created,
-    :live_database_not_opened
+    :live_database_not_opened,
+    :drill_usage_line,
+    :drill_nonzero_only_line
   ]
+
+  @drill_usage "usage: mix bnest.backup.restore_drill --artifact <basename>"
 
   @doc "The Given states that run on a destination the driver has just established."
   @spec destination_prepares() :: [atom()]
@@ -129,6 +133,17 @@ defmodule BnestApp.Test.RestoreDrill do
     context
   end
 
+  # The destination the drill reads can no longer be read. In the unit layer the configuration
+  # store names no destination, which is how the drill's stand-in for a missing one reads. The
+  # integration layer removes the real directory, so the marker it checks is gone.
+  def prepare(context, :destination_unreadable, []) do
+    if in_memory?(),
+      do: InMemoryBackupConfigStore.install(),
+      else: File.rm_rf!(context.backup_directory)
+
+    context
+  end
+
   # A restorable file next to the destination, not in it.
   def prepare(context, :drill_outside_file, []) do
     path = Path.join(Path.dirname(context.backup_directory), @outside_basename)
@@ -168,6 +183,24 @@ defmodule BnestApp.Test.RestoreDrill do
     Map.merge(context, %{task: result, evidence_before: before, drill_events: events})
   end
 
+  # The task run with an argument list it refuses: the Mix error it raises is the usage line, and
+  # nothing the drill would restore is restored.
+  def perform(context, :restore_drill_usage, [arguments]) do
+    {outcome, events} = CallTrace.record(@watched, fn -> refused_drill(arguments) end)
+    Map.merge(context, %{usage_error: outcome, drill_events: events})
+  end
+
+  # The drill run against a destination that can no longer be read. It does not take the
+  # destination's snapshot first, because there is no destination to read.
+  def perform(context, :restore_drill_unreadable, []) do
+    artifact = Path.basename(context.drill.artifact_path)
+
+    {result, events} =
+      CallTrace.record(@watched, fn -> execute(["--artifact", artifact]) end)
+
+    Map.merge(context, %{task: result, drill_events: events})
+  end
+
   # The task's `execute/1` is the entry point that returns `%{exit_status:, lines:}` without
   # printing or exiting.
   defp execute(arguments), do: DrillTask.execute(arguments)
@@ -187,6 +220,12 @@ defmodule BnestApp.Test.RestoreDrill do
 
   @doc "Whether the evidence a Then reads confirms what it states."
   @spec outcome?(map(), atom(), list()) :: boolean()
+  # The usage refusal is the Mix error raised with exactly the drill's usage line.
+  def outcome?(context, :drill_usage_line, []), do: context.usage_error == {:usage, @drill_usage}
+
+  def outcome?(context, :drill_nonzero_only_line, [line]),
+    do: context.task.exit_status != 0 and lines(context) == [line]
+
   def outcome?(context, :drill_exit_zero_first_line, [line]),
     do: context.task.exit_status == 0 and List.first(lines(context)) == line
 
@@ -436,4 +475,13 @@ defmodule BnestApp.Test.RestoreDrill do
   end
 
   defp in_memory?, do: Backup.adapter(:config_store) == InMemoryBackupConfigStore
+
+  # The task's Mix entry point, which a refused argument list raises on. An accepted list is
+  # reported as such, so the outcome fails rather than passing for a refusal.
+  defp refused_drill(arguments) do
+    DrillTask.run(String.split(arguments, " ", trim: true))
+    :accepted
+  rescue
+    error in Mix.Error -> {:usage, Exception.message(error)}
+  end
 end

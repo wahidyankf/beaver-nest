@@ -358,6 +358,42 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: outcome(context, :drill_restored_once_root_gone)
   )
 
+  # The usage refusals: the reconcile task and the drill raise their usage line for a bad argument
+  # list, and the drill's destination that can no longer be read is the one the Given removes.
+  step("the reconcile task is run with an argument", context,
+    do: perform(context, :reconcile_with_argument)
+  )
+
+  step("it stops with the usage line {string}", %{args: [line]} = context,
+    do: outcome(context, :usage_line, [line])
+  )
+
+  step("it reads no configuration, database or scheduler", context,
+    do: outcome(context, :reads_nothing)
+  )
+
+  step(
+    "the restore drill task is run with the arguments {string}",
+    %{args: [arguments]} = context,
+    do: perform(context, :restore_drill_usage, [arguments])
+  )
+
+  step("it stops with the restore drill usage line", context,
+    do: outcome(context, :drill_usage_line)
+  )
+
+  step("the backup destination can no longer be read", context,
+    do: prepare(context, :destination_unreadable)
+  )
+
+  step("the restore drill task is run against the unreadable destination", context,
+    do: perform(context, :restore_drill_unreadable)
+  )
+
+  step("it exits non-zero and prints only the line {string}", %{args: [line]} = context,
+    do: outcome(context, :drill_nonzero_only_line, [line])
+  )
+
   step("nothing is restored", context, do: outcome(context, :drill_nothing_restored))
   step("no restore root is created", context, do: outcome(context, :drill_no_root_created))
 

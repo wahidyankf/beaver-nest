@@ -91,6 +91,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   ]
   @performs [
     :reconcile_ledger,
+    :reconcile_with_argument,
     :complete_scheduled_run,
     :run_retention,
     :resolve_default_directory
@@ -124,7 +125,9 @@ defmodule BnestApp.Test.BackupIntegrity do
     :unowned_files_untouched,
     :foreign_receipts_never_counted,
     :default_directory_fails_closed,
-    :default_directory_unchanged
+    :default_directory_unchanged,
+    :usage_line,
+    :reads_nothing
   ]
 
   @doc "The Given states that run on a destination the driver has just established."
@@ -315,6 +318,19 @@ defmodule BnestApp.Test.BackupIntegrity do
 
   @doc "Calls the production code a When names, in the layer's configured adapters."
   @spec perform(map(), atom(), list()) :: map()
+  # The reconcile task refuses an argument before it reads the configuration, the ledger or the
+  # database. The refusal is the Mix error with the usage line, and the watched calls are none.
+  def perform(context, :reconcile_with_argument, []) do
+    watched = [
+      {{Backup, :_, :_}, []},
+      {{Scheduler, :_, :_}, []},
+      {{BnestApp.Storage, :_, :_}, []}
+    ]
+
+    {outcome, events} = BnestApp.Test.CallTrace.record(watched, &refused_reconcile/0)
+    Map.merge(context, %{usage_error: outcome, usage_events: events})
+  end
+
   def perform(context, :reconcile_ledger, []) do
     directory = context.backup_directory
     evidence = %{destination: snapshot(directory), ledger: ledger_rows()}
@@ -397,6 +413,10 @@ defmodule BnestApp.Test.BackupIntegrity do
 
   @doc "Whether the evidence a Then reads confirms what it states."
   @spec outcome?(map(), atom(), list()) :: boolean()
+  def outcome?(context, :usage_line, [line]), do: context.usage_error == {:usage, line}
+
+  def outcome?(context, :reads_nothing, []), do: context.usage_events == []
+
   def outcome?(context, :run_reported_missing, [date]) do
     run = nightly(context, date)
     reported?(context, run, :missing) and not on_disk?(context, run)
@@ -1079,4 +1099,12 @@ defmodule BnestApp.Test.BackupIntegrity do
   end
 
   defp iso8601(value), do: value |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+  # The Mix task raises its usage line for any argument; anything it accepts is reported as such.
+  defp refused_reconcile do
+    Mix.Tasks.Bnest.Backup.Reconcile.run(["--unexpected"])
+    :accepted
+  rescue
+    error in Mix.Error -> {:usage, Exception.message(error)}
+  end
 end

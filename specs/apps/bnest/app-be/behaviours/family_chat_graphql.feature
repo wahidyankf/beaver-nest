@@ -108,7 +108,7 @@ Feature: Family chat GraphQL API
     Then the response reports a validation failure
     And the family chat room holds no message for that client message ID
 
-    Examples:
+    Examples: unhonourable reply targets
       | target                           |
       | names a server ID no message has |
       | is not a positive integer        |

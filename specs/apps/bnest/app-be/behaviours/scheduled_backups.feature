@@ -149,6 +149,15 @@ Feature: Bnest scheduled backups
       And it prints no date as present and does not state that backups are present
       And it exits non-zero
 
+  Rule: The reconcile task takes no argument
+
+    # Exemption(e2e): the browser and HTTP client cannot run the reconcile Mix task, which only the operator runs on the host; alternative-proof: bnest-app:test:integration / The reconcile task refuses any argument with its usage line
+    @e2e-exempt
+    Scenario: The reconcile task refuses any argument with its usage line
+      When the reconcile task is run with an argument
+      Then it stops with the usage line "usage: mix bnest.backup.reconcile"
+      And it reads no configuration, database or scheduler
+
   Rule: Receipts and artifacts that retention does not own never influence it
 
     # Exemption(e2e): the browser and HTTP client cannot place foreign receipts and malformed files in the destination or run retention; alternative-proof: bnest-app:test:integration / Foreign receipts and unreceipted files are never removed or counted
@@ -194,6 +203,31 @@ Feature: Bnest scheduled backups
       Then it restored the artifact once into a fresh root that no longer exists
       And the destination listing and every file's bytes are unchanged
       And the live database is not opened
+
+    # Exemption(e2e): the browser and HTTP client cannot run the restore drill Mix task with a bad argument list or read its usage line; alternative-proof: bnest-app:test:integration / The drill without exactly one artifact name raises its usage line
+    @e2e-exempt
+    Scenario Outline: The drill without exactly one artifact name raises its usage line
+      Given an isolated destination holding a synthetic artifact
+      When the restore drill task is run with the arguments "<arguments>"
+      Then it stops with the restore drill usage line
+      And nothing is restored
+
+      Examples:
+        | arguments          |
+        |                    |
+        | --artifact         |
+        | --folder one       |
+        | --artifact one two |
+
+    # Exemption(e2e): the browser and HTTP client cannot run the restore drill Mix task against an unreadable destination or read its output; alternative-proof: bnest-app:test:integration / The drill reports an unreadable destination as one fixed line
+    @e2e-exempt
+    Scenario: The drill reports an unreadable destination as one fixed line
+      Given an isolated destination holding a synthetic artifact
+      And the backup destination can no longer be read
+      When the restore drill task is run against the unreadable destination
+      Then it exits non-zero and prints only the line "Restore drill: the backup destination could not be read."
+      And its output carries no message body, push credential, filesystem path or artifact name
+      And no restore root is created
 
   Rule: The restore drill refuses an artifact that fails its integrity proof
 
