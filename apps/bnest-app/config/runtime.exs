@@ -16,41 +16,40 @@ import Config
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
-if System.get_env("PHX_SERVER") do
+env = BnestApp.RuntimeSettings.system_env()
+
+if BnestApp.RuntimeSettings.server_enabled?(env) do
   config :bnest_app, BnestAppWeb.Endpoint, server: true
 end
 
-config :bnest_app, BnestAppWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+config :bnest_app, BnestAppWeb.Endpoint, http: [port: BnestApp.RuntimeSettings.http_port(env)]
 
-if runtime_root = System.get_env("BNEST_RUNTIME_ROOT") do
-  config :bnest_app, :runtime_root, Path.expand(runtime_root)
+if runtime_root = BnestApp.RuntimeSettings.runtime_root(env) do
+  config :bnest_app, :runtime_root, runtime_root
 end
 
-if codex_working_directory = System.get_env("BNEST_CODEX_WORKING_DIRECTORY") do
-  config :bnest_app, :codex, working_directory: Path.expand(codex_working_directory)
+if codex_working_directory = BnestApp.RuntimeSettings.codex_working_directory(env) do
+  config :bnest_app, :codex, working_directory: codex_working_directory
 end
 
-if codex_home = System.get_env("BNEST_CODEX_HOME") do
-  config :bnest_app, :codex, codex_home: Path.expand(codex_home)
+if codex_home = BnestApp.RuntimeSettings.codex_home(env) do
+  config :bnest_app, :codex, codex_home: codex_home
 end
 
-case System.get_env("BNEST_IDENTITY_CUTOVER") do
-  nil -> :ok
-  "true" -> config :bnest_app, :identity_cutover_enabled, true
-  "false" -> config :bnest_app, :identity_cutover_enabled, false
-  _invalid -> raise "BNEST_IDENTITY_CUTOVER must be true or false"
+case BnestApp.RuntimeSettings.boolean_setting!(env, "BNEST_IDENTITY_CUTOVER", :unset) do
+  :unset -> :ok
+  true -> config :bnest_app, :identity_cutover_enabled, true
+  false -> config :bnest_app, :identity_cutover_enabled, false
 end
 
 # Compatibility release ships this `false` (dormant shell, no navigation
 # entry, route itself returns 404); the later experience release flips it
 # `true` from the same reviewed revision -- no redeploy, no schema change
 # (tech-doc 007's Runtime Configuration contract).
-case System.get_env("BNEST_FAMILY_CHAT_ENABLED") do
-  nil -> :ok
-  "true" -> config :bnest_app, :family_chat_enabled, true
-  "false" -> config :bnest_app, :family_chat_enabled, false
-  _invalid -> raise "BNEST_FAMILY_CHAT_ENABLED must be true or false"
+case BnestApp.RuntimeSettings.boolean_setting!(env, "BNEST_FAMILY_CHAT_ENABLED", :unset) do
+  :unset -> :ok
+  true -> config :bnest_app, :family_chat_enabled, true
+  false -> config :bnest_app, :family_chat_enabled, false
 end
 
 # Gates the requested GraphQL fields, the action menu, and the composer's
@@ -65,11 +64,10 @@ case System.get_env("BNEST_FAMILY_CHAT_REPLY_ENABLED") do
   _invalid -> raise "BNEST_FAMILY_CHAT_REPLY_ENABLED must be true or false"
 end
 
-case System.get_env("BNEST_COOKIE_SECURE") do
-  nil -> :ok
-  "true" -> config :bnest_app, :session_cookie, secure: true
-  "false" -> config :bnest_app, :session_cookie, secure: false
-  _invalid -> raise "BNEST_COOKIE_SECURE must be true or false"
+case BnestApp.RuntimeSettings.boolean_setting!(env, "BNEST_COOKIE_SECURE", :unset) do
+  :unset -> :ok
+  true -> config :bnest_app, :session_cookie, secure: true
+  false -> config :bnest_app, :session_cookie, secure: false
 end
 
 case System.get_env("BNEST_BACKUP_TIMEOUT_MS") do
@@ -88,28 +86,10 @@ end
 # so this is unconditional in :prod, not gated on the feature flag, and
 # fails closed rather than silently leaving push unavailable in production.
 if config_env() == :prod do
-  public_key_path =
-    System.get_env("BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE") ||
-      raise "environment variable BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE is missing"
-
-  private_key_path =
-    System.get_env("BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE") ||
-      raise "environment variable BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE is missing"
-
-  subject =
-    System.get_env("BNEST_WEB_PUSH_SUBJECT") ||
-      raise "environment variable BNEST_WEB_PUSH_SUBJECT is missing"
-
-  unless String.match?(subject, ~r{^(mailto:|https://)\S+$}) do
-    raise "BNEST_WEB_PUSH_SUBJECT must be a mailto: or https: contact"
-  end
-
-  public_key = public_key_path |> File.read!() |> String.trim()
-  private_key = private_key_path |> File.read!() |> String.trim()
-
-  if public_key == "" or private_key == "" do
-    raise "BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE/BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE must not be empty"
-  end
+  push = BnestApp.RuntimeSettings.push_config!(env)
+  public_key = push.public_key
+  private_key = push.private_key
+  subject = push.subject
 
   # `WebPush.Vapid.authorization_header/1` (the `web_push` dependency) reads
   # this exact `:web_push, :vapid` config itself -- setting it here, rather
@@ -143,16 +123,11 @@ if config_env() == :prod do
   # want to use a different value for prod and you most likely don't want
   # to check this value into version control, so we use an environment
   # variable instead.
-  secret_key_base =
-    System.get_env("SECRET_KEY_BASE") ||
-      raise """
-      environment variable SECRET_KEY_BASE is missing.
-      You can generate one by calling: mix phx.gen.secret
-      """
+  secret_key_base = BnestApp.RuntimeSettings.secret_key_base!(env)
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  host = BnestApp.RuntimeSettings.phx_host(env)
 
-  config :bnest_app, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+  config :bnest_app, :dns_cluster_query, BnestApp.RuntimeSettings.dns_cluster_query(env)
 
   config :bnest_app, BnestAppWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],

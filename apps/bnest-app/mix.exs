@@ -166,6 +166,16 @@ defmodule BnestApp.MixProject do
       BnestApp.Behaviour.OperatorCommands.IntegrationAdapter,
       BnestApp.Behaviour.OperatorCommands.NotArgon2idHasher,
       BnestApp.Behaviour.OperatorCommands.UnitAdapter,
+      # Scenario adapters and shared models for runtime_configuration.feature
+      # and operator_configuration.feature. They drive the configuration
+      # surface, so the unit denominator leaves them out, as it does the
+      # drivers.
+      BnestApp.Behaviour.RuntimeConfigurationModel,
+      BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter,
+      BnestApp.Behaviour.RuntimeConfiguration.UnitAdapter,
+      BnestApp.Behaviour.OperatorConfigurationModel,
+      BnestApp.Behaviour.OperatorConfiguration.IntegrationAdapter,
+      BnestApp.Behaviour.OperatorConfiguration.UnitAdapter,
       BnestApp.SchemaSourceScan,
       # Spawns test instances, which only `test:integration` runs, so the unit denominator leaves it out.
       BnestApp.FreshDatabaseCase,
