@@ -165,3 +165,17 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor sends a message with Shift+Enter
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: After a dropped connection, a resumed reply shows its later text and diagram without a reload
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex reply tables, task lists, links and images keep their layout
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Clear chat asks for confirmation before it deletes the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Cancel, Escape and tabbing away keep the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The confirmation takes focus and cancel returns focus to Clear chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Confirming clears the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Escape with focus outside the confirmation closes it and leaves focus where it is
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Reopening the options panel shows no stale Clear chat question
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Clear chat confirmation fits a narrow screen with 44 pixel targets
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor's message renders Markdown and can show its raw text
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Show raw control reads on the dark visitor bubble
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The raw view of a hostile visitor's message shows text, not HTML
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The raw view keeps the typed line breaks and spaces
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page and Codex chat keep one light appearance and have no theme control
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation has most of the screen with an empty draft
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A typical Codex phone view shows the newest message above the composer

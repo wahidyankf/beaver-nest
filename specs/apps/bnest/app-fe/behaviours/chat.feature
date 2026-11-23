@@ -629,8 +629,6 @@ Feature: Beaver Nest chat
   Rule: Clear chat asks before it deletes
 
   @fe-vitest-unit
-  # Exemption(integration): the confirmation's focus and visibility are browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / Clear chat asks for confirmation before it deletes the conversation
-  @integration-exempt
   Scenario: Clear chat asks for confirmation before it deletes the conversation
     Given the Codex conversation holds "First message"
     When the visitor chooses Clear chat
@@ -640,8 +638,6 @@ Feature: Beaver Nest chat
     And nothing is cleared yet
 
   @fe-vitest-unit
-  # Exemption(integration): the confirmation's focus and visibility are browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / Cancel, Escape and tabbing away keep the conversation
-  @integration-exempt
   Scenario Outline: Cancel, Escape and tabbing away keep the conversation
     Given the Codex conversation holds "First message"
     And the visitor has chosen Clear chat
@@ -657,8 +653,6 @@ Feature: Beaver Nest chat
       | tabs out of the confirmation |
 
   @fe-vitest-unit
-  # Exemption(integration): the focus moved by the confirmation is browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / The confirmation takes focus and cancel returns focus to Clear chat
-  @integration-exempt
   Scenario: The confirmation takes focus and cancel returns focus to Clear chat
     Given the Codex conversation holds "First message"
     When the visitor chooses Clear chat
@@ -667,8 +661,6 @@ Feature: Beaver Nest chat
     Then keyboard focus is on the Clear chat button
 
   @fe-vitest-unit
-  # Exemption(integration): the confirm control's effect is observed in the browser after the server accepts it; alternative-proof: bnest-app-fe-e2e:test:e2e / Confirming clears the conversation
-  @integration-exempt
   Scenario: Confirming clears the conversation
     Given the Codex conversation holds "First message"
     When the visitor chooses Clear chat
@@ -677,8 +669,6 @@ Feature: Beaver Nest chat
     And keyboard focus is on the Clear chat button
 
   @fe-vitest-unit
-  # Exemption(integration): where focus lands when the confirmation closes is browser focus state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / Escape with focus outside the confirmation closes it and leaves focus where it is
-  @integration-exempt
   Scenario: Escape with focus outside the confirmation closes it and leaves focus where it is
     Given the Codex conversation holds "First message"
     And the visitor has chosen Clear chat
@@ -688,8 +678,6 @@ Feature: Beaver Nest chat
     And keyboard focus is on the message box
 
   @fe-vitest-unit
-  # Exemption(integration): the options panel's reopened state and the tap that closes it are browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / Reopening the options panel shows no stale Clear chat question
-  @integration-exempt
   Scenario: Reopening the options panel shows no stale Clear chat question
     Given the Codex chat page is open at "mobile 390x844"
     And the visitor's pointer is a touch pointer
@@ -703,8 +691,6 @@ Feature: Beaver Nest chat
     Then the confirmation is closed
 
   @fe-vitest-unit
-  # Exemption(integration): the confirmation's size on a narrow screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Clear chat confirmation fits a narrow screen with 44 pixel targets
-  @integration-exempt
   Scenario Outline: The Clear chat confirmation fits a narrow screen with 44 pixel targets
     Given the Codex chat page is open at "<viewport>"
     And the visitor's pointer is a touch pointer
@@ -725,8 +711,6 @@ Feature: Beaver Nest chat
   Rule: Own messages in the Codex chat
 
   @fe-vitest-unit
-  # Exemption(integration): the Markdown of a visitor's message and its raw toggle are browser-rendered state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / A visitor's message renders Markdown and can show its raw text
-  @integration-exempt
   Scenario: A visitor's message renders Markdown and can show its raw text
     Given a visitor's message with Markdown is in the Codex conversation
     When the page is laid out
@@ -739,8 +723,6 @@ Feature: Beaver Nest chat
     Then the visitor's message shows its Markdown rendered
 
   @fe-vitest-unit
-  # Exemption(integration): the colours the Show raw label and its focus ring take on the dark bubble are browser-computed; alternative-proof: bnest-app-fe-e2e:test:e2e / The Show raw control reads on the dark visitor bubble
-  @integration-exempt
   Scenario: The Show raw control reads on the dark visitor bubble
     Given a visitor's message with Markdown is in the Codex conversation
     When the page is laid out
@@ -748,8 +730,6 @@ Feature: Beaver Nest chat
     And the Show raw focus ring is at least 3 to 1 against the visitor's bubble
 
   @fe-vitest-unit
-  # Exemption(integration): the raw text is shown as text in the browser, which Phoenix.LiveViewTest does not render; alternative-proof: bnest-app-fe-e2e:test:e2e / The raw view of a hostile visitor's message shows text, not HTML
-  @integration-exempt
   Scenario: The raw view of a hostile visitor's message shows text, not HTML
     Given a visitor's message with script and javascript link text is in the Codex conversation
     When the page is laid out
@@ -759,8 +739,6 @@ Feature: Beaver Nest chat
     And the visitor's message contains no javascript link
 
   @fe-vitest-unit
-  # Exemption(integration): the typed whitespace is shown by the browser's text layout, which Phoenix.LiveViewTest does not compute; alternative-proof: bnest-app-fe-e2e:test:e2e / The raw view keeps the typed line breaks and spaces
-  @integration-exempt
   Scenario: The raw view keeps the typed line breaks and spaces
     Given a visitor's message with line breaks and indentation is in the Codex conversation
     When the page is laid out
@@ -770,8 +748,6 @@ Feature: Beaver Nest chat
   Rule: Single light appearance
 
   @fe-vitest-unit
-  # Exemption(integration): the colour a browser paints for a system dark preference is a rendered-page result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The home page and Codex chat keep one light appearance and have no theme control
-  @integration-exempt
   Scenario Outline: The home page and Codex chat keep one light appearance and have no theme control
     Given the visitor's system prefers a dark color scheme
     When an approved admin opens "<path>"
@@ -786,8 +762,6 @@ Feature: Beaver Nest chat
   Rule: Codex chat conversation has most of a phone screen
 
   @fe-vitest-unit
-  # Exemption(integration): the share of the screen a conversation takes is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex conversation has most of the screen with an empty draft
-  @integration-exempt
   Scenario Outline: The Codex conversation has most of the screen with an empty draft
     Given the Codex chat page is open at "<viewport>"
     And the visitor's pointer is a touch pointer
@@ -802,8 +776,6 @@ Feature: Beaver Nest chat
       | landscape 844x390 | 52    |
 
   @fe-vitest-unit
-  # Exemption(integration): the space above and below the conversation is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A typical Codex phone view shows the newest message above the composer
-  @integration-exempt
   Scenario: A typical Codex phone view shows the newest message above the composer
     Given the Codex chat page is open at "mobile 390x844"
     And the visitor's pointer is a touch pointer
