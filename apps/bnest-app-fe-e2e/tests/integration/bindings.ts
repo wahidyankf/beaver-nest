@@ -196,3 +196,18 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel closes on Escape and on a tap outside it
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex repository access state is visible without scrolling the header
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box keeps its name when the window is short
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation opens at its newest message
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation follows a new reply
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation keeps a reader who scrolled up in place
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation keeps its newest reply in view when a diagram draws
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex composer and most of the conversation fit a small phone
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex panel fits the window on a tablet, a landscape phone and a desktop
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A wide Codex diagram uses the width of a desktop column
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex scrollable tables and code blocks are named as in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The repository write toggle text meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long unbroken draft keeps the Codex chat inside the screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header and composer stay in place while the messages scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The last Codex message is not hidden behind the composer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message list keeps its overscroll inside itself
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex draft grows the message box to its cap and keeps Send and the header on screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A smaller screen from the soft keyboard keeps the Codex composer on screen

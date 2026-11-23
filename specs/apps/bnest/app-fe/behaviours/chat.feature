@@ -979,24 +979,18 @@ Feature: Beaver Nest chat
   Rule: Codex chat follows the newest message and fits every screen
 
   @fe-vitest-unit
-  # Exemption(integration): where a conversation is scrolled is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex conversation opens at its newest message
-  @integration-exempt
   Scenario: The Codex conversation opens at its newest message
     Given the visitor has a Codex conversation with older replies
     When the visitor opens the Codex chat page
     Then the newest reply is at the bottom of the conversation
 
   @fe-vitest-unit
-  # Exemption(integration): the scroll position while a reply streams is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex conversation follows a new reply
-  @integration-exempt
   Scenario: The Codex conversation follows a new reply
     Given the visitor is at the bottom of the Codex conversation
     When the visitor sends a message and Codex streams the reply
     Then the newest part of the reply is in view
 
   @fe-vitest-unit
-  # Exemption(integration): the scroll position of a reader who scrolled up is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex conversation keeps a reader who scrolled up in place
-  @integration-exempt
   Scenario: The Codex conversation keeps a reader who scrolled up in place
     Given the visitor has sent a message and Codex is still streaming its reply
     And the visitor has scrolled up in the Codex conversation
@@ -1004,8 +998,6 @@ Feature: Beaver Nest chat
     Then the visitor's position in the conversation does not change
 
   @fe-vitest-unit
-  # Exemption(integration): a diagram's drawn height and the scroll position after it are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex conversation keeps its newest reply in view when a diagram draws
-  @integration-exempt
   Scenario: The Codex conversation keeps its newest reply in view when a diagram draws
     Given the visitor is at the bottom of the Codex conversation
     And a Codex reply holds a diagram that is not yet drawn
@@ -1013,8 +1005,6 @@ Feature: Beaver Nest chat
     Then the newest reply is in view above the composer
 
   @fe-vitest-unit
-  # Exemption(integration): the heights of the header, the conversation and the composer are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex composer and most of the conversation fit a small phone
-  @integration-exempt
   Scenario Outline: The Codex composer and most of the conversation fit a small phone
     Given the Codex chat page is open at "<viewport>"
     And a Codex reply answers "Show a wide table, a long code block and the logo"
@@ -1032,8 +1022,6 @@ Feature: Beaver Nest chat
       | mobile 390x844    |
 
   @fe-vitest-unit
-  # Exemption(integration): the height of the panel and the scrolling of the conversation are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex panel fits the window on a tablet, a landscape phone and a desktop
-  @integration-exempt
   Scenario Outline: The Codex panel fits the window on a tablet, a landscape phone and a desktop
     Given the Codex chat page is open at "<viewport>"
     And the conversation holds three long Codex replies
@@ -1048,8 +1036,6 @@ Feature: Beaver Nest chat
       | desktop 1440x900  |
 
   @fe-vitest-unit
-  # Exemption(integration): the width of a bubble around a drawn diagram is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide Codex diagram uses the width of a desktop column
-  @integration-exempt
   Scenario Outline: A wide Codex diagram uses the width of a desktop column
     Given the Codex chat page is open at "<viewport>"
     And a completed Codex reply shows a drawn flowchart
@@ -1062,8 +1048,6 @@ Feature: Beaver Nest chat
       | desktop 1440x900  |
 
   @fe-vitest-unit
-  # Exemption(integration): the accessible names of scroll regions are read from the rendered page, which Phoenix.LiveViewTest never builds; alternative-proof: bnest-app-fe-e2e:test:e2e / Codex scrollable tables and code blocks are named as in Family Chat
-  @integration-exempt
   Scenario: Codex scrollable tables and code blocks are named as in Family Chat
     Given the Codex chat page is open at "mobile 390x844"
     And a Codex reply answers "Show a wide table, a long code block and the logo"
@@ -1072,16 +1056,12 @@ Feature: Beaver Nest chat
     And the wide code block is named "Code, scrollable"
 
   @fe-vitest-unit
-  # Exemption(integration): the colours a browser paints for a button are part of the rendered page, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The repository write toggle text meets the contrast target
-  @integration-exempt
   Scenario: The repository write toggle text meets the contrast target
     Given the Codex chat page is open at "desktop 1440x900"
     When the page is laid out
     Then the repository write toggle text has a contrast ratio of at least 4.5 to 1
 
   @fe-vitest-unit
-  # Exemption(integration): the width of the chat panel and the place of the Send button with an unbroken draft are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A long unbroken draft keeps the Codex chat inside the screen
-  @integration-exempt
   Scenario Outline: A long unbroken draft keeps the Codex chat inside the screen
     Given the Codex chat page is open at "<viewport>"
     When the visitor types an unbroken 240 character address into the Codex message box
@@ -1103,8 +1083,6 @@ Feature: Beaver Nest chat
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): where the header and the composer sit while a long conversation scrolls is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header and composer stay in place while the messages scroll
-  @integration-exempt
   Scenario Outline: The Codex header and composer stay in place while the messages scroll
     Given a Codex conversation holds 30 messages
     And the Codex chat page is open at "<viewport>"
@@ -1126,8 +1104,6 @@ Feature: Beaver Nest chat
       | fine    | desktop 1440x900  |
 
   @fe-vitest-unit
-  # Exemption(integration): whether the newest message clears the composer is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The last Codex message is not hidden behind the composer
-  @integration-exempt
   Scenario Outline: The last Codex message is not hidden behind the composer
     Given a Codex conversation holds 30 messages
     And the Codex chat page is open at "<viewport>"
@@ -1142,8 +1118,6 @@ Feature: Beaver Nest chat
       | landscape 844x390 |
 
   @fe-vitest-unit
-  # Exemption(integration): whether the message list keeps its overscroll to itself is a browser scroll behaviour Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message list keeps its overscroll inside itself
-  @integration-exempt
   Scenario: The Codex message list keeps its overscroll inside itself
     Given a Codex conversation holds 30 messages
     And the Codex chat page is open at "mobile 390x844"
@@ -1153,8 +1127,6 @@ Feature: Beaver Nest chat
     And the page does not scroll
 
   @fe-vitest-unit
-  # Exemption(integration): how far the message box grows, and where Send and the header sit, are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A long Codex draft grows the message box to its cap and keeps Send and the header on screen
-  @integration-exempt
   Scenario Outline: A long Codex draft grows the message box to its cap and keeps Send and the header on screen
     Given a Codex conversation holds 30 messages
     And the Codex chat page is open at "<viewport>"
@@ -1175,8 +1147,6 @@ Feature: Beaver Nest chat
       | mobile 390x844    | 14    |
 
   @fe-vitest-unit
-  # Exemption(integration): where the composer and the newest message sit after the soft keyboard shrinks the screen are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A smaller screen from the soft keyboard keeps the Codex composer on screen
-  @integration-exempt
   Scenario Outline: A smaller screen from the soft keyboard keeps the Codex composer on screen
     Given a Codex conversation holds 30 messages
     And the Codex chat page is open at "<viewport>"
