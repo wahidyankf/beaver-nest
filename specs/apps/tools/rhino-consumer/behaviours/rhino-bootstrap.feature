@@ -106,3 +106,45 @@ Feature: Safe RHINO consumer bootstrap
     When each consumer runs with its own cache-root setting, and again with only the other tool's setting
     Then it installs only under its own setting, and with only the other tool's setting it keeps to its
       default cache root
+
+  # Carries BN-BOOT-15: pin refusals exit 125 before any transport.
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-rhino-bootstrap.sh
+  @e2e-exempt
+  Scenario Outline: A missing, duplicated, or malformed pin exits 125 before any transport
+    Given the consumer pin is <pin state>
+    When the RHINO consumer bootstrap validates the pin
+    Then it exits 125 with "<message>" and starts no download
+
+    Examples:
+      | pin state                    | message                                                      |
+      | no rhino.lock                | rhino has no pin at rhino.lock, and an unpinned gate is not a gate |
+      | a key declared twice         | rhino lock has missing or duplicate version                  |
+      | a key missing                | rhino lock has missing or duplicate version                  |
+      | an invalid commit            | rhino lock has an invalid commit                             |
+      | an invalid platform checksum | rhino lock has an invalid checksum                           |
+
+  # Carries BN-BOOT-16 and BN-DOC-03: bounded waits exit 124.
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-rhino-bootstrap.sh
+  @e2e-exempt
+  Scenario Outline: A bounded wait for the install guard or lock that runs out exits 124
+    Given <contention> holds the install path
+    When the RHINO consumer bootstrap waits for it
+    Then it exits 124 with "<message>"
+
+    Examples:
+      | contention                                     | message                                                |
+      | the shared install guard that is never granted | rhino bootstrap timed out waiting for its install guard |
+      | the install lock held by a live owner          | rhino bootstrap timed out waiting for its install lock  |
+
+  # Carries BN-BOOT-17: missing lock tool exits 125 before the guard opens.
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-rhino-bootstrap.sh
+  @e2e-exempt
+  Scenario Outline: A host without flock or lockf exits 125
+    Given the host is <platform> without its lock tool
+    When the RHINO consumer bootstrap opens the install guard
+    Then it exits 125 with "<message>" before the guard opens
+
+    Examples:
+      | platform | message                                  |
+      | Linux    | rhino bootstrap requires flock on Linux  |
+      | Darwin   | rhino bootstrap requires lockf on Darwin |

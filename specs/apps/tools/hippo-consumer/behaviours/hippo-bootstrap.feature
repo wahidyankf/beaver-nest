@@ -89,3 +89,69 @@ Feature: Safe HIPPO consumer bootstrap
       | dialect |
       | BSD     |
       | GNU     |
+
+  # Carries BN-BOOT-15: pin refusals exit 125 before any transport.
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
+  @e2e-exempt
+  Scenario Outline: A missing, duplicated, or malformed pin exits 125 before any transport
+    Given the consumer pin is <pin state>
+    When the HIPPO consumer bootstrap validates the pin
+    Then it exits 125 with "<message>" and starts no download
+
+    Examples:
+      | pin state                                  | message                                                      |
+      | no hippo.lock                              | hippo has no pin at hippo.lock, and an unpinned guard is not a guard |
+      | a key declared twice                       | hippo lock has missing or duplicate version                  |
+      | a key missing                              | hippo lock has missing or duplicate version                  |
+      | an invalid commit                          | hippo lock has an invalid commit                             |
+      | an invalid platform checksum               | hippo lock has an invalid checksum                           |
+
+  # Carries BN-BOOT-16 and BN-DOC-03: bounded waits exit 124.
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
+  @e2e-exempt
+  Scenario Outline: A bounded wait for the install guard or lock that runs out exits 124
+    Given <contention> holds the install path
+    When the HIPPO consumer bootstrap waits for it
+    Then it exits 124 with "<message>"
+
+    Examples:
+      | contention                                    | message                                                |
+      | the shared install guard that is never granted | hippo bootstrap timed out waiting for its install guard |
+      | the install lock held by a live owner          | hippo bootstrap timed out waiting for its install lock  |
+
+  # Carries BN-BOOT-17: missing lock tool exits 125 before the guard opens.
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
+  @e2e-exempt
+  Scenario Outline: A host without flock or lockf exits 125
+    Given the host is <platform> without its lock tool
+    When the HIPPO consumer bootstrap opens the install guard
+    Then it exits 125 with "<message>" before the guard opens
+
+    Examples:
+      | platform | message                                  |
+      | Linux    | hippo bootstrap requires flock on Linux  |
+      | Darwin   | hippo bootstrap requires lockf on Darwin |
+
+  # Carries BN-BOOT-21: worker policy resolution order.
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
+  @e2e-exempt
+  Scenario Outline: The worker policy comes from the checkout's own hippo.local.json, else the primary checkout's, and an explicit setting wins
+    Given <policy source>
+    When the HIPPO consumer bootstrap resolves its worker policy
+    Then it hands the release "<policy>" as HIPPO_DEFAULT_CONFIG and always passes hippo.identity.json as HIPPO_DEFAULT_IDENTITY
+
+    Examples:
+      | policy source                                      | policy                          |
+      | a hippo.local.json beside the wrapper              | the checkout's hippo.local.json |
+      | none beside the wrapper but one in the primary checkout | the primary checkout's hippo.local.json |
+      | neither exists                                     | the default path with no policy read |
+      | HIPPO_DEFAULT_CONFIG set by the caller             | the caller's HIPPO_DEFAULT_CONFIG |
+      | any checkout                                       | hippo.identity.json as HIPPO_DEFAULT_IDENTITY |
+
+  # Carries BN-CFG-24: local resource policy hand-off.
+  # Exemption(e2e): this tool has no browser or server boundary above the wrapper itself; alternative-proof: hippo-consumer:test:integration / The wrapper hands the release the repository's local resource policy
+  @e2e-exempt
+  Scenario: The wrapper hands the release the repository's local resource policy
+    Given a checkout whose hippo.local.json declares the light, standard and heavy tiers
+    When the HIPPO consumer bootstrap hands the policy to the pinned release
+    Then each tier's CPU and memory bounds nest inside the machine ceiling

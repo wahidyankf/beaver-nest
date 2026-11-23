@@ -51,9 +51,12 @@ grep -Fq './hippo status' "$resource_rule"
 grep -Fq 'drain or' "$resource_rule"
 # Keep every tracked active example compatible with schema 3 and prevent the
 # self-contention caused by wrapping an already-guarded package script.
+# The development_commands parsing test carries a command string as data,
+# not a real invocation, so it is excluded like plans.
 tier_findings=$(git -C "$repository_root" grep -n -E \
 	'\./hippo run --class (ephemeral|service|transactional)' -- \
-	. ':(exclude)plans/**' ':(exclude).github/scripts/test-hippo-bootstrap.sh' | \
+	. ':(exclude)plans/**' ':(exclude).github/scripts/test-hippo-bootstrap.sh' \
+	':(exclude)apps/bnest-app/test/unit/behaviour/development_commands_test.exs' | \
 	grep -v -- '--resource-tier' || true)
 if [ -n "$tier_findings" ]; then
 	printf '%s\n%s\n' 'HIPPO commands missing --resource-tier:' "$tier_findings" >&2
@@ -149,6 +152,10 @@ elif [ "\${1:-}" = run ]; then
     for argument in "\$@"; do
       printf '%s\n' "\$argument" >> "\$HIPPO_TEST_ARGUMENTS"
     done
+  fi
+  if [ -n "\${HIPPO_TEST_POLICY_FILE:-}" ]; then
+    printf '%s\n' "\$HIPPO_DEFAULT_CONFIG" > "\$HIPPO_TEST_POLICY_FILE.config"
+    printf '%s\n' "\$HIPPO_DEFAULT_IDENTITY" > "\$HIPPO_TEST_POLICY_FILE.identity"
   fi
   printf '%s\n' 'run-ok'
 else
@@ -361,7 +368,12 @@ A caller takes over an install whose owner is gone
 Two callers starting together download once and both run the release
 Retention never deletes a release another consumer is using
 Retention never evicts a release another repository still uses
-Retention reclaims releases left idle beyond its window'
+Retention reclaims releases left idle beyond its window
+A missing, duplicated, or malformed pin exits 125 before any transport
+A bounded wait for the install guard or lock that runs out exits 124
+A host without flock or lockf exits 125
+The worker policy comes from the checkout'"'"'s own hippo.local.json, else the primary checkout'"'"'s, and an explicit setting wins
+The wrapper hands the release the repository'"'"'s local resource policy'
 actual_scenarios=$(awk '/^[[:space:]]*Scenario( Outline)?: / { sub(/^[[:space:]]*Scenario( Outline)?: /, ""); print }' "$feature_file")
 [ "$actual_scenarios" = "$expected_scenarios" ]
 
@@ -1070,6 +1082,263 @@ run_release_ranking_reads_real_timestamps() {
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+run_pin_refusals_125() {
+	marker="$temporary_root/curl-called"
+	rm -f -- "$marker"
+	mkdir -p "$temporary_root/fail-bin"
+	cat >"$temporary_root/fail-bin/curl" <<EOF
+#!/bin/sh
+: > "$marker"
+exit 99
+EOF
+	chmod 755 "$temporary_root/fail-bin/curl"
+	for tool in uname sleep; do
+		cp "$temporary_root/fake-bin/$tool" "$temporary_root/fail-bin/$tool"
+	done
+	fail_path="$temporary_root/fail-bin:$PATH"
+	rm -rf -- "$cache_root" "$curl_count"
+	rm -f -- "$temporary_root/consumer/hippo.lock"
+	set +e
+	PATH="$fail_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-no-lock"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'hippo has no pin at hippo.lock' "$temporary_root/pin-no-lock"
+	[ ! -e "$marker" ]
+	write_lock "$test_version" "$checksum"
+	printf 'version=%s\n' "$test_version" >>"$temporary_root/consumer/hippo.lock"
+	set +e
+	PATH="$fail_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-dup"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'missing or duplicate version' "$temporary_root/pin-dup"
+	[ ! -e "$marker" ]
+	grep -v '^version=' "$temporary_root/consumer/hippo.lock" >"$temporary_root/consumer/hippo.lock.tmp"
+	mv "$temporary_root/consumer/hippo.lock.tmp" "$temporary_root/consumer/hippo.lock"
+	set +e
+	PATH="$fail_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-missing"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'missing or duplicate version' "$temporary_root/pin-missing"
+	[ ! -e "$marker" ]
+	write_lock "$test_version" "$checksum"
+	for bad_commit in 0123456789abcdef short ZZ0123456789abcdef0123456789abcdef01234567; do
+		awk -v bad="$bad_commit" '{ if ($0 ~ /^commit=/) print "commit=" bad; else print }' \
+			"$temporary_root/consumer/hippo.lock" >"$temporary_root/consumer/hippo.lock.tmp"
+		mv "$temporary_root/consumer/hippo.lock.tmp" "$temporary_root/consumer/hippo.lock"
+		set +e
+		PATH="$fail_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-commit"
+		status=$?
+		set -e
+		[ "$status" -eq 125 ]
+		grep -Fq 'invalid commit' "$temporary_root/pin-commit"
+		[ ! -e "$marker" ]
+		write_lock "$test_version" "$checksum"
+	done
+	awk -v plat="$host_platform" '{ if ($0 ~ "^" plat "=") print plat "=invalid"; else print }' \
+		"$temporary_root/consumer/hippo.lock" >"$temporary_root/consumer/hippo.lock.tmp"
+	mv "$temporary_root/consumer/hippo.lock.tmp" "$temporary_root/consumer/hippo.lock"
+	set +e
+	PATH="$fail_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-checksum"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'invalid checksum' "$temporary_root/pin-checksum"
+	[ ! -e "$marker" ]
+	[ "$(download_count)" -eq 0 ]
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
+run_bounded_wait_124() {
+	write_lock "$test_version" "$checksum"
+	mkdir -p "$cache_root" "$temporary_root/timeout-bin"
+	cat >"$temporary_root/timeout-bin/flock" <<'EOF'
+#!/bin/sh
+exit 124
+EOF
+	cat >"$temporary_root/timeout-bin/lockf" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+	chmod 755 "$temporary_root/timeout-bin/flock" "$temporary_root/timeout-bin/lockf"
+	set +e
+	PATH="$temporary_root/timeout-bin:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_UNAME_S=Linux "$subject" probe >/dev/null 2>"$temporary_root/guard-timeout"
+	status=$?
+	set -e
+	[ "$status" -eq 124 ]
+	grep -Fq 'timed out waiting for its install guard' "$temporary_root/guard-timeout"
+	mkdir -p "$temporary_root/fast-bin"
+	cat >"$temporary_root/fast-bin/sleep" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+	chmod 755 "$temporary_root/fast-bin/sleep"
+	prepare_atomic_install_lock
+	process_start=$(LC_ALL=C ps -o lstart= -p "$$" 2>/dev/null | awk '{$1=$1; print; exit}')
+	process_digest=$(printf '%s\n' "$process_start" | hash_stream)
+	printf '%s\n%s\n' "$$" "$process_digest" >"$install_lock"
+	set +e
+	PATH="$temporary_root/fast-bin:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		"$subject" probe >/dev/null 2>"$temporary_root/lock-timeout"
+	status=$?
+	set -e
+	[ "$status" -eq 124 ]
+	grep -Fq 'timed out waiting for its install lock' "$temporary_root/lock-timeout"
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
+run_missing_lock_tool_125() {
+	write_lock "$test_version" "$checksum"
+	mkdir -p "$temporary_root/no-lock-bin"
+	for b in /usr/bin/* /bin/*; do
+		base=${b##*/}
+		case "$base" in
+		flock | lockf | curl | uname | sleep) continue ;;
+		esac
+		[ -e "$temporary_root/no-lock-bin/$base" ] || ln -s "$b" "$temporary_root/no-lock-bin/$base" 2>/dev/null || true
+	done
+	cp "$temporary_root/fake-bin/curl" "$temporary_root/no-lock-bin/curl"
+	cp "$temporary_root/fake-bin/uname" "$temporary_root/no-lock-bin/uname"
+	cp "$temporary_root/fake-bin/sleep" "$temporary_root/no-lock-bin/sleep"
+	rm -rf -- "$cache_root"
+	mkdir -p "$cache_root"
+	set +e
+	PATH="$temporary_root/no-lock-bin" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_UNAME_S=Linux HIPPO_TEST_UNAME_M=x86_64 "$subject" probe >/dev/null 2>"$temporary_root/no-flock"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'hippo bootstrap requires flock on Linux' "$temporary_root/no-flock"
+	set +e
+	PATH="$temporary_root/no-lock-bin" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_UNAME_S=Darwin HIPPO_TEST_UNAME_M=arm64 "$subject" probe >/dev/null 2>"$temporary_root/no-lockf"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'hippo bootstrap requires lockf on Darwin' "$temporary_root/no-lockf"
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
+run_worker_policy_resolution() {
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+	result=$(PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
+	[ "$result" = probe-ok ]
+	mkdir -p "$temporary_root/policy-git"
+	cat >"$temporary_root/policy-git/git" <<EOF
+#!/bin/sh
+if [ "\$1" = -C ]; then
+	shift; shift
+fi
+printf '%s\n' "\${HIPPO_TEST_GIT_COMMON_DIR:-}"
+EOF
+	chmod 755 "$temporary_root/policy-git/git"
+	policy_path="$temporary_root/policy.out"
+	checkout_dir="$temporary_root/policy-checkout"
+	rm -rf -- "$checkout_dir"
+	mkdir -p "$checkout_dir"
+	cp "$repository_root/hippo" "$checkout_dir/hippo"
+	chmod 755 "$checkout_dir/hippo"
+	cat >"$checkout_dir/hippo.lock" <<EOF
+version=$test_version
+commit=$test_commit
+darwin-amd64=$checksum
+darwin-arm64=$checksum
+linux-amd64=$checksum
+linux-arm64=$checksum
+EOF
+	printf '{"local":true}\n' >"$checkout_dir/hippo.local.json"
+	PATH="$temporary_root/policy-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_POLICY_FILE="$policy_path" "$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = "$checkout_dir/hippo.local.json" ]
+	[ "$(cat "$policy_path.identity")" = "$checkout_dir/hippo.identity.json" ]
+	primary_dir="$temporary_root/policy-primary"
+	rm -rf -- "$primary_dir" "$checkout_dir/hippo.local.json"
+	mkdir -p "$primary_dir"
+	printf '{"primary":true}\n' >"$primary_dir/hippo.local.json"
+	mkdir -p "$primary_dir/.git"
+	PATH="$temporary_root/policy-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_GIT_COMMON_DIR="$primary_dir/.git" HIPPO_TEST_POLICY_FILE="$policy_path" \
+		"$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = "$primary_dir/hippo.local.json" ]
+	rm -f -- "$primary_dir/hippo.local.json"
+	PATH="$temporary_root/policy-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_GIT_COMMON_DIR="$primary_dir/.git" HIPPO_TEST_POLICY_FILE="$policy_path" \
+		"$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = "$checkout_dir/hippo.local.json" ]
+	PATH="$temporary_root/policy-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_GIT_COMMON_DIR="$primary_dir/.git" HIPPO_DEFAULT_CONFIG=/tmp/custom-hippo.json \
+		HIPPO_TEST_POLICY_FILE="$policy_path" "$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = /tmp/custom-hippo.json ]
+	[ "$(cat "$policy_path.identity")" = "$checkout_dir/hippo.identity.json" ]
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count" "$checkout_dir" "$primary_dir"
+}
+
+run_local_resource_policy() {
+	jq -e '.coordination.tiers.light.maximumCpu <= .coordination.maxCpu' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '.coordination.tiers.standard.maximumCpu <= .coordination.maxCpu' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '.coordination.tiers.heavy.maximumCpu <= .coordination.maxCpu' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '.coordination.tiers.light.maximumMemoryMiB <= .coordination.maxMemoryMiB' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '.coordination.tiers.standard.maximumMemoryMiB <= .coordination.maxMemoryMiB' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '.coordination.tiers.heavy.maximumMemoryMiB <= .coordination.maxMemoryMiB' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '(.coordination.tiers | keys | sort) == ["heavy","light","standard"]' "$repository_root/hippo.local.json.example" >/dev/null
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+	result=$(PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
+	[ "$result" = probe-ok ]
+	policy_path="$temporary_root/resource.out"
+	mkdir -p "$temporary_root/resource-git"
+	cat >"$temporary_root/resource-git/git" <<EOF
+#!/bin/sh
+printf '%s\n' "\${HIPPO_TEST_GIT_COMMON_DIR:-}"
+EOF
+	chmod 755 "$temporary_root/resource-git/git"
+	checkout_dir="$temporary_root/resource-checkout"
+	rm -rf -- "$checkout_dir"
+	mkdir -p "$checkout_dir"
+	cp "$repository_root/hippo" "$checkout_dir/hippo"
+	chmod 755 "$checkout_dir/hippo"
+	cat >"$checkout_dir/hippo.lock" <<EOF
+version=$test_version
+commit=$test_commit
+darwin-amd64=$checksum
+darwin-arm64=$checksum
+linux-amd64=$checksum
+linux-arm64=$checksum
+EOF
+	cp "$repository_root/hippo.local.json.example" "$checkout_dir/hippo.local.json"
+	PATH="$temporary_root/resource-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_POLICY_FILE="$policy_path" "$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = "$checkout_dir/hippo.local.json" ]
+	primary_dir="$temporary_root/resource-primary"
+	rm -rf -- "$primary_dir" "$checkout_dir/hippo.local.json"
+	mkdir -p "$primary_dir/.git"
+	cp "$repository_root/hippo.local.json.example" "$primary_dir/hippo.local.json"
+	PATH="$temporary_root/resource-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_GIT_COMMON_DIR="$primary_dir/.git" HIPPO_TEST_POLICY_FILE="$policy_path" \
+		"$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = "$primary_dir/hippo.local.json" ]
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count" "$checkout_dir" "$primary_dir"
+}
+
 while IFS= read -r scenario; do
 	# Name each scenario as it starts: a failure under `set -e` is otherwise
 	# silent, and a corpus that shrank would still end in a pass line. A Scenario
@@ -1105,6 +1374,11 @@ while IFS= read -r scenario; do
 		run_retention_reclaims_idle_releases
 		run_release_ranking_reads_real_timestamps
 		;;
+	'A missing, duplicated, or malformed pin exits 125 before any transport') run_pin_refusals_125 ;;
+	'A bounded wait for the install guard or lock that runs out exits 124') run_bounded_wait_124 ;;
+	'A host without flock or lockf exits 125') run_missing_lock_tool_125 ;;
+	'The worker policy comes from the checkout'"'"'s own hippo.local.json, else the primary checkout'"'"'s, and an explicit setting wins') run_worker_policy_resolution ;;
+	'The wrapper hands the release the repository'"'"'s local resource policy') run_local_resource_policy ;;
 	*) exit 1 ;;
 	esac
 done <<EOF

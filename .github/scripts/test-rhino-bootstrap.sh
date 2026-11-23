@@ -306,7 +306,10 @@ Retention never deletes a release another consumer is using
 Retention never evicts a release another repository still uses
 Retention reclaims releases left idle beyond its window
 Installing both tools on one machine keeps their caches apart
-Each tool honours only its own cache-root setting'
+Each tool honours only its own cache-root setting
+A missing, duplicated, or malformed pin exits 125 before any transport
+A bounded wait for the install guard or lock that runs out exits 124
+A host without flock or lockf exits 125'
 actual_scenarios=$(awk '/^[[:space:]]*Scenario( Outline)?: / { sub(/^[[:space:]]*Scenario( Outline)?: /, ""); print }' "$feature_file")
 # Said out loud rather than left to `set -e`. This assertion runs before the
 # first scenario name is printed, so a bare test exits with no output at all --
@@ -1223,6 +1226,153 @@ run_each_tool_honours_its_own_cache_root() {
 	fi
 }
 
+run_pin_refusals_125() {
+	marker="$temporary_root/curl-called"
+	rm -f -- "$marker"
+	mkdir -p "$temporary_root/fail-bin"
+	cat >"$temporary_root/fail-bin/curl" <<EOF
+#!/bin/sh
+: > "$marker"
+exit 99
+EOF
+	chmod 755 "$temporary_root/fail-bin/curl"
+	for tool in uname sleep; do
+		cp "$temporary_root/fake-bin/$tool" "$temporary_root/fail-bin/$tool"
+	done
+	fail_path="$temporary_root/fail-bin:$PATH"
+	rm -rf -- "$cache_root" "$curl_count"
+	rm -f -- "$temporary_root/consumer/rhino.lock"
+	set +e
+	PATH="$fail_path" RHINO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-no-lock"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'rhino has no pin at rhino.lock' "$temporary_root/pin-no-lock"
+	[ ! -e "$marker" ]
+	write_lock "$test_version" "$checksum"
+	printf 'version=%s\n' "$test_version" >>"$temporary_root/consumer/rhino.lock"
+	set +e
+	PATH="$fail_path" RHINO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-dup"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'missing or duplicate version' "$temporary_root/pin-dup"
+	[ ! -e "$marker" ]
+	grep -v '^version=' "$temporary_root/consumer/rhino.lock" >"$temporary_root/consumer/rhino.lock.tmp"
+	mv "$temporary_root/consumer/rhino.lock.tmp" "$temporary_root/consumer/rhino.lock"
+	set +e
+	PATH="$fail_path" RHINO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-missing"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'missing or duplicate version' "$temporary_root/pin-missing"
+	[ ! -e "$marker" ]
+	write_lock "$test_version" "$checksum"
+	for bad_commit in 0123456789abcdef short ZZ0123456789abcdef0123456789abcdef01234567; do
+		awk -v bad="$bad_commit" '{ if ($0 ~ /^commit=/) print "commit=" bad; else print }' \
+			"$temporary_root/consumer/rhino.lock" >"$temporary_root/consumer/rhino.lock.tmp"
+		mv "$temporary_root/consumer/rhino.lock.tmp" "$temporary_root/consumer/rhino.lock"
+		set +e
+		PATH="$fail_path" RHINO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-commit"
+		status=$?
+		set -e
+		[ "$status" -eq 125 ]
+		grep -Fq 'invalid commit' "$temporary_root/pin-commit"
+		[ ! -e "$marker" ]
+		write_lock "$test_version" "$checksum"
+	done
+	awk -v plat="$host_platform" '{ if ($0 ~ "^" plat "=") print plat "=invalid"; else print }' \
+		"$temporary_root/consumer/rhino.lock" >"$temporary_root/consumer/rhino.lock.tmp"
+	mv "$temporary_root/consumer/rhino.lock.tmp" "$temporary_root/consumer/rhino.lock"
+	set +e
+	PATH="$fail_path" RHINO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-checksum"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'invalid checksum' "$temporary_root/pin-checksum"
+	[ ! -e "$marker" ]
+	[ "$(download_count)" -eq 0 ]
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
+run_bounded_wait_124() {
+	write_lock "$test_version" "$checksum"
+	mkdir -p "$cache_root" "$temporary_root/timeout-bin"
+	cat >"$temporary_root/timeout-bin/flock" <<'EOF'
+#!/bin/sh
+exit 124
+EOF
+	cat >"$temporary_root/timeout-bin/lockf" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+	chmod 755 "$temporary_root/timeout-bin/flock" "$temporary_root/timeout-bin/lockf"
+	set +e
+	PATH="$temporary_root/timeout-bin:$test_path" RHINO_INSTALL_CACHE="$cache_root" \
+		RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+		RHINO_TEST_UNAME_S=Linux "$subject" probe >/dev/null 2>"$temporary_root/guard-timeout"
+	status=$?
+	set -e
+	[ "$status" -eq 124 ]
+	grep -Fq 'timed out waiting for its install guard' "$temporary_root/guard-timeout"
+	mkdir -p "$temporary_root/fast-bin"
+	cat >"$temporary_root/fast-bin/sleep" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+	chmod 755 "$temporary_root/fast-bin/sleep"
+	prepare_atomic_install_lock
+	process_start=$(LC_ALL=C ps -o lstart= -p "$$" 2>/dev/null | awk '{$1=$1; print; exit}')
+	process_digest=$(printf '%s\n' "$process_start" | hash_stream)
+	printf '%s\n%s\n' "$$" "$process_digest" >"$install_lock"
+	set +e
+	PATH="$temporary_root/fast-bin:$test_path" RHINO_INSTALL_CACHE="$cache_root" \
+		RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+		"$subject" probe >/dev/null 2>"$temporary_root/lock-timeout"
+	status=$?
+	set -e
+	[ "$status" -eq 124 ]
+	grep -Fq 'timed out waiting for its install lock' "$temporary_root/lock-timeout"
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
+run_missing_lock_tool_125() {
+	write_lock "$test_version" "$checksum"
+	mkdir -p "$temporary_root/no-lock-bin"
+	for b in /usr/bin/* /bin/*; do
+		base=${b##*/}
+		case "$base" in
+		flock | lockf | curl | uname | sleep) continue ;;
+		esac
+		[ -e "$temporary_root/no-lock-bin/$base" ] || ln -s "$b" "$temporary_root/no-lock-bin/$base" 2>/dev/null || true
+	done
+	cp "$temporary_root/fake-bin/curl" "$temporary_root/no-lock-bin/curl"
+	cp "$temporary_root/fake-bin/uname" "$temporary_root/no-lock-bin/uname"
+	cp "$temporary_root/fake-bin/sleep" "$temporary_root/no-lock-bin/sleep"
+	rm -rf -- "$cache_root"
+	mkdir -p "$cache_root"
+	set +e
+	PATH="$temporary_root/no-lock-bin" RHINO_INSTALL_CACHE="$cache_root" \
+		RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+		RHINO_TEST_UNAME_S=Linux RHINO_TEST_UNAME_M=x86_64 "$subject" probe >/dev/null 2>"$temporary_root/no-flock"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'rhino bootstrap requires flock on Linux' "$temporary_root/no-flock"
+	set +e
+	PATH="$temporary_root/no-lock-bin" RHINO_INSTALL_CACHE="$cache_root" \
+		RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+		RHINO_TEST_UNAME_S=Darwin RHINO_TEST_UNAME_M=arm64 "$subject" probe >/dev/null 2>"$temporary_root/no-lockf"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'rhino bootstrap requires lockf on Darwin' "$temporary_root/no-lockf"
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
 while IFS= read -r scenario; do
 	# Name each scenario as it starts: a failure under `set -e` is otherwise
 	# silent, and a corpus that shrank would still end in a pass line. A Scenario
@@ -1261,6 +1411,9 @@ while IFS= read -r scenario; do
 		;;
 	'Installing both tools on one machine keeps their caches apart') run_bootstraps_keep_caches_apart ;;
 	'Each tool honours only its own cache-root setting') run_each_tool_honours_its_own_cache_root ;;
+	'A missing, duplicated, or malformed pin exits 125 before any transport') run_pin_refusals_125 ;;
+	'A bounded wait for the install guard or lock that runs out exits 124') run_bounded_wait_124 ;;
+	'A host without flock or lockf exits 125') run_missing_lock_tool_125 ;;
 	*) exit 1 ;;
 	esac
 done <<EOF
