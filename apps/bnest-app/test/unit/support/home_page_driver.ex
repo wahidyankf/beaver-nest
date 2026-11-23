@@ -1607,6 +1607,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def prepare_behaviour(context, :uninitialized, _args),
     do: Map.put(context, :identity_store, InMemoryIdentityStore.start())
 
+  # The identity cutover flag is read per request, so a scenario pins it and
+  # restores the configured value afterwards.
+  def prepare_behaviour(context, :cutover_off, _args),
+    do: pin_cutover(context, false)
+
+  def prepare_behaviour(context, :cutover_on, _args),
+    do: pin_cutover(context, true)
+
   # The account is bootstrapped through the Identity facade on the browser request path, so
   # the login When can post the real login form and follow the session cookie home.
   def prepare_behaviour(context, state, _args)
@@ -2529,6 +2537,109 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.merge(context, %{logout_response: response, authenticated: false})
   end
 
+  # The login form posts its hidden return path with the credentials, so the
+  # redirect the controller answers is the evidence.
+  def perform_behaviour(context, :login_with_return_path, [return_to]) do
+    params = %{
+      "login" => %{
+        "username" => context.identity_username,
+        "password" => context.identity_password
+      },
+      "return_to" => login_return_path(return_to)
+    }
+
+    response = dispatch_request(:post, "/login", nil, params)
+    Map.put(context, :login_response, response)
+  end
+
+  def perform_behaviour(context, :login_wrong_password, _args) do
+    params = %{
+      "login" => %{
+        "username" => context.identity_username,
+        "password" => "Definitely the wrong password 0!"
+      }
+    }
+
+    response = dispatch_request(:post, "/login", nil, params)
+    Map.put(context, :login_response, response)
+  end
+
+  def perform_behaviour(context, :login_unknown_user, _args) do
+    params = %{
+      "login" => %{
+        "username" => "test-user-unit-unknown",
+        "password" => @synthetic_password
+      }
+    }
+
+    response = dispatch_request(:post, "/login", nil, params)
+    Map.put(context, :login_response, response)
+  end
+
+  # An unsigned browser opens home through the router, so the pipeline's own
+  # guards decide between the legacy home page and the login redirect. The
+  # request runs to the controller (unlike `route_request/2`, which stops at
+  # the guards), because the evidence is the rendered page.
+  def perform_behaviour(context, :visit_home, _args) do
+    response = dispatch_request(:get, "/", nil)
+
+    Map.merge(context, %{home_response: response, protected_response: response})
+  end
+
+  # The setup shell the server renders for an open bootstrap: the unit layer
+  # owns no browser, so it proves the shell the JavaScript dynamics (covered
+  # by the vitest scenario and the e2e click-through) start from.
+  def perform_behaviour(context, :show_setup, _args) do
+    html =
+      %{
+        live_action: :setup,
+        setup_status: Bootstrap.status(context.identity_store),
+        setup_draft: [%{username: "", roles: ["admin"]}],
+        setup_error: nil,
+        flash: %{}
+      }
+      |> BnestAppWeb.LoginLive.render()
+      |> Safe.to_iodata()
+      |> IO.iodata_to_binary()
+
+    Map.merge(context, %{setup_html: html, setup_page: LazyHTML.from_fragment(html)})
+  end
+
+  # A setup submission that breaks one rule, posted through the router to the
+  # bootstrap controller over the empty record-backed identity store.
+  def perform_behaviour(context, :submit_setup_case, [setup_case]) do
+    context = setup_open_request_path(context)
+    response = dispatch_request(:post, "/setup", nil, setup_case_params(setup_case))
+    followup = follow_redirect(response, nil)
+
+    Map.merge(context, %{setup_response: response, setup_followup: followup})
+  end
+
+  # Two cards whose confirmations differ: the refusal must keep the names and
+  # roles while clearing every password.
+  def perform_behaviour(context, :submit_mismatched_setup, _args) do
+    context = setup_open_request_path(context)
+
+    params = %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" =>
+          setup_account_params("test-user-setup-one", "Setup password 1!", "Setup mismatch 9!", [
+            "children"
+          ]),
+        "1" =>
+          setup_account_params("test-user-setup-two", "Setup password 2!", "Setup mismatch 8!", [
+            "admin"
+          ])
+      }
+    }
+
+    response = dispatch_request(:post, "/setup", nil, params)
+    followup = follow_redirect(response, nil)
+
+    Map.merge(context, %{setup_response: response, setup_followup: followup})
+  end
+
   def perform_behaviour(context, :reload_same_browser, _args),
     do:
       Map.put(
@@ -3310,6 +3421,106 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def behaviour_outcome?(context, :protected_home_available, _args),
     do: protected_home?(context.home_response)
+
+  # The controller redirects a valid login to the posted return path, or to
+  # the site root when the path would leave this site.
+  def behaviour_outcome?(context, :landed_on, [path]) do
+    Plug.Conn.get_resp_header(context.login_response, "location") == [path]
+  end
+
+  # A wrong password and an unknown username share the safe refusal: back to
+  # the login page with one alert, and no identity cookie.
+  def behaviour_outcome?(context, :invalid_login_alert, _args) do
+    response = context.login_response
+
+    redirects_to_login?(response) and
+      Phoenix.Flash.get(response.assigns.flash, :error) ==
+        "Username or password is not valid."
+  end
+
+  def behaviour_outcome?(context, :no_identity_cookie, _args),
+    do: identity_cookie(context.login_response) == nil
+
+  # With cutover off the unsigned browser is the legacy local user: the
+  # status names it, no log out control is offered, and the migration note
+  # says chat and progress stay in this browser.
+  def behaviour_outcome?(context, :local_browser_user, _args) do
+    case context.home_response do
+      %{status: 200, resp_body: body} ->
+        String.contains?(body, "Local browser") and
+          not String.contains?(body, "Log out") and
+          String.contains?(body, "remain in this browser")
+
+      _other ->
+        false
+    end
+  end
+
+  # The setup shell for an open bootstrap: exactly one administrator card.
+  def behaviour_outcome?(context, :one_admin_card, _args) do
+    cards = LazyHTML.query(context.setup_page, "[data-account-card]")
+
+    Enum.count(cards) == 1 and
+      cards |> Enum.at(0) |> LazyHTML.text() |> String.contains?("Initial administrator")
+  end
+
+  def behaviour_outcome?(context, :first_card_no_remove, _args) do
+    context.setup_page
+    |> LazyHTML.query("[data-account-card]")
+    |> Enum.at(0)
+    |> LazyHTML.query("[data-remove-account]")
+    |> Enum.empty?()
+  end
+
+  def behaviour_outcome?(context, :offers_add_account, _args) do
+    context.setup_page |> LazyHTML.query("[data-add-account]") |> Enum.any?() and
+      String.contains?(context.setup_html, "account-card-template")
+  end
+
+  def behaviour_outcome?(context, :template_numbers_card, _args) do
+    String.contains?(context.setup_html, "accounts[__INDEX__][username]") and
+      String.contains?(context.setup_html, "data-account-number")
+  end
+
+  # A refused setup redirects back to the setup page with the rule's message,
+  # and the followed page still answers the open setup form.
+  def behaviour_outcome?(context, :setup_refused, [message]) do
+    response = context.setup_response
+
+    redirects_to_setup?(response) and
+      Phoenix.Flash.get(response.assigns.flash, :error) == message and
+      match?(%{status: 200}, context.setup_followup) and
+      String.contains?(context.setup_followup.resp_body, "bootstrap-form")
+  end
+
+  def behaviour_outcome?(_context, :no_account_created, _args),
+    do: Identity.setup_status() == :open
+
+  # The refused re-render keeps both usernames and ticked roles.
+  def behaviour_outcome?(context, :setup_keeps_names_roles, _args) do
+    body = context.setup_followup.resp_body
+
+    String.contains?(body, "test-user-setup-one") and
+      String.contains?(body, "test-user-setup-two") and
+      role_checked?(body, "0", "children") and
+      role_checked?(body, "1", "admin")
+  end
+
+  def behaviour_outcome?(context, :passwords_cleared, _args) do
+    body = context.setup_followup.resp_body
+
+    not String.contains?(body, "Setup password 1!") and
+      not String.contains?(body, "Setup password 2!") and
+      not String.contains?(body, "Setup mismatch 9!") and
+      not String.contains?(body, "Setup mismatch 8!")
+  end
+
+  def behaviour_outcome?(context, :refusal_alert, _args) do
+    body = context.setup_followup.resp_body
+
+    String.contains?(body, "Each password and confirmation must match.") and
+      String.contains?(body, "setup-error")
+  end
 
   # The logout went through the router; reopening home with the same cookie must redirect to
   # login, and the session it named must be gone.
@@ -4715,6 +4926,140 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     do: match?(["/login" <> _rest], Plug.Conn.get_resp_header(response, "location"))
 
   defp redirects_to_login?(_response), do: false
+
+  # The bootstrap controller's refusal redirect back to the setup page.
+  defp redirects_to_setup?(%{status: 302} = response),
+    do: Plug.Conn.get_resp_header(response, "location") == ["/setup"]
+
+  defp redirects_to_setup?(_response), do: false
+
+  # Pins the identity cutover flag for the scenario and restores it after.
+  defp pin_cutover(context, enabled) do
+    previous = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
+    Application.put_env(:bnest_app, :identity_cutover_enabled, enabled)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.put_env(:bnest_app, :identity_cutover_enabled, previous)
+    end)
+
+    context
+  end
+
+  # The outline spells an empty return path "(empty)", as the corpus does for
+  # other empty values.
+  defp login_return_path("(empty)"), do: ""
+  defp login_return_path(return_to), do: return_to
+
+  # The browser request path for setup scenarios: the record-backed identity
+  # store stays empty, so bootstrap is open, and the named Identity process
+  # serves the facade calls the bootstrap controller makes.
+  defp setup_open_request_path(context) do
+    {:ok, _apps} = Application.ensure_all_started(:plug)
+    previous = StoragePorts.install()
+    ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous) end)
+    store = InMemoryRecordBackend.start(self())
+    ExUnit.Callbacks.start_supervised!({Records, store: store})
+    unless GenServer.whereis(Identity), do: ExUnit.Callbacks.start_supervised!(Identity)
+    Map.put(context, :request_store, store)
+  end
+
+  # One setup form submission per rule the outline names, in the shape Plug
+  # decodes the setup form into.
+  defp setup_case_params("no admin") do
+    %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" =>
+          setup_account_params("test-user-setup-one", @synthetic_password, @synthetic_password, [
+            "children"
+          ]),
+        "1" =>
+          setup_account_params("test-user-setup-two", @synthetic_password, @synthetic_password, [
+            "parents"
+          ])
+      }
+    }
+  end
+
+  defp setup_case_params("duplicate username") do
+    %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" =>
+          setup_account_params("Test-User-Setup", @synthetic_password, @synthetic_password, [
+            "admin"
+          ]),
+        "1" =>
+          setup_account_params("test-user-setup", @synthetic_password, @synthetic_password, [
+            "admin"
+          ])
+      }
+    }
+  end
+
+  defp setup_case_params("empty username") do
+    %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" => setup_account_params("", @synthetic_password, @synthetic_password, ["admin"])
+      }
+    }
+  end
+
+  defp setup_case_params("long username") do
+    %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" =>
+          setup_account_params(
+            String.duplicate("a", 33),
+            @synthetic_password,
+            @synthetic_password,
+            ["admin"]
+          )
+      }
+    }
+  end
+
+  defp setup_case_params("password mismatch") do
+    %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" =>
+          setup_account_params(
+            "test-user-setup-one",
+            @synthetic_password,
+            "A different password 0!",
+            ["admin"]
+          )
+      }
+    }
+  end
+
+  defp setup_case_params("unchecked box") do
+    %{
+      "accounts" => %{
+        "0" =>
+          setup_account_params("test-user-setup-one", @synthetic_password, @synthetic_password, [
+            "admin"
+          ])
+      }
+    }
+  end
+
+  defp setup_account_params(username, password, confirmation, roles) do
+    %{
+      "username" => username,
+      "password" => password,
+      "password_confirmation" => confirmation,
+      "roles" => Map.new(roles, &{&1, "true"})
+    }
+  end
+
+  # A role checkbox the refused setup re-renders ticked for the card.
+  defp role_checked?(body, index, role) do
+    Regex.match?(~r/name="accounts\[#{index}\]\[roles\]\[#{role}\]".*?checked/s, body)
+  end
 
   # Home's protected actions, read from the rendered page: the chat entry and logout form.
   defp protected_home?(%{status: 200, resp_body: body}) do

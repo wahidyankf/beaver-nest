@@ -19,18 +19,21 @@ const candidates = new Map<number, ChildProcess>();
 const candidateLogs = new Map<number, string>();
 const candidateFamilyChatFlags = new Map<number, boolean | undefined>();
 const candidateReplyFlags = new Map<number, boolean | undefined>();
+const candidateIdentityCutoverFlags = new Map<number, boolean | undefined>();
 process.once("exit", () => terminateChildProcesses(candidates.values()));
 
 export async function ensureCandidate(
   port: number,
   familyChatEnabled?: boolean,
   replyEnabled?: boolean,
+  identityCutover?: boolean,
 ): Promise<void> {
   const existing = candidates.get(port);
   if (existing !== undefined && existing.exitCode === null) {
     if (
       candidateFamilyChatFlags.get(port) === familyChatEnabled &&
-      candidateReplyFlags.get(port) === replyEnabled
+      candidateReplyFlags.get(port) === replyEnabled &&
+      candidateIdentityCutoverFlags.get(port) === identityCutover
     )
       return;
     // A prior scenario left a candidate running on this port with a
@@ -41,10 +44,16 @@ export async function ensureCandidate(
     candidates.delete(port);
   }
 
-  const candidate = launchCandidate(port, familyChatEnabled, replyEnabled);
+  const candidate = launchCandidate(
+    port,
+    familyChatEnabled,
+    replyEnabled,
+    identityCutover,
+  );
   candidates.set(port, candidate);
   candidateFamilyChatFlags.set(port, familyChatEnabled);
   candidateReplyFlags.set(port, replyEnabled);
+  candidateIdentityCutoverFlags.set(port, identityCutover);
   candidate.stdout?.on("data", (chunk: Buffer) =>
     appendCandidateLog(port, chunk),
   );
@@ -59,12 +68,14 @@ export async function stopAllCandidates(): Promise<void> {
   candidates.clear();
   candidateFamilyChatFlags.clear();
   candidateReplyFlags.clear();
+  candidateIdentityCutoverFlags.clear();
 }
 
 function launchCandidate(
   port: number,
   familyChatEnabled?: boolean,
   replyEnabled?: boolean,
+  identityCutover?: boolean,
 ): ChildProcess {
   const codexRunner = path.join(
     appDirectory,
@@ -91,6 +102,14 @@ function launchCandidate(
         ? {}
         : {
             BNEST_FAMILY_CHAT_REPLY_ENABLED: replyEnabled ? "true" : "false",
+          }),
+      // Left unset means "inherit the suite's own true" (config/test.exs);
+      // pinned false is what makes a candidate serve the legacy local
+      // browser instead of the login gate.
+      ...(identityCutover === undefined
+        ? {}
+        : {
+            BNEST_IDENTITY_CUTOVER: identityCutover ? "true" : "false",
           }),
       BNEST_CODEX_MODELS_RUNNER: codexModelsRunner,
       BNEST_CODEX_RUNNER: codexRunner,

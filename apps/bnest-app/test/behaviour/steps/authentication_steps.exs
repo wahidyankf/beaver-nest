@@ -71,6 +71,74 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
 
   step("the user logs in with valid credentials", context, do: perform(context, :login))
 
+  step("the user logs in with return path {string}", %{args: [return_to]} = context,
+    do: perform(context, :login_with_return_path, [return_to])
+  )
+
+  step("the user lands on {string}", %{args: [path]} = context,
+    do: outcome(context, :landed_on, [path])
+  )
+
+  step("the user logs in with the wrong password", context,
+    do: perform(context, :login_wrong_password)
+  )
+
+  step("an unknown user logs in", context, do: perform(context, :login_unknown_user))
+
+  step("the login page says the login is not valid", context,
+    do: outcome(context, :invalid_login_alert)
+  )
+
+  step("no identity cookie is set", context, do: outcome(context, :no_identity_cookie))
+
+  step("identity cutover is off", context, do: prepare(context, :cutover_off))
+
+  step("identity cutover is on", context, do: prepare(context, :cutover_on))
+
+  step("the visitor opens this site's home page", context, do: perform(context, :visit_home))
+
+  step("the visitor acts as the local browser user", context,
+    do: outcome(context, :local_browser_user)
+  )
+
+  step("the setup page is shown", context, do: perform(context, :show_setup))
+
+  step("it opens with one administrator card", context, do: outcome(context, :one_admin_card))
+
+  step("the first card offers no remove control", context,
+    do: outcome(context, :first_card_no_remove)
+  )
+
+  step("it offers to add another initial account", context,
+    do: outcome(context, :offers_add_account)
+  )
+
+  step("the card template numbers a new family member card", context,
+    do: outcome(context, :template_numbers_card)
+  )
+
+  step("the maintainer submits the {string} setup", %{args: [setup_case]} = context,
+    do: perform(context, :submit_setup_case, [setup_case])
+  )
+
+  step("setup stays open with {string}", %{args: [message]} = context,
+    do: outcome(context, :setup_refused, [message])
+  )
+
+  step("no account is created", context, do: outcome(context, :no_account_created))
+
+  step("the maintainer submits two accounts with mismatched passwords", context,
+    do: perform(context, :submit_mismatched_setup)
+  )
+
+  step("the setup form keeps both usernames and ticked roles", context,
+    do: outcome(context, :setup_keeps_names_roles)
+  )
+
+  step("every password field is empty", context, do: outcome(context, :passwords_cleared))
+
+  step("the refusal shows in an alert", context, do: outcome(context, :refusal_alert))
+
   step("the protected home page is available", context,
     do: outcome(context, :protected_home_available)
   )

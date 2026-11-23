@@ -225,3 +225,8 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A malformed or unknown generated image path is an empty not found response
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: With family chat off the room is not found, even for a signed-in user
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A login return path stays on this site
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A wrong login stays on the login page and says it is not valid
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: With identity cutover off an unsigned browser acts as the local user
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A setup submission that breaks a rule is refused and creates no account
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A failed setup keeps the names and roles and clears every password
