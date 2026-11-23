@@ -55,6 +55,8 @@ export function appendMessages(elements, state, currentUserId, messages) {
     state.rendered.set(keyOf(message), node);
   }
   elements.list.append(fragment);
+  // The room no longer has nothing to show once a message renders.
+  elements.empty.hidden = state.rendered.size > 0;
   const oldest = messages[0];
   const newest = messages.at(-1);
   if (oldest) state.oldestKnownId ??= keyOf(oldest);

@@ -23,14 +23,19 @@ Before("@remote-image", async ({ context }) => {
   );
 });
 
-// The last image response a scenario requested. A scenario runs one step after another in its worker.
+// The last image response a scenario requested, whichever image route served
+// it. A scenario runs one step after another in its worker.
 let imageResponse: APIResponse | undefined;
+
+export function setRequestedImageResponse(response: APIResponse): void {
+  imageResponse = response;
+}
 
 function latestReply(page: Page) {
   return page.locator("[data-role=assistant-message]").last();
 }
 
-function requestedImageResponse(): APIResponse {
+export function requestedImageResponse(): APIResponse {
   if (imageResponse === undefined) {
     throw new Error("The scenario has not requested a repository image.");
   }

@@ -15,6 +15,21 @@ Feature: Family chat room
       | /family-chat                |
       | /family-chat/ruang-keluarga |
 
+  @fe-vitest-unit
+  # Exemption(integration): the notice is hidden by browser JavaScript from GraphQL results and Phoenix.ConnTest executes no JavaScript, so it sees only the static shell; alternative-proof: bnest-app-fe-e2e:test:e2e / The room shows an empty state before any message
+  @integration-exempt
+  Scenario: The room shows an empty state before any message
+    Given a visitor opens "/family-chat/ruang-keluarga" with no messages
+    Then the room shows "Start the family conversation."
+    And the room shows "Messages from everyone at home will appear here."
+    When the first message arrives
+    Then the empty state notice is gone
+
+  Scenario: An unknown room slug is a plain not found response
+    When a visitor opens "/family-chat/no-such-room"
+    Then the room answers not found with the body "Not found"
+    And the room reveals no room name
+
   Rule: Online send status
 
   @fe-vitest-unit
@@ -1543,3 +1558,16 @@ Feature: Family chat room
       | tablet 768x1024   |
       | desktop 1024x768  |
       | desktop 1440x900  |
+
+  Rule: Dormant when the family chat flag is off
+
+  # Exemption(e2e): the e2e server boots once with the flag on and a scenario cannot restart it with the flag off; alternative-proof: bnest-app:test:integration / With family chat off the room is not found, even for a signed-in user
+  @e2e-exempt
+  Scenario: With family chat off the room is not found, even for a signed-in user
+    Given family chat is "disabled"
+    When a visitor opens "/family-chat"
+    Then the room answers not found with the body "Not found"
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the room answers not found with the body "Not found"
+    When a visitor opens "/"
+    Then the page does not offer the "Family chat" link to "/family-chat"

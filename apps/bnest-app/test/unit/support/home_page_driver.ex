@@ -10,6 +10,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Behaviour.TestIsolation.UnitAdapter
   alias BnestApp.Behaviour.UnitFamilyChatDriver
   alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.Domain.RunnerEvent
   alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.CodexChat.ModelCatalog
   alias BnestApp.FamilyChat
@@ -39,6 +40,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore, as: InMemoryBackupConfigStore
   alias BnestApp.Test.InMemory.DatabaseSnapshot, as: InMemoryDatabaseSnapshot
+  alias BnestApp.Test.InMemory.FailingTranscriptStore, as: InMemoryFailingTranscriptStore
+  alias BnestApp.Test.InMemory.GeneratedImages, as: InMemoryGeneratedImages
   alias BnestApp.Test.InMemory.IdentityStore, as: InMemoryIdentityStore
   alias BnestApp.Test.InMemory.IgnoreCheck, as: InMemoryIgnoreCheck
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
@@ -52,10 +55,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Test.RestoreDrill
   alias BnestApp.Test.SchedulerDispatch
   alias BnestAppWeb.AdminScheduleSettingsLive
+  alias BnestAppWeb.ChatComponents
   alias BnestAppWeb.ChatLive
+  alias BnestAppWeb.ChatMarkdown
   alias BnestAppWeb.DataMigrationLive
+  alias BnestAppWeb.Pwa
   alias BnestAppWeb.SifatAllahLive
   alias BnestAppWeb.StorageLive
+  alias BnestAppWeb.UserAuth
   alias Mix.Tasks.Bnest.Backup.Reconcile
   alias Phoenix.HTML.Safe
   alias Phoenix.LiveView.{Socket, Utils}
@@ -137,24 +144,42 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   # The browser lands wherever the router's "/family-chat" action redirects it to.
-  # A location naming no room the visitor may open is the controller's "Not found" page.
+  # A location naming no room the visitor may open is the controller's "Not found" page,
+  # as is every family chat address while the flag is off.
   def open(context, "/family-chat") do
-    location = family_chat_redirect_location()
-    slug = String.replace_prefix(location, "/family-chat/", "")
+    if UserAuth.family_chat_enabled?() do
+      location = family_chat_redirect_location()
+      slug = String.replace_prefix(location, "/family-chat/", "")
 
-    case FamilyChat.get_room_for("test-user-unit", slug) do
-      {:ok, _room} ->
-        context |> render_family_chat_room(slug) |> Map.put(:route, location)
+      case FamilyChat.get_room_for("test-user-unit", slug) do
+        {:ok, _room} ->
+          context |> render_family_chat_room(slug) |> Map.put(:route, location)
 
-      {:error, _safe_error} ->
-        context
-        |> Map.put(:route, location)
-        |> Map.put(:page, LazyHTML.from_fragment("Not found"))
+        {:error, _safe_error} ->
+          context
+          |> Map.put(:route, location)
+          |> Map.put(:page, LazyHTML.from_fragment("Not found"))
+      end
+    else
+      not_found_page(context, "/family-chat")
     end
   end
 
   def open(context, "/family-chat/" <> slug) do
-    render_family_chat_room(context, slug)
+    if UserAuth.family_chat_enabled?() do
+      case FamilyChat.get_room_for("test-user-unit", slug) do
+        {:ok, _room} -> render_family_chat_room(context, slug)
+        {:error, _safe_error} -> not_found_page(context, "/family-chat/" <> slug)
+      end
+    else
+      not_found_page(context, "/family-chat/" <> slug)
+    end
+  end
+
+  defp not_found_page(context, route) do
+    context
+    |> Map.put(:route, route)
+    |> Map.put(:page, LazyHTML.from_fragment("Not found"))
   end
 
   @impl true
@@ -777,7 +802,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     route = "/chat/images/" <> URI.encode(path, &URI.char_unreserved?/1)
     response = route_controller_request(route, Map.get(context, :identity_token))
 
-    Map.put(context, :image_response, response)
+    Map.merge(context, %{image_response: response, image_request_path: route})
   end
 
   # One browser GET through the router to the controller that answers `path`, with the identity
@@ -1095,7 +1120,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous_storage) end)
     records = InMemoryRecordBackend.start()
     ExUnit.Callbacks.start_supervised!({Records, store: records})
-    ExUnit.Callbacks.start_supervised!(ModelCatalog)
+    ExUnit.Callbacks.start_supervised!({ModelCatalog, catalog_options(context)})
     previous_chat = Application.fetch_env!(:bnest_app, CodexChat)
     ExUnit.Callbacks.on_exit(fn -> Application.put_env(:bnest_app, CodexChat, previous_chat) end)
 
@@ -1107,6 +1132,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
     Map.merge(context, %{chat_records: records, chat_user: chat_user(context, "")})
   end
+
+  defp catalog_options(%{catalog_models: models}), do: [models: models]
+  defp catalog_options(_context), do: []
 
   defp chat_user(context, suffix) do
     context
@@ -2203,6 +2231,147 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> prepare_behaviour(:label_destination, ["watched"])
   end
 
+  # Unit bindings for the phase-8 FE ADD rows below live in this driver:
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A conversation continues in another tab or browser of the same user
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home links to the Sifat Allah revision activity
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home shows Family chat only when the room is enabled
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A runner exit or invalid runner output shows one fixed line
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A chat that cannot be saved says the saved chat is unchanged
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A failed write-enable stays read-only and says so
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex-generated images show inline in the reply
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The web manifest names Beaver Nest as a standalone app with two icons
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The service worker precaches the shell and drops the old cache
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Every image answer is private-cached and sandboxed
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-in visitor can fetch a generated image
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A malformed or unknown generated image path is an empty not found response
+  # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
+  # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: With family chat off the room is not found, even for a signed-in user
+  # --- phase-8 FE ADD rows ---
+
+  def prepare_behaviour(context, :family_chat_flag, [setting]) do
+    previous = Application.get_env(:bnest_app, :family_chat_enabled)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      if is_nil(previous),
+        do: Application.delete_env(:bnest_app, :family_chat_enabled),
+        else: Application.put_env(:bnest_app, :family_chat_enabled, previous)
+    end)
+
+    Application.put_env(:bnest_app, :family_chat_enabled, setting == "enabled")
+    context
+  end
+
+  def prepare_behaviour(context, :write_session_refused, _args) do
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.delete_env(:bnest_app, :refuse_workspace_write)
+    end)
+
+    Application.put_env(:bnest_app, :refuse_workspace_write, true)
+    context
+  end
+
+  def prepare_behaviour(context, :model_missing_for_role, [model, role]) do
+    context
+    |> Map.merge(%{identity_role: role_atom(role), authenticated: true})
+    |> Map.put(:catalog_models, models_without(model))
+  end
+
+  def prepare_behaviour(context, :transcript_saves_rejected, _args),
+    do: install_failing_transcript_store(context, :refused)
+
+  def prepare_behaviour(context, :transcript_saves_stale, _args),
+    do: install_failing_transcript_store(context, :stale)
+
+  def prepare_behaviour(context, :generated_image_saved, [file]) do
+    ensure_generated_images()
+    InMemoryGeneratedImages.put_file(generated_reference(file), synthetic_png())
+    context
+  end
+
+  def prepare_behaviour(context, :generated_jpeg_saved, [file]) do
+    ensure_generated_images()
+    InMemoryGeneratedImages.put_file(generated_reference(file), synthetic_jpeg())
+    context
+  end
+
+  def prepare_behaviour(context, :generated_images_cleared, _args) do
+    ensure_generated_images()
+    context
+  end
+
+  defp ensure_generated_images do
+    unless GenServer.whereis(InMemoryGeneratedImages) do
+      swap_generated_images_adapter()
+      :ok = InMemoryGeneratedImages.install()
+    end
+
+    :ok
+  end
+
+  defp swap_generated_images_adapter do
+    previous_chat = Application.fetch_env!(:bnest_app, CodexChat)
+
+    ExUnit.Callbacks.on_exit(fn -> Application.put_env(:bnest_app, CodexChat, previous_chat) end)
+
+    Application.put_env(
+      :bnest_app,
+      CodexChat,
+      Keyword.put(previous_chat, :generated_images, InMemoryGeneratedImages)
+    )
+  end
+
+  defp role_atom("child"), do: :child
+  defp role_atom("parent"), do: :parent
+
+  defp models_without("Luna"),
+    do: Enum.reject(FixtureModels.all(), &(&1.id == "gpt-6-luna"))
+
+  defp models_without("Terra"),
+    do: Enum.reject(FixtureModels.all(), &(&1.id == "gpt-6.1-terra"))
+
+  # The double holds the record the server had before the refusal, so a rejected save
+  # leaves exactly that record behind.
+  defp install_failing_transcript_store(context, mode) do
+    owner = context.chat_user["userId"]
+    before = CodexChat.load_transcript(owner)
+
+    records =
+      case before do
+        {:ok, _transcript, record} -> %{owner => record}
+        {:error, _reason} -> %{}
+      end
+
+    :ok = InMemoryFailingTranscriptStore.install(records)
+    previous_chat = Application.fetch_env!(:bnest_app, CodexChat)
+
+    ExUnit.Callbacks.on_exit(fn -> Application.put_env(:bnest_app, CodexChat, previous_chat) end)
+
+    Application.put_env(
+      :bnest_app,
+      CodexChat,
+      Keyword.put(previous_chat, :transcript_store, InMemoryFailingTranscriptStore)
+    )
+
+    previous_mode = Application.get_env(:bnest_app, :transcript_write_outcome)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      if is_nil(previous_mode),
+        do: Application.delete_env(:bnest_app, :transcript_write_outcome),
+        else: Application.put_env(:bnest_app, :transcript_write_outcome, previous_mode)
+    end)
+
+    Application.put_env(:bnest_app, :transcript_write_outcome, mode)
+    Map.put(context, :transcript_before, before)
+  end
+
+  @generated_thread "abcdef12-3456"
+
+  defp generated_reference(file), do: @generated_thread <> "/" <> file
+
+  defp synthetic_png, do: <<0x89, "PNG\r\n", 0x1A, "\n">> <> "synthetic generated image"
+
+  defp synthetic_jpeg, do: <<0xFF, 0xD8, 0xFF, 0xE0>> <> "synthetic generated photo"
+
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
     {response, accesses} = route_request(route, nil)
@@ -2870,8 +3039,84 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, action, args) when action in @drill_performs,
     do: RestoreDrill.perform(context, action, args)
 
+  # --- phase-8 FE ADD rows ---
+
+  def perform_behaviour(context, :open_second_session, [route]) do
+    first = Map.take(context, [:page, :route, :chat_socket])
+    second = mount_chat(context, route)
+
+    Map.merge(second, %{
+      page: first.page,
+      route: first.route,
+      chat_socket: first.chat_socket,
+      second_page: second.page,
+      second_route: second.route,
+      second_socket: second.chat_socket
+    })
+  end
+
+  def perform_behaviour(context, :runner_event, [event]) do
+    session = context.chat_socket.assigns.codex_session
+    message = {:error, RunnerEvent.message_for(event)}
+    {:noreply, socket} = ChatLive.handle_info({:codex, session, message}, context.chat_socket)
+    render_chat(context, socket)
+  end
+
+  def perform_behaviour(context, :request_generated_image, [file]) do
+    request_generated_image(context, generated_route(file))
+  end
+
+  def perform_behaviour(context, :request_generated_image_encoded, [file]) do
+    request_generated_image(context, generated_encoded_route(file))
+  end
+
+  def perform_behaviour(context, :request_generated_image_path, [path]) do
+    request_generated_image(context, "/chat/generated-images/" <> path)
+  end
+
+  def perform_behaviour(context, :request_service_worker, _args) do
+    response = static_request("/service-worker.js")
+
+    Map.merge(context, %{
+      service_worker_response: response,
+      service_worker_body: response.resp_body
+    })
+  end
+
+  def perform_behaviour(context, :complete_image_reply, _args) do
+    {events, context} = answer_next_prompt(context)
+    deliver_codex_events(context, events)
+  end
+
+  def perform_behaviour(context, :sign_out, _args) do
+    Map.merge(context, %{authenticated: false, identity_token: nil})
+  end
+
   def perform_behaviour(context, action, args),
     do: UnitFamilyChatDriver.perform_behaviour(context, action, args)
+
+  defp request_generated_image(context, route) do
+    context = context |> prepare_repository_images() |> image_request_context()
+    response = route_controller_request(route, Map.get(context, :identity_token))
+
+    Map.merge(context, %{image_response: response, image_request_path: route})
+  end
+
+  defp generated_route(file),
+    do: "/chat/generated-images/" <> @generated_thread <> "/" <> file
+
+  defp generated_encoded_route(file) do
+    "/chat/generated-images/" <>
+      URI.encode(@generated_thread <> "/" <> file, &URI.char_unreserved?/1)
+  end
+
+  # A static file the endpoint serves, read from the application's own priv directory: the
+  # committed configuration the endpoint serves, never a test fixture.
+  defp static_request(path) do
+    full = Application.app_dir(:bnest_app, "priv/static/" <> String.trim_leading(path, "/"))
+    {:ok, bytes} = :file.read_file(full)
+    %{Plug.Test.conn(:get, path) | status: 200, resp_body: bytes}
+  end
 
   @impl true
   def behaviour_outcome?(context, :redirected_to_login, _args),
@@ -3807,8 +4052,151 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, expected, args) when expected in @drill_outcomes,
     do: RestoreDrill.outcome?(context, expected, args)
 
+  # --- phase-8 FE ADD rows ---
+
+  def behaviour_outcome?(context, :chat_entry_link_absent, [label, path]) do
+    context.page
+    |> LazyHTML.query("a[href='#{path}'] strong")
+    |> Enum.all?(fn element -> element |> LazyHTML.text() |> String.trim() != label end)
+  end
+
+  def behaviour_outcome?(context, :second_session_message, [message]),
+    do: visitor_message_visible?(%{context | page: context.second_page}, message)
+
+  def behaviour_outcome?(context, :second_session_response, _args),
+    do: one_completed_codex_response_visible?(%{context | page: context.second_page})
+
+  def behaviour_outcome?(context, :runner_reported, [alert]),
+    do: alert_visible?(context, alert)
+
+  def behaviour_outcome?(context, :stored_transcript_unchanged, _args),
+    do: CodexChat.load_transcript(context.chat_user["userId"]) == context.transcript_before
+
+  def behaviour_outcome?(context, :no_codex_session, _args) do
+    not Enum.any?(Map.get(context, :codex_calls, []), &match?({:agent_session, :open, _}, &1))
+  end
+
+  def behaviour_outcome?(_context, :generated_image_inline, [file]) do
+    content = image_turn_content(file)
+
+    html =
+      ChatMarkdown.to_html(content, false, codex_images: true)
+      |> Safe.to_iodata()
+      |> IO.iodata_to_binary()
+
+    String.contains?(html, "/chat/generated-images/abcdef12-3456/#{file}") and
+      String.contains?(html, "<img")
+  end
+
+  def behaviour_outcome?(_context, :family_reference_as_text, _args) do
+    thread_id = "abcdef12-3456"
+    source = "![Generated image](codex-image:#{thread_id}/exec-fixture-image.png)"
+
+    html =
+      ChatComponents.markdown_body_html(source,
+        hard_breaks: true,
+        attrs: %{"data-role": "family-chat-message-body", class: "family-chat-message-body"}
+      )
+
+    String.contains?(html, "[image not shown: Generated image]") and
+      not String.contains?(html, "<img")
+  end
+
+  def behaviour_outcome?(context, :image_cached_and_sandboxed, _args) do
+    Plug.Conn.get_resp_header(context.image_response, "cache-control") == ["private, max-age=60"] and
+      Plug.Conn.get_resp_header(context.image_response, "content-security-policy") == [
+        "default-src 'none'; sandbox"
+      ]
+  end
+
+  def behaviour_outcome?(context, :image_echoes_no_header, _args) do
+    values = Enum.map(context.image_response.resp_headers, &elem(&1, 1))
+    not Enum.any?(values, &String.contains?(&1, context.image_request_path))
+  end
+
+  def behaviour_outcome?(context, :repository_logo_present, _args) do
+    _ = prepare_repository_images(context)
+
+    match?(
+      {:ok, _type, _bytes},
+      CodexChat.repository_image("apps/bnest-app/priv/static/images/beaver-nest-logo.png")
+    )
+  end
+
+  def behaviour_outcome?(_context, :manifest_names_app, _args) do
+    manifest = fetch_manifest()
+    icon_sources = manifest["icons"] |> Enum.map(& &1["src"]) |> Enum.sort()
+
+    manifest["name"] == "Beaver Nest" and manifest["short_name"] == "Beaver Nest" and
+      manifest["display"] == "standalone" and manifest["start_url"] == "/" and
+      icon_sources == Pwa.install_metadata().icon_paths |> Enum.sort()
+  end
+
+  def behaviour_outcome?(_context, :manifest_icons_load, _args) do
+    icons = Enum.map(fetch_manifest()["icons"], & &1["src"])
+    length(icons) == 2 and Enum.all?(icons, &(static_request(&1).status == 200))
+  end
+
+  def behaviour_outcome?(context, :worker_precaches_shell, [cache]) do
+    body = context.service_worker_body
+
+    String.contains?(body, ~s(CACHE_NAME = "#{cache}")) and
+      String.contains?(body, ~s("/manifest.webmanifest")) and
+      String.contains?(body, ~s("/assets/css/app.css")) and
+      String.contains?(body, ~s("/assets/js/app.js")) and
+      String.contains?(body, ~s("/images/beaver-nest-192.png")) and
+      String.contains?(body, ~s("/images/beaver-nest-512.png")) and
+      String.contains?(body, "cache.addAll(APP_SHELL)")
+  end
+
+  def behaviour_outcome?(context, :worker_never_precaches, [path]) do
+    [shell] =
+      Regex.run(~r/const APP_SHELL = \[(.*?)\];/s, context.service_worker_body,
+        capture: :all_but_first
+      )
+
+    not String.contains?(shell, ~s("#{path}"))
+  end
+
+  def behaviour_outcome?(context, :worker_activate_deletes, _args) do
+    body = context.service_worker_body
+
+    String.contains?(body, ".filter((key) => key !== CACHE_NAME)") and
+      String.contains?(body, "caches.delete(key)")
+  end
+
+  def behaviour_outcome?(context, :room_not_found_body, [body]) do
+    context.page |> LazyHTML.text() |> String.trim() == body
+  end
+
+  def behaviour_outcome?(context, :room_reveals_no_name, _args) do
+    not String.contains?(LazyHTML.text(context.page), "Ruang Keluarga")
+  end
+
   def behaviour_outcome?(context, expected, args),
     do: UnitFamilyChatDriver.behaviour_outcome?(context, expected, args)
+
+  # The turn the runner's image event completes: the reference the transcript appends
+  # for a valid session thread, rendered the way the Codex room renders it.
+  @image_thread "abcdef12-3456"
+
+  defp image_turn_content(file) do
+    {:ok, submitted} =
+      Transcript.new("gpt-6.1-terra", "medium")
+      |> Transcript.submit("Generate an image without a reference")
+
+    {:checkpoint, chat} =
+      submitted
+      |> Transcript.put_thread_id(@image_thread)
+      |> then(fn sized -> CodexChat.apply_event(sized, {:image_generated, file}) end)
+
+    chat.messages |> Enum.find(&(&1.role == :assistant)) |> Map.fetch!(:content)
+  end
+
+  defp fetch_manifest do
+    %{status: 200, resp_body: body} = static_request("/manifest.webmanifest")
+    Jason.decode!(body)
+  end
 
   # A synthetic destination no disk holds: the scenario's in-memory artifact store keeps it.
   defp unit_backup_directory(tag),

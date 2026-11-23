@@ -185,6 +185,39 @@ step("an approved user is logged in", () => {
   startWorld();
 });
 
+// --- Rule: Canonical route ------------------------------------------------------
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room shows an empty state before any message
+step("a visitor opens {string} with no messages", async (pathname) => {
+  await openRoomPage({ pathname });
+  expect(
+    messageRows().length === 0,
+    "the room holds messages before the first one arrives",
+  );
+});
+
+step("the room shows {string}", async (text) => {
+  const notice = activePage().elements.empty;
+  expect(!hidden(notice), "the empty state notice is hidden");
+  expect(
+    (notice.textContent ?? "").includes(text),
+    `the empty state notice does not show ${JSON.stringify(text)}`,
+  );
+});
+
+step("the first message arrives", async () => {
+  const id = await sendThroughComposer("Hello from home");
+  expect(id !== null, "the room refused to queue the first message");
+  await waitFor(() => messageRows().length > 0, "the first message to render");
+});
+
+step("the empty state notice is gone", () => {
+  expect(
+    hidden(activePage().elements.empty),
+    "the empty state notice is still shown",
+  );
+});
+
 // --- Rule: Online send status ---------------------------------------------------
 
 step("a visitor opens {string}", async (pathname) => {

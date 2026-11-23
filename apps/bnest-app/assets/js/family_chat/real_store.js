@@ -60,6 +60,8 @@ function createPendingRenderMethods(elements, state) {
       });
       elements.list.append(node);
       state.rendered.set(message.clientMessageId ?? "", node);
+      // The member's own queued message is the room's first content.
+      elements.empty.hidden = state.rendered.size > 0;
       // Always, not only when already near the bottom: this row is the
       // member's own message, and a send that leaves it off-screen -- which
       // is what happens to anyone writing from their unread marker -- reads
@@ -94,6 +96,7 @@ function createPendingRenderMethods(elements, state) {
     removePending(clientMessageId) {
       state.rendered.get(clientMessageId)?.remove();
       state.rendered.delete(clientMessageId);
+      elements.empty.hidden = state.rendered.size > 0;
     },
   };
 }

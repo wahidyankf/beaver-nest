@@ -27,7 +27,12 @@ const model = process.argv[3];
 const reasoningEffort = process.argv[4];
 const resumedThreadId = process.argv[5];
 const sandboxMode = process.argv[6];
-const newThreadId = `fixture-${process.pid}`;
+// A thread id the strict generated-image name rule accepts (hex and hyphens
+// only, with a hyphen): the process id in hex keeps one runner's thread
+// distinct from another's. A `fixture-<pid>` thread renders no image because
+// `GeneratedImage.reference/2` refuses it and the reply keeps the reference
+// as text instead of an inline image.
+const newThreadId = `9f1e4a2b-${process.pid.toString(16)}`;
 const expectedSettings = new Map([
   ["After model switch", ["gpt-6-luna", "high"]],
   ["After effort switch", ["gpt-6.1-terra", "high"]],
@@ -136,6 +141,21 @@ for await (const line of lines) {
 
     if (message.prompt === "Please fail this turn") {
       output({ type: "error", message: "Turn failed." });
+      continue;
+    }
+
+    // A runner that is gone before it answers: the session reports the exit
+    // status to its owner, which shows one fixed line and frees the composer.
+    if (message.prompt === "Exit the runner") {
+      process.exit(3);
+    }
+
+    // A runner that prints a line which is not JSON, or JSON of an unknown
+    // event: the session reports invalid data to its owner, which shows one
+    // fixed line and frees the composer.
+    if (message.prompt === "Return invalid runner data") {
+      process.stdout.write("this line is not runner JSON\n");
+      output({ type: "turn_completed" });
       continue;
     }
 

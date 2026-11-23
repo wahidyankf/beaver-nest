@@ -595,6 +595,163 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.repository_holds_sized_file(context, path, bytes)
   end
 
+  # --- phase-8 FE ADD rows ---
+
+  step "family chat is {string}", %{args: [setting]} = context do
+    prepare(context, :family_chat_flag, [setting])
+  end
+
+  step "a visitor opens the home page", context do
+    context.behaviour_driver.open(context, "/")
+  end
+
+  step "the page does not offer the {string} link to {string}",
+       %{args: [label, path]} = context do
+    outcome(context, :chat_entry_link_absent, [label, path])
+  end
+
+  step "the same user opens {string} in another tab", %{args: [route]} = context do
+    perform(context, :open_second_session, [route])
+  end
+
+  step "the other tab shows the visitor message {string}", %{args: [message]} = context do
+    outcome(context, :second_session_message, [message])
+  end
+
+  step "the other tab shows a completed Codex response", context do
+    outcome(context, :second_session_response)
+  end
+
+  step "the Codex image reply completes", context do
+    perform(context, :complete_image_reply)
+  end
+
+  step "the visitor signs out", context do
+    perform(context, :sign_out)
+  end
+
+  step "the runner {string}", %{args: [event]} = context do
+    perform(context, :runner_event, [event])
+  end
+
+  step "the runner reports {string} to its owner", %{args: [alert]} = context do
+    outcome(context, :runner_reported, [alert])
+  end
+
+  step "the transcript store rejects saves", context do
+    prepare(context, :transcript_saves_rejected)
+  end
+
+  step "the stored transcript is unchanged", context do
+    outcome(context, :stored_transcript_unchanged)
+  end
+
+  step "the transcript store reports a stale save", context do
+    prepare(context, :transcript_saves_stale)
+  end
+
+  step "Codex cannot open a write session", context do
+    prepare(context, :write_session_refused)
+  end
+
+  step "local Codex lists no {string} for a {string}", %{args: [model, role]} = context do
+    prepare(context, :model_missing_for_role, [model, role])
+  end
+
+  step "no Codex session opens", context do
+    outcome(context, :no_codex_session)
+  end
+
+  step "the latest Codex reply shows the generated image {string} inline",
+       %{args: [file]} = context do
+    outcome(context, :generated_image_inline, [file])
+  end
+
+  step "the family room shows the same reference as text", context do
+    outcome(context, :family_reference_as_text)
+  end
+
+  step "the visitor requests the generated image {string}", %{args: [file]} = context do
+    perform(context, :request_generated_image, [file])
+  end
+
+  step "the visitor requests the generated image {string} as one encoded segment",
+       %{args: [file]} = context do
+    perform(context, :request_generated_image_encoded, [file])
+  end
+
+  step "the visitor requests the generated image path {string}", %{args: [path]} = context do
+    perform(context, :request_generated_image_path, [path])
+  end
+
+  step "a generated image {string} is saved", %{args: [file]} = context do
+    prepare(context, :generated_image_saved, [file])
+  end
+
+  step "a generated image {string} holding JPEG bytes is saved", %{args: [file]} = context do
+    prepare(context, :generated_jpeg_saved, [file])
+  end
+
+  step "no generated image is saved", context do
+    prepare(context, :generated_images_cleared)
+  end
+
+  step "the repository holds its logo", context do
+    outcome(context, :repository_logo_present)
+  end
+
+  step "the image answer is private-cached and sandboxed", context do
+    outcome(context, :image_cached_and_sandboxed)
+  end
+
+  step "the image answer echoes no request header", context do
+    outcome(context, :image_echoes_no_header)
+  end
+
+  step "the web manifest names Beaver Nest as a standalone app", context do
+    outcome(context, :manifest_names_app)
+  end
+
+  step "each manifest icon loads", context do
+    outcome(context, :manifest_icons_load)
+  end
+
+  step "a visitor requests the service worker script", context do
+    perform(context, :request_service_worker)
+  end
+
+  step "the worker precaches the manifest, app CSS, app JS and both icons under {string}",
+       %{args: [cache]} = context do
+    outcome(context, :worker_precaches_shell, [cache])
+  end
+
+  step "the worker never precaches {string}", %{args: [path]} = context do
+    outcome(context, :worker_never_precaches, [path])
+  end
+
+  step "activating the worker deletes every other cache name", context do
+    outcome(context, :worker_activate_deletes)
+  end
+
+  step "the room answers not found with the body {string}", %{args: [body]} = context do
+    outcome(context, :room_not_found_body, [body])
+  end
+
+  step "the room reveals no room name", context do
+    outcome(context, :room_reveals_no_name)
+  end
+
+  defp prepare(context, state, args \\ []),
+    do: context.behaviour_driver.prepare_behaviour(context, state, args)
+
+  defp perform(context, state, args \\ []),
+    do: context.behaviour_driver.perform_behaviour(context, state, args)
+
+  defp outcome(context, state, args \\ []) do
+    assert context.behaviour_driver.behaviour_outcome?(context, state, args)
+    context
+  end
+
   # A pair is remembered by the study card's mark, or by a correct answer to the first quiz
   # question, and the visitor is back on the mission afterwards.
   defp remember_first_pair(context, "study mark") do

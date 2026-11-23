@@ -6,6 +6,8 @@ defmodule BnestApp.Test.InMemory.AgentSession do
   Like the integration fixture session, it cannot resume the thread `"unavailable-thread"`
   and reports a closed session for the prompt `"Are you there?"`. It also refuses every
   conversation for the model `"unavailable-model"`, so a test can make Codex unavailable.
+  When the application environment sets `:refuse_workspace_write`, it refuses every
+  `:workspace_write` open, so a test can make a write-enable fail.
   """
 
   @behaviour BnestApp.CodexChat.Ports.AgentSession
@@ -15,9 +17,18 @@ defmodule BnestApp.Test.InMemory.AgentSession do
     send(owner, {:agent_session, :open, {thread_id, model, reasoning_effort, repository_mode}})
 
     cond do
-      model == "unavailable-model" -> {:error, :unavailable}
-      thread_id == "unavailable-thread" -> {:error, :not_found}
-      true -> {:ok, %{owner: owner, thread_id: thread_id, ref: make_ref()}}
+      model == "unavailable-model" ->
+        {:error, :unavailable}
+
+      thread_id == "unavailable-thread" ->
+        {:error, :not_found}
+
+      repository_mode == :workspace_write and
+          Application.get_env(:bnest_app, :refuse_workspace_write, false) ->
+        {:error, :write_unavailable}
+
+      true ->
+        {:ok, %{owner: owner, thread_id: thread_id, ref: make_ref()}}
     end
   end
 

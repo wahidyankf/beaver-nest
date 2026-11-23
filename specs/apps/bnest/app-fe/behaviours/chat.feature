@@ -7,6 +7,19 @@ Feature: Beaver Nest chat
     Then the page displays the Beaver Nest logo
     And Beaver Nest is ready to install as an app
 
+  Scenario: The web manifest names Beaver Nest as a standalone app with two icons
+    When a visitor opens "/"
+    Then the web manifest names Beaver Nest as a standalone app
+    And each manifest icon loads
+
+  # Exemption(integration): Cache Storage and service-worker events exist only in a browser and Phoenix.ConnTest runs neither; alternative-proof: bnest-app:test:unit / the vitest scenario and bnest-app-fe-e2e:test:e2e / The service worker precaches the shell and drops the old cache
+  @integration-exempt
+  Scenario: The service worker precaches the shell and drops the old cache
+    When a visitor requests the service worker script
+    Then the worker precaches the manifest, app CSS, app JS and both icons under "beaver-nest-shell-v2"
+    And the worker never precaches "/"
+    And activating the worker deletes every other cache name
+
   Rule: Authenticated user-owned chat
 
     Background:
@@ -205,6 +218,53 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     And the conversation does not display the visitor message "Old session marker"
 
+  Scenario: A conversation continues in another tab or browser of the same user
+    Given a visitor opens "/chat"
+    When the visitor sends "Remember the river"
+    And a Codex response appears incrementally
+    When the same user opens "/chat" in another tab
+    Then the other tab shows the visitor message "Remember the river"
+    And the other tab shows a completed Codex response
+
+  Scenario: Home links to the Sifat Allah revision activity
+    When a visitor opens "/"
+    Then the page displays the heading "Beaver Nest"
+    And the page offers the "Misi hafal 40 sifat Allah" link to "/apps/sifat-allah"
+    And the page offers the "Start chatting" link to "/chat"
+
+  Scenario Outline: Home shows Family chat only when the room is enabled
+    Given family chat is "<setting>"
+    When a visitor opens the home page
+    Then <expectation>
+
+    Examples:
+      | setting  | expectation                                                        |
+      | enabled  | the page offers the "Family chat" link to "/family-chat"           |
+      | disabled | the page does not offer the "Family chat" link to "/family-chat"   |
+
+  Scenario Outline: A runner exit or invalid runner output shows one fixed line
+    Given a visitor opens "/chat"
+    When the runner "<event>"
+    Then the runner reports "<alert>" to its owner
+    And the message composer is available
+
+    Examples:
+      | event                       | alert                               |
+      | exits with status 3         | Codex runner exited with status 3.  |
+      | returns invalid runner data | Codex runner returned invalid data. |
+
+  # Exemption(e2e): the e2e server's SQLite store is real and healthy and no browser or HTTP action makes its write fail; alternative-proof: bnest-app:test:integration / A chat that cannot be saved says the saved chat is unchanged
+  @e2e-exempt
+  Scenario: A chat that cannot be saved says the saved chat is unchanged
+    Given a visitor opens "/chat"
+    And the transcript store rejects saves
+    When the visitor sends "Remember this"
+    Then the page displays the alert "Chat could not be saved. Your previous saved chat is unchanged."
+    And the stored transcript is unchanged
+    Given the transcript store reports a stale save
+    When the visitor sends "Remember that"
+    Then the page displays the alert "Newer chat data exists. Reload before continuing."
+
   Rule: Role-scoped Codex access
 
   Scenario Outline: A child, or a child administrator, is limited to read-only Luna at medium effort
@@ -263,6 +323,29 @@ Feature: Beaver Nest chat
       | reset            |
       | reloads the page |
       | clears the chat  |
+
+  # Exemption(e2e): the runner gets its sandbox mode only from the server and the e2e server's runner is fixed for the run, so nothing at the browser refuses one mode per scenario; alternative-proof: bnest-app:test:integration / A failed write-enable stays read-only and says so
+  @e2e-exempt
+  Scenario: A failed write-enable stays read-only and says so
+    Given a visitor opens "/chat"
+    And Codex cannot open a write session
+    When the visitor enables repository writes
+    Then the page displays the alert "Repository write access could not be enabled. Chat remains read-only."
+    And repository access is shown as read-only
+
+  # Exemption(e2e): the model catalog comes from a fixture runner fixed for the server's run and lists every offered model, so no scenario can remove one at the browser; alternative-proof: bnest-app:test:integration / A role whose model is missing in local Codex is unavailable
+  @e2e-exempt
+  Scenario Outline: A role whose model is missing in local Codex is unavailable
+    Given local Codex lists no "<missing>" for a "<role>"
+    When a visitor opens "/chat"
+    Then the page displays the alert "<alert>"
+    And the message composer is unavailable
+    And no Codex session opens
+
+    Examples:
+      | missing        | role   | alert                                            |
+      | Luna           | child  | GPT-6-Luna is not available in local Codex.      |
+      | Terra          | parent | GPT-6.1 Terra is not available in local Codex.   |
 
   Rule: Formatted Codex replies
 
@@ -1269,3 +1352,60 @@ Feature: Beaver Nest chat
     And the repository holds a file "docs/too-large.png" of 5242881 bytes
     When the visitor requests the repository image "docs/too-large.png"
     Then the image response is an empty not found response
+
+  Scenario: Codex-generated images show inline in the reply
+    Given an approved admin is logged in
+    And a visitor opens "/chat"
+    When the visitor sends "Generate an image without a reference"
+    And the Codex image reply completes
+    Then the latest Codex reply shows the generated image "exec-fixture-image.png" inline
+    And the family room shows the same reference as text
+
+  Scenario Outline: Every image answer is private-cached and sandboxed
+    Given an approved admin is logged in
+    And <setup>
+    When <request>
+    Then the image answer is private-cached and sandboxed
+    And the image answer echoes no request header
+    And <result>
+
+    Examples:
+      | setup                                         | request                                                                                             | result                                              |
+      | the repository holds its logo                 | the visitor requests the repository image "apps/bnest-app/priv/static/images/beaver-nest-logo.png" | the image response has status 200                   |
+      | the repository holds its logo                 | the visitor requests the repository image "docs/missing-logo.png"                                  | the image response is an empty not found response    |
+      | a generated image "exec-served.png" is saved  | the visitor requests the generated image "exec-served.png"                                         | the image response has status 200                   |
+      | no generated image is saved                   | the visitor requests the generated image "exec-absent.png"                                         | the image response is an empty not found response    |
+
+  Scenario: A signed-in visitor can fetch a generated image
+    Given an approved admin is logged in
+    And a generated image "exec-fixture-image.png" is saved
+    And a generated image "exec-photo.png" holding JPEG bytes is saved
+    When the visitor requests the generated image "exec-fixture-image.png"
+    Then the image response has status 200
+    And the image response has content type "image/png"
+    When the visitor requests the generated image "exec-photo.png"
+    Then the image response has status 200
+    And the image response has content type "image/jpeg"
+    When the visitor requests the generated image "exec-fixture-image.png" as one encoded segment
+    Then the image response has status 200
+    And the image response has content type "image/png"
+    When the visitor signs out
+    And the visitor requests the generated image "exec-fixture-image.png"
+    Then the image response redirects to "/login"
+
+  # Exemption(e2e): the e2e Codex home is the run's own and writing hostile names or links into it needs files the browser suite must not place beside the real checkout; alternative-proof: bnest-app:test:integration / A malformed or unknown generated image path is an empty not found response
+  @e2e-exempt
+  Scenario Outline: A malformed or unknown generated image path is an empty not found response
+    Given an approved admin is logged in
+    When the visitor requests the generated image path "<path>"
+    Then the image response is an empty not found response
+    And the image answer is private-cached and sandboxed
+
+    Examples:
+      | path                          |
+      | exec-only                     |
+      | a/b/c                         |
+      | nothyphen/exec-file.png       |
+      | abcdef12-3456/photo.txt       |
+      | abcdef12-3456/../exec-escape.png |
+      | 01a1caeb-9f2c-4d3e-8a1b-2c3d4e5f6071/exec-missing.png |

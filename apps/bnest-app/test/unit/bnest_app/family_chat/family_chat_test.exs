@@ -128,6 +128,7 @@ defmodule BnestApp.FamilyChatTest do
     end
   end
 
+  # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
   describe "get_room_for/2 slug validation" do
     test "rejects a slug that fails the allowed-character pattern" do
       assert {:error, %{code: "VALIDATION_FAILED", details: nil}} =

@@ -8,6 +8,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
   # `&lt;script&gt;alert(1)&lt;/script&gt;` is safe even though it contains the word "script".
   use ExUnit.Case, async: true
 
+  alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.SchemaSourceScan
   alias BnestAppWeb.ChatMarkdown
 
@@ -968,6 +970,33 @@ defmodule BnestAppWeb.ChatMarkdownTest do
 
       assert tags(html, "img") == []
       assert html =~ "[image not shown: Generated image]"
+    end
+
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex-generated images show inline in the reply
+    test "an image_generated turn event appends the reference, shown inline only with codex_images" do
+      {:ok, submitted} =
+        Transcript.new("gpt-6.1-terra", "medium")
+        |> Transcript.submit("Generate an image without a reference")
+
+      {:checkpoint, chat} =
+        submitted
+        |> Transcript.put_thread_id(@thread)
+        |> then(fn sized ->
+          CodexChat.apply_event(sized, {:image_generated, "exec-fixture-image.png"})
+        end)
+
+      content =
+        chat.messages |> Enum.find(&(&1.role == :assistant)) |> Map.fetch!(:content)
+
+      assert content =~ "![Generated image](codex-image:#{@thread}/exec-fixture-image.png)"
+
+      inline = render(content, false, codex_images: true)
+      [img] = tags(inline, "img")
+      assert img =~ ~s(src="/chat/generated-images/#{@thread}/exec-fixture-image.png")
+
+      withheld = render(content)
+      assert tags(withheld, "img") == []
+      assert withheld =~ "[image not shown: Generated image]"
     end
 
     test "a half-written generated-image reference stays text while streaming" do
