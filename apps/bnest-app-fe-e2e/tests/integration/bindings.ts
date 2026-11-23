@@ -112,3 +112,13 @@
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room shows that notifications are blocked
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Opening the room offline shows no signed-in messages from the device's saved copy
 export const bindingLevel = "integration";
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Every control in the room is reachable by keyboard with a visible focus indicator
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room has no horizontal page scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room does not scroll the whole page vertically
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The conversation keeps room on a short screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message uses most of a narrow phone's width
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The message composer grows with a long draft and then stops at five lines
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The message composer leaves most of a short screen to the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The newest message stays above the composer when the draft grows
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A long unbroken draft leaves the Family room inside the screen (a regression guard)
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Send button text meets the contrast target

@@ -1052,8 +1052,6 @@ Feature: Family chat room
   Rule: Responsive and accessible presentation
 
   @fe-vitest-unit
-  # Exemption(integration): rendered viewport geometry and zoom layout require a real browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / Every control in the room is reachable by keyboard with a visible focus indicator
-  @integration-exempt
   Scenario Outline: Every control in the room is reachable by keyboard with a visible focus indicator
     Given the viewport is set to "<viewport>"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -1067,8 +1065,6 @@ Feature: Family chat room
       | desktop 1280x800 200%|
 
   @fe-vitest-unit
-  # Exemption(integration): rendered viewport geometry and zoom layout require a real browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / The room has no horizontal page scroll
-  @integration-exempt
   Scenario Outline: The room has no horizontal page scroll
     Given the viewport is set to "<viewport>"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -1082,8 +1078,6 @@ Feature: Family chat room
       | desktop 1280x800 200%|
 
   @fe-vitest-unit
-  # Exemption(integration): the page's scroll height is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The room does not scroll the whole page vertically
-  @integration-exempt
   Scenario Outline: The room does not scroll the whole page vertically
     Given the viewport is set to "<viewport>"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -1096,8 +1090,6 @@ Feature: Family chat room
       | landscape 844x390 |
 
   @fe-vitest-unit
-  # Exemption(integration): the header's height and the share of a short screen that the list keeps are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The conversation keeps room on a short screen
-  @integration-exempt
   Scenario Outline: The conversation keeps room on a short screen
     Given the viewport is set to "<viewport>"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -1110,8 +1102,6 @@ Feature: Family chat room
       | short 390x422     |
 
   @fe-vitest-unit
-  # Exemption(integration): the width a message takes is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message uses most of a narrow phone's width
-  @integration-exempt
   Scenario: A message uses most of a narrow phone's width
     Given the viewport is set to "narrow 320x640"
     And Ayah has sent the family chat message "Dinner is ready at home tonight, so please come to the big table by the window"
@@ -1119,8 +1109,6 @@ Feature: Family chat room
     Then the message takes at least 80 percent of the viewport width
 
   @fe-vitest-unit
-  # Exemption(integration): the number of lines the composer shows is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The message composer grows with a long draft and then stops at five lines
-  @integration-exempt
   Scenario: The message composer grows with a long draft and then stops at five lines
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor types a draft of 12 lines into the composer
@@ -1129,8 +1117,6 @@ Feature: Family chat room
     And the Send button is on screen
 
   @fe-vitest-unit
-  # Exemption(integration): the height of the message box on a short screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The message composer leaves most of a short screen to the conversation
-  @integration-exempt
   Scenario Outline: The message composer leaves most of a short screen to the conversation
     Given the viewport is set to "<viewport>"
     And a visitor opens "/family-chat/ruang-keluarga"
@@ -1143,8 +1129,6 @@ Feature: Family chat room
       | short 390x422     |
 
   @fe-vitest-unit
-  # Exemption(integration): the place of the newest message and the list's height after a draft grows are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The newest message stays above the composer when the draft grows
-  @integration-exempt
   Scenario Outline: The newest message stays above the composer when the draft grows
     Given the viewport is set to "<viewport>"
     And a visitor is at the bottom of the family chat conversation
@@ -1157,8 +1141,6 @@ Feature: Family chat room
       | landscape 844x390 | 6     |
 
   @fe-vitest-unit
-  # Exemption(integration): the width of the room and the place of the Send button with an unbroken draft are browser layout results Phoenix.LiveViewTest never computes; this row is a regression guard, not a proof of cause; alternative-proof: bnest-app-fe-e2e:test:e2e / A long unbroken draft leaves the Family room inside the screen (a regression guard)
-  @integration-exempt
   Scenario Outline: A long unbroken draft leaves the Family room inside the screen (a regression guard)
     Given the viewport is set to "<viewport>"
     And a visitor opens "/family-chat/ruang-keluarga"
@@ -1177,8 +1159,6 @@ Feature: Family chat room
       | desktop 1440x900  |
 
   @fe-vitest-unit
-  # Exemption(integration): the colours a browser resolves from the stylesheet are part of the rendered page, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Send button text meets the contrast target
-  @integration-exempt
   Scenario: The Send button text meets the contrast target
     When a visitor opens "/family-chat/ruang-keluarga"
     Then the Send button text has a contrast ratio of at least 4.5 to 1
