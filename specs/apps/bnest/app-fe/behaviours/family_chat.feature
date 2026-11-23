@@ -493,8 +493,6 @@ Feature: Family chat room
   Rule: Keyboard reach of message content
 
   @fe-vitest-unit
-  # Exemption(integration): which element Tab reaches inside a rendered message is browser focus order over the DOM that browser JavaScript builds from server HTML, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Tab moves from a message into its links and opens one
-  @integration-exempt
   Scenario: Tab moves from a message into its links and opens one
     Given Ayah has sent the family chat message "Dinner plan: [home](https://example.test/home) and [list](https://example.test/list)"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -508,8 +506,6 @@ Feature: Family chat room
     And no action menu opens
 
   @fe-vitest-unit
-  # Exemption(integration): the order in which Tab visits a message's links, scroll regions, and diagram source is browser focus order over the rendered DOM, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Tab and Shift+Tab pass through message content without a trap
-  @integration-exempt
   Scenario: Tab and Shift+Tab pass through message content without a trap
     Given Ayah has sent this family chat message:
       """
@@ -546,8 +542,6 @@ Feature: Family chat room
     Then keyboard focus is on the message "Dinner plan"
 
   @fe-vitest-unit
-  # Exemption(integration): moving focus back to a message with Escape is a keydown handled on a DOM element built from server HTML, which Phoenix.LiveViewTest never dispatches; alternative-proof: bnest-app-fe-e2e:test:e2e / Escape returns focus from message content to the message
-  @integration-exempt
   Scenario: Escape returns focus from message content to the message
     Given Ayah has sent the family chat message "Earlier note"
     And Ayah has sent the family chat message "Dinner plan: [home](https://example.test/home)"
@@ -561,8 +555,6 @@ Feature: Family chat room
     Then keyboard focus is on the message "Earlier note"
 
   @fe-vitest-unit
-  # Exemption(integration): what a key does on a link, a summary, or a scroll region is the browser's own default action on DOM that browser JavaScript builds, which Phoenix.LiveViewTest never dispatches; alternative-proof: bnest-app-fe-e2e:test:e2e / Keys inside message content keep their own meaning
-  @integration-exempt
   Scenario Outline: Keys inside message content keep their own meaning
     Given Ayah has sent this family chat message:
       """
@@ -595,8 +587,6 @@ Feature: Family chat room
       | table          | ArrowRight | the "table" is scrolled to the right           |
 
   @fe-vitest-unit
-  # Exemption(integration): a wide table, code block or diagram is a scroll region whose width and scroll position only a browser layout engine computes, which Phoenix.LiveViewTest never measures; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide table, code block or diagram can be scrolled from the keyboard
-  @integration-exempt
   Scenario Outline: A wide table, code block or diagram can be scrolled from the keyboard
     Given the viewport is set to "<viewport>"
     And Ayah has sent a wide "<kind>" message
@@ -616,8 +606,6 @@ Feature: Family chat room
       | diagram    | mobile 320x640 |
 
   @fe-vitest-unit
-  # Exemption(integration): whether a table or code block fits its box is a browser layout result that Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A table or code block that fits is not a tab stop
-  @integration-exempt
   Scenario: A table or code block that fits is not a tab stop
     Given Ayah has sent this family chat message:
       """
@@ -639,8 +627,6 @@ Feature: Family chat room
     Then keyboard focus is outside the history
 
   @fe-vitest-unit
-  # Exemption(integration): which links of fifty rendered messages Tab reaches is browser focus order over the rendered history, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Only the focused message's links are reachable
-  @integration-exempt
   Scenario: Only the focused message's links are reachable
     Given the history holds 50 messages, each with a link
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -656,8 +642,6 @@ Feature: Family chat room
     Then keyboard focus is on "link 48"
 
   @fe-vitest-unit
-  # Exemption(integration): a message that arrives while the visitor's focus is inside the history is pushed by the GraphQL subscription and placed by browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A new message keeps the focused message's content reachable
-  @integration-exempt
   Scenario: A new message keeps the focused message's content reachable
     Given Ayah has sent the family chat message "Dinner plan: [home](https://example.test/home)"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -668,8 +652,6 @@ Feature: Family chat room
     And the message "Dinner plan" is the keyboard stop
 
   @fe-vitest-unit
-  # Exemption(integration): which picture Tab reaches once the keyboard stop moves up to an older message is browser focus order over DOM that browser JavaScript builds, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram in an older message can be reached from the keyboard on a phone
-  @integration-exempt
   Scenario Outline: A diagram in an older message can be reached from the keyboard on a phone
     Given the viewport is set to "<viewport>"
     And a visitor opens "/family-chat/ruang-keluarga"
@@ -704,8 +686,6 @@ Feature: Family chat room
       | mobile 390x844  |
 
   @fe-vitest-unit
-  # Exemption(integration): whether keyboard focus survives the moment a marked diagram's picture replaces its source is browser focus state over DOM that browser JavaScript draws, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Keyboard focus stays in a diagram's message when its picture replaces the source
-  @integration-exempt
   Scenario Outline: Keyboard focus stays in a diagram's message when its picture replaces the source
     Given the viewport is set to "<viewport>"
     And the diagram engine is held until the visitor releases it
@@ -734,8 +714,6 @@ Feature: Family chat room
       | mobile 390x844  |
 
   @fe-vitest-unit
-  # Exemption(integration): a reply's quote card is a button inside a bubble built by browser JavaScript, and Enter on it moves the stop in the rendered history, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / The quote card can be used from the keyboard
-  @integration-exempt
   Scenario: The quote card can be used from the keyboard
     Given Ayah has sent the family chat message "Dinner plan: at seven"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -888,8 +866,6 @@ Feature: Family chat room
   Rule: Reconnect on visibility resume
 
   @fe-vitest-unit
-  # Exemption(integration): forcing a stale connection and a real document visibility transition crosses browser and OS-lifecycle boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
-  @integration-exempt
   Scenario: A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
     Given a visitor opens "/family-chat/ruang-keluarga" with the socket connected to the current slot
     When the tab is backgrounded with its connection silently dropped

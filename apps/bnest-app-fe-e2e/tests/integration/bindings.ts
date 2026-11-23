@@ -76,4 +76,16 @@
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Copying a formatted message copies what was typed
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Replying to a formatted message quotes plain text
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Inline text in my own message stays readable
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab moves from a message into its links and opens one
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab and Shift+Tab pass through message content without a trap
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Escape returns focus from message content to the message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keys inside message content keep their own meaning
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide table, code block or diagram can be scrolled from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A table or code block that fits is not a tab stop
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Only the focused message's links are reachable
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message keeps the focused message's content reachable
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram in an older message can be reached from the keyboard on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keyboard focus stays in a diagram's message when its picture replaces the source
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The quote card can be used from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
 export const bindingLevel = "integration";
