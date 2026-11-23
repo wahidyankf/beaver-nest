@@ -1479,8 +1479,6 @@ Feature: Family chat room
   Rule: Diagrams in messages
 
   @fe-vitest-unit
-  # Exemption(integration): the diagram is drawn by browser JavaScript from server HTML with a layout only a real browser computes, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A committed message with a mermaid flowchart shows a diagram
-  @integration-exempt
   Scenario: A committed message with a mermaid flowchart shows a diagram
     Given Ayah has sent this family chat message:
       """
@@ -1494,8 +1492,6 @@ Feature: Family chat room
     And the message keeps its diagram source as text
 
   @fe-vitest-unit
-  # Exemption(integration): the drawing attempt and its fallback note are produced by browser JavaScript after the server sends the source, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram with a syntax error stays visible as source with a note
-  @integration-exempt
   Scenario: A diagram with a syntax error stays visible as source with a note
     Given Ayah has sent this family chat message:
       """
@@ -1509,8 +1505,6 @@ Feature: Family chat room
     And the message keeps its diagram source as text
 
   @fe-vitest-unit
-  # Exemption(integration): a label that tries to run script is drawn or refused in the browser's own engine, where Phoenix.LiveViewTest never looks; alternative-proof: bnest-app-fe-e2e:test:e2e / Hostile diagram text in a message is inert
-  @integration-exempt
   Scenario: Hostile diagram text in a message is inert
     Given Ayah has sent this family chat message:
       """
@@ -1531,8 +1525,6 @@ Feature: Family chat room
     And no script from the message runs
 
   @fe-vitest-unit
-  # Exemption(integration): the refusal of an oversized, unsupported or surplus diagram is a browser render of server HTML that Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / An oversized, unsupported or surplus diagram in a message stays as source
-  @integration-exempt
   Scenario Outline: An oversized, unsupported or surplus diagram in a message stays as source
     Given Ayah has sent the diagram message "<message>"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -1547,8 +1539,6 @@ Feature: Family chat room
       | five flowcharts      | 4     | Diagram not drawn: only the first 4 diagrams in a message are drawn.    |
 
   @fe-vitest-unit
-  # Exemption(integration): a message that arrives while the page is open is pushed by the GraphQL subscription and drawn by browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram that arrives live is drawn
-  @integration-exempt
   Scenario: A diagram that arrives live is drawn
     Given a visitor opens "/family-chat/ruang-keluarga"
     When Ayah sends this family chat message while the visitor watches:
@@ -1561,8 +1551,6 @@ Feature: Family chat room
     Then the message shows a diagram labelled "Flowchart"
 
   @fe-vitest-unit
-  # Exemption(integration): the typed text of a message still in the browser outbox exists only in browser DOM, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message that is still sending shows its diagram source as typed
-  @integration-exempt
   Scenario: A message that is still sending shows its diagram source as typed
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the server holds the visitor's next message unanswered
@@ -1577,8 +1565,6 @@ Feature: Family chat room
     And the message shows the diagram source as typed text with no drawing
 
   @fe-vitest-unit
-  # Exemption(integration): the drawing engine is requested and fails in the browser, a boundary Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram stays as source when the diagram engine cannot load
-  @integration-exempt
   Scenario: A diagram stays as source when the diagram engine cannot load
     Given the diagram engine cannot be loaded
     And Ayah has sent this family chat message:
@@ -1593,8 +1579,6 @@ Feature: Family chat room
     And the message keeps its diagram source as text
 
   @fe-vitest-unit
-  # Exemption(integration): tab order across a rendered picture is browser focus state built from the drawing, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram in another message adds no tab stop to the history
-  @integration-exempt
   Scenario: A diagram in another message adds no tab stop to the history
     Given Ayah has sent this family chat message:
       """
@@ -1609,8 +1593,6 @@ Feature: Family chat room
     And the diagram message adds no tab stop
 
   @fe-vitest-unit
-  # Exemption(integration): the clipboard holds the text of a message rendered by browser JavaScript, which Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / Copying a message with a diagram copies the typed Markdown
-  @integration-exempt
   Scenario: Copying a message with a diagram copies the typed Markdown
     Given Ayah has sent this family chat message:
       """
@@ -1625,8 +1607,6 @@ Feature: Family chat room
     Then the clipboard holds the message as typed
 
   @fe-vitest-unit
-  # Exemption(integration): the reply quote holds the text of a message rendered by browser JavaScript, which Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / Replying to a message with a diagram quotes the typed Markdown as plain text
-  @integration-exempt
   Scenario: Replying to a message with a diagram quotes the typed Markdown as plain text
     Given Ayah has sent this family chat message:
       """
@@ -1640,8 +1620,6 @@ Feature: Family chat room
     Then the reply quotes the typed message as plain text
 
   @fe-vitest-unit
-  # Exemption(integration): the picture's width and its surface colour are computed by the browser's layout and stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A narrow diagram is readable on the own message bubble and fits a 320 px message
-  @integration-exempt
   Scenario: A narrow diagram is readable on the own message bubble and fits a 320 px message
     Given the viewport is set to "mobile 320x640"
     And a visitor opens "/family-chat/ruang-keluarga"
@@ -1658,8 +1636,6 @@ Feature: Family chat room
     And no horizontal page scroll is present
 
   @fe-vitest-unit
-  # Exemption(integration): the picture's width against its box is computed by the browser's layout, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide diagram keeps a readable size and scrolls inside its own box at 320 px
-  @integration-exempt
   Scenario: A wide diagram keeps a readable size and scrolls inside its own box at 320 px
     Given the viewport is set to "mobile 320x640"
     And a visitor opens "/family-chat/ruang-keluarga"
@@ -1676,8 +1652,6 @@ Feature: Family chat room
     And no horizontal page scroll is present
 
   @fe-vitest-unit
-  # Exemption(integration): the place a room scrolls to after a diagram is drawn is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The newest message stays in view when a diagram draws
-  @integration-exempt
   Scenario: The newest message stays in view when a diagram draws
     Given a visitor is at the bottom of the family chat conversation
     And Ayah has sent a family chat message with a mermaid flowchart that is not yet drawn
@@ -1685,8 +1659,6 @@ Feature: Family chat room
     Then the newest message is in view above the composer
 
   @fe-vitest-unit
-  # Exemption(integration): the width of a bubble around a drawn diagram is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide diagram in a message uses most of a desktop column
-  @integration-exempt
   Scenario Outline: A wide diagram in a message uses most of a desktop column
     Given the viewport is set to "<viewport>"
     And a visitor opens "/family-chat/ruang-keluarga"
