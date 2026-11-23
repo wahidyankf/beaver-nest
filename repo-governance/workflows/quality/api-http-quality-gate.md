@@ -29,7 +29,7 @@ The checker reports none of these properties. The entry and exit checks run thei
 | ---------------------------------------------- | ------------------------------- | ------------------------------- |
 | Behaviour the unit and integration tests pin   | the unit and integration suites | `bnest-app` `test:unit`         |
 | Scripted API operations pass end to end        | the API end-to-end suite        | `bnest-app-be-e2e` `test:e2e`   |
-| Every API scenario is bound and covered        | the behaviour coverage check    | `test:coverage:behaviour`       |
+| Every API scenario is bound and covered        | the behaviour coverage check    | `test:behaviour:coverage`       |
 | Types, lint, and formatting of the server code | type checker, linter, formatter | `bnest-app` `typecheck`, `lint` |
 
 No contract linter or schema test runs here, so the REST and GraphQL contracts are judgeable. A property no tool of its

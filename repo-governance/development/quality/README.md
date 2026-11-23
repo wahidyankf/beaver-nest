@@ -10,3 +10,4 @@ adopted document here links to them wherever they own a concept.
 - [Stacks](stacks/README.md) holds the adopted stack standards and this repository's adapter.
 - [Checks](checks/README.md) holds the adopted test and gate contract.
 - [Testing](testing/README.md) holds the adopted coverage and test-double standards.
+- [Gate inventory](gate-inventory.md) lists every check this repository runs, with its surface, scope, command, and tests.

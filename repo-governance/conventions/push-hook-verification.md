@@ -6,11 +6,8 @@ The one standing HIPPO-contention exception lives in [HIPPO-Congestion Exception
 
 ## Requirements
 
-- Run the [public-safety screen](../../scripts/public-safety/README.md) first: over the tracked tree and each pushed range commit by commit.
-- Run the [`test:quick` quality gate](../development/quality-gates.md) through one HIPPO-guarded `nx affected` per non-deleted ref, based at `origin/main` with the pushed commit as head, consuming the admitted `NX_PARALLEL` allocation; only affected projects defining `test:quick` participate.
-- Keep Nx Cloud disabled for pre-push checks.
-- Run the full documentation gate when a pushed range touches repository Markdown, governed trees, `repo-config.yml`, the RHINO consumer, or the pre-push hook itself. Validator changes must prove the existing corpus before they can enforce it.
-- Run that consumer's bootstrap suite — [HIPPO's](../../.github/scripts/test-hippo-bootstrap.sh) or [RHINO's](../../.github/scripts/test-rhino-bootstrap.sh) — through one HIPPO-guarded call when a pushed range changes its pinned bootstrap, lock, policy example, suite, or behaviour corpus; each boundary routes separately. The RHINO call also lints its bootstrap and suite, repository-owned and read by no other gate. It runs on the workstation, blind to Linux-only behaviour, to reject a timestamp read skipping the platform branch and a scenario corpus mismatching its implementations before push.
+- Run the [public-safety screen](../../scripts/public-safety/README.md) over the pushed range. Pre-push runs only this leak scan (C6).
+- Every other gate runs at pull-request; see the [gate inventory](../development/quality/gate-inventory.md). Do not run `test:quick`, document checks, or bootstrap suites at pre-push.
 - Treat authorization to push and authorization to bypass push hooks as separate permissions. A normal push request does not authorize `--no-verify`.
 - Obtain explicit user permission that identifies or clearly includes the hook bypass before using `--no-verify`.
 - Do not carry bypass permission into a later push or broader scope.

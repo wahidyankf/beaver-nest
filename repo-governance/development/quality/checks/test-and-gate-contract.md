@@ -17,10 +17,10 @@ registry and validators are the recommended adapter; a repository with its own r
 Rule identifiers C1 to C24 are stable, so plans, audits, and acceptance criteria can cite them. This entrypoint indexes
 the rules; each module holds the full statement and its reasons.
 
-This standard implements [Automation Over Manual](../../../principles/automation-over-manual.md) and
-[Fail Closed](../../../principles/fail-closed.md). What a surface is belongs to
-[Surfaces and Mutation](../../../conventions/structure/repository-configuration/003-surfaces-and-mutation.md); which
-kind of check runs on each surface belongs to [Automated Quality Gates](automated-quality-gates.md).
+This standard implements Automation Over Manual and
+Fail Closed. What a surface is belongs to
+[Surface Placement](test-and-gate-contract/002-surface-placement.md); which
+kind of check runs on each surface belongs to [Surface Placement](test-and-gate-contract/002-surface-placement.md).
 
 ## Surfaces at a Glance
 

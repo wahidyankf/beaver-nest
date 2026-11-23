@@ -12,9 +12,9 @@ A test double stands in for a collaborator so a test runs fast and gives the sam
 freezes a different part of the collaborator in place, and the wrong kind produces a test that passes against the double
 while the system itself is broken.
 
-This standard implements [Reproducibility](../../../principles/reproducibility.md),
-[Explicit Over Implicit](../../../principles/explicit-over-implicit.md), and
-[Simplicity Over Complexity](../../../principles/simplicity-over-complexity.md).
+This standard implements Reproducibility,
+Explicit Over Implicit, and
+Simplicity Over Complexity.
 
 ## The Kinds
 
@@ -28,7 +28,7 @@ This standard implements [Reproducibility](../../../principles/reproducibility.m
 ## Prefer an In-Memory Fake to a Mock
 
 Where the collaborator is something the application owns and persists through, such as a repository, use an in-memory
-implementation instead of a mock. [Hexagonal Architecture](../architecture/hexagonal-architecture.md) already requires
+implementation instead of a mock. [Hexagonal Architecture](../code/hexagonal-architecture.md) already requires
 such an adapter for every output port used in unit tests, and runs the port's contract suite against it; that suite is
 what makes the fake trustworthy.
 
@@ -44,7 +44,7 @@ the service's availability, or its side effects. Where Hexagonal Architecture ap
 in-memory adapter, a fake returning deterministic responses and held to its contract suite.
 
 The real service is still exercised, at the level
-[Composition Roots and Test Adapters](../architecture/hexagonal-architecture/003-composition-and-testing.md) assigns to
+[Which Layer Proves What](../code/hexagonal-architecture/004-test-doubles.md#which-layer-proves-what) assigns to
 adapters reached over the network.
 
 ## Spy Only When the Interaction Is the Behaviour

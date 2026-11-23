@@ -18,19 +18,19 @@ Each repository declares its gates in exactly one place: a gate registry, or, fo
 entrypoint with one subcommand per surface. Hooks and hosted workflows only invoke it; neither copies a command list.
 
 The recommended adapter is RHINO's `repo-config.yml` registry, dispatched by `rhino gate run --surface <surface>`, per
-[Gate Entries](../../../../conventions/structure/repository-configuration/002-gate-entries.md). A repository that uses
+Gate Entries. A repository that uses
 its own runner meets the same rule through that runner.
 
 ## C2 No Dead Entries and No Unwired Artefacts
 
 Every surface or membership the declaration names has a caller, and every gate artefact the repository ships is wired or
-deleted with proof, per [Deletion With Proof](../../deletion-with-proof.md). Typical dead artefacts are a surface
+deleted with proof, per Deletion With Proof. Typical dead artefacts are a surface
 membership that nothing dispatches, a hook-runner configuration no hook reads, a linter or commit-format configuration
 no gate runs, a test script outside every target, and a pinned tool no gate invokes.
 
 ## C3 Hooks Are Installed
 
-The declared [Checkout Bootstrap](../../../workflow/checkout-bootstrap.md) installs the hooks, and a health check fails
+The declared Checkout Bootstrap installs the hooks, and a health check fails
 while they are absent.
 
 ## C4 Pins

@@ -40,4 +40,4 @@ The `rhino-consumer` gate enforces this limit for root `AGENTS.md` and every Mar
 ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
 ```
 
-The repository's pre-push hook follows the [push-hook verification convention](conventions/push-hook-verification.md). It runs one HIPPO-guarded affected [`test:quick` graph](development/quality-gates.md); independent projects consume the admitted Nx allocation while dependency and target-order edges remain serialized. It also runs governance, recursive maps, and Mermaid checks when pushed commits change Markdown, a mapped tree, `repo-config.yml`, the RHINO consumer project, or the hook itself, and a consumer bootstrap suite when they change that consumer's boundary.
+The repository's pre-push hook follows the [push-hook verification convention](conventions/push-hook-verification.md). It runs the deterministic leak scan over the pushed range. Every other gate runs at pull-request; see the [gate inventory](development/quality/gate-inventory.md).

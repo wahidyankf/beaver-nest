@@ -18,8 +18,8 @@ Record `git status --short` and resolve the project configuration:
 npm exec -- nx show project rhino-consumer --json
 ```
 
-Confirm that `test:repo` runs `./rhino gate run --surface pre-push`, which reaches the `harness-adapters` gate entry
-`repo-config.yml` declares to run `./rhino harness adapters validate`. Treat later repository changes as invalidating
+Confirm that `test:repo` runs `./rhino gate run --surface pre-push`, which reaches the `public-safety-range` gate entry
+`repo-config.yml` declares. The `harness-adapters` entry runs at pull-request. Treat later repository changes as invalidating
 results from this baseline.
 
 ### 2. Review the canonical topology
@@ -48,7 +48,7 @@ Record the exit status, contract digest, harness count, skill count, agent count
 The validator is not built here, so this repository cannot evaluate it. What it can evaluate is the pin and the bootstrap that resolves it:
 
 ```sh
-./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:bootstrap
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:integration
 ```
 
 RHINO's own unit, integration, and process-level proof runs in [its repository](https://github.com/wahidyankf/rhino) against the release named in `rhino.lock`. A parity verdict here is a claim about this repository at that pinned release; it is not a claim about an unreleased change to the validator.

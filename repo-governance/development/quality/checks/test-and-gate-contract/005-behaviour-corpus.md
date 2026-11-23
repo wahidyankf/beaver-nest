@@ -12,7 +12,7 @@ when_to_use: >-
 ## C13 Behaviour Corpus and Bindings
 
 Every owner with runtime code, library projects included, keeps one `.feature` corpus under `specs/`, in a form of the
-[Specification Tree](../../../../conventions/structure/specification-tree.md): `specs/behaviours/` for a single product,
+Specification Tree: `specs/behaviours/` for a single product,
 `specs/apps/<area>/<app>/behaviours/` for several apps, and `specs/libs/<lib>/behaviours/` for a library inside such a
 repository. A feature file outside the corpus and outside a declared fixtures directory is a defect.
 
@@ -40,7 +40,7 @@ One convention for every stack: a reference line inside a comment, in the host l
 ## Exemptions
 
 An exemption sits on one scenario, with this comment directly above its tag, per
-[Bindings and Exemptions](../../testing/behaviour-driven-development/003-bindings-and-exemptions.md):
+[Behaviour-Driven Development](../../../behaviour-driven-development.md):
 
 ```text
 # Exemption(<level>): <reason>; alternative-proof: <target>
@@ -72,7 +72,7 @@ Before binding work, each existing scenario takes the first class that fits:
 | KEEP    | one observable behaviour in user or caller terms       | leave unchanged                           |
 
 An observable behaviour with no scenario is ADD, and every one is added. REMOVE follows
-[Deletion With Proof](../../deletion-with-proof.md). The review ends with rules B04 to B08 passing; all rules run once
+Deletion With Proof. The review ends with rules B04 to B08 passing; all rules run once
 bindings exist.
 
 ### Visible-Behaviour Inventory

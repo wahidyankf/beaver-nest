@@ -51,18 +51,7 @@ Dispatches the local `pre-push` surface: `./rhino gate run --surface pre-push --
 update record that pushes `HEAD` as a new ref, because the `public-safety-range` gate binds its range from push updates
 and refuses to run without one; a new ref starts from `origin/main`, so the range is the checkout's unpushed commits.
 
-Two of them screen what may leave this repository and run first — `public-safety-tree` over the tracked tree, and
-`public-safety-range` over the range commit by commit. The other seven are the validators:
-
-| Invocation                                | What it checks                                            |
-| ----------------------------------------- | --------------------------------------------------------- |
-| `rhino repo-config validate`              | the declared policy itself is complete and usable         |
-| `rhino governance word-budget validate`   | every governed surface is inside its declared word budget |
-| `rhino governance directory-map validate` | every mapped tree's READMEs name their siblings           |
-| `rhino governance quality-gates validate` | every quality gate and propagation keeps the contract     |
-| `rhino harness adapters validate`         | every declared harness adapter still routes to the canon  |
-| `rhino md internal-link validate`         | every relative Markdown link resolves                     |
-| `rhino md mermaid validate`               | every diagram stays inside the label and colour rules     |
+Pre-push holds only `public-safety-range` over the pushed range. The tree scan and the document and policy validators run at pull-request as separate entries; see the [gate inventory](../../repo-governance/development/quality/gate-inventory.md).
 
 Badakmini ran eight invocations to cover the same ground. The count fell rather than the coverage:
 its four `--directory` calls became one, because the four mapped trees are now declared in
@@ -90,8 +79,7 @@ that runs from the wrong directory and reports a clean result for a tree nobody 
 Runs [the consumer bootstrap suite](../../.github/scripts/test-rhino-bootstrap.sh) — fifteen
 scenarios over cache integrity, argument passthrough, install serialization, stale-owner
 reclamation, retention, and the disjointness of this wrapper's state from HIPPO's, against a
-synthetic release, so it touches neither GitHub nor the real cache. The
-pre-push hook runs it when a pushed range touches the consumer boundary; this target exists so it
+synthetic release, so it touches neither GitHub nor the real cache. The pull-request gate runs it; this target exists so it
 is also runnable on its own. It is this project's integration level: the project has no unit
 level, so it has no `test:quick`.
 

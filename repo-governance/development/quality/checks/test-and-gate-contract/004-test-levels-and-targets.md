@@ -32,7 +32,7 @@ run. A test that cannot be rebuilt with local dependencies moves level rather th
 
 These names exist in every repository that has the capability, with the same meaning, as a task-runner target or a
 runner subcommand, and never as an alias, per
-[Task Runner Target Standards](../../../workflow/task-runner-target-standards.md):
+Task Runner Target Standards:
 
 | Target                    | Holds                                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------------- |
@@ -63,7 +63,7 @@ Each [stack pack](../../stacks/README.md) names the enforcement that keeps unit-
 clock, file system, network, environment, process, or randomness API: an import or API ban scoped to unit-test paths, or
 a repository-owned scan with its own tests where no stock linter offers one. Review is not the enforcement.
 
-Turning it on follows [Lint Strictness](../lint-strictness.md):
+Turning it on follows Lint Strictness:
 
 1. **Audit.** List every unit-test file that reaches a forbidden API and its action: inject a
    [test double](../../testing/test-doubles.md), or move the test to the integration level with its scenario still bound

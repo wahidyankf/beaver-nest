@@ -25,7 +25,7 @@ The checker reports none of these properties. The entry and exit checks run thei
 
 | Property                                  | Owned by                       | This repository runs                      |
 | ----------------------------------------- | ------------------------------ | ----------------------------------------- |
-| Every scenario is bound and covered       | the behaviour coverage checks  | each project's `test:coverage:behaviour`  |
+| Every scenario is bound and covered       | the behaviour coverage checks  | each project's `test:behaviour:coverage`  |
 | Scenarios pass against the implementation | the unit and end-to-end suites | `test:unit`, `test:e2e` of each project   |
 | Markdown formatting                       | the formatter                  | `prettier --check`                        |
 | Internal links and directory maps resolve | the link and map validators    | `rhino md internal-link validate` and map |

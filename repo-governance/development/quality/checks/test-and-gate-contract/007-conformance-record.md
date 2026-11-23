@@ -11,7 +11,7 @@ when_to_use: >-
 
 ## C16 Lint
 
-Every stack has a real linter that fails at warning severity and above, per [Lint Strictness](../lint-strictness.md),
+Every stack has a real linter that fails at warning severity and above, per Lint Strictness,
 running in the pull-request gate. A formatter check is not a linter.
 
 ## C19 Gate Inventory
@@ -23,7 +23,7 @@ infeasible network denial, each with its reason.
 ## C20 Remote-Backed Delivery
 
 A remote-backed repository delivers through a worktree, a pull request, the green aggregate check, merge, and cleanup,
-per [Pull Request Merge](../../../workflow/pull-request-merge.md). The leak review of the head runs before the push; for
+per [Pull Request Merge](../../../../conventions/pull-request-merge.md). The leak review of the head runs before the push; for
 the pull request, the delivery harness acts on it as [PR Leak Review](../../../../workflows/quality/pr-leak-review.md)
 defines.
 
@@ -36,7 +36,7 @@ setting, applied only after the owner confirms it, for one repository or as a st
 
 ## C23 Diagrams
 
-The repository declares one authoring rule per [Diagrams](../../../../conventions/writing/diagrams.md). Under
+The repository declares one authoring rule per [Mermaid](../../../../conventions/markdown-visualizations.md). Under
 `rendered`, every live conceptual diagram is Mermaid, and every Mermaid block is validated in the pull-request gate, or
 the landing gate without one; RHINO's `md mermaid validate` is the recommended validator. Literal structure, wireframes,
 and manuals read inside a terminal editor's help system stay plain text.
