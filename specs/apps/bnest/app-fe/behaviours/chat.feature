@@ -2,8 +2,6 @@ Feature: Beaver Nest chat
 
   Rule: Public application installation
 
-  # Exemption(integration): browser installability is not observable without a browser; alternative-proof: bnest-app-fe-e2e:test:e2e / A visitor can install Beaver Nest as an app
-  @integration-exempt
   Scenario: A visitor can install Beaver Nest as an app
     When a visitor opens "/"
     Then the page displays the Beaver Nest logo
@@ -19,8 +17,6 @@ Feature: Beaver Nest chat
     Then the page displays the heading "Beaver Nest"
     And the page offers the "Start chatting" link to "/chat"
 
-  # Exemption(integration): rendered geometry is not observable without a browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / Home controls and content remain visually separated
-  @integration-exempt
   Scenario: Home controls and content remain visually separated
     When a visitor opens "/"
     Then the home header and hero do not overlap
@@ -71,8 +67,6 @@ Feature: Beaver Nest chat
     And the model selector is available
     And the reasoning effort selector is available
 
-  # Exemption(integration): physical keyboard chord handling belongs to the browser boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / A visitor sends a message with Shift+Enter
-  @integration-exempt
   Scenario: A visitor sends a message with Shift+Enter
     Given a visitor opens "/chat"
     And the visitor's pointer is a touch pointer
@@ -170,8 +164,7 @@ Feature: Beaver Nest chat
     And the in-progress turn resumes once or fails safely without duplication
     Then the message composer is available
 
-  # Exemption(integration): the page's morph decides whether a resumed reply takes its later text or its later diagram marker, which only a real browser patch shows; alternative-proof: bnest-app-fe-e2e:test:e2e / After a dropped connection, a resumed reply shows its later text and diagram without a reload
-  @integration-exempt @live-socket-drop
+  @live-socket-drop
   Scenario Outline: After a dropped connection, a resumed reply shows its later text and diagram without a reload
     Given a visitor opens "/chat"
     When the visitor sends "<message>"
@@ -327,8 +320,7 @@ Feature: Beaver Nest chat
     Then the latest Codex reply links "Beaver Nest docs" to "https://example.com/docs"
     And the link "Beaver Nest docs" in the latest Codex reply opens in a new tab without sharing the page
 
-  # Exemption(integration): rendered layout is not observable without a browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / Codex reply tables, task lists, links and images keep their layout
-  @integration-exempt @remote-image
+  @remote-image
   Scenario: Codex reply tables, task lists, links and images keep their layout
     Given a visitor opens "/chat"
     When the visitor sends "Lay out a sample reply with a remote image"

@@ -131,3 +131,8 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued reply survives closing the app
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued reply commits with its link on reconnect
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message queued before the update still sends after it
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor can install Beaver Nest as an app
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home controls and content remain visually separated
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor sends a message with Shift+Enter
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: After a dropped connection, a resumed reply shows its later text and diagram without a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex reply tables, task lists, links and images keep their layout
