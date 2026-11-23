@@ -38,31 +38,31 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationTest do
     assert RuntimeSettings.fixture_runner?(nil, "f", fn _, _ -> true end) == false
     assert RuntimeSettings.fixture_runner?("", "f", fn _, _ -> true end) == false
     assert Model.port_for("(unset)") == 4000
+
     assert_raise RuntimeError, "PORT must be a positive integer", fn ->
       RuntimeSettings.http_port(%{"PORT" => "not-a-port"})
     end
+
     assert RuntimeSettings.runtime_root(%{"BNEST_RUNTIME_ROOT" => ""}) == nil
-    assert RuntimeSettings.codex_working_directory(%{"BNEST_CODEX_WORKING_DIRECTORY" => ""}) == nil
+
+    assert RuntimeSettings.codex_working_directory(%{"BNEST_CODEX_WORKING_DIRECTORY" => ""}) ==
+             nil
+
     assert RuntimeSettings.codex_home(%{"BNEST_CODEX_HOME" => ""}) == nil
     assert RuntimeSettings.boolean_setting!(%{}, "BNEST_IDENTITY_CUTOVER") == false
 
-    push_dir = Path.join(System.tmp_dir!(), "bnest-push-unit-#{:erlang.unique_integer([:positive])}")
-    File.mkdir_p!(push_dir)
-    public_path = Path.join(push_dir, "public.key")
-    private_path = Path.join(push_dir, "private.key")
-    File.write!(public_path, "public-value")
-    File.write!(private_path, "private-value")
+    # Committed key fixtures, read by the production settings reader: the test only
+    # passes path strings, so it touches neither the file system nor the clock.
+    # (`__DIR__` is a compile-time path, and plain string concatenation keeps the
+    # unit layer's ban on `Path` and `File` calls intact.)
+    key_dir = __DIR__ <> "/fixtures/push-keys"
 
-    try do
-      assert %{subject: "mailto:ops@example.com"} =
-               RuntimeSettings.push_config!(%{
-                 "BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE" => public_path,
-                 "BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE" => private_path,
-                 "BNEST_WEB_PUSH_SUBJECT" => "mailto:ops@example.com"
-               })
-    after
-      File.rm_rf!(push_dir)
-    end
+    assert %{subject: "mailto:ops@example.com"} =
+             RuntimeSettings.push_config!(%{
+               "BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE" => key_dir <> "/public.key",
+               "BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE" => key_dir <> "/private.key",
+               "BNEST_WEB_PUSH_SUBJECT" => "mailto:ops@example.com"
+             })
   end
 
   # @scenario specs/apps/bnest/app-be/behaviours/runtime_configuration.feature: Production boot needs SECRET_KEY_BASE and PHX_HOST names the host

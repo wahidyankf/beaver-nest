@@ -21,7 +21,10 @@ defmodule BnestApp.Behaviour.UnitSupport do
   # no recorded push request: the unit layer's Family Chat, Push Notifications, Scheduler,
   # Backup and Operations adapters (config/test.exs).
   before_scenario context do
-    RoomStore.install()
+    # Behaviour flows dispatch through production clocks, so the store they install
+    # is stamped with the scenario's own start time, as an unstamped install was
+    # before the unit layer's in-memory stores stopped reading the system clock.
+    RoomStore.install(now: DateTime.utc_now())
     ScheduleStore.install()
     BackupConfigStore.install()
     ArtifactStore.install()

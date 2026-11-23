@@ -212,6 +212,10 @@
             "forwardAllArgs": false
           },
           {
+            "command": "npm exec -- oxlint -A all -D no-restricted-globals --deny-warnings assets/test/unit",
+            "forwardAllArgs": false
+          },
+          {
             "command": "mix deps.unlock --check-unused",
             "forwardAllArgs": false
           }

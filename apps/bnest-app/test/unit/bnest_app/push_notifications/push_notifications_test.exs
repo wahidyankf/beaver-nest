@@ -13,8 +13,13 @@ defmodule BnestApp.PushNotificationsTest do
   alias BnestApp.Test.InMemory.RoomStore, as: InMemoryRoomStore
   alias BnestApp.Test.InMemory.SubscriptionStore, as: InMemorySubscriptionStore
 
+  # The test-owned sweep time. The store is installed with the same `now:`, so
+  # stamps and dispatcher decisions share one clock and no test reads the system
+  # clock.
+  @now ~U[2026-09-18 20:00:00Z]
+
   setup do
-    store = InMemoryRoomStore.install()
+    store = InMemoryRoomStore.install(now: @now)
     :ok = PushSender.forget_sent()
     {:ok, store: store}
   end
@@ -182,7 +187,7 @@ defmodule BnestApp.PushNotificationsTest do
     end
   end
 
-  describe "dispatch_all_due!/0" do
+  describe "dispatch_all_due!/1" do
     test "sends every due delivery once and records each accepted one delivered",
          %{store: store} do
       # The second message is owed to both subscriptions: three deliveries.
@@ -190,7 +195,7 @@ defmodule BnestApp.PushNotificationsTest do
       owe_delivery!(store, "accepted-2")
       owed = store |> InMemoryDeliveryStore.over() |> InMemoryDeliveryStore.deliveries()
 
-      assert PushNotifications.dispatch_all_due!() == :ok
+      assert PushNotifications.dispatch_all_due!(@now) == :ok
 
       assert length(owed) == 3
 
@@ -202,14 +207,15 @@ defmodule BnestApp.PushNotificationsTest do
       assert Enum.sort(for {_endpoint, payload} <- sent(), do: payload["messageId"]) ==
                Enum.sort(Enum.map(owed, & &1.message_id))
 
-      assert Dispatcher.attempt() == {:error, :no_due_delivery}
+      assert Dispatcher.attempt(@now) == {:error, :no_due_delivery}
       assert sent() == []
     end
 
     test "retires a delivery the provider refuses outright, without retry", %{store: store} do
       owed = owe_delivery!(store, "status-403")
 
-      assert {:ok, %{state: "terminal", next_attempt_at: nil, attempt: 1}} = Dispatcher.attempt()
+      assert {:ok, %{state: "terminal", next_attempt_at: nil, attempt: 1}} =
+               Dispatcher.attempt(@now)
 
       assert %{state: "terminal", failure_category: "provider"} =
                delivery(store, owed.delivery_id)
@@ -223,7 +229,7 @@ defmodule BnestApp.PushNotificationsTest do
       deliveries = InMemoryDeliveryStore.over(store)
       :ok = InMemoryDeliveryStore.put(deliveries, owed.delivery_id, message_id: 999_999)
 
-      assert {:ok, %{state: "terminal", attempt: 1}} = Dispatcher.attempt()
+      assert {:ok, %{state: "terminal", attempt: 1}} = Dispatcher.attempt(@now)
 
       assert %{state: "terminal", failure_category: "provider"} =
                delivery(store, owed.delivery_id)
@@ -234,41 +240,35 @@ defmodule BnestApp.PushNotificationsTest do
     test "a transient provider failure is retried after the first fixed wait and stays unfinished",
          %{store: store} do
       owed = owe_delivery!(store, "status-503")
-      before = DateTime.utc_now()
 
-      assert {:ok, %{state: "retryable", attempt: 1, next_attempt_at: %DateTime{} = next}} =
-               Dispatcher.attempt()
+      # The dispatcher and the store share the test-owned clock, so the first
+      # backoff wait lands exactly thirty seconds after the sweep time.
+      expected_wait = DateTime.add(@now, 30, :second)
 
-      after_attempt = DateTime.utc_now()
+      assert {:ok, %{state: "retryable", attempt: 1, next_attempt_at: ^expected_wait}} =
+               Dispatcher.attempt(@now)
 
-      # The dispatcher stamps its own clock, so the stored wait lies between the first read
-      # plus thirty seconds and the last read plus thirty seconds, at whole-second precision.
-      stamped = DateTime.truncate(next, :second)
-      earliest = DateTime.add(DateTime.truncate(before, :second), 30, :second)
-      latest = DateTime.add(DateTime.truncate(after_attempt, :second), 30, :second)
-      assert DateTime.compare(stamped, earliest) != :lt
-      assert DateTime.compare(stamped, latest) != :gt
-
-      assert %{state: "retryable", failure_category: "retryable", next_attempt_at: ^stamped} =
+      assert %{state: "retryable", failure_category: "retryable", next_attempt_at: ^expected_wait} =
                delivery(store, owed.delivery_id)
 
-      assert Dispatcher.attempt() == {:error, :no_due_delivery}
+      assert Dispatcher.attempt(@now) == {:error, :no_due_delivery}
     end
 
     test "retires a claimed delivery already past the one-hour ceiling, sending nothing",
          %{store: store} do
       owed = owe_delivery!(store, "accepted-late")
-      created_at = DateTime.add(DateTime.utc_now(), -3_601, :second)
+      created_at = DateTime.add(@now, -3_601, :second)
       deliveries = InMemoryDeliveryStore.over(store)
       :ok = InMemoryDeliveryStore.put(deliveries, owed.delivery_id, created_at: created_at)
 
-      assert {:ok, %{state: "terminal", next_attempt_at: nil, attempt: 1}} = Dispatcher.attempt()
+      assert {:ok, %{state: "terminal", next_attempt_at: nil, attempt: 1}} =
+               Dispatcher.attempt(@now)
 
       assert %{state: "terminal", failure_category: "ceiling", next_attempt_at: nil} =
                delivery(store, owed.delivery_id)
 
       assert sent() == []
-      assert Dispatcher.attempt() == {:error, :no_due_delivery}
+      assert Dispatcher.attempt(@now) == {:error, :no_due_delivery}
     end
   end
 
