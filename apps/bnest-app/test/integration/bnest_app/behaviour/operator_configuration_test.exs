@@ -10,6 +10,7 @@ defmodule BnestApp.Behaviour.OperatorConfigurationIntegrationTest do
 
   defp context, do: Adapter.install(%{})
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_configuration.feature: Readiness fails closed while the named peer slot does not answer
   test "readiness fails closed while the peer does not answer" do
     for {peer, reachable, live, ready, health} <- [

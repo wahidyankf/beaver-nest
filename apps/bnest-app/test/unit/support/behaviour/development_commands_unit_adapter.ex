@@ -37,7 +37,10 @@ defmodule BnestApp.Behaviour.DevelopmentCommands.UnitAdapter do
 
   def configured_port(context, server, port) do
     if server != context.commands.server,
-      do: raise("port configured for #{inspect(server)} after allocating #{inspect(context.commands.server)}")
+      do:
+        raise(
+          "port configured for #{inspect(server)} after allocating #{inspect(context.commands.server)}"
+        )
 
     put_commands(context, %{port: port})
   end
@@ -64,9 +67,15 @@ defmodule BnestApp.Behaviour.DevelopmentCommands.UnitAdapter do
 
   def assert_lease(context, port, min, max) do
     {:ok, lease} = Model.parse_hippo_lease(context.commands.start_command)
-    unless lease.lease_port == port, do: raise("lease requests #{lease.lease_port}, expected #{port}")
+
+    unless lease.lease_port == port,
+      do: raise("lease requests #{lease.lease_port}, expected #{port}")
+
     unless lease.owner == "development", do: raise("lease owner is #{lease.owner}")
-    unless lease.min == min and lease.max == max, do: raise("lease range is #{lease.min} to #{lease.max}")
+
+    unless lease.min == min and lease.max == max,
+      do: raise("lease range is #{lease.min} to #{lease.max}")
+
     unless lease.port == port, do: raise("PORT passes #{lease.port}, expected #{port}")
     context
   end
@@ -150,7 +159,12 @@ defmodule BnestApp.Behaviour.DevelopmentCommands.UnitAdapter do
   # Nx targets (BN-CLI-27, BN-GATE-08).
 
   def declare_target(context, target, commands, depends, parallel) do
-    put_commands(context, %{target: target, commands: commands, depends: depends, parallel: parallel})
+    put_commands(context, %{
+      target: target,
+      commands: commands,
+      depends: depends,
+      parallel: parallel
+    })
   end
 
   def read_target(context) do

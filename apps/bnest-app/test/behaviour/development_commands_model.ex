@@ -34,7 +34,9 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsModel do
 
   @doc "True when the port stays inside its allocated range."
   def port_in_range?(first, last, port),
-    do: is_integer(first) and is_integer(last) and is_integer(port) and first <= port and port <= last
+    do:
+      is_integer(first) and is_integer(last) and is_integer(port) and first <= port and
+        port <= last
 
   @doc "True when the bind address is the loopback address every server keeps to."
   def loopback?("127.0.0.1"), do: true
@@ -47,6 +49,7 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsModel do
   """
   def render_start(dev_port) do
     port = if dev_port in [nil, ""], do: "4020", else: dev_port
+
     "BNEST_STABLE=${BNEST_STABLE:-true} PORT=#{port} " <>
       "./hippo run --class service --resource-tier standard --disk-path . " <>
       "--cwd apps/bnest-app --lease-port #{port} --lease-owner development " <>
@@ -98,7 +101,8 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsModel do
 
   def check_admission(admission) do
     case String.split(admission, " ") do
-      [class, tier, "disk", "."] when class in ["ephemeral", "service", "transactional"] and tier in ["standard", "heavy"] ->
+      [class, tier, "disk", "."]
+      when class in ["ephemeral", "service", "transactional"] and tier in ["standard", "heavy"] ->
         :ok
 
       _ ->
@@ -108,7 +112,9 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsModel do
 
   @doc "Checks the reviewed shape of a tailnet target command."
   def check_tailnet_shape("tailnet:up", "tailscale serve " <> rest) do
-    if rest =~ ~r/^--bg --yes --https=443 --set-path=\/ 4100$/, do: :ok, else: {:error, "unexpected up flags"}
+    if rest =~ ~r/^--bg --yes --https=443 --set-path=\/ 4100$/,
+      do: :ok,
+      else: {:error, "unexpected up flags"}
   end
 
   def check_tailnet_shape("tailnet:status", "tailscale serve status"), do: :ok

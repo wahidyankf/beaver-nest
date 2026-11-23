@@ -10,6 +10,7 @@ defmodule BnestApp.Behaviour.OperatorConfigurationTest do
 
   defp context, do: Adapter.install(%{})
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_configuration.feature: A production start refuses missing or unsafe push configuration
   test "production refuses missing or unsafe push configuration" do
     for {public_file, private_file, subject, boot} <- [
@@ -33,6 +34,7 @@ defmodule BnestApp.Behaviour.OperatorConfigurationTest do
     assert Model.missing_public() =~ "BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_configuration.feature: Stable mode turns off code reload and asset watchers
   test "stable mode turns off reload and watchers" do
     for {stable, reload, watchers} <- [
@@ -47,6 +49,7 @@ defmodule BnestApp.Behaviour.OperatorConfigurationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_configuration.feature: Readiness fails closed while the named peer slot does not answer
   test "readiness fails closed while the peer does not answer" do
     loop = Model.loopback_string()
@@ -65,6 +68,7 @@ defmodule BnestApp.Behaviour.OperatorConfigurationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_configuration.feature: A slot deployment refuses to start without its deployment files and origin
   test "deploy prepare refuses without files and origin" do
     good = Model.good_origin()
@@ -89,6 +93,7 @@ defmodule BnestApp.Behaviour.OperatorConfigurationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_configuration.feature: A production node joins the cluster named by DNS_CLUSTER_QUERY
   test "cluster follows the DNS query" do
     for {query, cluster} <- [
@@ -102,6 +107,7 @@ defmodule BnestApp.Behaviour.OperatorConfigurationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_configuration.feature: Production listens on loopback and redirects plain HTTP to HTTPS
   test "production binds loopback and redirects plain HTTP" do
     loop = Model.loopback_string()

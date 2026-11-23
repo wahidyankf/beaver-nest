@@ -5,6 +5,9 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter do
 
   alias BnestApp.Behaviour.RuntimeConfiguration.UnitAdapter, as: Unit
   alias BnestApp.Behaviour.RuntimeConfigurationModel, as: Model
+  alias BnestApp.CodexChat.Adapters.CodexCliModelDiscovery
+  alias BnestApp.CodexChat.Adapters.CodexPortSession
+  alias BnestApp.CodexChat.Adapters.RepositoryImageFiles
   alias BnestApp.RuntimeSettings
 
   def install(context) do
@@ -171,31 +174,38 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter do
         _ = runtime_config([], :dev)
         nil
       else
-        tmp = Path.join(System.tmp_dir!(), "bnest-root-#{:erlang.unique_integer([:positive])}")
-        File.mkdir_p!(tmp)
-
-        configured =
-          if String.starts_with?(raw, "/") do
-            config = runtime_config([{"BNEST_RUNTIME_ROOT", raw}], :dev)
-            config[:bnest_app][:runtime_root]
-          else
-            File.cd!(tmp, fn ->
-              config = runtime_config([{"BNEST_RUNTIME_ROOT", raw}], :dev)
-              config[:bnest_app][:runtime_root]
-            end)
-          end
-
-        File.write!(Path.join(tmp, "record.json"), Jason.encode!(%{ok: true}))
-
-        unless File.exists?(Path.join(tmp, "record.json")) do
-          raise "no record under the configured root"
-        end
-
-        File.rm_rf!(tmp)
-        configured
+        derive_configured_root(raw)
       end
 
     put_runtime(context, %{root: root, cwd: cwd})
+  end
+
+  defp derive_configured_root(raw) do
+    tmp = Path.join(System.tmp_dir!(), "bnest-root-#{:erlang.unique_integer([:positive])}")
+    File.mkdir_p!(tmp)
+
+    configured = read_configured_root(tmp, raw)
+
+    File.write!(Path.join(tmp, "record.json"), Jason.encode!(%{ok: true}))
+
+    unless File.exists?(Path.join(tmp, "record.json")) do
+      raise "no record under the configured root"
+    end
+
+    File.rm_rf!(tmp)
+    configured
+  end
+
+  defp read_configured_root(tmp, raw) do
+    if String.starts_with?(raw, "/") do
+      config = runtime_config([{"BNEST_RUNTIME_ROOT", raw}], :dev)
+      config[:bnest_app][:runtime_root]
+    else
+      File.cd!(tmp, fn ->
+        config = runtime_config([{"BNEST_RUNTIME_ROOT", raw}], :dev)
+        config[:bnest_app][:runtime_root]
+      end)
+    end
   end
 
   def assert_root(context, resolved) do
@@ -207,19 +217,23 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter do
         context
 
       {_, path} when is_binary(path) ->
-        cond do
-          String.starts_with?(raw, "/") and path == raw and raw == resolved ->
-            context
-
-          not String.starts_with?(raw, "/") and String.ends_with?(path, "/relative") and
-              resolved == Path.join(cwd, "relative") ->
-            context
-
-          true ->
-            raise "root is #{inspect(actual)}, expected #{resolved}"
-        end
+        assert_configured_root(context, raw, path, resolved, cwd, actual)
 
       _ ->
+        raise "root is #{inspect(actual)}, expected #{resolved}"
+    end
+  end
+
+  defp assert_configured_root(context, raw, path, resolved, cwd, actual) do
+    cond do
+      String.starts_with?(raw, "/") and path == raw and raw == resolved ->
+        context
+
+      not String.starts_with?(raw, "/") and String.ends_with?(path, "/relative") and
+          resolved == Path.join(cwd, "relative") ->
+        context
+
+      true ->
         raise "root is #{inspect(actual)}, expected #{resolved}"
     end
   end
@@ -247,7 +261,7 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter do
       codex |> Keyword.put(:working_directory, working) |> Keyword.put(:codex_home, home)
     )
 
-    repo_result = BnestApp.CodexChat.Adapters.RepositoryImageFiles.read("a.png", 64)
+    repo_result = RepositoryImageFiles.read("a.png", 64)
 
     Application.put_env(:bnest_app, :codex, previous)
     File.rm_rf!(base)
@@ -288,14 +302,14 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter do
 
     chat_path =
       case runner do
-        "(unset)" -> BnestApp.CodexChat.Adapters.CodexPortSession.bundled_runner()
+        "(unset)" -> CodexPortSession.bundled_runner()
         "(fixture)" -> fixture_chat
         other -> other
       end
 
     models_path =
       case models_runner do
-        "(unset)" -> BnestApp.CodexChat.Adapters.CodexCliModelDiscovery.bundled_models_runner()
+        "(unset)" -> CodexCliModelDiscovery.bundled_models_runner()
         "(fixture)" -> fixture_models
         other -> other
       end
@@ -310,7 +324,7 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter do
     )
 
     discovery =
-      BnestApp.CodexChat.Adapters.CodexCliModelDiscovery.discover(
+      CodexCliModelDiscovery.discover(
         models_runner: models_path,
         working_directory: repo_root()
       )
@@ -339,21 +353,28 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter do
       raise "session is #{context.runtime.session}, expected #{session}"
     end
 
+    assert_chat_runner(runner, chat)
+    assert_models_runner(models_runner, models)
+
+    context
+  end
+
+  defp assert_chat_runner(runner, chat) do
     case {runner, chat} do
       {"(unset)", "(bundled)"} -> :ok
       {"(fixture)", "(fixture)"} -> :ok
       {same, same} -> :ok
       _ -> raise "chat runner mismatch"
     end
+  end
 
+  defp assert_models_runner(models_runner, models) do
     case {models_runner, models} do
       {"(unset)", "(bundled)"} -> :ok
       {"(fixture)", "(fixture)"} -> :ok
       {same, same} -> :ok
       _ -> raise "models runner mismatch"
     end
-
-    context
   end
 
   # Booleans: bound via Config.Reader.read! under System.put_env.
@@ -368,18 +389,7 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter do
     case Model.boolean_for(name, value) do
       {:ok, exp} ->
         config = runtime_config(pairs, :dev)
-
-        actual =
-          case name do
-            "BNEST_IDENTITY_CUTOVER" ->
-              Keyword.get(config[:bnest_app], :identity_cutover_enabled, false)
-
-            "BNEST_FAMILY_CHAT_ENABLED" ->
-              Keyword.get(config[:bnest_app], :family_chat_enabled, false)
-
-            "BNEST_COOKIE_SECURE" ->
-              get_in(config, [:bnest_app, :session_cookie, :secure]) == true
-          end
+        actual = boolean_actual(config, name)
 
         unless exp == actual and to_string(exp) == outcome do
           raise "boolean is #{actual}, expected #{outcome}"
@@ -388,26 +398,43 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter do
         context
 
       {:error, exp_msg} ->
-        unless exp_msg == outcome do
-          raise "boolean should raise #{exp_msg}"
+        assert_boolean_raises(context, pairs, name, value, exp_msg, outcome)
+    end
+  end
+
+  defp boolean_actual(config, name) do
+    case name do
+      "BNEST_IDENTITY_CUTOVER" ->
+        Keyword.get(config[:bnest_app], :identity_cutover_enabled, false)
+
+      "BNEST_FAMILY_CHAT_ENABLED" ->
+        Keyword.get(config[:bnest_app], :family_chat_enabled, false)
+
+      "BNEST_COOKIE_SECURE" ->
+        get_in(config, [:bnest_app, :session_cookie, :secure]) == true
+    end
+  end
+
+  defp assert_boolean_raises(context, pairs, name, value, exp_msg, outcome) do
+    unless exp_msg == outcome do
+      raise "boolean should raise #{exp_msg}"
+    end
+
+    try do
+      _ = runtime_config(pairs, :dev)
+      raise "boolean accepted #{value}, expected #{outcome}"
+    rescue
+      e in RuntimeError ->
+        unless Exception.message(e) == outcome do
+          reraise e, __STACKTRACE__
         end
 
-        try do
-          _ = runtime_config(pairs, :dev)
-          raise "boolean accepted #{value}, expected #{outcome}"
-        rescue
-          e in RuntimeError ->
-            unless Exception.message(e) == outcome do
-              raise "boolean raised #{Exception.message(e)}, expected #{outcome}"
-            end
+        Unit.assert_boolean(
+          Unit.derive_boolean(Unit.boolean_env(Unit.install(%{}), name, value)),
+          outcome
+        )
 
-            Unit.assert_boolean(
-              Unit.derive_boolean(Unit.boolean_env(Unit.install(%{}), name, value)),
-              outcome
-            )
-
-            context
-        end
+        context
     end
   end
 

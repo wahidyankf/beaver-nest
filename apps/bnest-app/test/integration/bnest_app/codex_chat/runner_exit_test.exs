@@ -4,6 +4,7 @@ defmodule BnestApp.CodexChat.RunnerExitTest do
   # bundled chat runner through `BNEST_CODEX_RUNNER`, the same seam the chat
   # scenarios use.
   #
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A runner exit or invalid runner output shows one fixed line
   use ExUnit.Case, async: false
 
@@ -24,7 +25,11 @@ defmodule BnestApp.CodexChat.RunnerExitTest do
 
   test "runner output that is not JSON reports invalid data to the owner", %{tmp_dir: dir} do
     script =
-      write_script!(dir, "invalid-line.mjs", "process.stdout.write(\"this line is not runner JSON\\n\");\n")
+      write_script!(
+        dir,
+        "invalid-line.mjs",
+        "process.stdout.write(\"this line is not runner JSON\\n\");\n"
+      )
 
     {:ok, session} =
       with_runner(script, fn ->

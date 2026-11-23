@@ -325,6 +325,32 @@ describe("a message that couldn't send", () => {
     expect(sent).toEqual([id]);
   });
 
+  it("schedules a retry when the transport itself throws", async () => {
+    const { userId, roomSlug } = uniqueIdentity();
+    const clock = createFakeClock();
+    const outbox = createOutbox({
+      userId,
+      roomSlug,
+      clock,
+      transport: async () => {
+        throw new Error("network down");
+      },
+    });
+
+    const id = await sendId(outbox, "Coba lagi");
+    await outbox.waitForStatus(id, STATUS.RETRYING);
+    expect(outbox.status(id)).toBe(STATUS.RETRYING);
+    expect(outbox.retryCount("missing")).toBe(0);
+
+    outbox.reportBrowserEvent("offline");
+    outbox.reportBrowserEvent("online");
+    await outbox.waitForStatus(id, STATUS.RETRYING);
+    expect(outbox.status(id)).toBe(STATUS.RETRYING);
+
+    outbox.reportAuthExpired();
+    expect(outbox.status(id)).toBe(STATUS.RETRYING);
+  });
+
   it("refuses to retry a message that has not failed", async () => {
     const { userId, roomSlug } = uniqueIdentity();
     const outbox = createOutbox({

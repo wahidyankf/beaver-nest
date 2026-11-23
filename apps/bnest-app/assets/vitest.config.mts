@@ -1,4 +1,8 @@
+import { fileURLToPath } from "node:url";
+import { dirname, resolve as resolvePath } from "node:path";
 import { defineConfig } from "vitest/config";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 // Frontend unit-test project for the family chat browser modules
 // (`js/family_chat.js` and `js/family_chat/*.js`). No browser and no
@@ -13,8 +17,39 @@ import { defineConfig } from "vitest/config";
 // (`test/behaviour/support/browser_room.ts`) installs and removes one page
 // at a time itself, so no page outlives the scenario that opened it.
 //
-// This config enforces no coverage threshold; `coverage` only reports.
+// The unit gate enforces the 99% line floor (plan T10/BN-1, AC-19): the
+// `test:unit:fe` target always passes `--coverage`, and a run below the
+// threshold exits non-zero.
 export default defineConfig({
+  resolve: {
+    // Mirrors the esbuild bundle's `NODE_PATH` (`../deps`): the Phoenix
+    // JavaScript clients ship inside the Hex packages, not npm, so the unit
+    // run resolves the same files the bundle does. Behaviour doubles replace
+    // them through `vi.mock` wherever a test needs control.
+    alias: [
+      {
+        find: "phoenix_html",
+        replacement: resolvePath(
+          here,
+          "../deps/phoenix_html/priv/static/phoenix_html.js",
+        ),
+      },
+      {
+        find: "phoenix_live_view",
+        replacement: resolvePath(
+          here,
+          "../deps/phoenix_live_view/priv/static/phoenix_live_view.esm.js",
+        ),
+      },
+      {
+        find: "phoenix-colocated/bnest_app",
+        replacement: resolvePath(
+          here,
+          "../_build/test/phoenix-colocated/bnest_app/index.js",
+        ),
+      },
+    ],
+  },
   test: {
     environment: "node",
     include: ["test/behaviour/verify.ts", "test/**/*.test.ts"],
@@ -26,8 +61,26 @@ export default defineConfig({
         "js/diagrams/**/*.js",
         "js/chat_keys.js",
         "js/chat_controls.js",
+        // Top-level page modules measured from T10: every authored production
+        // file under `js/` sits in the unit denominator (the worker in
+        // `priv/static/` keeps its dedicated handler tests; it is not an
+        // importable page module, so v8 cannot instrument it).
+        "js/app.js",
+        "js/browser_import.js",
+        "js/codex_composer_hook.js",
+        "js/identity_setup.js",
+        "js/logout.js",
+        "js/scroll_follow.js",
+        "js/scroll_region_names.js",
+        "js/sifat_celebration.js",
+        "js/sifat_history.js",
+        "js/sifat_swipe.js",
+        "js/viewport_height.js",
       ],
       reporter: ["text", "json-summary"],
+      thresholds: {
+        lines: 99,
+      },
     },
   },
 });

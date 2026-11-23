@@ -26,7 +26,10 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsSteps do
 
   # Each server keeps to its own loopback port range (BN-DOC-05).
 
-  step("the {string} server is allocated loopback ports {int} to {int}", %{args: [server, first, last]} = context) do
+  step(
+    "the {string} server is allocated loopback ports {int} to {int}",
+    %{args: [server, first, last]} = context
+  ) do
     context = commands(context)
     adapter(context).allocate_server(context, server, first, last)
   end
@@ -54,7 +57,10 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsSteps do
     adapter(context).render_start(context)
   end
 
-  step("the HIPPO lease requests port {int} for owner development from {int} to {int}", %{args: [port, min, max]} = context) do
+  step(
+    "the HIPPO lease requests port {int} for owner development from {int} to {int}",
+    %{args: [port, min, max]} = context
+  ) do
     context = commands(context)
     adapter(context).assert_lease(context, port, min, max)
   end
@@ -99,7 +105,10 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsSteps do
     adapter(context).run_tailnet(context)
   end
 
-  step("the double records {string} and the target exits with the double", %{args: [command]} = context) do
+  step(
+    "the double records {string} and the target exits with the double",
+    %{args: [command]} = context
+  ) do
     context = commands(context)
     adapter(context).assert_tailnet(context, command)
   end

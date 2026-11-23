@@ -192,7 +192,24 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.ConnCase,
       # The lifecycle answers run only through the endpoint against a spawned instance, which only
       # `test:integration` runs. The guard, request and error modules are pure and unit-tested.
-      BnestAppWeb.TestingControl.InstanceController
+      BnestAppWeb.TestingControl.InstanceController,
+      # BDD step definitions and behaviour support compiled into the test env but executed
+      # outside the unit run (ExBdd scenarios, integration drivers). Non-production code, so
+      # the unit denominator leaves them out, as it does the other scaffolding above.
+      ~r/BnestApp\.Behaviour\..*Steps$/,
+      BnestApp.Behaviour.IntegrationSupport,
+      BnestApp.Behaviour.UnitSupport,
+      BnestApp.Behaviour.FeVitestUnitScope,
+      # Test-instance schema helpers and the ExUnit case template. They run against spawned
+      # instances in `test:integration`, or are compile-time templates, so the unit run never
+      # executes them. Non-production code.
+      ~r/\.TestInstance\./,
+      BnestAppWeb.OwnMessageMarkupFixture,
+      BnestAppWeb.ScenarioCase,
+      BnestAppWeb.TestingControl.ErrorBody,
+      BnestAppWeb.TestingControl.Guard,
+      BnestAppWeb.TestingControl.Request,
+      BnestAppWeb.TestingControl.Secret
     ]
 
     # Outbound adapters, inbound adapters and infrastructure entry points: `test:integration`
@@ -200,6 +217,10 @@ defmodule BnestApp.MixProject do
     adapters_and_entry_points = [
       ~r/\.Adapters\./,
       BnestApp.Application,
+      # The release-time aggregation entry point. It starts the repository and takes the
+      # exclusive storage lock around the two migration modules above, so only
+      # `test:integration` and release tooling exercise it, as they do those modules.
+      BnestApp.Release.Migrations,
       BnestApp.Release.Migrations.FamilyChat,
       BnestApp.Release.Migrations.PersistentSchedules,
       BnestApp.SqliteRepo,

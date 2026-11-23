@@ -11,7 +11,17 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployModel do
   contracts against the real tools with doubles and child processes.
   """
 
-  @release_steps ["preflight", "gates", "build", "migration", "prepare", "promote", "routed", "drain", "converge"]
+  @release_steps [
+    "preflight",
+    "gates",
+    "build",
+    "migration",
+    "prepare",
+    "promote",
+    "routed",
+    "drain",
+    "converge"
+  ]
 
   @doc "The reviewed release:run step order."
   def release_steps, do: @release_steps
@@ -32,11 +42,20 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployModel do
   def run_experience_release(host) do
     host = record(host, "preflight")
     host = record(host, "gates:experience-release-e2e")
-    host = record(host, "prepare-experience:green:--family-chat-enabled:--family-chat-reply-enabled")
+
+    host =
+      record(host, "prepare-experience:green:--family-chat-enabled:--family-chat-reply-enabled")
+
     host = record(host, "promotion")
     host = record(host, "routed-liveview")
     host = record(host, "cleanup")
-    %{outcome: "passed", migration_state: "not-required", evidence: host.calls, revision: host.revision}
+
+    %{
+      outcome: "passed",
+      migration_state: "not-required",
+      evidence: host.calls,
+      revision: host.revision
+    }
   end
 
   defp record(host, step), do: %{host | calls: host.calls ++ [step]}
@@ -50,12 +69,32 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployModel do
       error_category: nil,
       migration_state: "not-required",
       steps: host.calls,
-      evidence: ["preflight" | gate_evidence()] ++ ["artifact-audit", "artifact-manifest", "migration-proof", "candidate-proof", "promotion", "routed-liveview", "cleanup", "convergence"],
+      evidence:
+        ["preflight" | gate_evidence()] ++
+          [
+            "artifact-audit",
+            "artifact-manifest",
+            "migration-proof",
+            "candidate-proof",
+            "promotion",
+            "routed-liveview",
+            "cleanup",
+            "convergence"
+          ],
       revision: host.revision
     }
   end
 
-  defp gate_evidence, do: ["bnest-quick", "bnest-integration", "be-e2e-quick", "fe-e2e-quick", "release-recovery-e2e", "release-load-e2e", "repository"]
+  defp gate_evidence,
+    do: [
+      "bnest-quick",
+      "bnest-integration",
+      "be-e2e-quick",
+      "fe-e2e-quick",
+      "release-recovery-e2e",
+      "release-load-e2e",
+      "repository"
+    ]
 
   defp failed_result(host, {category, outcome}) do
     %{
@@ -75,7 +114,9 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployModel do
   @doc "Parses a release mode the way the tool does."
   def parse_mode(argv) do
     case Enum.find_index(argv, &(&1 == "--mode")) do
-      nil -> {:ok, "compatibility"}
+      nil ->
+        {:ok, "compatibility"}
+
       index ->
         case Enum.at(argv, index + 1) do
           mode when mode in ["compatibility", "experience"] -> {:ok, mode}
@@ -104,8 +145,11 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployModel do
   def configuration_error, do: %{category: "configuration", outcome: "failed"}
 
   @doc "Checks a deploy root the way the tools do."
-  def check_deploy_root(nil), do: {:error, "BNEST_DEPLOY_ROOT must point to machine-local deployment state."}
-  def check_deploy_root(:missing), do: {:error, "BNEST_DEPLOY_ROOT must point to machine-local deployment state."}
+  def check_deploy_root(nil),
+    do: {:error, "BNEST_DEPLOY_ROOT must point to machine-local deployment state."}
+
+  def check_deploy_root(:missing),
+    do: {:error, "BNEST_DEPLOY_ROOT must point to machine-local deployment state."}
 
   def check_deploy_root(root) when is_binary(root) do
     if inside_checkout?(root) do
@@ -120,8 +164,11 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployModel do
   defp inside_checkout?(_), do: false
 
   @doc "Checks a production origin the way the tools do."
-  def check_origin(nil), do: {:error, "BNEST_PRODUCTION_ORIGIN must identify the routed HTTPS origin."}
-  def check_origin(:missing), do: {:error, "BNEST_PRODUCTION_ORIGIN must identify the routed HTTPS origin."}
+  def check_origin(nil),
+    do: {:error, "BNEST_PRODUCTION_ORIGIN must identify the routed HTTPS origin."}
+
+  def check_origin(:missing),
+    do: {:error, "BNEST_PRODUCTION_ORIGIN must identify the routed HTTPS origin."}
 
   def check_origin("https://" <> rest) do
     if rest =~ ~r/^[^\/\s?#@]+$/ and rest != "" and not (rest =~ ~r/@/) do
@@ -193,7 +240,8 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployModel do
     end
   end
 
-  defp check_slot(command, args) when command in ["deploy:prepare", "deploy:promote", "deploy:retire"] do
+  defp check_slot(command, args)
+       when command in ["deploy:prepare", "deploy:promote", "deploy:retire"] do
     case Enum.find_index(args, &(&1 == "--slot")) do
       nil ->
         {:error, "--slot must be blue or green."}

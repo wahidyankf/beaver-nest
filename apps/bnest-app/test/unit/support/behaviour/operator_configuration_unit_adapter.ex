@@ -144,6 +144,10 @@ defmodule BnestApp.Behaviour.OperatorConfiguration.UnitAdapter do
       raise "health is #{health}, expected #{want_health}"
     end
 
+    assert_readiness_outcome(context, exp_ready)
+  end
+
+  defp assert_readiness_outcome(context, exp_ready) do
     case {context.operator_config.liveness, context.operator_config.readiness} do
       {{:ok, %{status: "live"}}, {:ok, %{status: "ready"}}} when exp_ready == :ready ->
         context

@@ -4,7 +4,10 @@
 // more.
 
 import { describe, expect, it } from "vitest";
-import { bindReconnectCallbacks } from "../../../js/family_chat/mount_browser_sync.js";
+import {
+  attemptInitialSubscribe,
+  bindReconnectCallbacks,
+} from "../../../js/family_chat/mount_browser_sync.js";
 import { createFakeClock } from "../../support/fake_clock";
 import { MESSAGE_PAGE_SIZE } from "../../../js/family_chat/page_source.js";
 
@@ -140,5 +143,31 @@ describe("the reconnect catch-up query meeting a failing server", () => {
     expect((await missing).map((message) => message.id)).toEqual(["11"]);
     expect(asked).toHaveLength(1);
     expect(failures).toBe(0);
+  });
+});
+
+describe("attemptInitialSubscribe", () => {
+  it("marks the room ready when the subscription join fails", async () => {
+    const roomElement = { dataset: {} as Record<string, string> };
+    await attemptInitialSubscribe(
+      { roomSlug: "ruang-keluarga", replies: true } as never,
+      roomElement as never,
+      {
+        subscribe: async () => {
+          throw new Error("join failed");
+        },
+      } as never,
+    );
+    expect(roomElement.dataset["connectionState"]).toBe("ready");
+  });
+
+  it("leaves the room element alone when the subscription join succeeds", async () => {
+    const roomElement = { dataset: {} as Record<string, string> };
+    await attemptInitialSubscribe(
+      { roomSlug: "ruang-keluarga", replies: true } as never,
+      roomElement as never,
+      { subscribe: async () => {} } as never,
+    );
+    expect(roomElement.dataset["connectionState"]).toBeUndefined();
   });
 });

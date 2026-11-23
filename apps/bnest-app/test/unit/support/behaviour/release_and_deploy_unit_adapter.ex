@@ -51,12 +51,25 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter do
 
   def assert_json_result(context, outcome) do
     %{result: result} = context.commands
-    unless result.outcome == outcome, do: raise("outcome is #{result.outcome}, expected #{outcome}")
+
+    unless result.outcome == outcome,
+      do: raise("outcome is #{result.outcome}, expected #{outcome}")
 
     line = Model.render(result)
     decoded = Jason.decode!(line)
 
-    for key <- ["schemaVersion", "releaseRevision", "fromState", "toState", "outcome", "evidenceIds", "durationMs", "nextTransition", "errorCategory", "migrationState"] do
+    for key <- [
+          "schemaVersion",
+          "releaseRevision",
+          "fromState",
+          "toState",
+          "outcome",
+          "evidenceIds",
+          "durationMs",
+          "nextTransition",
+          "errorCategory",
+          "migrationState"
+        ] do
       unless Map.has_key?(decoded, key), do: raise("JSON result misses #{key}")
     end
 
@@ -75,7 +88,9 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter do
   def assert_exit_status(context, outcome, status) do
     %{host: host} = context.commands
     result = Model.run_release(host)
-    unless result.outcome == outcome, do: raise("outcome is #{result.outcome}, expected #{outcome}")
+
+    unless result.outcome == outcome,
+      do: raise("outcome is #{result.outcome}, expected #{outcome}")
 
     unless Jason.decode!(Model.render(result))["outcome"] == outcome,
       do: raise("the printed JSON does not carry #{outcome}")
@@ -103,8 +118,11 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter do
         do: raise("the experience release touches #{forbidden}")
     end
 
-    unless Enum.any?(calls, &(&1 == "prepare-experience:green:--family-chat-enabled:--family-chat-reply-enabled")),
-      do: raise("the idle slot is not prepared with the family chat flags on")
+    unless Enum.any?(
+             calls,
+             &(&1 == "prepare-experience:green:--family-chat-enabled:--family-chat-reply-enabled")
+           ),
+           do: raise("the idle slot is not prepared with the family chat flags on")
 
     context
   end
@@ -151,7 +169,8 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter do
           {:refused, "BNEST_DEPLOY_WORKTREE must be an isolated Git worktree."}
 
         {"release:build", "present", _} ->
-          {:refused, "Release #{revision} already exists; refuse to overwrite an immutable artifact."}
+          {:refused,
+           "Release #{revision} already exists; refuse to overwrite an immutable artifact."}
 
         {"release:build", "missing", "isolated"} ->
           {:ran, "npm ci, mix release steps, copy artifact", revision}
@@ -228,7 +247,9 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter do
 
   defp slot_arg(args) do
     case Enum.find_index(args, &(&1 == "--slot")) do
-      nil -> {:error, "--slot must be blue or green."}
+      nil ->
+        {:error, "--slot must be blue or green."}
+
       index ->
         case Enum.at(args, index + 1) do
           slot when slot in ["blue", "green"] -> {:ok, slot}
@@ -238,7 +259,9 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter do
   end
 
   defp revision_arg(args) do
-    if "--revision" in args, do: :ok, else: {:error, "--revision is required; run release:build first."}
+    if "--revision" in args,
+      do: :ok,
+      else: {:error, "--revision is required; run release:build first."}
   end
 
   defp prepared_slot(slot, state) do
@@ -255,10 +278,17 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter do
 
   def assert_slot_calls(context, calls, refusal) do
     case {context.commands.slot_outcome, refusal} do
-      {{:ran, ^calls}, "none"} -> context
-      {{:error, ^refusal}, _} -> context
-      {{:refused, ^refusal}, _} -> context
-      {other, _} -> raise("slot command recorded #{inspect(other)}, expected #{calls} / #{refusal}")
+      {{:ran, ^calls}, "none"} ->
+        context
+
+      {{:error, ^refusal}, _} ->
+        context
+
+      {{:refused, ^refusal}, _} ->
+        context
+
+      {other, _} ->
+        raise("slot command recorded #{inspect(other)}, expected #{calls} / #{refusal}")
     end
   end
 
@@ -296,16 +326,26 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter do
 
   def run_rollback(context) do
     case context.commands.previous do
-      nil -> put_commands(context, %{rollback: {:refused, "No previous slot is available for rollback."}})
-      slot -> put_commands(context, %{rollback: {:active, slot}})
+      nil ->
+        put_commands(context, %{
+          rollback: {:refused, "No previous slot is available for rollback."}
+        })
+
+      slot ->
+        put_commands(context, %{rollback: {:active, slot}})
     end
   end
 
   def assert_rollback(context, active, refusal) do
     case {context.commands.rollback, active, refusal} do
-      {{:active, ^active}, _, "none"} -> context
-      {{:refused, ^refusal}, _, _} -> context
-      {other, _, _} -> raise("rollback recorded #{inspect(other)}, expected #{active} / #{refusal}")
+      {{:active, ^active}, _, "none"} ->
+        context
+
+      {{:refused, ^refusal}, _, _} ->
+        context
+
+      {other, _, _} ->
+        raise("rollback recorded #{inspect(other)}, expected #{active} / #{refusal}")
     end
   end
 
@@ -333,15 +373,21 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter do
 
   def assert_retire(context, stopped, refusal) do
     case {context.commands.retire, stopped, refusal} do
-      {{:stopped, ^stopped}, _, "none"} -> context
-      {{:refused, ^refusal}, _, _} -> context
-      {other, _, _} -> raise("retire recorded #{inspect(other)}, expected #{stopped} / #{refusal}")
+      {{:stopped, ^stopped}, _, "none"} ->
+        context
+
+      {{:refused, ^refusal}, _, _} ->
+        context
+
+      {other, _, _} ->
+        raise("retire recorded #{inspect(other)}, expected #{stopped} / #{refusal}")
     end
   end
 
   # Dispatcher refusals (BN-REL-11).
 
-  def deployment_arguments(context, "(no arguments)"), do: put_commands(context, %{dispatch_args: []})
+  def deployment_arguments(context, "(no arguments)"),
+    do: put_commands(context, %{dispatch_args: []})
 
   def deployment_arguments(context, args),
     do: put_commands(context, %{dispatch_args: String.split(args, " ", trim: true)})

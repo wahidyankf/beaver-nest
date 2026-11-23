@@ -14,6 +14,7 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsIntegrationTest do
 
   defp context, do: Adapter.install(%{})
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/development_commands.feature: npm start serves the development app on its loopback port
   test "the start command leases its port and the endpoint binds loopback" do
     for {dev_port, port} <- [{"(unset)", 4020}, {"4025", 4025}] do
@@ -25,6 +26,7 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsIntegrationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/development_commands.feature: The tailnet commands drive Tailscale Serve for the Caddy port
   test "tailnet targets run their declared command against a recording double" do
     for {target, command} <- [

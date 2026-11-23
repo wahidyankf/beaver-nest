@@ -154,3 +154,23 @@ describe("place a figure", () => {
     expect(canvasOf(figure).tabIndex).toBe(0);
   });
 });
+
+describe("a figure that left the page", () => {
+  it("drops its resize observer at the next resize", () => {
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+    const figure = figureOf(true);
+    const pre = document.createElement("pre");
+    document.body.append(pre);
+    place(CHAT, pre, figure);
+
+    const [observer] = FakeResizeObserver.instances.slice(-1);
+    if (observer === undefined)
+      throw new Error("no resize observer was made for the placed picture");
+    const disconnect = vi.spyOn(observer, "disconnect");
+
+    figure.remove();
+    observer.callback();
+
+    expect(disconnect).toHaveBeenCalled();
+  });
+});

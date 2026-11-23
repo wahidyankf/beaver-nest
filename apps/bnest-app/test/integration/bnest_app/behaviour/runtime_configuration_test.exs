@@ -9,6 +9,7 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationIntegrationTest do
 
   defp context, do: Adapter.install(%{})
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/runtime_configuration.feature: PORT sets the HTTP port and PHX_SERVER makes the release serve
   # @scenario specs/apps/bnest/app-be/behaviours/runtime_configuration.feature: PHX_SERVER makes the release serve
   test "port and server come back from the real runtime config" do
@@ -25,6 +26,7 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationIntegrationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/runtime_configuration.feature: Production boot needs SECRET_KEY_BASE and PHX_HOST names the host
   test "production boot names its secret and host from the real runtime config" do
     for {secret, host, boot, url_host} <- [
@@ -40,6 +42,7 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationIntegrationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/runtime_configuration.feature: BNEST_RUNTIME_ROOT moves the flat-file runtime root
   test "runtime root moves and holds a record" do
     for {raw, cwd, resolved} <- [
@@ -54,6 +57,7 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationIntegrationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/runtime_configuration.feature: The Codex working directory and Codex home follow BNEST_CODEX_WORKING_DIRECTORY and BNEST_CODEX_HOME
   test "codex dirs serve repo and generated images from a temp dir" do
     for {working_raw, home_raw, working, home} <- [
@@ -67,6 +71,7 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationIntegrationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/runtime_configuration.feature: BNEST_CODEX_RUNNER and BNEST_CODEX_MODELS_RUNNER choose the chat and model-discovery runners
   test "runners resolve and discovery runs the fixture" do
     for {runner, models_runner, chat, models, session} <- [
@@ -81,6 +86,7 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationIntegrationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/runtime_configuration.feature: A boolean setting accepts only true or false and otherwise stops the boot
   test "boolean settings stop the boot from the real runtime config" do
     for {name, value, outcome} <- [

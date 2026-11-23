@@ -25,10 +25,10 @@ defmodule BnestApp.Behaviour.OperatorConfigurationModel do
   def push_boot(_public, _private, "", _read), do: {:error, @missing_subject}
 
   def push_boot(_public, _private, subject, _read) do
-    unless subject =~ ~r/^(mailto:|https:\/\/)\S+$/ do
-      {:error, @bad_subject}
-    else
+    if subject =~ ~r/^(mailto:|https:\/\/)\S+$/ do
       {:ok, :configured}
+    else
+      {:error, @bad_subject}
     end
   end
 

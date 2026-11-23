@@ -32,6 +32,8 @@ defmodule BnestApp.Test.BackupIntegrity do
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.Backup.Ports.ArtifactStore
   alias BnestApp.Scheduler
+  alias BnestApp.Storage
+  alias BnestApp.Test.CallTrace
   alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore, as: InMemoryBackupConfigStore
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
@@ -324,10 +326,10 @@ defmodule BnestApp.Test.BackupIntegrity do
     watched = [
       {{Backup, :_, :_}, []},
       {{Scheduler, :_, :_}, []},
-      {{BnestApp.Storage, :_, :_}, []}
+      {{Storage, :_, :_}, []}
     ]
 
-    {outcome, events} = BnestApp.Test.CallTrace.record(watched, &refused_reconcile/0)
+    {outcome, events} = CallTrace.record(watched, &refused_reconcile/0)
     Map.merge(context, %{usage_error: outcome, usage_events: events})
   end
 
@@ -1102,7 +1104,7 @@ defmodule BnestApp.Test.BackupIntegrity do
 
   # The Mix task raises its usage line for any argument; anything it accepts is reported as such.
   defp refused_reconcile do
-    Mix.Tasks.Bnest.Backup.Reconcile.run(["--unexpected"])
+    Reconcile.run(["--unexpected"])
     :accepted
   rescue
     error in Mix.Error -> {:usage, Exception.message(error)}

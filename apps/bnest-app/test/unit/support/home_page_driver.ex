@@ -1818,14 +1818,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       sqlite_storage_fixture_files() ++ [malformed_theme_source()]
     )
 
-    with {:error, :blocked, _report} <- Storage.migrate(@in_memory_flat_root, false) do
-      # The production adapter derives `migration_started?` from the ledger;
-      # the in-memory double answers from this key, so the Given seeds it as
-      # the run it just recorded would.
-      StoragePorts.put(:started?, true)
-      context
-    else
-      outcome -> raise("the malformed source did not block the migration: #{inspect(outcome)}")
+    case Storage.migrate(@in_memory_flat_root, false) do
+      {:error, :blocked, _report} ->
+        # The production adapter derives `migration_started?` from the ledger;
+        # the in-memory double answers from this key, so the Given seeds it as
+        # the run it just recorded would.
+        StoragePorts.put(:started?, true)
+        context
+
+      outcome ->
+        raise("the malformed source did not block the migration: #{inspect(outcome)}")
     end
   end
 
@@ -1837,11 +1839,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
     FlatSource.put_files(@in_memory_flat_root, sqlite_storage_fixture_files())
 
-    with {:ok, :activated, _report} <- Storage.migrate(@in_memory_flat_root, true) do
-      StoragePorts.put(:started?, true)
-      context
-    else
-      outcome -> raise("the seeded source did not migrate and activate: #{inspect(outcome)}")
+    case Storage.migrate(@in_memory_flat_root, true) do
+      {:ok, :activated, _report} ->
+        StoragePorts.put(:started?, true)
+        context
+
+      outcome ->
+        raise("the seeded source did not migrate and activate: #{inspect(outcome)}")
     end
   end
 
@@ -1867,11 +1871,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
     FlatSource.put_files(@in_memory_flat_root, sqlite_storage_fixture_files())
 
-    with {:ok, _outcome, _report} <- Storage.migrate(@in_memory_flat_root, false) do
-      StoragePorts.put(:started?, true)
-      context
-    else
-      outcome -> raise("the seeded migration did not start: #{inspect(outcome)}")
+    case Storage.migrate(@in_memory_flat_root, false) do
+      {:ok, _outcome, _report} ->
+        StoragePorts.put(:started?, true)
+        context
+
+      outcome ->
+        raise("the seeded migration did not start: #{inspect(outcome)}")
     end
   end
 
@@ -2309,21 +2315,30 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   # Unit bindings for the phase-8 FE ADD rows below live in this driver:
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A conversation continues in another tab or browser of the same user
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home links to the Sifat Allah revision activity
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home shows Family chat only when the room is enabled
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A runner exit or invalid runner output shows one fixed line
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A chat that cannot be saved says the saved chat is unchanged
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A failed write-enable stays read-only and says so
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex-generated images show inline in the reply
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The web manifest names Beaver Nest as a standalone app with two icons
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The service worker precaches the shell and drops the old cache
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Every image answer is private-cached and sandboxed
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-in visitor can fetch a generated image
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A malformed or unknown generated image path is an empty not found response
   # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: With family chat off the room is not found, even for a signed-in user
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The storage status reads Not started, Blocked, or SQLite active
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: Move data and Retry migration start or retry the migration
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The folder is locked once migration has started
   # --- phase-8 FE ADD rows ---

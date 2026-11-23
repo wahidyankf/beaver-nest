@@ -238,7 +238,7 @@
       "outputs": ["{projectRoot}/cover/unit"]
     },
     "test:unit:fe": {
-      "command": "npm exec -- vitest run",
+      "command": "npm exec -- vitest run --coverage",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/apps/bnest/app-fe/behaviours/**/*.feature"

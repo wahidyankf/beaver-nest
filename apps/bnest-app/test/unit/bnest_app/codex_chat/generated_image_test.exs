@@ -28,6 +28,7 @@ defmodule BnestApp.CodexChat.GeneratedImageTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A malformed or unknown generated image path is an empty not found response
   describe "reference/2 refuses anything outside the strict two-segment shape" do
     test "a thread that is empty, too long, or has no hyphen" do

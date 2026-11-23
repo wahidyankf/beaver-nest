@@ -144,6 +144,7 @@ defmodule BnestApp.CodexChat.ModelAccessTest do
       assert ModelAccess.select_model(access, @luna, "medium") == :error
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A role whose model is missing in local Codex is unavailable
     test "do not fall back to Luna when Terra is absent from Codex" do
       access = resolve(["parents"], [model(@luna)])
@@ -214,6 +215,7 @@ defmodule BnestApp.CodexChat.ModelAccessTest do
       assert ModelAccess.select_effort(child, model(@luna), "high") == :error
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A role whose model is missing in local Codex is unavailable
     test "do not fall back to another model when Luna is absent" do
       access = resolve(["children"], [model(@terra)])

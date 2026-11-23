@@ -156,31 +156,7 @@ defmodule BnestApp.Behaviour.OperatorCommands.UnitAdapter do
 
     StoragePorts.put(:audit, canned)
 
-    outcome =
-      case Storage.audit_schema(root) do
-        {:ok, results} ->
-          lines = Enum.map(results, &AuditTask.format_result/1)
-          capture_print(fn -> AuditTask.print_report(results) end)
-
-          check =
-            try do
-              AuditTask.check!(results)
-            rescue
-              error in Mix.Error -> {:raised, Exception.message(error)}
-            end
-
-          {:ok, hd(lines), check}
-
-        {:error, reason} ->
-          message =
-            try do
-              AuditTask.refuse(reason)
-            rescue
-              error in Mix.Error -> {:raised, Exception.message(error)}
-            end
-
-          {:error, message}
-      end
+    outcome = audit_outcome(root)
 
     line =
       case outcome do
@@ -189,6 +165,33 @@ defmodule BnestApp.Behaviour.OperatorCommands.UnitAdapter do
       end
 
     put_operator(context, %{audit_outcome: outcome, audit_line: line})
+  end
+
+  defp audit_outcome(root) do
+    case Storage.audit_schema(root) do
+      {:ok, results} ->
+        lines = Enum.map(results, &AuditTask.format_result/1)
+        capture_print(fn -> AuditTask.print_report(results) end)
+
+        check =
+          try do
+            AuditTask.check!(results)
+          rescue
+            error in Mix.Error -> {:raised, Exception.message(error)}
+          end
+
+        {:ok, hd(lines), check}
+
+      {:error, reason} ->
+        message =
+          try do
+            AuditTask.refuse(reason)
+          rescue
+            error in Mix.Error -> {:raised, Exception.message(error)}
+          end
+
+        {:error, message}
+    end
   end
 
   def assert_audit_outcome(context, expected) do

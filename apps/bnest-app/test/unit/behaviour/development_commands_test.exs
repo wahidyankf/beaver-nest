@@ -12,6 +12,7 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsTest do
 
   defp context, do: Adapter.install(%{})
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/development_commands.feature: Each server keeps to its own loopback port range
   test "port ranges stay inside their allocation on loopback" do
     for {server, first, last, port} <- [
@@ -29,10 +30,14 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsTest do
     end
 
     assert_raise RuntimeError, fn ->
-      context() |> Adapter.allocate_server("development", 4020, 4029) |> Adapter.configured_port("development", 4030) |> Adapter.assert_port_binding()
+      context()
+      |> Adapter.allocate_server("development", 4020, 4029)
+      |> Adapter.configured_port("development", 4030)
+      |> Adapter.assert_port_binding()
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/development_commands.feature: npm start serves the development app on its loopback port
   test "the start command leases its own port for the development owner" do
     for {dev_port, port} <- [{nil, 4020}, {"4025", 4025}] do
@@ -46,11 +51,23 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsTest do
       assert lease.commands.endpoint_port == port
     end
 
-    assert {:ok, parsed} = "PORT=4025 ./hippo run --class service --lease-port 4025 --lease-owner development --lease-min 4020 --lease-max 4029" |> Model.parse_hippo_lease()
-    assert parsed == %{class: "service", lease_port: 4025, owner: "development", min: 4020, max: 4029, port: 4025}
+    assert {:ok, parsed} =
+             "PORT=4025 ./hippo run --class service --lease-port 4025 --lease-owner development --lease-min 4020 --lease-max 4029"
+             |> Model.parse_hippo_lease()
+
+    assert parsed == %{
+             class: "service",
+             lease_port: 4025,
+             owner: "development",
+             min: 4020,
+             max: 4029,
+             port: 4025
+           }
+
     assert :error = Model.parse_hippo_lease("no lease here")
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/development_commands.feature: Each npm test command runs its Nx target under a HIPPO admission
   test "test chains run in order and stop after a failure" do
     assert Model.run_chain("be-e2e then fe-e2e", "be-e2e") == {["be-e2e"], ["fe-e2e"]}
@@ -66,6 +83,7 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsTest do
     assert {:error, _} = Model.check_admission("ephemeral disk .")
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/development_commands.feature: The tailnet commands drive Tailscale Serve for the Caddy port
   test "tailnet commands drive Tailscale Serve for the Caddy port" do
     assert Model.tailnet_command("tailnet:up") =~ "4100"
@@ -88,13 +106,12 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsTest do
   end
 
   defp run_tailnet_safely(context) do
-    try do
-      Adapter.run_tailnet(context)
-    rescue
-      error -> {:error, Exception.message(error)}
-    end
+    Adapter.run_tailnet(context)
+  rescue
+    error -> {:error, Exception.message(error)}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/development_commands.feature: Each Nx target runs the checks it names, in order
   test "Nx targets run their declared commands in order" do
     commands = "mix format --check-formatted ;; mix credo --strict"
@@ -104,7 +121,11 @@ defmodule BnestApp.Behaviour.DevelopmentCommandsTest do
     |> Adapter.read_target()
     |> Adapter.assert_order()
 
-    assert Model.split_commands(commands) == ["mix format --check-formatted", "mix credo --strict"]
+    assert Model.split_commands(commands) == [
+             "mix format --check-formatted",
+             "mix credo --strict"
+           ]
+
     assert {:error, _} = Model.check_target_shape("lint", "", "(none)", "false")
   end
 end

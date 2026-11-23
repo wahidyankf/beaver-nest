@@ -198,6 +198,10 @@ describe("every window path renders the same quote", () => {
     expect(quoteText()).toBe("Nanti aku jemput jam 5");
   });
 
+  it("reports an empty store before anything renders", () => {
+    expect(store().empty()).toBe(true);
+  });
+
   it("renders the quote on an older page", () => {
     const real = store();
     real.renderInitial([reply({ id: "2000", replyTo: undefined })], true);

@@ -18,6 +18,7 @@ defmodule BnestApp.Behaviour.OperatorCommandsIntegrationTest do
 
   defp context, do: Adapter.install(%{})
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_commands.feature: mix bnest.storage.purge_test_data verifies or purges verified legacy test data
   test "purge verifies or purges the generation and refuses anything else" do
     for {arguments, line, state} <- [
@@ -37,6 +38,7 @@ defmodule BnestApp.Behaviour.OperatorCommandsIntegrationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_commands.feature: mix bnest.schema.audit prints one pass or fail line per record type
   test "audit prints one line per record type and refuses a bad root" do
     for {arguments, line, outcome} <- [
@@ -53,6 +55,7 @@ defmodule BnestApp.Behaviour.OperatorCommandsIntegrationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_commands.feature: mix bnest.identity.benchmark prints the Argon2id cost and a timing class, never a secret
   test "benchmark prints the cost and the timing class, never a secret" do
     for timing <- ["999 ms Argon2id", "1000 ms Argon2id"] do
@@ -72,6 +75,7 @@ defmodule BnestApp.Behaviour.OperatorCommandsIntegrationTest do
     assert context.operator.report == "configured password hasher did not produce Argon2id"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_commands.feature: The storage tasks refuse unknown options with their usage line
   test "storage task runs refuse unknown options with their usage line" do
     for {task, arguments, usage} <- [
@@ -91,6 +95,7 @@ defmodule BnestApp.Behaviour.OperatorCommandsIntegrationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_commands.feature: node tools/test-data-cleanup.mjs removes only stale marked test runs and reports the counts
   test "cleanup removes only stale marked runs and reports the counts" do
     for {setup, line} <- [
@@ -108,6 +113,7 @@ defmodule BnestApp.Behaviour.OperatorCommandsIntegrationTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/operator_commands.feature: Test-data cleanup refuses bad arguments and negative hours
   test "cleanup refuses bad arguments and negative hours" do
     for {arguments, refusal} <- [

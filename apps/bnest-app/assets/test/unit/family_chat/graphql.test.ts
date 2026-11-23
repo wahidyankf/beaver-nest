@@ -146,3 +146,20 @@ describe("createSubscriptionClient / subscribe", () => {
     expect(socket.joins).not.toContain("subscription-2");
   });
 });
+
+describe("createSubscriptionClient / unsubscribe", () => {
+  it("stops listening and tells the server when a subscription ends", async () => {
+    const socket = new FakeSocket();
+    const client = clientOver(socket);
+
+    const { unsubscribe } = await client.subscribe(QUERY, {}, () => {});
+    const dataChannels = socket.channels.filter(
+      (channel) => channel.topic !== CONTROL_TOPIC,
+    );
+    expect(dataChannels[0]?.listeners.has("subscription:data")).toBe(true);
+
+    unsubscribe();
+
+    expect(dataChannels[0]?.listeners.has("subscription:data")).toBe(false);
+  });
+});

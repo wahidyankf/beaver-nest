@@ -136,19 +136,7 @@ defmodule BnestApp.Behaviour.OperatorCommands.IntegrationAdapter do
           do: raise("the task reported #{inspect(line)}, expected #{inspect(expected)}")
 
       %{benchmark_report: line} ->
-        cost = context.operator.cost
-
-        unless line ==
-                 "argon2id memory_kib=#{cost[:memory_kib]} iterations=#{cost[:time_cost]} " <>
-                   "parallelism=#{cost[:parallelism]} timing_class=#{benchmark_timing(line)}" do
-          raise "the benchmark reported #{inspect(line)}, expected the reviewed cost with a timing class"
-        end
-
-        unless String.starts_with?(expected, "argon2id memory_kib="),
-          do: raise("the scenario expects #{inspect(expected)}, not a benchmark line")
-
-        if line =~ ~r/\$argon2id|\$2[aby]\$|[0-9a-f]{32,}/i,
-          do: raise("the benchmark line carries a secret: #{inspect(line)}")
+        assert_benchmark_line(context, line, expected)
 
       %{purge_report: {_kind, line, _dry?}} ->
         unless line == expected,
@@ -160,6 +148,24 @@ defmodule BnestApp.Behaviour.OperatorCommands.IntegrationAdapter do
     end
 
     context
+  end
+
+  defp assert_benchmark_line(context, line, expected) do
+    cost = context.operator.cost
+
+    unless line ==
+             "argon2id memory_kib=#{cost[:memory_kib]} iterations=#{cost[:time_cost]} " <>
+               "parallelism=#{cost[:parallelism]} timing_class=#{benchmark_timing(line)}" do
+      raise "the benchmark reported #{inspect(line)}, expected the reviewed cost with a timing class"
+    end
+
+    unless String.starts_with?(expected, "argon2id memory_kib="),
+      do: raise("the scenario expects #{inspect(expected)}, not a benchmark line")
+
+    if line =~ ~r/\$argon2id|\$2[aby]\$|[0-9a-f]{32,}/i,
+      do: raise("the benchmark line carries a secret: #{inspect(line)}")
+
+    :ok
   end
 
   defp benchmark_timing(line) do
@@ -254,30 +260,7 @@ defmodule BnestApp.Behaviour.OperatorCommands.IntegrationAdapter do
         "(refused root)" -> System.tmp_dir!()
       end
 
-    outcome =
-      case Storage.audit_schema(root) do
-        {:ok, results} ->
-          lines = Enum.map(results, &AuditTask.format_result/1)
-
-          check =
-            try do
-              AuditTask.check!(results)
-            rescue
-              error in Mix.Error -> {:raised, Exception.message(error)}
-            end
-
-          {:ok, hd(lines), check}
-
-        {:error, reason} ->
-          message =
-            try do
-              AuditTask.refuse(reason)
-            rescue
-              error in Mix.Error -> {:raised, Exception.message(error)}
-            end
-
-          {:error, message}
-      end
+    outcome = audit_outcome(root)
 
     line =
       case outcome do
@@ -286,6 +269,32 @@ defmodule BnestApp.Behaviour.OperatorCommands.IntegrationAdapter do
       end
 
     put_operator(context, %{audit_outcome: outcome, audit_line: line})
+  end
+
+  defp audit_outcome(root) do
+    case Storage.audit_schema(root) do
+      {:ok, results} ->
+        lines = Enum.map(results, &AuditTask.format_result/1)
+
+        check =
+          try do
+            AuditTask.check!(results)
+          rescue
+            error in Mix.Error -> {:raised, Exception.message(error)}
+          end
+
+        {:ok, hd(lines), check}
+
+      {:error, reason} ->
+        message =
+          try do
+            AuditTask.refuse(reason)
+          rescue
+            error in Mix.Error -> {:raised, Exception.message(error)}
+          end
+
+        {:error, message}
+    end
   end
 
   defdelegate assert_audit_outcome(context, expected), to: Unit

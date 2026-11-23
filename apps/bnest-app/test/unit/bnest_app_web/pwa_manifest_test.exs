@@ -2,6 +2,7 @@ defmodule BnestAppWeb.PwaManifestTest do
   # The served web manifest names Beaver Nest as a standalone app and lists
   # the two icons the install metadata names, and every icon loads.
   #
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The web manifest names Beaver Nest as a standalone app with two icons
   use ExUnit.Case, async: true
 

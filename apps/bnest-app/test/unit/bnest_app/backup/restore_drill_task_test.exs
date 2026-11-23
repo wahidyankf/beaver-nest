@@ -45,6 +45,7 @@ defmodule BnestApp.Backup.RestoreDrillTaskTest do
     assert DatabaseSnapshot.restore_roots(context.snapshot) == ["bnest-restore-earlier"]
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill without exactly one artifact name raises its usage line
   test "refuses a wrong argument list before it touches anything" do
     for arguments <- [[], ["--artifact"], ["--folder", "one"], ["--artifact", "one", "two"]] do
@@ -54,6 +55,7 @@ defmodule BnestApp.Backup.RestoreDrillTaskTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill reports an unreadable destination as one fixed line
   test "reports a destination that was never prepared as one it could not read" do
     _config = BackupConfigStore.install()

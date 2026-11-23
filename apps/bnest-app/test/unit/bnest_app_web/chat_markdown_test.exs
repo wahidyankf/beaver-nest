@@ -659,6 +659,21 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       refute html =~ "Diagram not drawn"
     end
 
+    test "a fence with no language is not a diagram either" do
+      html = render("```\n#{@flowchart}\n```")
+
+      refute html =~ "data-bnest-diagram"
+      refute html =~ "Diagram not drawn"
+    end
+
+    test "the two-argument render uses the default options" do
+      html =
+        ChatMarkdown.to_html("hello", false)
+        |> Phoenix.HTML.safe_to_string()
+
+      assert html =~ "hello"
+    end
+
     test "a comment line before the diagram type is skipped, and so are leading blank lines" do
       assert render(fence("\n\n%% the sales funnel\nflowchart TD\n  A --> B")) =~ @marker
     end

@@ -42,7 +42,10 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
     adapter(context).assert_call_order(context, order)
   end
 
-  step("the printed line is one JSON result with outcome {string}", %{args: [outcome]} = context) do
+  step(
+    "the printed line is one JSON result with outcome {string}",
+    %{args: [outcome]} = context
+  ) do
     context = commands(context)
     adapter(context).assert_json_result(context, outcome)
   end
@@ -50,12 +53,18 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
   # release exits 0 for passed, queued, and deferred and 1 for every other
   # outcome (BN-REL-02).
 
-  step("a release host throws {string} with outcome {string}", %{args: [category, outcome]} = context) do
+  step(
+    "a release host throws {string} with outcome {string}",
+    %{args: [category, outcome]} = context
+  ) do
     context = commands(context)
     adapter(context).throwing_host(context, category, outcome)
   end
 
-  step("the printed JSON carries outcome {string} and the exit status is {int}", %{args: [outcome, status]} = context) do
+  step(
+    "the printed JSON carries outcome {string} and the exit status is {int}",
+    %{args: [outcome, status]} = context
+  ) do
     context = commands(context)
     adapter(context).assert_exit_status(context, outcome, status)
   end
@@ -73,7 +82,10 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
     adapter(context).run_experience_release(context)
   end
 
-  step("it never builds, migrates, or discards an artifact and prepares with the family chat flags on", context) do
+  step(
+    "it never builds, migrates, or discards an artifact and prepares with the family chat flags on",
+    context
+  ) do
     context = commands(context)
     adapter(context).assert_experience_candidate(context)
   end
@@ -103,7 +115,10 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
   # release:build, release:migrate, and release:converge each run one step
   # against the immutable artifact (BN-REL-06).
 
-  step("the release artifact for {string} is {string} and the worktree is {string}", %{args: [revision, artifact, worktree]} = context) do
+  step(
+    "the release artifact for {string} is {string} and the worktree is {string}",
+    %{args: [revision, artifact, worktree]} = context
+  ) do
     context = commands(context)
     adapter(context).artifact_state(context, revision, artifact, worktree)
   end
@@ -125,7 +140,10 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
 
   # deploy:prepare and deploy:promote take a blue or green slot (BN-REL-07).
 
-  step("the deploy command {string} is invoked with {string} against {string}", %{args: [command, args, state]} = context) do
+  step(
+    "the deploy command {string} is invoked with {string} against {string}",
+    %{args: [command, args, state]} = context
+  ) do
     context = commands(context)
     adapter(context).slot_arguments(context, command, args, state)
   end
@@ -178,7 +196,10 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
   # deploy:retire stops a slot through the platform service adapter and
   # refuses the active slot (BN-REL-10).
 
-  step("the platform is {string} and the active slot is {string}", %{args: [platform, active]} = context) do
+  step(
+    "the platform is {string} and the active slot is {string}",
+    %{args: [platform, active]} = context
+  ) do
     context = commands(context)
     adapter(context).retire_context(context, platform, active)
   end
@@ -205,7 +226,10 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
     adapter(context).run_dispatcher(context)
   end
 
-  step("it refuses {string} on stderr with exit 1 and no side effect", %{args: [message]} = context) do
+  step(
+    "it refuses {string} on stderr with exit 1 and no side effect",
+    %{args: [message]} = context
+  ) do
     context = commands(context)
     adapter(context).assert_dispatcher_refusal(context, message)
   end
@@ -213,7 +237,10 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
   # A deploy root inside the repository or a production origin that is not a
   # bare HTTPS origin is refused (BN-REL-12).
 
-  step("the deploy root is {string} and the production origin is {string}", %{args: [root, origin]} = context) do
+  step(
+    "the deploy root is {string} and the production origin is {string}",
+    %{args: [root, origin]} = context
+  ) do
     context = commands(context)
     adapter(context).config_values(context, root, origin)
   end
@@ -228,7 +255,10 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
     adapter(context).assert_config_refusal(context, message)
   end
 
-  step("release:run reports outcome {string} with errorCategory {string}", %{args: ["failed", "configuration"]} = context) do
+  step(
+    "release:run reports outcome {string} with errorCategory {string}",
+    %{args: ["failed", "configuration"]} = context
+  ) do
     context = commands(context)
     adapter(context).assert_release_configuration(context)
   end
@@ -246,7 +276,10 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
     adapter(context).run_builds(context)
   end
 
-  step("both runs add and remove the same detached worktree and the checkout is unchanged", context) do
+  step(
+    "both runs add and remove the same detached worktree and the checkout is unchanged",
+    context
+  ) do
     context = commands(context)
     adapter(context).assert_worktrees(context)
   end

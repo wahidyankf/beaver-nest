@@ -15,6 +15,7 @@ defmodule BnestAppWeb.StorageLiveTest do
 
   @moduletag phase: :flat_primary
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The storage status reads Not started, Blocked, or SQLite active
   test "the storage status reads Not started before any migration", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/storage")
@@ -22,6 +23,7 @@ defmodule BnestAppWeb.StorageLiveTest do
     assert status_of(html) == "Not started"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The storage status reads Not started, Blocked, or SQLite active
   test "the storage status reads Blocked after a blocked run", %{conn: conn} do
     root = instance_flat_root!()
@@ -36,6 +38,7 @@ defmodule BnestAppWeb.StorageLiveTest do
     assert status_of(html) == "Blocked — retry available"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The storage status reads Not started, Blocked, or SQLite active
   test "the storage status reads SQLite active once SQLite is authoritative", %{conn: conn} do
     root = instance_flat_root!()
@@ -47,6 +50,7 @@ defmodule BnestAppWeb.StorageLiveTest do
     assert status_of(html) == "SQLite active"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: Move data and Retry migration start or retry the migration
   test "Move data and Retry migration start or retry the migration", %{conn: conn} do
     root = instance_flat_root!()

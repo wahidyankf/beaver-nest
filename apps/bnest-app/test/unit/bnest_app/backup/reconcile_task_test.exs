@@ -5,6 +5,7 @@ defmodule BnestApp.Backup.ReconcileTaskTest do
 
   alias Mix.Tasks.Bnest.Backup.Reconcile
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task refuses any argument with its usage line
   test "refuses any argument with its usage line before touching anything" do
     assert_raise Mix.Error, "usage: mix bnest.backup.reconcile", fn ->

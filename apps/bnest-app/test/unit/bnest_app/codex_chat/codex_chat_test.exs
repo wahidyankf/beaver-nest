@@ -200,7 +200,9 @@ defmodule BnestApp.CodexChat.CodexChatUnitTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A conversation continues in another tab or browser of the same user
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A chat that cannot be saved says the saved chat is unchanged
   describe "save_transcript/4 and load_transcript/2" do
     test "a first save stores a new chat record in its unchanged format", %{store: store} do

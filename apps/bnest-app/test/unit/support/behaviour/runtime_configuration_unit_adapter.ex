@@ -105,6 +105,27 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.UnitAdapter do
       raise "boot is ok, expected #{boot}"
     end
 
+    assert_prod_hosts(actual_host, checked_host, url_host, context)
+
+    context
+  rescue
+    e ->
+      %{boot: boot_result} = context.runtime
+
+      case boot_result do
+        {:error, message} ->
+          unless String.contains?(message, boot) do
+            reraise e, __STACKTRACE__
+          end
+
+          context
+
+        {:ok, _} ->
+          reraise e, __STACKTRACE__
+      end
+  end
+
+  defp assert_prod_hosts(actual_host, checked_host, url_host, context) do
     unless actual_host == url_host and checked_host == url_host do
       raise "host is #{actual_host}, expected #{url_host}"
     end
@@ -113,22 +134,7 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.UnitAdapter do
       raise "host does not match the scenario value"
     end
 
-    context
-  rescue
-    _ ->
-      %{boot: boot_result} = context.runtime
-
-      case boot_result do
-        {:error, message} ->
-          unless String.contains?(message, boot) do
-            raise "boot raised #{message}, expected #{boot}"
-          end
-
-          context
-
-        {:ok, _} ->
-          raise "boot succeeded, expected #{boot}"
-      end
+    :ok
   end
 
   def root_env(context, raw) do

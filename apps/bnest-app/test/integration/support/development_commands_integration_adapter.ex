@@ -9,8 +9,8 @@ defmodule BnestApp.Behaviour.DevelopmentCommands.IntegrationAdapter do
   the exempt behaviour.
   """
 
-  alias BnestApp.Behaviour.DevelopmentCommandsModel, as: Model
   alias BnestApp.Behaviour.DevelopmentCommands.UnitAdapter, as: Unit
+  alias BnestApp.Behaviour.DevelopmentCommandsModel, as: Model
 
   @doc "Installs the model and this adapter in the scenario context."
   def install(context) do
@@ -41,7 +41,9 @@ defmodule BnestApp.Behaviour.DevelopmentCommands.IntegrationAdapter do
   defdelegate dev_port(context, value), to: Unit
 
   def render_start(context) do
-    port = if context.commands[:dev_port] in [nil, ""], do: "4020", else: context.commands.dev_port
+    port =
+      if context.commands[:dev_port] in [nil, ""], do: "4020", else: context.commands.dev_port
+
     script = read_json(Path.join(repo_root(), "package.json"))["scripts"]["start"]
 
     command =
@@ -92,28 +94,43 @@ defmodule BnestApp.Behaviour.DevelopmentCommands.IntegrationAdapter do
   # from the real project file and run against a recording double.
   def declare_tailnet(context, target, command) do
     actual =
-      read_json(Path.join(repo_root(), "apps/bnest-app/project.json"))["targets"][target]["command"]
+      read_json(Path.join(repo_root(), "apps/bnest-app/project.json"))["targets"][target][
+        "command"
+      ]
 
     unless actual == command,
-      do: raise("project.json declares #{inspect(actual)} for #{target}, expected #{inspect(command)}")
+      do:
+        raise(
+          "project.json declares #{inspect(actual)} for #{target}, expected #{inspect(command)}"
+        )
 
     put_commands(context, %{target: target, command: command})
   end
 
   def run_tailnet(context) do
     %{command: command} = context.commands
-    double_dir = Path.join(System.tmp_dir!(), "bnest-tailnet-#{:erlang.unique_integer([:positive])}")
+
+    double_dir =
+      Path.join(System.tmp_dir!(), "bnest-tailnet-#{:erlang.unique_integer([:positive])}")
+
     File.mkdir_p!(double_dir)
     log = Path.join(double_dir, "argv.log")
 
     try do
-      File.write!(Path.join(double_dir, "tailscale"), "#!/bin/sh\necho \"$@\" > \"#{log}\"\nexit ${TAILSCALE_STATUS:-0}\n")
+      File.write!(
+        Path.join(double_dir, "tailscale"),
+        "#!/bin/sh\necho \"$@\" > \"#{log}\"\nexit ${TAILSCALE_STATUS:-0}\n"
+      )
+
       File.chmod!(Path.join(double_dir, "tailscale"), 0o755)
 
       for status <- ["0", "1"] do
         {_, exit_status} =
           System.cmd("sh", ["-c", command],
-            env: %{"PATH" => "#{double_dir}:#{System.get_env("PATH")}", "TAILSCALE_STATUS" => status},
+            env: %{
+              "PATH" => "#{double_dir}:#{System.get_env("PATH")}",
+              "TAILSCALE_STATUS" => status
+            },
             stderr_to_stdout: true
           )
 

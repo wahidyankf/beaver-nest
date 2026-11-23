@@ -78,6 +78,10 @@ defmodule BnestApp.Behaviour.OperatorConfiguration.IntegrationAdapter do
       raise "liveness is #{live_status}"
     end
 
+    assert_readiness_outcome(context, peer, reachable, ready, health, ready_conn)
+  end
+
+  defp assert_readiness_outcome(context, peer, reachable, ready, health, ready_conn) do
     case {peer, reachable, ready, health} do
       {"(unset)", _, "ready", "200 ready"} ->
         unless ready_conn.status == 200, do: raise("readiness is #{ready_conn.status}")
@@ -89,21 +93,25 @@ defmodule BnestApp.Behaviour.OperatorConfiguration.IntegrationAdapter do
         context
 
       {_, _, "not_ready", _} ->
-        unless ready_conn.status == 503 do
-          # The test node runs without distribution, so any named peer is
-          # unreachable and readiness fails closed; an already-ready peer
-          # would need distribution, which this boundary does not provide.
-          raise "readiness is #{ready_conn.status}, expected 503"
-        end
-
-        body = Jason.decode!(ready_conn.resp_body)
-
-        unless body == %{"status" => "not_ready"} do
-          raise "health body is #{inspect(body)}"
-        end
-
-        context
+        assert_not_ready(context, ready_conn)
     end
+  end
+
+  defp assert_not_ready(context, ready_conn) do
+    unless ready_conn.status == 503 do
+      # The test node runs without distribution, so any named peer is
+      # unreachable and readiness fails closed; an already-ready peer
+      # would need distribution, which this boundary does not provide.
+      raise "readiness is #{ready_conn.status}, expected 503"
+    end
+
+    body = Jason.decode!(ready_conn.resp_body)
+
+    unless body == %{"status" => "not_ready"} do
+      raise "health body is #{inspect(body)}"
+    end
+
+    context
   end
 
   # Deploy prepare: exempt, delegate to the unit model.
