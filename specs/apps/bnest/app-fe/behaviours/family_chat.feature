@@ -701,16 +701,12 @@ Feature: Family chat room
   Rule: Resume, online reaction, backoff, and seven-day expiry
 
   @fe-vitest-unit
-  # Exemption(integration): a queue left behind by a closed tab lives in browser IndexedDB, which Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Reopening the app resumes queued sends
-  @integration-exempt
   Scenario: Reopening the app resumes queued sends
     Given the visitor has a queued message left over from a closed session
     When the visitor reopens "/family-chat/ruang-keluarga"
     Then the queued message resumes toward Sent without visitor action
 
   @fe-vitest-unit
-  # Exemption(integration): a real IndexedDB binding surviving an actual browser reload requires a real browser storage implementation Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A queued message survives a real browser reload while offline
-  @integration-exempt
   Scenario: A queued message survives a real browser reload while offline
     Given a fresh visitor opens "/family-chat/ruang-keluarga"
     When the visitor sends a family chat message during a retryable network failure
@@ -721,8 +717,6 @@ Feature: Family chat room
     Then the message reaches status "Sent"
 
   @fe-vitest-unit
-  # Exemption(integration): the browser's online event and the outbox's retry timer exist only in the browser; alternative-proof: bnest-app-fe-e2e:test:e2e / A waiting message is sent as soon as the connection returns
-  @integration-exempt
   Scenario: A waiting message is sent as soon as the connection returns
     Given a visitor opens "/family-chat/ruang-keluarga"
     And a queued message shows status "Retrying in …"
@@ -730,16 +724,12 @@ Feature: Family chat room
     Then the message starts sending at once and reaches status "Sent" without waiting out the countdown
 
   @fe-vitest-unit
-  # Exemption(integration): the retry timers run in browser JavaScript, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / Each failed automatic retry waits longer than the last, up to one minute
-  @integration-exempt
   Scenario: Each failed automatic retry waits longer than the last, up to one minute
     Given a visitor opens "/family-chat/ruang-keluarga"
     When a queued message fails five times with a retryable result
     Then the shown waits grow roughly 1, 2, 4, 8, 16 seconds and never exceed 60 seconds
 
   @fe-vitest-unit
-  # Exemption(integration): the queued message and its retry or discard controls live in the browser outbox, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message queued more than seven days becomes manual-only
-  @integration-exempt
   Scenario: A message queued more than seven days becomes manual-only
     Given the visitor has a queued message created more than seven days ago
     When the visitor reopens "/family-chat/ruang-keluarga"
@@ -747,8 +737,6 @@ Feature: Family chat room
     And the visitor can still manually retry or discard it
 
   @fe-vitest-unit
-  # Exemption(integration): an offline browser and the IndexedDB record it queues are invisible to Phoenix.LiveViewTest; alternative-proof: bnest-app-fe-e2e:test:e2e / An offline reply waits for the connection and stays a reply
-  @integration-exempt
   Scenario: An offline reply waits for the connection and stays a reply
     Given the visitor is offline with the room open
     When the visitor replies to a committed message
@@ -756,16 +744,12 @@ Feature: Family chat room
     And the waiting message will send as a reply to the message it answers
 
   @fe-vitest-unit
-  # Exemption(integration): surviving a closed app is browser IndexedDB durability, which Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A queued reply survives closing the app
-  @integration-exempt
   Scenario: A queued reply survives closing the app
     Given an offline reply is queued
     When the visitor reopens "/family-chat/ruang-keluarga" while still offline
     Then the queued reply is still present with its target
 
   @fe-vitest-unit
-  # Exemption(integration): draining the browser's queue when the network returns runs only in browser JavaScript; alternative-proof: bnest-app-fe-e2e:test:e2e / A queued reply commits with its link on reconnect
-  @integration-exempt
   Scenario: A queued reply commits with its link on reconnect
     Given an offline reply is queued
     When the network recovers
@@ -773,8 +757,6 @@ Feature: Family chat room
     And the committed message renders its quote
 
   @fe-vitest-unit
-  # Exemption(integration): a record stored in browser IndexedDB before this feature is invisible to Phoenix.LiveViewTest; alternative-proof: bnest-app-fe-e2e:test:e2e / A message queued before the update still sends after it
-  @integration-exempt
   Scenario: A message queued before the update still sends after it
     Given a message was left waiting to send before the app was updated
     When the network recovers
