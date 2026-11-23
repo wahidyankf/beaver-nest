@@ -787,8 +787,6 @@ Feature: Beaver Nest chat
   Rule: Codex chat on touch and short screens
 
   @fe-vitest-unit
-  # Exemption(integration): the size of a control on a touch screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header controls are at least 44 pixels tall on a touch screen
-  @integration-exempt
   Scenario: The Codex header controls are at least 44 pixels tall on a touch screen
     Given the Codex chat page is open at "mobile 390x844"
     And the visitor's pointer is a touch pointer
@@ -797,8 +795,6 @@ Feature: Beaver Nest chat
     And the options button is at least 44 pixels across and tall
 
   @fe-vitest-unit
-  # Exemption(integration): the text size of the composer is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex composer text is 16 pixels on a touch screen
-  @integration-exempt
   Scenario: The Codex composer text is 16 pixels on a touch screen
     Given the Codex chat page is open at "mobile 390x844"
     And the visitor's pointer is a touch pointer
@@ -806,8 +802,6 @@ Feature: Beaver Nest chat
     Then the message composer text is 16 pixels
 
   @fe-vitest-unit
-  # Exemption(integration): the scroll boxes of a table and a code block are laid out by the browser, which Phoenix.LiveViewTest never does; alternative-proof: bnest-app-fe-e2e:test:e2e / Codex tables and code blocks show that they scroll
-  @integration-exempt
   Scenario: Codex tables and code blocks show that they scroll
     Given the Codex chat page is open at "mobile 390x844"
     And a Codex reply answers "Show a wide table, a long code block and the logo"
@@ -815,8 +809,6 @@ Feature: Beaver Nest chat
     Then the wide table and the code block show a scroll cue
 
   @fe-vitest-unit
-  # Exemption(integration): the height of a code block is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A long Codex code block scrolls inside a height limit
-  @integration-exempt
   Scenario: A long Codex code block scrolls inside a height limit
     Given the Codex chat page is open at "landscape 844x390"
     And a Codex reply answers "Show a wide table, a long code block and the logo"
@@ -824,8 +816,6 @@ Feature: Beaver Nest chat
     Then the code block is no taller than 384 pixels and scrolls
 
   @fe-vitest-unit
-  # Exemption(integration): the height of a picture is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex picture fits a short screen
-  @integration-exempt
   Scenario: A Codex picture fits a short screen
     Given the Codex chat page is open at "landscape 844x390"
     And a Codex reply answers "Show a wide table, a long code block and the logo"
@@ -833,8 +823,6 @@ Feature: Beaver Nest chat
     Then the logo is no taller than 70 percent of the screen height
 
   @fe-vitest-unit
-  # Exemption(integration): the size of the diagram source disclosure on a touch screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex diagram source is at least 44 pixels tall on a touch screen
-  @integration-exempt
   Scenario: The Codex diagram source is at least 44 pixels tall on a touch screen
     Given the visitor's pointer is a touch pointer
     And a completed Codex reply shows a drawn flowchart
@@ -842,8 +830,6 @@ Feature: Beaver Nest chat
     Then the diagram source summary is at least 44 pixels tall
 
   @fe-vitest-unit
-  # Exemption(integration): the focus ring is painted by the browser from the stylesheet, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Codex links, tables, code blocks and diagram sources show the room's coral focus ring
-  @integration-exempt
   Scenario Outline: Codex links, tables, code blocks and diagram sources show the room's coral focus ring
     Given the Codex chat page is open at "mobile 390x844"
     And <reply>
@@ -857,8 +843,6 @@ Feature: Beaver Nest chat
       | a completed Codex reply shows a drawn flowchart                            | a focused diagram source shows the coral focus ring                   |
 
   @fe-vitest-unit @remote-image
-  # Exemption(integration): the overflow of a laid-out page is measured by a browser; the declared rules are read in vitest; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex reply does not overflow the phone width
-  @integration-exempt
   Scenario: A Codex reply does not overflow the phone width
     Given the Codex chat page is open at "mobile 390x844"
     And a Codex reply answers "Lay out a sample reply with a remote image"
@@ -866,8 +850,6 @@ Feature: Beaver Nest chat
     Then the page does not overflow horizontally at 390 pixels
 
   @fe-vitest-unit
-  # Exemption(integration): the rows, height and place of the header are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header is compact on a phone
-  @integration-exempt
   Scenario Outline: The Codex header is compact on a phone
     Given the Codex chat page is open at "<viewport>"
     When the page is laid out
@@ -885,8 +867,6 @@ Feature: Beaver Nest chat
       | landscape 844x390 |
 
   @fe-vitest-unit
-  # Exemption(integration): the tab order is the browser's keyboard focus order, which Phoenix.LiveViewTest never walks; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex header's tab order follows the screen
-  @integration-exempt
   Scenario Outline: The Codex header's tab order follows the screen
     Given the Codex chat page is open at "<viewport>"
     When the page is laid out
@@ -901,8 +881,6 @@ Feature: Beaver Nest chat
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): the hover fill is a browser cascade result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Clear chat button fills on hover only for a fine pointer
-  @integration-exempt
   Scenario Outline: The Clear chat button fills on hover only for a fine pointer
     Given the Codex chat page is open at "mobile 390x844"
     And the visitor's pointer is a <pointer> pointer
@@ -915,8 +893,6 @@ Feature: Beaver Nest chat
       | fine    | fills on hover         |
 
   @fe-vitest-unit
-  # Exemption(integration): the place of the options panel over the conversation is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex options panel holds the model, the effort and Clear chat
-  @integration-exempt
   Scenario Outline: The Codex options panel holds the model, the effort and Clear chat
     Given the Codex chat page is open at "<viewport>"
     And the visitor's pointer is a touch pointer
@@ -937,8 +913,6 @@ Feature: Beaver Nest chat
       | landscape 844x390 |
 
   @fe-vitest-unit
-  # Exemption(integration): the place of the options panel on the screen is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex options panel keeps 12 pixels from the screen edge on a phone
-  @integration-exempt
   Scenario Outline: The Codex options panel keeps 12 pixels from the screen edge on a phone
     Given the Codex chat page is open at "<viewport>"
     And the visitor's pointer is a touch pointer
@@ -952,8 +926,6 @@ Feature: Beaver Nest chat
       | mobile 390x844 |
 
   @fe-vitest-unit
-  # Exemption(integration): the gap between the home header and the hero card is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The home page keeps a gap between the header and the hero card
-  @integration-exempt
   Scenario Outline: The home page keeps a gap between the header and the hero card
     When the home page is open at "<viewport>"
     Then the header keeps a gap above the hero card
@@ -964,8 +936,6 @@ Feature: Beaver Nest chat
       | mobile 390x844 |
 
   @fe-vitest-unit
-  # Exemption(integration): the options panel's focus and its close on Escape or on a tap outside it are browser state Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex options panel closes on Escape and on a tap outside it
-  @integration-exempt
   Scenario Outline: The Codex options panel closes on Escape and on a tap outside it
     Given the Codex chat page is open at "mobile 390x844"
     And the visitor's pointer is a touch pointer
@@ -980,8 +950,6 @@ Feature: Beaver Nest chat
       | taps the message box |
 
   @fe-vitest-unit
-  # Exemption(integration): the place and size of the repository access state in the header are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex repository access state is visible without scrolling the header
-  @integration-exempt
   Scenario Outline: The Codex repository access state is visible without scrolling the header
     Given the Codex chat page is open at "<viewport>"
     And the visitor's pointer is a touch pointer
@@ -1002,8 +970,6 @@ Feature: Beaver Nest chat
       | landscape 844x390 | enabled   |
 
   @fe-vitest-unit
-  # Exemption(integration): the visible label's size and the hidden label's clip are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message box keeps its name when the window is short
-  @integration-exempt
   Scenario: The Codex message box keeps its name when the window is short
     Given the Codex chat page is open at "landscape 844x390"
     When the page is laid out

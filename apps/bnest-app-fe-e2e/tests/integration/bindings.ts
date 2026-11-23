@@ -179,3 +179,20 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page and Codex chat keep one light appearance and have no theme control
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation has most of the screen with an empty draft
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A typical Codex phone view shows the newest message above the composer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header controls are at least 44 pixels tall on a touch screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex composer text is 16 pixels on a touch screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex tables and code blocks show that they scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex code block scrolls inside a height limit
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex picture fits a short screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex diagram source is at least 44 pixels tall on a touch screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex links, tables, code blocks and diagram sources show the room's coral focus ring
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply does not overflow the phone width
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header is compact on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header's tab order follows the screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Clear chat button fills on hover only for a fine pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel holds the model, the effort and Clear chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel keeps 12 pixels from the screen edge on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page keeps a gap between the header and the hero card
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel closes on Escape and on a tap outside it
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex repository access state is visible without scrolling the header
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box keeps its name when the window is short
