@@ -18,6 +18,9 @@ import { deriveTestInstancePaths } from "../support/test-instance-paths.mts";
 // source — is written straight into the current flat-primary instance's flat
 // root, the same files the CLI scenario seeds. The browser itself only logs
 // in, opens `/storage` and presses the migration control.
+// E2E bindings for the migration control and folder-lock scenarios:
+// @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: Move data and Retry migration start or retry the migration
+// @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The folder is locked once migration has started
 
 const { Given, When, Then } = createBdd();
 
