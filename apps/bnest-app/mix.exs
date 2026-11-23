@@ -150,6 +150,15 @@ defmodule BnestApp.MixProject do
       BnestApp.Behaviour.TestIsolation.Fixtures,
       BnestApp.Behaviour.TestIsolation.IntegrationAdapter,
       BnestApp.Behaviour.TestIsolation.UnitAdapter,
+      # Scenario adapters and shared models for development_commands.feature and
+      # release_and_deploy.feature. They drive the tooling command surface, so
+      # the unit denominator leaves them out, as it does the drivers.
+      BnestApp.Behaviour.DevelopmentCommandsModel,
+      BnestApp.Behaviour.DevelopmentCommands.IntegrationAdapter,
+      BnestApp.Behaviour.DevelopmentCommands.UnitAdapter,
+      BnestApp.Behaviour.ReleaseAndDeployModel,
+      BnestApp.Behaviour.ReleaseAndDeploy.IntegrationAdapter,
+      BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter,
       BnestApp.SchemaSourceScan,
       # Spawns test instances, which only `test:integration` runs, so the unit denominator leaves it out.
       BnestApp.FreshDatabaseCase,
