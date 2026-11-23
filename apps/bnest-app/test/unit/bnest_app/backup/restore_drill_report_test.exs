@@ -99,6 +99,7 @@ defmodule BnestApp.Backup.RestoreDrillReportTest do
   end
 
   describe "report/1 of a failure" do
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill reports an unreadable destination as one fixed line
     test "words each as one fixed line and a non-zero exit" do
       assert RestoreDrillReport.report(:refused) == %{exit_status: 1, lines: [@refused]}
 

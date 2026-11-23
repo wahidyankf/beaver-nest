@@ -146,7 +146,7 @@ function normalizeHostname(value) {
   return value ? String(value).toLowerCase().split(".", 1)[0] : "";
 }
 
-function parseOlderThanHours(arguments_) {
+export function parseOlderThanHours(arguments_) {
   if (arguments_.length === 0) return 24;
   if (arguments_.length !== 2 || arguments_[0] !== "--older-than-hours") {
     throw new Error(

@@ -159,6 +159,13 @@ defmodule BnestApp.MixProject do
       BnestApp.Behaviour.ReleaseAndDeployModel,
       BnestApp.Behaviour.ReleaseAndDeploy.IntegrationAdapter,
       BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter,
+      # Scenario adapters and the shared model for operator_commands.feature.
+      # They drive the operator command surface, so the unit denominator
+      # leaves them out, as it does the drivers.
+      BnestApp.Behaviour.OperatorCommandsModel,
+      BnestApp.Behaviour.OperatorCommands.IntegrationAdapter,
+      BnestApp.Behaviour.OperatorCommands.NotArgon2idHasher,
+      BnestApp.Behaviour.OperatorCommands.UnitAdapter,
       BnestApp.SchemaSourceScan,
       # Spawns test instances, which only `test:integration` runs, so the unit denominator leaves it out.
       BnestApp.FreshDatabaseCase,

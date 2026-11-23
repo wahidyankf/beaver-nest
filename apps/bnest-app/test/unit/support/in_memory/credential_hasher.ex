@@ -23,8 +23,11 @@ defmodule BnestApp.Test.InMemory.CredentialHasher do
   @impl true
   def no_user_verify, do: false
 
+  # The operator benchmark scenario programs the timing it observes through
+  # the `:in_memory_benchmark` application key, so the unit layer can prove
+  # each timing class and the non-Argon2id refusal without timing a real hash.
   @impl true
-  def benchmark, do: {:ok, 0}
+  def benchmark, do: Application.get_env(:bnest_app, :in_memory_benchmark, {:ok, 0})
 
   defp digest(password),
     do: :crypto.hash(:sha256, "test-user-salt:" <> password) |> Base.encode16(case: :lower)

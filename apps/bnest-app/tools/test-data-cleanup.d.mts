@@ -9,3 +9,5 @@ export function cleanupStaleTestData(options?: CleanupOptions): {
   removed: number;
   retained: number;
 };
+
+export function parseOlderThanHours(arguments_: string[]): number;

@@ -128,6 +128,7 @@ defmodule BnestApp.BackupRestoreDrillTaskTest do
       assert File.regular?(outside)
     end
 
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill reports an unreadable destination as one fixed line
     test "exits non-zero with a fixed line when the destination cannot be read", context do
       File.rm_rf!(context.backup_directory)
       File.write!(context.backup_directory, "synthetic file where the destination was")
@@ -338,6 +339,7 @@ defmodule BnestApp.BackupRestoreDrillTaskTest do
     end
   end
 
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill without exactly one artifact name raises its usage line
   test "refuses a wrong argument list before it touches anything" do
     for arguments <- [[], ["--artifact"], ["artifact.sqlite3"], ["--artifact", "a", "b"]] do
       assert_raise Mix.Error, @usage, fn -> DrillTask.run(arguments) end

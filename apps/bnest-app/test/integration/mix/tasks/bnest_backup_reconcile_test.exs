@@ -218,6 +218,7 @@ defmodule BnestApp.BackupReconcileTaskTest do
     end
   end
 
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task refuses any argument with its usage line
   test "refuses an argument before it touches anything" do
     assert_raise Mix.Error, ~r/usage: mix bnest.backup.reconcile/, fn ->
       Reconcile.run(["--unexpected"])

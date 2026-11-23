@@ -182,6 +182,55 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: outcome(context, :config_and_placeholders_preserved)
   )
 
+  # The storage status reads Not started, Blocked, or SQLite active
+  # (BN-STORAGE-05), Move data and Retry migration start or retry the
+  # migration (BN-STORAGE-06), and The folder is locked once migration has
+  # started (BN-STORAGE-07).
+
+  step("a storage installation in {string} state", %{args: [setup]} = context,
+    do: prepare(context, :storage_setup, [setup])
+  )
+
+  step("the administrator opens /storage", context, do: perform(context, :open_storage_page))
+
+  step("the page reads {string}", %{args: [text]} = context,
+    do: outcome(context, :storage_page_reads, [text])
+  )
+
+  step("a flat-primary installation with seeded family data and one malformed source", context,
+    do: prepare(context, :storage_seeded_with_malformed)
+  )
+
+  step("the storage control reads {string}", %{args: [label]} = context,
+    do: outcome(context, :storage_control_reads, [label])
+  )
+
+  step("the administrator presses {string}", %{args: [label]} = context,
+    do: perform(context, :press_storage_control, [label])
+  )
+
+  step(
+    "the page reads {string} and the control reads {string}",
+    %{args: [status, label]} = context,
+    do: outcome(context, :storage_status_and_control, [status, label])
+  )
+
+  step(
+    "the operator repairs the malformed source and the administrator presses {string}",
+    %{args: [label]} = context,
+    do: perform(context, :repair_and_retry, [label])
+  )
+
+  step("a flat-primary installation with a migration in progress", context,
+    do: prepare(context, :storage_migration_in_progress)
+  )
+
+  step(
+    "the folder input and the Check folder button are disabled and Create database is not offered",
+    context,
+    do: outcome(context, :storage_folder_locked)
+  )
+
   defp outcomes(context, checks) do
     Enum.each(checks, fn {expected, args} ->
       assert context.behaviour_driver.behaviour_outcome?(context, expected, args)
@@ -192,8 +241,19 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
 
   defp prepare(context, state), do: context.behaviour_driver.prepare_behaviour(context, state, [])
 
+  defp prepare(context, state, args),
+    do: context.behaviour_driver.prepare_behaviour(context, state, args)
+
   defp perform(context, action),
     do: context.behaviour_driver.perform_behaviour(context, action, [])
+
+  defp perform(context, action, args),
+    do: context.behaviour_driver.perform_behaviour(context, action, args)
+
+  defp outcome(context, expected, args) do
+    assert context.behaviour_driver.behaviour_outcome?(context, expected, args)
+    context
+  end
 
   defp outcome(context, expected) do
     assert context.behaviour_driver.behaviour_outcome?(context, expected, [])

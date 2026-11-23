@@ -1798,6 +1798,83 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
+  # BN-STORAGE-05/06/07: the administrator's storage page over the in-memory
+  # doubles for each phase. The production `StorageLive` is mounted with the
+  # given backend state and rendered with its template.
+  def prepare_behaviour(context, :storage_setup, ["fresh flat-primary"]) do
+    context
+    |> prepare_behaviour(:no_storage_configuration, [])
+    |> put_storage_runtime_root()
+  end
+
+  def prepare_behaviour(context, :storage_setup, ["blocked migration"]) do
+    context =
+      context
+      |> prepare_behaviour(:no_storage_configuration, [])
+      |> put_storage_runtime_root()
+
+    FlatSource.put_files(
+      @in_memory_flat_root,
+      sqlite_storage_fixture_files() ++ [malformed_theme_source()]
+    )
+
+    with {:error, :blocked, _report} <- Storage.migrate(@in_memory_flat_root, false) do
+      # The production adapter derives `migration_started?` from the ledger;
+      # the in-memory double answers from this key, so the Given seeds it as
+      # the run it just recorded would.
+      StoragePorts.put(:started?, true)
+      context
+    else
+      outcome -> raise("the malformed source did not block the migration: #{inspect(outcome)}")
+    end
+  end
+
+  def prepare_behaviour(context, :storage_setup, ["active SQLite"]) do
+    context =
+      context
+      |> prepare_behaviour(:no_storage_configuration, [])
+      |> put_storage_runtime_root()
+
+    FlatSource.put_files(@in_memory_flat_root, sqlite_storage_fixture_files())
+
+    with {:ok, :activated, _report} <- Storage.migrate(@in_memory_flat_root, true) do
+      StoragePorts.put(:started?, true)
+      context
+    else
+      outcome -> raise("the seeded source did not migrate and activate: #{inspect(outcome)}")
+    end
+  end
+
+  def prepare_behaviour(context, :storage_seeded_with_malformed, _args) do
+    context =
+      context
+      |> prepare_behaviour(:no_storage_configuration, [])
+      |> put_storage_runtime_root()
+
+    FlatSource.put_files(
+      @in_memory_flat_root,
+      sqlite_storage_fixture_files() ++ [malformed_theme_source()]
+    )
+
+    mount_storage_page(context)
+  end
+
+  def prepare_behaviour(context, :storage_migration_in_progress, _args) do
+    context =
+      context
+      |> prepare_behaviour(:no_storage_configuration, [])
+      |> put_storage_runtime_root()
+
+    FlatSource.put_files(@in_memory_flat_root, sqlite_storage_fixture_files())
+
+    with {:ok, _outcome, _report} <- Storage.migrate(@in_memory_flat_root, false) do
+      StoragePorts.put(:started?, true)
+      context
+    else
+      outcome -> raise("the seeded migration did not start: #{inspect(outcome)}")
+    end
+  end
+
   # A fresh installation behind the Storage facade's in-memory ports: no pointer, no flat
   # source, and a migration ledger without a run.
   def prepare_behaviour(context, :empty_isolated_database, _args) do
@@ -2246,6 +2323,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A malformed or unknown generated image path is an empty not found response
   # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
   # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: With family chat off the room is not found, even for a signed-in user
+  # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The storage status reads Not started, Blocked, or SQLite active
+  # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: Move data and Retry migration start or retry the migration
+  # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The folder is locked once migration has started
   # --- phase-8 FE ADD rows ---
 
   def prepare_behaviour(context, :family_chat_flag, [setting]) do
@@ -3086,6 +3166,42 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :complete_image_reply, _args) do
     {events, context} = answer_next_prompt(context)
     deliver_codex_events(context, events)
+  end
+
+  # BN-STORAGE-05/06/07: mounts the production `StorageLive` as the
+  # administrator over the scenario's backend state and renders its template.
+  # The control events run the same managed migration the page triggers.
+  def perform_behaviour(context, :open_storage_page, _args) do
+    socket = storage_admin_socket()
+
+    {:ok, socket} = StorageLive.mount(%{}, %{}, socket)
+
+    Map.merge(context, %{
+      storage_admin?: true,
+      storage_socket: socket,
+      storage_page: render_storage_page(socket)
+    })
+  end
+
+  def perform_behaviour(context, :press_storage_control, ["Move data"]) do
+    {:noreply, _socket} = StorageLive.handle_event("move_data", %{}, context.storage_socket)
+    StoragePorts.put(:started?, true)
+    mount_storage_page(context)
+  end
+
+  def perform_behaviour(context, :press_storage_control, ["Retry migration"]) do
+    {:noreply, _socket} = StorageLive.handle_event("retry_migration", %{}, context.storage_socket)
+    mount_storage_page(context)
+  end
+
+  # The operator repairs the source by replacing the malformed file with a
+  # valid one, the way a hand edit on the host would; the retry then runs the
+  # same managed migration the control triggers.
+  def perform_behaviour(context, :repair_and_retry, [_label]) do
+    FlatSource.put_files(@in_memory_flat_root, sqlite_storage_fixture_files())
+
+    {:noreply, _socket} = StorageLive.handle_event("retry_migration", %{}, context.storage_socket)
+    mount_storage_page(context)
   end
 
   def perform_behaviour(context, :sign_out, _args) do
@@ -4165,6 +4281,48 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       String.contains?(body, "caches.delete(key)")
   end
 
+  # BN-STORAGE-05/06/07: reads the rendered storage page the scenario mounted.
+  def behaviour_outcome?(context, :storage_page_reads, [text]) do
+    status =
+      context.storage_page
+      |> LazyHTML.query("section[aria-label='Migration status'] strong")
+      |> LazyHTML.text()
+
+    status == String.replace_prefix(text, "Status: ", "")
+  end
+
+  def behaviour_outcome?(context, :storage_control_reads, [label]) do
+    control_label(context.storage_page) == label
+  end
+
+  def behaviour_outcome?(context, :storage_status_and_control, [status, label]) do
+    page = context.storage_page
+
+    strong =
+      page |> LazyHTML.query("section[aria-label='Migration status'] strong") |> LazyHTML.text()
+
+    control = control_label(page)
+    strong == String.replace_prefix(status, "Status: ", "") and control == label
+  end
+
+  def behaviour_outcome?(context, :storage_folder_locked, _args) do
+    page = context.storage_page
+
+    disabled_input? =
+      page
+      |> LazyHTML.query("input#directory[disabled]")
+      |> Enum.any?()
+
+    disabled_check? =
+      page
+      |> LazyHTML.query("section[aria-label='Database folder'] button[disabled]")
+      |> LazyHTML.text()
+      |> String.contains?("Check folder")
+
+    disabled_input? and disabled_check? and
+      not String.contains?(LazyHTML.text(page), "Create database")
+  end
+
   def behaviour_outcome?(context, :room_not_found_body, [body]) do
     context.page |> LazyHTML.text() |> String.trim() == body
   end
@@ -4297,6 +4455,50 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Safe.to_iodata()
     |> IO.iodata_to_binary()
     |> LazyHTML.from_fragment()
+  end
+
+  # BN-STORAGE-05/06/07: points the LiveView's `move_data` handler at the
+  # in-memory flat root for the scenario, restoring the previous root
+  # afterwards.
+  defp put_storage_runtime_root(context) do
+    previous = Application.get_env(:bnest_app, :runtime_root)
+    Application.put_env(:bnest_app, :runtime_root, @in_memory_flat_root)
+    ExUnit.Callbacks.on_exit(fn -> restore_storage_runtime_root(previous) end)
+    context
+  end
+
+  defp restore_storage_runtime_root(nil), do: Application.delete_env(:bnest_app, :runtime_root)
+
+  defp restore_storage_runtime_root(previous),
+    do: Application.put_env(:bnest_app, :runtime_root, previous)
+
+  defp malformed_theme_source,
+    do: {"users/user-test-storage/preferences/theme.json", "{malformed"}
+
+  defp storage_admin_socket do
+    %Socket{
+      view: StorageLive,
+      transport_pid: self(),
+      assigns: %{__changed__: %{}, flash: %{}, current_user: @unit_admin}
+    }
+  end
+
+  defp mount_storage_page(context) do
+    socket = storage_admin_socket()
+    {:ok, socket} = StorageLive.mount(%{}, %{}, socket)
+
+    Map.merge(context, %{
+      storage_admin?: true,
+      storage_socket: socket,
+      storage_page: render_storage_page(socket)
+    })
+  end
+
+  defp control_label(page) do
+    page
+    |> LazyHTML.query("section[aria-label='Migration status'] button")
+    |> LazyHTML.text()
+    |> String.trim()
   end
 
   # The database path the storage profile this layer runs under resolves to, worked out

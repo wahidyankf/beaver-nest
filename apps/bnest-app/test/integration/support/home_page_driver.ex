@@ -1712,6 +1712,62 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   # --- phase-8 FE ADD rows ---
 
+  # BN-STORAGE-05/06/07: the administrator's storage page over the current
+  # flat-primary instance. The `@flat-primary` hook spawns the instance, so
+  # the fresh state needs no seed; the blocked and active states migrate it.
+  def prepare_behaviour(context, :storage_setup, ["fresh flat-primary"]) do
+    unless Storage.phase() == :flat_primary,
+      do: raise("the fresh instance is not flat-primary")
+
+    context
+  end
+
+  def prepare_behaviour(context, :storage_setup, ["blocked migration"]) do
+    root = instance_flat_root!()
+    broken = Path.join(root, "system/manifests/broken-manifest.json")
+    File.mkdir_p!(Path.dirname(broken))
+    File.write!(broken, "{malformed")
+
+    case Storage.migrate(root, false) do
+      {:error, :blocked, _report} ->
+        context
+
+      outcome ->
+        raise "the malformed source did not block the migration: #{inspect(outcome)}"
+    end
+  end
+
+  def prepare_behaviour(context, :storage_setup, ["active SQLite"]) do
+    root = instance_flat_root!()
+
+    case Storage.migrate(root, true) do
+      {:ok, :activated, _report} ->
+        context
+
+      outcome ->
+        raise "the seeded instance did not migrate and activate: #{inspect(outcome)}"
+    end
+  end
+
+  def prepare_behaviour(context, :storage_seeded_with_malformed, _args) do
+    root = instance_flat_root!()
+    broken = Path.join(root, "system/manifests/broken-manifest.json")
+    File.mkdir_p!(Path.dirname(broken))
+    File.write!(broken, "{malformed")
+    open_storage_page(context)
+  end
+
+  def prepare_behaviour(context, :storage_migration_in_progress, _args) do
+    root = instance_flat_root!()
+
+    with {:ok, _outcome, _report} <- Storage.migrate(root, false),
+         true <- Storage.migration_started?() do
+      context
+    else
+      outcome -> raise "the seeded migration did not start: #{inspect(outcome)}"
+    end
+  end
+
   def prepare_behaviour(context, :family_chat_flag, [setting]) do
     previous = Application.get_env(:bnest_app, :family_chat_enabled)
 
@@ -2489,6 +2545,33 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     context
   end
 
+  # BN-STORAGE-05/06/07: opens the production storage page as the
+  # administrator and presses its migration control. The control submits the
+  # same managed migration the page triggers, over the current instance.
+  def perform_behaviour(context, :open_storage_page, _args) do
+    open_storage_page(context)
+  end
+
+  def perform_behaviour(context, :press_storage_control, ["Move data"]) do
+    html = render_submit(context.storage_view, :move_data, %{})
+    Map.put(context, :storage_status_html, html)
+  end
+
+  def perform_behaviour(context, :press_storage_control, ["Retry migration"]) do
+    html = render_submit(context.storage_view, :retry_migration, %{})
+    Map.put(context, :storage_status_html, html)
+  end
+
+  # The operator repairs the source by removing the malformed file, the way
+  # deleting a broken hand-written file on the host would; the retry then
+  # runs the same managed migration the control triggers.
+  def perform_behaviour(context, :repair_and_retry, [_label]) do
+    broken = Path.join(instance_flat_root!(), "system/manifests/broken-manifest.json")
+    File.rm!(broken)
+    html = render_submit(context.storage_view, :retry_migration, %{})
+    Map.put(context, :storage_status_html, html)
+  end
+
   def perform_behaviour(context, :request_generated_image, [file]) do
     request_generated_image(context, generated_route(file))
   end
@@ -2527,6 +2610,24 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def perform_behaviour(context, action, args),
     do: IntegrationFamilyChatDriver.perform_behaviour(context, action, args)
+
+  # The current flat-primary instance's flat root, which the storage page
+  # migrates and the scenario seeds.
+  defp instance_flat_root! do
+    case BnestApp.TestInstance.state() do
+      %{paths: %{flat_instance_root: root}} -> root
+      _other -> raise "no flat-primary test instance is current"
+    end
+  end
+
+  defp open_storage_page(context) do
+    storage_page = context |> establish_identity(:admin) |> open("/storage")
+
+    Map.merge(context, %{
+      storage_view: storage_page.view,
+      storage_status_html: render(storage_page.view)
+    })
+  end
 
   defp request_generated_image(context, route) do
     Map.merge(context, %{image_response: get(context.conn, route), image_request_path: route})
@@ -3310,6 +3411,48 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   # --- phase-8 FE ADD rows ---
 
+  # BN-STORAGE-05/06/07: reads the rendered storage page the scenario opened.
+  def behaviour_outcome?(context, :storage_page_reads, [text]) do
+    status =
+      context.storage_status_html
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("section[aria-label='Migration status'] strong")
+      |> LazyHTML.text()
+
+    status == String.replace_prefix(text, "Status: ", "")
+  end
+
+  def behaviour_outcome?(context, :storage_control_reads, [label]) do
+    storage_control_label(context.storage_status_html) == label
+  end
+
+  def behaviour_outcome?(context, :storage_status_and_control, [status, label]) do
+    page = LazyHTML.from_fragment(context.storage_status_html)
+
+    page
+    |> LazyHTML.query("section[aria-label='Migration status'] strong")
+    |> LazyHTML.text() == String.replace_prefix(status, "Status: ", "") and
+      storage_control_label(context.storage_status_html) == label
+  end
+
+  def behaviour_outcome?(context, :storage_folder_locked, _args) do
+    page = LazyHTML.from_fragment(context.storage_status_html)
+
+    disabled_input? =
+      page
+      |> LazyHTML.query("input#directory[disabled]")
+      |> Enum.any?()
+
+    disabled_check? =
+      page
+      |> LazyHTML.query("section[aria-label='Database folder'] button[disabled]")
+      |> LazyHTML.text()
+      |> String.contains?("Check folder")
+
+    disabled_input? and disabled_check? and
+      not String.contains?(context.storage_status_html, "Create database")
+  end
+
   def behaviour_outcome?(context, :chat_entry_link_absent, [label, path]) do
     context.page
     |> LazyHTML.query("a[href='#{path}'] strong")
@@ -3434,6 +3577,14 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def behaviour_outcome?(context, expected, args),
     do: IntegrationFamilyChatDriver.behaviour_outcome?(context, expected, args)
+
+  defp storage_control_label(html) do
+    html
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("section[aria-label='Migration status'] button")
+    |> LazyHTML.text()
+    |> String.trim()
+  end
 
   # The turn the runner's image event completes: the reference the transcript appends
   # for a valid session thread, rendered the way the Codex room renders it.

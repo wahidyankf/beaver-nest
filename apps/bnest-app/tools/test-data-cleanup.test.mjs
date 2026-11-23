@@ -12,7 +12,10 @@ import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import test, { mock } from "node:test";
-import { cleanupStaleTestData } from "./test-data-cleanup.mjs";
+import {
+  cleanupStaleTestData,
+  parseOlderThanHours,
+} from "./test-data-cleanup.mjs";
 
 // Every call passes `legacyParents: []` unless it tests the legacy sweep on
 // temporary directories. Without it the default would sweep the real
@@ -375,6 +378,66 @@ test("skips a legacy child that a concurrent removal takes after it was listed",
     mock.restoreAll();
     syncBuiltinESMExports();
     rmSync(home, { recursive: true, force: true });
+  }
+});
+
+// @scenario specs/apps/bnest/app-be/behaviours/operator_commands.feature: node tools/test-data-cleanup.mjs removes only stale marked test runs and reports the counts
+test("retains a stale run whose owner lives on another host", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "bnest-cleanup-host-test-"));
+
+  try {
+    const foreign = markedRun(
+      root,
+      "foreign-owner",
+      "2026-01-01T00:00:00.000Z",
+      {
+        hostname: "other-host",
+        pid: 99_999_999,
+      },
+    );
+
+    const result = cleanupStaleTestData({
+      roots: [root],
+      legacyParents: [],
+      olderThanHours: 24,
+      now,
+    });
+
+    assert.deepEqual(result, { removed: 0, retained: 1 });
+    assert.equal(existsSync(foreign), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// @scenario specs/apps/bnest/app-be/behaviours/operator_commands.feature: Test-data cleanup refuses bad arguments and negative hours
+test("parseOlderThanHours defaults to 24 hours", () => {
+  assert.equal(parseOlderThanHours([]), 24);
+  assert.equal(parseOlderThanHours(["--older-than-hours", "48"]), 48);
+});
+
+test("parseOlderThanHours refuses bad arguments with its usage line", () => {
+  for (const arguments_ of [
+    ["--unknown"],
+    ["--older-than-hours"],
+    ["extra"],
+    ["--older-than-hours", "1", "extra"],
+  ]) {
+    assert.throws(() => parseOlderThanHours(arguments_), {
+      message:
+        "usage: node tools/test-data-cleanup.mjs [--older-than-hours <hours>]",
+    });
+  }
+});
+
+test("parseOlderThanHours refuses negative and non-numeric hours", () => {
+  for (const arguments_ of [
+    ["--older-than-hours", "-1"],
+    ["--older-than-hours", "lot"],
+  ]) {
+    assert.throws(() => parseOlderThanHours(arguments_), {
+      message: "hours must be non-negative",
+    });
   }
 });
 
