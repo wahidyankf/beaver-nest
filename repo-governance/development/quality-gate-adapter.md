@@ -27,7 +27,7 @@ A catalog owner with no local counterpart stays named without a link: Bounded Co
 ## Adopter Decisions
 
 - **Callers.** [Planning](../workflows/plan/plan-planning.md) calls the plan gate after its post-write gate. No workflow calls any other gate: there is no release cut, and rules grooming never invokes the rules gate.
-- **Entry and exit check.** The `pre-push` surface in `repo-config.yml`, run as `rhino-consumer:test:repo` under `./hippo`.
+- **Entry and exit check.** The `pre-push` surface in `repo-config.yml` runs the leak scan (`public-safety-range`); `rhino-consumer:test:repo` runs at pull-request.
 - **Structure.** `rhino governance quality-gates validate`, on the pre-push and pull-request surfaces, checks every gate and propagation for its headings, verdicts, retired inputs, and cycle bound against `repo-config.yml`.
 - **Deterministic Boundary.** Each gate's last column names the tools this repository runs. No validator checks front matter or plan structure here, so both are judgeable, and plan and specs rows verify by rereading plus the pre-push surface.
 - **Review surface.** A hosted pull request, under the [merge preconditions](../conventions/pull-request-merge.md).
