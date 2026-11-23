@@ -1349,8 +1349,6 @@ Feature: Family chat room
   Rule: Formatted messages
 
   @fe-vitest-unit
-  # Exemption(integration): the message body is inserted into the page by browser JavaScript from server-rendered HTML, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A committed message is shown as formatted Markdown
-  @integration-exempt
   Scenario: A committed message is shown as formatted Markdown
     Given Ayah has sent the family chat message "**Dinner** is at [home](https://example.test/home)"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -1358,8 +1356,6 @@ Feature: Family chat room
     And the message links "home" to "https://example.test/home"
 
   @fe-vitest-unit
-  # Exemption(integration): the escaped server HTML that must never run exists only as browser DOM after JavaScript inserts it, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Raw HTML in a message is shown as text and never runs
-  @integration-exempt
   Scenario: Raw HTML in a message is shown as text and never runs
     Given Ayah has sent the family chat message "<img src=x onerror=alert(1)> <script>alert(1)</script> done"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -1367,8 +1363,6 @@ Feature: Family chat room
     And the message contains no script or image element
 
   @fe-vitest-unit
-  # Exemption(integration): a message that is still sending exists only in the browser outbox, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message that is still sending is shown as typed
-  @integration-exempt
   Scenario: A message that is still sending is shown as typed
     Given a visitor opens "/family-chat/ruang-keluarga"
     And the server holds the visitor's next message unanswered
@@ -1377,32 +1371,24 @@ Feature: Family chat room
     And the message shows "**not yet** typed" as typed text with no formatting
 
   @fe-vitest-unit
-  # Exemption(integration): the line breaks of a rendered message are browser DOM built from server HTML that Phoenix.LiveViewTest never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / Typed line breaks in a message are kept
-  @integration-exempt
   Scenario: Typed line breaks in a message are kept
     Given Ayah has sent a message typed on two lines
     When a visitor opens "/family-chat/ruang-keluarga"
     Then the message keeps its two lines on separate lines
 
   @fe-vitest-unit
-  # Exemption(integration): an image that the browser displays from a third-party address is rendered by browser JavaScript from server HTML that Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / An https image in a message is shown inline
-  @integration-exempt
   Scenario: An https image in a message is shown inline
     Given Ayah has sent the family chat message "![Garden](https://images.example.test/garden.png)"
     When a visitor opens "/family-chat/ruang-keluarga"
     Then the message shows the image "Garden" from "https://images.example.test/garden.png"
 
   @fe-vitest-unit
-  # Exemption(integration): a repository image is displayed from a browser request to the image route inside a message that browser JavaScript renders, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A repository image in a message is shown inline
-  @integration-exempt
   Scenario: A repository image in a message is shown inline
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor sends the family chat message "![Beaver Nest logo](apps/bnest-app/priv/static/images/beaver-nest-logo.png)"
     Then the message shows the image "Beaver Nest logo" from "/chat/images/apps/bnest-app/priv/static/images/beaver-nest-logo.png"
 
   @fe-vitest-unit
-  # Exemption(integration): the message is rendered by browser JavaScript from server HTML, and the text it leaves behind is browser DOM Phoenix.LiveViewTest never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / Images a message may not show stay as text
-  @integration-exempt
   Scenario Outline: Images a message may not show stay as text
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor sends the family chat message "<message>"
@@ -1416,24 +1402,18 @@ Feature: Family chat room
       | ![Local](javascript:alert(1))                      | [image not shown: Local] |
 
   @fe-vitest-unit
-  # Exemption(integration): a message that arrives live is rendered by browser JavaScript from the GraphQL subscription push, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / A formatted message that arrives live is formatted
-  @integration-exempt
   Scenario: A formatted message that arrives live is formatted
     Given a visitor opens "/family-chat/ruang-keluarga"
     When Ayah sends the family chat message "**Live** update" while the visitor watches
     Then the message shows "Live" in bold
 
   @fe-vitest-unit
-  # Exemption(integration): link targets are properties of the browser DOM built from server HTML, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Links in a message open in a new tab
-  @integration-exempt
   Scenario: Links in a message open in a new tab
     Given Ayah has sent the family chat message "[home](https://example.test/home) and [list](https://example.test/list)"
     When a visitor opens "/family-chat/ruang-keluarga"
     Then the links in the message open in a new tab
 
   @fe-vitest-unit
-  # Exemption(integration): the width of a rendered image and table is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide image or table fits a phone-width message
-  @integration-exempt
   Scenario: A wide image or table fits a phone-width message
     Given Ayah has sent a wide image and a wide table
     And the viewport is set to "mobile 390x844"
@@ -1442,16 +1422,12 @@ Feature: Family chat room
     And the image in the message loads
 
   @fe-vitest-unit
-  # Exemption(integration): the clipboard holds the text of a message rendered by browser JavaScript, a browser API Phoenix.LiveViewTest never reaches; alternative-proof: bnest-app-fe-e2e:test:e2e / Copying a formatted message copies what was typed
-  @integration-exempt
   Scenario: Copying a formatted message copies what was typed
     Given the visitor opens the action menu on a message whose body is "**Dinner** is at [home](https://example.test/home)"
     When the visitor chooses "Copy text"
     Then the clipboard holds exactly "**Dinner** is at [home](https://example.test/home)"
 
   @fe-vitest-unit
-  # Exemption(integration): the reply strip and the quote card are composer and browser DOM rendered from the message text, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / Replying to a formatted message quotes plain text
-  @integration-exempt
   Scenario: Replying to a formatted message quotes plain text
     Given Ayah has sent the family chat message "**Dinner** is at [home](https://example.test/home)"
     And a visitor opens "/family-chat/ruang-keluarga"
@@ -1460,8 +1436,6 @@ Feature: Family chat room
     And the quote contains no link
 
   @fe-vitest-unit
-  # Exemption(integration): the colours a browser resolves for inline elements inside a dark own bubble are part of the rendered page, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Inline text in my own message stays readable
-  @integration-exempt
   Scenario: Inline text in my own message stays readable
     Given a visitor opens "/family-chat/ruang-keluarga"
     When the visitor sends this family chat message:
