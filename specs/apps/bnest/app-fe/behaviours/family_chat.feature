@@ -249,8 +249,6 @@ Feature: Family chat room
   Rule: Reading a reply
 
   @fe-vitest-unit
-  # Exemption(integration): the four arrival paths include a live socket push and a reconnect catch-up that Phoenix.LiveViewTest cannot drive against the browser renderer; alternative-proof: bnest-app-fe-e2e:test:e2e / A reply carries its quote through each arrival path
-  @integration-exempt
   Scenario Outline: A reply carries its quote through each arrival path
     Given another member has replied to one of the visitor's messages
     When the reply reaches the visitor through <path>
@@ -265,8 +263,6 @@ Feature: Family chat room
       | reconnect catch-up after a dropped socket |
 
   @fe-vitest-unit
-  # Exemption(integration): messages and their quotes are rendered by browser JavaScript from GraphQL results, not by a server-rendered page Phoenix.LiveViewTest observes; alternative-proof: bnest-app-fe-e2e:test:e2e / A reply to a reply shows only one level of quote
-  @integration-exempt
   Scenario: A reply to a reply shows only one level of quote
     Given message A exists
     And message B is a reply to A
@@ -275,8 +271,6 @@ Feature: Family chat room
     And that quote shows no quote of its own
 
   @fe-vitest-unit
-  # Exemption(integration): scrolling, highlighting, and moving focus to a target message are browser layout and focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The original is already on screen
-  @integration-exempt
   Scenario: The original is already on screen
     Given a reply and the message it quotes are both loaded
     When the visitor activates the quote
@@ -285,8 +279,6 @@ Feature: Family chat room
     And keyboard focus moves to it
 
   @fe-vitest-unit
-  # Exemption(integration): loading older pages in response to a jump and landing on the target is browser paging and scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The original is above the loaded window
-  @integration-exempt
   Scenario: The original is above the loaded window
     Given a reply quotes a message two older pages above the loaded window
     When the visitor activates the quote
@@ -294,8 +286,6 @@ Feature: Family chat room
     And the history scrolls to it
 
   @fe-vitest-unit
-  # Exemption(integration): the jump pages older history in from the browser and announces its refusal there, which Phoenix.LiveViewTest never executes; alternative-proof: bnest-app-fe-e2e:test:e2e / The original is beyond the jump bound
-  @integration-exempt
   Scenario: The original is beyond the jump bound
     Given a reply quotes a message more than five older pages above the loaded window
     When the visitor activates the quote
@@ -303,8 +293,6 @@ Feature: Family chat room
     And the room states that the message is too far back to jump to
 
   @fe-vitest-unit
-  # Exemption(integration): honouring prefers-reduced-motion is a real media-query and computed-style concern only a browser resolves; alternative-proof: bnest-app-fe-e2e:test:e2e / Highlighting respects reduced motion
-  @integration-exempt
   Scenario: Highlighting respects reduced motion
     Given the visitor's system requests reduced motion
     When the visitor jumps to a quoted message
@@ -314,8 +302,6 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): a end-to-end keyboard journey needs a real focus engine, which no browserless harness provides; alternative-proof: bnest-app-fe-e2e:test:e2e / The whole journey works from the keyboard alone
-  @integration-exempt
   Scenario: The whole journey works from the keyboard alone
     Given a visitor opens "/family-chat/ruang-keluarga" using only a keyboard
     And the visitor's pointer is a fine pointer
@@ -324,8 +310,6 @@ Feature: Family chat room
     And focus is never left on a control the visitor cannot operate
 
   @fe-vitest-unit
-  # Exemption(integration): tab order across 50 rendered items is real focus-engine behaviour Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / Tab does not walk through every message in the room
-  @integration-exempt
   Scenario: Tab does not walk through every message in the room
     Given the history holds 50 messages
     When the visitor presses Tab from the control before the history
@@ -333,8 +317,6 @@ Feature: Family chat room
     And the arrow keys move between messages
 
   @fe-vitest-unit
-  # Exemption(integration): an element's computed accessible name comes from the browser accessibility tree, which no browserless harness builds; alternative-proof: bnest-app-fe-e2e:test:e2e / A quote exposes an accessible name naming its sender
-  @integration-exempt
   Scenario: A quote exposes an accessible name naming its sender
     Given a reply quoting a message from "Ayah" is rendered
     When assistive technology reads that reply
@@ -342,8 +324,6 @@ Feature: Family chat room
     And the quote is exposed as an activatable control
 
   @fe-vitest-unit
-  # Exemption(integration): where a focused message sits in a scrolled history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The keys that move focus through the history bring the focused message into view
-  @integration-exempt
   Scenario Outline: The keys that move focus through the history bring the focused message into view
     Given the viewport is set to "desktop 1440x900"
     And the history holds 50 messages
@@ -364,8 +344,6 @@ Feature: Family chat room
       | 30           | 19    | End       | 1       | 49     |
 
   @fe-vitest-unit
-  # Exemption(integration): where the action menu opens beside a message in a scrolled history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The action menu opened from the keyboard sits beside its message
-  @integration-exempt
   Scenario: The action menu opened from the keyboard sits beside its message
     Given the viewport is set to "desktop 1440x900"
     And the history holds 50 messages
@@ -377,8 +355,6 @@ Feature: Family chat room
     Then the message action menu is beside the focused message inside the screen
 
   @fe-vitest-unit
-  # Exemption(integration): the top edge of a message taller than the scrolled history is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message taller than the window shows its top when focus reaches it
-  @integration-exempt
   Scenario: A message taller than the window shows its top when focus reaches it
     Given the viewport is set to "landscape 844x390"
     And the history holds 49 messages and a message taller than the window follows them
@@ -392,8 +368,6 @@ Feature: Family chat room
     And the top of the focused message is inside the visible history
 
   @fe-vitest-unit
-  # Exemption(integration): whether a message already in view stays where it is while the history is scrolled is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A message already in view does not move the history
-  @integration-exempt
   Scenario: A message already in view does not move the history
     Given the viewport is set to "desktop 1440x900"
     And the history holds 50 messages

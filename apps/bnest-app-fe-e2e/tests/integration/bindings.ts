@@ -88,4 +88,17 @@
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keyboard focus stays in a diagram's message when its picture replaces the source
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The quote card can be used from the keyboard
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reply carries its quote through each arrival path
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reply to a reply shows only one level of quote
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is already on screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is above the loaded window
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is beyond the jump bound
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Highlighting respects reduced motion
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The whole journey works from the keyboard alone
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab does not walk through every message in the room
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A quote exposes an accessible name naming its sender
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The keys that move focus through the history bring the focused message into view
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The action menu opened from the keyboard sits beside its message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message taller than the window shows its top when focus reaches it
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message already in view does not move the history
 export const bindingLevel = "integration";
