@@ -176,6 +176,14 @@ defmodule BnestApp.MixProject do
       BnestApp.Behaviour.OperatorConfigurationModel,
       BnestApp.Behaviour.OperatorConfiguration.IntegrationAdapter,
       BnestApp.Behaviour.OperatorConfiguration.UnitAdapter,
+      # Scenario adapters for http_endpoints.feature. They drive the HTTP
+      # boundary surface, so the unit denominator leaves them out, as it does
+      # the other scenario adapters.
+      BnestApp.Behaviour.HttpEndpoints.IntegrationAdapter,
+      BnestApp.Behaviour.HttpEndpoints.IntegrationAdapter.InvalidRolesStore,
+      BnestApp.Behaviour.HttpEndpoints.IntegrationAdapter.RejectingStore,
+      BnestApp.Behaviour.HttpEndpoints.UnitAdapter,
+      BnestApp.Behaviour.HttpEndpoints.UnitAdapter.RejectingStore,
       BnestApp.SchemaSourceScan,
       # Spawns test instances, which only `test:integration` runs, so the unit denominator leaves it out.
       BnestApp.FreshDatabaseCase,

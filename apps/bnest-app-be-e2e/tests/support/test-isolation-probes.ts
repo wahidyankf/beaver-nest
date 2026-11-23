@@ -57,6 +57,29 @@ export async function readyStorageGeneration(): Promise<string> {
   return generation;
 }
 
+// The liveness answer of the server the harness booted, fetched with Node fetch like the other probes. The harness
+// boots one fixed pair (playwright.config.mts `webServer.env`: revision `be-e2e`, slot `blue`), so the liveness
+// proof is that pair on every outline row; the row variance is proven at the unit and integration layers.
+export type LiveReply = {
+  status: number;
+  body: unknown;
+  revisionHeader: string | null;
+};
+
+export async function liveProbe(): Promise<LiveReply> {
+  const response = await fetch(`${backendOriginFromEnv()}/health/live`, {
+    headers: { accept: "application/json" },
+    redirect: "error",
+    signal: AbortSignal.timeout(probeTimeoutMs),
+  });
+  const body: unknown = await response.json().catch(() => null);
+  return {
+    status: response.status,
+    body,
+    revisionHeader: response.headers.get("x-bnest-revision"),
+  };
+}
+
 // The run roots as the leak helper reads them: every instance directory under either root is a leak after teardown.
 export function runtimeRoots(): TestRuntime {
   return {
