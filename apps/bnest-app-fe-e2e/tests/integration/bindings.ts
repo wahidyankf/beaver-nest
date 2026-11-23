@@ -101,4 +101,14 @@
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The action menu opened from the keyboard sits beside its message
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message taller than the window shows its top when focus reaches it
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message already in view does not move the history
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A returning member lands on the first unread message with an unread marker
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Earlier messages are shown above the unread marker and older history can be loaded
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member with nothing unread lands on the newest message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Reading down to the newest message moves the resume point
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: More unread messages than one page still offer a way back to the newest
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Loading older history preserves the visitor's scroll anchor
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message is announced to assistive technology without moving focus from the composer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message away from the bottom shows "New messages below" instead of scrolling
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room shows that notifications are blocked
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Opening the room offline shows no signed-in messages from the device's saved copy
 export const bindingLevel = "integration";

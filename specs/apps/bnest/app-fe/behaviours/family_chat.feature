@@ -870,8 +870,6 @@ Feature: Family chat room
   Rule: Resuming at the last read position
 
   @fe-vitest-unit
-  # Exemption(integration): which message a returning visitor lands on is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A returning member lands on the first unread message with an unread marker
-  @integration-exempt
   Scenario: A returning member lands on the first unread message with an unread marker
     Given the family chat holds more earlier messages than one context page
     And the visitor has read the family chat up to a known message
@@ -881,8 +879,6 @@ Feature: Family chat room
     And an unread marker separates the read messages from the new ones
 
   @fe-vitest-unit
-  # Exemption(integration): what sits above the unread marker is browser scroll and paging state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Earlier messages are shown above the unread marker and older history can be loaded
-  @integration-exempt
   Scenario: Earlier messages are shown above the unread marker and older history can be loaded
     Given the family chat holds more earlier messages than one context page
     And the visitor has read the family chat up to a known message
@@ -892,8 +888,6 @@ Feature: Family chat room
     And older history can still be loaded on request
 
   @fe-vitest-unit
-  # Exemption(integration): landing on the newest message is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A member with nothing unread lands on the newest message
-  @integration-exempt
   Scenario Outline: A member with nothing unread lands on the newest message
     Given <history>
     When <visit>
@@ -906,8 +900,6 @@ Feature: Family chat room
       | the visitor has never opened the family chat on this device  | a visitor opens "/family-chat/ruang-keluarga"      |
 
   @fe-vitest-unit
-  # Exemption(integration): reaching the bottom of a scrollable history is browser scroll state the server never observes; alternative-proof: bnest-app-fe-e2e:test:e2e / Reading down to the newest message moves the resume point
-  @integration-exempt
   Scenario: Reading down to the newest message moves the resume point
     Given the visitor has read the family chat up to a known message
     And 5 newer messages arrived while the visitor was away
@@ -918,8 +910,6 @@ Feature: Family chat room
     And no unread marker is shown
 
   @fe-vitest-unit
-  # Exemption(integration): a partially loaded history and its jump control are browser-side paging state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / More unread messages than one page still offer a way back to the newest
-  @integration-exempt
   Scenario: More unread messages than one page still offer a way back to the newest
     Given the visitor left more unread messages behind than one page holds
     When the visitor reopens "/family-chat/ruang-keluarga"
@@ -1000,16 +990,12 @@ Feature: Family chat room
   Rule: Scroll anchor and live-region announcements
 
   @fe-vitest-unit
-  # Exemption(integration): measured scroll position and focus retention require a real browser layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / Loading older history preserves the visitor's scroll anchor
-  @integration-exempt
   Scenario: Loading older history preserves the visitor's scroll anchor
     Given a visitor opens "/family-chat/ruang-keluarga" scrolled to a known older message
     When the visitor loads an older history page
     Then the previously visible message remains at the same visual position
 
   @fe-vitest-unit
-  # Exemption(integration): live-region announcement and focus retention require a real browser accessibility tree; alternative-proof: bnest-app-fe-e2e:test:e2e / A new message is announced to assistive technology without moving focus from the composer
-  @integration-exempt
   Scenario: A new message is announced to assistive technology without moving focus from the composer
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     When another member's message arrives away from the bottom of the scroll position
@@ -1017,8 +1003,6 @@ Feature: Family chat room
     And focus remains in the composer
 
   @fe-vitest-unit
-  # Exemption(integration): where a new message lands relative to the scroll position is browser scroll state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / A new message away from the bottom shows "New messages below" instead of scrolling
-  @integration-exempt
   Scenario: A new message away from the bottom shows "New messages below" instead of scrolling
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     When another member's message arrives away from the bottom of the scroll position
@@ -1044,8 +1028,6 @@ Feature: Family chat room
       | unsupported                 | Notifications unavailable in this browser |
 
   @fe-vitest-unit
-  # Exemption(integration): the device's notification permission is a browser capability the server never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / The room shows that notifications are blocked
-  @integration-exempt
   Scenario: The room shows that notifications are blocked
     Given the visitor's device reports push state "permission denied"
     When a visitor opens "/family-chat/ruang-keluarga"
@@ -1062,8 +1044,6 @@ Feature: Family chat room
     Then the room shows the control "Enable notifications"
 
   @fe-vitest-unit
-  # Exemption(integration): answering an offline navigation runs in the browser's service worker, which Phoenix.LiveViewTest never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / Opening the room offline shows no signed-in messages from the device's saved copy
-  @integration-exempt
   Scenario: Opening the room offline shows no signed-in messages from the device's saved copy
     Given a visitor has exchanged messages
     When the visitor opens the room while offline
