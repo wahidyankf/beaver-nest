@@ -472,8 +472,6 @@ Feature: Beaver Nest chat
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): Enter and Shift+Enter are physical key chords the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / Enter and Shift+Enter follow the visitor's pointer, not the screen size
-  @integration-exempt
   Scenario Outline: Enter and Shift+Enter follow the visitor's pointer, not the screen size
     Given the Codex chat page is open at "<viewport>"
     And the visitor's pointer is a <pointer> pointer
@@ -495,8 +493,6 @@ Feature: Beaver Nest chat
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): Enter and Shift+Enter are physical key chords the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / A filled draft is sent once, and a blank, whitespace or busy draft is never sent
-  @integration-exempt
   Scenario Outline: A filled draft is sent once, and a blank, whitespace or busy draft is never sent
     Given the Codex message box has keyboard focus
     And the visitor's pointer is a <pointer> pointer
@@ -517,8 +513,6 @@ Feature: Beaver Nest chat
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): where keyboard focus sits while Codex replies and after a send, by key or by pointer, is browser focus state the server never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Keyboard focus stays in the Codex message box after a reply
-  @integration-exempt
   Scenario Outline: Keyboard focus stays in the Codex message box after a reply
     Given the Codex message box has keyboard focus
     And the visitor's pointer is a <pointer> pointer
@@ -550,8 +544,6 @@ Feature: Beaver Nest chat
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): Enter and Shift+Enter are physical key chords the server never receives; alternative-proof: bnest-app-fe-e2e:test:e2e / A confirmed composition never sends in the Codex message box
-  @integration-exempt
   Scenario Outline: A confirmed composition never sends in the Codex message box
     Given the Codex message box has keyboard focus
     And the visitor's pointer is a <pointer> pointer
@@ -568,8 +560,6 @@ Feature: Beaver Nest chat
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): the hint's visibility is a browser layout result Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex send shortcut hint follows the visitor's pointer
-  @integration-exempt
   Scenario Outline: The Codex send shortcut hint follows the visitor's pointer
     Given the Codex chat page is open at "<viewport>"
     And the visitor's pointer is a <pointer> pointer
@@ -586,8 +576,6 @@ Feature: Beaver Nest chat
 
   @fe-vitest-unit
   @fine-pointer
-  # Exemption(integration): a pointer change is a browser media state Phoenix.LiveViewTest never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message box follows a pointer change while the page is open
-  @integration-exempt
   Scenario: The Codex message box follows a pointer change while the page is open
     Given the Codex chat page is open at "tablet 1024x768"
     And the visitor's pointer is a fine pointer
@@ -600,8 +588,6 @@ Feature: Beaver Nest chat
   Rule: Codex message box and Send button look and line up as one composer
 
   @fe-vitest-unit
-  # Exemption(integration): the rendered edges of the box and the Send button are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Send button lines up with the message box
-  @integration-exempt
   Scenario Outline: The Send button lines up with the message box
     Given the Codex chat page is open at "<viewport>"
     When the page is laid out
@@ -615,24 +601,18 @@ Feature: Beaver Nest chat
       | desktop 1440x900  |
 
   @fe-vitest-unit
-  # Exemption(integration): the resize handle and the placeholder colour are painted by the browser from the stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message box has no resize handle
-  @integration-exempt
   Scenario: The Codex message box has no resize handle
     Given the Codex chat page is open at "mobile 390x844"
     When the page is laid out
     Then the Codex message box has no resize handle
 
   @fe-vitest-unit
-  # Exemption(integration): the placeholder colour is painted by the browser from the stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex message box placeholder meets the contrast target
-  @integration-exempt
   Scenario: The Codex message box placeholder meets the contrast target
     Given the Codex chat page is open at "mobile 390x844"
     When the page is laid out
     Then the Codex message box placeholder has at least 4.5 to 1 contrast with the box
 
   @fe-vitest-unit
-  # Exemption(integration): the colours of the two Send buttons are painted by the browser from the stylesheets, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex Send button and the Family Chat Send button share one colour
-  @integration-exempt
   Scenario: The Codex Send button and the Family Chat Send button share one colour
     Given the Codex chat page is open at "mobile 390x844"
     When the page is laid out
@@ -640,8 +620,6 @@ Feature: Beaver Nest chat
     And the Codex Send button text meets the contrast target
 
   @fe-vitest-unit
-  # Exemption(integration): the corner radii are painted by the browser from the stylesheet, which Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / The Codex Send button has four equal round corners that match the Family Chat Send button
-  @integration-exempt
   Scenario: The Codex Send button has four equal round corners that match the Family Chat Send button
     Given the Codex chat page is open at "mobile 390x844"
     When the page is laid out

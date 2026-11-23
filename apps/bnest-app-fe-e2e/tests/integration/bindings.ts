@@ -128,6 +128,17 @@
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram draws again offline after it was drawn once
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex chat without a diagram does not load the diagram engine
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The largest allowed Codex flowchart is drawn within the time budget
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Enter and Shift+Enter follow the visitor's pointer, not the screen size
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A filled draft is sent once, and a blank, whitespace or busy draft is never sent
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Keyboard focus stays in the Codex message box after a reply
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A confirmed composition never sends in the Codex message box
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex send shortcut hint follows the visitor's pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box follows a pointer change while the page is open
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Send button lines up with the message box
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box has no resize handle
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box placeholder meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex Send button and the Family Chat Send button share one colour
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex Send button has four equal round corners that match the Family Chat Send button
 
 export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Every control in the room is reachable by keyboard with a visible focus indicator
