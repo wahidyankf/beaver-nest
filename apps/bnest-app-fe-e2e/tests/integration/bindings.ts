@@ -111,6 +111,24 @@
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message away from the bottom shows "New messages below" instead of scrolling
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room shows that notifications are blocked
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Opening the room offline shows no signed-in messages from the device's saved copy
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A streaming Codex reply shows the diagram source until the reply is complete
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An oversized diagram stays as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An unsupported diagram type stays as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Diagrams beyond the first four in a message stay as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex flowchart is drawn as a picture
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram with a syntax error stays visible as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Hostile Codex diagram text is inert
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A diagram that carries settings is not drawn and shows a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A drawn diagram stays drawn and keeps its source open when the conversation grows
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram stays as source when the diagram engine cannot load
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram draws after the diagram engine starts on a later try
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Clearing the Codex chat removes its diagrams and the next reply draws again
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A narrow Codex diagram fits a 320 pixel bubble
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A wide Codex diagram keeps a readable size and scrolls inside its own box
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram draws again offline after it was drawn once
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex chat without a diagram does not load the diagram engine
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The largest allowed Codex flowchart is drawn within the time budget
+
 export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Every control in the room is reachable by keyboard with a visible focus indicator
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room has no horizontal page scroll

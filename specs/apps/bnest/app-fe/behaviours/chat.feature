@@ -331,8 +331,6 @@ Feature: Beaver Nest chat
 
   Rule: Codex reply diagrams
 
-  # Exemption(integration): Phoenix.LiveViewTest keeps the old children of a node whose new render says phx-update="ignore", so the completion patch never delivers the marker that the browser's morph delivers; alternative-proof: bnest-app-fe-e2e:test:e2e / A streaming Codex reply shows the diagram source until the reply is complete
-  @integration-exempt
   Scenario: A streaming Codex reply shows the diagram source until the reply is complete
     Given an approved admin is logged in
     And a visitor opens "/chat"
@@ -345,8 +343,6 @@ Feature: Beaver Nest chat
     Then the latest Codex reply is complete
     And the latest Codex reply marks the diagram for drawing
 
-  # Exemption(integration): Phoenix.LiveViewTest keeps the old children of a node whose new render says phx-update="ignore", so the completion patch never delivers the note and marker that the browser's morph delivers; alternative-proof: bnest-app-fe-e2e:test:e2e / An oversized diagram stays as source with a note
-  @integration-exempt
   Scenario: An oversized diagram stays as source with a note
     Given an approved admin is logged in
     And a visitor opens "/chat"
@@ -354,8 +350,6 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     Then the latest Codex reply shows the text "Diagram not drawn: it is too large."
 
-  # Exemption(integration): Phoenix.LiveViewTest keeps the old children of a node whose new render says phx-update="ignore", so the completion patch never delivers the note and marker that the browser's morph delivers; alternative-proof: bnest-app-fe-e2e:test:e2e / An unsupported diagram type stays as source with a note
-  @integration-exempt
   Scenario: An unsupported diagram type stays as source with a note
     Given an approved admin is logged in
     And a visitor opens "/chat"
@@ -363,8 +357,6 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     Then the latest Codex reply shows the text "Diagram not drawn: this diagram type is not supported."
 
-  # Exemption(integration): Phoenix.LiveViewTest keeps the old children of a node whose new render says phx-update="ignore", so the completion patch never delivers the note and marker that the browser's morph delivers; alternative-proof: bnest-app-fe-e2e:test:e2e / Diagrams beyond the first four in a message stay as source with a note
-  @integration-exempt
   Scenario: Diagrams beyond the first four in a message stay as source with a note
     Given an approved admin is logged in
     And a visitor opens "/chat"
@@ -375,8 +367,6 @@ Feature: Beaver Nest chat
     And the latest Codex reply marks 4 diagrams for drawing
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): the picture is drawn by the browser's diagram engine, which the Elixir layers never run; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex flowchart is drawn as a picture
-  @integration-exempt
   Scenario: A Codex flowchart is drawn as a picture
     Given a completed Codex reply marks a flowchart for drawing
     When the browser draws the marked diagrams
@@ -385,8 +375,6 @@ Feature: Beaver Nest chat
     And the picture loads nothing from another origin
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): the syntax check runs in the browser's diagram engine, which the Elixir layers never run; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex diagram with a syntax error stays visible as source with a note
-  @integration-exempt
   Scenario: A Codex diagram with a syntax error stays visible as source with a note
     Given a completed Codex reply marks a flowchart with a syntax error for drawing
     When the browser draws the marked diagrams
@@ -394,8 +382,6 @@ Feature: Beaver Nest chat
     And the diagram source "A -->" is kept as text
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): a script, an event handler and a network request can only be observed in a real page that runs scripts and records requests; alternative-proof: bnest-app-fe-e2e:test:e2e / Hostile Codex diagram text is inert
-  @integration-exempt
   Scenario: Hostile Codex diagram text is inert
     Given a completed Codex reply holds hostile diagram text
     When the browser draws the marked diagrams
@@ -404,16 +390,12 @@ Feature: Beaver Nest chat
     And the diagram text shows as text only
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): the shape settings are read by the browser's diagram engine, which the Elixir layers never run; alternative-proof: bnest-app-fe-e2e:test:e2e / A diagram that carries settings is not drawn and shows a note
-  @integration-exempt
   Scenario: A diagram that carries settings is not drawn and shows a note
     Given a completed Codex reply holds hostile diagram text
     When the browser draws the marked diagrams
     Then the diagram with shape data is not drawn and shows the note that settings are not allowed
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): a patch to the conversation is applied by the browser's LiveView client, which Phoenix.LiveViewTest does not execute; alternative-proof: bnest-app-fe-e2e:test:e2e / A drawn diagram stays drawn and keeps its source open when the conversation grows
-  @integration-exempt
   Scenario: A drawn diagram stays drawn and keeps its source open when the conversation grows
     Given a completed Codex reply shows a drawn flowchart with its source open
     When a later reply changes the conversation
@@ -422,8 +404,6 @@ Feature: Beaver Nest chat
     And the conversation holds 1 flowchart picture
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): the engine is a separate browser module request that Phoenix.LiveViewTest never makes; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex diagram stays as source when the diagram engine cannot load
-  @integration-exempt
   Scenario: A Codex diagram stays as source when the diagram engine cannot load
     Given the diagram engine cannot be loaded
     And a completed Codex reply marks a flowchart for drawing
@@ -432,8 +412,6 @@ Feature: Beaver Nest chat
     And the diagram source "A --> B" is kept as text
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): the engine starts in a hidden browser frame, and the browser keeps a failed module load, which Phoenix.LiveViewTest never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex diagram draws after the diagram engine starts on a later try
-  @integration-exempt
   Scenario: A Codex diagram draws after the diagram engine starts on a later try
     Given the first start of the diagram engine fails
     And a completed Codex reply marks a flowchart for drawing
@@ -445,8 +423,6 @@ Feature: Beaver Nest chat
     Then the picture is labelled "Flowchart"
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): the removal and the redraw happen in the browser after the server clears the conversation; alternative-proof: bnest-app-fe-e2e:test:e2e / Clearing the Codex chat removes its diagrams and the next reply draws again
-  @integration-exempt
   Scenario: Clearing the Codex chat removes its diagrams and the next reply draws again
     Given a completed Codex reply shows a drawn flowchart
     When the visitor clears the chat in the browser
@@ -456,8 +432,6 @@ Feature: Beaver Nest chat
     Then the picture is labelled "Flowchart"
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): the 320 pixel layout is measured by a browser layout engine, which Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / A narrow Codex diagram fits a 320 pixel bubble
-  @integration-exempt
   Scenario: A narrow Codex diagram fits a 320 pixel bubble
     Given a completed Codex reply marks a flowchart for drawing
     When the browser draws the marked diagrams
@@ -465,8 +439,6 @@ Feature: Beaver Nest chat
     And the picture fits its own box at 320 pixels
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): the 320 pixel layout is measured by a browser layout engine, which Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / A wide Codex diagram keeps a readable size and scrolls inside its own box
-  @integration-exempt
   Scenario: A wide Codex diagram keeps a readable size and scrolls inside its own box
     Given a completed Codex reply marks a wide flowchart for drawing
     When the browser draws the marked diagrams
@@ -475,8 +447,6 @@ Feature: Beaver Nest chat
     And the picture scrolls inside its own box at 320 pixels
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): the offline cache belongs to the browser's service worker, which Phoenix.LiveViewTest does not run; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex diagram draws again offline after it was drawn once
-  @integration-exempt
   Scenario: A Codex diagram draws again offline after it was drawn once
     Given a completed Codex reply marks a flowchart for drawing
     When the browser draws the marked diagrams
@@ -486,16 +456,12 @@ Feature: Beaver Nest chat
     And the picture is labelled "Flowchart"
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): whether the browser asks the server for the engine file is a network fact the Elixir layers cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A Codex chat without a diagram does not load the diagram engine
-  @integration-exempt
   Scenario: A Codex chat without a diagram does not load the diagram engine
     Given a completed Codex reply has no diagram
     When the chat page loads
     Then the diagram engine was not requested
 
   @fe-vitest-unit @codex-diagram
-  # Exemption(integration): the render time of the largest allowed diagram depends on the browser's layout engine; alternative-proof: bnest-app-fe-e2e:test:e2e / The largest allowed Codex flowchart is drawn within the time budget
-  @integration-exempt
   Scenario: The largest allowed Codex flowchart is drawn within the time budget
     Given a completed Codex reply marks the largest allowed flowchart for drawing
     When the browser draws the marked diagrams
