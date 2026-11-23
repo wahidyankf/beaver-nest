@@ -110,7 +110,7 @@ target of this name reports the same result.
 | `rhino`                                   | the bootstrap                      |
 | `rhino.lock`                              | the pinned release and its digests |
 | `.github/scripts/test-rhino-bootstrap.sh` | the bootstrap suite                |
-| `specs/apps/tools/rhino-consumer/`             | the bootstrap's specification      |
+| `specs/apps/tools/rhino-consumer/`        | the bootstrap's specification      |
 
 ## See also
 
