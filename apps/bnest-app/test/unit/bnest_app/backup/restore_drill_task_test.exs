@@ -108,8 +108,8 @@ defmodule BnestApp.Backup.RestoreDrillTaskTest do
 
     for argument <- [
           context.drill.outside_path,
-          Path.basename(context.drill.directory_path),
-          Path.basename(context.drill.link_path)
+          context.drill.directory_path |> String.split("/") |> List.last(),
+          context.drill.link_path |> String.split("/") |> List.last()
         ] do
       assert DrillTask.execute(["--artifact", argument]) == %{
                exit_status: 1,
