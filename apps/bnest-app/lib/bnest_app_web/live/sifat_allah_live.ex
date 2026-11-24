@@ -297,6 +297,9 @@ defmodule BnestAppWeb.SifatAllahLive do
           <h1 id="sifat-title">Misi Hafal 40 Sifat Allah</h1>
           <p>20 pasangan: nama, arti, dan lawannya</p>
         </div>
+        <p :if={@save_error} class="sifat-feedback is-retry" role="alert">
+          {@save_error}
+        </p>
 
         <section class="sifat-progress" aria-label="Kemajuan hafalan">
           <div>
@@ -689,6 +692,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       auto_advance_token: 0,
       reset_confirmation?: false,
       persist_migrated_snapshot?: false,
+      save_error: nil,
       central_record: nil
     }
   end
@@ -931,12 +935,14 @@ defmodule BnestAppWeb.SifatAllahLive do
 
     case SifatAllah.save_progress(owner_id, snapshot, socket.assigns.central_record) do
       {:ok, record} ->
-        assign(socket, :central_record, record)
+        assign(socket, central_record: record, save_error: nil)
 
+      # The notice lives in the page itself rather than the layout flash, so a
+      # failed save is still announced when only the activity re-renders.
       {:error, _reason} ->
-        put_flash(
+        assign(
           socket,
-          :error,
+          :save_error,
           "Progress could not be saved. The previous saved progress is unchanged."
         )
     end

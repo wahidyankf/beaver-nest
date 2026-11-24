@@ -42,6 +42,7 @@ describe("randomItem", () => {
   });
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A celebration plays on success and is skipped with reduced motion
 describe("celebrateSifatAnswer", () => {
   it("bursts fourteen confetti pieces when motion is allowed", () => {
     matchMedia(false);

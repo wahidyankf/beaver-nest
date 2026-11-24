@@ -538,6 +538,76 @@ defmodule BnestAppWeb.SifatAllahLiveTest do
     assert has_element?(view, "button", "Latihan Ujian")
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A failed progress save says the saved progress is unchanged
+  test "a failed progress save says the saved progress is unchanged" do
+    previous_cutover = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
+
+    on_exit(fn ->
+      Application.put_env(:bnest_app, :identity_cutover_enabled, previous_cutover)
+    end)
+
+    Application.put_env(:bnest_app, :identity_cutover_enabled, true)
+
+    conn = BnestAppWeb.ConnCase.authenticated_conn(Phoenix.ConnTest.build_conn())
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    view |> element("button", "Belajar 3 Pasangan") |> render_click()
+    view |> element("button", "Aku sudah ingat") |> render_click()
+    view |> element("button", "Pasangan berikutnya →") |> render_click()
+    assert has_element?(view, ".sifat-stage", "6 dari 120 soal sudah hafal")
+
+    previous_store = Application.fetch_env!(:bnest_app, BnestApp.SifatAllah)
+
+    on_exit(fn -> Application.put_env(:bnest_app, BnestApp.SifatAllah, previous_store) end)
+
+    Application.put_env(
+      :bnest_app,
+      BnestApp.SifatAllah,
+      Keyword.put(previous_store, :progress_store, BnestApp.Behaviour.FailingProgressStore)
+    )
+
+    html = view |> element("button", "Aku sudah ingat") |> render_click()
+
+    assert html =~ "Progress could not be saved. The previous saved progress is unchanged."
+
+    Application.put_env(:bnest_app, BnestApp.SifatAllah, previous_store)
+
+    {:ok, reloaded, _html} = live(recycle(conn), "/apps/sifat-allah")
+    assert has_element?(reloaded, ".sifat-stage", "6 dari 120 soal sudah hafal")
+
+    refute has_element?(
+             reloaded,
+             "[data-testid=sifat-allah-progress]",
+             "12 dari 120 soal sudah hafal"
+           )
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: The page says where progress is stored for this user
+  test "the page says the account store for a signed-in child" do
+    previous_cutover = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
+
+    on_exit(fn ->
+      Application.put_env(:bnest_app, :identity_cutover_enabled, previous_cutover)
+    end)
+
+    Application.put_env(:bnest_app, :identity_cutover_enabled, true)
+
+    conn = BnestAppWeb.ConnCase.authenticated_conn(Phoenix.ConnTest.build_conn())
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    assert render(view) =~ "Tersimpan aman untuk akun ini"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: The page says where progress is stored for this user
+  test "the page says the browser store for the local user", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/apps/sifat-allah")
+
+    assert render(view) =~ "Tersimpan di browser ini"
+  end
+
   defp return_to_mission(view) do
     view
     |> element("button", "← Kembali ke misi")

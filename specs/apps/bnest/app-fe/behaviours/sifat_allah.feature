@@ -223,3 +223,42 @@ Feature: Revising the 20 attributes of Allah
     When the visitor answers "Fana’" in focused review
     And the visitor continues focused review
     Then the page displays the text "Apa arti Wujud?"
+
+  # Carries BN-SIFAT-15.
+  @fe-vitest-unit
+  # Exemption(integration): reach: confetti is drawn by browser JavaScript from the `sifat-celebrate` push event, which Phoenix.LiveViewTest never executes (it can assert only the event); alternative-proof: bnest-app-fe-e2e:test:e2e / A celebration plays on success and is skipped with reduced motion
+  @integration-exempt
+  Scenario Outline: A celebration plays on success and is skipped with reduced motion
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts a quiz
+    And the visitor answers "<answer>" with "<motion>" motion preference
+    Then the celebration layer holds <pieces> pieces
+    And the page displays the text "<feedback>"
+
+    Examples:
+      | answer | motion  | pieces | feedback                                                              |
+      | Ada    | allowed | 14     | Betul!                                                                |
+      | Ada    | reduced | 0      | Betul!                                                                |
+      | Lemah  | allowed | 0      | Belum tepat. Jawaban yang benar: Ada. Nanti kita ulang lagi, ya. |
+
+  # Carries BN-SIFAT-16.
+  # Exemption(e2e): reach: the e2e server's SQLite store is healthy and no browser action makes its write fail; alternative-proof: bnest-app:test:integration / A failed progress save says the saved progress is unchanged
+  @e2e-exempt
+  Scenario: A failed progress save says the saved progress is unchanged
+    Given a visitor with saved Sifat Allah progress studies the next pair
+    When the progress store rejects saves
+    And the visitor marks the current pair while saves fail
+    Then the page shows the failed save notice
+    When the visitor reloads the page
+    Then the progress shows the earlier saved progress
+
+  # Carries BN-SIFAT-17.
+  Scenario Outline: The page says where progress is stored for this user
+    Given <ready>
+    When the revision page opens
+    Then the page shows the storage note "<message>"
+
+    Examples:
+      | ready                      | message                       |
+      | the signed-in child is ready | Tersimpan aman untuk akun ini |
+      | the local browser is ready | Tersimpan di browser ini      |

@@ -138,6 +138,19 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     |> Map.put(:page, LazyHTML.from_fragment(response.resp_body))
   end
 
+  # BN-DATA-01: the routed migration page fed the browser sources the scenario
+  # holds, as its hook would report them.
+  def open(%{conn: conn} = context, "/data-migration") do
+    {:ok, view, _html} = live(conn, "/data-migration")
+    render_hook(view, "browser-sources", %{"sources" => Map.get(context, :browser_sources, [])})
+    html = render(view)
+
+    context
+    |> Map.put(:view, view)
+    |> Map.put(:route, "/data-migration")
+    |> Map.put(:migration_html, LazyHTML.from_fragment(html))
+  end
+
   def open(%{conn: conn} = context, route) do
     {:ok, view, _html} = live(conn, route)
     context |> Map.put(:view, view) |> Map.put(:route, route)
@@ -1313,6 +1326,62 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     })
   end
 
+  # BN-DATA-01: chat and learning data present, no explicit theme, and one foreign
+  # key the page must ignore.
+  def prepare_behaviour(context, :migration_mixed_sources, _args) do
+    Map.put(context, :browser_sources, [
+      Map.put(chat_source(), "present", true),
+      Map.put(learning_source(), "present", true),
+      %{"storageArea" => "localStorage", "storageKey" => "phx:theme", "present" => false},
+      %{
+        "storageArea" => "localStorage",
+        "storageKey" => "unknown.key",
+        "present" => true,
+        "payload" => "keep"
+      }
+    ])
+  end
+
+  # BN-DATA-09: one chat source filed per outcome row of the outline.
+  def prepare_behaviour(context, :filed_browser_source, ["accepted"]) do
+    Map.put(context, :browser_sources, [Map.put(chat_source(), "present", true)])
+  end
+
+  def prepare_behaviour(context, :filed_browser_source, ["rejected"]) do
+    malformed = %{chat_source() | "payload" => "{malformed"}
+    Map.put(context, :browser_sources, [Map.put(malformed, "present", true)])
+  end
+
+  # A retryable outcome needs a storage write failure the browser cannot cause on a
+  # healthy server: the accepted manifest is corrupted first, so resuming the same
+  # import fails to read back.
+  def prepare_behaviour(context, :filed_browser_source, ["retryable"]) do
+    store = Records.store()
+    source = Map.put(chat_source(), "present", true)
+    {:ok, %{import_id: import_id}} = Import.browser(store, context.user_id, source)
+
+    import_id
+    |> manifest_path(store)
+    |> File.write!("{corrupted")
+
+    Map.merge(context, %{central_store: store, browser_sources: [source]})
+  end
+
+  def prepare_behaviour(context, :filed_browser_source, ["stale"]) do
+    store = Records.store()
+    {:ok, _accepted} = Import.browser(store, context.user_id, chat_source())
+
+    stale_payload =
+      chat_source()["payload"] |> Jason.decode!() |> Map.put("model", "stale") |> Jason.encode!()
+
+    Map.merge(context, %{
+      central_store: store,
+      browser_sources: [
+        %{chat_source() | "payload" => stale_payload} |> Map.put("present", true)
+      ]
+    })
+  end
+
   # The saved chat is the precondition, so it is saved through the CodexChat facade into the
   # run-root repository, on the thread the fixture agent session cannot resume.
   def prepare_behaviour(context, :unavailable_codex_thread, _args) do
@@ -1340,6 +1409,65 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       do: raise("the schedules page renders no backup folder form")
 
     Map.put(context, :schedules_view, view)
+  end
+
+  # BN-SIFAT-16: the learner studies with one remembered pair saved, then saves fail.
+  def prepare_behaviour(context, :sifat_saved_studying, _args) do
+    {:ok, view, _html} = live(context.conn, "/apps/sifat-allah")
+    context = Map.put(context, :view, view)
+
+    context = context |> start_learning() |> mark_current_pair_remembered()
+    context.view |> element("button", "Pasangan berikutnya →") |> render_click()
+    context
+  end
+
+  # BN-SIFAT-17: the revision page prepared for the account user and the local
+  # browser user.
+  def prepare_behaviour(context, :sifat_account_ready, _args),
+    do: Map.put(context, :sifat_ready_user, :account)
+
+  def prepare_behaviour(context, :sifat_browser_ready, _args) do
+    previous = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.put_env(:bnest_app, :identity_cutover_enabled, previous)
+    end)
+
+    Application.put_env(:bnest_app, :identity_cutover_enabled, false)
+    Map.put(context, :sifat_ready_user, :browser)
+  end
+
+  # BN-ADMIN-04 and BN-ADMIN-05: the routed schedules page over the saved daily
+  # schedule (02:00 WIB), so a refused save keeps it. The singleton schedule is
+  # seeded idempotently, then saved once; the page renders that revision.
+  def prepare_behaviour(context, :schedules_saved_opened, _args) do
+    ensure_scheduler_storage()
+    key = "prod-sqlite-backup-daily"
+    :ok = PersistentSchedules.apply_and_verify!(@behaviour_now)
+    current = Scheduler.get_schedule(key)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    {:ok, saved} =
+      Scheduler.update_daily(
+        key,
+        %{
+          "daily_time_wib" => "02:00",
+          "enabled" => "true",
+          "revision" => Integer.to_string(current.revision)
+        },
+        now
+      )
+
+    {:ok, view, _html} = live(context.conn, @schedules_route)
+    Map.merge(context, %{schedule_key: key, saved_schedule: saved, schedules_view: view})
+  end
+
+  # BN-ADMIN-06: the routed schedules page with no save attempted yet.
+  def prepare_behaviour(context, :schedules_opened, _args) do
+    ensure_scheduler_storage()
+    :ok = PersistentSchedules.apply_and_verify!(@behaviour_now)
+    {:ok, view, _html} = live(context.conn, @schedules_route)
+    Map.merge(context, %{schedule_key: "prod-sqlite-backup-daily", schedules_view: view})
   end
 
   def prepare_behaviour(context, :saved_daily_schedule, _args) do
@@ -2543,6 +2671,107 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   # One of the page's forms submitted with the fields as rendered: the label is read right
   # after the event and again once the check the save started has reported.
+  # BN-ADMIN-04 and BN-ADMIN-05: the schedule form submitted as rendered, so its
+  # hidden revision is the page's own. After a rival save that revision is stale
+  # and the page reports the conflict instead.
+  def perform_behaviour(context, :save_schedule_with_time, [time]) do
+    html =
+      context.schedules_view
+      |> form("form[phx-submit=save_schedule]", %{
+        "schedule" => %{"daily_time_wib" => time, "enabled" => "true"}
+      })
+      |> render_submit()
+
+    Map.put(context, :schedules_result_html, LazyHTML.from_fragment(html))
+  end
+
+  def perform_behaviour(context, :rival_schedule_save, [time]) do
+    {:ok, rival} =
+      Scheduler.update_daily(
+        context.schedule_key,
+        %{
+          "daily_time_wib" => time,
+          "enabled" => "true",
+          "revision" => Integer.to_string(context.saved_schedule.revision)
+        },
+        DateTime.utc_now() |> DateTime.truncate(:second)
+      )
+
+    Map.put(context, :rival_schedule, rival)
+  end
+
+  # BN-ADMIN-06: the backup folder form submitted with a folder of the outline's
+  # kind, each created under the run's temporary root.
+  def perform_behaviour(context, :save_backup_folder, [kind]) do
+    directory = backup_folder_for!(kind)
+
+    html =
+      context.schedules_view
+      |> form("form[phx-submit=save_backup]", %{
+        "backup" => %{"destination_directory" => directory}
+      })
+      |> render_submit()
+
+    Map.merge(context, %{
+      schedules_result_html: LazyHTML.from_fragment(html),
+      attempted_folder: directory
+    })
+  end
+
+  # BN-DATA-10: the cutover-off visitor opening the migration page is redirected
+  # home with the login warning. The LiveView redirect is asserted first, then the
+  # routed home page carrying the warning without any import control.
+  def perform_behaviour(context, :open_migration_cutover_off, _args) do
+    previous = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.put_env(:bnest_app, :identity_cutover_enabled, previous)
+    end)
+
+    Application.put_env(:bnest_app, :identity_cutover_enabled, false)
+
+    {:error, {:redirect, %{to: "/"}}} = live(build_conn(), "/data-migration")
+
+    redirected = build_conn() |> get("/data-migration")
+    home = redirected |> recycle() |> get("/")
+
+    Map.merge(context, %{migration_redirect: redirected, migration_home: home})
+  end
+
+  def perform_behaviour(%{sifat_ready_user: :account} = context, :open_revision_page, _args) do
+    {:ok, view, _html} = live(context.conn, "/apps/sifat-allah")
+    Map.put(context, :view, view)
+  end
+
+  def perform_behaviour(%{sifat_ready_user: :browser} = context, :open_revision_page, _args) do
+    {:ok, view, _html} = live(build_conn(), "/apps/sifat-allah")
+    Map.put(context, :view, view)
+  end
+
+  def perform_behaviour(context, :reject_progress_saves, _args) do
+    previous = Application.fetch_env!(:bnest_app, BnestApp.SifatAllah)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.put_env(:bnest_app, BnestApp.SifatAllah, previous)
+    end)
+
+    Application.put_env(
+      :bnest_app,
+      BnestApp.SifatAllah,
+      Keyword.put(previous, :progress_store, BnestApp.Behaviour.FailingProgressStore)
+    )
+
+    Map.put(context, :sifat_store_previous, previous)
+  end
+
+  # The single rejected save: the store fails this write, then it is healthy again
+  # so the reload below reads the earlier saved progress.
+  def perform_behaviour(context, :mark_pair_while_failing, _args) do
+    html = context.view |> element("button", "Aku sudah ingat") |> render_click()
+    Application.put_env(:bnest_app, BnestApp.SifatAllah, context.sifat_store_previous)
+    Map.put(context, :sifat_failed_html, LazyHTML.from_fragment(html))
+  end
+
   def perform_behaviour(context, :save_label_form, [form]) do
     view = context.schedules_view
 
@@ -3316,6 +3545,105 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do:
       context.cleared_storage_keys == ["bnest.chat.v1"] and
         match?({:ok, %{"recordType" => "chat"}}, Records.read(:chat, context.user_id))
+
+  # BN-ADMIN-04 and BN-ADMIN-05: the page names the refusal, and the store keeps the
+  # save the scenario started from.
+  def behaviour_outcome?(context, :schedule_error_shown, [message]) do
+    context.schedules_result_html
+    |> LazyHTML.query("#settings-error")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(message)
+  end
+
+  def behaviour_outcome?(context, :saved_schedule_kept, _args) do
+    current = Scheduler.get_schedule(context.schedule_key)
+
+    current.daily_at_utc == context.saved_schedule.daily_at_utc and
+      current.revision == context.saved_schedule.revision
+  end
+
+  def behaviour_outcome?(context, :no_schedule_success, _args) do
+    context.schedules_result_html
+    |> LazyHTML.query(".admin-settings-status")
+    |> Enum.empty?()
+  end
+
+  def behaviour_outcome?(context, :rival_schedule_kept, _args) do
+    current = Scheduler.get_schedule(context.schedule_key)
+
+    current.daily_at_utc == context.rival_schedule.daily_at_utc and
+      current.revision == context.rival_schedule.revision
+  end
+
+  # BN-ADMIN-06: the page names the refusal, and no destination was saved.
+  def behaviour_outcome?(context, :backup_error_shown, [message]) do
+    context.schedules_result_html
+    |> LazyHTML.query("#settings-error")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(message)
+  end
+
+  def behaviour_outcome?(context, :backup_nothing_saved, _args) do
+    kept = Scheduler.get_schedule(context.schedule_key)
+
+    match?({:error, _reason}, Backup.read_destination()) and kept.claimed_occurrences == 0 and
+      context.schedules_result_html
+      |> LazyHTML.query(".admin-settings-status")
+      |> Enum.empty?()
+  end
+
+  # BN-DATA-01: every recognized source is listed with whether this browser holds
+  # it, and the foreign key is listed nowhere.
+  def behaviour_outcome?(context, :migration_source_listed, [label, status]) do
+    context.migration_html
+    |> LazyHTML.query(".identity-account-card")
+    |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+    |> Enum.any?(&(String.contains?(&1, label) and String.contains?(&1, status)))
+  end
+
+  def behaviour_outcome?(context, :migration_no_unknown, _args) do
+    context.migration_html |> LazyHTML.text() |> String.contains?("unknown.key") |> Kernel.not()
+  end
+
+  # BN-DATA-09: the confirmed import's outcome line, read from the When's own
+  # confirmation: confirming again would resume the import and change the outcome.
+  def behaviour_outcome?(context, :migration_outcome_shown, [line]),
+    do: Enum.member?(Map.get(context, :import_outcomes, []), line)
+
+  # BN-DATA-10: the legacy local user is sent home with the login warning and sees
+  # no import control.
+  def behaviour_outcome?(context, :migration_login_warning, _args) do
+    redirected_to(context.migration_redirect) == "/" and
+      context.migration_home.resp_body =~ "Log in before importing browser data."
+  end
+
+  def behaviour_outcome?(context, :migration_no_import_control, _args) do
+    not (context.migration_home.resp_body =~ "Preserve and verify")
+  end
+
+  # BN-SIFAT-16: the failed save is announced in place.
+  def behaviour_outcome?(context, :failed_save_notice, _args) do
+    context.sifat_failed_html
+    |> LazyHTML.query("[role=alert]")
+    |> LazyHTML.text()
+    |> String.contains?("Progress could not be saved. The previous saved progress is unchanged.")
+  end
+
+  def behaviour_outcome?(context, :earlier_progress_shown, _args),
+    do: progress_shows?(context, "6 dari 120 soal sudah hafal")
+
+  # BN-SIFAT-17: the storage note for this user.
+  def behaviour_outcome?(context, :storage_note_shown, [message]) do
+    context.view
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query(".sifat-saved-note")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(message)
+  end
 
   # A change made after the accepted import: the theme request the root layout's script sends
   # goes through the routed endpoint. It must change the user's record in the server's
@@ -4510,6 +4838,33 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     })
   end
 
+  # BN-ADMIN-06: each outline kind becomes a folder the run owns: the live database's
+  # own directory for the overlap refusal, a fresh symlink for the link refusal,
+  # and a relative path for the remaining refusal.
+  defp backup_folder_for!("inside the live database location") do
+    Path.join(Path.dirname(Storage.database_path()), "backups")
+  end
+
+  defp backup_folder_for!("a symbolic link") do
+    root =
+      Path.join(System.tmp_dir!(), "bnest-backup-link-#{System.unique_integer([:positive])}")
+
+    target =
+      Path.join(System.tmp_dir!(), "bnest-backup-target-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(target)
+    File.rm_rf(root)
+    File.ln_s!(target, root)
+    ExUnit.Callbacks.on_exit(fn -> File.rm_rf(root) end)
+    ExUnit.Callbacks.on_exit(fn -> File.rm_rf(target) end)
+    Path.join(root, "backups")
+  end
+
+  defp backup_folder_for!(_other), do: "relative/backup"
+
+  defp manifest_path(import_id, store),
+    do: Path.join(store.root, "system/manifests/#{import_id}.json")
+
   # Copies the storage pointer the run resolves (or, while none is saved, the one its
   # default resolves to) to a private test-run path and points Storage at it for the
   # scenario, so the copy names the same database and phase and a write cannot reach the
@@ -4694,4 +5049,19 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
       await_scheduler_restart(supervisor, old_scheduler, attempts - 1)
     end
   end
+end
+
+defmodule BnestApp.Behaviour.FailingProgressStore do
+  @moduledoc false
+
+  @behaviour BnestApp.SifatAllah.Ports.ProgressStore
+
+  @impl true
+  def new, do: %{adapter: __MODULE__}
+
+  @impl true
+  def read(_store, _owner_id), do: {:error, :missing}
+
+  @impl true
+  def write(_store, _owner_id, _expected_revision, _record), do: {:error, :write_failed}
 end

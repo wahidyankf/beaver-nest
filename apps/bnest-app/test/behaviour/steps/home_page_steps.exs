@@ -752,6 +752,40 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context
   end
 
+  # BN-SIFAT-16: a rejected progress save keeps the earlier saved progress.
+
+  step("a visitor with saved Sifat Allah progress studies the next pair", context,
+    do: prepare(context, :sifat_saved_studying, [])
+  )
+
+  step("the progress store rejects saves", context,
+    do: perform(context, :reject_progress_saves, [])
+  )
+
+  step("the visitor marks the current pair while saves fail", context,
+    do: perform(context, :mark_pair_while_failing, [])
+  )
+
+  step("the page shows the failed save notice", context,
+    do: outcome(context, :failed_save_notice, [])
+  )
+
+  step("the progress shows the earlier saved progress", context,
+    do: outcome(context, :earlier_progress_shown, [])
+  )
+
+  # BN-SIFAT-17: where progress is stored for the account user and the local browser user.
+
+  step("the signed-in child is ready", context, do: prepare(context, :sifat_account_ready, []))
+
+  step("the local browser is ready", context, do: prepare(context, :sifat_browser_ready, []))
+
+  step("the revision page opens", context, do: perform(context, :open_revision_page, []))
+
+  step("the page shows the storage note {string}", %{args: [message]} = context,
+    do: outcome(context, :storage_note_shown, [message])
+  )
+
   # A pair is remembered by the study card's mark, or by a correct answer to the first quiz
   # question, and the visitor is back on the mission afterwards.
   defp remember_first_pair(context, "study mark") do

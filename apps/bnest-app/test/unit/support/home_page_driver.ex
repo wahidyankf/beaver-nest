@@ -143,6 +143,32 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context |> start_sifat_allah_records() |> mount_sifat_allah()
   end
 
+  # The migration page over the browser sources the scenario holds: the LiveView's own
+  # `browser-sources` event feeds them in, and the rendered page is kept, as the import
+  # outcomes below read it.
+  def open(context, "/data-migration") do
+    socket = %Socket{
+      view: DataMigrationLive,
+      transport_pid: self(),
+      assigns: %{
+        __changed__: %{},
+        flash: %{},
+        current_user: %{"userId" => migration_owner(context)}
+      }
+    }
+
+    {:ok, socket} = DataMigrationLive.mount(%{}, %{}, socket)
+
+    {:noreply, socket} =
+      DataMigrationLive.handle_event(
+        "browser-sources",
+        %{"sources" => Map.get(context, :browser_sources, [])},
+        socket
+      )
+
+    Map.put(context, :migration_socket, socket)
+  end
+
   # The browser lands wherever the router's "/family-chat" action redirects it to.
   # A location naming no room the visitor may open is the controller's "Not found" page,
   # as is every family chat address while the flag is off.
@@ -1556,6 +1582,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     render_sifat_allah(context, socket)
   end
 
+  # Studying the next pair: the mark above saved the first pair, and moving on
+  # persists the lesson position, so the reload below has earlier progress to show.
+  defp move_to_next_lesson_pair(context),
+    do: click_sifat_allah(context, "button[phx-click=next-pair]", "next-pair")
+
   # Renders the socket's assigns with the production template and moves the events the
   # LiveView pushed into the context, oldest first, as a client receives each once.
   defp render_sifat_allah(context, socket) do
@@ -1740,6 +1771,77 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       chat_source(),
       %{"storageArea" => "localStorage", "storageKey" => "unrelated", "payload" => "keep"}
     ])
+  end
+
+  # BN-DATA-01: chat and learning data present, no explicit theme, and one foreign key
+  # the page must ignore.
+  def prepare_behaviour(context, :migration_mixed_sources, _args) do
+    central_request_context(context, [
+      Map.put(chat_source(), "present", true),
+      Map.put(learning_source(), "present", true),
+      %{"storageArea" => "localStorage", "storageKey" => "phx:theme", "present" => false},
+      %{
+        "storageArea" => "localStorage",
+        "storageKey" => "unknown.key",
+        "present" => true,
+        "payload" => "keep"
+      }
+    ])
+  end
+
+  # BN-DATA-09: one chat source filed per outcome row of the outline.
+  def prepare_behaviour(context, :filed_browser_source, ["accepted"]) do
+    central_request_context(context, [Map.put(chat_source(), "present", true)])
+  end
+
+  def prepare_behaviour(context, :filed_browser_source, ["rejected"]) do
+    malformed = %{chat_source() | "payload" => "{malformed"}
+    central_request_context(context, [Map.put(malformed, "present", true)])
+  end
+
+  def prepare_behaviour(context, :filed_browser_source, ["retryable"]) do
+    context = central_request_context(context, [Map.put(chat_source(), "present", true)])
+    InMemoryRecordBackend.fail_next_write(context.central_store)
+    context
+  end
+
+  def prepare_behaviour(context, :filed_browser_source, ["stale"]) do
+    context = central_request_context(context, [])
+    {:ok, _accepted} = Storage.import_browser(context.central_owner, chat_source())
+
+    stale_payload =
+      chat_source()["payload"] |> Jason.decode!() |> Map.put("model", "stale") |> Jason.encode!()
+
+    Map.put(context, :browser_sources, [
+      %{chat_source() | "payload" => stale_payload} |> Map.put("present", true)
+    ])
+  end
+
+  # BN-SIFAT-16: the learner studies with one remembered pair saved, then saves fail.
+  def prepare_behaviour(context, :sifat_saved_studying, _args) do
+    context
+    |> start_sifat_allah_records()
+    |> mount_sifat_allah()
+    |> start_learning()
+    |> mark_current_pair_remembered()
+    |> move_to_next_lesson_pair()
+  end
+
+  # BN-SIFAT-17: the revision page prepared for the account user and the local
+  # browser user.
+  def prepare_behaviour(context, :sifat_account_ready, _args) do
+    context
+    |> start_sifat_allah_records()
+    |> Map.put(:sifat_ready_user, :account)
+  end
+
+  def prepare_behaviour(context, :sifat_browser_ready, _args) do
+    context
+    |> start_sifat_allah_records()
+    |> Map.merge(%{
+      sifat_ready_user: :browser,
+      sifat_user: %{"migrationMode" => true, "userId" => "browser"}
+    })
   end
 
   # The saved chat is the precondition, so it is saved through the CodexChat facade, on the
@@ -2065,6 +2167,43 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     store = InMemoryBackupConfigStore.new()
     {:error, :absent} = InMemoryBackupConfigStore.read(store)
     Map.put(context, :repository_root, InMemoryBackupConfigStore.repository_root(store))
+  end
+
+  # BN-ADMIN-04 and BN-ADMIN-05: the schedules page mounted over a saved daily schedule
+  # (02:00 WIB), so a refused save can keep it. The mount reads the store, so the
+  # schedule is seeded and saved before the socket is built.
+  def prepare_behaviour(context, :schedules_saved_opened, _args) do
+    ensure_scheduler_tasks!()
+
+    key = "prod-sqlite-backup-daily"
+    :ok = put_schedule!(key, "prod_sqlite_backup", "admin_system")
+
+    {:ok, saved} =
+      Scheduler.update_daily(
+        key,
+        %{"daily_time_wib" => "02:00", "enabled" => "true", "revision" => "1"},
+        @behaviour_now
+      )
+
+    {:ok, socket} = AdminScheduleSettingsLive.mount(%{}, %{}, schedules_admin_socket())
+
+    Map.merge(context, %{
+      schedule_key: key,
+      saved_schedule: saved,
+      schedules_socket: socket
+    })
+  end
+
+  # BN-ADMIN-06: the schedules page with no save attempted yet.
+  def prepare_behaviour(context, :schedules_opened, _args) do
+    ensure_scheduler_tasks!()
+    :ok = put_schedule!("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
+    {:ok, socket} = AdminScheduleSettingsLive.mount(%{}, %{}, schedules_admin_socket())
+
+    Map.merge(context, %{
+      schedule_key: "prod-sqlite-backup-daily",
+      schedules_socket: socket
+    })
   end
 
   # The Scheduler's schedules live in the scenario's in-memory schedule store
@@ -3180,6 +3319,102 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
+  # BN-ADMIN-04 and BN-ADMIN-05: the schedule form submitted with the socket's own
+  # revision. After a rival save that revision is stale, so the page reports the
+  # conflict instead.
+  def perform_behaviour(context, :save_schedule_with_time, [time]) do
+    socket = context.schedules_socket
+    revision = Integer.to_string(socket.assigns.backup_schedule.revision)
+
+    {:noreply, updated} =
+      AdminScheduleSettingsLive.handle_event(
+        "save_schedule",
+        %{"schedule" => %{"daily_time_wib" => time, "enabled" => "true", "revision" => revision}},
+        socket
+      )
+
+    Map.put(context, :schedules_socket, updated)
+  end
+
+  def perform_behaviour(context, :rival_schedule_save, [time]) do
+    {:ok, rival} =
+      Scheduler.update_daily(
+        context.schedule_key,
+        %{
+          "daily_time_wib" => time,
+          "enabled" => "true",
+          "revision" => Integer.to_string(context.saved_schedule.revision)
+        },
+        @behaviour_now
+      )
+
+    Map.put(context, :rival_schedule, rival)
+  end
+
+  # BN-ADMIN-06: the backup folder form submitted with a folder of the outline's kind.
+  def perform_behaviour(context, :save_backup_folder, [kind]) do
+    directory =
+      case kind do
+        "inside the live database location" -> "/srv/test-user-backup/database/backups"
+        "a symbolic link" -> backup_symlink_directory!()
+        _other -> "relative/backup"
+      end
+
+    {:noreply, updated} =
+      AdminScheduleSettingsLive.handle_event(
+        "save_backup",
+        %{"backup" => %{"destination_directory" => directory}},
+        context.schedules_socket
+      )
+
+    Map.merge(context, %{schedules_socket: updated, attempted_folder: directory})
+  end
+
+  # BN-DATA-10: the legacy local user is sent home with the login warning and sees
+  # no import control.
+  def perform_behaviour(context, :open_migration_cutover_off, _args) do
+    socket = %Socket{
+      view: DataMigrationLive,
+      transport_pid: self(),
+      assigns: %{
+        __changed__: %{},
+        flash: %{},
+        current_user: %{"migrationMode" => true, "userId" => "browser"}
+      }
+    }
+
+    {:ok, socket} = DataMigrationLive.mount(%{}, %{}, socket)
+    Map.put(context, :migration_cutover_socket, socket)
+  end
+
+  # BN-SIFAT-16: failing the next record write rejects the save the mark performs.
+  def perform_behaviour(context, :reject_progress_saves, _args) do
+    InMemoryRecordBackend.fail_next_write(context.sifat_records)
+    context
+  end
+
+  # The injected failure fires once, so the reload below reads the earlier saved progress.
+  def perform_behaviour(context, :mark_pair_while_failing, _args),
+    do: mark_current_pair_remembered(context)
+
+  # BN-SIFAT-17: the revision page opened for the user the Given prepared. The local
+  # browser user mounts disconnected (no transport), as a page load does before
+  # its socket connects and reports browser storage.
+  def perform_behaviour(%{sifat_ready_user: :account} = context, :open_revision_page, _args) do
+    mount_sifat_allah(context)
+  end
+
+  def perform_behaviour(%{sifat_ready_user: :browser} = context, :open_revision_page, _args) do
+    socket = %Socket{
+      view: SifatAllahLive,
+      transport_pid: nil,
+      assigns: %{__changed__: %{}, flash: %{}, current_user: context.sifat_user}
+    }
+
+    {:ok, socket} = SifatAllahLive.mount(%{}, %{}, socket)
+    context |> Map.put(:sifat_pushes, []) |> render_sifat_allah(socket)
+  end
+
   def perform_behaviour(context, :open_and_reload_label, []) do
     evidence = %{
       destination: BackupIntegrity.snapshot(context.backup_directory),
@@ -4069,6 +4304,110 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
           {:ok, %{"recordType" => "chat"}},
           RecordBackend.read(context.central_store, :chat, context.central_owner)
         )
+
+  # BN-ADMIN-04 and BN-ADMIN-05: the page names the refusal, and the store keeps the
+  # save the scenario started from.
+  def behaviour_outcome?(context, :schedule_error_shown, [message]) do
+    context.schedules_socket
+    |> render_schedules_page()
+    |> LazyHTML.query("#settings-error")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(message)
+  end
+
+  def behaviour_outcome?(context, :saved_schedule_kept, _args),
+    do: Scheduler.get_schedule(context.schedule_key) == context.saved_schedule
+
+  def behaviour_outcome?(context, :no_schedule_success, _args) do
+    context.schedules_socket
+    |> render_schedules_page()
+    |> LazyHTML.query(".admin-settings-status")
+    |> Enum.empty?()
+  end
+
+  def behaviour_outcome?(context, :rival_schedule_kept, _args),
+    do: Scheduler.get_schedule(context.schedule_key) == context.rival_schedule
+
+  # BN-ADMIN-06: the page names the refusal, and no destination was saved.
+  def behaviour_outcome?(context, :backup_error_shown, [message]) do
+    context.schedules_socket
+    |> render_schedules_page()
+    |> LazyHTML.query("#settings-error")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(message)
+  end
+
+  def behaviour_outcome?(context, :backup_nothing_saved, _args) do
+    store = InMemoryBackupConfigStore.new()
+
+    match?({:error, :absent}, InMemoryBackupConfigStore.read(store)) and
+      InMemoryScheduleStore.runs(Scheduler.store()) == [] and
+      context.schedules_socket
+      |> render_schedules_page()
+      |> LazyHTML.query(".admin-settings-status")
+      |> Enum.empty?()
+  end
+
+  # BN-DATA-01: every recognized source is listed with whether this browser holds
+  # it, and the foreign key is listed nowhere.
+  def behaviour_outcome?(context, :migration_source_listed, [label, status]) do
+    context
+    |> open("/data-migration")
+    |> Map.fetch!(:migration_socket)
+    |> render_migration_page()
+    |> LazyHTML.query(".identity-account-card")
+    |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+    |> Enum.any?(&(String.contains?(&1, label) and String.contains?(&1, status)))
+  end
+
+  def behaviour_outcome?(context, :migration_no_unknown, _args) do
+    page =
+      context
+      |> open("/data-migration")
+      |> Map.fetch!(:migration_socket)
+      |> render_migration_page()
+
+    page |> LazyHTML.text() |> String.contains?("unknown.key") |> Kernel.not()
+  end
+
+  # BN-DATA-09: the confirmed import's outcome line, read from the When's own
+  # confirmation: confirming again would resume the import and change the outcome.
+  def behaviour_outcome?(context, :migration_outcome_shown, [line]),
+    do: Enum.member?(Map.get(context, :import_outcomes, []), line)
+
+  def behaviour_outcome?(context, :migration_login_warning, _args) do
+    socket = context.migration_cutover_socket
+
+    match?({:redirect, %{to: "/"}}, socket.redirected) and
+      Phoenix.Flash.get(socket.assigns.flash, :error) ==
+        "Log in before importing browser data."
+  end
+
+  # Redirected home before the page renders, the visitor is never offered the
+  # confirmation the import control would submit.
+  def behaviour_outcome?(context, :migration_no_import_control, _args) do
+    match?({:redirect, _redirect}, context.migration_cutover_socket.redirected)
+  end
+
+  def behaviour_outcome?(context, :failed_save_notice, _args) do
+    context.page
+    |> LazyHTML.query("[role=alert]")
+    |> LazyHTML.text()
+    |> String.contains?("Progress could not be saved. The previous saved progress is unchanged.")
+  end
+
+  def behaviour_outcome?(context, :earlier_progress_shown, _args),
+    do: progress_shows?(context, "6 dari 120 soal sudah hafal")
+
+  def behaviour_outcome?(context, :storage_note_shown, [message]) do
+    context.page
+    |> LazyHTML.query(".sifat-saved-note")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(message)
+  end
 
   # A change made after the accepted import: the theme request the root layout's script sends
   # goes through the router to the theme controller. It must change the user's record in the
@@ -5126,6 +5465,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   defp recognized_browser_sources, do: [chat_source(), learning_source(), theme_source()]
 
+  defp migration_owner(%{central_owner: owner}), do: owner
+  defp migration_owner(_context), do: "user-unit"
+
   defp chat_source do
     %{
       "storageArea" => "sessionStorage",
@@ -5282,6 +5624,27 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     socket
   end
 
+  defp ensure_scheduler_tasks! do
+    if is_nil(GenServer.whereis(BnestApp.Scheduler.Tasks)),
+      do: ExUnit.Callbacks.start_supervised!({Task.Supervisor, name: BnestApp.Scheduler.Tasks})
+  end
+
+  defp schedules_admin_socket do
+    %Socket{
+      view: AdminScheduleSettingsLive,
+      transport_pid: self(),
+      assigns: %{__changed__: %{}, flash: %{}, current_user: @unit_admin}
+    }
+  end
+
+  # The symlink the unit backup refusal names: recorded in the in-memory artifact
+  # store, which the destination check reads instead of the disk.
+  defp backup_symlink_directory! do
+    handle = InMemoryArtifactStore.new()
+    :ok = InMemoryArtifactStore.put_symlink(handle, "/srv/test-user-backup/link")
+    "/srv/test-user-backup/link/backups"
+  end
+
   defp open_label_page(context) do
     socket = mount_schedules_page()
     first = render_schedules_page(socket)
@@ -5330,6 +5693,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     socket.assigns
     |> Map.delete(:__changed__)
     |> AdminScheduleSettingsLive.render()
+    |> Safe.to_iodata()
+    |> IO.iodata_to_binary()
+    |> LazyHTML.from_fragment()
+  end
+
+  defp render_migration_page(socket) do
+    socket.assigns
+    |> Map.delete(:__changed__)
+    |> DataMigrationLive.render()
     |> Safe.to_iodata()
     |> IO.iodata_to_binary()
     |> LazyHTML.from_fragment()
