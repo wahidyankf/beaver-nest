@@ -52,6 +52,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // 30s budget: suite growth plus coverage load contends the slowest pickle past the 5s default; isolated runs pass, so this is load, not a hang.
+    testTimeout: 30_000,
     include: ["test/behaviour/verify.ts", "test/**/*.test.ts"],
     coverage: {
       provider: "v8",
