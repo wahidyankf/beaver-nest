@@ -9,6 +9,8 @@ const { Given, Then } = createBdd();
 
 // The home page header gap (chat.feature, the home page scenario) and the Clear chat hover fill on a touch pointer
 // (chat.feature, the Clear chat hover scenario). The Vitest bindings prove the declared CSS; these read painted boxes.
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page keeps a gap between the header and the hero card
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Clear chat button fills on hover only for a fine pointer
 
 Given("the home page is open at {string}", async ({ page }, spec: string) => {
   const match = /^\w+ (\d+)x(\d+)$/u.exec(spec);

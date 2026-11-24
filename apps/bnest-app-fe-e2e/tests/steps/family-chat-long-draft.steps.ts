@@ -10,6 +10,8 @@ import { createBdd } from "playwright-bdd";
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A long unbroken draft leaves the Family room inside the screen (a regression guard)
+
 const ADDRESS_PREFIX = "https://example.com/";
 
 async function boxOf(locator: Locator, label: string) {

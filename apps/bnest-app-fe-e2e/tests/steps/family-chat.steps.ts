@@ -6,11 +6,9 @@ import {
   type InstanceIdentities,
 } from "../support/instance-identities";
 import {
-  composerInput,
   ensureFamilyChatHasOlderPage,
   openFamilyChatRoom,
   promoteWithConcurrentTraffic,
-  seedFamilyChatScrollOverflow,
   sendAsAnotherMember,
 } from "../support/family-chat";
 import {
@@ -27,12 +25,16 @@ import {
 
 // family_chat.feature's browser-only scenarios about the live room: a Caddy
 // promotion under a connected client, the scroll anchor, and the live-region
-// announcement. Everything else in that feature is proven by its own step
-// files, by Elixir ExBdd (the two "Canonical route" scenarios, which reuse
-// the generic `a visitor opens {string}` binding), or -- where the feature
-// says so -- by the frontend Vitest+Gherkin harness alone.
+// announcement. The announcement scenarios live in
+// family-chat-announce.steps.ts. Everything else in that feature is proven by
+// its own step files, by Elixir ExBdd (the two "Canonical route" scenarios,
+// which reuse the generic `a visitor opens {string}` binding), or -- where
+// the feature says so -- by the frontend Vitest+Gherkin harness alone.
 
 const { Given, Then, When } = createBdd();
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Loading older history preserves the visitor's scroll anchor
 
 let identity: InstanceIdentities;
 let catchUpProbeBody = "";
@@ -257,43 +259,5 @@ Then(
           : Math.abs(offset - anchor.offset);
       })
       .toBeLessThanOrEqual(ANCHOR_TOLERANCE_PX);
-  },
-);
-
-// --- Announcements ----------------------------------------------------------
-
-Given(
-  "a visitor opens {string} with focus in the composer",
-  async ({ page }, _route: string) => {
-    identity = await openFamilyChatRoom(page);
-    // The following scenario needs the visitor to genuinely be scrolled away
-    // from the bottom when the remote message arrives (see
-    // `seedFamilyChatScrollOverflow`'s comment).
-    await seedFamilyChatScrollOverflow(page);
-    await composerInput(page).focus();
-  },
-);
-
-When(
-  "another member's message arrives away from the bottom of the scroll position",
-  async ({ browser }) => {
-    await sendAsAnotherMember(browser, identity, "Arrived while scrolled up");
-  },
-);
-
-Then("a live-region announcement names the new message", async ({ page }) => {
-  await expect(page.getByRole("status")).toContainText(
-    "Arrived while scrolled up",
-  );
-});
-
-Then("focus remains in the composer", async ({ page }) => {
-  await expect(composerInput(page)).toBeFocused();
-});
-
-Then(
-  "{string} is shown instead of auto-scrolling",
-  async ({ page }, label: string) => {
-    await expect(page.getByRole("button", { name: label })).toBeVisible();
   },
 );

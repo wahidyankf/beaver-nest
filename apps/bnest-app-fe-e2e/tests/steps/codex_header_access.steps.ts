@@ -8,6 +8,9 @@ import { createBdd } from "playwright-bdd";
 
 const { Given, Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex repository access state is visible without scrolling the header
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box keeps its name when the window is short
+
 type Box = { x: number; y: number; width: number; height: number };
 
 async function boxOf(locator: Locator, label: string): Promise<Box> {

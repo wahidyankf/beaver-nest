@@ -3,6 +3,8 @@ import { createBdd } from "playwright-bdd";
 
 const { Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home controls and content remain visually separated
+
 Then("the home header and hero do not overlap", async ({ page }) => {
   const header = page.locator(".home-header");
   const hero = page.locator(".home-hero");

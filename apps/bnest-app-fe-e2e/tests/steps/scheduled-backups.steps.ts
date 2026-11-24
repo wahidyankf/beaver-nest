@@ -25,6 +25,12 @@ import {
 // scenarios live in scheduled-backups-label.steps.ts.
 
 const { Given, Then, When } = createBdd();
+
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Show contextual daily schedules
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A visitor who may not administer Bnest cannot open admin settings
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Every settings panel Bnest offers is listed in admin settings
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A settings panel saves only the fields it offers and refuses any other field
+
 const world: ScheduledBackupWorld = {};
 
 const preparations = new Map<string, string>([

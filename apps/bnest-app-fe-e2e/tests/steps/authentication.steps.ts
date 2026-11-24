@@ -15,7 +15,8 @@ import { restorePrimaryRoute } from "../support/routed-rollout";
 // recovery-warning half of initial setup, and approved login/logout); the
 // password-hashing, session-persistence, and multi-session/multi-role/
 // cross-user scenarios moved to bnest-app-be-e2e, and the refused-setup and
-// failed-setup-redisplay scenarios live in authentication-setup.steps.ts.
+// failed-setup-redisplay scenarios live in authentication-setup.steps.ts. The
+// setup-card scenarios live in authentication-cards.steps.ts.
 
 const { After, Given, Then, When } = createBdd();
 
@@ -23,7 +24,9 @@ const { After, Given, Then, When } = createBdd();
 // @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A login return path stays on this site
 // @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A wrong login stays on the login page and says it is not valid
 // @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: With identity cutover off an unsigned browser acts as the local user
-// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: The setup page adds and removes family member cards
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A logged-out visitor is sent to login from any protected page
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: Approved user logs in and logs out
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: First-time setup warns that accounts cannot be managed or recovered later, then closes
 
 let setupSafetyChecks = { sawIrreversibleWarning: false };
 
@@ -247,53 +250,4 @@ When("identity cutover is on", async ({ page }) => {
 
 After(() => {
   cutoverOffBaseURL = undefined;
-});
-
-// --- Setup cards (BN-SETUP-01) ----------------------------------------------------
-
-When("the setup page is shown", async ({ page }) => {
-  const response = await page.goto("/setup");
-  expect(response?.status()).toBe(200);
-  await expect(
-    page.getByRole("heading", { name: "Create the first family accounts" }),
-  ).toBeVisible();
-});
-
-Then("it opens with one administrator card", async ({ page }) => {
-  await expect(page.locator("[data-account-card]")).toHaveCount(1);
-  await expect(
-    page.locator("[data-account-card] legend").first(),
-  ).toContainText("Initial administrator");
-});
-
-Then("the first card offers no remove control", async ({ page }) => {
-  await expect(
-    page
-      .locator("[data-account-card]")
-      .first()
-      .getByRole("button", { name: "Remove this account" }),
-  ).toHaveCount(0);
-});
-
-Then("it offers to add another initial account", async ({ page }) => {
-  await page
-    .getByRole("button", { name: "Add another initial account" })
-    .click();
-  await expect(page.locator("[data-account-card]")).toHaveCount(2);
-});
-
-Then("the card template numbers a new family member card", async ({ page }) => {
-  await expect(
-    page.locator("[data-account-card]").nth(1).locator("[data-account-number]"),
-  ).toHaveText("2");
-  await expect(page.getByLabel("Username").nth(1)).toBeFocused();
-  await page
-    .locator("[data-account-card]")
-    .nth(1)
-    .getByRole("button", { name: "Remove this account" })
-    .click();
-  await expect(page.locator("[data-account-card]")).toHaveCount(1);
-  await expect(
-    page.getByRole("button", { name: "Add another initial account" }),
-  ).toBeFocused();
 });

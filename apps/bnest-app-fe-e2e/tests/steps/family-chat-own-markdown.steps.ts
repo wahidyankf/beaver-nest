@@ -6,6 +6,8 @@ import { createBdd } from "playwright-bdd";
 
 const { Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Inline text in my own message stays readable
+
 const OWN_INLINE_TAGS: readonly (readonly [label: string, tag: string])[] = [
   ["the struck text", "del"],
   ["the link", "a"],

@@ -15,6 +15,11 @@ import {
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation opens at its newest message
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation follows a new reply
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation keeps a reader who scrolled up in place
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation keeps its newest reply in view when a diagram draws
+
 const CONVERSATION = "#chat-conversation";
 const TEXTAREA = "#chat-composer-form textarea";
 const SEND = "#chat-composer-form button[type=submit]";

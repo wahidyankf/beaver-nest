@@ -5,6 +5,16 @@ import { TEXTAREA } from "../support/chat-ui-steps";
 
 const { Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Send button lines up with the message box
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box has no resize handle
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box placeholder meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex Send button and the Family Chat Send button share one colour
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex Send button has four equal round corners that match the Family Chat Send button
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Send button text meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat message box has an accessible name
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat message box placeholder meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat Send button has four equal round corners
+
 // The look of the two message boxes (chat.feature, Rule "Codex message box and Send button look and line up as one
 // composer"; family_chat.feature, Rule "Family Chat message box reads clearly"). Every value is read from the rendered
 // page, so these steps prove what a visitor sees, not what the stylesheet says.

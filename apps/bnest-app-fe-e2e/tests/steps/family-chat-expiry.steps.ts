@@ -24,6 +24,8 @@ import { ensureRoomOpen } from "../support/family-chat-reply-room";
 
 const { Given, Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message queued more than seven days becomes manual-only
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const QUIET_WINDOW_MS = 3_500;
 const ROOM_ROUTE = "/family-chat/ruang-keluarga";

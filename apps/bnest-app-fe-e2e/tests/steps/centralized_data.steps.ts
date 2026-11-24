@@ -101,6 +101,8 @@ Then("Bnest reports a fresh Codex conversation", async ({ page }) => {
 // @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: The migration page lists each recognized browser source
 // @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Each import outcome shows its label and its status
 // @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: A browser acting as the local user is told to log in before importing
+// @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Accepted browser import clears only the accepted browser key
+// @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Failed Codex-thread resume reports a fresh conversation
 
 // The recognized-source list, the per-outcome lines, and the local-user gate
 // (BN-DATA-01, BN-DATA-09, BN-DATA-10). The retryable and stale-revision outline

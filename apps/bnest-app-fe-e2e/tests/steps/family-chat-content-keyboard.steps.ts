@@ -31,6 +31,10 @@ import {
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram in an older message can be reached from the keyboard on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram in another message adds no tab stop to the history
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Only the focused message's links are reachable
+
 function requireTarget(page: Page): string {
   const id = targetIdOf(page);
   if (!id) throw new Error("no message was named for this step");

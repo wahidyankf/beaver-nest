@@ -29,6 +29,11 @@ import { ensureRoomOpen } from "../support/family-chat-reply-room";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A 101st waiting message in one room is refused with a retry-or-discard hint
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A waiting message is sent as soon as the connection returns
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Each failed automatic retry waits longer than the last, up to one minute
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Reopening the app resumes queued sends
+
 const BACKOFF_BASES_MS = [1_000, 2_000, 4_000, 8_000, 16_000];
 // Time between the browser's request and this process seeing it, either
 // side of a wait.

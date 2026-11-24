@@ -36,6 +36,15 @@ import type { InstanceIdentities } from "../support/instance-identities";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member with nothing unread lands on the newest message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A returning member lands on the first unread message with an unread marker
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Earlier messages are shown above the unread marker and older history can be loaded
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: More unread messages than one page still offer a way back to the newest
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Reading down to the newest message moves the resume point
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Sending brings the visitor to their own message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The composer keeps focus after a message is sent
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Typing right after choosing Reply reaches the message input
+
 let identity: InstanceIdentities | null = null;
 let knownReadId = "";
 // "ruang-keluarga" is one shared fixture room across every project this suite

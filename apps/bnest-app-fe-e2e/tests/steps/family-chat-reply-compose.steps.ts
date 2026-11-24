@@ -32,6 +32,11 @@ import {
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A long quoted message is shortened in the strip
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reply to a reply shows only one level of quote
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The member abandons the reply
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is beyond the jump bound
+
 const STRIP_PREVIEW = '[data-role="family-chat-reply-strip-preview"]';
 const MESSAGES_PER_PAGE = 50;
 const JUMP_PAGE_BOUND = 5;

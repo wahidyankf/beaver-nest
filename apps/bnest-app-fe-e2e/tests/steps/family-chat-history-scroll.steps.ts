@@ -15,6 +15,18 @@ import {
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member opens the message action menu
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message already in view does not move the history
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message taller than the window shows its top when focus reaches it
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message keeps the focused message's content reachable
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Holding a message to open its menu clears the text the browser selects during the press
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keyboard focus stays in a diagram's message when its picture replaces the source
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keys inside message content keep their own meaning
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab moves from a message into its links and opens one
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The action menu opened from the keyboard sits beside its message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The keys that move focus through the history bring the focused message into view
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The quote card can be used from the keyboard
+
 // The menu's gap from its message, as menu_anchor.js places it, with the slack a real menu needs for its border.
 const MENU_GAP_PX = 16;
 

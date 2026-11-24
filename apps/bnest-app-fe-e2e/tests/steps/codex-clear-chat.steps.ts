@@ -26,6 +26,16 @@ import {
 const { Given, Then, When } = createBdd();
 
 // --- Clear chat (chat.feature, Rules "Clear chat asks before it deletes" and its layout rows) ----
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Clear chat asks for confirmation before it deletes the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Cancel, Escape and tabbing away keep the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Confirming clears the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Escape with focus outside the confirmation closes it and leaves focus where it is
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Reopening the options panel shows no stale Clear chat question
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Clear chat confirmation fits a narrow screen with 44 pixel targets
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The confirmation takes focus and cancel returns focus to Clear chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor's message renders Markdown and can show its raw text
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The raw view of a hostile visitor's message shows text, not HTML
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The raw view keeps the typed line breaks and spaces
 
 Given(
   "the Codex conversation holds {string}",

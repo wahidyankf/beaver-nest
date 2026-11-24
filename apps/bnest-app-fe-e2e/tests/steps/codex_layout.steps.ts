@@ -6,6 +6,10 @@ import { createBdd } from "playwright-bdd";
 // these checks depend on; the scenario is `@integration-exempt` for that reason.
 const { Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A wide Codex diagram uses the width of a desktop column
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex reply tables, task lists, links and images keep their layout
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply does not overflow the phone width
+
 const PHONE_VIEWPORT = { width: 390, height: 844 };
 
 function latestReply(page: Page): Locator {

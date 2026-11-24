@@ -21,6 +21,7 @@ import { deriveTestInstancePaths } from "../support/test-instance-paths.mts";
 // E2E bindings for the migration control and folder-lock scenarios:
 // @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: Move data and Retry migration start or retry the migration
 // @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The folder is locked once migration has started
+// @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The storage status reads Not started, Blocked, or SQLite active
 
 const { Given, When, Then } = createBdd();
 

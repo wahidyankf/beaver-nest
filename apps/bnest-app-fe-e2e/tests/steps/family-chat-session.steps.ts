@@ -31,6 +31,11 @@ import { instanceIdentities } from "../support/instance-identities";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A waiting message stays waiting after sign-in expires and is never sent by another member
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Logging out discards the member's waiting messages
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Logging out turns off push notifications for this device session
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room shows that notifications are blocked
+
 const QUIET_WINDOW_MS = 4_000;
 
 let visitorUserId = "";

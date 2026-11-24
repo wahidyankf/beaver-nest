@@ -42,6 +42,9 @@ let routedRevision = "";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A browser still running the older app version can open the room and send after an update
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: After the app is rolled back, a visitor on the newer version can still open the room, reply, and see earlier quotes
+
 function navigationCount(page: Page): Promise<number> {
   return page.evaluate(() => performance.getEntriesByType("navigation").length);
 }

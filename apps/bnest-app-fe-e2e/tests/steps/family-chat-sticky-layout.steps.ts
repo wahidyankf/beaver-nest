@@ -9,6 +9,12 @@ import {
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A smaller screen from the soft keyboard keeps the Family Chat header, composer and newest message on screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat header and composer stay in place while the messages scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat header and composer stay in place with a fine pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat message list keeps its overscroll inside itself
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The last Family Chat message is not hidden behind the composer
+
 // --- Family Chat (family_chat.feature, Rule "Family Chat header and composer stay in place while the messages scroll") ---
 
 const FAMILY_HISTORY = '[data-role="family-chat-history"]';

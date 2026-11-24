@@ -7,6 +7,10 @@ import { latestReply } from "../support/codex-diagrams";
 
 const { Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex panel fits the window on a tablet, a landscape phone and a desktop
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex scrollable tables and code blocks are named as in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The repository write toggle text meets the contrast target
+
 const CONVERSATION = "#chat-conversation";
 const TEXTAREA = "#chat-composer-form textarea";
 const SEND = "#chat-composer-form button[type=submit]";

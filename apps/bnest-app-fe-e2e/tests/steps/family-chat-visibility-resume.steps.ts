@@ -11,6 +11,8 @@ import { instanceIdentities } from "../support/instance-identities";
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
+
 let socketReopenedOnResume = false;
 
 When(

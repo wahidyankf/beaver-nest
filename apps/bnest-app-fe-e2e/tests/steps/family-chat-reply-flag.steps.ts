@@ -12,6 +12,8 @@ import {
 
 const { Given, Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Messages have an actions control exactly when replies are on
+
 const MORE = '[data-role="family-chat-message-more"]';
 
 Given(

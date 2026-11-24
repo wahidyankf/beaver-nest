@@ -35,6 +35,16 @@ import {
 
 const { Given, When, Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message is shown as formatted Markdown
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A formatted message that arrives live is formatted
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message that is still sending is shown as typed
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide image or table fits a phone-width message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Images a message may not show stay as text
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Links in a message open in a new tab
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Raw HTML in a message is shown as text and never runs
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Replying to a formatted message quotes plain text
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Typed line breaks in a message are kept
+
 /** Waits until the target message's committed copy is rendered, then the body is what a member sees. */
 async function committedTarget(page: Page): Promise<void> {
   await expect(targetMessage(page)).toHaveAttribute(

@@ -33,6 +33,11 @@ import { ensureRoomOpen } from "../support/family-chat-reply-room";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message queued before the update still sends after it
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued reply commits with its link on reconnect
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued reply survives closing the app
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An offline reply waits for the connection and stays a reply
+
 const OFFLINE_BANNER = '[data-role="family-chat-offline-banner"]';
 
 async function goOfflineWithCommittedTarget(page: Page): Promise<void> {

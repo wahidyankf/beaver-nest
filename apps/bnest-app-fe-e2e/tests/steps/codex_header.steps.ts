@@ -9,6 +9,8 @@ import { createBdd } from "playwright-bdd";
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex draft grows the message box to its cap and keeps Send and the header on screen
+
 // --- Header row and the composer's cap (chat.feature, Rule "Codex chat on touch and short screens") ---
 
 type Box = { x: number; y: number; width: number; height: number };

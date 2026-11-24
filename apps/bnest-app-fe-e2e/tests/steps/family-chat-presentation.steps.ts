@@ -15,6 +15,15 @@ import { uniqueBody } from "../support/family-chat-reply";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A table or code block that fits is not a tab stop
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide table, code block or diagram can be scrolled from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Escape returns focus from message content to the message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Every control in the room is reachable by keyboard with a visible focus indicator
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Opening the room offline shows no signed-in messages from the device's saved copy
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab and Shift+Tab pass through message content without a trap
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room does not scroll the whole page vertically
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room has no horizontal page scroll
+
 const MAX_TAB_STOPS = 60;
 
 let probeBody = "";

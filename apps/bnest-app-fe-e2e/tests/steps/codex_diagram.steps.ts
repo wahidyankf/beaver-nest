@@ -3,6 +3,9 @@ import { createBdd } from "playwright-bdd";
 
 const { Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A streaming Codex reply shows the diagram source until the reply is complete
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Diagrams beyond the first four in a message stay as source with a note
+
 // The newest Codex reply, the same reply codex_markdown.steps.ts checks.
 function latestReply(page: Page) {
   return page.locator("[data-role=assistant-message]").last();

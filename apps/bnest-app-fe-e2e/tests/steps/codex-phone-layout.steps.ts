@@ -3,11 +3,9 @@ import { createBdd } from "playwright-bdd";
 
 import {
   boxOf,
-  CLEAR,
   COMPOSER_FORM,
   HEADER,
   OPTIONS_TOGGLE,
-  openOptionsIfCollapsed,
   TOUCH_TARGET_PX,
   viewportOf,
   inScreenOrder,
@@ -19,6 +17,15 @@ import {
 } from "../support/codex-diagrams";
 
 const { Given, Then, When } = createBdd();
+
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel closes on Escape and on a tap outside it
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation has most of the screen with an empty draft
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A typical Codex phone view shows the newest message above the composer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header is compact on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header's tab order follows the screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel keeps 12 pixels from the screen edge on a phone
+
+// The panel-contents scenarios live in codex-phone-options.steps.ts.
 
 // --- Phone layout (chat.feature, Rules "Codex chat conversation has most of a phone screen" and the header and
 // options rows) ------------------------------------------------------------------------------
@@ -251,50 +258,5 @@ Then(
     const box = await boxOf(page.locator(OPTIONS_TOGGLE), "the options button");
     expect(box.width).toBeGreaterThanOrEqual(TOUCH_TARGET_PX);
     expect(box.height).toBeGreaterThanOrEqual(TOUCH_TARGET_PX);
-  },
-);
-
-When("the visitor opens the Codex options panel", async ({ page }) => {
-  await openOptionsIfCollapsed(page);
-});
-
-Then(
-  "the model selector is on screen in the options panel",
-  async ({ page }) => {
-    await expect(page.locator("#model-selector")).toBeVisible();
-  },
-);
-
-Then(
-  "the reasoning effort selector is on screen in the options panel",
-  async ({ page }) => {
-    await expect(page.locator("#effort-selector")).toBeVisible();
-  },
-);
-
-Then(
-  "the Clear chat control is on screen in the options panel",
-  async ({ page }) => {
-    await expect(page.locator(CLEAR)).toBeVisible();
-  },
-);
-
-Then("the options panel is no wider than the screen", async ({ page }) => {
-  const box = await boxOf(page.locator(".chat-actions"), "the options panel");
-  expect(box.width).toBeLessThanOrEqual(viewportOf(page).width);
-});
-
-Then(
-  "every options panel control is at least 44 pixels tall",
-  async ({ page }) => {
-    const selectors = ["#model-selector", "#effort-selector", CLEAR];
-    const boxes = await Promise.all(
-      selectors.map((selector) => boxOf(page.locator(selector), selector)),
-    );
-    for (const [index, box] of boxes.entries()) {
-      expect(box.height, `${selectors[index]} height`).toBeGreaterThanOrEqual(
-        TOUCH_TARGET_PX,
-      );
-    }
   },
 );

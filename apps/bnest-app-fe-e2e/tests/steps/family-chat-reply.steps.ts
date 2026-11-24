@@ -35,6 +35,14 @@ import {
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message offers both actions
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A fine-pointer Enter send keeps keyboard focus in the Family composer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Choosing Reply puts the target above the message input
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Closing the menu returns focus to the message it came from
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Only one menu is open at a time
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The actions control has an accessible name
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The reply target does not survive a reload
+
 // --- Opening the menu -----------------------------------------------------
 
 Given(

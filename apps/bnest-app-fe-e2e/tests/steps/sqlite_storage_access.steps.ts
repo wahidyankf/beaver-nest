@@ -13,6 +13,8 @@ import { promoteCompatibleCandidate } from "../support/routed-rollout";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: A connected user keeps their state across a compatible release
+
 let activeIdentity: InstanceIdentities;
 let rolloutRevisions: { previousRevision: string; revision: string };
 

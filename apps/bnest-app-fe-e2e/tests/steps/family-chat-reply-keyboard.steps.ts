@@ -31,6 +31,11 @@ import {
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A quote exposes an accessible name naming its sender
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Sending clears the reply target
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab does not walk through every message in the room
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The whole journey works from the keyboard alone
+
 // --- The keyboard journey -------------------------------------------------
 
 /** Why the focused element cannot be operated, or null when it can. */

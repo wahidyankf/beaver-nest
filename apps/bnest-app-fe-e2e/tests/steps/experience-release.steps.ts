@@ -25,6 +25,8 @@ import {
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
+
 const DRAFT_MESSAGE = "Queued before the experience release promotion";
 let identity: InstanceIdentities;
 let memberAPage: Page;

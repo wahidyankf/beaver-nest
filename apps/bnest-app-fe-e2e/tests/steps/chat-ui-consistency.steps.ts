@@ -15,6 +15,16 @@ import { login } from "../support/authentication";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Keyboard focus stays in the Codex message box after a reply
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A confirmed composition never sends in the Codex message box
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex send shortcut hint follows the visitor's pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box follows a pointer change while the page is open
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page and Codex chat keep one light appearance and have no theme control
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A filled draft is sent once, and a blank, whitespace or busy draft is never sent
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Enter and Shift+Enter follow the visitor's pointer, not the screen size
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat send shortcut hint follows the pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Family Chat keeps one light appearance and has no theme control
+
 // --- Pointer and send shortcut hint (shared with Family Chat) ---------------------------------
 
 Given("the visitor's pointer is a fine pointer", async ({ page }) => {

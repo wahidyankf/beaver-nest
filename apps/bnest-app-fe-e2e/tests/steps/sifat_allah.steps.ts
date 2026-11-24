@@ -5,6 +5,23 @@ import { instanceIdentities } from "../support/instance-identities";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child can return to the mission while learning
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child keeps the current quiz question after a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns a pair and keeps the progress after a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns the earliest pair that is not remembered yet
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child moves through remembered individual questions
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child opens the revision dashboard
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child practises every question form of a pair
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child receives kind feedback for a correct quiz answer
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child resets saved progress from the mission
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child sees correct answers in varied positions
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child swipes through a learning session
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child swipes through quiz questions
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz continues as reinforcement after every pair is remembered
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz locks one answer and moves on automatically
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz skips individual questions that are already remembered
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: Browser Back returns a child from a quiz to the mission
+
 async function waitForLiveView(page: Page) {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
 }

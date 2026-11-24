@@ -9,6 +9,13 @@ import { measureFamilyBudget, settle } from "../support/chat-ui-steps";
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A held Enter sends one message in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter and Shift+Enter follow the pointer in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter that confirms a composition does not send in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Shift+Enter does not send an empty Family Chat draft
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat history has most of the screen with an empty draft
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The header and the composer leave most of a phone screen to the history
+
 const COMPOSER_INPUT = ".family-chat-message-input";
 const MESSAGE = '[data-role="family-chat-message"]';
 

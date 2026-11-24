@@ -5,6 +5,9 @@ import { DRAWN, settledTarget } from "../support/family-chat-diagram-settle";
 
 const { Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide diagram in a message uses most of a desktop column
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide diagram keeps a readable size and scrolls inside its own box at 320 px
+
 // A wide diagram keeps its readable width: a 16 px label is at least 12 px (0.75 of the natural width), and the picture is
 // never narrower than 30 rem unless the drawing itself is smaller (ADR 004, Decision 5).
 const READABLE_REM_PX = 480;

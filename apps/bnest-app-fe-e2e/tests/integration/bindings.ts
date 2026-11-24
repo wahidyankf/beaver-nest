@@ -225,8 +225,56 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A malformed or unknown generated image path is an empty not found response
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: With family chat off the room is not found, even for a signed-in user
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page offers a Start chatting link
 // @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A login return path stays on this site
 // @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A wrong login stays on the login page and says it is not valid
 // @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: With identity cutover off an unsigned browser acts as the local user
 // @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A setup submission that breaks a rule is refused and creates no account
 // @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A failed setup keeps the names and roles and clears every password
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A settings panel saves only the fields it offers and refuses any other field
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: No horizontal scrolling and no hidden problem appears at any supported width
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor returns home through the Beaver Nest brand
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Completed browser migration is not offered from the home page
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor opens a fresh chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor cannot send an empty message
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor cannot overlap Codex turns
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor retains public Codex progress beside the final answer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor continues one page-scoped conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor changes the model or the reasoning effort within one Codex conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A model change falls back to Max from an unsupported reasoning effort
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor sees an alert when Codex cannot take or finish a message
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor clears the chat and starts a new conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A child, or a child administrator, is limited to read-only Luna at medium effort
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A parent chooses Luna or Terra at medium effort
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An administrator turns repository writes on and off
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Repository access returns to read-only after a reload or after clearing the chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex replies are formatted as Markdown
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply stays readable while its Markdown is unfinished
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Raw HTML in a Codex reply is shown as text and never runs
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Unsafe links in a Codex reply are not clickable
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Links in a Codex reply open in a new tab without sharing the page
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply shows an image from the repository
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: External https and small inline images in a Codex reply are shown
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply keeps http, svg and oversized images as text
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A half-written image address in a streaming reply is not shown as an image
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child opens the revision dashboard
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns a pair and keeps the progress after a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child resets saved progress from the mission
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns the earliest pair that is not remembered yet
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz skips individual questions that are already remembered
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz continues as reinforcement after every pair is remembered
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child can return to the mission while learning
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child receives kind feedback for a correct quiz answer
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz locks one answer and moves on automatically
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child sees correct answers in varied positions
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child keeps the current quiz question after a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child practises every question form of a pair
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A difficult pair is kept for another try
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child retests a difficult pair until it is correct
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: Every answered question moves between the review lists immediately
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child gets another difficult pair before repeating one
+// @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Accepted browser import clears only the accepted browser key
+// @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Failed Codex-thread resume reports a fresh conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/test_instances.feature: A fresh test instance reports its own storage generation
+// @scenario specs/apps/bnest/app-fe/behaviours/test_instances.feature: A fresh test instance does not know the previous instance's admin account
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A visitor reaches Ruang Keluarga from either family chat address
