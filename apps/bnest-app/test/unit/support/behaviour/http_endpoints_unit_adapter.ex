@@ -26,6 +26,10 @@ defmodule BnestApp.Behaviour.HttpEndpoints.UnitAdapter do
 
   @owner "test-user-http-endpoints-owner"
 
+  # The unit layer's fixed clock: seeded theme stamps never read the system
+  # clock, matching the `@behaviour_now` seam the sibling unit drivers use.
+  @behaviour_now ~U[2026-09-04 12:00:00Z]
+
   defmodule RejectingStore do
     @moduledoc false
 
@@ -111,7 +115,7 @@ defmodule BnestApp.Behaviour.HttpEndpoints.UnitAdapter do
   end
 
   def seed_theme(context, saved) do
-    assert Preferences.put_theme(context.http.owner, saved, DateTime.utc_now()) == :ok
+    assert Preferences.put_theme(context.http.owner, saved, @behaviour_now) == :ok
     context
   end
 

@@ -9,6 +9,8 @@ defmodule BnestAppWeb.BootstrapControllerTest do
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
   alias BnestApp.Test.InMemory.StoragePorts
   alias BnestAppWeb.BootstrapController
+  alias BnestAppWeb.LoginLive
+  alias Phoenix.HTML.Safe
 
   @password "Setup password 1!"
 
@@ -160,8 +162,8 @@ defmodule BnestAppWeb.BootstrapControllerTest do
         setup_error: draft.error,
         flash: %{}
       }
-      |> BnestAppWeb.LoginLive.render()
-      |> Phoenix.HTML.Safe.to_iodata()
+      |> LoginLive.render()
+      |> Safe.to_iodata()
       |> IO.iodata_to_binary()
 
     assert html =~ "test-user-setup-one"
