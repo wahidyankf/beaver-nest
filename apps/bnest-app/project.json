@@ -272,7 +272,7 @@
     },
     "test:integration": {
       "dependsOn": ["test-data:cleanup"],
-      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --exclude integration-exempt --exclude ci-exempt --max-cases 1 test/integration",
+      "command": "tools/test-integration-denied.sh",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/apps/bnest/app-be/behaviours/**/*.feature",
