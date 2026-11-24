@@ -167,18 +167,22 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     has_element?(context.view, "[data-role=brand-logo][src='/images/beaver-nest-logo.png']")
   end
 
-  # Integration cannot express a browser-only mechanism. Every scenario that needs one is
-  # @integration-exempt and proven at FE E2E, so reaching one of these fails instead of
-  # giving partial proof.
+  # Installability is what a visitor's document declares after opening "/": the root
+  # layout's manifest and icon links, each served by the endpoint. The manifest's contents
+  # and service-worker activation are proven at E2E.
   @impl true
-  def installable_as_app?(_context),
-    do:
-      raise(
-        exempt_message(
-          "service-worker installability",
-          "A visitor can install Beaver Nest as an app"
-        )
-      )
+  def installable_as_app?(context) do
+    document = context.page
+    manifest = document |> LazyHTML.query("link[rel=manifest]") |> LazyHTML.attribute("href")
+
+    icons =
+      document
+      |> LazyHTML.query("link[rel=icon][type='image/png'], link[rel=apple-touch-icon]")
+      |> LazyHTML.attribute("href")
+
+    manifest == ["/manifest.webmanifest"] and "/images/beaver-nest-512.png" in icons and
+      Enum.all?(manifest ++ icons, &served_path?(context, &1))
+  end
 
   @impl true
   def heading_visible?(%{page: page}, heading) do
@@ -207,12 +211,17 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     |> Kernel.==(label)
   end
 
+  # The landmark structure that keeps controls and content separated: the header holds
+  # the brand and account controls, and the hero section stands beside it. Pixel overlap is
+  # measured in the browser.
   @impl true
-  def home_controls_arranged?(_context),
-    do:
-      raise(
-        exempt_message("rendered geometry", "Home controls and content remain visually separated")
-      )
+  def home_controls_arranged?(context) do
+    page = context.page
+
+    not Enum.empty?(LazyHTML.query(page, ".home-header > .home-brand")) and
+      not Enum.empty?(LazyHTML.query(page, ".home-header > .home-account")) and
+      not Enum.empty?(LazyHTML.query(page, ".home-hero"))
+  end
 
   @impl true
   def follow_brand_home_link(context) do
@@ -418,8 +427,16 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   def send_message(context, message), do: submit_composer(context, message)
 
   @impl true
+  # Shift+Enter sends only from a touch pointer (ADR 005, decision 1). The pointer is a browser state, so this
+  # proof checks the scenario's declared pointer and runs its send; the key chord itself is proven by browser tests.
+  def submit_with_shift_enter(%{visitor_pointer: :touch} = context, message),
+    do: send_message(context, message)
+
   def submit_with_shift_enter(_context, _message),
-    do: raise(exempt_message("a keyboard chord", "A visitor sends a message with Shift+Enter"))
+    do:
+      raise(
+        "Shift+Enter sends only from a touch pointer, and this scenario declares no touch pointer"
+      )
 
   # The composer is read-only while Codex works, so the rendered form is submitted as a forced
   # browser submission would; the LiveView's own busy guard decides what happens.
@@ -562,13 +579,66 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   @impl true
   def current_route?(context, route), do: context.route == route
 
-  # Integration cannot replace the server under a connected client: remounting the unchanged
-  # server would simulate the deployment. Every scenario that reconnects after one is
-  # @integration-exempt and proven at FE E2E, so reaching this fails instead of passing.
+  # A dropped socket remounts the route on the same server: only what the LiveView saved
+  # comes back, and a turn still owed is resent through the resumed session. The stale view
+  # is stopped first, so its checkpoint cannot save over the resumed chat.
   @impl true
-  def reconnect(_context) do
-    raise "integration cannot reconnect after a deployment; " <>
-            "the scenario is @integration-exempt (FE E2E proves it)"
+  def reconnect(context) do
+    draft =
+      context.view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#chat-composer-form textarea")
+      |> LazyHTML.text()
+
+    held = Map.fetch(context, :pending_codex_events)
+    :ok = GenServer.stop(context.view.pid)
+
+    {:ok, view, _html} = live(context.conn, "/chat")
+    remounted = Map.put(context, :view, view)
+
+    remounted =
+      if held == :error,
+        do: remounted,
+        else: Map.put(remounted, :pending_codex_events, elem(held, 1))
+
+    calls = codex_fixture_calls()
+    remounted = Map.update(remounted, :codex_calls, calls, &(&1 ++ calls))
+
+    remounted =
+      if Enum.any?(calls, &match?({:prompt, owner, _} when owner == view.pid, &1)) do
+        resume_answer(remounted, held)
+      else
+        remounted
+      end
+
+    if draft == "", do: remounted, else: type_draft(remounted, draft)
+  end
+
+  # The resumed turn's answer, played as the fixture Codex sends it: a held stream's
+  # replacement streams its first part and holds the rest for the scenario's next step.
+  defp resume_answer(context, :error) do
+    {events, context} = answer_current_prompt(context)
+    deliver_codex_events(context, events) |> persist_chat()
+  end
+
+  defp resume_answer(context, {:ok, _held}) do
+    {events, context} = answer_current_prompt(context)
+    {first, rest} = CodexFixtureConversation.split_first_part(events)
+
+    context
+    |> Map.put(:pending_codex_events, rest)
+    |> deliver_codex_events(first)
+    |> persist_chat()
+  end
+
+  defp answer_current_prompt(context) do
+    {prompt, session, context} = unanswered_prompt!(context)
+
+    {events, threads} =
+      CodexFixtureConversation.answer(Map.get(context, :codex_threads, %{}), session, prompt)
+
+    {events, Map.put(context, :codex_threads, threads)}
   end
 
   defp exempt_message(mechanism, scenario) do
@@ -728,14 +798,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: CodexReplyPage.task_checkboxes?(latest_reply(context), checked, unchecked)
 
   @impl true
-  def latest_codex_reply_lays_out_inside_bubble?(_context),
-    do:
-      raise(
-        exempt_message(
-          "rendered layout",
-          "Codex reply tables, task lists, links and images keep their layout"
-        )
-      )
+  # The structure the browser layout check measures: table, task list, link and image
+  # inside the reply bubble. Visual layout itself is proven in the browser.
+  def latest_codex_reply_lays_out_inside_bubble?(context),
+    do: CodexReplyPage.lays_out_structure?(latest_reply(context))
 
   @impl true
   def latest_codex_reply_holds_wide_content?(context),
@@ -4129,6 +4195,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     %{status: 200, resp_body: body} = get(context.conn, "/manifest.webmanifest")
     Jason.decode!(body)
   end
+
+  # A linked install asset the endpoint serves to a visitor's request.
+  defp served_path?(context, path), do: get(context.conn, path).status == 200
 
   # The setting the page shows: the badge, which the selector's selected option must agree
   # with where a selector is offered.
