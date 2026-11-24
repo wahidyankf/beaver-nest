@@ -13,6 +13,8 @@ import type { SpawnedInstance } from "../support/testing-control-records.mts";
 // Bindings for the "Seeded accounts are test identities only" rule of test_isolation.feature. A spawn with two planned
 // accounts must list exactly those accounts, each with the test-user prefix and the instance's short id. Control calls
 // use Node fetch through the shared client, never Playwright's request context.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Every seeded account uses the test-user prefix and the instance short ID
 
 const { Before, Then, When } = createBdd();
 

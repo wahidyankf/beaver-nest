@@ -31,6 +31,12 @@ import type { SpawnedInstance } from "../support/testing-control-records.mts";
 // scenario's first step, its Given, ends that instance. playwright-bdd matches a step by its text alone, so one binding
 // serves the Given and the Then of "no test instance is current". It ends an instance only as the first step (see
 // isScenarioPrecondition). Control calls use Node fetch through the shared client, never Playwright's request context.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Consecutive tests never share a database
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: The spawn returns after its migrations and seed, and the instance stays current until deletion
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Teardown removes the instance from the running server
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Teardown removes every directory, pointer, and backup configuration the instance made
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawned instance with no seeded accounts starts empty with initial setup open
 
 const { Before, BeforeStep, Given, Then, When } = createBdd();
 

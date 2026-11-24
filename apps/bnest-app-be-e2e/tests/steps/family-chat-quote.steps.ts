@@ -2,6 +2,12 @@
 // the quote a reply's commit carries, its bounded preview, the targets the
 // server refuses, and the flat quote of a reply to a reply. The subscription
 // pair lives in family-chat-reply.steps.ts.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member sends a reply and the commit carries its quote
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A message sent with no reply target has no quote
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A quote is shortened to a bounded preview
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A reply target the server cannot honour is rejected before commit
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A reply to a reply quotes only its immediate parent
 
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";

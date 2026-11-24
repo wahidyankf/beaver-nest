@@ -1,6 +1,8 @@
 // family_chat_graphql.feature's Web Push visitor scenarios: a caller with no
 // session runs each subscription operation. Split from family-chat-web-push.steps.ts
 // (max-lines); the visitor answers live only in this file.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A visitor with no session is refused every Web Push subscription operation
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";

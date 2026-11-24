@@ -1,5 +1,14 @@
 // family_chat_graphql.feature's "Message body as safe HTML" Rule. Each Then reads the `bodyHtml` the send or the
 // live subscription push answered at the exact origin; nothing here renders or re-parses the message itself.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A message carries its body as safe HTML
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Raw HTML in a message body is escaped in bodyHtml
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscription push carries bodyHtml
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A quote carries a plain text preview and no HTML
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml marks a valid mermaid fence for drawing
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml keeps an unacceptable mermaid fence as a code block with a note
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml escapes hostile text inside a mermaid fence
 
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";

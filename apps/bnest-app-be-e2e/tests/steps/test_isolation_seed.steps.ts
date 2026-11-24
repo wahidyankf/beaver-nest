@@ -24,6 +24,8 @@ import {
 //
 // @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: POST /instances/:id/seed applies a seed once per key
 // @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A conflicting testing-control request answers 409 with its code
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A seed is applied once per key
 
 const { Before, Given, Then, When } = createBdd();
 

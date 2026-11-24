@@ -13,6 +13,9 @@ import {
 
 // The headless storage authority switch and the restart after it, split out of
 // sqlite_storage_cli.steps.ts to stay under the 300-line step-file budget.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The task switches storage to SQLite only when every check passes and the app then reads from it
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Chat, learning, theme, login and logout survive a restart after the switch
 
 const { After, Given, Then, When } = createBdd();
 

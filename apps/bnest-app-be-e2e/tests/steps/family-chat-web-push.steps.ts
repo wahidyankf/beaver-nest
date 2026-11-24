@@ -16,6 +16,12 @@ import {
 } from "../support/family-chat-state";
 import { postGraphQl, type GraphQlResponse } from "../support/graphql";
 
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member reads the Web Push configuration
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member reads their current Web Push subscription state
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member enables Web Push for this device only
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member disables Web Push on this device
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Disabling Web Push again still reports disabled
+
 const { Given, Then, When } = createBdd();
 
 interface SubscriptionState {

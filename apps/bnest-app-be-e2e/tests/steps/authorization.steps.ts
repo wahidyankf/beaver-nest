@@ -13,6 +13,9 @@ import { testUsername } from "../support/test-instance-lifecycle.mts";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: A multi-role user receives only approved capabilities
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: One authenticated user cannot change another user's data
+
 let secondUserContext: BrowserContext | undefined;
 let crossUserResponses: { writeStatus: number } | undefined;
 

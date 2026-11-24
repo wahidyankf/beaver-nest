@@ -5,6 +5,11 @@
 // exactly one message for that client message ID" is read as the room
 // reports it: every message committed after the scenario's own baseline.
 // Scenarios run one at a time, so nothing else commits in between.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member sends a message and gets the committed message back
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A sent message names its sender by display username, not raw user ID
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Retrying a client message ID returns the first commit
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Invalid message text is rejected before commit
 
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";

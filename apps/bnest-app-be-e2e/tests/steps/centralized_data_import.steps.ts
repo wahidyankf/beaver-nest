@@ -19,6 +19,8 @@ import {
 
 // Bindings for the interrupted-import scenario of centralized_data.feature. Split from centralized_data.steps.ts to keep
 // each file within the lint line limit. The seed is flat-primary only, as the block below explains.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Retrying an interrupted import completes it without duplicating data
 
 const { Given, Then, When } = createBdd();
 

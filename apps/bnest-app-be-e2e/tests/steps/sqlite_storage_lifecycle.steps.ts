@@ -21,6 +21,9 @@ let result: { status: number; stdout: string; stderr: string };
 let legacyDatabase = "";
 let generation = "";
 
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The relocate task moves SQLite to the production data folder and keeps the old files until proof
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Verified legacy flat-file storage is retired
+
 Given(
   "authoritative SQLite still uses the legacy configuration directory",
   ({ $testInfo }) => {

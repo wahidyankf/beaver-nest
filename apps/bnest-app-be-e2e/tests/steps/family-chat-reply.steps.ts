@@ -5,6 +5,10 @@
 // budget. playwright-bdd gathers step definitions from every file under
 // this directory, so the split is invisible to the runner; the values the
 // two files hand each other live on the shared `scenario` object.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A rejected reply target publishes no event
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscribed reply arrives carrying its quote
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A reply caught up through afterId carries its quote
 
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";

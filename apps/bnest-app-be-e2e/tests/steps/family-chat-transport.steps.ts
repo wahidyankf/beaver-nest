@@ -1,6 +1,8 @@
 // family_chat_graphql.feature's refused-request outline: a request the transport refuses is answered with its
 // status and its safe code, and carries no GraphQL data. Each request is sent by the browser context, so its session
 // cookies travel with it, and a POST carries the CSRF token a browser sends.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The GraphQL endpoint refuses a malformed request before executing it
 
 import { expect, type APIResponse, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";

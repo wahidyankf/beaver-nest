@@ -5,6 +5,17 @@
 // The scenario's test instance holds its own room, seeded by the release
 // migration, so each Then reads the room as the server reports it now -- a
 // second query, never a count kept here.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member queries the authorized room list
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member queries Ruang Keluarga by its slug
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The latest page is returned without a cursor
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A beforeId page returns older history
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: An afterId page returns catch-up history
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A message page request with invalid arguments is rejected
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A page asks for each message's body HTML once
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A page that asks for each message's body HTML under ten aliases is refused
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: An unauthenticated visitor is denied family chat data
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A missing room is reported safely without enumerating hidden rooms
 
 import { randomUUID } from "node:crypto";
 import { expect, type Page } from "@playwright/test";

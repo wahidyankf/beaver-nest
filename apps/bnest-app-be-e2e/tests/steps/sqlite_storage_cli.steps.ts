@@ -27,6 +27,11 @@ import {
 // and 8). Split out of sqlite_storage.steps.ts to stay under the repository's
 // 300-line step-file budget; the authority switch (scenario 7), admin-UI, and
 // access-control scenarios live in their own sibling files.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The storage migration task uses the default private data folder with no browser visit
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The storage migration task moves every recognized record and reports none blocked
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Running the storage migration task again after an interruption finishes it without duplicates
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Invalid or changed source blocks cutover without data loss
 
 const { Given, Then, When } = createBdd();
 

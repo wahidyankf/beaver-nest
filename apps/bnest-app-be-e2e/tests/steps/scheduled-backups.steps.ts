@@ -19,6 +19,9 @@ import {
 // folder confirms the save and queues one first check, however often it is
 // submitted"); the contextual-schedules, deny-access, and typed-configuration
 // scenarios moved to bnest-app-fe-e2e.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A daily backup with no saved folder is written to the repository backup folder
+// @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Saving a backup folder confirms the save and queues one first check, however often it is submitted
 
 const { Given, Then, When } = createBdd();
 const world: ScheduledBackupWorld = {};

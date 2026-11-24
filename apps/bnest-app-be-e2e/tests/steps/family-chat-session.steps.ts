@@ -10,6 +10,9 @@ import { requireResponse, scenario } from "../support/family-chat-state";
 import { postGraphQlWithStatus } from "../support/graphql";
 import { openFamilyChatSocket } from "../support/subscriptions.mts";
 
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A mutation without a valid CSRF token is rejected
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The socket rejects a connection with no valid session
+
 const { Then, When } = createBdd();
 
 When(

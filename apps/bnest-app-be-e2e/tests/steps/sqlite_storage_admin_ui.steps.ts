@@ -12,6 +12,9 @@ import { liveRuntimeRoot, readLivePointer } from "../support/sqlite-storage";
 // 300-line step-file budget. The scenario's test instance is its own database,
 // so no authority snapshot is captured or restored here: the lifecycle deletes
 // the instance, and the next scenario spawns a new one.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Administrator optionally selects a valid custom database folder
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Unsafe database folder is rejected without mutation
 
 const { After, Given, Then, When } = createBdd();
 

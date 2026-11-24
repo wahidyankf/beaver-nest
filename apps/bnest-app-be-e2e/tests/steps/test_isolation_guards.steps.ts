@@ -21,6 +21,9 @@ import { listTestInstanceLeaks } from "../support/test-runtime.mts";
 // the stock 404 and creates nothing, and a seeded username outside the test-user prefix is refused. Probes use Node
 // fetch, never Playwright's request context. The guard scenarios start with "no test instance is current" (its
 // binding in test_isolation.steps.ts ends the Before hook's instance), so a probe runs against an empty server.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request that is not the test runner's gets the stock not-found response
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A seeded username outside the test-user prefix is refused
 
 const { Before, Then, When } = createBdd();
 

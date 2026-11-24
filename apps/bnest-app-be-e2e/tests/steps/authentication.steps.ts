@@ -15,6 +15,12 @@ import { testUsername } from "../support/test-instance-lifecycle.mts";
 // persistence, independent browser sessions, and the accounts/password-policy half of initial setup); the
 // unauthenticated-redirect and approved-login/logout scenarios moved to bnest-app-fe-e2e. Every account here is the
 // current test instance's own (ADR 001, section 2), never a shared one.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Initial setup rejects a password missing a letter, number, or punctuation mark and accepts any length
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Initial setup creates the accounts once and then closes
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Logging in never exposes the password in storage, logs, or pages
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Login persists across reload and browser restart until logout or browser data clearing
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: One user can use independent simultaneous browser sessions
 
 const { Given, Then, When } = createBdd();
 
