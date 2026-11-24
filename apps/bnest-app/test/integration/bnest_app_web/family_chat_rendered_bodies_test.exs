@@ -15,6 +15,14 @@ defmodule BnestAppWeb.FamilyChatRenderedBodiesTest do
 
   @fixture Path.expand("../../../assets/test/support/family_chat_rendered_bodies.json", __DIR__)
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A message carries its body as safe HTML
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml marks a valid mermaid fence for drawing
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml keeps an unacceptable mermaid fence as a code block with a note
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml escapes hostile text inside a mermaid fence
   test "every fixture entry is what the renderer returns for its Markdown source" do
     entries = @fixture |> File.read!() |> Jason.decode!()
 

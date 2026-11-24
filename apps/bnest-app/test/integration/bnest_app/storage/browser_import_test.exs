@@ -11,6 +11,8 @@ defmodule BnestApp.BrowserImportTest do
   alias BnestApp.Storage.Records
   alias BnestApp.Storage.RecoverySource
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Confirming the recognized browser imports reports each source accepted and serves the imported data back to the user
   test "preserves and accepts each recognized browser source" do
     store = Records.store()
     owner_id = owner_id(store)
@@ -39,6 +41,8 @@ defmodule BnestApp.BrowserImportTest do
     assert {:ok, %{"theme" => "dark"}} = FileRecordBackend.read(store, :theme, owner_id)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Retrying an interrupted import completes it without duplicating data
   test "reuses an accepted import identity without duplicating its envelope" do
     store = Records.store()
     owner_id = owner_id(store)
@@ -55,6 +59,8 @@ defmodule BnestApp.BrowserImportTest do
     assert length(Path.wildcard(Path.join(import_directory, "*.json"))) == after_first_count
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Unknown, malformed, or oversized browser input is rejected without source deletion
   test "rejects malformed and oversized sources without replacing accepted data" do
     store = Records.store()
     owner_id = owner_id(store)
@@ -77,6 +83,8 @@ defmodule BnestApp.BrowserImportTest do
              FileRecordBackend.read(store, :browser_import, {owner_id, accepted.import_id})
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Unknown, malformed, or oversized browser input is rejected without source deletion
   test "rejects an unrecognized client-selected source before writing an envelope" do
     store = Records.store()
     owner_id = owner_id(store)
@@ -111,6 +119,8 @@ defmodule BnestApp.BrowserImportTest do
     assert {:ok, ^before} = FileRecordBackend.read(store, :chat, owner_id)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Importing with no explicit browser theme leaves the theme at the system default
   test "records absent system theme without creating a preference" do
     store = Records.store()
     owner_id = owner_id(store)

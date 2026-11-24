@@ -35,6 +35,8 @@ defmodule BnestApp.SchedulerTest do
              ~U[2026-08-31 19:00:00Z]
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Saving a backup folder confirms the save and queues one first check, however often it is submitted
   test "setup claims are idempotent per destination" do
     assert {:ok, first} =
              Scheduler.claim_setup("prod-sqlite-backup-daily", "destination-safe", @now)

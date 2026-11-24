@@ -454,6 +454,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       assert IntegrityLabel.outcome?(pages, :focus_does_not_move, [])
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Saving a backup folder confirms the save and queues one first check, however often it is submitted
     test "a successful backup folder save, the folder unchanged, checks again",
          %{conn: conn} = context do
       context = BackupIntegrity.prepare(context, :label_destination, ["all_present"])

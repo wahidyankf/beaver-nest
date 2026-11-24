@@ -81,6 +81,10 @@ defmodule BnestApp.BackupRestoreDrillTaskTest do
   end
 
   describe "as the standalone task" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill restores a synthetic artifact and prints redacted evidence
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill prints no private value
     test "restores the artifact, prints only redacted evidence and starts nothing", context do
       result = run_task(context, ["--artifact", context.artifact])
 
@@ -99,6 +103,8 @@ defmodule BnestApp.BackupRestoreDrillTaskTest do
       assert_private_free(result.output, context)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill leaves the destination unchanged and removes its root
     test "leaves the destination, the live database and the temporary directory as found",
          context do
       destination = tree_state(context.backup_directory)
@@ -168,6 +174,8 @@ defmodule BnestApp.BackupRestoreDrillTaskTest do
       assert tree_state(context.backup_directory) == destination
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill refuses an artifact cut short of its last bytes
     test "exits non-zero with a fixed line for an artifact cut short of its last bytes",
          context do
       path = context.drill.artifact_path
@@ -311,6 +319,8 @@ defmodule BnestApp.BackupRestoreDrillTaskTest do
       Map.put(context, :destination, tree_state(context.backup_directory))
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill refuses a target that is not a regular file inside the destination
     for {name, kind} <- [
           {"a regular file outside the destination by its absolute path", :absolute},
           {"a relative path that climbs out of the destination", :climbing},

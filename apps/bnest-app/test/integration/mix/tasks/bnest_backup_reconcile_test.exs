@@ -76,6 +76,8 @@ defmodule BnestApp.BackupReconcileTaskTest do
       Map.merge(context, %{runs: runs, source: source_copy!(context)})
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits zero only when every expected run is present
     test "exits zero, prints the summary and no date, and starts no scheduler", context do
       {output, status} = run_task(context)
 
@@ -84,6 +86,8 @@ defmodule BnestApp.BackupReconcileTaskTest do
       assert_private_free(output, context)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task changes no backup file
     test "reads a copy: the database and its log are byte-identical and no sidecar appears",
          context do
       before = snapshot(context.source)
@@ -97,6 +101,8 @@ defmodule BnestApp.BackupReconcileTaskTest do
       assert File.ls!(context.source.directory) |> Enum.sort() == context.source.names
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task changes no backup file
     test "leaves the destination it reads as it was, its mode included", context do
       File.chmod!(context.backup_directory, 0o755)
       before = directory_state(context.backup_directory)
@@ -108,6 +114,8 @@ defmodule BnestApp.BackupReconcileTaskTest do
       assert directory_state(context.backup_directory) == before
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits non-zero and names a <state> backup
     test "exits non-zero and names the date and state of a missing artifact", context do
       [_oldest, middle, _newest] = context.runs
       File.rm!(artifact_path(context, middle))
@@ -125,6 +133,8 @@ defmodule BnestApp.BackupReconcileTaskTest do
       assert_private_free(output, context)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits non-zero and names a <state> backup
     test "exits non-zero and names the date and state of a changed artifact", context do
       [oldest, _middle, _newest] = context.runs
       File.write!(artifact_path(context, oldest), "tampered", [:append])
@@ -178,6 +188,8 @@ defmodule BnestApp.BackupReconcileTaskTest do
       assert directory_state(context.backup_directory) == before
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits non-zero when the ledger is unreadable
     test "exits non-zero when the ledger cannot be read", context do
       File.write!(context.source.database, "synthetic bytes that are no database")
       File.rm!(context.source.log)
@@ -203,6 +215,8 @@ defmodule BnestApp.BackupReconcileTaskTest do
   describe "a ledger holding no verified backup" do
     setup context, do: Map.put(context, :source, source_copy!(context))
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task does not report an empty ledger as present
     test "says there is nothing to check, never present, and exits non-zero", context do
       {output, status} = run_task(context)
 

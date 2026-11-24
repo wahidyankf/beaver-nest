@@ -7,6 +7,7 @@ defmodule BnestAppWeb.AuthenticationTest do
   alias BnestApp.Identity
   alias BnestApp.Preferences
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.BehaviourEvidence
 
   @tag :unauthenticated
   test "redirects protected navigation before product data is accessed", %{conn: conn} do
@@ -14,6 +15,8 @@ defmodule BnestAppWeb.AuthenticationTest do
     assert redirected_to(conn) == "/login?return_to=%2Fchat"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Initial setup creates the accounts once and then closes
   test "one-time setup and registration routes are unavailable after closure", %{conn: conn} do
     # Seeded accounts on a SQLite instance leave no bootstrap journal, so the status is a conflict rather than
     # `:closed`. Either way setup is never open again, and the route answers 404.
@@ -94,6 +97,55 @@ defmodule BnestAppWeb.AuthenticationTest do
       |> get("/")
 
     assert html_response(persisted, 200) =~ username
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Logging in never exposes the password in storage, logs, or pages
+  test "a login keeps the password out of the stored bytes, the log, and the rendered pages", %{
+    conn: conn
+  } do
+    {username, password} = test_credentials()
+
+    {response, log} =
+      BehaviourEvidence.with_debug_log(fn ->
+        post(conn, "/login", %{
+          "login" => %{"username" => username, "password" => password},
+          "return_to" => "/chat"
+        })
+      end)
+
+    assert redirected_to(response) == "/chat"
+    assert log =~ "Processing with BnestAppWeb.SessionController.create"
+    refute log =~ password
+
+    cookie = get_resp_cookies(response)["_bnest_identity"].value
+    refute cookie =~ password
+
+    home =
+      build_conn()
+      |> put_req_cookie("_bnest_identity", cookie)
+      |> get("/")
+
+    assert html_response(home, 200) =~ username
+    refute home.resp_body =~ password
+
+    {_failed, failed_log} =
+      BehaviourEvidence.with_debug_log(fn ->
+        post(build_conn(), "/login", %{
+          "login" => %{"username" => username, "password" => "wrong password value"}
+        })
+      end)
+
+    refute failed_log =~ password
+    refute failed_log =~ "wrong password value"
+
+    stored =
+      Records.store().root
+      |> Path.join("**/*.json")
+      |> Path.wildcard()
+      |> Enum.map_join(&File.read!/1)
+
+    refute stored =~ password
   end
 
   @tag :unauthenticated

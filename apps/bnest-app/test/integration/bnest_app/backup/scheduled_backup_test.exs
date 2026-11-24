@@ -45,6 +45,8 @@ defmodule BnestApp.ScheduledBackupTest do
     %{backup_directory: backup_directory, runtime: runtime}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A daily backup with no saved folder is written to the repository backup folder
   test "resolves the ignored default from the runtime repository checkout", context do
     repository = Path.join(context.runtime.path, "release-checkout")
     File.mkdir_p!(repository)
@@ -77,6 +79,8 @@ defmodule BnestApp.ScheduledBackupTest do
     assert {:ok, %{directory: ^expected}} = Backup.destination()
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A scheduled backup produces a verified snapshot of the live database
   test "writes and independently verifies one private owned pair", context do
     assert {:ok, location} = Backup.save_destination(context.backup_directory)
 
@@ -87,6 +91,31 @@ defmodule BnestApp.ScheduledBackupTest do
     assert receipt["quickCheck"] == "ok"
     assert File.exists?(Path.join(context.backup_directory, receipt["artifactBasename"]))
     refute inspect(receipt) =~ context.backup_directory
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A backup that runs too long is cancelled, leaves no file, and is tried again
+  test "a backup that exceeds its timeout is cancelled, leaves no file, and stays retryable",
+       context do
+    previous = Application.get_env(:bnest_app, :backup_timeout_ms)
+    Application.put_env(:bnest_app, :backup_timeout_ms, 1)
+
+    on_exit(fn ->
+      if is_nil(previous),
+        do: Application.delete_env(:bnest_app, :backup_timeout_ms),
+        else: Application.put_env(:bnest_app, :backup_timeout_ms, previous)
+    end)
+
+    assert {:ok, location} = Backup.save_destination(context.backup_directory)
+
+    {:ok, claim} =
+      Scheduler.claim_setup("prod-sqlite-backup-daily", location.destination_id, @now)
+
+    assert {:error, :timeout} = ScheduledBackupTask.execute(claim, @now)
+
+    assert context.backup_directory
+           |> File.ls!()
+           |> Enum.filter(&String.contains?(&1, ".sqlite3")) == []
   end
 
   test "retains one owned pair per current seven WIB dates and preserves unknown files",
@@ -165,6 +194,8 @@ defmodule BnestApp.ScheduledBackupTest do
       %{location: location}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The report and the log line carry no private value
     test "reports the date and state of a run whose artifact was removed, once and privately",
          context do
       first = run_backup!(context.location, 1)
@@ -207,6 +238,8 @@ defmodule BnestApp.ScheduledBackupTest do
       assert_no_private_value(inspect(metadata) <> log, context, [first, second])
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A reconciliation that raises leaves the backup verified
     test "a reconciliation that raises leaves the run verified and logs one path-free error",
          context do
       first = run_backup!(context.location, 1)

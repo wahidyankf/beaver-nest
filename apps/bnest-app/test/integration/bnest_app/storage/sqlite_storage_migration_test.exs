@@ -31,6 +31,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     %{flat_root: runtime.path, database_path: database_path}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The storage migration task moves every recognized record and reports none blocked
   test "backfills every recognized flat-file record with immutable checksum evidence", %{
     flat_root: flat_root
   } do
@@ -67,6 +69,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
            end)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Running the storage migration task again after an interruption finishes it without duplicates
   test "retrying the same migration identifier does not rewrite or duplicate accepted items", %{
     flat_root: flat_root
   } do
@@ -99,6 +103,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     assert SqliteMigration.integrity_ok?()
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The task switches storage to SQLite only when every check passes and the app then reads from it
   test "activation switches the phase to sqlite_primary and marks the run verified", %{
     flat_root: flat_root
   } do
@@ -145,6 +151,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     assert {:ok, ^authoritative} = SqliteRecordBackend.read(store, :theme, user_id)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Invalid or changed source blocks cutover without data loss
   test "a source that changes after inventory blocks cutover with a value-free retry category", %{
     flat_root: flat_root
   } do

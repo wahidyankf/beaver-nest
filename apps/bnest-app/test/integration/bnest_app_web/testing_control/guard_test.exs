@@ -24,6 +24,8 @@ defmodule BnestAppWeb.TestingControl.GuardEndpointTest do
   end
 
   describe "with no instance current" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request that is not the test runner's gets the stock not-found response
     test "a request with no secret header is refused as a missing route, in the JSON not-found body",
          ctx do
       refuse_every_route(ctx, headers: [accept()])
@@ -32,15 +34,21 @@ defmodule BnestAppWeb.TestingControl.GuardEndpointTest do
       Wire.assert_json_not_found(refused)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request that is not the test runner's gets the stock not-found response
     test "a request with a wrong secret is refused as a missing route", ctx do
       wrong = String.duplicate("w", byte_size(ctx.secret))
       refuse_every_route(ctx, headers: [accept(), {"x-bnest-testing", wrong}])
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request that is not the test runner's gets the stock not-found response
     test "a request with a secret of the wrong length is refused as a missing route", ctx do
       refuse_every_route(ctx, headers: [accept(), {"x-bnest-testing", "x"}])
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request that is not the test runner's gets the stock not-found response
     test "a request that sends the right secret twice is refused as a missing route", ctx do
       refuse_every_route(ctx, headers: [accept(), secret_header(ctx), secret_header(ctx)])
     end
@@ -49,6 +57,8 @@ defmodule BnestAppWeb.TestingControl.GuardEndpointTest do
       refuse_every_route(ctx, headers: [{"accept", "text/html"}])
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request that is not the test runner's gets the stock not-found response
     test "a request that came through a proxy is refused, with the right secret", ctx do
       for name <- @forwarded do
         refuse_every_route(ctx,
@@ -58,6 +68,8 @@ defmodule BnestAppWeb.TestingControl.GuardEndpointTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request from a non-loopback peer gets the stock not-found response
     test "a request from a peer that is not loopback is refused, with the right secret", ctx do
       for peer <- [{10, 0, 0, 5}, {127, 0, 0, 2}, {0, 0, 0, 0, 0, 0, 0, 2}] do
         refuse_every_route(ctx,
@@ -113,6 +125,8 @@ defmodule BnestAppWeb.TestingControl.GuardEndpointTest do
       :ok
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request that is not the test runner's gets the stock not-found response
     test "refused requests change neither the instance nor its database", ctx do
       before = Wire.snapshot()
       headers = [accept()]

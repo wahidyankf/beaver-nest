@@ -47,6 +47,8 @@ defmodule BnestApp.Identity.IdentityTest do
       assert {:error, :invalid_username} = Credentials.normalize_username("fámily")
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Initial setup rejects a password missing a letter, number, or punctuation mark and accepts any length
     test "accepts every valid Unicode password with a letter, number, and punctuation without trimming or truncating" do
       assert Credentials.valid_password?("x_1")
       assert Credentials.valid_password?(String.duplicate("é", 129) <> "_1")
@@ -72,6 +74,8 @@ defmodule BnestApp.Identity.IdentityTest do
   end
 
   describe "one-time bootstrap" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Initial setup creates the accounts once and then closes
     test "creates multiple roles and closes permanently without plaintext", %{
       runtime: runtime,
       store: store
@@ -167,6 +171,10 @@ defmodule BnestApp.Identity.IdentityTest do
   end
 
   describe "persistent independent sessions" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Login persists across reload and browser restart until logout or browser data clearing
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: One user can use independent simultaneous browser sessions
     test "stores only a digest, persists across store recreation, and revokes one browser", %{
       runtime: runtime,
       store: store
@@ -228,6 +236,10 @@ defmodule BnestApp.Identity.IdentityTest do
   end
 
   describe "authorization" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: A multi-role user receives only approved capabilities
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: One authenticated user cannot change another user's data
     test "unions valid roles only for self-owned capabilities and denies everything else" do
       capabilities =
         ~w(use_chat use_sifat_allah read_theme write_theme confirm_import view_import_status)a

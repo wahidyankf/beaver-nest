@@ -88,6 +88,8 @@ defmodule BnestApp.TestInstance.SeedTest do
       assert :ok = TestInstance.drop!(instance)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawned instance with no seeded accounts starts empty with initial setup open
     test "an empty spawn leaves setup open", %{run: run} do
       instance = TestInstance.spawn!(run, instance_id: @first_id, phase: :flat_primary)
 
@@ -425,6 +427,8 @@ defmodule BnestApp.TestInstance.SeedTest do
   describe "idempotency" do
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: POST /instances/:id/seed applies a seed once per key
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A seed is applied once per key
     test "the same key and body applies once and reports applied false", %{run: run} do
       instance = TestInstance.spawn!(run, instance_id: @first_id, phase: :flat_primary)
       {_admin, parent} = names(@first_id)
@@ -462,6 +466,8 @@ defmodule BnestApp.TestInstance.SeedTest do
   end
 
   describe "spawn with a seed" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: The spawn returns after its migrations and seed, and the instance stays current until deletion
     test "the seed runs after migration, and a later apply of its key sees it", %{run: run} do
       seed = account_seed(@first_id)
 
@@ -480,6 +486,8 @@ defmodule BnestApp.TestInstance.SeedTest do
       assert :ok = TestInstance.drop!(instance)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A failed spawn leaves nothing behind
     test "a seed that fails validation rolls the whole spawn back at step seed", %{run: run} do
       before = snapshot()
 
@@ -506,6 +514,8 @@ defmodule BnestApp.TestInstance.SeedTest do
       assert_rolled_back(before)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A failed spawn leaves nothing behind
     test "a seed whose writes are followed by a forced failure leaves no account behind", %{
       run: run
     } do
@@ -537,6 +547,8 @@ defmodule BnestApp.TestInstance.SeedTest do
   end
 
   describe "isolation" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Consecutive tests never share a database
     test "a second instance does not see the accounts of the first", %{run: run} do
       first =
         TestInstance.spawn!(run,

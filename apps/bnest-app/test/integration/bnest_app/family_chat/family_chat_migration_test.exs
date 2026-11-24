@@ -46,6 +46,10 @@ defmodule BnestApp.FamilyChatMigrationTest do
     {:ok, runtime: runtime, family_chat_dir: family_chat_dir}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: After an upgrade the administrator sees the daily backup at 18:00 UTC
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: After an upgrade the push retention schedule is listed as enabled
   test "starts database dependencies and owns the repo for a standalone converge_after_drain! release eval",
        %{runtime: runtime, family_chat_dir: family_chat_dir} do
     storage_config_path = Path.join(runtime.path, "release-storage.json")
@@ -123,6 +127,31 @@ defmodule BnestApp.FamilyChatMigrationTest do
       other -> raise "retention schedule not enabled: " <> inspect(other)
     end
     """)
+  end
+
+  describe "fresh installation" do
+    setup context do
+      _fresh = BnestApp.FreshDatabaseCase.fresh_database!(context)
+      FamilyChat.ensure_ready!()
+      :ok
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A fresh installation lists Ruang Keluarga ready for posting
+    test "lists Ruang Keluarga ready and accepts a message" do
+      assert {:ok, room} = FamilyChat.migrate!()
+      assert FamilyChat.list_rooms_for("test-user-fresh-install") == {:ok, [room]}
+
+      assert {:ok, message} =
+               FamilyChat.send_message(
+                 "test-user-fresh-install",
+                 room.slug,
+                 Ecto.UUID.generate(),
+                 "first post"
+               )
+
+      assert message.body == "first post"
+    end
   end
 
   describe "additive reply column" do

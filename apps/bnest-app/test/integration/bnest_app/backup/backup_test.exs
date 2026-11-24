@@ -60,6 +60,8 @@ defmodule BnestApp.BackupTest do
     # window. Retention must remove the oldest owned pair and change nothing else. Retention
     # keeps by WIB (UTC+07:00) date: an owned run is created at 03:00 UTC, 10:00 WIB of the same
     # date, so the owned dates are 2030-05-11 to 2030-05-18.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Foreign receipts and unreceipted files are never removed or counted
     test "removes exactly the owned pairs outside the seven latest dates and nothing else" do
       %{directory: directory} = location = TestBackupDestination.configure!("retention")
       foreign_location = %{location | destination_id: @foreign_destination_id}

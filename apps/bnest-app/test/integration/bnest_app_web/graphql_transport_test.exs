@@ -51,6 +51,8 @@ defmodule BnestAppWeb.GraphQLTransportTest do
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Push queries and mutations refuse unauthenticated callers
   @tag :unauthenticated
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A visitor with no session is refused every Web Push subscription operation
   test "push queries and mutations without a session are unauthenticated", %{conn: conn} do
     variables = %{
       "endpoint" => "https://push.allowed.example.com/transport-probe",
@@ -99,5 +101,34 @@ defmodule BnestAppWeb.GraphQLTransportTest do
     configuration_body = Jason.decode!(configuration.resp_body)
     assert configuration_body["errors"] == nil
     assert is_boolean(configuration_body["data"]["webPushConfiguration"]["available"])
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A signed-in session with no session digest is refused every Web Push subscription operation
+  @tag :unauthenticated
+  test "a session without a digest authorizes nothing", %{conn: conn} do
+    sessioned =
+      Plug.Test.init_test_session(conn, %{"current_user" => %{"userId" => "user-digestless"}})
+
+    current =
+      post_graphql(sessioned, "query { currentWebPushSubscription { enabled } }", %{})
+
+    assert current.status == 200
+    assert refused_code(Jason.decode!(current.resp_body)) == "UNAUTHENTICATED"
+    assert Jason.decode!(current.resp_body)["data"]["currentWebPushSubscription"] == nil
+
+    upsert =
+      post_graphql(
+        sessioned,
+        "mutation Upsert($endpoint: String!, $p256dh: String!, $auth: String!) { upsertWebPushSubscription(endpoint: $endpoint, p256dh: $p256dh, auth: $auth) { enabled } }",
+        %{
+          "endpoint" => "https://push.allowed.example.com/transport-digestless",
+          "p256dh" => "probe-p256dh",
+          "auth" => "probe-auth"
+        }
+      )
+
+    assert upsert.status == 200
+    assert refused_code(Jason.decode!(upsert.resp_body)) == "UNAUTHENTICATED"
   end
 end
