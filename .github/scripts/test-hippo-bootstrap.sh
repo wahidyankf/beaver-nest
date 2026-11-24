@@ -7,6 +7,12 @@
 # loudly.
 set -eu
 
+# Hermetic worker-policy proofs: the `hippo run` supervisor exports
+# HIPPO_DEFAULT_CONFIG/HIPPO_DEFAULT_IDENTITY, which would otherwise win over
+# the checkout-local resolution under test via `:-` defaults. CI runs this
+# script directly so behaviour there is unchanged.
+unset HIPPO_DEFAULT_CONFIG HIPPO_DEFAULT_IDENTITY
+
 repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 temporary_root=$(mktemp -d)
 trap 'rm -rf -- "$temporary_root"' EXIT HUP INT TERM
