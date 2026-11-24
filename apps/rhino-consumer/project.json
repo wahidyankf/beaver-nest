@@ -55,6 +55,35 @@
         "parallel": false
       }
     },
+    "test:quick": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/rhino",
+        "{workspaceRoot}/rhino.lock",
+        "{workspaceRoot}/.github/scripts/test-rhino-quick.sh",
+        "{workspaceRoot}/specs/apps/tools/rhino-consumer/**/*"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "shellcheck rhino .github/scripts/test-rhino-quick.sh",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "./.github/scripts/test-rhino-quick.sh",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "./rhino behaviour coverage validate --rules B04,B05,B06,B07,B08",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
     "test:behaviour:coverage": {
       "executor": "nx:run-commands",
       "cache": false,
