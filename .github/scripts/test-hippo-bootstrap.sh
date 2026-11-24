@@ -418,6 +418,7 @@ assert_waits_for_live_lock() {
 	[ -f "$install_lock" ]
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A cold cache installs once and a warm cache needs no transport
 run_cold_then_warm_cache() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -438,6 +439,7 @@ run_cold_then_warm_cache() {
 # presence and their position are both claims about it: every mapping must
 # arrive ahead of the caller's own arguments, and the caller's order must be
 # untouched.
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Repository worker settings precede the caller's run arguments
 run_worker_settings_precede_run_arguments() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -464,6 +466,7 @@ ok'
 
 # Integrity failures are configuration errors, not transport errors, and must
 # stop before an unverified payload is published or executed.
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A downloaded release that fails verification is refused
 run_download_digest_mismatch() {
 	rm -rf -- "$cache_root"
 	write_lock "$test_version" 0000000000000000000000000000000000000000000000000000000000000000
@@ -489,6 +492,7 @@ run_download_digest_mismatch() {
 # forever. The refusal is attributed by its message, because exit 125 is also
 # what an unreadable lock produces -- and the platform branch runs before the
 # lock's per-platform checksum is ever read.
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Unsupported platform is refused before any transport
 run_unsupported_platform_refused() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -519,6 +523,7 @@ run_unsupported_platform_refused() {
 # record. The second starts only once the first is provably inside transport,
 # so this is contention rather than two runs that happened to overlap, and
 # exact-owner cleanup must leave neither the lock nor a prepared record behind.
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Two callers starting together download once and both run the release
 run_concurrent_cold_callers() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -546,6 +551,7 @@ run_concurrent_cold_callers() {
 	[ -z "$(find "$cache_root/$test_version" -name '.install-owner.*' -print -quit)" ]
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Tampered warm-cache payload never executes
 run_tampered_warm_cache() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -591,6 +597,7 @@ EOF
 	[ ! -e "$tamper_marker" ]
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Non-exact stable release version is rejected
 run_non_exact_stable_version() {
 	rm -rf -- "$cache_root"
 	downloads_before=$(download_count)
@@ -629,6 +636,7 @@ run_non_exact_identity_envelope() {
 	[ ! -e "$cache_root/$test_version/$host_platform/hippo.sha256" ]
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A caller waits while another caller is installing
 run_matching_live_owner() {
 	prepare_atomic_install_lock
 	process_start=$(LC_ALL=C ps -o lstart= -p "$$" 2>/dev/null | awk '{$1=$1; print; exit}')
@@ -666,6 +674,7 @@ run_reused_live_pid() {
 	assert_pinned_release_installed "$downloads_before"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A caller takes over an install whose owner is gone
 run_dead_owner() {
 	prepare_atomic_install_lock
 	dead_pid=2147483647
@@ -817,6 +826,7 @@ run_peer_consumer() {
 		"$temporary_root/peers/$peer_name/hippo" probe
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Retention never deletes a release another consumer is using
 run_retention_protects_installing_release() {
 	rm -rf -- "$cache_root" "$curl_count"
 	claimed_version=v9.7.2
@@ -878,6 +888,7 @@ run_retention_protects_installing_release() {
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Retention never evicts a release another repository still uses
 run_retention_keeps_releases_other_repositories_use() {
 	rm -rf -- "$cache_root" "$curl_count"
 	sharing_versions='v9.5.1 v9.5.2 v9.5.3 v9.5.4'
@@ -901,6 +912,7 @@ run_retention_keeps_releases_other_repositories_use() {
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Retention reclaims releases left idle beyond its window
 run_retention_reclaims_idle_releases() {
 	rm -rf -- "$cache_root" "$curl_count"
 	idle_version=v9.4.9
@@ -1082,6 +1094,7 @@ run_release_ranking_reads_real_timestamps() {
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A missing, duplicated, or malformed pin exits 125 before any transport
 run_pin_refusals_125() {
 	marker="$temporary_root/curl-called"
 	rm -f -- "$marker"
@@ -1152,6 +1165,7 @@ EOF
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A bounded wait for the install guard or lock that runs out exits 124
 run_bounded_wait_124() {
 	write_lock "$test_version" "$checksum"
 	mkdir -p "$cache_root" "$temporary_root/timeout-bin"
@@ -1194,6 +1208,7 @@ EOF
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A host without flock or lockf exits 125
 run_missing_lock_tool_125() {
 	write_lock "$test_version" "$checksum"
 	mkdir -p "$temporary_root/no-lock-bin"
@@ -1229,6 +1244,7 @@ run_missing_lock_tool_125() {
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: The worker policy comes from the checkout's own hippo.local.json, else the primary checkout's, and an explicit setting wins
 run_worker_policy_resolution() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root" "$curl_count"
@@ -1289,6 +1305,7 @@ EOF
 	rm -rf -- "$cache_root" "$curl_count" "$checkout_dir" "$primary_dir"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: The wrapper hands the release the repository's local resource policy
 run_local_resource_policy() {
 	jq -e '.coordination.tiers.light.maximumCpu <= .coordination.maxCpu' "$repository_root/hippo.local.json.example" >/dev/null
 	jq -e '.coordination.tiers.standard.maximumCpu <= .coordination.maxCpu' "$repository_root/hippo.local.json.example" >/dev/null
