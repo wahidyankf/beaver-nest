@@ -12,6 +12,8 @@ defmodule BnestAppWeb.DevRoutesTest do
     refute DevRoutes.mounted?(false)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A production endpoint does not serve GraphiQL
   test "the compiled router mounts GraphiQL exactly when the seam says this build does" do
     graphiql_routes =
       Enum.filter(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))

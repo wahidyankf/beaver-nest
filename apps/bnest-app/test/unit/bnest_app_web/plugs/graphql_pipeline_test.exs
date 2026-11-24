@@ -48,6 +48,8 @@ defmodule BnestAppWeb.Plugs.GraphQLPipelineTest do
     refute Map.has_key?(Jason.decode!(text_conn.resp_body), "data")
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The GraphQL endpoint refuses a malformed request before executing it
   test "a chunked body over 64 KiB is rejected before the CSRF check" do
     result = GraphQLPipeline.call(chunked_conn(String.duplicate("a", 70 * 1024)), [])
 
@@ -56,6 +58,8 @@ defmodule BnestAppWeb.Plugs.GraphQLPipelineTest do
     assert code(result) == "PAYLOAD_TOO_LARGE"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A mutation without a valid CSRF token is rejected
   test "a chunked body within budget passes the size gate" do
     result = GraphQLPipeline.call(chunked_conn(Jason.encode!(%{"query" => "{ __typename }"})), [])
 
@@ -64,6 +68,8 @@ defmodule BnestAppWeb.Plugs.GraphQLPipelineTest do
     assert code(result) == "CSRF_REJECTED"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The GraphQL endpoint refuses a malformed request before executing it
   test "a content-length over 64 KiB is rejected" do
     result =
       GraphQLPipeline.call(
@@ -105,6 +111,8 @@ defmodule BnestAppWeb.Plugs.GraphQLPipelineTest do
     |> Plug.Test.init_test_session(%{})
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The GraphQL endpoint refuses a malformed request before executing it
   test "an already-parsed body over 64 KiB is rejected before the CSRF check" do
     result = GraphQLPipeline.call(parsed_conn(%{"query" => String.duplicate("a", 70 * 1024)}), [])
 
@@ -113,6 +121,8 @@ defmodule BnestAppWeb.Plugs.GraphQLPipelineTest do
     assert code(result) == "PAYLOAD_TOO_LARGE"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A mutation without a valid CSRF token is rejected
   test "an already-parsed body within budget passes the size gate" do
     result = GraphQLPipeline.call(parsed_conn(%{"query" => "{ __typename }"}), [])
 

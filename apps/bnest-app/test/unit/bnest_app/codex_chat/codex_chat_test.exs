@@ -59,6 +59,8 @@ defmodule BnestApp.CodexChat.CodexChatUnitTest do
       refute_received {:agent_session, :open, _second}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Failed Codex-thread resume preserves the transcript
     test "starts a fresh conversation when the saved thread cannot be resumed" do
       transcript = saved_transcript("unavailable-thread")
 
@@ -88,6 +90,8 @@ defmodule BnestApp.CodexChat.CodexChatUnitTest do
   end
 
   describe "replace_conversation/4" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Failed Codex-thread resume preserves the transcript
     test "closes the failed session and keeps the transcript in a fresh conversation" do
       {:ok, session, _transcript} =
         CodexChat.open_conversation(Transcript.new(), :read_only, @agent)

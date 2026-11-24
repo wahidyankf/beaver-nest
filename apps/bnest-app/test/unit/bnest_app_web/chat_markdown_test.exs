@@ -109,6 +109,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
     ```
     """
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A message carries its body as safe HTML
     test "renders headings, emphasis, code, lists, tasks, tables, quotes, rules and strikethrough" do
       html = render(@sample)
 
@@ -257,6 +259,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
   end
 
   describe "images" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
     test "a repository image is shown through the image route, with its alt text and safe attributes" do
       html = render("![Beaver Nest logo](#{@logo})")
 
@@ -273,6 +277,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert image_path(html) == "docs/my shot.png"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
     test "an https image is shown inline, with its alt text and the safe attributes, and no link" do
       html = render("![Remote logo](#{@https}example.com/remote-logo.png)")
 
@@ -294,6 +300,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert tags(html, "a") == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
     test "an http image is not loaded: it stays a link that says it is not shown" do
       html = render("![Remote logo](#{@http}example.com/remote-logo.png)")
 
@@ -310,6 +318,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert html =~ "#{@http}example.com/remote-logo.png (image not shown)"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
     test "a small PNG, JPEG, GIF or WebP data image is shown inline with its alt text" do
       for {type, bytes} <- @raster_images do
         url = data_url(type, bytes)
@@ -322,6 +332,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
     test "an SVG, another data type, or a javascript image is withheld and its text says so" do
       for destination <- [
             data_url("svg+xml", @svg),
@@ -631,6 +643,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
     ]
     @marker ~s(data-bnest-diagram="mermaid")
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml marks a valid mermaid fence for drawing
     test "a valid flowchart is marked, and its source is kept as escaped text" do
       html = render(fence(@flowchart))
 
@@ -641,6 +655,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       refute html =~ "language-mermaid"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml marks a valid mermaid fence for drawing
     test "every accepted diagram type is marked" do
       for header <- @accepted_headers do
         assert render(fence(header <> "\n  A --> B")) =~ @marker, header
@@ -726,6 +742,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert html =~ "<p><em>Diagram not drawn: it is too large.</em></p>"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml keeps an unacceptable mermaid fence as a code block with a note
     test "a diagram type that is not on the list is refused as unsupported" do
       for header <- [
             "architecture-beta",
@@ -874,6 +892,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert render("> ```mermaid\n> flowchart TD\n>   A --> B\n> ```") =~ @marker
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml escapes hostile text inside a mermaid fence
     test "hostile text in a diagram label is escaped and kept as source, and the fence is marked" do
       for label <- [
             "<script>alert(1)</script>",

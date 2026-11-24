@@ -31,6 +31,8 @@ defmodule BnestAppWeb.Plugs.SafeParsersTest do
     assert result.params["query"] == "{ __typename }"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The GraphQL endpoint refuses a malformed request before executing it
   test "a malformed JSON body on /api/graphql answers 400 VALIDATION_FAILED" do
     conn = json_conn("/api/graphql", "this is not json")
 
@@ -41,6 +43,8 @@ defmodule BnestAppWeb.Plugs.SafeParsersTest do
     assert code(result) == "VALIDATION_FAILED"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The GraphQL endpoint refuses a malformed request before executing it
   test "a body over the parsers cap on /api/graphql answers 413 PAYLOAD_TOO_LARGE" do
     conn = json_conn("/api/graphql", Jason.encode!(%{"query" => "{ __typename }"}))
 

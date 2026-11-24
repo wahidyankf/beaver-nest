@@ -37,16 +37,22 @@ defmodule BnestApp.FamilyChat.Domain.PolicyTest do
     assert Policy.validate_client_message_id("not-a-uuid") == @validation_failed
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Invalid message text is rejected before commit
   test "a body is normalized, and a blank one refused" do
     assert Policy.validate_body("  hi\r\nthere ") == {:ok, "hi\nthere"}
     assert Policy.validate_body(" \n ") == @validation_failed
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Invalid message text is rejected before commit
   test "an over-long body names its 4,000-grapheme limit" do
     assert {:error, %{code: "BODY_TOO_LONG", details: nil}} =
              Policy.validate_body(String.duplicate("a", 4_001))
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Invalid message text is rejected before commit
   test "an over-large body names its 16 KiB limit" do
     # One family emoji is a single grapheme of several bytes: 700 of them stay
     # within 4_000 graphemes but exceed the 16 KiB byte budget.

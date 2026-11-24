@@ -16,6 +16,8 @@ defmodule BnestApp.FamilyChat.Domain.CursorTest do
     assert Cursor.new(before_id: 5, after_id: 1) == :error
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A message page request with invalid arguments is rejected
   test "refuses a limit outside 1 to 50 or not an integer" do
     for limit <- [0, -1, 51, "10", 1.0, nil] do
       assert Cursor.new(limit: limit) == :error, inspect(limit)

@@ -98,11 +98,15 @@ defmodule BnestApp.PushNotificationsTest do
   end
 
   describe "current_subscription/2" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member reads their current Web Push subscription state
     test "reports disabled for a user with no stored row" do
       assert {:ok, %{enabled: false, expiration_time: nil}} =
                PushNotifications.current_subscription(unique_user(), "session-a")
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member reads their current Web Push subscription state
     test "reports enabled with the stored expiration once a subscription exists" do
       user = unique_user()
       session = "session-b"
@@ -116,11 +120,15 @@ defmodule BnestApp.PushNotificationsTest do
   end
 
   describe "upsert_subscription/3" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A visitor with no session is refused every Web Push subscription operation
     test "rejects an unauthenticated (nil) caller" do
       assert {:error, %{code: "UNAUTHENTICATED", details: nil}} =
                PushNotifications.upsert_subscription(nil, "session-c", valid_input("unused"))
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: An unsafe Web Push subscription endpoint is rejected
     test "rejects an endpoint off the allowlist the configured sender extends", %{store: store} do
       input = Map.put(valid_input("x"), "endpoint", "https:" <> "//push.example.com/x")
 
@@ -131,6 +139,31 @@ defmodule BnestApp.PushNotificationsTest do
              |> InMemorySubscriptionStore.over()
              |> InMemorySubscriptionStore.subscriptions() ==
                []
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member enables Web Push for this device only
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: An unsafe Web Push subscription endpoint is rejected
+    test "rejects an IP-literal, non-default-port, or userinfo endpoint and stores nothing", %{
+      store: store
+    } do
+      for suffix <- [
+            "//203.0.113.7/ip-literal-endpoint",
+            "//push.allowed.example.com:8443/nondefault-port",
+            "//user@push.allowed.example.com/userinfo-present"
+          ] do
+        input =
+          valid_input("unsafe-" <> Ecto.UUID.generate())
+          |> Map.put("endpoint", "https:" <> suffix)
+
+        assert {:error, %{code: "VALIDATION_FAILED", details: nil}} =
+                 PushNotifications.upsert_subscription(unique_user(), "session-unsafe", input)
+      end
+
+      assert store
+             |> InMemorySubscriptionStore.over()
+             |> InMemorySubscriptionStore.subscriptions() == []
     end
 
     test "stores the endpoint under its digest and the session under the session key's digest",
@@ -152,6 +185,8 @@ defmodule BnestApp.PushNotificationsTest do
       assert byte_size(stored.session_digest) == 64
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member enables Web Push for this device only
     test "rebinds an existing endpoint to a new (user, session) pair instead of duplicating it" do
       shared_endpoint_suffix = "rebind-" <> Ecto.UUID.generate()
       input = valid_input(shared_endpoint_suffix)
@@ -175,6 +210,10 @@ defmodule BnestApp.PushNotificationsTest do
   end
 
   describe "disable_subscription/2" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member disables Web Push on this device
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Disabling Web Push again still reports disabled
     test "disables the session's subscription, idempotently" do
       user = unique_user()
 
@@ -224,6 +263,61 @@ defmodule BnestApp.PushNotificationsTest do
                PushNotifications.current_subscription(owed.user, "session-owed")
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A device the push service reports gone stops receiving notifications and shows as disabled
+    test "disables the subscription the provider reports gone, sending it nothing more", %{
+      store: store
+    } do
+      owed = owe_delivery!(store, "status-410")
+
+      assert {:ok, %{state: "terminal", next_attempt_at: nil, attempt: 1}} =
+               Dispatcher.attempt(@now)
+
+      assert %{state: "terminal", failure_category: "gone"} =
+               delivery(store, owed.delivery_id)
+
+      assert {:ok, %{enabled: false}} =
+               PushNotifications.current_subscription(owed.user, "session-owed")
+
+      assert Dispatcher.attempt(@now) == {:error, :no_due_delivery}
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A reply notifies the other member once and the notification shows none of the quoted message
+    test "a reply notifies once with the reply body and none of the quoted message" do
+      other = unique_user()
+
+      assert {:ok, %{enabled: true}} =
+               PushNotifications.upsert_subscription(other, "session-reply", valid_input("reply"))
+
+      {:ok, target} =
+        FamilyChat.send_message(
+          unique_user(),
+          FamilyChat.canonical_room_slug(),
+          Ecto.UUID.generate(),
+          "quoted question"
+        )
+
+      {:ok, reply} =
+        FamilyChat.send_message(
+          unique_user(),
+          FamilyChat.canonical_room_slug(),
+          Ecto.UUID.generate(),
+          "reply answer",
+          "Member",
+          target.id
+        )
+
+      for _ <- 1..3, do: Dispatcher.attempt(@now)
+
+      payloads = for {_endpoint, payload} <- sent(), do: payload
+      reply_payloads = Enum.filter(payloads, &(&1["messageId"] == reply.id))
+
+      assert length(reply_payloads) == 1
+      assert hd(reply_payloads)["body"] =~ "reply answer"
+      refute inspect(hd(reply_payloads)) =~ "quoted question"
+    end
+
     test "retires a delivery whose message cannot be read, sending nothing", %{store: store} do
       owed = owe_delivery!(store, "accepted-3")
       deliveries = InMemoryDeliveryStore.over(store)
@@ -237,6 +331,8 @@ defmodule BnestApp.PushNotificationsTest do
       refute_received {:push_notification_sent, _endpoint, _payload}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A push that fails temporarily is sent again after fixed waits and given up after five attempts or one hour
     test "a transient provider failure is retried after the first fixed wait and stays unfinished",
          %{store: store} do
       owed = owe_delivery!(store, "status-503")
@@ -254,6 +350,8 @@ defmodule BnestApp.PushNotificationsTest do
       assert Dispatcher.attempt(@now) == {:error, :no_due_delivery}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A push that fails temporarily is sent again after fixed waits and given up after five attempts or one hour
     test "retires a claimed delivery already past the one-hour ceiling, sending nothing",
          %{store: store} do
       owed = owe_delivery!(store, "accepted-late")
@@ -356,6 +454,8 @@ defmodule BnestApp.PushNotificationsTest do
   end
 
   describe "configuration/0" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member reads the Web Push configuration
     test "reports available: false with no VAPID config set at all" do
       original = Application.get_env(:web_push, :vapid)
       Application.delete_env(:web_push, :vapid)
@@ -364,6 +464,8 @@ defmodule BnestApp.PushNotificationsTest do
       assert {:ok, %{available: false, public_key: nil}} = PushNotifications.configuration()
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member reads the Web Push configuration
     test "reads a map-shaped VAPID config exactly like the keyword-list shape" do
       original = Application.get_env(:web_push, :vapid)
 

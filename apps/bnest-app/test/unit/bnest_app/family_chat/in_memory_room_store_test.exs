@@ -17,6 +17,8 @@ defmodule BnestApp.FamilyChat.InMemoryRoomStoreTest do
     )
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: Every other member with push enabled is notified of a new message and the sender is not
   test "commits one pending delivery per other active subscription", %{store: store} do
     other = put_subscription(store, user_id: "test-user-in-memory-other")
     sender = put_subscription(store, user_id: "test-user-in-memory-sender")

@@ -45,6 +45,8 @@ defmodule BnestApp.Backup.FacadeTest do
   end
 
   describe "destination" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A daily backup with no saved folder is written to the repository backup folder
     test "resolves the repository's ignored default when no override is saved", context do
       root = BackupConfigStore.repository_root(context.config)
       default = root <> "/data/backup"
@@ -75,6 +77,8 @@ defmodule BnestApp.Backup.FacadeTest do
       assert ArtifactStore.directories(context.artifacts) == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Saving a backup folder confirms the save and queues one first check, however often it is submitted
     test "saves an override as one whole configuration document", context do
       assert {:ok, %{directory: @destination, destination_id: id} = location} =
                Backup.save_destination(@destination)
@@ -244,6 +248,8 @@ defmodule BnestApp.Backup.FacadeTest do
       Map.put(context, :location, location)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A backup is refused and retried later when the backup folder lacks free space
     test "refuses before snapshotting when the destination lacks the free space it needs",
          context do
       measurement = CapacityProbe.measurement(context.capacity)
@@ -274,6 +280,8 @@ defmodule BnestApp.Backup.FacadeTest do
       assert DatabaseSnapshot.snapshots(context.snapshot) == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A scheduled backup produces a verified snapshot of the live database
     test "promotes a proved, private, synced snapshot of the live database", context do
       assert {:ok, artifact} = Backup.run(deadline: @now, destination_directory: @destination)
       assert artifact.basename =~ ~r/\Abnest-prod-20260918T000000Z-[A-Za-z0-9_-]{20}\.sqlite3\z/
@@ -310,6 +318,8 @@ defmodule BnestApp.Backup.FacadeTest do
       assert Backup.run(deadline: @now) == {:error, :unavailable}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A backup that runs too long is cancelled, leaves no file, and is tried again
     test "a snapshot past its timeout is cancelled, leaves no partial file and stays retryable",
          context do
       Application.put_env(:bnest_app, :backup_timeout_ms, 1)
@@ -470,6 +480,10 @@ defmodule BnestApp.Backup.FacadeTest do
   end
 
   describe "reconcile/2" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task changes no backup file
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Foreign receipts and unreceipted files are never removed or counted
     test "reports an intact run present and a run whose digest changed changed, writing nothing",
          context do
       dates = [~D[2030-05-14], ~D[2030-05-15], ~D[2030-05-16]]

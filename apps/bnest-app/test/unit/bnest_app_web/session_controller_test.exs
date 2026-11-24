@@ -35,7 +35,7 @@ defmodule BnestAppWeb.SessionControllerTest do
         %{"username" => @username, "password" => @password, "roles" => ["admin"]}
       ])
 
-    :ok
+    {:ok, store: store}
   end
 
   defp login_conn(params) do
@@ -71,6 +71,42 @@ defmodule BnestAppWeb.SessionControllerTest do
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A wrong login stays on the login page and says it is not valid
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Logging in never exposes the password in storage, logs, or pages
+  test "a login keeps the password out of the cookie, the stored records, and the log filter", %{
+    store: store
+  } do
+    params = %{"login" => %{"username" => @username, "password" => @password}}
+    response = params |> login_conn() |> SessionController.create(params)
+
+    assert response.status == 302
+    cookie = response.resp_cookies["_bnest_identity"].value
+    assert is_binary(cookie)
+    refute cookie =~ @password
+
+    records = store |> InMemoryRecordBackend.snapshot() |> inspect()
+    refute records =~ @password
+
+    filtered =
+      Phoenix.Logger.filter_values(
+        %{"username" => @username, "password" => @password},
+        Application.get_env(:phoenix, :filter_parameters, [])
+      )
+
+    assert filtered == %{"username" => @username, "password" => "[FILTERED]"}
+
+    wrong = %{
+      "login" => %{"username" => @username, "password" => "Definitely the wrong password 0!"}
+    }
+
+    refused = wrong |> login_conn() |> SessionController.create(wrong)
+
+    assert refused.status == 302
+
+    assert Phoenix.Flash.get(refused.assigns.flash, :error) ==
+             "Username or password is not valid."
+  end
+
   test "a wrong login stays on the login page and says it is not valid" do
     wrong_params = %{
       "login" => %{"username" => @username, "password" => "Definitely the wrong password 0!"}

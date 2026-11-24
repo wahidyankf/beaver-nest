@@ -5,6 +5,8 @@ defmodule BnestAppWeb.TestingControl.ErrorBodyTest do
 
   @run_path "/synthetic/data/test/runs/run-1/instances/0123456789abcdef"
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A conflicting testing-control request answers 409 with its code
   test "every refusal has one status and one code, as the error table sets" do
     table = [
       {{:invalid_request, "the body has an unknown field"}, 400, "invalid_request"},
@@ -29,6 +31,10 @@ defmodule BnestAppWeb.TestingControl.ErrorBodyTest do
   # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawn refused by a running scheduler task answers 409 instance_busy
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A conflicting testing-control request answers 409 with its code
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawn while a scheduler task runs answers 409 instance_busy
   test "run mismatch, active, busy and seed key conflicts each answer 409 with their own code" do
     for {reason, code} <- [
           {:run_mismatch, "run_mismatch"},

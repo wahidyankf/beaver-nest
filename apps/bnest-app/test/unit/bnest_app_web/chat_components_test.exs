@@ -61,6 +61,8 @@ defmodule BnestAppWeb.ChatComponentsTest do
     end
 
     # ADR 004, Decision 2: the diagram marker is ordinary markup, so both paths carry it the same way.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml marks a valid mermaid fence for drawing
     test "render the same bytes for a mermaid diagram, with the marker" do
       content = "```mermaid\nflowchart TD\n  A --> B\n```"
       assigns = %{content: content}
@@ -147,6 +149,8 @@ defmodule BnestAppWeb.ChatComponentsTest do
       assert html =~ ~r/\A<div [^>]*>.*<\/div>\z/su
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Raw HTML in a message body is escaped in bodyHtml
     test "shows raw HTML as escaped text" do
       html = ChatComponents.markdown_body_html("<b>raw</b>", [])
 

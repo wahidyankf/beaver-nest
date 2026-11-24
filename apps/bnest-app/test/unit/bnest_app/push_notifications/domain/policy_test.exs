@@ -127,6 +127,8 @@ defmodule BnestApp.PushNotifications.Domain.PolicyTest do
   end
 
   describe "next_wait_seconds/3" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A push that fails temporarily is sent again after fixed waits and given up after five attempts or one hour
     test "follows the fixed backoff schedule and stops at the attempt ceiling" do
       assert Policy.next_wait_seconds(1, @now, @now) == 30
       assert Policy.next_wait_seconds(2, @now, @now) == 120
@@ -135,6 +137,8 @@ defmodule BnestApp.PushNotifications.Domain.PolicyTest do
       assert Policy.next_wait_seconds(5, @now, @now) == nil
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A push that fails temporarily is sent again after fixed waits and given up after five attempts or one hour
     test "stops at the one-hour elapsed ceiling regardless of attempt count" do
       later = DateTime.add(@now, 3_601, :second)
       assert Policy.next_wait_seconds(2, @now, later) == nil

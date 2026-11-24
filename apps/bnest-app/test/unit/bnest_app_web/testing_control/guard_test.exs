@@ -34,6 +34,8 @@ defmodule BnestAppWeb.TestingControl.GuardTest do
     assert Guard.decide(request(%{instance_id: nil})) == :ok
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request from a non-loopback peer gets the stock not-found response
   test "refuses every peer that is not the IPv4 or the IPv6 loopback address" do
     peers = [
       {10, 0, 0, 5},
@@ -49,6 +51,8 @@ defmodule BnestAppWeb.TestingControl.GuardTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request that is not the test runner's gets the stock not-found response
   test "refuses a request that came through a proxy, whatever its peer, with the secret right" do
     for name <- @forwarding_headers do
       headers = [{name, "203.0.113.7"}, {"x-bnest-testing", @secret}]
@@ -69,6 +73,8 @@ defmodule BnestAppWeb.TestingControl.GuardTest do
              {:error, :runtime_not_owned}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request that is not the test runner's gets the stock not-found response
   test "refuses a wrong, missing, repeated or unset secret on a loopback request" do
     assert Guard.decide(request(%{headers: [{"x-bnest-testing", "wrong"}]})) ==
              {:error, :header_mismatch}
@@ -105,6 +111,8 @@ defmodule BnestAppWeb.TestingControl.GuardTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A request that is not the test runner's gets the stock not-found response
   test "the plug turns a refusal into the missing-route error, and never reads the secret into it" do
     conn = Plug.Test.conn(:post, "/__bnest_testing/v1/instances")
 

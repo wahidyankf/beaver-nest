@@ -83,6 +83,8 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
              ]
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawned instance with no seeded accounts starts empty with initial setup open
     test "normalizes an empty seed to empty sections" do
       assert {:ok, normalized} = Seed.validate(%{}, @instance)
 
@@ -123,6 +125,8 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: POST /instances/:id/seed applies a seed once per key
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A seed is applied once per key
     test "the same body validates to the same normalized form, so a repeat carries the same key and body" do
       seed = %{
         "accounts" => [account(@admin, ["parents", "admin"]), account(@parent)],
@@ -140,6 +144,10 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
   end
 
   describe "invalid_username" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Every seeded account uses the test-user prefix and the instance short ID
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A seeded username outside the test-user prefix is refused
     for {label, name} <- [
           {"an uppercase letter", "Test-User-a1b2c3d4"},
           {"no test-user- prefix", "admin-a1b2c3d4"},

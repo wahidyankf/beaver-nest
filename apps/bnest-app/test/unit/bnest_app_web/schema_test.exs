@@ -62,6 +62,17 @@ defmodule BnestAppWeb.SchemaTest do
            "found what looks like a hardcoded family-chat PubSub topic literal in the resolver"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: The public GraphQL schema exposes no system-message mutation
+  test "the public schema declares no field that posts a system message" do
+    fields = BnestAppWeb.Schema.mutation_field_names()
+
+    assert fields != []
+
+    assert Enum.all?(fields, &(not String.contains?(&1, "ystem"))),
+           "a public mutation names a system message producer: #{inspect(fields)}"
+  end
+
   test "cursor limit bounds are not duplicated in the resolver" do
     contents =
       SchemaSourceScan.read_lib_file!(["bnest_app_web", "resolvers", "family_chat_resolver.ex"])
@@ -72,6 +83,8 @@ defmodule BnestAppWeb.SchemaTest do
   end
 
   describe "family chat reply contract" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A quote carries a plain text preview and no HTML
     test "the quote object exists with exactly its four fields" do
       quote_type = Absinthe.Schema.lookup_type(BnestAppWeb.Schema, :family_chat_message_quote)
 
@@ -85,6 +98,8 @@ defmodule BnestAppWeb.SchemaTest do
     # Flatness is enforced by the type system rather than by convention: there
     # is no field on the quote that could carry another quote, so no client can
     # request one and no resolver can accidentally serve one.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A reply to a reply quotes only its immediate parent
     test "the quote type has no field that could carry another quote" do
       quote_type = Absinthe.Schema.lookup_type(BnestAppWeb.Schema, :family_chat_message_quote)
 

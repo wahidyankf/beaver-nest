@@ -106,6 +106,8 @@ defmodule BnestApp.Identity.IdentityUnitTest do
       refute store |> InMemoryIdentityStore.snapshot() |> inspect() |> String.contains?(@password)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Initial setup creates the accounts once and then closes
     test "bootstrap sorts roles, keeps the display username, and refuses a second run" do
       store = InMemoryIdentityStore.start()
 
@@ -305,6 +307,39 @@ defmodule BnestApp.Identity.IdentityUnitTest do
       assert Sessions.current_user(store, token) == {:error, :unauthenticated}
       assert Sessions.current_user(store, nil) == {:error, :unauthenticated}
       assert Sessions.revoke(store, nil) == {:error, :unauthenticated}
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Login persists across reload and browser restart until logout or browser data clearing
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: One user can use independent simultaneous browser sessions
+    test "logins survive a server restart and revocation stays per browser" do
+      store = InMemoryIdentityStore.start()
+
+      server =
+        start_supervised!(
+          Supervisor.child_spec({Identity, store: store, name: nil}, id: :restart_probe_first)
+        )
+
+      {:ok, _} = Identity.bootstrap([account()], server)
+
+      {:ok, token_a} = Login.authenticate(store, @username, @password)
+      {:ok, token_b} = Login.authenticate(store, @username, @password)
+      refute token_a == token_b
+
+      :ok = Supervisor.stop(server)
+
+      _server =
+        start_supervised!(
+          Supervisor.child_spec({Identity, store: store, name: nil}, id: :restart_probe_second)
+        )
+
+      assert {:ok, _} = Sessions.current_user(store, token_a)
+      assert {:ok, _} = Sessions.current_user(store, token_b)
+
+      assert {:ok, _digest} = Sessions.revoke(store, token_a)
+      assert Sessions.current_user(store, token_a) == {:error, :unauthenticated}
+      assert {:ok, _} = Sessions.current_user(store, token_b)
     end
 
     test "logout revokes the session and disconnects its digest" do

@@ -34,6 +34,8 @@ defmodule BnestApp.Storage.MigrationTest do
   end
 
   describe "a run" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The storage migration task moves every recognized record and reports none blocked
     test "copies each valid record and recovery source with checksum evidence" do
       FlatSource.put_files(@flat_root, [
         {@z_theme, theme("z-test-user", "dark")},
@@ -77,6 +79,10 @@ defmodule BnestApp.Storage.MigrationTest do
       refute Migration.blocked?()
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Running the storage migration task again after an interruption finishes it without duplicates
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Invalid or changed source blocks cutover without data loss
     test "reuses accepted items on retry and records a changed source" do
       FlatSource.put_files(@flat_root, [{@a_theme, theme("a-test-user", "light")}])
       Migration.run(@flat_root)
@@ -96,6 +102,8 @@ defmodule BnestApp.Storage.MigrationTest do
       refute Migration.parity_ok?(@flat_root)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Invalid or changed source blocks cutover without data loss
     test "blocks a malformed record and a colliding recovery source" do
       FlatSource.put_files(@flat_root, [{@a_theme, "{malformed"}, {@recovery, "first"}])
       MigrationLedger.put_recovery_source!(recovery_row("other bytes"))

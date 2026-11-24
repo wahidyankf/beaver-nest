@@ -1,6 +1,7 @@
 defmodule BnestApp.Storage.ImportTest do
   use ExUnit.Case, async: true
 
+  alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage.Domain.Manifest
   alias BnestApp.Storage.Import
   alias BnestApp.Storage.Ports.RecordBackend
@@ -57,6 +58,52 @@ defmodule BnestApp.Storage.ImportTest do
     assert {:ok, %{status: :accepted, record: nil}} = Import.browser(store, @owner, theme("dark"))
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Confirming the recognized browser imports reports each source accepted and serves the imported data back to the user
+  test "accepts each recognized browser source and reads its record back" do
+    store = InMemoryRecordBackend.start()
+
+    chat_payload =
+      Jason.encode!(%{
+        "version" => 2,
+        "thread_id" => nil,
+        "model" => "fixture-model",
+        "reasoning_effort" => "medium",
+        "messages" => []
+      })
+
+    learning_payload =
+      Quiz.progress()
+      |> Map.put("session", %{"mode" => "dashboard"})
+      |> Jason.encode!()
+
+    assert {:ok, %{status: :accepted}} =
+             Import.browser(store, @owner, %{
+               "storageArea" => "sessionStorage",
+               "storageKey" => "bnest.chat.v1",
+               "payload" => chat_payload
+             })
+
+    assert {:ok, %{status: :accepted}} =
+             Import.browser(store, @owner, %{
+               "storageArea" => "localStorage",
+               "storageKey" => "bnest.sifat-allah.v1",
+               "payload" => learning_payload
+             })
+
+    assert {:ok, %{status: :accepted, record: %{"theme" => "dark"}}} =
+             Import.browser(store, @owner, theme("dark"))
+
+    assert {:ok, %{"recordType" => "chat"}} = RecordBackend.read(store, :chat, @owner)
+
+    assert {:ok, %{"recordType" => "sifat-allah-progress"}} =
+             RecordBackend.read(store, :sifat_allah, @owner)
+
+    assert {:ok, %{"theme" => "dark"}} = RecordBackend.read(store, :theme, @owner)
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Unknown, malformed, or oversized browser input is rejected without source deletion
   test "rejects a source outside the allow-list or over its limit" do
     store = InMemoryRecordBackend.start()
 
@@ -75,6 +122,8 @@ defmodule BnestApp.Storage.ImportTest do
     assert Import.browser(store, nil, theme("dark")) == {:error, :unsupported_source, nil}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Unknown, malformed, or oversized browser input is rejected without source deletion
   test "rejects a malformed payload" do
     store = InMemoryRecordBackend.start()
 
@@ -92,6 +141,8 @@ defmodule BnestApp.Storage.ImportTest do
              Import.browser(store, @owner, theme("dark"))
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Retrying an interrupted import completes it without duplicating data
   test "resumes an import whose manifest could not be closed" do
     store = FlakyBackend.start()
     FlakyBackend.fail(store, [{:replace, :manifest}])
@@ -155,6 +206,8 @@ defmodule BnestApp.Storage.ImportTest do
     assert {:error, :write_failed, _manifest} = Import.browser(store, @owner, theme("light"))
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Importing with no explicit browser theme leaves the theme at the system default
   test "records an owner without a theme preference once" do
     store = InMemoryRecordBackend.start()
 

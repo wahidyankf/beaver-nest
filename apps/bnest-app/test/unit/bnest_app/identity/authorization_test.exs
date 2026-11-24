@@ -21,6 +21,8 @@ defmodule BnestApp.Identity.AuthorizationTest do
     assert {:error, :invalid_username} = Credentials.normalize_username(nil)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Initial setup rejects a password missing a letter, number, or punctuation mark and accepts any length
   test "accepts every valid Unicode password with a letter, number, and punctuation but no character-count rule" do
     assert Credentials.valid_password?("x_1")
     assert Credentials.valid_password?(String.duplicate("é", 129) <> "_1")
@@ -32,6 +34,10 @@ defmodule BnestApp.Identity.AuthorizationTest do
     refute Credentials.valid_password?(nil)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: A multi-role user receives only approved capabilities
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: One authenticated user cannot change another user's data
   test "allows approved self-owned capabilities and defaults all other access to deny" do
     user = %{"userId" => "user-owner", "roles" => ["parents", "admin"]}
 

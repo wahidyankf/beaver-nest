@@ -61,6 +61,8 @@ defmodule BnestApp.StorageTest do
   end
 
   describe "the storage pointer" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The storage migration task uses the default private data folder with no browser visit
     test "falls back to the default location until a pointer exists" do
       assert Storage.phase() == :flat_primary
       assert Storage.database_generation() == nil
@@ -86,6 +88,10 @@ defmodule BnestApp.StorageTest do
       assert Storage.database_path() == "/in-memory/sqlite/bnest.sqlite3"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Administrator optionally selects a valid custom database folder
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Unsafe database folder is rejected without mutation
     test "records a chosen directory once" do
       assert Storage.validate_directory("relative") == {:error, :not_absolute}
       assert Storage.persist_directory("relative") == {:error, :not_absolute}
@@ -96,6 +102,8 @@ defmodule BnestApp.StorageTest do
       assert Storage.persist_directory("/srv/bnest-other") == {:error, :immutable}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Unsafe database folder is rejected without mutation
     test "refuses to choose over an unreadable pointer" do
       StoragePorts.put(:config, :invalid)
 
@@ -232,6 +240,8 @@ defmodule BnestApp.StorageTest do
       :ok
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The storage migration task uses the default private data folder with no browser visit
     test "a dry run migrates without activating" do
       assert {:ok, :dry_run, %{run: %{accepted: 1, blocked: 0}, verification: nil}} =
                Storage.migrate(@flat_root, false)
@@ -244,6 +254,8 @@ defmodule BnestApp.StorageTest do
       assert Storage.phase() == :flat_primary
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The task switches storage to SQLite only when every check passes and the app then reads from it
     test "activates a clean, verified run" do
       assert {:ok, :activated, %{verification: %{parity: true, integrity: true, restore: true}}} =
                Storage.migrate(@flat_root, true)
@@ -252,6 +264,8 @@ defmodule BnestApp.StorageTest do
       assert [%{state: "verified"}] = MigrationLedger.state().runs
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The task switches storage to SQLite only when every check passes and the app then reads from it
     test "stops at a blocked run" do
       FlatSource.put_files(@flat_root, [{@theme_path, "{malformed"}])
 
@@ -262,6 +276,8 @@ defmodule BnestApp.StorageTest do
       assert Storage.phase() == :flat_primary
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The task switches storage to SQLite only when every check passes and the app then reads from it
     test "does not activate a run that fails verification" do
       StoragePorts.put(:restore?, false)
 
