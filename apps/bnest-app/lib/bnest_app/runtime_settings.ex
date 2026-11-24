@@ -1,48 +1,33 @@
 defmodule BnestApp.RuntimeSettings do
   @moduledoc """
-  Pure runtime configuration over an environment map.
+  The Runtime Settings bounded context: pure release configuration over an
+  environment map.
 
-  Owner-delegated extraction from `config/runtime.exs`: the release config
-  keeps calling `System.get_env/1` directly, which the unit layer cannot
-  observe (boundary policy forbids `System` in `test/unit`). This module
-  takes the environment as a plain map so unit tests drive every row over
-  doubles, while `runtime.exs` delegates to it with a `System` snapshot.
+  This module is the context's facade. Every setting parses from a plain
+  `%{"NAME" => value}` map, so unit tests drive every row over doubles while
+  `config/runtime.exs` passes the deployment snapshot. The operating-system
+  reads live behind the `Adapters` seam
+  (`BnestApp.RuntimeSettings.Adapters.SystemEnvironment`, over `System` for
+  the snapshot and `File` for the push key files), keeping effects in the
+  adapters as the hexagonal layers require; this facade names no effect
+  module directly.
 
   Reason for extraction: testability without widening the unit boundary;
   `runtime.exs` remains the single writer of application config.
   """
 
+  use Boundary,
+    top_level?: true,
+    type: :strict,
+    deps: [],
+    exports: []
+
+  alias BnestApp.RuntimeSettings.Adapters.SystemEnvironment
+
   @type env :: %{optional(String.t()) => String.t() | nil}
 
   @doc "Reads the deployment environment into a plain map (release seam only)."
-  def system_env do
-    for name <- [
-          "PORT",
-          "PHX_SERVER",
-          "SECRET_KEY_BASE",
-          "PHX_HOST",
-          "BNEST_RUNTIME_ROOT",
-          "BNEST_CODEX_WORKING_DIRECTORY",
-          "BNEST_CODEX_HOME",
-          "BNEST_CODEX_RUNNER",
-          "BNEST_CODEX_MODELS_RUNNER",
-          "BNEST_IDENTITY_CUTOVER",
-          "BNEST_FAMILY_CHAT_ENABLED",
-          "BNEST_FAMILY_CHAT_REPLY_ENABLED",
-          "BNEST_COOKIE_SECURE",
-          "BNEST_BACKUP_TIMEOUT_MS",
-          "BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE",
-          "BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE",
-          "BNEST_WEB_PUSH_SUBJECT",
-          "DNS_CLUSTER_QUERY",
-          "BNEST_DEPLOY_PEER",
-          "BNEST_STABLE"
-        ],
-        value = System.get_env(name),
-        value != nil,
-        into: %{},
-        do: {name, value}
-  end
+  def system_env, do: SystemEnvironment.snapshot()
 
   @doc "The HTTP port: `PORT` or 4000 when unset."
   def http_port(env) do
@@ -146,7 +131,7 @@ defmodule BnestApp.RuntimeSettings do
   raising each reviewed named message. The release does not boot on any
   refusal.
   """
-  def push_config!(env, read! \\ &File.read!/1) do
+  def push_config!(env, read! \\ &SystemEnvironment.read!/1) do
     public_key_path =
       Map.get(env, "BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE") ||
         raise "environment variable BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE is missing"
