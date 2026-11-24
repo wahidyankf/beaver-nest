@@ -8,6 +8,13 @@ defmodule BnestAppWeb.DataMigrationLiveTest do
 
   use BnestAppWeb.ConnCase, async: false
 
+  # Browser import keeps its envelopes and manifests in the records store, which is a flat
+  # store (`Records.store/0`), so these tests run on a flat-primary instance whose flat root
+  # is its own. A SQLite-primary instance would leave the imports in the data-free run base,
+  # tripping the end-of-suite leak audit. This mirrors the `@flat-primary` tag on the
+  # centralized_data scenarios and the `BrowserImportTest` phase tag.
+  @moduletag phase: :flat_primary
+
   import Phoenix.LiveViewTest
 
   alias BnestApp.Storage.Import
