@@ -284,6 +284,14 @@ defmodule BnestApp.Identity.IdentityUnitTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/test_instances.feature: A fresh test instance does not know the previous instance's admin account
+    test "a fresh identity store knows no account, so no previous admin can log in" do
+      store = InMemoryIdentityStore.start()
+
+      assert Login.authenticate(store, @username, @password) == {:error, :invalid_credentials}
+    end
+
     test "login fails when no session can be written" do
       %{store: store} = bootstrapped_store()
 
@@ -396,6 +404,8 @@ defmodule BnestApp.Identity.IdentityUnitTest do
                InMemoryRecordBackend.read(records, :account, account["userId"])
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: Approved user logs in and logs out
     test "login, current user, and logout work end to end", %{account: account} do
       assert {:ok, token} = Identity.login(@username, @password)
       assert Identity.current_user(token) == {:ok, account}

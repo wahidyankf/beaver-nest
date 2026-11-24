@@ -92,6 +92,8 @@ defmodule BnestApp.StorageTest do
     # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Administrator optionally selects a valid custom database folder
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Unsafe database folder is rejected without mutation
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A settings panel saves only the fields it offers and refuses any other field
     test "records a chosen directory once" do
       assert Storage.validate_directory("relative") == {:error, :not_absolute}
       assert Storage.persist_directory("relative") == {:error, :not_absolute}

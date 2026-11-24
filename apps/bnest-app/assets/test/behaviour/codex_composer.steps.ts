@@ -254,6 +254,7 @@ step("the visitor connects a touch pointer", () => {
   remember("codexCoarse", true);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A confirmed composition never sends in the Codex message box
 step("the Codex message box has keyboard focus", () => {
   requireMessage();
 });
@@ -333,6 +334,7 @@ step("the Codex message box keeps {string}", (text) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Keyboard focus stays in the Codex message box after a reply
 step("keyboard focus is in the Codex message box", () => {
   const built = currentPage();
   check(
@@ -341,6 +343,11 @@ step("keyboard focus is in the Codex message box", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Enter and Shift+Enter follow the visitor's pointer, not the screen size
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A filled draft is sent once, and a blank, whitespace or busy draft is never sent
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor cannot send an empty message
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor cannot overlap Codex turns
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor sends a message with Shift+Enter
 step("the visitor presses {string} in the Codex message box", (name) => {
   press(keyOf(name).key, { shiftKey: keyOf(name).shiftKey });
 });
@@ -423,10 +430,12 @@ step("the Codex conversation holds {string}", (text) => {
   conversation.innerHTML = `<p data-role="user-message">${text}</p>`;
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Clear chat asks for confirmation before it deletes the conversation
 step("the visitor chooses Clear chat", () => {
   click("[data-role='clear-chat']");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Cancel, Escape and tabbing away keep the conversation
 step("the visitor has chosen Clear chat", () => {
   click("[data-role='clear-chat']");
 });
@@ -526,14 +535,17 @@ step("the confirmation is closed", () => {
   check(confirmation?.hidden === true, "the confirmation is still open");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The confirmation takes focus and cancel returns focus to Clear chat
 step("keyboard focus is on the confirmation's Cancel button", () => {
   check(focusedRole() === "clear-chat-cancel", `focus is on ${focusedRole()}`);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Escape with focus outside the confirmation closes it and leaves focus where it is
 step("the visitor moves focus to the message box", () => {
   currentPage().textarea.focus();
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Escape returns focus from message content to the message
 step("keyboard focus is on the message box", () => {
   const built = currentPage();
   check(
@@ -542,10 +554,12 @@ step("keyboard focus is on the message box", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Confirming clears the conversation
 step("keyboard focus is on the Clear chat button", () => {
   check(focusedRole() === "clear-chat", `focus is on ${focusedRole()}`);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor clears the chat and starts a new conversation
 step("the conversation shows no messages", () => {
   // This layer proves the clear request: the browser counter proves the click, and the template proves that only "Yes, delete"
   // carries the LiveView clear event. The server empties the conversation; the e2e binding checks that no message is left.
@@ -573,6 +587,7 @@ step("the confirmation is on screen without scrolling the page", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Clear chat confirmation fits a narrow screen with 44 pixel targets
 step("each confirmation button is at least 44 pixels tall and across", () => {
   const env = laidOut();
   const height = lengthPx(
@@ -650,6 +665,8 @@ function ownMessage(name: string): void {
   remember("typedText", fixture.input);
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor's message renders Markdown and can show its raw text
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Show raw control reads on the dark visitor bubble
 step("a visitor's message with Markdown is in the Codex conversation", () => {
   ownMessage("plain");
 });
@@ -715,6 +732,7 @@ step("the visitor chooses {string} on the visitor's message", (label) => {
   check(shown() === wanted, `the view is ${shown()} after choosing ${label}`);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The raw view of a hostile visitor's message shows text, not HTML
 step("the visitor's message shows the exact typed text", () => {
   const built = currentPage();
   const message = built.document.querySelector("[data-role='own-message']");
@@ -783,6 +801,7 @@ step("the visitor's message contains no javascript link", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The raw view keeps the typed line breaks and spaces
 step("the visitor's message keeps the typed line breaks and spaces", () => {
   const raw = currentPage().document.querySelector(
     "[data-role='user-message-raw']",
@@ -868,6 +887,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header is compact on a phone
 step("the brand link is not covered by any header control", () => {
   // The Playwright adapter hit-tests the brand link. Here the source order keeps every other control after the brand
   // on a phone (the layout has no CSS order overrides), and on a wide short window the row does not wrap, so no control
@@ -967,6 +987,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header controls are at least 44 pixels tall on a touch screen
 step("the options button is at least 44 pixels across and tall", () => {
   const env = laidOut();
   const declared = declarationsFor(".chat-options-toggle", env);
@@ -985,6 +1006,7 @@ step("the model selector is on screen in the options panel", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel holds the model, the effort and Clear chat
 step("the reasoning effort selector is on screen in the options panel", () => {
   check(
     readFileSync(CHAT_TEMPLATE, "utf8").includes('id="effort-picker"'),

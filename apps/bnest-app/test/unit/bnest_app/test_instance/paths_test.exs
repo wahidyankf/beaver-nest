@@ -87,6 +87,8 @@ defmodule BnestApp.TestInstance.PathsTest do
     assert Paths.derive(@flat, "/", @run, @instance) == {:error, :invalid_root}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/test_instances.feature: A fresh test instance reports its own storage generation
   test "the storage pointer names the instance database and its generation" do
     assert {:ok, paths} = Paths.derive(@flat, @sqlite, @run, @instance)
 

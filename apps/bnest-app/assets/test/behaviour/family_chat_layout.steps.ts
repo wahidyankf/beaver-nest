@@ -60,6 +60,7 @@ function numberOf(value: string | undefined, label: string): number {
 
 // --- Rule: Responsive and accessible presentation -------------------------------------
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The conversation keeps room on a short screen
 step("the conversation list is at least half the viewport height", () => {
   // The compact header applies at this viewport: one line, and the brand's text subline hidden. The list's share of
   // the height follows from that header; the measured share is the Playwright adapter's.
@@ -83,6 +84,7 @@ step("the message composer is on screen", () => {
   expect(isRendered(send), "the Send button is not rendered").toBe(true);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room does not scroll the whole page vertically
 step("no vertical page scroll is present", () => {
   // The room's margins and height fit the viewport together, and the body is a flow root so the room's margins do not
   // collapse through it into the document height. The measured scroll height is the Playwright adapter's.
@@ -103,6 +105,7 @@ step("no vertical page scroll is present", () => {
   ).toBeLessThanOrEqual(env.height);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message uses most of a narrow phone's width
 step("the message takes at least 80 percent of the viewport width", () => {
   // The message's own share of the room: its `max-width` percentage of the history, which is inset by the room's
   // side padding and the history's margin, all declared at this viewport.
@@ -196,6 +199,7 @@ function composerHeight(): number {
   return height;
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The message composer grows with a long draft and then stops at five lines
 step("the message composer is at least two lines tall", () => {
   const { line, padding, border } = composerGeometry();
   expect(composerHeight(), "the composer height").toBeGreaterThanOrEqual(
@@ -236,6 +240,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The message composer leaves most of a short screen to the conversation
 step("the message composer is at most 22 percent of the screen height", () => {
   // A short window keeps most of its height for the conversation: the box's cap is the smaller of its five-line cap and
   // 22 percent of the window, and the box never grows past that cap.
@@ -256,6 +261,9 @@ step("the Send button is on screen", () => {
   ).toBe(true);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The repository write toggle text meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Send button text meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Inline text in my own message stays readable
 step("the Send button text has a contrast ratio of at least 4.5 to 1", () => {
   const declared = declarationsFor(".family-chat-send", environment());
   const background = resolveVars(declared["background"] ?? "");
@@ -264,6 +272,7 @@ step("the Send button text has a contrast ratio of at least 4.5 to 1", () => {
   expect(ratio, `${text} on ${background}`).toBeGreaterThanOrEqual(4.5);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat message box has an accessible name
 step("the Family Chat message box is named {string}", (name) => {
   // The accessible name is the label the template ties to the box. The label is visually hidden, not removed.
   const template = readFileSync(FAMILY_TEMPLATE, "utf8");
@@ -292,6 +301,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat Send button has four equal round corners
 step("the Family Chat Send button has four equal corner radii", () => {
   const radius = resolveVars(
     declarationsFor(".family-chat-send", environment())["border-radius"] ?? "",
@@ -326,6 +336,8 @@ step("the Family room is inside the screen", () => {
   ).toBe("minmax(0, 1fr)");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long unbroken draft keeps the Codex chat inside the screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A long unbroken draft leaves the Family room inside the screen (a regression guard)
 step("the Send button is on screen and is not covered by the composer", () => {
   // Regression guard: a first column sized to its content, or a box with an automatic minimum width, would let a long
   // line widen the composer.

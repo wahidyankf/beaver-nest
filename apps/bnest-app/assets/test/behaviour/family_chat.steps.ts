@@ -225,12 +225,16 @@ step("a visitor opens {string}", async (pathname) => {
   await openRoomPage({ pathname });
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member sends a message online and sees it reach Sent
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A repository image in a message is shown inline
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Images a message may not show stay as text
 step("the visitor sends the family chat message {string}", async (body) => {
   const id = await sendThroughComposer(body);
   expect(id !== null, "the room refused to queue the message");
   remember("clientMessageId", id);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A network failure shows Retrying then automatic recovery
 step("the message shows status {string}", async (expected) => {
   await expectStatus(clientMessageId(), expected);
 });
@@ -267,6 +271,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A non-retryable rejection shows Couldn't send
 step("no automatic retry is attempted", async () => {
   const page = activePage();
   const id = clientMessageId();
@@ -300,6 +305,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A 101st waiting message in one room is refused with a retry-or-discard hint
 step("the visitor attempts to queue one more message", async () => {
   remember("refusedId", await sendThroughComposer("One more message"));
 });
@@ -349,6 +355,7 @@ function seedQueuedRow(id: string, body: string, createdAgoMs: number): void {
   remember("clientMessageId", id);
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Reopening the app resumes queued sends
 step("the visitor has a queued message left over from a closed session", () => {
   ensureConversation();
   seedQueuedRow(
@@ -385,6 +392,7 @@ step("the visitor reloads the page", async () => {
   await reloadPage();
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued message survives a real browser reload while offline
 step("the message is durably queued for a closed tab to resume", async () => {
   const id = clientMessageId();
   const stored = device()
@@ -414,6 +422,7 @@ step("a queued message shows status {string}", async (status) => {
   remember("attemptsBefore", attemptsFor(id ?? "").length);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A waiting message is sent as soon as the connection returns
 step("the device reports it is back online", async () => {
   const page = activePage();
   server().setSendOutcome(visitor().id, "commit");
@@ -439,6 +448,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Each failed automatic retry waits longer than the last, up to one minute
 step("a queued message fails five times with a retryable result", async () => {
   const page = activePage();
   server().setSendOutcome(visitor().id, "offline");
@@ -512,6 +522,7 @@ function manualControl(id: string, role: string): HTMLButtonElement {
   return control;
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message queued more than seven days becomes manual-only
 step("the visitor can still manually retry or discard it", async () => {
   const id = clientMessageId();
   // Retrying sends it.
@@ -559,6 +570,7 @@ step("a message is queued", async () => {
   await expectStatus(id ?? "", STATUS.RETRYING);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A waiting message stays waiting after sign-in expires and is never sent by another member
 step("the visitor's authentication expires", async () => {
   const page = activePage();
   server().setSendOutcome(visitor().id, { code: "UNAUTHENTICATED" });
@@ -640,11 +652,13 @@ step("the visitor logs out", async () => {
   await waitFor(() => home.navigatedTo === "/login", "the log-out to submit");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Logging out discards the member's waiting messages
 step("the visitor's waiting messages are gone", () => {
   const rows = device().persistence.rowsFor(namespaceOf(visitor()));
   expect(rows.length === 0, `${rows.length} queued messages survived logout`);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Logging out turns off push notifications for this device session
 step("notifications are turned off for this device", () => {
   expect(
     server().logouts.includes(visitor().id),
@@ -680,6 +694,7 @@ step(
 );
 step("a visitor opens {string} with the room connected", openConnectedRoom);
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
 step("the app is updated while the room is open", async () => {
   const page = activePage();
   // A send that is waiting on its retry timer when the cutover happens.
@@ -806,6 +821,7 @@ function expectFreshSocketReplacesPrior(): void {
   );
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
 step("a message sent by another member now appears", async () => {
   expectFreshSocketReplacesPrior();
   const reply = post({ body: "Sent while the tab was hidden", sender: AYAH() });
@@ -880,6 +896,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
 step("neither member sees a duplicate or lost message", async () => {
   const expected = server()
     .messages.map((message) => message.id)
@@ -953,6 +970,9 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A returning member lands on the first unread message with an unread marker
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Earlier messages are shown above the unread marker and older history can be loaded
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Reading down to the newest message moves the resume point
 step("the visitor has read the family chat up to a known message", async () => {
   ensureConversation(5);
   await readUpToNewest();
@@ -962,6 +982,7 @@ step("{int} newer messages arrived while the visitor was away", (count) => {
   remember("firstUnread", postFromAyah(Number(count), "While away"));
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: More unread messages than one page still offer a way back to the newest
 step("the first unread message is the first message in view", () => {
   const marker = divider();
   expect(marker !== null, "the room shows no unread marker");
@@ -1161,6 +1182,8 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The composer keeps focus after a message is sent
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Shift+Enter does not send an empty Family Chat draft
 step("the composer is empty and ready for the next message", () => {
   const { input, send } = activePage().elements;
   expect(
@@ -1341,6 +1364,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Sending brings the visitor to their own message
 step("the visitor's own message is in view", async () => {
   const id = clientMessageId();
   await waitFor(() => committedFor(id) !== undefined, "the message to commit");
@@ -1354,6 +1378,7 @@ step("the visitor's own message is in view", async () => {
 
 // --- Rule: Scroll anchor and live-region announcements --------------------------------
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Loading older history preserves the visitor's scroll anchor
 step("the visitor loads an older history page", async () => {
   const page = activePage();
   const known = recall<HTMLElement>("knownRow");
@@ -1397,6 +1422,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message is announced to assistive technology without moving focus from the composer
 step("a live-region announcement names the new message", async () => {
   const arrival = recall<{ body: string }>("arrival");
   await waitFor(
@@ -1414,6 +1440,7 @@ step("focus remains in the composer", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message away from the bottom shows "New messages below" instead of scrolling
 step("{string} is shown instead of auto-scrolling", (label) => {
   const page = activePage();
   const button = page.elements.newMessages;
@@ -1432,6 +1459,8 @@ step("{string} is shown instead of auto-scrolling", (label) => {
 
 // --- Rule: Push permission UX and no authenticated caching ------------------------------
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room shows the correct push permission state
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room shows that notifications are blocked
 step("the visitor's device reports push state {string}", (state) => {
   device().push = state as ReturnType<typeof device>["push"];
   if (state === "subscription active") {
@@ -1439,6 +1468,7 @@ step("the visitor's device reports push state {string}", (state) => {
   }
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member disables notifications from the room
 step("the room shows the control {string}", async (text) => {
   const control = activePage().elements.pushControl;
   await waitFor(
@@ -1494,6 +1524,7 @@ step("the visitor opens the room while offline", async () => {
   remember("offlinePage", (await response?.text()) ?? "");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Opening the room offline shows no signed-in messages from the device's saved copy
 step("the page shows no messages and no signed-in content", () => {
   // The positive control: the worker answered the offline navigation at all.
   expect(
@@ -1513,6 +1544,8 @@ step("the page shows no messages and no signed-in content", () => {
 
 // --- Rule: Responsive and accessible presentation ------------------------------------
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Typing right after choosing Reply reaches the message input
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Every control in the room is reachable by keyboard with a visible focus indicator
 step("the viewport is set to {string}", (description) => {
   const match = /(\d+)x(\d+)(?:\s+(\d+)%)?/u.exec(description);
   if (!match) throw new Error(`unreadable viewport ${description}`);
@@ -1597,6 +1630,7 @@ function absoluteLength(value: string): number | null {
   return match[2] === "px" ? amount : amount * 16;
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room has no horizontal page scroll
 step("no horizontal page scroll is present", () => {
   const page = activePage();
   const viewport = page.device.viewport.width;

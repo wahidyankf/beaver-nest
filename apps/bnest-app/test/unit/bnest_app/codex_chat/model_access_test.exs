@@ -28,6 +28,8 @@ defmodule BnestApp.CodexChat.ModelAccessTest do
   end
 
   describe "admin" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor opens a fresh chat
     test "chooses any offered model, defaulting to Terra at medium effort" do
       access = resolve(["admin", "parents"])
 
@@ -54,11 +56,15 @@ defmodule BnestApp.CodexChat.ModelAccessTest do
       assert ids(access.models) == [@sol, @terra, @luna]
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor changes the model or the reasoning effort within one Codex conversation
     test "a model switch keeps a supported effort" do
       assert {:ok, luna, "high"} = ModelAccess.select_model(resolve(["admin"]), @luna, "high")
       assert luna.id == @luna
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A model change falls back to Max from an unsupported reasoning effort
     test "a model switch to a model without the current effort falls back to max" do
       admin = resolve(["admin"])
 
@@ -79,6 +85,8 @@ defmodule BnestApp.CodexChat.ModelAccessTest do
   end
 
   describe "parents" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A parent chooses Luna or Terra at medium effort
     test "choose Luna or Terra, defaulting to Terra, and never pick an effort" do
       parent = resolve(["parents"])
 
@@ -90,6 +98,8 @@ defmodule BnestApp.CodexChat.ModelAccessTest do
       assert parent.reasoning_effort == "medium"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A parent chooses Luna or Terra at medium effort
     test "may select Luna, and the effort stays medium whatever the saved effort" do
       parent = resolve(["parents"])
 
@@ -157,6 +167,8 @@ defmodule BnestApp.CodexChat.ModelAccessTest do
   end
 
   describe "child administrator" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A child, or a child administrator, is limited to read-only Luna at medium effort
     test "is locked to Luna at medium effort with no picker, like a child" do
       access = resolve(["children", "admin"])
 
@@ -196,6 +208,8 @@ defmodule BnestApp.CodexChat.ModelAccessTest do
   end
 
   describe "children" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A child, or a child administrator, is limited to read-only Luna at medium effort
     test "are locked to Luna at medium effort with no picker" do
       child = resolve(["children"])
 

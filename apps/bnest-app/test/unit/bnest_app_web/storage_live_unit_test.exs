@@ -62,6 +62,21 @@ defmodule BnestAppWeb.StorageLiveUnitTest do
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The storage status reads Not started, Blocked, or SQLite active
+  test "the storage status reads Not started, Blocked, or SQLite active" do
+    assert status_of(render_storage()) == "Not started"
+
+    FlatSource.put_files(@in_memory_flat_root, fixture_files() ++ [malformed_source()])
+    {:noreply, _socket} = StorageLive.handle_event("move_data", %{}, storage_socket())
+    StoragePorts.put(:started?, true)
+    assert status_of(render_storage()) == "Blocked — retry available"
+
+    FlatSource.put_files(@in_memory_flat_root, fixture_files())
+    {:noreply, _socket} = StorageLive.handle_event("retry_migration", %{}, storage_socket())
+    assert status_of(render_storage()) == "SQLite active"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The folder is locked once migration has started
   test "the folder is locked once migration has started" do
     FlatSource.put_files(@in_memory_flat_root, fixture_files())

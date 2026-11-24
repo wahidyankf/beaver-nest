@@ -484,6 +484,8 @@ defmodule BnestApp.Backup.FacadeTest do
     # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task changes no backup file
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Foreign receipts and unreceipted files are never removed or counted
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Opening the page leaves the backup folder untouched
     test "reports an intact run present and a run whose digest changed changed, writing nothing",
          context do
       dates = [~D[2030-05-14], ~D[2030-05-15], ~D[2030-05-16]]

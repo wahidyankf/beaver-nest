@@ -43,6 +43,8 @@ defmodule BnestApp.CodexChat.RepositoryImageFacadeTest do
     :ok
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-in visitor can fetch a repository image
   test "returns the media type and the bytes of a repository image" do
     InMemoryRepositoryImages.put_file("docs/shot.png", @png)
 
@@ -58,6 +60,8 @@ defmodule BnestApp.CodexChat.RepositoryImageFacadeTest do
            ) == :error
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A repository image behind a symbolic link is refused
   test "answers :error for a symbolic link, even one that points at a real image" do
     InMemoryRepositoryImages.put_symlink("docs/linked.png", @logo)
 
@@ -67,6 +71,8 @@ defmodule BnestApp.CodexChat.RepositoryImageFacadeTest do
              :error
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A file that is not a raster image is refused
   test "answers :error for a file that is not a raster image, whatever its name" do
     InMemoryRepositoryImages.put_file("docs/not-an-image.png", "<html>not an image</html>")
 
@@ -75,6 +81,8 @@ defmodule BnestApp.CodexChat.RepositoryImageFacadeTest do
            ) == :error
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A repository image over the size limit is refused
   test "answers :error for a file over the size limit" do
     too_large = @png <> :binary.copy(<<0>>, RepositoryImage.max_bytes())
     InMemoryRepositoryImages.put_file("docs/too-large.png", too_large)
@@ -90,6 +98,8 @@ defmodule BnestApp.CodexChat.RepositoryImageFacadeTest do
     assert CodexChat.repository_image("docs/configured.png") == {:ok, "image/png", @png}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A repository image path that leaves the repository is refused
   test "refuses a path outside the repository before the port reads anything" do
     assert CodexChat.repository_image("../../config/secret.png",
              repository_images: RaisingRepositoryImages

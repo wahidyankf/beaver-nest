@@ -24,6 +24,8 @@ defmodule BnestApp.SifatAllah.SifatAllahUnitTest do
       assert SifatAllah.load_progress(@owner, store: store) == {:error, :missing}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns a pair and keeps the progress after a reload
     test "is the record the learner's last save stored", %{store: store} do
       {:ok, saved} = SifatAllah.save_progress(@owner, snapshot(), nil, store: store, now: @now)
 

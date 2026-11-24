@@ -111,6 +111,10 @@ defmodule BnestAppWeb.ChatMarkdownTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A message carries its body as safe HTML
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex replies are formatted as Markdown
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex reply tables, task lists, links and images keep their layout
     test "renders headings, emphasis, code, lists, tasks, tables, quotes, rules and strikethrough" do
       html = render(@sample)
 
@@ -138,6 +142,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert_safe(html, "task list")
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Raw HTML in a Codex reply is shown as text and never runs
     test "raw HTML is shown as escaped text, never as markup" do
       for snippet <- @raw_html_snippets do
         html = render(snippet)
@@ -191,6 +197,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
   end
 
   describe "links" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Links in a Codex reply open in a new tab without sharing the page
     test "a safe link opens in a new tab without sharing the page" do
       html = render("[docs](#{@https}example.com/docs)")
 
@@ -208,6 +216,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert tag =~ ~s(rel="noopener noreferrer nofollow")
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Unsafe links in a Codex reply are not clickable
     test "an unsafe link keeps its text and is not clickable" do
       html = render("[click here](javascript:alert(1))")
 
@@ -261,6 +271,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
   describe "images" do
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply shows an image from the repository
     test "a repository image is shown through the image route, with its alt text and safe attributes" do
       html = render("![Beaver Nest logo](#{@logo})")
 
@@ -279,6 +291,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: External https and small inline images in a Codex reply are shown
     test "an https image is shown inline, with its alt text and the safe attributes, and no link" do
       html = render("![Remote logo](#{@https}example.com/remote-logo.png)")
 
@@ -302,6 +316,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply keeps http, svg and oversized images as text
     test "an http image is not loaded: it stays a link that says it is not shown" do
       html = render("![Remote logo](#{@http}example.com/remote-logo.png)")
 
@@ -320,6 +336,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: External https and small inline images in a Codex reply are shown
     test "a small PNG, JPEG, GIF or WebP data image is shown inline with its alt text" do
       for {type, bytes} <- @raster_images do
         url = data_url(type, bytes)
@@ -334,6 +352,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply keeps http, svg and oversized images as text
     test "an SVG, another data type, or a javascript image is withheld and its text says so" do
       for destination <- [
             data_url("svg+xml", @svg),
@@ -375,6 +395,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert html =~ "[image not shown: Wrong]"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply keeps http, svg and oversized images as text
     test "an image address of more than 2,048 characters is withheld" do
       html = render("![Long](#{url_of_length(2049)})")
 
@@ -565,8 +587,13 @@ defmodule BnestAppWeb.ChatMarkdownTest do
   end
 
   describe "a reply that is still streaming" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply stays readable while its Markdown is unfinished
     test "closes unfinished bold" do
-      assert render("**bol", true) =~ "<strong>bol</strong>"
+      html = render("**bol", true)
+
+      assert html =~ "<strong>bol</strong>"
+      refute html =~ "**"
     end
 
     test "leaves unfinished bold as text once the reply is complete" do
@@ -577,6 +604,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert render("```elixir\nIO.puts(", true) =~ "<pre"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A half-written image address in a streaming reply is not shown as an image
     test "a half-written https image address is never an image while streaming" do
       html = render("see ![a](#{@https}exa", true)
 
@@ -694,6 +723,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert render(fence("\n\n%% the sales funnel\nflowchart TD\n  A --> B")) =~ @marker
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A streaming Codex reply shows the diagram source until the reply is complete
     test "a diagram is not marked while its reply streams, and shows as an ordinary code block" do
       html = render(fence(@flowchart), true)
 
@@ -718,6 +749,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert html =~ "<p><em>Diagram not drawn: its code block was never closed.</em></p>"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An oversized diagram stays as source with a note
     test "a diagram of the byte limit is marked, and one byte more is refused" do
       limit = ChatMarkdown.diagram_limits().max_source_bytes
 
@@ -744,6 +777,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml keeps an unacceptable mermaid fence as a code block with a note
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An unsupported diagram type stays as source with a note
     test "a diagram type that is not on the list is refused as unsupported" do
       for header <- [
             "architecture-beta",
@@ -864,6 +899,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert render(fence("flowchart TD\n  A --> B\n  linkStyle 0 stroke:#333")) =~ @marker
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Diagrams beyond the first four in a message stay as source with a note
     test "only the first four diagrams of a message are marked, in document order" do
       fences = for n <- 1..5, do: fence("flowchart TD\n  A#{n} --> B#{n}")
       html = render(Enum.join(fences, "\n\n"))

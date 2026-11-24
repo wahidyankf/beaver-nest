@@ -75,6 +75,7 @@ step("the visitor has a Codex conversation with older replies", () => {
   openRegion(CONVERSATION_CONTENT_PX, CONVERSATION_BOX_PX);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation follows a new reply
 step("the visitor is at the bottom of the Codex conversation", () => {
   openConversation();
   readerScrollsTo(
@@ -95,6 +96,7 @@ step("the visitor has scrolled up in the Codex conversation", () => {
   readerScrollsTo(100);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation keeps its newest reply in view when a diagram draws
 step("a Codex reply holds a diagram that is not yet drawn", () => {
   if (!hasRegion()) openConversation();
   const current = currentRegion();
@@ -136,6 +138,7 @@ step("the diagram is drawn", async () => {
 
 // --- Then ----------------------------------------------------------------------------
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation opens at its newest message
 step("the newest reply is at the bottom of the conversation", () => {
   expect(atNewest(), "the reader is not at the newest reply").toBe(true);
 });
@@ -150,6 +153,7 @@ step("the newest reply is in view above the composer", () => {
   expect(atNewest(), "the newest reply is below the fold").toBe(true);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation keeps a reader who scrolled up in place
 step("the visitor's position in the conversation does not change", () => {
   expect(currentRegion().metrics.top, "the reader was moved").toBe(100);
 });

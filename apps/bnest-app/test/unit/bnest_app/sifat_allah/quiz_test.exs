@@ -19,6 +19,8 @@ defmodule BnestApp.SifatAllah.Domain.QuizTest do
     assert List.last(curriculum).wajib == "Mutakalliman"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: Every answered question moves between the review lists immediately
   test "keeps learned and review ids in curriculum order" do
     progress = Quiz.progress()
     qudrah = Enum.at(Quiz.curriculum(), 6)
@@ -82,6 +84,12 @@ defmodule BnestApp.SifatAllah.Domain.QuizTest do
     assert Quiz.mastery_percent(progress) == 5
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child moves through remembered individual questions
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A difficult pair is kept for another try
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child retests a difficult pair until it is correct
   test "uses exact question queues for learned and difficult review" do
     [wujud, qidam | _rest] = Quiz.curriculum()
 
@@ -178,6 +186,8 @@ defmodule BnestApp.SifatAllah.Domain.QuizTest do
            }) == :error
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child practises every question form of a pair
   test "offers each relation from both directions with a verifiable answer" do
     pair = hd(Quiz.curriculum())
 
@@ -209,6 +219,8 @@ defmodule BnestApp.SifatAllah.Domain.QuizTest do
     assert Quiz.correct_answer(pair, :meaning_mustahil) == "‘Adam"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child sees correct answers in varied positions
   test "places correct answers in varied, stable positions" do
     first = hd(Quiz.curriculum())
     second = Quiz.next_pair(first)
@@ -225,6 +237,8 @@ defmodule BnestApp.SifatAllah.Domain.QuizTest do
              Quiz.answer_options(first, :wajib_meaning)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz continues as reinforcement after every pair is remembered
   test "moves past pairs that are already remembered during a quiz" do
     progress =
       Quiz.progress() |> Quiz.remember("wujud") |> Quiz.remember("qidam")
@@ -243,6 +257,8 @@ defmodule BnestApp.SifatAllah.Domain.QuizTest do
              "wujud"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz skips individual questions that are already remembered
   test "skips remembered individual questions in an exam until every question is mastered" do
     [wujud, qidam | _rest] = Quiz.curriculum()
 
@@ -261,6 +277,8 @@ defmodule BnestApp.SifatAllah.Domain.QuizTest do
              {qidam, :wajib_opposite}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns the earliest pair that is not remembered yet
   test "starts a short lesson with the first pairs not yet known" do
     progress = Quiz.progress() |> Quiz.remember("wujud")
 
@@ -291,6 +309,8 @@ defmodule BnestApp.SifatAllah.Domain.QuizTest do
     assert Quiz.previous_pair(%{id: "unknown"}).wajib == "Mutakalliman"
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child gets another difficult pair before repeating one
   test "moves a focused review to another difficult pair before repeating" do
     [wujud, qidam | _rest] = Quiz.curriculum()
 

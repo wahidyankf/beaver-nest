@@ -11,6 +11,39 @@ defmodule BnestApp.CodexChat.TranscriptTest do
     assert unchanged == chat
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor cannot send an empty message
+  test "an empty message is refused and leaves the conversation unchanged" do
+    {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
+
+    for empty <- ["", "   ", "\n\t "] do
+      assert Transcript.submit(Transcript.new(), empty) == {:error, Transcript.new()}
+      assert Transcript.submit(chat, empty) == {:error, chat}
+    end
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor cannot overlap Codex turns
+  test "a second message is refused while a turn is still busy" do
+    {:ok, busy} = Transcript.submit(Transcript.new(), "First message")
+
+    assert busy.busy
+    assert Transcript.submit(busy, "Too soon") == {:error, busy}
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor continues one page-scoped conversation
+  test "a completed turn leaves the conversation ready for the next message" do
+    {:ok, first} = Transcript.submit(Transcript.new(), "Hello, Beaver Nest")
+    completed = Transcript.complete(first)
+
+    assert {:ok, second} = Transcript.submit(completed, "Remember me")
+    assert Enum.count(second.messages, &(&1.role == :visitor)) == 2
+    assert second.busy
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor retains public Codex progress beside the final answer
   test "retains public reasoning and prior assistant progress when a new item becomes final" do
     {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
 
@@ -124,6 +157,8 @@ defmodule BnestApp.CodexChat.TranscriptTest do
     assert Enum.map(messages, & &1["role"]) == ["visitor", "assistant"]
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An automatic LiveView reconnect safely restores a persisted in-progress user-owned turn
   test "continues an interrupted turn once without duplicating the recovery request" do
     assert {:error, :none} = Transcript.continuation_prompt(Transcript.new())
 
@@ -274,6 +309,8 @@ defmodule BnestApp.CodexChat.TranscriptTest do
 
   # A restored in-flight turn is still being written, so its reply must keep streaming: the page keeps
   # patching a streaming reply, and a finished one is ignored by the browser's morph.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: After a dropped connection, a resumed reply shows its later text and diagram without a reload
   test "a restored in-flight turn keeps its reply streaming until it completes" do
     {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
     chat = Transcript.update_assistant(chat, "answer", "Partial")
@@ -290,6 +327,8 @@ defmodule BnestApp.CodexChat.TranscriptTest do
     assert [_visitor, %{content: "Full answer", streaming: false}] = completed.messages
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An automatic LiveView reconnect preserves a completed user-owned conversation and Codex session
   test "a restored finished turn has no streaming reply" do
     {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
     {:ok, snapshot} = Transcript.snapshot(Transcript.complete(chat))

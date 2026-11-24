@@ -196,6 +196,10 @@ defmodule BnestApp.Operations.FacadeTest do
   end
 
   describe "admin panels" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Every settings panel Bnest offers is listed in admin settings
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A settings panel saves only the fields it offers and refuses any other field
     test "lists every declared panel with its owning context and editable fields" do
       assert Operations.admin_panels() == [
                %{

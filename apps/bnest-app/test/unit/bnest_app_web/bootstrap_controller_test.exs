@@ -121,6 +121,43 @@ defmodule BnestAppWeb.BootstrapControllerTest do
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: First-time setup warns that accounts cannot be managed or recovered later, then closes
+  test "first-time setup warns that accounts cannot be managed or recovered later, then closes" do
+    html =
+      %{
+        live_action: :setup,
+        setup_status: :open,
+        setup_draft: [%{username: "", roles: ["admin"]}],
+        setup_error: nil,
+        flash: %{}
+      }
+      |> LoginLive.render()
+      |> Safe.to_iodata()
+      |> IO.iodata_to_binary()
+
+    assert html =~ "irreversible"
+    assert html =~ "account creation, role changes"
+    assert html =~ "password reset, and recovery are unavailable"
+    assert html =~ "closes permanently"
+
+    response =
+      submit(%{
+        "confirm" => "closed",
+        "accounts" => %{
+          "0" => account("test-user-setup-warn", @password, @password, ["admin"])
+        }
+      })
+
+    assert response.status == 302
+    assert get_resp_header(response, "location") == ["/login"]
+
+    assert Phoenix.Flash.get(response.assigns.flash, :info) ==
+             "Initial accounts created. Setup is now permanently closed."
+
+    assert Identity.setup_status() != :open
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A failed setup keeps the names and roles and clears every password
   test "a failed setup keeps the names and roles and clears every password" do
     params = %{

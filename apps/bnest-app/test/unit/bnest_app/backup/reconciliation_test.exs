@@ -247,6 +247,8 @@ defmodule BnestApp.Backup.ReconciliationTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits zero only when every expected run is present
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page states that every retained backup is present
     test "states that every retained backup is present and exits zero" do
       assert Reconciliation.report(outcome(3)) == %{
                label: @label,
@@ -282,6 +284,10 @@ defmodule BnestApp.Backup.ReconciliationTest do
     # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The report counts the backups that need attention
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits non-zero and names a <state> backup
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page names each date whose backup is missing or changed
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The label names the same dates and states as the reconcile report
     test "counts the backups that need attention and names the date and state of each" do
       assert Reconciliation.report(outcome(7, %{2 => :missing, 4 => :changed})) == %{
                label: @label,
@@ -335,6 +341,8 @@ defmodule BnestApp.Backup.ReconciliationTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits non-zero when the ledger is unreadable
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page says plainly when the check could not run
     test "says plainly that the check could not run, whatever the reason" do
       reasons = [
         :ledger_unreadable,
@@ -378,6 +386,8 @@ defmodule BnestApp.Backup.ReconciliationTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task does not report an empty ledger as present
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page says plainly when there is nothing to check
     test "says there is nothing to check for a ledger with no verified run" do
       assert Reconciliation.report({:ok, []}) == %{
                label: @label,
@@ -440,6 +450,8 @@ defmodule BnestApp.Backup.ReconciliationTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The report and the log line carry no private value
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The label discloses no private path
     test "discloses no path, digest, destination identifier or run ID in any state" do
       {:ok, results} = outcome(7, %{1 => :missing, 3 => :changed})
 

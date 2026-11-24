@@ -30,6 +30,8 @@ defmodule BnestAppWeb.UserAuthTest do
     assert UserAuth.transition_user(true) == nil
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A visitor who may not administer Bnest cannot open admin settings
   test "the admin gate halts a non-admin connection with not found before any LiveView mounts" do
     conn =
       Plug.Test.conn(:get, "/admin/settings/schedules")
@@ -54,6 +56,33 @@ defmodule BnestAppWeb.UserAuthTest do
     assert UserAuth.safe_return_path("chat") == "/"
     assert UserAuth.safe_return_path("") == "/"
     assert UserAuth.safe_return_path(nil) == "/"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A logged-out visitor is sent to login from any protected page
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-out visitor cannot fetch a repository image
+  test "a logged-out visitor is sent to login from any protected page" do
+    previous = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
+    Application.put_env(:bnest_app, :identity_cutover_enabled, true)
+
+    try do
+      for route <- ["/", "/chat", "/chat/images/apps/bnest-app/priv/static/logo.png"] do
+        conn =
+          conn(:get, route)
+          |> init_test_session(%{})
+          |> Phoenix.Controller.fetch_flash([])
+          |> UserAuth.fetch_current_user([])
+          |> UserAuth.require_authenticated_user([])
+
+        assert conn.halted
+
+        assert Plug.Conn.get_resp_header(conn, "location") ==
+                 ["/login?return_to=#{URI.encode_www_form(route)}"]
+      end
+    after
+      Application.put_env(:bnest_app, :identity_cutover_enabled, previous)
+    end
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength

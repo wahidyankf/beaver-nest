@@ -64,6 +64,8 @@ defmodule BnestApp.Scheduler.Domain.PolicyTest do
     refute Policy.valid_destination_id?("")
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A settings panel saves only the fields it offers and refuses any other field
   test "an operator's daily edit converts WIB and validates enabled and revision" do
     backup = %{handler_key: "prod_sqlite_backup"}
 
@@ -80,6 +82,25 @@ defmodule BnestApp.Scheduler.Domain.PolicyTest do
              Policy.daily_edit(%{handler_key: "fixture"}, %{"daily_time_wib" => "02:00"})
 
     assert {:error, :invalid_time} = Policy.daily_edit(backup, %{"revision" => "1"})
+
+    # Only the panel's own fields are read: an edit naming nothing the panel
+    # offers is refused, and one that also names offered fields keeps only those.
+    assert {:error, _reason} =
+             Policy.daily_edit(backup, %{
+               "schedule_key" => "test-user-forged-key",
+               "handler_key" => "fixture",
+               "schedule_context" => "family",
+               "daily_at_utc" => "00:00",
+               "revision" => "1"
+             })
+
+    assert Policy.daily_edit(backup, %{
+             "schedule_key" => "test-user-forged-key",
+             "handler_key" => "fixture",
+             "daily_time_wib" => "03:30",
+             "enabled" => "false",
+             "revision" => "1"
+           }) == {:ok, %{daily_at_utc: "20:30", enabled: false, revision: 1}}
 
     for {enabled, revision, reason} <- [
           {"maybe", "1", :invalid_enabled},

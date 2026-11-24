@@ -8,6 +8,7 @@ defmodule BnestAppWeb.SifatAllahLiveUnitTest do
 
   use ExUnit.Case, async: false
 
+  alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage.Records
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
   alias BnestAppWeb.SifatAllahLive
@@ -63,6 +64,124 @@ defmodule BnestAppWeb.SifatAllahLiveUnitTest do
 
     {:ok, mounted} = SifatAllahLive.mount(%{}, %{}, socket)
     assert page_text(mounted) =~ "Tersimpan di browser ini"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child opens the revision dashboard
+  test "a child opens the revision dashboard" do
+    {:ok, socket} = mount(account_user())
+
+    assert socket.assigns.mode == :dashboard
+    assert page_text(socket) =~ "Misi Hafal 40 Sifat Allah"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child resets saved progress from the mission
+  test "a child resets saved progress from the mission" do
+    {:ok, socket} = mount(account_user())
+    {:noreply, studying} = event(socket, "start-learning", %{})
+    {:noreply, remembered} = event(studying, "remember-pair", %{})
+    assert remembered.assigns.progress["learned_ids"] != []
+
+    {:noreply, asked} = event(remembered, "ask-reset-progress", %{})
+    assert asked.assigns.reset_confirmation? == true
+
+    {:noreply, reset} = event(asked, "reset-progress", %{})
+    assert reset.assigns.progress["learned_ids"] == []
+    assert reset.assigns.reset_confirmation? == false
+
+    {:ok, reloaded} = mount(account_user())
+    assert reloaded.assigns.progress["learned_ids"] == []
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child swipes through a learning session
+  test "a child swipes through a learning session" do
+    {:ok, socket} = mount(account_user())
+    {:noreply, studying} = event(socket, "start-learning", %{})
+    assert studying.assigns.mode == :study
+    assert studying.assigns.lesson_index == 0
+
+    {:noreply, swiped} = event(studying, "swipe-study", %{"direction" => "left"})
+    assert swiped.assigns.lesson_index == 1
+
+    {:noreply, back} = event(swiped, "swipe-study", %{"direction" => "right"})
+    assert back.assigns.lesson_index == 0
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child can return to the mission while learning
+  test "a child can return to the mission while learning" do
+    {:ok, socket} = mount(account_user())
+    {:noreply, studying} = event(socket, "start-learning", %{})
+    assert studying.assigns.mode == :study
+
+    {:noreply, mission} = event(studying, "dashboard", %{})
+    assert mission.assigns.mode == :dashboard
+    assert page_text(mission) =~ "Misi Hafal 40 Sifat Allah"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child receives kind feedback for a correct quiz answer
+  test "a child receives kind feedback for a correct quiz answer" do
+    {:ok, socket} = mount(account_user())
+    {:noreply, quizzing} = event(socket, "start-quiz", %{})
+    pair = quizzing.assigns.quiz_pair
+    kind = quizzing.assigns.quiz_kind
+
+    {:noreply, answered} =
+      event(quizzing, "answer", %{"answer" => Quiz.correct_answer(pair, kind)})
+
+    assert answered.assigns.feedback == %{kind: :success, text: "Betul!"}
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz locks one answer and moves on automatically
+  test "a quiz locks one answer and moves on automatically" do
+    {:ok, socket} = mount(account_user())
+    {:noreply, quizzing} = event(socket, "start-quiz", %{})
+    pair = quizzing.assigns.quiz_pair
+    kind = quizzing.assigns.quiz_kind
+
+    {:noreply, answered} =
+      event(quizzing, "answer", %{"answer" => Quiz.correct_answer(pair, kind)})
+
+    assert answered.assigns.feedback != nil
+    token = answered.assigns.auto_advance_token
+
+    {:noreply, locked} = event(answered, "answer", %{"answer" => "a wrong answer"})
+    assert locked.assigns.feedback == answered.assigns.feedback
+
+    {:noreply, advanced} = SifatAllahLive.handle_info({:auto_advance, :quiz, token}, answered)
+    assert advanced.assigns.feedback == nil
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child keeps the current quiz question after a reload
+  test "a child keeps the current quiz question after a reload" do
+    {:ok, socket} = mount(account_user())
+    {:noreply, quizzing} = event(socket, "start-quiz", %{})
+    pair_id = quizzing.assigns.quiz_pair.id
+    kind = quizzing.assigns.quiz_kind
+
+    {:ok, reloaded} = mount(account_user())
+    assert reloaded.assigns.mode == :quiz
+    assert reloaded.assigns.quiz_pair.id == pair_id
+    assert reloaded.assigns.quiz_kind == kind
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child swipes through quiz questions
+  test "a child swipes through quiz questions" do
+    {:ok, socket} = mount(account_user())
+    {:noreply, quizzing} = event(socket, "start-quiz", %{})
+    {pair, kind} = {quizzing.assigns.quiz_pair, quizzing.assigns.quiz_kind}
+
+    {:noreply, swiped} = event(quizzing, "swipe-quiz", %{"direction" => "left"})
+    assert {swiped.assigns.quiz_pair.id, swiped.assigns.quiz_kind} != {pair.id, kind}
+
+    {:noreply, back} = event(swiped, "swipe-quiz", %{"direction" => "right"})
+    assert {back.assigns.quiz_pair.id, back.assigns.quiz_kind} == {pair.id, kind}
   end
 
   defp account_user do

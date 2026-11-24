@@ -82,6 +82,7 @@ describe("SifatHistory", () => {
     expect(pushed).toEqual(["dashboard"]);
   });
 
+  // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: Browser Back returns a child from a quiz to the mission
   it("goes to the dashboard when a mission entry is popped", () => {
     const { hook, pushed } = mounted();
     hook.onPopState?.({

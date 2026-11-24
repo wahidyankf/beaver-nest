@@ -203,6 +203,7 @@ step("a Codex conversation holds {int} messages", (count) => {
 
 // Vitest cannot scroll a conversation: this When checks the declared scroller and the recorded count, the two things a
 // scroll needs. The scroll itself is performed in Chromium by the e2e binding of the same step text.
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message list keeps its overscroll inside itself
 step("the visitor scrolls the Codex conversation to the middle", () => {
   expect(
     recall<number>("codexMessages"),
@@ -215,11 +216,16 @@ step("the visitor scrolls the family conversation to the middle", () => {
   expectFamilyHistoryIsTheOnlyScroller();
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header and composer stay in place while the messages scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A smaller screen from the soft keyboard keeps the Codex composer on screen
 step("the Codex header is at the top of the screen", () => {
   expectCodexPanelFillsScreen();
   expectNotTakenOutOfFlow(".chat-header");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat header and composer stay in place while the messages scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat header and composer stay in place with a fine pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A smaller screen from the soft keyboard keeps the Family Chat header, composer and newest message on screen
 step("the Family Chat header is at the top of the screen", () => {
   expectFamilyShellFillsScreen();
   expectNotTakenOutOfFlow(".family-chat-header");
@@ -240,6 +246,7 @@ step("the newest Codex message ends above the composer", () => {
   expectNotTakenOutOfFlow(".composer");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The last Family Chat message is not hidden behind the composer
 step("the newest Family Chat message ends above the composer", () => {
   expectFamilyHistoryIsTheOnlyScroller();
   expectNotTakenOutOfFlow(".family-chat-composer");
@@ -307,11 +314,13 @@ step("the Codex room fills the visible area above the keyboard", () => {
 });
 
 // A box taken out of the column (absolute or fixed) fails here; the real on-screen check is the e2e binding.
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex draft grows the message box to its cap and keeps Send and the header on screen
 step("the Send button and the Codex header are on screen", () => {
   expectNotTakenOutOfFlow(".send-button");
   expectNotTakenOutOfFlow(".chat-header");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A long Family Chat draft grows the message box to its cap and keeps Send and the header on screen
 step("the Family Chat Send button and header are on screen", () => {
   expectNotTakenOutOfFlow(".family-chat-send");
   expectNotTakenOutOfFlow(".family-chat-header");
@@ -369,6 +378,7 @@ step("the Codex message list keeps its overscroll inside itself", () => {
   ).toBe("contain");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat message list keeps its overscroll inside itself
 step("the Family Chat message list keeps its overscroll inside itself", () => {
   expectFamilyHistoryIsTheOnlyScroller();
   expect(

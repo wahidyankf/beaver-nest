@@ -69,6 +69,23 @@ describe("BrowserImport", () => {
     ]);
   });
 
+  // @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Accepted browser import clears only the accepted browser key
+  it("clears only the accepted browser key and keeps any unrelated key", () => {
+    const { handlers } = mounted({
+      "session:bnest.chat.v1": "{}",
+      "session:unrelated-key": "keep me",
+      "unrelated-local": "keep me too",
+    });
+    const accept = handlers["imports-accepted"];
+    if (!accept) throw new Error("no imports-accepted handler");
+
+    accept({ storageKeys: ["bnest.chat.v1"] } as never);
+
+    expect(window.sessionStorage.getItem("bnest.chat.v1")).toBeNull();
+    expect(window.sessionStorage.getItem("unrelated-key")).toBe("keep me");
+    expect(window.localStorage.getItem("unrelated-local")).toBe("keep me too");
+  });
+
   it("removes an accepted key and ignores unknown or malformed payloads", () => {
     window.localStorage.setItem("phx:theme", "dark");
     const { handlers } = mounted({});
