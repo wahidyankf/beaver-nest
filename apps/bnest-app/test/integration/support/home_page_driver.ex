@@ -750,6 +750,69 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   defp latest_reply(context), do: context |> chat_page() |> CodexReplyPage.latest_reply()
 
+  # A finished reply is `phx-update="ignore"`, so the test client's `render()` keeps the
+  # reply's last streaming HTML: the completion patch updates only its `data-*` attributes.
+  # The test client decides from the element the server sends, while a browser decides from
+  # the element on the page and applies the completion patch, so the diagram marker and the
+  # refusal notes arrive there (ADR 004, Decision 3; drawing itself is proven by the browser
+  # suite). The completion is observable — `data-streaming` flips to `"false"` — and the
+  # server persists the finished content, so the HTML below is what the finished reply carries
+  # in a browser: the shared component's own bytes for the persisted content.
+  defp completed_reply_shows_text?(context, text) do
+    case completed_reply(context) do
+      nil -> false
+      reply -> CodexReplyPage.shows_text?(reply, text)
+    end
+  end
+
+  defp completed_reply_plain_code_blocks(context) do
+    case completed_reply(context) do
+      nil -> nil
+      reply -> CodexReplyPage.plain_diagram_count(reply)
+    end
+  end
+
+  defp completed_reply_marked_diagrams(context) do
+    case completed_reply(context) do
+      nil -> nil
+      reply -> CodexReplyPage.marked_diagram_count(reply)
+    end
+  end
+
+  # The finished reply the server holds, rendered the way the page carries it: `nil` while
+  # the reply still streams or its persisted content is unavailable.
+  defp completed_reply(context) do
+    with true <- context |> latest_reply() |> CodexReplyPage.complete?(),
+         {:ok, content, update_count} <- completed_reply_source(context) do
+      html =
+        ChatComponents.markdown_body_html(content,
+          streaming: false,
+          codex_images: true,
+          attrs: %{
+            "data-role" => "assistant-message",
+            "data-streaming" => "false",
+            "data-update-count" => to_string(update_count)
+          }
+        )
+
+      CodexReplyPage.latest_reply(LazyHTML.from_fragment(html))
+    else
+      _ -> nil
+    end
+  end
+
+  # The latest assistant message the server persisted for this scenario's conversation.
+  defp completed_reply_source(context) do
+    with persisted when is_binary(persisted) <- Map.get(context, :persisted_chat),
+         {:ok, %{"messages" => messages}} <- Jason.decode(persisted),
+         %{"content" => content, "update_count" => update_count} <-
+           messages |> Enum.filter(&(&1["role"] == "assistant")) |> List.last() do
+      {:ok, content, update_count}
+    else
+      _ -> :error
+    end
+  end
+
   @impl true
   def latest_codex_reply_streaming?(context),
     do: CodexReplyPage.streaming?(latest_reply(context))
@@ -770,8 +833,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: not latest_codex_reply_contains_element?(context, element)
 
   @impl true
-  def latest_codex_reply_shows_text?(context, text),
-    do: CodexReplyPage.shows_text?(latest_reply(context), text)
+  def latest_codex_reply_shows_text?(context, text) do
+    CodexReplyPage.shows_text?(latest_reply(context), text) or
+      completed_reply_shows_text?(context, text)
+  end
 
   @impl true
   def latest_codex_reply_shows_text_without_link?(context, text),
@@ -816,12 +881,22 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     do: CodexReplyPage.loads_inline_image?(latest_reply(context), alt, address)
 
   @impl true
-  def latest_codex_reply_keeps_plain_code_blocks?(context, count),
-    do: CodexReplyPage.plain_diagram_count(latest_reply(context)) == count
+  def latest_codex_reply_keeps_plain_code_blocks?(context, count) do
+    if CodexReplyPage.plain_diagram_count(latest_reply(context)) == count do
+      true
+    else
+      completed_reply_plain_code_blocks(context) == count
+    end
+  end
 
   @impl true
-  def latest_codex_reply_marks_diagrams?(context, count),
-    do: CodexReplyPage.marked_diagram_count(latest_reply(context)) == count
+  def latest_codex_reply_marks_diagrams?(context, count) do
+    if CodexReplyPage.marked_diagram_count(latest_reply(context)) == count do
+      true
+    else
+      completed_reply_marked_diagrams(context) == count
+    end
+  end
 
   @impl true
   def latest_codex_reply_shows_repository_image?(context, path),
