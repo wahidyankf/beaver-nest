@@ -423,6 +423,8 @@ defmodule BnestApp.TestInstance.SeedTest do
   end
 
   describe "idempotency" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: POST /instances/:id/seed applies a seed once per key
     test "the same key and body applies once and reports applied false", %{run: run} do
       instance = TestInstance.spawn!(run, instance_id: @first_id, phase: :flat_primary)
       {_admin, parent} = names(@first_id)
@@ -442,6 +444,8 @@ defmodule BnestApp.TestInstance.SeedTest do
       assert :ok = TestInstance.drop!(instance)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
     test "the same key with a different body is a conflict that changes nothing", %{run: run} do
       instance = TestInstance.spawn!(run, instance_id: @first_id, phase: :flat_primary)
       {_admin, parent} = names(@first_id)

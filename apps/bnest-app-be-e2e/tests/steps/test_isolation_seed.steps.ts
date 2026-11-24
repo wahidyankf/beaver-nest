@@ -21,6 +21,9 @@ import {
 // Bindings for test_isolation.feature, the seed-once and 409-conflict scenarios.
 // Split from test_isolation.steps.ts (max-lines): scenarios never span the two
 // files, so each file keeps its own scenario state and Before hook.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: POST /instances/:id/seed applies a seed once per key
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
 
 const { Before, Given, Then, When } = createBdd();
 

@@ -32,6 +32,14 @@ Feature: Bnest test isolation
     When the test repeats that seed key with the same body
     Then the repeat answers applied false and writes no new account
 
+  # Carries BN-TEST-03.
+  Scenario: POST /instances/:id/seed applies a seed once per key
+    Given a test instance is current
+    When a test seeds the current instance under a new seed key
+    Then the seed answers applied true and the seeded account can log in
+    When the test repeats that seed key with the same body
+    Then the repeat answers applied false and writes no new account
+
   Rule: Teardown leaves nothing behind
 
   Scenario: Teardown removes the instance from the running server
@@ -118,6 +126,28 @@ Feature: Bnest test isolation
   # Exemption(e2e): a scheduler task cannot be held running from the exact origin, because the e2e server runs with the automatic scheduler off and exposes no way to start one; alternative-proof: bnest-app:test:integration / A spawn while a scheduler task runs answers 409 instance_busy
   @e2e-exempt
   Scenario: A spawn while a scheduler task runs answers 409 instance_busy
+    Given no test instance is current
+    And a scheduler task is running
+    When a test asks the server to spawn an instance
+    Then the response is a 409 answer with the code "instance_busy"
+
+  # Carries BN-TEST-10.
+  Scenario Outline: Conflicts answer 409: run mismatch, active, busy, seed key
+    Given <setup>
+    When <conflict>
+    Then the response is a 409 answer with the code "<code>"
+    And the answer echoes none of the request's input
+
+    Examples:
+      | setup                                                 | conflict                                                       | code            |
+      | no test instance is current                           | a test asks the server to spawn an instance under another run id | run_mismatch    |
+      | a test instance is current                            | a test asks the server to spawn an instance                    | instance_active |
+      | a test seeded a current instance under a seed key     | a test seeds the current instance with another body under it   | seed_conflict   |
+
+  # Carries BN-TEST-10.
+  # Exemption(e2e): a scheduler task cannot be held running from the exact origin, because the e2e server runs with the automatic scheduler off and exposes no way to start one; alternative-proof: bnest-app:test:integration / A spawn refused by a running scheduler task answers 409 instance_busy
+  @e2e-exempt
+  Scenario: A spawn refused by a running scheduler task answers 409 instance_busy
     Given no test instance is current
     And a scheduler task is running
     When a test asks the server to spawn an instance

@@ -120,6 +120,23 @@ defmodule BnestApp.TestInstance.SeedValidateTest do
       assert byte_size(name) == 32
       assert {:ok, _seed} = Seed.validate(%{"accounts" => [account(name)]}, @instance)
     end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: POST /instances/:id/seed applies a seed once per key
+    test "the same body validates to the same normalized form, so a repeat carries the same key and body" do
+      seed = %{
+        "accounts" => [account(@admin, ["parents", "admin"]), account(@parent)],
+        "familyChat" => %{"messages" => [message(@admin, @key, "  Salam  ")]}
+      }
+
+      assert {:ok, first} = Seed.validate(seed, @instance)
+      assert {:ok, second} = Seed.validate(seed, @instance)
+      assert first == second
+
+      other = %{"accounts" => [account(@parent)]}
+      assert {:ok, different} = Seed.validate(other, @instance)
+      refute different == first
+    end
   end
 
   describe "invalid_username" do

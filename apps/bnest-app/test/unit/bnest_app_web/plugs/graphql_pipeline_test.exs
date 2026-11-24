@@ -18,6 +18,36 @@ defmodule BnestAppWeb.Plugs.GraphQLPipelineTest do
     code
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A non-POST request is 405, a non-JSON content type is 415
+  test "a non-POST request is 405 and a non-JSON content type is 415, with no GraphQL data" do
+    get_conn =
+      GraphQLPipeline.call(
+        Plug.Test.conn(:get, "/api/graphql")
+        |> Plug.Conn.put_req_header("content-type", "application/json")
+        |> Plug.Test.init_test_session(%{}),
+        []
+      )
+
+    assert get_conn.halted
+    assert get_conn.status == 405
+    assert code(get_conn) == "METHOD_NOT_ALLOWED"
+    refute Map.has_key?(Jason.decode!(get_conn.resp_body), "data")
+
+    text_conn =
+      GraphQLPipeline.call(
+        Plug.Test.conn(:post, "/api/graphql", "{}")
+        |> Plug.Conn.put_req_header("content-type", "text/plain")
+        |> Plug.Test.init_test_session(%{}),
+        []
+      )
+
+    assert text_conn.halted
+    assert text_conn.status == 415
+    assert code(text_conn) == "UNSUPPORTED_MEDIA_TYPE"
+    refute Map.has_key?(Jason.decode!(text_conn.resp_body), "data")
+  end
+
   test "a chunked body over 64 KiB is rejected before the CSRF check" do
     result = GraphQLPipeline.call(chunked_conn(String.duplicate("a", 70 * 1024)), [])
 

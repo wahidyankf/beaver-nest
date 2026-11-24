@@ -344,6 +344,14 @@ Feature: Family chat GraphQL API
     And the Web Push configuration query still answers the caller
     And no Web Push subscription is stored
 
+  # Carries BN-GQL-21.
+  Scenario: Push queries and mutations refuse unauthenticated callers
+    Given a visitor has no authenticated Bnest session
+    When the caller runs each Web Push subscription operation
+    Then each Web Push subscription operation answers a safe "UNAUTHENTICATED" error reading "Authentication required."
+    And the Web Push configuration query still answers the caller
+    And no Web Push subscription is stored
+
   Rule: Cookie/CSRF and session-derived identity
 
   Scenario Outline: The GraphQL endpoint refuses a malformed request before executing it
@@ -357,6 +365,17 @@ Feature: Family chat GraphQL API
       | a body typed as plain text | 415    | UNSUPPORTED_MEDIA_TYPE |
       | a body over 64 KiB         | 413    | PAYLOAD_TOO_LARGE      |
       | malformed JSON             | 400    | VALIDATION_FAILED      |
+
+  # Carries BN-GQL-25.
+  Scenario Outline: A non-POST request is 405, a non-JSON content type is 415
+    When the user sends a GraphQL request that is <request>
+    Then the response has HTTP status <status> and a safe "<code>" error
+    And the response carries no GraphQL data
+
+    Examples:
+      | request                    | status | code                   |
+      | a GET                      | 405    | METHOD_NOT_ALLOWED     |
+      | a body typed as plain text | 415    | UNSUPPORTED_MEDIA_TYPE |
 
   Scenario: A mutation without a valid CSRF token is rejected
     When the user sends a family chat message mutation with a missing CSRF token
