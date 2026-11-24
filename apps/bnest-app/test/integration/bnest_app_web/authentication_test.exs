@@ -9,6 +9,8 @@ defmodule BnestAppWeb.AuthenticationTest do
   alias BnestApp.Storage.Records
   alias BnestApp.Test.BehaviourEvidence
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A logged-out visitor is sent to login from any protected page
   @tag :unauthenticated
   test "redirects protected navigation before product data is accessed", %{conn: conn} do
     conn = get(conn, "/chat")
@@ -446,5 +448,75 @@ defmodule BnestAppWeb.AuthenticationTest do
   @tag :unauthenticated
   test "an unauthenticated LiveView mount cannot trust a client owner", %{conn: conn} do
     assert {:error, {:redirect, %{to: "/login?return_to=%2Fchat"}}} = live(conn, "/chat")
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: Approved user logs in and logs out
+  @tag :unauthenticated
+  test "an approved user logs in and logs out", %{conn: conn} do
+    {username, password} = test_credentials()
+
+    logged_in =
+      post(conn, "/login", %{
+        "login" => %{"username" => username, "password" => password}
+      })
+
+    assert redirected_to(logged_in) == "/"
+    cookie = get_resp_cookies(logged_in)["_bnest_identity"].value
+
+    home = build_conn() |> put_req_cookie("_bnest_identity", cookie) |> get("/")
+    assert html_response(home, 200) =~ username
+
+    logged_out =
+      build_conn() |> put_req_cookie("_bnest_identity", cookie) |> delete("/logout")
+
+    assert redirected_to(logged_out) == "/login"
+
+    # The product clears the cookie with an expired deletion cookie (max-age
+    # zero), not by omitting it, and revokes the server session behind it.
+    assert get_resp_cookies(logged_out)["_bnest_identity"].max_age == 0
+    assert Identity.current_user(cookie) == {:error, :unauthenticated}
+
+    replayed = build_conn() |> put_req_cookie("_bnest_identity", cookie) |> get("/")
+    assert redirected_to(replayed) =~ "/login"
+
+    assert build_conn() |> get("/chat") |> redirected_to() =~ "/login"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: First-time setup warns that accounts cannot be managed or recovered later, then closes
+  @tag :unauthenticated
+  test "first-time setup warns that accounts cannot be managed or recovered later, then closes" do
+    FreshDatabaseCase.drop_current()
+    FreshDatabaseCase.spawn_for!(%{phase: :flat_primary}, [])
+
+    password = FreshDatabaseCase.account_password()
+
+    setup_page = build_conn() |> get("/setup") |> html_response(200)
+    assert setup_page =~ "irreversible"
+    assert setup_page =~ "account creation, role changes"
+    assert setup_page =~ "password reset, and recovery are unavailable"
+    assert setup_page =~ "closes permanently"
+
+    params = %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" => %{
+          "username" => "test-user-setup-warn",
+          "password" => password,
+          "password_confirmation" => password,
+          "roles" => %{"admin" => "true"}
+        }
+      }
+    }
+
+    response = post(build_conn(), "/setup", params)
+    assert redirected_to(response) == "/login"
+
+    assert Phoenix.Flash.get(response.assigns.flash, :info) ==
+             "Initial accounts created. Setup is now permanently closed."
+
+    assert Identity.setup_status() != :open
+    assert build_conn() |> get("/setup") |> Map.get(:status) == 404
   end
 end

@@ -37,6 +37,8 @@ defmodule BnestAppWeb.ChatImageControllerTest do
   end
 
   describe "a signed-in visitor" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-in visitor can fetch a repository image
     test "fetches the repository logo as a PNG with the route's headers", %{conn: conn} do
       conn = get(conn, route(@logo))
 
@@ -98,6 +100,8 @@ defmodule BnestAppWeb.ChatImageControllerTest do
 
   describe "a signed-out visitor" do
     @tag :unauthenticated
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-out visitor cannot fetch a repository image
     test "is redirected to login and gets no image bytes", %{conn: conn} do
       conn = get(conn, route(@logo))
 
@@ -107,6 +111,8 @@ defmodule BnestAppWeb.ChatImageControllerTest do
   end
 
   describe "every refusal is the same empty 404" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A repository image path that leaves the repository is refused
     test "a missing file, and each traversal form of a path that leaves the repository", %{
       conn: conn
     } do
@@ -132,6 +138,8 @@ defmodule BnestAppWeb.ChatImageControllerTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A repository image behind a symbolic link is refused
     test "a symbolic link to a file outside the repository, and one inside a linked directory",
          %{conn: conn} do
       root = use_repository()
@@ -153,6 +161,8 @@ defmodule BnestAppWeb.ChatImageControllerTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A repository image over the size limit is refused
     test "an oversized file is refused, and a file of exactly the limit is served", %{conn: conn} do
       max = RepositoryImage.max_bytes()
       root = use_repository()
@@ -174,6 +184,8 @@ defmodule BnestAppWeb.ChatImageControllerTest do
       assert_empty_not_found(refused, missing, "over-limit.png")
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A file that is not a raster image is refused
     test "SVG, HTML and text are refused, whatever their name ends in", %{conn: conn} do
       root = use_repository()
       write!(root.repository, "named-png.png", @not_a_raster)
@@ -188,6 +200,8 @@ defmodule BnestAppWeb.ChatImageControllerTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Hidden and runtime-data locations are refused
     test "hidden and runtime-data locations are refused, in any letter case", %{conn: conn} do
       root = use_repository()
 
