@@ -99,14 +99,53 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: outcome(context, :fresh_conversation_reported)
   )
 
-  defp prepare(context, state),
-    do: context.behaviour_driver.prepare_behaviour(context, state, [])
+  # BN-DATA-01, BN-DATA-09 and BN-DATA-10: the migration page's source list,
+  # import outcomes and local-user login gate.
 
-  defp perform(context, action),
-    do: context.behaviour_driver.perform_behaviour(context, action, [])
+  step(
+    "this browser holds chat, learning, and absent theme sources plus an unknown key",
+    context,
+    do: prepare(context, :migration_mixed_sources, [])
+  )
 
-  defp outcome(context, expected) do
-    assert context.behaviour_driver.behaviour_outcome?(context, expected, [])
+  step("a browser source filed as {string}", %{args: [filed]} = context,
+    do: prepare(context, :filed_browser_source, [filed])
+  )
+
+  step(
+    "the visitor opens the migration page on the cutover-off candidate",
+    context,
+    do: perform(context, :open_migration_cutover_off, [])
+  )
+
+  step("the migration page lists {string} as {string}", %{args: [label, status]} = context,
+    do: outcome(context, :migration_source_listed, [label, status])
+  )
+
+  step("the migration page lists no unknown source", context,
+    do: outcome(context, :migration_no_unknown)
+  )
+
+  step("the migration page shows {string}", %{args: [line]} = context,
+    do: outcome(context, :migration_outcome_shown, [line])
+  )
+
+  step("the visitor lands on the home page with the login warning", context,
+    do: outcome(context, :migration_login_warning, [])
+  )
+
+  step("the visitor sees no import control", context,
+    do: outcome(context, :migration_no_import_control, [])
+  )
+
+  defp prepare(context, state, args \\ []),
+    do: context.behaviour_driver.prepare_behaviour(context, state, args)
+
+  defp perform(context, action, args \\ []),
+    do: context.behaviour_driver.perform_behaviour(context, action, args)
+
+  defp outcome(context, expected, args \\ []) do
+    assert context.behaviour_driver.behaviour_outcome?(context, expected, args)
     context
   end
 end

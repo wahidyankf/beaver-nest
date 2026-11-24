@@ -82,6 +82,8 @@ defmodule BnestApp.Storage.ImportTest do
              Import.browser(store, @owner, theme("blue"))
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: A stale browser cannot overwrite a newer centralized record
   test "keeps a newer record instead of importing over it" do
     store = InMemoryRecordBackend.start()
     {:ok, _newer} = RecordBackend.write(store, :theme, @owner, nil, %{"sourceImportId" => nil})

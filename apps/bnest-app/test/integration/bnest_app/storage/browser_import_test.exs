@@ -89,6 +89,8 @@ defmodule BnestApp.BrowserImportTest do
              })
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: A stale browser cannot overwrite a newer centralized record
   test "keeps a newer accepted record when another browser presents a different legacy source" do
     store = Records.store()
     owner_id = owner_id(store)

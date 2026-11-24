@@ -48,6 +48,7 @@ afterEach(() => {
 });
 
 describe("BrowserImport", () => {
+  // @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: The migration page lists each recognized browser source
   it("reports every source with its presence on mount", () => {
     const { pushed } = mounted({
       "session:bnest.chat.v1": "{}",

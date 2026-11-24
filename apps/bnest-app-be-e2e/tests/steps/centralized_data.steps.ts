@@ -18,6 +18,8 @@ import { putTheme } from "../support/theme-preference";
 // browser-key-clearing and fresh-conversation-report halves moved to bnest-app-fe-e2e. Every record is read from the
 // current test instance's database through production's record read, never from a file. The interrupted-import
 // scenario's bindings live in centralized_data_import.steps.ts.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: A stale browser cannot overwrite a newer centralized record
 
 const { Given, Then, When } = createBdd();
 
