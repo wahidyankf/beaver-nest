@@ -106,6 +106,125 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
     assert child_conn |> get("/admin/settings/schedules") |> response(404)
   end
 
+  describe "refused saves" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A bad schedule time says "Enter a valid WIB time."
+    test "a bad schedule time says Enter a valid WIB time and keeps the saved schedule", %{
+      conn: conn
+    } do
+      key = "prod-sqlite-backup-daily"
+      current = BnestApp.Scheduler.get_schedule(key)
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      {:ok, saved} =
+        BnestApp.Scheduler.update_daily(
+          key,
+          %{
+            "daily_time_wib" => "02:00",
+            "enabled" => "true",
+            "revision" => Integer.to_string(current.revision)
+          },
+          now
+        )
+
+      {:ok, view, _html} = live(conn, @route)
+
+      html =
+        view
+        |> form("form[phx-submit=save_schedule]", %{
+          "schedule" => %{"daily_time_wib" => "25:00", "enabled" => "true"}
+        })
+        |> render_submit()
+
+      assert html =~ "Enter a valid WIB time."
+      kept = BnestApp.Scheduler.get_schedule(key)
+      assert kept.daily_at_utc == saved.daily_at_utc and kept.revision == saved.revision
+      refute html =~ "Daily schedule saved."
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A stale schedule save says to reload and try again
+    test "a stale schedule save says to reload and try again", %{conn: conn} do
+      key = "prod-sqlite-backup-daily"
+      current = BnestApp.Scheduler.get_schedule(key)
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      {:ok, saved} =
+        BnestApp.Scheduler.update_daily(
+          key,
+          %{
+            "daily_time_wib" => "02:00",
+            "enabled" => "true",
+            "revision" => Integer.to_string(current.revision)
+          },
+          now
+        )
+
+      {:ok, view, _html} = live(conn, @route)
+
+      {:ok, rival} =
+        BnestApp.Scheduler.update_daily(
+          key,
+          %{
+            "daily_time_wib" => "04:00",
+            "enabled" => "true",
+            "revision" => Integer.to_string(saved.revision)
+          },
+          DateTime.utc_now() |> DateTime.truncate(:second)
+        )
+
+      html =
+        view
+        |> form("form[phx-submit=save_schedule]", %{
+          "schedule" => %{"daily_time_wib" => "03:00", "enabled" => "true"}
+        })
+        |> render_submit()
+
+      assert html =~ "The schedule changed. Reload and try again."
+      stored = BnestApp.Scheduler.get_schedule(key)
+      assert stored.daily_at_utc == rival.daily_at_utc and stored.revision == rival.revision
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A bad backup folder gets a plain refusal reason
+    test "a bad backup folder gets a plain refusal reason", %{conn: conn} do
+      database_directory = BnestApp.Storage.database_path() |> Path.dirname()
+      link_root = Path.join(canonical_temporary_root(), "bnest-bad-folder-link")
+      link_target = Path.join(canonical_temporary_root(), "bnest-bad-folder-target")
+      File.mkdir_p!(link_target)
+      File.rm_rf(link_root)
+      File.ln_s!(link_target, link_root)
+      on_exit(fn -> File.rm_rf(link_root) end)
+      on_exit(fn -> File.rm_rf(link_target) end)
+
+      for {folder, message} <- [
+            {Path.join(database_directory, "backups"),
+             "Choose a folder outside the live database location."},
+            {Path.join(link_root, "backups"), "Choose a folder that is not a symbolic link."},
+            {"relative/backup", "The backup folder could not be saved safely."}
+          ] do
+        {:ok, view, _html} = live(conn, @route)
+
+        before = BnestApp.Backup.read_destination()
+
+        html =
+          view
+          |> form("form[phx-submit=save_backup]", %{
+            "backup" => %{"destination_directory" => folder}
+          })
+          |> render_submit()
+
+        assert html =~ message
+        assert BnestApp.Backup.read_destination() == before
+
+        kept = BnestApp.Scheduler.get_schedule("prod-sqlite-backup-daily")
+        assert kept.claimed_occurrences == 0
+
+        refute html =~ "Backup folder saved"
+      end
+    end
+  end
+
   describe "integrity label" do
     setup do
       location = TestBackupDestination.configure!("label")

@@ -25,6 +25,22 @@ defmodule BnestAppWeb.TestingControl.ErrorBodyTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawn refused by a running scheduler task answers 409 instance_busy
+  test "run mismatch, active, busy and seed key conflicts each answer 409 with their own code" do
+    for {reason, code} <- [
+          {:run_mismatch, "run_mismatch"},
+          {:instance_active, "instance_active"},
+          {:instance_busy, "instance_busy"},
+          {:seed_conflict, "seed_conflict"}
+        ] do
+      assert {409, %{"error" => %{"code" => ^code} = error}} = ErrorBody.render(reason)
+      assert is_binary(error["detail"])
+    end
+  end
+
   test "every body has the code, detail and path keys, a string detail, and step only for spawns" do
     for reason <- [:run_mismatch, {:spawn_failed, :create}, {:cleanup_failed, @run_path}] do
       {_status, %{"error" => error}} = ErrorBody.render(reason)

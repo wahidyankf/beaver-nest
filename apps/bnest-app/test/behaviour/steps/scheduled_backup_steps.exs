@@ -596,6 +596,61 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: outcome(context, :result_announced_politely)
   )
 
+  # BN-ADMIN-04, BN-ADMIN-05 and BN-ADMIN-06: the administrator's schedule and
+  # backup-folder saves and their plain refusal reasons.
+
+  step("an administrator with a saved daily schedule opens Schedules & backups", context,
+    do: prepare(context, :schedules_saved_opened)
+  )
+
+  step("an administrator opens Schedules & backups", context,
+    do: prepare(context, :schedules_opened)
+  )
+
+  step(
+    "the administrator saves the daily schedule with the time {string}",
+    %{args: [time]} = context,
+    do: perform(context, :save_schedule_with_time, [time])
+  )
+
+  step(
+    "another schedule save moves the daily schedule to {string}",
+    %{args: [time]} = context,
+    do: perform(context, :rival_schedule_save, [time])
+  )
+
+  step(
+    "the administrator saves the backup folder {string}",
+    %{args: [folder]} = context,
+    do: perform(context, :save_backup_folder, [folder])
+  )
+
+  step(
+    "the schedules page shows the schedule error {string}",
+    %{args: [message]} = context,
+    do: outcome(context, :schedule_error_shown, [message])
+  )
+
+  step("the saved daily schedule keeps its time", context,
+    do: outcome(context, :saved_schedule_kept)
+  )
+
+  step("the schedules page shows no schedule success message", context,
+    do: outcome(context, :no_schedule_success)
+  )
+
+  step("the other schedule save stays", context, do: outcome(context, :rival_schedule_kept))
+
+  step(
+    "the schedules page shows the backup error {string}",
+    %{args: [message]} = context,
+    do: outcome(context, :backup_error_shown, [message])
+  )
+
+  step("nothing is saved and no first backup is queued", context,
+    do: outcome(context, :backup_nothing_saved)
+  )
+
   # "2030-05-14 file missing; 2030-05-16 file changed" damages each listed run in turn, in the order written.
   defp damage_runs(context, damaged) do
     damaged

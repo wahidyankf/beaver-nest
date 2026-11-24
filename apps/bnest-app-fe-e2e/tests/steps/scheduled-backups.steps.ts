@@ -1,44 +1,9 @@
+import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
-import {
-  expectCheckingThenResult,
-  expectFocusStays,
-  expectMatchesReport,
-  expectOneNeedsAttention,
-  expectPrivateFree,
-  readReport,
-} from "../support/backup-integrity-change";
-import {
-  expectNoPresentClaim,
-  expectNothingToCheck,
-} from "../support/backup-integrity-empty";
-import {
-  expectAllPresent,
-  expectAttentionCount,
-  expectIntactCounted,
-  expectNoProblemDate,
-  expectProblemLines,
-  openedWhileAllPresent,
-  openSchedules,
-  prepareIntegrity,
-  readLabelHtml,
-  removeExpectedArtifact,
-  saveForm,
-  type IntegrityWorld,
-} from "../support/backup-integrity-label";
-import {
-  expectAnnouncedInPlace,
-  expectFocusOrderUnchanged,
-  expectNoHorizontalScroll,
-  expectPoliteAnnouncement,
-  expectProblemLinesWhole,
-  expectProblemsInText,
-  openWithTrace,
-  walkPage,
-} from "../support/backup-integrity-layout";
-import {
-  expectDestinationUnchanged,
-  openAndReload,
-} from "../support/backup-integrity-writes";
+import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { runLiveMix } from "../support/routed-rollout";
 import {
   expectAdminPanels,
   expectDeniedSettings,
@@ -55,13 +20,12 @@ import {
 
 // Trimmed from bnest-app-e2e's scheduled-backups.steps.ts to this
 // project's owned scenarios (contextual schedules, deny access, discover
-// typed configuration); the "Save a safe override" scenario moved to
-// bnest-app-be-e2e.
+// typed configuration, refused schedule and folder saves); the "Save a safe
+// override" scenario moved to bnest-app-be-e2e, and the `Backup files` label
+// scenarios live in scheduled-backups-label.steps.ts.
 
 const { Given, Then, When } = createBdd();
 const world: ScheduledBackupWorld = {};
-// The `Backup files` label scenarios keep their own facts, reset by the Given that seeds them.
-const integrity: IntegrityWorld = {};
 
 const preparations = new Map<string, string>([
   [
@@ -81,29 +45,6 @@ const actions = new Map<string, string>([
     "an administrator opens admin settings from home",
     "open_admin_settings_from_home",
   ],
-]);
-
-// Each Given seeds the routed run's isolated ledger and backup directory in the named state.
-const integrityStates = new Map<string, string>([
-  [
-    "an administrator and an isolated destination holding the artifact of every expected verified run",
-    "all_present",
-  ],
-  [
-    "an isolated ledger holding one verified run whose artifact is absent and one whose bytes differ from the ledger",
-    "missing_and_changed",
-  ],
-  ["reconciliation found a missing artifact", "missing"],
-  ["a ledger holding no verified backup run", "empty_ledger"],
-  [
-    "an isolated destination with a missing artifact and an unknown file",
-    "missing_and_unknown",
-  ],
-  [
-    "an isolated ledger holding two verified runs whose artifacts are absent or changed",
-    "two_problems",
-  ],
-  ["an administrator using only the keyboard and a screen reader", "missing"],
 ]);
 
 for (const [text, state] of preparations)
@@ -140,108 +81,118 @@ Then(
   ({ page }) => expectOwnerAllowlists(page),
 );
 
-for (const [text, kind] of integrityStates)
-  Given(text, ({ page }) => prepareIntegrity(page, integrity, kind));
-Given(
-  "an administrator who opened Schedules & backups while the label stated that all retained backups are present",
-  ({ page }) => openedWhileAllPresent(page, integrity),
-);
-Given(
-  "an expected artifact is then removed from the isolated destination",
-  () => removeExpectedArtifact(integrity),
-);
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A stale schedule save says to reload and try again
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A bad backup folder gets a plain refusal reason
 
-When("the administrator opens Schedules & backups", ({ page }) =>
-  openSchedules(page, integrity),
-);
-When(
-  "the administrator opens Schedules & backups at {int} x {int}",
-  ({ page }, width: number, height: number) =>
-    openWithTrace(page, integrity, { height, width }),
-);
-When("the administrator saves the daily schedule", ({ page }) =>
-  saveForm(page, integrity, "daily schedule"),
-);
-When("the administrator saves the backup folder, left unchanged", ({ page }) =>
-  saveForm(page, integrity, "backup folder"),
-);
-When("the administrator opens the page and reloads it", ({ page }) =>
-  openAndReload(page, integrity),
-);
-When("the page's rendered text and attributes are read", ({ page }) =>
-  readLabelHtml(page, integrity),
-);
-When("the administrator moves through the page in reading order", ({ page }) =>
-  walkPage(page, integrity),
-);
+// The refused schedule and folder saves (BN-ADMIN-05, BN-ADMIN-06). The bad-time
+// row (BN-ADMIN-04) is e2e-exempt: a real browser cannot submit a malformed
+// `type="time"` value, so it runs at integration and unit only and has no
+// binding here.
 
-Then(
-  "the Production database backup section carries a backup-files label stating that all retained backups are present",
-  ({ page }) => expectAllPresent(page, integrity),
-);
-Then("the label lists no problem date", ({ page }) =>
-  expectNoProblemDate(page),
-);
-Then("the label states how many retained backups need attention", ({ page }) =>
-  expectAttentionCount(page, integrity),
-);
-Then(
-  "it lists each problem as its date and its state, missing or changed",
-  ({ page }) => expectProblemLines(page, integrity),
-);
-Then(
-  "the label lists the intact retained dates as present or counts them as present",
-  ({ page }) => expectIntactCounted(page, integrity),
-);
-Then(
-  "the label states that there is no verified backup to check yet",
-  ({ page }) => expectNothingToCheck(page, integrity),
-);
-Then("it does not state that the backups are present", ({ page }) =>
-  expectNoPresentClaim(page),
-);
-Then(
-  "the destination directory listing and every file's bytes are unchanged",
-  ({ page }) => expectDestinationUnchanged(page, integrity),
-);
-Then("the label reads checking until the new result arrives", ({ page }) =>
-  expectCheckingThenResult(page, integrity),
-);
-Then("it then states that one retained backup needs attention", ({ page }) =>
-  expectOneNeedsAttention(page, integrity),
-);
-Then("the focus does not move", ({ page }) =>
-  expectFocusStays(page, integrity),
-);
-Then(
-  "they contain no filesystem path, digest, destination identifier or run ID",
-  () => expectPrivateFree(integrity),
-);
-Then(
-  "they name the same dates and states as the reconcile task's report",
+async function openSchedulesPage(page: import("@playwright/test").Page) {
+  await page.goto("/admin/settings/schedules");
+  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+}
+
+Given(
+  "an administrator with a saved daily schedule opens Schedules & backups",
   async ({ page }) => {
-    readReport(integrity);
-    await expectMatchesReport(page, integrity);
+    await openSchedulesPage(page);
   },
 );
-Then("the page does not scroll horizontally", ({ page }) =>
-  expectNoHorizontalScroll(page, integrity),
+
+Given("an administrator opens Schedules & backups", async ({ page }) => {
+  await openSchedulesPage(page);
+});
+
+When(
+  "the administrator saves the daily schedule with the time {string}",
+  async ({ page }, time: string) => {
+    await page.locator("#daily-time-wib").fill(time);
+    await page.getByRole("button", { name: "Save schedule" }).click();
+  },
 );
+
+When(
+  "another schedule save moves the daily schedule to {string}",
+  async ({ page }, time: string) => {
+    const rival = await page.context().newPage();
+    try {
+      await rival.goto("/admin/settings/schedules");
+      await expect(rival.locator("[data-phx-main]")).toHaveClass(
+        /phx-connected/u,
+      );
+      await rival.evaluate((value: string) => {
+        const input =
+          document.querySelector<HTMLInputElement>("#daily-time-wib");
+        if (!input) throw new Error("no daily time input");
+        input.value = value;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }, time);
+      await rival.getByRole("button", { name: "Save schedule" }).click();
+      await expect(rival.locator(".admin-settings-status")).toContainText(
+        "Daily schedule saved.",
+      );
+    } finally {
+      await rival.close();
+    }
+  },
+);
+
+When(
+  "the administrator saves the backup folder {string}",
+  async ({ page }, folder: string) => {
+    await page.locator("#backup-directory").fill(folderDirectory(folder));
+    await page
+      .getByRole("button", { name: "Save and create first backup" })
+      .click();
+  },
+);
+
+// Each outline kind becomes a folder the run owns: the live database's own
+// directory for the overlap refusal, a fresh symlink for the link refusal,
+// and a relative path for the remaining refusal.
+function folderDirectory(folder: string): string {
+  if (folder === "inside the live database location") {
+    const result = runLiveMix(
+      'BnestApp.Storage.database_path() |> Path.dirname() |> Path.join("backups") |> IO.puts()',
+    );
+    if (result.status !== 0) throw new Error(result.stderr);
+    return result.stdout.trim();
+  }
+  if (folder === "a symbolic link") {
+    const root = mkdtempSync(path.join(tmpdir(), "bnest-bad-folder-"));
+    const target = path.join(root, "target");
+    const link = path.join(root, "link");
+    rmSync(link, { force: true, recursive: true });
+    symlinkSync(target, link);
+    return path.join(link, "backups");
+  }
+  if (folder === "a relative path") return "relative/backup";
+  throw new Error(`unknown backup folder kind: ${folder}`);
+}
+
 Then(
-  "each problem line is fully visible, wrapped rather than truncated",
-  ({ page }) => expectProblemLinesWhole(page, integrity),
+  "the schedules page shows the schedule error {string}",
+  async ({ page }, message: string) => {
+    await expect(page.locator("#settings-error")).toHaveText(message);
+  },
 );
-Then("each problem is conveyed by text, not by colour alone", ({ page }) =>
-  expectProblemsInText(page, integrity),
-);
+
+Then("the other schedule save stays", async ({ page }) => {
+  await page.reload();
+  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+  await expect(page.locator("#daily-time-wib")).toHaveValue("04:00");
+});
+
 Then(
-  "the label is announced with its name and its state in its place before the forms",
-  ({ page }) => expectAnnouncedInPlace(page, integrity),
+  "the schedules page shows the backup error {string}",
+  async ({ page }, message: string) => {
+    await expect(page.locator("#settings-error")).toHaveText(message);
+  },
 );
-Then("the focus order of the existing controls is unchanged", ({ page }) =>
-  expectFocusOrderUnchanged(page),
-);
-Then(
-  "the change from checking to the result is announced politely and does not move focus",
-  ({ page }) => expectPoliteAnnouncement(page),
-);
+
+Then("nothing is saved and no first backup is queued", async ({ page }) => {
+  await expect(page.locator(".admin-settings-status")).toHaveCount(0);
+  await expect(page.locator("#settings-error")).toBeVisible();
+});

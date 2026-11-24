@@ -249,6 +249,8 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       assert Wire.snapshot() == before
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
     test "a second spawn while an instance is current answers 409 instance_active and changes nothing",
          %{run: run} do
       spawn_instance(run, %{})
@@ -306,6 +308,10 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       assert Task.await(holder) == :ok
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawn refused by a running scheduler task answers 409 instance_busy
     test "a spawn while a scheduler task runs answers 409 instance_busy and creates nothing",
          %{run: run} do
       before = Wire.snapshot()
@@ -322,6 +328,8 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
     test "a run id that is not this run answers 409 run_mismatch and changes nothing", %{run: run} do
       before = Wire.snapshot()
 

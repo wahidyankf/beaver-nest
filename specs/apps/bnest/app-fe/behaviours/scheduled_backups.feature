@@ -124,3 +124,34 @@ Feature: Bnest scheduled backups
     Then the label is announced with its name and its state in its place before the forms
     And the focus order of the existing controls is unchanged
     And the change from checking to the result is announced politely and does not move focus
+
+  # Carries BN-ADMIN-04.
+  # Exemption(e2e): reach: the form's `type="time" required` input yields only a valid `HH:MM` or is blocked by the browser, so a malformed value cannot be submitted from a real browser; alternative-proof: bnest-app:test:integration / A bad schedule time says "Enter a valid WIB time."
+  @e2e-exempt
+  Scenario: A bad schedule time says "Enter a valid WIB time."
+    Given an administrator with a saved daily schedule opens Schedules & backups
+    When the administrator saves the daily schedule with the time "25:00"
+    Then the schedules page shows the schedule error "Enter a valid WIB time."
+    And the saved daily schedule keeps its time
+    And the schedules page shows no schedule success message
+
+  # Carries BN-ADMIN-05.
+  Scenario: A stale schedule save says to reload and try again
+    Given an administrator with a saved daily schedule opens Schedules & backups
+    When another schedule save moves the daily schedule to "04:00"
+    And the administrator saves the daily schedule with the time "03:00"
+    Then the schedules page shows the schedule error "The schedule changed. Reload and try again."
+    And the other schedule save stays
+
+  # Carries BN-ADMIN-06.
+  Scenario Outline: A bad backup folder gets a plain refusal reason
+    Given an administrator opens Schedules & backups
+    When the administrator saves the backup folder "<folder>"
+    Then the schedules page shows the backup error "<message>"
+    And nothing is saved and no first backup is queued
+
+    Examples:
+      | folder                          | message                                             |
+      | inside the live database location | Choose a folder outside the live database location. |
+      | a symbolic link                 | Choose a folder that is not a symbolic link.        |
+      | a relative path                 | The backup folder could not be saved safely.        |
