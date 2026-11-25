@@ -195,3 +195,29 @@ Feature: Bnest release and deploy
       | linux    | systemd | none                                                                                                                   |
       | win32    | (none)  | unsupported platform \"win32\": the release tool supports darwin (launchd) and linux (systemd) only.                   |
       | freebsd  | (none)  | unsupported platform \"freebsd\": the release tool supports darwin (launchd) and linux (systemd) only.                 |
+
+  Rule: The proxy commands install Caddy and report the routed slot
+
+  # Carries BN-CLI-05 (proxy:install): installing the Caddy service writes
+  # host state through the platform service manager and needs the real Caddy
+  # binary, so no test boundary can run it; the unit suite below is the
+  # executable proof.
+  # Exemption(integration): proxy:install installs a system service through the platform service manager and needs the real Caddy binary, so no test boundary can run it; alternative-proof: bnest-app:test:unit / proxy:install writes a validated Caddy configuration for the active slot and installs its service
+  @integration-exempt
+  # Exemption(e2e): proxy:install installs a system service on the host and needs the real Caddy binary (spawnSync caddy ENOENT in CI); alternative-proof: bnest-app:test:unit / proxy:install writes a validated Caddy configuration for the active slot and installs its service
+  @e2e-exempt
+  Scenario: proxy:install writes a validated Caddy configuration for the active slot and installs its service
+    Given the deployment state routes the "blue" slot
+    When proxy:install runs with its doubles
+    Then it writes the Caddy configuration for the active slot, validates it, and installs its service
+    And it leaves "Caddy is managed at 127.0.0.1:4100 for blue." on standard output
+
+  # Carries BN-CLI-05 (proxy:status): the E2E suites drive browser journeys
+  # against leased ports and cannot observe the loopback proxy probe; the
+  # integration suite runs the real command below.
+  # Exemption(e2e): the E2E suites drive browser journeys against leased ports and cannot observe the loopback proxy probe; alternative-proof: bnest-app:test:integration / proxy:status prints the routed slot and revision and exits 1 when Caddy is not ready
+  @e2e-exempt
+  Scenario: proxy:status prints the routed slot and revision and exits 1 when Caddy is not ready
+    Given the deployment state routes the "green" slot at the revision
+    When proxy:status runs against a silent Caddy port
+    Then it prints the routed slot and revision with caddyReady false and exits 1
