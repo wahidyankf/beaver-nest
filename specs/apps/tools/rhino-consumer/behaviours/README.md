@@ -9,9 +9,13 @@ corpus that no longer matches its implementation before the push rather than aft
 
 ## Directory Map
 
+- [FERRET bootstrap](ferret-bootstrap.feature) specifies installing and verifying the pinned FERRET release,
+  dispatching through `./ferret`, and refusing unpinned fallbacks, failed installs, and malformed pins.
 - [RHINO bootstrap](rhino-bootstrap.feature) specifies installing a pinned release exactly once and
   serving it warm without transport, passing the caller's argument vector through untouched,
   refusing a payload whose checksum or embedded identity misses its pin and a host outside the
   published platform matrix, safe install-lock ownership and reclamation under contention, the
   retention rules that keep one shared cache root safe for every repository using it, and the
   isolation that keeps this wrapper and the HIPPO wrapper out of each other's state.
+- [Repository gates](repository_gates.feature) specifies the test:repo and test:bootstrap surfaces, the pre-push
+  and pull-request gate routing, the scheduled gates, Conventional Commits, and behaviour coverage.
