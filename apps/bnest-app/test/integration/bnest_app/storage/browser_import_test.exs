@@ -97,6 +97,28 @@ defmodule BnestApp.BrowserImportTest do
              })
   end
 
+  # After an accepted import the browser's own copy is authoritative nowhere: a later theme
+  # change is written only to the server record, and the home the server then renders
+  # tells the browser script to keep no copy of its own.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: After an accepted import, later changes are kept on the server and the browser keeps no copy
+  test "a theme change after an accepted import stays server-only", %{
+    conn: conn,
+    test_identity: identity
+  } do
+    store = Records.store()
+    owner_id = identity.user_id
+    assert {:ok, _accepted} = Import.browser(store, owner_id, theme_source())
+
+    assert conn |> put("/preferences/theme", %{"theme" => "light"}) |> response(204)
+
+    assert {:ok, %{"theme" => "light", "ownerId" => ^owner_id}} =
+             FileRecordBackend.read(store, :theme, owner_id)
+
+    home = conn |> recycle() |> get("/") |> html_response(200)
+    assert home =~ ~s(data-browser-persistence="false")
+  end
+
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: A stale browser cannot overwrite a newer centralized record
   test "keeps a newer accepted record when another browser presents a different legacy source" do

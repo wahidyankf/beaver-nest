@@ -9,6 +9,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
   alias BnestApp.Storage.Domain.FlatMigration
   alias BnestApp.Storage.Migration, as: StorageMigration
   alias BnestApp.TestRuntimeRoot
+  alias Mix.Tasks.Bnest.Storage.Relocate, as: RelocateTask
+  alias Mix.Tasks.Bnest.Storage.Retire, as: RetireTask
 
   setup do
     runtime = TestRuntimeRoot.create!("sqlite-storage-backfill")
@@ -123,6 +125,102 @@ defmodule BnestApp.SqliteStorageMigrationTest do
       ])
 
     assert state == "verified"
+  end
+
+  # Once SQLite is authoritative, the operator moves it out of the configuration
+  # directory: the task copies the database with proof, points the configuration at the
+  # production folder, and leaves the legacy files where they were. The configuration
+  # names the live database directory first, so the proof compares the database the
+  # app actually reads.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The relocate task moves SQLite to the production data folder and keeps the old files until proof
+  test "relocation moves the authoritative database and keeps the legacy files", %{
+    flat_root: flat_root,
+    database_path: database_path
+  } do
+    import ExUnit.CaptureIO
+
+    legacy_directory = Path.dirname(database_path)
+    assert {:ok, _persisted} = BnestApp.Storage.persist_directory(legacy_directory)
+    StorageMigration.run(flat_root)
+    assert :ok = StorageMigration.activate!()
+
+    {:ok, before} = FileConfigStore.read()
+    assert before["phase"] == "sqlite_primary"
+    legacy_database = Path.join(before["databaseDirectory"], before["databaseFilename"])
+    assert File.regular?(legacy_database)
+
+    production = Path.join(before["databaseDirectory"], "production-data")
+
+    output =
+      capture_io(fn ->
+        RelocateTask.run(["--destination", production])
+      end)
+
+    assert output =~ "relocation verified"
+
+    {:ok, after_relocation} = FileConfigStore.read()
+    assert after_relocation["databaseDirectory"] == production
+    assert is_binary(after_relocation["databaseGeneration"])
+
+    assert File.regular?(Path.join(production, before["databaseFilename"]))
+    assert File.regular?(legacy_database)
+  end
+
+  # Once SQLite is authoritative and every flat file is verified against the migrated
+  # evidence, the operator retires the legacy store: verified flat files and the legacy
+  # database go, while the configuration and tracked placeholders stay. The retired
+  # flat root holds only the migrated fixtures, so nothing outside the evidence can
+  # block the verification.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Verified legacy flat-file storage is retired
+  test "retirement removes verified flat files and keeps configuration and placeholders",
+       %{flat_root: flat_root, database_path: database_path} do
+    import ExUnit.CaptureIO
+
+    legacy_directory = Path.dirname(database_path)
+    assert {:ok, _persisted} = BnestApp.Storage.persist_directory(legacy_directory)
+
+    retired_root = Path.join(flat_root, "legacy-flat")
+    File.mkdir_p!(retired_root)
+    seed_flat_fixtures!(retired_root)
+
+    StorageMigration.run(retired_root)
+    assert :ok = StorageMigration.activate!()
+
+    {:ok, pre_relocation} = FileConfigStore.read()
+
+    production = Path.join(pre_relocation["databaseDirectory"], "production-data")
+
+    capture_io(fn ->
+      RelocateTask.run(["--destination", production])
+    end)
+
+    {:ok, config} = FileConfigStore.read()
+    generation = config["databaseGeneration"]
+    assert is_binary(generation)
+
+    output =
+      capture_io(fn ->
+        RetireTask.run([
+          "--root",
+          retired_root,
+          "--generation",
+          generation
+        ])
+      end)
+
+    assert output =~ "verified legacy storage retired"
+
+    remaining =
+      retired_root
+      |> Path.join("**/*")
+      |> Path.wildcard()
+      |> Enum.filter(&File.regular?/1)
+      |> Enum.reject(&(Path.basename(&1) == ".gitkeep"))
+
+    assert remaining == []
+    assert FileConfigStore.phase() == :sqlite_primary
   end
 
   test "verified retry preserves a newer authoritative record while reconciling sources", %{

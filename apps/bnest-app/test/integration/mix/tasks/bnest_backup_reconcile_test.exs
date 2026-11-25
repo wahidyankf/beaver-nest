@@ -8,6 +8,7 @@ defmodule BnestApp.BackupReconcileTaskTest do
   alias BnestApp.Backup.Adapters.ScheduledBackupTask
   alias BnestApp.Backup.Domain.Location
   alias BnestApp.Backup.Domain.Receipt
+  alias BnestApp.Backup.Domain.Retention
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Scheduler
   alias BnestApp.Storage
@@ -212,6 +213,98 @@ defmodule BnestApp.BackupReconcileTaskTest do
     end
   end
 
+  describe "a ledger spanning the seven retained dates" do
+    setup context do
+      runs = Enum.map(7..0//-1, &backup!(context.location, &1))
+      Map.merge(context, %{runs: runs, source: source_copy!(context)})
+    end
+
+    # Retention already removed the oldest run's files, so the reconcile task must not
+    # expect it: all seven retained backups are present and the check passes.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task ignores a backup older than the seven retained days
+    test "ignores the oldest run outside the window and reports the seven as present",
+         context do
+      [oldest | _rest] = context.runs
+      # The scheduled runs' own retention already removed the eighth pair: the task must
+      # not expect what retention legitimately removed.
+      refute File.exists?(artifact_path(context, oldest))
+      refute File.exists?(Receipt.path(artifact_path(context, oldest)))
+
+      {output, status} = run_task(context)
+
+      assert status == 0, output
+
+      assert lines(output) ==
+               ["Backup files: all 7 retained backups are present", "schedulers=[nil, nil]"]
+
+      assert_private_free(output, context)
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The report counts the backups that need attention
+    test "counts two damaged backups among the seven and names each date and state",
+         context do
+      [_oldest | rest] = context.runs
+      [second, third | _newer] = rest
+      File.rm!(artifact_path(context, second))
+      File.rm!(Receipt.path(artifact_path(context, second)))
+      File.write!(artifact_path(context, third), "tampered", [:append])
+
+      {output, status} = run_task(context)
+
+      assert status != 0, output
+
+      assert lines(output) |> Enum.take(3) == [
+               "Backup files: 2 of 7 retained backups need attention",
+               wib_date(second) <> ": file missing",
+               wib_date(third) <> ": file changed"
+             ]
+
+      assert_private_free(output, context)
+    end
+
+    # The ledger holds two verified runs on one retained date; the older one's files are
+    # gone because retention kept only the newer. The task expects only the newest backup
+    # of each day, so the missing older pair is not flagged.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task expects only the newest backup of each day
+    test "an older duplicate of a retained date whose files are gone is not flagged",
+         context do
+      [_oldest, second | _rest] = context.runs
+      # One hour after `second`'s slot: the same WIB date, but finished later, so this
+      # duplicate is the day's newest and `second` is the superseded older run.
+      at = DateTime.add(@now, -(6 * 86_400 - 3_600))
+
+      {:ok, duplicate_claim} =
+        Scheduler.claim_setup(
+          "prod-sqlite-backup-daily",
+          "#{context.location.destination_id}-6-duplicate",
+          at
+        )
+
+      assert {:ok, _duplicate} = ScheduledBackupTask.execute(duplicate_claim, at)
+
+      remove_if_present(artifact_path(context, second))
+      remove_if_present(Receipt.path(artifact_path(context, second)))
+
+      # The task reads the ledger through the source copy, which the setup made
+      # before this test's duplicate was recorded: re-copy so the duplicate is
+      # the day's newest the task expects.
+      source_copy!(context)
+
+      {output, status} = run_task(context)
+
+      assert status == 0, output
+
+      assert lines(output) ==
+               ["Backup files: all 7 retained backups are present", "schedulers=[nil, nil]"]
+
+      refute output =~ wib_date(second)
+      assert_private_free(output, context)
+    end
+  end
+
   describe "a ledger holding no verified backup" do
     setup context, do: Map.put(context, :source, source_copy!(context))
 
@@ -258,6 +351,22 @@ defmodule BnestApp.BackupReconcileTaskTest do
 
   defp artifact_path(context, run),
     do: Path.join(context.backup_directory, run.receipt["artifactBasename"])
+
+  # Setup deletion that tolerates the product's own retention having already
+  # pruned the file; either way the "files are gone" precondition holds.
+  defp remove_if_present(path) do
+    case File.rm(path) do
+      :ok -> :ok
+      {:error, :enoent} -> :ok
+      {:error, reason} -> raise File.Error, reason: reason, action: "remove file", path: path
+    end
+  end
+
+  defp wib_date(run) do
+    {:ok, created, 0} = DateTime.from_iso8601(run.receipt["createdAt"])
+
+    Retention.wib_date(created) |> Date.to_iso8601()
+  end
 
   # What a production database looks like to the task while the service writes to it: the
   # database file and its write-ahead log, copied from the isolated database and left in a

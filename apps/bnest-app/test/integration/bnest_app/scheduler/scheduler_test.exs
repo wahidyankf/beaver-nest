@@ -23,6 +23,8 @@ defmodule BnestApp.SchedulerTest do
     :ok
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: After downtime only one catch-up backup runs
   test "two coordinators claim one latest missed slot and advance future" do
     claims =
       1..2
