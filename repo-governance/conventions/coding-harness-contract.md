@@ -11,24 +11,19 @@ weakening restrictions.
 
 ## Required Parity
 
-- **Rules**
-  - Requirement: Every harness reaches the normalized root `AGENTS.md` body and no additional always-on repository
-    instruction.
-  - Deterministic proof: Exact Claude import, canonical-content digest, and rejection of competing instruction sources.
-- **Skills**
-  - Requirement: Every canonical skill, including its complete supporting-resource bundle, is available in every
-    declared harness.
-  - Deterministic proof: One-to-one adapter coverage where required, exact description and route, and a digest of
-    `SKILL.md` plus every supporting file.
-- **Agents**
-  - Requirement: Every canonical agent is available in every declared harness with the same prompt intent and safety
-    boundary.
-  - Deterministic proof: One-to-one native adapter coverage, exact canonical route, prompt digest, and equivalent
-    identity, mode, tier, capabilities, constraints, dispatches, and native permissions.
-- **Required capabilities**
-  - Requirement: Every declared harness declares the same credential-free repository capability.
-  - Deterministic proof: Semantic comparison of the executable vector and working-directory behaviour rather than raw
-    vendor syntax.
+- **Rules**: Every harness reaches the normalized root `AGENTS.md` body and no additional always-on repository
+  instruction.
+  - Proof: Exact Claude import, canonical-content digest, and rejection of competing instruction sources.
+- **Skills**: Every canonical skill, including its complete supporting-resource bundle, is available in every declared
+  harness.
+  - Proof: One-to-one adapter coverage where required, exact description and route, and a digest of `SKILL.md` plus
+    every supporting file.
+- **Agents**: Every canonical agent is available in every declared harness with the same prompt intent and safety
+  boundary.
+  - Proof: One-to-one native adapter coverage, exact canonical route, prompt digest, and equivalent identity, mode,
+    tier, capabilities, constraints, dispatches, and native permissions.
+- **Required capabilities**: Every declared harness declares the same credential-free repository capability.
+  - Proof: Semantic comparison of the executable vector and working-directory behaviour rather than raw vendor syntax.
 
 An adapter fails parity when it is missing, stale, extra, malformed, routes to the wrong canonical source, copies or
 extends canonical instructions, changes effective content, or weakens a required capability or deny. Adding, renaming,
@@ -74,15 +69,15 @@ data are local concerns and do not enter parity inspection.
 
 ## Deterministic Enforcement
 
-Run the following command to reconcile effective content:
+Reconcile effective content with:
 
 ```sh
 ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
   npm exec -- nx run -p rhino-consumer -t test:repo --skipNxCache
 ```
 
-The declared roster of harnesses, adapter contracts, and capability mappings lives in `repo-config.yml`; this convention
-states the parity requirement, not the roster. The parity validator is read-only, network-free, process-free,
+`repo-config.yml` declares the harness roster, adapter contracts, and capability mappings; this convention states only
+the parity requirement. The parity validator is read-only, network-free, process-free,
 path-contained, and deterministic. It normalizes only a UTF-8 BOM and CRLF/LF, sorts records ordinally, hashes canonical
 content with SHA-256, and fails on missing, extra, stale, malformed, content-divergent, or semantically weaker adapters.
 
