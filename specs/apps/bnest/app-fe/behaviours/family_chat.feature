@@ -196,14 +196,6 @@ Feature: Family chat room
     And the family room sends 1 messages
 
   @fe-vitest-unit
-  # Exemption(integration): the actions control is drawn by the browser from the room's reply flag, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / The message actions control is not drawn when replies are off
-  @integration-exempt
-  Scenario: The message actions control is not drawn when replies are off
-    Given the room is served with replies turned off
-    When a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
-    Then no message in the history has an actions control
-
-  @fe-vitest-unit
   # Exemption(integration): the actions control is drawn by the browser from the room's reply flag, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Every message has an actions control when replies are on
   @integration-exempt
   Scenario: Every message has an actions control when replies are on
@@ -991,20 +983,20 @@ Feature: Family chat room
     And the page does not reload
 
   @fe-vitest-unit
-  # Exemption(integration): serving one revision's bundle against another revision's server crosses a release-infrastructure boundary Phoenix.LiveViewTest cannot stage; alternative-proof: bnest-app-fe-e2e:test:e2e / A browser holding the pre-reply bundle loads the room from the new revision
+  # Exemption(integration): serving one revision's bundle against another revision's server crosses a release-infrastructure boundary Phoenix.LiveViewTest cannot stage; alternative-proof: bnest-app-fe-e2e:test:e2e / A browser holding the previous bundle loads the room from the new revision
   @integration-exempt
-  Scenario: A browser holding the pre-reply bundle loads the room from the new revision
-    Given the compatibility revision is routed
+  Scenario: A browser holding the previous bundle loads the room from the new revision
+    Given an earlier revision is routed
     When a browser loaded from the previous revision opens "/family-chat/ruang-keluarga"
     Then the room loads
     And the visitor can send a message normally
 
   @fe-vitest-unit
-  # Exemption(integration): rolling the routed slot back beneath a browser that keeps its bundle crosses a release-infrastructure boundary Phoenix.LiveViewTest cannot stage; alternative-proof: bnest-app-fe-e2e:test:e2e / The rollback floor can still answer the reply-aware bundle
+  # Exemption(integration): rolling the routed slot back beneath a browser that keeps its bundle crosses a release-infrastructure boundary Phoenix.LiveViewTest cannot stage; alternative-proof: bnest-app-fe-e2e:test:e2e / A rolled-back slot still answers the held reply-aware bundle
   @integration-exempt
-  Scenario: The rollback floor can still answer the reply-aware bundle
+  Scenario: A rolled-back slot still answers the held reply-aware bundle
     Given a visitor holds the reply-aware bundle with a reply on screen
-    When the routed slot is rolled back to the compatibility revision
+    When the routed slot is rolled back to an earlier revision
     And the visitor replies again with the bundle it still holds
     Then the room loads
     And existing replies still render their quotes
@@ -1033,7 +1025,7 @@ Feature: Family chat room
     And the tab becomes visible again
     Then no phx_join frame is sent for any topic other than the control channel
 
-  Rule: Experience release candidate proof
+  Rule: Release candidate proof
 
   # This scenario's two near-simultaneous authenticated first requests
   # against a freshly promoted candidate independently reproduced a real
@@ -1043,10 +1035,10 @@ Feature: Family chat room
   # `:global.trans/2` serialization (storage_coordinator.ex); see
   # learnings.md for the reproduction evidence.
   @fe-vitest-unit
-  # Exemption(integration): promoting Caddy to a flag-transitioned release candidate and driving two independent browser contexts against it crosses browser and release-infrastructure boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
+  # Exemption(integration): promoting Caddy to a release candidate and driving two independent browser contexts against it crosses browser and release-infrastructure boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate
   @integration-exempt
-  Scenario: Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
-    Given Caddy has promoted the flag-enabled experience candidate
+  Scenario: Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate
+    Given Caddy has promoted the release candidate
     And two members each open "/family-chat/ruang-keluarga"
     And one member queues a message while offline
     When the offline member's connection is restored

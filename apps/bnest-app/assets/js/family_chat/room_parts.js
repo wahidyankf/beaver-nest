@@ -35,7 +35,6 @@ export function handleQueueFull(elements, composerState) {
  * @param {{
  *   user?: {id: string},
  *   persistence?: import("./outbox_send.js").Persistence | undefined,
- *   replies?: boolean,
  *   request: import("./graphql.js").GraphqlRequest,
  * }} options
  * @param {import("./clock.js").Clock} clock
@@ -49,7 +48,6 @@ export async function createRoomPushAndOutbox(
   composerState,
 ) {
   const transport = createRealTransport(roomSlug, {
-    replies: options.replies ?? false,
     request: options.request,
   });
 

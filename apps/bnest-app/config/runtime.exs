@@ -42,29 +42,6 @@ case System.get_env("BNEST_IDENTITY_CUTOVER") do
   _invalid -> raise "BNEST_IDENTITY_CUTOVER must be true or false"
 end
 
-# Compatibility release ships this `false` (dormant shell, no navigation
-# entry, route itself returns 404); the later experience release flips it
-# `true` from the same reviewed revision -- no redeploy, no schema change
-# (tech-doc 007's Runtime Configuration contract).
-case System.get_env("BNEST_FAMILY_CHAT_ENABLED") do
-  nil -> :ok
-  "true" -> config :bnest_app, :family_chat_enabled, true
-  "false" -> config :bnest_app, :family_chat_enabled, false
-  _invalid -> raise "BNEST_FAMILY_CHAT_ENABLED must be true or false"
-end
-
-# Gates the requested GraphQL fields, the action menu, and the composer's
-# reply strip together, so the browser never asks for a field it will not
-# render. Independent of the flag above: the compatibility release ships this
-# `false` with the room itself already live, and the experience release flips
-# it `true` from the same reviewed revision.
-case System.get_env("BNEST_FAMILY_CHAT_REPLY_ENABLED") do
-  nil -> :ok
-  "true" -> config :bnest_app, :family_chat_reply_enabled, true
-  "false" -> config :bnest_app, :family_chat_reply_enabled, false
-  _invalid -> raise "BNEST_FAMILY_CHAT_REPLY_ENABLED must be true or false"
-end
-
 case System.get_env("BNEST_COOKIE_SECURE") do
   nil -> :ok
   "true" -> config :bnest_app, :session_cookie, secure: true
@@ -83,10 +60,9 @@ case System.get_env("BNEST_BACKUP_TIMEOUT_MS") do
     end
 end
 
-# Deployment always passes VAPID values to both slots (tech-doc 007), even
-# during the compatibility release where `BNEST_FAMILY_CHAT_ENABLED=false` --
-# so this is unconditional in :prod, not gated on the feature flag, and
-# fails closed rather than silently leaving push unavailable in production.
+# Deployment always passes VAPID values to both slots, so this is
+# unconditional in :prod and fails closed rather than silently leaving
+# push unavailable in production.
 if config_env() == :prod do
   public_key_path =
     System.get_env("BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE") ||

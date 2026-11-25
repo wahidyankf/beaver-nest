@@ -48,10 +48,10 @@ function handleSubscriptionData(room, rawResult) {
  */
 export async function subscribeToRoom(room, subscriptionClient) {
   await subscriptionClient.subscribe(
-    // Built from the same flag the query and mutation use: a subscription
-    // that omitted the quote while the query asked for it would show a
-    // reply's quote on reload and not on arrival.
-    familyChatMessageCommittedSubscription({ replies: room.replies ?? false }),
+    // Built from the same field list the query and mutation use: a
+    // subscription that omitted the quote while the query asked for it
+    // would show a reply's quote on reload and not on arrival.
+    familyChatMessageCommittedSubscription(),
     { roomSlug: room.roomSlug },
     (rawResult) => handleSubscriptionData(room, rawResult),
   );
@@ -65,8 +65,8 @@ export async function subscribeToRoom(room, subscriptionClient) {
  * @param {string | null} afterId
  */
 async function fetchMissedMessages(room, afterId) {
-  const { request, roomSlug, replies = false } = room;
-  const document = familyChatMessagesQuery({ replies });
+  const { request, roomSlug } = room;
+  const document = familyChatMessagesQuery();
   /** @type {{id?: string}[]} */
   const missed = [];
   let cursor = afterId;

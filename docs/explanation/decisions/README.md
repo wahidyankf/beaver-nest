@@ -41,3 +41,7 @@ accepted record changes.
   raster-only signatures, and identical empty 404s; the model places references inline and the
   runner appends unreferenced files as fallback. Family Chat never renders the reference. Extends
   002 Decision 2 and 003 Decision 4. No code changed yet.
+- [008. Single-stage release with no family-chat flags](008-single-stage-release-no-family-chat-flags.md)
+  (Accepted) removes `BNEST_FAMILY_CHAT_ENABLED`, `BNEST_FAMILY_CHAT_REPLY_ENABLED`, the room gate, and the
+  entire experience release stage: every release ships the room and its replies live from first promotion.
+  Supersedes the release procedures of tech-docs 007/009 and the release-stage flag posture brief.

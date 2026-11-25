@@ -185,11 +185,6 @@ function slotUnit(slot, options) {
     BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE: options.webPushPublicKeyFile,
     BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE: options.webPushPrivateKeyFile,
     BNEST_WEB_PUSH_SUBJECT: options.webPushSubject,
-    // The family-chat flags appear only when given, as in the launchd adapter.
-    ...(options.familyChatEnabled ? { BNEST_FAMILY_CHAT_ENABLED: "true" } : {}),
-    ...(options.familyChatReplyEnabled
-      ? { BNEST_FAMILY_CHAT_REPLY_ENABLED: "true" }
-      : {}),
   };
 
   return [

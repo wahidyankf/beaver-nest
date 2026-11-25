@@ -1,7 +1,7 @@
 // Step bindings for the reply scenarios of
 // specs/apps/bnest/app-fe/behaviours/family_chat.feature -- the `Message
 // actions`, `Composing a reply`, `Reading a reply`, and `Keyboard reach of
-// the message history` rules, plus the offline-queue, compatibility, and
+// the message history` rules, plus the offline-queue and cross-revision
 // rollback scenarios that carry a reply.
 //
 // Same room as `family_chat.steps.ts` (`support/browser_room.ts`): the
@@ -47,7 +47,6 @@ import {
   reconnectSockets,
   reloadPage,
   requireRow,
-  routeRevision,
   rowFor,
   server,
   setDeviceOnline,
@@ -60,12 +59,7 @@ import {
   waitFor,
   watchPendingRows,
 } from "./support/browser_room";
-import {
-  forgetScenario,
-  recall,
-  recallOr,
-  remember,
-} from "./support/scenario_memory";
+import { forgetScenario, recall, remember } from "./support/scenario_memory";
 
 const registry: StepDefinition[] = [];
 
@@ -103,12 +97,9 @@ type Seed = Omit<PostOptions, "sender"> & { from?: "visitor" | "ayah" };
 /**
  * Seeds the conversation the server holds and opens the room on it,
  * remembering the newest seeded message as the one the scenario names.
+ * Every room serves replies: the shell hardcodes the flag.
  */
-async function open(
-  seed: Seed[] = [],
-  options: { replies?: boolean } = {},
-): Promise<Page> {
-  routeRevision(options.replies ?? recallOr("roomReplies", true));
+async function open(seed: Seed[] = []): Promise<Page> {
   for (const { from, ...message } of seed) {
     post({
       ...message,
@@ -210,24 +201,14 @@ step(
   },
 );
 
-// The reply flag the room is served with. `open` reads it when the scenario does not name one.
-step("the room is served with replies turned off", () => {
-  remember("roomReplies", false);
-});
-
-step("the room is served with replies turned on", () => {
-  remember("roomReplies", true);
-});
-
-step("no message in the history has an actions control", () => {
-  const rows = messageRows();
-  expect(rows.length > 0, "the history has messages");
-  for (const row of rows) {
-    expect(
-      row.querySelector('[data-role="family-chat-message-more"]') === null,
-      `${row.dataset["messageId"]} has no actions control`,
-    );
-  }
+// The room always serves replies: open it once here and prove the served
+// shell says so, before the scenario opens the room it acts on.
+step("the room is served with replies turned on", async () => {
+  const page = await openRoomPage();
+  expect(
+    page.elements.room?.dataset["familyChatReplyEnabled"] === "true",
+    "the served room does not report replies enabled",
+  );
 });
 
 step("every message in the history has an actions control", () => {
@@ -541,7 +522,6 @@ step("the room states that the text could not be copied", async () => {
 step(
   "the visitor opens the action menu on a message from {string} reading {string}",
   async (sender, body) => {
-    routeRevision(true);
     post({ body, sender: otherMember(sender) });
     await open();
     await openMenuOn(requireTarget());
@@ -731,7 +711,6 @@ step("the next message the visitor sends carries no reply target", async () => {
 const ORIGINAL = "Nanti aku jemput jam 5";
 
 step("another member has replied to one of the visitor's messages", () => {
-  routeRevision(true);
   const original = post({ body: ORIGINAL, sender: visitor() });
   remember("targetId", original.id);
   remember("targetBody", ORIGINAL);
@@ -870,7 +849,6 @@ async function openWithDistantReply(
   distance: number,
   label: string,
 ): Promise<void> {
-  routeRevision(true);
   const original = post({ body: `${label} original`, sender: visitor() });
   remember("targetId", original.id);
   for (let index = 0; index < distance; index += 1) {
@@ -1181,7 +1159,6 @@ step("the arrow keys move between messages", async () => {
 });
 
 step("a reply quoting a message from {string} is rendered", async (sender) => {
-  routeRevision(true);
   const original = post({ body: ORIGINAL, sender: otherMember(sender) });
   remember("targetId", original.id);
   remember("targetBody", ORIGINAL);
@@ -1336,7 +1313,6 @@ step("the committed message renders its quote", async () => {
 step(
   "the outbox holds a queued message stored with no reply target field",
   async () => {
-    routeRevision(true);
     post({ body: ORIGINAL, sender: AYAH() });
     const id = "a1b2c3d4-0000-4000-8000-000000000048";
     // The row exactly as a bundle from before replies wrote it: the key is
@@ -1381,18 +1357,20 @@ step("it commits as an ordinary message", () => {
   );
 });
 
-// --- Compatibility revision and rollback floor ----------------------------
+// --- Earlier revision and rollback ----------------------------------------
 
-step("the compatibility revision is routed", () => {
-  // The compatibility revision serves the room with the reply flag off.
-  routeRevision(false);
+step("an earlier revision is routed", () => {
+  // The routed revision is freshly started: no page has opened the room
+  // against it yet, and its wire holds no requests from a previous route.
+  expect(!hasActivePage(), "a page is already open against the revision");
+  expect(server().wire.length === 0, "the revision already served requests");
 });
 
 step(
   "a browser loaded from the previous revision opens {string}",
   async (pathname) => {
-    // The pre-reply bundle is this bundle's flag-off documents: every
-    // request it makes is checked against the revision's schema.
+    // The held bundle is this same bundle talking to a newer revision:
+    // every request it makes is checked against the revision's schema.
     post({ body: "Dinner is ready", sender: AYAH() });
     await openRoomPage({ pathname });
   },
@@ -1426,7 +1404,7 @@ step("the visitor can send a message normally", async () => {
 step(
   "a visitor holds the reply-aware bundle with a reply on screen",
   async () => {
-    await open([{ body: "Jam berapa?" }], { replies: true });
+    await open([{ body: "Jam berapa?" }]);
     const id = await replyThroughMenu(requireTarget(), "Jam lima");
     await waitFor(
       () => committedFor(id ?? "") !== undefined,
@@ -1438,18 +1416,14 @@ step(
   },
 );
 
-step(
-  "the routed slot is rolled back to the compatibility revision",
-  async () => {
-    routeRevision(false);
-    // The route change ends the connections to the rolled-back slot; the
-    // page itself, and the bundle it loaded, stay.
-    const page = activePage();
-    dropSockets(page);
-    reconnectSockets(page);
-    await settle();
-  },
-);
+step("the routed slot is rolled back to an earlier revision", async () => {
+  // The route change ends the connections to the rolled-back slot; the
+  // page itself, and the bundle it loaded, stay.
+  const page = activePage();
+  dropSockets(page);
+  reconnectSockets(page);
+  await settle();
+});
 
 step("the visitor replies again with the bundle it still holds", async () => {
   expect(hasActivePage(), "the held page was closed");

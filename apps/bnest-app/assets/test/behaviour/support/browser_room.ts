@@ -411,18 +411,14 @@ function renderHeex(
   return html;
 }
 
-function renderRoom(member: Member, replies: boolean): string {
-  return renderHeex(
+function renderRoom(member: Member): string {
+  const html = renderHeex(
     readFileSync(ROOM_TEMPLATE, "utf8"),
     [
       ["<Layouts.flash_group flash={@flash} />", ""],
       [
         'data-current-user-id={@current_user["userId"]}',
         `data-current-user-id="${escapeAttribute(member.id)}"`,
-      ],
-      [
-        "data-family-chat-reply-enabled={to_string(assigns[:reply_enabled] == true)}",
-        `data-family-chat-reply-enabled="${String(replies)}"`,
       ],
       [
         'aria-label={"Conversation in " <> @room.name}',
@@ -432,6 +428,12 @@ function renderRoom(member: Member, replies: boolean): string {
     ],
     "room.html.heex",
   );
+  if (!html.includes('data-family-chat-reply-enabled="true"')) {
+    throw new Error(
+      "room.html.heex no longer serves the room with replies enabled",
+    );
+  }
+  return html;
 }
 
 /** The home page's log-out form, as `home.html.heex` renders it. */
@@ -625,7 +627,6 @@ interface World {
   device: Device;
   pages: Page[];
   active: Page | null;
-  replies: boolean;
   sequence: number;
 }
 
@@ -665,7 +666,6 @@ export function startWorld(): World {
     device: createDevice(),
     pages: [],
     active: null,
-    replies: true,
     sequence: worldSequence,
   };
   world = created;
@@ -1114,7 +1114,7 @@ export async function waitFor(
 
 /**
  * Loads `pathname` for `member` on `device`, the way a browser navigation
- * and `app.js` do. The reply flag is the routed revision's.
+ * and `app.js` do. Every room serves replies: the shell hardcodes the flag.
  */
 export async function openRoomPage(
   options: { member?: Member; device?: Device; pathname?: string } = {},
@@ -1129,13 +1129,7 @@ export async function openRoomPage(
     await worker.fetch("/assets/css/app.css");
     await worker.fetch("/assets/js/app.js");
   }
-  const page = newPage(
-    "room",
-    member,
-    device,
-    pathname,
-    renderRoom(member, current.replies),
-  );
+  const page = newPage("room", member, device, pathname, renderRoom(member));
   activate(page);
   installLayout(page);
   page.elements = findElements();
@@ -1625,11 +1619,6 @@ export function visitor(): Member {
 
 export function device(): Device {
   return requireWorld().device;
-}
-
-/** Which revision Caddy routes decides whether the room it serves has replies. */
-export function routeRevision(replies: boolean): void {
-  requireWorld().replies = replies;
 }
 
 export function namespaceOf(member: Member): string {

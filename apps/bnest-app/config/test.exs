@@ -5,13 +5,6 @@ config :bnest_app, :scheduler_automatic?, false
 # Mounts the test-only testing-control routes (see BnestAppWeb.TestingRoutes). Only this file
 # sets it, so dev and production builds never mount them.
 config :bnest_app, :testing_control, true
-# On by default in test so unit/integration drivers can exercise the room
-# route/navigation without per-test overrides; the specific "flag genuinely
-# off" checkpoint scenario overrides this locally via
-# `Application.put_env/3` + `on_exit/1` (the same pattern used for other
-# per-test config overrides in this suite, e.g.
-# `test/integration/bnest_app_web/authentication_test.exs`).
-config :bnest_app, :family_chat_enabled, true
 
 # Fixed synthetic VAPID keypair (never a real deployment secret -- generated
 # once via `WebPush.Vapid.generate_keypair/0` and hardcoded here so test

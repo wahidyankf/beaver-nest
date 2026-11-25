@@ -1,5 +1,9 @@
 # Release Stage Flag Posture
 
+> **SUPERSEDED** by [ADR 008](../../../docs/explanation/decisions/008-single-stage-release-no-family-chat-flags.md)
+> (2026-11-25): the family-chat flags were removed entirely and every release ships in one stage, instead of
+> carrying the posture forward (this brief's option 1). The brief below is history and is not rewritten.
+
 Stop a compatibility release from switching off features it was never releasing, and let its preflight notice a
 checkout whose installed dependencies no longer match the lockfile. Provenance: execution learning captured
 2026-09-22 during `family-chat-message-reply` delivery.

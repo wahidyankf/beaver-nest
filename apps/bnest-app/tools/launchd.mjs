@@ -67,8 +67,6 @@ function launchAgent(
   revision,
   logPath,
   errorPath,
-  familyChatEnabled = false,
-  familyChatReplyEnabled = false,
 ) {
   const variables = {
     PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
@@ -86,25 +84,12 @@ function launchAgent(
     RELEASE_DISTRIBUTION: "none",
     RELEASE_COOKIE: readFileSync(cookieFile, "utf8").trim(),
     SECRET_KEY_BASE: readFileSync(secretKeyBaseFile, "utf8").trim(),
-    // Tech-doc 007: deployment passes the existing runtime VAPID values to
-    // both slots unconditionally, not gated on `BNEST_FAMILY_CHAT_ENABLED` --
-    // `runtime.exs` fails closed on boot when these are absent, in every
-    // slot, on every revision, since `config/runtime.exs` runs regardless of
-    // which feature flags are set at runtime.
+    // Deployment passes the existing runtime VAPID values to both slots
+    // unconditionally -- `runtime.exs` fails closed on boot when these are
+    // absent, in every slot, on every revision.
     BNEST_DEPLOY_WEB_PUSH_PUBLIC_KEY_FILE: webPushPublicKeyFile,
     BNEST_DEPLOY_WEB_PUSH_PRIVATE_KEY_FILE: webPushPrivateKeyFile,
     BNEST_WEB_PUSH_SUBJECT: webPushSubject,
-    // Only the Experience Release Procedure's flag-on candidate passes
-    // `--family-chat-enabled`; every ordinary compatibility-release slot
-    // omits the key entirely, so `config/runtime.exs`'s default (`false`)
-    // governs unchanged.
-    ...(familyChatEnabled ? { BNEST_FAMILY_CHAT_ENABLED: "true" } : {}),
-    // The same rule, one flag further in: quoting is gated separately from
-    // the room, so a compatibility-release slot omits this key and serves
-    // `replyTo` to whoever asks without shipping a bundle that asks.
-    ...(familyChatReplyEnabled
-      ? { BNEST_FAMILY_CHAT_REPLY_ENABLED: "true" }
-      : {}),
   };
   const environment = Object.entries(variables)
     .map(
@@ -180,8 +165,6 @@ export function installSlotService(slot, options) {
       options.revision,
       options.logPath,
       options.errorPath,
-      options.familyChatEnabled,
-      options.familyChatReplyEnabled,
     ),
   );
 
