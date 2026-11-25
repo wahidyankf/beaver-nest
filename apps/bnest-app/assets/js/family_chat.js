@@ -46,7 +46,6 @@ import {
 /**
  * @typedef {RoomCollaborators & {
  *   user?: {id: string},
- *   replies?: boolean,
  * }} RoomOptions
  */
 
@@ -168,10 +167,6 @@ export async function initRoom(path, options = {}) {
     store,
     push,
     reconnect,
-    // Gates the requested GraphQL fields, the action menu, and the composer
-    // strip together -- so the browser never asks for a field it will not
-    // render, or renders a quote it did not ask for.
-    replies: options.replies ?? false,
     ...resume,
   };
 
@@ -182,9 +177,9 @@ export async function initRoom(path, options = {}) {
 /**
  * The real `app.js` entry point: detects the shipped `room.html.heex`
  * template's DOM shell and, when present, boots `initRoom` with the
- * authenticated visitor's own ID and the reply flag read from that same
- * shell -- the only way the browser ever learns which sender is "own" for
- * `real_store.js`'s left/right message split.
+ * authenticated visitor's own ID read from that same shell -- the only way
+ * the browser ever learns which sender is "own" for `real_store.js`'s
+ * left/right message split.
  * @param {RoomCollaborators} [collaborators] the real browser's by default.
  */
 export function initRoomFromDocument(collaborators = {}) {
@@ -194,10 +189,8 @@ export function initRoomFromDocument(collaborators = {}) {
   if (!familyChatRoom) return Promise.resolve(null);
 
   const currentUserId = familyChatRoom.dataset["currentUserId"];
-  const replies = familyChatRoom.dataset["familyChatReplyEnabled"] === "true";
   return initRoom(window.location.pathname, {
     ...collaborators,
-    replies,
     ...(currentUserId ? { user: { id: currentUserId } } : {}),
   });
 }

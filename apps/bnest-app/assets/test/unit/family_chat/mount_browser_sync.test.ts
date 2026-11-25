@@ -54,7 +54,6 @@ function catchUp(request: unknown): FetchMissed {
   const room = {
     request,
     roomSlug: "ruang-keluarga",
-    replies: true,
     reconnect: {
       bindBrowserCallbacks(callbacks: { fetchMissed: FetchMissed }) {
         fetchMissed = callbacks.fetchMissed;
@@ -150,7 +149,7 @@ describe("attemptInitialSubscribe", () => {
   it("marks the room ready when the subscription join fails", async () => {
     const roomElement = { dataset: {} as Record<string, string> };
     await attemptInitialSubscribe(
-      { roomSlug: "ruang-keluarga", replies: true } as never,
+      { roomSlug: "ruang-keluarga" } as never,
       roomElement as never,
       {
         subscribe: async () => {
@@ -164,7 +163,7 @@ describe("attemptInitialSubscribe", () => {
   it("leaves the room element alone when the subscription join succeeds", async () => {
     const roomElement = { dataset: {} as Record<string, string> };
     await attemptInitialSubscribe(
-      { roomSlug: "ruang-keluarga", replies: true } as never,
+      { roomSlug: "ruang-keluarga" } as never,
       roomElement as never,
       { subscribe: async () => {} } as never,
     );

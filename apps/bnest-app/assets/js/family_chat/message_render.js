@@ -101,7 +101,7 @@ function bubbleNode(message, senderLabel, pending) {
 }
 
 /**
- * The `⋯` trigger. Rendered for every message of a room with replies (see `messageNode`), and shown on every pointer:
+ * The `⋯` trigger. Rendered for every message (see `messageNode`), and shown on every pointer:
  * `app.css` no longer hides it on coarse pointers (ADR 005, decision 5
  * reverses that hide). Holding the message opens the same menu too.
  * @param {string} senderLabel
@@ -119,13 +119,9 @@ function moreControlNode(senderLabel) {
 
 /**
  * @param {RenderableMessage} message
- * Without replies the row has no actions control: the menu it opens needs replies, so there is no node to focus.
- * @param {{pending: boolean, currentUserId?: string | null, replies?: boolean}} state
+ * @param {{pending: boolean, currentUserId?: string | null}} state
  */
-export function messageNode(
-  message,
-  { pending, currentUserId, replies = false },
-) {
+export function messageNode(message, { pending, currentUserId }) {
   const li = document.createElement("li");
   const isSystem = message.senderKind === "system";
   // A pending row is always the visitor's own not-yet-committed draft --
@@ -158,7 +154,7 @@ export function messageNode(
 
   if (!isSystem) li.append(avatarNode(senderLabel));
   li.append(bubbleNode(message, senderLabel, pending));
-  if (replies) li.append(moreControlNode(senderLabel));
+  li.append(moreControlNode(senderLabel));
 
   if (pending) {
     const status = document.createElement("p");

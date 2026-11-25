@@ -34,8 +34,7 @@ function messageWith(
       senderDisplayName: "Ayah",
       replyTo: replyTo ?? null,
     },
-    // Replies on: the actions control is part of the row these tests check.
-    { pending: false, currentUserId: "u-me", replies: true },
+    { pending: false, currentUserId: "u-me" },
   );
 }
 

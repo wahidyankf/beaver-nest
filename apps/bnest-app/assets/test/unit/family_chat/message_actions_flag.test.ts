@@ -18,11 +18,10 @@ const message = {
 };
 
 describe("messageNode: the actions control", () => {
-  it("draws the actions control on a committed message", () => {
+  it("draws the actions control on a committed message by default", () => {
     const row = messageNode(message, {
       pending: false,
       currentUserId: "u-me",
-      replies: true,
     });
 
     expect(row.querySelector(MORE)).not.toBeNull();

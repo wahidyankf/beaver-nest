@@ -43,7 +43,6 @@ import { createBottomFollower } from "../scroll_follow.js";
  * @property {ReturnType<typeof import("./reconnect.js").createReconnect>} reconnect
  * @property {ReturnType<typeof import("./history.js").createHistory>} history
  * @property {ReturnType<typeof import("./composer.js").createComposer>} composer
- * @property {boolean} [replies]
  * @property {ReturnType<typeof import("./reply_target.js").createReplyTarget>} [replyTarget]
  * @property {import("./clock.js").Clock} clock
  * @property {import("./graphql.js").GraphqlRequest} request
@@ -154,14 +153,9 @@ function wireComposerAndHistory(room, elements) {
   });
   wireComposer(room, elements);
   wireReadPosition(room, elements);
-  // Gated together with the requested GraphQL fields: with the flag off the
-  // room is exactly the shipped one -- no menu, no strip, and nothing bound
-  // that could open either.
-  if (room.replies) {
-    wireMessageActions(room, elements, room.clock);
-    wireReplyStrip(room, elements);
-    wireQuoteJump(room, elements);
-  }
+  wireMessageActions(room, elements, room.clock);
+  wireReplyStrip(room, elements);
+  wireQuoteJump(room, elements);
 }
 
 /**
