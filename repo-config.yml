@@ -841,8 +841,6 @@ gates:
           reason: "C6: the document checks run at pull-request only, never before a push."
     - id: prettier-check
       type: check
-      inputs:
-        files: { kind: files }
       command:
         executable: npm
         args:
@@ -852,12 +850,10 @@ gates:
           - { literal: prettier }
           - { literal: --check }
           - { literal: --ignore-unknown }
-          - { input: files.paths, expand: repeat }
+          - { literal: . }
       run-on:
         pull-request:
-          reason: "C6: the format gate reads every visible path, so it runs at pull-request only."
-          bind:
-            files: { source: checkout }
+          reason: "C6: the format gate walks the working tree, so it runs at pull-request only."
     - id: format-elixir
       type: check
       command:
