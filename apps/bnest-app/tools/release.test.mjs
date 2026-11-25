@@ -872,6 +872,25 @@ test("refuses the removed --mode flag before any host is built", () => {
   );
 });
 
+test("refuses every spelling of the removed --mode flag, including the = form", () => {
+  for (const argv of [
+    ["--mode"],
+    ["--mode=experience"],
+    ["--mode=compatibility"],
+    ["--mode="],
+    ["--mode", "compatibility"],
+  ]) {
+    assert.throws(
+      () => refuseRemovedMode(argv),
+      (error) =>
+        error instanceof ReleaseError &&
+        error.category === "configuration" &&
+        /--mode.*removed/u.test(error.message),
+      argv.join(" "),
+    );
+  }
+});
+
 function fakeHost(overrides = {}) {
   const calls = [];
   const host = {
@@ -2420,7 +2439,7 @@ test("development commands: each npm test command runs its Nx target under a HIP
   }
 });
 
-// BN-REL-04 integration: node tools/release.mjs --mode, with any value, prints
+// BN-REL-04 integration: node tools/release.mjs --mode (or --mode=<value>), with any value, prints
 // one JSON result with outcome failed, errorCategory configuration, a null
 // revision, and the removal named on stderr; it exits 1, having taken no lock
 // and touched no slot.
@@ -2428,20 +2447,25 @@ test("development commands: each npm test command runs its Nx target under a HIP
 test("release integration: fails closed when --mode is passed at all, with an error naming its removal", () => {
   const deployment = deploymentTempRoot("rel-mode");
   try {
-    for (const mode of ["experience", "compatibility"]) {
+    for (const modeArguments of [
+      ["--mode", "experience"],
+      ["--mode", "compatibility"],
+      ["--mode=experience"],
+      ["--mode=compatibility"],
+      ["--mode="],
+    ]) {
       const result = spawnSync(
         process.execPath,
         [
           fileURLToPath(new URL("./release.mjs", import.meta.url)),
-          "--mode",
-          mode,
+          ...modeArguments,
         ],
         {
           encoding: "utf8",
           env: systemdEnvironment({ BNEST_DEPLOY_ROOT: deployment }),
         },
       );
-      assert.equal(result.status, 1, `--mode ${mode} must fail`);
+      assert.equal(result.status, 1, `${modeArguments.join(" ")} must fail`);
       assert.match(result.stderr, /--mode.*removed/u);
       assert.deepEqual(JSON.parse(result.stdout), {
         schemaVersion: 1,

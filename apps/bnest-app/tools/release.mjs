@@ -1151,7 +1151,10 @@ function argumentValue(name) {
 // stages, so passing it at all stops with a configuration error that names
 // the removal, before any host is constructed.
 export function refuseRemovedMode(argv) {
-  if (argv.includes("--mode"))
+  const passesMode = argv.some(
+    (argument) => argument === "--mode" || argument.startsWith("--mode="),
+  );
+  if (passesMode)
     throw new ReleaseError(
       "configuration",
       "The --mode flag was removed with the family-chat release stages; run release:run without --mode",
