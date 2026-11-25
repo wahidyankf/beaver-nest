@@ -168,6 +168,17 @@ jobs:
           restore-keys: |
             plt-bnest-app-otp29.1.2-ex1.20.4-
 
+      # DIAGNOSTIC (temporary, local only, do not push): runs the test-quick-bnest-app
+      # child command from repo-config.yml outside the gate so its output reaches the log.
+      - name: "DIAGNOSTIC: quick suite output (local only, do not push)"
+        if: matrix.project == 'bnest-app'
+        run: |
+          status=0
+          npm exec --no -- nx run -p bnest-app -t test:quick > "$RUNNER_TEMP/quick-diagnostic.log" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/quick-diagnostic.log"
+          echo "exit $status"
+          exit 0
+
       - name: Run the project's quick suite
         run: |
           set -eu
