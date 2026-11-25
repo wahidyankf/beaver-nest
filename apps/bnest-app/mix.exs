@@ -166,6 +166,15 @@ defmodule BnestApp.MixProject do
       BnestApp.Behaviour.OperatorCommands.IntegrationAdapter,
       BnestApp.Behaviour.OperatorCommands.NotArgon2idHasher,
       BnestApp.Behaviour.OperatorCommands.UnitAdapter,
+      # Scenario adapters and the shared model for the proxy scenarios in
+      # release_and_deploy.feature. They drive the tooling command surface,
+      # so the unit denominator leaves them out, as it does the drivers.
+      BnestApp.Behaviour.ProxyModel,
+      BnestApp.Behaviour.Proxy.IntegrationAdapter,
+      BnestApp.Behaviour.Proxy.UnitAdapter,
+      # Failing test double defined in the home-page driver, exercised only
+      # by integration driver paths, never by unit runs.
+      BnestApp.Behaviour.FailingProgressStore,
       # Scenario adapters and shared models for runtime_configuration.feature
       # and operator_configuration.feature. They drive the configuration
       # surface, so the unit denominator leaves them out, as it does the
